@@ -44,12 +44,14 @@ public enum UserStatsRepository {
 
             TableUtils.createTableIfNotExists(connectionSource, UserStats.class);
             statsDao = DaoManager.createDao(connectionSource, UserStats.class);
-        } catch (SQLException ex) {
-            Logger.getLogger(UserStatsRepository.class).error("Error creating user_stats repository - ", ex);
+        } catch (Exception | LinkageError ex) { // LinkageError: the sqlite native library could not be loaded
+            // not fatal: the server runs without user stats (statsDao stays null and every call is a no-op)
+            Logger.getLogger(UserStatsRepository.class).error("Error creating user_stats repository, user stats are DISABLED", ex);
         }
     }
 
     public void add(UserStats userStats) {
+        if (statsDao == null) return;
         try {
             statsDao.create(userStats);
         } catch (SQLException ex) {
@@ -58,6 +60,7 @@ public enum UserStatsRepository {
     }
 
     public void update(UserStats userStats) {
+        if (statsDao == null) return;
         try {
             statsDao.update(userStats);
         } catch (SQLException ex) {
@@ -66,6 +69,7 @@ public enum UserStatsRepository {
     }
 
     public UserStats getUser(String userName) {
+        if (statsDao == null) return null;
         try {
             QueryBuilder<UserStats, Object> qb = statsDao.queryBuilder();
             qb.limit(1L).where().eq("userName", new SelectArg(userName));
@@ -80,6 +84,7 @@ public enum UserStatsRepository {
     }
 
     public List<UserStats> getAllUsers() {
+        if (statsDao == null) return Collections.emptyList();
         try {
             QueryBuilder<UserStats, Object> qb = statsDao.queryBuilder();
             return statsDao.query(qb.prepare());
@@ -90,6 +95,7 @@ public enum UserStatsRepository {
     }
 
     public long getLatestEndTimeMs() {
+        if (statsDao == null) return 0;
         try {
             QueryBuilder<UserStats, Object> qb = statsDao.queryBuilder();
             qb.orderBy("endTimeMs", false).limit(1L);
