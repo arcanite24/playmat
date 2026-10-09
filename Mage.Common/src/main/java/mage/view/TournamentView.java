@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import mage.game.tournament.LimitedOptions;
 import mage.game.tournament.Round;
 import mage.game.tournament.Tournament;
 import mage.game.tournament.TournamentPlayer;
@@ -47,7 +48,8 @@ public class TournamentView implements Serializable {
         startTime = tournament.getStartTime();
         endTime = tournament.getEndTime();
         stepStartTime = tournament.getStepStartTime();
-        constructionTime = tournament.getOptions().getLimitedOptions().getConstructionTime();
+        LimitedOptions limitedOptions = tournament.getOptions().getLimitedOptions();
+        constructionTime = limitedOptions == null ? 0 : limitedOptions.getConstructionTime();
         watchingAllowed = tournament.getOptions().isWatchingAllowed();
         serverTime = new Date();
         tournamentState = tournament.getTournamentState();
