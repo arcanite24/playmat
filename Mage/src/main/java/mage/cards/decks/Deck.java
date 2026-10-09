@@ -142,17 +142,38 @@ public class Deck implements Serializable, Copyable<Deck> {
 
     private static Card createCard(DeckCardInfo deckCardInfo, boolean mockCards, Map<String, CardInfo> cardInfoCache) {
         CardInfo cardInfo;
-        if (cardInfoCache != null) {
-            // from cache
-            String key = String.format("%s_%s", deckCardInfo.getSetCode(), deckCardInfo.getCardNumber());
-            cardInfo = cardInfoCache.getOrDefault(key, null);
-            if (cardInfo == null) {
+
+        // Check if we have complete set/number info (Java client always sends this)
+        // or if we only have card name (web client may send incomplete info)
+        boolean hasCompleteSetInfo = deckCardInfo.getSetCode() != null
+                && !deckCardInfo.getSetCode().isEmpty()
+                && deckCardInfo.getCardNumber() != null
+                && !deckCardInfo.getCardNumber().isEmpty();
+
+        if (hasCompleteSetInfo) {
+            // Complete info - use specific set/number lookup (existing behavior for Java client)
+            if (cardInfoCache != null) {
+                String key = String.format("%s_%s", deckCardInfo.getSetCode(), deckCardInfo.getCardNumber());
+                cardInfo = cardInfoCache.getOrDefault(key, null);
+                if (cardInfo == null) {
+                    cardInfo = CardRepository.instance.findCard(deckCardInfo.getSetCode(), deckCardInfo.getCardNumber());
+                    cardInfoCache.put(key, cardInfo);
+                }
+            } else {
                 cardInfo = CardRepository.instance.findCard(deckCardInfo.getSetCode(), deckCardInfo.getCardNumber());
-                cardInfoCache.put(key, cardInfo);
             }
         } else {
-            // from db
-            cardInfo = CardRepository.instance.findCard(deckCardInfo.getSetCode(), deckCardInfo.getCardNumber());
+            // Incomplete info - use name-based lookup (web client support)
+            if (cardInfoCache != null) {
+                String key = "name_" + deckCardInfo.getCardName();
+                cardInfo = cardInfoCache.getOrDefault(key, null);
+                if (cardInfo == null) {
+                    cardInfo = CardRepository.instance.findPreferredCoreExpansionCard(deckCardInfo.getCardName());
+                    cardInfoCache.put(key, cardInfo);
+                }
+            } else {
+                cardInfo = CardRepository.instance.findPreferredCoreExpansionCard(deckCardInfo.getCardName());
+            }
         }
 
         if (cardInfo == null) {
