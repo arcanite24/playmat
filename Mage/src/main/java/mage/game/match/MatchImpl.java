@@ -463,7 +463,8 @@ public abstract class MatchImpl implements Match {
         for (MatchPlayer matchPlayer : players) {
             matchPlayer.cleanUpOnMatchEnd();
         }
-        if ((!isSaveGameActivated && !isTournament) || this.getGame().isSimulation()) {
+        Game currentGame = this.getGame();
+        if ((!isSaveGameActivated && !isTournament) || (currentGame != null && currentGame.isSimulation())) {
             this.getGames().clear();
         }
     }
