@@ -24,6 +24,7 @@ import static mage.server.websocket.rpc.RpcParam.Type.INT;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.object;
 import static mage.server.websocket.rpc.RpcParam.of;
+import static mage.server.websocket.rpc.RpcParam.optionalObject;
 
 /**
  * Web client bridge: Career's single-player modes beyond the roster. Campaigns, the puzzle book, the weekly
@@ -144,11 +145,27 @@ final class CareerModesApi {
                             return CareerApi.store(() -> CareerGauntlet.get().state(user));
                         }),
                 RpcMethod.named("careerGauntletStart")
+                        .params(optionalObject("options", "StartOptions"))
                         .returns("CareerRun")
-                        .doc("Pay the entry and start a run: it offers starting packs to pick from.")
+                        .doc("Pay the entry and start a run: it offers starting packs to pick from. Options (all optional): mode "
+                                + "(map, bossrush or endless), variant (jumpstart, pauper, singleton, cube or draft), ascension (0 up to the "
+                                + "highest open), seed (a shared seed like K7Q2-9F3M), cubeId (one of getDraftCubes) or cubeCards (card "
+                                + "names of a deck used as the cube), setCode (the set to draft).")
                         .handler(call -> {
                             String user = profiled(ctx, call);
-                            return CareerApi.store(() -> CareerGauntlet.get().start(user));
+                            CareerGauntlet.StartOptions options = call.has(0)
+                                    ? call.object(0, CareerGauntlet.StartOptions.class) : new CareerGauntlet.StartOptions();
+                            return CareerApi.store(() -> CareerGauntlet.get().start(user, options));
+                        }),
+                RpcMethod.named("careerGauntletMove")
+                        .params(of("nodeId", STRING))
+                        .returns("CareerRun")
+                        .doc("Move to a node of the run's map that the current node links to: a fight waits to be played, a shop, "
+                                + "rest or event makes its offer.")
+                        .handler(call -> {
+                            String user = profiled(ctx, call);
+                            String nodeId = call.string(0);
+                            return CareerApi.store(() -> CareerGauntlet.get().move(user, nodeId));
                         }),
                 RpcMethod.named("careerGauntletPick")
                         .params(of("optionIds", ARRAY))
@@ -167,7 +184,7 @@ final class CareerModesApi {
                             String user = profiled(ctx, call);
                             CareerGauntlet.Plan plan = plan(() -> CareerGauntlet.get().plan(user));
                             String tableId = CareerApi.startMatch(ctx, call, user, plan.boss.name, "Limited", plan.playerDeck,
-                                    CareerApi.aiType(plan.boss.aiType), plan.boss.skill, plan.opponentDeck,
+                                    CareerApi.aiType(plan.boss.aiType), plan.skill, plan.opponentDeck,
                                     id -> CareerService.get().register(id, user, "gauntlet", plan.runId, plan.setup));
                             return match(tableId, "gauntlet:" + plan.runId, plan.opponentDeck);
                         }),

@@ -485,6 +485,11 @@
                                 <class>mage.server.career.CareerGauntlet$CareerOfferOption</class>
                                 <class>mage.server.career.CareerGauntlet$CareerRunCard</class>
                                 <class>mage.server.career.CareerGauntlet$CareerRunReward</class>
+                                <class>mage.server.career.CareerGauntlet$CareerRelic</class>
+                                <class>mage.server.career.CareerGauntlet$CareerRunNode</class>
+                                <class>mage.server.career.CareerGauntlet$CareerRunChoice</class>
+                                <class>mage.server.career.CareerGauntlet$CareerAscension</class>
+                                <class>mage.server.career.CareerGauntlet$StartOptions</class>
                                 <class>mage.server.career.CareerLimited$CareerLimitedState</class>
                                 <class>mage.server.career.CareerLimited$CareerLimitedRun</class>
                                 <class>mage.server.career.CareerLimited$CareerPoolCard</class>

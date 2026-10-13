@@ -102,5 +102,362 @@
     "extraCards": 1
    }
   }
+ ],
+ "map": {
+  "rows": 10,
+  "minNodes": 2,
+  "maxNodes": 3,
+  "fightCoins": 10,
+  "eliteCoins": 25,
+  "bundlePrice": 20,
+  "relicPrice": 45,
+  "healPrice": 15,
+  "woundLife": 2,
+  "eliteTwists": {
+   "lifeBonus": 5,
+   "extraCards": 1
+  }
+ },
+ "relics": [
+  {
+   "id": "signet",
+   "name": "Pocket Signet",
+   "text": "Start each fight with a Mind Stone in play.",
+   "you": {
+    "permanents": [
+     "Mind Stone"
+    ]
+   }
+  },
+  {
+   "id": "charm",
+   "name": "Healer's Charm",
+   "text": "Start each fight with 3 more life.",
+   "you": {
+    "lifeBonus": 3
+   }
+  },
+  {
+   "id": "satchel",
+   "name": "Scholar's Satchel",
+   "text": "Draw an extra card at the start of each fight.",
+   "you": {
+    "extraCards": 1
+   }
+  },
+  {
+   "id": "banner",
+   "name": "Banner of the Host",
+   "text": "Your creatures get +1/+1 (a Glorious Anthem emblem).",
+   "you": {
+    "emblem": "Glorious Anthem"
+   }
+  },
+  {
+   "id": "drum",
+   "name": "War Drum",
+   "text": "Your creatures have haste (a Fervor emblem).",
+   "you": {
+    "emblem": "Fervor"
+   }
+  },
+  {
+   "id": "second-wind",
+   "name": "Second Wind",
+   "text": "On turn five, gain 5 life.",
+   "you": {
+    "timed": [
+     {
+      "when": "turn",
+      "turn": 5,
+      "gainLife": 5,
+      "message": "Second Wind: 5 life."
+     }
+    ]
+   }
+  },
+  {
+   "id": "bauble",
+   "name": "Traveller's Bauble",
+   "text": "Start each fight with a Wayfarer's Bauble in play.",
+   "you": {
+    "permanents": [
+     "Wayfarer's Bauble"
+    ]
+   }
+  },
+  {
+   "id": "hedge",
+   "name": "Living Hedge",
+   "text": "Start each fight with a Wall of Wood in play.",
+   "you": {
+    "permanents": [
+     "Wall of Wood"
+    ]
+   }
+  },
+  {
+   "id": "thorns",
+   "name": "Crown of Thorns",
+   "text": "Every opponent starts with 3 less life.",
+   "opponent": {
+    "lifeBonus": -3
+   }
+  },
+  {
+   "id": "purse",
+   "name": "Coin Purse",
+   "text": "Each win pays 10 more run coins.",
+   "run": "purse"
+  },
+  {
+   "id": "map",
+   "name": "Smuggler's Map",
+   "text": "Shops cost a quarter less.",
+   "run": "discount"
+  },
+  {
+   "id": "bandages",
+   "name": "Field Bandages",
+   "text": "Elites leave no wound.",
+   "run": "bandages"
+  }
+ ],
+ "events": [
+  {
+   "id": "merchant",
+   "name": "A wandering merchant",
+   "text": "A cart blocks the road. The merchant has one thing left.",
+   "options": [
+    {
+     "id": "buy",
+     "label": "Pay 20 run coins for a relic",
+     "coins": -20,
+     "relic": true
+    },
+    {
+     "id": "pass",
+     "label": "Walk on"
+    }
+   ]
+  },
+  {
+   "id": "shrine",
+   "name": "A cracked shrine",
+   "text": "Something old hums in the stone. It wants a little of you.",
+   "options": [
+    {
+     "id": "pray",
+     "label": "Take a wound, gain a relic",
+     "wound": 1,
+     "relic": true
+    },
+    {
+     "id": "leave",
+     "label": "Leave it be"
+    }
+   ]
+  },
+  {
+   "id": "library",
+   "name": "An abandoned library",
+   "text": "Shelves of spellbooks, most of them burnt.",
+   "options": [
+    {
+     "id": "read",
+     "label": "Take a bundle for your deck",
+     "bundle": true
+    },
+    {
+     "id": "rest",
+     "label": "Sleep among the shelves: heal a wound",
+     "heal": 1
+    }
+   ]
+  },
+  {
+   "id": "gambler",
+   "name": "The gambler",
+   "text": "Heads, you win. Tails, you bleed.",
+   "options": [
+    {
+     "id": "bet",
+     "label": "Flip: 30 run coins or a wound",
+     "gamble": true
+    },
+    {
+     "id": "pass",
+     "label": "No thanks"
+    }
+   ]
+  },
+  {
+   "id": "spring",
+   "name": "A clear spring",
+   "text": "Cold water, and quiet.",
+   "options": [
+    {
+     "id": "drink",
+     "label": "Heal every wound",
+     "heal": 99
+    },
+    {
+     "id": "fill",
+     "label": "Fill your flasks: 15 run coins",
+     "coins": 15
+    }
+   ]
+  },
+  {
+   "id": "forge",
+   "name": "A roadside forge",
+   "text": "The smith offers to trade.",
+   "options": [
+    {
+     "id": "trade",
+     "label": "Pay 10 run coins for a bundle",
+     "coins": -10,
+     "bundle": true
+    },
+    {
+     "id": "pass",
+     "label": "Walk on"
+    }
+   ]
+  }
+ ],
+ "ascension": [
+  {
+   "level": 1,
+   "title": "Ascendant I",
+   "text": "The final boss starts with 5 more life.",
+   "target": "boss",
+   "twists": {
+    "lifeBonus": 5
+   }
+  },
+  {
+   "level": 2,
+   "title": "Ascendant II",
+   "text": "Elites draw another card.",
+   "target": "elite",
+   "twists": {
+    "extraCards": 1
+   }
+  },
+  {
+   "level": 3,
+   "title": "Ascendant III",
+   "text": "Every opponent starts with 2 more life.",
+   "target": "all",
+   "twists": {
+    "lifeBonus": 2
+   }
+  },
+  {
+   "level": 4,
+   "title": "Ascendant IV",
+   "text": "Shops cost a quarter more.",
+   "target": "run",
+   "run": "markup"
+  },
+  {
+   "level": 5,
+   "title": "Ascendant V",
+   "text": "You start every fight with 2 less life.",
+   "target": "you",
+   "twists": {
+    "lifeBonus": -2
+   }
+  },
+  {
+   "level": 6,
+   "title": "Ascendant VI",
+   "text": "Bundles offer two choices, not three.",
+   "target": "run",
+   "run": "fewerBundles"
+  },
+  {
+   "level": 7,
+   "title": "Ascendant VII",
+   "text": "Opponents play one skill higher.",
+   "target": "all",
+   "skill": 1
+  },
+  {
+   "level": 8,
+   "title": "Ascendant VIII",
+   "text": "Wounds cost 3 life, not 2.",
+   "target": "run",
+   "run": "deepWounds"
+  },
+  {
+   "level": 9,
+   "title": "Ascendant IX",
+   "text": "The final boss has a Glorious Anthem emblem.",
+   "target": "boss",
+   "twists": {
+    "emblem": "Glorious Anthem"
+   }
+  },
+  {
+   "level": 10,
+   "title": "Ascendant X",
+   "text": "Every opponent draws an extra card.",
+   "target": "all",
+   "twists": {
+    "extraCards": 1
+   }
+  }
+ ],
+ "endless": {
+  "lifeStep": 2,
+  "cardEvery": 2,
+  "skillStep": 1,
+  "maxSkill": 10
+ },
+ "variants": [
+  {
+   "id": "jumpstart",
+   "name": "Jumpstart",
+   "text": "Two of three themed 20-card packs."
+  },
+  {
+   "id": "pauper",
+   "name": "Pauper",
+   "text": "Packs of commons only, from Jumpstart and Core Set 2021."
+  },
+  {
+   "id": "singleton",
+   "name": "Singleton",
+   "text": "Highlander packs: one copy of every card, any rarity."
+  },
+  {
+   "id": "cube",
+   "name": "Cube",
+   "text": "Packs cut from a cube uploaded to this server."
+  },
+  {
+   "id": "draft",
+   "name": "Draft",
+   "text": "Draft three packs against seven bots, then run the deck."
+  }
+ ],
+ "modes": [
+  {
+   "id": "map",
+   "name": "The map",
+   "text": "A branching route: fights, elites, shops, rests and events up to the last boss."
+  },
+  {
+   "id": "bossrush",
+   "name": "Boss rush",
+   "text": "Every ladder opponent back to back with one deck. No bundles."
+  },
+  {
+   "id": "endless",
+   "name": "Endless",
+   "text": "Opponents that keep getting tougher until you lose. Score is your wins."
+  }
  ]
 }

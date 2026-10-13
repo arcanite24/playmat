@@ -52,6 +52,8 @@ public final class CareerContent {
         public CareerCover cover;
         /** what the opponent says during a game */
         public CareerLines lines;
+        /** the starter decks' measured win rate against this opponent, in percent (CALIBRATION.md); null if unmeasured */
+        public Integer measured;
     }
 
     /** An AI opponent's few lines: as the game starts, after a big play, at low life, and as it ends either way. */
@@ -184,6 +186,11 @@ public final class CareerContent {
 
     public static String aiSeatName(String opponentName) {
         return opponentName.length() > MAX_AI_NAME_LENGTH ? opponentName.substring(0, MAX_AI_NAME_LENGTH).trim() : opponentName;
+    }
+
+    /** the measured starter win rate against an opponent: higher is easier; 50 when it wasn't measured */
+    public static int measuredWinRate(Opponent opponent) {
+        return opponent.measured == null ? 50 : opponent.measured;
     }
 
     public List<Tier> tiers() {

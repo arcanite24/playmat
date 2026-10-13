@@ -201,6 +201,7 @@ export function twistLines(twists: CareerTwists | undefined): Line[] {
   const lines: Line[] = [];
   if (twists.startingLife != null) lines.push({ key: 'career.twist.life', vars: { life: twists.startingLife } });
   if (twists.extraCards) lines.push({ key: 'career.twist.cards', vars: { count: twists.extraCards } });
+  if (twists.lifeBonus) lines.push({ key: 'career.twist.lifeBonus', vars: { life: twists.lifeBonus > 0 ? `+${twists.lifeBonus}` : String(twists.lifeBonus) } });
   for (const entry of twists.permanents ?? []) {
     const card = twistCard(entry);
     if (card.name) lines.push({ key: card.tapped ? 'career.twist.permanentTapped' : 'career.twist.permanent', vars: { name: card.name } });

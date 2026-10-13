@@ -32,6 +32,23 @@ public final class Leaderboards {
     /** Career puzzles: board = puzzle id, v1 = stars (more is better), v2 = attempts to first solve (fewer is better) */
     public static final String PUZZLE = "puzzle";
 
+    /** the gauntlet map: board = "a" + ascension level, v1 = wins (more is better), v2 = relics (more is better) */
+    public static final String GAUNTLET = "gauntlet";
+    /** the highest ascension cleared: board "all", v1 = level, v2 = wins */
+    public static final String ASCENSION = "ascension";
+    /** one seed's runs, to compare with friends who played it: board = the seed, v1 = wins */
+    public static final String GAUNTLET_SEED = "gauntlet-seed";
+    /** boss rush: board "all", v1 = bosses beaten */
+    public static final String BOSS_RUSH = "boss-rush";
+    /** endless: board "all", v1 = wins */
+    public static final String ENDLESS = "endless";
+    /** solo limited runs: board = the run's kind and shape (sealed, draft, sealed-arena, ...), v1 = wins, v2 = losses (fewer is better) */
+    public static final String LIMITED = "limited";
+    /** the daily puzzle: board = the day (2026-10-13), v1 = attempts to solve (fewer is better), v2 = seconds (fewer is better) */
+    public static final String DAILY_PUZZLE = "daily-puzzle";
+    /** a horde: board = the horde's id, v1 = turns survived (more is better), v2 = life left (more is better) */
+    public static final String HORDE = "horde";
+
     public static final String SCOPE_SERVER = "server";
     public static final String SCOPE_FRIENDS = "friends";
 
@@ -104,6 +121,14 @@ public final class Leaderboards {
     private Leaderboards() {
         register(new Spec(WEEKLY_CHALLENGE, "Weekly challenge", false, "Turns", true, "Life left"));
         register(new Spec(PUZZLE, "Puzzle", true, "Stars", false, "Tries"));
+        register(new Spec(GAUNTLET, "Gauntlet", true, "Wins", true, "Relics"));
+        register(new Spec(ASCENSION, "Ascension", true, "Level", true, "Wins"));
+        register(new Spec(GAUNTLET_SEED, "Seeded run", true, "Wins", true, ""));
+        register(new Spec(BOSS_RUSH, "Boss rush", true, "Bosses", true, ""));
+        register(new Spec(ENDLESS, "Endless", true, "Wins", true, ""));
+        register(new Spec(LIMITED, "Limited", true, "Wins", false, "Losses"));
+        register(new Spec(DAILY_PUZZLE, "Daily puzzle", false, "Tries", false, "Seconds"));
+        register(new Spec(HORDE, "Horde", true, "Turns", true, "Life left"));
     }
 
     public static Leaderboards get() {

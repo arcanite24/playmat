@@ -42,6 +42,8 @@ public final class CareerSetup implements GameSetup {
         private static final long serialVersionUID = 1L;
         /** life the opponent starts with */
         public Integer startingLife;
+        /** life added to (or, negative, taken from) the starting life: relics, wounds, ascension */
+        public int lifeBonus;
         /** cards the opponent draws on top of the opening hand */
         public int extraCards;
         /** cards the opponent starts with in play; "Name" or "Name|tapped" */
@@ -242,11 +244,18 @@ public final class CareerSetup implements GameSetup {
     private final Puzzle puzzle;
     /** a table of more than two: the game ends when the player is out */
     private final boolean pod;
+    /** the player's own edges (a gauntlet run's relics and wounds), or null */
+    private final CareerTwists you;
 
-    private CareerSetup(CareerTwists twists, Puzzle puzzle, boolean pod) {
+    private CareerSetup(CareerTwists twists, Puzzle puzzle, boolean pod, CareerTwists you) {
         this.twists = twists;
         this.puzzle = puzzle;
         this.pod = pod;
+        this.you = you;
+    }
+
+    private CareerSetup(CareerTwists twists, Puzzle puzzle, boolean pod) {
+        this(twists, puzzle, pod, null);
     }
 
     private CareerSetup(CareerTwists twists, Puzzle puzzle) {
@@ -255,7 +264,7 @@ public final class CareerSetup implements GameSetup {
 
     /** a pod's setup: the given one (or none) that also ends the game once the player is out */
     public static CareerSetup pod(CareerSetup setup) {
-        return setup == null ? new CareerSetup(null, null, true) : new CareerSetup(setup.twists, setup.puzzle, true);
+        return setup == null ? new CareerSetup(null, null, true) : new CareerSetup(setup.twists, setup.puzzle, true, setup.you);
     }
 
     @Override
@@ -263,14 +272,66 @@ public final class CareerSetup implements GameSetup {
         return pod;
     }
 
+    /** whether twists change nothing */
+    static boolean empty(CareerTwists twists) {
+        return twists == null || (twists.startingLife == null && twists.lifeBonus == 0 && twists.extraCards <= 0
+                && (twists.permanents == null || twists.permanents.isEmpty()) && twists.emblem == null
+                && (twists.timed == null || twists.timed.isEmpty()));
+    }
+
     /** null when the twists change nothing */
     public static CareerSetup ofTwists(CareerTwists twists) {
-        if (twists == null || (twists.startingLife == null && twists.extraCards <= 0
-                && (twists.permanents == null || twists.permanents.isEmpty()) && twists.emblem == null
-                && (twists.timed == null || twists.timed.isEmpty()))) {
+        if (empty(twists)) {
             return null;
         }
         return new CareerSetup(twists, null);
+    }
+
+    /** the opponent's twists and the player's own edges; null when neither changes anything */
+    public static CareerSetup ofRun(CareerTwists opponent, CareerTwists you) {
+        if (empty(opponent) && empty(you)) {
+            return null;
+        }
+        return new CareerSetup(empty(opponent) ? null : opponent, null, false, empty(you) ? null : you);
+    }
+
+    /** the player's own edges, or null */
+    public CareerTwists yours() {
+        return you;
+    }
+
+    /** two sets of twists as one: lives and cards add up, permanents and timed twists join, the later emblem wins */
+    public static CareerTwists combine(CareerTwists a, CareerTwists b) {
+        if (a == null) {
+            return b;
+        }
+        if (b == null) {
+            return a;
+        }
+        CareerTwists both = new CareerTwists();
+        both.startingLife = b.startingLife != null ? b.startingLife : a.startingLife;
+        both.lifeBonus = a.lifeBonus + b.lifeBonus;
+        both.extraCards = a.extraCards + b.extraCards;
+        if (a.permanents != null || b.permanents != null) {
+            both.permanents = new ArrayList<>();
+            if (a.permanents != null) {
+                both.permanents.addAll(a.permanents);
+            }
+            if (b.permanents != null) {
+                both.permanents.addAll(b.permanents);
+            }
+        }
+        both.emblem = b.emblem != null ? b.emblem : a.emblem;
+        if (a.timed != null || b.timed != null) {
+            both.timed = new ArrayList<>();
+            if (a.timed != null) {
+                both.timed.addAll(a.timed);
+            }
+            if (b.timed != null) {
+                both.timed.addAll(b.timed);
+            }
+        }
+        return both;
     }
 
     public static CareerSetup ofPuzzle(Puzzle puzzle) {
@@ -315,6 +376,11 @@ public final class CareerSetup implements GameSetup {
             if (player.getId().equals(humanId)) {
                 if (puzzle != null) {
                     side(game, player, puzzle.you);
+                } else if (you != null) {
+                    edge(game, player, you, " starts with");
+                    if (you.timed != null && !you.timed.isEmpty()) {
+                        CareerTimedTwists.add(game, player, humanId, you.timed);
+                    }
                 }
             } else if (puzzle != null) {
                 side(game, player, puzzle.opponent);
@@ -358,6 +424,9 @@ public final class CareerSetup implements GameSetup {
         if (twists.startingLife != null) {
             player.setLife(twists.startingLife, game, null);
         }
+        if (twists.lifeBonus != 0) {
+            player.setLife(Math.max(1, player.getLife() + twists.lifeBonus), game, null);
+        }
         if (twists.extraCards > 0) {
             player.drawCards(twists.extraCards, null, game);
         }
@@ -392,6 +461,9 @@ public final class CareerSetup implements GameSetup {
         List<String> parts = new ArrayList<>();
         if (twists.startingLife != null) {
             parts.add(twists.startingLife + " life");
+        }
+        if (twists.lifeBonus != 0) {
+            parts.add((twists.lifeBonus > 0 ? "+" : "") + twists.lifeBonus + " life");
         }
         if (twists.extraCards > 0) {
             parts.add(twists.extraCards + (twists.extraCards == 1 ? " extra card" : " extra cards"));

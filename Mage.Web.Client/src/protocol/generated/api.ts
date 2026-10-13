@@ -2,7 +2,7 @@
 // Regenerate: mvn -pl Mage.Server test -Dtest=WebClientApiDocsTest -Dxmage.updateWebApiDocs=true
 
 import type { RpcMethodName, RpcMethods, UUID } from './protocol';
-import type { CardCriteria, ClientError, DeckCardInfo, DeckCardLists, JobSpec, ManaType, PlayerAction, UserData } from './views';
+import type { CardCriteria, ClientError, DeckCardInfo, DeckCardLists, JobSpec, ManaType, PlayerAction, StartOptions, UserData } from './views';
 import type { WebCardFilters, WebMatchOptions, WebTournamentOptions } from '../options';
 
 export interface RpcCaller {
@@ -357,8 +357,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerChallengePlay'),
     careerGauntlet: () =>
       rpc.call('careerGauntlet'),
-    careerGauntletStart: () =>
-      rpc.call('careerGauntletStart'),
+    careerGauntletStart: (options?: StartOptions | null) =>
+      rpc.call('careerGauntletStart', options),
+    careerGauntletMove: (nodeId: string) =>
+      rpc.call('careerGauntletMove', nodeId),
     careerGauntletPick: (optionIds: unknown[]) =>
       rpc.call('careerGauntletPick', optionIds),
     careerGauntletPlay: () =>

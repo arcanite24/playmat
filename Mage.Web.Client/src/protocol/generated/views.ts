@@ -330,6 +330,12 @@ export interface CareerAchievement {
     xp?: number;
 }
 
+export interface CareerAscension {
+    level?: number;
+    text?: string;
+    title?: string;
+}
+
 export interface CareerCampaign {
     bosses?: number;
     chapters?: CareerChapter[];
@@ -431,12 +437,17 @@ export interface CareerGameResult {
 }
 
 export interface CareerGauntletState {
+    ascension?: CareerAscension[];
+    ascensionOpen?: number;
     bestWins?: number;
     entryCoins?: number;
     maxWins?: number;
+    modes?: CareerRunChoice[];
     recent?: CareerRun[];
+    relics?: CareerRelic[];
     rewards?: CareerRunReward[];
     run?: CareerRun;
+    variants?: CareerRunChoice[];
 }
 
 export interface CareerLesson {
@@ -550,16 +561,25 @@ export interface CareerNode {
 }
 
 export interface CareerOffer {
+    draftPick?: number;
+    event?: string;
     kind?: string;
+    node?: string;
     options?: CareerOfferOption[];
     pick?: number;
+    round?: number;
+    text?: string;
+    title?: string;
 }
 
 export interface CareerOfferOption {
     cards?: CareerRunCard[];
     color?: string;
     id?: string;
+    kind?: string;
     name?: string;
+    price?: number;
+    text?: string;
 }
 
 export interface CareerOpponent {
@@ -677,6 +697,15 @@ export interface CareerQuests {
     today?: string;
 }
 
+export interface CareerRelic {
+    id?: string;
+    name?: string;
+    opponent?: CareerTwists;
+    run?: string;
+    text?: string;
+    you?: CareerTwists;
+}
+
 export interface CareerReward {
     coins?: number;
     cosmetics?: CareerCosmetic[];
@@ -688,19 +717,31 @@ export interface CareerReward {
 }
 
 export interface CareerRun {
+    ascension?: number;
+    ascensionTitle?: string;
+    at?: string;
     bosses?: CareerRunBoss[];
+    choices?: string[];
     colors?: string;
     deck?: CareerRunCard[];
     deckSize?: number;
     ended?: number;
     id?: string;
     losses?: number;
+    map?: CareerRunNode[][];
     maxWins?: number;
+    mode?: string;
     next?: CareerRunBoss;
     offer?: CareerOffer;
+    relics?: CareerRelic[];
+    runCoins?: number;
+    seed?: string;
     started?: number;
     state?: string;
+    variant?: string;
     wins?: number;
+    woundLife?: number;
+    wounds?: number;
 }
 
 export interface CareerRunBoss {
@@ -710,6 +751,7 @@ export interface CareerRunBoss {
     number?: number;
     skill?: number;
     twists?: CareerTwists;
+    type?: string;
 }
 
 export interface CareerRunCard {
@@ -717,6 +759,21 @@ export interface CareerRunCard {
     cardNumber?: string;
     name?: string;
     setCode?: string;
+}
+
+export interface CareerRunChoice {
+    id?: string;
+    name?: string;
+    text?: string;
+}
+
+export interface CareerRunNode {
+    id?: string;
+    links?: string[];
+    opponent?: CareerRunBoss;
+    row?: number;
+    state?: string;
+    type?: string;
 }
 
 export interface CareerRunReward {
@@ -772,6 +829,7 @@ export interface CareerTip {
 export interface CareerTwists extends Serializable {
     emblem?: string;
     extraCards?: number;
+    lifeBonus?: number;
     permanents?: string[];
     startingLife?: number;
     timed?: TimedTwist[];
@@ -1611,6 +1669,16 @@ export interface StaffResetCode {
     email?: string;
     emailed?: boolean;
     expiresAt?: number;
+}
+
+export interface StartOptions {
+    ascension?: number;
+    cubeCards?: string[];
+    cubeId?: string;
+    mode?: string;
+    seed?: string;
+    setCode?: string;
+    variant?: string;
 }
 
 export interface TableClientMessage extends Serializable {

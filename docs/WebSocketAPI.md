@@ -299,7 +299,8 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerChallenge` | - | `CareerChallenge` | session | This week's challenge (the same fixed deck and opponent for everyone), your best result and the board. |
 | `careerChallengePlay` | - | `CareerMatch` | session | Play this week's challenge. A win counts on the board by fewest turns, then most life left. |
 | `careerGauntlet` | - | `CareerGauntletState` | session | The gauntlet: the entry price, rewards by wins, the run in progress (with its deck, bosses and any pick waiting) and recent runs. |
-| `careerGauntletStart` | - | `CareerRun` | session | Pay the entry and start a run: it offers starting packs to pick from. |
+| `careerGauntletStart` | `options?: StartOptions` | `CareerRun` | session | Pay the entry and start a run: it offers starting packs to pick from. Options (all optional): mode (map, bossrush or endless), variant (jumpstart, pauper, singleton, cube or draft), ascension (0 up to the highest open), seed (a shared seed like K7Q2-9F3M), cubeId (one of getDraftCubes) or cubeCards (card names of a deck used as the cube), setCode (the set to draft). |
+| `careerGauntletMove` | `nodeId: string` | `CareerRun` | session | Move to a node of the run's map that the current node links to: a fight waits to be played, a shop, rest or event makes its offer. |
 | `careerGauntletPick` | `optionIds: unknown[]` | `CareerRun` | session | Take the waiting offer: as many starting packs as it asks for, or one bundle after a win. |
 | `careerGauntletPlay` | - | `CareerMatch` | session | Play the run's next boss with the run's deck. |
 | `careerGauntletAbandon` | - | `CareerRun` | session | Give up the run in progress. It pays nothing. |

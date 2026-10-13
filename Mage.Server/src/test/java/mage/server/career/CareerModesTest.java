@@ -459,7 +459,9 @@ public class CareerModesTest {
     public void aGauntletRunPicksPlaysAndPaysByWins() throws Exception {
         CareerGauntlet gauntlet = CareerGauntlet.get();
         int coins = store.profile("Ana").coins;
-        CareerGauntlet.CareerRun run = gauntlet.start("Ana");
+        CareerGauntlet.StartOptions endless = new CareerGauntlet.StartOptions();
+        endless.mode = CareerGauntlet.MODE_ENDLESS;
+        CareerGauntlet.CareerRun run = gauntlet.start("Ana", endless);
         assertEquals(coins - gauntlet.rules().entryCoins, store.profile("Ana").coins);
         assertThrows(CareerService.CareerException.class, () -> gauntlet.start("Ana"), "one run at a time");
         assertThrows(CareerService.CareerException.class, () -> gauntlet.plan("Ana"), "pick first");

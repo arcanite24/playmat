@@ -410,41 +410,64 @@ public final class CareerLimited {
             }
             notePassed(data.passed, mine, draft.pick);
             data.picks.add(grade(mine, index, myPool, draft.round, draft.pick));
-            myPool.add(mine.remove(index));
-            for (int seat = 1; seat < SEATS; seat++) {
-                List<CareerPoolCard> pack = draft.packs.get(seat);
-                if (!pack.isEmpty()) {
-                    draft.pools.get(seat).add(pack.remove(botPick(pack, draft.pools.get(seat))));
+            if (draftStep(draft, index, data.setCode)) {
+                data.pool = draft.pools.get(0);
+                for (int seat = 1; seat <= WINS + LOSSES - 1; seat++) {
+                    data.opponents.add(build(draft.pools.get(seat)));
                 }
-            }
-            // pass: left in the first and third packs, right in the second
-            if (draft.round % 2 == 1) {
-                Collections.rotate(draft.packs, 1);
-            } else {
-                Collections.rotate(draft.packs, -1);
-            }
-            draft.pick++;
-            if (draft.packs.get(0).isEmpty()) {
-                if (draft.round < DRAFT_PACKS) {
-                    draft.round++;
-                    draft.pick = 1;
-                    for (int seat = 0; seat < SEATS; seat++) {
-                        draft.packs.set(seat, boosters.apply(data.setCode));
-                    }
-                } else {
-                    data.pool = draft.pools.get(0);
-                    for (int seat = 1; seat <= WINS + LOSSES - 1; seat++) {
-                        data.opponents.add(build(draft.pools.get(seat)));
-                    }
-                    keep(store, user, data.pool);
-                    data.draft = null;
-                    data.phase = "build";
-                }
+                keep(store, user, data.pool);
+                data.draft = null;
+                data.phase = "build";
             }
             row.data = gson.toJson(data);
             store.putRun(user, row);
             return view(row);
         }));
+    }
+
+    /** a new draft of a set: a pack for each seat */
+    Draft newDraft(String setCode) {
+        Draft draft = new Draft();
+        for (int seat = 0; seat < SEATS; seat++) {
+            draft.packs.add(boosters.apply(setCode));
+            draft.pools.add(new ArrayList<>());
+        }
+        return draft;
+    }
+
+    /**
+     * One pick: the player (seat 0) takes the card at {@code index}, each bot takes its own, and the packs pass (left,
+     * right, left). A spent pack opens the next round's packs.
+     *
+     * @return whether the draft is over; the player's picks are then {@code draft.pools.get(0)}
+     */
+    boolean draftStep(Draft draft, int index, String setCode) {
+        List<CareerPoolCard> mine = draft.packs.get(0);
+        draft.pools.get(0).add(mine.remove(index));
+        for (int seat = 1; seat < SEATS; seat++) {
+            List<CareerPoolCard> pack = draft.packs.get(seat);
+            if (!pack.isEmpty()) {
+                draft.pools.get(seat).add(pack.remove(botPick(pack, draft.pools.get(seat))));
+            }
+        }
+        if (draft.round % 2 == 1) {
+            Collections.rotate(draft.packs, 1);
+        } else {
+            Collections.rotate(draft.packs, -1);
+        }
+        draft.pick++;
+        if (draft.packs.get(0).isEmpty()) {
+            if (draft.round < DRAFT_PACKS) {
+                draft.round++;
+                draft.pick = 1;
+                for (int seat = 0; seat < SEATS; seat++) {
+                    draft.packs.set(seat, boosters.apply(setCode));
+                }
+            } else {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** a bot takes the best card, keeping to its two main colours once it has a few picks */
@@ -867,7 +890,7 @@ public final class CareerLimited {
     }
 
     /** basic lands without a printing get the preferred one, so the deck loads */
-    private static DeckCardInfo withPrinting(DeckCardInfo card) {
+    static DeckCardInfo withPrinting(DeckCardInfo card) {
         if (card.getSetCode() != null && card.getCardNumber() != null) {
             return card;
         }

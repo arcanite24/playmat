@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import type {
-  CareerGameResult, CareerGauntletState, CareerLimitedRun, CareerLimitedState, CareerMatch, CareerRun, DeckCardLists as WireDeck,
+  CareerGameResult, CareerGauntletState, CareerLimitedRun, CareerLimitedState, CareerMatch, CareerRun, DeckCardLists as WireDeck, StartOptions,
 } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { queryClient } from '../queries';
@@ -151,13 +151,17 @@ function setRun(run: CareerRun): void {
   void queryClient.invalidateQueries({ queryKey: KEY.gauntlet });
 }
 
-export async function startGauntlet(): Promise<void> {
-  setRun(await api.careerGauntletStart());
+export async function startGauntlet(options?: StartOptions): Promise<void> {
+  setRun(await api.careerGauntletStart(options ?? null));
   walletChanged();
 }
 
 export async function pickGauntlet(optionIds: string[]): Promise<void> {
   setRun(await api.careerGauntletPick(optionIds));
+}
+
+export async function moveGauntlet(nodeId: string): Promise<void> {
+  setRun(await api.careerGauntletMove(nodeId));
 }
 
 export async function abandonGauntlet(): Promise<void> {
