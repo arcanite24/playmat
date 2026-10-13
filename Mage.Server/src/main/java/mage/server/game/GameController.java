@@ -880,9 +880,16 @@ public class GameController implements GameCallback {
             problem.append("You aren't playing in this game.");
             return null;
         }
-        if (mage.server.career.CareerService.get().isCareerTable(tableId)) {
-            problem.append("Advice is off in Career games.");
-            return null;
+        mage.server.career.CareerService.CareerTable career = mage.server.career.CareerService.get().tableInfo(tableId);
+        if (career != null) {
+            if (!career.allowsAssists()) {
+                problem.append("Puzzles and trials are tests of their own: no hints here.");
+                return null;
+            }
+            if (career.hintsUsed >= mage.server.career.CareerService.HINTS_PER_GAME) {
+                problem.append("You've used this game's " + mage.server.career.CareerService.HINTS_PER_GAME + " hints.");
+                return null;
+            }
         }
         long humans = game.getPlayers().values().stream().filter(Player::isHuman).count();
         if (humans != 1 || !player.isHuman()) {
@@ -1699,6 +1706,10 @@ public class GameController implements GameCallback {
         }
 
         return fixedAlready;
+    }
+
+    public UUID getGameId() {
+        return game.getId();
     }
 
     public UUID getTableId() {

@@ -207,6 +207,14 @@ final class CareerModesApi {
                             int index = call.integer(0);
                             return CareerApi.store(() -> CareerLimited.get().pick(user, index));
                         }),
+                RpcMethod.named("careerLimitedCoach")
+                        .returns("CareerLimitedCoach")
+                        .doc("The pool coach: every colour pair of the run's pool ranked by its ratings, removal, bombs and curve, "
+                                + "each with its reasons and a 40-card build to start from.")
+                        .handler(call -> {
+                            String user = profiled(ctx, call);
+                            return CareerApi.store(() -> CareerLimited.get().coach(user));
+                        }),
                 RpcMethod.named("careerLimitedDeck")
                         .params(object("deck", "DeckCardLists"))
                         .returns("CareerLimitedRun")

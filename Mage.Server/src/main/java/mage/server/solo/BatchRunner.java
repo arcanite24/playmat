@@ -15,6 +15,8 @@ import mage.players.PlayerType;
 import mage.server.admin.RuntimeSettings;
 import mage.server.game.GameFactory;
 import mage.server.game.PlayerFactory;
+import mage.server.replay.ReplayRecorder;
+import mage.server.replay.ReplayStore;
 import mage.util.RandomUtil;
 import mage.util.ThreadUtils;
 import org.apache.log4j.Logger;
@@ -73,7 +75,12 @@ public final class BatchRunner {
         public int maxTurns = 30;
         public String gameType = "Two Player Duel";
         public String deckType = "Constructed - Freeform";
+        /** keep the replays of this many of the closest games (the matchup lab); 0 records none */
+        public int keepReplays;
     }
+
+    /** replays a job may keep */
+    public static final int MAX_KEPT_REPLAYS = 5;
 
     /** One game's outcome. */
     public static class GameRecord {
@@ -84,6 +91,16 @@ public final class BatchRunner {
         public int turns;
         /** who played first: "A" or "B" */
         public String first;
+        /** life totals when it ended */
+        public int lifeA;
+        public int lifeB;
+        /** the recorded game, while it's one of the job's closest */
+        public String replayId;
+
+        /** how close it was: the smaller, the closer (a draw at the turn limit is close; a blowout isn't) */
+        public int margin() {
+            return "draw".equals(winner) ? 0 : Math.abs(lifeA - lifeB);
+        }
     }
 
     /** The score so far. */
@@ -93,7 +110,12 @@ public final class BatchRunner {
         public int draws;
         public int errors;
         public long turns;
+        /** games A played first, and won of those */
+        public int aFirst;
+        public int aFirstWins;
         public final List<GameRecord> games = new ArrayList<>();
+        /** the closest games, whose replays are kept */
+        public final List<GameRecord> closest = new ArrayList<>();
 
         int played() {
             return games.size();
@@ -129,7 +151,7 @@ public final class BatchRunner {
     private volatile GamePlayer player = BatchRunner::playGame;
 
     interface GamePlayer {
-        GameRecord play(JobSpec spec, int n, long seed) throws Exception;
+        GameRecord play(JobSpec spec, int n, long seed, String owner) throws Exception;
     }
 
     public static BatchRunner get() {
@@ -235,6 +257,7 @@ public final class BatchRunner {
         if (spec.maxTurns < 1 || spec.maxTurns > MAX_TURNS) {
             throw new IllegalArgumentException("Games stop at turn 1 to " + MAX_TURNS + ".");
         }
+        spec.keepReplays = Math.max(0, Math.min(MAX_KEPT_REPLAYS, spec.keepReplays));
         spec.skillA = Math.max(1, Math.min(10, spec.skillA));
         spec.skillB = Math.max(1, Math.min(10, spec.skillB));
         if (!"Two Player Duel".equals(spec.gameType)) {
@@ -305,7 +328,7 @@ public final class BatchRunner {
             if (job.cancelled.get()) {
                 return;
             }
-            record = player.play(job.spec, n, job.spec.seed + n);
+            record = player.play(job.spec, n, job.spec.seed + n, job.row.user);
         } catch (Throwable e) {
             logger.warn("Batch: game " + n + " of job " + job.row.id + " failed", e);
             record = new GameRecord();
@@ -333,6 +356,15 @@ public final class BatchRunner {
                         job.result.errors++;
                 }
                 job.result.turns += record.turns;
+                if ("A".equals(record.first)) {
+                    job.result.aFirst++;
+                    if ("A".equals(record.winner)) {
+                        job.result.aFirstWins++;
+                    }
+                }
+                keepIfClose(job, record);
+            } else if (record != null && record.replayId != null) {
+                ReplayStore.get().remove(record.replayId);
             }
             last = job.inFlight.decrementAndGet() == 0 && (job.cancelled.get() || job.next.get() >= job.spec.games);
             try {
@@ -345,6 +377,26 @@ public final class BatchRunner {
         }
         if (last) {
             finish(job);
+        }
+    }
+
+    /** a recorded game stays while it's one of the job's closest; the one it pushes out goes */
+    private static void keepIfClose(Running job, GameRecord record) {
+        if (record.replayId == null) {
+            return;
+        }
+        if ("error".equals(record.winner) || job.spec.keepReplays <= 0) {
+            ReplayStore.get().remove(record.replayId);
+            record.replayId = null;
+            return;
+        }
+        List<GameRecord> closest = job.result.closest;
+        closest.add(record);
+        closest.sort((a, b) -> a.margin() != b.margin() ? Integer.compare(a.margin(), b.margin()) : Integer.compare(b.turns, a.turns));
+        while (closest.size() > job.spec.keepReplays) {
+            GameRecord out = closest.remove(closest.size() - 1);
+            ReplayStore.get().remove(out.replayId);
+            out.replayId = null;
         }
     }
 
@@ -374,7 +426,7 @@ public final class BatchRunner {
     }
 
     /** one seeded game between the two decks; even games A plays first, odd ones B */
-    static GameRecord playGame(JobSpec spec, int n, long seed) throws Exception {
+    static GameRecord playGame(JobSpec spec, int n, long seed, String owner) throws Exception {
         MatchOptions options = new MatchOptions("batch", spec.gameType, false);
         options.setDeckType(spec.deckType);
         Match match = GameFactory.instance.createMatch(spec.gameType, options);
@@ -405,6 +457,11 @@ public final class BatchRunner {
         GameRecord record = new GameRecord();
         record.n = n;
         record.seed = seed;
+        ReplayRecorder recorder = spec.keepReplays > 0
+                ? ReplayRecorder.startBatch(game, spec.nameA + " vs " + spec.nameB + " #" + (n + 1), owner) : null;
+        if (recorder != null) {
+            record.replayId = recorder.gameId();
+        }
         boolean aFirst = n % 2 == 0;
         record.first = aFirst ? "A" : "B";
         AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -419,6 +476,11 @@ public final class BatchRunner {
         thread.start();
         thread.join(GAME_TIMEOUT_MS);
         record.turns = game.getTurnNum();
+        record.lifeA = game.getPlayer(a.getId()).getLife();
+        record.lifeB = game.getPlayer(b.getId()).getLife();
+        if (recorder != null) {
+            recorder.finish(game.getWinner());
+        }
         if (thread.isAlive()) {
             game.setGameStopped(true);
             thread.interrupt();

@@ -57,6 +57,11 @@ export function useGauntlet(enabled: boolean) {
   return useQuery({ queryKey: KEY.gauntlet, queryFn: () => api.careerGauntlet(), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
 
+/** the pool coach's colour pairs for the run being built (S020) */
+export function useLimitedCoach(runId: string, enabled: boolean) {
+  return useQuery({ queryKey: [...KEY.limited, 'coach', runId], queryFn: () => api.careerLimitedCoach(), enabled: useSignedIn() && enabled && !!runId, staleTime: Infinity });
+}
+
 export function useLimited(enabled: boolean) {
   return useQuery({ queryKey: KEY.limited, queryFn: () => api.careerLimited(), enabled: useSignedIn() && enabled, staleTime: 0 });
 }

@@ -44,3 +44,9 @@
   background: rgb(var(--oxblood-rgb) / 0.3);
   color: var(--oxblood-ink);
 }
+
+.reason {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+}

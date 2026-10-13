@@ -209,6 +209,8 @@ public final class CareerProgress {
         public List<String> opened = new ArrayList<>();
         /** what a Career mode made of the game; null for a roster duel or a regular game */
         public CareerModeResult mode;
+        /** what helped the player in this game (a hint, a take-back), which halves its pay; null when nothing did */
+        public String assisted;
     }
 
     private static volatile CareerProgress instance;

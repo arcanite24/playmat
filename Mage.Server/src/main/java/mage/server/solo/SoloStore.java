@@ -42,6 +42,15 @@ public final class SoloStore implements AutoCloseable {
                     "CREATE TABLE scores (mode TEXT NOT NULL, board TEXT NOT NULL, user TEXT NOT NULL, v1 INTEGER,"
                             + " v2 INTEGER, attempts INTEGER NOT NULL DEFAULT 1, detail TEXT, at INTEGER NOT NULL,"
                             + " PRIMARY KEY (mode, board, user))"
+            },
+            {
+                    // S013, S014: every turn of a solo game, to play it again from any turn (a what-if line), live or
+                    // from its replay
+                    "CREATE TABLE game_lines (game_id TEXT PRIMARY KEY, user TEXT NOT NULL, created INTEGER NOT NULL,"
+                            + " updated INTEGER NOT NULL, table_info BLOB NOT NULL)",
+                    "CREATE INDEX game_lines_by_user ON game_lines (user, updated)",
+                    "CREATE TABLE turn_snapshots (game_id TEXT NOT NULL, turn INTEGER NOT NULL, active TEXT NOT NULL,"
+                            + " at INTEGER NOT NULL, snapshot BLOB NOT NULL, PRIMARY KEY (game_id, turn))"
             }
     };
 
@@ -224,6 +233,109 @@ public final class SoloStore implements AutoCloseable {
                         + " (PARTITION BY user ORDER BY updated DESC) AS n FROM saved_games) WHERE n > ?)")) {
             statement.setInt(1, keepPerUser);
             removed += statement.executeUpdate();
+        }
+        return removed;
+    }
+
+    // ---- turns of solo games (what-if lines)
+
+    public static class TurnRow {
+        public int turn;
+        /** whose turn it is */
+        public String active;
+        public long at;
+    }
+
+    /** a solo game's table, to set it up again from any of its turns */
+    public synchronized void putLine(String gameId, String user, byte[] tableInfo) throws SQLException {
+        long now = System.currentTimeMillis();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO game_lines (game_id, user, created, updated, table_info) VALUES (?, ?, ?, ?, ?)"
+                        + " ON CONFLICT (game_id) DO UPDATE SET updated = excluded.updated, table_info = excluded.table_info")) {
+            statement.setString(1, gameId);
+            statement.setString(2, user);
+            statement.setLong(3, now);
+            statement.setLong(4, now);
+            statement.setBytes(5, tableInfo);
+            statement.executeUpdate();
+        }
+    }
+
+    public synchronized void putTurn(String gameId, int turn, String active, byte[] snapshot) throws SQLException {
+        long now = System.currentTimeMillis();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT OR REPLACE INTO turn_snapshots (game_id, turn, active, at, snapshot) VALUES (?, ?, ?, ?, ?)")) {
+            statement.setString(1, gameId);
+            statement.setInt(2, turn);
+            statement.setString(3, active == null ? "" : active);
+            statement.setLong(4, now);
+            statement.setBytes(5, snapshot);
+            statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement("UPDATE game_lines SET updated = ? WHERE game_id = ?")) {
+            statement.setLong(1, now);
+            statement.setString(2, gameId);
+            statement.executeUpdate();
+        }
+    }
+
+    /** the owner of a game's line, or null when there's none */
+    public synchronized String lineOwner(String gameId) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT user FROM game_lines WHERE game_id = ?")) {
+            statement.setString(1, gameId);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() ? rows.getString(1) : null;
+            }
+        }
+    }
+
+    public synchronized List<TurnRow> turns(String gameId) throws SQLException {
+        List<TurnRow> turns = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT turn, active, at FROM turn_snapshots WHERE game_id = ? ORDER BY turn")) {
+            statement.setString(1, gameId);
+            try (ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    TurnRow row = new TurnRow();
+                    row.turn = rows.getInt(1);
+                    row.active = rows.getString(2);
+                    row.at = rows.getLong(3);
+                    turns.add(row);
+                }
+            }
+        }
+        return turns;
+    }
+
+    /** [table info, snapshot] of a game at the start of a turn, for its owner; null when there's no such turn */
+    public synchronized byte[][] loadTurn(String gameId, int turn, String user) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT l.table_info, t.snapshot FROM game_lines l JOIN turn_snapshots t ON t.game_id = l.game_id"
+                        + " WHERE l.game_id = ? AND l.user = ? AND t.turn = ?")) {
+            statement.setString(1, gameId);
+            statement.setString(2, user);
+            statement.setInt(3, turn);
+            try (ResultSet rows = statement.executeQuery()) {
+                return rows.next() ? new byte[][]{rows.getBytes(1), rows.getBytes(2)} : null;
+            }
+        }
+    }
+
+    /** lines older than {@code before}, and past a player's newest {@code keepPerUser}, go with their turns */
+    public synchronized int pruneLines(long before, int keepPerUser) throws SQLException {
+        int removed;
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM game_lines WHERE updated < ?")) {
+            statement.setLong(1, before);
+            removed = statement.executeUpdate();
+        }
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM game_lines WHERE game_id IN (SELECT game_id FROM (SELECT game_id, ROW_NUMBER() OVER"
+                        + " (PARTITION BY user ORDER BY updated DESC) AS n FROM game_lines) WHERE n > ?)")) {
+            statement.setInt(1, keepPerUser);
+            removed += statement.executeUpdate();
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM turn_snapshots WHERE game_id NOT IN (SELECT game_id FROM game_lines)");
         }
         return removed;
     }
@@ -425,12 +537,15 @@ public final class SoloStore implements AutoCloseable {
 
     /** removes every row an account owns (when the account is deleted) */
     public synchronized void deleteUser(String user) throws SQLException {
-        for (String table : new String[]{"saved_games", "jobs", "scores"}) {
+        for (String table : new String[]{"saved_games", "jobs", "scores", "game_lines"}) {
             try (PreparedStatement statement = connection.prepareStatement("DELETE FROM " + table + " WHERE user = ?")) {
                 // leaderboards key players by their lower-case name
                 statement.setString(1, table.equals("scores") ? user.toLowerCase(java.util.Locale.ENGLISH) : user);
                 statement.executeUpdate();
             }
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM turn_snapshots WHERE game_id NOT IN (SELECT game_id FROM game_lines)");
         }
     }
 

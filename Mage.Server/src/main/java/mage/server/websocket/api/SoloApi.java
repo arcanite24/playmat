@@ -100,8 +100,9 @@ final class SoloApi {
                         .params(gameId(), of("sessionId", STRING))
                         .session(1)
                         .returns("SoloTable")
-                        .doc("Free play against the computer: start this turn again at a new table (the same cards in the same "
-                                + "places, the same draws to come), and leave this game.")
+                        .doc("A game against the computer: start this turn again at a new table (the same cards in the same "
+                                + "places, the same draws to come), and leave this game. Free play: as often as you like. Career: once a "
+                                + "game outside puzzles and trials, and the game then pays half (a take-back).")
                         .handler(call -> {
                             String user = CareerApi.user(ctx, call);
                             UUID gameId = call.uuid(0);
@@ -112,7 +113,16 @@ final class SoloApi {
                             } catch (IllegalArgumentException e) {
                                 throw RpcException.invalidParams(e.getMessage());
                             }
-                            SoloViews.SoloTable table = start(ctx, call, user, fork);
+                            SoloViews.SoloTable table;
+                            try {
+                                table = start(ctx, call, user, fork);
+                            } catch (RpcException | RuntimeException e) {
+                                if (fork.info.career != null) {
+                                    // the game carries on where it was, still playing for its Career pay
+                                    CareerService.get().adopt(tableId, fork.info.career);
+                                }
+                                throw e;
+                            }
                             try {
                                 ctx.server.matchQuit(gameId, call.sessionId());
                             } catch (Exception e) {
@@ -121,13 +131,77 @@ final class SoloApi {
                             return table;
                         }),
 
+                RpcMethod.named("soloTurns")
+                        .params(gameId())
+                        .returns("SoloTurn[]")
+                        .doc("The turns of one of your games against the computer that can be played again (a what-if line), "
+                                + "oldest first. Every turn of your latest games is kept, running or over.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            List<SoloViews.SoloTurn> turns = new ArrayList<>();
+                            for (SoloStore.TurnRow row : store(() -> SoloGames.get().turns(call.uuid(0), user))) {
+                                turns.add(SoloViews.SoloTurn.of(row));
+                            }
+                            return turns;
+                        }),
+                RpcMethod.named("soloWhatIf")
+                        .params(gameId(), of("turn", INT), of("sessionId", STRING))
+                        .session(2)
+                        .returns("SoloTable")
+                        .doc("Play one of your games against the computer again from the start of one of its turns, at a new "
+                                + "table: a what-if line, always free play. A running game you're in is kept as a saved game first, "
+                                + "untouched, and left; a Career game can be tried again this way once it's over.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            UUID gameId = call.uuid(0);
+                            UUID liveTable = SoloGames.get().tableOfGame(gameId);
+                            if (liveTable != null && SoloGames.get().isCareerGame(gameId)) {
+                                throw RpcException.invalidParams("Finish the Career game first: then play any turn of it again from its replay.");
+                            }
+                            SoloGames.Resume line;
+                            try {
+                                line = store(() -> SoloGames.get().whatIf(gameId, call.integer(1), user));
+                            } catch (IllegalArgumentException e) {
+                                throw RpcException.invalidParams(e.getMessage());
+                            }
+                            if (liveTable != null) {
+                                // the game it branches from stays as it was: kept, to resume later
+                                String problem = SoloGames.get().keep(liveTable, user);
+                                if (problem != null) {
+                                    throw RpcException.invalidParams(problem);
+                                }
+                            }
+                            SoloViews.SoloTable table = start(ctx, call, user, line);
+                            if (liveTable != null) {
+                                try {
+                                    ctx.server.matchQuit(gameId, call.sessionId());
+                                } catch (Exception e) {
+                                    logger.warn("Solo: the game a what-if branched from couldn't be left", e);
+                                }
+                            }
+                            return table;
+                        }),
+                RpcMethod.named("soloAssists")
+                        .params(gameId(), of("sessionId", STRING))
+                        .session(1)
+                        .returns("Assists")
+                        .doc("What you may still ask for in this game against the computer: hints (the AI's advice) and taking "
+                                + "back the turn. Unlimited in free play; in Career three hints and one take-back a game, outside puzzles "
+                                + "and trials, and any of them halves the game's pay.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            UUID tableId = SoloGames.get().tableOfGame(call.uuid(0));
+                            return SoloGames.get().assists(tableId, user);
+                        }),
+
                 // ---- advice
                 RpcMethod.named("gameAdvise")
                         .params(gameId(), of("sessionId", STRING), optional("skill", INT))
                         .session(1)
                         .returns("Advice")
                         .doc("What the AI would do in your place right now, without doing it: what to play, how to attack or block. "
-                                + "Only in a game against the computer, outside Career; ask while the game waits for you.")
+                                + "Only in a game against the computer; ask while the game waits for you. In Career it's a hint: three a game, "
+                                + "none in puzzles and trials, and the game then pays half.")
                         .handler(call -> {
                             GameController controller = ctx.managers.gameManager().getGameController().get(call.uuid(0));
                             if (controller == null) {

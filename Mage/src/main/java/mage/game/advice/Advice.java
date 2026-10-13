@@ -56,6 +56,10 @@ public class Advice implements Serializable {
     public String when;
     /** how long the advisor thought, in milliseconds */
     public long millis;
+    /** why, in one line: "Removes their best blocker", "Holding mana up beats any play here" */
+    public String reason;
+    /** hints left in this game, where hints are counted (Career); null where they aren't */
+    public Integer hintsLeft;
 
     public static Advice none(String why) {
         Advice advice = new Advice();

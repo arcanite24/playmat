@@ -64,6 +64,10 @@ public class MatchOptions implements Serializable {
         return multiPlayer;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public String getName() {
         return name;
     }

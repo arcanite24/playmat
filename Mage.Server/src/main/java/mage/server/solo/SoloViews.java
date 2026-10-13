@@ -105,4 +105,38 @@ public final class SoloViews {
         public int gamesInFlight;
         public List<BatchJob> jobs = new ArrayList<>();
     }
+
+    /** What the player of a solo game may still ask for (S010, S011). */
+    public static class Assists {
+        /** whether a hint (the AI's advice) is on offer now */
+        public boolean hints;
+        /** hints left in the game; null where they aren't counted (free play) */
+        public Integer hintsLeft;
+        /** whether a turn can be taken back now */
+        public boolean takeBack;
+        /** take-backs left; null where they aren't counted (free play) */
+        public Integer takeBacksLeft;
+        /** a Career game: help is counted and halves the pay */
+        public boolean career;
+        /** what has helped already in this Career game, or null */
+        public String assisted;
+        /** why nothing is on offer, when nothing is */
+        public String why;
+    }
+
+    /** A turn of a solo game that can be played again (S013, S014). */
+    public static class SoloTurn {
+        public int turn;
+        /** whose turn it is */
+        public String active;
+        public long at;
+
+        public static SoloTurn of(SoloStore.TurnRow row) {
+            SoloTurn turn = new SoloTurn();
+            turn.turn = row.turn;
+            turn.active = row.active;
+            turn.at = row.at;
+            return turn;
+        }
+    }
 }

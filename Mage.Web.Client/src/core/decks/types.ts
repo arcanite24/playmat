@@ -29,6 +29,24 @@ export interface DeckImportSource {
   importedName?: string;
 }
 
+/** A number of copies of a card, by name, in a sideboard plan. */
+export interface PlanCard {
+  name: string;
+  count: number;
+}
+
+/** What to bring in and take out against one kind of deck (S018). */
+export interface SideboardPlan {
+  id: string;
+  /** "Aggro", "Control", or the player's own label */
+  archetype: string;
+  /** applied on its own when sideboarding in a best-of-three against the computer */
+  default?: boolean;
+  in: PlanCard[];
+  out: PlanCard[];
+  note?: string;
+}
+
 export interface DeckCardLists {
   id?: string;
   name?: string;
@@ -51,4 +69,6 @@ export interface DeckCardLists {
   };
   createdAt?: number;
   updatedAt?: number;
+  /** what to swap against each kind of deck between games */
+  sideboardPlans?: SideboardPlan[];
 }

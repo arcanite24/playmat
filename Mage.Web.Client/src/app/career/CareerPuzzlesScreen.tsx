@@ -30,6 +30,14 @@ export function CareerPuzzlesScreen() {
   const chosen = list.find((puzzle) => puzzle.id === chosenId) ?? list.find((puzzle) => puzzle.open && !puzzle.solved) ?? list[0];
   const solved = list.filter((puzzle) => puzzle.solved).length;
   const stars = list.reduce((sum, puzzle) => sum + (puzzle.stars ?? 0), 0);
+  // the book first, then each series (S021's stack drills) in the order they come
+  const groups: { series: string; puzzles: CareerPuzzle[] }[] = [];
+  for (const puzzle of list) {
+    const series = puzzle.series ?? '';
+    const group = groups.find((item) => item.series === series);
+    if (group) group.puzzles.push(puzzle);
+    else groups.push({ series, puzzles: [puzzle] });
+  }
 
   return (
     <div className={styles.page}>
@@ -45,30 +53,37 @@ export function CareerPuzzlesScreen() {
         {puzzles.isPending && <p className={styles.note}>{t('career.loading')}</p>}
         {puzzles.isError && <p className={styles.error} role="alert">{t('career.failed')}</p>}
         <div className={styles.split}>
-          <ol className={styles.puzzleList} aria-label={t('career.puzzles.title')}>
-            {list.map((puzzle) => (
-              <li key={puzzle.id}>
-                <button
-                  type="button"
-                  className={[styles.puzzleTile, puzzle.id === chosen?.id ? styles.puzzleTileOn : '', puzzle.open ? '' : styles.puzzleLocked].join(' ')}
-                  aria-pressed={puzzle.id === chosen?.id}
-                  aria-label={[
-                    t('career.puzzle.numbered', { number: puzzle.number ?? 0, name: puzzle.name ?? '' }),
-                    t(puzzle.solved ? 'career.puzzle.solved' : puzzle.open ? 'career.node.open' : 'career.node.locked'),
-                    t('career.puzzle.stars', { count: puzzle.stars ?? 0 }),
-                  ].join(', ')}
-                  onClick={() => setChosenId(puzzle.id ?? null)}
-                >
-                  <span className={styles.puzzleNumber} aria-hidden="true">{puzzle.number}</span>
-                  <span className={styles.puzzleName} aria-hidden="true">{puzzle.name}</span>
-                  <span className={styles.puzzleMark} aria-hidden="true">
-                    {!puzzle.open ? <Lock size={14} /> : puzzle.solved ? <Check size={14} /> : null}
-                  </span>
-                  <span aria-hidden="true"><Stars stars={puzzle.stars} size={12} /></span>
-                </button>
-              </li>
+          <div className={styles.puzzleGroups}>
+            {groups.map((group) => (
+              <section key={group.series} aria-label={group.series || t('career.puzzles.book')}>
+                {groups.length > 1 && <h2 className={styles.subhead}>{group.series || t('career.puzzles.book')}</h2>}
+                <ol className={styles.puzzleList} aria-label={group.series || t('career.puzzles.title')}>
+                  {group.puzzles.map((puzzle) => (
+                    <li key={puzzle.id}>
+                      <button
+                        type="button"
+                        className={[styles.puzzleTile, puzzle.id === chosen?.id ? styles.puzzleTileOn : '', puzzle.open ? '' : styles.puzzleLocked].join(' ')}
+                        aria-pressed={puzzle.id === chosen?.id}
+                        aria-label={[
+                          t('career.puzzle.numbered', { number: puzzle.number ?? 0, name: puzzle.name ?? '' }),
+                          t(puzzle.solved ? 'career.puzzle.solved' : puzzle.open ? 'career.node.open' : 'career.node.locked'),
+                          t('career.puzzle.stars', { count: puzzle.stars ?? 0 }),
+                        ].join(', ')}
+                        onClick={() => setChosenId(puzzle.id ?? null)}
+                      >
+                        <span className={styles.puzzleNumber} aria-hidden="true">{puzzle.number}</span>
+                        <span className={styles.puzzleName} aria-hidden="true">{puzzle.name}</span>
+                        <span className={styles.puzzleMark} aria-hidden="true">
+                          {!puzzle.open ? <Lock size={14} /> : puzzle.solved ? <Check size={14} /> : null}
+                        </span>
+                        <span aria-hidden="true"><Stars stars={puzzle.stars} size={12} /></span>
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              </section>
             ))}
-          </ol>
+          </div>
           {chosen && <PuzzleDetail key={chosen.id} puzzle={chosen} />}
         </div>
       </div>
@@ -106,6 +121,7 @@ function PuzzleDetail({ puzzle }: { puzzle: CareerPuzzle }) {
           </span>
         </header>
         <p className={styles.puzzleGoal}>{puzzle.text}</p>
+        <p className={styles.small}>{objectiveLine(t, puzzle)}</p>
         <p className={styles.small}>
           {t('career.puzzle.attempts', { count: puzzle.attempts ?? 0 })} · {t('career.puzzle.starRule')}
         </p>
@@ -137,6 +153,12 @@ function PuzzleDetail({ puzzle }: { puzzle: CareerPuzzle }) {
       </div>
     </article>
   );
+}
+
+function objectiveLine(t: ReturnType<typeof useT>, puzzle: CareerPuzzle): string {
+  if (puzzle.objective === 'protect') return t('career.puzzle.objectiveProtect', { name: puzzle.protect ?? '' });
+  if (puzzle.objective === 'survive') return t('career.puzzle.objectiveSurvive');
+  return t('career.puzzle.objectiveWin');
 }
 
 const ZONE_KEYS: Record<'battlefield' | 'hand' | 'graveyard', MessageKey> = {

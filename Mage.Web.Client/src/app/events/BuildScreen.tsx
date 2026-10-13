@@ -12,7 +12,9 @@ import { useT } from '../i18n';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { BASICS, countBasics, initialMain, isBasic, toDeckLists, type BasicName } from './buildDeck';
+import { applyPlan } from '../../core/decks/sideboardPlans';
 import { curveColumns, faceOf, poolEntry, poolKey, type PoolCard } from './pool';
+import { SideboardPlanBar } from './SideboardPlanBar';
 import styles from './Build.module.css';
 
 /** Deck building for an event: after a draft or with a sealed pool, and sideboarding between games. */
@@ -116,6 +118,16 @@ function Builder({ construct }: { construct: ConstructState }) {
         </div>
       </header>
       {lesson && <SideboardLesson text={lesson} />}
+      {construct.kind === 'sideboard' && !construct.limited && (
+        <SideboardPlanBar
+          deckName={construct.deck.name}
+          disabled={construct.submitted}
+          onApply={(plan) => {
+            setTouched(true);
+            setMain((current) => applyPlan(pool.map((card) => ({ id: card.id!, name: info.get(poolKey(card))?.name ?? card.name ?? '' })), current, plan));
+          }}
+        />
+      )}
 
       <section className={styles.zone} aria-label={`Card pool, ${inPool.length} cards`}>
         <div className={styles.zoneHead}>

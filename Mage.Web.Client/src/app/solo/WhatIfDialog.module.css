@@ -1,0 +1,31 @@
+.quiet {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.turns {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.turns li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  color: var(--ink-strong);
+}
+
+.turns small {
+  color: var(--ink-dim);
+}

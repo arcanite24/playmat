@@ -38,4 +38,6 @@ public class ReplayInfo {
     public int events;
     /** the recording stopped early (the game outgrew the limit, or the server stopped) */
     public boolean truncated;
+    /** an AI-against-AI game kept from a player's batch (matchup lab): not in the shared list, only linked from it */
+    public String batchOwner;
 }

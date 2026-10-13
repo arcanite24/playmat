@@ -112,7 +112,7 @@ public final class ReplayStore {
         try (DirectoryStream<Path> files = Files.newDirectoryStream(settings.dir, "*" + INFO_SUFFIX)) {
             for (Path file : files) {
                 ReplayInfo info = readInfo(file);
-                if (info != null && Files.exists(eventsFile(info.gameId))) {
+                if (info != null && info.batchOwner == null && Files.exists(eventsFile(info.gameId))) {
                     infos.add(info);
                 }
             }
@@ -211,6 +211,11 @@ public final class ReplayStore {
         } catch (IOException e) {
             logger.warn("Can't clean unfinished replays in " + settings.dir + ": " + e);
         }
+    }
+
+    /** a recorded game goes (a batch game that wasn't one of the closest) */
+    public void remove(String gameId) {
+        delete(gameId);
     }
 
     private void delete(String gameId) {

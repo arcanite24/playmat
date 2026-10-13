@@ -307,3 +307,51 @@
 :global([data-touch]) .mute {
   min-height: var(--touch-target, 0px);
 }
+
+.why {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  vertical-align: -3px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.why:hover,
+.why[aria-expanded='true'] {
+  color: var(--ink-strong);
+  background: rgb(var(--ink-rgb) / 0.1);
+}
+
+.why:focus-visible {
+  outline: 2px solid var(--decision);
+  outline-offset: 1px;
+}
+
+.rule {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--decision);
+  border-radius: 4px;
+  background: rgb(var(--ink-rgb) / 0.06);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.rule b {
+  color: var(--ink-strong);
+}
+
+.rule small {
+  color: var(--ink-dim);
+}

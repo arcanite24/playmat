@@ -40,6 +40,12 @@ public final class CareerPuzzles {
         public boolean open;
         public CareerSetup.CareerPuzzleSide you;
         public CareerSetup.CareerPuzzleSide opponent;
+        /** "win", "survive" or "protect" */
+        public String objective;
+        /** for "protect": the permanent to keep */
+        public String protect;
+        /** the series it belongs to; null for the main book */
+        public String series;
     }
 
     private static volatile CareerPuzzles instance;
@@ -99,11 +105,15 @@ public final class CareerPuzzles {
     public List<CareerPuzzle> puzzles(String user) throws SQLException {
         Map<String, long[]> results = CareerStore.get().puzzleResults(user);
         List<CareerPuzzle> views = new ArrayList<>();
-        // puzzles open in order: the next one unsolved, and every one before it; the first three are always open
-        boolean previousSolved = true;
+        // puzzles open in order: the next one unsolved, and every one before it; the first three of the book are always
+        // open, and the first of each series
+        Map<String, Boolean> previousSolved = new LinkedHashMap<>();
+        Map<String, Integer> inSeries = new LinkedHashMap<>();
         int number = 0;
         for (CareerSetup.Puzzle puzzle : puzzles.values()) {
             number++;
+            String series = puzzle.series == null ? "" : puzzle.series;
+            int place = inSeries.merge(series, 1, Integer::sum);
             long[] result = results.get(puzzle.id);
             CareerPuzzle view = new CareerPuzzle();
             view.id = puzzle.id;
@@ -114,10 +124,13 @@ public final class CareerPuzzles {
             view.attempts = result == null ? 0 : (int) result[0];
             view.stars = result == null ? 0 : (int) result[1];
             view.solved = result != null && result[2] > 0;
-            view.open = number <= 3 || previousSolved || view.solved;
+            view.open = place <= (series.isEmpty() ? 3 : 1) || previousSolved.getOrDefault(series, true) || view.solved;
             view.you = puzzle.you;
             view.opponent = puzzle.opponent;
-            previousSolved = view.solved;
+            view.objective = puzzle.objective == null ? "win" : puzzle.objective;
+            view.protect = puzzle.protect;
+            view.series = puzzle.series;
+            previousSolved.put(series, view.solved);
             views.add(view);
         }
         return views;

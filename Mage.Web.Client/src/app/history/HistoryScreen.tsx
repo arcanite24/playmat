@@ -83,7 +83,7 @@ export function HistoryScreen() {
           )}
           <ul className={styles.list}>
             {shownReplays.map((replay) => (
-              <ReplayRow key={replay.gameId} replay={replay} me={me} onWatch={() => navigate(`/replay/${replay.gameId}`)} />
+              <ReplayRow key={replay.gameId} replay={replay} me={me} onWatch={() => navigate(`/replay/${replay.gameId}`)} onReview={() => navigate(`/review/${replay.gameId}`)} />
             ))}
           </ul>
         </Zone>
@@ -120,7 +120,8 @@ function MatchRow({ match, me, replayIds, onReplay }: { match: MatchView; me: st
   );
 }
 
-function ReplayRow({ replay, me, onWatch }: { replay: ReplayInfo; me: string; onWatch(): void }) {
+function ReplayRow({ replay, me, onWatch, onReview }: { replay: ReplayInfo; me: string; onWatch(): void; onReview(): void }) {
+  const played = (replay.players ?? []).some((player) => player.name === me);
   const names = (replay.players ?? []).map((player) => player.name ?? '').filter(Boolean);
   const minutes = replay.startedAt && replay.endedAt ? Math.max(1, Math.round((replay.endedAt - replay.startedAt) / 60_000)) : null;
   return (
@@ -141,6 +142,7 @@ function ReplayRow({ replay, me, onWatch }: { replay: ReplayInfo; me: string; on
         <p className={styles.result}>{describeResult(replay.result)}</p>
       </div>
       <div className={styles.actions}>
+        {played && <Button size="sm" variant="quiet" onClick={onReview}>Review</Button>}
         <Button size="sm" icon={<Clapperboard size={15} />} onClick={onWatch}>Watch</Button>
       </div>
     </li>

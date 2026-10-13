@@ -63,7 +63,7 @@ public class SoloFoundationsTest {
 
     @Test
     public void savedGamesListKeepAndPrune() throws Exception {
-        assertEquals(1, store.schemaVersion());
+        assertEquals(2, store.schemaVersion(), "saves, then what-if lines");
         store.saveGame("t1", "Ana", SoloGames.AUTO, false, 3, "Ana vs Bot", "Bot", "Two Player Duel", new byte[]{1}, new byte[]{2, 3});
         store.saveGame("t2", "Ana", SoloGames.AUTO, true, 5, "Career", "Wren", "Two Player Duel", new byte[]{1}, new byte[]{4});
         store.saveGame("t3", "Bea", SoloGames.AUTO, false, 1, "Bea vs Bot", "Bot", "Two Player Duel", new byte[]{1}, new byte[]{5});
@@ -167,13 +167,73 @@ public class SoloFoundationsTest {
         return board.entries.stream().map(entry -> entry.user).collect(java.util.stream.Collectors.toList());
     }
 
+    // ---- what-if lines (S013, S014)
+
+    @Test
+    public void turnsAreKeptPerGameForTheirOwner() throws Exception {
+        String game = java.util.UUID.randomUUID().toString();
+        store.putLine(game, "Ana", new byte[]{1});
+        store.putTurn(game, 1, "Ana", new byte[]{10});
+        store.putTurn(game, 2, "Computer", new byte[]{20});
+        store.putTurn(game, 2, "Computer", new byte[]{21}); // a turn written again replaces itself
+        assertEquals("Ana", store.lineOwner(game));
+        assertEquals(2, store.turns(game).size());
+        assertEquals("Computer", store.turns(game).get(1).active);
+        byte[][] second = store.loadTurn(game, 2, "Ana");
+        assertNotNull(second);
+        assertEquals(1, second[0][0], "the table");
+        assertEquals(21, second[1][0], "the newest snapshot of the turn");
+        assertNull(store.loadTurn(game, 2, "Bea"), "only the owner plays a game's turns again");
+        assertNull(store.loadTurn(game, 3, "Ana"));
+
+        // pruning: past the newest line per player, a line goes with its turns
+        String newer = java.util.UUID.randomUUID().toString();
+        Thread.sleep(5);
+        store.putLine(newer, "Ana", new byte[]{2});
+        assertEquals(1, store.pruneLines(0, 1));
+        assertNull(store.lineOwner(game));
+        assertTrue(store.turns(game).isEmpty());
+        assertEquals("Ana", store.lineOwner(newer));
+    }
+
+    @Test
+    public void aMatchupKeepsOnlyTheClosestGamesReplays() throws Exception {
+        BatchRunner runner = BatchRunner.get();
+        runner.use((spec, n, seed, owner) -> {
+            BatchRunner.GameRecord record = new BatchRunner.GameRecord();
+            record.n = n;
+            record.seed = seed;
+            record.turns = 8;
+            record.winner = n % 2 == 0 ? "A" : "B";
+            record.first = "A";
+            record.lifeA = n % 2 == 0 ? 2 * n + 1 : 0;
+            record.lifeB = n % 2 == 0 ? 0 : 2 * n + 1;
+            record.replayId = java.util.UUID.randomUUID().toString();
+            return record;
+        });
+        try {
+            BatchRunner.JobSpec spec = spec(5);
+            spec.keepReplays = 2;
+            SoloStore.JobRow row = runner.submit("Ana", "matchup", spec);
+            runner.drain(10_000);
+            BatchRunner.JobResult result = BatchRunner.result(store.job(row.id));
+            assertEquals(2, result.closest.size(), "the two closest games keep their replays");
+            assertEquals(1, result.closest.get(0).margin());
+            assertEquals(3, result.closest.get(1).margin());
+            long kept = result.games.stream().filter(game -> game.replayId != null).count();
+            assertEquals(2, kept, "the others' replays are gone");
+        } finally {
+            runner.use(BatchRunner::playGame);
+        }
+    }
+
     // ---- batches
 
     @Test
     public void batchesRunWithinTheQuotaAndKeepScore() throws Exception {
         BatchRunner runner = BatchRunner.get();
         AtomicInteger played = new AtomicInteger();
-        runner.use((spec, n, seed) -> {
+        runner.use((spec, n, seed, owner) -> {
             played.incrementAndGet();
             BatchRunner.GameRecord record = new BatchRunner.GameRecord();
             record.n = n;
@@ -227,7 +287,7 @@ public class SoloFoundationsTest {
         assertEquals(0, settings.batchConcurrency());
         BatchRunner runner = BatchRunner.get();
         AtomicInteger played = new AtomicInteger();
-        runner.use((spec, n, seed) -> {
+        runner.use((spec, n, seed, owner) -> {
             played.incrementAndGet();
             return null;
         });

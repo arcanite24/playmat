@@ -10,6 +10,7 @@ export default {
   'shell.nav.decks': 'Decks',
   'shell.nav.events': 'Events',
   'shell.nav.tables': 'Tables',
+  'shell.nav.train': 'Train',
   'shell.nav.history': 'History',
   'shell.reconnecting': 'Reconnecting…',
   'shell.offline': 'Offline',

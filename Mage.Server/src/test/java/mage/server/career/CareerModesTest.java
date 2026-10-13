@@ -195,9 +195,10 @@ public class CareerModesTest {
                     "each chapter opens a set");
         }
 
-        assertEquals(20, CareerPuzzles.get().puzzles().size(), "twenty puzzles");
+        assertEquals(25, CareerPuzzles.get().puzzles().size(), "twenty puzzles and the five stack drills");
         for (CareerSetup.Puzzle puzzle : CareerPuzzles.get().puzzles().values()) {
             assertNotNull(puzzle.name, puzzle.id);
+            assertNull(puzzle.problem(), puzzle.id + ": " + puzzle.problem());
             assertNotNull(puzzle.hint, puzzle.id + " has a hint");
             side(puzzle.id + " you", puzzle.you);
             side(puzzle.id + " opponent", puzzle.opponent);

@@ -92,6 +92,7 @@ const router = createBrowserRouter([
       { path: '/game/:gameId', lazy: () => import('./screens/GameScreen').then((m) => ({ Component: m.GameScreen })) },
       { path: '/draft/:draftId', lazy: () => import('./events/DraftScreen').then((m) => ({ Component: m.DraftScreen })) },
       { path: '/build/:tableId', lazy: () => import('./events/BuildScreen').then((m) => ({ Component: m.BuildScreen })) },
+      { path: '/review/:gameId', lazy: () => import('./review/ReviewScreen').then((m) => ({ Component: m.ReviewScreen })) },
       { path: '/replay/:gameId', lazy: () => import('./replay/ReplayScreen').then((m) => ({ Component: m.ReplayScreen })) },
       {
         element: <AppShell />,
@@ -127,6 +128,8 @@ const router = createBrowserRouter([
               { path: ':mode', lazy: () => import('./career/CareerModesRoute').then((m) => ({ Component: m.CareerModesRoute })) },
             ],
           },
+          { path: '/train', lazy: () => import('./train/TrainScreen').then((m) => ({ Component: m.TrainScreen })) },
+          { path: '/train/:tool', lazy: () => import('./train/TrainScreen').then((m) => ({ Component: m.TrainScreen })) },
           { path: '/history', lazy: () => import('./history/HistoryScreen').then((m) => ({ Component: m.HistoryScreen })) },
         ],
       },

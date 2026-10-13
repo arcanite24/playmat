@@ -371,6 +371,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerLimitedStart', kind, setCode),
     careerLimitedPick: (index: number) =>
       rpc.call('careerLimitedPick', index),
+    careerLimitedCoach: () =>
+      rpc.call('careerLimitedCoach'),
     careerLimitedDeck: (deck: DeckCardLists) =>
       rpc.call('careerLimitedDeck', deck),
     careerLimitedPlay: () =>
@@ -387,6 +389,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('soloSaveAndLeave', gameId, SESSION),
     soloFork: (gameId: UUID) =>
       rpc.call('soloFork', gameId, SESSION),
+    soloTurns: (gameId: UUID) =>
+      rpc.call('soloTurns', gameId),
+    soloWhatIf: (gameId: UUID, turn: number) =>
+      rpc.call('soloWhatIf', gameId, turn, SESSION),
+    soloAssists: (gameId: UUID) =>
+      rpc.call('soloAssists', gameId, SESSION),
     gameAdvise: (gameId: UUID, skill?: number | null) =>
       rpc.call('gameAdvise', gameId, SESSION, skill),
     soloBatchSubmit: (spec: JobSpec, kind?: string | null) =>

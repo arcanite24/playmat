@@ -65,7 +65,7 @@ public class WebClientApiContractTest {
             "careerCampaigns", "careerCampaignPlay", "careerCampaignDeck", "careerCampaignChoose", "careerPuzzles", "careerPuzzlePlay",
             "careerChallenge", "careerChallengePlay", "careerGauntlet", "careerGauntletStart", "careerGauntletPick",
             "careerGauntletPlay", "careerGauntletAbandon", "careerLimited", "careerLimitedStart", "careerLimitedPick",
-            "careerLimitedDeck", "careerLimitedPlay", "careerLimitedAbandon", // career modes (career/CareerModesTest)
+            "careerLimitedDeck", "careerLimitedCoach", "careerLimitedPlay", "careerLimitedAbandon", // career modes (career/CareerModesTest)
             "authRegister", "authSendTokenToEmail", "authResetPassword", // session and AccountService, with readable errors
             "authRememberLogin", "authForgetLogin", // remembered devices in the account database
             "adminAudit", "adminAccess", "adminAccessPreview", "adminSetAccessMode", "adminAllowAdd", "adminAllowRemovePreview",
@@ -78,7 +78,7 @@ public class WebClientApiContractTest {
             "adminFeedbackMark", "sendFeedback", // accounts and feedback (api/AccountsApiTest)
             "adminTableWatch", "adminClientErrorResolve", "adminSettings", "adminSetSetting", "adminMaintenance",
             "adminMaintenanceCancel", "adminDiscordTest", // watching, client errors, settings and maintenance (M15)
-            "soloSaves", "soloResume", "soloDelete", "soloSaveAndLeave", "soloFork", "gameAdvise", "soloBatchSubmit",
+            "soloSaves", "soloResume", "soloDelete", "soloSaveAndLeave", "soloFork", "soloAssists", "soloTurns", "soloWhatIf", "gameAdvise", "soloBatchSubmit",
             "soloBatchJobs", "soloBatchJob", "soloBatchCancel", "leaderboard", "adminBatchJobs", "adminBatchCancel",
             "adminContentPacks", "adminContentPackUpload", "adminContentPackRemove", "adminContentPackReload" // solo (solo/SoloFoundationsTest)
     ));

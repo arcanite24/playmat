@@ -1494,3 +1494,196 @@
   min-width: 1.6em;
   color: var(--ink-dim);
 }
+
+/* the draft trainer and the pool coach */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.coach {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 280px);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 720px) {
+  .coach {
+    grid-template-columns: 1fr;
+  }
+}
+
+.coachPick {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.grade {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 26px;
+  height: 26px;
+  margin-right: 6px;
+  border-radius: 6px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.15));
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.grade[data-grade='A'] {
+  background: color-mix(in srgb, #3ba55d 30%, transparent);
+}
+
+.grade[data-grade='B'] {
+  background: color-mix(in srgb, #7cb342 26%, transparent);
+}
+
+.grade[data-grade='D'],
+.grade[data-grade='F'] {
+  background: color-mix(in srgb, #e5534b 28%, transparent);
+}
+
+.signals .subhead {
+  margin-top: 0;
+}
+
+.signalBars {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.signalBars li {
+  display: grid;
+  grid-template-columns: 22px 1fr 32px;
+  gap: 8px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.signalTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.18);
+  overflow: hidden;
+}
+
+.signalTrack span {
+  display: block;
+  height: 100%;
+  background: var(--accent, #c9a227);
+}
+
+.review {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.25));
+  border-radius: 10px;
+}
+
+.review summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reviewList {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewList li {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+  color: var(--ink-soft);
+}
+
+.coachPanel {
+  margin-bottom: 14px;
+}
+
+.pairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pair {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.25));
+  border-radius: 10px;
+}
+
+.pairHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.reasons {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.curve {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  height: 56px;
+}
+
+.curve span {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+}
+
+.curve i {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent, #c9a227);
+}
+
+.curve small {
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+}
+
+.puzzleGroups {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.puzzleGroups .subhead {
+  margin: 0 0 6px;
+}

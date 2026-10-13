@@ -77,8 +77,10 @@ export interface AccountsPage {
 }
 
 export interface Advice extends Serializable {
+    hintsLeft?: number;
     kind?: AdviceKind;
     millis?: number;
+    reason?: string;
     steps?: AdviceStep[];
     text?: string;
     when?: string;
@@ -97,6 +99,16 @@ export interface AllowEntry {
     id?: number;
     name?: string;
     note?: string;
+}
+
+export interface Assists {
+    assisted?: string;
+    career?: boolean;
+    hints?: boolean;
+    hintsLeft?: number;
+    takeBack?: boolean;
+    takeBacksLeft?: number;
+    why?: string;
 }
 
 export interface AuditEntry {
@@ -398,6 +410,7 @@ export interface CareerCover {
 
 export interface CareerGameResult {
     achievements?: CareerAchievement[];
+    assisted?: string;
     career?: boolean;
     coins?: number;
     gameKey?: string;
@@ -449,6 +462,10 @@ export interface CareerLevelTrack {
     xpIntoLevel?: number;
 }
 
+export interface CareerLimitedCoach {
+    pairs?: PairAdvice[];
+}
+
 export interface CareerLimitedRun {
     deck?: DeckCardInfo[];
     id?: string;
@@ -458,10 +475,12 @@ export interface CareerLimitedRun {
     pack?: CareerPoolCard[];
     phase?: string;
     pick?: number;
+    picks?: PickRecord[];
     pool?: CareerPoolCard[];
     round?: number;
     setCode?: string;
     setName?: string;
+    signals?: ColorSignal[];
     state?: string;
     wins?: number;
 }
@@ -587,6 +606,8 @@ export interface CareerPoolCard {
     manaValue?: number;
     name?: string;
     rarity?: string;
+    rating?: number;
+    removal?: boolean;
     setCode?: string;
 }
 
@@ -610,8 +631,11 @@ export interface CareerPuzzle {
     id?: string;
     name?: string;
     number?: number;
+    objective?: string;
     open?: boolean;
     opponent?: CareerPuzzleSide;
+    protect?: string;
+    series?: string;
     solved?: boolean;
     stars?: number;
     text?: string;
@@ -823,6 +847,11 @@ export interface ClientErrorGroup {
     source?: string;
     stack?: string;
     userAgent?: string;
+}
+
+export interface ColorSignal {
+    color?: string;
+    strength?: number;
 }
 
 export interface CombatGroupView extends Serializable {
@@ -1042,7 +1071,10 @@ export interface GameEventView extends Serializable {
 
 export interface GameRecord {
     first?: string;
+    lifeA?: number;
+    lifeB?: number;
     n?: number;
+    replayId?: string;
     seed?: number;
     turns?: number;
     winner?: string;
@@ -1133,6 +1165,9 @@ export interface InviteCheck {
 }
 
 export interface JobResult {
+    aFirst?: number;
+    aFirstWins?: number;
+    closest?: GameRecord[];
     draws?: number;
     errors?: number;
     games?: GameRecord[];
@@ -1147,6 +1182,7 @@ export interface JobSpec {
     deckType?: string;
     gameType?: string;
     games?: number;
+    keepReplays?: number;
     maxTurns?: number;
     nameA?: string;
     nameB?: string;
@@ -1255,6 +1291,18 @@ export interface ObjectColor extends Serializable, Copyable<ObjectColor>, Compar
     white?: boolean;
 }
 
+export interface PairAdvice {
+    bombs?: string[];
+    colors?: string;
+    curve?: number[];
+    deck?: DeckCardInfo[];
+    playables?: number;
+    reasons?: string[];
+    removal?: number;
+    removalNames?: string[];
+    score?: number;
+}
+
 export interface PermanentView extends CardView {
     attachedControllerDiffers?: boolean;
     attachedTo?: string;
@@ -1276,6 +1324,15 @@ export interface PermanentView extends CardView {
     phasedIn?: boolean;
     summoningSickness?: boolean;
     tapped?: boolean;
+}
+
+export interface PickRecord {
+    best?: string;
+    chosen?: string;
+    grade?: string;
+    note?: string;
+    pick?: number;
+    round?: number;
 }
 
 export interface PlaneView extends CommandObjectView, Serializable {
@@ -1358,6 +1415,7 @@ export interface PlayerView extends Serializable {
 }
 
 export interface ReplayInfo {
+    batchOwner?: string;
     deckType?: string;
     endedAt?: number;
     events?: number;
@@ -1517,6 +1575,12 @@ export interface SoloSave {
 
 export interface SoloTable {
     tableId?: string;
+}
+
+export interface SoloTurn {
+    active?: string;
+    at?: number;
+    turn?: number;
 }
 
 export interface StackAbilityView extends CardView {

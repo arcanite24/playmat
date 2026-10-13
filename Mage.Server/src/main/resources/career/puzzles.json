@@ -575,5 +575,188 @@
    "graveyard": [],
    "library": []
   }
+ },
+ {
+  "id": "stack-right-counter",
+  "name": "The right counter",
+  "series": "Stack and priority",
+  "objective": "survive",
+  "text": "You're at 3 life with one Counterspell. Your opponent holds Shock and Lightning Bolt. Live to your next turn.",
+  "hint": "Shock alone can't kill you. Let it resolve and keep the Counterspell for the Bolt.",
+  "you": {
+   "life": 3,
+   "hand": [
+    "Counterspell"
+   ],
+   "battlefield": [
+    "Island",
+    "Island"
+   ],
+   "graveyard": [],
+   "library": [
+    "Island",
+    "Island",
+    "Island"
+   ]
+  },
+  "opponent": {
+   "life": 20,
+   "hand": [
+    "Shock",
+    "Lightning Bolt"
+   ],
+   "battlefield": [
+    "Mountain",
+    "Mountain"
+   ],
+   "graveyard": [],
+   "library": [
+    "Mountain",
+    "Mountain",
+    "Mountain"
+   ]
+  }
+ },
+ {
+  "id": "stack-split-second",
+  "name": "No window",
+  "series": "Stack and priority",
+  "objective": "survive",
+  "firstTurn": "you",
+  "text": "You're at 2 life and your opponent holds Sudden Shock. Live to your next turn after theirs.",
+  "hint": "Split second means no one can respond while it's on the stack. Gain the life before it's cast, not in response.",
+  "you": {
+   "life": 2,
+   "hand": [
+    "Healing Salve"
+   ],
+   "battlefield": [
+    "Plains"
+   ],
+   "graveyard": [],
+   "library": [
+    "Plains",
+    "Plains",
+    "Plains"
+   ]
+  },
+  "opponent": {
+   "life": 20,
+   "hand": [
+    "Sudden Shock"
+   ],
+   "battlefield": [
+    "Mountain",
+    "Mountain"
+   ],
+   "graveyard": [],
+   "library": [
+    "Mountain",
+    "Mountain",
+    "Mountain"
+   ]
+  }
+ },
+ {
+  "id": "stack-save-angel",
+  "name": "Hold the line",
+  "series": "Stack and priority",
+  "objective": "protect",
+  "protect": "Serra Angel",
+  "text": "Your opponent holds Doom Blade. Keep your Serra Angel until your next turn.",
+  "hint": "Wait for the Doom Blade, then answer it while it's on the stack. Protection from black makes it lose its target; a bigger Angel still dies.",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Giant Growth",
+    "Gods Willing"
+   ],
+   "battlefield": [
+    "Serra Angel",
+    "Forest",
+    "Plains"
+   ],
+   "graveyard": [],
+   "library": [
+    "Plains",
+    "Plains",
+    "Plains"
+   ]
+  },
+  "opponent": {
+   "life": 20,
+   "hand": [
+    "Doom Blade"
+   ],
+   "battlefield": [
+    "Swamp",
+    "Swamp"
+   ],
+   "graveyard": [],
+   "library": [
+    "Swamp",
+    "Swamp",
+    "Swamp"
+   ]
+  }
+ },
+ {
+  "id": "stack-trigger-order",
+  "name": "Battle cry first",
+  "series": "Stack and priority",
+  "text": "Your opponent is at 3 life behind two walls. Win this turn.",
+  "hint": "Attack with both. Syr Faren's trigger reads its power when it resolves, so put it on the stack first and let the battle cry resolve before it.",
+  "you": {
+   "life": 20,
+   "hand": [],
+   "battlefield": [
+    "Syr Faren, the Hengehammer",
+    "Signal Pest"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 3,
+   "hand": [],
+   "battlefield": [
+    "Wall of Wood",
+    "Wall of Wood"
+   ],
+   "graveyard": [],
+   "library": []
+  }
+ },
+ {
+  "id": "stack-uncounterable",
+  "name": "Too fast to answer",
+  "series": "Stack and priority",
+  "text": "Your opponent is at 2 life with Counterspell ready. Win this turn.",
+  "hint": "A spell with split second can't be responded to, so it can't be countered.",
+  "you": {
+   "life": 20,
+   "hand": [
+    "Shock",
+    "Sudden Shock"
+   ],
+   "battlefield": [
+    "Mountain",
+    "Mountain"
+   ],
+   "graveyard": [],
+   "library": []
+  },
+  "opponent": {
+   "life": 2,
+   "hand": [
+    "Counterspell"
+   ],
+   "battlefield": [
+    "Island",
+    "Island"
+   ],
+   "graveyard": [],
+   "library": []
+  }
  }
 ]

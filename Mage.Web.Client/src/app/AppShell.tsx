@@ -25,6 +25,7 @@ const NAV: { to: string; label: MessageKey; end?: boolean }[] = [
   { to: '/decks', label: 'shell.nav.decks' },
   { to: '/events', label: 'shell.nav.events' },
   { to: '/tables', label: 'shell.nav.tables' },
+  { to: '/train', label: 'shell.nav.train' },
   { to: '/history', label: 'shell.nav.history' },
 ];
 

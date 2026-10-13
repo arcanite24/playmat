@@ -13,6 +13,7 @@ import { useCareerShop, useCareerState } from './careerData';
 import { abandonLimited, pickLimited, playMode, startLimited, useLimited } from './careerModesData';
 import { LIMITED_LOSSES, LIMITED_WINS } from './careerModesModel';
 import { LimitedBuilder } from './CareerLimitedBuild';
+import { DraftCoach } from './CareerLimitedCoach';
 import { ModeResult } from './ModeParts';
 import styles from './CareerModes.module.css';
 
@@ -149,6 +150,7 @@ function Draft({ run }: { run: CareerLimitedRun }) {
         <h2 id="limited-draft" className={styles.panelTitle}>{t('career.limited.pick', { round: run.round ?? 1, pick: run.pick ?? 1 })}</h2>
         <p className={styles.small}>{t('career.limited.pickHint', { count: pool.length })}</p>
       </header>
+      <DraftCoach run={run} />
       <ul className={styles.packGrid}>
         {pack.map((card, index) => (
           <li key={`${index}-${card.name}`}>

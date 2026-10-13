@@ -64,6 +64,17 @@ public final class CareerService {
         public final String ref;
         /** how the game starts, or null for a plain duel */
         public final CareerSetup setup;
+        /** hints the player asked for in this game (S010) */
+        public volatile int hintsUsed;
+        /** turns the player took back in this game (S011) */
+        public volatile int takeBacks;
+        /** what helped the player ("a hint", "a take-back"); an assisted game pays half and counts for no quests */
+        public volatile String assisted;
+
+        /** whether the player may get help here: a puzzle or a trial is a test of its own, with its own retries */
+        public boolean allowsAssists() {
+            return !"puzzle".equals(kind) && !"trial".equals(kind);
+        }
 
         CareerTable(String user, String opponentId, int tier) {
             this(user, opponentId, tier, "duel", null, null);
@@ -315,6 +326,33 @@ public final class CareerService {
         }
     }
 
+    /** hints a Career game allows (S010) */
+    public static final int HINTS_PER_GAME = 3;
+    /** turns a Career game may take back (S011) */
+    public static final int TAKE_BACKS_PER_GAME = 1;
+
+    /**
+     * The player got help in a Career game: the game is marked, and pays half when it ends.
+     *
+     * @param what "hint" or "take-back"
+     */
+    public void assisted(UUID tableId, UUID gameId, String what) {
+        CareerTable table = tableInfo(tableId);
+        if (table == null) {
+            return;
+        }
+        if ("hint".equals(what)) {
+            table.hintsUsed++;
+            table.assisted = table.assisted == null ? "a hint" : table.assisted;
+        } else {
+            table.takeBacks++;
+            table.assisted = "a take-back";
+        }
+        if (gameId != null) {
+            CareerTally.taint(gameId, "the player was helped by " + table.assisted);
+        }
+    }
+
     public void forget(UUID tableId) {
         if (tableId != null) {
             tables.remove(tableId);
@@ -339,11 +377,11 @@ public final class CareerService {
         if (table == null) {
             return null;
         }
-        CareerRules.Reward reward = modeReward(table.kind, table.tier, won, turns);
+        CareerRules.Reward reward = assistedReward(modeReward(table.kind, table.tier, won, turns), table.assisted);
         CareerStore store = CareerStore.get();
         try {
             long now = System.currentTimeMillis();
-            CareerTally counted = tally != null && tally.taint() == null ? tally : CareerTally.forTest(null);
+            CareerTally counted = tally != null && tally.taint() == null && table.assisted == null ? tally : CareerTally.forTest(null);
             if ("puzzle".equals(table.kind) || "trial".equals(table.kind)) {
                 // a puzzle or a trial is a turn, not a game: it counts for itself and nothing else
                 counted = CareerTally.forTest(null);
@@ -366,6 +404,7 @@ public final class CareerService {
                 paid.coins = reward.coins;
                 paid.xp = reward.xp;
                 paid.note = reward.note;
+                paid.assisted = table.assisted;
                 Set<Integer> tiersBefore = openTiers(table.user);
                 finishMode(store, table, won, turns, played, paid, now);
                 CareerProgress.get().apply(store, table.user, played, paid, before.xp, now);
@@ -393,6 +432,15 @@ public final class CareerService {
             logger.error("Career payout failed for " + table.user + " on table " + tableId, e);
             return null;
         }
+    }
+
+    /** an assisted game pays half, and says why */
+    static CareerRules.Reward assistedReward(CareerRules.Reward reward, String assisted) {
+        if (assisted == null) {
+            return reward;
+        }
+        String note = "You had help (" + assisted + "), so this game pays half and counts for no quests.";
+        return new CareerRules.Reward(reward.coins / 2, reward.xp / 2, reward.note == null ? note : reward.note + " " + note);
     }
 
     /** what the match itself pays: a roster duel by tier; a mode pays through its own rewards */

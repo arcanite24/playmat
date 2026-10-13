@@ -82,9 +82,11 @@ public final class MadAdvisor implements GameAdvisor {
         if (advice.steps.isEmpty()) {
             advice.kind = Advice.AdviceKind.PASS;
             advice.text = "Pass: nothing here is worth doing now.";
+            advice.reason = "Keeping your options open beats any play you have right now.";
         } else {
             advice.kind = Advice.AdviceKind.PLAY;
             advice.text = String.join(", then ", lines) + ".";
+            advice.reason = reason(game, chosen);
         }
         return advice;
     }
@@ -106,9 +108,13 @@ public final class MadAdvisor implements GameAdvisor {
         if (advice.steps.isEmpty()) {
             advice.kind = Advice.AdviceKind.NO_ATTACK;
             advice.text = "Don't attack this turn.";
+            advice.reason = "Any attack you can make loses more to their blocks than it deals.";
         } else {
             advice.kind = Advice.AdviceKind.ATTACK;
             advice.text = String.join("; ", lines) + ".";
+            advice.reason = untappedBlockers(game, playerId) == 0
+                    ? "They have nothing untapped to block with."
+                    : "Your attackers come out ahead of any block they can make.";
         }
         return advice;
     }
@@ -137,11 +143,69 @@ public final class MadAdvisor implements GameAdvisor {
         if (advice.steps.isEmpty()) {
             advice.kind = Advice.AdviceKind.NO_BLOCK;
             advice.text = "Don't block.";
+            advice.reason = "Taking the damage costs less than the creatures a block would lose.";
         } else {
             advice.kind = Advice.AdviceKind.BLOCK;
             advice.text = String.join("; ", lines) + ".";
+            advice.reason = "These blocks trade well or save life you can't spare.";
         }
         return advice;
+    }
+
+    /** why the first move that matters is worth making, in one line */
+    static String reason(Game game, List<Ability> chosen) {
+        Ability first = null;
+        for (Ability ability : chosen) {
+            if (ability instanceof PassAbility) {
+                continue;
+            }
+            if (first == null || first instanceof PlayLandAbility) {
+                first = ability;
+            }
+        }
+        if (first == null) {
+            return null;
+        }
+        if (first instanceof PlayLandAbility) {
+            return "A land first: the mana is there this turn and every turn after.";
+        }
+        UUID you = first.getControllerId();
+        for (Target target : first.getAllSelectedTargets()) {
+            for (UUID id : target.getTargets()) {
+                Player player = game.getPlayer(id);
+                if (player != null) {
+                    return id.equals(you) ? "It helps you more than anything else you could do now."
+                            : "It pushes damage at " + player.getName() + " while you can.";
+                }
+                Permanent permanent = game.getPermanent(id);
+                if (permanent != null) {
+                    return permanent.isControlledBy(you)
+                            ? "It makes your " + permanent.getName() + " stronger or safer."
+                            : "It deals with their " + permanent.getName() + " before it does more.";
+                }
+                return "Its target is worth answering now.";
+            }
+        }
+        MageObject source = first.getSourceObject(game);
+        if (first instanceof SpellAbility && source != null && source.isCreature(game)) {
+            return "It adds to your board with mana that would otherwise go unspent.";
+        }
+        if (first instanceof SpellAbility) {
+            return "It's the best use of your mana this turn.";
+        }
+        return "It uses mana that would otherwise go unspent.";
+    }
+
+    private static int untappedBlockers(Game game, UUID attackerId) {
+        int count = 0;
+        for (UUID opponentId : game.getOpponents(attackerId)) {
+            for (Permanent permanent : game.getBattlefield().getAllActivePermanents(opponentId)) {
+                if (permanent.isCreature(game) && !permanent.isTapped()) {
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 
     static String describe(Game game, Ability ability) {

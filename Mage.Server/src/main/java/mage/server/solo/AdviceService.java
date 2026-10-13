@@ -3,6 +3,7 @@ package mage.server.solo;
 import mage.game.Game;
 import mage.game.advice.Advice;
 import mage.game.advice.GameAdvisor;
+import mage.server.career.CareerService;
 import mage.server.game.GameController;
 import mage.server.util.PluginUtil;
 import org.apache.log4j.Logger;
@@ -73,7 +74,14 @@ public final class AdviceService {
             int level = Math.max(1, Math.min(10, skill));
             CompletableFuture<Advice> thinking = CompletableFuture.supplyAsync(() -> current.advise(game, playerId[0], level), pool);
             try {
-                return thinking.get(THINK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                Advice advice = thinking.get(THINK_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+                // a Career game counts its hints, and a hint marks the game (S010)
+                CareerService.CareerTable career = CareerService.get().tableInfo(controller.getTableId());
+                if (career != null) {
+                    CareerService.get().assisted(controller.getTableId(), controller.getGameId(), "hint");
+                    advice.hintsLeft = Math.max(0, CareerService.HINTS_PER_GAME - career.hintsUsed);
+                }
+                return advice;
             } catch (TimeoutException e) {
                 thinking.cancel(true);
                 throw new IllegalArgumentException("The advisor ran out of time on this one.");

@@ -4,12 +4,14 @@ import mage.abilities.Ability;
 import mage.abilities.common.SimpleStaticAbility;
 import mage.abilities.common.delayed.AtTheBeginOfNextEndStepDelayedTriggeredAbility;
 import mage.abilities.common.delayed.AtTheBeginOfYourNextUpkeepDelayedTriggeredAbility;
+import mage.abilities.effects.OneShotEffect;
 import mage.abilities.effects.common.InfoEffect;
 import mage.abilities.effects.common.LoseGameTargetPlayerEffect;
 import mage.abilities.effects.common.WinGameSourceControllerEffect;
 import mage.cards.Card;
 import mage.cards.repository.CardInfo;
 import mage.cards.repository.CardRepository;
+import mage.constants.Outcome;
 import mage.constants.TargetController;
 import mage.constants.Zone;
 import mage.game.Game;
@@ -134,11 +136,105 @@ public final class CareerSetup implements GameSetup {
         public String hint;
         public CareerPuzzleSide you;
         public CareerPuzzleSide opponent;
-        /** "win" (the default) or "survive" */
+        /** "win" (the default), "survive", or "protect": the permanent named {@link #protect} must still be yours */
         public String objective;
+        /** for "protect": the name of the player's permanent that must last until their next upkeep */
+        public String protect;
+        /** who takes the first turn: "you" or "opponent"; by default the opponent in a survive or protect trial */
+        public String firstTurn;
+        /** puzzles of a series open in order among themselves, like "Stack and priority" */
+        public String series;
 
+        /** the objective is met at the player's next upkeep rather than this turn */
         boolean survive() {
-            return "survive".equals(objective);
+            return "survive".equals(objective) || protecting();
+        }
+
+        boolean protecting() {
+            return "protect".equals(objective);
+        }
+
+        boolean opponentFirst() {
+            return firstTurn == null ? survive() : "opponent".equals(firstTurn);
+        }
+
+        /** what's wrong with the puzzle's objective, or null */
+        public String problem() {
+            if (objective != null && !"win".equals(objective) && !"survive".equals(objective) && !"protect".equals(objective)) {
+                return "an objective is win, survive or protect";
+            }
+            if (protecting() && (protect == null || you == null || you.battlefield == null
+                    || you.battlefield.stream().noneMatch(entry -> name(entry).equals(protect)))) {
+                return "a protect objective names a permanent on your battlefield";
+            }
+            if (firstTurn != null && !"you".equals(firstTurn) && !"opponent".equals(firstTurn)) {
+                return "the first turn is you or opponent";
+            }
+            if (!survive() && "opponent".equals(firstTurn)) {
+                return "a puzzle won this turn starts on your turn";
+            }
+            return null;
+        }
+    }
+
+    /** the player's next upkeep after the first turn, so a trial the player starts runs through the opponent's turn */
+    static class LaterUpkeepTrigger extends AtTheBeginOfYourNextUpkeepDelayedTriggeredAbility {
+
+        LaterUpkeepTrigger(mage.abilities.effects.Effect effect) {
+            super(effect);
+        }
+
+        private LaterUpkeepTrigger(final LaterUpkeepTrigger ability) {
+            super(ability);
+        }
+
+        @Override
+        public LaterUpkeepTrigger copy() {
+            return new LaterUpkeepTrigger(this);
+        }
+
+        @Override
+        public boolean checkTrigger(mage.game.events.GameEvent event, Game game) {
+            return game.getTurnNum() > 1 && super.checkTrigger(event, game);
+        }
+    }
+
+    /** a protect trial at the player's upkeep: the permanent is still theirs, and they win; it's gone, and they lose */
+    static class ProtectedEffect extends OneShotEffect {
+
+        private final String name;
+
+        ProtectedEffect(String name) {
+            super(Outcome.Benefit);
+            this.name = name;
+            staticText = "if you still control " + name + ", you win the game; otherwise you lose it";
+        }
+
+        private ProtectedEffect(final ProtectedEffect effect) {
+            super(effect);
+            this.name = effect.name;
+        }
+
+        @Override
+        public ProtectedEffect copy() {
+            return new ProtectedEffect(this);
+        }
+
+        @Override
+        public boolean apply(Game game, Ability source) {
+            Player player = game.getPlayer(source.getControllerId());
+            if (player == null) {
+                return false;
+            }
+            boolean kept = game.getBattlefield().getAllActivePermanents(source.getControllerId()).stream()
+                    .anyMatch(permanent -> name.equals(permanent.getName()));
+            if (kept) {
+                player.won(game);
+            } else {
+                game.informPlayers(name + " didn't make it.");
+                player.lost(game);
+            }
+            return true;
         }
     }
 
@@ -192,7 +288,7 @@ public final class CareerSetup implements GameSetup {
             return null;
         }
         UUID humanId = human(game);
-        if (puzzle.survive()) {
+        if (puzzle.opponentFirst()) {
             // the opponent takes the turn the player has to live through
             for (Player player : game.getPlayers().values()) {
                 if (!player.getId().equals(humanId)) {
@@ -229,10 +325,15 @@ public final class CareerSetup implements GameSetup {
                 }
             }
         }
-        if (puzzle != null && humanId != null && puzzle.survive()) {
+        if (puzzle != null && humanId != null && puzzle.protecting()) {
+            Ability source = fakeSource(humanId);
+            game.addDelayedTriggeredAbility(new LaterUpkeepTrigger(new ProtectedEffect(puzzle.protect)), source);
+            game.informPlayers("Trial: " + (puzzle.name == null ? "" : puzzle.name + ". ")
+                    + (puzzle.text == null ? "Keep " + puzzle.protect + " until your next turn." : puzzle.text));
+        } else if (puzzle != null && humanId != null && puzzle.survive()) {
             // alive when your turn comes round: you win
             Ability source = fakeSource(humanId);
-            game.addDelayedTriggeredAbility(new AtTheBeginOfYourNextUpkeepDelayedTriggeredAbility(new WinGameSourceControllerEffect()), source);
+            game.addDelayedTriggeredAbility(new LaterUpkeepTrigger(new WinGameSourceControllerEffect()), source);
             game.informPlayers("Trial: " + (puzzle.name == null ? "" : puzzle.name + ". ")
                     + (puzzle.text == null ? "Survive their turn." : puzzle.text));
         } else if (puzzle != null && humanId != null) {

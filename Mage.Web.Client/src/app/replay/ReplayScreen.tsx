@@ -1,6 +1,6 @@
-import { ChevronFirst, ChevronLast, Pause, Play, StepBack, StepForward } from 'lucide-react';
+import { ChevronFirst, ChevronLast, GitBranch, Pause, Play, StepBack, StepForward } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useStore } from 'zustand';
 import { GameSession } from '../../core/game/gameSession';
 import { EventBus } from '../../core/rpc/EventBus';
@@ -9,7 +9,9 @@ import type { ReplayInfo } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { MatchErrorBoundary } from '../match/MatchErrorBoundary';
 import { MatchStage } from '../match/MatchStage';
+import { playFromTurn, useSoloTurns } from '../solo/soloData';
 import { useSession } from '../stores/session';
+import { notify } from '../stores/toasts';
 import { Button, IconButton } from '../ui/Button';
 import styles from './ReplayScreen.module.css';
 
@@ -28,13 +30,16 @@ const NO_EVENTS = {
 export function ReplayScreen() {
   const { gameId = '' } = useParams();
   const navigate = useNavigate();
+  // a review links to a moment: open there, paused
+  const [search] = useSearchParams();
+  const startFrame = Number.parseInt(search.get('frame') ?? '', 10);
   const userName = useSession((state) => state.userName);
   const [timeline, setTimeline] = useState<ReplayTimeline>(EMPTY_TIMELINE);
   const [info, setInfo] = useState<ReplayInfo | null>(null);
   const [total, setTotal] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
-  const [playing, setPlaying] = useState(true);
+  const [playing, setPlaying] = useState(!Number.isFinite(startFrame));
   const [speed, setSpeed] = useState(1);
   const session = useMemo(() => new GameSession(api, new EventBus(NO_EVENTS), { gameId, playerId: null, mode: 'replay' }), [gameId]);
   useEffect(() => () => session.dispose(), [session]);
@@ -44,7 +49,7 @@ export function ReplayScreen() {
   useEffect(() => {
     let cancelled = false;
     setTimeline(EMPTY_TIMELINE);
-    setIndex(0);
+    setIndex(Number.isFinite(startFrame) ? Math.max(0, startFrame) : 0);
     void (async () => {
       let current = EMPTY_TIMELINE;
       for (;;) {
@@ -66,6 +71,8 @@ export function ReplayScreen() {
     return () => {
       cancelled = true;
     };
+    // the starting frame only matters when the replay opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
   const frames = timeline.frames;
@@ -119,6 +126,18 @@ export function ReplayScreen() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [timeline, last]);
+
+  // your own games against the computer keep every turn: take over from the start of one (S014)
+  const turns = useSoloTurns(gameId);
+  const kept = useMemo(() => new Set((turns.data ?? []).map((entry) => entry.turn)), [turns.data]);
+  async function takeOver(turn: number) {
+    setPlaying(false);
+    try {
+      await playFromTurn(gameId, turn);
+    } catch (failure) {
+      notify('Play from here', failure instanceof Error ? failure.message : String(failure));
+    }
+  }
 
   const replayLog = useMemo(() => logsAt(timeline, Math.min(index, last)), [timeline, index, last]);
   const leave = () => navigate('/history');
@@ -178,6 +197,11 @@ export function ReplayScreen() {
             {SPEEDS.map((value) => <option key={value} value={value}>{value}×</option>)}
           </select>
         </label>
+        {kept.has(turn) && (
+          <Button size="sm" variant="print" icon={<GitBranch size={15} />} onClick={() => void takeOver(turn)} title={`Play on from the start of turn ${turn} against the computer`}>
+            Play from turn {turn}
+          </Button>
+        )}
         {info?.truncated && <span className={styles.loading} title="The recording stopped early">partial</span>}
       </div>
     </MatchErrorBoundary>

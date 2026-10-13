@@ -40,7 +40,8 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * A solo game is one human against one or more AI players, outside tournaments. The latest snapshot is kept in memory
  * and written to {@link SoloStore} on one writer thread; a newer snapshot replaces an older one still waiting to be
- * written. Career games save too, but only for crash recovery: keeping a save or forking would be a free take-back.
+ * written. Career games save too, for crash recovery; they can't be kept, and fork once at most (a take-back, which
+ * halves the game's pay).
  */
 public final class SoloGames {
 
@@ -53,6 +54,8 @@ public final class SoloGames {
     public static final long RETENTION_MS = TimeUnit.DAYS.toMillis(30);
     /** a player's newest saves kept; older ones go */
     public static final int SAVES_PER_USER = 20;
+    /** a player's newest games whose every turn is kept for what-if lines (S013, S014) */
+    public static final int LINES_PER_USER = 10;
 
     /** How a solo table was set up, to set it up again. */
     public static class SavedTable implements Serializable {
@@ -84,6 +87,8 @@ public final class SoloGames {
         volatile UUID gameId;
         /** kept on purpose: no more writes, and the game ending doesn't remove it */
         volatile boolean kept;
+        /** the game's line (its table, for what-ifs) is stored */
+        volatile boolean lined;
 
         Live(UUID tableId, SavedTable info) {
             this.tableId = tableId;
@@ -221,7 +226,8 @@ public final class SoloGames {
     }
 
     /**
-     * What a fork of a running free-play game starts from: the start of its current turn.
+     * What a fork of a running solo game starts from: the start of its current turn. Free play forks as often as the
+     * player likes; a Career game once, outside puzzles and trials, and pays half for it.
      *
      * @throws IllegalArgumentException when the game can't be forked, with why
      */
@@ -230,14 +236,53 @@ public final class SoloGames {
         if (entry == null || !entry.info.user.equals(user)) {
             throw new IllegalArgumentException("This isn't one of your games against the computer.");
         }
-        if (entry.info.career != null) {
-            throw new IllegalArgumentException("Career games can't be replayed from a turn.");
+        CareerService.CareerTable career = entry.info.career;
+        if (career != null) {
+            // a Career game may take one turn back, and is marked for it (S011)
+            if (!career.allowsAssists()) {
+                throw new IllegalArgumentException("Puzzles and trials start again from their own retry, not from a turn.");
+            }
+            if (career.takeBacks >= CareerService.TAKE_BACKS_PER_GAME) {
+                throw new IllegalArgumentException("You've already taken back a turn in this game.");
+            }
         }
         GameSnapshot snapshot = entry.latest;
         if (snapshot == null) {
             throw new IllegalArgumentException("There's no turn to go back to yet.");
         }
+        if (career != null) {
+            CareerService.get().assisted(tableId, entry.gameId, "take-back");
+            // the old table stops playing for anything: the new one carries on for it
+            CareerService.get().forget(tableId);
+        }
         return new Resume(entry.info, snapshot, null);
+    }
+
+    /** what the player of a running solo game may still ask for: hints and take-backs (S010, S011) */
+    public SoloViews.Assists assists(UUID tableId, String user) {
+        Live entry = tableId == null ? null : live.get(tableId);
+        SoloViews.Assists assists = new SoloViews.Assists();
+        if (entry == null || !entry.info.user.equals(user)) {
+            assists.why = "This isn't one of your games against the computer.";
+            return assists;
+        }
+        CareerService.CareerTable career = entry.info.career;
+        if (career == null) {
+            assists.hints = true;
+            assists.takeBack = entry.latest != null;
+            return assists;
+        }
+        assists.career = true;
+        assists.assisted = career.assisted;
+        if (!career.allowsAssists()) {
+            assists.why = "Puzzles and trials are tests of their own: no hints or take-backs.";
+            return assists;
+        }
+        assists.hintsLeft = Math.max(0, CareerService.HINTS_PER_GAME - career.hintsUsed);
+        assists.hints = assists.hintsLeft > 0;
+        assists.takeBacksLeft = Math.max(0, CareerService.TAKE_BACKS_PER_GAME - career.takeBacks);
+        assists.takeBack = assists.takeBacksLeft > 0 && entry.latest != null;
+        return assists;
     }
 
     /** the table id a running game is at, for a player of it */
@@ -274,6 +319,56 @@ public final class SoloGames {
             logger.warn("Solo: save " + saveId + " can't be read", e);
             throw new IllegalArgumentException("That save can't be read on this server version.");
         }
+    }
+
+    /** the turns a solo game can be played again from, for its player (S013, S014) */
+    public List<SoloStore.TurnRow> turns(UUID gameId, String user) throws SQLException {
+        flush();
+        String owner = SoloStore.get().lineOwner(gameId.toString());
+        if (owner == null || !owner.equals(user)) {
+            return new ArrayList<>();
+        }
+        return SoloStore.get().turns(gameId.toString());
+    }
+
+    /**
+     * A what-if line: a solo game, running or over, played again from the start of one of its turns at a new table.
+     * It's always free play: a Career game's line pays nothing, and the game it came from is untouched.
+     *
+     * @throws IllegalArgumentException when there's no such turn, with why
+     */
+    public Resume whatIf(UUID gameId, int turn, String user) throws SQLException {
+        flush();
+        byte[][] row = SoloStore.get().loadTurn(gameId.toString(), turn, user);
+        if (row == null) {
+            throw new IllegalArgumentException("That turn of the game wasn't kept.");
+        }
+        try {
+            SavedTable info = (SavedTable) readObject(row[0]);
+            info.career = null;
+            if (info.title == null || !info.title.startsWith("What if")) {
+                info.title = "What if: " + (info.title == null ? "a game" : info.title);
+            }
+            if (info.options != null) {
+                info.options.setName(info.title);
+                // a what-if is free play: take-backs as usual
+                info.options.setRollbackTurnsAllowed(true);
+            }
+            return new Resume(info, GameSnapshot.fromBytes(row[1]), null);
+        } catch (IOException | ClassNotFoundException | ClassCastException e) {
+            logger.warn("Solo: turn " + turn + " of game " + gameId + " can't be read", e);
+            throw new IllegalArgumentException("That turn can't be read on this server version.");
+        }
+    }
+
+    /** whether a game is running at a solo table, a Career one */
+    public boolean isCareerGame(UUID gameId) {
+        for (Live entry : live.values()) {
+            if (gameId.equals(entry.gameId)) {
+                return entry.info.career != null;
+            }
+        }
+        return false;
     }
 
     /** a new table about to start will carry on from {@code resume} */
@@ -387,6 +482,22 @@ public final class SoloGames {
         if (entry.kept) {
             return;
         }
+        UUID gameId = entry.gameId;
+        if (gameId != null) {
+            // every turn is kept for what-if lines; the save below keeps only the latest
+            writer.submit(() -> {
+                try {
+                    if (!entry.lined) {
+                        SoloStore.get().putLine(gameId.toString(), entry.info.user, writeObject(entry.info));
+                        entry.lined = true;
+                    }
+                    SoloStore.get().putTurn(gameId.toString(), snapshot.getTurnNum(), seatName(entry.info, snapshot.getActivePlayerId()),
+                            snapshot.toBytes());
+                } catch (SQLException | IOException | RuntimeException e) {
+                    logger.warn("Solo: a turn couldn't be kept for what-ifs", e);
+                }
+            });
+        }
         entry.latest = snapshot;
         if (dirty.put(entry.tableId, entry) == null) {
             writer.submit(() -> {
@@ -401,6 +512,15 @@ public final class SoloGames {
                 }
             });
         }
+    }
+
+    private static String seatName(SavedTable info, UUID playerId) {
+        for (SavedSeat seat : info.seats) {
+            if (seat.playerId != null && seat.playerId.equals(playerId)) {
+                return seat.name;
+            }
+        }
+        return "";
     }
 
     private void write(Live entry, GameSnapshot snapshot, String kind) throws SQLException, IOException {
@@ -427,6 +547,7 @@ public final class SoloGames {
         pruned = true;
         try {
             int removed = SoloStore.get().pruneGames(System.currentTimeMillis() - RETENTION_MS, SAVES_PER_USER);
+            removed += SoloStore.get().pruneLines(System.currentTimeMillis() - RETENTION_MS, LINES_PER_USER);
             if (removed > 0) {
                 logger.info("Solo: removed " + removed + " old saved games");
             }

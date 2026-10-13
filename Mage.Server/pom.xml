@@ -422,6 +422,8 @@
                                 <class>mage.server.solo.SoloViews$SoloTable</class>
                                 <class>mage.server.solo.SoloViews$BatchJob</class>
                                 <class>mage.server.solo.SoloViews$BatchStatus</class>
+                                <class>mage.server.solo.SoloViews$Assists</class>
+                                <class>mage.server.solo.SoloViews$SoloTurn</class>
                                 <class>mage.server.solo.BatchRunner$JobSpec</class>
                                 <class>mage.server.solo.Leaderboards$Leaderboard</class>
                                 <class>mage.server.solo.ContentPacks$ContentPackView</class>
@@ -486,6 +488,10 @@
                                 <class>mage.server.career.CareerLimited$CareerLimitedState</class>
                                 <class>mage.server.career.CareerLimited$CareerLimitedRun</class>
                                 <class>mage.server.career.CareerLimited$CareerPoolCard</class>
+                                <class>mage.server.career.CareerLimited$PickRecord</class>
+                                <class>mage.server.career.CareerLimited$ColorSignal</class>
+                                <class>mage.server.career.CareerLimited$PairAdvice</class>
+                                <class>mage.server.career.CareerLimited$CareerLimitedCoach</class>
                             </classes>
                         </configuration>
                     </plugin>

@@ -3,6 +3,7 @@ package mage.server.career;
 import com.google.gson.Gson;
 import mage.ObjectColor;
 import mage.cards.Card;
+import mage.cards.RateCard;
 import mage.cards.ExpansionSet;
 import mage.cards.Sets;
 import mage.cards.decks.DeckCardInfo;
@@ -62,6 +63,27 @@ public final class CareerLimited {
         public boolean creature;
         public boolean land;
         public int manaValue;
+        /** the card's limited rating (the set's rating table, its type, cost and whether it's removal); 0 on cards from older runs */
+        public int rating;
+        public boolean removal;
+    }
+
+    /** one of the player's draft picks, graded against the rating table (S019) */
+    public static class PickRecord {
+        public int round;
+        public int pick;
+        public String chosen;
+        /** the strongest card in the pack for this pool */
+        public String best;
+        /** A to F */
+        public String grade;
+        public String note;
+    }
+
+    /** how open a colour looks from what the pod passed: 100 is the most open */
+    public static class ColorSignal {
+        public String color;
+        public int strength;
     }
 
     static class Draft {
@@ -82,6 +104,9 @@ public final class CareerLimited {
         List<DeckCardInfo> deck;
         Draft draft;
         List<List<CareerPoolCard>> opponents = new ArrayList<>();
+        List<PickRecord> picks = new ArrayList<>();
+        /** per colour, the quality still in packs that reached the player late */
+        Map<String, Double> passed = new LinkedHashMap<>();
     }
 
     // ---- views
@@ -103,6 +128,31 @@ public final class CareerLimited {
         public int pick;
         public List<DeckCardInfo> deck;
         public int nextReward;
+        /** every pick so far, graded; the review once the draft is over */
+        public List<PickRecord> picks;
+        /** the colours the pod is passing, most open first */
+        public List<ColorSignal> signals;
+    }
+
+    /** one colour pair a pool could be built in, with the reasons for it (S020) */
+    public static class PairAdvice {
+        /** two WUBRG letters */
+        public String colors;
+        public int score;
+        public int playables;
+        public int removal;
+        public List<String> removalNames = new ArrayList<>();
+        public List<String> bombs = new ArrayList<>();
+        /** non-land cards in the build by mana value: 0-1, 2, 3, 4, 5, 6+ */
+        public int[] curve = new int[6];
+        public List<String> reasons = new ArrayList<>();
+        /** a 40-card build in this pair to start from */
+        public List<DeckCardInfo> deck = new ArrayList<>();
+    }
+
+    public static class CareerLimitedCoach {
+        /** every pair, best first; the client shows the top two */
+        public List<PairAdvice> pairs = new ArrayList<>();
     }
 
     public static class CareerLimitedState {
@@ -168,6 +218,12 @@ public final class CareerLimited {
         if (pool.land && card.isBasic()) {
             pool.rarity = CareerRules.LAND;
         }
+        try {
+            pool.rating = RateCard.rateCard(card, Collections.emptyList());
+            pool.removal = RateCard.isRemovalCard(card);
+        } catch (RuntimeException e) {
+            pool.rating = 0; // an unrated card falls back to rarity
+        }
         return pool;
     }
 
@@ -230,6 +286,10 @@ public final class CareerLimited {
         run.pool = data.pool;
         run.deck = data.deck;
         run.nextReward = reward(data.kind, row.wins + 1);
+        if (DRAFT.equals(data.kind)) {
+            run.picks = data.picks == null ? new ArrayList<>() : data.picks;
+            run.signals = signals(data.passed);
+        }
         if (data.draft != null && "draft".equals(data.phase)) {
             run.pack = data.draft.packs.get(0);
             run.round = data.draft.round;
@@ -341,7 +401,16 @@ public final class CareerLimited {
             if (index < 0 || index >= mine.size()) {
                 throw refusal("That card isn't in the pack.");
             }
-            draft.pools.get(0).add(mine.remove(index));
+            List<CareerPoolCard> myPool = draft.pools.get(0);
+            if (data.picks == null) {
+                data.picks = new ArrayList<>();
+            }
+            if (data.passed == null) {
+                data.passed = new LinkedHashMap<>();
+            }
+            notePassed(data.passed, mine, draft.pick);
+            data.picks.add(grade(mine, index, myPool, draft.round, draft.pick));
+            myPool.add(mine.remove(index));
             for (int seat = 1; seat < SEATS; seat++) {
                 List<CareerPoolCard> pack = draft.packs.get(seat);
                 if (!pack.isEmpty()) {
@@ -395,6 +464,80 @@ public final class CareerLimited {
             }
         }
         return best;
+    }
+
+    // ---- the draft trainer: grades and signals
+
+    /** a card's worth to a pool: its rating, less for cards outside the pool's colours once they show */
+    static double pickScore(CareerPoolCard card, List<CareerPoolCard> pool) {
+        if (CareerRules.LAND.equals(card.rarity)) {
+            return 0;
+        }
+        double score = card.rating > 0 ? card.rating : value(card) * 20;
+        if (pool.size() >= 6 && !card.colors.isEmpty() && !fits(card, mainColors(pool))) {
+            score *= 0.75;
+        }
+        return Math.max(0, score);
+    }
+
+    static PickRecord grade(List<CareerPoolCard> pack, int chosen, List<CareerPoolCard> pool, int round, int pick) {
+        int best = 0;
+        for (int i = 1; i < pack.size(); i++) {
+            if (pickScore(pack.get(i), pool) > pickScore(pack.get(best), pool)) {
+                best = i;
+            }
+        }
+        CareerPoolCard card = pack.get(chosen);
+        double mine = pickScore(card, pool);
+        double top = pickScore(pack.get(best), pool);
+        double ratio = top <= 0 ? 1 : mine / top;
+        PickRecord record = new PickRecord();
+        record.round = round;
+        record.pick = pick;
+        record.chosen = card.name;
+        record.best = pack.get(best).name;
+        if (chosen == best || ratio >= 0.95) {
+            record.grade = "A";
+            record.note = chosen == best ? "The strongest card in the pack for your pool." : "As good as the best card here.";
+        } else {
+            record.grade = ratio >= 0.85 ? "B" : ratio >= 0.72 ? "C" : ratio >= 0.6 ? "D" : "F";
+            boolean offColour = pool.size() >= 6 && !card.colors.isEmpty() && !fits(card, mainColors(pool));
+            record.note = record.best + " was stronger" + (offColour ? ", and " + card.name + " is outside your colours." : ".");
+        }
+        return record;
+    }
+
+    /** what a pack still holds at this pick says which colours the drafters before you aren't taking */
+    static void notePassed(Map<String, Double> passed, List<CareerPoolCard> pack, int pick) {
+        if (pick < 3) {
+            return; // the first picks of a pack say little about the seats before you
+        }
+        for (char color : "WUBRG".toCharArray()) {
+            double best = 0;
+            for (CareerPoolCard card : pack) {
+                if (card.colors.indexOf(color) >= 0) {
+                    best = Math.max(best, card.rating > 0 ? card.rating : value(card) * 20);
+                }
+            }
+            // later picks weigh more: a strong card at pick 8 is a louder signal than at pick 3
+            passed.merge(String.valueOf(color), best * (1 + (pick - 3) * 0.15), Double::sum);
+        }
+    }
+
+    static List<ColorSignal> signals(Map<String, Double> passed) {
+        List<ColorSignal> signals = new ArrayList<>();
+        if (passed == null || passed.isEmpty()) {
+            return signals;
+        }
+        double top = passed.values().stream().mapToDouble(Double::doubleValue).max().orElse(0);
+        for (Map.Entry<String, Double> entry : passed.entrySet()) {
+            ColorSignal signal = new ColorSignal();
+            signal.color = entry.getKey();
+            signal.strength = top <= 0 ? 0 : (int) Math.round(100 * entry.getValue() / top);
+            signals.add(signal);
+        }
+        signals.sort(Comparator.comparingInt((ColorSignal signal) -> -signal.strength));
+        return signals;
     }
 
     private static double value(CareerPoolCard card) {
@@ -464,7 +607,12 @@ public final class CareerLimited {
             }
         }
         spells.sort(Comparator.comparingDouble((CareerPoolCard card) -> -value(card)).thenComparingInt(card -> card.manaValue));
-        List<CareerPoolCard> deck = new ArrayList<>(spells.subList(0, Math.min(23, spells.size())));
+        return withLands(new ArrayList<>(spells.subList(0, Math.min(23, spells.size()))), colors);
+    }
+
+    /** spells plus basic lands up to 40, split by the colours' symbols */
+    private static List<CareerPoolCard> withLands(List<CareerPoolCard> spells, String colors) {
+        List<CareerPoolCard> deck = new ArrayList<>(spells);
         int lands = DECK_SIZE - deck.size();
         Map<Character, Integer> symbols = new LinkedHashMap<>();
         for (char color : colors.toCharArray()) {
@@ -507,6 +655,111 @@ public final class CareerLimited {
         card.colors = "";
         card.land = true;
         return card;
+    }
+
+    // ---- the pool coach
+
+    /** a bomb: a rare or mythic among the top-rated cards of a pool */
+    private static boolean bomb(CareerPoolCard card) {
+        boolean rare = CareerRules.RARE.equals(card.rarity) || CareerRules.MYTHIC.equals(card.rarity);
+        return rare && (card.rating >= 110 || (card.rating == 0 && CareerRules.MYTHIC.equals(card.rarity)));
+    }
+
+    public CareerLimitedCoach coach(String user) throws SQLException, CareerService.CareerException {
+        CareerStore.RunRow row = active(CareerStore.get(), user);
+        if (row == null) {
+            throw new CareerService.CareerException("You have no limited run going.");
+        }
+        RunData data = gson.fromJson(row.data, RunData.class);
+        if ("draft".equals(data.phase)) {
+            throw new CareerService.CareerException("Finish the draft first.");
+        }
+        return coach(data.pool);
+    }
+
+    static CareerLimitedCoach coach(List<CareerPoolCard> pool) {
+        CareerLimitedCoach coach = new CareerLimitedCoach();
+        String letters = "WUBRG";
+        for (int a = 0; a < letters.length(); a++) {
+            for (int b = a + 1; b < letters.length(); b++) {
+                coach.pairs.add(advise(pool, "" + letters.charAt(a) + letters.charAt(b)));
+            }
+        }
+        coach.pairs.sort(Comparator.comparingInt((PairAdvice pair) -> -pair.score));
+        return coach;
+    }
+
+    static PairAdvice advise(List<CareerPoolCard> pool, String colors) {
+        PairAdvice pair = new PairAdvice();
+        pair.colors = colors;
+        List<CareerPoolCard> spells = new ArrayList<>();
+        for (CareerPoolCard card : pool) {
+            if (!card.land && fits(card, colors)) {
+                spells.add(card);
+            }
+        }
+        pair.playables = spells.size();
+        List<CareerPoolCard> chosen = bestSpells(spells);
+        double rating = 0;
+        int twos = 0;
+        int creatures = 0;
+        for (CareerPoolCard card : chosen) {
+            rating += card.rating > 0 ? card.rating : value(card) * 20;
+            pair.curve[Math.max(0, Math.min(5, card.manaValue - 1))]++;
+            if (card.manaValue == 2) {
+                twos++;
+            }
+            if (card.creature) {
+                creatures++;
+            }
+            if (card.removal) {
+                pair.removal++;
+                pair.removalNames.add(card.name);
+            }
+            if (bomb(card)) {
+                pair.bombs.add(card.name);
+            }
+        }
+        int top = pair.curve[4] + pair.curve[5];
+        double score = rating / Math.max(1, chosen.size()) * Math.min(chosen.size(), 23) / 23.0
+                + 6 * pair.removal + 10 * pair.bombs.size()
+                - 4 * Math.max(0, 23 - pair.playables)
+                - 2 * Math.max(0, 4 - twos)
+                - 2 * Math.max(0, top - 5)
+                - 2 * Math.max(0, 13 - creatures);
+        pair.score = (int) Math.round(score);
+        if (!pair.bombs.isEmpty()) {
+            pair.reasons.add("Bombs: " + String.join(", ", pair.bombs) + ".");
+        }
+        pair.reasons.add(pair.removal == 0 ? "No removal."
+                : pair.removal + " removal spell" + (pair.removal == 1 ? "" : "s") + ": " + String.join(", ", pair.removalNames) + ".");
+        pair.reasons.add(creatures + " creatures, " + twos + " two-drops, " + top + " cards at five or more.");
+        if (pair.playables < 23) {
+            pair.reasons.add("Only " + pair.playables + " playables, so the build runs short.");
+        } else if (pair.playables > 26) {
+            pair.reasons.add(pair.playables + " playables: room to cut the weakest.");
+        }
+        List<CareerPoolCard> deck = withLands(chosen, colors);
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        Map<String, CareerPoolCard> byKey = new LinkedHashMap<>();
+        for (CareerPoolCard card : deck) {
+            String key = card.name + "|" + card.setCode + "|" + card.cardNumber;
+            counts.merge(key, 1, Integer::sum);
+            byKey.put(key, card);
+        }
+        for (Map.Entry<String, Integer> entry : counts.entrySet()) {
+            CareerPoolCard card = byKey.get(entry.getKey());
+            pair.deck.add(new DeckCardInfo(card.name, card.cardNumber, card.setCode, entry.getValue()));
+        }
+        return pair;
+    }
+
+    /** the 23 best spells, by rating, the cheaper first on a tie */
+    private static List<CareerPoolCard> bestSpells(List<CareerPoolCard> spells) {
+        List<CareerPoolCard> sorted = new ArrayList<>(spells);
+        sorted.sort(Comparator.comparingDouble((CareerPoolCard card) -> -(card.rating > 0 ? card.rating : value(card) * 20))
+                .thenComparingInt(card -> card.manaValue));
+        return new ArrayList<>(sorted.subList(0, Math.min(23, sorted.size())));
     }
 
     // ---- building and playing
