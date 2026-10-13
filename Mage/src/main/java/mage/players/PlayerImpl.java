@@ -203,7 +203,14 @@ public abstract class PlayerImpl implements Player, Serializable {
     protected final List<List<Mana>> availableTriggeredManaList = new ArrayList<>();
 
     protected PlayerImpl(String name, RangeOfInfluence range) {
-        this(UUID.randomUUID());
+        this(name, range, UUID.randomUUID());
+    }
+
+    /**
+     * A player with a chosen id: an advisor that thinks from another player's seat in a copy of the game.
+     */
+    protected PlayerImpl(String name, RangeOfInfluence range, UUID id) {
+        this(id);
         this.name = name;
         this.range = range;
         hand = new CardsImpl();
@@ -1059,7 +1066,7 @@ public abstract class PlayerImpl implements Player, Serializable {
             if (!anyOrder) {
                 // random order
                 List<UUID> ids = new ArrayList<>(cards);
-                Collections.shuffle(ids);
+                Collections.shuffle(ids, RandomUtil.getRandom());
                 for (UUID id : ids) {
                     moveObjectToLibrary(id, source, game, false);
                 }
@@ -1202,7 +1209,7 @@ public abstract class PlayerImpl implements Player, Serializable {
             if (!anyOrder) {
                 // random order
                 List<UUID> ids = new ArrayList<>(cards);
-                Collections.shuffle(ids);
+                Collections.shuffle(ids, RandomUtil.getRandom());
                 for (UUID id : ids) {
                     moveObjectToLibrary(id, source, game, true);
                 }

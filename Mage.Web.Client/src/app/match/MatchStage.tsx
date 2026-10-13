@@ -57,6 +57,8 @@ import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlay
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
 import { PracticeTools } from './PracticeTools';
+import { AdviceDialog } from './AdviceDialog';
+import { saveAndLeave, tryTurnAgain } from '../solo/soloData';
 import { PhaseLadder } from './PhaseLadder';
 import { DefenderPicker } from './DefenderPicker';
 import { MiniPiles, Piles } from './Piles';
@@ -479,6 +481,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             <GameMenu
               gameId={state.gameId}
               practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
+              solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
+              onSaved={() => exit(false)}
               canConcede={canAct}
               onConcede={() => onCommand({ type: 'action', action: 'CONCEDE' })}
               onLeave={leave}
@@ -673,6 +677,16 @@ const CONFIRM = {
     description: 'You concede this game and the rest of the match. You can\'t undo it.',
     action: 'Leave match',
   },
+  fork: {
+    title: 'Try this turn again?',
+    description: 'A new game starts from the start of this turn, with the same cards in the same places and the same draws to come. You leave this one.',
+    action: 'Start the turn again',
+  },
+  save: {
+    title: 'Save and leave?',
+    description: 'The game is kept as it was at the start of this turn. Resume it from Home whenever you like.',
+    action: 'Save and leave',
+  },
   rollback: {
     title: 'Go back to the start of this turn?',
     description: 'Every other player must agree; a game against the computer goes back at once.',
@@ -680,10 +694,13 @@ const CONFIRM = {
   },
 } as const;
 
-function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }: {
+function GameMenu({ gameId, practice, solo, onSaved, canConcede, onConcede, onLeave, rollback }: {
   gameId: string;
   /** a game against the computer only: the practice tools are on offer */
   practice: boolean;
+  /** free play against the computer, past the first turn: advice, a fresh try at the turn, save and leave */
+  solo: boolean;
+  onSaved(): void;
   canConcede: boolean;
   onConcede(): void;
   onLeave(): void;
@@ -693,7 +710,22 @@ function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }
   const [confirming, setConfirming] = useState<keyof typeof CONFIRM | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
+  const [adviceOpen, setAdviceOpen] = useState(false);
   const copy = confirming ? CONFIRM[confirming] : null;
+  async function soloAction(choice: 'fork' | 'save') {
+    try {
+      if (choice === 'fork') {
+        await tryTurnAgain(gameId);
+        notify('Try again', 'A new game starts from the start of this turn.');
+      } else {
+        await saveAndLeave(gameId);
+        notify('Saved', 'Resume the game from Home.');
+        onSaved();
+      }
+    } catch (failure) {
+      notify(choice === 'fork' ? 'Try again' : 'Save', failure instanceof Error ? failure.message : String(failure));
+    }
+  }
   return (
     <div className={styles.menu}>
       <DropdownMenu.Root>
@@ -705,6 +737,15 @@ function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenu.Item>
             {practice && (
               <DropdownMenu.Item className={styles.menuItem} onSelect={() => setPracticeOpen(true)}>Practice tools</DropdownMenu.Item>
+            )}
+            {practice && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setAdviceOpen(true)}>Ask the AI</DropdownMenu.Item>
+            )}
+            {solo && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('fork')}>Try this turn again</DropdownMenu.Item>
+            )}
+            {solo && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('save')}>Save and leave</DropdownMenu.Item>
             )}
             {rollback && (
               <DropdownMenu.Item
@@ -727,6 +768,7 @@ function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }
       </DropdownMenu.Root>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {practice && <PracticeTools gameId={gameId} open={practiceOpen} onOpenChange={setPracticeOpen} />}
+      {practice && <AdviceDialog gameId={gameId} open={adviceOpen} onOpenChange={setAdviceOpen} />}
       <Dialog
         open={confirming !== null}
         onOpenChange={(open) => !open && setConfirming(null)}
@@ -737,13 +779,14 @@ function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }
           <>
             <Button variant="quiet" onClick={() => setConfirming(null)}>Keep playing</Button>
             <Button
-              variant={confirming === 'rollback' ? 'decision' : 'danger'}
+              variant={confirming === 'rollback' || confirming === 'fork' || confirming === 'save' ? 'decision' : 'danger'}
               onClick={() => {
                 const choice = confirming;
                 setConfirming(null);
                 if (choice === 'leave') onLeave();
                 else if (choice === 'concede') onConcede();
                 else if (choice === 'rollback') rollback?.request();
+                else if (choice === 'fork' || choice === 'save') void soloAction(choice);
               }}
             >
               {copy?.action}

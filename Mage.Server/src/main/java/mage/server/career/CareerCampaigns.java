@@ -267,7 +267,16 @@ public final class CareerCampaigns {
     private final Map<String, Campaign> campaigns = new LinkedHashMap<>();
 
     private CareerCampaigns() throws IOException {
+        campaigns.putAll(readBuiltIn());
+        for (Campaign campaign : mage.server.solo.ContentPacks.get().campaigns()) {
+            campaigns.putIfAbsent(campaign.id, campaign);
+        }
+    }
+
+    /** the campaigns the server ships with */
+    static Map<String, Campaign> readBuiltIn() throws IOException {
         Gson gson = new Gson();
+        Map<String, Campaign> read = new LinkedHashMap<>();
         List<String> ids;
         try (Reader reader = resource("index.json")) {
             ids = gson.fromJson(reader, new TypeToken<List<String>>() {
@@ -276,9 +285,15 @@ public final class CareerCampaigns {
         for (String id : ids) {
             try (Reader reader = resource(id + ".json")) {
                 Campaign campaign = gson.fromJson(reader, Campaign.class);
-                campaigns.put(campaign.id, campaign);
+                read.put(campaign.id, campaign);
             }
         }
+        return read;
+    }
+
+    /** content packs changed: read everything again on next use */
+    static void forget() {
+        instance = null;
     }
 
     private static Reader resource(String name) throws IOException {

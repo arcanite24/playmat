@@ -77,7 +77,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
     protected LinkedList<Ability> actions = new LinkedList<>();
     protected Combat combat;
     protected int currentScore;
-    protected SimulationNode2 root;
+    protected transient SimulationNode2 root; // the last search tree: game copies, never saved with the game
     List<Permanent> attackersList = new ArrayList<>();
     List<Permanent> attackersToCheck = new ArrayList<>();
 
@@ -95,7 +95,14 @@ public class ComputerPlayer6 extends ComputerPlayer {
     }
 
     public ComputerPlayer6(String name, RangeOfInfluence range, int skill) {
-        super(name, range);
+        this(name, range, skill, UUID.randomUUID());
+    }
+
+    /**
+     * An AI with a chosen id, to think from another player's seat in a copy of the game (see MadAdvisor)
+     */
+    protected ComputerPlayer6(String name, RangeOfInfluence range, int skill, UUID id) {
+        super(name, range, id);
         if (skill < 4) {
             maxDepth = 4; // TODO: can be increased to support better calculations? (example = 8, skill * 2)
         } else {
@@ -487,9 +494,12 @@ public class ComputerPlayer6 extends ComputerPlayer {
         //  multithreading do not supported here
         // run new game simulation in parallel thread
         CountDownLatch started = new CountDownLatch(1);
+        // the search draws its random numbers (the low skills' misjudgement) from the game's generator, so a seeded
+        // game's AI thinks the same way every time
+        java.util.Random searchRandom = RandomUtil.childForOtherThread();
         FutureTask<Integer> task = new FutureTask<>(() -> {
             started.countDown();
-            return addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE);
+            return RandomUtil.withRandom(searchRandom, () -> addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE));
         });
         threadPoolSimulations.execute(task);
         try {

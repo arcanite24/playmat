@@ -12,6 +12,7 @@ import { playMode, usePuzzles } from './careerModesData';
 import { puzzleZones } from './careerModesModel';
 import { ModeResult, Stars } from './ModeParts';
 import styles from './CareerModes.module.css';
+import { PuzzleBoard } from './PuzzleBoard';
 
 registerMessages(messages);
 
@@ -132,6 +133,7 @@ function PuzzleDetail({ puzzle }: { puzzle: CareerPuzzle }) {
             <p className={styles.small}><Lock size={14} aria-hidden="true" /> {t('career.puzzle.lockedHint')}</p>
           )}
         </div>
+        {puzzle.open && <PuzzleBoard puzzleId={puzzle.id!} />}
       </div>
     </article>
   );

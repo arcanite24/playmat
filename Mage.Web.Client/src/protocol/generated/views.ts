@@ -76,6 +76,20 @@ export interface AccountsPage {
     total?: number;
 }
 
+export interface Advice extends Serializable {
+    kind?: AdviceKind;
+    millis?: number;
+    steps?: AdviceStep[];
+    text?: string;
+    when?: string;
+}
+
+export interface AdviceStep extends Serializable {
+    objectId?: string;
+    targetIds?: string[];
+    text?: string;
+}
+
 export interface AllowEntry {
     addedAt?: number;
     addedBy?: string;
@@ -106,6 +120,33 @@ export interface BackupRun {
 
 export interface BasicLandSetInfo extends ExpansionSetInfo {
     hasSnowBasics?: boolean;
+}
+
+export interface BatchJob {
+    created?: number;
+    done?: number;
+    error?: string;
+    finished?: number;
+    games?: number;
+    id?: string;
+    kind?: string;
+    maxTurns?: number;
+    nameA?: string;
+    nameB?: string;
+    result?: JobResult;
+    seed?: number;
+    skillA?: number;
+    skillB?: number;
+    started?: number;
+    status?: string;
+    user?: string;
+}
+
+export interface BatchStatus {
+    concurrency?: number;
+    gamesInFlight?: number;
+    gamesPerDay?: number;
+    jobs?: BatchJob[];
 }
 
 export interface BracketGroupInfo {
@@ -709,6 +750,7 @@ export interface CareerTwists extends Serializable {
     extraCards?: number;
     permanents?: string[];
     startingLife?: number;
+    timed?: TimedTwist[];
 }
 
 export interface CareerWeekly {
@@ -798,6 +840,20 @@ export interface CommanderView extends CardView, CommandObjectView, Serializable
 }
 
 export interface Comparable<T> {
+}
+
+export interface ContentPackView {
+    author?: string;
+    campaigns?: number;
+    challenges?: number;
+    decks?: number;
+    id?: string;
+    loaded?: boolean;
+    name?: string;
+    opponents?: number;
+    problems?: string[];
+    puzzles?: number;
+    version?: string;
 }
 
 export interface Copyable<T> {
@@ -984,6 +1040,14 @@ export interface GameEventView extends Serializable {
     toZone?: string;
 }
 
+export interface GameRecord {
+    first?: string;
+    n?: number;
+    seed?: number;
+    turns?: number;
+    winner?: string;
+}
+
 export interface GameTypeView extends Serializable {
     maxPlayers?: number;
     minPlayers?: number;
@@ -1068,11 +1132,59 @@ export interface InviteCheck {
     valid?: boolean;
 }
 
+export interface JobResult {
+    draws?: number;
+    errors?: number;
+    games?: GameRecord[];
+    turns?: number;
+    winsA?: number;
+    winsB?: number;
+}
+
+export interface JobSpec {
+    deckA?: DeckCardLists;
+    deckB?: DeckCardLists;
+    deckType?: string;
+    gameType?: string;
+    games?: number;
+    maxTurns?: number;
+    nameA?: string;
+    nameB?: string;
+    seed?: number;
+    skillA?: number;
+    skillB?: number;
+}
+
 export interface LargeMessage {
     at?: number;
     chars?: number;
     method?: string;
     objectId?: string;
+}
+
+export interface Leaderboard {
+    board?: string;
+    entries?: LeaderboardEntry[];
+    label?: string;
+    mode?: string;
+    scope?: string;
+    total?: number;
+    v1HigherIsBetter?: boolean;
+    v1Label?: string;
+    v2HigherIsBetter?: boolean;
+    v2Label?: string;
+    yours?: LeaderboardEntry;
+}
+
+export interface LeaderboardEntry {
+    at?: number;
+    attempts?: number;
+    detail?: string;
+    rank?: number;
+    user?: string;
+    v1?: number;
+    v2?: number;
+    you?: boolean;
 }
 
 export interface LookedAtView extends Serializable {
@@ -1390,6 +1502,23 @@ export interface SkipPrioritySteps extends Serializable {
     upkeep?: boolean;
 }
 
+export interface SoloSave {
+    career?: boolean;
+    created?: number;
+    gameType?: string;
+    id?: string;
+    kind?: string;
+    opponents?: string;
+    running?: boolean;
+    title?: string;
+    turn?: number;
+    updated?: number;
+}
+
+export interface SoloTable {
+    tableId?: string;
+}
+
 export interface StackAbilityView extends CardView {
     sourceCard?: CardView;
 }
@@ -1453,6 +1582,17 @@ export interface TableView extends Serializable {
     tableName?: string;
     tableState?: TableState;
     tableStateText?: string;
+}
+
+export interface TimedTwist extends Serializable {
+    card?: string;
+    gainLife?: number;
+    life?: number;
+    message?: string;
+    then?: CareerTwists;
+    turn?: number;
+    when?: string;
+    who?: string;
 }
 
 export interface TournamentGameView extends Serializable {
@@ -1599,6 +1739,8 @@ export interface Wildcards {
 }
 
 export type AbilityType = "PLAY_LAND" | "SPELL" | "STATIC" | "EVASION" | "ACTIVATED_NONMANA" | "ACTIVATED_MANA" | "TRIGGERED_NONMANA" | "TRIGGERED_MANA" | "SPECIAL_ACTION" | "SPECIAL_MANA_PAYMENT";
+
+export type AdviceKind = "PLAY" | "PASS" | "ATTACK" | "NO_ATTACK" | "BLOCK" | "NO_BLOCK" | "NONE";
 
 export type ArtRect = "NORMAL" | "RETRO" | "AFTERMATH_TOP" | "AFTERMATH_BOTTOM" | "SPLIT_LEFT" | "SPLIT_RIGHT" | "SPLIT_FUSED" | "FULL_LENGTH_LEFT" | "FULL_LENGTH_RIGHT";
 

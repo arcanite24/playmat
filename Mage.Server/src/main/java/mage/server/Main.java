@@ -346,6 +346,8 @@ public final class Main {
                 logger.info("Started MAGE WebSocket server - listening on port " + websocketPort);
                 Health.start(managerFactory);
                 BackupStatus.startChecks();
+                // AI-against-AI batches carry on from before a restart
+                mage.server.solo.BatchRunner.get().start();
 
                 if (testMode) {
                     logger.info("MAGE server running in test mode");

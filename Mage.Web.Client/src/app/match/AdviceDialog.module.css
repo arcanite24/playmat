@@ -1,0 +1,46 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 64px;
+}
+
+.heading {
+  margin: 0;
+  color: var(--ink-strong);
+  font-weight: 600;
+}
+
+.heading small {
+  color: var(--ink-dim);
+  font-weight: 400;
+}
+
+.text {
+  margin: 0;
+  color: var(--ink-strong);
+}
+
+.steps {
+  margin: 0;
+  padding-left: 1.4em;
+  color: var(--ink-strong);
+}
+
+.steps li + li {
+  margin-top: 4px;
+}
+
+.quiet {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  background: rgb(var(--oxblood-rgb) / 0.3);
+  color: var(--oxblood-ink);
+}

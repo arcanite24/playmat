@@ -47,15 +47,26 @@ public final class CareerPuzzles {
     private final Map<String, CareerSetup.Puzzle> puzzles = new LinkedHashMap<>();
 
     private CareerPuzzles() throws IOException {
+        readBuiltIn().forEach(puzzle -> puzzles.put(puzzle.id, puzzle));
+        for (CareerSetup.Puzzle puzzle : mage.server.solo.ContentPacks.get().puzzles()) {
+            puzzles.putIfAbsent(puzzle.id, puzzle);
+        }
+    }
+
+    /** the puzzles the server ships with */
+    static List<CareerSetup.Puzzle> readBuiltIn() throws IOException {
         InputStream stream = CareerPuzzles.class.getResourceAsStream("/career/puzzles.json");
         if (stream == null) {
             throw new IOException("Missing career resource puzzles.json");
         }
         try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
-            List<CareerSetup.Puzzle> list = new Gson().fromJson(reader, new TypeToken<List<CareerSetup.Puzzle>>() {
+            return new Gson().fromJson(reader, new TypeToken<List<CareerSetup.Puzzle>>() {
             }.getType());
-            list.forEach(puzzle -> puzzles.put(puzzle.id, puzzle));
         }
+    }
+
+    static void forget() {
+        instance = null;
     }
 
     public static CareerPuzzles get() {
@@ -123,6 +134,11 @@ public final class CareerPuzzles {
             throw new CareerService.CareerException("Solve the puzzles before " + puzzle.name + " first.");
         }
         CareerStore.get().puzzleAttempt(user, puzzleId);
+        try {
+            mage.server.solo.Leaderboards.get().attempt(mage.server.solo.Leaderboards.PUZZLE, puzzleId, user);
+        } catch (SQLException | RuntimeException e) {
+            org.apache.log4j.Logger.getLogger(CareerPuzzles.class).warn("Puzzle board: an attempt wasn't counted", e);
+        }
         return puzzle;
     }
 
@@ -152,6 +168,12 @@ public final class CareerPuzzles {
         boolean first = before == null || before[2] == 0;
         int stars = stars(attempts);
         store.puzzleSolved(user, puzzleId, stars, now);
+        try {
+            // the puzzle's board: most stars, then fewest tries
+            mage.server.solo.Leaderboards.get().submit(mage.server.solo.Leaderboards.PUZZLE, puzzleId, user, stars, (long) attempts, null);
+        } catch (SQLException | RuntimeException e) {
+            org.apache.log4j.Logger.getLogger(CareerPuzzles.class).warn("Puzzle board: a solve wasn't recorded", e);
+        }
         result.mode.stars = Math.max(stars, before == null ? 0 : (int) before[1]);
         result.mode.lines.add("Solved" + (attempts <= 1 ? " on the first try." : " in " + attempts + " tries."));
         if (first) {

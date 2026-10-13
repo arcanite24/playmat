@@ -29,6 +29,8 @@ export interface TableAdvanced {
   handSize: number | null;
   spectatorsAllowed: boolean;
   rollbackTurnsAllowed: boolean;
+  /** digits: every game deals from this seed (game n of the match from seed + n - 1); empty: random */
+  seed: string;
 }
 
 export const DEFAULT_ADVANCED: TableAdvanced = {
@@ -47,7 +49,15 @@ export const DEFAULT_ADVANCED: TableAdvanced = {
   handSize: null,
   spectatorsAllowed: true,
   rollbackTurnsAllowed: true,
+  seed: '',
 };
+
+/** a seed the server takes: up to 15 digits (a whole number JavaScript holds exactly), or null */
+export function parseSeed(text: string): number | null {
+  const trimmed = text.trim();
+  if (!/^\d{1,15}$/.test(trimmed)) return null;
+  return Number(trimmed);
+}
 
 export const MULLIGAN_TYPES: { value: MulliganType; label: string }[] = [
   { value: 'GAME_DEFAULT', label: 'The format’s own' },
@@ -139,6 +149,8 @@ export function matchOptions(input: {
     options.customStartHandSizeEnabled = true;
     options.customStartHandSize = advanced.handSize;
   }
+  const seed = parseSeed(advanced.seed);
+  if (seed !== null) options.seed = seed;
   return options;
 }
 
@@ -146,6 +158,7 @@ export function matchOptions(input: {
 export function describeAdvanced(advanced: TableAdvanced): string[] {
   const parts: string[] = [];
   if (advanced.mulliganType !== DEFAULT_ADVANCED.mulliganType) parts.push(`${MULLIGAN_TYPES.find((item) => item.value === advanced.mulliganType)?.label} mulligan`);
+  if (parseSeed(advanced.seed) !== null) parts.push(`Seed ${advanced.seed.trim()}`);
   if (advanced.freeMulligans > 0) parts.push(`${advanced.freeMulligans} free ${advanced.freeMulligans === 1 ? 'mulligan' : 'mulligans'}`);
   if (advanced.matchTimeLimit !== 'NONE') parts.push(TIME_LIMITS.find((item) => item.value === advanced.matchTimeLimit)?.label ?? '');
   if (advanced.rated) parts.push('Rated');

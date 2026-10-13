@@ -94,6 +94,8 @@ public final class OptionsMapper {
         if (json.has("rated")) options.setRated(bool(json, "rated"));
         if (json.has("rollbackTurnsAllowed")) options.setRollbackTurnsAllowed(bool(json, "rollbackTurnsAllowed"));
         if (json.has("spectatorsAllowed")) options.setSpectatorsAllowed(bool(json, "spectatorsAllowed"));
+        // a seeded match deals the same cards every time it's played with the same seed
+        if (hasValue(json, "seed")) options.setSeed(json.get("seed").getAsLong());
         if (hasValue(json, "matchTimeLimit")) options.setMatchTimeLimit(enumValue(json, "matchTimeLimit", MatchTimeLimit.class));
         if (hasValue(json, "matchBufferTime")) options.setMatchBufferTime(enumValue(json, "matchBufferTime", MatchBufferTime.class));
         if (hasValue(json, "attackOption")) options.setAttackOption(enumValue(json, "attackOption", MultiplayerAttackOption.class));

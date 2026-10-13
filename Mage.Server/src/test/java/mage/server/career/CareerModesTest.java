@@ -32,6 +32,8 @@ public class CareerModesTest {
 
     private Path file;
     private CareerStore store;
+    private Path soloFile;
+    private mage.server.solo.SoloStore soloStore;
     private final CareerService service = CareerService.get();
 
     @BeforeEach
@@ -39,6 +41,10 @@ public class CareerModesTest {
         file = Files.createTempFile("career-modes-test", ".db");
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
+        soloFile = Files.createTempFile("career-modes-solo", ".db");
+        soloStore = new mage.server.solo.SoloStore("jdbc:sqlite:" + soloFile);
+        mage.server.solo.SoloStore.use(soloStore);
+        mage.server.solo.Leaderboards.get().forgetMigration();
         store.createProfile("Ana", "test", CareerRules.START_COINS, 1L);
     }
 
@@ -46,6 +52,9 @@ public class CareerModesTest {
     public void tearDown() throws Exception {
         store.close();
         CareerStore.use(null);
+        soloStore.close();
+        mage.server.solo.SoloStore.use(null);
+        Files.deleteIfExists(soloFile);
         CareerChallenges.get().useClock(() -> LocalDate.now(java.time.ZoneOffset.UTC));
         Files.deleteIfExists(file);
     }

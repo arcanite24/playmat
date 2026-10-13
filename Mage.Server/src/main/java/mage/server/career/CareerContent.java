@@ -108,6 +108,9 @@ public final class CareerContent {
         for (Opponent opponent : roster.opponents) {
             opponents.put(opponent.id, opponent);
         }
+        for (Opponent opponent : mage.server.solo.ContentPacks.get().opponents()) {
+            opponents.putIfAbsent(opponent.id, opponent);
+        }
         StarterEntry[] index;
         try (Reader reader = resource("starters/index.json")) {
             index = gson.fromJson(reader, StarterEntry[].class);
@@ -144,6 +147,28 @@ public final class CareerContent {
             }
         }
         return current;
+    }
+
+    /** the roster the server ships with: tiers and opponent ids */
+    static List<Tier> builtInTiers() throws IOException {
+        try (Reader reader = resource("opponents.json")) {
+            return new Gson().fromJson(reader, Roster.class).tiers;
+        }
+    }
+
+    static List<String> builtInOpponentIds() throws IOException {
+        try (Reader reader = resource("opponents.json")) {
+            List<String> ids = new java.util.ArrayList<>();
+            for (Opponent opponent : new Gson().fromJson(reader, Roster.class).opponents) {
+                ids.add(opponent.id);
+            }
+            return ids;
+        }
+    }
+
+    static void forget() {
+        instance = null;
+        covers.clear();
     }
 
     private static Reader resource(String path) throws IOException {
@@ -278,6 +303,9 @@ public final class CareerContent {
 
     /** reads a .dck file shipped in resources (the importer reads files, so it goes through a temporary copy) */
     static DeckCardLists deck(String path) throws IOException {
+        if (mage.server.solo.ContentPacks.isPackDeck(path)) {
+            return mage.server.solo.ContentPacks.get().deck(path);
+        }
         InputStream stream = CareerContent.class.getResourceAsStream(ROOT + path);
         if (stream == null) {
             throw new IOException("Missing career deck " + path);
@@ -303,6 +331,27 @@ public final class CareerContent {
         } finally {
             Files.deleteIfExists(file);
         }
+    }
+
+    /**
+     * Reads a .dck file on disk the way Career decks are read (content packs): without a card database, as written.
+     *
+     * @throws IOException when it has no cards, or names cards the database doesn't know
+     */
+    public static DeckCardLists readDeckFile(Path file) throws IOException {
+        StringBuilder errors = new StringBuilder();
+        DeckCardLists deck = DeckImporter.importDeckFromFile(file.toString(), errors, false);
+        boolean database = !mage.cards.repository.CardRepository.instance.findCards("Plains").isEmpty();
+        if ((deck == null || deck.getCards().isEmpty()) && !database) {
+            deck = readAsWritten(file);
+        }
+        if (deck == null || deck.getCards().isEmpty()) {
+            throw new IOException("has no cards the server knows" + (errors.length() > 0 ? ": " + errors.toString().trim() : ""));
+        }
+        if (errors.length() > 0 && database) {
+            throw new IOException(errors.toString().trim());
+        }
+        return deck;
     }
 
     private static final String[][] BASIC_LANDS = {{"Plains", "W"}, {"Island", "U"}, {"Swamp", "B"}, {"Mountain", "R"}, {"Forest", "G"}};

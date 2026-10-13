@@ -1,7 +1,7 @@
 import { ChevronDown } from 'lucide-react';
 import { useId, useState, type ReactNode } from 'react';
 import {
-  ATTACK_OPTIONS, BUFFER_TIMES, describeAdvanced, MULLIGAN_TYPES, RANGES, SKILL_LEVELS, TIME_LIMITS, type TableAdvanced,
+  ATTACK_OPTIONS, BUFFER_TIMES, describeAdvanced, MULLIGAN_TYPES, parseSeed, RANGES, SKILL_LEVELS, TIME_LIMITS, type TableAdvanced,
 } from '../../core/game/tableSetup';
 import styles from './TableAdvancedFields.module.css';
 
@@ -40,6 +40,25 @@ function Check({ label, checked, onChange }: { label: string; checked: boolean; 
   );
 }
 
+function SeedField({ value, onChange }: { value: string; onChange(value: string): void }) {
+  const id = useId();
+  const invalid = value.trim() !== '' && parseSeed(value) === null;
+  return (
+    <div className={styles.field}>
+      <label htmlFor={id}>Seed</label>
+      <input
+        id={id}
+        inputMode="numeric"
+        placeholder="Random"
+        value={value}
+        aria-invalid={invalid}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <p className={styles.hint}>{invalid ? 'Up to 15 digits.' : 'The same seed deals the same cards, to replay a game.'}</p>
+    </div>
+  );
+}
+
 const LIVES = [{ value: 0, label: 'The format’s own' }, ...[10, 20, 25, 30, 40, 50, 60].map((life) => ({ value: life, label: `${life}` }))];
 const HANDS = [{ value: 0, label: 'Seven' }, ...[4, 5, 6, 8, 9, 10].map((size) => ({ value: size, label: `${size}` }))];
 const FREE_MULLIGANS = [0, 1, 2, 3].map((count) => ({ value: count, label: count === 0 ? 'None' : `${count}` }));
@@ -72,6 +91,7 @@ export function TableAdvancedFields({ value, onChange, multiplayer, commander }:
           <Select label="Match clock" value={value.matchTimeLimit} options={TIME_LIMITS} onChange={(matchTimeLimit) => onChange({ matchTimeLimit })} hint="Each player's total time for the match." />
           <Select label="Time per decision" value={value.matchBufferTime} options={BUFFER_TIMES} onChange={(matchBufferTime) => onChange({ matchBufferTime })} hint="Spent before the match clock runs." />
           <Select label="Players' skill" value={value.skillLevel} options={SKILL_LEVELS} onChange={(skillLevel) => onChange({ skillLevel })} />
+          <SeedField value={value.seed} onChange={(seed) => onChange({ seed })} />
           <Select label="Minimum rating" value={value.minimumRating} options={RATINGS} onChange={(minimumRating) => onChange({ minimumRating })} />
           {commander && (
             <Select label="Deck power level" value={value.edhPowerLevel} options={POWER_LEVELS} onChange={(edhPowerLevel) => onChange({ edhPowerLevel })} hint="Decks above it can't join." />

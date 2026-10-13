@@ -259,7 +259,7 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `adminDeleteAccount` | `userName: string`, `reason: string` | `boolean` | session | Staff (admin): delete the account with its decks, Career, reports, stats, feedback, allowlist entry and staff role, signing its player out. Can't be undone: export first. The audit log keeps the record of the deletion. |
 | `adminFeedback` | `status?: string` | `FeedbackEntry[]` | session | Staff (moderator): feedback players sent, newest first, 200 at most; status new, seen or done narrows it. |
 | `adminFeedbackMark` | `id: number`, `status: string`, `note?: string` | `FeedbackEntry` | session | Staff (moderator): mark feedback new, seen or done, with an optional note (such as the issue it became). |
-| `adminSettings` | - | `ServerSettings` | session | Staff (admin): settings that change without a restart (registration, Career, AI opponents, time to answer, Discord posts), each with where its value comes from; the Discord webhooks; planned maintenance. |
+| `adminSettings` | - | `ServerSettings` | session | Staff (admin): settings that change without a restart (registration, Career, AI opponents, batch games, time to answer, Discord posts), each with where its value comes from; the Discord webhooks; planned maintenance. |
 | `adminSetSetting` | `name: string`, `value: string`, `reason?: string` | `ServerSettings` | session | Staff (admin): change a setting; an empty value goes back to the server's config. |
 | `adminMaintenance` | `minutes: number`, `message?: string`, `restartWhenIdle?: boolean` | `ServerSettings` | session | Staff (owner): announce maintenance in so many minutes (0: now). New tables stop at once and players are warned; with restartWhenIdle the server exits once the time has come and no game is running, and its restart policy brings it back. A new announcement replaces the old one. |
 | `adminMaintenanceCancel` | - | `ServerSettings` | session | Staff (owner): call planned maintenance off; tables can start again. |
@@ -309,6 +309,23 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerLimitedDeck` | `deck: DeckCardLists` | `CareerLimitedRun` | session | Submit the run's deck: at least 40 cards from the pool, plus any basic lands. |
 | `careerLimitedPlay` | - | `CareerMatch` | session | Play the run's next game. The run ends at three wins or two losses. |
 | `careerLimitedAbandon` | - | `CareerLimitedRun` | session | Give up the run in progress. Cards already opened stay in the collection. |
+| `soloSaves` | - | `SoloSave[]` | session | Your saved games against the computer, newest first. Every solo game saves itself at the start of each turn; one still running says so (rejoin it from your open games). |
+| `soloResume` | `saveId: string` | `SoloTable` | session | Carry on a saved game from the start of the turn it was saved in, at a new table with the same opponents and decks. A Career game still pays when it ends. |
+| `soloDelete` | `saveId: string` | `boolean` | session | Throw a saved game away. |
+| `soloSaveAndLeave` | `gameId: UUID`, `sessionId: string` | `boolean` | session | Free play against the computer: keep the game as saved at the start of this turn, and leave it. Resume it later from your saved games. |
+| `soloFork` | `gameId: UUID`, `sessionId: string` | `SoloTable` | session | Free play against the computer: start this turn again at a new table (the same cards in the same places, the same draws to come), and leave this game. |
+| `gameAdvise` | `gameId: UUID`, `sessionId: string`, `skill?: number` | `Advice` | session | What the AI would do in your place right now, without doing it: what to play, how to attack or block. Only in a game against the computer, outside Career; ask while the game waits for you. |
+| `soloBatchSubmit` | `spec: JobSpec`, `kind?: string` | `BatchJob` | session | Queue AI-against-AI games between two decks (1 to 500, each seeded: game n plays seed + n). The server plays a few at a time; ask for the job to see the score. |
+| `soloBatchJobs` | - | `BatchJob[]` | session | Your batches, newest first, with their scores so far. |
+| `soloBatchJob` | `jobId: string` | `BatchJob` | session | One of your batches with every game's seed, winner and length. |
+| `soloBatchCancel` | `jobId: string` | `boolean` | session | Stop one of your batches; games already played keep their score. |
+| `leaderboard` | `mode: string`, `board: string`, `scope?: string`, `names?: unknown[]` | `Leaderboard` | session | A mode's leaderboard (weekly-challenge: board is the week, like 2026-W42; puzzle: board is the puzzle id), best first, with your line. Scope server (everyone) or friends (the names given, and you). |
+| `adminBatchJobs` | - | `BatchStatus` | session | Staff (admin): the batch runner's settings, games running now and the latest jobs of every player. |
+| `adminBatchCancel` | `jobId: string` | `boolean` | session | Staff (admin): stop anyone's batch. |
+| `adminContentPacks` | - | `ContentPackView[]` | session | Staff (admin): the content packs on the server, each loaded or with the problems that kept it out. |
+| `adminContentPackUpload` | `zipBase64: string`, `reason?: string` | `ContentPackView` | session | Staff (owner): add or replace a content pack from a zip (pack.json and decks/*.dck, up to 4 MB). It's checked as it loads; one with problems stays out and says why. |
+| `adminContentPackRemove` | `packId: string`, `reason?: string` | `ContentPackView[]` | session | Staff (owner): remove a content pack. Progress players made in it stays, but its content goes. |
+| `adminContentPackReload` | - | `ContentPackView[]` | session | Staff (admin): read the content pack folder again (after copying a pack in by hand). |
 <!-- END GENERATED: methods -->
 
 ## Server events

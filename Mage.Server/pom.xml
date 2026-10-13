@@ -418,6 +418,14 @@
                                 <class>mage.server.decks.DeckSyncEntry</class>
                                 <class>mage.server.decks.DeckStore$DeckPutResult</class>
                                 <class>mage.server.moderation.PlayerReport</class>
+                                <class>mage.server.solo.SoloViews$SoloSave</class>
+                                <class>mage.server.solo.SoloViews$SoloTable</class>
+                                <class>mage.server.solo.SoloViews$BatchJob</class>
+                                <class>mage.server.solo.SoloViews$BatchStatus</class>
+                                <class>mage.server.solo.BatchRunner$JobSpec</class>
+                                <class>mage.server.solo.Leaderboards$Leaderboard</class>
+                                <class>mage.server.solo.ContentPacks$ContentPackView</class>
+                                <class>mage.game.advice.Advice</class>
                                 <class>mage.server.moderation.ClientErrors$ClientError</class>
                                 <class>mage.server.admin.ClientErrorGroup</class>
                                 <class>mage.server.websocket.api.SettingsApi$ServerSetting</class>

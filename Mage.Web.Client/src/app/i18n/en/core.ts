@@ -106,6 +106,17 @@ export default {
   'home.continue': 'Continue',
   'home.career': 'Career',
   'home.career.note': 'Your own collection, AI opponents in tiers, packs to earn.',
+  'home.saved.title': 'Saved games',
+  'home.saved.vs': 'vs {name}',
+  'home.saved.turn': 'Turn {turn}',
+  'home.saved.career': 'Career',
+  'home.saved.kept': 'kept',
+  'home.saved.resume': 'Resume',
+  'home.saved.delete': 'Delete the saved game vs {name}',
+  'home.saved.justNow': 'just now',
+  'home.saved.minutesAgo': '{count} min ago',
+  'home.saved.hoursAgo': '{count} h ago',
+  'home.saved.daysAgo': '{count} d ago',
 
   // the AI opponent (Play)
   'ai.title': 'Playing the AI',

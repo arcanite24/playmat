@@ -75,7 +75,8 @@
   color: var(--ink-dim);
 }
 
-.field select {
+.field select,
+.field input {
   height: 40px;
   padding: 0 10px;
   border: 0;

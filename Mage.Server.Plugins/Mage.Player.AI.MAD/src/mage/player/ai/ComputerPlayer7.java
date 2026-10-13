@@ -7,6 +7,8 @@ import mage.game.Game;
 import mage.player.ai.score.GameStateEvaluator2;
 import org.apache.log4j.Logger;
 
+import java.util.UUID;
+
 import java.util.Date;
 import java.util.LinkedList;
 
@@ -23,6 +25,10 @@ public class ComputerPlayer7 extends ComputerPlayer6 {
 
     public ComputerPlayer7(String name, RangeOfInfluence range, int skill) {
         super(name, range, skill);
+    }
+
+    protected ComputerPlayer7(String name, RangeOfInfluence range, int skill, UUID id) {
+        super(name, range, skill, id);
     }
 
     public ComputerPlayer7(final ComputerPlayer7 player) {

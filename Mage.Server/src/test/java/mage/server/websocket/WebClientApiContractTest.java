@@ -77,7 +77,10 @@ public class WebClientApiContractTest {
             "adminAccounts", "adminAccount", "adminResetCode", "adminAccountExport", "adminDeleteAccount", "adminFeedback",
             "adminFeedbackMark", "sendFeedback", // accounts and feedback (api/AccountsApiTest)
             "adminTableWatch", "adminClientErrorResolve", "adminSettings", "adminSetSetting", "adminMaintenance",
-            "adminMaintenanceCancel", "adminDiscordTest" // watching, client errors, settings and maintenance (M15)
+            "adminMaintenanceCancel", "adminDiscordTest", // watching, client errors, settings and maintenance (M15)
+            "soloSaves", "soloResume", "soloDelete", "soloSaveAndLeave", "soloFork", "gameAdvise", "soloBatchSubmit",
+            "soloBatchJobs", "soloBatchJob", "soloBatchCancel", "leaderboard", "adminBatchJobs", "adminBatchCancel",
+            "adminContentPacks", "adminContentPackUpload", "adminContentPackRemove", "adminContentPackReload" // solo (solo/SoloFoundationsTest)
     ));
 
     static {

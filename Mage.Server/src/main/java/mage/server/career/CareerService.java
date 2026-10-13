@@ -52,7 +52,8 @@ public final class CareerService {
     /** each set's card names (no basic lands, only what its packs can hold), read once */
     private final Map<String, Set<String>> setNames = new ConcurrentHashMap<>();
 
-    public static class CareerTable {
+    public static class CareerTable implements java.io.Serializable {
+        private static final long serialVersionUID = 1L;
         public final String user;
         /** the roster opponent's id, or the mode and its reference ("campaign:five-paths/white-1") */
         public final String opponentId;
@@ -300,6 +301,18 @@ public final class CareerService {
 
     public boolean isCareerTable(UUID tableId) {
         return tableId != null && tables.containsKey(tableId);
+    }
+
+    /** what a Career table plays for, to carry over when its game resumes at another table; null for other tables */
+    public CareerTable tableInfo(UUID tableId) {
+        return tableId == null ? null : tables.get(tableId);
+    }
+
+    /** a resumed Career game: the new table plays for what the saved one did, and pays the same way */
+    public void adopt(UUID tableId, CareerTable table) {
+        if (tableId != null && table != null) {
+            tables.put(tableId, table);
+        }
     }
 
     public void forget(UUID tableId) {

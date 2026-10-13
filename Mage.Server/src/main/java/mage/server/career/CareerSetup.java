@@ -33,7 +33,7 @@ import java.util.UUID;
 public final class CareerSetup implements GameSetup {
 
     private static final long serialVersionUID = 1L;
-    private static final Logger logger = Logger.getLogger(CareerSetup.class);
+    static final Logger logger = Logger.getLogger(CareerSetup.class);
 
     /** A boss's edge over a normal opponent. Every field is optional. */
     public static class CareerTwists implements Serializable {
@@ -46,6 +46,68 @@ public final class CareerSetup implements GameSetup {
         public List<String> permanents;
         /** a card whose abilities the opponent has as an emblem */
         public String emblem;
+        /** edges that come in during the game */
+        public List<TimedTwist> timed;
+    }
+
+    /**
+     * An edge that comes in during the game, once: at the beginning of a turn ({@code when} "turn", {@code turn} N:
+     * the game's turn number), when a player's life is at or below a threshold ("life", {@code life} N, {@code who}
+     * "opponent" by default) or when a player casts a card ("cast", {@code card} name, {@code who} "you" by default).
+     * The opponent then gets {@code then} (as a starting twist: life set, cards drawn, permanents, an emblem) and
+     * {@code gainLife} life (negative: loses it); {@code message} goes in the game log.
+     */
+    public static class TimedTwist implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public static final String TURN = "turn";
+        public static final String LIFE = "life";
+        public static final String CAST = "cast";
+
+        public String when;
+        public Integer turn;
+        public Integer life;
+        public String card;
+        /** "you" (the player) or "opponent" */
+        public String who;
+        public CareerTwists then;
+        public int gainLife;
+        public String message;
+
+        /** null when it's well formed, else what's wrong */
+        public String problem() {
+            if (when == null) {
+                return "a timed twist needs when: turn, life or cast";
+            }
+            switch (when) {
+                case TURN:
+                    if (turn == null || turn < 1) {
+                        return "a turn twist needs a turn of 1 or more";
+                    }
+                    break;
+                case LIFE:
+                    if (life == null) {
+                        return "a life twist needs a life threshold";
+                    }
+                    break;
+                case CAST:
+                    if (card == null || card.trim().isEmpty()) {
+                        return "a cast twist needs a card name";
+                    }
+                    break;
+                default:
+                    return "a timed twist's when is turn, life or cast, not " + when;
+            }
+            if (who != null && !who.equalsIgnoreCase("you") && !who.equalsIgnoreCase("opponent")) {
+                return "a timed twist's who is you or opponent";
+            }
+            if (then != null && then.timed != null && !then.timed.isEmpty()) {
+                return "a timed twist can't start more timed twists";
+            }
+            if (then == null && gainLife == 0 && message == null) {
+                return "a timed twist needs something to happen";
+            }
+            return null;
+        }
     }
 
     /** One player's side of a puzzle. Card lists hold names; battlefield entries may end in "|tapped". */
@@ -108,7 +170,8 @@ public final class CareerSetup implements GameSetup {
     /** null when the twists change nothing */
     public static CareerSetup ofTwists(CareerTwists twists) {
         if (twists == null || (twists.startingLife == null && twists.extraCards <= 0
-                && (twists.permanents == null || twists.permanents.isEmpty()) && twists.emblem == null)) {
+                && (twists.permanents == null || twists.permanents.isEmpty()) && twists.emblem == null
+                && (twists.timed == null || twists.timed.isEmpty()))) {
             return null;
         }
         return new CareerSetup(twists, null);
@@ -160,7 +223,10 @@ public final class CareerSetup implements GameSetup {
             } else if (puzzle != null) {
                 side(game, player, puzzle.opponent);
             } else if (twists != null) {
-                twist(game, player);
+                edge(game, player, twists, " starts with an edge");
+                if (twists.timed != null && !twists.timed.isEmpty()) {
+                    CareerTimedTwists.add(game, player, humanId, twists.timed);
+                }
             }
         }
         if (puzzle != null && humanId != null && puzzle.survive()) {
@@ -186,7 +252,8 @@ public final class CareerSetup implements GameSetup {
         return source;
     }
 
-    private void twist(Game game, Player player) {
+    /** gives a player an edge: life set, cards drawn, permanents in play, an emblem; announced as {@code what} */
+    static void edge(Game game, Player player, CareerTwists twists, String what) {
         if (twists.startingLife != null) {
             player.setLife(twists.startingLife, game, null);
         }
@@ -214,7 +281,10 @@ public final class CareerSetup implements GameSetup {
                 }
             }
         }
-        game.informPlayers(player.getLogName() + " starts with an edge" + describe(twists) + ".");
+        String described = describe(twists);
+        if (!described.isEmpty()) {
+            game.informPlayers(player.getLogName() + what + described + ".");
+        }
     }
 
     private static String describe(CareerTwists twists) {

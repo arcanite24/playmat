@@ -27,6 +27,13 @@ public final class RuntimeSettings {
     /** how long a player may take to answer before they lose the game */
     public static final String MAX_SECONDS_IDLE = "maxSecondsIdle";
 
+    /** how many AI-against-AI batch games run at once; 0 stops the batch runner */
+    public static final String BATCH_CONCURRENCY = "batchConcurrency";
+    /** how many batch games one player may ask for in a day */
+    public static final String BATCH_GAMES_PER_DAY = "batchGamesPerDay";
+    public static final int BATCH_CONCURRENCY_DEFAULT = 1;
+    public static final int BATCH_GAMES_PER_DAY_DEFAULT = 200;
+
     /** Discord posts, each "on" or "off": tables opening, events starting, matches starting, staff news */
     public static final String DISCORD_TABLES = "discordTables";
     public static final String DISCORD_EVENTS = "discordEvents";
@@ -34,6 +41,7 @@ public final class RuntimeSettings {
     public static final String DISCORD_STAFF = "discordStaff";
 
     public static final List<String> NAMES = Collections.unmodifiableList(Arrays.asList(REGISTRATION, CAREER, MAX_AI_OPPONENTS, MAX_SECONDS_IDLE,
+            BATCH_CONCURRENCY, BATCH_GAMES_PER_DAY,
             DISCORD_TABLES, DISCORD_EVENTS, DISCORD_MATCHES, DISCORD_STAFF));
 
     private static final String PREFIX = "runtime.";
@@ -138,6 +146,10 @@ public final class RuntimeSettings {
                 throw new IllegalArgumentException(name + " is on or off");
             case MAX_AI_OPPONENTS:
                 return String.valueOf(number(text, 0, 15, "AI opponents per table are 0 to 15"));
+            case BATCH_CONCURRENCY:
+                return String.valueOf(number(text, 0, 16, "Batch games at once are 0 to 16"));
+            case BATCH_GAMES_PER_DAY:
+                return String.valueOf(number(text, 0, 100000, "Batch games per player a day are 0 to 100000"));
             default:
                 return String.valueOf(number(text, 30, 3600, "Time to answer is 30 to 3600 seconds"));
         }
@@ -171,6 +183,16 @@ public final class RuntimeSettings {
     public String maxAiOpponents(String fromConfig) {
         String stored = stored(MAX_AI_OPPONENTS);
         return stored != null ? stored : fromConfig;
+    }
+
+    public int batchConcurrency() {
+        String stored = stored(BATCH_CONCURRENCY);
+        return stored != null ? Integer.parseInt(stored) : BATCH_CONCURRENCY_DEFAULT;
+    }
+
+    public int batchGamesPerDay() {
+        String stored = stored(BATCH_GAMES_PER_DAY);
+        return stored != null ? Integer.parseInt(stored) : BATCH_GAMES_PER_DAY_DEFAULT;
     }
 
     public int maxSecondsIdle(int fromConfig) {

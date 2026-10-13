@@ -53,6 +53,8 @@ public class TableController {
     private final UUID chatId;
     private final String controllerName;
     private final Table table;
+    // the AI skill each player was created with, for saving and resuming solo games
+    private final Map<UUID, Integer> seatSkills = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, UUID> userPlayerMap = new ConcurrentHashMap<>(); // human players only, use table.seats for AI
 
     private Match match;
@@ -597,6 +599,7 @@ public class TableController {
         }
         if (playerOpt.isPresent()) {
             Player player = playerOpt.get();
+            seatSkills.put(player.getId(), skill);
             logger.trace("Player " + player.getName() + " created id: " + player.getId());
         }
         return playerOpt;
@@ -731,6 +734,12 @@ public class TableController {
             gameOptions.globalEmblemCards = match.getOptions().getGlobalEmblemCards();
             // a Career campaign boss, gauntlet boss or puzzle starts from its own setup
             gameOptions.setup = CareerService.get().setupFor(table.getId());
+            if (match.getOptions().getSeed() != null) {
+                // a seeded match: each game its own seed, all of them reproducible
+                gameOptions.seed = match.getOptions().getSeed() + Math.max(0, match.getNumGames() - 1);
+            }
+            // a solo game against the AI saves itself at every turn, and may carry on from a save
+            mage.server.solo.SoloGames.get().prepareGame(this, gameOptions);
             match.getGame().setGameOptions(gameOptions);
             managerFactory.gameManager().createGameSession(match.getGame(), userPlayerMap, table.getId(), choosingPlayerId, gameOptions);
             String creator = null;
@@ -883,6 +892,7 @@ public class TableController {
         managerFactory.gameManager().removeGame(game.getId());
         ServerMessagesUtil.instance.incGamesEnded();
         payCareer(game);
+        mage.server.solo.SoloGames.get().gameEnded(table.getId(), game);
 
         try {
             if (!match.hasEnded()) {
@@ -1084,6 +1094,20 @@ public class TableController {
             return false;
         }
         return userId.equals(this.userId);
+    }
+
+    /**
+     * @return the AI skill the player was seated with (1 to 10), or null for a player this table didn't create
+     */
+    public Integer skillOf(UUID playerId) {
+        return seatSkills.get(playerId);
+    }
+
+    /**
+     * @return each seated user's player id (human players only)
+     */
+    public Map<UUID, UUID> getUserPlayerMap() {
+        return Collections.unmodifiableMap(userPlayerMap);
     }
 
     public Table getTable() {
