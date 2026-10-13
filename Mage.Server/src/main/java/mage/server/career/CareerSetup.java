@@ -246,6 +246,71 @@ public final class CareerSetup implements GameSetup {
     private final boolean pod;
     /** the player's own edges (a gauntlet run's relics and wounds), or null */
     private final CareerTwists you;
+    /** a horde game (S036): the opponent's deck plays itself */
+    private HordeRules horde;
+    /** how the opponent AI leans (S042), or null for its plain self */
+    private Personality personality;
+
+    /** a setup that only carries a horde or a personality */
+    public static CareerSetup plain() {
+        return new CareerSetup(null, null);
+    }
+
+    public CareerSetup withHorde(HordeRules horde) {
+        this.horde = horde;
+        return this;
+    }
+
+    public HordeRules horde() {
+        return horde;
+    }
+
+    /** the setup (or a plain one) with the opponent's personality; null personality leaves it as it was */
+    public static CareerSetup withPersonality(CareerSetup setup, Personality personality) {
+        if (personality == null || personality.neutral()) {
+            return setup;
+        }
+        CareerSetup with = setup == null ? plain() : setup;
+        with.personality = personality;
+        return with;
+    }
+
+    public Personality personality() {
+        return personality;
+    }
+
+    /**
+     * An opponent's leanings (S042), each -100 to 100 with 0 the AI's plain self: aggression (attacks into worse
+     * trades), risk (blocks and attacks that can lose a creature) and patience (holds back to build a bigger board).
+     * The game keeps them as a state value the AI reads: {@value #PERSONALITY_KEY} and the player's id.
+     */
+    public static class Personality implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public int aggression;
+        public int risk;
+        public int patience;
+
+        boolean neutral() {
+            return aggression == 0 && risk == 0 && patience == 0;
+        }
+    }
+
+    /** the game state key prefix the AI reads its personality from (ComputerPlayer6) */
+    public static final String PERSONALITY_KEY = "ai.personality.";
+
+    /** A horde (S036): what the player must live through. */
+    public static class HordeRules implements Serializable {
+        private static final long serialVersionUID = 1L;
+        public String name;
+        /** the horde's turns to live through */
+        public int survive = 8;
+        /** cards the horde flips on its first turn */
+        public int flip = 1;
+        /** one more card flipped every this many horde turns */
+        public int rampEvery = 2;
+        /** the horde's life; null for 20 */
+        public Integer life;
+    }
 
     private CareerSetup(CareerTwists twists, Puzzle puzzle, boolean pod, CareerTwists you) {
         this.twists = twists;
@@ -391,6 +456,30 @@ public final class CareerSetup implements GameSetup {
                 }
             }
         }
+        if (horde != null && humanId != null) {
+            for (Player player : game.getPlayers().values()) {
+                if (!player.getId().equals(humanId)) {
+                    if (horde.life != null) {
+                        player.setLife(horde.life, game, null);
+                    }
+                    player.getHand().clear();
+                    game.addEmblem(new HordeEmblem(horde), null, player.getId());
+                    game.informPlayers("Horde: " + (horde.name == null ? "the horde" : horde.name) + " flips its cards onto the battlefield "
+                            + "each turn, and its creatures have haste and attack every combat. Live through " + horde.survive + " of its turns.");
+                }
+            }
+        }
+        if (personality != null && humanId != null) {
+            for (Player player : game.getPlayers().values()) {
+                if (!player.getId().equals(humanId)) {
+                    java.util.Map<String, Integer> leanings = new java.util.HashMap<>();
+                    leanings.put("aggression", personality.aggression);
+                    leanings.put("risk", personality.risk);
+                    leanings.put("patience", personality.patience);
+                    game.getState().setValue(PERSONALITY_KEY + player.getId(), leanings);
+                }
+            }
+        }
         if (puzzle != null && humanId != null && puzzle.protecting()) {
             Ability source = fakeSource(humanId);
             game.addDelayedTriggeredAbility(new LaterUpkeepTrigger(new ProtectedEffect(puzzle.protect)), source);
@@ -411,6 +500,95 @@ public final class CareerSetup implements GameSetup {
                     + (puzzle.text == null ? "Win this turn." : puzzle.text));
         }
         game.applyEffects();
+    }
+
+    /** the horde's engine: flip cards each upkeep; creatures with haste that attack each combat */
+    public static class HordeEmblem extends mage.game.command.Emblem {
+
+        public HordeEmblem(HordeRules rules) {
+            super("Horde");
+            this.getAbilities().add(new mage.abilities.triggers.BeginningOfUpkeepTriggeredAbility(Zone.COMMAND, TargetController.YOU,
+                    new HordeFlipEffect(rules.survive, rules.flip, rules.rampEvery), false));
+            this.getAbilities().add(new SimpleStaticAbility(Zone.COMMAND, new mage.abilities.effects.common.continuous.GainAbilityControlledEffect(
+                    mage.abilities.keyword.HasteAbility.getInstance(), mage.constants.Duration.EndOfGame,
+                    mage.filter.StaticFilters.FILTER_PERMANENT_CREATURES)));
+            this.getAbilities().add(new SimpleStaticAbility(Zone.COMMAND, new mage.abilities.effects.common.continuous.GainAbilityControlledEffect(
+                    new mage.abilities.common.AttacksEachCombatStaticAbility(), mage.constants.Duration.EndOfGame,
+                    mage.filter.StaticFilters.FILTER_PERMANENT_CREATURES)));
+        }
+
+        private HordeEmblem(final HordeEmblem emblem) {
+            super(emblem);
+        }
+
+        @Override
+        public void setSourceObjectAndInitImage(mage.MageObject sourceObject) {
+            // no printed emblem looks like this one: skip the token image lookup
+            this.sourceObject = sourceObject;
+        }
+
+        @Override
+        public HordeEmblem copy() {
+            return new HordeEmblem(this);
+        }
+    }
+
+    /** the horde's upkeep: count the turn (past the last, the horde is beaten), then flip and put its permanents in play */
+    static class HordeFlipEffect extends OneShotEffect {
+        static final String TURNS = "career.horde.turns";
+        private final int survive;
+        private final int flip;
+        private final int rampEvery;
+
+        HordeFlipEffect(int survive, int flip, int rampEvery) {
+            super(Outcome.PutCardInPlay);
+            this.survive = survive;
+            this.flip = flip;
+            this.rampEvery = Math.max(1, rampEvery);
+            staticText = "flip the horde's cards";
+        }
+
+        private HordeFlipEffect(final HordeFlipEffect effect) {
+            super(effect);
+            this.survive = effect.survive;
+            this.flip = effect.flip;
+            this.rampEvery = effect.rampEvery;
+        }
+
+        @Override
+        public HordeFlipEffect copy() {
+            return new HordeFlipEffect(this);
+        }
+
+        @Override
+        public boolean apply(Game game, Ability source) {
+            Player horde = game.getPlayer(source.getControllerId());
+            if (horde == null) {
+                return false;
+            }
+            Object counted = game.getState().getValue(TURNS);
+            int turn = (counted instanceof Integer ? (Integer) counted : 0) + 1;
+            game.getState().setValue(TURNS, turn);
+            if (turn > survive) {
+                game.informPlayers("The horde is spent: you lived through " + survive + " of its turns.");
+                horde.lost(game);
+                return true;
+            }
+            int count = flip + (turn - 1) / rampEvery;
+            mage.cards.Cards cards = new mage.cards.CardsImpl(horde.getLibrary().getTopCards(game, count));
+            if (cards.isEmpty()) {
+                return true;
+            }
+            horde.revealCards(source, "Horde turn " + turn, cards, game);
+            java.util.Set<Card> permanents = new java.util.LinkedHashSet<>();
+            java.util.Set<Card> rest = new java.util.LinkedHashSet<>();
+            for (Card card : cards.getCards(game)) {
+                (card.isPermanent(game) ? permanents : rest).add(card);
+            }
+            horde.moveCards(permanents, Zone.BATTLEFIELD, source, game);
+            horde.moveCards(rest, Zone.GRAVEYARD, source, game);
+            return true;
+        }
     }
 
     private static Ability fakeSource(UUID controllerId) {

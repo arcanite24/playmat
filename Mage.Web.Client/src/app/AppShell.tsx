@@ -40,6 +40,9 @@ const ReportDialog = lazy(() => import('./social/ReportDialog').then((module) =>
 // settings load the first time they open, then stay mounted so the dialog can animate out
 const SettingsDialog = lazy(() => import('./screens/SettingsDialog').then((module) => ({ default: module.SettingsDialog })));
 
+// the inbox (ghost deck results) loads after the shell, with its messages
+const InboxButton = lazy(() => import('./solo/InboxButton').then((module) => ({ default: module.InboxButton })));
+
 const FeedbackDialog = lazy(() => import('./screens/FeedbackDialog').then((module) => ({ default: module.FeedbackDialog })));
 
 /** Planned maintenance, from the server info: when it starts, and what it means for new tables. */
@@ -131,6 +134,7 @@ export function AppShell() {
               </span>
             )}
             <MaintenanceChip />
+            {connection === 'open' && <Suspense fallback={null}><InboxButton /></Suspense>}
             <LobbyButton />
             <IconButton label={t('shell.settings')} icon={<Settings size={18} />} onClick={() => setSettingsOpen(true)} />
             <DropdownMenu.Root>

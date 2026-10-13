@@ -16,6 +16,7 @@ const SCREENS: { path: string; title: MessageKey; back: string }[] = [
   { path: '/career/gauntlet', title: 'career.modes.gauntlet', back: '/career' },
   { path: '/career/limited', title: 'career.modes.limited', back: '/career' },
   { path: '/career/challenge', title: 'career.modes.challenge', back: '/career' },
+  { path: '/career/hordes', title: 'career.modes.hordes', back: '/career' },
 ];
 
 export function screenOf(pathname: string): { title: MessageKey | null; back: string } {

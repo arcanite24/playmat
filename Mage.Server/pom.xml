@@ -476,6 +476,20 @@
                                 <class>mage.server.career.CareerSetup$CareerTwists</class>
                                 <class>mage.server.career.CareerSetup$CareerPuzzleSide</class>
                                 <class>mage.server.career.CareerPuzzles$CareerPuzzle</class>
+                                <class>mage.server.career.CareerSetup$Puzzle</class>
+                                <class>mage.server.career.MetaLibrary$MetaDeck</class>
+                                <class>mage.server.career.MetaLibrary$MetaFormat</class>
+                                <class>mage.server.career.CareerLimited$LimitedShape</class>
+                                <class>mage.server.career.CareerHordes$CareerHorde</class>
+                                <class>mage.server.career.CareerPuzzles$CareerDailyPuzzle</class>
+                                <class>mage.server.career.CareerPuzzles$CareerMinedPuzzle</class>
+                                <class>mage.server.solo.PuzzleKit$PuzzleExport</class>
+                                <class>mage.server.career.CareerLadder$CareerRank</class>
+                                <class>mage.server.career.AdaptiveSkill$AdaptiveView</class>
+                                <class>mage.server.career.CareerSetup$Personality</class>
+                                <class>mage.server.solo.GhostDecks$GhostDeck</class>
+                                <class>mage.server.solo.GhostDecks$GhostOpponent</class>
+                                <class>mage.server.solo.GhostDecks$InboxNote</class>
                                 <class>mage.server.career.CareerChallenges$CareerChallenge</class>
                                 <class>mage.server.career.CareerChallenges$CareerChallengeEntry</class>
                                 <class>mage.server.career.CareerGauntlet$CareerGauntletState</class>

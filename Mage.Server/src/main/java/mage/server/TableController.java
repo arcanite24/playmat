@@ -919,6 +919,22 @@ public class TableController {
      * goldfish (an AI with only basic lands) never counts.
      */
     private void payCareer(Game game) {
+        if (mage.server.career.AdaptiveSkill.marked(table.getId()) && match.hasEnded()) {
+            // adaptive difficulty (S049) moves the player's hidden rating by the match's result
+            for (MatchPlayer matchPlayer : match.getPlayers()) {
+                if (matchPlayer.getPlayer().isHuman()) {
+                    mage.server.career.AdaptiveSkill.ended(table.getId(), matchPlayer.getName(), matchPlayer.isMatchWinner());
+                }
+            }
+        }
+        if (mage.server.solo.GhostDecks.get().marked(table.getId()) && match.hasEnded()) {
+            // a ghost deck's owner hears how their deck did (S047)
+            for (MatchPlayer matchPlayer : match.getPlayers()) {
+                if (matchPlayer.getPlayer().isHuman()) {
+                    mage.server.solo.GhostDecks.get().ended(table.getId(), matchPlayer.getName(), matchPlayer.isMatchWinner(), game.getTurnNum());
+                }
+            }
+        }
         CareerTally tally = CareerTally.take(game.getId());
         CareerService career = CareerService.get();
         boolean careerTable = career.isCareerTable(table.getId());

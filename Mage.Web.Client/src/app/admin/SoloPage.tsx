@@ -82,6 +82,7 @@ function score(job: BatchJob): string {
   const parts = [`${result.winsA ?? 0}–${result.winsB ?? 0}`];
   if (result.draws) parts.push(`${result.draws} drawn`);
   if (result.errors) parts.push(`${result.errors} failed`);
+  if (result.mined) parts.push(`${result.mined} ${result.mined === 1 ? 'puzzle' : 'puzzles'} mined`);
   return parts.join(', ');
 }
 

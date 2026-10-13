@@ -11,6 +11,7 @@ const SCREENS: Record<string, LazyExoticComponent<ComponentType>> = {
   gauntlet: lazy(() => import('./CareerGauntletScreen').then((m) => ({ default: m.CareerGauntletScreen }))),
   limited: lazy(() => import('./CareerLimitedScreen').then((m) => ({ default: m.CareerLimitedScreen }))),
   challenge: lazy(() => import('./CareerChallengeScreen').then((m) => ({ default: m.CareerChallengeScreen }))),
+  hordes: lazy(() => import('./CareerHordesScreen').then((m) => ({ default: m.CareerHordesScreen }))),
 };
 
 export function CareerModesRoute() {

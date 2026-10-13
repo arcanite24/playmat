@@ -34,6 +34,12 @@ public final class CareerContent {
         public String name;
         /** the server AI's skill for this tier's opponents (1-10) */
         public int skill;
+        /** the rank title a player earns by opening the next tier (or, for the last, by beating its opponents) (S037) */
+        public String badge;
+        /** what every opponent of the tier starts with (S037) */
+        public CareerSetup.CareerTwists twists;
+        /** the tier's AI type, when not the usual ("archmage" for tier five, S050) */
+        public String aiType;
     }
 
     public static class Opponent {
@@ -54,6 +60,23 @@ public final class CareerContent {
         public CareerLines lines;
         /** the starter decks' measured win rate against this opponent, in percent (CALIBRATION.md); null if unmeasured */
         public Integer measured;
+        /** the lists the opponent rotates through, the first being {@link #deck} (S038); "meta:" names a school deck */
+        public List<String> decks;
+        /** what the opponent starts with, on top of the tier's twists (S037, S048) */
+        public CareerSetup.CareerTwists twists;
+        /** how the opponent's AI leans (S042) */
+        public CareerSetup.Personality personality;
+        /** a chapter of the rival arc (S041) */
+        public RivalChapter rival;
+        /** a raid boss (S048): left out of boss rush and endless */
+        public boolean raid;
+    }
+
+    /** One duel of the rival arc: it opens once the chapter before is beaten, and says its piece before and after. */
+    public static class RivalChapter {
+        public int chapter;
+        public String before;
+        public String after;
     }
 
     /** An AI opponent's few lines: as the game starts, after a big play, at low life, and as it ends either way. */
@@ -65,6 +88,8 @@ public final class CareerContent {
         public String win;
         /** the opponent lost */
         public String lose;
+        /** said when the opponent comes back as the player's nemesis (S040) */
+        public String nemesis;
     }
 
     public static class CareerStarter {
@@ -222,7 +247,28 @@ public final class CareerContent {
     }
 
     public DeckCardLists opponentDeck(Opponent opponent) throws IOException {
-        return deck("opponents/" + opponent.deck);
+        return deckFile(opponent.deck);
+    }
+
+    /** one of the opponent's lists (S038): {@code seed} picks it, so the same seed meets the same list */
+    public DeckCardLists opponentDeck(Opponent opponent, long seed) throws IOException {
+        return deckFile(deckFor(opponent, seed));
+    }
+
+    /** the file of the list a seed picks */
+    public static String deckFor(Opponent opponent, long seed) {
+        if (opponent.decks == null || opponent.decks.isEmpty()) {
+            return opponent.deck;
+        }
+        return opponent.decks.get((int) Math.floorMod(seed, (long) opponent.decks.size()));
+    }
+
+    /** a roster deck: "meta:" and a school deck's path, or a file of resources/career/opponents */
+    public DeckCardLists deckFile(String file) throws IOException {
+        if (file.startsWith("meta:")) {
+            return CareerCampaigns.get().deck(file.substring("meta:".length()));
+        }
+        return deck("opponents/" + file);
     }
 
     private static final Map<String, java.util.Optional<CareerCover>> covers = new java.util.concurrent.ConcurrentHashMap<>();
@@ -305,7 +351,10 @@ public final class CareerContent {
 
     /** an opponent's portrait card: the one its entry names, or one picked from its deck */
     public CareerCover cover(Opponent opponent) {
-        return opponent.cover != null ? opponent.cover : coverOf("opponents/" + opponent.deck);
+        if (opponent.cover != null) {
+            return opponent.cover;
+        }
+        return coverOf(opponent.deck.startsWith("meta:") ? "campaigns/decks/" + opponent.deck.substring("meta:".length()) : "opponents/" + opponent.deck);
     }
 
     /** reads a .dck file shipped in resources (the importer reads files, so it goes through a temporary copy) */

@@ -70,6 +70,8 @@ public final class CareerService {
         public volatile int takeBacks;
         /** what helped the player ("a hint", "a take-back"); an assisted game pays half and counts for no quests */
         public volatile String assisted;
+        /** when the table was made: a timed mode (the daily puzzle) counts from here */
+        public final long created = System.currentTimeMillis();
 
         /** whether the player may get help here: a puzzle or a trial is a test of its own, with its own retries */
         public boolean allowsAssists() {
@@ -106,6 +108,24 @@ public final class CareerService {
         public CareerContent.CareerCover cover;
         /** what the opponent says during a game */
         public CareerContent.CareerLines lines;
+        /** how hard it measured, 1 to 5 (S039) */
+        public int pips;
+        /** what the opponent starts with: the tier's edge, its own, and a nemesis's (S037, S040, S048) */
+        public CareerSetup.CareerTwists twists;
+        /** the player's nemesis: an edge for them, a bounty for you (S040) */
+        public boolean nemesis;
+        public int bounty;
+        /** the rival arc's chapter (S041), and what the rival says before it */
+        public Integer rivalChapter;
+        public String rivalBefore;
+        /** a raid boss (S048) */
+        public boolean raid;
+        /** how the opponent plays, in words (S042): "aggressive", "patient", "reckless", "careful" */
+        public List<String> style = new ArrayList<>();
+        /** lists the opponent rotates through (S038) */
+        public int lists;
+        /** the AI: "archmage" when tier five's hybrid AI is meant to play it (S050) */
+        public String aiType;
     }
 
     /** How much of a set the collection has: different cards owned (any printing) of the set's cards. */
@@ -265,7 +285,14 @@ public final class CareerService {
             winsByTier.merge(opponent.tier, wins.getOrDefault(opponent.id, 0), Integer::sum);
         }
         List<CareerOpponent> views = new ArrayList<>();
-        for (CareerContent.Opponent opponent : content.opponents()) {
+        CareerLadder.Nemesis nemesis = CareerLadder.nemesis(user);
+        // each tier in order of measured difficulty, easiest first (S039); the rival after the rest of its tier
+        List<CareerContent.Opponent> ordered = new ArrayList<>(content.opponents());
+        ordered.sort(java.util.Comparator.comparingInt((CareerContent.Opponent opponent) -> opponent.tier)
+                .thenComparing(opponent -> opponent.rival != null)
+                .thenComparing(opponent -> opponent.raid)
+                .thenComparingInt(opponent -> -CareerContent.measuredWinRate(opponent)));
+        for (CareerContent.Opponent opponent : ordered) {
             CareerOpponent view = new CareerOpponent();
             view.id = opponent.id;
             view.name = opponent.name;
@@ -274,10 +301,44 @@ public final class CareerService {
             view.colors = opponent.colors;
             view.tagline = opponent.tagline;
             view.wins = wins.getOrDefault(opponent.id, 0);
-            view.unlocked = opponent.tier == 1 || winsByTier.getOrDefault(opponent.tier - 1, 0) >= CareerRules.WINS_TO_UNLOCK_NEXT_TIER;
+            view.unlocked = (opponent.tier == 1 || winsByTier.getOrDefault(opponent.tier - 1, 0) >= CareerRules.WINS_TO_UNLOCK_NEXT_TIER)
+                    && CareerLadder.rivalOpen(opponent, wins);
             view.winCoins = CareerRules.winCoins(opponent.tier);
             view.cover = content.cover(opponent);
             view.lines = opponent.lines;
+            view.pips = CareerLadder.pips(opponent);
+            view.nemesis = nemesis != null && opponent.id.equals(nemesis.opponentId);
+            view.bounty = view.nemesis ? CareerLadder.NEMESIS_BOUNTY : 0;
+            if (opponent.rival != null) {
+                view.rivalChapter = opponent.rival.chapter;
+                view.rivalBefore = opponent.rival.before;
+            }
+            view.raid = opponent.raid;
+            view.lists = opponent.decks == null ? 1 : opponent.decks.size();
+            CareerContent.Tier tier = content.tier(opponent.tier);
+            view.aiType = opponent.aiType != null ? opponent.aiType : tier.aiType;
+            CareerSetup.CareerTwists twists = CareerSetup.combine(tier.twists, opponent.twists);
+            if (view.nemesis) {
+                CareerSetup.CareerTwists edge = new CareerSetup.CareerTwists();
+                edge.lifeBonus = CareerLadder.NEMESIS_LIFE;
+                twists = CareerSetup.combine(twists, edge);
+            }
+            view.twists = CareerSetup.empty(twists) ? null : twists;
+            if (opponent.personality != null) {
+                if (opponent.personality.aggression >= 40) {
+                    view.style.add("aggressive");
+                } else if (opponent.personality.aggression <= -20) {
+                    view.style.add("defensive");
+                }
+                if (opponent.personality.risk >= 40) {
+                    view.style.add("reckless");
+                } else if (opponent.personality.risk <= -20) {
+                    view.style.add("careful");
+                }
+                if (opponent.personality.patience >= 40) {
+                    view.style.add("patient");
+                }
+            }
             views.add(view);
         }
         return views;
@@ -291,6 +352,11 @@ public final class CareerService {
 
     public void register(UUID tableId, String user, String opponentId, int tier) {
         tables.put(tableId, new CareerTable(user, opponentId, tier));
+    }
+
+    /** a roster duel with a setup: twists, a nemesis's edge, a personality (S037–S042) */
+    public void register(UUID tableId, String user, String opponentId, int tier, CareerSetup setup) {
+        tables.put(tableId, new CareerTable(user, opponentId, tier, "duel", opponentId, setup));
     }
 
     /** a Career table of a mode other than the roster duel */
@@ -469,13 +535,19 @@ public final class CareerService {
                 CareerGauntlet.get().finished(store, table.user, table.ref, won, result, now);
                 break;
             case "puzzle":
-                CareerPuzzles.get().finished(store, table.user, table.ref, won, result, now);
+                CareerPuzzles.get().finished(store, table.user, table.ref, won, result, now, table.created);
                 break;
             case "challenge":
                 CareerChallenges.get().finished(store, table.user, table.ref, won, tally, result, now);
                 break;
             case "limited":
                 CareerLimited.get().finished(store, table.user, table.ref, won, result, now);
+                break;
+            case "horde":
+                CareerHordes.get().finished(store, table.user, table.ref, won, tally, result, now);
+                break;
+            case "duel":
+                CareerLadder.finished(store, table.user, table.opponentId, won, result, now);
                 break;
             default:
                 break;

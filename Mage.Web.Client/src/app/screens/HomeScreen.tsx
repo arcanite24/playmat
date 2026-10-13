@@ -1,5 +1,5 @@
 import { ChevronRight, SlidersHorizontal, Trophy } from 'lucide-react';
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { rosterOf, sleeveFor, useDecks } from '../stores/decks';
 import { useCoach } from '../stores/coach';
@@ -10,15 +10,19 @@ import { DeckBox } from '../ui/DeckBox';
 import { MatPrint } from '../ui/MatPrint';
 import { storeCards } from '../ui/imageCache';
 import { DEVICE_PICTURES } from '../nativePictures';
-import { AiSettingsDialog } from './AiSettingsDialog';
 import { useImportDrop, useImportPaste } from '../decks/import/useImportShortcuts';
 import { openImport } from '../stores/importSheet';
-import { describeAi } from './aiSetup';
+import { aiDeckLabel, describeAi } from './aiSetup';
+import { opponentSource } from '../solo/freePlay';
+import { useCareerMessages } from '../solo/careerMessages';
 import { slotsFull, useGameSlots, useServerInfo } from '../queries';
 import { SavedGames } from '../solo/SavedGames';
 import styles from './HomeScreen.module.css';
 
 type Mode = 'ai' | 'practice' | 'friend';
+
+// the AI setup loads the first time it opens (it brings the solo messages: meta decks, ghosts, adaptive)
+const AiSettingsDialog = lazy(() => import('./AiSettingsDialog').then((module) => ({ default: module.AiSettingsDialog })));
 
 // open tables and events have their own pages in the rail; here the only question is who you play
 const MODES: { id: Mode; label: MessageKey }[] = [
@@ -35,7 +39,11 @@ export function HomeScreen() {
   const play = usePlay();
   const [mode, setMode] = useState<Mode>('ai');
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiLoaded, setAiLoaded] = useState(false);
+  if (aiOpen && !aiLoaded) setAiLoaded(true);
   const roster = useMemo(() => rosterOf(decks), [decks]);
+  // a meta, ghost or mirror opponent, or adaptive skill, is described with the solo messages
+  const soloReady = useCareerMessages(play.aiOptions.adaptive || opponentSource(play.aiOptions.opponentDeckId).kind !== 'roster');
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? roster[0] ?? null;
   const sleeve = sleeveFor(decks.sleeves, selected);
   const busy = play.phase !== 'idle';
@@ -150,7 +158,12 @@ export function HomeScreen() {
           {mode === 'ai' && (
             <button type="button" className={styles.aiSetup} onClick={() => setAiOpen(true)} disabled={busy}>
               <SlidersHorizontal size={16} aria-hidden="true" />
-              <span>{describeAi(t, play.aiOptions, roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name ?? null)}</span>
+              <span>{describeAi(
+                t,
+                play.aiOptions,
+                aiDeckLabel(t, play.aiOptions, roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name ?? null, soloReady),
+                soloReady ? t('solo.adaptive.summary') : undefined,
+              )}</span>
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
             </button>
           )}
@@ -186,7 +199,7 @@ export function HomeScreen() {
           )}
         </div>
       </section>
-      <AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} />
+      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} /></Suspense>}
     </div>
   );
 }

@@ -63,7 +63,7 @@ public class SoloFoundationsTest {
 
     @Test
     public void savedGamesListKeepAndPrune() throws Exception {
-        assertEquals(2, store.schemaVersion(), "saves, then what-if lines");
+        assertEquals(3, store.schemaVersion(), "saves, what-if lines, then mined puzzles, shared decks, the inbox and player state");
         store.saveGame("t1", "Ana", SoloGames.AUTO, false, 3, "Ana vs Bot", "Bot", "Two Player Duel", new byte[]{1}, new byte[]{2, 3});
         store.saveGame("t2", "Ana", SoloGames.AUTO, true, 5, "Career", "Wren", "Two Player Duel", new byte[]{1}, new byte[]{4});
         store.saveGame("t3", "Bea", SoloGames.AUTO, false, 1, "Bea vs Bot", "Bot", "Two Player Duel", new byte[]{1}, new byte[]{5});
@@ -373,7 +373,9 @@ public class SoloFoundationsTest {
         assertNotNull(CareerContent.get().opponent("pack-rival"));
         assertTrue(CareerChallenges.get().scheduled().containsKey("2030-W01"));
         assertEquals("pack:test-pack/rival.dck", CareerCampaigns.get().campaigns().get("pack-campaign").chapters.get(0).deck);
-        assertEquals(20, CareerCampaigns.get().deck("pack:test-pack/rival.dck").getCards().get(0).getAmount());
+        // twenty Forests, as one line or (read through the card database) one entry a copy
+        assertEquals(20, CareerCampaigns.get().deck("pack:test-pack/rival.dck").getCards().stream()
+                .filter(card -> "Forest".equals(card.getCardName())).mapToInt(mage.cards.decks.DeckCardInfo::getAmount).sum());
 
         // removing it takes it out again
         assertTrue(packs.remove("test-pack"));

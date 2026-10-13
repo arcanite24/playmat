@@ -29,6 +29,10 @@ public final class Leaderboards {
 
     /** the weekly Career challenge: board = ISO week, v1 = turns (fewer is better), v2 = life left (more is better) */
     public static final String WEEKLY_CHALLENGE = "weekly-challenge";
+    /** a weekly challenge scored by life left (S032): v1 = life (more is better), v2 = turns (fewer is better) */
+    public static final String WEEKLY_CHALLENGE_LIFE = "weekly-challenge-life";
+    /** a weekly challenge won without casting a creature (S032): v1 = turns (fewer is better), v2 = life left */
+    public static final String WEEKLY_CHALLENGE_NO_CREATURES = "weekly-challenge-no-creatures";
     /** Career puzzles: board = puzzle id, v1 = stars (more is better), v2 = attempts to first solve (fewer is better) */
     public static final String PUZZLE = "puzzle";
 
@@ -120,6 +124,8 @@ public final class Leaderboards {
 
     private Leaderboards() {
         register(new Spec(WEEKLY_CHALLENGE, "Weekly challenge", false, "Turns", true, "Life left"));
+        register(new Spec(WEEKLY_CHALLENGE_LIFE, "Weekly challenge (most life)", true, "Life left", false, "Turns"));
+        register(new Spec(WEEKLY_CHALLENGE_NO_CREATURES, "Weekly challenge (no creatures)", false, "Turns", true, "Life left"));
         register(new Spec(PUZZLE, "Puzzle", true, "Stars", false, "Tries"));
         register(new Spec(GAUNTLET, "Gauntlet", true, "Wins", true, "Relics"));
         register(new Spec(ASCENSION, "Ascension", true, "Level", true, "Wins"));

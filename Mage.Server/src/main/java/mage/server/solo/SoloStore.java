@@ -51,6 +51,24 @@ public final class SoloStore implements AutoCloseable {
                     "CREATE INDEX game_lines_by_user ON game_lines (user, updated)",
                     "CREATE TABLE turn_snapshots (game_id TEXT NOT NULL, turn INTEGER NOT NULL, active TEXT NOT NULL,"
                             + " at INTEGER NOT NULL, snapshot BLOB NOT NULL, PRIMARY KEY (game_id, turn))"
+            },
+            {
+                    // S031: positions with lethal on board, mined from AI games, as puzzles (JSON)
+                    "CREATE TABLE mined_puzzles (id TEXT PRIMARY KEY, created INTEGER NOT NULL, user TEXT,"
+                            + " depth INTEGER NOT NULL, source TEXT, puzzle TEXT NOT NULL)",
+                    "CREATE INDEX mined_puzzles_by_depth ON mined_puzzles (depth, created)",
+                    // S047: decks shared by code, for friends' AI to pilot (ghost decks)
+                    "CREATE TABLE shared_decks (code TEXT PRIMARY KEY, owner TEXT NOT NULL, name TEXT NOT NULL,"
+                            + " created INTEGER NOT NULL, deck TEXT NOT NULL, played INTEGER NOT NULL DEFAULT 0,"
+                            + " won INTEGER NOT NULL DEFAULT 0)",
+                    "CREATE INDEX shared_decks_by_owner ON shared_decks (owner, created)",
+                    // S047: notes for a player to read later (a ghost deck's result)
+                    "CREATE TABLE inbox (id INTEGER PRIMARY KEY AUTOINCREMENT, user TEXT NOT NULL, created INTEGER NOT NULL,"
+                            + " kind TEXT NOT NULL, text TEXT NOT NULL, ref TEXT, seen INTEGER NOT NULL DEFAULT 0)",
+                    "CREATE INDEX inbox_by_user ON inbox (user, created)",
+                    // per-player state of solo features: a nemesis, a rival arc, a hidden rating per format (JSON)
+                    "CREATE TABLE user_state (user TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL,"
+                            + " updated INTEGER NOT NULL, PRIMARY KEY (user, key))"
             }
     };
 
@@ -537,7 +555,7 @@ public final class SoloStore implements AutoCloseable {
 
     /** removes every row an account owns (when the account is deleted) */
     public synchronized void deleteUser(String user) throws SQLException {
-        for (String table : new String[]{"saved_games", "jobs", "scores", "game_lines"}) {
+        for (String table : new String[]{"saved_games", "jobs", "scores", "game_lines", "inbox", "user_state"}) {
             try (PreparedStatement statement = connection.prepareStatement("DELETE FROM " + table + " WHERE user = ?")) {
                 // leaderboards key players by their lower-case name
                 statement.setString(1, table.equals("scores") ? user.toLowerCase(java.util.Locale.ENGLISH) : user);
@@ -546,6 +564,240 @@ public final class SoloStore implements AutoCloseable {
         }
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("DELETE FROM turn_snapshots WHERE game_id NOT IN (SELECT game_id FROM game_lines)");
+        }
+    }
+
+    // ---- mined puzzles (S031)
+
+    public static class MinedRow {
+        public String id;
+        public long created;
+        public String user;
+        public int depth;
+        public String source;
+        /** a CareerSetup.Puzzle as JSON */
+        public String puzzle;
+    }
+
+    /** @return false when a puzzle with this id (the same position) is already kept */
+    public synchronized boolean putMined(MinedRow row) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT OR IGNORE INTO mined_puzzles (id, created, user, depth, source, puzzle) VALUES (?, ?, ?, ?, ?, ?)")) {
+            statement.setString(1, row.id);
+            statement.setLong(2, row.created);
+            statement.setString(3, row.user);
+            statement.setInt(4, row.depth);
+            statement.setString(5, row.source);
+            statement.setString(6, row.puzzle);
+            return statement.executeUpdate() > 0;
+        }
+    }
+
+    /** mined puzzles of at least {@code minDepth}, deepest first, then newest */
+    public synchronized List<MinedRow> mined(int minDepth, int limit) throws SQLException {
+        List<MinedRow> rows = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT id, created, user, depth, source, puzzle FROM mined_puzzles WHERE depth >= ?"
+                        + " ORDER BY depth DESC, created DESC LIMIT ?")) {
+            statement.setInt(1, minDepth);
+            statement.setInt(2, limit);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    MinedRow row = new MinedRow();
+                    row.id = result.getString(1);
+                    row.created = result.getLong(2);
+                    row.user = result.getString(3);
+                    row.depth = result.getInt(4);
+                    row.source = result.getString(5);
+                    row.puzzle = result.getString(6);
+                    rows.add(row);
+                }
+            }
+        }
+        return rows;
+    }
+
+    public synchronized MinedRow minedPuzzle(String id) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT id, created, user, depth, source, puzzle FROM mined_puzzles WHERE id = ?")) {
+            statement.setString(1, id);
+            try (ResultSet result = statement.executeQuery()) {
+                if (!result.next()) {
+                    return null;
+                }
+                MinedRow row = new MinedRow();
+                row.id = result.getString(1);
+                row.created = result.getLong(2);
+                row.user = result.getString(3);
+                row.depth = result.getInt(4);
+                row.source = result.getString(5);
+                row.puzzle = result.getString(6);
+                return row;
+            }
+        }
+    }
+
+    // ---- shared decks (S047)
+
+    public static class SharedDeckRow {
+        public String code;
+        public String owner;
+        public String name;
+        public long created;
+        /** a DeckCardLists as JSON */
+        public String deck;
+        public int played;
+        public int won;
+    }
+
+    public synchronized void putSharedDeck(SharedDeckRow row) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO shared_decks (code, owner, name, created, deck, played, won) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
+            statement.setString(1, row.code);
+            statement.setString(2, row.owner);
+            statement.setString(3, row.name);
+            statement.setLong(4, row.created);
+            statement.setString(5, row.deck);
+            statement.setInt(6, row.played);
+            statement.setInt(7, row.won);
+            statement.executeUpdate();
+        }
+    }
+
+    public synchronized SharedDeckRow sharedDeck(String code) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT code, owner, name, created, deck, played, won FROM shared_decks WHERE code = ?")) {
+            statement.setString(1, code);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? sharedDeck(result) : null;
+            }
+        }
+    }
+
+    public synchronized List<SharedDeckRow> sharedDecks(String owner) throws SQLException {
+        List<SharedDeckRow> rows = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT code, owner, name, created, deck, played, won FROM shared_decks WHERE owner = ? ORDER BY created DESC")) {
+            statement.setString(1, owner);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    rows.add(sharedDeck(result));
+                }
+            }
+        }
+        return rows;
+    }
+
+    /** a ghost deck was played: its record moves */
+    public synchronized void sharedDeckPlayed(String code, boolean deckWon) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "UPDATE shared_decks SET played = played + 1, won = won + ? WHERE code = ?")) {
+            statement.setInt(1, deckWon ? 1 : 0);
+            statement.setString(2, code);
+            statement.executeUpdate();
+        }
+    }
+
+    public synchronized boolean deleteSharedDeck(String code, String owner) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("DELETE FROM shared_decks WHERE code = ? AND owner = ?")) {
+            statement.setString(1, code);
+            statement.setString(2, owner);
+            return statement.executeUpdate() > 0;
+        }
+    }
+
+    private static SharedDeckRow sharedDeck(ResultSet result) throws SQLException {
+        SharedDeckRow row = new SharedDeckRow();
+        row.code = result.getString(1);
+        row.owner = result.getString(2);
+        row.name = result.getString(3);
+        row.created = result.getLong(4);
+        row.deck = result.getString(5);
+        row.played = result.getInt(6);
+        row.won = result.getInt(7);
+        return row;
+    }
+
+    // ---- the inbox (S047)
+
+    public static class InboxRow {
+        public long id;
+        public long created;
+        public String kind;
+        public String text;
+        public String ref;
+        public boolean seen;
+    }
+
+    public synchronized void addInbox(String user, String kind, String text, String ref, long now) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO inbox (user, created, kind, text, ref) VALUES (?, ?, ?, ?, ?)")) {
+            statement.setString(1, user);
+            statement.setLong(2, now);
+            statement.setString(3, kind);
+            statement.setString(4, text);
+            statement.setString(5, ref);
+            statement.executeUpdate();
+        }
+        // a player keeps their latest hundred notes
+        try (PreparedStatement statement = connection.prepareStatement(
+                "DELETE FROM inbox WHERE user = ? AND id NOT IN (SELECT id FROM inbox WHERE user = ? ORDER BY id DESC LIMIT 100)")) {
+            statement.setString(1, user);
+            statement.setString(2, user);
+            statement.executeUpdate();
+        }
+    }
+
+    public synchronized List<InboxRow> inbox(String user, int limit) throws SQLException {
+        List<InboxRow> rows = new ArrayList<>();
+        try (PreparedStatement statement = connection.prepareStatement(
+                "SELECT id, created, kind, text, ref, seen FROM inbox WHERE user = ? ORDER BY id DESC LIMIT ?")) {
+            statement.setString(1, user);
+            statement.setInt(2, limit);
+            try (ResultSet result = statement.executeQuery()) {
+                while (result.next()) {
+                    InboxRow row = new InboxRow();
+                    row.id = result.getLong(1);
+                    row.created = result.getLong(2);
+                    row.kind = result.getString(3);
+                    row.text = result.getString(4);
+                    row.ref = result.getString(5);
+                    row.seen = result.getInt(6) != 0;
+                    rows.add(row);
+                }
+            }
+        }
+        return rows;
+    }
+
+    public synchronized void markInboxSeen(String user) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("UPDATE inbox SET seen = 1 WHERE user = ?")) {
+            statement.setString(1, user);
+            statement.executeUpdate();
+        }
+    }
+
+    // ---- per-player state
+
+    public synchronized String state(String user, String key) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement("SELECT value FROM user_state WHERE user = ? AND key = ?")) {
+            statement.setString(1, user);
+            statement.setString(2, key);
+            try (ResultSet result = statement.executeQuery()) {
+                return result.next() ? result.getString(1) : null;
+            }
+        }
+    }
+
+    public synchronized void putState(String user, String key, String value) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT INTO user_state (user, key, value, updated) VALUES (?, ?, ?, ?)"
+                        + " ON CONFLICT (user, key) DO UPDATE SET value = excluded.value, updated = excluded.updated")) {
+            statement.setString(1, user);
+            statement.setString(2, key);
+            statement.setString(3, value);
+            statement.setLong(4, System.currentTimeMillis());
+            statement.executeUpdate();
         }
     }
 

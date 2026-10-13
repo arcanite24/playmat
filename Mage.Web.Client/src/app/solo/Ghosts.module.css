@@ -1,0 +1,94 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.lead {
+  margin: 0;
+  color: var(--ink);
+}
+
+.quiet {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger-text);
+}
+
+.buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.codeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* the code, printed large enough to read out to a friend */
+.code {
+  flex: 1;
+  padding: 10px 14px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.06);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-align: center;
+  user-select: all;
+}
+
+.codeSmall {
+  color: var(--ink-soft);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  user-select: all;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ghost {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.55);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+}
+
+.text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.text b {
+  overflow: hidden;
+  color: var(--ink-strong);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text small {
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+}

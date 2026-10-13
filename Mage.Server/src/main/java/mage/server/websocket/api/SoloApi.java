@@ -10,6 +10,7 @@ import mage.server.game.GameController;
 import mage.server.solo.AdviceService;
 import mage.server.solo.BatchRunner;
 import mage.server.solo.ContentPacks;
+import mage.server.solo.GhostDecks;
 import mage.server.solo.Leaderboards;
 import mage.server.solo.SoloGames;
 import mage.server.solo.SoloStore;
@@ -217,6 +218,41 @@ final class SoloApi {
                             }
                         }),
 
+                // ---- puzzles from boards (S030)
+                RpcMethod.named("gamePuzzleExport")
+                        .params(gameId(), of("sessionId", STRING), optional("name", STRING), optional("text", STRING), optional("objective", STRING))
+                        .session(1)
+                        .returns("PuzzleExport")
+                        .doc("The board of a game against the computer as a puzzle (set it up with the practice tools first): both "
+                                + "sides' life, hands, permanents (tapped or not), graveyards and the top of each library. Objective "
+                                + "win (this turn, the default) or survive (their turn). What a card name can't bring back, like tokens "
+                                + "and counters, is listed in left. Ask while the game waits for you.")
+                        .handler(call -> {
+                            GameController controller = ctx.managers.gameManager().getGameController().get(call.uuid(0));
+                            if (controller == null) {
+                                throw RpcException.invalidParams("That game isn't running.");
+                            }
+                            mage.server.Session session = ctx.managers.sessionManager().getSession(call.sessionId())
+                                    .orElseThrow(() -> RpcException.notAuthorized("Sign in first"));
+                            StringBuilder problem = new StringBuilder();
+                            java.util.concurrent.CompletableFuture<mage.server.solo.PuzzleKit.PuzzleExport> export = controller.exportPuzzle(
+                                    session.getUserId(), call.has(2) ? call.string(2) : null, call.has(3) ? call.string(3) : null,
+                                    call.has(4) ? call.string(4) : null, problem);
+                            if (export == null) {
+                                throw RpcException.invalidParams(problem.toString());
+                            }
+                            try {
+                                return export.get(10, java.util.concurrent.TimeUnit.SECONDS);
+                            } catch (java.util.concurrent.TimeoutException e) {
+                                throw RpcException.invalidParams("Save the puzzle when the game is waiting for you to act.");
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                throw RpcException.invalidParams("Interrupted.");
+                            } catch (java.util.concurrent.ExecutionException e) {
+                                throw RpcException.invalidParams("The board couldn't be read: " + e.getCause().getMessage());
+                            }
+                        }),
+
                 // ---- batches
                 RpcMethod.named("soloBatchSubmit")
                         .params(object("spec", "JobSpec"), optional("kind", STRING))
@@ -369,8 +405,123 @@ final class SoloApi {
                             List<ContentPacks.ContentPackView> views = ContentPacks.get().reload();
                             Staff.audit(actor, "contentPack.reload", null, null, null);
                             return views;
+                        }),
+
+                // ---- free play against the meta, ghosts and adaptive skill
+                RpcMethod.named("metaDeck")
+                        .params(of("file", STRING))
+                        .returns("DeckCardLists")
+                        .doc("A deck from the meta library (see metaLibrary), for the computer to pilot in free play.")
+                        .handler(call -> {
+                            CareerApi.user(ctx, call);
+                            mage.server.career.MetaLibrary.MetaDeck meta = mage.server.career.MetaLibrary.get().deck(call.string(0));
+                            if (meta == null) {
+                                throw RpcException.invalidParams("The meta library has no deck " + call.string(0) + ".");
+                            }
+                            try {
+                                mage.cards.decks.DeckCardLists deck = mage.server.career.CareerCampaigns.get().deck(meta.file);
+                                if (deck == null) {
+                                    throw new IOException("no deck");
+                                }
+                                return deck;
+                            } catch (IOException e) {
+                                throw new RpcException(RpcException.SERVER_ERROR, "That deck couldn't be read.", e);
+                            }
+                        }),
+                RpcMethod.named("ghostShare")
+                        .params(optional("name", STRING), object("deck", "DeckCardLists"))
+                        .returns("GhostDeck")
+                        .doc("Share a deck as a ghost under a short code: anyone with the code can play against it, piloted by "
+                                + "the computer, and each result reaches your inbox.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            String name = call.has(0) ? call.string(0) : null;
+                            mage.cards.decks.DeckCardLists deck = call.object(1, mage.cards.decks.DeckCardLists.class);
+                            return store(() -> GhostDecks.get().share(user, name, deck, System.currentTimeMillis()));
+                        }),
+                RpcMethod.named("ghostMine")
+                        .returns("GhostDeck[]")
+                        .doc("The decks you share as ghosts, newest first, with their records.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            return store(() -> GhostDecks.get().mine(user));
+                        }),
+                RpcMethod.named("ghostUnshare")
+                        .params(of("code", STRING))
+                        .returns("boolean")
+                        .doc("Stop sharing a ghost deck.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            return store(() -> GhostDecks.get().unshare(user, call.string(0)));
+                        }),
+                RpcMethod.named("ghostDeck")
+                        .params(of("code", STRING))
+                        .returns("GhostOpponent")
+                        .doc("The ghost deck shared under a code, to seat the computer with.")
+                        .handler(call -> {
+                            CareerApi.user(ctx, call);
+                            return store(() -> GhostDecks.get().opponent(call.string(0)));
+                        }),
+                RpcMethod.named("soloTableMark")
+                        .params(of("tableId", mage.server.websocket.rpc.RpcParam.Type.UUID), optional("ghostCode", STRING),
+                                optional("adaptiveFormat", STRING))
+                        .returns("boolean")
+                        .doc("Before starting a table of yours against the computer: play it against a ghost (its result goes to "
+                                + "the deck's owner), or with adaptive skill (its result moves your hidden rating for the format).")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            UUID tableId = call.uuid(0);
+                            mage.game.Table table = ctx.managers.tableManager().getTable(tableId);
+                            if (table == null || !user.equals(table.getControllerName())) {
+                                throw RpcException.notAuthorized("That isn't your table.");
+                            }
+                            if (call.has(1)) {
+                                store(() -> {
+                                    GhostDecks.get().mark(tableId, user, call.string(1));
+                                    return null;
+                                });
+                            }
+                            if (call.has(2)) {
+                                mage.server.career.AdaptiveSkill.mark(tableId, user, adaptiveFormat(call.string(2)));
+                            }
+                            return true;
+                        }),
+                RpcMethod.named("soloAdaptive")
+                        .params(of("format", STRING))
+                        .returns("AdaptiveView")
+                        .doc("Your adaptive skill for a format (\"career\", \"constructed\", \"commander\"...): the skill the next "
+                                + "game plays at and how it's going, as a sentence.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            String format = adaptiveFormat(call.string(0));
+                            return store(() -> mage.server.career.AdaptiveSkill.view(user, format));
+                        }),
+                RpcMethod.named("inbox")
+                        .returns("InboxNote[]")
+                        .doc("Your latest notes, newest first: how your ghost decks did.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            return store(() -> GhostDecks.get().inbox(user, 50));
+                        }),
+                RpcMethod.named("inboxSeen")
+                        .returns("boolean")
+                        .doc("Mark every note in your inbox seen.")
+                        .handler(call -> {
+                            String user = CareerApi.user(ctx, call);
+                            return store(() -> {
+                                SoloStore.get().markInboxSeen(user);
+                                return true;
+                            });
                         })
         );
+    }
+
+    private static String adaptiveFormat(String format) throws RpcException {
+        String value = format == null ? "" : format.trim().toLowerCase(java.util.Locale.ENGLISH);
+        if (!value.matches("[a-z0-9-]{1,24}")) {
+            throw RpcException.invalidParams("A format is a short name like constructed.");
+        }
+        return value;
     }
 
     private static mage.server.websocket.rpc.RpcParam gameId() {

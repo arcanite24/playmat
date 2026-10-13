@@ -2,7 +2,7 @@
 // Regenerate: mvn -pl Mage.Server test -Dtest=WebClientApiDocsTest -Dxmage.updateWebApiDocs=true
 
 import type { RpcMethodName, RpcMethods, UUID } from './protocol';
-import type { CardCriteria, ClientError, DeckCardInfo, DeckCardLists, JobSpec, ManaType, PlayerAction, StartOptions, UserData } from './views';
+import type { CardCriteria, ClientError, DeckCardInfo, DeckCardLists, JobSpec, ManaType, PlayerAction, Puzzle, StartOptions, UserData } from './views';
 import type { WebCardFilters, WebMatchOptions, WebTournamentOptions } from '../options';
 
 export interface RpcCaller {
@@ -311,8 +311,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerCollection'),
     careerOpponents: () =>
       rpc.call('careerOpponents'),
-    careerPlay: (opponentId: string, deck: DeckCardLists) =>
-      rpc.call('careerPlay', opponentId, deck),
+    careerPlay: (opponentId: string, deck: DeckCardLists, adaptive?: boolean | null) =>
+      rpc.call('careerPlay', opponentId, deck, adaptive),
     careerShop: () =>
       rpc.call('careerShop'),
     careerBuyPack: (setCode: string) =>
@@ -351,6 +351,22 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerPuzzles'),
     careerPuzzlePlay: (puzzleId: string) =>
       rpc.call('careerPuzzlePlay', puzzleId),
+    careerDailyPuzzle: () =>
+      rpc.call('careerDailyPuzzle'),
+    careerDailyPuzzlePlay: () =>
+      rpc.call('careerDailyPuzzlePlay'),
+    careerPuzzleFilePlay: (puzzle: Puzzle) =>
+      rpc.call('careerPuzzleFilePlay', puzzle),
+    careerMinedPuzzles: () =>
+      rpc.call('careerMinedPuzzles'),
+    careerMinedPuzzlePlay: (puzzleId: string) =>
+      rpc.call('careerMinedPuzzlePlay', puzzleId),
+    careerHordes: () =>
+      rpc.call('careerHordes'),
+    careerHordePlay: (hordeId: string, deckFile: string) =>
+      rpc.call('careerHordePlay', hordeId, deckFile),
+    metaLibrary: () =>
+      rpc.call('metaLibrary'),
     careerChallenge: () =>
       rpc.call('careerChallenge'),
     careerChallengePlay: () =>
@@ -369,8 +385,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerGauntletAbandon'),
     careerLimited: () =>
       rpc.call('careerLimited'),
-    careerLimitedStart: (kind: string, setCode: string) =>
-      rpc.call('careerLimitedStart', kind, setCode),
+    careerLimitedStart: (kind: string, setCode: string, shape?: string | null, cubeCards?: string[] | null) =>
+      rpc.call('careerLimitedStart', kind, setCode, shape, cubeCards),
     careerLimitedPick: (index: number) =>
       rpc.call('careerLimitedPick', index),
     careerLimitedCoach: () =>
@@ -399,6 +415,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('soloAssists', gameId, SESSION),
     gameAdvise: (gameId: UUID, skill?: number | null) =>
       rpc.call('gameAdvise', gameId, SESSION, skill),
+    gamePuzzleExport: (gameId: UUID, name?: string | null, text?: string | null, objective?: string | null) =>
+      rpc.call('gamePuzzleExport', gameId, SESSION, name, text, objective),
     soloBatchSubmit: (spec: JobSpec, kind?: string | null) =>
       rpc.call('soloBatchSubmit', spec, kind),
     soloBatchJobs: () =>
@@ -421,6 +439,24 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('adminContentPackRemove', packId, reason),
     adminContentPackReload: () =>
       rpc.call('adminContentPackReload'),
+    metaDeck: (file: string) =>
+      rpc.call('metaDeck', file),
+    ghostShare: (name: string | null, deck: DeckCardLists) =>
+      rpc.call('ghostShare', name, deck),
+    ghostMine: () =>
+      rpc.call('ghostMine'),
+    ghostUnshare: (code: string) =>
+      rpc.call('ghostUnshare', code),
+    ghostDeck: (code: string) =>
+      rpc.call('ghostDeck', code),
+    soloTableMark: (tableId: UUID, ghostCode?: string | null, adaptiveFormat?: string | null) =>
+      rpc.call('soloTableMark', tableId, ghostCode, adaptiveFormat),
+    soloAdaptive: (format: string) =>
+      rpc.call('soloAdaptive', format),
+    inbox: () =>
+      rpc.call('inbox'),
+    inboxSeen: () =>
+      rpc.call('inboxSeen'),
   };
 }
 

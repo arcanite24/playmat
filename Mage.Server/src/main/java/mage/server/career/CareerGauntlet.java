@@ -757,7 +757,8 @@ public final class CareerGauntlet {
     static List<CareerContent.Opponent> rosterOrder() {
         List<CareerContent.Opponent> roster = new ArrayList<>();
         for (CareerContent.Opponent opponent : CareerContent.get().opponents()) {
-            if (!opponent.id.startsWith("rival")) {
+            // the rival's arc and raid bosses stay on the ladder
+            if (opponent.rival == null && !opponent.id.startsWith("rival") && !opponent.raid) {
                 roster.add(opponent);
             }
         }

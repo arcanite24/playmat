@@ -53,8 +53,15 @@ import java.util.stream.Collectors;
  * several JVMs; each game prints a RESULT line, and {@link #main} with the shard logs as arguments merges them</li>
  * <li>xmage.careerCalibration.schools: calibrate the format schools instead (backlog B159): "all" or comma separated
  * school ids. Every one-on-one duel plays the node's loaner at the reference skill against the node's opponent at its
- * skill; the summary's "tier" is the act. Commander and Brawl duels (command zone games) and pods are left out.</li>
+ * skill; the summary's "tier" is the act. Commander and Brawl games play with a command zone, and pods seat every
+ * opponent of the node (the starter side scores a win only when it is the last one standing).</li>
+ * <li>xmage.careerCalibration.opponentAi: "mad" (default) or "mcts", the Monte Carlo AI, to measure it in the opponent's
+ * seat (S044); an opponent with its own aiType plays with that unless this is set</li>
+ * <li>xmage.careerCalibration.personalities: false plays every opponent without its personality, to measure what the
+ * personalities change (S042)</li>
  * </ul>
+ * Opponents play their lists in turn (game i plays list i), start with their tier's and their own life twists, and
+ * carry their personality, as a Career duel does.
  */
 public class CareerCalibrationTest {
 
@@ -146,19 +153,28 @@ public class CareerCalibrationTest {
             }
             int skill = skillOverride.getOrDefault(opponent.tier,
                     opponent.skill != null ? opponent.skill : content.tier(opponent.tier).skill);
-            DeckCardLists opponentDeck = content.opponentDeck(opponent);
-            Deck.load(opponentDeck, false, false, CARD_INFO_CACHE);
+            String opponentAi = System.getProperty(PREFIX + ".opponentAi",
+                    "archmage".equals(opponent.aiType) || opponent.aiType == null ? "mad" : opponent.aiType);
+            Map<String, Integer> personality = Boolean.parseBoolean(System.getProperty(PREFIX + ".personalities", "true"))
+                    && opponent.personality != null ? personality(opponent.personality) : null;
+            CareerSetup.CareerTwists twists = CareerSetup.combine(content.tier(opponent.tier).twists, opponent.twists);
+            int opponentLife = twists == null ? 20 : (twists.startingLife != null ? twists.startingLife : 20) + twists.lifeBonus;
             for (int i = 0; i < gamesPerOpponent; i++, gameIndex++) {
                 if (gameIndex % shardCount != shardIndex) {
                     continue;
                 }
+                // the lists take turns, as they do across a player's meetings
+                DeckCardLists opponentDeck = content.opponentDeck(opponent, i);
+                Deck.load(opponentDeck, false, false, CARD_INFO_CACHE);
                 CareerContent.CareerStarter starter = starters.get(i % starters.size());
                 // the starter side goes first in every other game
                 boolean starterFirst = (i / starters.size() + i) % 2 == 0;
                 long start = System.currentTimeMillis();
                 Result result;
                 try {
-                    result = playGame(starterDecks.get(starter.id), referenceSkill, opponentDeck, skill, starterFirst, maxTurns);
+                    result = playGame(null, starterDecks.get(starter.id), referenceSkill,
+                            java.util.Collections.singletonList(new Seat(opponentDeck, skill, opponentAi, personality)),
+                            starterFirst, maxTurns, opponentLife);
                 } catch (Exception e) {
                     e.printStackTrace();
                     result = new Result();
@@ -203,13 +219,18 @@ public class CareerCalibrationTest {
                 CareerCampaigns.Chapter chapter = school.chapters.get(act);
                 for (CareerCampaigns.Node node : chapter.nodes) {
                     String gameType = node.gameType != null ? node.gameType : school.gameType;
-                    boolean commandZone = gameType != null && (gameType.startsWith("Commander") || gameType.startsWith("Brawl"));
-                    if (!"duel".equals(node.type) || commandZone || (node.opponents != null && !node.opponents.isEmpty())
+                    boolean pod = node.opponents != null && !node.opponents.isEmpty();
+                    if (!"duel".equals(node.type) || (!pod && node.opponent == null)
                             || (!onlyNodes.isEmpty() && !Arrays.asList(onlyNodes.split(",")).contains(node.id))) {
                         continue;
                     }
                     DeckCardLists you = campaigns.deck(node.deck != null ? node.deck : chapter.deck);
-                    DeckCardLists them = campaigns.deck(node.opponent.deck);
+                    // a pod seats each of its opponents; a duel its one
+                    List<CareerCampaigns.NodeOpponent> seated = pod ? node.opponents : java.util.Collections.singletonList(node.opponent);
+                    List<Seat> them = new ArrayList<>();
+                    for (CareerCampaigns.NodeOpponent opponent : seated) {
+                        them.add(new Seat(campaigns.deck(opponent.deck), opponent.skill, "mad", null));
+                    }
                     for (int i = 0; i < gamesPerNode; i++, gameIndex++) {
                         if (gameIndex % shardCount != shardIndex) {
                             continue;
@@ -218,7 +239,7 @@ public class CareerCalibrationTest {
                         long start = System.currentTimeMillis();
                         Result result;
                         try {
-                            result = playGame(you, referenceSkill, them, node.opponent.skill, youFirst, maxTurns);
+                            result = playGame(gameType, you, referenceSkill, them, youFirst, maxTurns, 0);
                         } catch (Exception e) {
                             e.printStackTrace();
                             result = new Result();
@@ -226,7 +247,7 @@ public class CareerCalibrationTest {
                         }
                         result.tier = act + 1;
                         result.opponent = node.id;
-                        result.skill = node.opponent.skill;
+                        result.skill = seated.get(0).skill;
                         result.starter = school.id;
                         results.add(result);
                         System.out.println(String.format("RESULT,%d,%s,%d,%s,%s,%d,%d,%s",
@@ -248,28 +269,99 @@ public class CareerCalibrationTest {
         int turns;
     }
 
-    private static Result playGame(DeckCardLists starterList, int referenceSkill, DeckCardLists opponentList, int opponentSkill,
-                                   boolean starterFirst, int maxTurns) throws Exception {
+    private static Map<String, Integer> personality(CareerSetup.Personality personality) {
+        Map<String, Integer> leanings = new HashMap<>();
+        leanings.put("aggression", personality.aggression);
+        leanings.put("risk", personality.risk);
+        leanings.put("patience", personality.patience);
+        return leanings;
+    }
+
+    private static Player opponentPlayer(String ai, int skill, String name) throws Exception {
+        if ("mcts".equalsIgnoreCase(ai) || "COMPUTER_MONTE_CARLO".equals(ai)) {
+            // the Monte Carlo AI is a runtime plugin, so it's found by name
+            return (Player) Class.forName("mage.player.ai.ComputerPlayerMCTS")
+                    .getConstructor(String.class, RangeOfInfluence.class, int.class)
+                    .newInstance(name, RangeOfInfluence.ALL, skill);
+        }
+        return new ComputerPlayerControllableProxy(name, RangeOfInfluence.ALL, skill);
+    }
+
+    /** an opponent's seat: deck, skill, AI and leanings */
+    static final class Seat {
+        final DeckCardLists deck;
+        final int skill;
+        final String ai;
+        final Map<String, Integer> personality;
+
+        Seat(DeckCardLists deck, int skill, String ai, Map<String, Integer> personality) {
+            this.deck = deck;
+            this.skill = skill;
+            this.ai = ai;
+            this.personality = personality;
+        }
+    }
+
+    /**
+     * The game a node's type plays: Commander and Brawl games have a command zone (the deck's sideboard holds the
+     * commander) and their own starting life, and pods are free for all. Null or anything else is a two-player duel.
+     */
+    private static Game newGame(String gameType, AtomicBoolean crashed) throws Exception {
+        String type = gameType == null ? "" : gameType;
+        boolean pod = type.contains("Free For All");
+        String className = type.startsWith("Commander") ? (pod ? "mage.game.CommanderFreeForAll" : "mage.game.CommanderDuel")
+                : type.startsWith("Brawl") ? (pod ? "mage.game.BrawlFreeForAll" : "mage.game.BrawlDuel")
+                : pod ? "mage.game.FreeForAll" : null;
+        if (className == null) {
+            return new TwoPlayerDuel(MultiplayerAttackOption.LEFT, RangeOfInfluence.ALL,
+                    MulliganType.GAME_DEFAULT.getMulligan(0), 60, 20, 7) {
+                @Override
+                public void endWithTechnicalWinner(String reason) {
+                    // the engine gave up on the game: its winner says nothing about the decks
+                    crashed.set(true);
+                    super.endWithTechnicalWinner(reason);
+                }
+            };
+        }
+        int life = type.startsWith("Commander") ? 40 : type.startsWith("Brawl") ? (pod ? 30 : 25) : 20;
+        // the plugins are runtime dependencies, so they're found by name
+        return (Game) Class.forName(className)
+                .getConstructor(MultiplayerAttackOption.class, RangeOfInfluence.class, mage.game.mulligan.Mulligan.class, int.class, int.class)
+                .newInstance(MultiplayerAttackOption.LEFT, RangeOfInfluence.ALL, MulliganType.GAME_DEFAULT.getMulligan(0), life, 7);
+    }
+
+    /**
+     * @param opponentLife the opponents' starting life when a twist sets it, or 0 for the game's own
+     */
+    private static Result playGame(String gameType, DeckCardLists starterList, int referenceSkill, List<Seat> seats,
+                                   boolean starterFirst, int maxTurns, int opponentLife) throws Exception {
         AtomicBoolean crashed = new AtomicBoolean();
-        Game game = new TwoPlayerDuel(MultiplayerAttackOption.LEFT, RangeOfInfluence.ALL,
-                MulliganType.GAME_DEFAULT.getMulligan(0), 60, 20, 7) {
-            @Override
-            public void endWithTechnicalWinner(String reason) {
-                // the engine gave up on the game: its winner says nothing about the decks
-                crashed.set(true);
-                super.endWithTechnicalWinner(reason);
-            }
-        };
-        // the AI's simulations copy the match player, so seat both in a (fake) match as a table would
+        Game game = newGame(gameType, crashed);
+        // the AI's simulations copy the match player, so seat everyone in a (fake) match as a table would
         Match match = new TwoPlayerMatch(new MatchOptions("calibration", "Two Player Duel", false));
         Player starterPlayer = new ComputerPlayerControllableProxy("Starter", RangeOfInfluence.ALL, referenceSkill);
-        Player opponentPlayer = new ComputerPlayerControllableProxy("Opponent", RangeOfInfluence.ALL, opponentSkill);
         seat(game, match, starterPlayer, starterList);
-        seat(game, match, opponentPlayer, opponentList);
+        List<Player> opponents = new ArrayList<>();
+        for (int i = 0; i < seats.size(); i++) {
+            Seat seat = seats.get(i);
+            Player opponent = opponentPlayer(seat.ai, seat.skill, seats.size() == 1 ? "Opponent" : "Opponent " + (i + 1));
+            seat(game, match, opponent, seat.deck);
+            if (seat.personality != null) {
+                game.getState().setValue(CareerSetup.PERSONALITY_KEY + opponent.getId(), seat.personality);
+            }
+            opponents.add(opponent);
+        }
+        Player opponentPlayer = opponents.get(0);
         GameOptions options = new GameOptions();
         options.testMode = false; // real mulligans and opening hands
         options.stopOnTurn = maxTurns;
         options.stopAtStep = PhaseStep.UNTAP;
+        if (opponentLife > 0 && opponentLife != game.getStartingLife()) {
+            // the tier's and the opponent's life twists (a raid boss's 100)
+            java.util.UUID opponentId = opponentPlayer.getId();
+            options.setup = (mage.game.GameSetup) (setupGame, startingPlayerId) ->
+                    setupGame.getPlayer(opponentId).setLife(opponentLife, setupGame, null);
+        }
         game.setGameOptions(options);
 
         Result result = new Result();
@@ -300,7 +392,7 @@ public class CareerCalibrationTest {
             result.outcome = "error";
         } else if (game.getPlayer(starterPlayer.getId()).hasWon()) {
             result.outcome = "win";
-        } else if (game.getPlayer(opponentPlayer.getId()).hasWon()) {
+        } else if (opponents.stream().anyMatch(opponent -> game.getPlayer(opponent.getId()).hasWon())) {
             result.outcome = "loss";
         } else {
             result.outcome = "draw";

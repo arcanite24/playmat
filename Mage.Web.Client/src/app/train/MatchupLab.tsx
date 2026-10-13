@@ -6,7 +6,11 @@ import type { DeckCardLists } from '../../core/decks/types';
 import { verdictLine, winRate } from '../../core/train/matchup';
 import type { BatchJob, JobSpec } from '../../protocol/generated/views';
 import { api } from '../connection';
-import { queryClient } from '../queries';
+import { registerMessages, useT } from '../i18n';
+import messages from '../i18n/en/career';
+import { queryClient, useServerState } from '../queries';
+import { offeredAiTypes } from '../screens/aiSetup';
+import type { AiType } from '../stores/play';
 import { useDecks } from '../stores/decks';
 import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
@@ -17,6 +21,8 @@ const JOBS_KEY = ['train', 'matchups'] as const;
 const GAME_COUNTS = [10, 20, 50, 100];
 const SKILLS = [{ value: 2, label: 'Casual' }, { value: 4, label: 'Normal' }, { value: 6, label: 'Strong' }];
 const KEPT_REPLAYS = 3;
+
+registerMessages(messages);
 
 function forServer(deck: DeckCardLists): JobSpec['deckA'] {
   return { name: deck.name, cards: deck.cards, sideboard: deck.sideboard ?? [] } as unknown as JobSpec['deckA'];
@@ -33,6 +39,12 @@ export function MatchupLab() {
   const [deckB, setDeckB] = useState<string | null>(null);
   const [games, setGames] = useState(20);
   const [skill, setSkill] = useState(4);
+  // each side's AI (S044), and keeping the lethal positions the AI finds as puzzles (S031)
+  const [aiA, setAiA] = useState<AiType>('COMPUTER_MAD');
+  const [aiB, setAiB] = useState<AiType>('COMPUTER_MAD');
+  const [minePuzzles, setMinePuzzles] = useState(false);
+  const t = useT();
+  const aiTypes = offeredAiTypes(useServerState().data?.playerTypes);
   const [busy, setBusy] = useState(false);
   const jobs = useQuery({
     queryKey: JOBS_KEY,
@@ -53,6 +65,9 @@ export function MatchupLab() {
         games,
         skillA: skill,
         skillB: skill,
+        aiA,
+        aiB,
+        minePuzzles,
         keepReplays: KEPT_REPLAYS,
       };
       await api.soloBatchSubmit(spec, 'matchup');
@@ -86,6 +101,26 @@ export function MatchupLab() {
             {SKILLS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
+        {aiTypes.length > 1 && (
+          <>
+            <label className={styles.field}>
+              <span>{t('solo.batch.aiA')}</span>
+              <select value={aiA} onChange={(event) => setAiA(event.target.value as AiType)}>
+                {aiTypes.map((type) => <option key={type.value} value={type.value}>{t(type.label)}</option>)}
+              </select>
+            </label>
+            <label className={styles.field}>
+              <span>{t('solo.batch.aiB')}</span>
+              <select value={aiB} onChange={(event) => setAiB(event.target.value as AiType)}>
+                {aiTypes.map((type) => <option key={type.value} value={type.value}>{t(type.label)}</option>)}
+              </select>
+            </label>
+          </>
+        )}
+        <label className={styles.check} title={t('solo.batch.mineHint')}>
+          <input type="checkbox" checked={minePuzzles} onChange={(event) => setMinePuzzles(event.target.checked)} />
+          {t('solo.batch.mine')}
+        </label>
         <Button variant="decision" icon={<FlaskConical size={16} />} busy={busy} disabled={!deckA || !deckB} onClick={() => void submit()}>Run the games</Button>
       </div>
       <p className={styles.quiet}>Each game is seeded and the decks take turns going first. The server plays a few games at a time, so a big batch takes a while; you can leave this page.</p>
@@ -98,6 +133,7 @@ export function MatchupLab() {
 }
 
 function JobCard({ job, onWatch }: { job: BatchJob; onWatch(replayId: string): void }) {
+  const t = useT();
   const result = job.result ?? {};
   const rate = winRate(result.winsA ?? 0, result.winsB ?? 0, result.draws ?? 0);
   const open = job.status === 'queued' || job.status === 'running';
@@ -129,6 +165,7 @@ function JobCard({ job, onWatch }: { job: BatchJob; onWatch(replayId: string): v
             <span>Average game <b>{played ? ((result.turns ?? 0) / played).toFixed(1) : 0}</b> turns</span>
             {firstRate !== null && <span>{job.nameA} going first wins <b>{firstRate}%</b></span>}
             {result.errors ? <span>{result.errors} games failed</span> : null}
+            {result.mined ? <span>{t('solo.batch.mined', { count: result.mined })}</span> : null}
           </div>
         </>
       )}

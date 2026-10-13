@@ -27,6 +27,9 @@ import styles from './DecksScreen.module.css';
 // sleeves unlocked in Career, for players who opted in
 const CareerSleeves = lazy(() => import('../career/CareerScreen').then((m) => ({ default: m.CareerSleeves })));
 
+// sharing a deck as a ghost, and the ghosts you share (S047); they bring their messages with them
+const GhostActions = lazy(() => import('../solo/Ghosts').then((m) => ({ default: m.GhostActions })));
+
 /** Your deck shelf: import, sleeve, update and remove decks. */
 export function DecksScreen() {
   const decks = useDecks();
@@ -158,6 +161,9 @@ export function DecksScreen() {
               {!selected.starter && (
                 <Button variant="print" size="sm" icon={<PencilLine size={16} />} onClick={() => setRenaming(selected)}>{t('decks.rename')}</Button>
               )}
+              <Suspense fallback={null}>
+                <GhostActions deckId={selected.id} deckName={selected.name} />
+              </Suspense>
             </div>
             {!selected.starter && (
               <Button variant="danger" size="sm" className={styles.remove} icon={<Trash2 size={16} />} onClick={() => setRemoving(selected)}>{t('decks.remove')}</Button>

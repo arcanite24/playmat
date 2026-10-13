@@ -116,3 +116,191 @@
   font-family: var(--font-print);
   font-weight: 700;
 }
+
+/* ---- the ladder's head: rank badge and the adaptive-difficulty switch (S037, S043) */
+
+.ladderHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-zone);
+  background: rgb(var(--mat-rgb) / 0.62);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+}
+
+.rank {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--brass-ink);
+}
+
+.rank small {
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.rank b {
+  font-family: var(--font-print);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}
+
+.adaptive {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  max-width: 420px;
+}
+
+.adaptive small {
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.switch i {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--ink-ghost);
+  transition: background 120ms ease;
+}
+
+.switch i::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink-strong);
+  transition: transform 120ms ease;
+}
+
+.switch[aria-checked='true'] i {
+  background: var(--sage);
+}
+
+.switch[aria-checked='true'] i::after {
+  transform: translateX(14px);
+}
+
+.switch:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+/* ---- each opponent: difficulty pips on the plate, what sets them apart under it */
+
+.row > li {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  width: 200px;
+}
+
+.difficulty {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.difficulty i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px var(--ink-soft);
+}
+
+.difficulty .difficultyOn {
+  background: var(--decision);
+  box-shadow: none;
+}
+
+.facts {
+  display: grid;
+  gap: 4px;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.facts p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  margin: 0;
+}
+
+.facts q {
+  flex-basis: 100%;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+.nemesis {
+  color: rgb(var(--danger-rgb));
+}
+
+.nemesis b,
+.rival b,
+.raid {
+  font-family: var(--font-print);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}
+
+.rival {
+  color: var(--brass-ink);
+}
+
+.raid {
+  color: var(--decision);
+}
+
+.phases summary {
+  cursor: pointer;
+}
+
+.phases ul {
+  margin: 2px 0 0;
+  padding-left: 1.1em;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tags li {
+  padding: 0 6px;
+  border-radius: var(--radius-chip);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+}

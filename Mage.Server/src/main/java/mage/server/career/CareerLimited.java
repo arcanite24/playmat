@@ -39,6 +39,85 @@ public final class CareerLimited {
     public static final int LOSSES = 2;
     public static final int OPPONENT_SKILL = 4;
 
+    /** run shapes (S034): best of the classic 3 wins or 2 losses, Arena's 7 wins or 3 losses, or a league of 5 matches */
+    public static final String CLASSIC = "classic";
+    public static final String ARENA = "arena";
+    public static final String LEAGUE = "league";
+    public static final int LEAGUE_GAMES = 5;
+
+    /** One shape of run, as the start screen offers it. */
+    public static class LimitedShape {
+        public String id;
+        public String name;
+        public String text;
+        /** wins that end the run (0: none, the league plays its games) */
+        public int wins;
+        /** losses that end it (0: none) */
+        public int losses;
+        /** games that end it (0: none) */
+        public int games;
+        public int[] sealedRewards;
+        public int[] draftRewards;
+    }
+
+    static int maxWins(String shape) {
+        return ARENA.equals(shape) ? 7 : LEAGUE.equals(shape) ? 0 : WINS;
+    }
+
+    static int maxLosses(String shape) {
+        return ARENA.equals(shape) ? 3 : LEAGUE.equals(shape) ? 0 : LOSSES;
+    }
+
+    static int maxGames(String shape) {
+        return LEAGUE.equals(shape) ? LEAGUE_GAMES : maxWins(shape) + maxLosses(shape) - 1;
+    }
+
+    static boolean over(String shape, int wins, int losses) {
+        if (LEAGUE.equals(shape)) {
+            return wins + losses >= LEAGUE_GAMES;
+        }
+        return wins >= maxWins(shape) || losses >= maxLosses(shape);
+    }
+
+    /** coins by wins at the end of a run of a shape */
+    public static int reward(String kind, String shape, int wins) {
+        int[] table = rewards(kind, shape);
+        return table[Math.max(0, Math.min(wins, table.length - 1))];
+    }
+
+    static int[] rewards(String kind, String shape) {
+        boolean sealed = SEALED.equals(kind);
+        if (ARENA.equals(shape)) {
+            return sealed ? new int[]{40, 80, 140, 220, 300, 400, 500, 650} : new int[]{20, 60, 110, 170, 240, 320, 420, 560};
+        }
+        if (LEAGUE.equals(shape)) {
+            return sealed ? new int[]{50, 100, 170, 250, 330, 450} : new int[]{30, 80, 140, 210, 290, 400};
+        }
+        return sealed ? new int[]{60, 120, 220, 380} : new int[]{30, 90, 170, 320};
+    }
+
+    public static List<LimitedShape> shapes() {
+        List<LimitedShape> shapes = new ArrayList<>();
+        String[][] about = {
+                {CLASSIC, "Classic", "Play until three wins or two losses."},
+                {ARENA, "Arena", "Play until seven wins or three losses. A longer road and a bigger top prize."},
+                {LEAGUE, "League", "Five matches, win or lose. After each one a fresh pack joins your pool, so rebuild as it grows."},
+        };
+        for (String[] line : about) {
+            LimitedShape shape = new LimitedShape();
+            shape.id = line[0];
+            shape.name = line[1];
+            shape.text = line[2];
+            shape.wins = maxWins(line[0]);
+            shape.losses = maxLosses(line[0]);
+            shape.games = LEAGUE.equals(line[0]) ? LEAGUE_GAMES : 0;
+            shape.sealedRewards = rewards(SEALED, line[0]);
+            shape.draftRewards = rewards(DRAFT, line[0]);
+            shapes.add(shape);
+        }
+        return shapes;
+    }
+
     /** coins to enter */
     public static int entry(String kind) {
         return SEALED.equals(kind) ? 400 : 250;
@@ -46,8 +125,7 @@ public final class CareerLimited {
 
     /** coins by wins at the end of a run */
     public static int reward(String kind, int wins) {
-        int[] table = SEALED.equals(kind) ? new int[]{60, 120, 220, 380} : new int[]{30, 90, 170, 320};
-        return table[Math.max(0, Math.min(wins, table.length - 1))];
+        return reward(kind, CLASSIC, wins);
     }
 
     // ---- state, kept as JSON in the run's row
@@ -96,6 +174,12 @@ public final class CareerLimited {
 
     static class RunData {
         String kind;
+        /** "classic" (or null in runs from before shapes), "arena" or "league" */
+        String shape;
+        /** a deck sent as the cube: its card names, to cut packs from after a restart */
+        List<String> cubeCards;
+        /** a league's latest pack, joined to the pool after a match */
+        List<CareerPoolCard> added;
         String setCode;
         String setName;
         /** "draft", "build" or "play" */
@@ -114,6 +198,14 @@ public final class CareerLimited {
     public static class CareerLimitedRun {
         public String id;
         public String kind;
+        /** "classic", "arena" or "league" */
+        public String shape;
+        public int maxWins;
+        public int maxLosses;
+        /** a league's games */
+        public int maxGames;
+        /** the cards a league's last pack added to the pool */
+        public List<CareerPoolCard> added;
         public String setCode;
         public String setName;
         /** "draft", "build", "play", or the end state ("won", "lost", "abandoned") */
@@ -162,6 +254,8 @@ public final class CareerLimited {
         public int[] draftRewards;
         public CareerLimitedRun run;
         public List<CareerLimitedRun> recent = new ArrayList<>();
+        /** the run shapes to start (S034) */
+        public List<LimitedShape> shapes = shapes();
     }
 
     private static volatile CareerLimited instance;
@@ -191,6 +285,56 @@ public final class CareerLimited {
     void useBoosters(Function<String, List<CareerPoolCard>> boosters, Random random) {
         this.boosters = boosters;
         this.random = random;
+    }
+
+    // ---- cubes (S035): packs cut from a server cube or a deck sent as one; the cards are loaners
+
+    public static final String CUBE = "cube";
+    static final String CUBE_PREFIX = "cube:";
+    public static final int CUBE_PACK = 15;
+    /** cube card names by key: a server cube's name, or "deck-" and a hash for a deck sent as the cube */
+    private static final Map<String, List<String>> CUBES = new java.util.concurrent.ConcurrentHashMap<>();
+
+    static boolean isCube(String setCode) {
+        return setCode != null && setCode.startsWith(CUBE_PREFIX);
+    }
+
+    /** a pack of the set, or of the cube for a cube's code */
+    private List<CareerPoolCard> booster(String setCode) {
+        return isCube(setCode) ? cubePack(setCode.substring(CUBE_PREFIX.length())) : boosters.apply(setCode);
+    }
+
+    /** a deck cube's cards come back from the run after a restart */
+    private static RunData restored(RunData data) {
+        if (data != null && isCube(data.setCode) && data.cubeCards != null) {
+            CUBES.putIfAbsent(data.setCode.substring(CUBE_PREFIX.length()), data.cubeCards);
+        }
+        return data;
+    }
+
+    private List<CareerPoolCard> cubePack(String key) {
+        List<String> names = CUBES.computeIfAbsent(key, k -> {
+            List<String> cards = GauntletPacks.cubeCards(k, null);
+            return cards == null ? new ArrayList<>() : cards;
+        });
+        List<String> shuffled = new ArrayList<>(names);
+        Collections.shuffle(shuffled, random);
+        List<CareerPoolCard> pack = new ArrayList<>();
+        java.util.Set<String> taken = new java.util.HashSet<>();
+        for (String name : shuffled) {
+            if (pack.size() >= CUBE_PACK) {
+                break;
+            }
+            if (!taken.add(name)) {
+                continue;
+            }
+            CardInfo info = CardRepository.instance.findPreferredCoreExpansionCard(name);
+            Card card = info == null ? null : info.createCard();
+            if (card != null) {
+                pack.add(poolCard(card));
+            }
+        }
+        return pack;
     }
 
     private static List<CareerPoolCard> openBooster(String setCode) {
@@ -273,10 +417,15 @@ public final class CareerLimited {
     }
 
     private CareerLimitedRun view(CareerStore.RunRow row) {
-        RunData data = gson.fromJson(row.data, RunData.class);
+        RunData data = restored(gson.fromJson(row.data, RunData.class));
         CareerLimitedRun run = new CareerLimitedRun();
         run.id = row.id;
         run.kind = data.kind;
+        run.shape = data.shape == null ? CLASSIC : data.shape;
+        run.maxWins = maxWins(run.shape);
+        run.maxLosses = maxLosses(run.shape);
+        run.maxGames = LEAGUE.equals(run.shape) ? LEAGUE_GAMES : 0;
+        run.added = data.added;
         run.setCode = data.setCode;
         run.setName = data.setName;
         run.state = row.state;
@@ -285,7 +434,7 @@ public final class CareerLimited {
         run.losses = row.losses;
         run.pool = data.pool;
         run.deck = data.deck;
-        run.nextReward = reward(data.kind, row.wins + 1);
+        run.nextReward = reward(data.kind, run.shape, row.wins + 1);
         if (DRAFT.equals(data.kind)) {
             run.picks = data.picks == null ? new ArrayList<>() : data.picks;
             run.signals = signals(data.passed);
@@ -311,12 +460,53 @@ public final class CareerLimited {
     // ---- starting
 
     public CareerLimitedRun start(String user, String kind, String setCode) throws SQLException, CareerService.CareerException {
-        if (!SEALED.equals(kind) && !DRAFT.equals(kind)) {
-            throw new CareerService.CareerException("Choose sealed or draft.");
+        return start(user, kind, setCode, CLASSIC);
+    }
+
+    public CareerLimitedRun start(String user, String kind, String setCode, String shape) throws SQLException, CareerService.CareerException {
+        return start(user, kind, setCode, shape, null);
+    }
+
+    /**
+     * @param setCode the set; for a cube draft, the server cube's name (or anything, with {@code cubeCards})
+     * @param cubeCards for a cube draft from a deck: its card names
+     */
+    public CareerLimitedRun start(String user, String kind, String setCode, String shape, List<String> cubeCards) throws SQLException, CareerService.CareerException {
+        if (CUBE.equals(kind)) {
+            if (cubeCards != null && !cubeCards.isEmpty()) {
+                if (cubeCards.size() > 1000) {
+                    throw new CareerService.CareerException("A cube of more than a thousand cards is too big.");
+                }
+                List<String> distinct = new ArrayList<>(new java.util.LinkedHashSet<>(cubeCards));
+                String key = "deck-" + Integer.toHexString(distinct.hashCode());
+                CUBES.put(key, distinct);
+                setCode = CUBE_PREFIX + key;
+            } else {
+                List<String> cards = setCode == null ? null : GauntletPacks.cubeCards(setCode, null);
+                if (cards == null) {
+                    throw new CareerService.CareerException("There's no cube called " + setCode + " on this server.");
+                }
+                CUBES.put(setCode, cards);
+                setCode = CUBE_PREFIX + setCode;
+            }
+            if (CUBES.get(setCode.substring(CUBE_PREFIX.length())).size() < CUBE_PACK * SEATS) {
+                throw new CareerService.CareerException("A cube for eight seats needs at least " + (CUBE_PACK * SEATS) + " different cards.");
+            }
+            kind = DRAFT;
         }
-        boolean offered = CareerService.get().shop(user).stream().anyMatch(set -> set.setCode.equals(setCode) && !set.locked);
+        if (!SEALED.equals(kind) && !DRAFT.equals(kind)) {
+            throw new CareerService.CareerException("Choose sealed, draft or cube.");
+        }
+        final String code = setCode;
+        final String runKind = kind;
+        final List<String> loaned = isCube(code) && code.startsWith(CUBE_PREFIX + "deck-") ? CUBES.get(code.substring(CUBE_PREFIX.length())) : null;
+        String runShape = shape == null ? CLASSIC : shape;
+        if (!CLASSIC.equals(runShape) && !ARENA.equals(runShape) && !LEAGUE.equals(runShape)) {
+            throw new CareerService.CareerException("A run is classic, arena or league.");
+        }
+        boolean offered = isCube(code) || CareerService.get().shop(user).stream().anyMatch(set -> set.setCode.equals(code) && !set.locked);
         if (!offered) {
-            throw new CareerService.CareerException("The shop doesn't sell " + setCode + " packs, so it can't be played here.");
+            throw new CareerService.CareerException("The shop doesn't sell " + code + " packs, so it can't be played here.");
         }
         CareerStore store = CareerStore.get();
         return refusing(() -> store.transaction(() -> {
@@ -325,41 +515,43 @@ public final class CareerLimited {
                 throw refusal("Open a Career first.");
             }
             if (active(store, user) != null) {
-                throw refusal("Finish or give up your " + kind + " run first.");
+                throw refusal("Finish or give up your " + runKind + " run first.");
             }
-            int cost = entry(kind);
+            int cost = entry(runKind);
             if (profile.coins < cost) {
-                throw refusal("A " + kind + " run costs " + cost + " coins; you have " + profile.coins + ".");
+                throw refusal("A " + runKind + " run costs " + cost + " coins; you have " + profile.coins + ".");
             }
             store.addCoins(user, -cost);
             RunData data = new RunData();
-            data.kind = kind;
-            data.setCode = setCode;
-            ExpansionSet set = Sets.findSet(setCode);
-            data.setName = set == null ? setCode : set.getName();
-            if (SEALED.equals(kind)) {
-                data.pool = openPacks(setCode, SEALED_PACKS);
-                for (int seat = 1; seat <= WINS + LOSSES - 1; seat++) {
-                    data.opponents.add(build(openPacks(setCode, SEALED_PACKS)));
+            data.kind = runKind;
+            data.shape = runShape;
+            data.setCode = code;
+            data.cubeCards = loaned;
+            ExpansionSet set = isCube(code) ? null : Sets.findSet(code);
+            data.setName = isCube(code) ? "Cube" + (loaned == null ? ": " + code.substring(CUBE_PREFIX.length()) : "") : set == null ? code : set.getName();
+            if (SEALED.equals(runKind)) {
+                data.pool = openPacks(code, SEALED_PACKS);
+                for (int seat = 1; seat <= maxGames(runShape); seat++) {
+                    data.opponents.add(build(openPacks(code, SEALED_PACKS)));
                 }
-                keep(store, user, data.pool);
+                keep(store, user, data.setCode, data.pool);
                 data.phase = "build";
             } else {
                 data.draft = new Draft();
                 for (int seat = 0; seat < SEATS; seat++) {
-                    data.draft.packs.add(boosters.apply(setCode));
+                    data.draft.packs.add(booster(code));
                     data.draft.pools.add(new ArrayList<>());
                 }
                 data.phase = "draft";
             }
             CareerStore.RunRow row = new CareerStore.RunRow();
             row.id = UUID.randomUUID().toString();
-            row.kind = kind;
+            row.kind = runKind;
             row.started = System.currentTimeMillis();
             row.state = "active";
             row.data = gson.toJson(data);
             store.putRun(user, row);
-            store.addStat(user, kind + "_runs", 1);
+            store.addStat(user, runKind + "_runs", 1);
             return view(row);
         }));
     }
@@ -367,13 +559,16 @@ public final class CareerLimited {
     private List<CareerPoolCard> openPacks(String setCode, int count) {
         List<CareerPoolCard> pool = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            pool.addAll(boosters.apply(setCode));
+            pool.addAll(booster(setCode));
         }
         return pool;
     }
 
     /** the opened cards join the collection; copies past four become coins or wildcards as usual */
-    private static void keep(CareerStore store, String user, List<CareerPoolCard> pool) throws SQLException {
+    private static void keep(CareerStore store, String user, String setCode, List<CareerPoolCard> pool) throws SQLException {
+        if (isCube(setCode)) {
+            return; // a cube's cards are loaners
+        }
         List<CareerCard> cards = new ArrayList<>();
         for (CareerPoolCard card : pool) {
             if (!CareerRules.LAND.equals(card.rarity)) {
@@ -392,7 +587,7 @@ public final class CareerLimited {
             if (row == null) {
                 throw refusal("You have no limited run going.");
             }
-            RunData data = gson.fromJson(row.data, RunData.class);
+            RunData data = restored(gson.fromJson(row.data, RunData.class));
             if (!"draft".equals(data.phase) || data.draft == null) {
                 throw refusal("The draft is over.");
             }
@@ -412,10 +607,10 @@ public final class CareerLimited {
             data.picks.add(grade(mine, index, myPool, draft.round, draft.pick));
             if (draftStep(draft, index, data.setCode)) {
                 data.pool = draft.pools.get(0);
-                for (int seat = 1; seat <= WINS + LOSSES - 1; seat++) {
+                for (int seat = 1; seat < SEATS; seat++) {
                     data.opponents.add(build(draft.pools.get(seat)));
                 }
-                keep(store, user, data.pool);
+                keep(store, user, data.setCode, data.pool);
                 data.draft = null;
                 data.phase = "build";
             }
@@ -429,7 +624,7 @@ public final class CareerLimited {
     Draft newDraft(String setCode) {
         Draft draft = new Draft();
         for (int seat = 0; seat < SEATS; seat++) {
-            draft.packs.add(boosters.apply(setCode));
+            draft.packs.add(booster(setCode));
             draft.pools.add(new ArrayList<>());
         }
         return draft;
@@ -461,7 +656,7 @@ public final class CareerLimited {
                 draft.round++;
                 draft.pick = 1;
                 for (int seat = 0; seat < SEATS; seat++) {
-                    draft.packs.set(seat, boosters.apply(setCode));
+                    draft.packs.set(seat, booster(setCode));
                 }
             } else {
                 return true;
@@ -693,7 +888,7 @@ public final class CareerLimited {
         if (row == null) {
             throw new CareerService.CareerException("You have no limited run going.");
         }
-        RunData data = gson.fromJson(row.data, RunData.class);
+        RunData data = restored(gson.fromJson(row.data, RunData.class));
         if ("draft".equals(data.phase)) {
             throw new CareerService.CareerException("Finish the draft first.");
         }
@@ -795,7 +990,7 @@ public final class CareerLimited {
             if (row == null) {
                 throw refusal("You have no limited run going.");
             }
-            RunData data = gson.fromJson(row.data, RunData.class);
+            RunData data = restored(gson.fromJson(row.data, RunData.class));
             if ("draft".equals(data.phase)) {
                 throw refusal("Finish the draft first.");
             }
@@ -834,10 +1029,10 @@ public final class CareerLimited {
             if (row == null) {
                 throw refusal("You have no limited run going.");
             }
-            RunData data = gson.fromJson(row.data, RunData.class);
+            RunData data = restored(gson.fromJson(row.data, RunData.class));
             if ("draft".equals(data.phase) && data.draft != null) {
                 // the cards picked so far are kept
-                keep(store, user, data.draft.pools.get(0));
+                keep(store, user, data.setCode, data.draft.pools.get(0));
             }
             row.state = "abandoned";
             row.ended = System.currentTimeMillis();
@@ -860,7 +1055,7 @@ public final class CareerLimited {
         if (row == null) {
             throw new CareerService.CareerException("You have no limited run going.");
         }
-        RunData data = gson.fromJson(row.data, RunData.class);
+        RunData data = restored(gson.fromJson(row.data, RunData.class));
         if (!"play".equals(data.phase) || data.deck == null) {
             throw new CareerService.CareerException("Build your deck first.");
         }
@@ -877,7 +1072,8 @@ public final class CareerLimited {
         plan.opponentDeck.setName(plan.opponentName);
         Map<String, Integer> counts = new LinkedHashMap<>();
         Map<String, CareerPoolCard> byKey = new LinkedHashMap<>();
-        for (CareerPoolCard card : data.opponents.get(Math.min(game, data.opponents.size() - 1))) {
+        // a long run meets the pod again, in order
+        for (CareerPoolCard card : data.opponents.get(game % data.opponents.size())) {
             String key = card.name + "|" + card.setCode + "|" + card.cardNumber;
             counts.merge(key, 1, Integer::sum);
             byKey.put(key, card);
@@ -903,7 +1099,7 @@ public final class CareerLimited {
         if (row == null || !"active".equals(row.state)) {
             return;
         }
-        RunData data = gson.fromJson(row.data, RunData.class);
+        RunData data = restored(gson.fromJson(row.data, RunData.class));
         result.mode = new CareerProgress.CareerModeResult("limited", data.setName + " " + data.kind);
         result.mode.ref = runId;
         if (won) {
@@ -911,16 +1107,32 @@ public final class CareerLimited {
         } else {
             row.losses++;
         }
+        String shape = data.shape == null ? CLASSIC : data.shape;
         result.mode.lines.add((won ? "A win. " : "A loss. ") + row.wins + "-" + row.losses + " so far.");
-        if (row.wins >= WINS || row.losses >= LOSSES) {
-            row.state = row.wins >= WINS ? "won" : "lost";
+        if (over(shape, row.wins, row.losses)) {
+            row.state = LEAGUE.equals(shape) ? (row.wins > row.losses ? "won" : "lost") : row.wins >= maxWins(shape) ? "won" : "lost";
             row.ended = now;
-            int coins = reward(data.kind, row.wins);
+            int coins = reward(data.kind, shape, row.wins);
             store.addCoins(user, coins);
             result.coins += coins;
             result.mode.coins += coins;
             result.mode.lines.add("The run is over at " + row.wins + "-" + row.losses + ".");
             store.maxStat(user, data.kind + "_best", row.wins);
+            try {
+                // the run's record goes on its board (S033): most wins, then fewest losses
+                mage.server.solo.Leaderboards.get().submit(mage.server.solo.Leaderboards.LIMITED, data.kind + "-" + shape, user,
+                        row.wins, (long) row.losses, data.setCode);
+            } catch (SQLException | RuntimeException e) {
+                org.apache.log4j.Logger.getLogger(CareerLimited.class).warn("Limited board: a run wasn't recorded", e);
+            }
+        } else if (LEAGUE.equals(shape)) {
+            // the league's pool grows between matches
+            List<CareerPoolCard> pack = booster(data.setCode);
+            data.pool.addAll(pack);
+            data.added = pack;
+            keep(store, user, data.setCode, pack);
+            result.mode.lines.add("A fresh pack joined your pool: rebuild before the next match if you like.");
+            row.data = gson.toJson(data);
         }
         store.putRun(user, row);
     }

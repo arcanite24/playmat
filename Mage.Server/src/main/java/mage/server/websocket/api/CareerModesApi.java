@@ -5,6 +5,7 @@ import mage.players.PlayerType;
 import mage.server.career.CareerCampaigns;
 import mage.server.career.CareerChallenges;
 import mage.server.career.CareerGauntlet;
+import mage.server.career.CareerHordes;
 import mage.server.career.CareerLimited;
 import mage.server.career.CareerPuzzles;
 import mage.server.career.CareerService;
@@ -24,6 +25,7 @@ import static mage.server.websocket.rpc.RpcParam.Type.INT;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.object;
 import static mage.server.websocket.rpc.RpcParam.of;
+import static mage.server.websocket.rpc.RpcParam.optional;
 import static mage.server.websocket.rpc.RpcParam.optionalObject;
 
 /**
@@ -113,6 +115,91 @@ final class CareerModesApi {
                                     PlayerType.COMPUTER_MAD, 4, opponentPlaceholder,
                                     id -> CareerService.get().register(id, user, "puzzle", puzzle.id, CareerSetup.ofPuzzle(puzzle)));
                             return match(tableId, "puzzle:" + puzzle.id);
+                        }),
+
+                // ---- the daily puzzle (S029), puzzles from files (S030) and mined puzzles (S031)
+                RpcMethod.named("careerDailyPuzzle")
+                        .returns("CareerDailyPuzzle")
+                        .doc("Today's puzzle, the same for everyone on the server (UTC days): your tries, your best solve and how "
+                                + "many have solved it. The hint shows after two tries.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerPuzzles.get().dailyView(user));
+                        }),
+                RpcMethod.named("careerDailyPuzzlePlay")
+                        .returns("CareerMatch")
+                        .doc("Try today's puzzle. The board ranks first solves by tries, then seconds; the first solve of the day pays.")
+                        .handler(call -> {
+                            String user = profiled(ctx, call);
+                            String date = CareerPuzzles.get().today();
+                            CareerSetup.Puzzle puzzle = CareerApi.store(() -> CareerPuzzles.get().attemptDaily(user));
+                            return puzzleTable(ctx, call, user, CareerPuzzles.DAILY_PREFIX + date, puzzle);
+                        }),
+                RpcMethod.named("careerPuzzleFilePlay")
+                        .params(object("puzzle", "Puzzle"))
+                        .returns("CareerMatch")
+                        .doc("Play a puzzle from a file (one exported from a practice game, or written by hand). It pays nothing.")
+                        .handler(call -> {
+                            String user = profiled(ctx, call);
+                            CareerSetup.Puzzle sent = call.object(0, CareerSetup.Puzzle.class);
+                            CareerSetup.Puzzle puzzle = CareerApi.store(() -> CareerPuzzles.get().custom(user, sent));
+                            return puzzleTable(ctx, call, user, CareerPuzzles.CUSTOM_PREFIX + puzzle.id, puzzle);
+                        }),
+                RpcMethod.named("careerMinedPuzzles")
+                        .returns("CareerMinedPuzzle[]")
+                        .doc("Puzzles mined from AI games (lethal the AI found), deepest first, with your stars.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerPuzzles.get().minedList(user, 100));
+                        }),
+                RpcMethod.named("careerMinedPuzzlePlay")
+                        .params(of("puzzleId", STRING))
+                        .returns("CareerMatch")
+                        .doc("Try a mined puzzle. Stars go by tries, like the book's.")
+                        .handler(call -> {
+                            String user = profiled(ctx, call);
+                            String id = call.string(0);
+                            CareerSetup.Puzzle puzzle = CareerApi.store(() -> CareerPuzzles.get().mined(user, id));
+                            return puzzleTable(ctx, call, user, CareerPuzzles.MINED_PREFIX + id, puzzle);
+                        }),
+
+                // ---- hordes (S036)
+                RpcMethod.named("careerHordes")
+                        .returns("CareerHorde[]")
+                        .doc("The hordes: decks that play themselves. Live through a set number of their turns with a deck from the "
+                                + "meta library. Your best (turns lived, life left) for each.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerHordes.get().hordes(user));
+                        }),
+                RpcMethod.named("careerHordePlay")
+                        .params(of("hordeId", STRING), of("deckFile", STRING))
+                        .returns("CareerMatch")
+                        .doc("Face a horde with a deck of the meta library (deckFile from metaLibrary). The first time you live "
+                                + "through it pays.")
+                        .handler(call -> {
+                            String user = profiled(ctx, call);
+                            String hordeId = call.string(0);
+                            String deckFile = call.string(1);
+                            CareerHordes.Plan plan;
+                            try {
+                                plan = CareerApi.store(() -> CareerHordes.get().attempt(user, hordeId, deckFile));
+                            } catch (RuntimeException e) {
+                                throw RpcException.invalidParams(e.getMessage());
+                            }
+                            CareerHordes.Plan ready = plan;
+                            String tableId = CareerApi.startMatch(ctx, call, user, plan.name, "Constructed - Freeform", plan.playerDeck,
+                                    PlayerType.COMPUTER_MAD, 3, plan.hordeDeck,
+                                    id -> CareerService.get().register(id, user, "horde", hordeId, ready.setup));
+                            return match(tableId, "horde:" + hordeId, plan.hordeDeck);
+                        }),
+                RpcMethod.named("metaLibrary")
+                        .returns("MetaFormat[]")
+                        .doc("The meta library: each format's school decks with their tier (the act they're met in) and the "
+                                + "snapshot date. Free play, hordes and the weekly challenges draw from it.")
+                        .handler(call -> {
+                            CareerApi.user(ctx, call);
+                            return mage.server.career.MetaLibrary.get().formats();
                         }),
 
                 // ---- the weekly challenge
@@ -205,15 +292,27 @@ final class CareerModesApi {
                             return CareerApi.store(() -> CareerLimited.get().state(user));
                         }),
                 RpcMethod.named("careerLimitedStart")
-                        .params(of("kind", STRING), of("setCode", STRING))
+                        .params(of("kind", STRING), of("setCode", STRING), optional("shape", STRING), optional("cubeCards", ARRAY).typed("string[]"))
                         .returns("CareerLimitedRun")
                         .doc("Pay the entry and start a sealed or draft run of a set the shop sells. Sealed opens six packs at once; "
-                                + "a draft opens three per seat with seven bots. Every card opened joins the collection.")
+                                + "a draft opens three per seat with seven bots. Every card opened joins the collection. Shape: classic "
+                                + "(3 wins or 2 losses, the default), arena (7 wins or 3 losses) or league (5 matches, a pack joins the pool "
+                                + "after each). Kind cube drafts a server cube (setCode is its name) or the card names in cubeCards (a "
+                                + "deck sent as the cube); a cube's cards are loaners and don't join the collection.")
                         .handler(call -> {
                             String user = profiled(ctx, call);
                             String kind = call.string(0);
                             String setCode = call.string(1);
-                            return CareerApi.store(() -> CareerLimited.get().start(user, kind, setCode));
+                            String shape = call.has(2) ? call.string(2) : null;
+                            List<String> cubeCards = null;
+                            if (call.has(3)) {
+                                cubeCards = new ArrayList<>();
+                                for (com.google.gson.JsonElement name : call.jsonArray(3)) {
+                                    cubeCards.add(name.getAsString());
+                                }
+                            }
+                            List<String> cube = cubeCards;
+                            return CareerApi.store(() -> CareerLimited.get().start(user, kind, setCode, shape, cube));
                         }),
                 RpcMethod.named("careerLimitedPick")
                         .params(of("index", INT))
@@ -287,6 +386,16 @@ final class CareerModesApi {
         } catch (Exception e) {
             throw new RpcException(RpcException.SERVER_ERROR, "Career progress can't be read right now", e);
         }
+    }
+
+    /** a table for a puzzle's position: placeholder decks the puzzle replaces as the game starts */
+    private static CareerApi.CareerMatch puzzleTable(ApiContext ctx, RpcCall call, String user, String ref, CareerSetup.Puzzle puzzle) throws RpcException {
+        DeckCardLists placeholder = CareerPuzzles.placeholderDeckFor("Plains");
+        DeckCardLists opponentPlaceholder = CareerPuzzles.placeholderDeckFor("Swamp");
+        String tableId = CareerApi.startMatch(ctx, call, user, "Puzzle", "Constructed - Freeform", placeholder,
+                PlayerType.COMPUTER_MAD, 4, opponentPlaceholder,
+                id -> CareerService.get().register(id, user, "puzzle", ref, CareerSetup.ofPuzzle(puzzle)));
+        return match(tableId, "puzzle:" + ref);
     }
 
     private static CareerApi.CareerMatch match(String tableId, String opponentId) {

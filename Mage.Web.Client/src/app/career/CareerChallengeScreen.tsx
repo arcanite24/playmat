@@ -1,7 +1,7 @@
-import { CalendarDays, Swords, Trophy } from 'lucide-react';
+import { CalendarDays, Swords } from 'lucide-react';
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import type { CareerChallenge, CareerChallengeEntry } from '../../protocol/generated/views';
+import type { CareerChallenge } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
@@ -10,6 +10,8 @@ import { Button } from '../ui/Button';
 import { useCareerState } from './careerData';
 import { playMode, useChallenge } from './careerModesData';
 import { twistLines } from './careerModesModel';
+import { challengeBoardMode, challengeRuleKey } from './ladderModel';
+import { ScoreBoard } from './ScoreBoard';
 import { useSceneArt } from './careerScene';
 import { PortraitCard } from './Portraits';
 import { Versus } from './Versus';
@@ -44,7 +46,7 @@ function Challenge({ challenge }: { challenge: CareerChallenge }) {
   const playing = usePlay((play) => play.phase !== 'idle');
   const [versus, setVersus] = useState(false);
   const twists = twistLines(challenge.twists);
-  const board = challenge.board ?? [];
+  const rule = t(challengeRuleKey(challenge.rule));
   useSceneArt(challenge.cover);
 
   return (
@@ -65,7 +67,11 @@ function Challenge({ challenge }: { challenge: CareerChallenge }) {
             <header className={styles.detailHead}>
               <h2 id="challenge-opponent">{challenge.opponentName}</h2>
             </header>
-            <p className={styles.small}>{t('career.node.skill', { skill: challenge.skill ?? 1 })} · {t('career.challenge.fixed')}</p>
+            <p className={styles.small}>
+              {t('career.node.skill', { skill: challenge.skill ?? 1 })} · {t('career.challenge.fixed')}
+              {challenge.format ? ` · ${t('career.challenge.format', { format: challenge.format })}` : ''}
+            </p>
+            <p className={styles.rule}>{rule}</p>
             {twists.length > 0 && (
               <>
                 <h3 className={styles.subhead}>{t('career.twist.title')}</h3>
@@ -80,7 +86,6 @@ function Challenge({ challenge }: { challenge: CareerChallenge }) {
                   ? t('career.challenge.best', { turns: challenge.bestTurns ?? 0, life: challenge.bestLife ?? 0, count: challenge.attempts ?? 0 })
                   : t('career.challenge.noWin', { count: challenge.attempts ?? 0 })}
             </p>
-            <p className={styles.small}>{t('career.challenge.rule')}</p>
             <div className={styles.actions}>
               <Button variant="decision" size="lg" icon={<Swords size={18} />} disabled={playing} onClick={() => setVersus(true)} data-nav>
                 {t((challenge.attempts ?? 0) > 0 ? 'career.challenge.again' : 'career.challenge.play')}
@@ -88,51 +93,18 @@ function Challenge({ challenge }: { challenge: CareerChallenge }) {
             </div>
           </div>
         </article>
-        <Board board={board} />
+        <ScoreBoard mode={challengeBoardMode(challenge.boardMode)} board={challenge.week ?? ''} title={t('career.challenge.board')} />
       </div>
       {versus && (
         <Versus
           kicker={t('career.challenge.week', { week: challenge.week ?? '' })}
           opponent={{ name: challenge.opponentName ?? '', cover: challenge.cover, boss: true }}
           deck={{ name: challenge.name ?? '' }}
-          stakes={[t('career.challenge.fixed'), ...twists.map((line) => t(line.key, line.vars)), t('career.challenge.rule')]}
+          stakes={[t('career.challenge.fixed'), ...twists.map((line) => t(line.key, line.vars)), rule]}
           onFight={() => playMode('challenge', () => api.careerChallengePlay())}
           onClose={() => setVersus(false)}
         />
       )}
     </>
-  );
-}
-
-function Board({ board }: { board: CareerChallengeEntry[] }) {
-  const t = useT();
-  return (
-    <section className={styles.card} aria-labelledby="challenge-board">
-      <h2 id="challenge-board" className={styles.cardLabel}><Trophy size={16} aria-hidden="true" /> {t('career.challenge.board')}</h2>
-      {board.length === 0 ? (
-        <p className={styles.small}>{t('career.challenge.empty')}</p>
-      ) : (
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th scope="col">{t('career.challenge.rank')}</th>
-              <th scope="col">{t('career.challenge.player')}</th>
-              <th scope="col">{t('career.challenge.result')}</th>
-              <th scope="col">{t('career.challenge.attempts')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {board.map((entry) => (
-              <tr key={`${entry.rank}-${entry.user}`} className={entry.you ? styles.rowOn : undefined} aria-current={entry.you ? 'true' : undefined}>
-                <th scope="row">{entry.rank}</th>
-                <td>{entry.user}{entry.you && <b className={styles.youTag}> {t('career.challenge.you')}</b>}</td>
-                <td>{entry.won ? t('career.challenge.wonIn', { turns: entry.turns ?? 0, life: entry.life ?? 0 }) : t('career.challenge.noWinYet')}</td>
-                <td>{entry.attempts}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </section>
   );
 }

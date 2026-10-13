@@ -76,6 +76,15 @@ export interface AccountsPage {
     total?: number;
 }
 
+export interface AdaptiveView {
+    format?: string;
+    games?: number;
+    recentGames?: number;
+    recentWins?: number;
+    sentence?: string;
+    skill?: number;
+}
+
 export interface Advice extends Serializable {
     hintsLeft?: number;
     kind?: AdviceKind;
@@ -371,10 +380,13 @@ export interface CareerChallenge {
     bestLife?: number;
     bestTurns?: number;
     board?: CareerChallengeEntry[];
+    boardMode?: string;
     cover?: CareerCover;
+    format?: string;
     id?: string;
     name?: string;
     opponentName?: string;
+    rule?: string;
     skill?: number;
     text?: string;
     twists?: CareerTwists;
@@ -414,6 +426,16 @@ export interface CareerCover {
     setCode?: string;
 }
 
+export interface CareerDailyPuzzle {
+    attempts?: number;
+    date?: string;
+    puzzle?: CareerPuzzle;
+    seconds?: number;
+    solved?: boolean;
+    solvers?: number;
+    tries?: number;
+}
+
 export interface CareerGameResult {
     achievements?: CareerAchievement[];
     assisted?: string;
@@ -450,6 +472,22 @@ export interface CareerGauntletState {
     variants?: CareerRunChoice[];
 }
 
+export interface CareerHorde {
+    attempts?: number;
+    beaten?: boolean;
+    bestLife?: number;
+    bestTurns?: number;
+    cover?: CareerCover;
+    deckSize?: number;
+    flip?: number;
+    id?: string;
+    life?: number;
+    name?: string;
+    rampEvery?: number;
+    survive?: number;
+    text?: string;
+}
+
 export interface CareerLesson {
     cards?: string[];
     text?: string;
@@ -478,10 +516,14 @@ export interface CareerLimitedCoach {
 }
 
 export interface CareerLimitedRun {
+    added?: CareerPoolCard[];
     deck?: DeckCardInfo[];
     id?: string;
     kind?: string;
     losses?: number;
+    maxGames?: number;
+    maxLosses?: number;
+    maxWins?: number;
     nextReward?: number;
     pack?: CareerPoolCard[];
     phase?: string;
@@ -491,6 +533,7 @@ export interface CareerLimitedRun {
     round?: number;
     setCode?: string;
     setName?: string;
+    shape?: string;
     signals?: ColorSignal[];
     state?: string;
     wins?: number;
@@ -503,6 +546,7 @@ export interface CareerLimitedState {
     run?: CareerLimitedRun;
     sealedEntry?: number;
     sealedRewards?: number[];
+    shapes?: LimitedShape[];
 }
 
 export interface CareerLines {
@@ -510,6 +554,7 @@ export interface CareerLines {
     intro?: string;
     lose?: string;
     lowLife?: string;
+    nemesis?: string;
     win?: string;
 }
 
@@ -517,6 +562,17 @@ export interface CareerMatch {
     opponentId?: string;
     tableId?: string;
     warm?: CareerCover[];
+}
+
+export interface CareerMinedPuzzle {
+    attempts?: number;
+    created?: number;
+    depth?: number;
+    id?: string;
+    name?: string;
+    source?: string;
+    stars?: number;
+    text?: string;
 }
 
 export interface CareerModeResult {
@@ -583,14 +639,24 @@ export interface CareerOfferOption {
 }
 
 export interface CareerOpponent {
+    aiType?: string;
+    bounty?: number;
     colors?: string;
     cover?: CareerCover;
     id?: string;
     lines?: CareerLines;
+    lists?: number;
     name?: string;
+    nemesis?: boolean;
+    pips?: number;
+    raid?: boolean;
+    rivalBefore?: string;
+    rivalChapter?: number;
+    style?: string[];
     tagline?: string;
     tier?: number;
     tierName?: string;
+    twists?: CareerTwists;
     unlocked?: boolean;
     winCoins?: number;
     wins?: number;
@@ -695,6 +761,12 @@ export interface CareerQuests {
     canReroll?: boolean;
     quests?: CareerQuest[];
     today?: string;
+}
+
+export interface CareerRank {
+    badge?: string;
+    tier?: number;
+    tierName?: string;
 }
 
 export interface CareerRelic {
@@ -815,8 +887,10 @@ export interface CareerStarter {
 }
 
 export interface CareerState {
+    adaptive?: AdaptiveView;
     enabled?: boolean;
     profile?: CareerProfile;
+    rank?: CareerRank;
     recent?: CareerPayout[];
 }
 
@@ -1131,6 +1205,7 @@ export interface GameRecord {
     first?: string;
     lifeA?: number;
     lifeB?: number;
+    mined?: number;
     n?: number;
     replayId?: string;
     seed?: number;
@@ -1180,6 +1255,23 @@ export interface GameView extends Serializable {
     watchedHands?: { [index: string]: { [index: string]: SimpleCardView } };
 }
 
+export interface GhostDeck {
+    code?: string;
+    created?: number;
+    name?: string;
+    played?: number;
+    won?: number;
+}
+
+export interface GhostOpponent {
+    code?: string;
+    deck?: DeckCardLists;
+    name?: string;
+    owner?: string;
+    played?: number;
+    won?: number;
+}
+
 export interface GithubSignInResult {
     nameProblem?: string;
     rememberToken?: string;
@@ -1202,6 +1294,15 @@ export interface ImportedDeck {
     side?: DeckCardInfo[];
     site?: string;
     url?: string;
+}
+
+export interface InboxNote {
+    created?: number;
+    id?: number;
+    kind?: string;
+    ref?: string;
+    seen?: boolean;
+    text?: string;
 }
 
 export interface Invite {
@@ -1229,12 +1330,15 @@ export interface JobResult {
     draws?: number;
     errors?: number;
     games?: GameRecord[];
+    mined?: number;
     turns?: number;
     winsA?: number;
     winsB?: number;
 }
 
 export interface JobSpec {
+    aiA?: string;
+    aiB?: string;
     deckA?: DeckCardLists;
     deckB?: DeckCardLists;
     deckType?: string;
@@ -1242,6 +1346,7 @@ export interface JobSpec {
     games?: number;
     keepReplays?: number;
     maxTurns?: number;
+    minePuzzles?: boolean;
     nameA?: string;
     nameB?: string;
     seed?: number;
@@ -1279,6 +1384,17 @@ export interface LeaderboardEntry {
     v1?: number;
     v2?: number;
     you?: boolean;
+}
+
+export interface LimitedShape {
+    draftRewards?: number[];
+    games?: number;
+    id?: string;
+    losses?: number;
+    name?: string;
+    sealedRewards?: number[];
+    text?: string;
+    wins?: number;
 }
 
 export interface LookedAtView extends Serializable {
@@ -1334,6 +1450,26 @@ export interface MatchView extends Serializable {
     tableId?: string;
 }
 
+export interface MetaDeck {
+    boss?: boolean;
+    colors?: string;
+    deckType?: string;
+    file?: string;
+    format?: string;
+    formatName?: string;
+    gameType?: string;
+    name?: string;
+    pilot?: string;
+    tier?: number;
+}
+
+export interface MetaFormat {
+    decks?: MetaDeck[];
+    id?: string;
+    name?: string;
+    snapshot?: string;
+}
+
 export interface MultiAmountMessage extends Serializable, Copyable<MultiAmountMessage> {
     defaultValue?: number;
     max?: number;
@@ -1382,6 +1518,12 @@ export interface PermanentView extends CardView {
     phasedIn?: boolean;
     summoningSickness?: boolean;
     tapped?: boolean;
+}
+
+export interface Personality extends Serializable {
+    aggression?: number;
+    patience?: number;
+    risk?: number;
 }
 
 export interface PickRecord {
@@ -1470,6 +1612,24 @@ export interface PlayerView extends Serializable {
     userData?: UserData;
     wins?: number;
     winsNeeded?: number;
+}
+
+export interface Puzzle extends Serializable {
+    firstTurn?: string;
+    hint?: string;
+    id?: string;
+    name?: string;
+    objective?: string;
+    opponent?: CareerPuzzleSide;
+    protect?: string;
+    series?: string;
+    text?: string;
+    you?: CareerPuzzleSide;
+}
+
+export interface PuzzleExport {
+    left?: string[];
+    puzzle?: Puzzle;
 }
 
 export interface ReplayInfo {

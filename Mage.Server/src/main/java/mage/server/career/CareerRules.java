@@ -42,7 +42,7 @@ public final class CareerRules {
     /**
      * What a Career match pays.
      *
-     * @param tier 1 to 3, the opponent's tier
+     * @param tier 1 to 5, the opponent's tier
      * @param turns the turn the last game ended on
      */
     public static Reward reward(int tier, boolean won, int turns) {
@@ -61,8 +61,12 @@ public final class CareerRules {
                 return 25;
             case 2:
                 return 30;
-            default:
+            case 3:
                 return 35;
+            case 4:
+                return 45;
+            default:
+                return 60;
         }
     }
 

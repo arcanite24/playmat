@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { create } from 'zustand';
 import type {
   CareerGameResult, CareerGauntletState, CareerLimitedRun, CareerLimitedState, CareerMatch, CareerRun, DeckCardLists as WireDeck, StartOptions,
 } from '../../protocol/generated/views';
@@ -14,10 +15,10 @@ import { warmMatch } from './careerData';
 import { rewardsPath } from './progressModel';
 
 /**
- * Career modes from the server: campaigns, the puzzle book, the gauntlet, solo sealed and draft, and the weekly
- * challenge. Each play call starts a table the way a roster match does; leaving the game comes back to the mode.
+ * Career modes from the server: campaigns, the puzzle book, the gauntlet, solo sealed and draft, the weekly challenge
+ * and hordes. Each play call starts a table the way a roster match does; leaving the game comes back to the mode.
  */
-export type ModeKind = 'campaign' | 'puzzle' | 'gauntlet' | 'limited' | 'challenge';
+export type ModeKind = 'campaign' | 'puzzle' | 'gauntlet' | 'limited' | 'challenge' | 'horde';
 
 export const MODE_PATHS: Record<ModeKind, string> = {
   campaign: '/career/campaign',
@@ -25,6 +26,7 @@ export const MODE_PATHS: Record<ModeKind, string> = {
   gauntlet: '/career/gauntlet',
   limited: '/career/limited',
   challenge: '/career/challenge',
+  horde: '/career/hordes',
 };
 
 const KEY = {
@@ -34,6 +36,8 @@ const KEY = {
   challenge: ['career', 'challenge'],
   gauntlet: ['career', 'gauntlet'],
   limited: ['career', 'limited'],
+  hordes: ['career', 'hordes'],
+  meta: ['metaLibrary'],
   result: (gameKey: string) => ['career', 'result', gameKey],
 } as const;
 
@@ -65,6 +69,51 @@ export function useLimitedCoach(runId: string, enabled: boolean) {
 export function useLimited(enabled: boolean) {
   return useQuery({ queryKey: KEY.limited, queryFn: () => api.careerLimited(), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
+
+/** the hordes (S036), with the player's best against each */
+export function useHordes(enabled: boolean) {
+  return useQuery({ queryKey: KEY.hordes, queryFn: () => api.careerHordes(), enabled: useSignedIn() && enabled, staleTime: 0 });
+}
+
+/** the meta library's formats and decks: what a horde is faced with */
+export function useMetaLibrary(enabled: boolean) {
+  return useQuery({ queryKey: KEY.meta, queryFn: () => api.metaLibrary(), enabled: useSignedIn() && enabled, staleTime: Infinity });
+}
+
+/** the server's draft cubes, by name */
+export function useDraftCubes(enabled: boolean) {
+  return useQuery({ queryKey: ['draftCubes'], queryFn: () => api.getDraftCubes(), enabled: useSignedIn() && enabled, staleTime: Infinity });
+}
+
+// ---- adaptive difficulty (S043): the roster plays to the player's measured skill when they ask for it
+
+const ADAPTIVE_KEY = 'career.adaptive';
+
+function readAdaptive(): boolean {
+  try {
+    return localStorage.getItem(ADAPTIVE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+interface AdaptiveState {
+  on: boolean;
+  set(on: boolean): void;
+}
+
+/** whether roster duels ask the server to adapt the opponent; remembered on this browser */
+export const useAdaptive = create<AdaptiveState>((set) => ({
+  on: readAdaptive(),
+  set: (on) => {
+    try {
+      localStorage.setItem(ADAPTIVE_KEY, on ? '1' : '0');
+    } catch {
+      // private window: the choice lasts the visit
+    }
+    set({ on });
+  },
+}));
 
 /** coins changed: the wallet shows it */
 function walletChanged(): void {
@@ -175,8 +224,12 @@ function setLimitedRun(run: CareerLimitedRun): void {
   void queryClient.invalidateQueries({ queryKey: KEY.limited });
 }
 
-export async function startLimited(kind: 'sealed' | 'draft', setCode: string): Promise<void> {
-  setLimitedRun(await api.careerLimitedStart(kind, setCode));
+/**
+ * Start a run of a shape (classic, arena, league). A cube run takes the server cube's name for {@code setCode}; its
+ * cards are loaners.
+ */
+export async function startLimited(kind: 'sealed' | 'draft' | 'cube', setCode: string, shape?: string): Promise<void> {
+  setLimitedRun(await api.careerLimitedStart(kind, setCode, shape ?? null));
   walletChanged();
   // the opened packs joined the collection
   void queryClient.invalidateQueries({ queryKey: ['career', 'collection'] });

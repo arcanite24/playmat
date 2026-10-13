@@ -276,7 +276,7 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerStart` | `starterId: string` | `CareerProfile` | session | Open a Career with a starter deck: its cards become the collection, plus coins for a first pack. |
 | `careerCollection` | - | `CareerCard[]` | session | Every card the account owns in Career, by printing. Basic lands are free and not listed. |
 | `careerOpponents` | - | `CareerOpponent[]` | session | The AI opponents in tiers, with the account's wins against each and which are open. A tier opens after enough wins in the one before. |
-| `careerPlay` | `opponentId: string`, `deck: DeckCardLists` | `CareerMatch` | session | Start a Career match against an open opponent with a deck of owned cards (basic lands are free). The server sets up the table and starts the match; the game arrives like any other. |
+| `careerPlay` | `opponentId: string`, `deck: DeckCardLists`, `adaptive?: boolean` | `CareerMatch` | session | Start a Career match against an open opponent with a deck of owned cards (basic lands are free). The server sets up the table and starts the match; the game arrives like any other. Adaptive: the AI's skill follows your hidden Career rating instead of the tier's, to keep your win rate near 55%. |
 | `careerShop` | - | `CareerShopSet[]` | session | The sets the Career shop sells packs of, newest first, with the price in coins: the newest sets, and the ones campaign chapters opened. Sets a chapter still has to open come last, locked, saying which. |
 | `careerBuyPack` | `setCode: string` | `CareerPackResult` | session | Buy and open a pack. Copies past four of a card become coins (commons, uncommons) or a wildcard (rares, mythics); those cards say so in convertedTo. |
 | `careerCraft` | `setCode: string`, `cardNumber: string` | `CareerProfile` | session | Craft one copy of a card: commons and uncommons cost coins, rares and mythics a wildcard of their rarity. |
@@ -296,6 +296,14 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerCampaignChoose` | `campaignId: string`, `nodeId: string`, `optionId: string` | `CareerGameResult` | session | Take one option at an open choice node; it's paid at once and the path moves on. |
 | `careerPuzzles` | - | `CareerPuzzle[]` | session | The puzzle book in order: each puzzle's position, stars and attempts. A puzzle opens when the one before it is solved; the first three are always open. |
 | `careerPuzzlePlay` | `puzzleId: string` | `CareerMatch` | session | Try a puzzle: the game starts from its position on your turn, and you lose at the end of the turn. Stars go by attempts: three on the first try, two within three. |
+| `careerDailyPuzzle` | - | `CareerDailyPuzzle` | session | Today's puzzle, the same for everyone on the server (UTC days): your tries, your best solve and how many have solved it. The hint shows after two tries. |
+| `careerDailyPuzzlePlay` | - | `CareerMatch` | session | Try today's puzzle. The board ranks first solves by tries, then seconds; the first solve of the day pays. |
+| `careerPuzzleFilePlay` | `puzzle: Puzzle` | `CareerMatch` | session | Play a puzzle from a file (one exported from a practice game, or written by hand). It pays nothing. |
+| `careerMinedPuzzles` | - | `CareerMinedPuzzle[]` | session | Puzzles mined from AI games (lethal the AI found), deepest first, with your stars. |
+| `careerMinedPuzzlePlay` | `puzzleId: string` | `CareerMatch` | session | Try a mined puzzle. Stars go by tries, like the book's. |
+| `careerHordes` | - | `CareerHorde[]` | session | The hordes: decks that play themselves. Live through a set number of their turns with a deck from the meta library. Your best (turns lived, life left) for each. |
+| `careerHordePlay` | `hordeId: string`, `deckFile: string` | `CareerMatch` | session | Face a horde with a deck of the meta library (deckFile from metaLibrary). The first time you live through it pays. |
+| `metaLibrary` | - | `MetaFormat[]` | session | The meta library: each format's school decks with their tier (the act they're met in) and the snapshot date. Free play, hordes and the weekly challenges draw from it. |
 | `careerChallenge` | - | `CareerChallenge` | session | This week's challenge (the same fixed deck and opponent for everyone), your best result and the board. |
 | `careerChallengePlay` | - | `CareerMatch` | session | Play this week's challenge. A win counts on the board by fewest turns, then most life left. |
 | `careerGauntlet` | - | `CareerGauntletState` | session | The gauntlet: the entry price, rewards by wins, the run in progress (with its deck, bosses and any pick waiting) and recent runs. |
@@ -305,7 +313,7 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerGauntletPlay` | - | `CareerMatch` | session | Play the run's next boss with the run's deck. |
 | `careerGauntletAbandon` | - | `CareerRun` | session | Give up the run in progress. It pays nothing. |
 | `careerLimited` | - | `CareerLimitedState` | session | Solo sealed and draft: prices, rewards by wins, the run in progress and recent runs. |
-| `careerLimitedStart` | `kind: string`, `setCode: string` | `CareerLimitedRun` | session | Pay the entry and start a sealed or draft run of a set the shop sells. Sealed opens six packs at once; a draft opens three per seat with seven bots. Every card opened joins the collection. |
+| `careerLimitedStart` | `kind: string`, `setCode: string`, `shape?: string`, `cubeCards?: string[]` | `CareerLimitedRun` | session | Pay the entry and start a sealed or draft run of a set the shop sells. Sealed opens six packs at once; a draft opens three per seat with seven bots. Every card opened joins the collection. Shape: classic (3 wins or 2 losses, the default), arena (7 wins or 3 losses) or league (5 matches, a pack joins the pool after each). Kind cube drafts a server cube (setCode is its name) or the card names in cubeCards (a deck sent as the cube); a cube's cards are loaners and don't join the collection. |
 | `careerLimitedPick` | `index: number` | `CareerLimitedRun` | session | Draft: take the card at this position of the pack in front of you. |
 | `careerLimitedCoach` | - | `CareerLimitedCoach` | session | The pool coach: every colour pair of the run's pool ranked by its ratings, removal, bombs and curve, each with its reasons and a 40-card build to start from. |
 | `careerLimitedDeck` | `deck: DeckCardLists` | `CareerLimitedRun` | session | Submit the run's deck: at least 40 cards from the pool, plus any basic lands. |
@@ -320,6 +328,7 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `soloWhatIf` | `gameId: UUID`, `turn: number`, `sessionId: string` | `SoloTable` | session | Play one of your games against the computer again from the start of one of its turns, at a new table: a what-if line, always free play. A running game you're in is kept as a saved game first, untouched, and left; a Career game can be tried again this way once it's over. |
 | `soloAssists` | `gameId: UUID`, `sessionId: string` | `Assists` | session | What you may still ask for in this game against the computer: hints (the AI's advice) and taking back the turn. Unlimited in free play; in Career three hints and one take-back a game, outside puzzles and trials, and any of them halves the game's pay. |
 | `gameAdvise` | `gameId: UUID`, `sessionId: string`, `skill?: number` | `Advice` | session | What the AI would do in your place right now, without doing it: what to play, how to attack or block. Only in a game against the computer; ask while the game waits for you. In Career it's a hint: three a game, none in puzzles and trials, and the game then pays half. |
+| `gamePuzzleExport` | `gameId: UUID`, `sessionId: string`, `name?: string`, `text?: string`, `objective?: string` | `PuzzleExport` | session | The board of a game against the computer as a puzzle (set it up with the practice tools first): both sides' life, hands, permanents (tapped or not), graveyards and the top of each library. Objective win (this turn, the default) or survive (their turn). What a card name can't bring back, like tokens and counters, is listed in left. Ask while the game waits for you. |
 | `soloBatchSubmit` | `spec: JobSpec`, `kind?: string` | `BatchJob` | session | Queue AI-against-AI games between two decks (1 to 500, each seeded: game n plays seed + n). The server plays a few at a time; ask for the job to see the score. |
 | `soloBatchJobs` | - | `BatchJob[]` | session | Your batches, newest first, with their scores so far. |
 | `soloBatchJob` | `jobId: string` | `BatchJob` | session | One of your batches with every game's seed, winner and length. |
@@ -331,6 +340,15 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `adminContentPackUpload` | `zipBase64: string`, `reason?: string` | `ContentPackView` | session | Staff (owner): add or replace a content pack from a zip (pack.json and decks/*.dck, up to 4 MB). It's checked as it loads; one with problems stays out and says why. |
 | `adminContentPackRemove` | `packId: string`, `reason?: string` | `ContentPackView[]` | session | Staff (owner): remove a content pack. Progress players made in it stays, but its content goes. |
 | `adminContentPackReload` | - | `ContentPackView[]` | session | Staff (admin): read the content pack folder again (after copying a pack in by hand). |
+| `metaDeck` | `file: string` | `DeckCardLists` | session | A deck from the meta library (see metaLibrary), for the computer to pilot in free play. |
+| `ghostShare` | `name?: string`, `deck: DeckCardLists` | `GhostDeck` | session | Share a deck as a ghost under a short code: anyone with the code can play against it, piloted by the computer, and each result reaches your inbox. |
+| `ghostMine` | - | `GhostDeck[]` | session | The decks you share as ghosts, newest first, with their records. |
+| `ghostUnshare` | `code: string` | `boolean` | session | Stop sharing a ghost deck. |
+| `ghostDeck` | `code: string` | `GhostOpponent` | session | The ghost deck shared under a code, to seat the computer with. |
+| `soloTableMark` | `tableId: UUID`, `ghostCode?: string`, `adaptiveFormat?: string` | `boolean` | session | Before starting a table of yours against the computer: play it against a ghost (its result goes to the deck's owner), or with adaptive skill (its result moves your hidden rating for the format). |
+| `soloAdaptive` | `format: string` | `AdaptiveView` | session | Your adaptive skill for a format ("career", "constructed", "commander"...): the skill the next game plays at and how it's going, as a sentence. |
+| `inbox` | - | `InboxNote[]` | session | Your latest notes, newest first: how your ghost decks did. |
+| `inboxSeen` | - | `boolean` | session | Mark every note in your inbox seen. |
 <!-- END GENERATED: methods -->
 
 ## Server events

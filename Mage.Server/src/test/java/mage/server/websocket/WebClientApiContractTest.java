@@ -64,7 +64,7 @@ public class WebClientApiContractTest {
             "careerSetProgress", "careerCountAiGames", // career progress (career/CareerProgressTest)
             "careerCampaigns", "careerCampaignPlay", "careerCampaignDeck", "careerCampaignChoose", "careerPuzzles", "careerPuzzlePlay",
             "careerChallenge", "careerChallengePlay", "careerGauntlet", "careerGauntletStart", "careerGauntletPick",
-            "careerGauntletPlay", "careerGauntletAbandon", "careerGauntletMove", "careerLimited", "careerLimitedStart", "careerLimitedPick",
+            "careerGauntletPlay", "careerGauntletAbandon", "careerGauntletMove", "careerDailyPuzzle", "careerDailyPuzzlePlay", "careerPuzzleFilePlay", "careerMinedPuzzles", "careerMinedPuzzlePlay", "gamePuzzleExport", "careerHordes", "careerHordePlay", "metaLibrary", "metaDeck", "ghostShare", "ghostMine", "ghostUnshare", "ghostDeck", "soloTableMark", "soloAdaptive", "inbox", "inboxSeen", "careerLimited", "careerLimitedStart", "careerLimitedPick",
             "careerLimitedDeck", "careerLimitedCoach", "careerLimitedPlay", "careerLimitedAbandon", // career modes (career/CareerModesTest)
             "authRegister", "authSendTokenToEmail", "authResetPassword", // session and AccountService, with readable errors
             "authRememberLogin", "authForgetLogin", // remembered devices in the account database

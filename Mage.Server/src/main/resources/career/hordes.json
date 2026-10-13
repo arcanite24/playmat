@@ -1,0 +1,35 @@
+[
+ {
+  "id": "shamblers",
+  "name": "The Shambling Tide",
+  "text": "Zombies without end, one more every other turn. Hold the line for eight of their turns.",
+  "survive": 8,
+  "flip": 1,
+  "rampEvery": 2,
+  "life": 20,
+  "cover": "Zombie Goliath",
+  "deck": {"Walking Corpse": 12, "Scathe Zombies": 10, "Diregraf Ghoul": 8, "Typhoid Rats": 6, "Rotting Rats": 4, "Gravedigger": 3, "Zombie Goliath": 2}
+ },
+ {
+  "id": "goblin-rush",
+  "name": "Goblin Rush",
+  "text": "Two goblins a turn from the start, three later on. Seven turns, and they hit fast.",
+  "survive": 7,
+  "flip": 2,
+  "rampEvery": 3,
+  "life": 20,
+  "cover": "Krenko, Mob Boss",
+  "deck": {"Raging Goblin": 12, "Goblin Piker": 10, "Goblin Raider": 10, "Goblin Bushwhacker": 6, "Goblin Chieftain": 4, "Krenko, Mob Boss": 1}
+ },
+ {
+  "id": "elf-stampede",
+  "name": "Elf Stampede",
+  "text": "Slow to start, then the forest empties. Ten turns, and something huge is in there.",
+  "survive": 10,
+  "flip": 1,
+  "rampEvery": 2,
+  "life": 25,
+  "cover": "Craterhoof Behemoth",
+  "deck": {"Llanowar Elves": 10, "Elvish Mystic": 8, "Elvish Warrior": 10, "Wood Elves": 8, "Elvish Visionary": 8, "Craterhoof Behemoth": 1}
+ }
+]

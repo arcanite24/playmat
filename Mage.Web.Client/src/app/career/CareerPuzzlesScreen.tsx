@@ -13,6 +13,7 @@ import { puzzleZones } from './careerModesModel';
 import { ModeResult, Stars } from './ModeParts';
 import styles from './CareerModes.module.css';
 import { PuzzleBoard } from './PuzzleBoard';
+import { DailyPuzzleCard, MinedPuzzles, PuzzleFileButton } from './PuzzleExtras';
 
 registerMessages(messages);
 
@@ -49,7 +50,9 @@ export function CareerPuzzlesScreen() {
             <p className={styles.lead}>{t('career.puzzles.lead')}</p>
           </div>
           {list.length > 0 && <p className={styles.progressNote}>{t('career.puzzles.progress', { solved, total: list.length, stars, max: list.length * 3 })}</p>}
+          <PuzzleFileButton />
         </header>
+        <DailyPuzzleCard />
         {puzzles.isPending && <p className={styles.note}>{t('career.loading')}</p>}
         {puzzles.isError && <p className={styles.error} role="alert">{t('career.failed')}</p>}
         <div className={styles.split}>
@@ -86,6 +89,7 @@ export function CareerPuzzlesScreen() {
           </div>
           {chosen && <PuzzleDetail key={chosen.id} puzzle={chosen} />}
         </div>
+        <MinedPuzzles />
       </div>
     </div>
   );

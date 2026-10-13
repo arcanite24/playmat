@@ -125,6 +125,8 @@ function Hud({ profile }: { profile: CareerProfile }) {
   const level = levelProgress(profile.xp ?? 0, profile.level ?? 1);
   const wildcards = WALLET_WILDCARDS.map((rarity) => ({ rarity, count: profile.wildcards?.[rarity] ?? 0 }));
   const packs = profile.packTokens ?? 0;
+  // the ladder rank's badge (S037), under the name with the title
+  const rank = useCareerState().data?.rank;
 
   return (
     <div className={styles.hudRight}>
@@ -157,6 +159,7 @@ function Hud({ profile }: { profile: CareerProfile }) {
         <span className={styles.name}>
           <b>{user}</b>
           {titleId && <small>{titleLabel(titleId)}</small>}
+          {rank?.badge && <small title={t('career.rank.label')}>{rank.badge}</small>}
         </span>
       </div>
       <button

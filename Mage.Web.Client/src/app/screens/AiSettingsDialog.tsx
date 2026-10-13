@@ -1,13 +1,28 @@
-import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { isCommanderFormat } from '../../core/decks/formats';
+import { api } from '../connection';
 import { rosterOf, useDecks } from '../stores/decks';
-import { useT } from '../i18n';
+import { registerMessages, useT } from '../i18n';
+import messages from '../i18n/en/career';
+import {
+  adaptiveSentence,
+  adaptiveFormatFor, findMetaDeck, ghostOpponentId, ghostRecord, metaFormatsFor, metaOpponentId, MIRROR_OPPONENT_ID, normalizeGhostCode, opponentSource,
+} from '../solo/freePlay';
+import type { GhostOpponent } from '../../protocol/generated/views';
 import { DEFAULT_AI_OPTIONS, usePlay } from '../stores/play';
 import { AI_TYPES, DIFFICULTIES, difficultyOf, offeredAiTypes } from './aiSetup';
 import { useServerState } from '../queries';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
+import { Field } from '../ui/Field';
 import styles from './AiSettingsDialog.module.css';
+
+registerMessages(messages);
+
+/** the deck menu's entry for a ghost deck; its code is asked for below the menu */
+const GHOST_CHOICE = '__ghost__';
 
 function Segmented<T extends string | number>({ label, value, options, onChange }: {
   label: string;
@@ -45,6 +60,22 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   const t = useT();
   // a server can leave the Monte Carlo AI out
   const playerTypes = useServerState().data?.playerTypes;
+  const source = opponentSource(options.opponentDeckId);
+  // the ghost entry is picked before its code is found; until then the saved choice stays as it was
+  const [ghostPicked, setGhostPicked] = useState(source.kind === 'ghost');
+  const meta = useQuery({ queryKey: ['metaLibrary'], queryFn: () => api.metaLibrary(), staleTime: 60 * 60_000, enabled: open });
+  const deckValue = ghostPicked ? GHOST_CHOICE : options.opponentDeckId ?? '';
+
+  function pickDeck(value: string) {
+    if (value === GHOST_CHOICE) {
+      setGhostPicked(true);
+      return;
+    }
+    setGhostPicked(false);
+    const picked = opponentSource(value);
+    const label = picked.kind === 'meta' ? findMetaDeck(meta.data ?? [], picked.file)?.deck.name ?? null : null;
+    setOptions({ opponentDeckId: value || null, opponentLabel: label });
+  }
 
   return (
     <Dialog
@@ -54,7 +85,10 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
       width="md"
       footer={(
         <>
-          <Button variant="quiet" onClick={() => setOptions(DEFAULT_AI_OPTIONS)}>{t('ai.restore')}</Button>
+          <Button variant="quiet" onClick={() => {
+            setGhostPicked(false);
+            setOptions(DEFAULT_AI_OPTIONS);
+          }}>{t('ai.restore')}</Button>
           <Button variant="print" onClick={() => onOpenChange(false)}>{t('ai.done')}</Button>
         </>
       )}
@@ -62,13 +96,22 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
       <div className={styles.form}>
         <section className={styles.row}>
           <h3 className={styles.label}>{t('ai.difficulty')}</h3>
-          <Segmented
-            label={t('ai.difficulty')}
-            value={difficulty.skill}
-            options={DIFFICULTIES.map((item) => ({ value: item.skill, label: t(item.label) }))}
-            onChange={(skill) => setOptions({ skill })}
-          />
-          <p className={styles.detail}>{t(difficulty.detail)}</p>
+          {!options.adaptive && (
+            <>
+              <Segmented
+                label={t('ai.difficulty')}
+                value={difficulty.skill}
+                options={DIFFICULTIES.map((item) => ({ value: item.skill, label: t(item.label) }))}
+                onChange={(skill) => setOptions({ skill })}
+              />
+              <p className={styles.detail}>{t(difficulty.detail)}</p>
+            </>
+          )}
+          <label className={styles.check}>
+            <input type="checkbox" checked={options.adaptive} onChange={(event) => setOptions({ adaptive: event.target.checked })} />
+            {t('solo.adaptive.toggle')}
+          </label>
+          {options.adaptive && <AdaptiveNote open={open} />}
         </section>
 
         <section className={styles.row}>
@@ -76,10 +119,16 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
           <select
             id="ai-deck"
             className={styles.select}
-            value={options.opponentDeckId ?? ''}
-            onChange={(event) => setOptions({ opponentDeckId: event.target.value || null })}
+            value={deckValue}
+            onChange={(event) => pickDeck(event.target.value)}
           >
             <option value="">{t('ai.deck.random')}</option>
+            <option value={MIRROR_OPPONENT_ID}>{t('solo.mirror.option')}</option>
+            <option value={GHOST_CHOICE}>{t('solo.ghost.option')}</option>
+            {/* a meta deck that left the library stays listed until another is picked */}
+            {source.kind === 'meta' && !findMetaDeck(meta.data ?? [], source.file) && (
+              <option value={options.opponentDeckId ?? ''}>{options.opponentLabel ?? source.file}</option>
+            )}
             <optgroup label={t('ai.deck.starters')}>
               {starters.filter((deck) => !isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
             </optgroup>
@@ -93,7 +142,26 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
                 {mine.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
               </optgroup>
             )}
+            {metaFormatsFor(meta.data ?? [], null, isCommanderFormat).map((format) => (
+              <optgroup key={format.id} label={t(format.snapshot ? 'solo.meta.group' : 'solo.meta.groupUndated', { name: format.name ?? format.id ?? '', date: format.snapshot ?? '' })}>
+                {(format.decks ?? []).map((deck) => (
+                  <option key={deck.file} value={metaOpponentId(deck.file ?? '')}>
+                    {deck.pilot ? t('solo.meta.deckPilot', { name: deck.name ?? '', pilot: deck.pilot }) : deck.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
           </select>
+          {source.kind === 'mirror' && !ghostPicked && <p className={styles.detail}>{t('solo.mirror.detail')}</p>}
+          {source.kind === 'meta' && !ghostPicked && <p className={styles.detail}>{t('solo.meta.detail')}</p>}
+          {meta.isError && <p className={styles.detail}>{t('solo.meta.unavailable')}</p>}
+          {ghostPicked && (
+            <GhostFinder
+              current={source.kind === 'ghost' ? source.code : ''}
+              label={options.opponentLabel}
+              onFound={(ghost) => setOptions({ opponentDeckId: ghostOpponentId(ghost.code ?? ''), opponentLabel: ghost.name ?? null })}
+            />
+          )}
         </section>
 
         <section className={styles.row}>
@@ -148,5 +216,82 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
         </section>
       </div>
     </Dialog>
+  );
+}
+
+/** The adaptive skill's sentence for the selected deck's kind of game (never the number). */
+function AdaptiveNote({ open }: { open: boolean }) {
+  const t = useT();
+  const selectedId = useDecks((state) => state.selectedId);
+  const loadList = useDecks((state) => state.loadList);
+  const kind = useQuery({
+    queryKey: ['deckIsCommander', selectedId],
+    queryFn: async () => (selectedId ? isCommanderFormat((await loadList(selectedId)).format) : false),
+    enabled: open,
+  });
+  const format = adaptiveFormatFor(kind.data ?? false);
+  const view = useQuery({ queryKey: ['soloAdaptive', format], queryFn: () => api.soloAdaptive(format), enabled: open && kind.isSuccess });
+  return (
+    <p className={styles.detail} role="status">
+      {adaptiveSentence(t, view.data) ?? t(view.isError ? 'solo.adaptive.unavailable' : 'solo.adaptive.detail')}
+    </p>
+  );
+}
+
+/** Find a ghost deck by the code its owner shared, and keep it as the AI's deck. */
+function GhostFinder({ current, label, onFound }: { current: string; label: string | null; onFound(ghost: GhostOpponent): void }) {
+  const t = useT();
+  const [code, setCode] = useState(current);
+  const [found, setFound] = useState<GhostOpponent | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function find(event: FormEvent) {
+    event.preventDefault();
+    const wanted = normalizeGhostCode(code);
+    if (!wanted) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const ghost = await api.ghostDeck(wanted);
+      if (!ghost?.deck) throw new Error();
+      setFound(ghost);
+      onFound(ghost);
+    } catch {
+      setFound(null);
+      setError(t('solo.ghost.notFound', { code: wanted }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const shown = found ?? (current && label ? { code: current, name: label } : null);
+  const record = found ? ghostRecord(found) : null;
+  return (
+    <form className={styles.ghost} onSubmit={(event) => void find(event)}>
+      <div className={styles.ghostRow}>
+        <Field
+          label={t('solo.ghost.code')}
+          value={code}
+          maxLength={16}
+          autoCapitalize="characters"
+          spellCheck={false}
+          onChange={(event) => {
+            setCode(event.target.value);
+            setError(null);
+          }}
+          error={error}
+        />
+        <Button type="submit" variant="print" icon={<Search size={16} />} busy={busy} disabled={!normalizeGhostCode(code)}>{t('solo.ghost.find')}</Button>
+      </div>
+      {shown ? (
+        <p className={styles.detail} role="status">
+          {found?.owner ? t('solo.ghost.foundBy', { name: shown.name ?? shown.code ?? '', owner: found.owner }) : t('solo.ghost.found', { name: shown.name ?? shown.code ?? '' })}
+          {record && record.played > 0 && <> · {t('solo.ghost.record', { won: record.won, played: record.played })}</>}
+        </p>
+      ) : (
+        <p className={styles.detail}>{t('solo.ghost.detail')}</p>
+      )}
+    </form>
   );
 }

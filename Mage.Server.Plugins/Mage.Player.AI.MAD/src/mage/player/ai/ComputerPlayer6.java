@@ -1010,6 +1010,59 @@ public class ComputerPlayer6 extends ComputerPlayer {
         }
     }
 
+    /** the game state key a personality is kept under, with the player's id (Career's opponents, S042) */
+    public static final String PERSONALITY_KEY = "ai.personality.";
+
+    /**
+     * A personality's leanings, each -100 to 100: aggression sends attackers that would only trade, risk sends ones
+     * that could die for nothing, and patience keeps the weakest back as blockers while the defender can strike back.
+     * Without a personality the attack is the plain safe one.
+     */
+    private void applyPersonality(Game game, List<Permanent> attackers, List<Permanent> blockers, Player defender) {
+        Object value = game.getState().getValue(PERSONALITY_KEY + playerId);
+        if (!(value instanceof Map)) {
+            return;
+        }
+        Map<?, ?> leanings = (Map<?, ?>) value;
+        int aggression = leaning(leanings, "aggression");
+        int risk = leaning(leanings, "risk");
+        int patience = leaning(leanings, "patience");
+        for (Permanent attacker : attackers) {
+            if (attackersToCheck.contains(attacker) || attacker.getPower().getValue() <= 0) {
+                continue;
+            }
+            int chance = trades(attacker, blockers) ? aggression : risk / 2;
+            if (chance > 0 && RandomUtil.nextInt(100) < chance) {
+                attackersToCheck.add(attacker);
+            }
+        }
+        int hold = patience / 40;
+        boolean pressure = defender.getAvailableAttackers(game).stream().anyMatch(creature -> creature.getPower().getValue() > 0);
+        if (hold > 0 && pressure && attackersToCheck.size() > 1) {
+            attackersToCheck.sort(java.util.Comparator.comparingInt(attacker -> attacker.getPower().getValue()));
+            for (int i = 0; i < hold && attackersToCheck.size() > 1; i++) {
+                attackersToCheck.remove(0);
+            }
+        }
+    }
+
+    private static int leaning(Map<?, ?> leanings, String name) {
+        Object value = leanings.get(name);
+        return value instanceof Number ? Math.max(-100, Math.min(100, ((Number) value).intValue())) : 0;
+    }
+
+    /** whether every blocker that could kill the attacker dies to it too */
+    private static boolean trades(Permanent attacker, List<Permanent> blockers) {
+        for (Permanent blocker : blockers) {
+            boolean dies = blocker.getPower().getValue() >= attacker.getToughness().getValue();
+            boolean kills = attacker.getPower().getValue() >= blocker.getToughness().getValue();
+            if (dies && !kills) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private List<Permanent> filterOutNonblocking(Game game, List<Permanent> attackers, List<Permanent> blockers) {
         List<Permanent> blockersLeft = new ArrayList<>();
         for (Permanent blocker : blockers) {
@@ -1161,6 +1214,8 @@ public class ComputerPlayer6 extends ComputerPlayer {
                         attackersToCheck.add(attacker);
                     }
                 }
+
+                applyPersonality(game, attackersList, possibleBlockers, defender);
 
                 // find possible target for attack (priority: planeswalker -> battle -> player)
                 int totalPowerOfAttackers = 0;

@@ -68,6 +68,11 @@ public final class BatchRunner {
         public DeckCardLists deckB;
         public int skillA = 4;
         public int skillB = 4;
+        /** each side's AI (S044): COMPUTER_MAD (the default) or COMPUTER_MONTE_CARLO */
+        public String aiA;
+        public String aiB;
+        /** keep the positions where a player found lethal as puzzles (S031) */
+        public boolean minePuzzles;
         public int games = 10;
         /** the first game's seed; game n plays seed + n. Null: one is picked */
         public Long seed;
@@ -81,6 +86,8 @@ public final class BatchRunner {
 
     /** replays a job may keep */
     public static final int MAX_KEPT_REPLAYS = 5;
+    /** the AIs a batch can seat */
+    public static final List<String> AI_TYPES = java.util.Arrays.asList(PlayerType.COMPUTER_MAD.name(), PlayerType.COMPUTER_MONTE_CARLO.name());
 
     /** One game's outcome. */
     public static class GameRecord {
@@ -96,6 +103,8 @@ public final class BatchRunner {
         public int lifeB;
         /** the recorded game, while it's one of the job's closest */
         public String replayId;
+        /** puzzles the miner kept from this game */
+        public int mined;
 
         /** how close it was: the smaller, the closer (a draw at the turn limit is close; a blowout isn't) */
         public int margin() {
@@ -113,6 +122,8 @@ public final class BatchRunner {
         /** games A played first, and won of those */
         public int aFirst;
         public int aFirstWins;
+        /** puzzles the miner kept (S031) */
+        public int mined;
         public final List<GameRecord> games = new ArrayList<>();
         /** the closest games, whose replays are kept */
         public final List<GameRecord> closest = new ArrayList<>();
@@ -260,6 +271,11 @@ public final class BatchRunner {
         spec.keepReplays = Math.max(0, Math.min(MAX_KEPT_REPLAYS, spec.keepReplays));
         spec.skillA = Math.max(1, Math.min(10, spec.skillA));
         spec.skillB = Math.max(1, Math.min(10, spec.skillB));
+        for (String ai : new String[]{spec.aiA, spec.aiB}) {
+            if (ai != null && !AI_TYPES.contains(ai)) {
+                throw new IllegalArgumentException("A batch's AI is " + String.join(" or ", AI_TYPES) + ".");
+            }
+        }
         if (!"Two Player Duel".equals(spec.gameType)) {
             throw new IllegalArgumentException("Batches play two-player duels for now.");
         }
@@ -356,6 +372,7 @@ public final class BatchRunner {
                         job.result.errors++;
                 }
                 job.result.turns += record.turns;
+                job.result.mined += record.mined;
                 if ("A".equals(record.first)) {
                     job.result.aFirst++;
                     if ("A".equals(record.winner)) {
@@ -433,10 +450,12 @@ public final class BatchRunner {
         if (match == null) {
             throw new GameException("No game type " + spec.gameType);
         }
-        Player a = PlayerFactory.instance.createPlayer(PlayerType.COMPUTER_MAD, spec.nameA, RangeOfInfluence.ALL, spec.skillA)
-                .orElseThrow(() -> new GameException("The mad AI isn't loaded"));
-        Player b = PlayerFactory.instance.createPlayer(PlayerType.COMPUTER_MAD, spec.nameB.equals(spec.nameA) ? spec.nameB + " 2" : spec.nameB,
-                RangeOfInfluence.ALL, spec.skillB).orElseThrow(() -> new GameException("The mad AI isn't loaded"));
+        PlayerType typeA = spec.aiA == null ? PlayerType.COMPUTER_MAD : PlayerType.valueOf(spec.aiA);
+        PlayerType typeB = spec.aiB == null ? PlayerType.COMPUTER_MAD : PlayerType.valueOf(spec.aiB);
+        Player a = PlayerFactory.instance.createPlayer(typeA, spec.nameA, RangeOfInfluence.ALL, spec.skillA)
+                .orElseThrow(() -> new GameException("The " + typeA + " AI isn't loaded"));
+        Player b = PlayerFactory.instance.createPlayer(typeB, spec.nameB.equals(spec.nameA) ? spec.nameB + " 2" : spec.nameB,
+                RangeOfInfluence.ALL, spec.skillB).orElseThrow(() -> new GameException("The " + typeB + " AI isn't loaded"));
         match.addPlayer(a, Deck.load(spec.deckA, false, false));
         match.addPlayer(b, Deck.load(spec.deckB, false, false));
         match.startMatch();
@@ -462,6 +481,7 @@ public final class BatchRunner {
         if (recorder != null) {
             record.replayId = recorder.gameId();
         }
+        PuzzleMiner miner = spec.minePuzzles ? PuzzleMiner.attach(game) : null;
         boolean aFirst = n % 2 == 0;
         record.first = aFirst ? "A" : "B";
         AtomicReference<Throwable> failure = new AtomicReference<>();
@@ -486,6 +506,9 @@ public final class BatchRunner {
             thread.interrupt();
             record.winner = "error";
             return record;
+        }
+        if (miner != null && failure.get() == null) {
+            record.mined = miner.keep(owner, spec.nameA + " vs " + spec.nameB);
         }
         if (failure.get() != null) {
             logger.warn("Batch: game " + n + " failed", failure.get());

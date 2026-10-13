@@ -16,7 +16,7 @@ import {
   importCareer, rerollQuest, setCountAiGames, startCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerOpponents,
   useCareerQuests, useCareerShop, useCareerStarters, useCareerState, useCareerUnlocks, useCareerWeekly,
 } from './careerData';
-import { useCampaigns, useChallenge, useGauntlet, useLimited, usePuzzles } from './careerModesData';
+import { useCampaigns, useChallenge, useGauntlet, useHordes, useLimited, usePuzzles } from './careerModesData';
 import { focusNode, graduated, schoolsOf, storiesOf } from './careerModesModel';
 import { useRotatingSceneArt } from './careerScene';
 import { playCareerCue } from './careerSound';
@@ -201,6 +201,7 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
   const puzzles = usePuzzles(true);
   const limited = useLimited(true);
   const challenge = useChallenge(true);
+  const hordes = useHordes(true);
   const shop = useCareerShop(true);
   const achievements = useCareerAchievements(true);
   const quests = useCareerQuests(true);
@@ -272,6 +273,10 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
       to: '/career/challenge', title: t('career.modes.challenge'), art: challenge.data?.cover ?? null, artName: challenge.data?.opponentName ?? '',
       status: challenge.data?.won ? t('career.hub.challengeWon') : challenge.data?.name ?? '',
     },
+    ...((hordes.data ?? []).length > 0 ? [{
+      to: '/career/hordes', title: t('career.modes.hordes'), art: (hordes.data ?? []).find((item) => !item.beaten)?.cover ?? hordes.data?.[0]?.cover ?? null, artName: '',
+      status: t('career.horde.beatenCount', { beaten: (hordes.data ?? []).filter((item) => item.beaten).length, total: hordes.data?.length ?? 0 }),
+    }] : []),
     {
       to: '/career/shop', title: t('career.nav.shop'), art: HUB_ART.shop, artName: '',
       status: packs > 0 ? t('career.hub.shopFree', { count: packs }) : t('career.hub.shop', { price }),
