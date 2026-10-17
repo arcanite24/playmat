@@ -28,6 +28,20 @@ public class TargetOptimization {
     // (it's useless to calc all possible combinations on too much targets)
     static public int AI_MAX_POSSIBLE_TARGETS_TO_CHOOSE = 18;
 
+    // every option is a full copy of a target or an ability, and the choices multiply (amounts x targets, target x
+    // target, mode x target): without a ceiling one big board can make millions of them and fill the server's heap.
+    // The AI's search can't use more than a few thousand nodes anyway (see ComputerPlayer6).
+    static public int AI_MAX_TARGET_OPTIONS = 1000;
+    static public int AI_MAX_PLAYABLE_OPTIONS = 1000;
+
+    /**
+     * AI: stop listing options once there are enough of them, or when the search was interrupted by its time limit
+     * (the option builders don't otherwise check it, so a cancelled search kept running and allocating).
+     */
+    public static boolean isOptionsLimitReached(int optionsCount, int limit) {
+        return optionsCount >= limit || Thread.currentThread().isInterrupted();
+    }
+
     public static void optimizePossibleTargets(Ability source, Game game, Set<UUID> possibleTargets, int maxPossibleTargetsToSimulate) {
         // remove duplicated/same creatures
         // example: distribute 3 damage between 10+ same tokens

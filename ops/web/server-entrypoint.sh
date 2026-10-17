@@ -235,6 +235,16 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Xmx$HEAP"
   for flag in $GC_FLAGS; do echo "$flag"; done
   echo "-XX:MaxMetaspaceSize=${XMAGE_METASPACE:-512m}"
+  # out of heap, the JVM limps on with every game broken and new players turned away; exiting lets Docker's restart
+  # policy bring the server back in seconds
+  [ "${XMAGE_EXIT_ON_OOM:-true}" = true ] && echo "-XX:+ExitOnOutOfMemoryError"
+  # a heap dump (the size of the heap) in the logs volume shows what filled it; the newest one replaces the last
+  if [ "${XMAGE_HEAP_DUMP:-false}" = true ]; then
+    echo "-XX:+HeapDumpOnOutOfMemoryError"
+    echo "-XX:HeapDumpPath=$APP/logs/heap-oom.hprof"
+    rm -f "$APP/logs/heap-oom.hprof.old"
+    [ -f "$APP/logs/heap-oom.hprof" ] && mv "$APP/logs/heap-oom.hprof" "$APP/logs/heap-oom.hprof.old"
+  fi
   # JDK 25+: 8-byte object headers instead of 12 (the class-data archive was recorded with them, so they go together)
   if [ "${XMAGE_JAVA_RUNTIME:-17}" -ge 25 ] && [ "${XMAGE_COMPACT_HEADERS:-true}" = true ]; then
     echo "-XX:+UseCompactObjectHeaders"

@@ -78,6 +78,8 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_REPLAY_MAX` | `300` | At most this many replays are kept; the oldest go first. A replay is gzipped, about 10 kB per turn (a six-turn duel was 59 kB), so 300 replays usually take tens of megabytes. |
 | `XMAGE_MEMORY` | sized to the machine | Java heap, e.g. `2g`. Empty: `XMAGE_HEAP_PERCENT` of the memory the container sees (its limit, else the host's), between 256 MB and 1 GB. The server logs the size it chose at start. |
 | `XMAGE_HEAP_PERCENT` | `40` | Share of the machine's memory the heap gets when `XMAGE_MEMORY` is empty. The rest is the JVM's own memory (classes, threads, code; about 400 MB) and the system's. |
+| `XMAGE_EXIT_ON_OOM` | `true` | Stop the server when the heap runs out, so Docker restarts it (in about 15 s) instead of leaving it running broken. Games in progress end either way. `false` keeps it running. |
+| `XMAGE_HEAP_DUMP` | `false` | When the heap runs out, write it to `logs/heap-oom.hprof` in the logs volume (as big as the heap) to see what filled it, e.g. with Eclipse MAT. The previous dump is kept as `.old`. |
 | `XMAGE_GC` | `auto` | Garbage collector: `serial` on one or two CPUs (less CPU per game there), else `g1`, which hands unused memory back while the server idles. Or `serial`, `g1`, `parallel`. |
 | `XMAGE_METASPACE` | `512m` | Cap on the JVM's class memory (`-XX:MaxMetaspaceSize`). The card classes take about 260 MB. |
 | `XMAGE_CDS` | `true` | `false` stops using the class archive recorded when the image was built (it makes starts faster and shares class memory). |
