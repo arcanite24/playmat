@@ -28,7 +28,9 @@
   position: absolute;
   z-index: 5;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: center;
   justify-content: center;
   border-radius: 16px;
   /* the zone printed in ivory ink on the mat */
@@ -47,6 +49,25 @@
   text-transform: uppercase;
   color: var(--ink-faint);
   pointer-events: none;
+}
+
+/* a crowded row wraps where fitRow says (boardModel.ts) */
+.lineBreak {
+  flex-basis: 100%;
+}
+
+/* past the smallest card size the groups overlap, fanned like a hand: the padding keeps the fan centred, and the
+   hovered card comes to the front */
+.rowOverlap {
+  padding-right: calc(-1 * var(--overlap));
+}
+
+.rowOverlap > :not(.lineBreak) {
+  margin-right: var(--overlap);
+}
+
+.rowOverlap > :hover {
+  z-index: 2;
 }
 
 .rowFlip::before {

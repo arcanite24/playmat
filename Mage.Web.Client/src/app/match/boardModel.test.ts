@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GameView, PermanentView, PlayerView } from '../../protocol/generated/views';
-import { buildBoard, buildPlayerBoard, cardKey, fitCardWidth, zoneKeys } from './boardModel';
+import { buildBoard, buildPlayerBoard, cardKey, fitRow, ROW_FLOOR, zoneKeys, type PermanentGroup, type RowFit } from './boardModel';
 
 function permanent(id: string, overrides: Partial<PermanentView> = {}): PermanentView {
   return { id, name: 'Forest', expansionSetCode: 'M21', cardTypes: ['LAND'], ...overrides };
@@ -63,12 +63,65 @@ describe('buildBoard', () => {
   });
 });
 
-describe('fitCardWidth', () => {
-  it('uses the ideal width when there is room and shrinks to fit when crowded', () => {
-    const groups = buildPlayerBoard(player('me', Array.from({ length: 3 }, (_, i) => permanent(`c${i}`, { name: `C${i}`, cardTypes: ['CREATURE'] }))), true).front;
-    expect(fitCardWidth(groups, 1000, 120, 50)).toBe(120);
-    expect(fitCardWidth(groups, 300, 120, 50)).toBeLessThan(120);
-    expect(fitCardWidth(groups, 10, 120, 50)).toBe(50);
+function creatures(count: number, overrides: Partial<PermanentView> = {}): PermanentGroup[] {
+  return buildPlayerBoard(player('me', Array.from({ length: count }, (_, i) => permanent(`c${i}`, { name: `C${i}`, cardTypes: ['CREATURE'], ...overrides }))), true).front;
+}
+
+/** The drawn extent of each line (stage px) and the stacked height, as the row renders a fit. */
+function extent(groups: PermanentGroup[], fit: RowFit): { widths: number[]; height: number } {
+  const starts = [0, ...fit.breaks, groups.length];
+  const widths: number[] = [];
+  let height = 0;
+  for (let line = 0; line + 1 < starts.length; line++) {
+    const members = groups.slice(starts[line], starts[line + 1]);
+    const slots = members.reduce((sum, group) => {
+      const tapped = group.members.some((member) => member.tapped);
+      const offset = group.members.some((member) => member.tapped) ? 0.3 : 0.12;
+      return sum + fit.cardWidth * ((tapped ? 88 / 63 : 1) + (group.members.length - 1) * offset + group.attachments.length * 0.18);
+    }, 0);
+    widths.push(slots + (members.length - 1) * fit.gap);
+    height += fit.cardWidth * (88 / 63) + (line > 0 ? fit.lineGap : 0);
+  }
+  return { widths, height };
+}
+
+describe('fitRow', () => {
+  it('uses the ideal width when there is room and shrinks a single line when crowded', () => {
+    const groups = creatures(3);
+    expect(fitRow(groups, 1000, 200, 120, 50)).toMatchObject({ cardWidth: 120, breaks: [] });
+    const crowded = fitRow(groups, 300, 200, 120, 50);
+    expect(crowded.cardWidth).toBeLessThan(120);
+    expect(crowded.breaks).toEqual([]);
+  });
+
+  it('wraps a crowded row into lines rather than shrinking past the minimum', () => {
+    // a multiplayer seat: about 335 px wide, a creature row 210 px tall
+    const groups = creatures(13);
+    const fit = fitRow(groups, 335, 202, 150, 58);
+    expect(fit.breaks.length).toBeGreaterThan(0);
+    expect(fit.gap).toBeGreaterThan(0);
+    expect(fit.cardWidth).toBeGreaterThanOrEqual(ROW_FLOOR);
+  });
+
+  it('overlaps cards once even the smallest ones do not fit', () => {
+    const groups = creatures(60);
+    const fit = fitRow(groups, 335, 202, 150, 58);
+    expect(fit.cardWidth).toBe(ROW_FLOOR);
+    expect(fit.gap).toBeLessThan(0);
+  });
+
+  it('never draws a row outside its box', () => {
+    for (const count of [1, 4, 9, 13, 20, 33, 60, 120]) {
+      for (const tapped of [false, true]) {
+        for (const [width, height] of [[335, 202], [520, 202], [1126, 202], [335, 149]]) {
+          const groups = creatures(count, { tapped });
+          const fit = fitRow(groups, width, height, 150, 58);
+          const drawn = extent(groups, fit);
+          for (const line of drawn.widths) expect(line).toBeLessThanOrEqual(width + 0.5);
+          expect(drawn.height).toBeLessThanOrEqual(height + 0.5);
+        }
+      }
+    }
   });
 });
 
