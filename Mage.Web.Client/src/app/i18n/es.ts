@@ -321,6 +321,8 @@ const es: Catalog = {
   'settings.sortHand.detail': "Tierras primero, luego por valor de maná y color.",
   'settings.autoDismissReveals': "Ocultar las cartas reveladas tras un momento",
   'settings.autoDismissReveals.detail': "Las cartas reveladas se desvanecen tras unos segundos, salvo que pases el cursor. El registro las guarda.",
+  'settings.compactBoard': "Cartas más pequeñas en el campo de batalla",
+  'settings.compactBoard.detail': "Dibuja los permanentes más pequeños, para que los tableros grandes y los asientos multijugador tengan más espacio. Las filas llenas igual se acomodan en varias líneas o se superponen.",
   'settings.autoTarget': 'Elegir los objetivos obvios',
   'settings.autoTarget.detail': 'Elige el objetivo cuando solo hay uno legal.',
   'settings.handRequests': 'Los rivales pueden pedir ver mi mano',

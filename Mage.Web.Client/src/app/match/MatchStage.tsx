@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Menu } from 'lucide-react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { GameSession, GameSessionState } from '../../core/game/gameSession';
 import type { Command } from '../../core/game/interaction';
@@ -35,7 +35,7 @@ import { ActionCluster } from './ActionCluster';
 import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
 import { BetweenGames } from './BetweenGames';
 import { Arrows } from './Arrows';
-import { buildBoard, fitCardWidth, type PermanentGroup, type PlayerBoard } from './boardModel';
+import { buildBoard, fitRow, type PermanentGroup, type PlayerBoard } from './boardModel';
 import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
 import { LessonCoach } from './LessonCoach';
@@ -620,7 +620,10 @@ interface RowProps {
   dropTargets?: ReadonlySet<string>;
 }
 
-/** One player's two rows of permanents. Rows shrink their cards to fit rather than wrapping. */
+/** "Smaller cards on the battlefield": rows cap their cards at this share of the usual size. */
+const COMPACT_SCALE = 0.8;
+
+/** One player's two rows of permanents. A crowded row shrinks its cards, then wraps, then overlaps them: never past its box. */
 const Battlefield = memo(function Battlefield({ board, place, ...row }: RowProps & {
   board: PlayerBoard;
   place: RowsPlacement;
@@ -648,16 +651,25 @@ function Row({ groups, left, width, top, ideal, min, forward, label, flip, ...re
   /** the opponent's zones read from their side: label at the top edge */
   flip: boolean;
 }) {
-  const cardWidth = fitCardWidth(groups, width - 24, ideal, min);
+  const compact = useSettings((settings) => settings.settings.compactBoard);
   const height = ideal * (88 / 63);
+  const fit = useMemo(
+    () => fitRow(groups, width - 24, height, compact ? Math.round(ideal * COMPACT_SCALE) : ideal, compact ? Math.round(min * COMPACT_SCALE) : min),
+    [groups, width, height, ideal, min, compact],
+  );
+  const overlap = fit.gap < 0;
+  const breaks = new Set(fit.breaks);
   return (
     <div
-      className={[styles.row, flip ? styles.rowFlip : ''].join(' ')}
-      style={{ left, top, width, height, gap: cardWidth * 0.12 }}
+      className={[styles.row, flip ? styles.rowFlip : '', overlap ? styles.rowOverlap : ''].join(' ')}
+      style={{ left, top, width, height, columnGap: overlap ? 0 : fit.gap, ['--overlap' as string]: overlap ? `${fit.gap}px` : undefined }}
       data-label={label}
     >
-      {groups.map((group) => (
-        <PermanentStack key={group.key} group={group} width={cardWidth} forward={forward} {...rest} />
+      {groups.map((group, index) => (
+        <Fragment key={group.key}>
+          {breaks.has(index) && <i className={styles.lineBreak} style={{ height: fit.lineGap }} aria-hidden="true" />}
+          <PermanentStack group={group} width={fit.cardWidth} forward={forward} {...rest} />
+        </Fragment>
       ))}
     </div>
   );

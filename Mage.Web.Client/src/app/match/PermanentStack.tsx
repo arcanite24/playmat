@@ -198,6 +198,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
     transform: `translateY(${advance}px) rotate(${tapped ? 90 : 0}deg)`,
     // how high a flier hovers grows with the card, so it reads at every board size
     ['--lift' as string]: `${Math.max(8, Math.round(height * 0.08))}px`,
+    // a crowded row's small cards shrink their badges too, so they don't bury the neighbours
+    ['--badge' as string]: Math.min(1, Math.max(0.7, width / 110)).toFixed(2),
   };
 
   return (

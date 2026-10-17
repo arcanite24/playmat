@@ -153,15 +153,115 @@ export function stackOffsetRatio(group: PermanentGroup): number {
   return group.members.some((member) => member.tapped) ? 0.3 : 0.12;
 }
 
-/** Card width (stage px) that fits a row's groups into the space available. */
-export function fitCardWidth(groups: PermanentGroup[], available: number, ideal: number, min: number): number {
-  if (groups.length === 0) return ideal;
-  // tapped cards take their height in width; stacks add a small offset per member
-  const units = groups.reduce((sum, group) => {
-    const anyTapped = group.members.some((member) => member.tapped);
-    const tapped = anyTapped ? 88 / 63 : 1;
-    return sum + tapped + (group.members.length - 1) * stackOffsetRatio(group) + group.attachments.length * 0.18;
-  }, 0);
-  const gaps = (groups.length - 1) * 0.12;
-  return Math.max(min, Math.min(ideal, available / (units + gaps)));
+const CARD_RATIO = 88 / 63;
+/** space between neighbouring groups, and between wrapped lines, as a share of card width */
+const GAP_RATIO = 0.12;
+const LINE_GAP_RATIO = 0.08;
+/** below this card width (stage px) a crowded row overlaps its cards instead of shrinking them further */
+export const ROW_FLOOR = 36;
+/** the most lines one row wraps into */
+const MAX_LINES = 4;
+
+/** A group's footprint in card widths: tapped cards take their height in width; stacks and attachments fan out. */
+function groupUnits(group: PermanentGroup): { width: number; height: number } {
+  const anyTapped = group.members.some((member) => member.tapped);
+  return {
+    width: (anyTapped ? CARD_RATIO : 1) + (group.members.length - 1) * stackOffsetRatio(group) + group.attachments.length * 0.18,
+    height: CARD_RATIO + group.attachments.length * 0.18,
+  };
+}
+
+/** How a row lays out its groups: the card width, the space between groups (negative: they overlap) and the lines. */
+export interface RowFit {
+  cardWidth: number;
+  /** stage px between neighbouring groups; negative when a crowded row overlaps them */
+  gap: number;
+  /** stage px between wrapped lines */
+  lineGap: number;
+  /** indexes of the groups that start a new line (none: one line) */
+  breaks: number[];
+}
+
+/** Greedy line breaking at a card width, as a wrapping flex row would; null when the lines don't fit the height. */
+function wrapAt(units: { width: number; height: number }[], cardWidth: number, available: number, height: number): number[] | null {
+  const gap = cardWidth * GAP_RATIO;
+  const breaks: number[] = [];
+  let lineWidth = 0;
+  let lineHeight = 0;
+  let total = 0;
+  for (let i = 0; i < units.length; i++) {
+    const slot = units[i].width * cardWidth;
+    if (slot > available) return null;
+    if (i > 0 && lineWidth + gap + slot > available) {
+      breaks.push(i);
+      total += lineHeight + cardWidth * LINE_GAP_RATIO;
+      lineWidth = slot;
+      lineHeight = units[i].height * cardWidth;
+    } else {
+      lineWidth += (i > 0 ? gap : 0) + slot;
+      lineHeight = Math.max(lineHeight, units[i].height * cardWidth);
+    }
+  }
+  if (breaks.length >= MAX_LINES) return null;
+  return total + lineHeight <= height ? breaks : null;
+}
+
+/**
+ * Fits a row's groups into its box (stage px) without ever drawing outside it. One line of cards up to `ideal` wide
+ * while they stay at least `min`; a crowded row then wraps into more lines of smaller cards; past `ROW_FLOOR` the
+ * cards overlap, fanned like a hand, so a huge board still stays inside its own seat.
+ */
+export function fitRow(groups: PermanentGroup[], available: number, height: number, ideal: number, min: number): RowFit {
+  const oneLine = (cardWidth: number): RowFit => ({ cardWidth, gap: cardWidth * GAP_RATIO, lineGap: 0, breaks: [] });
+  if (groups.length === 0) return oneLine(ideal);
+  const units = groups.map(groupUnits);
+  const widthUnits = units.reduce((sum, unit) => sum + unit.width, 0) + (groups.length - 1) * GAP_RATIO;
+  const single = Math.min(ideal, available / widthUnits, height / CARD_RATIO);
+  if (single >= min) return oneLine(single);
+
+  // wrapping: the widest card at which the greedy lines fit the row's height
+  let best: { cardWidth: number; breaks: number[] } | null = null;
+  let low = ROW_FLOOR;
+  let high = Math.min(ideal, height / CARD_RATIO);
+  for (let i = 0; i < 24 && high - low > 0.25; i++) {
+    const mid = (low + high) / 2;
+    const breaks = wrapAt(units, mid, available, height);
+    if (breaks) {
+      best = { cardWidth: mid, breaks };
+      low = mid;
+    } else {
+      high = mid;
+    }
+  }
+  if (!best) {
+    const breaks = wrapAt(units, ROW_FLOOR, available, height);
+    if (breaks) best = { cardWidth: ROW_FLOOR, breaks };
+  }
+  if (best && best.cardWidth > single) {
+    const { cardWidth, breaks } = best;
+    return { cardWidth, gap: cardWidth * GAP_RATIO, lineGap: breaks.length > 0 ? cardWidth * LINE_GAP_RATIO : 0, breaks };
+  }
+  if (single >= ROW_FLOOR) return oneLine(single);
+
+  // overlapping: as many lines of floor-sized cards as the height holds, split evenly, each squeezed to fit
+  const cardWidth = ROW_FLOOR;
+  const tallest = Math.max(...units.map((unit) => unit.height)) * cardWidth;
+  const lineGap = cardWidth * LINE_GAP_RATIO;
+  const lines = Math.max(1, Math.min(MAX_LINES, groups.length, Math.floor((height + lineGap) / (tallest + lineGap))));
+  const target = widthUnits / lines;
+  const breaks: number[] = [];
+  let running = 0;
+  for (let i = 0; i < units.length; i++) {
+    if (i > 0 && breaks.length < lines - 1 && running + units[i].width / 2 > target * (breaks.length + 1)) breaks.push(i);
+    running += units[i].width + GAP_RATIO;
+  }
+  let gap = cardWidth * GAP_RATIO;
+  const starts = [0, ...breaks, units.length];
+  for (let line = 0; line + 1 < starts.length; line++) {
+    const count = starts[line + 1] - starts[line];
+    if (count < 2) continue;
+    const slots = units.slice(starts[line], starts[line + 1]).reduce((sum, unit) => sum + unit.width * cardWidth, 0);
+    gap = Math.min(gap, (available - slots) / (count - 1));
+  }
+  return { cardWidth, gap, lineGap: breaks.length > 0 ? lineGap : 0, breaks };
 }

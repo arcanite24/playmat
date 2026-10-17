@@ -153,6 +153,8 @@
   padding: 0;
   list-style: none;
   pointer-events: none;
+  transform: scale(var(--badge, 1));
+  transform-origin: bottom left;
 }
 
 .counters li {
@@ -191,6 +193,8 @@
   font-weight: 700;
   color: var(--ink-strong);
   pointer-events: none;
+  transform: scale(var(--badge, 1));
+  transform-origin: bottom right;
 }
 
 .up {
@@ -224,6 +228,8 @@
   font-weight: 700;
   font-size: 21px;
   box-shadow: var(--shadow-placed);
+  transform: scale(var(--badge, 1));
+  transform-origin: top right;
 }
 
 

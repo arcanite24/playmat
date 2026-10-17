@@ -48,6 +48,8 @@ export interface PlaySettings {
   sortHand: boolean;
   /** revealed cards fade away after a few seconds (local only) */
   autoDismissReveals: boolean;
+  /** battlefield cards are drawn smaller, so big boards stay roomy (local only) */
+  compactBoard: boolean;
   /** pick the only legal target automatically (0 off, 1 when obvious, 2 always) */
   autoTargetLevel: 0 | 1 | 2;
   /** where the game stops to give you priority */
@@ -139,6 +141,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   autoAssignTrample: false,
   sortHand: true,
   autoDismissReveals: true,
+  compactBoard: false,
   autoTargetLevel: 1,
   animations: true,
   allowHandRequests: true,
