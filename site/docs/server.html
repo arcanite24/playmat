@@ -86,6 +86,9 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
         <p>Mail (for password resets), Discord notifications, registration rules and the rest are in the
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#settings">settings table</a>. After changing
           <code>.env</code>, run the same <code>up -d</code> again to apply it.</p>
+        <p>If the game server runs out of memory, it stops and Docker starts it again within seconds (games in progress
+          end). To find out what filled it, set <code>XMAGE_HEAP_DUMP=true</code>: the next time it writes the memory to
+          <code>logs/heap-oom.hprof</code> in the logs volume. <code>XMAGE_MEMORY</code> sets the memory size.</p>
 
         <h2 id="first">After the first start</h2>
         <ol>

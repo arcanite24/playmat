@@ -650,6 +650,9 @@ public abstract class TargetImpl implements Target {
             int index = 0;
 
             while (r >= 0) {
+                if (TargetOptimization.isOptionsLimitReached(options.size(), TargetOptimization.AI_MAX_TARGET_OPTIONS)) {
+                    return options;
+                }
                 // possible indexes for 1st position "r=0" are "0,1,2" --> "A,B,C"
                 // possible indexes for 2nd position "r=1" are "1,2,3" --> "B,C,D"
 
