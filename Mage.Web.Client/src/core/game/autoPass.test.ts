@@ -41,6 +41,17 @@ describe('autoAnswer', () => {
     expect(autoAnswer(theirTurn, priority, { ...on, abilitiesOnTheirTurn: true })).toBeNull();
     expect(autoAnswer(myTurn, priority, on)).toBeNull();
   });
+  it("stops on the opponent's turn to turn a face-down creature up (a morph after blocks)", () => {
+    const morph = { other: [{ value: '{0}: Turn this face-down permanent face up' }] };
+    expect(autoAnswer({ ...view({ proteus: morph }), activePlayerId: 'them' }, priority, on)).toBeNull();
+    // a long cost cuts the text before "face-down": the face-down permanent itself still counts
+    const cut = { other: [{ value: 'Reveal a white card from your hand and pay {2}{W}...' }] };
+    const board: GameView = {
+      ...view({ hidden: cut }), activePlayerId: 'them',
+      players: [{ playerId: 'me', battlefield: { hidden: { faceDown: true } } }],
+    } as GameView;
+    expect(autoAnswer(board, priority, on)).toBeNull();
+  });
   it('stops when there is something to cast, or when the setting is off', () => {
     expect(autoAnswer(view({ bolt: { basicCastAbilities: record } }), priority, on)).toBeNull();
     expect(autoAnswer(view({}), priority, { ...on, autoPass: false })).toBeNull();
