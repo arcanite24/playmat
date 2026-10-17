@@ -57,12 +57,28 @@ function isManaText(text: string | undefined): boolean {
   return !!text && /^[^:]*:\s*Add\b[^.]*\.?$/i.test(text.replace(/<[^>]*>/g, '').trim());
 }
 
-/** Objects with something to do besides making mana; optionally only spells and land plays. */
+/** Turning a face-down permanent up (morph, disguise, manifest, cloak): a special action, any time you have priority. */
+function isTurnFaceUp(text: string | undefined): boolean {
+  return /\bturn this face-down\b/i.test((text ?? '').replace(/<[^>]*>/g, ''));
+}
+
+/** The player's face-down permanents (the server cuts ability text, so the text alone can miss a long cost). */
+function myFaceDown(view: GameView): Set<string> {
+  const mine = (view.players ?? []).find((player) => player.playerId === view.myPlayerId);
+  return new Set(Object.entries(mine?.battlefield ?? {}).filter(([, permanent]) => permanent.faceDown).map(([id]) => id));
+}
+
+/**
+ * Objects with something to do besides making mana; optionally only spells, land plays and turning face-down
+ * permanents up (a morph flipped after blocks is as much a play as an instant).
+ */
 export function meaningfulPlays(view: GameView | null | undefined, includeAbilities = true): string[] {
   const objects = view?.canPlayObjects?.objects ?? {};
+  const faceDown = view ? myFaceDown(view) : new Set<string>();
   return Object.entries(objects)
-    .filter(([, stats]) => (stats.basicCastAbilities?.length ?? 0) + (stats.basicPlayAbilities?.length ?? 0)
-      + (includeAbilities ? (stats.other ?? []).filter((record) => !isManaText(record.value)).length : 0) > 0)
+    .filter(([id, stats]) => (stats.basicCastAbilities?.length ?? 0) + (stats.basicPlayAbilities?.length ?? 0)
+      + (stats.other ?? []).filter((record) => !isManaText(record.value)
+        && (includeAbilities || faceDown.has(id) || isTurnFaceUp(record.value))).length > 0)
     .map(([id]) => id);
 }
 
