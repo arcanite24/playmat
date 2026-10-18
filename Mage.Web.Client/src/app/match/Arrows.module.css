@@ -107,3 +107,28 @@
     animation: none;
   }
 }
+
+/* a horde's stacks feed into one trunk: the feeders are thinner and carry no head */
+.attackGlow .feeder {
+  stroke-width: 12;
+}
+
+.attackBody .feeder {
+  stroke-width: 5;
+}
+
+/* how many creatures a trunk carries, where its feeders meet */
+.attackCount circle {
+  fill: var(--oxblood);
+  stroke: var(--oxblood-lit);
+  stroke-width: 3;
+  filter: drop-shadow(0 3px 4px rgb(var(--shade-rgb) / 0.65));
+}
+
+.attackCount text {
+  fill: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: 22px;
+  font-weight: 700;
+  text-anchor: middle;
+}
