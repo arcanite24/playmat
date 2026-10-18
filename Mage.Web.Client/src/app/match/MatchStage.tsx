@@ -77,6 +77,7 @@ import { useWatchers } from './useWatchers';
 import { Reveals } from './Reveals';
 import { StackZone } from './StackZone';
 import { Stage } from './Stage';
+import { useRightEdge } from './useRightEdge';
 import { matchLayout, type MatchLayout, type RowsPlacement } from './matchLayout';
 import styles from './MatchStage.module.css';
 
@@ -84,6 +85,8 @@ const EMPTY: ReadonlySet<string> = new Set();
 const ignore = () => undefined;
 const NO_CARDS: readonly CardView[] = [];
 const NO_COMMANDERS: readonly CommanderStatus[] = [];
+/** stage pixels between your seat and the hand's fan */
+const HAND_SEAT_GAP = 24;
 
 /** Attacking and blocking permanents, from the combat groups. */
 function combatSets(combat: GameView['combat']) {
@@ -391,6 +394,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
       : null;
   }, [board.opponents]);
 
+  const [plateRef, plateRight] = useRightEdge();
+
   return (
     <Stage style={matStyle}>
       {(stage) => {
@@ -434,7 +439,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             {board.me && (
               <>
                 <Battlefield board={board.me} sleeve={sleeves.mine} clickable={clickable} selected={chosen} quiet={quiet} attacking={attacking} blocking={blocking} targeting={targeting} onClick={onClick} pending={pending} onBlockDrop={interaction.mode === 'declareBlockers' && canAct ? onBlockDrop : interaction.mode === 'declareAttackers' && canAct ? attackDrop.onDrop : undefined} dropTargets={interaction.mode === 'declareAttackers' ? attackDrop.targets : undefined} place={layout.me} />
-                <div className={styles.myPlate} style={layout.myPlate}>
+                <div ref={plateRef} className={styles.myPlate} style={layout.myPlate}>
                   <PlayerPlate
                     player={board.me.player}
                     isMe={board.me.isMe}
@@ -503,6 +508,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onPlay={onClick}
                 playLine={layout.playLine}
                 libraryOrigin={`library:${board.me.player.playerId}`}
+                // wide: the fan keeps clear of your seat (it grows sideways with counters) and of the decision corner
+                clearLeft={layout.tall || !plateRight ? 0 : plateRight + HAND_SEAT_GAP}
+                clearRight={layout.handClearRight}
               />
             )}
 

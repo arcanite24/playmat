@@ -6,6 +6,7 @@ import './matchMessages';
 import { CardFace } from '../ui/CardFace';
 import { zoneKeys } from './boardModel';
 import { useFlip } from './flip';
+import { placeHand } from './matchLayout';
 import { useMatchUi } from './matchUi';
 import { useStage } from './stageContext';
 import styles from './Hand.module.css';
@@ -30,24 +31,26 @@ export interface HandProps {
   label?: string;
   /** cards shown with the hand that are played from another zone (an adventurer in exile, flashback), by id */
   fromZone?: ReadonlyMap<string, PlayableZone>;
+  /** stage x the fan keeps right of (your seat), and how far it keeps from the stage's right edge (the decision corner) */
+  clearLeft?: number;
+  clearRight?: number;
 }
 
 const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard' };
 
-const CARD_WIDTH = 168;
 const DRAG_THRESHOLD = 12;
 
 /** The player's hand, fanned along the bottom edge. Hover lifts a card; drag it up (or click it) to play it. */
-export function Hand({ cards, choosing = false, clickable, selected, pending = null, sleeve, onPlay, playLine, libraryOrigin, faceDown = false, label = 'Your hand', fromZone }: HandProps) {
+export function Hand({ cards, choosing = false, clickable, selected, pending = null, sleeve, onPlay, playLine, libraryOrigin, faceDown = false, label = 'Your hand', fromZone, clearLeft = 0, clearRight = 0 }: HandProps) {
   const t = useT();
+  const stage = useStage();
   const count = cards.length;
-  const spread = Math.min(CARD_WIDTH * 0.78, 1000 / Math.max(1, count));
+  const { center, spread, width } = placeHand(count, stage.width, clearLeft, clearRight);
   const arc = Math.min(4, 26 / Math.max(1, count));
-  const width = spread * (count - 1) + CARD_WIDTH;
   const keys = useMemo(() => zoneKeys(cards), [cards]);
 
   return (
-    <div className={styles.hand} style={{ width }} role="list" aria-label={t('match.cards', { label, count })}>
+    <div className={styles.hand} style={{ width, left: center }} role="list" aria-label={t('match.cards', { label, count })}>
       {cards.map((card, index) => {
         const offset = index - (count - 1) / 2;
         return (
