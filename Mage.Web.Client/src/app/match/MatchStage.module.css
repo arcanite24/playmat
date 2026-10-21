@@ -107,11 +107,19 @@
   position: absolute;
 }
 
+/*
+ * Your seat's box is the plate itself, so a seat anchored by its bottom edge (wide) grows upward as counters, commander
+ * damage and floating mana arrive, never past the bottom of the stage.
+ */
+.myPlate > [data-object-id] {
+  position: relative;
+}
+
 /* a pet sits by its player's plate: mine on the cloth just above it, an opponent's beside theirs */
 .myPet {
   position: absolute;
   left: 8px;
-  bottom: -4px;
+  bottom: calc(100% - 4px);
   width: 128px;
   height: 128px;
 }

@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'vitest';
-import { matchLayout } from './matchLayout';
+import { HAND_CARD_WIDTH, matchLayout, placeHand } from './matchLayout';
 import { fitStage, MAX_STAGE_HEIGHT, MAX_TALL_HEIGHT, MIN_TALL_HEIGHT, STAGE_HEIGHT, STAGE_WIDTH, TALL_STAGE_WIDTH } from './stageContext';
 
 const CARD_RATIO = 88 / 63;
+/** a seat with life and three rows of chips beside it (PlayerPlate's .extras), in stage pixels */
+const SEAT_HEIGHT = 116;
 
 describe('fitStage', () => {
   test('desktops and tablets on their side keep the wide stage', () => {
@@ -49,8 +51,10 @@ describe('matchLayout', () => {
     expect(layout.seam).toBeGreaterThanOrEqual(them.frontTop + them.frontIdeal * CARD_RATIO);
     expect(me.frontTop).toBeGreaterThan(layout.seam);
     expect(me.backTop).toBeGreaterThanOrEqual(me.frontTop + me.frontIdeal * CARD_RATIO);
-    expect(layout.myPlate.top).toBeGreaterThanOrEqual(me.backTop + me.backIdeal * CARD_RATIO);
-    expect(layout.myPlate.top).toBe(height - 144);
+    // your seat stands on the stage's bottom edge, so it grows upward; below your lands it has room for its life and
+    // three rows of counters, commander damage and mana beside it
+    expect(layout.myPlate).toEqual({ left: 24, bottom: 24 });
+    expect(height - layout.myPlate.bottom! - (me.backTop + me.backIdeal * CARD_RATIO)).toBeGreaterThanOrEqual(SEAT_HEIGHT);
     expect(me.frontIdeal).toBe(Math.round(150 + (height - 1080) * 0.2));
   });
 
@@ -76,5 +80,38 @@ describe('matchLayout', () => {
     expect(a).toBe(b);
     expect(a.them(0, 2)).toBe(b.them(0, 2));
     expect(a.them(0, 2)).not.toBe(a.them(1, 2));
+  });
+});
+
+describe('placeHand', () => {
+  test('a hand with room is centred on the stage, fanned as usual', () => {
+    expect(placeHand(7, 1920)).toEqual({ center: 960, spread: HAND_CARD_WIDTH * 0.78, width: 6 * HAND_CARD_WIDTH * 0.78 + HAND_CARD_WIDTH });
+    // a big hand fans tighter to stay about a thousand pixels wide
+    expect(placeHand(10, 1920).spread).toBe(100);
+    expect(placeHand(1, 1920)).toEqual({ center: 960, spread: HAND_CARD_WIDTH * 0.78, width: HAND_CARD_WIDTH });
+    expect(placeHand(0, 1920).width).toBe(HAND_CARD_WIDTH);
+  });
+
+  test('a crowded seat moves the hand over, clear of the seat and the decision corner', () => {
+    const corner = matchLayout({ layout: 'wide', width: 1920, height: 1080 }).handClearRight;
+    const seat = 640;
+    const hand = placeHand(7, 1920, seat, corner);
+    expect(hand.center - hand.width / 2).toBeGreaterThanOrEqual(seat - 0.001);
+    expect(hand.center + hand.width / 2).toBeLessThanOrEqual(1920 - corner + 0.001);
+  });
+
+  test('wide windows give the hand its natural fan beside even a crowded seat', () => {
+    // 2560×1440 at 125% scaling with the taskbar: a 2048×1050 window, a 2107-wide stage
+    const width = fitStage(2048, 1050).width;
+    const corner = matchLayout({ layout: 'wide', width, height: 1080 }).handClearRight;
+    const hand = placeHand(7, width, 640, corner);
+    expect(hand.spread).toBeCloseTo(HAND_CARD_WIDTH * 0.78);
+    expect(hand.center - hand.width / 2).toBeGreaterThanOrEqual(640 - 0.001);
+  });
+
+  test('when even the tightest fan cannot fit, the hand keeps clear of the seat', () => {
+    const hand = placeHand(20, 1920, 900, 472);
+    expect(hand.spread).toBe(36);
+    expect(hand.center - hand.width / 2).toBe(900);
   });
 });

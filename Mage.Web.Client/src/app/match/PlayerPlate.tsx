@@ -99,6 +99,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
 
   const counters = (player.counters ?? []).filter((counter) => (counter.count ?? 0) > 0);
   const pool = POOL_MANA.filter(({ key }) => (player.manaPool?.[key] ?? 0) > 0);
+  const hasExtras = !!toPay || pool.length > 0 || commanderDamage.length > 0 || counters.length > 0 || !!player.monarch || !!player.initiative;
   const timeLeft = useRopeSeconds(player);
   const ticking = ropeVisible(player.timerActive, player.hasPriority, timeLeft);
   // the player's sigil from their profile, or their initial
@@ -178,6 +179,61 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
               {delta.value > 0 ? `+${delta.value}` : delta.value}
             </span>
           )}
+        </div>
+      </div>
+      {hasExtras && (
+        // what's on the seat besides life, in short columns beside it: a crowded seat grows sideways, not off the stage
+        <div className={styles.extras}>
+          {toPay && (
+            <div className={styles.toPay}>
+              <span className={styles.toPayLabel}>To pay</span>
+              <ManaCost cost={toPay} size="lg" />
+            </div>
+          )}
+          {pool.length > 0 && (
+            <div className={styles.pool} aria-label="Mana pool">
+              {pool.map(({ key, symbol, manaType }) => {
+                const id = poolId(manaType);
+                const content = (
+                  <>
+                    <i className={`ms ms-cost ms-${symbol}`} aria-hidden="true" />
+                    <b>{player.manaPool?.[key]}</b>
+                  </>
+                );
+                // floating mana pays the cost being paid: click it like a land
+                return payable?.has(id) && onPay ? (
+                  <button
+                    key={key}
+                    type="button"
+                    className={[styles.poolItem, styles.poolPay].join(' ')}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onPay(id);
+                    }}
+                    aria-label={`Pay with ${key} mana from your pool, ${player.manaPool?.[key]} floating`}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <span key={key} className={styles.poolItem}>{content}</span>
+                );
+              })}
+            </div>
+          )}
+          {commanderDamage.length > 0 && (
+            // each hit is its own chip in the columns; the group only names them
+            <div className={styles.commanderDamage} role="group" aria-label="Commander damage taken">
+              {commanderDamage.map((hit) => (
+                <span
+                  key={hit.name}
+                  className={[styles.counter, styles.hit, hit.amount >= COMMANDER_DAMAGE_LETHAL - 6 ? styles.hitDanger : ''].join(' ')}
+                  title={`${hit.amount} combat damage from ${hit.name}; ${COMMANDER_DAMAGE_LETHAL} loses the game`}
+                >
+                  <Swords size={15} aria-hidden="true" /> <span className={styles.hitName}>{hit.name.split(',')[0]}</span> <b>{hit.amount}</b>
+                </span>
+              ))}
+            </div>
+          )}
           {counters.map((counter) => (
             <span key={counter.name} className={styles.counter} title={`${counter.count} ${counter.name}`}>
               {counter.count} {counter.name}
@@ -186,56 +242,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
           {player.monarch && <span className={styles.counter}>Monarch</span>}
           {player.initiative && <span className={styles.counter}>Initiative</span>}
         </div>
-        {commanderDamage.length > 0 && (
-          <div className={styles.commanderDamage} aria-label="Commander damage taken">
-            {commanderDamage.map((hit) => (
-              <span
-                key={hit.name}
-                className={[styles.hit, hit.amount >= COMMANDER_DAMAGE_LETHAL - 6 ? styles.hitDanger : ''].join(' ')}
-                title={`${hit.amount} combat damage from ${hit.name}; ${COMMANDER_DAMAGE_LETHAL} loses the game`}
-              >
-                <Swords size={16} aria-hidden="true" /> {hit.name.split(',')[0]} <b>{hit.amount}</b>
-              </span>
-            ))}
-          </div>
-        )}
-        {toPay && (
-          <div className={styles.toPay}>
-            <span className={styles.toPayLabel}>To pay</span>
-            <ManaCost cost={toPay} size="lg" />
-          </div>
-        )}
-        {pool.length > 0 && (
-          <div className={styles.pool} aria-label="Mana pool">
-            {pool.map(({ key, symbol, manaType }) => {
-              const id = poolId(manaType);
-              const content = (
-                <>
-                  <i className={`ms ms-cost ms-${symbol}`} aria-hidden="true" />
-                  <b>{player.manaPool?.[key]}</b>
-                </>
-              );
-              // floating mana pays the cost being paid: click it like a land
-              return payable?.has(id) && onPay ? (
-                <button
-                  key={key}
-                  type="button"
-                  className={[styles.poolItem, styles.poolPay].join(' ')}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onPay(id);
-                  }}
-                  aria-label={`Pay with ${key} mana from your pool, ${player.manaPool?.[key]} floating`}
-                >
-                  {content}
-                </button>
-              ) : (
-                <span key={key} className={styles.poolItem}>{content}</span>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
