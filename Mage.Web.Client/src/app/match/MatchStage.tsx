@@ -35,6 +35,7 @@ import { ActionCluster } from './ActionCluster';
 import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
 import { BetweenGames } from './BetweenGames';
 import { Arrows } from './Arrows';
+import { stackLeads } from './attackArrows';
 import { buildBoard, fitRow, type PermanentGroup, type PlayerBoard } from './boardModel';
 import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
@@ -173,6 +174,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const combat = view?.combat;
   const combatNow = useMemo(() => combatSets(combat), [combat]);
   const { blocking, links, attacks } = combatNow;
+  const leads = useMemo(() => stackLeads([board.me, ...board.opponents]), [board.me, board.opponents]);
   // a creature declared as an attacker steps forward before the server confirms it
   const attacking = useMemo(() => withPredictedAttack(combatNow.attacking, prediction), [combatNow.attacking, prediction]);
   const chosen = useMemo(() => withPredictedAttack(interaction.selected, prediction), [interaction.selected, prediction]);
@@ -541,7 +543,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
             {defenders && !(automation.attackPlayerByDefault && defaultDefender(defenders)) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} />
-            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} />
+            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} />
             <EmoteBubbles view={view} />
             {mode === 'play' && <Coach view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             {mode === 'play' && <LessonCoach gameId={state.gameId} view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}

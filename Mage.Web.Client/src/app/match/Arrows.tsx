@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { bundleAttacks, isTrunk, trunkJoin } from './attackArrows';
 import { useMatchUi } from './matchUi';
 import { toStagePoint, useObjectCenter, useStage } from './stageContext';
 import styles from './Arrows.module.css';
@@ -28,11 +29,18 @@ function attackPath(from: Point, to: Point, index: number, count: number): strin
   return `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${end.x} ${end.y}`;
 }
 
+/** A feeder: from an attacking stack to where a trunk starts, bowing a little so neighbours don't overlap. */
+function feederPath(from: Point, to: Point): string {
+  const start = { x: from.x, y: from.y + (to.y < from.y ? -40 : 40) };
+  const control = { x: (start.x + to.x) / 2, y: start.y + (to.y - start.y) * 0.15 };
+  return `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${to.x} ${to.y}`;
+}
+
 /**
  * Arrows on the table: attackers to what they attack (oxblood), blockers to attackers: what the top of the stack targets (ink), and while choosing targets,
  * a live arrow from the spell to the pointer (amber).
  */
-export function Arrows({ sourceId, targetIds, live, links, attacks }: {
+export function Arrows({ sourceId, targetIds, live, links, attacks, leads }: {
   sourceId: string | null;
   targetIds: string[];
   live: boolean;
@@ -40,6 +48,8 @@ export function Arrows({ sourceId, targetIds, live, links, attacks }: {
   links: [string, string][];
   /** attacker -> player or planeswalker it attacks */
   attacks: [string, string][];
+  /** each permanent's stack lead: a stack of attacking tokens draws one arrow */
+  leads: ReadonlyMap<string, string>;
 }) {
   const center = useObjectCenter();
   const stage = useStage();
@@ -79,14 +89,31 @@ export function Arrows({ sourceId, targetIds, live, links, attacks }: {
   const combat = links
     .map(([blocker, attacker]) => [center(blocker), center(attacker)] as const)
     .filter((pair): pair is readonly [Point, Point] => !!pair[0] && !!pair[1]);
-  const assault = attacks
-    .map(([attacker, defender]) => [center(attacker), center(defender)] as const)
-    .filter((pair): pair is readonly [Point, Point] => !!pair[0] && !!pair[1]);
+  // one arrow per attacking stack; many stacks at one defender join into a trunk with a count
+  const single: (readonly [Point, Point])[] = [];
+  const feeders: string[] = [];
+  const trunks: { d: string; at: Point; count: number }[] = [];
+  for (const bundle of bundleAttacks(attacks, leads)) {
+    const to = center(bundle.defender);
+    if (!to) continue;
+    const sources = bundle.sources.map((source) => center(source.id)).filter((point): point is Point => !!point);
+    if (sources.length === 0) continue;
+    if (isTrunk(bundle)) {
+      const join = trunkJoin(sources, to);
+      sources.forEach((source) => feeders.push(feederPath(source, join)));
+      const d = attackPath(join, to, 0, 1);
+      // the count sits where the feeders meet, clear of the defender's board
+      trunks.push({ d, at: join, count: bundle.count });
+    } else {
+      sources.forEach((source) => single.push([source, to]));
+    }
+  }
+  const assault = single;
   const blockFrom = blockDrag ? center(blockDrag.blockerId) : null;
   const blockTo = blockDrag?.attackerId ? center(blockDrag.attackerId) : pointer;
   const blockLine = blockFrom && blockTo ? [blockFrom, blockTo] as const : null;
-  const attackPaths = assault.map(([attacker, defender], index) => attackPath(attacker, defender, index, assault.length));
-  if (dragging || (!blockLine && combat.length === 0 && assault.length === 0 && (!from || (targets.length === 0 && !(live && pointer))))) return null;
+  const attackPaths = [...assault.map(([attacker, defender], index) => attackPath(attacker, defender, index, assault.length)), ...trunks.map((trunk) => trunk.d)];
+  if (dragging || (!blockLine && combat.length === 0 && attackPaths.length === 0 && (!from || (targets.length === 0 && !(live && pointer))))) return null;
 
   return (
     <svg className={styles.arrows} width={stage.width} height={stage.height} aria-hidden="true">
@@ -102,17 +129,25 @@ export function Arrows({ sourceId, targetIds, live, links, attacks }: {
         </marker>
       </defs>
       {/* each layer is filtered once as a whole: a filter per arrow, repainted under the marching dashes, stalls the frame when a horde attacks */}
-      {assault.length > 0 && (
+      {attackPaths.length > 0 && (
         <>
           <g className={styles.attackGlow}>
+            {feeders.map((d, index) => <path key={`f${index}`} className={[styles.attack, styles.feeder].join(' ')} d={d} />)}
             {attackPaths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
           </g>
           <g className={styles.attackBody}>
+            {feeders.map((d, index) => <path key={`f${index}`} className={[styles.attack, styles.feeder].join(' ')} d={d} />)}
             {attackPaths.map((d, index) => <path key={index} className={styles.attack} d={d} markerEnd="url(#arrow-attack)" />)}
           </g>
           <g className={styles.attackFlow}>
             {attackPaths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
           </g>
+          {trunks.map((trunk, index) => (
+            <g key={index} className={styles.attackCount} transform={`translate(${trunk.at.x} ${trunk.at.y})`}>
+              <circle r={26} />
+              <text dy="0.35em">×{trunk.count}</text>
+            </g>
+          ))}
         </>
       )}
       {combat.length > 0 && (
