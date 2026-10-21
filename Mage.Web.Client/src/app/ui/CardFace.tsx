@@ -1,18 +1,19 @@
-import { useState, type CSSProperties } from 'react';
+import { useContext, useState, type CSSProperties } from 'react';
 import { printsPowerToughness } from '../../core/game/cards';
 import { useCardImage } from '../../core/images/useCardImage';
 import { isDecoded, markDecoded } from './imageCache';
-import { showsBackFace, type CardFace as Face, type CardImageRef, type ImageSize } from '../../core/images/imageLinks';
+import { showsBackFace, type CardFace as Face, type ImageSize } from '../../core/images/imageLinks';
 import type { CardType, SubType } from '../../protocol/generated/views';
 import { useT } from '../i18n';
 import { ManaCost } from './ManaCost';
 import { cardBackOf } from './cardBack';
 import { sleeveBackOf } from './sleeveArt';
+import { LandStyleContext, landStylist, styledLand, type StylableCard } from './landStyles';
 import { useSettings } from '../stores/settings';
 import styles from './CardFace.module.css';
 
 export interface CardFaceProps {
-  card: CardImageRef & {
+  card: StylableCard & {
     manaCostLeftStr?: string[];
     manaCost?: string;
     typeText?: string;
@@ -37,8 +38,12 @@ export interface CardFaceProps {
  * A card at real proportions, in its sleeve. While the picture loads (or when there is none) a printed text frame
  * with name, cost and type keeps the card readable and the layout stable.
  */
-export function CardFace({ card, face = 'front', size = 'normal', sleeve, hidden, className, style }: CardFaceProps) {
+export function CardFace({ card: printed, face = 'front', size = 'normal', sleeve, hidden, className, style }: CardFaceProps) {
   const t = useT();
+  // in a match, a basic land shows its player's land style (landStyles.ts); everywhere else the context is empty
+  const landStyleOf = useContext(LandStyleContext);
+  const stylist = landStyleOf ? landStylist(printed) : undefined;
+  const card = stylist ? styledLand(printed, landStyleOf!(stylist)) : printed;
   const src = useCardImage(hidden ? null : card, face === 'back' || showsBackFace(card) ? 'back' : 'front', size);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { bundleAttacks, isTrunk, trunkJoin } from './attackArrows';
 import { useMatchUi } from './matchUi';
 import { toStagePoint, useObjectCenter, useStage } from './stageContext';
@@ -36,11 +36,32 @@ function feederPath(from: Point, to: Point): string {
   return `M ${start.x} ${start.y} Q ${control.x} ${control.y} ${to.x} ${to.y}`;
 }
 
+/** Attack arrows of one color: the usual oxblood (no color), or a player's earned arrow color (B300). */
+interface AttackLayer {
+  color: string | null;
+  paths: string[];
+  feeders: string[];
+}
+
+function layerFor(layers: AttackLayer[], color: string | null): AttackLayer {
+  let layer = layers.find((candidate) => candidate.color === color);
+  if (!layer) {
+    layer = { color, paths: [], feeders: [] };
+    layers.push(layer);
+  }
+  return layer;
+}
+
+/** An earned color re-inks the arrow's layers (Arrows.module.css reads these). */
+function tintStyle(color: string | null): CSSProperties | undefined {
+  return color ? ({ '--attack': color, '--attack-flow': `color-mix(in srgb, ${color} 45%, white)` } as CSSProperties) : undefined;
+}
+
 /**
- * Arrows on the table: attackers to what they attack (oxblood), blockers to attackers: what the top of the stack targets (ink), and while choosing targets,
+ * Arrows on the table: attackers to what they attack (oxblood, or the attacking player's earned color), blockers to attackers: what the top of the stack targets (ink), and while choosing targets,
  * a live arrow from the spell to the pointer (amber).
  */
-export function Arrows({ sourceId, targetIds, live, links, attacks, leads }: {
+export function Arrows({ sourceId, targetIds, live, links, attacks, leads, tints }: {
   sourceId: string | null;
   targetIds: string[];
   live: boolean;
@@ -50,6 +71,8 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads }: {
   attacks: [string, string][];
   /** each permanent's stack lead: a stack of attacking tokens draws one arrow */
   leads: ReadonlyMap<string, string>;
+  /** permanents whose controller earned an arrow color: their attacks are drawn in it */
+  tints?: ReadonlyMap<string, string>;
 }) {
   const center = useObjectCenter();
   const stage = useStage();
@@ -90,30 +113,34 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads }: {
     .map(([blocker, attacker]) => [center(blocker), center(attacker)] as const)
     .filter((pair): pair is readonly [Point, Point] => !!pair[0] && !!pair[1]);
   // one arrow per attacking stack; many stacks at one defender join into a trunk with a count
-  const single: (readonly [Point, Point])[] = [];
-  const feeders: string[] = [];
-  const trunks: { d: string; at: Point; count: number }[] = [];
+  const single: { from: Point; to: Point; color: string | null }[] = [];
+  const layers: AttackLayer[] = [];
+  const trunks: { at: Point; count: number }[] = [];
   for (const bundle of bundleAttacks(attacks, leads)) {
     const to = center(bundle.defender);
     if (!to) continue;
-    const sources = bundle.sources.map((source) => center(source.id)).filter((point): point is Point => !!point);
+    const sources = bundle.sources
+      .map((source) => ({ at: center(source.id), color: tints?.get(source.id) ?? null }))
+      .filter((source): source is { at: Point; color: string | null } => !!source.at);
     if (sources.length === 0) continue;
     if (isTrunk(bundle)) {
-      const join = trunkJoin(sources, to);
-      sources.forEach((source) => feeders.push(feederPath(source, join)));
-      const d = attackPath(join, to, 0, 1);
+      const join = trunkJoin(sources.map((source) => source.at), to);
+      // a trunk is one player's horde: it takes the color of its first stack
+      const layer = layerFor(layers, sources[0].color);
+      sources.forEach((source) => layer.feeders.push(feederPath(source.at, join)));
+      layer.paths.push(attackPath(join, to, 0, 1));
       // the count sits where the feeders meet, clear of the defender's board
-      trunks.push({ d, at: join, count: bundle.count });
+      trunks.push({ at: join, count: bundle.count });
     } else {
-      sources.forEach((source) => single.push([source, to]));
+      sources.forEach((source) => single.push({ from: source.at, to, color: source.color }));
     }
   }
-  const assault = single;
+  single.forEach((arrow, index) => layerFor(layers, arrow.color).paths.push(attackPath(arrow.from, arrow.to, index, single.length)));
   const blockFrom = blockDrag ? center(blockDrag.blockerId) : null;
   const blockTo = blockDrag?.attackerId ? center(blockDrag.attackerId) : pointer;
   const blockLine = blockFrom && blockTo ? [blockFrom, blockTo] as const : null;
-  const attackPaths = [...assault.map(([attacker, defender], index) => attackPath(attacker, defender, index, assault.length)), ...trunks.map((trunk) => trunk.d)];
-  if (dragging || (!blockLine && combat.length === 0 && attackPaths.length === 0 && (!from || (targets.length === 0 && !(live && pointer))))) return null;
+  const attackCount = layers.reduce((sum, layer) => sum + layer.paths.length, 0);
+  if (dragging || (!blockLine && combat.length === 0 && attackCount === 0 && (!from || (targets.length === 0 && !(live && pointer))))) return null;
 
   return (
     <svg className={styles.arrows} width={stage.width} height={stage.height} aria-hidden="true">
@@ -124,32 +151,35 @@ export function Arrows({ sourceId, targetIds, live, links, attacks, leads }: {
         <marker id="arrow-decision" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
           <path d="M0 0 L10 5 L0 10 z" fill="var(--decision)" />
         </marker>
-        <marker id="arrow-attack" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto-start-reverse">
-          <path d="M0 0 L10 5 L0 10 L2.5 5 z" fill="var(--oxblood-lit)" />
-        </marker>
+        {/* a marker takes its colors where it is defined, so each arrow color has its own head */}
+        {layers.map((layer, index) => (
+          <marker key={index} id={`arrow-attack-${index}`} viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4.2" markerHeight="4.2" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 L2.5 5 z" fill={layer.color ?? 'var(--oxblood-lit)'} />
+          </marker>
+        ))}
       </defs>
       {/* each layer is filtered once as a whole: a filter per arrow, repainted under the marching dashes, stalls the frame when a horde attacks */}
-      {attackPaths.length > 0 && (
-        <>
+      {layers.map((layer, layerIndex) => (
+        <g key={layerIndex} style={tintStyle(layer.color)}>
           <g className={styles.attackGlow}>
-            {feeders.map((d, index) => <path key={`f${index}`} className={[styles.attack, styles.feeder].join(' ')} d={d} />)}
-            {attackPaths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
+            {layer.feeders.map((d, index) => <path key={`f${index}`} className={[styles.attack, styles.feeder].join(' ')} d={d} />)}
+            {layer.paths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
           </g>
           <g className={styles.attackBody}>
-            {feeders.map((d, index) => <path key={`f${index}`} className={[styles.attack, styles.feeder].join(' ')} d={d} />)}
-            {attackPaths.map((d, index) => <path key={index} className={styles.attack} d={d} markerEnd="url(#arrow-attack)" />)}
+            {layer.feeders.map((d, index) => <path key={`f${index}`} className={[styles.attack, styles.feeder].join(' ')} d={d} />)}
+            {layer.paths.map((d, index) => <path key={index} className={styles.attack} d={d} markerEnd={`url(#arrow-attack-${layerIndex})`} />)}
           </g>
           <g className={styles.attackFlow}>
-            {attackPaths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
+            {layer.paths.map((d, index) => <path key={index} className={styles.attack} d={d} />)}
           </g>
-          {trunks.map((trunk, index) => (
-            <g key={index} className={styles.attackCount} transform={`translate(${trunk.at.x} ${trunk.at.y})`}>
-              <circle r={26} />
-              <text dy="0.35em">×{trunk.count}</text>
-            </g>
-          ))}
-        </>
-      )}
+        </g>
+      ))}
+      {trunks.map((trunk, index) => (
+        <g key={index} className={styles.attackCount} transform={`translate(${trunk.at.x} ${trunk.at.y})`}>
+          <circle r={26} />
+          <text dy="0.35em">×{trunk.count}</text>
+        </g>
+      ))}
       {combat.length > 0 && (
         <g className={styles.block}>
           {combat.map(([blocker, attacker], index) => (

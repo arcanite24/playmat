@@ -88,3 +88,13 @@ export function stickerOf(id: string | undefined): { set: CareerCatalogItem; phr
   }
   return null;
 }
+
+/** One item, re-rendering when the catalog arrives (components that draw a look). */
+export function useCatalogItem(kind: CatalogKind, id: string | undefined | null): CareerCatalogItem | undefined {
+  return useCosmetics((state) => (id ? state.byKey.get(key(kind, id)) : undefined));
+}
+
+/** The whole catalog, for screens that list it (the locker). */
+export function useCatalog(): CareerCatalogItem[] {
+  return useCosmetics((state) => state.items);
+}

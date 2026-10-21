@@ -94,6 +94,14 @@
         <p>An account's page in <strong>Accounts</strong> shows its level, XP and coins, its last 50 counted games with
           what each paid and why, and who it hit the daily cap with. Admins can <strong>take back</strong> what a game
           paid, with a reason for the audit log; quests and achievements it finished stay.</p>
+        <p>What players can earn is in two files: <code>career/cosmetics.json</code>, the catalog of every cosmetic
+          (avatars, titles, frames, sleeves, playmats, companions, emotes, arrows, sparks, stamps, land styles), and
+          <code>career/achievements.json</code>, where most achievements have bronze, silver, gold and mythic tiers. A
+          test checks that every cosmetic comes from somewhere. The first start after updating credits players with the
+          games the server's table records already show, once, so long-time players don't start from zero. Quick emotes
+          in matches are limited to one every few seconds, and players can mute their opponents'.
+          See the <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#progression">full
+          reference</a>.</p>
 
         <h2 id="audit">The audit log</h2>
         <p>Every staff action that changes something goes in the <strong>Audit</strong> tab, with who did it and the

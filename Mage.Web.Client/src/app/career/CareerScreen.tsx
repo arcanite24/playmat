@@ -1,4 +1,4 @@
-import { Check, Coins, Gift, RefreshCw, Swords, Trophy, Upload } from 'lucide-react';
+import { Check, Coins, Gift, RefreshCw, Shuffle, Swords, Trophy, Upload } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { CareerAchievement, CareerCampaign, CareerOpponent, CareerProfile, CareerShopSet, CareerQuest, CareerQuests, CareerStarter, CareerWeekly } from '../../protocol/generated/views';
@@ -23,7 +23,10 @@ import { playCareerCue } from './careerSound';
 import { beatenCount, freshUnlocks, nextOpponent, readSeen, unlockFacts, writeSeen } from './hubModel';
 import { dealStyle, useStill } from './motion';
 import { CardArt, PortraitCard, type ArtCard } from './Portraits';
-import { CAREER_AVATARS, CAREER_SLEEVES, cosmeticName, describePay, fraction, titleLabel, unlockedIds, weeklyMarks } from './progressModel';
+import { CAREER_SLEEVES, cosmeticName, describePay, fraction, unlockedIds, weeklyMarks } from './progressModel';
+import { TitleText } from './LookParts';
+import { RANDOM_SLEEVE } from '../ui/sleeveArt';
+import { useCatalog, useCatalogItem } from '../ui/cosmeticsCatalog';
 import { RosterVersus } from './rosterPlay';
 import { useCareerDeck } from './useCareerDeck';
 import hub from './CareerHub.module.css';
@@ -460,7 +463,7 @@ export function CareerSummary({ user, onOpen }: { user: string; onOpen(): void }
     <div className={styles.summary}>
       <CareerAvatar id={avatar} name={user} size={32} />
       <span className={styles.identityText}>
-        {title && <b>{titleLabel(title)}</b>}
+        {title && <TitleText as="b" id={title} />}
         <small>{t('career.profile.line', { level: levels.data.level ?? 1, earned, total: achievements.data.length })}</small>
       </span>
       <Button size="sm" variant="quiet" icon={<Trophy size={16} />} onClick={() => { onOpen(); navigate('/career/progress?tab=achievements'); }}>
@@ -470,27 +473,52 @@ export function CareerSummary({ user, onOpen }: { user: string; onOpen(): void }
   );
 }
 
-/** The sleeves a Career unlocked, beside the free ones wherever a deck's sleeves are chosen. */
+/**
+ * The sleeves a Career unlocked, beside the free ones wherever a deck's sleeves are chosen, and "random" (once there
+ * are two to pick from): the deck wears one of them, a different one each game (ui/sleeveArt.ts).
+ */
 export function CareerSleeves({ current, swatchClass, onPick }: { current: string; swatchClass: string; onPick(color: string): void }) {
   const t = useT();
   const unlocks = useCareerUnlocks();
-  return unlockedIds(unlocks, 'sleeve').filter((id) => id in CAREER_SLEEVES).map((id) => {
-    const color = CAREER_SLEEVES[id];
-    const name = t('career.reward.sleeve', { name: cosmeticName(t, { kind: 'sleeve', id }) });
-    return (
-      <button
-        key={id}
-        type="button"
-        role="radio"
-        aria-checked={current === color}
-        aria-label={name}
-        title={name}
-        className={swatchClass}
-        style={{ background: color }}
-        onClick={() => onPick(color)}
-      />
-    );
-  });
+  // the catalog says which sleeves exist and their dyes
+  useCatalog();
+  const owned = unlockedIds(unlocks, 'sleeve').filter((id) => id in CAREER_SLEEVES);
+  const random = t('career.locker.randomSleeve');
+  return (
+    <>
+      {owned.map((id) => {
+        const color = CAREER_SLEEVES[id];
+        const name = t('career.reward.sleeve', { name: cosmeticName(t, { kind: 'sleeve', id }) });
+        return (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={current === color}
+            aria-label={name}
+            title={name}
+            className={swatchClass}
+            style={{ background: color }}
+            onClick={() => onPick(color)}
+          />
+        );
+      })}
+      {owned.length >= 2 && (
+        <button
+          type="button"
+          role="radio"
+          aria-checked={current === RANDOM_SLEEVE}
+          aria-label={random}
+          title={random}
+          className={swatchClass}
+          style={{ display: 'grid', placeItems: 'center', color: 'var(--ink-strong)', background: `conic-gradient(${owned.slice(0, 6).map((id) => CAREER_SLEEVES[id]).join(', ')}, ${CAREER_SLEEVES[owned[0]]})` }}
+          onClick={() => onPick(RANDOM_SLEEVE)}
+        >
+          <Shuffle size={14} aria-hidden="true" />
+        </button>
+      )}
+    </>
+  );
 }
 
 // ---- progress pieces the Career screens share
@@ -498,7 +526,8 @@ export function CareerSleeves({ current, swatchClass, onPick }: { current: strin
 /** A Career avatar: its painted bust on a medallion in its colours, or the player's initial before one is chosen. */
 export function CareerAvatar({ id, name, size = 48 }: { id: string | null | undefined; name: string; size?: number }) {
   const painted = usePaintedArt();
-  const art = id ? CAREER_AVATARS[id] : undefined;
+  const item = useCatalogItem('avatar', id);
+  const art = item ? { light: item.light ?? '#7a7466', dark: item.dark ?? '#22201b', path: item.path ?? '' } : undefined;
   const style = { '--crest-size': `${size}px`, ...(art ? { '--crest-light': art.light, '--crest-dark': art.dark } : {}) } as CSSProperties;
   const drawn = art && (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">

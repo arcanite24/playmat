@@ -32,3 +32,9 @@ export function tierName(tier: number): TierName | null {
 export function badgeId(achievement: string, tier: number): string {
   return tier > 0 ? `${achievement}-${tier}` : achievement;
 }
+
+/** The badge id for a mastery rank: track "color_W", rank 5 is "mastery-color-w-5". */
+export function masteryBadgeId(track: string, rank: number): string {
+  const at = track.indexOf('_');
+  return `mastery-${track.slice(0, at)}-${track.slice(at + 1).toLowerCase()}-${rank}`;
+}

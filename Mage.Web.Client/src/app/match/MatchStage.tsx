@@ -45,6 +45,7 @@ import { CardZoom } from './CardZoom';
 import { DamageAssigner } from './DamageAssigner';
 import { damageCorner, useDamageSplit } from './useDamageSplit';
 import { EmoteBubbles } from './EmoteBubbles';
+import { EmoteButton } from './emotes/EmoteButton';
 import { useOpponentVoice } from './useOpponentVoice';
 import { setCardMotion, useFlipOrigin } from './flip';
 import { GameLog } from './GameLog';
@@ -66,6 +67,9 @@ import { Vfx } from './Vfx';
 import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
+import { arrowTints, landSetOf, lookCloth, pairsOf, sparkColorOf, stampOf, theirClothBox } from './touches';
+import { LandStyleContext } from '../ui/landStyles';
+import { useCosmetics } from '../ui/cosmeticsCatalog';
 import { usePlayerLooks } from '../support/supportData';
 import { opponentSleeve } from '../support/supportModel';
 import { PracticeTools } from './PracticeTools';
@@ -97,6 +101,8 @@ const NO_CARDS: readonly CardView[] = [];
 const NO_COMMANDERS: readonly CommanderStatus[] = [];
 /** stage pixels between your seat and the hand's fan */
 const HAND_SEAT_GAP = 24;
+/** wide: the quick-emote button beside your seat (48 and its gap); the hand keeps clear of it too */
+const EMOTE_BUTTON_ROOM = 58;
 
 /** Attacking and blocking permanents, from the combat groups. */
 function combatSets(combat: GameView['combat']) {
@@ -410,19 +416,64 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
       ? { setCode: permanent.expansionSetCode, cardNumber: permanent.cardNumber, name: permanent.name }
       : null;
   }, [board.opponents]);
+  // what the players earned for the table (touches.ts): opponents' cloths, arrow colors, hit sparks, stamps and land
+  // styles. The lookups read the cosmetics catalog, so they run again when it arrives.
+  const catalog = useCosmetics((cosmetics) => cosmetics.byKey);
+  const seated = useMemo(() => [board.me, ...board.opponents].filter((one): one is PlayerBoard => !!one), [board.me, board.opponents]);
+  const theirCloths = useMemo(() => {
+    void catalog;
+    return board.opponents.map((opponent) => {
+      const cloth = lookCloth(lookOf(opponent.player));
+      // the same cloth as yours needs no second dye
+      return cloth && cloth.id !== clothOf(matCloth).id ? cloth : null;
+    });
+  }, [catalog, board.opponents, lookOf, matCloth]);
+  const theirPrintStyle = useMemo(() => (theirCloths.length === 1 && theirCloths[0] ? clothStyle(theirCloths[0]) : undefined), [theirCloths]);
+  const arrowTint = useMemo(() => {
+    void catalog;
+    return arrowTints(seated.map((one) => ({ look: lookOf(one.player), permanents: Object.keys(one.player.battlefield ?? {}) })));
+  }, [catalog, seated, lookOf]);
+  // keyed by text, so a new game view doesn't hand the effects and every card a new lookup (the catalog arriving
+  // changes the text)
+  const sparkKey = seated.map((one) => `${one.player.playerId}=${sparkColorOf(lookOf(one.player)) ?? ''}`).join(',');
+  const landKey = seated.map((one) => `${one.player.playerId}=${landSetOf(lookOf(one.player)) ?? ''}`).join(',');
+  const sparks = useMemo(() => pairsOf(sparkKey), [sparkKey]);
+  const landStyleOf = useMemo(() => {
+    const lands = pairsOf(landKey);
+    return lands.size > 0 ? (playerId: string) => lands.get(playerId) : null;
+  }, [landKey]);
+  const stamps = useMemo(() => {
+    void catalog;
+    return {
+      mine: board.me?.isMe ? stampOf(lookOf(board.me.player)) : null,
+      theirs: board.opponents.length === 1 ? stampOf(lookOf(board.opponents[0].player)) : null,
+    };
+  }, [catalog, board.me, board.opponents, lookOf]);
 
   const [plateRef, plateRight] = useRightEdge();
+  // quick emotes (B298): players only, at their own seat
+  const emotes = mode === 'play' && !!board.me?.isMe;
 
   return (
-    <Stage style={matStyle}>
+    // basic lands show their players' land styles anywhere on the stage (B301, ui/landStyles.ts)
+    <LandStyleContext.Provider value={landStyleOf}><Stage style={matStyle}>
       {(stage) => {
         // the stage widens with the window and the field takes the extra width; a portrait window gets the tall layout
         const layout = matchLayout(stage);
         return (
           <div className={styles.layout} style={{ ['--seam' as string]: `${layout.seam}px`, ['--hand-raise' as string]: `${layout.handRaise}px` }}>
+            {/* an opponent's own cloth dyes their half of the table (B295); several opponents dye their columns */}
+            {theirCloths.map((cloth, index) => cloth && (
+              <div
+                key={board.opponents[index]?.player.playerId ?? index}
+                className={theirCloths.length === 1 ? styles.theirCloth : styles.theirClothColumn}
+                style={theirClothBox(cloth, theirCloths.length === 1 ? null : layout.them(index, theirCloths.length))}
+                aria-hidden="true"
+              />
+            ))}
             <div className={styles.mat} aria-hidden="true" />
-            {/* each half carries its player's deck art, printed faintly into the mat */}
-            <div className={styles.printTheirs}><MatPrint card={opponentArt} /></div>
+            {/* each half carries its player's deck art, printed faintly into the mat (in their cloth's dye) */}
+            <div className={styles.printTheirs} style={theirPrintStyle}><MatPrint card={opponentArt} /></div>
             <div className={styles.printMine}><MatPrint card={myArt} /></div>
             <div className={styles.seam} aria-hidden="true" />
             {/* under the hand and the controls, over the mat */}
@@ -476,6 +527,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                       <PetSpot pet={lookOf(board.me.player)?.pet} owner={board.me.player.name ?? ''} isMe={board.me.isMe} />
                     </div>
                   )}
+                  {emotes && <EmoteButton gameId={state.gameId} />}
                 </div>
                 <div className={styles.myPiles} style={layout.myPiles}>
                   <Piles
@@ -526,7 +578,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 playLine={layout.playLine}
                 libraryOrigin={`library:${board.me.player.playerId}`}
                 // wide: the fan keeps clear of your seat (it grows sideways with counters) and of the decision corner
-                clearLeft={layout.tall || !plateRight ? 0 : plateRight + HAND_SEAT_GAP}
+                clearLeft={layout.tall || !plateRight ? 0 : plateRight + HAND_SEAT_GAP + (emotes ? EMOTE_BUTTON_ROOM : 0)}
                 clearRight={layout.handClearRight}
               />
             )}
@@ -557,9 +609,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
             {defenders && !(automation.attackPlayerByDefault && defaultDefender(defenders)) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
-            <Vfx view={view} myPlayerId={myId} />
-            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} />
-            <EmoteBubbles view={view} />
+            <Vfx view={view} myPlayerId={myId} sparks={sparks} />
+            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />
+            <EmoteBubbles view={view} gameId={state.gameId} />
             {mode === 'play' && <Coach view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             {mode === 'play' && <LessonCoach gameId={state.gameId} view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             <GameLog gameId={state.gameId} notices={state.notices} canChat={mode !== 'replay'} view={view} replayLog={replayLog} delayMs={state.broadcastDelayMs} />
@@ -627,6 +679,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onPlayAgain={mode === 'play' && deckId && !eventId && vsAi ? playAgain : undefined}
                 onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
                 rewards={rewardsAfter ? <Suspense fallback={null}><RewardsBeat gameId={state.gameId} onDetails={() => exit(true)} /></Suspense> : undefined}
+                stamps={stamps}
               />
             )}
             {reviewing && (
@@ -639,7 +692,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
           </div>
         );
       }}
-    </Stage>
+    </Stage></LandStyleContext.Provider>
   );
 }
 

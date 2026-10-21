@@ -1,14 +1,15 @@
-import type { PlayerLook, ServerInfo, SupportYou } from '../../protocol/generated/views';
+import type { CareerLevelTrack, PlayerLook, ServerInfo, SupportYou } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { queryClient } from '../queries';
 import { rosterOf, sleeveFor, useDecks } from '../stores/decks';
-import { readJson } from '../stores/persist';
+import { readJson, writeJson } from '../stores/persist';
 import { usePlay } from '../stores/play';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
 import { rememberLook, SUPPORT_PERKS, useWear, wearOf } from './supportData';
 import { lookOf, sameLook } from './supportModel';
 import { loadCatalog } from '../ui/cosmeticsCatalog';
+import { CAREER_SLEEVES, provideRandomSleeves, setRandomSeed } from '../ui/sleeveArt';
 
 /**
  * Tells the server the look this account plays with (the deck's sleeve, the cloth, the Career avatar and title, the
@@ -95,6 +96,24 @@ usePlay.subscribe((state, previous) => {
 queryClient.getQueryCache().subscribe((event) => {
   // a payment just reached the account: wear the thank-you set
   if (event.type === 'updated' && event.action.type === 'success' && event.query.queryKey[0] === 'support' && event.query.queryKey[1] === 'perks') syncLook();
+});
+
+// a deck sleeved "random" (ui/sleeveArt.ts) picks among the Career sleeves this account owns: from Career's unlocks
+// when they're loaded, else the last ones seen in this browser; a new table is a new pick
+const RANDOM_SLEEVES_KEY = 'playmat.randomSleeves';
+provideRandomSleeves(() => {
+  const account = useSession.getState().userName.toLowerCase();
+  const saved = readJson<Record<string, string[]>>(RANDOM_SLEEVES_KEY, {});
+  const unlocks = queryClient.getQueryData<CareerLevelTrack>(['career', 'levels'])?.unlocks;
+  if (!unlocks) return saved[account] ?? [];
+  const owned = unlocks.flatMap((unlock) => (unlock.kind === 'sleeve' && unlock.id && CAREER_SLEEVES[unlock.id] ? [CAREER_SLEEVES[unlock.id]] : []));
+  if (owned.join() !== (saved[account] ?? []).join()) writeJson(RANDOM_SLEEVES_KEY, { ...saved, [account]: owned });
+  return owned;
+});
+usePlay.subscribe((state, previous) => {
+  if (state.tableId === previous.tableId || !state.tableId) return;
+  setRandomSeed(state.tableId);
+  syncLook(true);
 });
 
 syncLook();

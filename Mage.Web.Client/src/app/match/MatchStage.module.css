@@ -75,6 +75,35 @@
   bottom: auto;
 }
 
+/*
+ * an opponent's cloth (B295): their half re-dyed in its shades, out past the stage's edges like the frame's own dye,
+ * and fading into yours just before the seam so the stitches still mark the line
+ */
+.theirCloth,
+.theirClothColumn {
+  position: absolute;
+  background: var(--mat-grain), radial-gradient(1500px 900px at 50% 100%, var(--their-700), var(--their-950));
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 90px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 90px), transparent);
+  pointer-events: none;
+}
+
+.theirCloth {
+  left: -1200px;
+  right: -1200px;
+  top: calc(-1 * var(--stage-height, 1080px));
+  height: calc(var(--stage-height, 1080px) + var(--seam, 540px));
+}
+
+/* several opponents: each column, its sides softened too */
+.theirClothColumn {
+  top: 0;
+  height: var(--seam, 540px);
+  border-radius: 0 0 24px 24px;
+  background: radial-gradient(120% 90% at 50% 100%, var(--their-700), var(--their-950));
+  opacity: 0.85;
+}
+
 .printMine,
 .printTheirs {
   position: absolute;

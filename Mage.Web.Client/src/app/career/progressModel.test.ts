@@ -1,8 +1,15 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
   achievementState, careerSleeveOf, fetchResult, fraction, hasUnlock, levelAt, levelRows, resultIsEmpty, rewardParts, sortAchievements, titleLabel, unlockedIds, weeklyMarks, xpAtLevel, xpSweep,
-  recentOpponent, rewardsPath, safeBack,
+  recentOpponent, rewardsPath, safeBack, momentLine, resultTier,
 } from './progressModel';
+import career from '../i18n/en/career';
+import type { Translate } from '../i18n';
+import { createTranslator } from '../i18n/translate';
+import { loadTestCatalog } from '../../test/catalog';
+
+// the Career sleeves come from the cosmetics catalog
+loadTestCatalog();
 
 describe('recent games', () => {
   test('a roster opponent, or the mode a game was played in', () => {
@@ -123,5 +130,23 @@ describe('career progress model', () => {
     expect(resultIsEmpty({ career: false, coins: 0, xp: 0, quests: [], achievements: [], levelRewards: [], packs: 0 })).toBe(true);
     expect(resultIsEmpty({ career: false, quests: [{ id: 'q' }] })).toBe(false);
     expect(resultIsEmpty({ career: true })).toBe(false);
+  });
+});
+
+describe('after a game: moments and tiers', () => {
+  const t = createTranslator({ locale: 'en', messages: career, fallback: {} }) as Translate;
+
+  test('a moment reads in the player language, with its turn', () => {
+    expect(momentLine(t, { id: 'big_hit', value: 12, turn: 7, text: 'Hit for 12 in one blow' })).toBe('Turn 7 · Hit for 12 in one blow');
+    expect(momentLine(t, { id: 'elimination', value: 1, turn: 5 })).toBe('Turn 5 · Knocked a player out');
+    expect(momentLine(t, { id: 'elimination', value: 3 })).toBe('Knocked out 3 players');
+    // a moment this client doesn't know keeps the server's words
+    expect(momentLine(t, { id: 'new_feat', value: 2, turn: 3, text: 'Did something new' })).toBe('Turn 3 · Did something new');
+  });
+
+  test('only a tiered achievement has a tier to show', () => {
+    expect(resultTier({ id: 't-spells', tier: 3, tiers: [{}, {}, {}, {}] })).toBe('gold');
+    expect(resultTier({ id: 'first-win', tier: 1, tiers: [] })).toBeNull();
+    expect(resultTier({ id: 'first-win', tier: 1 })).toBeNull();
   });
 });

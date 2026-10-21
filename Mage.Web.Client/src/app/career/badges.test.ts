@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { badgeId, badgeOf, tierName } from './badges';
+import { badgeId, badgeOf, masteryBadgeId, tierName } from './badges';
 
 describe('badges', () => {
   test('tiers, single achievements and mastery ranks', () => {
@@ -11,5 +11,11 @@ describe('badges', () => {
     expect(badgeId('t-wins', 4)).toBe('t-wins-4');
     expect(tierName(3)).toBe('gold');
     expect(tierName(0)).toBeNull();
+  });
+
+  test('a mastery rank reads back as its track', () => {
+    expect(masteryBadgeId('color_W', 5)).toBe('mastery-color-w-5');
+    expect(masteryBadgeId('format_commander', 10)).toBe('mastery-format-commander-10');
+    expect(badgeOf(masteryBadgeId('color_multicolor', 2))).toEqual({ kind: 'mastery', track: 'color_multicolor', rank: 2 });
   });
 });

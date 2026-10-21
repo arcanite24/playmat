@@ -6,6 +6,7 @@ import { copyName } from '../../core/decks/exportFormats';
 import type { DeckCardLists, DeckImportSource } from '../../core/decks/types';
 import type { MetaDeck, MetaDeckIndex } from '../../core/decks/metaDecks';
 import { readJson, writeJson } from './persist';
+import { RANDOM_SLEEVE, randomSleeveFor } from '../ui/sleeveArt';
 
 export interface StarterDeck {
   file: string;
@@ -190,7 +191,7 @@ export const useDecks = create<DeckLibraryState>((set, get) => ({
     const roster = rosterOf(get());
     const taken = roster.map((entry) => entry.name);
     // the copy wears the sleeve the original shows, even when that is the original's default
-    const sleeve = sleeveFor(get().sleeves, roster.find((entry) => entry.id === id));
+    const sleeve = chosenSleeve(get().sleeves, roster.find((entry) => entry.id === id));
     const starter = id.startsWith(STARTER_PREFIX);
     const name = copyName(deck.name, taken);
     // a copy is the player's own deck: it no longer follows the site it was imported from
@@ -238,9 +239,16 @@ export function rosterOf(state: Pick<DeckLibraryState, 'saved' | 'starters'>): R
 
 export function sleeveFor(sleeves: Record<string, string>, deck: RosterDeck | null | undefined): string {
   if (!deck) return SLEEVE_COLORS[0];
+  // "random": one of the player's Career sleeves, a different one each game (ui/sleeveArt.ts)
+  if (sleeves[deck.id] === RANDOM_SLEEVE) return randomSleeveFor(deck.id, SLEEVE_COLORS);
   if (sleeves[deck.id]) return sleeves[deck.id];
   // a stable default per deck
   let hash = 0;
   for (const char of deck.name) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
   return SLEEVE_COLORS[hash % SLEEVE_COLORS.length];
+}
+
+/** The sleeve chosen for a deck as the sleeve pickers show it: "random" stays random, anything else is its colour. */
+export function chosenSleeve(sleeves: Record<string, string>, deck: RosterDeck | null | undefined): string {
+  return deck && sleeves[deck.id] === RANDOM_SLEEVE ? RANDOM_SLEEVE : sleeveFor(sleeves, deck);
 }

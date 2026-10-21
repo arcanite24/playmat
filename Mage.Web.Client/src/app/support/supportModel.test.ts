@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { SUPPORTER_SLEEVE } from '../ui/sleeveArt';
 import { goalProgress, lookOf, monthName, opponentSleeve, owns, sameLook, sleeveColorOf, sleeveIdOf, THANK_YOU, usd } from './supportModel';
+import { loadTestCatalog } from '../../test/catalog';
+
+// the Career sleeves come from the cosmetics catalog
+loadTestCatalog();
 
 const THANKS = Object.entries(THANK_YOU).map(([kind, item]) => ({ kind, item, grantedAt: 1 }));
 

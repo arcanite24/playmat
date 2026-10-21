@@ -16,13 +16,15 @@ import { Avatar, Flag } from './Avatar';
 import { Flair } from '../support/Flair';
 import { useLook } from '../support/supportData';
 import { THANK_YOU } from '../support/thankYou';
-import { titleLabel } from '../career/progressModel';
+import { titleColor, titleName } from '../career/progressModel';
 import { LevelBadge } from './LevelBadge';
 import { gameKind, levelShare, recentGames, shownLevel } from './progressionModel';
 import styles from './ProfileDialog.module.css';
 
 // your Career line loads with the Career screens, for players who opted in
 const CareerSummary = lazy(() => import('../career/CareerScreen').then((m) => ({ default: m.CareerSummary })));
+// achievement points and the badges a player shows (B307), with the Career code
+const CareerShowcase = lazy(() => import('../career/ShowcaseBadges'));
 
 /** A player's card: ratings, match and event record, what they're doing now; your own sigil and flag. */
 export function ProfileDialog() {
@@ -58,10 +60,10 @@ function Profile({ name, onClose }: { name: string; onClose(): void }) {
   return (
     <div className={styles.profile}>
       <header className={styles.head}>
-        <Avatar name={name} avatarId={avatarId} size="lg" ring={look?.frame === THANK_YOU.frame} />
+        <Avatar name={name} avatarId={avatarId} size="lg" ring={look?.frame === THANK_YOU.frame} frame={look?.frame} />
         <div>
           <p className={styles.name}>{name}<LevelBadge level={look?.level} /><Flair name={name} /> <Flag flagName={flagName} always /></p>
-          {look?.title && <p className={styles.title}>{titleLabel(look.title)}</p>}
+          {look?.title && <p className={styles.title} style={{ color: titleColor(look.title) }}>{titleName(look.title)}</p>}
           <p className={styles.presence}>{user ? (user.infoGames?.trim() || 'Online') : 'Offline'}</p>
         </div>
       </header>
@@ -144,6 +146,7 @@ function Progression({ name }: { name: string }) {
     staleTime: 60_000,
     retry: false,
   });
+  const badges = useLook(name)?.badges;
   const data = profile.data;
   const level = shownLevel(data?.level);
   if (!data || level === null) return null;
@@ -168,6 +171,9 @@ function Progression({ name }: { name: string }) {
         >
           <span style={{ width: `${Math.round(share * 100)}%` }} />
         </div>
+      )}
+      {(!!data.points || (badges?.length ?? 0) > 0 || name.toLowerCase() === me) && (
+        <Suspense fallback={null}><CareerShowcase name={name} points={data.points} rank={data.rank} badges={badges} /></Suspense>
       )}
       <dl className={styles.record}>
         {data.achievementsTotal ? (

@@ -33,4 +33,13 @@ describe('eventVisuals', () => {
     expect(visuals.drained.get('p1')).toBe(2);
     expect(visuals.healed.get('p1')).toBe(2);
   });
+
+  test('combat damage marks where hit sparks burst, once per source and target', () => {
+    const visuals = eventVisuals([
+      event({ kind: 'DAMAGE', targetId: 'p1', sourceId: 'goblin', amount: 2, combat: true }),
+      event({ kind: 'DAMAGE', targetId: 'p1', sourceId: 'goblin', amount: 1, combat: true }),
+      event({ kind: 'DAMAGE', targetId: 'bear', sourceId: 'bolt', amount: 3 }),
+    ]);
+    expect(visuals.hits).toEqual([{ from: 'goblin', to: 'p1' }]);
+  });
 });

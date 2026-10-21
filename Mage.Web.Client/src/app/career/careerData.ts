@@ -83,6 +83,11 @@ export function useCareerMasteries(enabled: boolean) {
   return useQuery({ queryKey: ['career', 'masteries'], queryFn: () => api.careerMasteries(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
 }
 
+/** The achievement hall: every achievement with its tiers and holders, points and rank, the latest earned (B304). */
+export function useCareerHall(enabled: boolean) {
+  return useQuery({ queryKey: ['career', 'hall'], queryFn: () => api.careerHall(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
+}
+
 /** Today (UTC): wins, the daily wins ladder and the day's first bonuses. */
 export function useCareerDaily(enabled: boolean) {
   return useQuery({ queryKey: ['career', 'daily'], queryFn: () => api.careerDaily(), enabled: useSignedIn() && enabled, staleTime: 0 });

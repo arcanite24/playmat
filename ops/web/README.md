@@ -265,6 +265,21 @@ other person played; events against the AI pay XP only. `ProgressionBalanceTest`
 and heavy player through all of it; run it with `-Dxmage.progressionReport=true` to print the sheet after changing the
 numbers.
 
+Cosmetics and achievements. `career/cosmetics.json` is the one catalog of what progression can give (about 250 items:
+avatars, titles, plate frames, sleeves, playmats, companions, emote sets, attack-arrow colours, hit sparks, victory
+stamps and basic land styles), each with its English and Spanish name, rarity and how it looks; the app reads it with
+`careerCosmetics`. Where an item comes from is read from the content that gives it (`levels.json`, `achievements.json`,
+the campaigns), or from its own `mastery` and `rank` for mastery rewards; a test fails when an item comes from nowhere
+or the content gives an item the catalog lacks. The supporters' thank-you set stays outside it. Painted pictures come
+from the art pipeline (`Mage.Web.Client/art`, `node art/generate.mjs <type>`). Achievements (`achievements.json`) are
+single or tiered: a tiered row has bronze, silver, gold and mythic targets, each with its own pay and points, stored as
+`<id>:<tier>`. Points add up to named ranks, and anyone can see how many players have each tier in the achievement
+hall. On the first start after this update, the server credits each player's games from the table records it already
+keeps (games and wins by kind and format, best-of-three matches won, events and days played) so achievements don't
+start from zero; it runs once (the `history_credit` key in `career.db`'s `meta` table) and only ever raises counters.
+Quick emotes in a match (`gameEmote`) go to everyone at the table, at most one every 2.5 seconds per player, and only
+from sets the account owns; players can mute their opponents' emotes in Settings.
+
 An account's page under Accounts shows its progression: level, XP, coins, the last 50 counted games with kind, pay and
 why, and who it hit the daily pair cap with in the last 14 days. Admins can take back what a game paid (XP and coins,
 never below zero coins); it goes in the audit log as `career.revoke`.

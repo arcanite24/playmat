@@ -57,7 +57,8 @@
 
 /*
  * an attack: a heavy oxblood stroke with an ember glow, and a bright pulse running toward the target. Glow, body and
- * pulse are three layers; the pulse layer has no filter, so its marching repaints nothing heavy.
+ * pulse are three layers; the pulse layer has no filter, so its marching repaints nothing heavy. A player's earned
+ * arrow color (B300) sets --attack and --attack-flow on the layers' group: the same weights, another ink.
  */
 .attack {
   fill: none;
@@ -66,19 +67,19 @@
 }
 
 .attackGlow {
-  stroke: color-mix(in srgb, var(--oxblood-lit) 35%, transparent);
+  stroke: color-mix(in srgb, var(--attack, var(--oxblood-lit)) 35%, transparent);
   stroke-width: 22;
   filter: blur(6px);
 }
 
 .attackBody {
-  stroke: var(--oxblood-lit);
+  stroke: var(--attack, var(--oxblood-lit));
   stroke-width: 9;
   filter: drop-shadow(0 3px 4px rgb(var(--shade-rgb) / 0.65));
 }
 
 .attackFlow {
-  stroke: var(--oxblood-ink);
+  stroke: var(--attack-flow, var(--oxblood-ink));
   stroke-width: 3;
   stroke-dasharray: 18 70;
   opacity: 0.85;

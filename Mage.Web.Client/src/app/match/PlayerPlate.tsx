@@ -4,7 +4,10 @@ import { COMMANDER_DAMAGE_LETHAL } from '../../core/game/commander';
 import { POOL_MANA, poolId } from '../../core/game/payment';
 import { ROPE_SECONDS, ropeSecondsLeft, ropeVisible } from '../../core/game/rope';
 import type { PlayerLook, PlayerView } from '../../protocol/generated/views';
-import { CAREER_AVATARS, titleLabel } from '../career/progressModel';
+import { ShowcaseBadges } from '../career/LookParts';
+import { PlateFrame } from '../career/PlateFrame';
+import { titleColor, titleName } from '../career/progressModel';
+import { useCatalogItem } from '../ui/cosmeticsCatalog';
 import { useT } from '../i18n';
 import './matchMessages';
 import { ManaCost } from '../ui/ManaCost';
@@ -106,7 +109,10 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
   // the player's sigil from their profile, or their initial
   const initial = sigilOf(player.userData?.avatarId) ?? (player.name ?? '?').slice(0, 1).toUpperCase();
   // a Career avatar, drawn in its colours, replaces the initial
-  const crest = look?.avatar ? CAREER_AVATARS[look.avatar] : undefined;
+  const avatar = useCatalogItem('avatar', look?.avatar);
+  const crest = avatar?.path ? { light: avatar.light ?? '#7a7466', dark: avatar.dark ?? '#22201b', path: avatar.path } : undefined;
+  // the supporter ring, when worn, is the plate's frame; otherwise an earned one (B296) is drawn round the disc
+  const supporterRing = look?.frame === 'supporter-ring';
 
   return (
     <div
@@ -135,24 +141,26 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
       }}
       data-object-id={player.playerId}
     >
-      <div
-        className={[styles.avatar, look?.frame === 'supporter-ring' ? styles.ring : ''].join(' ')}
-        style={crest ? ({ '--crest-light': crest.light, '--crest-dark': crest.dark } as CSSProperties) : undefined}
-        data-crest={crest ? '' : undefined}
-      >
-        {crest ? (
-          <svg className={styles.crest} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d={crest.path} />
-          </svg>
-        ) : (
-          <span aria-hidden="true">{initial}</span>
-        )}
-        {ticking && (
-          <svg className={styles.rope} viewBox="0 0 100 100" role="img" aria-label={`${Math.ceil(timeLeft)} seconds left`}>
-            <circle cx="50" cy="50" r="47" pathLength={ROPE_SECONDS} strokeDasharray={`${timeLeft} ${ROPE_SECONDS}`} />
-          </svg>
-        )}
-      </div>
+      <PlateFrame frame={supporterRing ? null : look?.frame}>
+        <div
+          className={[styles.avatar, supporterRing ? styles.ring : ''].join(' ')}
+          style={crest ? ({ '--crest-light': crest.light, '--crest-dark': crest.dark } as CSSProperties) : undefined}
+          data-crest={crest ? '' : undefined}
+        >
+          {crest ? (
+            <svg className={styles.crest} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d={crest.path} />
+            </svg>
+          ) : (
+            <span aria-hidden="true">{initial}</span>
+          )}
+          {ticking && (
+            <svg className={styles.rope} viewBox="0 0 100 100" role="img" aria-label={`${Math.ceil(timeLeft)} seconds left`}>
+              <circle cx="50" cy="50" r="47" pathLength={ROPE_SECONDS} strokeDasharray={`${timeLeft} ${ROPE_SECONDS}`} />
+            </svg>
+          )}
+        </div>
+      </PlateFrame>
       <div className={styles.info}>
         <div className={styles.name}>
           {player.name}
@@ -166,7 +174,13 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
           )}
           {outOfRange && !out && <span className={styles.range} title="Outside your range of influence">Out of range</span>}
         </div>
-        {look?.title && <div className={styles.title}>{titleLabel(look.title)}</div>}
+        {(look?.title || !!look?.badges?.length) && (
+          // the title in its rarity's colour (B299), then the badges the player shows off
+          <div className={styles.titleRow}>
+            {look?.title && <span className={styles.title} style={{ color: titleColor(look.title) }}>{titleName(look.title)}</span>}
+            <ShowcaseBadges badges={look?.badges} />
+          </div>
+        )}
         <div className={styles.lifeRow}>
           {out ? (
             <span className={[styles.life, styles.outLife].join(' ')}>{t('match.plate.out')}</span>

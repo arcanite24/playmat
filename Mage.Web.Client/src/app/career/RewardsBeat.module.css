@@ -55,6 +55,48 @@
   font-size: var(--text-sm);
 }
 
+/* a tier reached, with a pip in its metal */
+.tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tier i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--metal, var(--brass));
+}
+
+.tier[data-tier='bronze'] {
+  --metal: #c07a45;
+}
+
+.tier[data-tier='silver'] {
+  --metal: #c9d1d9;
+}
+
+.tier[data-tier='gold'] {
+  --metal: #e8c158;
+}
+
+.tier[data-tier='mythic'] {
+  --metal: #ec6a35;
+}
+
+/* the game's moments, a short line each */
+.moments {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
 @keyframes rise {
   from {
     opacity: 0;

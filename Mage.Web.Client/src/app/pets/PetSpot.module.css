@@ -72,3 +72,76 @@
     display: none;
   }
 }
+
+/* an earned companion: its painted still, bobbing gently on the spot, facing the middle of the table */
+.still {
+  position: absolute;
+  inset: 8% 10% 12%;
+  display: grid;
+  place-items: center;
+  animation: bob 2.6s ease-in-out infinite;
+}
+
+.still img,
+.paw {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform: scaleX(var(--facing, 1));
+  filter: drop-shadow(0 3px 4px rgb(0 0 0 / 0.45));
+}
+
+.paw {
+  width: 60%;
+  height: 60%;
+  color: var(--ink-soft);
+}
+
+/* clicked: a hop with a little squash on landing, then back to bobbing */
+.hop {
+  animation: hop 700ms cubic-bezier(0.3, 0.7, 0.4, 1), bob 2.6s ease-in-out 700ms infinite;
+}
+
+.companion:hover .still {
+  animation-duration: 1.4s;
+}
+
+@keyframes bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -5%;
+  }
+}
+
+@keyframes hop {
+  0% {
+    translate: 0 0;
+    scale: 1 1;
+  }
+  15% {
+    translate: 0 2%;
+    scale: 1.08 0.9;
+  }
+  45% {
+    translate: 0 -28%;
+    scale: 0.95 1.06;
+  }
+  80% {
+    translate: 0 0;
+    scale: 1.06 0.94;
+  }
+  100% {
+    translate: 0 0;
+    scale: 1 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .still,
+  .hop {
+    animation: none;
+  }
+}

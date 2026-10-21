@@ -49,6 +49,12 @@ export default {
   'match.end.defeat': 'Defeat',
   'match.end.draw': 'Draw',
   'match.end.over': 'Game over',
+
+  // quick emotes (B298)
+  'match.emote.open': 'Emotes',
+  'match.emote.wait': 'One emote every few seconds',
+  'match.emote.failed': "That emote didn't go through.",
+  'match.emote.bubble': '{name}: {phrase}',
   'match.end.wonGame': 'You won the game.',
   'match.end.lostGame': 'You lost the game.',
   'match.end.drawGame': 'The game is a draw.',

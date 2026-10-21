@@ -90,6 +90,8 @@ export default {
   'settings.autoDismissReveals.detail': "Revealed cards fade after a few seconds, unless you hover them. The log keeps them.",
   'settings.compactBoard': "Smaller cards on the battlefield",
   'settings.compactBoard.detail': "Draws permanents smaller, so big boards and multiplayer seats have more room. Crowded rows still wrap or overlap to fit.",
+  'settings.muteEmotes': "Mute opponents' emotes",
+  'settings.muteEmotes.detail': "Other players' emotes and stickers don't show at their seats. Yours still do.",
   'settings.autoTarget': 'Pick obvious targets',
   'settings.autoTarget.detail': 'Chooses the target when only one is legal.',
   'settings.handRequests': 'Opponents may ask to see my hand',

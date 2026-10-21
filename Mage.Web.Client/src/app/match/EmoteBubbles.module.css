@@ -37,3 +37,28 @@
     animation: fade 3.2s linear forwards;
   }
 }
+
+/* a quick emote (B298): up for about two and a half seconds, a painted sticker sits on the bubble without a fill */
+.quick {
+  animation: pop var(--dur-place) var(--ease-place), fade 2.6s linear forwards;
+}
+
+.quick:has(.sticker) {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.sticker {
+  display: block;
+  width: 132px;
+  height: 132px;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px rgb(var(--shade-rgb) / 0.55));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick {
+    animation: fade 2.6s linear forwards;
+  }
+}

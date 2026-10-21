@@ -10,6 +10,8 @@ export interface EventVisuals {
   drained: Map<string, number>;
   /** noncombat damage, drawn from its source to what it hit */
   bolts: { from: string; to: string }[];
+  /** combat damage, once per source and target: where an earned hit spark bursts (B300) */
+  hits: { from: string; to: string }[];
 }
 
 function add(map: Map<string, number>, id: string | undefined, amount: number | undefined) {
@@ -18,9 +20,10 @@ function add(map: Map<string, number>, id: string | undefined, amount: number | 
 }
 
 export function eventVisuals(events: readonly GameEventView[]): EventVisuals {
-  const visuals: EventVisuals = { damage: new Map(), healed: new Map(), drained: new Map(), bolts: [] };
+  const visuals: EventVisuals = { damage: new Map(), healed: new Map(), drained: new Map(), bolts: [], hits: [] };
   const lost = new Map<string, number>();
   const bolted = new Set<string>();
+  const struck = new Set<string>();
   for (const event of events) {
     switch (event.kind) {
       case 'DAMAGE':
@@ -30,6 +33,13 @@ export function eventVisuals(events: readonly GameEventView[]): EventVisuals {
           if (!bolted.has(key)) {
             bolted.add(key);
             visuals.bolts.push({ from: event.sourceId, to: event.targetId });
+          }
+        }
+        if (event.combat && event.amount && event.sourceId && event.targetId) {
+          const key = `${event.sourceId}>${event.targetId}`;
+          if (!struck.has(key)) {
+            struck.add(key);
+            visuals.hits.push({ from: event.sourceId, to: event.targetId });
           }
         }
         break;

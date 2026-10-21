@@ -1,30 +1,57 @@
+import { catalogOf, onCatalog } from './cosmeticsCatalog';
+
 /**
  * Career sleeves: matte dyes like the free ones, so they read the same around card art, each with a painted card back
  * from the art pipeline (art/specs/sleeve.json). Decks store a sleeve as its colour, so the back is found by colour.
+ * Which sleeves exist comes from the cosmetics catalog (ui/cosmeticsCatalog.ts); this map is filled from it, and
+ * refilled when a new catalog arrives, so the card backs can look a colour up without React.
  */
-export const CAREER_SLEEVES: Record<string, string> = {
-  copper: '#6e3f24',
-  silver: '#5b6168',
-  gold: '#7a5f1c',
-  obsidian: '#121014',
-  foil: '#4a3d78',
-  // a school's graduates
-  'school-pauper': '#3d5a36',
-  'school-commander': '#4b2a5e',
-  'school-limited': '#66583c',
-  'school-pioneer': '#2c4a66',
-  'school-standard': '#22605b',
-  'school-modern': '#6a2a2c',
-  'school-legacy': '#25305e',
-  'school-vintage': '#4f4a1e',
-  'school-brawl': '#7b3550',
-};
+export const CAREER_SLEEVES: Record<string, string> = {};
+
+onCatalog((items) => {
+  for (const id of Object.keys(CAREER_SLEEVES)) delete CAREER_SLEEVES[id];
+  for (const sleeve of catalogOf('sleeve', items)) {
+    if (sleeve.id && sleeve.color) CAREER_SLEEVES[sleeve.id] = sleeve.color.toLowerCase();
+  }
+});
 
 /** The Career sleeve a color belongs to, if it's one. */
 export function careerSleeveOf(color: string | undefined): string | null {
   if (!color) return null;
   const lower = color.toLowerCase();
   return Object.keys(CAREER_SLEEVES).find((id) => CAREER_SLEEVES[id] === lower) ?? null;
+}
+
+/**
+ * A deck sleeve can be "random": each game it wears one of the player's Career sleeves (any free colour while they
+ * have none). The pick is steady through a game, so the server, the stage and the deck box agree: it hangs on the
+ * game's table (setRandomSeed, from support/lookSync.ts) and the deck. The sleeves to pick from come from whoever knows
+ * the account's unlocks (provideRandomSleeves, also lookSync).
+ */
+export const RANDOM_SLEEVE = 'random';
+
+let randomSeed = '';
+let randomPool: () => string[] = () => [];
+
+export function setRandomSeed(seed: string): void {
+  randomSeed = seed;
+}
+
+export function provideRandomSleeves(pool: () => string[]): void {
+  randomPool = pool;
+}
+
+/** The sleeve a random deck wears this game: the same seed always picks the same one. */
+export function pickRandomSleeve(seed: string, pool: readonly string[]): string {
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return pool[hash % pool.length];
+}
+
+/** The colour a random deck wears now, from the owned Career sleeves or else the free ones. */
+export function randomSleeveFor(deckId: string, free: readonly string[]): string {
+  const owned = randomPool();
+  return pickRandomSleeve(`${randomSeed}|${deckId}`, owned.length ? owned : free);
 }
 
 /**

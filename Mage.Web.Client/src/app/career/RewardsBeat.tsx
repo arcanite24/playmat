@@ -3,7 +3,7 @@ import { api } from '../connection';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import { Button } from '../ui/Button';
-import { masteryName } from './progressModel';
+import { masteryName, momentLine, resultTier } from './progressModel';
 import { useProgressNotices } from './progressionEvents';
 import styles from './RewardsBeat.module.css';
 
@@ -29,6 +29,12 @@ export default function RewardsBeat({ gameId, onDetails }: { gameId: string; onD
   const levelUp = (paid.levelAfter ?? 0) > (paid.levelBefore ?? 0);
   const quests = (paid.quests ?? []).filter((quest) => quest.completed).length;
   const achievements = paid.achievements?.length ?? 0;
+  // tiers reached get their metal here; the rest are counted below
+  const tiered = (paid.achievements ?? []).flatMap((achievement) => {
+    const tier = resultTier(achievement);
+    return tier ? [{ achievement, tier }] : [];
+  });
+  const moments = (paid.moments ?? []).slice(0, 4);
 
   return (
     <div className={styles.beat} role="status">
@@ -52,6 +58,20 @@ export default function RewardsBeat({ gameId, onDetails }: { gameId: string; onD
       {(paid.bonuses?.length ?? 0) > 0 && (
         <ul className={styles.bonuses}>
           {paid.bonuses!.map((bonus, index) => <li key={index}>{bonus.text}</li>)}
+        </ul>
+      )}
+      {tiered.length > 0 && (
+        <ul className={styles.bonuses}>
+          {tiered.map(({ achievement, tier }) => (
+            <li key={`${achievement.id}-${achievement.tier}`} className={styles.tier} data-tier={tier}>
+              <i aria-hidden="true" />{achievement.name} · {t(`career.hall.tier.${tier}`)}
+            </li>
+          ))}
+        </ul>
+      )}
+      {moments.length > 0 && (
+        <ul className={styles.moments} aria-label={t('career.moments.title')}>
+          {moments.map((moment, index) => <li key={`${moment.id}-${index}`}>{momentLine(t, moment)}</li>)}
         </ul>
       )}
       {(quests > 0 || achievements > 0) && (
