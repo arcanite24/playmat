@@ -307,8 +307,8 @@ function HostDialog({ open, onOpenChange, deckId }: { open: boolean; onOpenChang
         throw new Error(`Your deck is not legal in ${formatRules(deckType).label}.`);
       }
       if (aiSeats > 0) {
-        // the AI brings starter decks of the right kind; a format they don't fit gets a copy of yours
-        const rivals = await aiDecks(null, aiSeats, commander).catch(() => []);
+        // the AI brings the format's own decks, or starter decks of the right kind; a deck that doesn't fit gets a copy of yours
+        const rivals = await aiDecks(null, aiSeats, commander, deckType).catch(() => []);
         for (let seat = 1; seat <= aiSeats; seat++) {
           const rival = rivals[seat - 1] ? toWire(rivals[seat - 1]) : wire;
           const joined = await api.roomJoinTable(roomId, table.tableId, `AI ${seat}`, 'COMPUTER_MAD', 4, rival, password);

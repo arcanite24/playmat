@@ -1,7 +1,7 @@
 import { ChevronRight, SlidersHorizontal, Trophy } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rosterOf, sleeveFor, useDecks } from '../stores/decks';
+import { META_PREFIX, rosterOf, sleeveFor, useDecks } from '../stores/decks';
 import { useCoach } from '../stores/coach';
 import { usePlay } from '../stores/play';
 import { useT, type MessageKey } from '../i18n';
@@ -157,7 +157,7 @@ export function HomeScreen() {
           {mode === 'ai' && (
             <button type="button" className={styles.aiSetup} onClick={() => setAiOpen(true)} disabled={busy}>
               <SlidersHorizontal size={16} aria-hidden="true" />
-              <span>{describeAi(t, play.aiOptions, roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name ?? null)}</span>
+              <span>{describeAi(t, play.aiOptions, roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name ?? decks.metaDecks.find((deck) => META_PREFIX + deck.file === play.aiOptions.opponentDeckId)?.name ?? null)}</span>
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
             </button>
           )}

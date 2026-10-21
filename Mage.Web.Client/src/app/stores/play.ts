@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api } from '../connection';
-import { useDecks, STARTER_PREFIX } from './decks';
+import { useDecks, META_PREFIX, STARTER_PREFIX } from './decks';
 import { useEvents } from './events';
 import { warmCards } from '../ui/imageCache';
 import { useSession } from './session';
@@ -12,6 +12,7 @@ import { queryClient } from '../queries';
 import { seatableAiType } from '../screens/aiSetup';
 import type { DeckCardLists } from '../../core/decks/types';
 import { formatRules, gameTypesFor, isCommanderFormat } from '../../core/decks/formats';
+import { pickMetaDeck } from '../../core/decks/metaDecks';
 import { notify } from './toasts';
 import { useCoach } from './coach';
 
@@ -84,8 +85,8 @@ interface PlayState {
   cancel(): Promise<void>;
 }
 
-async function starterDeck(file: string, name: string): Promise<DeckCardLists> {
-  const response = await fetch(`/starter-decks/${encodeURIComponent(file)}`);
+async function deckFile(path: string, name: string): Promise<DeckCardLists> {
+  const response = await fetch(path);
   const text = response.ok ? await response.text() : '';
   if (!text || /^\s*</.test(text)) throw new Error(`Couldn't load the AI's deck (${name}).`);
   const { DeckSerializer } = await import('../../core/decks/DeckSerializer');
@@ -94,23 +95,39 @@ async function starterDeck(file: string, name: string): Promise<DeckCardLists> {
   return deck;
 }
 
+const starterDeck = (file: string, name: string) => deckFile(`/starter-decks/${encodeURIComponent(file)}`, name);
+const metaDeck = (file: string, name: string) => deckFile(`/meta-decks/${encodeURIComponent(file)}`, name);
+
 /**
- * Decks for the AI seats: the one picked in the AI settings for the first seat, random starter decks of the same kind
- * (commander or not) for the others, never the same starter twice while there are others.
+ * Decks for the AI seats: the one picked in the AI settings for the first seat, then, for a game played in a format,
+ * that format's decks (the most played ones more often); otherwise, or when they run out, random starter decks of the
+ * same kind (commander or not). Never the same deck twice while there are others.
  */
-export async function aiDecks(chosenId: string | null, count: number, commander: boolean): Promise<DeckCardLists[]> {
+export async function aiDecks(chosenId: string | null, count: number, commander: boolean, format: string | null = null): Promise<DeckCardLists[]> {
   const decks: DeckCardLists[] = [];
-  if (chosenId && !chosenId.startsWith(STARTER_PREFIX)) {
+  if (chosenId && !chosenId.startsWith(STARTER_PREFIX) && !chosenId.startsWith(META_PREFIX)) {
     const saved = await deckStorage.loadDeck(chosenId);
     if (saved && isCommanderFormat(saved.format) === commander) decks.push(saved);
   }
-  const { starters } = useDecks.getState();
+  const { starters, metaDecks } = useDecks.getState();
+  const taken = new Set<string>();
+  const chosenMeta = metaDecks.find((deck) => META_PREFIX + deck.file === chosenId && isCommanderFormat(deck.format) === commander);
+  if (decks.length === 0 && chosenMeta) {
+    taken.add(chosenMeta.file);
+    decks.push(await metaDeck(chosenMeta.file, chosenMeta.name));
+  }
   const fitting = starters.filter((starter) => isCommanderFormat(starter.format) === commander);
   const chosenFile = chosenId?.startsWith(STARTER_PREFIX) ? chosenId.slice(STARTER_PREFIX.length) : null;
   const chosen = fitting.find((starter) => starter.file === chosenFile);
   if (decks.length === 0 && chosen) decks.push(await starterDeck(chosen.file, chosen.name));
   const pool = fitting.filter((starter) => starter !== chosen);
   while (decks.length < count) {
+    const meta = format ? pickMetaDeck(metaDecks, format, taken) : null;
+    if (meta) {
+      taken.add(meta.file);
+      decks.push(await metaDeck(meta.file, meta.name));
+      continue;
+    }
     const candidates = pool.length > 0 ? pool : fitting;
     if (candidates.length === 0) throw new Error(commander ? 'No commander deck is available for the AI.' : 'No deck available for the AI.');
     const starter = candidates.splice(Math.floor(Math.random() * candidates.length), 1)[0];
@@ -179,7 +196,7 @@ export const usePlay = create<PlayState>((set, get) => ({
       const seats = opponents + 1;
       const gameType = gameTypeFor(deckType, seats, await api.getGameTypes());
       const playerDeck = toWire(deck);
-      const rivalDecks = practice ? [goldfishDeck(commander)] : await aiDecks(options.opponentDeckId, opponents, commander);
+      const rivalDecks = practice ? [goldfishDeck(commander)] : await aiDecks(options.opponentDeckId, opponents, commander, options.rules === 'deck' ? deckType : null);
       const rivals = await Promise.all(rivalDecks.map(async (rival) => {
         const wire = toWire(rival);
         if (options.rules !== 'deck') return wire;
