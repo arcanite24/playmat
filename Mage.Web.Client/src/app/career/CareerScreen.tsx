@@ -13,7 +13,7 @@ import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { achievementMoment, useCeremonies, type CeremonyMoment } from './ceremonies';
 import {
-  importCareer, rerollQuest, setCountAiGames, startCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerOpponents,
+  importCareer, rerollQuest, setShowProgress, startCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerOpponents,
   useCareerQuests, useCareerShop, useCareerStarters, useCareerState, useCareerUnlocks, useCareerWeekly,
 } from './careerData';
 import { useCampaigns, useChallenge, useGauntlet, useHordes, useLimited, usePuzzles } from './careerModesData';
@@ -40,8 +40,9 @@ export function CareerScreen() {
   const navigate = useNavigate();
   const state = useCareerState();
   const optedIn = useSettings((settings) => settings.settings.careerOptIn);
-  // a Career opened elsewhere counts as opted in on this browser too (its cosmetics show in Decks and Settings)
-  const hasProfile = !!state.data?.profile;
+  // a Career opened elsewhere counts as opted in on this browser too (its cosmetics show in Decks and Settings);
+  // every account has progression, so it's the collection that says a Career was opened
+  const hasProfile = !!state.data?.profile?.collection;
   useEffect(() => {
     if (hasProfile && !optedIn) useSettings.getState().update({ careerOptIn: true });
   }, [hasProfile, optedIn]);
@@ -64,7 +65,7 @@ export function CareerScreen() {
     );
   }
   const profile = state.data.profile;
-  if (profile) return <CareerHub profile={profile} />;
+  if (profile?.collection) return <CareerHub profile={profile} />;
   if (!optedIn) return <Intro />;
   return <StarterPicker />;
 }
@@ -599,15 +600,15 @@ export function QuestList({ quests }: { quests: CareerQuests | undefined }) {
   );
 }
 
-/** Career's own setting: whether regular games against the AI count for quests and achievements. */
-export function CountAiGames({ profile }: { profile: CareerProfile }) {
+/** Whether progression shows: the header, Today on Home and rewards after games. Games count either way. */
+export function ShowProgress({ profile }: { profile: CareerProfile }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
 
-  async function change(count: boolean) {
+  async function change(show: boolean) {
     setBusy(true);
     try {
-      await setCountAiGames(count);
+      await setShowProgress(show);
     } catch (reason) {
       notify(t('career.settings.failed'), reason instanceof Error ? reason.message : String(reason), 'error');
     } finally {
@@ -617,10 +618,10 @@ export function CountAiGames({ profile }: { profile: CareerProfile }) {
 
   return (
     <label className={styles.setting}>
-      <input type="checkbox" checked={!!profile.countAiGames} disabled={busy} onChange={(event) => void change(event.target.checked)} />
+      <input type="checkbox" checked={profile.showProgress !== false} disabled={busy} onChange={(event) => void change(event.target.checked)} />
       <span>
-        {t('career.settings.countAi')}
-        <small>{t('career.settings.countAiNote')}</small>
+        {t('career.settings.showProgress')}
+        <small>{t('career.settings.showProgressNote')}</small>
       </span>
     </label>
   );

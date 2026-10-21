@@ -252,8 +252,8 @@ export default {
   'career.look.everywhereNoCareer': 'What you wear here shows in every game, wherever others see you.',
 
   'career.settings': 'Settings',
-  'career.settings.countAi': 'Count regular games against the AI for quests and achievements',
-  'career.settings.countAiNote': "They don't pay coins for the match. Practice and goldfish games never count.",
+  'career.settings.showProgress': 'Show progression',
+  'career.settings.showProgressNote': 'Your level, Today on Home and what each game paid. Games still count while it’s hidden. Kept with your account.',
   'career.settings.failed': "The setting couldn't be saved",
 
   'career.rewards.title': 'Rewards',

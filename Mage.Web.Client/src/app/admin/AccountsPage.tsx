@@ -6,6 +6,7 @@ import type { AccountDetail, AccountRow, StaffResetCode } from '../../protocol/g
 import { downloadText } from '../ui/download';
 import { Button } from '../ui/Button';
 import { Field } from '../ui/Field';
+import { AccountProgression } from './AccountProgression';
 import { ConfirmAction } from './ConfirmAction';
 import { atLeast, describeAge, formatDate, MUTE_CHOICES, type StaffRole } from './adminFormat';
 import styles from './AdminScreen.module.css';
@@ -260,6 +261,8 @@ function Account({ api, role, name, onBack }: { api: AdminApi; role: StaffRole; 
           </ul>
         </section>
       )}
+
+      <AccountProgression api={api} role={role} name={account.name ?? name} now={now} />
 
       <section className={styles.block} aria-labelledby="account-audit">
         <h2 id="account-audit">History</h2>

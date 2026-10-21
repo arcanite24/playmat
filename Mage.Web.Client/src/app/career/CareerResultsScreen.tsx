@@ -38,7 +38,8 @@ export function CareerRewardsScreen() {
   const back = safeBack(params.get('back'));
   const state = useCareerState();
   const profile = state.data?.profile;
-  const counts = career || !!profile?.countAiGames;
+  // every game counts now; a player who hid progression skips the screen (B312)
+  const counts = career || profile?.showProgress !== false;
   const result = useQuery({
     queryKey: ['careerResult', key ?? 'latest'],
     queryFn: () => fetchResult(() => api.careerGameResult(key)),

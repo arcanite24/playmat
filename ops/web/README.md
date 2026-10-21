@@ -237,6 +237,7 @@ The Settings tab (admins) changes these at once, without a restart; they are kep
 |---|---|
 | New accounts | anyone can register, or invite only: an invite link, a place on the allowlist, or an approved access request |
 | Career | on or off; `XMAGE_CAREER=off` turns it off for good |
+| Progression XP / coins | 0 to 500 percent (default 100): scales the XP and coins every game pays (see [Progression](#progression)) |
 | AI opponents per table | 0 to 15, or empty for the config's `maxAiOpponents` |
 | Time to answer | 30 to 3600 seconds, or the config's `maxSecondsIdle` |
 | Batch games at once | 0 to 16 AI-against-AI games running together for players' batches (default 1); 0 stops the runner |
@@ -245,6 +246,20 @@ The Settings tab (admins) changes these at once, without a restart; they are kep
 | Support (owner only) | on or off; the monthly goal in cents (default 4000, $40); the Ko-fi page; the GitHub Sponsors page; what support pays for; whether the Discord thank-you says the amount. See [Support and the monthly goal](#support-and-the-monthly-goal) |
 
 The Discord part also says whether each webhook is set (the address stays on the server) and posts a test message on request.
+
+### Progression
+
+Every counted game outside Career's own tables gives each human seat XP, once: against the AI (more for stronger AI),
+against people, in a pod (more for more players) and in events. A game that ends before turn 3 pays nothing, and two
+people stop paying each other after five games together in a UTC day (events aren't capped). Coins come from the daily
+wins ladder, and the first win and the first game against a person each day pay extra XP. The numbers live in
+`Mage.Server/src/main/resources/career/rewards.json`; the two Settings percentages scale them. Practice tools, goldfish,
+puzzles and test mode never pay. Progress, the Career deck and each player's **Show progression** choice are kept per
+account in `career.db`, and Career tables survive a restart for a day.
+
+An account's page under Accounts shows its progression: level, XP, coins, the last 50 counted games with kind, pay and
+why, and who it hit the daily pair cap with in the last 14 days. Admins can take back what a game paid (XP and coins,
+never below zero coins); it goes in the audit log as `career.revoke`.
 
 ### Single player
 

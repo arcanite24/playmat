@@ -850,8 +850,8 @@ const es: Catalog = {
   'career.look.everywhereNoCareer': 'Lo que lleves aquí se ve en todas las partidas, dondequiera que otros te vean.',
 
   'career.settings': 'Ajustes',
-  'career.settings.countAi': 'Contar las partidas normales contra la IA para misiones y logros',
-  'career.settings.countAiNote': 'No pagan monedas por la partida. Las partidas de práctica y contra el goldfish nunca cuentan.',
+  'career.settings.showProgress': 'Mostrar la progresión',
+  'career.settings.showProgressNote': 'Tu nivel, Hoy en el inicio y lo que pagó cada partida. Las partidas cuentan aunque esté oculta. Se guarda con tu cuenta.',
   'career.settings.failed': 'No se pudo guardar el ajuste',
 
   'career.rewards.title': 'Recompensas',

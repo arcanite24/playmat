@@ -24,6 +24,7 @@ import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
 import { useAutomation, useSettings } from '../stores/settings';
+import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
@@ -294,13 +295,13 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // games inside an event lead back to the event; others back to Play
   const eventId = useEvents((events) => events.currentTournamentId);
   const returnPath = usePlay((play) => play.returnPath);
-  // Career matches come back through their rewards (the return path); a counted game against the AI shows what it
-  // paid on the way out too
+  // Career matches come back through their rewards (the return path); any other counted game shows what it paid on
+  // the way out too, unless the player hid progression (B265, B312)
   const career = !!returnPath?.startsWith('/career');
   const vsAi = board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false);
   useOpponentVoice(state, myId, career);
   const rewardsAfter = mode === 'play' && !!state.gameOver && !eventId && !career
-    && vsAi && !usePlay.getState().lastOptions.practice && useSettings.getState().settings.careerOptIn;
+    && !(vsAi && usePlay.getState().lastOptions.practice) && progressionShown();
   // a match against people (not in an event or Career) was found on Tables, and leads back there
   const vsPeople = mode === 'play' && !eventId && !career && board.opponents.length > 0 && !vsAi;
   const exit = useCallback((rewards: boolean) => {

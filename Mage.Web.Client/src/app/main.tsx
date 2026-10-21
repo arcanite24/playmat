@@ -24,6 +24,7 @@ import './stores/lobby';
 import './stores/settings';
 import './stores/social';
 import './stores/toasts';
+import './career/progressionEvents';
 import { NATIVE_APP } from './brand';
 
 /** Screens that need a signed-in player; also opens games when the server starts them. */

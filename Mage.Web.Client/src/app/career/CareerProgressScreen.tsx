@@ -15,7 +15,7 @@ import { exportCareer, useCareerAchievements, useCareerLevels, useCareerLook, us
 import { exportFileName } from './careerModel';
 import { Art } from './Art';
 import { usePaintedArt, wildcardArt } from './careerArt';
-import { CareerAvatar, CountAiGames, ProgressBar } from './CareerScreen';
+import { CareerAvatar, ProgressBar, ShowProgress } from './CareerScreen';
 import { LevelMedallion } from './CareerShell';
 import { dealStyle } from './motion';
 import motion from './motion.module.css';
@@ -322,7 +322,7 @@ function Record({ profile, recent }: { profile: CareerProfile; recent: CareerPay
       </section>
       <section className={progress.shelfPanel} aria-labelledby="record-settings">
         <h3 id="record-settings">{t('career.settings')}</h3>
-        <CountAiGames profile={profile} />
+        <ShowProgress profile={profile} />
         <Button variant="print" size="sm" icon={<Download size={16} />} onClick={() => void exportNow()}>{t('career.export')}</Button>
       </section>
     </div>

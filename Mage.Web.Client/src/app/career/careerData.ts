@@ -93,7 +93,7 @@ export async function startCareer(starterId: string, starterName: string): Promi
   const profile = await api.careerStart(starterId);
   const user = useSession.getState().userName;
   const deck = await fetchStarterDeck(starterId, starterName).catch(() => null);
-  if (deck) saveCareerDeck(user, deck);
+  if (deck) await saveCareerDeck(user, deck);
   setProfile(profile);
   void queryClient.invalidateQueries({ queryKey: ['career'] });
 }
@@ -136,9 +136,14 @@ export async function rerollQuest(slot: number): Promise<CareerQuests> {
   return quests;
 }
 
-/** Whether regular games against the AI count for quests and achievements. */
-export async function setCountAiGames(count: boolean): Promise<void> {
-  setProfile(await api.careerCountAiGames(count));
+/** Whether the player sees progression (header, Today, rewards after games); kept with the account (B312). */
+export async function setShowProgress(show: boolean): Promise<void> {
+  setProfile(await api.careerShowProgress(show));
+}
+
+export function useProgressionShown(): boolean {
+  const state = useCareerState();
+  return !!state.data?.enabled && state.data.profile?.showProgress !== false;
 }
 
 export async function exportCareer(): Promise<string> {
