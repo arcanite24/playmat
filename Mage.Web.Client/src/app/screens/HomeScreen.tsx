@@ -10,7 +10,6 @@ import { DeckBox } from '../ui/DeckBox';
 import { MatPrint } from '../ui/MatPrint';
 import { storeCards } from '../ui/imageCache';
 import { DEVICE_PICTURES } from '../nativePictures';
-import { AiSettingsDialog } from './AiSettingsDialog';
 import { useImportDrop, useImportPaste } from '../decks/import/useImportShortcuts';
 import { openImport } from '../stores/importSheet';
 import { describeAi } from './aiSetup';
@@ -20,6 +19,8 @@ import styles from './HomeScreen.module.css';
 // the banner and its code form load only for a player whose address still needs confirming
 const EmailBanner = lazy(() => import('./EmailConfirm').then((module) => ({ default: module.EmailBanner })));
 // the month's server costs, on servers that take support
+// the AI settings load the first time they are opened, out of the entry chunk
+const AiSettingsDialog = lazy(() => import('./AiSettingsDialog').then((module) => ({ default: module.AiSettingsDialog })));
 const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
 type Mode = 'ai' | 'practice' | 'friend';
@@ -39,6 +40,9 @@ export function HomeScreen() {
   const play = usePlay();
   const [mode, setMode] = useState<Mode>('ai');
   const [aiOpen, setAiOpen] = useState(false);
+  // stays mounted once opened, so it can animate closed
+  const [aiLoaded, setAiLoaded] = useState(false);
+  if (aiOpen && !aiLoaded) setAiLoaded(true);
   const emailStatus = useEmailStatus().data;
   const emailUnconfirmed = !!emailStatus?.email && !emailStatus.verified && !!emailStatus.mail;
   const roster = useMemo(() => rosterOf(decks), [decks]);
@@ -193,7 +197,7 @@ export function HomeScreen() {
           {serverInfo?.support && <Suspense fallback={null}><SupportBar place="home" /></Suspense>}
         </div>
       </section>
-      <AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} />
+      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} /></Suspense>}
     </div>
   );
 }
