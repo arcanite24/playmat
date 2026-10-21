@@ -191,11 +191,25 @@ export function refreshCareer(): void {
   void queryClient.invalidateQueries({ queryKey: ['career'] });
 }
 
-/** The avatar and title a player shows in Career, among the ones unlocked; kept in this browser, per account. */
+/**
+ * The progression cosmetics a player wears, among the ones unlocked; kept in this browser, per account, and sent with
+ * the look (support/lookSync.ts) so opponents see them. Older saved looks have only the avatar and title.
+ */
 export interface CareerLook {
   avatar: string | null;
   title: string | null;
+  frame?: string | null;
+  pet?: string | null;
+  arrow?: string | null;
+  spark?: string | null;
+  stamp?: string | null;
+  lands?: string | null;
+  /** up to three showcase badges (career/badges.ts) */
+  badges?: string[];
 }
+
+/** fired when the look changes, so the look is sent again */
+export const CAREER_LOOK_EVENT = 'playmat:career-look';
 
 const LOOK_KEY = 'playmat.career.look';
 
@@ -212,5 +226,6 @@ export const useCareerLook = create<LookState>((set, get) => ({
     const looks = { ...get().looks, [name]: { ...current, ...patch } };
     writeJson(LOOK_KEY, looks);
     set({ looks });
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(CAREER_LOOK_EVENT));
   },
 }));
