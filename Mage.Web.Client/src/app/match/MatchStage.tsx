@@ -340,10 +340,14 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     if (payment?.cost && !(prompt?.kind === 'playMana' && prompt.isX)) {
       return { ...interaction, headline: payment.sourceName ? `Pay ${payment.cost} for ${payment.sourceName}` : `Pay ${payment.cost}` };
     }
+    // attackers go at the player on a click, so say how to send one at a planeswalker or battle instead
+    if (interaction.mode === 'declareAttackers' && automation.attackPlayerByDefault && attackDrop.targets.size > 0) {
+      return { ...interaction, headline: `${interaction.headline}. Drag one onto a planeswalker or battle to attack it` };
+    }
     if (interaction.mode !== 'target' || !/attacker to block/i.test(prompt?.text ?? '') || !lastBlocker) return interaction;
     const blocker = board.me?.front.flatMap((group) => group.members).find((card) => card.id === lastBlocker);
     return blocker ? { ...interaction, headline: `Which attacker does ${blocker.name} block?` } : interaction;
-  }, [interaction, prompt, board.me, lastBlocker, damageSplit, payment]);
+  }, [interaction, prompt, board.me, lastBlocker, damageSplit, payment, automation.attackPlayerByDefault, attackDrop.targets]);
   const pregame = !view?.step;
   const handIds = useMemo(() => new Set(hand.map((card) => card.id!)), [hand]);
   // the server names the pre-game choices (who starts, the London mulligan's bottom cards); older servers are recognized
