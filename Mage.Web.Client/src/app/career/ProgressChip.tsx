@@ -40,6 +40,7 @@ export default function ProgressChip() {
           </svg>
           <b>{level}</b>
         </span>
+        {(profile.renown ?? 0) > 0 && <span className={styles.coins} aria-hidden="true">★{profile.renown}</span>}
         <span className={styles.coins} aria-hidden="true"><Coins size={14} /> {formatNumber(profile.coins ?? 0)}</span>
         {packs > 0 && <span className={styles.packs} aria-hidden="true"><Package size={14} /> {packs}</span>}
         <span className={styles.pips} aria-hidden="true">

@@ -73,7 +73,8 @@ public class CareerProgressTest {
 
     @Test
     public void theContentIsComplete() {
-        assertEquals(30, progress.questTemplates().size(), "thirty quest templates");
+        assertTrue(progress.questTemplates().size() >= 90, "about ninety quest templates");
+        assertTrue(progress.questTemplates().values().stream().filter(quest -> quest.weekly).count() >= 10, "weekly quests");
         assertTrue(progress.achievementTemplates().size() >= 55, "about sixty achievements");
         for (int level = 2; level <= CareerRules.MAX_LEVEL; level++) {
             CareerProgress.CareerLevelReward reward = progress.levelRewards().get(level);
@@ -119,18 +120,32 @@ public class CareerProgressTest {
         }
     }
 
+    private long dailyQuests() throws Exception {
+        return progress.quests("Ana").quests.stream().filter(quest -> !quest.weekly).count();
+    }
+
     @Test
     public void threeQuestsToStartThenOneADay() throws Exception {
-        assertEquals(3, progress.quests("Ana").quests.size());
+        assertEquals(3, dailyQuests());
         store.deleteQuest("Ana", 0);
         store.deleteQuest("Ana", 1);
-        assertEquals(1, progress.quests("Ana").quests.size(), "the same day brings no new quest");
+        assertEquals(1, dailyQuests(), "the same day brings no new quest");
         day.set(day.get().plusDays(1));
-        assertEquals(2, progress.quests("Ana").quests.size(), "a new day brings one");
+        assertEquals(2, dailyQuests(), "a new day brings one");
         day.set(day.get().plusDays(5));
-        assertEquals(3, progress.quests("Ana").quests.size(), "days away add one, not one per day");
+        assertEquals(3, dailyQuests(), "days away add one, not one per day");
         day.set(day.get().plusDays(1));
-        assertEquals(3, progress.quests("Ana").quests.size(), "never more than three wait");
+        assertEquals(3, dailyQuests(), "never more than three wait");
+    }
+
+    @Test
+    public void aWeeklyQuestWaitsInTheFourthSlotAndChangesEachWeek() throws Exception {
+        CareerProgress.CareerQuest weekly = progress.quests("Ana").quests.stream().filter(quest -> quest.weekly).findFirst().orElse(null);
+        assertNotNull(weekly);
+        assertEquals(CareerProgress.WEEKLY_SLOT, weekly.slot);
+        assertThrows(CareerService.CareerException.class, () -> progress.reroll("Ana", CareerProgress.WEEKLY_SLOT), "not swappable");
+        day.set(day.get().plusDays(7));
+        assertEquals(1, progress.quests("Ana").quests.stream().filter(quest -> quest.weekly).count(), "one weekly quest at a time");
     }
 
     @Test

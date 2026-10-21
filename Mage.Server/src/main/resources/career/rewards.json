@@ -3,14 +3,81 @@
   "turnFloor": 3,
   "pairCapPerDay": 5,
   "kinds": {
-    "ai": {"winXp": 60, "lossXp": 20},
-    "person": {"winXp": 100, "lossXp": 40},
-    "pod": {"winXp": 100, "lossXp": 35, "perExtraPlayerXp": 15},
-    "event": {"winXp": 90, "lossXp": 35}
+    "ai": {
+      "winXp": 48,
+      "lossXp": 16
+    },
+    "person": {
+      "winXp": 80,
+      "lossXp": 32
+    },
+    "pod": {
+      "winXp": 80,
+      "lossXp": 28,
+      "perExtraPlayerXp": 12
+    },
+    "event": {
+      "winXp": 72,
+      "lossXp": 28
+    }
   },
-  "aiSkill": {"1": 0.75, "2": 0.85, "3": 0.9, "4": 1.0, "5": 1.0, "6": 1.1, "7": 1.15, "8": 1.2, "9": 1.25, "10": 1.25},
-  "bo3MatchWinXp": 50,
-  "firstWinXp": 100,
-  "firstPersonGameXp": 50,
-  "dailyWinCoins": [30, 25, 25, 20, 20, 15, 15, 10, 10, 10]
+  "aiSkill": {
+    "1": 0.75,
+    "2": 0.85,
+    "3": 0.9,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.1,
+    "7": 1.15,
+    "8": 1.2,
+    "9": 1.25,
+    "10": 1.25
+  },
+  "bo3MatchWinXp": 40,
+  "firstWinXp": 60,
+  "firstPersonGameXp": 40,
+  "dailyWinCoins": [
+    30,
+    25,
+    25,
+    20,
+    20,
+    15,
+    15,
+    10,
+    10,
+    10
+  ],
+  "eventPrizes": {
+    "note": "Finishing an event with at least one other person: packs by match wins (index = wins, the last for more), plus XP. Events against the AI only pay the XP.",
+    "limitedPacks": [
+      1,
+      1,
+      2,
+      3
+    ],
+    "constructedPacks": [
+      0,
+      1,
+      1,
+      2
+    ],
+    "xp": 100,
+    "xpPerWin": 50
+  },
+  "renownXp": 5000,
+  "masteryRankGames": [
+    3,
+    8,
+    15,
+    25,
+    40,
+    60,
+    85,
+    115,
+    150,
+    200
+  ],
+  "masteryRankXp": 25,
+  "masteryRankCoins": 10
 }

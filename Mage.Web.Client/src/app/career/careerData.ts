@@ -78,6 +78,11 @@ export function useCareerWeekly(enabled: boolean) {
   return useQuery({ queryKey: KEY.weekly, queryFn: () => api.careerWeekly(), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
 
+/** Mastery tracks: each color and format, ten ranks from games (B290). */
+export function useCareerMasteries(enabled: boolean) {
+  return useQuery({ queryKey: ['career', 'masteries'], queryFn: () => api.careerMasteries(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
+}
+
 /** Today (UTC): wins, the daily wins ladder and the day's first bonuses. */
 export function useCareerDaily(enabled: boolean) {
   return useQuery({ queryKey: ['career', 'daily'], queryFn: () => api.careerDaily(), enabled: useSignedIn() && enabled, staleTime: 0 });

@@ -193,4 +193,63 @@ public class CareerEverywhereTest {
         assertNotNull(service.matchEnded(table, true, 7), "and back after the restore");
         assertEquals(0, service.restoreTables(), "a paid table is dropped from the store");
     }
+
+    @Test
+    public void formatsAndColorsComeFromTheTableAndTheDeck() {
+        assertEquals("commander", CareerService.formatOf("Variant Magic - Commander", "Commander Free For All", false));
+        assertEquals("brawl", CareerService.formatOf("Variant Magic - Brawl", "Two Player Duel", false));
+        assertEquals("modern", CareerService.formatOf("Constructed - Modern", "Two Player Duel", false));
+        assertEquals("limited", CareerService.formatOf("Limited", "Two Player Duel", true));
+        assertEquals("other", CareerService.formatOf("Constructed - Freeform", "Two Player Duel", false));
+    }
+
+    @Test
+    public void masteriesRankUpFromGamesAndPayOnce() throws Exception {
+        int first = CareerRewards.get().masteryRankGames().get(0);
+        CareerProgress.CareerGameResult last = null;
+        for (int i = 0; i < first; i++) {
+            CareerService.FinishedGame game = duel(CareerRewards.AI, 8, "Ana", null);
+            game.format = "pauper";
+            game.seats.get(0).colors.add("R");
+            last = service.gameEnded(game).get("Ana");
+        }
+        assertEquals(2, last.masteries.size(), "red and Pauper reach rank 1 together");
+        java.util.Map<String, CareerProgress.CareerMastery> tracks = new java.util.HashMap<>();
+        for (CareerProgress.CareerMastery mastery : CareerProgress.get().masteries("Ana")) {
+            tracks.put(mastery.track, mastery);
+        }
+        assertEquals(1, tracks.get("color_R").rank);
+        assertEquals(1, tracks.get("format_pauper").rank);
+        assertEquals(0, tracks.get("color_U").rank);
+        CareerService.FinishedGame more = duel(CareerRewards.AI, 8, "Ana", null);
+        more.format = "pauper";
+        assertTrue(service.gameEnded(more).get("Ana").masteries.isEmpty(), "a rank pays once");
+    }
+
+    @Test
+    public void eventsPayPacksByRecordOnlyWithPeople() throws Exception {
+        java.util.Map<String, Integer> wins = new java.util.LinkedHashMap<>();
+        wins.put("Ana", 3);
+        wins.put("Bea", 0);
+        UUID event = UUID.randomUUID();
+        java.util.Map<String, Integer> packs = service.eventEnded(event, true, wins);
+        assertEquals(CareerRewards.get().eventPacks(true, 3, true), (int) packs.get("Ana"));
+        assertEquals(CareerRewards.get().eventPacks(true, 0, true), (int) packs.get("Bea"));
+        assertTrue(store.profile("Ana").packTokens >= packs.get("Ana"));
+        assertTrue(service.eventEnded(event, true, wins).isEmpty(), "once per event");
+
+        java.util.Map<String, Integer> alone = new java.util.LinkedHashMap<>();
+        alone.put("Cal", 3);
+        assertEquals(0, (int) service.eventEnded(UUID.randomUUID(), true, alone).get("Cal"), "against the AI only: XP, no packs");
+        assertTrue(store.profile("Cal").xp > 0);
+    }
+
+    @Test
+    public void renownStarsPastTheTopLevel() {
+        int top = CareerRules.xpToReach(CareerRules.MAX_LEVEL);
+        int renownXp = CareerRewards.get().renownXp();
+        assertEquals(CareerRules.MAX_LEVEL, CareerRules.levelFor(top));
+        assertEquals(0, CareerRules.renownFor(top, renownXp));
+        assertEquals(2, CareerRules.renownFor(top + 2 * renownXp + 1, renownXp));
+    }
 }

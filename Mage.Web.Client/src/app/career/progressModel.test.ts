@@ -21,7 +21,7 @@ describe('career progress model', () => {
     expect(xpAtLevel(3)).toBe(550);
     expect(levelAt(0)).toMatchObject({ level: 1, into: 0, needed: 250, fraction: 0 });
     expect(levelAt(400)).toMatchObject({ level: 2, into: 150, needed: 300, fraction: 0.5 });
-    expect(levelAt(10_000_000)).toMatchObject({ level: 50, needed: 0, fraction: 1 });
+    expect(levelAt(10_000_000)).toMatchObject({ level: 100, needed: 0, fraction: 1 });
   });
 
   test('the XP bar sweeps within a level', () => {
@@ -41,7 +41,7 @@ describe('career progress model', () => {
 
   test('no XP is a still bar; the top level is a full one', () => {
     expect(xpSweep({ levelBefore: 4, levelAfter: 4, xpIntoLevel: 0, xpForNext: 400, xp: 0 })).toEqual([{ level: 4, from: 0, to: 0 }]);
-    expect(xpSweep({ levelBefore: 50, levelAfter: 50, xpIntoLevel: 20, xpForNext: 0, xp: 20 }).at(-1)).toMatchObject({ level: 50, to: 1 });
+    expect(xpSweep({ levelBefore: 100, levelAfter: 100, xpIntoLevel: 20, xpForNext: 0, xp: 20 }).at(-1)).toMatchObject({ level: 100, to: 1 });
   });
 
   test('bars clamp progress to the target', () => {
@@ -64,13 +64,14 @@ describe('career progress model', () => {
     expect(rewardParts(undefined)).toEqual([]);
   });
 
-  test('the level track lists levels 1 to 50', () => {
+  test('the level track lists levels 1 to 100', () => {
     const rows = levelRows([{ level: 2, coins: 25 }, { level: 50, cosmetic: { kind: 'sleeve', id: 'gold' } }]);
-    expect(rows).toHaveLength(50);
+    expect(rows).toHaveLength(100);
     expect(rows[0]).toEqual({ level: 1, reward: undefined });
     expect(rows[1]).toEqual({ level: 2, reward: { level: 2, coins: 25 } });
     expect(rows[2].reward).toBeUndefined();
-    expect(rows.at(-1)?.level).toBe(50);
+    expect(rows.at(-1)?.level).toBe(100);
+    expect(rows[49].reward).toEqual({ level: 50, cosmetic: { kind: 'sleeve', id: 'gold' } });
   });
 
   test('achievements: earned, in progress, secret', () => {

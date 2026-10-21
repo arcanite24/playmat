@@ -975,6 +975,8 @@ public class TableController {
                 match.getPlayers().size(), game.getTurnNum());
         finished.game = game;
         finished.bo3 = match.getOptions().getWinsNeeded() > 1;
+        finished.format = CareerService.formatOf(match.getOptions().getDeckType(), match.getOptions().getGameType(),
+                match.getOptions().isLimited());
         for (MatchPlayer matchPlayer : match.getPlayers()) {
             Integer skill = matchPlayer.getPlayer().isHuman() ? null : seatSkills.get(matchPlayer.getPlayer().getId());
             finished.aiSkill = Math.max(finished.aiSkill, skill == null ? 0 : skill);
@@ -983,6 +985,7 @@ public class TableController {
             CareerService.Seat seat = new CareerService.Seat(human.getName(), human.getPlayer().hasWon(),
                     tallies.get(human.getPlayer().getId()));
             seat.matchWon = match.hasEnded() && human.isMatchWinner();
+            seat.colors = CareerService.colorsOf(human.getDeck());
             finished.seats.add(seat);
         }
         Map<String, mage.server.career.CareerProgress.CareerGameResult> paid = career.gameEnded(finished);

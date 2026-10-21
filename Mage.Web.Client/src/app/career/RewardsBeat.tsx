@@ -3,6 +3,7 @@ import { api } from '../connection';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import { Button } from '../ui/Button';
+import { masteryName } from './progressModel';
 import { useProgressNotices } from './progressionEvents';
 import styles from './RewardsBeat.module.css';
 
@@ -40,6 +41,14 @@ export default function RewardsBeat({ gameId, onDetails }: { gameId: string; onD
           </p>
         )}
       {levelUp && <p className={styles.level}>{t('career.beat.levelUp', { level: paid.levelAfter ?? 0 })}</p>}
+      {(paid.renownAfter ?? 0) > (paid.renownBefore ?? 0) && <p className={styles.level}>{t('career.beat.renown', { count: paid.renownAfter ?? 0 })}</p>}
+      {(paid.masteries?.length ?? 0) > 0 && (
+        <ul className={styles.bonuses}>
+          {paid.masteries!.map((mastery) => (
+            <li key={`${mastery.track}-${mastery.rank}`}>{t('career.beat.mastery', { name: masteryName(t, mastery.track), rank: mastery.rank ?? 0 })}</li>
+          ))}
+        </ul>
+      )}
       {(paid.bonuses?.length ?? 0) > 0 && (
         <ul className={styles.bonuses}>
           {paid.bonuses!.map((bonus, index) => <li key={index}>{bonus.text}</li>)}

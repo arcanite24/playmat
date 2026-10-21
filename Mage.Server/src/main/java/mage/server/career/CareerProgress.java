@@ -32,6 +32,8 @@ public final class CareerProgress {
 
     /** quests that can wait at once */
     public static final int QUEST_SLOTS = 3;
+    /** the fourth slot holds the weekly quest */
+    public static final int WEEKLY_SLOT = 3;
     /** wins in a week that each give a free pack */
     public static final List<Integer> WEEKLY_GOALS = Collections.unmodifiableList(Arrays.asList(5, 10, 15));
     /** XP each weekly goal pays besides its pack */
@@ -50,6 +52,10 @@ public final class CareerProgress {
         public int target;
         public int coins;
         public int xp;
+        /** a weekly quest: the fourth slot, a new one each Monday (B288) */
+        public boolean weekly;
+        /** which games count, in words ("Games against people"); null for any game */
+        public String counts;
     }
 
     public static class AchievementTemplate {
@@ -97,6 +103,9 @@ public final class CareerProgress {
         public int slot;
         public String id;
         public String text;
+        /** which games count, in words; null for any game */
+        public String counts;
+        public boolean weekly;
         public int progress;
         public int target;
         public int coins;
@@ -123,6 +132,28 @@ public final class CareerProgress {
         public int achievements;
         public int achievementsTotal;
         public List<CareerStore.PaidGame> recent = new ArrayList<>();
+    }
+
+    /** A mastery track (B290): a color or a format, ten ranks from games played. */
+    public static class CareerMastery {
+        /** "color_W" … "color_colorless", "format_standard" … "format_limited" */
+        public String track;
+        /** "color" or "format" */
+        public String kind;
+        public int games;
+        public int rank;
+        /** games the next rank takes in all; 0 at the top */
+        public int nextAt;
+        public int maxRank;
+    }
+
+    /** A mastery rank reached in a game, and what it paid. */
+    public static class CareerMasteryRank {
+        public String track;
+        public int rank;
+        public int xp;
+        public int coins;
+        public CareerCosmetic cosmetic;
     }
 
     public static class CareerQuests {
@@ -247,6 +278,11 @@ public final class CareerProgress {
         public int xpForNext;
         public List<CareerLevelReward> levelRewards = new ArrayList<>();
         public List<CareerQuestProgress> quests = new ArrayList<>();
+        /** mastery ranks this game reached (B290) */
+        public List<CareerMasteryRank> masteries = new ArrayList<>();
+        /** Renown stars past the top level, before and after this game (B291) */
+        public int renownBefore;
+        public int renownAfter;
         public List<CareerAchievement> achievements = new ArrayList<>();
         public CareerWeekly weekly;
         /** free packs this game gave */
@@ -375,12 +411,14 @@ public final class CareerProgress {
      * Runs inside the caller's transaction.
      */
     void refreshQuests(CareerStore store, String user) throws SQLException {
+        refreshWeeklyQuest(store, user);
         String day = day();
         String last = store.profileText(user, "quest_day");
         if (day.equals(last)) {
             return;
         }
-        List<CareerStore.QuestRow> waiting = store.quests(user);
+        List<CareerStore.QuestRow> waiting = new ArrayList<>(store.quests(user));
+        waiting.removeIf(row -> row.slot == WEEKLY_SLOT);
         int toAdd = last == null ? QUEST_SLOTS - waiting.size() : Math.min(1, QUEST_SLOTS - waiting.size());
         Set<Integer> used = new HashSet<>();
         Set<String> present = new HashSet<>();
@@ -393,7 +431,7 @@ public final class CareerProgress {
             while (used.contains(slot)) {
                 slot++;
             }
-            String quest = pickQuest(present);
+            String quest = pickQuest(present, false);
             if (quest == null) {
                 break;
             }
@@ -404,10 +442,27 @@ public final class CareerProgress {
         store.setProfileText(user, "quest_day", day);
     }
 
-    private String pickQuest(Set<String> exclude) {
+    /** the weekly slot: a new weekly quest each Monday, whatever happened to last week's */
+    private void refreshWeeklyQuest(CareerStore store, String user) throws SQLException {
+        String week = week();
+        if (week.equals(store.profileText(user, "quest_week"))) {
+            return;
+        }
+        Set<String> present = new HashSet<>();
+        for (CareerStore.QuestRow row : store.quests(user)) {
+            present.add(row.quest);
+        }
+        String quest = pickQuest(present, true);
+        if (quest != null) {
+            store.putQuest(user, WEEKLY_SLOT, quest, 0, day());
+        }
+        store.setProfileText(user, "quest_week", week);
+    }
+
+    private String pickQuest(Set<String> exclude, boolean weekly) {
         List<String> choices = new ArrayList<>();
         for (String id : quests.keySet()) {
-            if (!exclude.contains(id)) {
+            if (!exclude.contains(id) && quests.get(id).weekly == weekly) {
                 choices.add(id);
             }
         }
@@ -437,6 +492,8 @@ public final class CareerProgress {
             quest.slot = row.slot;
             quest.id = template.id;
             quest.text = template.text;
+            quest.counts = template.counts;
+            quest.weekly = template.weekly;
             quest.progress = row.progress;
             quest.target = template.target;
             quest.coins = template.coins;
@@ -516,7 +573,10 @@ public final class CareerProgress {
                 }
                 Set<String> present = new HashSet<>();
                 store.quests(user).forEach(quest -> present.add(quest.quest));
-                String next = pickQuest(present);
+                if (slot == WEEKLY_SLOT) {
+                    throw new SQLException(new CareerService.CareerException("The weekly quest can't be swapped."));
+                }
+                String next = pickQuest(present, false);
                 if (next == null) {
                     throw new SQLException(new CareerService.CareerException("There's no other quest to swap in."));
                 }
@@ -604,8 +664,80 @@ public final class CareerProgress {
         }
         result.weekly = weekly(store, user);
 
+        masteriesIn(store, user, result, now);
         achievementsIn(store, user, counters, result, now);
         levelsIn(store, user, xpBefore, result, now);
+    }
+
+    /** the color and format tracks, in the order the client lists them */
+    public static List<String> masteryTracks() {
+        List<String> tracks = new ArrayList<>();
+        for (String color : Arrays.asList("W", "U", "B", "R", "G", "multicolor", "colorless")) {
+            tracks.add("color_" + color);
+        }
+        for (String format : CareerService.FORMATS) {
+            tracks.add("format_" + format);
+        }
+        return tracks;
+    }
+
+    static int masteryRank(int games) {
+        List<Integer> ranks = CareerRewards.get().masteryRankGames();
+        int rank = 0;
+        while (rank < ranks.size() && games >= ranks.get(rank)) {
+            rank++;
+        }
+        return rank;
+    }
+
+    /** every mastery track with its games and rank */
+    public List<CareerMastery> masteries(String user) throws SQLException {
+        Map<String, Integer> stats = CareerStore.get().stats(user);
+        List<Integer> ranks = CareerRewards.get().masteryRankGames();
+        List<CareerMastery> view = new ArrayList<>();
+        for (String track : masteryTracks()) {
+            CareerMastery mastery = new CareerMastery();
+            mastery.track = track;
+            mastery.kind = track.startsWith("color_") ? "color" : "format";
+            mastery.games = stats.getOrDefault("games_" + track, 0);
+            mastery.rank = masteryRank(mastery.games);
+            mastery.maxRank = ranks.size();
+            mastery.nextAt = mastery.rank < ranks.size() ? ranks.get(mastery.rank) : 0;
+            view.add(mastery);
+        }
+        return view;
+    }
+
+    /** pays every mastery rank reached since the last one paid: XP, coins, a badge, and a title at the top */
+    void masteriesIn(CareerStore store, String user, CareerGameResult result, long now) throws SQLException {
+        CareerRewards rewards = CareerRewards.get();
+        int top = rewards.masteryRankGames().size();
+        Map<String, Integer> stats = store.stats(user);
+        for (String track : masteryTracks()) {
+            int rank = masteryRank(stats.getOrDefault("games_" + track, 0));
+            int paid = stats.getOrDefault("mastery_" + track, 0);
+            for (int next = paid + 1; next <= rank; next++) {
+                CareerMasteryRank reached = new CareerMasteryRank();
+                reached.track = track;
+                reached.rank = next;
+                reached.xp = rewards.masteryRankXp(next);
+                reached.coins = rewards.masteryRankCoins(next);
+                store.addProfileInt(user, "xp", reached.xp);
+                store.addCoins(user, reached.coins);
+                store.addUnlock(user, "badge", "mastery-" + track.replace('_', '-') + "-" + next, now);
+                if (next == top) {
+                    reached.cosmetic = new CareerCosmetic("title", track.substring(track.indexOf('_') + 1).toLowerCase(java.util.Locale.ROOT) + "-master");
+                    store.addUnlock(user, reached.cosmetic.kind, reached.cosmetic.id, now);
+                }
+                result.xp += reached.xp;
+                result.coins += reached.coins;
+                result.masteries.add(reached);
+            }
+            if (rank > paid) {
+                store.maxStat(user, "mastery_" + track, rank);
+                store.addStat(user, "mastery_ranks", rank - paid);
+            }
+        }
     }
 
     /** checks every achievement not yet earned; game ones against this game's counters (if any) */
@@ -687,6 +819,16 @@ public final class CareerProgress {
         }
         if (profile.level > paid) {
             store.setProfileInt(user, "level_paid", profile.level);
+        }
+        // Renown past the top level: a pack for each star (B291)
+        int renownXp = CareerRewards.get().renownXp();
+        result.renownBefore = CareerRules.renownFor(xpBefore, renownXp);
+        result.renownAfter = CareerRules.renownFor(profile.xp, renownXp);
+        int renownPaid = store.stats(user).getOrDefault("renown", 0);
+        if (result.renownAfter > renownPaid) {
+            store.addProfileInt(user, "pack_tokens", result.renownAfter - renownPaid);
+            result.packs += result.renownAfter - renownPaid;
+            store.maxStat(user, "renown", result.renownAfter);
         }
         int[] into = xpIntoLevel(profile.xp);
         result.xpIntoLevel = into[0];

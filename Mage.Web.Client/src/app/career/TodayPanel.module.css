@@ -132,3 +132,11 @@
 .action:hover {
   color: var(--ink-strong);
 }
+
+.weekly {
+  margin-right: 4px;
+  color: var(--brass-ink);
+  font-size: var(--text-xs);
+  font-style: normal;
+  text-transform: uppercase;
+}

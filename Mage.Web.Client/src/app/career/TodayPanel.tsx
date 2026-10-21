@@ -45,7 +45,7 @@ export default function TodayPanel({ onNavigate }: { onNavigate?: () => void }) 
             <ul className={styles.quests}>
               {quests.data!.quests!.map((quest) => (
                 <li key={quest.slot}>
-                  <span className={styles.questText}>{quest.text}</span>
+                  <span className={styles.questText} title={quest.counts ?? undefined}>{quest.weekly && <em className={styles.weekly}>{t('career.quests.weekly')}</em>}{quest.text}</span>
                   <span className={styles.bar} aria-hidden="true"><i style={{ width: `${fraction(quest.progress, quest.target) * 100}%` }} /></span>
                   <span className={styles.count}>{quest.progress ?? 0}/{quest.target ?? 0}</span>
                 </li>

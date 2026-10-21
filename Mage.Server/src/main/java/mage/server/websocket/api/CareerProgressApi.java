@@ -133,6 +133,24 @@ final class CareerProgressApi {
                             return CareerApi.store(() -> CareerProgress.get().liveQuests(user, counters));
                         }),
 
+                RpcMethod.named("careerMasteries")
+                        .params(optional("userName", STRING))
+                        .returns("CareerMastery[]")
+                        .doc("Mastery tracks (each color, multicolor, colorless and each format): games played, rank of ten and "
+                                + "games to the next rank. Another player's when a name is given and they show progression.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String name = call.optString(0, "").trim();
+                            String who = name.isEmpty() ? user : name;
+                            return CareerApi.store(() -> {
+                                mage.server.career.CareerProfile profile = CareerStore.get().profile(who);
+                                if (profile == null || (!who.equalsIgnoreCase(user) && !profile.showProgress)) {
+                                    return java.util.Collections.emptyList();
+                                }
+                                return CareerProgress.get().masteries(who);
+                            });
+                        }),
+
                 RpcMethod.named("careerDaily")
                         .returns("CareerDaily")
                         .doc("Today (UTC): wins so far, the daily wins ladder's coins and which step is next, and whether the "

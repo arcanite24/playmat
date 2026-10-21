@@ -32,6 +32,8 @@ public class CareerProfile {
     public int cards;
     /** free packs earned (levels, the weekly goal); the shop spends these before coins */
     public int packTokens;
+    /** Renown stars past the top level (B291) */
+    public int renown;
     /** always true since every game counts (M24); kept for older clients */
     public boolean countAiGames;
     /** whether the Career collection is open (a starter deck was picked); progression runs without it */

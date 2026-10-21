@@ -85,6 +85,8 @@ public final class CareerStore implements AutoCloseable {
             {
                     // M24: progression for every game. A profile without a starter ("") hasn't opened the collection yet
                     "ALTER TABLE profile ADD COLUMN show_progress INTEGER NOT NULL DEFAULT 1",
+                    // M26: the weekly quest's week
+                    "ALTER TABLE profile ADD COLUMN quest_week TEXT",
                     "ALTER TABLE progress_games ADD COLUMN kind TEXT",
                     "ALTER TABLE progress_games ADD COLUMN won INTEGER",
                     "ALTER TABLE progress_games ADD COLUMN coins INTEGER NOT NULL DEFAULT 0",
@@ -243,6 +245,7 @@ public final class CareerStore implements AutoCloseable {
                 profile.wildcards = new CareerProfile.Wildcards(rows.getInt("wc_common"), rows.getInt("wc_uncommon"),
                         rows.getInt("wc_rare"), rows.getInt("wc_mythic"));
                 profile.level = CareerRules.levelFor(profile.xp);
+                profile.renown = CareerRules.renownFor(profile.xp, CareerRewards.get().renownXp());
                 profile.packTokens = rows.getInt("pack_tokens");
                 profile.countAiGames = true;
                 profile.collection = !profile.starter.isEmpty();
@@ -633,6 +636,7 @@ public final class CareerStore implements AutoCloseable {
         switch (column) {
             case "quest_day":
             case "reroll_day":
+            case "quest_week":
             case "pack_tokens":
             case "level_paid":
             case "count_ai_games":

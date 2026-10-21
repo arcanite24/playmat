@@ -220,6 +220,7 @@ public class TournamentController {
             }
         }
 
+        payEventPrizes();
         for (final TournamentSession tournamentSession : tournamentSessions.values()) {
             tournamentSession.tournamentOver();
         }
@@ -227,6 +228,20 @@ public class TournamentController {
         managerFactory.tableManager().endTournament(tableId, tournament);
         tournament.cleanUpOnTournamentEnd();
 
+    }
+
+    /** Career packs and XP for the people who finished the event (B289); match wins are its points over three */
+    private void payEventPrizes() {
+        if (!mage.server.career.CareerService.enabled(managerFactory.configSettings().isAuthenticationActivated())) {
+            return;
+        }
+        java.util.Map<String, Integer> wins = new java.util.LinkedHashMap<>();
+        for (TournamentPlayer player : tournament.getPlayers()) {
+            if (player.getPlayerType() == PlayerType.HUMAN && player.getPlayer() != null && !player.hasQuit()) {
+                wins.put(player.getPlayer().getName(), player.getPoints() / 3);
+            }
+        }
+        mage.server.career.CareerService.get().eventEnded(tournament.getId(), tournament.getTournamentType().isLimited(), wins);
     }
 
     private void startMatch(TournamentPairing pair, MatchOptions matchOptions) {

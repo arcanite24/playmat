@@ -240,5 +240,240 @@
    "kind": "sleeve",
    "id": "gold"
   }
+ },
+ {
+  "level": 51,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 52,
+  "coins": 50
+ },
+ {
+  "level": 53,
+  "coins": 50
+ },
+ {
+  "level": 54,
+  "wildcard": "rare"
+ },
+ {
+  "level": 55,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-bronze"
+  }
+ },
+ {
+  "level": 56,
+  "coins": 50
+ },
+ {
+  "level": 57,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 58,
+  "coins": 50
+ },
+ {
+  "level": 59,
+  "coins": 50
+ },
+ {
+  "level": 60,
+  "cosmetic": {
+   "kind": "title",
+   "id": "seasoned"
+  },
+  "packs": 1
+ },
+ {
+  "level": 61,
+  "coins": 50
+ },
+ {
+  "level": 62,
+  "coins": 50
+ },
+ {
+  "level": 63,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 64,
+  "coins": 50
+ },
+ {
+  "level": 65,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-silver"
+  }
+ },
+ {
+  "level": 66,
+  "wildcard": "rare"
+ },
+ {
+  "level": 67,
+  "coins": 50
+ },
+ {
+  "level": 68,
+  "coins": 50
+ },
+ {
+  "level": 69,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 70,
+  "cosmetic": {
+   "kind": "title",
+   "id": "tactician"
+  },
+  "packs": 1
+ },
+ {
+  "level": 71,
+  "coins": 50
+ },
+ {
+  "level": 72,
+  "wildcard": "rare"
+ },
+ {
+  "level": 73,
+  "coins": 50
+ },
+ {
+  "level": 74,
+  "coins": 50
+ },
+ {
+  "level": 75,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-gold"
+  }
+ },
+ {
+  "level": 76,
+  "coins": 50
+ },
+ {
+  "level": 77,
+  "coins": 50
+ },
+ {
+  "level": 78,
+  "wildcard": "rare"
+ },
+ {
+  "level": 79,
+  "coins": 50
+ },
+ {
+  "level": 80,
+  "cosmetic": {
+   "kind": "title",
+   "id": "archmage"
+  },
+  "packs": 1
+ },
+ {
+  "level": 81,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 82,
+  "coins": 50
+ },
+ {
+  "level": 83,
+  "coins": 50
+ },
+ {
+  "level": 84,
+  "wildcard": "rare"
+ },
+ {
+  "level": 85,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-ember"
+  }
+ },
+ {
+  "level": 86,
+  "coins": 50
+ },
+ {
+  "level": 87,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 88,
+  "coins": 50
+ },
+ {
+  "level": 89,
+  "coins": 50
+ },
+ {
+  "level": 90,
+  "cosmetic": {
+   "kind": "title",
+   "id": "planeswalker"
+  },
+  "packs": 1
+ },
+ {
+  "level": 91,
+  "coins": 50
+ },
+ {
+  "level": 92,
+  "coins": 50
+ },
+ {
+  "level": 93,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 94,
+  "coins": 50
+ },
+ {
+  "level": 95,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-mythic"
+  }
+ },
+ {
+  "level": 96,
+  "wildcard": "rare"
+ },
+ {
+  "level": 97,
+  "coins": 50
+ },
+ {
+  "level": 98,
+  "coins": 50
+ },
+ {
+  "level": 99,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 100,
+  "cosmetic": {
+   "kind": "title",
+   "id": "living-legend"
+  },
+  "packs": 1
  }
 ]

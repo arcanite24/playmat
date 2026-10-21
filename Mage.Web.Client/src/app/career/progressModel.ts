@@ -198,6 +198,10 @@ export function cosmeticReward(t: Translate, cosmetic: CareerCosmetic): string {
       return t('career.reward.playmat', { name });
     case 'avatar':
       return t('career.reward.avatar', { name });
+    case 'frame':
+      return t('career.reward.frame', { name });
+    case 'badge':
+      return t('career.reward.badge', { name });
     default:
       return t('career.reward.title', { name });
   }
@@ -217,6 +221,11 @@ export function describeReward(t: Translate, parts: readonly RewardPart[]): stri
         return cosmeticReward(t, part.cosmetic);
     }
   }).join(' · ');
+}
+
+/** A mastery track's name: "White", "Multicolor", "Commander" (B290). */
+export function masteryName(t: Translate, track: string | undefined): string {
+  return t(`career.mastery.${track ?? ''}` as MessageKey);
 }
 
 /** Coins and XP an achievement or quest pays, in words. */

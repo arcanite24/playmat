@@ -646,3 +646,15 @@
     transition: none;
   }
 }
+
+/* the weekly quest's tag (B288) */
+.weeklyTag {
+  margin-right: 6px;
+  padding: 1px 6px;
+  border-radius: var(--radius-chip);
+  background: rgb(var(--brass-rgb) / 0.2);
+  color: var(--brass-ink);
+  font-size: var(--text-xs);
+  font-style: normal;
+  text-transform: uppercase;
+}

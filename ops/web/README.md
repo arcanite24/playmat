@@ -257,6 +257,14 @@ wins ladder, and the first win and the first game against a person each day pay 
 puzzles and test mode never pay. Progress, the Career deck and each player's **Show progression** choice are kept per
 account in `career.db`, and Career tables survive a restart for a day.
 
+Beyond each game: three daily quests and a weekly one (`career/quests.json`, about 90, each naming which games count),
+a weekly goal of 5, 10 and 15 wins of any kind (a pack and XP each), mastery tracks for each color and format (ten
+ranks from games played, `masteryRankGames` in `rewards.json`), a level track to 100 (`career/levels.json`) and Renown
+past it (a pack every `renownXp` XP). Finishing an event pays Career packs by match wins, but only when at least one
+other person played; events against the AI pay XP only. `ProgressionBalanceTest` plays 90 days for a casual, regular
+and heavy player through all of it; run it with `-Dxmage.progressionReport=true` to print the sheet after changing the
+numbers.
+
 An account's page under Accounts shows its progression: level, XP, coins, the last 50 counted games with kind, pay and
 why, and who it hit the daily pair cap with in the last 14 days. Admins can take back what a game paid (XP and coins,
 never below zero coins); it goes in the audit log as `career.revoke`.

@@ -656,6 +656,8 @@ public final class CareerService {
         public final boolean won;
         /** what the player did, or null when nothing was tallied */
         public final CareerTally tally;
+        /** the deck's colors (W, U, B, R, G, multicolor or colorless), for masteries and quests */
+        public java.util.Set<String> colors = new java.util.LinkedHashSet<>();
         /** won the whole match (the last game of a best of three) */
         public boolean matchWon;
 
@@ -680,6 +682,8 @@ public final class CareerService {
         public mage.game.Game game;
         /** the match was a best of three or longer */
         public boolean bo3;
+        /** {@link #formatOf} the table's format, or null */
+        public String format;
 
         public FinishedGame(UUID gameId, String kind, int players, int turns) {
             this.gameId = gameId;
@@ -698,6 +702,63 @@ public final class CareerService {
             return CareerRewards.POD;
         }
         return humans >= 2 ? CareerRewards.PERSON : CareerRewards.AI;
+    }
+
+    /** the formats masteries and quests know, from a table's deck type (B290) */
+    public static final List<String> FORMATS = java.util.Arrays.asList(
+            "standard", "pioneer", "modern", "legacy", "vintage", "pauper", "commander", "brawl", "limited");
+
+    /** a table's format, one of {@link #FORMATS}, or "other" */
+    public static String formatOf(String deckType, String gameType, boolean limited) {
+        if (limited) {
+            return "limited";
+        }
+        String text = ((deckType == null ? "" : deckType) + " " + (gameType == null ? "" : gameType)).toLowerCase(java.util.Locale.ROOT);
+        if (text.contains("brawl")) {
+            return "brawl";
+        }
+        if (text.contains("commander") || text.contains("oathbreaker")) {
+            return "commander";
+        }
+        for (String format : FORMATS) {
+            if (text.contains(format)) {
+                return format;
+            }
+        }
+        return text.contains("limited") || text.contains("draft") || text.contains("sealed") ? "limited" : "other";
+    }
+
+    /** a deck's colors as masteries count them: each of W, U, B, R, G it uses, plus multicolor, or colorless */
+    public static java.util.Set<String> colorsOf(mage.cards.decks.Deck deck) {
+        java.util.Set<String> colors = new java.util.LinkedHashSet<>();
+        if (deck == null) {
+            return colors;
+        }
+        mage.ObjectColor all = new mage.ObjectColor();
+        for (mage.cards.Card card : deck.getCards()) {
+            all.addColor(card.getColor());
+        }
+        if (all.isWhite()) {
+            colors.add("W");
+        }
+        if (all.isBlue()) {
+            colors.add("U");
+        }
+        if (all.isBlack()) {
+            colors.add("B");
+        }
+        if (all.isRed()) {
+            colors.add("R");
+        }
+        if (all.isGreen()) {
+            colors.add("G");
+        }
+        if (colors.size() >= 2) {
+            colors.add("multicolor");
+        } else if (colors.isEmpty()) {
+            colors.add("colorless");
+        }
+        return colors;
     }
 
     /** the key a seat's game is kept under */
@@ -768,6 +829,7 @@ public final class CareerService {
                     store.addProfileInt(seat.user, "xp", xp);
                     result.xp = xp;
                     dailyBonuses(store, seat.user, finished.kind, seat.won, result);
+                    seat.tally.context(finished.kind, finished.format, seat.colors, seat.won, finished.bo3 && seat.matchWon);
                     seat.tally.finish(finished.game, seat.won, finished.turns);
                     CareerProgress.get().apply(store, seat.user, seat.tally, result, before.xp, now);
                     store.setGameDetails(key, new Gson().toJson(result));
@@ -788,6 +850,66 @@ public final class CareerService {
             logger.error("Career progress failed for game " + finished.gameId, e);
         }
         return results;
+    }
+
+    /**
+     * An event ended (B289): each person who finished it gets Career packs by their match wins (only when at least one
+     * other person played) and XP, once per event.
+     *
+     * @return the packs each account got, by name
+     */
+    public Map<String, Integer> eventEnded(UUID tournamentId, boolean limited, Map<String, Integer> matchWins) {
+        Map<String, Integer> paid = new LinkedHashMap<>();
+        if (mage.server.Main.isTestMode() || matchWins.isEmpty()) {
+            return paid;
+        }
+        CareerRewards rewards = CareerRewards.get();
+        CareerStore store = CareerStore.get();
+        long now = System.currentTimeMillis();
+        boolean withPeople = matchWins.size() >= 2;
+        try {
+            store.transaction(() -> {
+                for (Map.Entry<String, Integer> entry : matchWins.entrySet()) {
+                    String user = entry.getKey();
+                    int wins = entry.getValue();
+                    ensureProfile(store, user, now);
+                    String key = "event/" + tournamentId + "/" + CareerStore.key(user);
+                    if (!store.claimGame(key, user, now)) {
+                        continue;
+                    }
+                    int packs = rewards.eventPacks(limited, wins, withPeople);
+                    int xp = rewards.eventXp(wins);
+                    CareerProfile before = store.profile(user);
+                    store.addProfileInt(user, "xp", xp);
+                    if (packs > 0) {
+                        store.addProfileInt(user, "pack_tokens", packs);
+                    }
+                    store.addStat(user, "events_finished", 1);
+                    if (limited) {
+                        store.addStat(user, "limited_events_finished", 1);
+                    }
+                    store.maxStat(user, "event_best_wins", wins);
+                    CareerProgress.CareerGameResult result = new CareerProgress.CareerGameResult();
+                    result.gameKey = key;
+                    result.kind = CareerRewards.EVENT;
+                    result.xp = xp;
+                    result.packs = packs;
+                    result.xpBefore = before.xp;
+                    result.bonuses.add(new CareerProgress.CareerBonus((limited ? "Limited event" : "Event") + " finished, "
+                            + wins + (wins == 1 ? " match win" : " match wins"), xp, 0));
+                    CareerProgress.get().achievementsIn(store, user, null, result, now);
+                    CareerProgress.get().levelsIn(store, user, before.xp, result, now);
+                    store.setGameDetails(key, new Gson().toJson(result));
+                    store.setGameRecord(key, CareerRewards.EVENT, wins > 0, 0, result.xp,
+                            "event finished with " + wins + " match wins, " + packs + " packs");
+                    paid.put(user, packs);
+                }
+                return null;
+            });
+        } catch (SQLException | RuntimeException e) {
+            logger.error("Career event prizes failed for " + tournamentId, e);
+        }
+        return paid;
     }
 
     /** two accounts as one key, the same either way round */

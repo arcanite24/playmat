@@ -575,10 +575,10 @@ export function QuestList({ quests }: { quests: CareerQuests | undefined }) {
         {list.map((quest) => (
           <li key={quest.slot} className={styles.quest}>
             <span>
-              <b>{quest.text}</b>
-              <small>{describePay(t, quest.coins, quest.xp)}</small>
+              <b>{quest.weekly && <em className={styles.weeklyTag}>{t('career.quests.weekly')}</em>}{quest.text}</b>
+              <small>{[quest.counts, describePay(t, quest.coins, quest.xp)].filter(Boolean).join(' · ')}</small>
             </span>
-            <Button
+            {quest.weekly ? <span /> : <Button
               variant="quiet"
               size="sm"
               icon={<RefreshCw size={14} />}
@@ -589,7 +589,7 @@ export function QuestList({ quests }: { quests: CareerQuests | undefined }) {
               onClick={() => void swap(quest)}
             >
               {t('career.quests.swap')}
-            </Button>
+            </Button>}
             <ProgressBar value={fraction(quest.progress, quest.target)} label={quest.text ?? ''} />
             <small>{quest.progress ?? 0} / {quest.target ?? 0}</small>
           </li>

@@ -11,7 +11,8 @@ import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { downloadText } from '../ui/download';
 import { BoosterPack } from './BoosterPack';
-import { exportCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerOpponents, useCareerState } from './careerData';
+import { exportCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerMasteries, useCareerOpponents, useCareerState } from './careerData';
+import { Masteries } from './Masteries';
 import { exportFileName } from './careerModel';
 import { Art } from './Art';
 import { usePaintedArt, wildcardArt } from './careerArt';
@@ -32,9 +33,10 @@ import progress from './Progress.module.css';
 
 registerMessages(messages);
 
-const TABS: { id: 'levels' | 'achievements' | 'look' | 'options'; label: MessageKey }[] = [
+const TABS: { id: 'levels' | 'achievements' | 'masteries' | 'look' | 'options'; label: MessageKey }[] = [
   { id: 'levels', label: 'career.progress.levels' },
   { id: 'achievements', label: 'career.progress.achievements' },
+  { id: 'masteries', label: 'career.progress.masteries' },
   { id: 'look', label: 'career.progress.look' },
   { id: 'options', label: 'career.progress.options' },
 ];
@@ -50,6 +52,7 @@ export function CareerProgressScreen() {
   const levels = useCareerLevels(!!profile);
   const achievements = useCareerAchievements(!!profile);
   const [params, setParams] = useSearchParams();
+  const masteries = useCareerMasteries(!!profile && params.get('tab') === 'masteries');
   const tab = TABS.find((candidate) => candidate.id === params.get('tab'))?.id ?? 'levels';
 
   if (state.isPending) return <p className={styles.note}>{t('career.loading')}</p>;
@@ -76,6 +79,7 @@ export function CareerProgressScreen() {
       <div className={[progress.body, motion.scene].join(' ')} key={tab}>
         {tab === 'levels' && (levels.data ? <RewardRoad track={levels.data} /> : loading)}
         {tab === 'achievements' && (achievements.data ? <MedalCase list={achievements.data} /> : loading)}
+        {tab === 'masteries' && (masteries.data ? <Masteries list={masteries.data} /> : loading)}
         {tab === 'look' && (levels.data ? <CosmeticsLocker track={levels.data} achievements={achievements.data ?? []} /> : loading)}
         {tab === 'options' && <Record profile={profile} recent={state.data?.recent ?? []} />}
       </div>

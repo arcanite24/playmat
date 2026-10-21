@@ -483,12 +483,15 @@ export interface CareerGameResult {
     levelAfter?: number;
     levelBefore?: number;
     levelRewards?: CareerLevelReward[];
+    masteries?: CareerMasteryRank[];
     mode?: CareerModeResult;
     note?: string;
     opened?: string[];
     opponent?: string;
     packs?: number;
     quests?: CareerQuestProgress[];
+    renownAfter?: number;
+    renownBefore?: number;
     weekly?: CareerWeekly;
     won?: boolean;
     xp?: number;
@@ -602,6 +605,23 @@ export interface CareerLiveQuest {
     now?: number;
     target?: number;
     text?: string;
+}
+
+export interface CareerMastery {
+    games?: number;
+    kind?: string;
+    maxRank?: number;
+    nextAt?: number;
+    rank?: number;
+    track?: string;
+}
+
+export interface CareerMasteryRank {
+    coins?: number;
+    cosmetic?: CareerCosmetic;
+    rank?: number;
+    track?: string;
+    xp?: number;
 }
 
 export interface CareerMatch {
@@ -752,6 +772,7 @@ export interface CareerProfile {
     level?: number;
     losses?: number;
     packTokens?: number;
+    renown?: number;
     showProgress?: boolean;
     starter?: string;
     wildcards?: Wildcards;
@@ -798,11 +819,13 @@ export interface CareerPuzzleSide extends Serializable {
 
 export interface CareerQuest {
     coins?: number;
+    counts?: string;
     id?: string;
     progress?: number;
     slot?: number;
     target?: number;
     text?: string;
+    weekly?: boolean;
     xp?: number;
 }
 

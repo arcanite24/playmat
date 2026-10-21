@@ -477,6 +477,8 @@
                                 <class>mage.server.career.CareerProgress$CareerGameResult</class>
                                 <class>mage.server.career.CareerProgress$CareerBonus</class>
                                 <class>mage.server.career.CareerProgress$CareerDaily</class>
+                                <class>mage.server.career.CareerProgress$CareerMastery</class>
+                                <class>mage.server.career.CareerProgress$CareerMasteryRank</class>
                                 <class>mage.server.career.CareerProgress$CareerLiveQuest</class>
                                 <class>mage.server.career.CareerProgress$CareerPublicProfile</class>
                                 <class>mage.server.career.CareerService$CareerAdminView</class>

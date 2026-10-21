@@ -161,6 +161,34 @@ public final class CareerTally {
      *
      * @param turns the game's turn number at the end
      */
+    /**
+     * What kind of game it was (B288, B290): games and wins by kind, format and the deck's colors, for quests,
+     * masteries and achievements. Colors are W, U, B, R, G, plus multicolor or colorless.
+     */
+    public synchronized void context(String kind, String format, java.util.Collection<String> colors, boolean won, boolean bo3MatchWon) {
+        java.util.List<String> keys = new java.util.ArrayList<>();
+        if (kind != null) {
+            keys.add("kind_" + kind);
+        }
+        if (format != null) {
+            keys.add("format_" + format);
+        }
+        if (colors != null) {
+            for (String color : colors) {
+                keys.add("color_" + color);
+            }
+        }
+        for (String key : keys) {
+            add("games_" + key, 1);
+            if (won) {
+                add("wins_" + key, 1);
+            }
+        }
+        if (bo3MatchWon) {
+            add("bo3_match_wins", 1);
+        }
+    }
+
     public synchronized void finish(Game game, boolean won, int turns) {
         add(GAMES, 1);
         if (won) {

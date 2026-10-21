@@ -387,6 +387,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerProfileOf', userName),
     careerQuestTracker: (gameId: UUID) =>
       rpc.call('careerQuestTracker', gameId),
+    careerMasteries: (userName?: string | null) =>
+      rpc.call('careerMasteries', userName),
     careerDaily: () =>
       rpc.call('careerDaily'),
     careerCampaigns: () =>

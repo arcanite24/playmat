@@ -238,5 +238,556 @@
     "target": 2,
     "coins": 50,
     "xp": 200
+  },
+  {
+    "id": "play-people-2",
+    "text": "Play 2 games against people",
+    "counter": "games_kind_person",
+    "target": 2,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Games against one person"
+  },
+  {
+    "id": "win-people-1",
+    "text": "Win a game against a person",
+    "counter": "wins_kind_person",
+    "target": 1,
+    "coins": 50,
+    "xp": 200,
+    "counts": "Games against one person"
+  },
+  {
+    "id": "win-people-3",
+    "text": "Win 3 games against people",
+    "counter": "wins_kind_person",
+    "target": 3,
+    "coins": 75,
+    "xp": 300,
+    "counts": "Games against one person"
+  },
+  {
+    "id": "play-pod-1",
+    "text": "Play a game in a pod of three or more",
+    "counter": "games_kind_pod",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Games with three or more players"
+  },
+  {
+    "id": "win-pod-1",
+    "text": "Win a game in a pod",
+    "counter": "wins_kind_pod",
+    "target": 1,
+    "coins": 60,
+    "xp": 250,
+    "counts": "Games with three or more players"
+  },
+  {
+    "id": "play-event-2",
+    "text": "Play 2 games in events",
+    "counter": "games_kind_event",
+    "target": 2,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Draft, sealed and tournament games"
+  },
+  {
+    "id": "win-event-2",
+    "text": "Win 2 games in events",
+    "counter": "wins_kind_event",
+    "target": 2,
+    "coins": 60,
+    "xp": 250,
+    "counts": "Draft, sealed and tournament games"
+  },
+  {
+    "id": "play-ai-3",
+    "text": "Play 3 games against the AI",
+    "counter": "games_kind_ai",
+    "target": 3,
+    "coins": 30,
+    "xp": 100,
+    "counts": "Games against the AI"
+  },
+  {
+    "id": "win-ai-2",
+    "text": "Win 2 games against the AI",
+    "counter": "wins_kind_ai",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Games against the AI"
+  },
+  {
+    "id": "win-bo3",
+    "text": "Win a best-of-three match",
+    "counter": "bo3_match_wins",
+    "target": 1,
+    "coins": 60,
+    "xp": 250,
+    "counts": "Best-of-three matches, any kind"
+  },
+  {
+    "id": "play-games-5",
+    "text": "Finish 5 games",
+    "counter": "games",
+    "target": 5,
+    "coins": 40,
+    "xp": 150
+  },
+  {
+    "id": "win-games-3",
+    "text": "Win 3 games",
+    "counter": "wins",
+    "target": 3,
+    "coins": 40,
+    "xp": 150
+  },
+  {
+    "id": "play-standard-2",
+    "text": "Play 2 Standard games",
+    "counter": "games_format_standard",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Standard games, any kind"
+  },
+  {
+    "id": "win-standard",
+    "text": "Win a Standard game",
+    "counter": "wins_format_standard",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Standard games, any kind"
+  },
+  {
+    "id": "play-pioneer-2",
+    "text": "Play 2 Pioneer games",
+    "counter": "games_format_pioneer",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Pioneer games, any kind"
+  },
+  {
+    "id": "win-pioneer",
+    "text": "Win a Pioneer game",
+    "counter": "wins_format_pioneer",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Pioneer games, any kind"
+  },
+  {
+    "id": "play-modern-2",
+    "text": "Play 2 Modern games",
+    "counter": "games_format_modern",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Modern games, any kind"
+  },
+  {
+    "id": "win-modern",
+    "text": "Win a Modern game",
+    "counter": "wins_format_modern",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Modern games, any kind"
+  },
+  {
+    "id": "play-legacy-2",
+    "text": "Play 2 Legacy games",
+    "counter": "games_format_legacy",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Legacy games, any kind"
+  },
+  {
+    "id": "win-legacy",
+    "text": "Win a Legacy game",
+    "counter": "wins_format_legacy",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Legacy games, any kind"
+  },
+  {
+    "id": "play-vintage-2",
+    "text": "Play 2 Vintage games",
+    "counter": "games_format_vintage",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Vintage games, any kind"
+  },
+  {
+    "id": "win-vintage",
+    "text": "Win a Vintage game",
+    "counter": "wins_format_vintage",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Vintage games, any kind"
+  },
+  {
+    "id": "play-pauper-2",
+    "text": "Play 2 Pauper games",
+    "counter": "games_format_pauper",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Pauper games, any kind"
+  },
+  {
+    "id": "win-pauper",
+    "text": "Win a Pauper game",
+    "counter": "wins_format_pauper",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Pauper games, any kind"
+  },
+  {
+    "id": "play-commander-2",
+    "text": "Play 2 Commander games",
+    "counter": "games_format_commander",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Commander games, any kind"
+  },
+  {
+    "id": "win-commander",
+    "text": "Win a Commander game",
+    "counter": "wins_format_commander",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Commander games, any kind"
+  },
+  {
+    "id": "play-brawl-2",
+    "text": "Play 2 Brawl games",
+    "counter": "games_format_brawl",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Brawl games, any kind"
+  },
+  {
+    "id": "win-brawl",
+    "text": "Win a Brawl game",
+    "counter": "wins_format_brawl",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Brawl games, any kind"
+  },
+  {
+    "id": "play-limited-2",
+    "text": "Play 2 Limited games",
+    "counter": "games_format_limited",
+    "target": 2,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Limited games, any kind"
+  },
+  {
+    "id": "win-limited",
+    "text": "Win a Limited game",
+    "counter": "wins_format_limited",
+    "target": 1,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Limited games, any kind"
+  },
+  {
+    "id": "win-deck-white",
+    "text": "Win 2 games with a deck that has white in it",
+    "counter": "wins_color_W",
+    "target": 2,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Games with a deck of that color"
+  },
+  {
+    "id": "win-deck-blue",
+    "text": "Win 2 games with a deck that has blue in it",
+    "counter": "wins_color_U",
+    "target": 2,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Games with a deck of that color"
+  },
+  {
+    "id": "win-deck-black",
+    "text": "Win 2 games with a deck that has black in it",
+    "counter": "wins_color_B",
+    "target": 2,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Games with a deck of that color"
+  },
+  {
+    "id": "win-deck-red",
+    "text": "Win 2 games with a deck that has red in it",
+    "counter": "wins_color_R",
+    "target": 2,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Games with a deck of that color"
+  },
+  {
+    "id": "win-deck-green",
+    "text": "Win 2 games with a deck that has green in it",
+    "counter": "wins_color_G",
+    "target": 2,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Games with a deck of that color"
+  },
+  {
+    "id": "win-deck-multicolor",
+    "text": "Win 2 games with a multicolored deck",
+    "counter": "wins_color_multicolor",
+    "target": 2,
+    "coins": 40,
+    "xp": 150,
+    "counts": "Games with a deck of two or more colors"
+  },
+  {
+    "id": "win-deck-colorless",
+    "text": "Win a game with a colorless deck",
+    "counter": "wins_color_colorless",
+    "target": 1,
+    "coins": 50,
+    "xp": 200,
+    "counts": "Games with a deck without colors"
+  },
+  {
+    "id": "play-deck-multicolor",
+    "text": "Play 3 games with a multicolored deck",
+    "counter": "games_color_multicolor",
+    "target": 3,
+    "coins": 30,
+    "xp": 120,
+    "counts": "Games with a deck of two or more colors"
+  },
+  {
+    "id": "draw-cards-25",
+    "text": "Draw 25 cards",
+    "counter": "cards_drawn",
+    "target": 25,
+    "coins": 25,
+    "xp": 100
+  },
+  {
+    "id": "gain-life-20",
+    "text": "Gain 20 life",
+    "counter": "life_gained",
+    "target": 20,
+    "coins": 30,
+    "xp": 120
+  },
+  {
+    "id": "tokens-10",
+    "text": "Create 10 tokens",
+    "counter": "tokens_created",
+    "target": 10,
+    "coins": 40,
+    "xp": 150
+  },
+  {
+    "id": "lands-20",
+    "text": "Play 20 lands",
+    "counter": "lands_played",
+    "target": 20,
+    "coins": 25,
+    "xp": 100
+  },
+  {
+    "id": "attack-25",
+    "text": "Attack with 25 creatures",
+    "counter": "attacks",
+    "target": 25,
+    "coins": 30,
+    "xp": 120
+  },
+  {
+    "id": "block-10",
+    "text": "Block 10 times",
+    "counter": "blocks",
+    "target": 10,
+    "coins": 30,
+    "xp": 120
+  },
+  {
+    "id": "damage-60",
+    "text": "Deal 60 damage to opponents",
+    "counter": "damage_to_opponents",
+    "target": 60,
+    "coins": 30,
+    "xp": 120
+  },
+  {
+    "id": "burn-15",
+    "text": "Deal 15 noncombat damage to opponents",
+    "counter": "noncombat_damage_to_opponents",
+    "target": 15,
+    "coins": 40,
+    "xp": 150
+  },
+  {
+    "id": "planeswalkers-2",
+    "text": "Cast 2 planeswalkers",
+    "counter": "planeswalker_spells",
+    "target": 2,
+    "coins": 50,
+    "xp": 200
+  },
+  {
+    "id": "colorless-5",
+    "text": "Cast 5 colorless spells",
+    "counter": "spells_colorless",
+    "target": 5,
+    "coins": 30,
+    "xp": 120
+  },
+  {
+    "id": "kill-12",
+    "text": "Make 12 of your opponents' creatures die",
+    "counter": "opponent_creatures_died",
+    "target": 12,
+    "coins": 30,
+    "xp": 120
+  },
+  {
+    "id": "enter-15",
+    "text": "Have 15 creatures enter under your control",
+    "counter": "creatures_entered",
+    "target": 15,
+    "coins": 25,
+    "xp": 100
+  },
+  {
+    "id": "weekly-wins-15",
+    "text": "Win 15 games this week",
+    "counter": "wins",
+    "target": 15,
+    "coins": 150,
+    "xp": 600,
+    "weekly": true
+  },
+  {
+    "id": "weekly-people-5",
+    "text": "Win 5 games against people this week",
+    "counter": "wins_kind_person",
+    "target": 5,
+    "coins": 200,
+    "xp": 750,
+    "counts": "Games against one person",
+    "weekly": true
+  },
+  {
+    "id": "weekly-pods-3",
+    "text": "Play 3 pod games this week",
+    "counter": "games_kind_pod",
+    "target": 3,
+    "coins": 150,
+    "xp": 600,
+    "counts": "Games with three or more players",
+    "weekly": true
+  },
+  {
+    "id": "weekly-events-6",
+    "text": "Play 6 event games this week",
+    "counter": "games_kind_event",
+    "target": 6,
+    "coins": 150,
+    "xp": 600,
+    "counts": "Draft, sealed and tournament games",
+    "weekly": true
+  },
+  {
+    "id": "weekly-bo3-3",
+    "text": "Win 3 best-of-three matches this week",
+    "counter": "bo3_match_wins",
+    "target": 3,
+    "coins": 200,
+    "xp": 750,
+    "counts": "Best-of-three matches, any kind",
+    "weekly": true
+  },
+  {
+    "id": "weekly-spells-150",
+    "text": "Cast 150 spells this week",
+    "counter": "spells",
+    "target": 150,
+    "coins": 150,
+    "xp": 600,
+    "weekly": true
+  },
+  {
+    "id": "weekly-damage-300",
+    "text": "Deal 300 damage to opponents this week",
+    "counter": "damage_to_opponents",
+    "target": 300,
+    "coins": 150,
+    "xp": 600,
+    "weekly": true
+  },
+  {
+    "id": "weekly-commander-3",
+    "text": "Win 3 Commander games this week",
+    "counter": "wins_format_commander",
+    "target": 3,
+    "coins": 200,
+    "xp": 750,
+    "counts": "Commander games, any kind",
+    "weekly": true
+  },
+  {
+    "id": "weekly-limited-4",
+    "text": "Win 4 Limited games this week",
+    "counter": "wins_format_limited",
+    "target": 4,
+    "coins": 200,
+    "xp": 750,
+    "counts": "Limited games, any kind",
+    "weekly": true
+  },
+  {
+    "id": "weekly-games-20",
+    "text": "Finish 20 games this week",
+    "counter": "games",
+    "target": 20,
+    "coins": 150,
+    "xp": 600,
+    "weekly": true
+  },
+  {
+    "id": "weekly-tokens-40",
+    "text": "Create 40 tokens this week",
+    "counter": "tokens_created",
+    "target": 40,
+    "coins": 150,
+    "xp": 600,
+    "weekly": true
+  },
+  {
+    "id": "weekly-multicolor-5",
+    "text": "Win 5 games with multicolored decks this week",
+    "counter": "wins_color_multicolor",
+    "target": 5,
+    "coins": 150,
+    "xp": 600,
+    "counts": "Games with a deck of two or more colors",
+    "weekly": true
   }
 ]

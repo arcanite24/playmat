@@ -42,6 +42,18 @@ public final class CareerRewards {
         int firstWinXp;
         int firstPersonGameXp;
         List<Integer> dailyWinCoins = Collections.emptyList();
+        EventPrizes eventPrizes = new EventPrizes();
+        int renownXp = 5000;
+        List<Integer> masteryRankGames = Collections.emptyList();
+        int masteryRankXp;
+        int masteryRankCoins;
+    }
+
+    static class EventPrizes {
+        List<Integer> limitedPacks = Collections.emptyList();
+        List<Integer> constructedPacks = Collections.emptyList();
+        int xp;
+        int xpPerWin;
     }
 
     private static volatile CareerRewards instance;
@@ -101,6 +113,37 @@ public final class CareerRewards {
     /** coins the day's nth win pays (1-based); 0 past the ladder */
     public int dailyWinCoins(int nth) {
         return nth < 1 || nth > file.dailyWinCoins.size() ? 0 : scaleCoins(file.dailyWinCoins.get(nth - 1));
+    }
+
+    /** Career packs an event pays by match wins (B289); none for events against the AI only */
+    public int eventPacks(boolean limited, int wins, boolean withPeople) {
+        List<Integer> ladder = limited ? file.eventPrizes.limitedPacks : file.eventPrizes.constructedPacks;
+        if (!withPeople || ladder.isEmpty()) {
+            return 0;
+        }
+        return ladder.get(Math.max(0, Math.min(wins, ladder.size() - 1)));
+    }
+
+    public int eventXp(int wins) {
+        return scaleXp(file.eventPrizes.xp + file.eventPrizes.xpPerWin * Math.max(0, wins));
+    }
+
+    /** XP past the top level for each Renown star (B291) */
+    public int renownXp() {
+        return Math.max(1, file.renownXp);
+    }
+
+    /** games a mastery rank takes, rank 1 first (B290) */
+    public List<Integer> masteryRankGames() {
+        return file.masteryRankGames;
+    }
+
+    public int masteryRankXp(int rank) {
+        return scaleXp(file.masteryRankXp * rank);
+    }
+
+    public int masteryRankCoins(int rank) {
+        return scaleCoins(file.masteryRankCoins * rank);
     }
 
     public List<Integer> dailyWinLadder() {
