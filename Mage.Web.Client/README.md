@@ -111,6 +111,20 @@ To debug errors in the browser, `window.__mageErrors()` lists the last 50 report
 
 Production builds are installable: `scripts/pwa-plugin.ts` writes `manifest.webmanifest` (named after `VITE_APP_NAME`) and `sw.js`, a hand-written service worker (`scripts/sw.template.js`) that precaches the shell (index.html, every JS and CSS chunk, the Barlow latin fonts, the icons). Navigations go to the network first and fall back to the cached shell, so the app opens offline on the sign-in screen, which then says it is offline. `/ws` and `/img` are never touched. A new release installs in the background; open pages get an "Update available" toast with Reload, otherwise the next load activates it. The dev server registers no service worker. To try it: `npm run build && npx vite preview`. In e2e, service workers are blocked except in `e2e/pwa.spec.ts`.
 
+### Android app
+
+`npm run android` builds the client in the `android` mode (`.env.android`) and packages it with Capacitor into a release
+APK (JDK 21 and the Android SDK needed). The app's shell ships inside the APK and runs from `https://localhost`; it plays
+on the server named by `PLAYMAT_HOST`, `playmat.deimos.studio` by default, at `wss://<host>/ws` with pictures from
+`https://<host>/img`. To build for another server, Multivac for example, set it in the shell:
+
+```bash
+PLAYMAT_HOST=playmat.multivac.club npm run android
+```
+
+That server must list `https://localhost` in `XMAGE_ALLOWED_ORIGINS`, and if it uses Turnstile, the widget's hostnames
+must include `localhost`.
+
 ## Scripts and gates
 
 CI (`.github/workflows/web-client.yml`) runs the four gates on every change under `Mage.Web.Client/`:

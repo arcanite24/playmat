@@ -1,4 +1,4 @@
-import type { AdaptiveView, DeckCardLists as WireDeck, InboxNote, MetaDeck, MetaFormat } from '../../protocol/generated/views';
+import type { AdaptiveView, DeckCardLists as WireDeck, InboxNote } from '../../protocol/generated/views';
 import type { MessageKey, Translate } from '../i18n';
 
 /**
@@ -6,31 +6,27 @@ import type { MessageKey, Translate } from '../i18n';
  * or for adaptive skill, and the inbox count. Pure, so the store and the screens share it and tests reach it.
  */
 
-const META_PREFIX = 'meta:';
 const GHOST_PREFIX = 'ghost:';
 const MIRROR = 'mirror';
 
 /**
- * The AI's deck, from the id kept in the AI options: a deck of the roster (saved, starter, or null for a random
- * starter), a meta library deck, a ghost deck by its code, or a copy of the player's own deck.
+ * The AI's deck, from the id kept in the AI options: a deck of the roster (saved, starter, format deck, or null for a
+ * random pick), a ghost deck by its code, or a copy of the player's own deck.
  */
 export type OpponentSource =
   | { kind: 'roster'; id: string | null }
-  | { kind: 'meta'; file: string }
   | { kind: 'ghost'; code: string }
   | { kind: 'mirror' };
 
 export function opponentSource(id: string | null): OpponentSource {
   if (id === MIRROR) return { kind: 'mirror' };
-  if (id?.startsWith(META_PREFIX) && id.length > META_PREFIX.length) return { kind: 'meta', file: id.slice(META_PREFIX.length) };
   if (id?.startsWith(GHOST_PREFIX)) {
     const code = normalizeGhostCode(id.slice(GHOST_PREFIX.length));
     if (code) return { kind: 'ghost', code };
   }
-  return { kind: 'roster', id: id && !id.startsWith(META_PREFIX) && !id.startsWith(GHOST_PREFIX) ? id : null };
+  return { kind: 'roster', id: id && !id.startsWith(GHOST_PREFIX) ? id : null };
 }
 
-export const metaOpponentId = (file: string) => `${META_PREFIX}${file}`;
 export const ghostOpponentId = (code: string) => `${GHOST_PREFIX}${normalizeGhostCode(code)}`;
 export const MIRROR_OPPONENT_ID = MIRROR;
 
@@ -62,21 +58,6 @@ export function looksCommander(deck: WireDeck): boolean {
   return side >= 1 && side <= 2 && count(deck.cards) + side >= 98;
 }
 
-/** The meta deck under a file, and its format, across the library. */
-export function findMetaDeck(library: readonly MetaFormat[], file: string): { format: MetaFormat; deck: MetaDeck } | null {
-  for (const format of library) {
-    const deck = (format.decks ?? []).find((item) => item.file === file);
-    if (deck) return { format, deck };
-  }
-  return null;
-}
-
-/** The library's formats with decks, the commander ones only for a commander game and the others otherwise. */
-export function metaFormatsFor(library: readonly MetaFormat[], commander: boolean | null, isCommander: (deckType?: string) => boolean): MetaFormat[] {
-  return library
-    .map((format) => ({ ...format, decks: (format.decks ?? []).filter((deck) => commander === null || isCommander(deck.deckType) === commander) }))
-    .filter((format) => format.decks.length > 0);
-}
 
 export function unseenCount(notes: readonly InboxNote[] | undefined): number {
   return (notes ?? []).filter((note) => !note.seen).length;

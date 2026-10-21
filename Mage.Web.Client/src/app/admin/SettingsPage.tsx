@@ -13,7 +13,7 @@ type AdminApi = ReturnType<typeof createApi>;
 const SETTINGS_KEY = ['admin', 'settings'];
 
 /** What each setting is, and the values it takes (none: a number). */
-const ABOUT: Record<string, { label: string; help: string; choices?: { value: string; label: string }[]; unit?: string }> = {
+const ABOUT: Record<string, { label: string; help: string; choices?: { value: string; label: string }[]; unit?: string; text?: string }> = {
   registration: {
     label: 'New accounts',
     help: 'Invite only: people need an invite link, or a place on the allowlist, to make an account.',
@@ -33,9 +33,24 @@ const ABOUT: Record<string, { label: string; help: string; choices?: { value: st
   discordEvents: { label: 'Events starting', help: 'Tournaments, when they start.', choices: [{ value: 'on', label: 'Post' }, { value: 'off', label: 'Off' }] },
   discordMatches: { label: 'Matches starting', help: 'Standalone matches between people.', choices: [{ value: 'on', label: 'Post' }, { value: 'off', label: 'Off' }] },
   discordStaff: { label: 'Staff news', help: 'Access requests, reports, staff changes, maintenance and backup trouble.', choices: [{ value: 'on', label: 'Post' }, { value: 'off', label: 'Off' }] },
+  'support.enabled': {
+    label: 'Support',
+    help: 'The month’s goal on Home, sign-in and the support page. It shows only once a Ko-fi or GitHub Sponsors page is set.',
+    choices: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }],
+  },
+  'support.goalCents': { label: 'Monthly goal', help: 'In US cents, for the calendar month (UTC): 4000 is $40.', unit: 'cents' },
+  'support.kofiUrl': { label: 'Ko-fi page', help: 'Where “Support the server” leads, e.g. https://ko-fi.com/playmat. Empty hides support.', text: 'https://ko-fi.com/…' },
+  'support.sponsorsUrl': { label: 'GitHub Sponsors page', help: 'Offered beside Ko-fi, e.g. https://github.com/sponsors/arcanite24.', text: 'https://github.com/sponsors/…' },
+  'support.costs': { label: 'What it pays for', help: 'Shown on the support page: lines separated by “ · ” or new lines.', text: 'Server · Backups · Mail' },
+  'support.discordAmounts': {
+    label: 'Amounts on Discord',
+    help: 'The public thank-you post for a public payment says how much.',
+    choices: [{ value: 'off', label: 'Name only' }, { value: 'on', label: 'Name and amount' }],
+  },
 };
 
 const DISCORD = new Set(['discordTables', 'discordEvents', 'discordMatches', 'discordStaff']);
+const isSupport = (name: string | undefined) => !!name?.startsWith('support.');
 
 /** Settings that change without a restart, the Discord channels, and planned maintenance. */
 export function SettingsPage({ api, role }: { api: AdminApi; role: StaffRole }) {
@@ -52,7 +67,7 @@ export function SettingsPage({ api, role }: { api: AdminApi; role: StaffRole }) 
         <h2 id="server-settings">Server</h2>
         <p className={styles.quiet}>These apply at once and stay after a restart. Back to config returns a setting to what the server&rsquo;s config says.</p>
         <ul className={styles.settings}>
-          {list.filter((s) => !DISCORD.has(s.name ?? '')).map((setting) => <SettingRow key={setting.name} api={api} setting={setting} now={now} />)}
+          {list.filter((s) => !DISCORD.has(s.name ?? '') && !isSupport(s.name)).map((setting) => <SettingRow key={setting.name} api={api} setting={setting} now={now} />)}
         </ul>
       </section>
       <section aria-labelledby="discord" className={styles.block}>
@@ -62,11 +77,24 @@ export function SettingsPage({ api, role }: { api: AdminApi; role: StaffRole }) 
           {list.filter((s) => DISCORD.has(s.name ?? '')).map((setting) => <SettingRow key={setting.name} api={api} setting={setting} now={now} />)}
         </ul>
       </section>
+      {list.some((s) => isSupport(s.name)) && (
+        <section aria-labelledby="support-settings" className={styles.block}>
+          <h2 id="support-settings">Support</h2>
+          <p className={styles.quiet}>
+            The monthly goal players see and where they support the server; the payments are in Support. {atLeast(role, 'owner') ? '' : 'Only the owner changes these.'}
+          </p>
+          <ul className={styles.settings}>
+            {list.filter((s) => isSupport(s.name)).map((setting) => (
+              <SettingRow key={setting.name} api={api} setting={setting} now={now} readOnly={!atLeast(role, 'owner')} />
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
 
-function SettingRow({ api, setting, now }: { api: AdminApi; setting: ServerSetting; now: number }) {
+function SettingRow({ api, setting, now, readOnly = false }: { api: AdminApi; setting: ServerSetting; now: number; readOnly?: boolean }) {
   const client = useQueryClient();
   const name = setting.name ?? '';
   const about = ABOUT[name] ?? { label: name, help: '' };
@@ -77,7 +105,8 @@ function SettingRow({ api, setting, now }: { api: AdminApi; setting: ServerSetti
   });
   const source = setting.changed
     ? `Changed by ${setting.changedBy} ${describeAge(setting.changedAt ?? 0, now) || formatDate(setting.changedAt ?? 0)}`
-    : DISCORD.has(name) ? 'On unless turned off here' : 'From the config';
+    : DISCORD.has(name) ? 'On unless turned off here' : isSupport(name) ? 'The default' : 'From the config';
+  const locked = !!setting.locked || readOnly;
   const id = `setting-${name}`;
   return (
     <li className={styles.setting}>
@@ -88,19 +117,19 @@ function SettingRow({ api, setting, now }: { api: AdminApi; setting: ServerSetti
       </div>
       <div className={styles.inline}>
         {about.choices ? (
-          <select id={id} className={styles.settingInput} value={setting.value ?? ''} disabled={!!setting.locked || save.isPending}
+          <select id={id} className={styles.settingInput} value={setting.value ?? ''} disabled={locked || save.isPending}
             onChange={(event) => save.mutate(event.target.value)}>
             {about.choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
           </select>
         ) : (
           <form className={styles.inline} onSubmit={(event: FormEvent) => { event.preventDefault(); save.mutate(draft.trim()); }}>
-            <input id={id} className={styles.settingInput} inputMode="numeric" value={draft} disabled={!!setting.locked}
-              placeholder="no limit" aria-describedby={`${id}-unit`} onChange={(event) => setDraft(event.target.value)} />
+            <input id={id} className={[styles.settingInput, about.text ? styles.settingWide : ''].join(' ')} inputMode={about.text ? 'url' : 'numeric'} value={draft}
+              disabled={locked} placeholder={about.text ?? 'no limit'} aria-describedby={`${id}-unit`} onChange={(event) => setDraft(event.target.value)} />
             <span id={`${id}-unit`} className={styles.quiet}>{about.unit}</span>
-            <Button size="sm" type="submit" disabled={save.isPending || draft.trim() === (setting.value ?? '')}>Save</Button>
+            <Button size="sm" type="submit" disabled={locked || save.isPending || draft.trim() === (setting.value ?? '')}>Save</Button>
           </form>
         )}
-        {setting.changed && !setting.locked && (
+        {setting.changed && !locked && (
           <Button size="sm" variant="quiet" disabled={save.isPending}
             onClick={() => save.mutate('', { onSuccess: (next) => setDraft(next.settings?.find((s) => s.name === name)?.value ?? '') })}>Back to config</Button>
         )}

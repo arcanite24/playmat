@@ -1,0 +1,6 @@
+.heart {
+  flex: none;
+  margin-inline: 4px;
+  color: var(--brass);
+  vertical-align: -1px;
+}

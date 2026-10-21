@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useCardImage } from '../../core/images/useCardImage';
+import { showsBackFace } from '../../core/images/imageLinks';
 import { stripMarkup } from '../../core/game/prompt';
 import type { CardView, StackAbilityView } from '../../protocol/generated/views';
 import { useT, type MessageKey } from '../i18n';
@@ -25,7 +26,7 @@ export function AbilityCard({ ability, sleeve, style, className }: {
 }) {
   const t = useT();
   const source = (ability as StackAbilityView).sourceCard;
-  const art = useCardImage(source?.expansionSetCode ? source : null, 'front', 'art_crop');
+  const art = useCardImage(source?.expansionSetCode ? source : null, source && showsBackFace(source) ? 'back' : 'front', 'art_crop');
   const name = source?.displayName ?? source?.name ?? t('ui.ability');
   const text = (ability.rules ?? []).map(stripMarkup).filter(Boolean);
   return (

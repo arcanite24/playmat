@@ -74,6 +74,14 @@
   filter: brightness(0.5) saturate(0.6);
 }
 
+/* played, and the server hasn't answered yet: already on its way out of the hand */
+.pending,
+.pending:hover {
+  transform: translateY(-150px) rotate(0deg) scale(1.08);
+  cursor: progress;
+  z-index: var(--z-held) !important;
+}
+
 .selected {
   transform: translateY(-60px) rotate(0deg);
 }
@@ -100,4 +108,21 @@
 /* tall: on a taller tablet the hand stands higher, so more of each card shows */
 :global([data-layout='tall']) .hand {
   bottom: calc(-118px + var(--hand-raise, 0px));
+}
+
+/* played from another zone (an adventurer in exile, flashback): it joins the hand while it can be played */
+.fromZone {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgb(var(--shade-rgb) / 0.82);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  pointer-events: none;
 }

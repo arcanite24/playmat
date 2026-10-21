@@ -634,6 +634,11 @@ public final class CareerStore implements AutoCloseable {
         return unlocks;
     }
 
+    /** The account's cosmetic unlocks as {kind, item}, for checking the look it plays with. */
+    public List<String[]> unlocksOf(String user) throws SQLException {
+        return unlocks(user);
+    }
+
     /** @return true when this is new */
     synchronized boolean addUnlock(String user, String kind, String item, long now) throws SQLException {
         try (PreparedStatement insert = connection.prepareStatement("INSERT OR IGNORE INTO unlocks (user, kind, item, at) VALUES (?, ?, ?, ?)")) {

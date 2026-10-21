@@ -20,6 +20,8 @@ export interface ActionClusterProps {
   /** server offers a special action (e.g. turning a face-down creature up) */
   special: boolean;
   holdingPriority: boolean;
+  /** the server kept an undo point for the player's last mana taps (mana floating, nothing cast since) */
+  undoable?: boolean;
   /** the client is answering for the player (nothing to do): show that instead of a button to press */
   autoPassing?: boolean;
   /** more ways to answer, beside the secondary buttons (e.g. "Always…") */
@@ -49,7 +51,7 @@ const UNDO: PromptButton = { label: 'Undo tap', command: { type: 'action', actio
 
 /** The decision corner: what the game is asking, and the one big button that answers it. */
 export function ActionCluster({
-  interaction, awaiting, status, canAct, special, holdingPriority, autoPassing = false, fullControl = false, onFullControl, extra,
+  interaction, awaiting, status, canAct, special, holdingPriority, undoable = false, autoPassing = false, fullControl = false, onFullControl, extra,
   stalled = false, onResend, onResync, conceding = null, cards = null, onCommand,
 }: ActionClusterProps) {
   const t = useT();
@@ -59,8 +61,11 @@ export function ActionCluster({
   if (special && interaction.mode === 'priority') {
     secondary.unshift({ label: 'Special action', command: { type: 'string', value: 'special' }, tone: 'secondary' });
   }
-  // while paying, the last mana tap can be taken back (the server restores the land and the pool)
-  const undo = interaction.mode === 'payMana' && canAct ? UNDO : null;
+  // mana tapped at priority can be taken back while the stack is empty (the server restores the lands and the
+  // pool), as in the desktop client. Never while paying: undo would roll back to before the spell while the
+  // server is still collecting its cost, and the half-cast spell then resolves or vanishes (#55); Cancel there
+  // already untaps everything.
+  const undo = undoable && interaction.mode === 'priority' && canAct ? UNDO : null;
   if (undo) secondary.unshift(undo);
   const cancel = secondary.find((button) => button.label === 'Cancel');
 
@@ -79,7 +84,7 @@ export function ActionCluster({
       } else if (undo && (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
         event.preventDefault();
         onCommand(undo.command);
-      } else if (event.key === 'Escape' && cancel && !awaiting) {
+      } else if (event.key === 'Escape' && cancel && (!awaiting || interaction.mode === 'payMana')) {
         onCommand(cancel.command);
       } else {
         const ahead = PASS_AHEAD.find((item) => item.key === event.key);
@@ -91,7 +96,7 @@ export function ActionCluster({
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [main, cancel, undo, awaiting, canAct, onCommand]);
+  }, [main, cancel, undo, awaiting, canAct, interaction.mode, onCommand]);
 
   // Ctrl+Shift on its own, as on Arena, locks full control on or off (released without any other key in between)
   useEffect(() => {

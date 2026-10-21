@@ -61,6 +61,29 @@ export function isSessionLost(error: unknown): boolean {
   return error instanceof RpcError && error.code === RPC_ERROR.NOT_AUTHORIZED && error.message.startsWith('Not connected');
 }
 
+/** The session was lost because another sign-in as the same player took it over (data.reason from the bridge). */
+export function isSignedInElsewhere(error: unknown): boolean {
+  return isSessionLost(error) && ((error as RpcError).data as { reason?: unknown } | null | undefined)?.reason === 'signedInElsewhere';
+}
+
+/** The bridge closes a connection with this code when another sign-in as the same player took its session over. */
+export const CLOSE_SIGNED_IN_ELSEWHERE = 4001;
+
+/**
+ * What a socket closing means for the connection:
+ * - closed: we closed it ourselves (disconnect), nothing to do;
+ * - unreachable: the first attempt failed, so the address may be wrong: report it instead of retrying;
+ * - signedInElsewhere: another sign-in took our session over. Reconnecting would sign in again and take it back, and
+ *   the other one would do the same, for ever: stop and let the player choose;
+ * - reconnect: anything else is a lost connection (network, server restart, heartbeat timeout): try again.
+ */
+export function closeOutcome(status: ConnectionStatus, code: number): 'closed' | 'unreachable' | 'signedInElsewhere' | 'reconnect' {
+  if (status === 'closed') return 'closed';
+  if (status === 'connecting') return 'unreachable';
+  if (code === CLOSE_SIGNED_IN_ELSEWHERE) return 'signedInElsewhere';
+  return 'reconnect';
+}
+
 /** The subset of the browser WebSocket the client needs (replaceable in tests). */
 export interface SocketLike {
   readonly readyState: number;
@@ -124,6 +147,7 @@ export class RpcClient implements RpcCaller {
   private readonly eventListeners = new Set<Listener<ServerEvent>>();
   private readonly sessionStartListeners = new Set<Listener<void>>();
   private readonly sessionLostListeners = new Set<Listener<string>>();
+  private readonly signedInElsewhereListeners = new Set<Listener<void>>();
   private openWaiters: { resolve: () => void; reject: (error: Error) => void }[] = [];
   private readonly gameStates = new GameStateCache((gameId) => this.call('gameStateResync', gameId, ''));
 
@@ -225,6 +249,16 @@ export class RpcClient implements RpcCaller {
     return () => this.sessionLostListeners.delete(listener);
   }
 
+  /**
+   * Another sign-in as the same player (another tab, device or client) took our session over: the bridge closed the
+   * connection (it is not reopened), or turned a call away. Signing back in by ourselves would take it back, so the
+   * player decides.
+   */
+  onSignedInElsewhere(listener: Listener<void>): () => void {
+    this.signedInElsewhereListeners.add(listener);
+    return () => this.signedInElsewhereListeners.delete(listener);
+  }
+
   private openSocket(status: 'connecting' | 'reconnecting'): void {
     if (!this.url) return;
     this.dropSocket(1000, 'replaced');
@@ -256,19 +290,27 @@ export class RpcClient implements RpcCaller {
     socket.onerror = () => {
       // a close event always follows; reconnect logic lives there
     };
-    socket.onclose = () => {
+    socket.onclose = (event) => {
       if (this.socket !== socket) return;
       this.socket = null;
       this.stopHeartbeat();
       this.failPending(new ConnectionError('Connection lost'));
-      if (this.status === 'closed') return;
-      if (this.status === 'connecting') {
-        // first attempt: report the failure instead of retrying an address that may be wrong
-        this.setStatus('closed');
-        this.rejectOpenWaiters(new ConnectionError('Could not reach the server'));
-        return;
+      switch (closeOutcome(this.status, event?.code ?? 1006)) {
+        case 'closed':
+          return;
+        case 'unreachable':
+          this.setStatus('closed');
+          this.rejectOpenWaiters(new ConnectionError('Could not reach the server'));
+          return;
+        case 'signedInElsewhere':
+          // listeners first, so the app shows why rather than a lost connection
+          this.signedInElsewhereListeners.forEach((listener) => listener());
+          this.setStatus('closed');
+          this.rejectOpenWaiters(new ConnectionError('Signed in somewhere else'));
+          return;
+        case 'reconnect':
+          this.scheduleReconnect();
       }
-      this.scheduleReconnect();
     };
   }
 
@@ -337,7 +379,8 @@ export class RpcClient implements RpcCaller {
           ? new RpcError(call.method, RPC_ERROR.SERVER_ERROR, error)
           : new RpcError(call.method, error.code ?? RPC_ERROR.SERVER_ERROR, error.message ?? 'Server error', error.data);
         call.reject(rejected);
-        if (isSessionLost(rejected)) this.sessionLostListeners.forEach((listener) => listener(call.method));
+        if (isSignedInElsewhere(rejected)) this.signedInElsewhereListeners.forEach((listener) => listener());
+        else if (isSessionLost(rejected)) this.sessionLostListeners.forEach((listener) => listener(call.method));
       } else {
         call.resolve(message.result ?? null);
       }

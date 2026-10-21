@@ -2,6 +2,7 @@ package mage.server.career;
 
 import mage.cards.decks.DeckCardInfo;
 import mage.cards.decks.DeckCardLists;
+import mage.cards.repository.CardScanner;
 import mage.server.solo.GhostDecks;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,6 +85,8 @@ public class SoloLadderTest {
 
     @Test
     public void puzzlesFromFilesAreChecked() throws Exception {
+        // the check looks the cards up, and a fresh checkout has no card database yet
+        CardScanner.scan();
         CareerSetup.Puzzle puzzle = new CareerSetup.Puzzle();
         puzzle.objective = "win";
         puzzle.you = new CareerSetup.CareerPuzzleSide();

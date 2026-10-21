@@ -1,0 +1,67 @@
+/* The docs: the site's tokens and header (../style.css), a guide list beside a readable column. */
+
+.docs { padding: 56px 0 0; }
+.docs-row { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 56px; align-items: start; }
+
+.docs-nav { position: sticky; top: 100px; display: grid; gap: 10px; }
+.docs-nav h2 { font-size: 1rem; letter-spacing: 0.16em; color: var(--ink-dim); }
+.docs-nav ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; border-left: 1.5px dashed var(--thread); }
+.docs-nav a {
+  display: block;
+  padding: 6px 0 6px 16px;
+  margin-left: -1.5px;
+  border-left: 2px solid transparent;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+.docs-nav a:hover { color: var(--ink-strong); }
+.docs-nav a[aria-current="page"] { border-left-color: var(--decision); color: var(--ink-strong); font-weight: 600; }
+
+.doc { max-width: 76ch; display: grid; gap: 18px; }
+.doc > h1 { font-size: clamp(2.2rem, 4.6vw, 3.4rem); }
+.doc > .lede { font-size: 1.15rem; max-width: none; }
+.doc h2 { font-size: clamp(1.6rem, 3vw, 2.1rem); margin-top: 28px; scroll-margin-top: 90px; }
+.doc h3 { margin-top: 10px; scroll-margin-top: 90px; }
+.doc p, .doc li { color: var(--ink-soft); }
+.doc strong { color: var(--ink-strong); }
+.doc ul, .doc ol { margin: 0; padding-left: 1.3em; display: grid; gap: 8px; }
+
+.doc .terminal { box-shadow: 0 0 0 1px var(--ink-ghost); }
+.doc .terminal pre { padding: 16px 20px; }
+.doc .terminal code { font-size: 0.88rem; line-height: 1.7; }
+
+.doc table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.doc th { text-align: left; color: var(--ink-dim); font-weight: 600; padding: 8px 12px 8px 0; border-bottom: 1.5px dashed var(--thread); }
+.doc td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--ink-ghost); color: var(--ink-soft); vertical-align: top; }
+.doc td:first-child { white-space: nowrap; }
+.table-wrap { overflow-x: auto; }
+
+.note {
+  padding: 14px 18px;
+  border-left: 3px solid var(--decision);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  background: var(--mat-800);
+  color: var(--ink-soft);
+}
+.note.warn { border-left-color: #d98a6a; }
+
+/* the docs home: one card per guide */
+.doc .guides { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.guides li { display: grid; }
+.guides a { display: grid; gap: 8px; padding: 26px 28px; text-decoration: none; }
+.doc .guides h2 { margin: 0; font-size: 1.5rem; }
+.guides p { color: var(--ink-soft); }
+
+@media (max-width: 960px) {
+  .docs-row { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .docs-nav { position: static; }
+  .docs-nav ul { display: flex; flex-wrap: wrap; gap: 4px 16px; border-left: 0; }
+  .docs-nav a { padding: 4px 0; margin: 0; border-left: 0; border-bottom: 2px solid transparent; }
+  .docs-nav a[aria-current="page"] { border-bottom-color: var(--decision); }
+  .doc .guides { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .docs { padding-top: 36px; }
+  .doc td:first-child { white-space: normal; }
+}

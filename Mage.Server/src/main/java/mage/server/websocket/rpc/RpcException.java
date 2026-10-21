@@ -21,6 +21,12 @@ public class RpcException extends Exception {
     /** a deck couldn't be imported from a deck website; the reason is in the error's data */
     public static final int DECK_IMPORT_FAILED = -32005;
 
+    /**
+     * NOT_AUTHORIZED's reason when another login as the same user took this connection's session over: the client
+     * should not log back in by itself, or the two would keep taking it from each other
+     */
+    public static final String SIGNED_IN_ELSEWHERE = "signedInElsewhere";
+
     private final int code;
     /** a machine-readable reason sent as the error's data ({"reason": ...}), or null */
     private String reason;

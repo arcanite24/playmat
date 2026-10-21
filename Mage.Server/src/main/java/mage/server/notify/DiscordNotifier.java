@@ -210,6 +210,17 @@ public final class DiscordNotifier {
     }
 
     /**
+     * Someone supported the server and may be thanked in public (their provider's public name, or a player who chose
+     * to appear on the supporters wall). The amount only when the owner turned amounts on.
+     */
+    public void supported(String name, String amount) {
+        if (!isEnabled()) {
+            return;
+        }
+        submit(supportedMessage(name, amount, link("/support")));
+    }
+
+    /**
      * Posts a test message now, past the switches and the queue, so staff see at once whether the webhook works.
      *
      * @return the HTTP status Discord answered with
@@ -305,6 +316,12 @@ public final class DiscordNotifier {
             embed.addProperty("description", limit(escape(note), 4096));
         }
         return payload(content, embed);
+    }
+
+    static String supportedMessage(String name, String amount, String link) {
+        String text = "\uD83D\uDC9A " + escape(name) + " supported the server" + (amount == null ? "" : " (" + escape(amount) + ")")
+                + " \u2014 thank you!";
+        return payload(text + (link == null ? "" : " " + link), embed(text, link));
     }
 
     static String staffMessage(String title, String text, String link) {

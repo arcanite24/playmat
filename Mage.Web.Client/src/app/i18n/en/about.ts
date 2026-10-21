@@ -5,6 +5,8 @@
 export default {
   'about.back': 'Back',
   'about.title': 'About {app}',
+  // {version}: v1.2.3, sha-abc1234 or dev
+  'about.version': 'Version {version}',
   'about.lede': '{app} is a free web client for XMage, the open-source Magic: The Gathering rules engine. Nobody pays to play, and nothing here is for sale.',
   'about.wotc': 'Wizards of the Coast',
   // {policy} is the link to the Fan Content Policy
@@ -30,5 +32,11 @@ export default {
   'about.data.reports': 'Reports you file about other players, until a moderator closes them.',
   'about.data.errors': 'Error reports from your browser when something breaks: the message, the screen and the browser, never your password.',
   'about.data.chat': 'Chat is not stored. Friends and ignore lists stay in your browser.',
+  // {privacy} is a link to the privacy policy
+  'about.data.more': 'The {privacy} has the details, and the {terms} the rules of playing here.',
+  'about.support': 'Supporting the server',
+  // {support} is a link to the support page
+  'about.support.text': "Players may chip in toward the server's monthly costs on the {support}. It is a voluntary donation: nothing in {app} is gated behind it, and every format, card and feature stays free for everyone. Supporters get a small thank-you that is cosmetic only and drawn in {app}'s own style, never Wizards of the Coast art, and they keep it. Refunds follow Ko-fi's process; when a payment is refunded, staff may take back the thank-you it gave.",
+  'about.support.link': 'support page',
   'about.backTo': 'Back to {app}',
 } as const;

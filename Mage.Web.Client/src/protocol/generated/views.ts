@@ -48,11 +48,19 @@ export interface AccountDetail {
     tourneys?: number;
 }
 
+export interface AccountEmailStatus {
+    email?: string;
+    github?: boolean;
+    mail?: boolean;
+    verified?: boolean;
+}
+
 export interface AccountRow {
     active?: boolean;
     allowlisted?: boolean;
     career?: boolean;
     email?: string;
+    emailVerified?: boolean;
     lastConnection?: number;
     lockedUntil?: number;
     mutedUntil?: number;
@@ -259,6 +267,7 @@ export interface CardView extends SimpleCardView {
     abilityType?: AbilityType;
     alternateName?: string;
     artRect?: ArtRect;
+    backFace?: boolean;
     bandedCards?: string[];
     canAttack?: boolean;
     canBlock?: boolean;
@@ -1497,6 +1506,25 @@ export interface PairAdvice {
     score?: number;
 }
 
+export interface Payment {
+    account?: string;
+    amountCents?: number;
+    currency?: string;
+    fromName?: string;
+    id?: number;
+    isPublic?: boolean;
+    kind?: string;
+    linkedBy?: string;
+    message?: string;
+    provider?: string;
+    providerId?: string;
+    receivedAt?: number;
+    revoked?: boolean;
+    revokedReason?: string;
+    sponsorId?: number;
+    tier?: string;
+}
+
 export interface PermanentView extends CardView {
     attachedControllerDiffers?: boolean;
     attachedTo?: string;
@@ -1559,6 +1587,17 @@ export interface PlayableObjectStats extends Serializable, Copyable<PlayableObje
 
 export interface PlayableObjectsList extends Serializable, Copyable<PlayableObjectsList> {
     objects?: { [index: string]: PlayableObjectStats };
+}
+
+export interface PlayerLook {
+    avatar?: string;
+    cloth?: string;
+    flair?: string;
+    frame?: string;
+    name?: string;
+    pet?: string;
+    sleeve?: string;
+    title?: string;
 }
 
 export interface PlayerReport {
@@ -1691,6 +1730,7 @@ export interface ServerInfo {
     access?: string;
     accounts?: boolean;
     career?: boolean;
+    contactEmail?: string;
     deckSync?: boolean;
     gamesRunning?: number;
     gamesWaiting?: number;
@@ -1706,7 +1746,9 @@ export interface ServerInfo {
     notice?: string;
     registration?: string;
     serverName?: string;
+    support?: boolean;
     testMode?: boolean;
+    turnstileSiteKey?: string;
 }
 
 export interface ServerSetting {
@@ -1841,6 +1883,44 @@ export interface StartOptions {
     variant?: string;
 }
 
+export interface SupportLedger {
+    goalCents?: number;
+    month?: string;
+    monthCents?: number;
+    otherCurrencies?: string[];
+    payments?: Payment[];
+    supporters?: number;
+    unmatched?: number;
+}
+
+export interface SupportPerk {
+    grantedAt?: number;
+    item?: string;
+    kind?: string;
+}
+
+export interface SupportStatus {
+    costs?: string[];
+    enabled?: boolean;
+    goalCents?: number;
+    kofiUrl?: string;
+    monthCents?: number;
+    monthLabel?: string;
+    publicSupporters?: string[];
+    sponsorsUrl?: string;
+    supporters?: number;
+    you?: SupportYou;
+}
+
+export interface SupportYou {
+    code?: string;
+    notice?: boolean;
+    perks?: SupportPerk[];
+    since?: number;
+    supporter?: boolean;
+    wall?: boolean;
+}
+
 export interface TableClientMessage extends Serializable {
     currentTableId?: string;
     deck?: DeckView;
@@ -1935,6 +2015,57 @@ export interface TournamentView extends Serializable {
     tournamentState?: string;
     tournamentType?: string;
     watchingAllowed?: boolean;
+}
+
+export interface UpdateChange {
+    sha?: string;
+    title?: string;
+    url?: string;
+}
+
+export interface UpdateJob {
+    action?: string;
+    by?: string;
+    finishedAt?: number;
+    from?: string;
+    id?: string;
+    message?: string;
+    startedAt?: number;
+    state?: string;
+    step?: string;
+    tag?: string;
+}
+
+export interface UpdateStatus {
+    changes?: UpdateChange[];
+    channel?: string;
+    checkedAt?: number;
+    commitsBehind?: number;
+    currentCommit?: string;
+    currentVersion?: string;
+    enabled?: boolean;
+    error?: string;
+    latestCommit?: string;
+    latestVersion?: string;
+    notesUrl?: string;
+    published?: boolean;
+    serverImage?: string;
+    sourceRepo?: string;
+    updateAvailable?: boolean;
+    updater?: UpdaterInfo;
+    webImage?: string;
+}
+
+export interface UpdaterInfo {
+    busy?: boolean;
+    current?: string;
+    job?: UpdateJob;
+    log?: string[];
+    previous?: string;
+    problem?: string;
+    ready?: boolean;
+    running?: boolean;
+    version?: string;
 }
 
 export interface UserData extends Serializable {

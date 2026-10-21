@@ -1,6 +1,6 @@
 # Playtest checklist
 
-The first sessions with the private group. The goal is a ranked list of real friction, not a feature tour. Run it on the LAN server (`https://multivac.local:8443`, see `ops/web/README.md`) with two to four players.
+The first sessions with the private group. The goal is a ranked list of real friction, not a feature tour. Run it on the public server (`https://playmat.deimos.studio`), or a LAN server (`https://multivac.local:8443`, see `ops/web/README.md`), with two to four players.
 
 ## Before the session
 

@@ -33,6 +33,29 @@ public final class GithubSignIn {
     private final AccessPolicy access;
     private final AuthorizedUserRepository accounts;
 
+    /** Told when a GitHub user signs in to an account (support links their sponsorship to it); set at startup. */
+    public interface LinkListener {
+        void linked(long githubId, String account, long now);
+    }
+
+    private static volatile LinkListener linkListener;
+
+    public static void onLinked(LinkListener listener) {
+        linkListener = listener;
+    }
+
+    private static void linked(long githubId, String account, long now) {
+        LinkListener listener = linkListener;
+        if (listener != null) {
+            try {
+                listener.linked(githubId, account, now);
+            } catch (RuntimeException e) {
+                // a sign-in never fails over what follows it
+                org.apache.log4j.Logger.getLogger(GithubSignIn.class).warn("After GitHub sign-in: " + e.getMessage());
+            }
+        }
+    }
+
     public GithubSignIn(GithubAuth github, AccessPolicy access, AuthorizedUserRepository accounts) {
         this.github = github;
         this.access = access;
@@ -61,6 +84,11 @@ public final class GithubSignIn {
         if (account != null) {
             AuthorizedUser user = accounts.getByName(account);
             store.linkGithub(who.id, who.login, account, now);
+            linked(who.id, account, now);
+            // GitHub vouches that this person reads the address
+            if (who.email != null && who.email.equalsIgnoreCase(user.getEmail())) {
+                store.emailVerified(account, user.getEmail(), now);
+            }
             if (!access.allows(account, user.getEmail()) && !github.isRepoPerson(who.login)) {
                 throw new IllegalArgumentException(AccessPolicy.REFUSED);
             }
@@ -88,6 +116,9 @@ public final class GithubSignIn {
         // nobody knows this password: the account signs in with GitHub, or with a reset code sent to its email
         accounts.add(name, Base64.getEncoder().encodeToString(bytes) + "a1", who.email);
         store.linkGithub(who.id, who.login, name, now);
+        linked(who.id, name, now);
+        store.accountRegistered(name, now);
+        store.emailVerified(name, who.email, now);
         if (access.isAllowlist() && github.isRepoPerson(who.login)) {
             store.allow(name, "github: " + who.login, "github", now);
         }

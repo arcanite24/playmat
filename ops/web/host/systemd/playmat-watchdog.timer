@@ -1,0 +1,9 @@
+[Unit]
+Description=Run the Playmat host watchdog every 5 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

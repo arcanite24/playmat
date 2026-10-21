@@ -186,3 +186,20 @@ export function removeDamage(values: readonly number[], index: number, limits: L
 export function assignmentAnswer(values: readonly number[]): string {
   return values.join(' ');
 }
+
+/**
+ * The split to submit without asking, or null when the player has something to decide. Without trample, only when
+ * the damage is exactly enough for every blocker to get lethal damage: nothing is left over and no blocker is spared.
+ * With trample (and `trample` allowed), when every blocker gets lethal damage and the rest goes on to the player.
+ */
+export function autoAssignment(assignment: DamageAssignment, { trample }: { trample: boolean }): string | null {
+  const { recipients, totalMin, totalMax } = assignment;
+  if (recipients.length === 0 || recipients.some((recipient) => recipient.lethal <= 0)) return null;
+  const values = lethalFirst(assignment);
+  if (!checkAssignment(values, assignment).valid) return null;
+  const allLethal = recipients.every((recipient, index) => values[index] === recipient.lethal);
+  if (!allLethal) return null;
+  const assigned = values.reduce((sum, value) => sum + value, 0);
+  if (assignment.trample) return trample ? assignmentAnswer(values) : null;
+  return assigned === totalMax && assigned >= totalMin ? assignmentAnswer(values) : null;
+}

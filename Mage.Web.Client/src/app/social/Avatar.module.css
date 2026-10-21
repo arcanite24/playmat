@@ -33,6 +33,17 @@
   background: var(--mat-600);
 }
 
+/* the supporter ring (support/supportModel.ts THANK_YOU.frame), as on the match plate */
+.ring {
+  outline: 1.5px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.lg.ring {
+  outline-width: 2px;
+  outline-offset: 3px;
+}
+
 .flag {
   font-size: 1.05em;
   line-height: 1;

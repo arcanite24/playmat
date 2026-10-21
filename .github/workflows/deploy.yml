@@ -1,0 +1,171 @@
+name: Deploy
+
+# Production (vars.DEPLOY_URL, https://playmat.deimos.studio), from GitHub (RELEASING.md):
+#   a published release   builds its images (images.yml, tagged vX.Y.Z) and deploys them; a pre-release only builds
+#   Run workflow (tag)    deploys images that exist already, without building: a redeploy, a rollback to an older
+#                         release (vX.Y.Z), or a commit's build (sha-<7>, master)
+# The deploy job waits for the production environment's required reviewers. It reaches the host over SSH as `deploy`,
+# whose key can only run ops/web/deploy/playmat-deploy: `deploy <tag>` pulls, snapshots the databases, drains games,
+# restarts on the new images and rolls itself back when they aren't healthy, and tells the staff Discord channel.
+# Then this job checks the site from outside (ops/web/deploy/smoke.mjs) and asks the host to roll back if it fails.
+#
+# Settings, on the production environment (or the repository):
+#   secrets DEPLOY_HOST          the host's name or address
+#           DEPLOY_SSH_KEY       private key whose public half is in the host's /home/deploy/.ssh/authorized_keys
+#           DEPLOY_KNOWN_HOSTS   the host's key line(s), as in known_hosts ("<DEPLOY_HOST> ssh-ed25519 AAAA...")
+#   vars    DEPLOY_URL           the site, e.g. https://playmat.deimos.studio
+#           DEPLOY_SSH_PORT      optional, 22 by default
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to deploy as it is (no build): vX.Y.Z, sha-<7 hex> or master"
+        required: true
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io/arcanite24
+
+jobs:
+  images:
+    if: github.event_name == 'release'
+    uses: ./.github/workflows/images.yml
+    with:
+      tag: ${{ github.event.release.tag_name }}
+    permissions:
+      contents: read
+      packages: write
+
+  deploy:
+    needs: images
+    # a manual run skips the build; a release deploys once its images are built, unless it is a pre-release
+    if: >-
+      !cancelled()
+      && (needs.images.result == 'success' || needs.images.result == 'skipped')
+      && !(github.event_name == 'release' && github.event.release.prerelease)
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL }}
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    # the host waits up to 15 minutes for running games, then up to 5 for the new version to be healthy
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v5
+      - id: tag
+        name: Tag
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          # the same rule as the host's forced command
+          [[ "$TAG" =~ ^(v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?|sha-[0-9a-f]{7,40}|master)$ ]] \
+            || { echo "::error::'$TAG' is not a deployable tag (vX.Y.Z, sha-<hex>, master)"; exit 1; }
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: images
+        name: Find the images
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          for image in server web; do
+            ref=$REGISTRY/playmat-$image:$TAG
+            digest=$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r .digest) \
+              || { echo "::error::$ref doesn't exist: build it first (Actions, Images, Run workflow)"; exit 1; }
+            echo "$image=$digest" >> "$GITHUB_OUTPUT"
+            echo "$ref: $digest"
+          done
+          # the version the web image was built as, which the deployed page must then say it is
+          version=$(docker buildx imagetools inspect "$REGISTRY/playmat-web:$TAG" --format '{{json .Image}}' \
+            | jq -r '[.. | objects | .Labels? // empty | .["org.opencontainers.image.version"] // empty] | first // ""')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "web image version: ${version:-unknown}"
+      - name: SSH key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          [ -n "$DEPLOY_SSH_KEY" ] && [ -n "$DEPLOY_KNOWN_HOSTS" ] && [ -n "$DEPLOY_HOST" ] \
+            || { echo "::error::set the DEPLOY_HOST, DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS secrets (RELEASING.md)"; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - id: deploy
+        name: Deploy on the host
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        # the host's own health gate rolls back on failure, so a failure here is already a rollback (or worse: read it)
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts -o BatchMode=yes -o ServerAliveInterval=30 \
+            "deploy@$DEPLOY_HOST" "deploy $TAG" 2>&1 | tee deploy.log
+          echo "previous=$(sed -n 's/^previous: //p' deploy.log | tail -n 1)" >> "$GITHUB_OUTPUT"
+      # the smoke test needs Node 22's global WebSocket
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - id: smoke
+        name: Smoke test from outside
+        env:
+          DEPLOY_URL: ${{ vars.DEPLOY_URL }}
+          VERSION: ${{ steps.images.outputs.version }}
+        run: |
+          node ops/web/deploy/smoke.mjs "${DEPLOY_URL%/}" "$VERSION" | tee smoke.log
+      - name: Roll back
+        if: failure() && steps.smoke.outcome == 'failure'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+        run: |
+          echo "::error::the site failed the smoke test after the deploy; rolling back"
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_SSH_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile=~/.ssh/known_hosts -o BatchMode=yes -o ServerAliveInterval=30 \
+            "deploy@$DEPLOY_HOST" rollback 2>&1 | tee rollback.log
+      - name: Summary
+        if: always()
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+          SERVER: ${{ steps.images.outputs.server }}
+          WEB: ${{ steps.images.outputs.web }}
+          PREVIOUS: ${{ steps.deploy.outputs.previous }}
+          DEPLOY: ${{ steps.deploy.outcome }}
+          SMOKE: ${{ steps.smoke.outcome }}
+          URL: ${{ vars.DEPLOY_URL }}
+        run: |
+          {
+            echo "### Deploy ${TAG:-?} to ${URL:-production}"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Tag | \`${TAG:-?}\` |"
+            echo "| Previous | \`${PREVIOUS:-unknown}\` |"
+            echo "| Server image | \`$REGISTRY/playmat-server@${SERVER:-?}\` |"
+            echo "| Web image | \`$REGISTRY/playmat-web@${WEB:-?}\` |"
+            echo "| Host deploy | ${DEPLOY:-not run} |"
+            echo "| Smoke test | ${SMOKE:-not run} |"
+            if [ -f smoke.log ]; then echo "| Smoke result | \`$(sed -n 's/^smoke: //p' smoke.log | tail -n 1)\` |"; fi
+            if [ -f rollback.log ]; then echo "| Rollback | $(grep -q '^result: ok' rollback.log && echo "done, back on $PREVIOUS" || echo "**failed: the host needs someone**") |"; fi
+            for log in deploy rollback; do
+              if [ -f "$log.log" ]; then
+                printf '\n<details><summary>%s output</summary>\n\n```\n' "$log"
+                tail -n 60 "$log.log"
+                printf '```\n</details>\n'
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"

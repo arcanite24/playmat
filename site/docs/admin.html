@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Staff and the admin console · Playmat docs</title>
+  <meta name="description" content="Roles, the console sign-in, maintenance and the audit log.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html" aria-current="page">Staff and the admin console</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Staff and the admin console</h1>
+        <p class="lede">Staff run the server from <strong>Admin</strong> in the account menu. It needs accounts
+          (<code>XMAGE_AUTH=true</code>), and each staff member signs in with their own.</p>
+
+        <h2 id="roles">Roles</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Role</th><th>Can</th></tr></thead>
+            <tbody>
+              <tr><td>Moderator</td><td>See who is online, mute and sign players out, watch any running game, work through reports and client errors, and read the audit log and server stats.</td></tr>
+              <tr><td>Admin</td><td>Also lock and deactivate accounts, remove tables, broadcast, decide who can register (Access), change Settings, and see Updates.</td></tr>
+              <tr><td>Owner</td><td>Also give and take staff roles, plan maintenance, and update or roll back the server.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>The account named in <code>XMAGE_OWNER</code> is always an owner. Give the other roles from the
+          <strong>Staff</strong> tab. Roles are checked on every action, so taking one away works at once.</p>
+
+        <h2 id="console">Console sign-in</h2>
+        <p>When no owner can sign in, <strong>Console sign-in</strong> at the bottom of <code>/admin</code> opens the
+          console as an owner with <code>XMAGE_ADMIN_PASSWORD</code>. It's a break-glass key: once staff have roles you
+          can leave the password empty, which turns console sign-in off.</p>
+
+        <h2 id="maintenance">Maintenance</h2>
+        <p>Owners announce maintenance from <strong>Settings</strong>, now or up to a day ahead, with a message. From then
+          on no new tables start, and everyone online is warned again 30, 10, 5 and 1 minutes before. With
+          <strong>restart</strong> checked, the server restarts once the time has come and no game is running.
+          The <a href="updates.html#steps">Update button</a> does this for you during an update.</p>
+
+        <h2 id="audit">The audit log</h2>
+        <p>Every staff action that changes something goes in the <strong>Audit</strong> tab, with who did it and the
+          reason they gave: mutes, locks, role changes, maintenance, updates and rollbacks.</p>
+
+        <p class="small">Accounts, reports, feedback, client errors and the support ledger are described in the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#staff">deployment guide</a>.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

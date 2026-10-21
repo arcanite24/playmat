@@ -5,6 +5,7 @@ import type { EventBus } from '../rpc/EventBus';
 import type { ServerEvent } from '../rpc/RpcClient';
 import { DelayedRelay } from './broadcastDelay';
 import { deriveInteraction, type Command, type Interaction } from './interaction';
+import type { Prediction } from './prediction';
 import { PROMPT_EVENTS, parsePrompt, promptGameView, stripMarkup, type Prompt, type PromptEventName } from './prompt';
 import { structuralShare } from './structuralShare';
 
@@ -27,6 +28,8 @@ export interface GameSessionState {
   interaction: Interaction;
   /** an answer was sent and the server has not asked anything new yet */
   awaitingServer: boolean;
+  /** the board object just clicked and what the click should do, drawn until the server's next view or question */
+  prediction: Prediction | null;
   /** an answer got no reaction from the server in time: input is open again, and the player may resend or resync */
   stalled: boolean;
   /** the connection was lost or the page reloaded: the board is stale until the server sends the game again */
@@ -44,6 +47,8 @@ export interface GameSessionState {
 }
 
 const MAX_NOTICES = 50;
+/** the payment prompt's Cancel button */
+const CANCEL_PAYMENT: Command = { type: 'boolean', value: false };
 /**
  * After an answer, the last prompt stays on screen this long while the server works. The next prompt usually
  * arrives sooner and replaces it directly, so highlights and buttons don't blink off and on between decisions.
@@ -75,6 +80,8 @@ export class GameSession {
   private readonly replyTimeoutMs: number;
   /** the last answer sent, for "Send again" */
   private lastCommand: Command | null = null;
+  /** Cancel was pressed on a payment while a mana tap was still with the server: sent at the next request for mana */
+  private cancelPending = false;
   /** the newest game event a view has carried; a view repeated from the server's cache carries old ones again */
   private lastEventSeq = 0;
   /** every server event for this game passes through here: at once, or after the broadcast delay when watching */
@@ -95,6 +102,7 @@ export class GameSession {
       prompt: null,
       interaction: deriveInteraction(null, null),
       awaitingServer: false,
+      prediction: null,
       stalled: false,
       resyncing: false,
       conceding: false,
@@ -167,7 +175,7 @@ export class GameSession {
     this.replyTimer = setTimeout(() => {
       this.replyTimer = null;
       if (!this.store.getState().awaitingServer) return;
-      this.store.setState({ awaitingServer: false, stalled: true });
+      this.store.setState({ awaitingServer: false, stalled: true, prediction: null });
     }, this.replyTimeoutMs);
   }
 
@@ -180,7 +188,7 @@ export class GameSession {
     if (this.store.getState().gameOver) return;
     this.clearReplyTimer();
     this.clearHold();
-    this.store.setState({ resyncing: true, awaitingServer: false, stalled: false });
+    this.store.setState({ resyncing: true, awaitingServer: false, stalled: false, prediction: null });
   }
 
   /** The server never sent the game back: it ended (or was given up) while we were away. */
@@ -298,16 +306,36 @@ export class GameSession {
       }
     } catch (error) {
       this.clearReplyTimer();
-      this.store.setState({ awaitingServer: false });
+      this.store.setState({ awaitingServer: false, prediction: null });
       this.addNotice('error', error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
 
-  /** Click on a card, permanent, player or stack object; returns false when the object is not clickable now. */
-  click(objectId: string): boolean {
-    const command = this.store.getState().interaction.clickable.get(objectId);
-    if (!command || this.store.getState().awaitingServer) return false;
+  /**
+   * Cancel the spell or ability being paid for. Auto-pay keeps a tap with the server most of the time, and an
+   * answer sent meanwhile would be dropped, so the cancel waits for the server's next request for mana instead.
+   * If that tap finished the payment there is nothing left to cancel: the spell is cast.
+   */
+  cancelPayment(): void {
+    const { interaction, awaitingServer } = this.store.getState();
+    if (interaction.mode !== 'payMana') return;
+    if (awaitingServer) {
+      this.cancelPending = true;
+      return;
+    }
+    void this.respond(CANCEL_PAYMENT).catch(() => undefined);
+  }
+
+  /**
+   * Click on a card, permanent, player or stack object; returns false when the object is not clickable now. The
+   * prediction (see prediction.ts) is drawn until the server's next view or question.
+   */
+  click(objectId: string, prediction: Prediction | null = null): boolean {
+    const { interaction, awaitingServer } = this.store.getState();
+    const command = interaction.clickable.get(objectId);
+    if (!command || awaitingServer) return false;
+    this.store.setState({ prediction });
     void this.respond(command).catch(() => undefined);
     return true;
   }
@@ -331,10 +359,16 @@ export class GameSession {
       // can take a person far longer than the reply timeout
       this.clearReplyTimer();
       this.clearHold();
-      this.store.setState({ awaitingServer: false, stalled: false, prompt: null });
+      this.store.setState({ awaitingServer: false, stalled: false, prompt: null, prediction: null });
+      if (this.cancelPending) {
+        this.cancelPending = false;
+        this.tooLateToCancel();
+      }
       if (next === previous) this.refreshInteraction();
     }
     if (next === previous) return;
+    // the server's view is the truth: whatever the click was expected to do, this shows what it did
+    if (this.store.getState().prediction) this.store.setState({ prediction: null });
     const playerId = this.store.getState().playerId ?? (this.store.getState().mode === 'play' ? view.myPlayerId ?? null : null);
     this.store.setState({ view: next, playerId });
     this.refreshInteraction();
@@ -354,8 +388,19 @@ export class GameSession {
     const prompt = parsePrompt(method, data as never);
     this.clearHold();
     this.clearReplyTimer();
-    this.store.setState({ prompt, awaitingServer: false, stalled: false, resyncing: false });
+    this.store.setState({ prompt, awaitingServer: false, prediction: null, stalled: false, resyncing: false });
+    if (this.cancelPending) {
+      this.cancelPending = false;
+      // answered at once, before auto-pay can tap the next source
+      if (prompt?.kind === 'playMana') void this.respond(CANCEL_PAYMENT).catch(() => undefined);
+      else if (prompt?.kind === 'priority') this.tooLateToCancel();
+    }
     this.refreshInteraction();
+  }
+
+  /** the tap Cancel waited for completed the payment: the spell or ability went ahead */
+  private tooLateToCancel(): void {
+    this.addNotice('error', 'Too late to cancel: the cost was already paid.');
   }
 
   private refreshInteraction(): void {

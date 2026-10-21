@@ -23,6 +23,14 @@ export interface CardImageRef {
   imageFileName?: string;
   /** server object type (TOKEN, EMBLEM, PLANE...); command object views do not send it */
   mageObjectType?: string;
+  /** the back face of a double-faced card is up (transformed, or an MDFC played as its back) */
+  backFace?: boolean;
+  transformed?: boolean;
+}
+
+/** Both faces of a double-faced card share one collector number: the view says which one is up. */
+export function showsBackFace(card: CardImageRef): boolean {
+  return !!(card.backFace || card.transformed);
 }
 
 /** Set code of XMage's own pictures (face down, copy, monarch, day/night...), always from the token lists. */

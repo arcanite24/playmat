@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Updating · Playmat docs</title>
+  <meta name="description" content="Get new versions: the admin console says when one is out, and the Update button installs it.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html" aria-current="page">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Updating</h1>
+        <p class="lede">Every change merged into Playmat is published as new images within about ten minutes. Your server
+          keeps running the version it started with until you update it, and an update keeps your accounts, stats,
+          backups and settings.</p>
+
+        <h2 id="check">Is there a new version?</h2>
+        <p><strong>Admin → Updates</strong> (admins and the owner) shows the version the server runs and whether a newer
+          one is out, with the list of changes. The Overview says so too. The server asks GitHub only when staff open
+          the console, at most once an hour; <code>XMAGE_UPDATE_CHECK=off</code> in <code>.env</code> turns that off.</p>
+        <p>Servers follow <code>master</code>, the newest build. Releases (<code>vX.Y.Z</code>, followed with the
+          <code>latest</code> tag) will be published with images as they come.</p>
+
+        <h2 id="button">The Update button</h2>
+        <p>With the <strong>updater</strong> running beside the server, the owner updates from <strong>Admin → Updates</strong>:
+          <strong>Update to …</strong> installs the newest version, and <strong>Go back to …</strong> returns to the one
+          before the last update. Turn it on once, from the folder you cloned:</p>
+        <div class="terminal" role="region" aria-label="Commands to turn on the updater">
+<pre><code>git pull
+echo COMPOSE_PROFILES=updater &gt;&gt; ops/web/.env
+docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code></pre>
+        </div>
+        <p>It needs a Linux host with Docker Engine. On Docker Desktop for Windows the section says it can't work there;
+          update <a href="#by-hand">by hand</a> instead.</p>
+
+        <h3 id="steps">What an update does</h3>
+        <ol>
+          <li>Downloads the version's images and pins them by digest in <code>.env</code>, so a later <code>up -d</code> runs the same thing.</li>
+          <li>Backs up the databases, next to the nightly backups.</li>
+          <li>Warns players. With games running it announces maintenance and gives them up to 15 minutes to end (<code>UPDATER_DRAIN_MINUTES</code>).</li>
+          <li>Restarts the server and web client on the new version, with the compose file that version came with.</li>
+          <li>Waits for both to be healthy. If they aren't within 10 minutes (<code>UPDATER_HEALTH_TIMEOUT</code>), it goes back to the version that ran before, by itself.</li>
+          <li>Updates the updater to the same version, and posts how it went to the staff Discord channel if one is set.</li>
+        </ol>
+        <p>The section follows each step while it runs. The server restarts in the middle, so the page loses its
+          connection for a minute: sign in again and the section shows the result, with the updater's log under
+          <strong>Updater log</strong>. If your browser still has the old version of the page, it offers to reload.</p>
+
+        <h3 id="access">What the updater can do</h3>
+        <p class="note warn">The updater is the one container with access to Docker, which amounts to root on the host. Turn it on only if you're comfortable with that.</p>
+        <ul>
+          <li>It has no network connection and listens on nothing. Docker itself does the downloading.</li>
+          <li>The server asks it through files in a volume they share, and a request can only name a version. The images come from the updater's own settings, never from the request.</li>
+          <li>Only the owner can ask, and each update or rollback is kept in the audit log.</li>
+        </ul>
+        <p>To turn it off again, remove <code>updater</code> from <code>COMPOSE_PROFILES</code> and run
+          <code>docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env rm -sf updater</code>.</p>
+
+        <h2 id="by-hand">Updating by hand</h2>
+        <p>Without the updater, run these from the folder you cloned. With games running, announce maintenance in
+          <strong>Admin → Settings</strong> first: the restart ends every game in progress.</p>
+        <div class="terminal" role="region" aria-label="Commands to update by hand">
+<pre><code>git pull
+docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env pull xmage web
+docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-build</code></pre>
+        </div>
+        <p>If <code>.env</code> names the images with a digest (<code>…@sha256:…</code>, the updater writes them that way),
+          set them back to <code>:master</code> first, or the pull keeps the same version. A server that was built from
+          the source (empty image lines) switches to the published images by setting
+          <code>XMAGE_SERVER_IMAGE=ghcr.io/arcanite24/playmat-server:master</code> and
+          <code>XMAGE_WEB_IMAGE=ghcr.io/arcanite24/playmat-web:master</code>; the Update button does that by itself on its
+          first update.</p>
+
+        <h2 id="trouble">When something goes wrong</h2>
+        <ul>
+          <li><strong>“The updater isn't running.”</strong> <code>COMPOSE_PROFILES=updater</code> is missing from <code>.env</code>, or the <code>up -d</code> after adding it hasn't run. <code>docker compose … logs updater</code> shows what it saw at start.</li>
+          <li><strong>An update failed and went back.</strong> The server runs what it ran before. The updater log says which step failed; the backup from step 2 is in the backups volume.</li>
+          <li><strong>A job looks stuck</strong> after the host rebooted mid-update. Start the stack with <code>up -d</code>, check that it's healthy, and ask again.</li>
+        </ul>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

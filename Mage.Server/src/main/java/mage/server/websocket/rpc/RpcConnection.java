@@ -19,6 +19,17 @@ public interface RpcConnection {
     void bindSession(String sessionId);
 
     /**
+     * @return the user this connection last logged in as, kept after its session ends (to tell why it ended); null
+     * before a login
+     */
+    default String getUserName() {
+        return null;
+    }
+
+    default void setUserName(String userName) {
+    }
+
+    /**
      * @return remote IP address, used by the server to identify anonymous users on reconnect
      */
     String getRemoteHost();

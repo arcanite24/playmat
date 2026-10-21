@@ -24,6 +24,10 @@ public final class ApiContext {
     final LoginThrottle adminLoginThrottle = new LoginThrottle();
     /** player sign-ins with a password, per address and per account name */
     final LoginThrottle playerLoginThrottle = LoginThrottle.forPlayers();
+    /** new accounts and access requests per client address */
+    final RegistrationLimiter registrations = new RegistrationLimiter();
+    /** the bot check on registration and access requests; off unless configured */
+    Turnstile turnstile = Turnstile.fromSettings();
     /**
      * Server admin password; admin login over the bridge is disabled when it is empty.
      */

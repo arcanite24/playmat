@@ -1,5 +1,7 @@
+/* the body doesn't scroll (base.css): the console scrolls itself, so it is exactly the window's height; every
+   section renders inside it */
 .page {
-  min-height: 100dvh;
+  height: 100dvh;
   overflow-y: auto;
   background: var(--mat-900);
   color: var(--ink);
@@ -294,6 +296,8 @@
   font: inherit;
 }
 input.settingInput { inline-size: 7ch; font-variant-numeric: tabular-nums; }
+/* a page address or a line of text (the support settings) */
+input.settingWide { inline-size: min(40ch, 100%); }
 .maintenance {
   display: grid;
   gap: var(--space-2);
@@ -307,4 +311,47 @@ input.settingInput { inline-size: 7ch; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 640px) {
   .setting { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* a refunded support payment: kept in the ledger, no longer counted */
+.revoked { opacity: 0.55; }
+
+/* Updates: a block of commands or .env lines to copy */
+.commands { margin: 0; border: 1px solid var(--ink-ghost); border-radius: var(--radius-control); background: var(--mat-800); min-width: 0; }
+.commands figcaption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--ink-ghost);
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+.commands pre {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  color: var(--ink-strong);
+}
+
+/* Update button: the job's steps, and the updater's log */
+.steps { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); list-style: none; margin: 0; padding: 0; color: var(--ink-dim); font-size: var(--text-sm); }
+.steps li::before { content: "○ "; }
+.stepDone { color: var(--ink-soft); }
+.stepDone::before { content: "● " !important; color: var(--decision); }
+.stepNow { color: var(--ink-strong); font-weight: 600; }
+.stepNow::before { content: "◐ " !important; color: var(--decision); }
+.updateLog summary { cursor: pointer; color: var(--ink-dim); font-size: var(--text-sm); }
+.updateLog pre {
+  margin: var(--space-2) 0 0;
+  max-block-size: 320px;
+  overflow: auto;
+  padding: var(--space-3);
+  background: var(--mat-800);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  color: var(--ink-soft);
 }

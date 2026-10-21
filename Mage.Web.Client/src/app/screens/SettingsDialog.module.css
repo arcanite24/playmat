@@ -375,3 +375,47 @@
 .matCardRow input {
   flex: 1;
 }
+
+/* Account: one block per subject (email, your data), each with its own actions */
+.accountSection {
+  display: grid;
+  gap: var(--space-2);
+  padding: 12px 0 var(--space-4);
+  border-bottom: 1px solid var(--ink-ghost);
+}
+
+.accountSection h3 {
+  margin: 0;
+  font-size: inherit;
+}
+
+.accountSection p {
+  margin: 0;
+}
+
+.accountActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* the footer's left end: which build this is, for bug reports */
+.version {
+  margin-right: auto;
+  align-self: center;
+  font-size: var(--text-sm);
+  color: var(--ink-dim);
+}
+
+/* a group of rows inside a tab (Automation) */
+.groupHeading {
+  margin: var(--space-3) 0 0;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ink-ghost);
+  color: var(--ink-dim);
+  font-family: var(--font-print);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-print-wide);
+  text-transform: uppercase;
+}

@@ -55,10 +55,30 @@ import { gzipSync } from 'node:zlib';
 // feedback in the account menu (a lazy dialog), measured 454.3 kB
 // entry raised 2026-10-12 from 71 kB for M16 (performance): Home says when every game slot of the server is busy
 // (a polled serverInfo query and its message); measured entry 71.2 kB
+// app raised 2026-10-13 from 460 kB for M21 (ship from GitHub): the version in About and Settings, and the "What's new"
+// dialog with its release notes reader (lazy, with its English and Spanish messages); the entry gained only its host
+// (+0.2 kB, 71.6 kB). Measured app 460.3 kB
+// entry raised from 72 kB and app from 465 kB 2026-10-14 for M20 and M21 merged (email confirmation, Turnstile, privacy
+// and terms, account export and deletion): the generated RPC client and the sign-in form's agreement grew the entry;
+// the email banner and the Turnstile widget went lazy to keep it to +1 kB. Measured entry 72.6 kB, app 471.3 kB
+// app raised 2026-10-13 from 480 kB for M22 (supporting the server): the goal bar, the /support page, the thank-you
+// dialog, supporter pickers and settings, the look sync, opponents' looks in the match, the admin Support tab, and
+// their English and Spanish messages, all lazy. The entry gained the generated RPC methods, the supporter sleeve's drawn
+// back and the lazy hooks (+1.3 kB). Measured entry 73.9 kB, app 487.2 kB
+// app raised 2026-10-14 from 492 kB for pets: three.js and its glTF loader (154 kB) in one lazy chunk, PetScene,
+// downloaded only when a player with a pet sits at the table; the entry is unchanged. Measured app 646.3 kB
+// entry raised 2026-10-15 from 75 kB for Settings, Cosmetics (the locker for everyone): master already measured 74.998 kB,
+// and the new code is all lazy (the locker, its tab); the entry only gains chunk-name churn (+7 bytes gzipped).
+// Measured entry 75.0 kB, app 650.8 kB
+// entry raised 2026-10-21 from 75.5 kB, initial from 212 kB and app from 665 kB for single player (S001–S050: saved
+// games, what-if, assists, ghosts, adaptive AI, the matchup lab, puzzles, inbox, and their English and Spanish messages,
+// all lazy). The entry gained the generated RPC client's solo methods and the free-play opponent helpers the play store
+// uses; Home's saved games went lazy so the Career progress model stays out of it (-3.6 kB). Measured entry 77.5 kB,
+// initial 212.0 kB, app 714.5 kB
 const BUDGET_KB = {
-  entry: 72,
-  initial: 212,
-  app: 460,
+  entry: 78,
+  initial: 214,
+  app: 720,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

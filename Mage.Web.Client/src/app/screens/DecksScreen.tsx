@@ -15,6 +15,7 @@ import { RichText } from '../i18n/RichText';
 import { SLEEVE_COLORS, rosterOf, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
 import { useDeckSyncStatus } from '../stores/deckSyncStatus';
 import { useSettings } from '../stores/settings';
+import { useServerInfo } from '../queries';
 import { openImport, useImportSheet } from '../stores/importSheet';
 import { Button } from '../ui/Button';
 import { DeckBox } from '../ui/DeckBox';
@@ -26,6 +27,9 @@ import styles from './DecksScreen.module.css';
 
 // sleeves unlocked in Career, for players who opted in
 const CareerSleeves = lazy(() => import('../career/CareerScreen').then((m) => ({ default: m.CareerSleeves })));
+// the supporter sleeve, on servers with accounts: owned, or a quiet teaser where the server takes support
+const SupporterSleeve = lazy(() => import('../support/SupporterPicks').then((m) => ({ default: m.SupporterSleeve })));
+const SupporterSleeveTeaser = lazy(() => import('../support/SupporterPicks').then((m) => ({ default: m.SupporterSleeveTeaser })));
 
 // sharing a deck as a ghost, and the ghosts you share (S047); they bring their messages with them
 const GhostActions = lazy(() => import('../solo/Ghosts').then((m) => ({ default: m.GhostActions })));
@@ -41,6 +45,7 @@ export function DecksScreen() {
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? null;
   const arrivedId = useImportSheet((state) => state.arrivedId);
   const career = useSettings((state) => state.settings.careerOptIn);
+  const accounts = useServerInfo().data?.accounts === true;
   const navigate = useNavigate();
   const degraded = useDegradedSites();
   const { dragging, dropProps } = useImportDrop();
@@ -132,24 +137,32 @@ export function DecksScreen() {
             )}
             <div>
               <h3 className={styles.subLabel}>{t('decks.sleeves')}</h3>
-              <div className={styles.sleeves} role="radiogroup" aria-label={t('decks.sleeveColor')}>
-                {SLEEVE_COLORS.map((color) => (
-                  <button
-                    key={color}
-                    type="button"
-                    role="radio"
-                    aria-checked={sleeveFor(decks.sleeves, selected) === color}
-                    aria-label={t('decks.sleeve', { color })}
-                    className={styles.swatch}
-                    style={{ background: color }}
-                    onClick={() => decks.setSleeve(selected.id, color)}
-                  />
-                ))}
-                {career && (
-                  <Suspense fallback={null}>
-                    <CareerSleeves current={sleeveFor(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
-                  </Suspense>
-                )}
+              <div className={styles.sleeveRow}>
+                <div className={styles.sleeves} role="radiogroup" aria-label={t('decks.sleeveColor')}>
+                  {SLEEVE_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      role="radio"
+                      aria-checked={sleeveFor(decks.sleeves, selected) === color}
+                      aria-label={t('decks.sleeve', { color })}
+                      className={styles.swatch}
+                      style={{ background: color }}
+                      onClick={() => decks.setSleeve(selected.id, color)}
+                    />
+                  ))}
+                  {career && (
+                    <Suspense fallback={null}>
+                      <CareerSleeves current={sleeveFor(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
+                    </Suspense>
+                  )}
+                  {accounts && (
+                    <Suspense fallback={null}>
+                      <SupporterSleeve current={sleeveFor(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
+                    </Suspense>
+                  )}
+                </div>
+                {accounts && <Suspense fallback={null}><SupporterSleeveTeaser swatchClass={styles.swatch} /></Suspense>}
               </div>
             </div>
             <Button variant="print" icon={<PencilRuler size={16} />} onClick={() => navigate(`/decks/${encodeURIComponent(selected.id)}`)}>

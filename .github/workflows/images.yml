@@ -1,0 +1,281 @@
+name: Images
+
+# The deploy kit's two images (ops/web), built on GitHub's own amd64 and arm64 runners (no emulation) and pushed to
+# GHCR as one multi-arch image each:
+#   ghcr.io/arcanite24/playmat-server   Dockerfile.server (the XMage server, also the backup service)
+#   ghcr.io/arcanite24/playmat-web      Dockerfile.web (the web client served by Caddy)
+#   ghcr.io/arcanite24/playmat-updater  Dockerfile.updater (the admin console's Update button, compose profile updater)
+# Tags: sha-<7> always; master for master's latest commit (Multivac follows it, ops/web/pull-images.ps1); for a
+# release, its tag (vX.Y.Z) and latest (not for a pre-release such as v1.2.0-rc.1).
+# deploy.yml calls this for a published release before it deploys. Each architecture is pushed by digest, then one
+# job joins them under the tags. Local builds (compose build:, ship-images.sh) don't need any of this.
+on:
+  push:
+    branches: [ "master" ]
+    paths:
+      - "pom.xml"
+      - "Mage/**"
+      - "Mage.Common/**"
+      - "Mage.Sets/**"
+      - "Mage.Server/**"
+      - "Mage.Server.Plugins/**"
+      - "Mage.Plugins/**"
+      - "Mage.Web.Client/**"
+      - "ops/web/Dockerfile.*"
+      - "ops/web/Caddyfile"
+      - "ops/web/server-entrypoint.sh"
+      - "ops/web/backup.sh"
+      - "ops/web/log4j-docker.properties"
+      - "ops/web/updater/**"
+      # the server image carries the compose kit the deploy runs (ops/web/deploy)
+      - "ops/web/docker-compose.yml"
+      - "ops/web/imgcache.conf.template"
+      - ".github/workflows/images.yml"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Build this release tag (vX.Y.Z) and tag the images with it (and latest). Empty: the branch chosen above, as sha-<7> (and master on master)."
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to build and tag the images with (vX.Y.Z); empty: the calling ref."
+        type: string
+        required: false
+        default: ""
+    outputs:
+      version:
+        description: "The tag the images carry for this build: the release tag, else sha-<7>"
+        value: ${{ jobs.merge.outputs.version }}
+      server-image:
+        description: "ghcr.io/arcanite24/playmat-server:<version>@sha256:..."
+        value: ${{ jobs.merge.outputs.server-image }}
+      web-image:
+        description: "ghcr.io/arcanite24/playmat-web:<version>@sha256:..."
+        value: ${{ jobs.merge.outputs.web-image }}
+      updater-image:
+        description: "ghcr.io/arcanite24/playmat-updater:<version>@sha256:..."
+        value: ${{ jobs.merge.outputs.updater-image }}
+
+# a newer master push replaces a master build still running; release builds always finish
+concurrency:
+  group: images-${{ inputs.tag || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io/arcanite24
+
+jobs:
+  meta:
+    name: Version and tags
+    runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.meta.outputs.sha }}
+      version: ${{ steps.meta.outputs.version }}
+      tags: ${{ steps.meta.outputs.tags }}
+      release: ${{ steps.meta.outputs.release }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+      - id: meta
+        name: Work out the version and tags
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          sha=$(git rev-parse HEAD)
+          tags="sha-${sha::7}"
+          if [ -n "$TAG" ]; then
+            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]] || { echo "::error::'$TAG' is not a release tag (vX.Y.Z)"; exit 1; }
+            version=$TAG
+            tags="$tags $TAG"
+            # a pre-release never becomes latest
+            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] && tags="$tags latest"
+          else
+            version="sha-${sha::7}"
+            [ "$GITHUB_REF" = refs/heads/master ] && tags="$tags master"
+          fi
+          {
+            echo "sha=$sha"
+            echo "version=$version"
+            echo "tags=$tags"
+            echo "release=$([ -n "$TAG" ] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+          echo "Building $sha as $version, tagged: $tags"
+
+  build:
+    name: ${{ matrix.image }} (${{ matrix.arch }})
+    needs: meta
+    runs-on: ${{ matrix.runner }}
+    # the server image compiles every card (Mage.Sets) from a cold Maven cache
+    timeout-minutes: 150
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [ server, web, updater ]
+        arch: [ amd64, arm64 ]
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          # the server's build stage is gigabytes of sources and class files that change with every commit: cache only
+          # the image's own layers (the JRE and its packages). The web build caches npm ci too.
+          - image: server
+            cache-mode: min
+          - image: web
+            cache-mode: max
+          - image: updater
+            cache-mode: max
+    steps:
+      # with .git: the server image reads the commit it reports in /healthz and the admin console from it
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.meta.outputs.sha }}
+      - name: Release notes for the web client
+        if: matrix.image == 'web' && needs.meta.outputs.release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.meta.outputs.version }}
+        # the client build turns this into /release-notes.json, its "What's new" dialog (Mage.Web.Client/scripts/release-notes-plugin.ts)
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > Mage.Web.Client/release-notes.md; then
+            echo "release notes: $(wc -l < Mage.Web.Client/release-notes.md) lines"
+          else
+            echo "::warning::no GitHub release named $TAG: the web client ships without release notes"
+            rm -f Mage.Web.Client/release-notes.md
+          fi
+      - id: args
+        name: Build arguments
+        env:
+          IMAGE: ${{ matrix.image }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          RELEASE: ${{ needs.meta.outputs.release }}
+          APP_NAME: ${{ vars.APP_NAME || 'Playmat' }}
+        run: |
+          {
+            echo "args<<EOF"
+            # Dockerfile.web: the version the app shows (About, Settings), the product name, and the release page
+            # its "What's new" dialog links
+            if [ "$IMAGE" = web ]; then
+              echo "VITE_APP_VERSION=$VERSION"
+              echo "VITE_APP_NAME=$APP_NAME"
+              if [ "$RELEASE" = true ]; then echo "RELEASE_NOTES_URL=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$VERSION"; fi
+            fi
+            # Dockerfile.server: what this image is and what it follows, for the admin console's update check
+            if [ "$IMAGE" = server ]; then
+              echo "PLAYMAT_VERSION=$VERSION"
+              if [ "$RELEASE" = true ]; then echo "PLAYMAT_CHANNEL=release"
+              elif [ "$GITHUB_REF" = refs/heads/master ]; then echo "PLAYMAT_CHANNEL=master"; fi
+              echo "PLAYMAT_IMAGES=$REGISTRY/playmat"
+              echo "PLAYMAT_REPO=$GITHUB_REPOSITORY"
+            fi
+            # Dockerfile.updater: its tag, and the only images it pulls
+            if [ "$IMAGE" = updater ]; then
+              echo "PLAYMAT_VERSION=$VERSION"
+              echo "PLAYMAT_IMAGES=$REGISTRY/playmat"
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - id: labels
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/playmat-${{ matrix.image }}
+          labels: |
+            org.opencontainers.image.title=playmat-${{ matrix.image }}
+            org.opencontainers.image.version=${{ needs.meta.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.meta.outputs.sha }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.licenses=MIT
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: build
+        name: Build and push by digest
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ops/web/Dockerfile.${{ matrix.image }}
+          platforms: linux/${{ matrix.arch }}
+          build-args: ${{ steps.args.outputs.args }}
+          labels: ${{ steps.labels.outputs.labels }}
+          # one plain image per architecture; the merge job lists them under the tags
+          provenance: false
+          sbom: false
+          outputs: type=image,name=${{ env.REGISTRY }}/playmat-${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.image }}-${{ matrix.arch }},mode=${{ matrix.cache-mode }}
+      - name: Keep the digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p digests
+          touch "digests/${DIGEST#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.image }}-${{ matrix.arch }}
+          path: digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Tag the multi-arch images
+    needs: [ meta, build ]
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ needs.meta.outputs.version }}
+      server-image: ${{ steps.merge.outputs.server }}
+      web-image: ${{ steps.merge.outputs.web }}
+      updater-image: ${{ steps.merge.outputs.updater }}
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          path: digests
+          pattern: digests-*
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - id: merge
+        name: Create the manifest lists
+        env:
+          TAGS: ${{ needs.meta.outputs.tags }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          SHA: ${{ needs.meta.outputs.sha }}
+          SOURCE: https://github.com/${{ github.repository }}
+        run: |
+          {
+            echo "### Images $VERSION"
+            echo
+            echo "| Image | Tags | Digest |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for image in server web updater; do
+            repo=$REGISTRY/playmat-$image
+            args=()
+            for tag in $TAGS; do args+=(-t "$repo:$tag"); done
+            # one per architecture, as the build jobs pushed them
+            sources=()
+            for file in digests/digests-"$image"-*/*; do sources+=("$repo@sha256:$(basename "$file")"); done
+            # GHCR links the package to the repository through the index's source annotation
+            docker buildx imagetools create "${args[@]}" \
+              --annotation "index:org.opencontainers.image.source=$SOURCE" \
+              --annotation "index:org.opencontainers.image.revision=$SHA" \
+              --annotation "index:org.opencontainers.image.version=$VERSION" \
+              --annotation "index:org.opencontainers.image.licenses=MIT" \
+              "${sources[@]}"
+            digest=$(docker buildx imagetools inspect "$repo:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+            docker buildx imagetools inspect "$repo:$VERSION"
+            echo "$image=$repo:$VERSION@$digest" >> "$GITHUB_OUTPUT"
+            echo "| \`$repo\` | ${TAGS// /, } | \`$digest\` |" >> "$GITHUB_STEP_SUMMARY"
+          done

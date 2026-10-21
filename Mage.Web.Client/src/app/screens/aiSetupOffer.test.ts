@@ -20,10 +20,10 @@ describe("the AI's deck in the setup summary", () => {
   const t = ((key: string, vars?: Record<string, unknown>) => `${key}${vars ? JSON.stringify(vars) : ''}`) as Translate;
   const options = (opponentDeckId: string | null, opponentLabel: string | null = null): AiOptions => ({ ...DEFAULT_AI_OPTIONS, opponentDeckId, opponentLabel });
 
-  it('names roster, meta, ghost and mirror decks', () => {
+  it('names roster and format decks, ghosts and the mirror', () => {
     expect(aiDeckLabel(t, options('deck-1'), 'Mono Red', true)).toBe('Mono Red');
     expect(aiDeckLabel(t, options(null), null, true)).toBeNull();
-    expect(aiDeckLabel(t, options('meta:modern/burn.dck', 'Burn'), null, true)).toBe('Burn');
+    expect(aiDeckLabel(t, options('meta:modern-affinity.dck'), 'Affinity', true)).toBe('Affinity');
     expect(aiDeckLabel(t, options('mirror'), null, true)).toBe('solo.mirror.summary');
     expect(aiDeckLabel(t, options('ghost:ABC234', 'Elves'), null, true)).toBe('solo.ghost.summary{"name":"Elves"}');
   });

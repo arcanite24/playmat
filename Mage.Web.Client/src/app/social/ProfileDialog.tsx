@@ -9,6 +9,10 @@ import { isFriend, isIgnored, useSocial } from '../stores/social';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { Avatar, Flag } from './Avatar';
+import { Flair } from '../support/Flair';
+import { useLook } from '../support/supportData';
+import { THANK_YOU } from '../support/thankYou';
+import { titleLabel } from '../career/progressModel';
 import styles from './ProfileDialog.module.css';
 
 // your Career line loads with the Career screens, for players who opted in
@@ -37,6 +41,7 @@ function Profile({ name, onClose }: { name: string; onClose(): void }) {
   // your own choice shows at once; the server's copy catches up on the next look
   const avatarId = isMe ? settings.avatarId : user?.avatarId;
   const flagName = isMe ? `${settings.flag}.png` : user?.flagName;
+  const look = useLook(name);
 
   const stats = [
     { label: 'Rating', value: user?.generalRating },
@@ -47,9 +52,10 @@ function Profile({ name, onClose }: { name: string; onClose(): void }) {
   return (
     <div className={styles.profile}>
       <header className={styles.head}>
-        <Avatar name={name} avatarId={avatarId} size="lg" />
+        <Avatar name={name} avatarId={avatarId} size="lg" ring={look?.frame === THANK_YOU.frame} />
         <div>
-          <p className={styles.name}>{name} <Flag flagName={flagName} always /></p>
+          <p className={styles.name}>{name}<Flair name={name} /> <Flag flagName={flagName} always /></p>
+          {look?.title && <p className={styles.title}>{titleLabel(look.title)}</p>}
           <p className={styles.presence}>{user ? (user.infoGames?.trim() || 'Online') : 'Offline'}</p>
         </div>
       </header>

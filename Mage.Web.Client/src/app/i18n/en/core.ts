@@ -23,7 +23,12 @@ export default {
   'shell.admin': 'Admin',
   'shell.feedback': 'Send feedback',
   'shell.about': 'About and credits',
+  'legal.privacyLink': 'Privacy policy',
+  'legal.termsLink': 'Terms',
   'shell.signOut': 'Sign out',
+  'shell.support': 'Support the server',
+  // the heart by a supporter's name
+  'shell.supporter': 'Supporter',
 
   // sign-in
   'login.title.sit': 'Take a seat',
@@ -44,6 +49,12 @@ export default {
   'login.codeSent': 'If {email} belongs to an account, a code is on its way. Check your spam folder too.',
   'login.passwordChanged': 'Your password is changed. Sign in with it.',
   'login.serverRestarted': 'The server restarted. Sign in again.',
+  'login.staleLogin': "This device's saved sign-in stopped working, for example because the password changed. Sign in again.",
+  'login.elsewhere.title': 'Signed in elsewhere',
+  'login.elsewhere.text': '{name} is signed in on another tab or device now, so this one stepped aside. Your tables and games went with it.',
+  'login.elsewhere.useHere': 'Use {app} here',
+  'login.elsewhere.hint': 'The other tab or device steps aside in turn.',
+  'login.elsewhere.other': 'Sign in with another account',
   'login.accountName': 'Account name',
   'login.playerName': 'Player name',
   'login.email': 'Email',
@@ -53,6 +64,11 @@ export default {
   'login.password': 'Password',
   'login.newPassword': 'New password',
   'login.remember': 'Keep me signed in on this device',
+  // {terms} and {privacy} are links to the terms and the privacy policy
+  'login.agree': 'I agree to the {terms} and the {privacy}.',
+  'login.agree.terms': 'terms',
+  'login.agree.privacy': 'privacy policy',
+  'login.deleted': 'Your account was deleted. Thanks for playing.',
   'login.needsPassword': 'This server needs a password',
   'login.server.online': 'Online',
   'login.server.offline': "Can't reach",
@@ -81,6 +97,7 @@ export default {
   'login.asked': "Your request is with the server's staff. Once it's approved, create an account with {email}.",
   'login.invite.checking': 'Checking your invite…',
   'login.invite.valid': "You're invited. Create your account and it goes straight onto this server's list.",
+  'login.turnstile.unavailable': "The check that you're a person didn't load. Check your connection, or allow challenges.cloudflare.com in your content blocker, then reload.",
 
   // Play
   'home.yourDecks': 'Your decks',
@@ -119,6 +136,19 @@ export default {
   'home.saved.hoursAgo': '{count} h ago',
   'home.saved.daysAgo': '{count} d ago',
 
+  // confirming the account's email (Home banner, Settings → Account)
+  'email.banner.title': 'Confirm your email',
+  // {email} is the masked address, like n***@example.com
+  'email.banner.text': 'Confirm your email to recover your account and receive supporter perks. Codes go to {email}.',
+  'email.banner.dismiss': 'Not now',
+  'email.code': 'Code from the email',
+  'email.codeHint': 'Six digits. It works for 30 minutes and five tries.',
+  'email.confirm': 'Confirm',
+  'email.send': 'Send a new code',
+  'email.sent': 'A new code is on its way. Check your spam folder too.',
+  'email.confirmed': 'Your email address is confirmed. Thank you!',
+  'email.wrongCode': 'That code is wrong or has expired. Send a new one.',
+
   // the AI opponent (Play)
   'ai.title': 'Playing the AI',
   'ai.restore': 'Restore defaults',
@@ -133,7 +163,9 @@ export default {
   'ai.difficulty.expert': 'Expert',
   'ai.difficulty.expert.detail': 'Its deepest search; slower turns.',
   'ai.deck': 'Its deck',
-  'ai.deck.random': 'A random starter deck (commander for a commander game)',
+  'ai.deck.random': 'Random: one of the format\'s top decks, or a starter deck',
+  'ai.deck.detail': 'Played in your deck\'s format, a random pick is one of that format\'s most played decks. In a casual game it\'s a starter deck.',
+  'ai.deck.meta': '{format} top decks',
   'ai.deck.starters': 'Starter decks',
   'ai.deck.commanderStarters': 'Commander starters',
   'ai.deck.yours': 'Your decks',
@@ -163,6 +195,7 @@ export default {
   'ai.summary.one': '{difficulty} AI',
   'ai.summary.many': '{count} {difficulty} AIs',
   'ai.summary.randomDeck': 'random starter deck',
+  'ai.summary.metaDeck': 'a top deck of the format',
   'ai.summary.bestOf1': 'best of one',
   'ai.summary.bestOf3': 'best of three',
   'ai.summary.deckFormat': "your deck's format",

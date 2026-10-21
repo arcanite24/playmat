@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Playmat · a fan-made web client for XMage</title>
-  <meta name="description" content="Playmat is a fan-made, open-source web client for XMage, the Magic: The Gathering rules engine. Play against friends or the AI on a server you run yourself.">
+  <meta name="description" content="Playmat is a fan-made, open-source web client for XMage, the Magic: The Gathering rules engine. Play in your browser at playmat.deimos.studio, on your own computer, or on a server you run yourself.">
   <meta name="theme-color" content="#0b120f">
   <link rel="icon" href="assets/brand/playmat-mark.svg" type="image/svg+xml">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Playmat · a fan-made web client for XMage">
-  <meta property="og:description" content="A hobby project: a browser client for XMage, styled after MTG Arena, for playing with friends on your own server.">
+  <meta property="og:description" content="A hobby project: a browser client for XMage, styled after MTG Arena. Play in your browser at playmat.deimos.studio, or on your own server.">
   <meta property="og:url" content="https://arcanite24.github.io/playmat/">
   <meta property="og:image" content="https://arcanite24.github.io/playmat/assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
@@ -28,10 +28,12 @@
       </a>
       <nav aria-label="Sections">
         <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
           <li><a href="#play">Playing</a></li>
           <li><a href="#career">Career</a></li>
           <li><a href="#download">Download</a></li>
           <li><a href="#host">Run a server</a></li>
+          <li><a href="docs/">Docs</a></li>
           <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
         </ul>
       </nav>
@@ -43,13 +45,17 @@
       <div class="wrap hero-copy">
         <h1>A fan-made web client for&nbsp;XMage.</h1>
         <p class="lede">Playmat is a hobby project: a browser client for <a href="https://github.com/magefree/mage">XMage</a>,
-          the open-source Magic: The Gathering rules engine, styled after MTG Arena. Install it on your computer to play
-          XMage's AI, Career or friends on your Wi-Fi, or run a server for your group. It's free, MIT licensed, and not
+          the open-source Magic: The Gathering rules engine, styled after MTG Arena. Play it in your browser at
+          <a href="https://playmat.deimos.studio">playmat.deimos.studio</a>, install it on your computer to play XMage's AI,
+          Career or friends on your Wi-Fi, or run a server for your group. It's free, MIT licensed, and not
           affiliated with Wizards of the Coast.</p>
         <p class="status">It's a work in progress with rough edges. Bug reports and pull requests are welcome on
           <a href="https://github.com/arcanite24/playmat">GitHub</a>.</p>
         <div class="cta">
-          <a class="btn btn-big" id="get" href="#download">Download Playmat</a>
+          <div class="cta-buttons">
+            <a class="btn btn-big" href="https://playmat.deimos.studio">Play in your browser</a>
+            <a class="btn btn-big btn-quiet" id="get" href="#download">Download Playmat</a>
+          </div>
           <p class="cta-note small" id="get-note">Free for Windows, macOS and Linux. <a href="#download">All downloads</a></p>
         </div>
       </div>
@@ -272,20 +278,42 @@
             <div><dt>imgcache</dt><dd>a caching proxy for Scryfall card pictures</dd></div>
             <div><dt>backup</dt><dd>nightly dumps of the player databases</dd></div>
           </dl>
-          <p class="small">Also covered: private LAN servers with no domain, running behind another reverse proxy, Discord
-            notifications for new tables, and capacity numbers.
-            See the <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md">deployment guide</a>.</p>
+          <p class="small">The images are published for x86 and ARM, so nothing needs building, and the owner updates
+            the server from its admin console. <a href="docs/server.html">Run a server</a> and
+            <a href="docs/updates.html">Updating</a> in the docs walk through it; the
+            <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md">deployment guide</a> has every
+            setting, LAN servers with no domain, and capacity numbers.</p>
         </div>
         <div class="terminal" role="region" aria-label="Commands to start a server">
 <pre><code><span class="c"># get the code</span>
 git clone https://github.com/arcanite24/playmat.git
 cd playmat
 
-<span class="c"># set DOMAIN, XMAGE_ADMIN_PASSWORD, XMAGE_AUTH</span>
+<span class="c"># set DOMAIN, XMAGE_AUTH, XMAGE_OWNER</span>
 cp ops/web/.env.example ops/web/.env
 
-<span class="c"># build and start the stack</span>
-docker compose -f ops/web/docker-compose.yml up -d --build</code></pre>
+<span class="c"># pull the published images and start</span>
+docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- the public server's month: filled from its /public/support.json; stays hidden if the server can't be reached -->
+    <section id="support" class="support" hidden>
+      <div class="wrap support-box zone">
+        <div class="support-copy">
+          <h2>Keeping the server on</h2>
+          <p>Playmat is free to play, always. Players who can chip in cover the public server's monthly costs, and get a
+            small cosmetic thank-you in Playmat's own style. Nothing is ever gated behind it.</p>
+          <ul class="support-costs" id="support-costs"></ul>
+        </div>
+        <div class="support-goal">
+          <p class="support-month" id="support-month"></p>
+          <p class="support-amount" id="support-amount"></p>
+          <div class="support-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="support-track"><span id="support-fill"></span></div>
+          <p class="small" id="support-note"></p>
+          <a class="btn" id="support-cta" href="https://playmat.deimos.studio/support">Support the server</a>
+          <p class="small"><a href="https://playmat.deimos.studio/support">What supporters get, and the rules</a></p>
         </div>
       </div>
     </section>
@@ -342,6 +370,39 @@ docker compose -f ops/web/docker-compose.yml up -d --build</code></pre>
         if (!release || !release.tag_name) return;
         var note = document.getElementById('get-note');
         if (note && note.textContent.indexOf('Free for') === 0) note.firstChild.textContent = 'Free for Windows, macOS and Linux. Version ' + release.tag_name.replace(/^v/, '') + '. ';
+      })
+      .catch(function () {});
+    // the public server's month (calendar month, UTC, US dollars); the section stays hidden without it
+    fetch('https://playmat.deimos.studio/public/support.json')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (status) {
+        if (!status || !status.enabled) return;
+        var usd = function (cents) {
+          return new Intl.NumberFormat('en', { style: 'currency', currency: 'USD', maximumFractionDigits: cents % 100 ? 2 : 0, minimumFractionDigits: cents % 100 ? 2 : 0 }).format(cents / 100);
+        };
+        var goal = status.goalCents || 0;
+        var month = status.monthCents || 0;
+        var parts = /^(\d{4})-(\d{2})$/.exec(status.monthLabel || '');
+        var label = parts ? new Date(Date.UTC(+parts[1], +parts[2] - 1, 1)).toLocaleDateString('en', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : '';
+        var percent = goal > 0 ? Math.min(100, Math.round(month / goal * 100)) : (month > 0 ? 100 : 0);
+        document.getElementById('support-month').textContent = 'Server costs for ' + label;
+        document.getElementById('support-amount').textContent = usd(month) + ' of ' + usd(goal);
+        var track = document.getElementById('support-track');
+        track.setAttribute('aria-valuenow', String(percent));
+        track.setAttribute('aria-label', 'This month: ' + usd(month) + ' of ' + usd(goal));
+        document.getElementById('support-fill').style.width = percent + '%';
+        var note = month > goal ? 'Ahead by ' + usd(month - goal) + ', a buffer for busy months.'
+          : month === goal && goal > 0 ? 'Covered. Thank you!' : usd(goal - month) + ' to go.';
+        if (status.supporters) note += ' ' + status.supporters + (status.supporters === 1 ? ' supporter' : ' supporters') + ' this month.';
+        document.getElementById('support-note').textContent = note;
+        if (status.kofiUrl || status.sponsorsUrl) document.getElementById('support-cta').href = status.kofiUrl || status.sponsorsUrl;
+        var costs = document.getElementById('support-costs');
+        (status.costs || []).forEach(function (line) {
+          var item = document.createElement('li');
+          item.textContent = line;
+          costs.appendChild(item);
+        });
+        document.getElementById('support').hidden = false;
       })
       .catch(function () {});
   </script>

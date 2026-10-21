@@ -244,6 +244,95 @@ describe('session store', () => {
       expect(await useSession.getState().resume()).toBe(false);
       expect(deviceSaved()).toBeNull();
       expect(useSession.getState().error).toBeNull();
+      // the sign-in screen says why it asks for the password again (a password reset signs every device out)
+      expect(useSession.getState().staleLogin).toBe(true);
+    });
+  });
+
+  describe('signed in somewhere else', () => {
+    function deviceSaved() {
+      return JSON.parse(localStorage.getItem('playmat.remember') ?? 'null');
+    }
+
+    test('steps aside without signing back in, so two tabs cannot keep taking the session from each other', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', 'secret', true);
+      fake.rpc.signInElsewhere();
+
+      expect(useSession.getState()).toMatchObject({ phase: 'signedOut', roomId: null, signedInElsewhere: true, expired: false, error: null });
+      // the sign-in screen's resume, and a reconnect, both stay put
+      expect(await useSession.getState().resume()).toBe(false);
+      fake.rpc.setStatus('reconnecting');
+      fake.rpc.setStatus('open');
+      await flush();
+      expect(fake.api.connectUser).toHaveBeenCalledTimes(1);
+      expect(useSession.getState().phase).toBe('signedOut');
+      // nothing is forgotten: the session comes back here with them
+      expect(restoreSaved()).toMatchObject({ token: 'token-1' });
+      expect(deviceSaved()).toMatchObject({ token: 'device-1' });
+    });
+
+    test('a lost connection still signs back in by itself', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', 'secret', true);
+      fake.rpc.setStatus('reconnecting');
+      fake.rpc.setStatus('open');
+      await vi.waitFor(() => expect(useSession.getState().loginCount).toBe(2));
+      expect(useSession.getState()).toMatchObject({ phase: 'signedIn', signedInElsewhere: false });
+    });
+
+    test('use here takes the session back with the remembered device', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', 'secret', true);
+      fake.rpc.signInElsewhere();
+
+      expect(await useSession.getState().takeBack()).toBe(true);
+      expect(fake.api.connectUser).toHaveBeenLastCalledWith('alice', '', 'token-1', null, null, 'device-1');
+      expect(useSession.getState()).toMatchObject({ phase: 'signedIn', signedInElsewhere: false, loginCount: 2 });
+      expect(deviceSaved()).toMatchObject({ token: 'device-1' });
+    });
+
+    test('use here without a remembered device signs in with the password typed in this tab', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', 'secret');
+      fake.rpc.signInElsewhere();
+
+      expect(await useSession.getState().takeBack()).toBe(true);
+      expect(fake.api.connectUser).toHaveBeenLastCalledWith('alice', 'secret', 'token-1');
+    });
+
+    test('use here after a password change elsewhere ends on the sign-in form, saying why', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', 'secret', true);
+      fake.rpc.signInElsewhere();
+      // the reset signed every remembered device out
+      fake.api.connectUser.mockResolvedValueOnce(false);
+
+      expect(await useSession.getState().takeBack()).toBe(false);
+      expect(useSession.getState()).toMatchObject({ phase: 'signedOut', signedInElsewhere: false, staleLogin: true, error: null });
+      expect(deviceSaved()).toBeNull();
+    });
+
+    test('a refused password from this tab says the same', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', 'old-password');
+      fake.rpc.signInElsewhere();
+      fake.api.connectUser.mockResolvedValueOnce(false);
+
+      expect(await useSession.getState().takeBack()).toBe(false);
+      expect(useSession.getState()).toMatchObject({ phase: 'signedOut', staleLogin: true, error: null });
+    });
+
+    test('signing in, or out, clears it', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', '');
+      fake.rpc.signInElsewhere();
+      await useSession.getState().signIn(SERVER, 'alice', '');
+      expect(useSession.getState().signedInElsewhere).toBe(false);
+
+      fake.rpc.signInElsewhere();
+      await useSession.getState().signOut();
+      expect(useSession.getState()).toMatchObject({ signedInElsewhere: false, staleLogin: false });
     });
   });
 });

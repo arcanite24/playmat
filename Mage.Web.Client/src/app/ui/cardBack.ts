@@ -27,11 +27,12 @@ export function cardBackImage(id: CardBackId): string {
 }
 
 /**
- * The picture on a hidden card: a Career sleeve's own back wins, then the chosen back (the classic one always, a
- * painted one only with painted art on). Null means the printed weave.
+ * The picture on a hidden card: a sleeve's own back wins (a Career sleeve's painted one with painted art on, the
+ * supporter sleeve's drawn one always), then the chosen back (the classic one always, a painted one only with painted
+ * art on). Null means the printed weave.
  */
 export function cardBackOf(sleeveBack: string | null, { paintedArt, back }: { paintedArt: boolean; back: CardBackId }): string | null {
-  if (paintedArt && sleeveBack) return sleeveBack;
+  if (sleeveBack && (paintedArt || sleeveBack.startsWith('data:'))) return sleeveBack;
   if (back === 'classic') return CLASSIC_BACK;
   return paintedArt ? cardBackImage(back) : null;
 }

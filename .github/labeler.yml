@@ -21,3 +21,6 @@ tests:
 cards:
   - changed-files:
     - any-glob-to-any-file: [ 'Mage.Sets/**' ]
+ops:
+  - changed-files:
+    - any-glob-to-any-file: [ 'ops/**', '.github/workflows/**', 'RELEASING.md' ]

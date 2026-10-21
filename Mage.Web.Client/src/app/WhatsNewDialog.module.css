@@ -1,0 +1,34 @@
+.section + .section {
+  margin-top: var(--space-4);
+}
+
+.section h3 {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-print);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  color: var(--ink-strong);
+}
+
+.section ul {
+  margin: 0;
+  padding-left: 1.2em;
+}
+
+.section li {
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+.section li + li {
+  margin-top: 4px;
+}
+
+/* the footer's quiet way out to the whole changelog, before the button */
+.all {
+  margin-right: auto;
+  align-self: center;
+  color: var(--decision);
+  font-weight: 600;
+}

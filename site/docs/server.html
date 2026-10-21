@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Run a server · Playmat docs</title>
+  <meta name="description" content="Start your own Playmat server with Docker, on a home machine or a VPS with a domain.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html" aria-current="page">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Run a server</h1>
+        <p class="lede">A Playmat server is four containers started with Docker Compose: the XMage game server, Caddy
+          serving the web client over HTTPS, a cache for card pictures, and a nightly backup. You don't build anything:
+          the images are published for x86 and ARM.</p>
+
+        <h2 id="need">What you need</h2>
+        <ul>
+          <li>A Linux machine with <strong>Docker Engine</strong> and the Compose plugin (<code>docker compose version</code> answers). Docker Desktop on a Mac or Windows works too, but the <a href="updates.html#button">Update button</a> needs Linux.</li>
+          <li>About 1 GB of memory for the server; 2 GB leaves room. One CPU is enough for a group's evening.</li>
+          <li>A domain name pointed at the machine, with ports 80 and 443 open, so Caddy can get a certificate. For a group on one home network you can do without one: see <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#private-server-on-a-lan">Private server on a LAN</a>.</li>
+        </ul>
+
+        <h2 id="install">Install</h2>
+        <div class="terminal" role="region" aria-label="Commands to install a server">
+<pre><code><span class="c"># get the compose file and its settings</span>
+git clone https://github.com/arcanite24/playmat.git
+cd playmat
+cp ops/web/.env.example ops/web/.env
+
+<span class="c"># edit ops/web/.env (below), then start it</span>
+docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code></pre>
+        </div>
+        <p>The first start pulls the images and takes a minute or two. Then open <code>https://</code> and your domain.</p>
+
+        <h2 id="settings">Settings to set first</h2>
+        <p>All settings live in <code>ops/web/.env</code>; empty ones use the defaults. These are the ones to look at before the first start:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Setting</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr><td><code>DOMAIN</code></td><td>The server's address, without <code>https://</code>. Required.</td></tr>
+              <tr><td><code>XMAGE_AUTH</code></td><td><code>true</code> makes players register with a password. Use it on any server others can reach; staff roles and Career need it.</td></tr>
+              <tr><td><code>XMAGE_OWNER</code></td><td>The account name of the server's owner. Register that name first: it gets the admin console, with every staff tool.</td></tr>
+              <tr><td><code>XMAGE_ADMIN_PASSWORD</code></td><td>A break-glass password for the admin console, for when no owner can sign in. Leave it empty to turn that off.</td></tr>
+              <tr><td><code>XMAGE_SERVER_IMAGE</code>, <code>XMAGE_WEB_IMAGE</code></td><td>The images to run. The example file names the newest build of <code>master</code>; leave them as they are.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Mail (for password resets), Discord notifications, registration rules and the rest are in the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#settings">settings table</a>. After changing
+          <code>.env</code>, run the same <code>up -d</code> again to apply it.</p>
+        <p>If the game server runs out of memory, it stops and Docker starts it again within seconds (games in progress
+          end). To find out what filled it, set <code>XMAGE_HEAP_DUMP=true</code>: the next time it writes the memory to
+          <code>logs/heap-oom.hprof</code> in the logs volume. <code>XMAGE_MEMORY</code> sets the memory size.</p>
+
+        <h2 id="first">After the first start</h2>
+        <ol>
+          <li>Open your domain and register the account named in <code>XMAGE_OWNER</code>.</li>
+          <li>Find <strong>Admin</strong> in the account menu. Its Overview shows the server's load, and <strong>Updates</strong> says whether it's up to date.</li>
+          <li>To update from there with one button later, <a href="updates.html#button">turn on the updater</a>.</li>
+        </ol>
+        <p class="note">On a machine with 1 GB of memory, add the small-VPS preset first:
+          <code>cat ops/web/small-vps.env &gt;&gt; ops/web/.env</code>. It lowers the limits to what one CPU keeps
+          responsive. See <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#small-vps-1-vcpu-1-gb">Small VPS</a>.</p>
+
+        <h2 id="build">Building the images yourself</h2>
+        <p>To run your own changes, empty <code>XMAGE_SERVER_IMAGE</code> and <code>XMAGE_WEB_IMAGE</code> in
+          <code>.env</code> and start with <code>up -d --build</code>. The first build compiles every card and takes tens
+          of minutes; it needs more than 1 GB of memory.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

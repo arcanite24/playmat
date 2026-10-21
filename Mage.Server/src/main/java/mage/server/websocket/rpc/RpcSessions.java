@@ -18,6 +18,12 @@ public interface RpcSessions {
     void disconnect(String sessionId, DisconnectReason reason);
 
     /**
+     * @return whether the user is connected now through a live session other than this one: another login as the same
+     * user (another tab, device or client) took it over and ended this session
+     */
+    boolean isSignedInElsewhere(String userName, String sessionId);
+
+    /**
      * @return name of the user logged in with this session
      */
     Optional<String> userName(String sessionId);

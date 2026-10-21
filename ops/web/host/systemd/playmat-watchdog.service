@@ -1,0 +1,7 @@
+[Unit]
+Description=Playmat host watchdog (services, disk, memory, HTTPS, certificate)
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/playmat-watchdog

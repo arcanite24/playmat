@@ -2,8 +2,8 @@
 # The official nginx image renders this template into /etc/nginx/conf.d/default.conf at start, filling the
 # ${IMGCACHE_*} variables from the environment (docker-compose.yml gives every one a default).
 #
-#   /img/cards/...  -> https://cards.scryfall.io/...   card pictures, cached 30 days
-#   /img/backs/...  -> https://backs.scryfall.io/...   card backs (the classic back setting), cached 30 days
+#   /img/cards/...  -> https://cards.scryfall.io/...   card pictures, cached a year
+#   /img/backs/...  -> https://backs.scryfall.io/...   card backs (the classic back setting), cached a year
 #   /img/api/...    -> https://api.scryfall.com/...    GET lookups (and image redirects), cached 24 hours
 #   POST /img/api/cards/collection                      batch lookups, cached 24 hours keyed on the request body
 #
@@ -15,9 +15,9 @@ resolver 127.0.0.11 ipv6=off valid=300s;
 resolver_timeout 5s;
 
 proxy_cache_path /var/cache/nginx/scryfall/images levels=1:2 keys_zone=scryfall_images:50m
-                 max_size=${IMGCACHE_IMAGES_MAX_SIZE} inactive=60d use_temp_path=off;
+                 max_size=${IMGCACHE_IMAGES_MAX_SIZE} inactive=365d use_temp_path=off;
 proxy_cache_path /var/cache/nginx/scryfall/api levels=1:2 keys_zone=scryfall_api:20m
-                 max_size=${IMGCACHE_API_MAX_SIZE} inactive=7d use_temp_path=off;
+                 max_size=${IMGCACHE_API_MAX_SIZE} inactive=365d use_temp_path=off;
 
 # one bucket for the whole site: this limits what we send to Scryfall, not what any one player sends
 limit_req_zone $server_port zone=scryfall_upstream:1m rate=${IMGCACHE_API_RATE};
@@ -97,9 +97,10 @@ server {
 
         proxy_cache scryfall_images;
         proxy_cache_key $request_uri;
-        proxy_cache_valid 200 301 302 30d;
+        # pictures never change at a given address (Scryfall changes the query when it replaces one), so a copy stays
+        # good for a year: a server prepared with warm-images.mjs keeps its pictures offline without asking again
+        proxy_cache_valid 200 301 302 365d;
         proxy_cache_valid 404 1d;
-        # pictures never change at a given address
         proxy_hide_header Set-Cookie;
         proxy_hide_header Cache-Control;
         proxy_hide_header Expires;

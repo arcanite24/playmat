@@ -7,6 +7,7 @@ import { useSession } from '../stores/session';
 import { useSocial } from '../stores/social';
 import { IconButton } from '../ui/Button';
 import { PromptText } from '../ui/PromptText';
+import { Flair } from '../support/Flair';
 import styles from './ChatPanel.module.css';
 import { PUBLIC_ORIGIN } from '../brand';
 
@@ -179,6 +180,7 @@ function Line({ line, me, onWhisper }: { line: ChatLine; me: string; onWhisper(n
       {other && other !== me
         ? <button type="button" className={styles.who} onClick={() => onWhisper(other)} title={`Whisper to ${other}`}>{other}</button>
         : <span className={styles.who}>{other || 'You'}</span>}
+      <Flair name={other || me} />
       <span className={styles.text}>
         {splitInviteLinks(line.text, PUBLIC_ORIGIN).map((part, index) => (part.kind === 'invite'
           ? <Link key={index} className={styles.invite} to={part.path}>Join the table</Link>

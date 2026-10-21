@@ -44,11 +44,19 @@ export interface SessionState {
   error: string | null;
   /** the server restarted (or forgot this session) while we were signed in: the sign-in screen says so */
   expired: boolean;
+  /**
+   * another sign-in as this player (another tab or device) took the session over. Nothing signs back in by itself
+   * then, or the two would keep taking it from each other: the sign-in screen offers takeBack
+   */
+  signedInElsewhere: boolean;
+  /** this device's saved sign-in stopped working (the password changed, or it signed out elsewhere): sign in again */
+  staleLogin: boolean;
   /** with remember, an account stays signed in on this device ("keep me signed in") until it signs out */
   signIn(serverUrl: string, userName: string, password: string, remember?: boolean): Promise<boolean>;
   /** creates an account with the chosen password and signs in with it */
   /** inviteCode: an invite link's code, which lets the account in to a contributors-only server */
-  register(serverUrl: string, userName: string, email: string, password: string, remember?: boolean, inviteCode?: string): Promise<boolean>;
+  /** turnstileToken: Cloudflare Turnstile's token, for servers that ask for one */
+  register(serverUrl: string, userName: string, email: string, password: string, remember?: boolean, inviteCode?: string, turnstileToken?: string): Promise<boolean>;
   /** signs in with a remembered-device token the server gave this device (after Sign in with GitHub) */
   signInWithToken(serverUrl: string, userName: string, token: string): Promise<boolean>;
   /** emails a reset code to the account with this address (the server doesn't say whether there is one) */
@@ -57,6 +65,8 @@ export interface SessionState {
   signOut(keepGames?: boolean): Promise<void>;
   /** after a reload: sign the remembered player back in when the server needs no password or the device is remembered */
   resume(): Promise<boolean>;
+  /** signed in somewhere else: take the session back to this device, with what it already has (no password asked) */
+  takeBack(): Promise<boolean>;
 }
 
 /** The restore token the server gave this player on this server, '' when there is none. */
@@ -106,6 +116,8 @@ function connectUser(userName: string, password: string, restore: string, device
   return device ? api.connectUser(userName, password, restore, null, null, device) : api.connectUser(userName, password, restore);
 }
 
+const REFUSED = 'The server refused the login. Check your name and password.';
+
 function describeError(error: unknown): string {
   if (error instanceof ConnectionError) {
     return globalThis.navigator?.onLine !== false
@@ -136,9 +148,11 @@ export const useSession = create<SessionState>((set, get) => ({
   loginCount: 0,
   error: null,
   expired: false,
+  signedInElsewhere: false,
+  staleLogin: false,
 
   async signIn(serverUrl, userName, password, remember = false) {
-    set({ phase: 'signingIn', error: null, expired: false, serverUrl, userName });
+    set({ phase: 'signingIn', error: null, expired: false, signedInElsewhere: false, staleLogin: false, serverUrl, userName });
     try {
       await connectTo(serverUrl);
       const device = password ? '' : rememberToken(serverUrl, userName);
@@ -146,7 +160,7 @@ export const useSession = create<SessionState>((set, get) => ({
       if (!ok) {
         // a remembered device the server turned away (signed out elsewhere, password changed): ask for the password
         if (device) writeJson<RememberedDevice | null>(REMEMBER_KEY, null);
-        set({ phase: 'signedOut', error: 'The server refused the login. Check your name and password.' });
+        set(device ? { phase: 'signedOut', error: null, staleLogin: true } : { phase: 'signedOut', error: REFUSED });
         return false;
       }
       sessionPassword = password;
@@ -169,7 +183,8 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async resume() {
     const login = readJson<RememberedLogin | null>(LOGIN_KEY, null);
-    if (!login || get().phase !== 'signedOut') return false;
+    // signed in somewhere else: signing back in here would sign the other one out, which would do the same
+    if (!login || get().phase !== 'signedOut' || get().signedInElsewhere) return false;
     // an account needs its password again unless this device is remembered or the server still holds the user for
     // our restore token
     const known = rememberToken(login.serverUrl, login.userName) || restoreToken(login.serverUrl, login.userName);
@@ -179,6 +194,16 @@ export const useSession = create<SessionState>((set, get) => ({
     return ok;
   },
 
+  async takeBack() {
+    const { serverUrl, userName } = get();
+    // the remembered device or the restore token when there is one, else the password typed in this tab
+    const password = rememberToken(serverUrl, userName) ? '' : sessionPassword;
+    if (await get().signIn(serverUrl, userName, password)) return true;
+    // what this tab had no longer works (the password changed since): the sign-in form, saying why
+    if (get().error === REFUSED || get().staleLogin) set({ error: null, staleLogin: true });
+    return false;
+  },
+
   async signInWithToken(serverUrl, userName, token) {
     writeJson<RememberedDevice | null>(REMEMBER_KEY, { serverUrl, userName, token });
     // an account: a reload signs back in with the token, never as a passwordless guest
@@ -186,11 +211,11 @@ export const useSession = create<SessionState>((set, get) => ({
     return get().signIn(serverUrl, userName, '');
   },
 
-  async register(serverUrl, userName, email, password, remember = false, inviteCode) {
+  async register(serverUrl, userName, email, password, remember = false, inviteCode, turnstileToken) {
     set({ phase: 'signingIn', error: null, serverUrl, userName });
     try {
       await connectTo(serverUrl);
-      await api.authRegister(userName, password, email, inviteCode || null);
+      await api.authRegister(userName, password, email, inviteCode || null, turnstileToken || null);
     } catch (error) {
       set({ phase: 'signedOut', error: describeError(error) });
       return false;
@@ -239,7 +264,7 @@ export const useSession = create<SessionState>((set, get) => ({
     }
     writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl: get().serverUrl, userName: get().userName, passwordless: false, account: false });
     rpc.disconnect();
-    set({ phase: 'signedOut', roomId: null });
+    set({ phase: 'signedOut', roomId: null, signedInElsewhere: false, staleLogin: false });
   },
 }));
 
@@ -287,3 +312,14 @@ rpc.onStatus((connection) => {
 
 // a call the server turned away because this connection has no session any more
 rpc.onSessionLost(() => expire());
+
+/**
+ * Another sign-in as this player took the session over. Our tables and games now belong to that one, so the restore
+ * token and the games to rejoin are kept (takeBack brings them back), but nothing signs in again by itself.
+ */
+function signedInElsewhere(): void {
+  if (useSession.getState().phase !== 'signedIn') return;
+  useSession.setState({ phase: 'signedOut', roomId: null, error: null, expired: false, signedInElsewhere: true });
+}
+
+rpc.onSignedInElsewhere(() => signedInElsewhere());

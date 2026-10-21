@@ -57,6 +57,7 @@ public class WebClientApiContractTest {
             "serverInfo", "deckSyncList", "deckSyncGet", "deckSyncPut", "deckSyncDelete", // config and deck store (decks/DeckStoreTest)
             "reportPlayer", "clientReportError", "adminGetReports", "adminCloseReport", "adminClientErrors", // moderation stores
             "adminServerStats", // bridge metrics
+            "adminUpdateStatus", "adminUpdateApply", "adminUpdateRollback", // the registry and GitHub, the updater's files
             "gamePractice", // game controller practice tools, with readable errors
             "careerState", "careerStarters", "careerStart", "careerCollection", "careerOpponents", "careerPlay", "careerShop",
             "careerBuyPack", "careerCraft", "careerExport", "careerImport", // career store and service (career/CareerServiceTest)
@@ -80,7 +81,11 @@ public class WebClientApiContractTest {
             "adminMaintenanceCancel", "adminDiscordTest", // watching, client errors, settings and maintenance (M15)
             "soloSaves", "soloResume", "soloDelete", "soloSaveAndLeave", "soloFork", "soloAssists", "soloTurns", "soloWhatIf", "gameAdvise", "soloBatchSubmit",
             "soloBatchJobs", "soloBatchJob", "soloBatchCancel", "leaderboard", "adminBatchJobs", "adminBatchCancel",
-            "adminContentPacks", "adminContentPackUpload", "adminContentPackRemove", "adminContentPackReload" // solo (solo/SoloFoundationsTest)
+            "adminContentPacks", "adminContentPackUpload", "adminContentPackRemove", "adminContentPackReload", // solo (solo/SoloFoundationsTest)
+            "accountEmailStatus", "accountEmailVerifyStart", "accountEmailVerify", // email verification (EmailVerificationTest)
+            "accountExport", "accountDelete", // the player's own data (api/MyAccountApiTest)
+            "supportStatus", "supportPerks", "supportNoticeSeen", "supportSetWall", "profileSetLook", "profileLooks",
+            "adminSupportLedger", "adminSupportLink", "adminSupportRevoke", "adminSupportGrant" // support store (support/*Test)
     ));
 
     static {
@@ -358,6 +363,52 @@ public class WebClientApiContractTest {
     }
 
     @Test
+    void aSessionCallAfterAnotherLoginTookTheUserOverSaysSo() throws Exception {
+        FakeConnection tab = new FakeConnection();
+        dispatcher.dispatch("connectUser", params("alice", "", "x"), tab);
+        assertThat(tab.getUserName()).as("the name the server knows the user by").isEqualTo("user");
+
+        // another tab logs in as the same user: the server ends this tab's session (Session.connectUserHandling)
+        sessions.disconnected.add(tab.getSessionId() + ":" + DisconnectReason.AnotherUserInstance);
+        dispatcher.dispatch("connectUser", params("alice", "", "x"), new FakeConnection("192.0.2.44"));
+
+        assertThatThrownBy(() -> dispatcher.dispatch("roomGetAllTables", params(UUID.randomUUID().toString()), tab))
+                .isInstanceOfSatisfying(RpcException.class, e -> {
+                    assertThat(e.getCode()).isEqualTo(RpcException.NOT_AUTHORIZED);
+                    assertThat(e.getMessage()).startsWith("Not connected");
+                    assertThat(e.getReason()).isEqualTo(RpcException.SIGNED_IN_ELSEWHERE);
+                });
+        assertThat(serverCalls).doesNotContain("roomGetAllTables");
+    }
+
+    @Test
+    void aSessionThatEndedOtherwiseGivesNoReason() throws Exception {
+        FakeConnection tab = new FakeConnection();
+        dispatcher.dispatch("connectUser", params("alice", "", "x"), tab);
+        sessions.disconnected.add(tab.getSessionId() + ":" + DisconnectReason.SessionExpired);
+
+        assertThatThrownBy(() -> dispatcher.dispatch("roomGetAllTables", params(UUID.randomUUID().toString()), tab))
+                .isInstanceOfSatisfying(RpcException.class, e -> {
+                    assertThat(e.getCode()).isEqualTo(RpcException.NOT_AUTHORIZED);
+                    assertThat(e.getReason()).isNull();
+                });
+    }
+
+    @Test
+    void aRefusedLoginForgetsTheConnectionsUser() throws Exception {
+        FakeConnection tab = new FakeConnection();
+        dispatcher.dispatch("connectUser", params("alice", "", "x"), tab);
+        RpcDispatcher refusing = WebClientApi.createDispatcher(new ApiContext(refusingServer(), null, sessions, ADMIN_PASSWORD));
+        refusing.dispatch("connectUser", params("alice", "", "x"), tab);
+        assertThat(tab.getUserName()).isNull();
+    }
+
+    private static MageServer refusingServer() {
+        return (MageServer) Proxy.newProxyInstance(MageServer.class.getClassLoader(), new Class<?>[]{MageServer.class},
+                (proxy, method, args) -> method.getReturnType() == boolean.class ? false : null);
+    }
+
+    @Test
     void methodNamesAreUnique() {
         List<String> names = dispatcher.getMethods().stream().map(RpcMethod::getName).collect(Collectors.toList());
         assertThat(names).doesNotHaveDuplicates();
@@ -438,6 +489,7 @@ public class WebClientApiContractTest {
     private static final class FakeConnection implements RpcConnection {
         private final String host;
         private String sessionId;
+        private String userName;
 
         FakeConnection() {
             this("10.0.0.7");
@@ -455,6 +507,16 @@ public class WebClientApiContractTest {
         @Override
         public void bindSession(String sessionId) {
             this.sessionId = sessionId;
+        }
+
+        @Override
+        public String getUserName() {
+            return userName;
+        }
+
+        @Override
+        public void setUserName(String userName) {
+            this.userName = userName;
         }
 
         @Override
@@ -492,6 +554,12 @@ public class WebClientApiContractTest {
         @Override
         public void disconnect(String sessionId, DisconnectReason reason) {
             disconnected.add(sessionId + ":" + reason);
+        }
+
+        @Override
+        public boolean isSignedInElsewhere(String userName, String sessionId) {
+            return created.stream().anyMatch(other -> !other.equals(sessionId) && exists(other)
+                    && userName != null && userName.equals(names.getOrDefault(other, "user")));
         }
 
         @Override

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { pwa } from './scripts/pwa-plugin'
+import { releaseNotes } from './scripts/release-notes-plugin'
 
 /** Libraries that change rarely get their own chunks, so an app release doesn't re-download them. */
 const VENDOR_CHUNKS: [chunk: string, packages: RegExp][] = [
@@ -59,10 +60,14 @@ function iconsOfEntry(graph: ModuleGraph): Set<string> {
 // the product name is a build setting (src/app/brand.ts); index.html's title reads it too
 const appName = process.env.VITE_APP_NAME?.trim() || 'Playmat'
 process.env.VITE_APP_NAME = appName
+// so is the version (the image workflow passes the release tag or sha-<7>); index.html's app-version meta reads it,
+// and the deploy's smoke test checks it. Empty: a development build, "dev" in the app.
+const appVersion = process.env.VITE_APP_VERSION?.trim() || ''
+process.env.VITE_APP_VERSION = appVersion
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), pwa(appName)],
+  plugins: [react(), pwa(appName), releaseNotes(appVersion)],
   build: {
     // scripts/check-bundle-size.mjs reads the manifest to find each page's chunks
     manifest: true,

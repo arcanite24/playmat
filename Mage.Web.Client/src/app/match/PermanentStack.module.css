@@ -55,6 +55,20 @@
 }
 
 /* chosen in the current decision: amber, steady */
+/* clicked, and the server hasn't answered yet: pressed into the mat */
+.pending {
+  cursor: progress;
+}
+
+.pending::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 9px;
+  box-shadow: 0 0 0 3px var(--ink-strong), 0 0 18px 2px rgb(var(--ink-rgb) / 0.35);
+  pointer-events: none;
+}
+
 .selected::after {
   content: '';
   position: absolute;
@@ -139,6 +153,8 @@
   padding: 0;
   list-style: none;
   pointer-events: none;
+  transform: scale(var(--badge, 1));
+  transform-origin: bottom left;
 }
 
 .counters li {
@@ -177,6 +193,8 @@
   font-weight: 700;
   color: var(--ink-strong);
   pointer-events: none;
+  transform: scale(var(--badge, 1));
+  transform-origin: bottom right;
 }
 
 .up {
@@ -210,6 +228,8 @@
   font-weight: 700;
   font-size: 21px;
   box-shadow: var(--shadow-placed);
+  transform: scale(var(--badge, 1));
+  transform-origin: top right;
 }
 
 

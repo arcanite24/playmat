@@ -1,23 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import type { DeckCardLists, MetaFormat } from '../../protocol/generated/views';
+import type { DeckCardLists } from '../../protocol/generated/views';
 import {
   adaptivePace, adaptiveSentence,
-  adaptiveFormatFor, adaptiveSkill, agoParts, findMetaDeck, ghostOpponentId, ghostRecord, looksCommander, metaFormatsFor, metaOpponentId,
+  adaptiveFormatFor, adaptiveSkill, agoParts, ghostOpponentId, ghostRecord, looksCommander,
   MIRROR_OPPONENT_ID, normalizeGhostCode, opponentSource, tableMarkArgs, unseenCount,
 } from './freePlay';
 
 describe("the AI's deck source", () => {
-  it('reads roster ids, meta files, ghost codes and the mirror', () => {
+  it('reads roster ids (format decks among them), ghost codes and the mirror', () => {
     expect(opponentSource(null)).toEqual({ kind: 'roster', id: null });
     expect(opponentSource('starter:mono-red.dck')).toEqual({ kind: 'roster', id: 'starter:mono-red.dck' });
     expect(opponentSource('a1b2')).toEqual({ kind: 'roster', id: 'a1b2' });
-    expect(opponentSource(metaOpponentId('modern/burn.dck'))).toEqual({ kind: 'meta', file: 'modern/burn.dck' });
+    expect(opponentSource('meta:modern-affinity.dck')).toEqual({ kind: 'roster', id: 'meta:modern-affinity.dck' });
     expect(opponentSource(ghostOpponentId(' ab-cd 23 '))).toEqual({ kind: 'ghost', code: 'ABCD23' });
     expect(opponentSource(MIRROR_OPPONENT_ID)).toEqual({ kind: 'mirror' });
   });
 
-  it('falls back to a random starter for an empty meta file or ghost code', () => {
-    expect(opponentSource('meta:')).toEqual({ kind: 'roster', id: null });
+  it('falls back to a random pick for an empty ghost code', () => {
     expect(opponentSource('ghost:  ')).toEqual({ kind: 'roster', id: null });
   });
 
@@ -31,7 +30,7 @@ describe('marking a free-play table', () => {
     expect(tableMarkArgs({ kind: 'roster', id: null }, null)).toBeNull();
     expect(tableMarkArgs({ kind: 'mirror' }, null)).toBeNull();
     expect(tableMarkArgs({ kind: 'ghost', code: 'ABC234' }, null)).toEqual(['ABC234', null]);
-    expect(tableMarkArgs({ kind: 'meta', file: 'x.dck' }, 'constructed')).toEqual([null, 'constructed']);
+    expect(tableMarkArgs({ kind: 'roster', id: 'meta:x.dck' }, 'constructed')).toEqual([null, 'constructed']);
     expect(tableMarkArgs({ kind: 'ghost', code: 'ABC234' }, 'commander')).toEqual(['ABC234', 'commander']);
   });
 
@@ -60,26 +59,6 @@ describe('deck shapes', () => {
     expect(looksCommander(deck(60, 15))).toBe(false);
     expect(looksCommander(deck(60, 0))).toBe(false);
     expect(looksCommander(deck(60, 1))).toBe(false);
-  });
-});
-
-describe('the meta library', () => {
-  const library: MetaFormat[] = [
-    { id: 'modern', name: 'Modern', snapshot: '2026-09', decks: [{ file: 'modern/burn.dck', name: 'Burn', deckType: 'Constructed - Modern' }] },
-    { id: 'edh', name: 'Commander', decks: [{ file: 'edh/atraxa.dck', name: 'Atraxa', deckType: 'Variant Magic - Commander' }] },
-    { id: 'empty', name: 'Empty', decks: [] },
-  ];
-  const commanderType = (deckType?: string) => !!deckType?.includes('Commander');
-
-  it('finds a deck and its format by file', () => {
-    expect(findMetaDeck(library, 'edh/atraxa.dck')?.format.id).toBe('edh');
-    expect(findMetaDeck(library, 'gone.dck')).toBeNull();
-  });
-
-  it('keeps the formats with decks of the kind wanted', () => {
-    expect(metaFormatsFor(library, null, commanderType).map((format) => format.id)).toEqual(['modern', 'edh']);
-    expect(metaFormatsFor(library, true, commanderType).map((format) => format.id)).toEqual(['edh']);
-    expect(metaFormatsFor(library, false, commanderType).map((format) => format.id)).toEqual(['modern']);
   });
 });
 

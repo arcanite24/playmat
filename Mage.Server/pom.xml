@@ -434,6 +434,9 @@
                                 <class>mage.server.websocket.api.SettingsApi$ServerSettings</class>
                                 <class>mage.server.Maintenance$MaintenancePlan</class>
                                 <class>mage.server.BackupStatus$BackupRun</class>
+                                <class>mage.server.UpdateCheck$UpdateStatus</class>
+                                <class>mage.server.UpdateRunner$UpdaterInfo</class>
+                                <class>mage.server.UpdateRunner$UpdateJob</class>
                                 <class>mage.server.admin.AuditEntry</class>
                                 <class>mage.server.admin.AllowEntry</class>
                                 <class>mage.server.admin.Invite</class>
@@ -446,6 +449,13 @@
                                 <class>mage.server.websocket.api.AccountsApi$AccountsPage</class>
                                 <class>mage.server.websocket.api.AccountsApi$AccountSession</class>
                                 <class>mage.server.websocket.api.AccountsApi$AccountDetail</class>
+                                <class>mage.server.websocket.api.MyAccountApi$AccountEmailStatus</class>
+                                <class>mage.server.support.Support$SupportStatus</class>
+                                <class>mage.server.support.Support$SupportYou</class>
+                                <class>mage.server.support.Support$SupportPerk</class>
+                                <class>mage.server.support.Support$SupportLedger</class>
+                                <class>mage.server.support.Payment</class>
+                                <class>mage.server.support.PlayerLook</class>
                                 <class>mage.server.AccountService$StaffResetCode</class>
                                 <class>mage.server.admin.FeedbackEntry</class>
                                 <class>mage.server.websocket.api.AccessApi$InviteCheck</class>

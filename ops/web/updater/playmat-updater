@@ -1,0 +1,526 @@
+#!/bin/bash
+# The updater: lets the admin console's Update button update a self-hosted server (ops/web/README.md "Update button").
+# It runs as the compose service `updater` (profile "updater"), the only container with the Docker socket. It has no
+# network and no listener: the server asks through files in the volume both mount (xmage-updates):
+#
+#   request.json   written by the server (owner only, UpdateRunner.java): {"id","action":"update"|"rollback","tag","by"}
+#   updater.json   this daemon's heartbeat, every few seconds: whether it can work, the previous version, ...
+#   status.json    the current or last job: state queued|running|ok|failed|rolled-back, step, message, times
+#   update.log     the jobs' log, newest last (the last 2000 lines)
+#   state          what's running and what ran before it, for a rollback (key=value)
+#
+#   playmat-updater daemon   the service: heartbeat, and a job for each request
+#   playmat-updater job      one update or rollback (started by the daemon, see below)
+#
+# Compose resolves the paths in the compose file (the image cache's bind-mounted template) against the project
+# directory, and Docker reads them on the host. So a job runs in a container of its own that sees the host's project
+# directory at the same path, made by the daemon from its own image: compose there behaves as it does on the host.
+# The project, its directory and its .env come from the labels compose put on this container. A host whose paths
+# aren't Linux paths (Docker Desktop on Windows) is refused.
+#
+# An update does what ops/web/deploy/playmat-deploy does on the production host: pull both images by tag and pin their
+# digests, take a database backup, drain (games get up to DRAIN_MINUTES), pin the digests in .env, run the compose
+# kit the new server image carries, wait for xmage and web to be healthy, and roll back to what ran before when they
+# aren't. A request names only a tag; the image names come from this image (PLAYMAT_IMAGES), never from the request.
+set -euo pipefail
+
+UPDATES=${UPDATES_DIR:-/updates}
+IMAGES=${PLAYMAT_IMAGES:-ghcr.io/arcanite24/playmat}
+VERSION=${PLAYMAT_VERSION:-local}
+DRAIN_MINUTES=${UPDATER_DRAIN_MINUTES:-15}
+HEALTH_TIMEOUT=${UPDATER_HEALTH_TIMEOUT:-600}
+POLL_SECONDS=${UPDATER_POLL_SECONDS:-3}
+TAG_PATTERN='^(v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?|sha-[0-9a-f]{7,40}|master|latest)$'
+# the services an update replaces; the updater itself comes last, after the job's status is written
+SERVICES=(xmage web imgcache backup)
+
+SERVER_REPO=$IMAGES-server
+WEB_REPO=$IMAGES-web
+UPDATER_REPO=$IMAGES-updater
+STATE=$UPDATES/state
+LOG=$UPDATES/update.log
+
+now() { date +%s; }
+
+log() {
+  local line
+  line="$(date -u +%FT%TZ) $*"
+  echo "$line"
+  echo "$line" >> "$LOG" 2>/dev/null || true
+}
+
+# write_json FILE JQ-FILTER ARGS...: replaces FILE with the filter's output (atomically: the server may be reading it)
+write_json() {
+  local file=$1 tmp
+  shift
+  tmp=$(mktemp "$UPDATES/.tmp.XXXXXX")
+  jq -n "$@" > "$tmp"
+  chmod 644 "$tmp"
+  mv -f "$tmp" "$file"
+}
+
+# --- state: key=value lines, read without sourcing ------------------------------------------------------------------
+state_get() {
+  [[ -f $STATE ]] || return 0
+  sed -n "s/^$1=//p" "$STATE" | tail -n 1
+}
+
+# state_write CURRENT_TAG CURRENT_SERVER CURRENT_WEB CURRENT_KIT PREVIOUS_TAG PREVIOUS_SERVER PREVIOUS_WEB PREVIOUS_KIT
+state_write() {
+  {
+    echo "# written by playmat-updater $(date -u +%FT%TZ)"
+    echo "CURRENT_TAG=$1"
+    echo "CURRENT_SERVER=$2"
+    echo "CURRENT_WEB=$3"
+    echo "CURRENT_KIT=$4"
+    echo "PREVIOUS_TAG=$5"
+    echo "PREVIOUS_SERVER=$6"
+    echo "PREVIOUS_WEB=$7"
+    echo "PREVIOUS_KIT=$8"
+  } > "$STATE.tmp"
+  mv -f "$STATE.tmp" "$STATE"
+}
+
+# --- docker -------------------------------------------------------------------------------------------------------
+container() {
+  docker ps -q --filter "label=com.docker.compose.project=$PROJECT" --filter "label=com.docker.compose.service=$1" | head -n 1
+}
+
+health_status() {
+  local id
+  id=$(container "$1")
+  [[ -n $id ]] || { echo missing; return; }
+  docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$id" 2>/dev/null || echo missing
+}
+
+# xmage_http METHOD PATH: the server's loopback endpoint (Health.java) through its container; the body of a 200
+xmage_http() {
+  local id answer
+  id=$(container xmage)
+  [[ -n $id ]] || return 1
+  # shellcheck disable=SC2016 # expanded by the container's bash
+  answer=$(docker exec "$id" bash -c 'exec 3<>/dev/tcp/127.0.0.1/17173 && printf "%s %s HTTP/1.0\r\nContent-Length: 0\r\n\r\n" "$1" "$2" >&3 && cat <&3' \
+    _ "$1" "$2" 2>/dev/null | tr -d '\r') || return 1
+  [[ $(head -n 1 <<< "$answer" | cut -d' ' -f2) == 200 ]] || return 1
+  sed '1,/^$/d' <<< "$answer"
+}
+
+# pin REPO TAG: pulls REPO:TAG and prints REPO:TAG@sha256:...
+pin() {
+  local ref=$1:$2 digest
+  docker pull -q "$ref" > /dev/null || return 1
+  digest=$(docker image inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' "$ref" | grep -m1 "^$1@" | cut -d@ -f2)
+  [[ $digest == sha256:* ]] || return 1
+  echo "$ref@$digest"
+}
+
+# an image is present, or pulled now (nothing to do for none: a local build's empty pin)
+ensure_image() {
+  [[ -z $1 ]] && return 0
+  docker image inspect "$1" > /dev/null 2>&1 || docker pull -q "$1" > /dev/null
+}
+
+# extract_kit IMAGE DIR: the compose file and nginx template the server image carries (Dockerfile.server)
+extract_kit() {
+  local id ok=0
+  mkdir -p "$2"
+  id=$(docker create "$1")
+  docker cp "$id:/opt/xmage/deploy-kit/." "$2/" > /dev/null && ok=1
+  docker rm "$id" > /dev/null
+  (( ok )) && [[ -f $2/docker-compose.yml ]]
+}
+
+# --- .env (the host's, at the same path) -----------------------------------------------------------------------------
+env_get() {
+  [[ -f $ENV_FILE ]] || return 0
+  sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/"
+}
+
+# env_set KEY VALUE: replaces the key's lines, or adds one; written in place, so the file keeps its owner and mode
+env_set() {
+  local tmp
+  tmp=$(mktemp)
+  awk -v key="$1" -v value="$2" '
+    index($0, key "=") == 1 { if (!done) print key "=" value; done = 1; next }
+    { print }
+    END { if (!done) print key "=" value }
+  ' "$ENV_FILE" > "$tmp"
+  cat "$tmp" > "$ENV_FILE"
+  rm -f "$tmp"
+}
+
+# compose_args KIT: sets ARGS to docker compose's arguments for this project, with KIT's compose file and the .env
+ARGS=()
+compose_args() {
+  ARGS=(-p "$PROJECT" --project-directory "$1" -f "$1/docker-compose.yml" --env-file "$ENV_FILE")
+}
+
+compose() {
+  compose_args "$1"
+  shift
+  docker compose "${ARGS[@]}" "$@"
+}
+
+# ======================================================================================================================
+# job
+# ======================================================================================================================
+JOB_ID='' JOB_ACTION='' JOB_TAG='' JOB_BY='' JOB_FROM='' JOB_STARTED='' JOB_STEP=''
+
+job_status() {
+  local state=$1 message=${2:-} finished=null
+  [[ $state == running || $state == queued ]] || finished=$(now)
+  # shellcheck disable=SC2016 # jq's variables
+  write_json "$UPDATES/status.json" \
+    --arg id "$JOB_ID" --arg action "$JOB_ACTION" --arg tag "$JOB_TAG" --arg by "$JOB_BY" --arg from "$JOB_FROM" \
+    --arg state "$state" --arg step "$JOB_STEP" --arg message "$message" \
+    --argjson startedAt "${JOB_STARTED:-null}" --argjson finishedAt "$finished" \
+    '{id: $id, action: $action, tag: $tag, by: $by, from: $from, state: $state, step: $step, message: $message,
+      startedAt: $startedAt, finishedAt: $finishedAt}'
+}
+
+step() {
+  JOB_STEP=$1
+  log "$2"
+  job_status running "$2"
+}
+
+job_fail() {
+  log "error: $1"
+  job_status "${2:-failed}" "$1"
+  exit 1
+}
+
+# backup: the backup service's online dump (kept in its volume with the nightly ones); without one, none
+backup_now() {
+  local id name
+  id=$(container backup)
+  if [[ -z $id ]]; then
+    log "backup: no backup service running; going on without one"
+    return 0
+  fi
+  docker exec "$id" xmage-backup once > /dev/null || return 1
+  name=$(docker exec "$id" xmage-backup list | tail -n 1)
+  log "backup: $name"
+}
+
+DRAINED=0
+drain() {
+  local answer games users deadline
+  answer=$(xmage_http GET /healthz) || { log "drain: the server isn't answering; nothing to drain"; return 0; }
+  games=$(sed -n 's/.*"gamesRunning":\([0-9][0-9]*\).*/\1/p' <<< "$answer")
+  users=$(sed -n 's/.*"usersOnline":\([0-9][0-9]*\).*/\1/p' <<< "$answer")
+  games=${games:-0} users=${users:-0}
+  if (( games == 0 && users == 0 )); then
+    log "drain: nobody online"
+    return 0
+  fi
+  if (( games == 0 )); then
+    xmage_http POST "/maintenance?minutes=0&message=Updating%20to%20$JOB_TAG.%20Back%20in%20a%20minute." > /dev/null || true
+    DRAINED=1
+    log "drain: no games running; $users online were warned"
+    return 0
+  fi
+  xmage_http POST "/maintenance?minutes=$DRAIN_MINUTES&message=Updating%20to%20$JOB_TAG." > /dev/null \
+    || { log "drain: couldn't announce maintenance; going ahead"; return 0; }
+  DRAINED=1
+  step drain "$games game(s) running: players were told, waiting up to $DRAIN_MINUTES min for them to end"
+  deadline=$(( $(now) + DRAIN_MINUTES * 60 ))
+  while (( $(now) < deadline )); do
+    sleep 15
+    answer=$(xmage_http GET /healthz) || break
+    games=$(sed -n 's/.*"gamesRunning":\([0-9][0-9]*\).*/\1/p' <<< "$answer")
+    (( ${games:-0} == 0 )) && { log "drain: no games left"; return 0; }
+  done
+  log "drain: ${games:-?} game(s) still running after $DRAIN_MINUTES min; going ahead"
+}
+
+# a server the job didn't replace (it failed early) would otherwise keep refusing new tables
+cancel_maintenance() {
+  if (( DRAINED )); then
+    DRAINED=0
+    xmage_http POST /maintenance/cancel > /dev/null 2>&1 && log "maintenance called off" || true
+  fi
+}
+
+# runs SERVICE IMAGE: the service's container was made from IMAGE, so the old one, still healthy, doesn't pass for
+# the new
+runs() {
+  local id
+  id=$(container "$1")
+  [[ -n $id && $(docker inspect -f '{{.Config.Image}}' "$id" 2>/dev/null) == "$2" ]]
+}
+
+# health_gate DEADLINE SERVER WEB: xmage and web healthy, on these images, before DEADLINE
+health_gate() {
+  local deadline=$1 xmage web
+  while true; do
+    xmage=$(health_status xmage)
+    web=$(health_status web)
+    runs xmage "$2" || xmage="$xmage (not yet the new image)"
+    runs web "$3" || web="$web (not yet the new image)"
+    if [[ $xmage == healthy && $web == healthy ]]; then
+      log "health: xmage $xmage, web $web"
+      return 0
+    fi
+    if (( $(now) >= deadline )); then
+      log "health: gave up after ${HEALTH_TIMEOUT}s: xmage $xmage, web $web"
+      return 1
+    fi
+    sleep 5
+  done
+}
+
+# run_stack SERVER WEB KIT: pin the images in .env (empty: a local build), bring the services up and wait for health
+run_stack() {
+  local deadline
+  deadline=$(( $(now) + HEALTH_TIMEOUT ))
+  env_set XMAGE_SERVER_IMAGE "$1"
+  env_set XMAGE_WEB_IMAGE "$2"
+  compose_args "$3"
+  # up waits for the server to be healthy before it starts the web container
+  if ! timeout "$HEALTH_TIMEOUT" docker compose "${ARGS[@]}" up -d --no-build "${SERVICES[@]}" > "$UPDATES/.compose.out" 2>&1; then
+    log "compose up failed or timed out:"
+  fi
+  while read -r line; do log "compose: $line"; done < "$UPDATES/.compose.out"
+  # empty pins: the compose file's names for a local build
+  health_gate "$deadline" "${1:-xmage-web-server:local}" "${2:-xmage-web:local}"
+}
+
+# the updater follows the stack: its own image, by the tag the server's came by, then a new container (this job runs
+# in a container of its own, so replacing the daemon's doesn't stop it). Failing here leaves the old updater running.
+renew_updater() {
+  local kit=$1 tag=$2
+  docker pull -q "$UPDATER_REPO:$tag" > /dev/null 2>&1 || { log "updater: no $UPDATER_REPO:$tag; keeping this one"; return 0; }
+  env_set XMAGE_UPDATER_IMAGE "$UPDATER_REPO:$tag"
+  if compose "$kit" up -d --no-deps --no-build updater > /dev/null 2>&1; then
+    log "updater: now $UPDATER_REPO:$tag"
+  else
+    log "updater: couldn't be replaced; keeping this one"
+  fi
+}
+
+describe() {
+  echo "${1:-a local build}"
+}
+
+job_update() {
+  local server web digest kit started
+  local current_tag current_server current_web current_kit
+  current_tag=$(state_get CURRENT_TAG)
+  current_server=$(state_get CURRENT_SERVER)
+  current_web=$(state_get CURRENT_WEB)
+  current_kit=$(state_get CURRENT_KIT)
+  # the first update here: what runs now is whatever .env names (nothing: a local build) with the checkout's compose file
+  if [[ -z $current_kit || ! -f $current_kit/docker-compose.yml ]]; then
+    current_server=$(env_get XMAGE_SERVER_IMAGE)
+    current_web=$(env_get XMAGE_WEB_IMAGE)
+    current_kit=$WORKDIR
+    current_tag=
+    [[ $current_server =~ :([^:@/]+)(@|$) ]] && current_tag=${BASH_REMATCH[1]}
+  fi
+  JOB_FROM=$(describe "$current_tag")
+
+  step pull "Pulling $JOB_TAG"
+  server=$(pin "$SERVER_REPO" "$JOB_TAG") || job_fail "Can't pull $SERVER_REPO:$JOB_TAG. Is it published?"
+  web=$(pin "$WEB_REPO" "$JOB_TAG") || job_fail "Can't pull $WEB_REPO:$JOB_TAG. Is it published?"
+  log "pulled $server"
+  log "pulled $web"
+  digest=${server##*@sha256:}
+  kit=$WORKDIR/deploy-kit.$JOB_TAG-${digest:0:12}
+  if [[ ! -f $kit/docker-compose.yml ]]; then
+    rm -rf "$kit"
+    extract_kit "$server" "$kit" || job_fail "$server carries no compose kit; it's too old for the updater."
+  fi
+
+  step backup "Backing up the databases"
+  backup_now || job_fail "The backup failed, so nothing was changed."
+
+  trap cancel_maintenance EXIT
+  step drain "Warning players"
+  drain
+
+  step restart "Restarting on $JOB_TAG"
+  started=$(now)
+  if run_stack "$server" "$web" "$kit"; then
+    state_write "$JOB_TAG" "$server" "$web" "$kit" "$current_tag" "$current_server" "$current_web" "$current_kit"
+    log "updated to $JOB_TAG in $(( $(now) - started ))s"
+    JOB_STEP='done'
+    job_status ok "Updated to $JOB_TAG (was $JOB_FROM)."
+    trap - EXIT
+    renew_updater "$kit" "$JOB_TAG"
+    docker image prune -f > /dev/null 2>&1 || true
+    return 0
+  fi
+
+  step rollback "$JOB_TAG didn't come up healthy; going back to $JOB_FROM"
+  if ensure_image "$current_server" && ensure_image "$current_web" && run_stack "$current_server" "$current_web" "$current_kit"; then
+    job_fail "$JOB_TAG didn't come up healthy, so the server went back to $JOB_FROM. The log has the details." rolled-back
+  fi
+  job_fail "$JOB_TAG didn't come up healthy, and neither did $JOB_FROM after it. The server needs someone at the host."
+}
+
+job_rollback() {
+  local previous_tag previous_server previous_web previous_kit
+  previous_tag=$(state_get PREVIOUS_TAG)
+  previous_server=$(state_get PREVIOUS_SERVER)
+  previous_web=$(state_get PREVIOUS_WEB)
+  previous_kit=$(state_get PREVIOUS_KIT)
+  JOB_FROM=$(describe "$(state_get CURRENT_TAG)")
+  JOB_TAG=$(describe "$previous_tag")
+  [[ -n $previous_kit && -f $previous_kit/docker-compose.yml ]] || job_fail "There's no earlier version to go back to."
+  step pull "Getting $JOB_TAG"
+  ensure_image "$previous_server" || job_fail "Can't get $previous_server."
+  ensure_image "$previous_web" || job_fail "Can't get $previous_web."
+  step backup "Backing up the databases"
+  backup_now || log "backup failed; going back anyway"
+  step restart "Restarting on $JOB_TAG"
+  if run_stack "$previous_server" "$previous_web" "$previous_kit"; then
+    state_write "$previous_tag" "$previous_server" "$previous_web" "$previous_kit" \
+      "$(state_get CURRENT_TAG)" "$(state_get CURRENT_SERVER)" "$(state_get CURRENT_WEB)" "$(state_get CURRENT_KIT)"
+    JOB_STEP='done'
+    job_status ok "Went back to $JOB_TAG (was $JOB_FROM)."
+    return 0
+  fi
+  job_fail "Going back to $JOB_TAG didn't come up healthy. The server needs someone at the host."
+}
+
+job() {
+  local request=$UPDATES/request.taken
+  [[ -f $request ]] || { echo "playmat-updater: no request" >&2; exit 1; }
+  JOB_ID=$(jq -r '.id // ""' "$request")
+  JOB_ACTION=$(jq -r '.action // ""' "$request")
+  JOB_TAG=$(jq -r '.tag // ""' "$request")
+  JOB_BY=$(jq -r '.by // ""' "$request")
+  JOB_STARTED=$(now)
+  [[ -f $ENV_FILE ]] || job_fail "The project's .env ($ENV_FILE) is missing: the updater pins the images there."
+  # the log keeps the last 2000 lines
+  if [[ -f $LOG ]]; then tail -n 2000 "$LOG" > "$LOG.tmp" && mv -f "$LOG.tmp" "$LOG"; fi
+  log "--- $JOB_ACTION ${JOB_TAG:+$JOB_TAG }asked by ${JOB_BY:-?} (project $PROJECT, $WORKDIR)"
+  case "$JOB_ACTION" in
+    update)
+      [[ $JOB_TAG =~ $TAG_PATTERN ]] || job_fail "'$JOB_TAG' isn't a version the updater accepts."
+      job_update
+      ;;
+    rollback) job_rollback ;;
+    *) job_fail "unknown request '$JOB_ACTION'" ;;
+  esac
+}
+
+# ======================================================================================================================
+# daemon
+# ======================================================================================================================
+SELF='' PROBLEM='' SELF_IMAGE='' SOCKET='' UPDATES_VOLUME=''
+
+# label NAME: one of compose's labels on this container
+label() {
+  docker inspect -f "{{index .Config.Labels \"$1\"}}" "$SELF" 2>/dev/null || true
+}
+
+discover() {
+  local env_files
+  SELF=$(hostname)
+  PROBLEM=
+  if ! docker version > /dev/null 2>&1; then
+    PROBLEM="The updater can't reach Docker: mount /var/run/docker.sock."
+    return 1
+  fi
+  PROJECT=$(label com.docker.compose.project)
+  WORKDIR=$(label com.docker.compose.project.working_dir)
+  env_files=$(label com.docker.compose.project.environment_file)
+  ENV_FILE=${env_files%%,*}
+  [[ -n $ENV_FILE ]] || ENV_FILE=$WORKDIR/.env
+  SELF_IMAGE=$(docker inspect -f '{{.Image}}' "$SELF")
+  SOCKET=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/var/run/docker.sock"}}{{.Source}}{{end}}{{end}}' "$SELF")
+  UPDATES_VOLUME=$(docker inspect -f "{{range .Mounts}}{{if eq .Destination \"$UPDATES\"}}{{.Name}}{{end}}{{end}}" "$SELF")
+  if [[ -z $PROJECT || -z $WORKDIR ]]; then
+    PROBLEM="The updater runs as a compose service: start it with docker compose."
+  elif [[ $WORKDIR != /* ]]; then
+    PROBLEM="The update button needs a Linux host (Docker Engine); this one is $WORKDIR. Update by hand instead."
+  elif [[ -z $UPDATES_VOLUME ]]; then
+    PROBLEM="The updater needs the xmage-updates volume at $UPDATES."
+  fi
+  [[ -z $PROBLEM ]]
+}
+
+heartbeat() {
+  # shellcheck disable=SC2016 # jq's variables
+  write_json "$UPDATES/updater.json" \
+    --arg version "$VERSION" --arg project "${PROJECT:-}" --arg problem "$PROBLEM" --arg images "$IMAGES" \
+    --arg current "$(state_get CURRENT_TAG)" --arg previous "$(state_get PREVIOUS_TAG)" \
+    --argjson running "$1" --argjson at "$(now)" \
+    '{version: $version, project: $project, ready: ($problem == ""), problem: (if $problem == "" then null else $problem end),
+      images: $images, current: (if $current == "" then null else $current end),
+      previous: (if $previous == "" then null else $previous end), running: $running, at: $at}'
+}
+
+job_container() {
+  docker ps -q --filter "name=^/$PROJECT-update-job$"
+}
+
+start_job() {
+  local mounts=(-v "$SOCKET:/var/run/docker.sock" -v "$WORKDIR:$WORKDIR" -v "$UPDATES_VOLUME:$UPDATES")
+  # an .env outside the project directory, at its own path too
+  [[ $ENV_FILE == "$WORKDIR"/* ]] || mounts+=(-v "$ENV_FILE:$ENV_FILE")
+  docker rm -f "$PROJECT-update-job" > /dev/null 2>&1 || true
+  docker run -d --rm --name "$PROJECT-update-job" --label playmat.updater.job=1 "${mounts[@]}" \
+    -e PROJECT="$PROJECT" -e WORKDIR="$WORKDIR" -e ENV_FILE="$ENV_FILE" -e PLAYMAT_IMAGES="$IMAGES" -e PLAYMAT_VERSION="$VERSION" \
+    -e UPDATER_DRAIN_MINUTES="$DRAIN_MINUTES" -e UPDATER_HEALTH_TIMEOUT="$HEALTH_TIMEOUT" \
+    -w "$WORKDIR" --entrypoint playmat-updater "$SELF_IMAGE" job > /dev/null
+}
+
+# refuse REASON: a request that can't run, answered in status.json
+refuse_request() {
+  JOB_ID=$(jq -r '.id // ""' "$UPDATES/request.json" 2>/dev/null || true)
+  JOB_ACTION=$(jq -r '.action // ""' "$UPDATES/request.json" 2>/dev/null || true)
+  JOB_TAG=$(jq -r '.tag // ""' "$UPDATES/request.json" 2>/dev/null || true)
+  JOB_BY=$(jq -r '.by // ""' "$UPDATES/request.json" 2>/dev/null || true)
+  JOB_STARTED=$(now) JOB_STEP=refused
+  rm -f "$UPDATES/request.json"
+  log "refused: $1"
+  job_status failed "$1"
+}
+
+daemon() {
+  mkdir -p "$UPDATES"
+  # the server writes requests here as its own user
+  chmod 1777 "$UPDATES"
+  discover || true
+  log "updater $VERSION: ${PROBLEM:-ready} (project ${PROJECT:-?}, ${WORKDIR:-?})"
+  # a job the daemon was replaced during is still running in its own container; its status says how it went
+  while true; do
+    local running=false
+    [[ -n $PROBLEM ]] && discover && log "updater ready (project $PROJECT, $WORKDIR)"
+    [[ -n ${PROJECT:-} && -n $(job_container) ]] && running=true
+    if [[ -f $UPDATES/request.json ]]; then
+      if [[ -n $PROBLEM ]]; then
+        refuse_request "$PROBLEM"
+      elif [[ $running == true ]]; then
+        refuse_request "Another update is still running."
+      else
+        mv -f "$UPDATES/request.json" "$UPDATES/request.taken"
+        if start_job; then
+          running=true
+        else
+          JOB_ID=$(jq -r '.id // ""' "$UPDATES/request.taken") JOB_ACTION=$(jq -r '.action // ""' "$UPDATES/request.taken")
+          JOB_TAG=$(jq -r '.tag // ""' "$UPDATES/request.taken") JOB_BY=$(jq -r '.by // ""' "$UPDATES/request.taken")
+          JOB_STARTED=$(now) JOB_STEP=start
+          job_status failed "The updater couldn't start its job container."
+        fi
+      fi
+    fi
+    heartbeat "$running"
+    sleep "$POLL_SECONDS"
+  done
+}
+
+case "${1:-}" in
+  daemon) daemon ;;
+  job)
+    : "${PROJECT:?}" "${WORKDIR:?}" "${ENV_FILE:?}"
+    job
+    ;;
+  *)
+    echo "usage: playmat-updater daemon | job" >&2
+    exit 2
+    ;;
+esac

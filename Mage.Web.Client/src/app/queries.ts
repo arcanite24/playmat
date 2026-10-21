@@ -90,3 +90,18 @@ export function useServerInfo() {
     staleTime: 5 * 60_000,
   });
 }
+
+export const EMAIL_STATUS = ['account', 'email'] as const;
+
+/** The signed-in account's email, masked, and whether it is confirmed; only servers with accounts have one. */
+export function useEmailStatus() {
+  const signedIn = useSession((state) => state.phase === 'signedIn');
+  const accounts = useServerInfo().data?.accounts === true;
+  return useQuery({
+    queryKey: EMAIL_STATUS,
+    queryFn: () => api.accountEmailStatus(),
+    enabled: signedIn && accounts,
+    staleTime: 60_000,
+    retry: false,
+  });
+}

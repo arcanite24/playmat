@@ -61,6 +61,8 @@ public class WebSocketServerImpl extends WebSocketServer {
     private static final int WORKER_THREADS = 32;
     private static final int WORKER_QUEUE = 10_000;
     private static final int MAX_RATE_LIMIT_STRIKES = 200;
+    /** close code of a connection whose user logged in again from somewhere else (it must not log back in by itself) */
+    static final int CLOSE_SIGNED_IN_ELSEWHERE = 4001;
 
     private final RpcDispatcher dispatcher;
     private final RpcSessions sessions;
@@ -85,11 +87,19 @@ public class WebSocketServerImpl extends WebSocketServer {
 
     WebSocketServerImpl(InetSocketAddress address, MageServer mageServer, ManagerFactory managerFactory,
                         String allowedOrigins, String adminPassword, WebSocketLimits limits) {
+        this(address, mageServer, managerFactory, new ServerRpcSessions(managerFactory), allowedOrigins, adminPassword, limits);
+    }
+
+    /**
+     * @param sessions the server's sessions as the bridge sees them (tests pass their own)
+     */
+    WebSocketServerImpl(InetSocketAddress address, MageServer mageServer, ManagerFactory managerFactory, RpcSessions sessions,
+                        String allowedOrigins, String adminPassword, WebSocketLimits limits) {
         super(address, Collections.<Draft>singletonList(
                 // the empty protocol accepts clients that request no subprotocol (all browsers by default)
                 new Draft_6455(Collections.singletonList(new PerMessageDeflateExtension()),
                         Collections.singletonList(new Protocol("")), MAX_MESSAGE_BYTES)));
-        this.sessions = new ServerRpcSessions(managerFactory);
+        this.sessions = sessions;
         this.dispatcher = WebClientApi.createDispatcher(new ApiContext(mageServer, managerFactory, sessions, adminPassword));
         this.allowedOrigins = parseOrigins(allowedOrigins);
         this.limits = limits;
@@ -243,6 +253,9 @@ public class WebSocketServerImpl extends WebSocketServer {
     private void execute(WebSocket conn, ConnectionState state, JsonElement id, String method, JsonArray params) {
         try {
             Object result = dispatcher.dispatch(method, params, state);
+            if ("connectUser".equals(method) && Boolean.TRUE.equals(result) && state.getUserName() != null) {
+                closeReplaced(state);
+            }
             if (id != null && !id.isJsonNull() && conn.isOpen()) {
                 JsonObject response = new JsonObject();
                 response.addProperty("jsonrpc", "2.0");
@@ -259,6 +272,27 @@ public class WebSocketServerImpl extends WebSocketServer {
         } catch (Throwable e) {
             logger.error("WebSocket RPC " + method + " failed: " + ThreadUtils.findRootException(e), e);
             sendError(conn, id, new RpcException(RpcException.INTERNAL_ERROR, safeMessage(e)));
+        }
+    }
+
+    /**
+     * The login took its user over from this server's other connections that were logged in as it (another tab or
+     * device): the server already ended their sessions, and now they learn why. They are closed with
+     * {@link #CLOSE_SIGNED_IN_ELSEWHERE} instead of being left to find out on their next call, and clients don't log
+     * back in by themselves after it, or two of them would keep taking the user from each other.
+     */
+    private void closeReplaced(ConnectionState signedIn) {
+        String userName = signedIn.getUserName();
+        for (WebSocket other : getConnections()) {
+            ConnectionState state = other.getAttachment();
+            if (state == null || state == signedIn || !userName.equalsIgnoreCase(state.getUserName())) {
+                continue;
+            }
+            String sessionId = state.getSessionId();
+            if (sessionId != null && !sessions.exists(sessionId) && sessions.isSignedInElsewhere(userName, sessionId)) {
+                logger.info("Closing a WebSocket connection of " + userName + ": signed in somewhere else (" + describe(other) + ")");
+                other.close(CLOSE_SIGNED_IN_ELSEWHERE, "Signed in somewhere else");
+            }
         }
     }
 

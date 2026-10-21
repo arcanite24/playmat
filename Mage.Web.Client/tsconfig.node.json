@@ -22,5 +22,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "scripts/pwa-plugin.ts"]
+  "include": ["vite.config.ts", "scripts/pwa-plugin.ts", "scripts/release-notes-plugin.ts"]
 }

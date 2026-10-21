@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { APP_NAME } from '../brand';
+import { APP_NAME, APP_VERSION } from '../brand';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/about';
 import { RichText } from '../i18n/RichText';
@@ -27,6 +27,7 @@ export function AboutScreen() {
         </button>
         <h1 className={styles.title}>{t('about.title', app)}</h1>
         <p className={styles.lede}>{t('about.lede', app)}</p>
+        <p className={styles.version}>{t('about.version', { version: APP_VERSION })}</p>
 
         <section className={styles.section} aria-labelledby="about-wotc">
           <h2 id="about-wotc">{t('about.wotc')}</h2>
@@ -82,6 +83,19 @@ export function AboutScreen() {
             <li>{t('about.data.errors')}</li>
           </ul>
           <p>{t('about.data.chat')}</p>
+          <p>
+            <RichText
+              text={t('about.data.more')}
+              parts={{ privacy: <Link to="/privacy">{t('legal.privacyLink')}</Link>, terms: <Link to="/terms">{t('legal.termsLink')}</Link> }}
+            />
+          </p>
+        </section>
+
+        <section className={styles.section} aria-labelledby="about-support">
+          <h2 id="about-support">{t('about.support')}</h2>
+          <p>
+            <RichText text={t('about.support.text', app)} parts={{ support: <Link to="/support">{t('about.support.link')}</Link> }} />
+          </p>
         </section>
 
         <p className={styles.foot}><Link to="/">{t('about.backTo', app)}</Link></p>

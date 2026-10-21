@@ -1,0 +1,167 @@
+/* the month's goal, printed small on the mat: a label, a thin brass bar, a quiet way to help */
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.45);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+/* the sign-in card: no frame of its own, it sits small under the form */
+.login {
+  gap: 6px;
+  background: none;
+  box-shadow: none;
+  padding: var(--space-2) 0 0;
+  border-top: 1px solid var(--ink-ghost);
+  border-radius: 0;
+  font-size: var(--text-xs);
+}
+
+.login .label,
+.login .amount {
+  font-size: var(--text-xs);
+}
+
+.login .track {
+  height: 4px;
+}
+
+.page {
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  font-size: var(--text-md);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.label {
+  margin: 0;
+  font-family: var(--font-print);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.amount {
+  font-family: var(--font-print);
+  font-weight: 700;
+  color: var(--ink-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ink-ghost);
+  overflow: hidden;
+}
+
+.track span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--brass);
+  transition: width 400ms ease;
+}
+
+.track span.full {
+  background: var(--sage);
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.note {
+  flex: 1 1 14ch;
+  color: var(--ink-dim);
+}
+
+/* a button, not a link in running text */
+.cta {
+  text-decoration: none;
+}
+
+.heart {
+  color: var(--brass);
+  vertical-align: -2px;
+}
+
+/* on the page's amber button the heart takes the button's ink */
+.page .heart {
+  color: inherit;
+}
+
+.link {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--ink-faint);
+  text-underline-offset: 3px;
+}
+
+.link:hover {
+  color: var(--ink-strong);
+}
+
+.code {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.code code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  color: var(--brass-ink);
+  letter-spacing: 0.04em;
+}
+
+.code small {
+  flex-basis: 100%;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+}
+
+.copy {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.copy:hover,
+.copy:focus-visible {
+  background: var(--ink-ghost);
+  color: var(--ink-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track span {
+    transition: none;
+  }
+}

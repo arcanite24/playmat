@@ -28,18 +28,22 @@ export interface PermanentStackProps {
   /** a target is being chosen: the candidates stand out from merely playable cards */
   targeting?: boolean;
   onClick(id: string): void;
+  /** the permanent just clicked, drawn pressed until the server answers */
+  pending?: string | null;
   /** while blockers are declared: a creature dropped on an attacker blocks it (false when nothing was sent) */
   onBlockDrop?(blockerId: string, attackerId: string): boolean;
+  /** what a dragged creature can be dropped on (attackers by default; planeswalkers and battles while attacking) */
+  dropTargets?: ReadonlySet<string>;
 }
 
 const CARD_RATIO = 88 / 63;
 const DRAG_THRESHOLD = 12;
 
-/** The attacking creature under a screen point, if any. */
-function attackerAt(x: number, y: number, attacking: ReadonlySet<string>, self: string): string | null {
+/** The drop target (an attacking creature, a planeswalker or battle to attack) under a screen point, if any. */
+function attackerAt(x: number, y: number, targets: ReadonlySet<string>, self: string): string | null {
   for (const element of document.elementsFromPoint(x, y)) {
     const id = element.closest('[data-object-id]')?.getAttribute('data-object-id');
-    if (id && id !== self && attacking.has(id)) return id;
+    if (id && id !== self && targets.has(id)) return id;
   }
   return null;
 }
@@ -125,7 +129,7 @@ interface PlacedCardProps extends PermanentStackProps {
   count?: number;
 }
 
-function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, attacking, blocking, forward, targeting, onClick, onBlockDrop, left, top, depth, count }: PlacedCardProps) {
+function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const id = permanent.id!;
   const tapped = !!permanent.tapped;
@@ -142,7 +146,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
   const stage = useStage();
   const setBlockDrag = useMatchUi((state) => state.setBlockDrag);
   // drag a creature onto an attacker to block it; a press without moving stays a click
-  const canDrag = !!onBlockDrop && isClickable && !isAttacking;
+  // a declared attacker can still be dragged onto a planeswalker or battle, to attack that instead
+  const canDrag = !!onBlockDrop && isClickable && (!isAttacking || !!dropTargets);
   const gesture = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
 
@@ -160,7 +165,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       current.moved = true;
       setZoom(null);
     }
-    if (current.moved) setBlockDrag({ blockerId: id, attackerId: attackerAt(event.clientX, event.clientY, attacking, id) });
+    if (current.moved) setBlockDrag({ blockerId: id, attackerId: attackerAt(event.clientX, event.clientY, dropTargets ?? attacking, id) });
   }
 
   function endDrag(event: ReactPointerEvent, drop: boolean) {
@@ -171,7 +176,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
     setBlockDrag(null);
     // the click that ends a drag is not a click on the card
     suppressClick.current = true;
-    const attacker = drop ? attackerAt(event.clientX, event.clientY, attacking, id) : null;
+    const attacker = drop ? attackerAt(event.clientX, event.clientY, dropTargets ?? attacking, id) : null;
     if (attacker) onBlockDrop?.(id, attacker);
   }
 
@@ -194,6 +199,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
     transform: `translateY(${advance}px) rotate(${tapped ? 90 : 0}deg)`,
     // how high a flier hovers grows with the card, so it reads at every board size
     ['--lift' as string]: `${Math.max(8, Math.round(height * 0.08))}px`,
+    // a crowded row's small cards shrink their badges too, so they don't bury the neighbours
+    ['--badge' as string]: Math.min(1, Math.max(0.7, width / 110)).toFixed(2),
   };
 
   return (
@@ -205,6 +212,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
         isClickable && targeting && !isSelected ? styles.target : '',
         isSelected ? styles.selected : '',
         isAttacking ? styles.attacking : '',
+        pending === id ? styles.pending : '',
       ].join(' ')}
       style={style}
       role={isClickable ? 'button' : undefined}

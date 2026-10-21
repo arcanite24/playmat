@@ -580,6 +580,16 @@
   grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
 }
 
+/* the locker in Settings, Cosmetics: one shelf a row in the dialog's column */
+.settingsLocker {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.settingsLocker .locker {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .shelfPanel {
   display: grid;
   gap: var(--space-3);
@@ -656,6 +666,68 @@ button.item:not(:disabled):hover {
 
 .itemLocked small {
   color: var(--ink-dim);
+}
+
+/* a thank-you piece not owned: dimmed with its lock like the others, but it leads to the support page */
+.supportLocked {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.supportLocked:hover,
+.supportLocked:focus-visible {
+  color: var(--brass-ink);
+}
+
+a.item.supportLocked:hover {
+  translate: 0 -3px;
+}
+
+.titleOption.supportLocked {
+  color: var(--ink-dim);
+}
+
+/* a pet's still on the shelf: the support page's banner cropped to the pet, pixels kept square */
+.pet {
+  display: block;
+  position: relative;
+  width: 64px;
+  height: 70px;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  background: #0a0a2a;
+}
+
+.pet img {
+  position: absolute;
+  top: -19px;
+  left: -19px;
+  width: 102px;
+  height: 113px;
+  max-width: none;
+  image-rendering: pixelated;
+}
+
+/* no pet: an empty cushion where one would sit */
+.noPet {
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 7px 0;
+  border: 2px dashed rgb(var(--ink-rgb) / 0.2);
+  border-radius: 50%;
+}
+
+/* the ring and the heart, each in the same square */
+.mark {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+}
+
+.heart {
+  color: var(--brass);
 }
 
 .item:focus-visible,

@@ -3,7 +3,9 @@
 # Build context: the repository root.  docker build -f ops/web/Dockerfile.web .
 ARG CADDY_VERSION=2.11.7
 
-FROM node:22-alpine AS build
+# Builds for another architecture (--platform linux/arm64) build the client and Caddy natively: the client is static
+# files and Go cross-compiles Caddy, so only the last stage is the target's
+FROM --platform=$BUILDPLATFORM node:22-alpine AS build
 WORKDIR /app
 COPY Mage.Web.Client/package.json Mage.Web.Client/package-lock.json ./
 RUN npm ci
@@ -15,11 +17,19 @@ ENV VITE_IMAGE_PROXY=${VITE_IMAGE_PROXY}
 # the product name shown in the app and the page title
 ARG VITE_APP_NAME=Playmat
 ENV VITE_APP_NAME=${VITE_APP_NAME}
+# the version players see (About, Settings) and errors report: the release tag or sha-<7> from the image workflow
+# (.github/workflows/images.yml); empty shows "dev". A release-notes.md beside package.json (the workflow writes the
+# GitHub release's notes there) becomes /release-notes.json, the app's "What's new" dialog, which links RELEASE_NOTES_URL.
+ARG VITE_APP_VERSION=
+ENV VITE_APP_VERSION=${VITE_APP_VERSION}
+ARG RELEASE_NOTES_URL=
+ENV RELEASE_NOTES_URL=${RELEASE_NOTES_URL}
 RUN npm run build
 
 # Caddy with the per-address rate limit module, pinned to a known commit (2026-06-12)
-FROM caddy:${CADDY_VERSION}-builder-alpine AS caddy
-RUN xcaddy build --with github.com/mholt/caddy-ratelimit@5625512f24f6f59d6f64fb3aafe5eecff0b286db
+FROM --platform=$BUILDPLATFORM caddy:${CADDY_VERSION}-builder-alpine AS caddy
+ARG TARGETOS TARGETARCH
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH xcaddy build --with github.com/mholt/caddy-ratelimit@5625512f24f6f59d6f64fb3aafe5eecff0b286db
 
 FROM caddy:${CADDY_VERSION}-alpine
 COPY --from=caddy /usr/bin/caddy /usr/bin/caddy

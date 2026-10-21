@@ -1,5 +1,6 @@
+/* the body doesn't scroll (base.css): the page scrolls itself, so it is exactly the window's height */
 .page {
-  min-height: 100dvh;
+  height: 100dvh;
   overflow-y: auto;
   background: var(--mat-900);
   color: var(--ink);
@@ -42,6 +43,12 @@
 .lede {
   font-size: var(--text-lg);
   color: var(--ink-soft);
+}
+
+.version {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-dim);
 }
 
 .section {

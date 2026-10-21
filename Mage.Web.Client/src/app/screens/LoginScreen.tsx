@@ -1,9 +1,10 @@
 import { ArrowLeft, ChevronDown, KeyRound } from 'lucide-react';
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { APP_NAME } from '../brand';
 import { api, rpc } from '../connection';
 import { useT, type MessageKey } from '../i18n';
+import { RichText } from '../i18n/RichText';
 import type { InviteCheck, ServerInfo } from '../../protocol/generated/views';
 import type { StarterDeck } from '../stores/decks';
 import { useSession } from '../stores/session';
@@ -14,6 +15,11 @@ import { Mark } from '../ui/Mark';
 import { MatPrint } from '../ui/MatPrint';
 import { checkPassword } from './accountRules';
 import styles from './LoginScreen.module.css';
+
+// Cloudflare's check loads only on servers that turn it on
+const TurnstileWidget = lazy(() => import('./TurnstileWidget').then((module) => ({ default: module.TurnstileWidget })));
+// the month's server costs, on servers that take support
+const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
 type ServerStatus = 'checking' | 'online' | 'offline';
 type Mode = 'sit' | 'register' | 'forgot' | 'reset' | 'ask' | 'githubName';
@@ -68,12 +74,20 @@ export function LoginScreen() {
   const [note, setNote] = useState('');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
-  const [notice, setNotice] = useState<string | null>(null);
+  // a notice another screen left for this one (an account just deleted)
+  const [notice, setNotice] = useState<string | null>((location.state as { notice?: string } | null)?.notice ?? null);
+  const [agreed, setAgreed] = useState(false);
   const [working, setWorking] = useState(false);
+  // Cloudflare Turnstile's token, when the server asks for one on registering and asking for access
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileBroken, setTurnstileBroken] = useState(false);
   const { status, info } = useServerStatus(serverUrl);
   const inviteCheck = useInviteCheck(invite, status === 'online');
   const art = useRotatingArt();
   const resumed = useRef(false);
+  // another sign-in took the session over: this tab waits for the player instead of taking it back by itself
+  const [takingBack, setTakingBack] = useState(false);
+  const elsewhere = (session.signedInElsewhere || takingBack) && !invite && !backFromGithub;
 
   useEffect(() => {
     if (resumed.current || invite || backFromGithub) return;
@@ -88,14 +102,16 @@ export function LoginScreen() {
   const busy = session.phase === 'signingIn' || dealing;
   const name = userName.trim();
   const nameError = name && !/^[A-Za-z0-9_]{3,14}$/.test(name) ? t('login.nameRule') : null;
+  const turnstileKey = (mode === 'register' || mode === 'ask') && info?.turnstileSiteKey ? info.turnstileSiteKey : null;
+  const checked = !turnstileKey || !!turnstileToken;
   const minPassword = info?.minPasswordLength || 8;
   const passwordRule = t('login.passwordRule', { min: minPassword });
   const passwordProblem = password && (mode === 'register' || mode === 'reset') ? checkPassword(password, minPassword, name) : null;
   const passwordError = passwordProblem ? t(PASSWORD_PROBLEMS[passwordProblem], { min: minPassword }) : null;
   const canSubmit = mode === 'sit' ? !!name && !nameError && (!accounts || !!password)
-    : mode === 'register' ? !!name && !nameError && !!email.trim() && !!password && !passwordError
+    : mode === 'register' ? !!name && !nameError && !!email.trim() && !!password && !passwordError && checked && agreed
       : mode === 'forgot' ? !!email.trim()
-        : mode === 'ask' ? !!name && !nameError && !!email.trim()
+        : mode === 'ask' ? !!name && !nameError && !!email.trim() && checked
           : mode === 'githubName' ? !!name && !nameError
           : code.length === 6 && !!password && !passwordError;
   const submitLabel = t(mode === 'register' ? 'login.submit.register' : mode === 'forgot' ? 'login.submit.forgot' : mode === 'reset' ? 'login.submit.reset'
@@ -106,7 +122,14 @@ export function LoginScreen() {
     setMode(next);
     setNotice(null);
     setPassword('');
+    setTurnstileToken('');
     useSession.setState({ error: null });
+  }
+
+  /** The form shakes and starts over; a Turnstile token is used up by the try, so the check runs again. */
+  function refuse() {
+    setRefused((count) => count + 1);
+    setTurnstileToken('');
   }
 
   // back from GitHub: sign in to the account it names, or pick a name for a new one first
@@ -148,6 +171,17 @@ export function LoginScreen() {
     }
   }
 
+  async function takeBack() {
+    setTakingBack(true);
+    if (await session.takeBack()) {
+      seated();
+      return;
+    }
+    // what this tab had no longer works: the form, saying why
+    setTakingBack(false);
+    refuse();
+  }
+
   function seated() {
     // the deck is dealt across the table, then Play takes over
     setDealing(true);
@@ -160,25 +194,25 @@ export function LoginScreen() {
     const url = serverUrl.trim();
     if (mode === 'sit') {
       if (await session.signIn(url, name, password, remember)) seated();
-      else setRefused((count) => count + 1);
+      else refuse();
       return;
     }
     setWorking(true);
     try {
       if (mode === 'register') {
-        if (await session.register(url, name, email.trim(), password, remember, invite)) seated();
-        else setRefused((count) => count + 1);
+        if (await session.register(url, name, email.trim(), password, remember, invite, turnstileToken)) seated();
+        else refuse();
       } else if (mode === 'githubName' && github) {
         await finishGithub(name);
       } else if (mode === 'ask') {
         try {
           if (rpc.getStatus() !== 'open' || rpc.getUrl() !== url) await rpc.connect(url);
-          await api.accessRequest(name, email.trim(), note.trim() || null);
+          await api.accessRequest(name, email.trim(), note.trim() || null, turnstileToken || null);
           switchMode('sit');
           setNotice(t('login.asked', { email: email.trim() }));
         } catch (error) {
           useSession.setState({ error: error instanceof Error ? error.message : String(error) });
-          setRefused((count) => count + 1);
+          refuse();
         }
       } else if (mode === 'forgot') {
         if (await session.requestPasswordReset(url, email.trim())) {
@@ -190,7 +224,7 @@ export function LoginScreen() {
         switchMode('sit');
         setNotice(t('login.passwordChanged'));
       } else {
-        setRefused((count) => count + 1);
+        refuse();
       }
     } finally {
       setWorking(false);
@@ -214,7 +248,21 @@ export function LoginScreen() {
         </h1>
       </header>
 
-      <form key={refused} className={[styles.seat, refused > 0 ? styles.refused : ''].join(' ')} onSubmit={submit} aria-labelledby="seat-title">
+      {elsewhere && (
+        <section className={styles.seat} aria-labelledby="elsewhere-title">
+          <h2 id="elsewhere-title" className={styles.seatLabel}>{t('login.elsewhere.title')}</h2>
+          <p className={styles.notice} role="status">{t('login.elsewhere.text', { name: session.userName })}</p>
+          <Button type="button" variant="decision" size="xl" busy={busy || takingBack} className={styles.submit} onClick={() => void takeBack()}>
+            {t('login.elsewhere.useHere', { app: APP_NAME })}
+          </Button>
+          <p className={styles.quiet}>{t('login.elsewhere.hint')}</p>
+          <button type="button" className={styles.linkButton} onClick={() => useSession.setState({ signedInElsewhere: false })}>
+            {t('login.elsewhere.other')}
+          </button>
+        </section>
+      )}
+
+      <form key={refused} hidden={elsewhere} className={[styles.seat, refused > 0 ? styles.refused : ''].join(' ')} onSubmit={submit} aria-labelledby="seat-title">
         <h2 id="seat-title" className={styles.seatLabel}>{t(MODE_TITLES[mode === 'sit' && accounts ? 'signIn' : mode])}</h2>
         {info?.notice && <p className={styles.serverNotice}>{info.notice}</p>}
         {contributors && mode === 'sit' && <p className={styles.notice}>{t('login.contributors')}</p>}
@@ -311,6 +359,21 @@ export function LoginScreen() {
           </label>
         )}
 
+        {mode === 'register' && (
+          <label className={styles.remember}>
+            <input type="checkbox" checked={agreed} required onChange={(event) => setAgreed(event.target.checked)} />
+            <span>
+              <RichText
+                text={t('login.agree')}
+                parts={{
+                  terms: <Link to="/terms" target="_blank">{t('login.agree.terms')}</Link>,
+                  privacy: <Link to="/privacy" target="_blank">{t('login.agree.privacy')}</Link>,
+                }}
+              />
+            </span>
+          </label>
+        )}
+
         {mode === 'sit' && !accounts && !needsPassword && (
           <button type="button" className={styles.linkButton} onClick={() => setNeedsPassword(true)}>
             <KeyRound size={15} aria-hidden="true" /> {t('login.needsPassword')}
@@ -337,8 +400,18 @@ export function LoginScreen() {
           </div>
         )}
 
+        {turnstileKey && (
+          <div className={styles.turnstile}>
+            <Suspense fallback={null}>
+              <TurnstileWidget siteKey={turnstileKey} onToken={setTurnstileToken} onUnavailable={() => setTurnstileBroken(true)} />
+            </Suspense>
+            {turnstileBroken && <p className={styles.error} role="alert">{t('login.turnstile.unavailable')}</p>}
+          </div>
+        )}
+
         {notice && <p className={styles.notice} role="status">{notice}</p>}
         {session.expired && !session.error && <p className={styles.error} role="alert">{t('login.serverRestarted')}</p>}
+        {session.staleLogin && !session.error && <p className={styles.notice} role="status">{t('login.staleLogin')}</p>}
         {session.error && <p className={styles.error} role="alert">{session.error}</p>}
 
         <Button type="submit" variant="decision" size="xl" busy={busy || working} disabled={!canSubmit} className={styles.submit}>
@@ -365,7 +438,12 @@ export function LoginScreen() {
             <ArrowLeft size={15} aria-hidden="true" /> {t('login.back')}
           </button>
         )}
-        <Link to="/about" className={styles.about}>{t('shell.about')}</Link>
+        <nav className={styles.legal} aria-label={t('shell.about')}>
+          <Link to="/about" className={styles.about}>{t('shell.about')}</Link>
+          <Link to="/privacy" className={styles.about}>{t('legal.privacyLink')}</Link>
+          <Link to="/terms" className={styles.about}>{t('legal.termsLink')}</Link>
+        </nav>
+        {mode === 'sit' && status === 'online' && info?.support && <Suspense fallback={null}><SupportBar place="login" /></Suspense>}
       </form>
 
       <Deck dealing={dealing} />

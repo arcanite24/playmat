@@ -1,0 +1,19 @@
+#!/bin/bash
+# docker compose for the stack playmat-deploy runs: the current release's compose kit, its .env and project name.
+# For people on the host (root, or anyone in the docker group); the deploy key can't run it.
+#   playmat-compose ps
+#   playmat-compose logs -f xmage
+#   playmat-compose exec backup xmage-backup list
+#   playmat-compose up -d --no-build      after editing /srv/playmat/.env
+set -euo pipefail
+
+COMPOSE_DIR=/srv/playmat
+COMPOSE_PROJECT=web
+CONF=/etc/playmat-deploy.conf
+[[ -r $CONF ]] || { echo "playmat-compose: $CONF is missing or unreadable (run setup-deploy-user.sh)" >&2; exit 1; }
+# shellcheck source=/dev/null
+. "$CONF"
+
+kit=$(readlink -f "$COMPOSE_DIR/current") || { echo "playmat-compose: $COMPOSE_DIR/current is missing" >&2; exit 1; }
+exec docker compose -p "$COMPOSE_PROJECT" --project-directory "$kit" -f "$kit/docker-compose.yml" \
+  --env-file "$COMPOSE_DIR/.env" "$@"

@@ -70,11 +70,16 @@ final class SettingsApi {
                 RpcMethod.named("adminSetSetting")
                         .params(of("name", STRING), of("value", STRING), optional("reason", STRING))
                         .returns("ServerSettings")
-                        .doc("Staff (admin): change a setting; an empty value goes back to the server's config.")
+                        .doc("Staff (admin): change a setting; an empty value goes back to the server's config. The support.* "
+                                + "settings (the goal, the Ko-fi page, what support pays for) are the owner's.")
                         .handler(call -> {
                             String actor = Staff.require(ctx, call, StaffRole.ADMIN);
                             String name = call.string(0);
                             String value = call.string(1);
+                            if (name.startsWith("support.")) {
+                                // where the money goes and what it says publicly: the owner's call
+                                Staff.require(ctx, call, StaffRole.OWNER);
+                            }
                             String reason = call.optString(2, null);
                             if (RuntimeSettings.CAREER.equals(name) && CareerService.offByEnvironment()) {
                                 throw RpcException.invalidParams("Career is off in the server's environment (XMAGE_CAREER=off)");
@@ -172,6 +177,13 @@ final class SettingsApi {
                 RuntimeSettings.DISCORD_STAFF)) {
             result.settings.add(setting(runtime, kind, runtime.discord(kind) ? "on" : "off", "on", null));
         }
+        result.settings.add(setting(runtime, RuntimeSettings.SUPPORT_ENABLED, runtime.supportOn() ? "on" : "off", "on", null));
+        result.settings.add(setting(runtime, RuntimeSettings.SUPPORT_GOAL_CENTS, String.valueOf(runtime.supportGoalCents()),
+                String.valueOf(RuntimeSettings.DEFAULT_GOAL_CENTS), null));
+        result.settings.add(setting(runtime, RuntimeSettings.SUPPORT_KOFI_URL, runtime.supportKofiUrl(), "", null));
+        result.settings.add(setting(runtime, RuntimeSettings.SUPPORT_SPONSORS_URL, runtime.supportSponsorsUrl(), "", null));
+        result.settings.add(setting(runtime, RuntimeSettings.SUPPORT_COSTS, runtime.supportCosts(), RuntimeSettings.DEFAULT_COSTS, null));
+        result.settings.add(setting(runtime, RuntimeSettings.SUPPORT_DISCORD_AMOUNTS, runtime.supportDiscordAmounts() ? "on" : "off", "off", null));
         result.discordLobby = DiscordNotifier.instance().isEnabled();
         result.discordStaff = !System.getProperty(DiscordNotifier.STAFF_WEBHOOK_PROP, "").trim().isEmpty() && DiscordNotifier.staff().isEnabled();
         result.maintenance = Maintenance.get().plan();

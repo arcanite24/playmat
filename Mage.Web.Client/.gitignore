@@ -29,3 +29,6 @@ test-results
 playwright-report
 blob-report
 coverage
+
+# the GitHub release's notes, written by the image workflow for a release build (scripts/release-notes-plugin.ts)
+release-notes.md

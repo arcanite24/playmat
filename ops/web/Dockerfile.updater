@@ -1,0 +1,15 @@
+# The updater (ops/web/updater/playmat-updater): the compose service behind the admin console's Update button.
+# Build context: the repository root.  docker build -f ops/web/Dockerfile.updater .
+# The Docker CLI with its compose plugin, plus bash and jq for the script.
+FROM docker:27.5-cli
+RUN apk add --no-cache bash jq coreutils
+COPY ops/web/updater/playmat-updater /usr/local/bin/playmat-updater
+RUN sed -i "s/\r$//" /usr/local/bin/playmat-updater && chmod +x /usr/local/bin/playmat-updater
+# images.yml sets these: the tag, and the image names without the -server/-web/-updater suffix (the only images an
+# update pulls; a request names just the tag)
+ARG PLAYMAT_VERSION=local
+ARG PLAYMAT_IMAGES=ghcr.io/arcanite24/playmat
+ENV PLAYMAT_VERSION=${PLAYMAT_VERSION} \
+    PLAYMAT_IMAGES=${PLAYMAT_IMAGES}
+ENTRYPOINT ["playmat-updater"]
+CMD ["daemon"]

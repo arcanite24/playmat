@@ -57,9 +57,12 @@ function SignedIn() {
   );
 }
 
-// deck sync loads with the first sign-in: servers with accounts keep each account's decks
+// deck sync loads with the first sign-in: servers with accounts keep each account's decks; and the look opponents see
 useSession.subscribe((state) => {
-  if (state.phase === 'signedIn') void import('./stores/deckSync');
+  if (state.phase === 'signedIn') {
+    void import('./stores/deckSync');
+    void import('./support/lookSync');
+  }
 });
 
 // uncaught errors and unhandled rejections are reported (to the console by default) and kept for debugging
@@ -83,6 +86,10 @@ const router = createBrowserRouter([
   { path: '/auth/github', element: <LoginScreen /> },
   // credits and legal notices, readable before signing in
   { path: '/about', lazy: () => import('./screens/AboutScreen').then((m) => ({ Component: m.AboutScreen })) },
+  { path: '/privacy', lazy: () => import('./screens/LegalScreen').then((m) => ({ Component: m.PrivacyScreen })) },
+  { path: '/terms', lazy: () => import('./screens/LegalScreen').then((m) => ({ Component: m.TermsScreen })) },
+  // the month's server costs and supporting them, readable before signing in
+  { path: '/support', lazy: () => import('./support/SupportScreen').then((m) => ({ Component: m.SupportScreen })) },
   { path: '/admin', lazy: () => import('./admin/AdminScreen').then((m) => ({ Component: m.AdminScreen })) },
   {
     element: <SignedIn />,

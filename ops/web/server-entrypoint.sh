@@ -22,7 +22,7 @@ from_file() {
     eval "$1=\$(cat \"\$file\")"
   fi
 }
-for secret in XMAGE_ADMIN_PASSWORD XMAGE_MAIL_PASSWORD XMAGE_MAILGUN_API_KEY XMAGE_DISCORD_WEBHOOK XMAGE_DISCORD_STAFF_WEBHOOK XMAGE_GITHUB_CLIENT_SECRET XMAGE_GITHUB_TOKEN; do
+for secret in XMAGE_ADMIN_PASSWORD XMAGE_MAIL_PASSWORD XMAGE_MAILGUN_API_KEY XMAGE_DISCORD_WEBHOOK XMAGE_DISCORD_STAFF_WEBHOOK XMAGE_GITHUB_CLIENT_SECRET XMAGE_GITHUB_TOKEN XMAGE_TURNSTILE_SECRET XMAGE_KOFI_TOKEN XMAGE_GITHUB_SPONSORS_SECRET; do
   from_file "$secret"
 done
 
@@ -75,6 +75,15 @@ MONTE_CARLO=${XMAGE_MONTE_CARLO:-true}
 is_bool "$MONTE_CARLO" || die "XMAGE_MONTE_CARLO must be true or false (got '$MONTE_CARLO')"
 if [ "$MONTE_CARLO" = false ]; then
   xmlstarlet ed -L -d "/config/playerTypes/playerType[@className='mage.player.ai.ComputerPlayerMCTS']" "$CONFIG"
+fi
+
+# SMTP: TLS from the start on 465, STARTTLS on 587 or when XMAGE_MAIL_SMTP_STARTTLS=true (the server reads it from the
+# environment, like XMAGE_MAILGUN_BASE_URL for Mailgun's EU region)
+[ -z "${XMAGE_MAIL_SMTP_STARTTLS:-}" ] || is_bool "$XMAGE_MAIL_SMTP_STARTTLS" \
+  || die "XMAGE_MAIL_SMTP_STARTTLS must be true or false (got '$XMAGE_MAIL_SMTP_STARTTLS')"
+
+if [ -n "${XMAGE_TURNSTILE_SITE_KEY:-}" ] && [ -z "${XMAGE_TURNSTILE_SECRET:-}" ]; then
+  echo "xmage-server: warning: XMAGE_TURNSTILE_SITE_KEY without XMAGE_TURNSTILE_SECRET; Turnstile stays off" >&2
 fi
 
 if [ "${XMAGE_AUTH:-false}" = true ] && [ -z "${XMAGE_MAILGUN_API_KEY:-}${XMAGE_MAIL_USER:-}" ]; then
@@ -140,6 +149,12 @@ ALLOWLIST=${XMAGE_ALLOWLIST:-}
 case "$ALLOWLIST" in
   @*) [ -r "${ALLOWLIST#@}" ] || die "XMAGE_ALLOWLIST file ${ALLOWLIST#@} can't be read" ;;
 esac
+
+# --- support for the server ---------------------------------------------------------------------
+# The payment webhooks' listener (Caddy forwards /hooks and /public to it): on 17174 when Ko-fi or GitHub Sponsors is
+# set up, unless XMAGE_HOOKS_PORT says otherwise (0 = off)
+HOOKS_PORT=${XMAGE_HOOKS_PORT:-}
+[ -z "$HOOKS_PORT" ] || is_uint "$HOOKS_PORT" || die "XMAGE_HOOKS_PORT must be a whole number (got '$HOOKS_PORT')"
 
 # --- JVM sizing ---------------------------------------------------------------------------------
 # Sized to the machine the container sees: its memory limit when it has one, else the host's memory;
@@ -220,6 +235,16 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Xmx$HEAP"
   for flag in $GC_FLAGS; do echo "$flag"; done
   echo "-XX:MaxMetaspaceSize=${XMAGE_METASPACE:-512m}"
+  # out of heap, the JVM limps on with every game broken and new players turned away; exiting lets Docker's restart
+  # policy bring the server back in seconds
+  [ "${XMAGE_EXIT_ON_OOM:-true}" = true ] && echo "-XX:+ExitOnOutOfMemoryError"
+  # a heap dump (the size of the heap) in the logs volume shows what filled it; the newest one replaces the last
+  if [ "${XMAGE_HEAP_DUMP:-false}" = true ]; then
+    echo "-XX:+HeapDumpOnOutOfMemoryError"
+    echo "-XX:HeapDumpPath=$APP/logs/heap-oom.hprof"
+    rm -f "$APP/logs/heap-oom.hprof.old"
+    [ -f "$APP/logs/heap-oom.hprof" ] && mv "$APP/logs/heap-oom.hprof" "$APP/logs/heap-oom.hprof.old"
+  fi
   # JDK 25+: 8-byte object headers instead of 12 (the class-data archive was recorded with them, so they go together)
   if [ "${XMAGE_JAVA_RUNTIME:-17}" -ge 25 ] && [ "${XMAGE_COMPACT_HEADERS:-true}" = true ]; then
     echo "-XX:+UseCompactObjectHeaders"
@@ -268,6 +293,21 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
       printf '"-Dxmage.github.%s=%s"\n' "${pair#*:}" "$(printf '%s' "$val" | sed 's/[\\"]/\\&/g')"
     fi
   done
+  # Cloudflare Turnstile on registration and access requests: the site key goes to the web client, the secret stays here
+  if [ -n "${XMAGE_TURNSTILE_SITE_KEY:-}" ]; then
+    printf '"-Dxmage.turnstile.siteKey=%s"\n' "$(printf '%s' "$XMAGE_TURNSTILE_SITE_KEY" | sed 's/[\\"]/\\&/g')"
+  fi
+  if [ -n "${XMAGE_TURNSTILE_SECRET:-}" ]; then
+    printf '"-Dxmage.turnstile.secret=%s"\n' "$(printf '%s' "$XMAGE_TURNSTILE_SECRET" | sed 's/[\\"]/\\&/g')"
+  fi
+  # support payments: Ko-fi's verification token and the GitHub Sponsors webhook secret stay out of ps
+  if [ -n "${XMAGE_KOFI_TOKEN:-}" ]; then
+    printf '"-Dxmage.kofi.token=%s"\n' "$(printf '%s' "$XMAGE_KOFI_TOKEN" | sed 's/[\\"]/\\&/g')"
+  fi
+  if [ -n "${XMAGE_GITHUB_SPONSORS_SECRET:-}" ]; then
+    printf '"-Dxmage.githubSponsors.secret=%s"\n' "$(printf '%s' "$XMAGE_GITHUB_SPONSORS_SECRET" | sed 's/[\\"]/\\&/g')"
+  fi
+  [ -z "$HOOKS_PORT" ] || echo "-Dxmage.hooksPort=$HOOKS_PORT"
   if [ -n "${XMAGE_TRUSTED_PROXIES:-}" ]; then
     echo "-Dxmage.web.trustedProxies=$XMAGE_TRUSTED_PROXIES"
   fi

@@ -262,6 +262,7 @@ p { margin: 0; text-wrap: pretty; }
 
 .cta { display: grid; justify-items: center; gap: 10px; margin-top: 6px; }
 .btn-big { padding: 16px 34px; font-size: 1.2rem; }
+.cta-buttons { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .cta-note { margin: 0; }
 
 .download { padding: 112px 0 0; }
@@ -328,6 +329,20 @@ p { margin: 0; text-wrap: pretty; }
 .xmage-box > div { display: grid; gap: 14px; }
 .xmage-box p { color: var(--ink-soft); max-width: 72ch; }
 
+/* ---------- support ---------- */
+
+.support { padding: 112px 0 0; }
+.support[hidden] { display: none; }
+.support-box { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 40px; align-items: start; padding: 44px 48px; }
+.support-copy { display: grid; gap: 14px; }
+.support-copy p { color: var(--ink-soft); max-width: 60ch; }
+.support-costs { margin: 0; padding-left: 1.2em; color: var(--ink-soft); }
+.support-goal { display: grid; gap: 10px; justify-items: start; }
+.support-month { margin: 0; font: 600 0.95rem var(--font-print); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-dim); }
+.support-amount { margin: 0; font: 700 2rem var(--font-print); color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+.support-track { position: relative; width: 100%; height: 8px; border-radius: 4px; background: var(--ink-ghost); overflow: hidden; }
+.support-track span { position: absolute; inset: 0 auto 0 0; width: 0; border-radius: inherit; background: #d6b36a; }
+
 /* ---------- footer ---------- */
 
 .foot { padding: 96px 0 56px; }
@@ -357,6 +372,8 @@ p { margin: 0; text-wrap: pretty; }
   .feature, .more, .download, .host, .xmage { padding-top: 72px; }
   .career { margin-top: 80px; padding: 72px 0; }
   .xmage-box { grid-template-columns: 1fr; padding: 36px 28px; }
+  .support { padding-top: 72px; }
+  .support-box { grid-template-columns: 1fr; padding: 36px 28px; }
   .stack > div { grid-template-columns: 1fr; gap: 2px; }
 }
 

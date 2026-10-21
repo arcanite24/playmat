@@ -3,3 +3,5 @@
 Caddyfile text eol=lf
 *.properties text eol=lf
 *.template text eol=lf
+# the host-side deploy scripts run on Linux too
+deploy/** text eol=lf

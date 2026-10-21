@@ -1,0 +1,7 @@
+[Unit]
+Description=Pack the newest Playmat backup for off-site copies
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/playmat-offsite pack

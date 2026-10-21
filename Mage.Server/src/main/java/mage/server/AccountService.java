@@ -38,9 +38,7 @@ public final class AccountService {
         String text = "Use this code to reset " + user.getName() + "'s password: " + code + '\n'
                 + "It works for " + (ResetTokens.VALID_MILLIS / 60000) + " minutes and " + ResetTokens.ATTEMPTS + " tries."
                 + " If you didn't ask for it, ignore this email.";
-        boolean sent = !managers.configSettings().getMailUser().isEmpty()
-                ? managers.mailClient().sendMessage(user.email, subject, text)
-                : managers.mailgunClient().sendMessage(user.email, subject, text);
+        boolean sent = Mailer.send(managers, user.email, subject, text);
         if (!sent) {
             if (Main.isTestMode()) {
                 logger.info("Test mode, email failed: the password reset code for " + user.getName() + " is " + code);
@@ -82,16 +80,13 @@ public final class AccountService {
         }
         long now = System.currentTimeMillis();
         StaffResetCode result = new StaffResetCode();
-        result.code = TOKENS.issue(user.email, now, STAFF_CODE_MILLIS);
+        result.code = TOKENS.issue(user.email, now, STAFF_CODE_MILLIS, true);
         result.email = user.email;
         result.expiresAt = now + STAFF_CODE_MILLIS;
-        boolean mail = !managers.configSettings().getMailUser().isEmpty() || !managers.configSettings().getMailgunApiKey().isEmpty();
-        if (mail) {
+        if (Mailer.configured(managers.configSettings())) {
             String text = "The server's staff made a code to reset " + user.getName() + "'s password: " + result.code + '\n'
                     + "Enter it under Forgot password with this email address. It works for 24 hours.";
-            result.emailed = !managers.configSettings().getMailUser().isEmpty()
-                    ? managers.mailClient().sendMessage(user.email, "Password reset code", text)
-                    : managers.mailgunClient().sendMessage(user.email, "Password reset code", text);
+            result.emailed = Mailer.send(managers, user.email, "Password reset code", text);
         }
         logger.info("Password reset code made by staff for " + user.getName());
         return result;
@@ -111,13 +106,19 @@ public final class AccountService {
         if (problem != null) {
             return problem;
         }
-        if (!TOKENS.redeem(email, code, System.currentTimeMillis())) {
+        long now = System.currentTimeMillis();
+        ResetTokens.Redeemed redeemed = TOKENS.redeemCode(email, code, now);
+        if (redeemed == null) {
             logger.info("Wrong or expired password reset code for " + user.getName());
             return "That code is wrong or has expired. Ask for a new one.";
         }
         // the new password only: locks, the active flag and the email stay as they were
         if (!AuthorizedUserRepository.getInstance().changePassword(user.getName(), password)) {
             return "The password couldn't be changed. Try again.";
+        }
+        // a code that came only by mail proves the player reads the address; one staff passed on doesn't
+        if (redeemed == ResetTokens.Redeemed.BY_MAIL) {
+            EmailVerification.markVerified(user.getName(), user.getEmail(), now);
         }
         logger.info("Password reset for " + user.getName());
         return null;

@@ -198,11 +198,18 @@ jobs:
           mkdir dist
           cp artifacts/* ops/desktop/install.sh ops/desktop/install.ps1 dist/
           (cd dist && sha256sum * > SHA256SUMS.txt)
-          sed "s/@VERSION@/$VERSION/g" ops/desktop/RELEASE_NOTES.md > notes.md
+          # the marker ends the changes the web client's "What's new" reads (Mage.Web.Client/src/core/util/releaseNotes.ts)
+          { echo "<!-- desktop-downloads -->"; sed "s/@VERSION@/$VERSION/g" ops/desktop/RELEASE_NOTES.md; } > notes.md
           tag=v$VERSION
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" dist/* --clobber
-            gh release edit "$tag" --notes-file notes.md
+            # a release made on GitHub (RELEASING.md) keeps its notes, the generated changes; the download notes go
+            # below them, once
+            gh release view "$tag" --json body --jq .body > body.md
+            if ! grep -q '<!-- desktop-downloads -->' body.md; then
+              { cat body.md; echo; cat notes.md; } > combined.md
+              gh release edit "$tag" --notes-file combined.md
+            fi
           else
             gh release create "$tag" dist/* --title "Playmat $VERSION" --notes-file notes.md --target "$GITHUB_SHA"
           fi

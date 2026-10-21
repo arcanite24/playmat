@@ -2,7 +2,7 @@
 // Regenerate: mvn -pl Mage.Server test -Dtest=WebClientApiDocsTest -Dxmage.updateWebApiDocs=true
 
 import type { RpcMethodName, RpcMethods, UUID } from './protocol';
-import type { CardCriteria, ClientError, DeckCardInfo, DeckCardLists, JobSpec, ManaType, PlayerAction, Puzzle, StartOptions, UserData } from './views';
+import type { CardCriteria, ClientError, DeckCardInfo, DeckCardLists, JobSpec, ManaType, PlayerAction, PlayerLook, Puzzle, StartOptions, UserData } from './views';
 import type { WebCardFilters, WebMatchOptions, WebTournamentOptions } from '../options';
 
 export interface RpcCaller {
@@ -29,8 +29,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('authRememberLogin', SESSION),
     authForgetLogin: (userName: string, rememberToken: string) =>
       rpc.call('authForgetLogin', userName, rememberToken),
-    authRegister: (userName: string, password: string, email: string, inviteCode?: string | null) =>
-      rpc.call('authRegister', SESSION, userName, password, email, inviteCode),
+    authRegister: (userName: string, password: string, email: string, inviteCode?: string | null, turnstileToken?: string | null) =>
+      rpc.call('authRegister', SESSION, userName, password, email, inviteCode, turnstileToken),
     authSendTokenToEmail: (email: string) =>
       rpc.call('authSendTokenToEmail', SESSION, email),
     authResetPassword: (email: string, authToken: string, password: string) =>
@@ -213,6 +213,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('adminSendBroadcastMessage', SESSION, message),
     adminServerStats: () =>
       rpc.call('adminServerStats'),
+    adminUpdateStatus: (refresh?: boolean | null) =>
+      rpc.call('adminUpdateStatus', refresh),
+    adminUpdateApply: (version: string) =>
+      rpc.call('adminUpdateApply', version),
+    adminUpdateRollback: () =>
+      rpc.call('adminUpdateRollback'),
     adminGetReports: (openOnly?: boolean | null) =>
       rpc.call('adminGetReports', openOnly),
     adminCloseReport: (reportId: number, resolution: string) =>
@@ -253,8 +259,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('githubStart'),
     githubFinish: (state: string, code: string, userName?: string | null) =>
       rpc.call('githubFinish', state, code, userName),
-    accessRequest: (userName: string, email: string, note?: string | null) =>
-      rpc.call('accessRequest', userName, email, note),
+    accessRequest: (userName: string, email: string, note?: string | null, turnstileToken?: string | null) =>
+      rpc.call('accessRequest', userName, email, note, turnstileToken),
     staffMe: () =>
       rpc.call('staffMe'),
     adminStaff: () =>
@@ -301,6 +307,36 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('reportPlayer', userName, reason, details, gameId),
     clientReportError: (report: ClientError) =>
       rpc.call('clientReportError', report),
+    accountEmailStatus: () =>
+      rpc.call('accountEmailStatus'),
+    accountEmailVerifyStart: () =>
+      rpc.call('accountEmailVerifyStart'),
+    accountEmailVerify: (code: string) =>
+      rpc.call('accountEmailVerify', code),
+    accountExport: () =>
+      rpc.call('accountExport'),
+    accountDelete: (password: string, confirmName: string) =>
+      rpc.call('accountDelete', password, confirmName),
+    supportStatus: () =>
+      rpc.call('supportStatus'),
+    supportPerks: () =>
+      rpc.call('supportPerks'),
+    supportNoticeSeen: () =>
+      rpc.call('supportNoticeSeen'),
+    supportSetWall: (show: boolean) =>
+      rpc.call('supportSetWall', show),
+    profileSetLook: (look: PlayerLook) =>
+      rpc.call('profileSetLook', look),
+    profileLooks: (names: string[]) =>
+      rpc.call('profileLooks', names),
+    adminSupportLedger: (month?: string | null, unmatched?: boolean | null, provider?: string | null) =>
+      rpc.call('adminSupportLedger', month, unmatched, provider),
+    adminSupportLink: (paymentId: number, userName: string) =>
+      rpc.call('adminSupportLink', paymentId, userName),
+    adminSupportRevoke: (paymentId: number, reason: string, removePerks?: boolean | null) =>
+      rpc.call('adminSupportRevoke', paymentId, reason, removePerks),
+    adminSupportGrant: (userName: string, reason: string) =>
+      rpc.call('adminSupportGrant', userName, reason),
     careerState: () =>
       rpc.call('careerState'),
     careerStarters: () =>

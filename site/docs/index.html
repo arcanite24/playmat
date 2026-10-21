@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Docs · Playmat</title>
+  <meta name="description" content="Technical documentation for Playmat: running your own server, updating it, and the admin console.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="page">Docs</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html" aria-current="page">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Docs</h1>
+        <p class="lede">The technical side of Playmat: running a server for your group, keeping it up to date, and the
+          admin tools. For playing, you don't need any of this: open
+          <a href="https://playmat.deimos.studio">playmat.deimos.studio</a> or <a href="../#download">download the app</a>.</p>
+        <ul class="guides">
+          <li><a class="zone" href="server.html"><h2>Run a server</h2><p>Start your own Playmat server with Docker, on a home machine or a VPS with a domain.</p></a></li>
+          <li><a class="zone" href="updates.html"><h2>Updating</h2><p>Get new versions: the admin console says when one is out, and the Update button installs it.</p></a></li>
+          <li><a class="zone" href="admin.html"><h2>Staff and the admin console</h2><p>Roles, the console sign-in, maintenance and the audit log.</p></a></li>
+        </ul>
+        <p class="small">Every setting, LAN servers without a domain, running behind another reverse proxy, backups and
+          capacity numbers are in the <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md">deployment guide</a>
+          in the repository. These pages are the short version, and they grow as features do.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -39,6 +39,17 @@ final class ServerRpcSessions implements RpcSessions {
     }
 
     @Override
+    public boolean isSignedInElsewhere(String userName, String sessionId) {
+        if (userName == null || userName.isEmpty()) {
+            return false;
+        }
+        return managers.userManager().getUserByName(userName)
+                .map(User::getSessionId)
+                .filter(current -> !current.isEmpty() && !current.equals(sessionId) && exists(current))
+                .isPresent();
+    }
+
+    @Override
     public Optional<String> userName(String sessionId) {
         return managers.sessionManager().getSession(sessionId)
                 .flatMap(session -> managers.userManager().getUser(session.getUserId()))

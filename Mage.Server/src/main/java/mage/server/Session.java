@@ -173,8 +173,9 @@ public class Session {
                 }
             }
 
-            // email
-            returnMessage = validateEmail(email);
+            // email: free, or held by an account that never confirmed it and has been away for a while
+            long now = System.currentTimeMillis();
+            returnMessage = validateEmail(email, now);
             if (returnMessage != null) {
                 sendErrorMessageToClient(returnMessage);
                 return returnMessage;
@@ -188,23 +189,24 @@ public class Session {
             }
 
             // create
+            EmailVerification.release(AuthorizedUserRepository.getInstance().getByEmail(email), userName, now);
             AuthorizedUserRepository.getInstance().add(userName, password, email);
+            EmailVerification.registered(userName, now);
             String text = "You are successfully registered as " + userName + " on " + serverLabel() + '.';
             if (!chosenPassword) {
                 text += "  Your initial, generated password is: " + password;
             }
+            if (Mailer.configured(managerFactory.configSettings())) {
+                text += EmailVerification.get().welcomeLines(userName, email, now);
+            }
 
             boolean success;
             String subject = "Your account on " + serverLabel();
-            boolean mailConfigured = !managerFactory.configSettings().getMailUser().isEmpty()
-                    || !managerFactory.configSettings().getMailgunApiKey().isEmpty();
-            if (chosenPassword && !mailConfigured) {
+            if (chosenPassword && !Mailer.configured(managerFactory.configSettings())) {
                 // nothing to send: the player already knows the password
                 success = true;
-            } else if (!managerFactory.configSettings().getMailUser().isEmpty()) {
-                success = managerFactory.mailClient().sendMessage(email, subject, text);
             } else {
-                success = managerFactory.mailgunClient().sendMessage(email, subject, text);
+                success = Mailer.send(managerFactory, email, subject, text);
             }
             if (success || (chosenPassword && Main.isTestMode())) {
                 String ok = chosenPassword ? "Account " + userName + " created"
@@ -341,13 +343,13 @@ public class Session {
         return null;
     }
 
-    private static String validateEmail(String email) {
+    private static String validateEmail(String email, long now) {
 
         if (email == null || email.isEmpty()) {
             return "Email address cannot be blank";
         }
         AuthorizedUser authorizedUser = AuthorizedUserRepository.getInstance().getByEmail(email);
-        if (authorizedUser != null) {
+        if (authorizedUser != null && !EmailVerification.releasable(authorizedUser, now)) {
             return "Email address '" + email + "' is associated with another user";
         }
         return null;

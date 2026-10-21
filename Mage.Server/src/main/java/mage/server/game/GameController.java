@@ -612,7 +612,7 @@ public class GameController implements GameCallback {
         //SystemUtil.ensureRunInGameThread();
         switch (playerAction) {
             case UNDO:
-                game.undo(getPlayerId(userId));
+                undo(getPlayerId(userId));
                 break;
             case ROLLBACK_TURNS: // basic request of a player to rollback
                 if (data instanceof Integer) {
@@ -955,6 +955,31 @@ public class GameController implements GameCallback {
         Player player = game.getPlayer(playerId);
         if (player != null) {
             player.signalPlayerCheat();
+        }
+    }
+
+    /**
+     * Takes back the player's last mana taps, as the desktop client offers it: only with an empty stack and outside a
+     * payment. Mid-payment the stored bookmark is the state before the spell, so an undo there restored the board while
+     * the cast kept collecting its cost, and the half-cast spell later resolved or vanished. A waiting human player runs
+     * it on the game thread, so the update that follows is built from the restored state (built here, the view would
+     * be the last cached one and the board would not change on screen).
+     */
+    private void undo(UUID playerId) {
+        Player player = playerId == null ? null : game.getPlayer(playerId);
+        if (player == null) {
+            return;
+        }
+        java.util.function.Consumer<Game> undo = g -> {
+            Player undoing = g.getPlayer(playerId);
+            if (undoing != null && !undoing.isInPayManaMode() && g.getStack().isEmpty()) {
+                g.undo(playerId);
+            }
+        };
+        if (player.isHuman()) {
+            player.queueGameThreadAction(undo);
+        } else {
+            undo.accept(game);
         }
     }
 

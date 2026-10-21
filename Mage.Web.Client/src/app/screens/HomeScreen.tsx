@@ -1,7 +1,7 @@
 import { ChevronRight, SlidersHorizontal, Trophy } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rosterOf, sleeveFor, useDecks } from '../stores/decks';
+import { META_PREFIX, rosterOf, sleeveFor, useDecks } from '../stores/decks';
 import { useCoach } from '../stores/coach';
 import { usePlay } from '../stores/play';
 import { useT, type MessageKey } from '../i18n';
@@ -15,14 +15,19 @@ import { openImport } from '../stores/importSheet';
 import { aiDeckLabel, describeAi } from './aiSetup';
 import { opponentSource } from '../solo/freePlay';
 import { useCareerMessages } from '../solo/careerMessages';
-import { slotsFull, useGameSlots, useServerInfo } from '../queries';
-import { SavedGames } from '../solo/SavedGames';
+import { slotsFull, useEmailStatus, useGameSlots, useServerInfo } from '../queries';
 import styles from './HomeScreen.module.css';
 
-type Mode = 'ai' | 'practice' | 'friend';
-
-// the AI setup loads the first time it opens (it brings the solo messages: meta decks, ghosts, adaptive)
+// the banner and its code form load only for a player whose address still needs confirming
+const EmailBanner = lazy(() => import('./EmailConfirm').then((module) => ({ default: module.EmailBanner })));
+// the AI settings load the first time they are opened, out of the entry chunk (they bring the solo messages too)
 const AiSettingsDialog = lazy(() => import('./AiSettingsDialog').then((module) => ({ default: module.AiSettingsDialog })));
+// saved games against the AI, with what resuming one needs, load with Home but out of the entry chunk
+const SavedGames = lazy(() => import('../solo/SavedGames').then((module) => ({ default: module.SavedGames })));
+// the month's server costs, on servers that take support
+const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
+
+type Mode = 'ai' | 'practice' | 'friend';
 
 // open tables and events have their own pages in the rail; here the only question is who you play
 const MODES: { id: Mode; label: MessageKey }[] = [
@@ -39,8 +44,11 @@ export function HomeScreen() {
   const play = usePlay();
   const [mode, setMode] = useState<Mode>('ai');
   const [aiOpen, setAiOpen] = useState(false);
+  // stays mounted once opened, so it can animate closed
   const [aiLoaded, setAiLoaded] = useState(false);
   if (aiOpen && !aiLoaded) setAiLoaded(true);
+  const emailStatus = useEmailStatus().data;
+  const emailUnconfirmed = !!emailStatus?.email && !emailStatus.verified && !!emailStatus.mail;
   const roster = useMemo(() => rosterOf(decks), [decks]);
   // a meta, ghost or mirror opponent, or adaptive skill, is described with the solo messages
   const soloReady = useCareerMessages(play.aiOptions.adaptive || opponentSource(play.aiOptions.opponentDeckId).kind !== 'roster');
@@ -129,6 +137,7 @@ export function HomeScreen() {
 
         <div className={styles.playZone} role="group" aria-labelledby="play-zone-label">
           <h2 id="play-zone-label" className={styles.zoneLabel}>{t('home.play')}</h2>
+          {emailUnconfirmed && <Suspense fallback={null}><EmailBanner /></Suspense>}
           {!firstGameDone && (
             <div className={styles.firstGame}>
               <p className={styles.firstGameText}>{t('home.firstGame.text')}</p>
@@ -161,7 +170,14 @@ export function HomeScreen() {
               <span>{describeAi(
                 t,
                 play.aiOptions,
-                aiDeckLabel(t, play.aiOptions, roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name ?? null, soloReady),
+                aiDeckLabel(
+                  t,
+                  play.aiOptions,
+                  roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name
+                    ?? decks.metaDecks.find((deck) => META_PREFIX + deck.file === play.aiOptions.opponentDeckId)?.name
+                    ?? null,
+                  soloReady,
+                ),
                 soloReady ? t('solo.adaptive.summary') : undefined,
               )}</span>
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
@@ -186,7 +202,7 @@ export function HomeScreen() {
               {t(busy ? (play.phase === 'waitingForGame' ? 'home.shuffling' : 'home.settingUp') : mode === 'friend' ? 'home.continue' : 'home.play')}
             </Button>
           </div>
-          <SavedGames disabled={busy} />
+          <Suspense fallback={null}><SavedGames disabled={busy} /></Suspense>
           {career && (
             <button type="button" className={styles.career} onClick={() => navigate('/career')} disabled={busy}>
               <Trophy size={18} aria-hidden="true" />
@@ -197,6 +213,7 @@ export function HomeScreen() {
               <ChevronRight size={18} aria-hidden="true" />
             </button>
           )}
+          {serverInfo?.support && <Suspense fallback={null}><SupportBar place="home" /></Suspense>}
         </div>
       </section>
       {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} /></Suspense>}

@@ -88,6 +88,10 @@ public final class RpcDispatcher {
     private void requireSession(RpcMethod method, JsonArray params, RpcConnection connection) throws RpcException {
         String sessionId = connection.getSessionId();
         if (sessionId == null || !sessions.exists(sessionId)) {
+            if (sessionId != null && sessions.isSignedInElsewhere(connection.getUserName(), sessionId)) {
+                throw RpcException.notAuthorized("Not connected: you signed in somewhere else")
+                        .withReason(RpcException.SIGNED_IN_ELSEWHERE);
+            }
             throw RpcException.notAuthorized("Not connected: log in before calling " + method.getName());
         }
         if (method.getSessionParam() >= 0) {

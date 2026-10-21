@@ -8,7 +8,8 @@ const UPDATE_CHECK_MS = 60 * 60 * 1000;
  * its shell available offline. Production builds only; main.tsx loads this module after the page has loaded.
  *
  * A new version installs in the background and waits. While a page is open a toast offers the reload; otherwise the
- * next load activates it (that page came from the network already, so nothing it runs is stale).
+ * next load activates it (that page came from the network already, so nothing it runs is stale). Either way, the first
+ * page of the new version shows its release notes once (whatsNew.ts).
  */
 export function registerServiceWorker(): void {
   const container = navigator.serviceWorker;

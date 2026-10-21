@@ -28,7 +28,9 @@
   position: absolute;
   z-index: 5;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  align-content: center;
   justify-content: center;
   border-radius: 16px;
   /* the zone printed in ivory ink on the mat */
@@ -47,6 +49,25 @@
   text-transform: uppercase;
   color: var(--ink-faint);
   pointer-events: none;
+}
+
+/* a crowded row wraps where fitRow says (boardModel.ts) */
+.lineBreak {
+  flex-basis: 100%;
+}
+
+/* past the smallest card size the groups overlap, fanned like a hand: the padding keeps the fan centred, and the
+   hovered card comes to the front */
+.rowOverlap {
+  padding-right: calc(-1 * var(--overlap));
+}
+
+.rowOverlap > :not(.lineBreak) {
+  margin-right: var(--overlap);
+}
+
+.rowOverlap > :hover {
+  z-index: 2;
 }
 
 .rowFlip::before {
@@ -84,6 +105,40 @@
 .myPiles,
 .theirPiles {
   position: absolute;
+}
+
+/*
+ * Your seat's box is the plate itself, so a seat anchored by its bottom edge (wide) grows upward as counters, commander
+ * damage and floating mana arrive, never past the bottom of the stage.
+ */
+.myPlate > [data-object-id] {
+  position: relative;
+}
+
+/* a pet sits by its player's plate: mine on the cloth just above it, an opponent's beside theirs */
+.myPet {
+  position: absolute;
+  left: 8px;
+  bottom: calc(100% - 4px);
+  width: 128px;
+  height: 128px;
+}
+
+.withPet {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.withPet > :first-child {
+  position: relative;
+}
+
+.theirPet {
+  flex: none;
+  width: 104px;
+  height: 104px;
+  margin-top: -10px;
 }
 
 /* the piles stand two by two in the seat column */

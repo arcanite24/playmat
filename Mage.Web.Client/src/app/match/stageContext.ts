@@ -5,6 +5,8 @@ export const STAGE_WIDTH = 1920;
 export const STAGE_HEIGHT = 1080;
 /** Wider windows widen the stage (the battlefield grows) up to this; beyond it the mat fills the sides. */
 export const MAX_STAGE_WIDTH = 2640;
+/** Landscape windows squarer than 16:9 (16:10, 4:3) heighten the stage instead, up to this: the rows grow. */
+export const MAX_STAGE_HEIGHT = 1440;
 /**
  * Portrait windows (a tablet held upright) get the tall layout: a narrower stage, 1080 wide, that grows downward
  * with the window, between these heights. Both players' rows span its width; the seats and controls move to bands
@@ -21,7 +23,7 @@ export interface StageContextValue {
   element: HTMLDivElement | null;
   /** the stage's current width in stage pixels: STAGE_WIDTH to MAX_STAGE_WIDTH wide, TALL_STAGE_WIDTH tall */
   width: number;
-  /** the stage's current height in stage pixels: STAGE_HEIGHT wide, MIN_TALL_HEIGHT to MAX_TALL_HEIGHT tall */
+  /** the stage's current height in stage pixels: STAGE_HEIGHT to MAX_STAGE_HEIGHT wide, MIN_TALL_HEIGHT to MAX_TALL_HEIGHT tall */
   height: number;
   layout: StageLayout;
 }
@@ -37,7 +39,8 @@ export function fitStage(windowWidth: number, windowHeight: number): Pick<StageC
     return { layout: 'tall', width: TALL_STAGE_WIDTH, height, scale: Math.min(windowWidth / TALL_STAGE_WIDTH, windowHeight / height) };
   }
   const width = Math.round(Math.min(MAX_STAGE_WIDTH, Math.max(STAGE_WIDTH, STAGE_HEIGHT * (windowWidth / windowHeight))));
-  return { layout: 'wide', width, height: STAGE_HEIGHT, scale: Math.min(windowWidth / width, windowHeight / STAGE_HEIGHT) };
+  const height = Math.round(Math.min(MAX_STAGE_HEIGHT, Math.max(STAGE_HEIGHT, STAGE_WIDTH * (windowHeight / windowWidth))));
+  return { layout: 'wide', width, height, scale: Math.min(windowWidth / width, windowHeight / height) };
 }
 
 export function useStage() {

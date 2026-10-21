@@ -65,7 +65,7 @@ jobs:
       - name: Bridge tests
         run: >
           mvn -B -pl Mage.Server test
-          -Dtest='mage/server/websocket/**/*Test,mage/server/career/**/*Test,mage/server/admin/**/*Test,mage/server/AccessGateTest'
+          -Dtest='mage/server/websocket/**/*Test,mage/server/career/**/*Test,mage/server/admin/**/*Test,mage/server/AccessGateTest,mage/server/HealthTest'
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dxmage.dataCollectors.printGameLogs=false
           -Dlog4j.configuration=file:${GITHUB_WORKSPACE}/.travis/log4j.properties

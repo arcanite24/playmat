@@ -11,6 +11,7 @@
 #   user_stats.db, table_record.db                  SQLite copies (player stats, finished tables)
 #   web_decks.db, web_reports.db, career.db         SQLite copies (synced decks, player reports, Career progress)
 #   web_admin.db                                    SQLite copy (/admin: access, staff, audit log, settings)
+#   support.db                                      SQLite copy (support ledger, sponsorships, perks, looks)
 # H2 dumps are taken online: AUTO_SERVER lets this process join the running server's database.
 # SQLite copies use the online backup API. The newest $BACKUP_KEEP (default 14) backups are kept.
 # Every run writes db/backup-status.json, which the server reads for /admin and its staff alerts.
@@ -21,7 +22,7 @@ BACKUP_DIR=${BACKUP_DIR:-/backups}
 BACKUP_AT=${BACKUP_AT:-03:30}
 BACKUP_KEEP=${BACKUP_KEEP:-14}
 H2_DBS=(authorized_user.h2 feedback.h2)
-SQLITE_DBS=(user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db)
+SQLITE_DBS=(user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db support.db)
 STATUS=$DB_DIR/backup-status.json
 
 h2_jar() {
@@ -52,9 +53,15 @@ backup_once() {
   mkdir -p "$tmp"
   for db in "${H2_DBS[@]}"; do
     [[ -e $DB_DIR/$db.mv.db ]] || continue
+    # With the server running, AUTO_SERVER hands the SCRIPT command to the server's process, which writes the file in
+    # its own container. So the dump goes to the db volume both containers mount, at the same path, then moves here.
+    local dump=$DB_DIR/.backup-$db.sql
+    rm -f "$dump"
     java -Xmx128m -cp "$h2" org.h2.tools.Script \
       -url "jdbc:h2:file:$DB_DIR/$db;AUTO_SERVER=TRUE;IFEXISTS=TRUE" -user "" -password "" \
-      -script "$tmp/$db.sql"
+      -script "$dump"
+    [[ -s $dump ]] || { log "the dump of $db is missing or empty"; false; }
+    mv "$dump" "$tmp/$db.sql"
     gzip -9 "$tmp/$db.sql"
   done
   for db in "${SQLITE_DBS[@]}"; do

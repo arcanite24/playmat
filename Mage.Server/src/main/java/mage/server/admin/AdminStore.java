@@ -21,8 +21,8 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 /**
- * What /admin keeps across restarts: the audit log, settings, the allowlist, invites and access requests.
- * Stored in db/web_admin.db (SQLite).
+ * What /admin keeps across restarts: the audit log, settings, the allowlist, invites and access requests, and
+ * which accounts verified their email. Stored in db/web_admin.db (SQLite).
  */
 public final class AdminStore {
 
@@ -48,6 +48,7 @@ public final class AdminStore {
     private final Dao<StaffMember, String> staff;
     private final Dao<FeedbackEntry, Long> feedback;
     private final Dao<ClientErrorGroup, Long> clientErrors;
+    private final Dao<AccountEmail, String> accountEmails;
 
     public AdminStore(String jdbcUrl) throws SQLException {
         ConnectionSource source = new JdbcConnectionSource(jdbcUrl);
@@ -60,6 +61,7 @@ public final class AdminStore {
         TableUtils.createTableIfNotExists(source, StaffMember.class);
         TableUtils.createTableIfNotExists(source, FeedbackEntry.class);
         TableUtils.createTableIfNotExists(source, ClientErrorGroup.class);
+        TableUtils.createTableIfNotExists(source, AccountEmail.class);
         audit = DaoManager.createDao(source, AuditEntry.class);
         settings = DaoManager.createDao(source, AdminSetting.class);
         allowlist = DaoManager.createDao(source, AllowEntry.class);
@@ -69,6 +71,7 @@ public final class AdminStore {
         staff = DaoManager.createDao(source, StaffMember.class);
         feedback = DaoManager.createDao(source, FeedbackEntry.class);
         clientErrors = DaoManager.createDao(source, ClientErrorGroup.class);
+        accountEmails = DaoManager.createDao(source, AccountEmail.class);
     }
 
     public static AdminStore get() {
@@ -307,8 +310,8 @@ public final class AdminStore {
     // --- an account's records ---------------------------------------------------------------------
 
     /**
-     * Everything this store keeps about an account, gone: its allowlist entries by name, staff role, GitHub link and
-     * feedback. The audit log stays: it is the record of what staff did.
+     * Everything this store keeps about an account, gone: its allowlist entries by name, staff role, GitHub link,
+     * feedback and verified email. The audit log stays: it is the record of what staff did.
      */
     public synchronized void forgetAccount(String userName) throws SQLException {
         String key = userName.trim().toLowerCase(Locale.ROOT);
@@ -322,6 +325,49 @@ public final class AdminStore {
         DeleteBuilder<FeedbackEntry, Long> sent = feedback.deleteBuilder();
         sent.where().eq("userName", new SelectArg(userName.trim()));
         sent.delete();
+        accountEmails.deleteById(key);
+    }
+
+    // --- email verification ----------------------------------------------------------------------
+
+    /** What is known about the account's email, or null. */
+    public synchronized AccountEmail accountEmail(String userName) throws SQLException {
+        return isBlank(userName) ? null : accountEmails.queryForId(userName.trim().toLowerCase(Locale.ROOT));
+    }
+
+    /** The player proved they read this address. */
+    public synchronized AccountEmail emailVerified(String userName, String email, long now) throws SQLException {
+        AccountEmail row = accountEmailRow(userName);
+        row.verifiedEmail = email == null ? null : email.trim();
+        row.verifiedAt = row.verifiedEmail == null ? 0 : now;
+        accountEmails.createOrUpdate(row);
+        return row;
+    }
+
+    /** Forgets the verified address, as when the account's email changes. */
+    public synchronized void emailUnverified(String userName) throws SQLException {
+        AccountEmail row = accountEmail(userName);
+        if (row != null && row.verifiedEmail != null) {
+            row.verifiedEmail = null;
+            row.verifiedAt = 0;
+            accountEmails.update(row);
+        }
+    }
+
+    public synchronized void accountRegistered(String userName, long now) throws SQLException {
+        AccountEmail row = accountEmailRow(userName);
+        row.registeredAt = now;
+        accountEmails.createOrUpdate(row);
+    }
+
+    private AccountEmail accountEmailRow(String userName) throws SQLException {
+        AccountEmail row = accountEmail(userName);
+        if (row == null) {
+            row = new AccountEmail();
+            row.key = userName.trim().toLowerCase(Locale.ROOT);
+        }
+        row.name = userName.trim();
+        return row;
     }
 
     // --- settings ---------------------------------------------------------------------------------

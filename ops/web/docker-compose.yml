@@ -1,8 +1,11 @@
 # Web deployment: XMage server + web client behind Caddy (HTTPS) + nightly backups of the user databases.
 #   cp ops/web/.env.example ops/web/.env   # then edit
-#   docker compose -f ops/web/docker-compose.yml up -d --build
+#   docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d
 # Every server setting is documented in ops/web/README.md. Empty values use the image defaults.
-x-server-image: &server-image xmage-web-server:local
+# Images: the published ones .env names (XMAGE_SERVER_IMAGE and XMAGE_WEB_IMAGE; .env.example has :master, and the
+# Update button and the image-based deploy pin them by digest), pulled and run as they are. With those two empty, they
+# are built here (build:) under the local names: up -d --build. Building with them set fails: empty them to build.
+x-server-image: &server-image ${XMAGE_SERVER_IMAGE:-xmage-web-server:local}
 
 services:
   xmage:
@@ -13,6 +16,8 @@ services:
     environment:
       XMAGE_ALLOWED_ORIGINS: ${XMAGE_ALLOWED_ORIGINS:-https://${DOMAIN:?set DOMAIN}}
       XMAGE_MEMORY: ${XMAGE_MEMORY:-}
+      XMAGE_EXIT_ON_OOM: ${XMAGE_EXIT_ON_OOM:-}
+      XMAGE_HEAP_DUMP: ${XMAGE_HEAP_DUMP:-}
       XMAGE_HEAP_PERCENT: ${XMAGE_HEAP_PERCENT:-}
       XMAGE_GC: ${XMAGE_GC:-}
       XMAGE_METASPACE: ${XMAGE_METASPACE:-}
@@ -58,11 +63,23 @@ services:
       XMAGE_MAIL_USER: ${XMAGE_MAIL_USER:-}
       XMAGE_MAIL_PASSWORD: ${XMAGE_MAIL_PASSWORD:-}
       XMAGE_MAIL_FROM: ${XMAGE_MAIL_FROM:-}
+      XMAGE_MAIL_SMTP_STARTTLS: ${XMAGE_MAIL_SMTP_STARTTLS:-}
+      XMAGE_MAILGUN_BASE_URL: ${XMAGE_MAILGUN_BASE_URL:-}
+      XMAGE_TURNSTILE_SITE_KEY: ${XMAGE_TURNSTILE_SITE_KEY:-}
+      XMAGE_TURNSTILE_SECRET: ${XMAGE_TURNSTILE_SECRET:-}
+      XMAGE_CONTACT_EMAIL: ${XMAGE_CONTACT_EMAIL:-}
+      XMAGE_UPDATE_CHECK: ${XMAGE_UPDATE_CHECK:-}
+      # support for the server: Ko-fi's verification token, the GitHub Sponsors webhook secret, and the port Caddy
+      # forwards /hooks and /public to (on the compose network only: nothing publishes it)
+      XMAGE_KOFI_TOKEN: ${XMAGE_KOFI_TOKEN:-}
+      XMAGE_GITHUB_SPONSORS_SECRET: ${XMAGE_GITHUB_SPONSORS_SECRET:-}
+      XMAGE_HOOKS_PORT: ${XMAGE_HOOKS_PORT:-}
     volumes:
-      - xmage-db:/opt/xmage/db         # user data only (accounts, stats, table records, feedback)
+      - xmage-db:/opt/xmage/db         # user data only (accounts, stats, table records, feedback, support ledger)
       - xmage-cards:/opt/xmage/cards-db # card database cache, rebuilt when the image changes
       - xmage-logs:/opt/xmage/logs
       - xmage-saved:/opt/xmage/saved
+      - xmage-updates:/opt/xmage/updates # requests to the updater and its answers (UpdateRunner.java)
     networks:
       - xmage
     # the bridge port opens only after the card database is loaded; the first start builds it (minutes)
@@ -77,6 +94,8 @@ services:
     # no published ports: only the proxy reaches the server
 
   web:
+    # named, like the server's, so a host that receives built images (ops/web/ship-images.sh) runs them without building
+    image: ${XMAGE_WEB_IMAGE:-xmage-web:local}
     build:
       context: ../..
       dockerfile: ops/web/Dockerfile.web
@@ -97,6 +116,8 @@ services:
       WS_RATE_WINDOW: ${WS_RATE_WINDOW:-1m}
       IMG_API_RATE_LIMIT: ${IMG_API_RATE_LIMIT:-300}
       IMG_API_RATE_WINDOW: ${IMG_API_RATE_WINDOW:-1m}
+      HOOKS_RATE_LIMIT: ${HOOKS_RATE_LIMIT:-60}
+      HOOKS_RATE_WINDOW: ${HOOKS_RATE_WINDOW:-1m}
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
@@ -147,7 +168,7 @@ services:
 
   backup:
     image: *server-image
-    pull_policy: never # built by the xmage service
+    pull_policy: never # the xmage service's image, built or pulled for it
     entrypoint: ["xmage-backup"]
     command: ["daemon"]
     init: true
@@ -165,6 +186,22 @@ services:
       - xmage
     restart: unless-stopped
 
+  # The admin console's Update button (ops/web/README.md "Update button"): off unless .env has COMPOSE_PROFILES=updater.
+  # The only container with the Docker socket, which is root on the host; it has no network and listens on nothing,
+  # and the server reaches it through files in xmage-updates. Linux hosts (Docker Engine) only.
+  updater:
+    image: ${XMAGE_UPDATER_IMAGE:-ghcr.io/arcanite24/playmat-updater:master}
+    profiles: [ "updater" ]
+    command: [ "daemon" ]
+    network_mode: none
+    environment:
+      UPDATER_DRAIN_MINUTES: ${UPDATER_DRAIN_MINUTES:-}
+      UPDATER_HEALTH_TIMEOUT: ${UPDATER_HEALTH_TIMEOUT:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - xmage-updates:/updates
+    restart: unless-stopped
+
 networks:
   xmage:
     ipam:
@@ -176,6 +213,7 @@ volumes:
   xmage-cards:
   xmage-logs:
   xmage-saved:
+  xmage-updates:
   xmage-backups:
   xmage-imgcache:
   caddy-data:

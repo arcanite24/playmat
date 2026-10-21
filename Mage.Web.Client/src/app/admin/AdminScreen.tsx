@@ -19,6 +19,8 @@ import { FeedbackPage } from './FeedbackPage';
 import { SettingsPage } from './SettingsPage';
 import { SoloPage } from './SoloPage';
 import { StaffPage } from './StaffPage';
+import { SupportPage } from './SupportPage';
+import { UpdatesPage } from './UpdatesPage';
 import { atLeast, describeAge, formatBytes, formatDate, formatDuration, MUTE_CHOICES, type StaffRole } from './adminFormat';
 import styles from './AdminScreen.module.css';
 
@@ -150,6 +152,9 @@ const SECTIONS: { id: string; label: string; role: StaffRole }[] = [
   { id: 'access', label: 'Access', role: 'admin' },
   { id: 'settings', label: 'Settings', role: 'admin' },
   { id: 'solo', label: 'Single player', role: 'admin' },
+  // payments: admins and the owner, not moderators
+  { id: 'support', label: 'Support', role: 'admin' },
+  { id: 'updates', label: 'Updates', role: 'admin' },
   { id: 'staff', label: 'Staff', role: 'owner' },
   { id: 'errors', label: 'Client errors', role: 'moderator' },
   { id: 'audit', label: 'Audit', role: 'moderator' },
@@ -169,7 +174,7 @@ function Console({ staff }: { staff: StaffSession }) {
       <Tabs.List className={styles.sideNav} aria-label="Admin sections">
         {sections.map((s) => <Tabs.Trigger key={s.id} value={s.id} className={styles.navItem}>{s.label}</Tabs.Trigger>)}
       </Tabs.List>
-      <Tabs.Content value="overview" className={styles.panel}><Overview api={api} /></Tabs.Content>
+      <Tabs.Content value="overview" className={styles.panel}><Overview api={api} role={role} onUpdates={() => choose('updates')} /></Tabs.Content>
       <Tabs.Content value="players" className={styles.panel}><Players api={api} role={role} /></Tabs.Content>
       <Tabs.Content value="accounts" className={styles.panel}><AccountsPage api={api} role={role} /></Tabs.Content>
       <Tabs.Content value="reports" className={styles.panel}><Reports api={api} role={role} /></Tabs.Content>
@@ -181,6 +186,8 @@ function Console({ staff }: { staff: StaffSession }) {
           <Tabs.Content value="access" className={styles.panel}><AccessPage api={api} /></Tabs.Content>
           <Tabs.Content value="settings" className={styles.panel}><SettingsPage api={api} role={role} /></Tabs.Content>
           <Tabs.Content value="solo" className={styles.panel}><SoloPage api={api} role={role} /></Tabs.Content>
+          <Tabs.Content value="support" className={styles.panel}><SupportPage api={api} /></Tabs.Content>
+          <Tabs.Content value="updates" className={styles.panel}><UpdatesPage api={api} role={role} /></Tabs.Content>
         </>
       )}
       {atLeast(role, 'owner') && <Tabs.Content value="staff" className={styles.panel}><StaffPage api={api} actor={staff.actor} /></Tabs.Content>}
@@ -190,8 +197,15 @@ function Console({ staff }: { staff: StaffSession }) {
   );
 }
 
-function Overview({ api }: { api: AdminApi }) {
+function Overview({ api, role, onUpdates }: { api: AdminApi; role: StaffRole; onUpdates: () => void }) {
   const stats = useQuery({ queryKey: ['admin', 'stats'], queryFn: () => api.adminServerStats(), refetchInterval: 5_000 });
+  // the Updates section's answer (kept by the server for an hour), for a pointer beside the version
+  const update = useQuery({
+    queryKey: ['admin', 'update'],
+    queryFn: () => api.adminUpdateStatus(false),
+    enabled: atLeast(role, 'admin'),
+    staleTime: 5 * 60_000,
+  });
   const data: ServerStats | undefined = stats.data;
   if (stats.error) return <p className={styles.error}>{String(stats.error)}</p>;
   if (!data) return <p className={styles.quiet}>Loading…</p>;
@@ -208,6 +222,9 @@ function Overview({ api }: { api: AdminApi }) {
         {data.commit
           ? <> · commit <a className={styles.code} href={`https://github.com/arcanite24/playmat/commit/${data.commit}`} target="_blank" rel="noreferrer">{data.commit.slice(0, 7)}</a></>
           : ' · a development build'}
+        {update.data?.updateAvailable && (
+          <> · <button type="button" className={styles.linkButton} onClick={onUpdates}>a newer version is out</button></>
+        )}
         {backup && (
           <span className={backup.problem ? styles.backupBad : undefined}>
             {' · '}{backup.problem ?? `last backup ${describeAge((backup.lastOkAt ?? 0) * 1000, data.now ?? 0)}${backup.size ? ` (${backup.size})` : ''}`}

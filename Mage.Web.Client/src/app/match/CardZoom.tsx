@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CardView, PermanentView } from '../../protocol/generated/views';
 import { isStackAbility } from '../../core/game/cards';
 import { AbilityCard } from '../ui/AbilityCard';
+import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
 import { useMatchUi } from './matchUi';
 import { toStagePoint, useStage } from './stageContext';
@@ -63,7 +64,7 @@ export function CardZoom({ large = false }: { large?: boolean }) {
           ? <AbilityCard ability={card} sleeve={shown.sleeve} style={{ width }} />
           : <CardFace card={card} size="large" sleeve={shown.sleeve} style={{ width }} />}
         {back && card.transformable && (
-          <CardFace card={back} face="back" size="normal" sleeve={shown.sleeve} style={{ width: width * 0.62 }} />
+          <CardFace card={back} face={showsBackFace(card) ? 'front' : 'back'} size="normal" sleeve={shown.sleeve} style={{ width: width * 0.62 }} />
         )}
       </div>
       {extra.length > 0 && (

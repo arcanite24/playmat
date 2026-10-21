@@ -61,6 +61,23 @@
   box-shadow: inset 0 0 0 2.5px var(--decision);
 }
 
+/* a Career avatar: its sigil drawn on a disc in its own colours */
+.avatar[data-crest] {
+  background: radial-gradient(circle at 50% 35%, var(--crest-light), var(--crest-dark));
+  color: var(--ink-strong);
+}
+
+.crest {
+  width: 62%;
+  height: 62%;
+}
+
+/* a supporter's thank-you: a brass ring around the disc */
+.ring {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
+}
+
 .rope {
   position: absolute;
   inset: -8px;
@@ -92,6 +109,24 @@
   font-weight: 700;
   letter-spacing: var(--tracking-print-wide);
   line-height: 1;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flair {
+  margin-left: 6px;
+  color: var(--brass);
+  vertical-align: -1px;
+}
+
+/* the Career title, or a supporter's Patron */
+.title {
+  margin-top: -2px;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-print);
   text-transform: uppercase;
   color: var(--ink-dim);
   white-space: nowrap;
@@ -157,12 +192,49 @@
   color: var(--sage);
 }
 
+/*
+ * Counters, commander damage, floating mana and what's left to pay: short columns of chips beside the life, filled
+ * top to bottom, then left to right. However crowded the seat gets, it grows sideways, never taller than three chips:
+ * your seat sits on the stage's bottom edge.
+ */
+.extras {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(3, auto);
+  align-content: center;
+  justify-items: start;
+  gap: 4px 10px;
+  align-self: stretch;
+  padding-left: 14px;
+  border-left: 1.5px solid var(--ink-faint);
+}
+
+/* tall: the piles stand right beside the seat, so the seat keeps to its column and its extras wrap under the life */
+:global([data-layout='tall']) .plate {
+  flex-wrap: wrap;
+  max-width: 266px;
+  row-gap: 8px;
+}
+
+:global([data-layout='tall']) .extras {
+  display: flex;
+  flex-wrap: wrap;
+  flex-basis: 100%;
+  gap: 4px 6px;
+  padding-left: 0;
+  border-left: 0;
+}
+
 .counter {
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 9px;
   border-radius: 999px;
   background: rgb(var(--ink-rgb) / 0.1);
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 600;
+  line-height: 1.3;
   color: var(--ink);
   white-space: nowrap;
 }
@@ -170,13 +242,14 @@
 .pool {
   display: flex;
   gap: 8px;
+  white-space: nowrap;
 }
 
 .poolItem {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 22px;
+  font-size: 20px;
 }
 
 .poolPay {
@@ -202,12 +275,12 @@
 }
 
 .toPay > [role='img'] {
-  font-size: 26px;
+  font-size: 22px;
 }
 
 .toPayLabel {
   font-family: var(--font-print);
-  font-size: 21px;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: var(--tracking-print);
   text-transform: uppercase;
@@ -216,7 +289,7 @@
 
 .poolItem b {
   font-family: var(--font-print);
-  font-size: 24px;
+  font-size: 22px;
 }
 
 @keyframes hurt {
@@ -256,30 +329,20 @@
   letter-spacing: var(--tracking-print);
 }
 
+/* its hits stand in the columns as chips of their own */
 .commanderDamage {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: contents;
 }
 
-.hit {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  max-width: 220px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: rgb(var(--ink-rgb) / 0.1);
-  font-size: 17px;
-  white-space: nowrap;
+.hitName {
+  max-width: 150px;
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--ink);
 }
 
 .hit b {
   font-family: var(--font-print);
-  font-size: 20px;
+  font-size: 19px;
 }
 
 /* six from lethal and closer */

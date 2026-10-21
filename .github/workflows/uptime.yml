@@ -1,0 +1,71 @@
+name: Uptime
+
+# An outside check of the public server, every 15 minutes: the site answers over HTTPS with the app, its certificate
+# has more than 14 days left, and the game server answers through Caddy (the /ws endpoint refuses a plain GET with
+# 400 rather than 502 when the bridge is up). A failed run is the alert: GitHub emails whoever last changed this
+# schedule, and UPTIME_DISCORD_WEBHOOK (a repository secret, optional) gets a message too. The host's own watchdog
+# (ops/web/host/watchdog.sh) covers what can only be seen from inside: container health, disk and memory.
+on:
+  schedule:
+    - cron: "7,22,37,52 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+env:
+  SITE: ${{ vars.UPTIME_URL || 'https://playmat.deimos.studio' }}
+
+jobs:
+  probe:
+    if: github.repository == 'arcanite24/playmat'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Site, certificate and game server
+        id: probe
+        run: |
+          set -u
+          host=${SITE#https://}; host=${host%%/*}
+          problems=()
+          # three tries a minute apart, so one dropped packet doesn't page anyone
+          for attempt in 1 2 3; do
+            problems=()
+            body=$(curl -sS -m 20 -w '\n%{http_code}' "$SITE/" 2>&1) || true
+            code=${body##*$'\n'}
+            [[ $code == 200 ]] || problems+=("the site answered ${code:-nothing}")
+            [[ $body == *'<div id="root">'* || $body == *'id="root"'* ]] || [[ $code != 200 ]] || problems+=("the page isn't the app shell")
+            ws=$(curl -s -o /dev/null -m 20 -w '%{http_code}' "$SITE/ws")
+            [[ $ws == 400 || $ws == 426 || $ws == 404 ]] || problems+=("the game server answered $ws through /ws")
+            end=$(echo | openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+            if [[ -n $end ]]; then
+              days=$(( ($(date -d "$end" +%s) - $(date +%s)) / 86400 ))
+              (( days > 14 )) || problems+=("the certificate expires in $days days")
+            else
+              problems+=("no certificate could be read")
+            fi
+            (( ${#problems[@]} == 0 )) && break
+            [[ $attempt == 3 ]] || sleep 60
+          done
+          if (( ${#problems[@]} )); then
+            msg="$host: $(IFS=';'; echo "${problems[*]}")"
+            echo "message=$msg" >> "$GITHUB_OUTPUT"
+            echo "::error::$msg"
+            exit 1
+          fi
+          echo "$host is up (certificate: $days days left)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Tell Discord
+        if: failure()
+        env:
+          WEBHOOK: ${{ secrets.UPTIME_DISCORD_WEBHOOK }}
+          MESSAGE: ${{ steps.probe.outputs.message }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [[ -n $WEBHOOK ]] || exit 0
+          jq -n --arg c "⚠️ Uptime check failed: ${MESSAGE:-see the run} — $RUN" '{content: $c, allowed_mentions: {parse: []}}' \
+            | curl -fsS -m 10 -H 'Content-Type: application/json' -d @- "$WEBHOOK" >/dev/null

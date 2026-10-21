@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Swords } from 'lucide-react';
+import { Heart, Swords } from 'lucide-react';
 import { COMMANDER_DAMAGE_LETHAL } from '../../core/game/commander';
 import { POOL_MANA, poolId } from '../../core/game/payment';
 import { ROPE_SECONDS, ropeSecondsLeft, ropeVisible } from '../../core/game/rope';
-import type { PlayerView } from '../../protocol/generated/views';
+import type { PlayerLook, PlayerView } from '../../protocol/generated/views';
+import { CAREER_AVATARS, titleLabel } from '../career/progressModel';
 import { useT } from '../i18n';
 import './matchMessages';
 import { ManaCost } from '../ui/ManaCost';
@@ -32,6 +33,8 @@ export interface PlayerPlateProps {
   commanderDamage?: readonly { name: string; amount: number }[];
   /** outside your range of influence: you can't affect this player, nor they you */
   outOfRange?: boolean;
+  /** the look the player chose (servers with accounts): their Career avatar and title, a supporter's ring and heart */
+  look?: PlayerLook | null;
 }
 
 const ROPE_TICK_MS = 250;
@@ -74,7 +77,7 @@ function useRopeSeconds(player: PlayerView): number {
 }
 
 /** A player's seat: who they are, their life, counters, floating mana and clock. */
-export function PlayerPlate({ player, isMe, targetable, selected, deciding, sleeve, onClick, toPay, payable, onPay, commanderDamage = [], outOfRange = false }: PlayerPlateProps) {
+export function PlayerPlate({ player, isMe, targetable, selected, deciding, sleeve, onClick, toPay, payable, onPay, commanderDamage = [], outOfRange = false, look }: PlayerPlateProps) {
   const t = useT();
   const life = player.life ?? 0;
   // a player out of the game (lost, conceded or left: leaving loses) has no life worth showing, however low it went
@@ -96,10 +99,13 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
 
   const counters = (player.counters ?? []).filter((counter) => (counter.count ?? 0) > 0);
   const pool = POOL_MANA.filter(({ key }) => (player.manaPool?.[key] ?? 0) > 0);
+  const hasExtras = !!toPay || pool.length > 0 || commanderDamage.length > 0 || counters.length > 0 || !!player.monarch || !!player.initiative;
   const timeLeft = useRopeSeconds(player);
   const ticking = ropeVisible(player.timerActive, player.hasPriority, timeLeft);
   // the player's sigil from their profile, or their initial
   const initial = sigilOf(player.userData?.avatarId) ?? (player.name ?? '?').slice(0, 1).toUpperCase();
+  // a Career avatar, drawn in its colours, replaces the initial
+  const crest = look?.avatar ? CAREER_AVATARS[look.avatar] : undefined;
 
   return (
     <div
@@ -128,8 +134,18 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
       }}
       data-object-id={player.playerId}
     >
-      <div className={styles.avatar}>
-        <span aria-hidden="true">{initial}</span>
+      <div
+        className={[styles.avatar, look?.frame === 'supporter-ring' ? styles.ring : ''].join(' ')}
+        style={crest ? ({ '--crest-light': crest.light, '--crest-dark': crest.dark } as CSSProperties) : undefined}
+        data-crest={crest ? '' : undefined}
+      >
+        {crest ? (
+          <svg className={styles.crest} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d={crest.path} />
+          </svg>
+        ) : (
+          <span aria-hidden="true">{initial}</span>
+        )}
         {ticking && (
           <svg className={styles.rope} viewBox="0 0 100 100" role="img" aria-label={`${Math.ceil(timeLeft)} seconds left`}>
             <circle cx="50" cy="50" r="47" pathLength={ROPE_SECONDS} strokeDasharray={`${timeLeft} ${ROPE_SECONDS}`} />
@@ -139,6 +155,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
       <div className={styles.info}>
         <div className={styles.name}>
           {player.name}
+          {look?.flair === 'heart' && <Heart className={styles.flair} size={14} fill="currentColor" role="img" aria-label={t('shell.supporter')} />}
           {out && <span className={styles.range}>{t('match.plate.lost')}</span>}
           {disconnected && (
             <span className={[styles.range, styles.offline].join(' ')} title={t('match.plate.disconnectedTitle')}>
@@ -147,6 +164,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
           )}
           {outOfRange && !out && <span className={styles.range} title="Outside your range of influence">Out of range</span>}
         </div>
+        {look?.title && <div className={styles.title}>{titleLabel(look.title)}</div>}
         <div className={styles.lifeRow}>
           {out ? (
             <span className={[styles.life, styles.outLife].join(' ')}>{t('match.plate.out')}</span>
@@ -161,6 +179,61 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
               {delta.value > 0 ? `+${delta.value}` : delta.value}
             </span>
           )}
+        </div>
+      </div>
+      {hasExtras && (
+        // what's on the seat besides life, in short columns beside it: a crowded seat grows sideways, not off the stage
+        <div className={styles.extras}>
+          {toPay && (
+            <div className={styles.toPay}>
+              <span className={styles.toPayLabel}>To pay</span>
+              <ManaCost cost={toPay} size="lg" />
+            </div>
+          )}
+          {pool.length > 0 && (
+            <div className={styles.pool} aria-label="Mana pool">
+              {pool.map(({ key, symbol, manaType }) => {
+                const id = poolId(manaType);
+                const content = (
+                  <>
+                    <i className={`ms ms-cost ms-${symbol}`} aria-hidden="true" />
+                    <b>{player.manaPool?.[key]}</b>
+                  </>
+                );
+                // floating mana pays the cost being paid: click it like a land
+                return payable?.has(id) && onPay ? (
+                  <button
+                    key={key}
+                    type="button"
+                    className={[styles.poolItem, styles.poolPay].join(' ')}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onPay(id);
+                    }}
+                    aria-label={`Pay with ${key} mana from your pool, ${player.manaPool?.[key]} floating`}
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <span key={key} className={styles.poolItem}>{content}</span>
+                );
+              })}
+            </div>
+          )}
+          {commanderDamage.length > 0 && (
+            // each hit is its own chip in the columns; the group only names them
+            <div className={styles.commanderDamage} role="group" aria-label="Commander damage taken">
+              {commanderDamage.map((hit) => (
+                <span
+                  key={hit.name}
+                  className={[styles.counter, styles.hit, hit.amount >= COMMANDER_DAMAGE_LETHAL - 6 ? styles.hitDanger : ''].join(' ')}
+                  title={`${hit.amount} combat damage from ${hit.name}; ${COMMANDER_DAMAGE_LETHAL} loses the game`}
+                >
+                  <Swords size={15} aria-hidden="true" /> <span className={styles.hitName}>{hit.name.split(',')[0]}</span> <b>{hit.amount}</b>
+                </span>
+              ))}
+            </div>
+          )}
           {counters.map((counter) => (
             <span key={counter.name} className={styles.counter} title={`${counter.count} ${counter.name}`}>
               {counter.count} {counter.name}
@@ -169,56 +242,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
           {player.monarch && <span className={styles.counter}>Monarch</span>}
           {player.initiative && <span className={styles.counter}>Initiative</span>}
         </div>
-        {commanderDamage.length > 0 && (
-          <div className={styles.commanderDamage} aria-label="Commander damage taken">
-            {commanderDamage.map((hit) => (
-              <span
-                key={hit.name}
-                className={[styles.hit, hit.amount >= COMMANDER_DAMAGE_LETHAL - 6 ? styles.hitDanger : ''].join(' ')}
-                title={`${hit.amount} combat damage from ${hit.name}; ${COMMANDER_DAMAGE_LETHAL} loses the game`}
-              >
-                <Swords size={16} aria-hidden="true" /> {hit.name.split(',')[0]} <b>{hit.amount}</b>
-              </span>
-            ))}
-          </div>
-        )}
-        {toPay && (
-          <div className={styles.toPay}>
-            <span className={styles.toPayLabel}>To pay</span>
-            <ManaCost cost={toPay} size="lg" />
-          </div>
-        )}
-        {pool.length > 0 && (
-          <div className={styles.pool} aria-label="Mana pool">
-            {pool.map(({ key, symbol, manaType }) => {
-              const id = poolId(manaType);
-              const content = (
-                <>
-                  <i className={`ms ms-cost ms-${symbol}`} aria-hidden="true" />
-                  <b>{player.manaPool?.[key]}</b>
-                </>
-              );
-              // floating mana pays the cost being paid: click it like a land
-              return payable?.has(id) && onPay ? (
-                <button
-                  key={key}
-                  type="button"
-                  className={[styles.poolItem, styles.poolPay].join(' ')}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onPay(id);
-                  }}
-                  aria-label={`Pay with ${key} mana from your pool, ${player.manaPool?.[key]} floating`}
-                >
-                  {content}
-                </button>
-              ) : (
-                <span key={key} className={styles.poolItem}>{content}</span>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

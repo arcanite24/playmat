@@ -105,6 +105,7 @@ public class CardView extends SimpleCardView {
     protected boolean transformable; // can toggle one card side to another (transformable cards, modal double faces)
     protected CardView secondCardFace;
     protected boolean transformed;
+    protected boolean backFace; // shows the back face of a double-faced card (both faces share one collector number)
 
     protected boolean flipCard;
     protected boolean faceDown;
@@ -233,6 +234,7 @@ public class CardView extends SimpleCardView {
         this.transformable = cardView.transformable;
         this.secondCardFace = cardView.secondCardFace == null ? null : new CardView(cardView.secondCardFace);
         this.transformed = cardView.transformed;
+        this.backFace = cardView.backFace;
         this.flipCard = cardView.flipCard;
         this.faceDown = cardView.faceDown;
         this.alternateName = cardView.alternateName;
@@ -538,6 +540,12 @@ public class CardView extends SimpleCardView {
                     counters.add(new CounterView(counter));
                 }
             }
+        }
+
+        // the back face of a double-faced card: transformed, or the back half played on its own (an MDFC land)
+        if (showFaceUp) {
+            Card face = card instanceof PermanentCard ? ((PermanentCard) card).getCard() : card;
+            this.backFace = this.transformed || (face instanceof DoubleFacedCardHalf && ((DoubleFacedCardHalf) face).isBackSide());
         }
 
         // FACE UP INFO
@@ -1541,6 +1549,10 @@ public class CardView extends SimpleCardView {
 
     public boolean isTransformed() {
         return this.transformed;
+    }
+
+    public boolean isBackFace() {
+        return this.backFace;
     }
 
     public UUID getPairedCard() {

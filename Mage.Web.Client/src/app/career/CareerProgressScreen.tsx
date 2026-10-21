@@ -1,12 +1,11 @@
 import { CalendarDays, Check, Coins, Download, HelpCircle, KeyRound, Lock, Package, Sparkles, Trophy } from 'lucide-react';
 import { useEffect, useMemo, useRef, type CSSProperties, type WheelEvent } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import type { CareerAchievement, CareerCosmetic, CareerLevelReward, CareerLevelTrack, CareerPayout, CareerProfile } from '../../protocol/generated/views';
+import type { CareerAchievement, CareerCosmetic, CareerLevelTrack, CareerPayout, CareerProfile } from '../../protocol/generated/views';
 import { MAT_CLOTHS, clothSwatch } from '../match/playmats';
 import { formatNumber, registerMessages, useT, type MessageKey } from '../i18n';
 import messages from '../i18n/en/career';
 import { useSession } from '../stores/session';
-import { useSettings } from '../stores/settings';
 import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
@@ -22,10 +21,11 @@ import { dealStyle } from './motion';
 import motion from './motion.module.css';
 import { CardArt } from './Portraits';
 import { Crest } from './ModeArt';
+import { CosmeticsLocker } from './CosmeticsLocker';
 import { useCampaigns } from './careerModesData';
 import {
-  CAREER_AVATARS, CAREER_PLAYMATS, CAREER_SLEEVES, achievementState, cosmeticName, describePay, describeReward, fraction, hasUnlock, levelRows,
-  recentOpponent, rewardParts, sortAchievements, titleLabel, unlockedIds, type RewardPart,
+  CAREER_SLEEVES, achievementState, describePay, describeReward, fraction, levelRows, recentOpponent, rewardParts, sortAchievements, titleLabel,
+  type RewardPart,
 } from './progressModel';
 import styles from './Career.module.css';
 import progress from './Progress.module.css';
@@ -76,7 +76,7 @@ export function CareerProgressScreen() {
       <div className={[progress.body, motion.scene].join(' ')} key={tab}>
         {tab === 'levels' && (levels.data ? <RewardRoad track={levels.data} /> : loading)}
         {tab === 'achievements' && (achievements.data ? <MedalCase list={achievements.data} /> : loading)}
-        {tab === 'look' && (levels.data ? <Locker track={levels.data} achievements={achievements.data ?? []} /> : loading)}
+        {tab === 'look' && (levels.data ? <CosmeticsLocker track={levels.data} achievements={achievements.data ?? []} /> : loading)}
         {tab === 'options' && <Record profile={profile} recent={state.data?.recent ?? []} />}
       </div>
     </div>
@@ -265,134 +265,6 @@ function MedalCase({ list }: { list: CareerAchievement[] }) {
         })}
       </ul>
     </section>
-  );
-}
-
-// ---- the locker
-
-/** Where a cosmetic comes from: a level, or an achievement (secret ones stay secret). */
-function sourceOf(t: ReturnType<typeof useT>, rewards: readonly CareerLevelReward[] | undefined, achievements: readonly CareerAchievement[], cosmetic: CareerCosmetic): string {
-  const level = rewards?.find((reward) => reward.cosmetic?.kind === cosmetic.kind && reward.cosmetic?.id === cosmetic.id)?.level;
-  if (level) return t('career.look.atLevel', { level });
-  const achievement = achievements.find((item) => item.cosmetic?.kind === cosmetic.kind && item.cosmetic?.id === cosmetic.id);
-  return achievement ? t('career.look.fromAchievement', { name: achievement.name ?? t('career.achievements.secret') }) : '';
-}
-
-function Locker({ track, achievements }: { track: CareerLevelTrack; achievements: CareerAchievement[] }) {
-  const t = useT();
-  const user = useSession((session) => session.userName);
-  const unlocks = useMemo(() => track.unlocks ?? [], [track.unlocks]);
-  const avatar = useCareerLook((look) => look.looks[user.toLowerCase()]?.avatar ?? null);
-  const title = useCareerLook((look) => look.looks[user.toLowerCase()]?.title ?? null);
-  const choose = useCareerLook((look) => look.choose);
-  const cloth = useSettings((settings) => settings.settings.matCloth);
-  const titles = useMemo(() => {
-    // every title the content offers, unlocked ones first
-    const all = new Set([...unlockedIds(unlocks, 'title'), ...achievements.flatMap((item) => (item.cosmetic?.kind === 'title' && item.cosmetic.id ? [item.cosmetic.id] : []))]);
-    return [...all];
-  }, [unlocks, achievements]);
-  const how = (cosmetic: CareerCosmetic) => sourceOf(t, track.rewards, achievements, cosmetic);
-
-  return (
-    <div className={progress.locker}>
-      <section className={progress.shelfPanel} aria-labelledby="locker-avatar">
-        <h3 id="locker-avatar">{t('career.look.avatar')}</h3>
-        <div className={progress.options} role="radiogroup" aria-labelledby="locker-avatar">
-          <LockerItem on={!avatar} open label={t('career.look.none')} onPick={() => choose(user, { avatar: null })}>
-            <CareerAvatar id={null} name={user} size={64} />
-          </LockerItem>
-          {Object.keys(CAREER_AVATARS).map((id) => {
-            const cosmetic = { kind: 'avatar', id };
-            const open = hasUnlock(unlocks, 'avatar', id);
-            return (
-              <LockerItem key={id} on={avatar === id} open={open} label={open ? cosmeticName(t, cosmetic) : how(cosmetic)} onPick={() => choose(user, { avatar: id })}>
-                <CareerAvatar id={id} name={user} size={64} />
-              </LockerItem>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className={progress.shelfPanel} aria-labelledby="locker-title">
-        <h3 id="locker-title">{t('career.look.title')}</h3>
-        <p className={progress.namePlate}><b>{user}</b>{title && <small>{titleLabel(title)}</small>}</p>
-        <div className={progress.titles} role="radiogroup" aria-labelledby="locker-title">
-          <button type="button" role="radio" aria-checked={!title} className={progress.titleOption} onClick={() => choose(user, { title: null })} data-nav>
-            {t('career.look.none')}
-          </button>
-          {titles.map((id) => {
-            const cosmetic = { kind: 'title', id };
-            const open = hasUnlock(unlocks, 'title', id);
-            const from = how(cosmetic);
-            return (
-              <button
-                key={id}
-                type="button"
-                role="radio"
-                aria-checked={title === id}
-                disabled={!open}
-                className={progress.titleOption}
-                title={open ? undefined : from}
-                onClick={() => choose(user, { title: id })}
-                data-nav
-              >
-                {!open && <Lock size={12} aria-hidden="true" />} {open || !from.includes('???') ? titleLabel(id) : t('career.achievements.secret')}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className={progress.shelfPanel} aria-labelledby="locker-sleeves">
-        <h3 id="locker-sleeves">{t('career.look.sleeves')}</h3>
-        <p className={progress.panelNote}>{t('career.look.sleevesNote')}</p>
-        <div className={progress.options}>
-          {Object.keys(CAREER_SLEEVES).map((id) => {
-            const cosmetic = { kind: 'sleeve', id };
-            const open = hasUnlock(unlocks, 'sleeve', id);
-            return (
-              <span key={id} className={[progress.item, open ? '' : progress.itemLocked].join(' ')} title={open ? undefined : how(cosmetic)}>
-                <span className={progress.sleeve}><CardFace card={{ name: '' }} hidden sleeve={CAREER_SLEEVES[id]} size="normal" /></span>
-                <small>{open ? cosmeticName(t, cosmetic) : <><Lock size={11} aria-hidden="true" /> {how(cosmetic)}</>}</small>
-              </span>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className={progress.shelfPanel} aria-labelledby="locker-mats">
-        <h3 id="locker-mats">{t('career.look.playmats')}</h3>
-        <div className={progress.options} role="radiogroup" aria-labelledby="locker-mats">
-          {CAREER_PLAYMATS.map((id) => {
-            const cosmetic = { kind: 'playmat', id };
-            const open = hasUnlock(unlocks, 'playmat', id);
-            const swatch = MAT_CLOTHS.find((item) => item.id === id);
-            return (
-              <LockerItem key={id} on={cloth === id} open={open} label={open ? cosmeticName(t, cosmetic) : how(cosmetic)} onPick={() => useSettings.getState().update({ matCloth: id })}>
-                <span className={progress.cloth} style={swatch ? clothSwatch(swatch) : undefined}><Art kind="playmat" id={id} size={56} className={progress.clothPrint} /></span>
-              </LockerItem>
-            );
-          })}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function LockerItem({ on, open, label, onPick, children }: { on: boolean; open: boolean; label: string; onPick(): void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={on}
-      disabled={!open}
-      className={[progress.item, open ? '' : progress.itemLocked].join(' ')}
-      onClick={onPick}
-      data-nav
-    >
-      {children}
-      <small>{!open && <Lock size={11} aria-hidden="true" />} {label}</small>
-    </button>
   );
 }
 

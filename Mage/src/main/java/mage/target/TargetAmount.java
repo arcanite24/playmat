@@ -216,6 +216,22 @@ public abstract class TargetAmount extends TargetImpl {
 
         // calc possible amount variations
         addTargets(this, possibleTargets, options, source, game);
+        if (options.size() >= TargetOptimization.AI_MAX_TARGET_OPTIONS && !Thread.currentThread().isInterrupted()) {
+            // cut short by the options limit: the whole amount on any single target stays an option
+            Set<UUID> wholeOnOne = options.stream()
+                    .filter(option -> option.getTargets().size() == 1)
+                    .map(Target::getFirstTarget)
+                    .collect(Collectors.toSet());
+            for (UUID targetId : possibleTargets) {
+                if (!wholeOnOne.contains(targetId)) {
+                    TargetAmount t = this.copy();
+                    t.addTarget(targetId, this.remainingAmount, source, game, true);
+                    if (t.remainingAmount == 0) {
+                        options.add(t);
+                    }
+                }
+            }
+        }
         TargetOptimization.printTargetsVariationsForTargetAmount("target amount - after calc", game, possibleTargets, options, true);
 
         return options;
@@ -226,6 +242,9 @@ public abstract class TargetAmount extends TargetImpl {
         for (UUID targetId : possibleTargets) {
             usedTargets.add(targetId);
             for (int n = 1; n <= target.remainingAmount; n++) {
+                if (TargetOptimization.isOptionsLimitReached(options.size(), TargetOptimization.AI_MAX_TARGET_OPTIONS)) {
+                    return;
+                }
                 TargetAmount t = target.copy();
                 t.addTarget(targetId, n, source, game, true);
                 if (t.remainingAmount > 0) {

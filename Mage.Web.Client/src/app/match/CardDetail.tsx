@@ -7,6 +7,7 @@ import { explainCard, LINE_KIND_HELP, LINE_KIND_LABEL, type LineKind, type Term 
 import { stripMarkup } from '../../core/game/prompt';
 import type { CardView, GameView, PermanentView } from '../../protocol/generated/views';
 import { AbilityCard } from '../ui/AbilityCard';
+import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
 import { ManaCost } from '../ui/ManaCost';
 import { PromptText } from '../ui/PromptText';
@@ -192,7 +193,7 @@ export function CardDetail({ view, extra, sleeveOf, attacking, blocking }: {
             <div className={styles.card}>
               {ability
                 ? <AbilityCard ability={live} sleeve={sleeve} />
-                : <CardFace card={card} face={backFace ? 'back' : 'front'} size="large" sleeve={sleeve} />}
+                : <CardFace card={card} face={backFace && !showsBackFace(live) ? 'back' : 'front'} size="large" sleeve={sleeve} />}
             </div>
             {canTurn && (
               <button type="button" className={styles.turn} onClick={() => setBackFace((value) => !value)}>

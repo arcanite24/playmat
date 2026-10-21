@@ -1,0 +1,57 @@
+/* the About page's paper (screens/AboutScreen.module.css), without its rule that inks every link: the goal bar's
+   button keeps its own colours */
+.page {
+  height: 100dvh;
+  overflow-y: auto;
+  background: var(--mat-900);
+  color: var(--ink);
+}
+
+.prose a {
+  color: var(--decision);
+}
+
+/* the supporters wall: names set in a loose run, each with its small heart */
+.prose ul.wall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.prose .wall li {
+  color: var(--ink);
+}
+
+.heart {
+  color: var(--brass);
+  vertical-align: -1px;
+}
+
+.prose p.note {
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+/* the party corgi as a 1997 homepage would have shown it: a bevelled GIF, pixels kept square, and a credit line */
+.corgi {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-2) 0 var(--space-4);
+}
+
+.corgi img {
+  display: block;
+  image-rendering: pixelated;
+  border: 3px outset #c0c0c0;
+}
+
+.prose .corgi figcaption {
+  color: var(--ink-dim);
+  font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+  text-align: center;
+  font-size: var(--text-sm);
+}

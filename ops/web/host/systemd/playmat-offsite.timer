@@ -1,0 +1,10 @@
+[Unit]
+Description=Pack the Playmat backup after the nightly run
+
+[Timer]
+# the backup service runs at BACKUP_AT in the stack's time zone; this runs daily at 10:15 UTC (04:15 in Mexico City)
+OnCalendar=*-*-* 10:15:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target

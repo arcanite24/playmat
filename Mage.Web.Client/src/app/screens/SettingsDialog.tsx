@@ -1,7 +1,8 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import { BookmarkPlus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { api } from '../connection';
 import { MAT_CLOTHS, clothSwatch } from '../match/playmats';
 import bookmarkletSource from '../decks/import/bookmarklet.source.js?raw';
@@ -11,7 +12,7 @@ import { notificationsSupported, requestNotifications } from '../stores/attentio
 import { useAutoAnswers } from '../stores/autoAnswers';
 import { useGames } from '../stores/games';
 import { DEFAULT_SETTINGS, FULL_CONTROL, STREAMLINED, useSettings, type PlaySettings } from '../stores/settings';
-import { APP_NAME, PUBLIC_ORIGIN } from '../brand';
+import { APP_NAME, APP_VERSION, PUBLIC_ORIGIN } from '../brand';
 import { clearPictureStore, DEVICE_PICTURES, pictureStoreStats } from '../nativePictures';
 import { formatNumber, LOCALES, registerMessages, useT, type LocalePreference, type MessageKey, type Translate } from '../i18n';
 import messages from '../i18n/en/settings';
@@ -20,9 +21,17 @@ import { RichText } from '../i18n/RichText';
 import { Button } from '../ui/Button';
 import { CARD_BACKS, cardBackImage, type CardBackId } from '../ui/cardBack';
 import { Dialog } from '../ui/Dialog';
+import { useServerInfo } from '../queries';
+import { AccountSettings } from './AccountSettings';
+import { useSupportPerks } from '../support/supportData';
+import { LockedSwatch } from '../support/SupporterPicks';
+import { owns } from '../support/supportModel';
 import styles from './SettingsDialog.module.css';
 
 registerMessages(messages);
+
+// the locker loads with the tab: it's Career's, and draws card backs and art
+const CosmeticsSettings = lazy(() => import('../career/CosmeticsLocker'));
 
 const STEPS: (keyof SkipPrioritySteps)[] = ['upkeep', 'draw', 'main1', 'beforeCombat', 'endOfCombat', 'main2', 'endOfTurn'];
 
@@ -35,6 +44,16 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const settings = useSettings((state) => state.settings);
   const update = useSettings((state) => state.update);
   const t = useT();
+  // the Account tab: servers with accounts only
+  const accounts = useServerInfo().data?.accounts === true;
+  // a link inside (a locked cosmetic, to the support page) leaves for another screen: the dialog goes with it
+  const path = useLocation().pathname;
+  const shownAt = useRef(path);
+  useEffect(() => {
+    if (path === shownAt.current) return;
+    shownAt.current = path;
+    if (open) onOpenChange(false);
+  }, [path, open, onOpenChange]);
 
   const toggle = (key: keyof PlaySettings) => (
     <Switch checked={!!settings[key]} onChange={(value) => update({ [key]: value } as Partial<PlaySettings>)} />
@@ -47,9 +66,12 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   return (
     <Dialog open={open} onOpenChange={onOpenChange} title={t('settings.title')} width="lg"
       footer={(
-        <Button variant="quiet" onClick={() => update({ ...DEFAULT_SETTINGS, avatarId: settings.avatarId, flag: settings.flag, locale: settings.locale, matCloth: settings.matCloth, matArt: settings.matArt, matCard: settings.matCard, cardBack: settings.cardBack })}>
-          {t('settings.restore')}
-        </Button>
+        <>
+          <span className={styles.version}>{t('settings.version', { app: APP_NAME, version: APP_VERSION })}</span>
+          <Button variant="quiet" onClick={() => update({ ...DEFAULT_SETTINGS, avatarId: settings.avatarId, flag: settings.flag, locale: settings.locale, matCloth: settings.matCloth, matArt: settings.matArt, matCard: settings.matCard, cardBack: settings.cardBack })}>
+            {t('settings.restore')}
+          </Button>
+        </>
       )}>
       <Tabs.Root defaultValue="play" className={styles.tabs} orientation="vertical">
         <Tabs.List className={styles.list} aria-label={t('settings.sections')}>
@@ -62,6 +84,8 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           <Tabs.Trigger value="alerts" className={styles.trigger}>{t('settings.tab.alerts')}</Tabs.Trigger>
           <Tabs.Trigger value="import" className={styles.trigger}>{t('settings.tab.import')}</Tabs.Trigger>
           <Tabs.Trigger value="language" className={styles.trigger}>{t('settings.tab.language')}</Tabs.Trigger>
+          {accounts && <Tabs.Trigger value="cosmetics" className={styles.trigger}>{t('settings.tab.cosmetics')}</Tabs.Trigger>}
+          {accounts && <Tabs.Trigger value="account" className={styles.trigger}>{t('settings.tab.account')}</Tabs.Trigger>}
         </Tabs.List>
 
         <Tabs.Content value="play" className={styles.panel}>
@@ -91,6 +115,20 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             <Switch checked={settings.autoTargetLevel > 0} onChange={(value) => update({ autoTargetLevel: value ? 1 : 0 })} />
           </Row>
           <Row label={t('settings.handRequests')} detail={t('settings.handRequests.detail')}>{toggle('allowHandRequests')}</Row>
+          <h3 className={styles.groupHeading}>{t('settings.automation')}</h3>
+          <p className={styles.intro}>{t('settings.automation.intro')}</p>
+          <Row label={t('settings.autoPayHybrid')} detail={t('settings.autoPayHybrid.detail')}>{toggle('autoPayHybrid')}</Row>
+          <Row label={t('settings.autoPayAnyColor')} detail={t('settings.autoPayAnyColor.detail')}>{toggle('autoPayAnyColor')}</Row>
+          <Row label={t('settings.autoPayPainful')} detail={t('settings.autoPayPainful.detail')}>{toggle('autoPayPainful')}</Row>
+          <Row label={t('settings.autoPayX')} detail={t('settings.autoPayX.detail')}>{toggle('autoPayX')}</Row>
+          <Row label={t('settings.xDefaultsToMax')} detail={t('settings.xDefaultsToMax.detail')}>{toggle('xDefaultsToMax')}</Row>
+          <Row label={t('settings.skipSingleChoice')} detail={t('settings.skipSingleChoice.detail')}>{toggle('skipSingleChoice')}</Row>
+          <Row label={t('settings.pickIdentical')} detail={t('settings.pickIdentical.detail')}>{toggle('pickIdentical')}</Row>
+          <Row label={t('settings.smartPreselect')} detail={t('settings.smartPreselect.detail')}>{toggle('smartPreselect')}</Row>
+          <Row label={t('settings.autoCrew')} detail={t('settings.autoCrew.detail')}>{toggle('autoCrew')}</Row>
+          <Row label={t('settings.attackPlayer')} detail={t('settings.attackPlayer.detail')}>{toggle('attackPlayerByDefault')}</Row>
+          <Row label={t('settings.autoAssignDamage')} detail={t('settings.autoAssignDamage.detail')}>{toggle('autoAssignDamage')}</Row>
+          <Row label={t('settings.autoAssignTrample')} detail={t('settings.autoAssignTrample.detail')}>{toggle('autoAssignTrample')}</Row>
         </Tabs.Content>
 
         <Tabs.Content value="stops" className={styles.panel}>
@@ -126,6 +164,9 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
         <Tabs.Content value="display" className={styles.panel}>
           <Row label={t('settings.motion')} detail={t('settings.motion.detail')}>{toggle('animations')}</Row>
+          <Row label={t('settings.sortHand')} detail={t('settings.sortHand.detail')}>{toggle('sortHand')}</Row>
+          <Row label={t('settings.autoDismissReveals')} detail={t('settings.autoDismissReveals.detail')}>{toggle('autoDismissReveals')}</Row>
+          <Row label={t('settings.compactBoard')} detail={t('settings.compactBoard.detail')}>{toggle('compactBoard')}</Row>
           <Row label={t('settings.paintedArt')} detail={t('settings.paintedArt.detail')}>{toggle('paintedArt')}</Row>
           {DEVICE_PICTURES && <PictureStoreRow />}
         </Tabs.Content>
@@ -214,6 +255,20 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </select>
           </Row>
         </Tabs.Content>
+
+        {accounts && (
+          <Tabs.Content value="cosmetics" className={styles.panel}>
+            <Suspense fallback={null}>
+              <CosmeticsSettings />
+            </Suspense>
+          </Tabs.Content>
+        )}
+
+        {accounts && (
+          <Tabs.Content value="account" className={styles.panel}>
+            <AccountSettings />
+          </Tabs.Content>
+        )}
       </Tabs.Root>
     </Dialog>
   );
@@ -337,7 +392,17 @@ function PlaymatSettings() {
   // Career cloths show once unlocked (the level track lists the unlocks; the Career screens share this query)
   const levels = useQuery({ queryKey: ['career', 'levels'], queryFn: () => api.careerLevels(), enabled: settings.careerOptIn, staleTime: 30_000 });
   const unlocks = levels.data?.unlocks;
-  const cloths = useMemo(() => MAT_CLOTHS.filter((cloth) => !cloth.career || !!unlocks?.some((unlock) => unlock.kind === 'playmat' && unlock.id === cloth.id)), [unlocks]);
+  // the Patron cloth is a thank-you for supporting the server: shown once owned, and as a quiet teaser where the server
+  // takes support
+  const accounts = useServerInfo().data?.accounts === true;
+  const support = useServerInfo().data?.support === true;
+  const perks = useSupportPerks();
+  const owned = perks.data?.perks;
+  const cloths = useMemo(
+    () => MAT_CLOTHS.filter((cloth) => (cloth.career ? !!unlocks?.some((unlock) => unlock.kind === 'playmat' && unlock.id === cloth.id) : cloth.perk ? owns(owned, 'playmat', cloth.id) : true)),
+    [unlocks, owned],
+  );
+  const teasers = accounts && support && perks.isSuccess ? MAT_CLOTHS.filter((cloth) => cloth.perk && !owns(owned, 'playmat', cloth.id)) : [];
   const typed = name.trim();
   const suggestions = useQuery({
     queryKey: ['playmat-names', typed.toLowerCase()],
@@ -360,18 +425,30 @@ function PlaymatSettings() {
   return (
     <>
       <Row label={t('settings.playmat.cloth')} detail={t('settings.playmat.cloth.detail')}>
-        <div className={styles.cloths} role="radiogroup" aria-label={t('settings.playmat.cloth')}>
-          {cloths.map((cloth) => (
-            <button
+        <div className={styles.cloths}>
+          <div className={styles.cloths} role="radiogroup" aria-label={t('settings.playmat.cloth')}>
+            {cloths.map((cloth) => (
+              <button
+                key={cloth.id}
+                type="button"
+                role="radio"
+                aria-checked={settings.matCloth === cloth.id}
+                aria-label={t(`settings.playmat.cloth.${cloth.id}` as MessageKey)}
+                title={cloth.career || cloth.perk
+                  ? `${t(`settings.playmat.cloth.${cloth.id}` as MessageKey)} · ${t(cloth.career ? 'settings.playmat.cloth.career' : 'settings.playmat.cloth.perk')}`
+                  : t(`settings.playmat.cloth.${cloth.id}` as MessageKey)}
+                className={styles.cloth}
+                style={clothSwatch(cloth)}
+                onClick={() => update({ matCloth: cloth.id })}
+              />
+            ))}
+          </div>
+          {teasers.map((cloth) => (
+            <LockedSwatch
               key={cloth.id}
-              type="button"
-              role="radio"
-              aria-checked={settings.matCloth === cloth.id}
-              aria-label={t(`settings.playmat.cloth.${cloth.id}` as MessageKey)}
-              title={cloth.career ? `${t(`settings.playmat.cloth.${cloth.id}` as MessageKey)} · ${t('settings.playmat.cloth.career')}` : t(`settings.playmat.cloth.${cloth.id}` as MessageKey)}
+              label={`${t(`settings.playmat.cloth.${cloth.id}` as MessageKey)} · ${t('settings.playmat.cloth.perk')}`}
               className={styles.cloth}
               style={clothSwatch(cloth)}
-              onClick={() => update({ matCloth: cloth.id })}
             />
           ))}
         </div>

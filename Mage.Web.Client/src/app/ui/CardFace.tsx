@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { printsPowerToughness } from '../../core/game/cards';
 import { useCardImage } from '../../core/images/useCardImage';
 import { isDecoded, markDecoded } from './imageCache';
-import type { CardFace as Face, CardImageRef, ImageSize } from '../../core/images/imageLinks';
+import { showsBackFace, type CardFace as Face, type CardImageRef, type ImageSize } from '../../core/images/imageLinks';
 import type { CardType, SubType } from '../../protocol/generated/views';
 import { useT } from '../i18n';
 import { ManaCost } from './ManaCost';
@@ -22,6 +22,7 @@ export interface CardFaceProps {
     cardTypes?: CardType[];
     subTypes?: SubType[];
   };
+  /** 'front' is the face the card shows (its back when transformed); 'back' asks for the back face */
   face?: Face;
   size?: ImageSize;
   /** sleeve color; the deck's sleeves frame every card the player owns */
@@ -38,7 +39,7 @@ export interface CardFaceProps {
  */
 export function CardFace({ card, face = 'front', size = 'normal', sleeve, hidden, className, style }: CardFaceProps) {
   const t = useT();
-  const src = useCardImage(hidden ? null : card, face, size);
+  const src = useCardImage(hidden ? null : card, face === 'back' || showsBackFace(card) ? 'back' : 'front', size);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const showImage = typeof src === 'string' && src !== failedSrc;

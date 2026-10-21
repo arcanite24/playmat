@@ -125,11 +125,13 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
 }
 
 /** Choices that don't live on the board: modes, named choices, piles, numbers. */
-export function ChoicePanel({ prompt, onCommand, xLimit = null }: {
+export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false }: {
   prompt: Prompt;
   onCommand(command: Command): void;
   /** announcing X: the most the player could pay (see xLimit), when the server sets no real limit */
   xLimit?: number | null;
+  /** Start X at the most you can pay: the chooser starts at xLimit instead of the minimum */
+  startAtLimit?: boolean;
 }) {
   const t = useT();
   switch (prompt.kind) {
@@ -174,7 +176,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null }: {
         </PanelShell>
       );
     case 'amount':
-      return <AmountChooser prompt={prompt} onCommand={onCommand} limit={xLimit} />;
+      return <AmountChooser prompt={prompt} onCommand={onCommand} limit={xLimit} startAtLimit={startAtLimit} />;
     case 'multiAmount':
       return <MultiAmountChooser prompt={prompt} onCommand={onCommand} />;
     default:
@@ -264,14 +266,19 @@ function ChoiceList({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'ch
   );
 }
 
-function AmountChooser({ prompt, onCommand, limit }: { prompt: Extract<Prompt, { kind: 'amount' }>; onCommand(command: Command): void; limit: number | null }) {
+function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
+  prompt: Extract<Prompt, { kind: 'amount' }>;
+  onCommand(command: Command): void;
+  limit: number | null;
+  startAtLimit: boolean;
+}) {
   const t = useT();
   const max = Math.min(prompt.max, 999);
   // X: the range shown stops at what the player could pay; typing or stepping past it stays possible (mana the
   // client can't count, cost reductions)
   const shown = limit === null ? max : Math.max(prompt.min, Math.min(max, limit));
-  const [value, setValue] = useState(prompt.min);
   const clamp = (next: number) => Math.max(prompt.min, Math.min(max, next));
+  const [value, setValue] = useState(() => (startAtLimit && limit !== null ? clamp(limit) : prompt.min));
   return (
     <PanelShell title={prompt.text || 'Choose a number'}>
       <div className={styles.amount}>

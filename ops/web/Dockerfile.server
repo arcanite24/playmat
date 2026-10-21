@@ -4,8 +4,10 @@
 # The server is built with JDK 17 (for Java 8 bytecode) and runs on JAVA_RUNTIME, 17 by default. 25 also works
 # (docker build --build-arg JAVA_RUNTIME=25, with compact object headers): it starts faster, but on a 1 vCPU / 1 GB box
 # its heap grew further under the same games (peak 588 MB against 303 MB on 17; ops/perf/README.md, M19).
+# Builds for another architecture (docker buildx build --platform linux/arm64) run this stage natively: what it makes
+# (jars and the card database) is the same on every architecture, so only the runtime stage is emulated.
 ARG JAVA_RUNTIME=17
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM --platform=$BUILDPLATFORM maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /src
 COPY . .
 # the full card set build is long (tens of minutes); the maven cache makes rebuilds faster
@@ -58,8 +60,24 @@ RUN sed -i "s/\r$//" /usr/local/bin/xmage-server /usr/local/bin/xmage-backup \
       -Dxmage.healthPort=0 -Dxmage.replays=false -jar lib/mage-server-*.jar \
  && rm -rf db saved extensions mageserver.log \
  && useradd --system --home /opt/xmage xmage \
- && mkdir -p db cards-db logs saved /backups \
+ && mkdir -p db cards-db logs saved updates /backups \
  && chown -R xmage /opt/xmage /backups
+# The compose kit this image belongs with: the image-based deploy (ops/web/deploy/playmat-deploy) runs the compose file
+# of the version it deploys, taken from here, so a rollback rolls the compose file back too. Copied last: editing it
+# rebuilds this layer only.
+COPY ops/web/docker-compose.yml ops/web/imgcache.conf.template /opt/xmage/deploy-kit/
+# What a published image is (images.yml sets these): its tag (vX.Y.Z or sha-<7>), the channel it follows (release or
+# master; empty for another branch), the image names without the -server/-web suffix, and the GitHub repository. The
+# admin console's Updates section compares them with what's newest. A local build leaves them empty: it has nothing
+# published to update to. Last, so a new tag rebuilds no other layer.
+ARG PLAYMAT_VERSION=
+ARG PLAYMAT_CHANNEL=
+ARG PLAYMAT_IMAGES=
+ARG PLAYMAT_REPO=
+ENV XMAGE_IMAGE_VERSION=${PLAYMAT_VERSION} \
+    XMAGE_IMAGE_CHANNEL=${PLAYMAT_CHANNEL} \
+    XMAGE_IMAGE_NAMES=${PLAYMAT_IMAGES} \
+    XMAGE_SOURCE_REPO=${PLAYMAT_REPO}
 USER xmage
 # 17172: web clients (behind the proxy). 17171 is the desktop client's port; publish it only if you want desktop players.
 EXPOSE 17172

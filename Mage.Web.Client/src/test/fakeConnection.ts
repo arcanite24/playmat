@@ -17,6 +17,7 @@ export function createFakeConnection() {
   const eventListeners = new Set<(event: ServerEvent) => void>();
   const sessionListeners = new Set<() => void>();
   const lostListeners = new Set<(method: string) => void>();
+  const elsewhereListeners = new Set<() => void>();
 
   const setStatus = (next: ConnectionStatus) => {
     status = next;
@@ -47,9 +48,18 @@ export function createFakeConnection() {
       lostListeners.add(listener);
       return () => lostListeners.delete(listener);
     },
+    onSignedInElsewhere: (listener: () => void) => {
+      elsewhereListeners.add(listener);
+      return () => elsewhereListeners.delete(listener);
+    },
     /** test helpers */
     setStatus,
     loseSession: (method: string) => lostListeners.forEach((listener) => listener(method)),
+    /** like the real client when the bridge closes the connection with 4001: listeners first, then closed */
+    signInElsewhere: () => {
+      elsewhereListeners.forEach((listener) => listener());
+      setStatus('closed');
+    },
     emit: (event: ServerEvent) => eventListeners.forEach((listener) => listener(event)),
   };
 

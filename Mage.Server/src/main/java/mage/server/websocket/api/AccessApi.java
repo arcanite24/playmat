@@ -3,6 +3,7 @@ package mage.server.websocket.api;
 import mage.server.AuthorizedUser;
 import mage.server.AuthorizedUserRepository;
 import mage.server.DisconnectReason;
+import mage.server.Mailer;
 import mage.server.Session;
 import mage.server.User;
 import mage.server.admin.AccessPolicy;
@@ -14,7 +15,6 @@ import mage.server.admin.AuditEntry;
 import mage.server.admin.GithubAuth;
 import mage.server.admin.GithubSignIn;
 import mage.server.admin.Invite;
-import mage.server.managers.ConfigSettings;
 import mage.server.notify.DiscordNotifier;
 import mage.server.websocket.rpc.RpcCall;
 import mage.server.websocket.rpc.RpcException;
@@ -47,8 +47,6 @@ final class AccessApi {
 
     private static final Logger logger = Logger.getLogger(AccessApi.class);
 
-    /** access requests one address may send an hour */
-    static final int REQUESTS_PER_HOUR = 3;
     private static final long HOUR = 3_600_000L;
     private static final Map<String, Deque<Long>> recentRequests = new HashMap<>();
 
@@ -259,10 +257,11 @@ final class AccessApi {
 
                 RpcMethod.named("accessRequest")
                         .publicAccess()
-                        .params(of("userName", STRING), of("email", STRING), optional("note", STRING))
+                        .params(of("userName", STRING), of("email", STRING), optional("note", STRING), optional("turnstileToken", STRING))
                         .returns("boolean")
-                        .doc("Ask to be let in to a contributors-only server, or for an account while registration is invite only: staff see it in /admin. " + REQUESTS_PER_HOUR
-                                + " an hour from one address. Callable before login.")
+                        .doc("Ask to be let in to a contributors-only server, or for an account while registration is invite only: staff see it in /admin. "
+                                + RegistrationLimiter.PER_HOUR + " an hour and " + RegistrationLimiter.PER_DAY + " a day from one address. "
+                                + "When serverInfo has a turnstileSiteKey, turnstileToken is the Turnstile widget's token. Callable before login.")
                         .handler(call -> requestAccess(ctx, call))
         );
     }
@@ -404,11 +403,7 @@ final class AccessApi {
             String link = System.getProperty(DiscordNotifier.PUBLIC_URL_PROP, "").trim();
             String text = "You can play on " + server + " now. Register with this email address (" + request.email + ")"
                     + (link.isEmpty() ? "." : " at " + link + " .");
-            ConfigSettings config = ctx.managers.configSettings();
-            boolean sent = !isBlank(config.getMailUser())
-                    ? ctx.managers.mailClient().sendMessage(request.email, "You're in: " + server, text)
-                    : ctx.managers.mailgunClient().sendMessage(request.email, "You're in: " + server, text);
-            if (!sent) {
+            if (!Mailer.send(ctx.managers, request.email, "You're in: " + server, text)) {
                 logger.warn("Access approval email failed for request " + request.id);
             }
         }
@@ -441,19 +436,27 @@ final class AccessApi {
         }
         String address = call.getConnection() == null ? "" : call.getConnection().getRemoteHost();
         long now = System.currentTimeMillis();
-        if (!takeRequestSlot(address, now)) {
-            throw new RpcException(RpcException.RATE_LIMITED, "You've asked a few times already. Try again in an hour.");
+        String problem = ctx.registrations.take("request:" + address);
+        if (problem != null) {
+            throw new RpcException(RpcException.RATE_LIMITED, "You've asked a few times already. Try again later.");
         }
-        AccessRequest request = store(() -> AccessPolicy.get().store().requestAccess(call.string(0), call.string(1),
-                call.optString(2, ""), now));
+        problem = ctx.turnstile.check(call.optString(3, null), address);
+        if (problem != null) {
+            ctx.registrations.refund("request:" + address);
+            throw RpcException.invalidParams(problem);
+        }
+        AccessRequest request;
+        try {
+            request = store(() -> AccessPolicy.get().store().requestAccess(call.string(0), call.string(1),
+                    call.optString(2, ""), now));
+        } catch (RpcException e) {
+            ctx.registrations.refund("request:" + address);
+            throw e;
+        }
         if (request.createdAt == now) {
             DiscordNotifier.staff().accessRequested(request.name, request.note);
         }
         return true;
-    }
-
-    static boolean takeRequestSlot(String address, long now) {
-        return takeSlot(address, now, REQUESTS_PER_HOUR);
     }
 
     /** At most perHour calls an hour for this key (an address, or "kind:name"). */
@@ -509,11 +512,7 @@ final class AccessApi {
     }
 
     static boolean mail(ApiContext ctx) {
-        if (ctx.managers == null) {
-            return false;
-        }
-        ConfigSettings config = ctx.managers.configSettings();
-        return !isBlank(config.getMailUser()) || !isBlank(config.getMailgunApiKey());
+        return ctx.managers != null && Mailer.configured(ctx.managers.configSettings());
     }
 
     private static String serverLabel(ApiContext ctx) {

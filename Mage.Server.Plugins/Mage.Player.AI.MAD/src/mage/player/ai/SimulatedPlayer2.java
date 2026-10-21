@@ -141,6 +141,9 @@ public final class SimulatedPlayer2 extends ComputerPlayer {
                 int xInstancesCount = variableManaCost.getXInstancesCount();
 
                 for (int mana = variableManaCost.getMinX(); mana <= numAvailable; mana++) {
+                    if (isPlayableOptionsLimitReached(options)) {
+                        break;
+                    }
                     if (mana % xInstancesCount == 0) { // use only values dependant from multiplier
                         // find possible X value to pay
                         int xAnnounceValue = mana / xInstancesCount;

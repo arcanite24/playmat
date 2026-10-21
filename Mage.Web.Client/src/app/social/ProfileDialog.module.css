@@ -135,3 +135,11 @@
   color: var(--ink-strong);
   font: inherit;
 }
+
+/* a Career title or the supporter's Patron, as under a name at the table */
+.title {
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}

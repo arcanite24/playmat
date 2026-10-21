@@ -1,0 +1,21 @@
+/* the supporter sleeve's swatch: its brass heart, with a foil sheen across the dye */
+.foil {
+  display: inline-grid;
+  place-items: center;
+  color: var(--brass);
+  background-image: linear-gradient(135deg, transparent 30%, rgb(var(--brass-rgb) / 0.28) 50%, transparent 70%);
+}
+
+/* not yet earned: the dye shows through, quietly */
+.locked {
+  display: inline-grid;
+  place-items: center;
+  opacity: 0.45;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.locked:hover,
+.locked:focus-visible {
+  opacity: 0.8;
+}

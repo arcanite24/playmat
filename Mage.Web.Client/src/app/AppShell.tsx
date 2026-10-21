@@ -1,11 +1,12 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useQuery } from '@tanstack/react-query';
-import { IdCard, Info, LogOut, MessageSquare, Settings, ShieldCheck, WifiOff, Wrench } from 'lucide-react';
-import { lazy, Suspense, useState } from 'react';
+import { Heart, IdCard, Info, LogOut, MessageSquare, Settings, ShieldCheck, WifiOff, Wrench } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useMatch, useNavigate } from 'react-router-dom';
 import { APP_NAME } from './brand';
 import { api } from './connection';
 import { useT, type MessageKey } from './i18n';
+import type { ReleaseNotes } from '../core/util/releaseNotes';
 import { useServerInfo } from './queries';
 import { Avatar } from './social/Avatar';
 import { LobbyButton } from './social/LobbyButton';
@@ -45,6 +46,12 @@ const InboxButton = lazy(() => import('./solo/InboxButton').then((module) => ({ 
 
 const FeedbackDialog = lazy(() => import('./screens/FeedbackDialog').then((module) => ({ default: module.FeedbackDialog })));
 
+// "What's new" loads only when there is something to show: once, after an update
+const WhatsNewDialog = lazy(() => import('./WhatsNewDialog').then((module) => ({ default: module.WhatsNewDialog })));
+
+// the thank-you after a payment reached the account; servers with accounts only
+const SupportNotice = lazy(() => import('./support/SupportNotice').then((module) => ({ default: module.SupportNotice })));
+
 /** Planned maintenance, from the server info: when it starts, and what it means for new tables. */
 function MaintenanceChip() {
   const t = useT();
@@ -78,6 +85,26 @@ function SettingsHost({ open, onOpenChange }: { open: boolean; onOpenChange(open
   return loaded ? <Suspense fallback={null}><SettingsDialog open={open} onOpenChange={onOpenChange} /></Suspense> : null;
 }
 
+/** After an update (the service worker's reload, or any later visit), the new version's notes, once. */
+function WhatsNewHost() {
+  const [notes, setNotes] = useState<ReleaseNotes | null>(null);
+  useEffect(() => {
+    let live = true;
+    void import('./whatsNew').then(({ pendingReleaseNotes }) => pendingReleaseNotes()).then((pending) => {
+      if (live && pending) setNotes(pending);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  return notes ? <Suspense fallback={null}><WhatsNewDialog notes={notes} onClose={() => setNotes(null)} /></Suspense> : null;
+}
+
+function SupportHost() {
+  const accounts = useServerInfo().data?.accounts === true;
+  return accounts ? <Suspense fallback={null}><SupportNotice /></Suspense> : null;
+}
+
 function SocialHost() {
   const lobbyOpened = useLobby((state) => state.open || state.profile !== null);
   const [loaded, setLoaded] = useState(false);
@@ -104,6 +131,7 @@ export function AppShell() {
   const t = useT();
   // staff get Admin in the account menu; the role is checked again on every admin action
   const staff = useQuery({ queryKey: ['staffMe', userName], queryFn: () => api.staffMe(), enabled: connection === 'open', staleTime: 5 * 60_000 });
+  const support = useServerInfo().data?.support === true;
 
   return (
     <div className={[styles.mat, immersive ? styles.immersive : ''].join(' ')}>
@@ -158,6 +186,11 @@ export function AppShell() {
                   <DropdownMenu.Item className={styles.menuItem} onSelect={() => useShellUi.getState().setFeedbackOpen(true)}>
                     <MessageSquare size={16} aria-hidden="true" /> {t('shell.feedback')}
                   </DropdownMenu.Item>
+                  {support && (
+                    <DropdownMenu.Item className={styles.menuItem} onSelect={() => navigate('/support')}>
+                      <Heart size={16} aria-hidden="true" /> {t('shell.support')}
+                    </DropdownMenu.Item>
+                  )}
                   <DropdownMenu.Item className={styles.menuItem} onSelect={() => navigate('/about')}>
                     <Info size={16} aria-hidden="true" /> {t('shell.about')}
                   </DropdownMenu.Item>
@@ -177,6 +210,8 @@ export function AppShell() {
       <SocialHost />
       <SettingsHost open={settingsOpen} onOpenChange={setSettingsOpen} />
       <FeedbackHost />
+      <WhatsNewHost />
+      <SupportHost />
       <ImportSheetHost />
       <Toaster />
     </div>

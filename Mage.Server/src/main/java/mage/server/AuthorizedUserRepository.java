@@ -99,6 +99,20 @@ public class AuthorizedUserRepository {
     }
 
     /**
+     * Gives an existing user another email address, or none (null). A verified address stops counting as verified:
+     * see {@link EmailVerification}.
+     */
+    public boolean changeEmail(final String userName, final String email) {
+        AuthorizedUser user = getByName(userName);
+        if (user == null) {
+            return false;
+        }
+        user.email = email == null || email.trim().isEmpty() ? null : email.trim();
+        update(user);
+        return true;
+    }
+
+    /**
      * Remembers a device for the user ("keep me signed in").
      *
      * @return the token the device signs in with instead of the password, or null when it couldn't be stored

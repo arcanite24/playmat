@@ -35,11 +35,13 @@ export function webManifest(name: string) {
  * What the service worker precaches: the page, the build's JS and CSS (lazy screens included, so the shell works
  * offline wherever it is opened), the Barlow faces' latin woff2 files and the shell's public files. Other fonts and
  * pictures under /assets are cached on first use instead: fontsource ships many subsets and formats, and a page
- * downloads only the ones it needs.
+ * downloads only the ones it needs. The pets' 3D scene (three.js, about 150 kB gzipped) is left out too: only players
+ * at a table with a pet need it.
  */
 export function precacheList(bundleFiles: Iterable<string>): string[] {
   const shell = /^assets\/(.+\.(js|css)|barlow(-condensed)?-latin-\d+-normal-.+\.woff2)$/
-  const built = [...bundleFiles].filter((file) => shell.test(file)).map((file) => `/${file}`)
+  const onDemand = /^assets\/PetScene-/
+  const built = [...bundleFiles].filter((file) => shell.test(file) && !onDemand.test(file)).map((file) => `/${file}`)
   return ['/index.html', '/manifest.webmanifest', ...PUBLIC_SHELL, ...built.sort()]
 }
 

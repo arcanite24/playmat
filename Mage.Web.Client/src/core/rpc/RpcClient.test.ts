@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { ConnectionError, RpcClient, RpcError, type SocketLike } from './RpcClient';
+import { CLOSE_SIGNED_IN_ELSEWHERE, closeOutcome, ConnectionError, RpcClient, RpcError, type SocketLike } from './RpcClient';
 import { EventBus } from './EventBus';
 
 class FakeSocket implements SocketLike {
@@ -30,17 +30,17 @@ class FakeSocket implements SocketLike {
     this.onopen?.({});
   }
 
-  drop(): void {
+  drop(code = 1006): void {
     this.readyState = 3;
-    this.onclose?.({ code: 1006, reason: '' });
+    this.onclose?.({ code, reason: '' });
   }
 
   reply(id: number, result: unknown): void {
     this.onmessage?.({ data: JSON.stringify({ jsonrpc: '2.0', id, result }) });
   }
 
-  fail(id: number, code: number, message: string): void {
-    this.onmessage?.({ data: JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } }) });
+  fail(id: number, code: number, message: string, data?: unknown): void {
+    this.onmessage?.({ data: JSON.stringify({ jsonrpc: '2.0', id, error: { code, message, data } }) });
   }
 
   push(method: string, messageId: number, data: unknown, extra: Record<string, unknown> = {}): void {
@@ -105,6 +105,66 @@ describe('RpcClient', () => {
     last().fail(last().sent[1].id as number, -32001, 'Not connected: log in before calling roomCreateTable');
     await expect(create).rejects.toBeInstanceOf(RpcError);
     expect(lost).toEqual(['roomCreateTable']);
+  });
+
+  test('reconnects after any close but one: another sign-in taking the session over', () => {
+    // network drops, server restarts, proxies timing out, our own heartbeat giving up: reconnect
+    for (const code of [1000, 1001, 1006, 1011, 1012, 4000]) expect(closeOutcome('open', code)).toBe('reconnect');
+    expect(closeOutcome('reconnecting', 1006)).toBe('reconnect');
+    // reconnecting would sign in again and take it back, and the other tab would do the same
+    expect(closeOutcome('open', CLOSE_SIGNED_IN_ELSEWHERE)).toBe('signedInElsewhere');
+    expect(closeOutcome('connecting', 1006)).toBe('unreachable');
+    expect(closeOutcome('closed', CLOSE_SIGNED_IN_ELSEWHERE)).toBe('closed');
+  });
+
+  test('a connection closed because the player signed in elsewhere stays closed and says so', async () => {
+    const client = createClient();
+    const statuses: string[] = [];
+    const order: string[] = [];
+    client.onStatus((status) => {
+      statuses.push(status);
+      order.push(status);
+    });
+    client.onSignedInElsewhere(() => order.push('elsewhere'));
+    const connected = client.connect('ws://test');
+    last().open();
+    await connected;
+
+    const pending = client.call('getServerState');
+    last().drop(CLOSE_SIGNED_IN_ELSEWHERE);
+    await expect(pending).rejects.toBeInstanceOf(ConnectionError);
+    expect(client.getStatus()).toBe('closed');
+    // the app hears why before it hears the connection closed
+    expect(order.slice(-2)).toEqual(['elsewhere', 'closed']);
+    vi.advanceTimersByTime(60_000);
+    expect(FakeSocket.instances).toHaveLength(1);
+    expect(statuses).toEqual(['connecting', 'open', 'closed']);
+
+    // the player takes the session back: connecting again works as usual
+    const again = client.connect('ws://test');
+    last().open();
+    await again;
+    expect(client.getStatus()).toBe('open');
+  });
+
+  test('a call turned away because the player signed in elsewhere says so instead of a lost session', async () => {
+    const client = createClient();
+    const lost: string[] = [];
+    let elsewhere = 0;
+    client.onSessionLost((method) => lost.push(method));
+    client.onSignedInElsewhere(() => elsewhere++);
+    const connected = client.connect('ws://test');
+    last().open();
+    await connected;
+
+    const call = client.call('roomGetAllTables', 'room-1');
+    last().fail(last().sent[0].id as number, -32001, 'Not connected: you signed in somewhere else', { reason: 'signedInElsewhere' });
+    await expect(call).rejects.toBeInstanceOf(RpcError);
+    expect(elsewhere).toBe(1);
+    expect(lost).toEqual([]);
+    // and nothing reconnects or signs in behind the player's back
+    vi.advanceTimersByTime(60_000);
+    expect(FakeSocket.instances).toHaveLength(1);
   });
 
   test('a failed first connection is reported, not retried', async () => {

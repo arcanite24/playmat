@@ -148,6 +148,11 @@ describe('parsePrompt', () => {
   test('GAME_PLAY_MANA and GAME_PLAY_XMANA are both mana payments', () => {
     expect(parsePrompt('GAME_PLAY_MANA', fixtures.mana)).toMatchObject({ kind: 'playMana', specialLabel: 'Convoke', isX: false });
     expect(parsePrompt('GAME_PLAY_XMANA', { message: 'X' })).toMatchObject({ kind: 'playMana', specialLabel: null, isX: true });
+    // the server flags a special payment on the view only: the button is named after the spell's keyword
+    const delve = { message: 'Pay {1}{B}', gameView: { special: true, stack: { s: { id: 's', name: 'Murderous Cut', rules: ['Delve <i>(Each card you exile from your graveyard while casting this spell pays for {1}.)</i>', 'Destroy target creature.'] } } } };
+    expect(parsePrompt('GAME_PLAY_MANA', delve as never)).toMatchObject({ specialLabel: 'Delve' });
+    expect(parsePrompt('GAME_PLAY_MANA', { message: 'Pay {1}', gameView: { special: true, stack: {} } } as never)).toMatchObject({ specialLabel: 'Special payment' });
+    expect(parsePrompt('GAME_PLAY_MANA', { message: 'Pay {1}', gameView: { special: false } } as never)).toMatchObject({ specialLabel: null });
   });
 
   test('GAME_GET_AMOUNT reads the bounds', () => {

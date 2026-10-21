@@ -55,6 +55,8 @@ final class AccountsApi {
         public String name;
         /** admins and owners only */
         public String email;
+        /** the player confirmed the email with a mailed code (or GitHub vouched for it) */
+        public boolean emailVerified;
         public boolean active;
         /** 0 when not locked */
         public long lockedUntil;
@@ -170,7 +172,7 @@ final class AccountsApi {
                         .params(of("userName", STRING), of("reason", STRING))
                         .returns("boolean")
                         .doc("Staff (admin): delete the account with its decks, Career, reports, stats, feedback, allowlist "
-                                + "entry and staff role, signing its player out. Can't be undone: export first. The audit log keeps "
+                                + "entry, staff role and supporter perks (its payments stay in the ledger, anonymized), signing its player out. Can't be undone: export first. The audit log keeps "
                                 + "the record of the deletion.")
                         .handler(call -> {
                             String actor = Staff.require(ctx, call, StaffRole.ADMIN);
@@ -185,7 +187,7 @@ final class AccountsApi {
                             }
                             AdminApi.refuseStaffTarget(ctx, actor, name);
                             AccessApi.store(() -> {
-                                delete(ctx, name);
+                                delete(ctx, name, "This account was deleted by the server's staff.");
                                 return null;
                             });
                             Staff.audit(actor, "user.delete", name, null, reason);
@@ -235,6 +237,7 @@ final class AccountsApi {
         AccountRow row = new AccountRow();
         row.name = account.getName();
         row.email = admin ? account.getEmail() : null;
+        row.emailVerified = mage.server.EmailVerification.isVerified(account.getName(), account.getEmail());
         row.active = account.isActive();
         row.lockedUntil = future(account.getLockedUntil(), now);
         row.mutedUntil = future(account.getChatLockedUntil(), now);
@@ -299,7 +302,8 @@ final class AccountsApi {
         });
     }
 
-    private static String export(AuthorizedUser account) throws SQLException {
+    /** Everything kept about the account as JSON, passwords and sign-in tokens left out: for staff, and for the player. */
+    static String export(AuthorizedUser account) throws SQLException {
         String name = account.getName();
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("exportedAt", System.currentTimeMillis());
@@ -310,6 +314,7 @@ final class AccountsApi {
         fields.put("lockedUntil", account.getLockedUntil());
         fields.put("mutedUntil", account.getChatLockedUntil());
         fields.put("lastConnection", account.getLastConnection());
+        fields.put("emailVerified", mage.server.EmailVerification.isVerified(name, account.getEmail()));
         out.put("account", fields);
         List<DeckSyncEntry> decks = DeckStore.get().export(name);
         out.put("decks", decks);
@@ -326,17 +331,17 @@ final class AccountsApi {
         out.put("stats", stats == null || stats.getProto() == null ? null : stats.getProto().toString());
         GithubLink link = AccessPolicy.get().store().githubLinkOf(name);
         out.put("githubLogin", link == null ? null : link.login);
+        // support for the server: the code, payments (without the providers' payloads), perks and the look
+        out.put("support", SupportApi.export(name));
         Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
         return gson.toJson(out);
     }
 
-    private static void delete(ApiContext ctx, String name) throws SQLException {
-        if (ctx.managers != null) {
-            ctx.managers.userManager().getUserByName(name).ifPresent(user -> {
-                user.showUserMessage("Account deleted", "This account was deleted by the server's staff.");
-                ctx.managers.sessionManager().disconnect(user.getSessionId(), mage.server.DisconnectReason.DisconnectedByAdmin, true);
-            });
-        }
+    /**
+     * Deletes the account with everything kept about it, then signs its player out with {@code message}, after a
+     * moment so the caller's answer (and the message) arrive first. The audit log keeps its record.
+     */
+    static void delete(ApiContext ctx, String name, String message) throws SQLException {
         DeckStore.get().deleteAll(name);
         try {
             CareerService.get().delete(name);
@@ -349,10 +354,30 @@ final class AccountsApi {
             logger.warn("Saved games and scores of " + name + " couldn't be deleted", e);
         }
         ReportStore.get().forget(name);
+        try {
+            // the ledger keeps the amounts, for the months' totals, without anything that names the payer
+            mage.server.support.Support.get().forget(name);
+        } catch (IllegalStateException e) {
+            logger.warn("No support store to forget " + name + " in");
+        }
         UserStatsRepository.instance.remove(name);
         AccessPolicy.get().store().forgetAccount(name);
         AuthorizedUserRepository.getInstance().remove(name);
         logger.info("Account deleted: " + name);
+        if (ctx.managers != null) {
+            ctx.managers.userManager().getUserByName(name).ifPresent(user -> {
+                user.showUserMessage("Account deleted", message);
+                String sessionId = user.getSessionId();
+                ctx.managers.threadExecutor().getCallExecutor().execute(() -> {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    ctx.managers.sessionManager().disconnect(sessionId, mage.server.DisconnectReason.DisconnectedByAdmin, true);
+                });
+            });
+        }
     }
 
     private static String reason(RpcCall call, int index) throws RpcException {

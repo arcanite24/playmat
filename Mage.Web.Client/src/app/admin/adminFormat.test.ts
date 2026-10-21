@@ -1,5 +1,5 @@
 import { describe, expect, it, test } from 'vitest';
-import { atLeast, describeAge, formatBytes, formatDuration, inviteLink, inviteState } from './adminFormat';
+import { atLeast, describeAge, formatBytes, formatDuration, inviteLink, inviteState, money } from './adminFormat';
 
 describe('admin formatting', () => {
   test('bytes', () => {
@@ -34,5 +34,13 @@ describe('invites', () => {
     expect(atLeast('admin', 'admin')).toBe(true);
     expect(atLeast('moderator', 'admin')).toBe(false);
     expect(atLeast(null, 'moderator')).toBe(false);
+  });
+});
+
+describe('support amounts', () => {
+  test('in their own currency, and readable when the code is not one', () => {
+    expect(money(500)).toBe('$5.00');
+    expect(money(300, 'EUR')).toBe('€3.00');
+    expect(money(1234, 'NOPE')).toBe('12.34 NOPE');
   });
 });

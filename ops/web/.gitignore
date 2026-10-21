@@ -1,0 +1,4 @@
+# pull-images.ps1: the compose kit taken from the running server image, and the .env it replaced
+/deploy-kit/
+/deploy-kit.*/
+/.env.pull-images.bak

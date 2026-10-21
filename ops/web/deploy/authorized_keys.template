@@ -1,0 +1,5 @@
+# /home/deploy/.ssh/authorized_keys on the production host (setup-deploy-user.sh --key writes it, root-owned).
+# The GitHub Actions deploy key (secret DEPLOY_SSH_KEY) runs playmat-deploy and nothing else: whatever the client
+# asks for arrives in SSH_ORIGINAL_COMMAND, and restrict turns off the pty and every kind of forwarding.
+# GitHub's runners connect from addresses that change, so there is no from="..." here; the key is the boundary.
+restrict,command="/usr/local/bin/playmat-deploy" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA-replace-with-the-public-key github-actions-deploy@playmat

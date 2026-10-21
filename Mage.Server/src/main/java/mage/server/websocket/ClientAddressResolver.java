@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
  * Configured with {@value #TRUSTED_PROXIES_PROP}: a comma separated list of IPs and CIDR ranges,
  * e.g. {@code 127.0.0.1,::1,172.16.0.0/12}.
  */
-final class ClientAddressResolver {
+public final class ClientAddressResolver {
 
     static final String TRUSTED_PROXIES_PROP = "xmage.web.trustedProxies";
 
@@ -31,7 +31,7 @@ final class ClientAddressResolver {
         this.trustedProxies = parseRanges(trustedProxies);
     }
 
-    static ClientAddressResolver fromSystemProperties() {
+    public static ClientAddressResolver fromSystemProperties() {
         return new ClientAddressResolver(System.getProperty(TRUSTED_PROXIES_PROP, ""));
     }
 
@@ -45,7 +45,7 @@ final class ClientAddressResolver {
      * @param realIp        X-Real-IP header value, may be null
      * @return the client IP address as text (normalized when it is a valid address)
      */
-    String resolve(String peer, String forwardedFor, String realIp) {
+    public String resolve(String peer, String forwardedFor, String realIp) {
         InetAddress peerAddress = parseAddress(peer);
         if (peerAddress == null) {
             return peer == null ? "" : peer;

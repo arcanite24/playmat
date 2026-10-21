@@ -42,9 +42,28 @@ public final class RuntimeSettings {
     public static final String DISCORD_MATCHES = "discordMatches";
     public static final String DISCORD_STAFF = "discordStaff";
 
+    /** Support for the server (owner only): "on" or "off"; off hides the goal bar and the Support page */
+    public static final String SUPPORT_ENABLED = "support.enabled";
+    /** the monthly goal in US cents */
+    public static final String SUPPORT_GOAL_CENTS = "support.goalCents";
+    /** the Ko-fi page players support the server on; empty hides the support UI */
+    public static final String SUPPORT_KOFI_URL = "support.kofiUrl";
+    /** the GitHub Sponsors page, offered beside Ko-fi when set */
+    public static final String SUPPORT_SPONSORS_URL = "support.sponsorsUrl";
+    /** what the money pays for: lines separated by " · " or new lines, or a JSON list of strings */
+    public static final String SUPPORT_COSTS = "support.costs";
+    /** "on": the Discord thank-you post says the amount */
+    public static final String SUPPORT_DISCORD_AMOUNTS = "support.discordAmounts";
+
+    public static final long DEFAULT_GOAL_CENTS = 4000;
+    public static final String DEFAULT_COSTS = "Server (Hetzner CAX21) $13.09 · Off-site backups · Mail · Domain · Buffer for busy months";
+    static final int MAX_COSTS = 600;
+    static final int MAX_URL = 200;
+
     public static final List<String> NAMES = Collections.unmodifiableList(Arrays.asList(REGISTRATION, CAREER, MAX_AI_OPPONENTS, MAX_SECONDS_IDLE,
             BATCH_CONCURRENCY, BATCH_GAMES_PER_DAY, ARCHMAGE_DAILY_CENTS,
-            DISCORD_TABLES, DISCORD_EVENTS, DISCORD_MATCHES, DISCORD_STAFF));
+            DISCORD_TABLES, DISCORD_EVENTS, DISCORD_MATCHES, DISCORD_STAFF, SUPPORT_ENABLED, SUPPORT_GOAL_CENTS, SUPPORT_KOFI_URL,
+            SUPPORT_SPONSORS_URL, SUPPORT_COSTS, SUPPORT_DISCORD_AMOUNTS));
 
     private static final String PREFIX = "runtime.";
     private static final String EMPTY = "";
@@ -124,7 +143,8 @@ public final class RuntimeSettings {
     }
 
     static String normalize(String name, String value) {
-        String text = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        String raw = value == null ? "" : value.trim();
+        String text = raw.toLowerCase(Locale.ROOT);
         if (!NAMES.contains(name)) {
             throw new IllegalArgumentException("There is no setting named " + name);
         }
@@ -132,6 +152,19 @@ public final class RuntimeSettings {
             return null;
         }
         switch (name) {
+            case SUPPORT_KOFI_URL:
+            case SUPPORT_SPONSORS_URL:
+                if (raw.length() <= MAX_URL && raw.matches("https://[^\\s\"'<>]+")) {
+                    return raw;
+                }
+                throw new IllegalArgumentException("The page is a https:// address, " + MAX_URL + " characters at most");
+            case SUPPORT_COSTS:
+                if (raw.length() <= MAX_COSTS) {
+                    return raw;
+                }
+                throw new IllegalArgumentException("What it pays for is " + MAX_COSTS + " characters at most");
+            case SUPPORT_GOAL_CENTS:
+                return String.valueOf(number(text, 0, 10_000_000, "The goal is 0 to 10000000 cents"));
             case REGISTRATION:
                 if (text.equals("open") || text.equals("invite")) {
                     return text;
@@ -142,6 +175,8 @@ public final class RuntimeSettings {
             case DISCORD_EVENTS:
             case DISCORD_MATCHES:
             case DISCORD_STAFF:
+            case SUPPORT_ENABLED:
+            case SUPPORT_DISCORD_AMOUNTS:
                 if (text.equals("on") || text.equals("off")) {
                     return text;
                 }
@@ -208,5 +243,38 @@ public final class RuntimeSettings {
     public int maxSecondsIdle(int fromConfig) {
         String stored = stored(MAX_SECONDS_IDLE);
         return stored != null ? Integer.parseInt(stored) : fromConfig;
+    }
+
+    // --- support for the server
+
+    /** the support UI is on (it still needs a Ko-fi page to show) */
+    public boolean supportOn() {
+        return !"off".equals(stored(SUPPORT_ENABLED));
+    }
+
+    public long supportGoalCents() {
+        String stored = stored(SUPPORT_GOAL_CENTS);
+        return stored != null ? Long.parseLong(stored) : DEFAULT_GOAL_CENTS;
+    }
+
+    /** the Ko-fi page, or empty */
+    public String supportKofiUrl() {
+        String stored = stored(SUPPORT_KOFI_URL);
+        return stored == null ? "" : stored;
+    }
+
+    /** the GitHub Sponsors page, or empty */
+    public String supportSponsorsUrl() {
+        String stored = stored(SUPPORT_SPONSORS_URL);
+        return stored == null ? "" : stored;
+    }
+
+    public String supportCosts() {
+        String stored = stored(SUPPORT_COSTS);
+        return stored == null ? DEFAULT_COSTS : stored;
+    }
+
+    public boolean supportDiscordAmounts() {
+        return "on".equals(stored(SUPPORT_DISCORD_AMOUNTS));
     }
 }

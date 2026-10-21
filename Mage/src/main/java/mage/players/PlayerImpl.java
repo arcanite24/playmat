@@ -61,6 +61,7 @@ import mage.players.net.UserData;
 import mage.target.Target;
 import mage.target.TargetAmount;
 import mage.target.TargetCard;
+import mage.target.TargetOptimization;
 import mage.target.TargetPermanent;
 import mage.target.common.TargetCardInLibrary;
 import mage.target.common.TargetControlledCreaturePermanent;
@@ -4689,6 +4690,9 @@ public abstract class PlayerImpl implements Player, Serializable {
 
         // continue to adding more modes
         for (Mode mode : availableModes) {
+            if (isPlayableOptionsLimitReached(options)) {
+                return;
+            }
             Ability newOption = option.copy();
             newOption.getModes().addSelectedMode(mode.getId());
             newOption.getModes().setActiveMode(mode);
@@ -4715,9 +4719,19 @@ public abstract class PlayerImpl implements Player, Serializable {
             // now we have added mode with combination of filled targets
             // add it recursively with additional modes
             for (Ability filled : withTargetsFilled) {
+                if (isPlayableOptionsLimitReached(options)) {
+                    return;
+                }
                 addModeOptions(options, filled, game);
             }
         }
+    }
+
+    /**
+     * AI related code: enough ways to play one ability (or the search ran out of time), see TargetOptimization
+     */
+    protected static boolean isPlayableOptionsLimitReached(List<Ability> options) {
+        return TargetOptimization.isOptionsLimitReached(options.size(), TargetOptimization.AI_MAX_PLAYABLE_OPTIONS);
     }
 
     /**
@@ -4744,6 +4758,9 @@ public abstract class PlayerImpl implements Player, Serializable {
 
         // analyse all possible use cases
         for (Target targetOption : currentTarget.getTargetOptions(option, game)) {
+            if (isPlayableOptionsLimitReached(options)) {
+                return;
+            }
             // fill target
             Ability newOption = option.copy();
             if (targetOption instanceof TargetAmount) {
@@ -4778,6 +4795,9 @@ public abstract class PlayerImpl implements Player, Serializable {
      */
     private void addCostTargetOptions(List<Ability> options, Ability option, int targetNum, Game game) {
         for (UUID targetId : option.getCosts().getTargets().get(targetNum).possibleTargets(playerId, option, game)) {
+            if (isPlayableOptionsLimitReached(options)) {
+                return;
+            }
             Ability newOption = option.copy();
             newOption.getCosts().getTargets().get(targetNum).addTarget(targetId, option, game, true);
             if (targetNum < option.getCosts().getTargets().size() - 1) {

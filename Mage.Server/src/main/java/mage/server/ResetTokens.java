@@ -6,7 +6,7 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Password reset codes sent by email: six digits, valid for a while and for a few guesses only, so they can't be
+ * Codes sent by email (password resets, email verification): six digits, valid for a while and for a few guesses only, so they can't be
  * found by trying them all. Kept in memory, so a server restart cancels every pending reset.
  */
 final class ResetTokens {
@@ -18,12 +18,23 @@ final class ResetTokens {
     private static final class Pending {
         final String code;
         final long expiresAt;
+        /** someone other than the address's reader saw the code (staff made it), so it proves nothing about the address */
+        final boolean seenByStaff;
         int attemptsLeft = ATTEMPTS;
 
-        Pending(String code, long expiresAt) {
+        Pending(String code, long expiresAt, boolean seenByStaff) {
             this.code = code;
             this.expiresAt = expiresAt;
+            this.seenByStaff = seenByStaff;
         }
+    }
+
+    /** What a right code says about how it reached the player. */
+    enum Redeemed {
+        /** it came by mail only: whoever typed it reads the address */
+        BY_MAIL,
+        /** staff made it and passed it on (or mailed it as well) */
+        FROM_STAFF
     }
 
     private final SecureRandom random = new SecureRandom();
@@ -42,8 +53,12 @@ final class ResetTokens {
     }
 
     synchronized String issue(String email, long now, long validMillis) {
+        return issue(email, now, validMillis, false);
+    }
+
+    synchronized String issue(String email, long now, long validMillis, boolean seenByStaff) {
         String code = String.format("%06d", random.nextInt(1_000_000));
-        pending.put(key(email), new Pending(code, now + validMillis));
+        pending.put(key(email), new Pending(code, now + validMillis, seenByStaff));
         return code;
     }
 
@@ -51,24 +66,31 @@ final class ResetTokens {
      * Checks a code, using up one guess. A right code is used up too.
      */
     synchronized boolean redeem(String email, String code, long now) {
+        return redeemCode(email, code, now) != null;
+    }
+
+    /**
+     * Like {@link #redeem}, saying how a right code reached the player; null when it is wrong or gone.
+     */
+    synchronized Redeemed redeemCode(String email, String code, long now) {
         String key = key(email);
         Pending entry = pending.get(key);
         if (entry == null) {
-            return false;
+            return null;
         }
         if (now > entry.expiresAt) {
             pending.remove(key);
-            return false;
+            return null;
         }
         if (code != null && java.security.MessageDigest.isEqual(entry.code.getBytes(), code.trim().getBytes())) {
             pending.remove(key);
-            return true;
+            return entry.seenByStaff ? Redeemed.FROM_STAFF : Redeemed.BY_MAIL;
         }
         entry.attemptsLeft--;
         if (entry.attemptsLeft <= 0) {
             pending.remove(key);
         }
-        return false;
+        return null;
     }
 
     private static String key(String email) {

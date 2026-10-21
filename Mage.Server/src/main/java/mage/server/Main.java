@@ -280,7 +280,7 @@ public final class Main {
         logger.info("Config - second.bind port: " + config.getSecondaryBindPort());
         logger.info("Config - users registr.:   " + (config.isAuthenticationActivated() ? "true" : "false"));
         logger.info("Config - users anon:       " + (!config.isAuthenticationActivated() ? "true" : "false"));
-        logger.info("Config - mailgun api key : " + config.getMailgunApiKey());
+        logger.info("Config - mailgun api key : " + (config.getMailgunApiKey() == null || config.getMailgunApiKey().isEmpty() ? "not set" : "set"));
         logger.info("Config - mailgun domain  : " + config.getMailgunDomain());
         logger.info("Config - mail smtp Host  : " + config.getMailSmtpHost());
         logger.info("Config - mail smtpPort   : " + config.getMailSmtpPort());
@@ -344,10 +344,13 @@ public final class Main {
 
                 Runtime.getRuntime().addShutdownHook(new Thread(webSocketServer::shutdown, "WebSocket shutdown"));
                 logger.info("Started MAGE WebSocket server - listening on port " + websocketPort);
+                // before Health: the first JDK HTTP server fixes the request time limits for both
+                mage.server.support.SupportHooks.start();
                 Health.start(managerFactory);
                 BackupStatus.startChecks();
                 // AI-against-AI batches carry on from before a restart
                 mage.server.solo.BatchRunner.get().start();
+                UpdateRunner.startWatching();
 
                 if (testMode) {
                     logger.info("MAGE server running in test mode");

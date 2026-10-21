@@ -28,7 +28,7 @@ echo "readySec=$(( $(date +%s) - T0 ))" > "$OUT/facts.txt"
 m "docker logs xmage-vps 2>&1" | grep -E "xmage-server: machine|Loading|Started MAGE WebSocket|ERROR" | head -12 > "$OUT/boot.txt"
 sleep 45
 echo "idle=$(stats)" >> "$OUT/facts.txt"
-ssh -o BatchMode=yes -o ExitOnForwardFailure=yes -N -L 18272:127.0.0.1:18172 "$HOST" & TUNNEL=$!
+ssh -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -N -L 18272:127.0.0.1:18172 "$HOST" & TUNNEL=$!
 sleep 3
 ( while true; do echo "$(date +%s) $(stats)"; sleep 10; done ) > "$OUT/stats.txt" & SAMPLER=$!
 (cd "$HERE/../../Mage.Web.Client" && MAGE_LOAD_TEST=1 MAGE_SERVER_URL=ws://127.0.0.1:18272 MAGE_ADMIN_PASSWORD=$PASS \

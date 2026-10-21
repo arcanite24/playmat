@@ -1,0 +1,469 @@
+#!/bin/bash
+# The deploy user's only command: GitHub Actions (.github/workflows/deploy.yml) reaches the host as `deploy`, whose
+# key runs this whatever was asked (authorized_keys: restrict,command="/usr/local/bin/playmat-deploy"). The asked-for
+# command arrives in SSH_ORIGINAL_COMMAND; run by hand (as root or deploy), it comes from the arguments.
+#
+#   deploy <tag>   run the images tagged <tag> (vX.Y.Z, sha-<7 to 40 hex>, master), safely:
+#                    1. pull both images and pin their digests
+#                    2. snapshot the user databases into $SNAPSHOT_DIR (the newest $SNAPSHOT_KEEP are kept)
+#                    3. drain: with games running, announce maintenance and wait for them (at most $DRAIN_MINUTES)
+#                    4. pin the digests in .env (XMAGE_SERVER_IMAGE, XMAGE_WEB_IMAGE); the state file keeps the old ones
+#                    5. docker compose up -d --no-build, with the compose kit shipped inside the server image
+#                    6. health gate: xmage and web healthy and https://$DOMAIN/ answering 200 within $HEALTH_TIMEOUT
+#                       seconds, else roll back to the previous images and fail
+#                    7. tell the staff Discord channel, 8. remove images older than the previous version
+#   rollback       go back to the previous deploy's images (snapshot first, no drain), and swap current and previous
+#   status         the current and previous versions, the containers' health and the server's /healthz
+#
+# Settings: /etc/playmat-deploy.conf (setup-deploy-user.sh writes it). The stack's own settings stay in $COMPOSE_DIR/.env.
+# Anything else is refused. Output ends with "result: ok" or "result: failed", which the workflow reads.
+set -euo pipefail
+
+TAG_PATTERN='^(v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?|sha-[0-9a-f]{7,40}|master)$'
+PLAIN_WORDS='^[A-Za-z0-9 ._-]*$'
+
+usage() {
+  echo "usage: deploy <tag> | rollback | status   (tag: vX.Y.Z, sha-<hex>, master)" >&2
+}
+
+refuse() {
+  echo "playmat-deploy: refused: $*" >&2
+  usage
+  exit 2
+}
+
+# parse_command WORDS...: sets ACTION and TAG, or refuses
+parse_command() {
+  ACTION=${1:-}
+  TAG=
+  case "$ACTION" in
+    deploy)
+      [[ $# -eq 2 ]] || refuse "deploy takes exactly one tag"
+      [[ $2 =~ $TAG_PATTERN ]] || refuse "'$2' is not a tag this deploy accepts"
+      TAG=$2
+      ;;
+    rollback | status)
+      [[ $# -eq 1 ]] || refuse "$ACTION takes no arguments"
+      ;;
+    '') refuse "no command" ;;
+    *) refuse "unknown command" ;;
+  esac
+}
+
+# the command: over SSH only SSH_ORIGINAL_COMMAND counts, and only plain words
+if [[ -n ${SSH_ORIGINAL_COMMAND+set} ]]; then
+  [[ ${#SSH_ORIGINAL_COMMAND} -le 100 && $SSH_ORIGINAL_COMMAND =~ $PLAIN_WORDS ]] || refuse "unexpected characters"
+  read -r -a words <<< "$SSH_ORIGINAL_COMMAND"
+  parse_command ${words[@]+"${words[@]}"}
+else
+  parse_command ${@+"$@"}
+fi
+
+# test-deploy.sh stops here: the command was accepted
+if [[ ${PLAYMAT_DEPLOY_CHECK_ONLY:-} == 1 ]]; then
+  echo "accepted: $ACTION${TAG:+ $TAG}"
+  exit 0
+fi
+
+# --- settings -----------------------------------------------------------------------------------------------------
+COMPOSE_DIR=/srv/playmat
+COMPOSE_PROJECT=web
+SERVER_REPO=ghcr.io/arcanite24/playmat-server
+WEB_REPO=ghcr.io/arcanite24/playmat-web
+GHCR_USER=
+GHCR_TOKEN=
+STATE_DIR=/var/lib/playmat-deploy
+SNAPSHOT_DIR=/var/backups/playmat
+SNAPSHOT_KEEP=5
+DRAIN_MINUTES=15
+HEALTH_TIMEOUT=300
+CONF=/etc/playmat-deploy.conf
+[[ -r $CONF ]] || { echo "playmat-deploy: $CONF is missing or unreadable (run setup-deploy-user.sh)" >&2; exit 1; }
+# shellcheck source=/dev/null
+. "$CONF"
+
+ENV_FILE=$COMPOSE_DIR/.env
+STATE=$STATE_DIR/state
+LOG=$STATE_DIR/deploy.log
+
+log() {
+  local line
+  line="$(date -u +%FT%TZ) $*"
+  echo "$line"
+  echo "$line" >> "$LOG" 2>/dev/null || true
+}
+
+die() {
+  log "error: $*"
+  echo "result: failed"
+  exit 1
+}
+
+# --- state: key=value lines, read without sourcing ------------------------------------------------------------------
+state_get() {
+  [[ -f $STATE ]] || return 0
+  sed -n "s/^$1=//p" "$STATE" | tail -n 1
+}
+
+# state_write CURRENT_TAG CURRENT_SERVER CURRENT_WEB CURRENT_KIT PREVIOUS_TAG PREVIOUS_SERVER PREVIOUS_WEB PREVIOUS_KIT
+state_write() {
+  local tmp=$STATE.tmp
+  {
+    echo "# written by playmat-deploy $(date -u +%FT%TZ)"
+    echo "CURRENT_TAG=$1"
+    echo "CURRENT_SERVER=$2"
+    echo "CURRENT_WEB=$3"
+    echo "CURRENT_KIT=$4"
+    echo "PREVIOUS_TAG=$5"
+    echo "PREVIOUS_SERVER=$6"
+    echo "PREVIOUS_WEB=$7"
+    echo "PREVIOUS_KIT=$8"
+  } > "$tmp"
+  mv "$tmp" "$STATE"
+}
+
+# --- .env ---------------------------------------------------------------------------------------------------------
+env_get() {
+  [[ -f $ENV_FILE ]] || return 0
+  sed -n "s/^$1=//p" "$ENV_FILE" | tail -n 1 | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\(.*\)'$/\1/"
+}
+
+# env_set KEY VALUE: replaces the key's lines, or adds one; the file keeps its owner and mode
+env_set() {
+  local tmp=$ENV_FILE.tmp
+  awk -v key="$1" -v value="$2" '
+    index($0, key "=") == 1 { if (!done) print key "=" value; done = 1; next }
+    { print }
+    END { if (!done) print key "=" value }
+  ' "$ENV_FILE" > "$tmp"
+  cat "$tmp" > "$ENV_FILE"
+  rm -f "$tmp"
+}
+
+# --- docker -------------------------------------------------------------------------------------------------------
+
+# the running container of a compose service (empty when there is none)
+container() {
+  docker ps -q --filter "label=com.docker.compose.project=$COMPOSE_PROJECT" --filter "label=com.docker.compose.service=$1" | head -n 1
+}
+
+health_status() {
+  local id
+  id=$(container "$1")
+  [[ -n $id ]] || { echo missing; return; }
+  docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$id" 2>/dev/null || echo missing
+}
+
+# xmage_http METHOD PATH: the server's loopback endpoint (Health.java) through its container; prints the body of a
+# 200 answer, fails on anything else
+xmage_http() {
+  local id answer
+  id=$(container xmage)
+  [[ -n $id ]] || return 1
+  # bash's /dev/tcp, like the compose health check: the image has no curl
+  # shellcheck disable=SC2016 # expanded by the container's bash
+  answer=$(docker exec "$id" bash -c 'exec 3<>/dev/tcp/127.0.0.1/17173 && printf "%s %s HTTP/1.0\r\nContent-Length: 0\r\n\r\n" "$1" "$2" >&3 && cat <&3' \
+    _ "$1" "$2" 2>/dev/null | tr -d '\r') || return 1
+  [[ $(head -n 1 <<< "$answer" | cut -d' ' -f2) == 200 ]] || return 1
+  sed '1,/^$/d' <<< "$answer"
+}
+
+# json_number FIELD: a number from the JSON on stdin (0 when absent)
+json_number() {
+  local value
+  value=$(sed -n "s/.*\"$1\":\([0-9][0-9]*\).*/\1/p" | head -n 1)
+  echo "${value:-0}"
+}
+
+# pin REPO TAG: pulls REPO:TAG and prints REPO:TAG@sha256:...
+pin() {
+  local ref=$1:$2 digest
+  docker pull -q "$ref" > /dev/null || return 1
+  digest=$(docker image inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' "$ref" | grep -m1 "^$1@" | cut -d@ -f2)
+  [[ $digest == sha256:* ]] || return 1
+  echo "$ref@$digest"
+}
+
+# an image named by digest is present, or pulled now
+ensure_image() {
+  [[ -z $1 ]] && return 0
+  docker image inspect "$1" > /dev/null 2>&1 || docker pull -q "$1" > /dev/null
+}
+
+# extract_kit IMAGE DIR: the compose file and nginx template the server image carries (Dockerfile.server)
+extract_kit() {
+  local id
+  mkdir -p "$2"
+  id=$(docker create "$1")
+  if ! docker cp "$id:/opt/xmage/deploy-kit/." "$2/" > /dev/null; then
+    docker rm "$id" > /dev/null
+    return 1
+  fi
+  docker rm "$id" > /dev/null
+  [[ -f $2/docker-compose.yml ]]
+}
+
+# --- steps --------------------------------------------------------------------------------------------------------
+# snapshot LABEL IMAGE: the user databases, as a consistent online dump from the backup service, or (no backup
+# service running) a copy of the db volume
+snapshot() {
+  local label=$1 image=$2 file id name volume=${COMPOSE_PROJECT}_xmage-db
+  file=$SNAPSHOT_DIR/pre-$label-$(date -u +%Y%m%dT%H%M%SZ).tar.gz
+  mkdir -p "$SNAPSHOT_DIR"
+  id=$(container backup)
+  if [[ -n $id ]]; then
+    docker exec "$id" xmage-backup once > /dev/null || return 1
+    name=$(docker exec "$id" xmage-backup list | tail -n 1)
+    [[ -n $name ]] || return 1
+    docker exec "$id" tar czf - -C /backups "$name" > "$file" || { rm -f "$file"; return 1; }
+    log "snapshot: online dump $name -> $file"
+  elif docker volume inspect "$volume" > /dev/null 2>&1; then
+    docker run --rm --network none -v "$volume:/opt/xmage/db:ro" --entrypoint tar "$image" czf - -C /opt/xmage db > "$file" \
+      || { rm -f "$file"; return 1; }
+    log "snapshot: copy of the $volume volume -> $file"
+  else
+    log "snapshot: no database yet (no $volume volume); nothing to keep"
+    return 0
+  fi
+  # the newest SNAPSHOT_KEEP
+  find "$SNAPSHOT_DIR" -maxdepth 1 -name 'pre-*.tar.gz' -printf '%T@ %p\n' | sort -rn | tail -n "+$((SNAPSHOT_KEEP + 1))" \
+    | cut -d' ' -f2- | while read -r old; do rm -f "$old" && log "snapshot: removed $old"; done
+}
+
+DRAINED=0
+# drain: games running get maintenance announced and up to DRAIN_MINUTES to finish; players merely online are warned
+# and new tables stop. Nobody online: nothing to say.
+drain() {
+  local answer games users deadline
+  answer=$(xmage_http GET /healthz) || { log "drain: the server isn't answering; nothing to drain"; return 0; }
+  games=$(json_number gamesRunning <<< "$answer")
+  users=$(json_number usersOnline <<< "$answer")
+  if (( games == 0 && users == 0 )); then
+    log "drain: nobody online"
+    return 0
+  fi
+  if (( games == 0 )); then
+    xmage_http POST "/maintenance?minutes=0&message=Updating%20to%20$TAG.%20Back%20in%20a%20minute." > /dev/null || true
+    DRAINED=1
+    log "drain: no games running; $users online were warned"
+    return 0
+  fi
+  xmage_http POST "/maintenance?minutes=$DRAIN_MINUTES&message=Updating%20to%20$TAG." > /dev/null \
+    || { log "drain: couldn't announce maintenance; going ahead"; return 0; }
+  DRAINED=1
+  log "drain: $games game(s) running; maintenance announced, waiting up to $DRAIN_MINUTES min"
+  deadline=$(( $(date +%s) + DRAIN_MINUTES * 60 ))
+  while (( $(date +%s) < deadline )); do
+    sleep 15
+    answer=$(xmage_http GET /healthz) || break
+    games=$(json_number gamesRunning <<< "$answer")
+    (( games == 0 )) && { log "drain: no games left"; return 0; }
+  done
+  log "drain: $games game(s) still running after $DRAIN_MINUTES min; going ahead"
+}
+
+# at the end of a deploy, whatever happened: a server the deploy didn't replace (it failed early, or only the web image
+# changed) would otherwise keep refusing new tables. A restarted server has no maintenance planned, so this says nothing.
+cancel_maintenance() {
+  local answer
+  if (( DRAINED )); then
+    DRAINED=0
+    if answer=$(xmage_http POST /maintenance/cancel) && [[ $answer == *'"cancelled":true'* ]]; then
+      log "maintenance called off"
+    fi
+  fi
+}
+
+# site_code: what https://$DOMAIN/ answers through this host's Caddy (not DNS: the certificate and routes are tested,
+# not the way there)
+site_code() {
+  local domain port
+  domain=$(env_get DOMAIN)
+  port=$(env_get HTTPS_PORT)
+  port=${port:-443}
+  curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$domain:$port:127.0.0.1" "https://$domain:$port/" || true
+}
+
+# health_gate DEADLINE: xmage and web healthy and the site answering 200 before DEADLINE (epoch seconds)
+health_gate() {
+  local xmage web code
+  while true; do
+    xmage=$(health_status xmage)
+    web=$(health_status web)
+    code=$(site_code)
+    if [[ $xmage == healthy && $web == healthy && $code == 200 ]]; then
+      log "health: xmage $xmage, web $web, site $code"
+      return 0
+    fi
+    if (( $(date +%s) >= $1 )); then
+      log "health: gave up after ${HEALTH_TIMEOUT}s: xmage $xmage, web $web, site $code"
+      return 1
+    fi
+    sleep 10
+  done
+}
+
+# run_stack SERVER WEB KIT: pin the images in .env, bring the stack up on them and wait for the health gate, all
+# within HEALTH_TIMEOUT
+run_stack() {
+  local deadline
+  deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
+  env_set XMAGE_SERVER_IMAGE "$1"
+  env_set XMAGE_WEB_IMAGE "$2"
+  # up waits for the server to be healthy before it starts the web container
+  timeout "$HEALTH_TIMEOUT" docker compose -p "$COMPOSE_PROJECT" --project-directory "$3" -f "$3/docker-compose.yml" \
+    --env-file "$ENV_FILE" up -d --no-build --remove-orphans || log "compose up failed or timed out"
+  health_gate "$deadline"
+}
+
+discord() {
+  local webhook text
+  webhook=$(env_get XMAGE_DISCORD_STAFF_WEBHOOK)
+  [[ -n $webhook ]] || webhook=$(env_get XMAGE_DISCORD_WEBHOOK)
+  [[ $webhook == https://* ]] || return 0
+  text=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')
+  curl -s -o /dev/null --max-time 10 -H 'Content-Type: application/json' \
+    -d "{\"content\":\"$text\",\"allowed_mentions\":{\"parse\":[]}}" "$webhook" || true
+}
+
+# prune KEEP...: playmat images other than KEEP (current and previous), compose kits likewise, then dangling layers
+prune() {
+  local keep=" $* " repo ref id
+  for repo in "$SERVER_REPO" "$WEB_REPO"; do
+    while read -r ref id; do
+      [[ $keep == *"@${ref#*@} "* ]] && continue
+      docker rmi "$id" > /dev/null 2>&1 && log "prune: removed $ref" || true
+    done < <(docker images --digests --format '{{.Repository}}@{{.Digest}} {{.ID}}' "$repo" | grep '@sha256:')
+  done
+  docker image prune -f > /dev/null || true
+}
+
+prune_kits() {
+  local kit
+  for kit in "$COMPOSE_DIR"/releases/*/; do
+    kit=${kit%/}
+    [[ $kit == "$1" || $kit == "$2" || $kit == "$COMPOSE_DIR/releases/local" ]] && continue
+    rm -rf "$kit"
+  done
+}
+
+describe() {
+  echo "${1:-none}${2:+ ($2)}"
+}
+
+# --- commands -----------------------------------------------------------------------------------------------------
+CURRENT_TAG=$(state_get CURRENT_TAG)
+CURRENT_SERVER=$(state_get CURRENT_SERVER)
+CURRENT_WEB=$(state_get CURRENT_WEB)
+CURRENT_KIT=$(state_get CURRENT_KIT)
+PREVIOUS_TAG=$(state_get PREVIOUS_TAG)
+PREVIOUS_SERVER=$(state_get PREVIOUS_SERVER)
+PREVIOUS_WEB=$(state_get PREVIOUS_WEB)
+PREVIOUS_KIT=$(state_get PREVIOUS_KIT)
+
+status() {
+  local answer
+  echo "current: $(describe "$CURRENT_TAG" "$CURRENT_SERVER")"
+  echo "current web: ${CURRENT_WEB:-none}"
+  echo "previous: $(describe "$PREVIOUS_TAG" "$PREVIOUS_SERVER")"
+  echo "kit: ${CURRENT_KIT:-none}"
+  echo "xmage: $(health_status xmage)"
+  echo "web: $(health_status web)"
+  echo "imgcache: $(health_status imgcache)"
+  echo "site: $(site_code)"
+  if answer=$(xmage_http GET /healthz); then
+    echo "healthz: $answer"
+  else
+    echo "healthz: no answer"
+  fi
+}
+
+# one deploy or rollback at a time
+lock() {
+  mkdir -p "$STATE_DIR"
+  exec 9> "$STATE_DIR/lock"
+  flock -w 60 9 || die "another deploy is running"
+}
+
+deploy() {
+  local server web digest kit started took
+  lock
+  [[ -f $ENV_FILE ]] || die "$ENV_FILE is missing"
+  [[ -n $CURRENT_KIT ]] || die "no current version in $STATE (run setup-deploy-user.sh)"
+  log "deploy $TAG (current: $(describe "$CURRENT_TAG"))"
+  if [[ -n $GHCR_TOKEN ]]; then
+    docker login ghcr.io -u "${GHCR_USER:-deploy}" --password-stdin <<< "$GHCR_TOKEN" > /dev/null || die "GHCR login failed"
+  fi
+
+  server=$(pin "$SERVER_REPO" "$TAG") || die "can't pull $SERVER_REPO:$TAG (is it built and public?)"
+  web=$(pin "$WEB_REPO" "$TAG") || die "can't pull $WEB_REPO:$TAG (is it built and public?)"
+  log "pulled $server"
+  log "pulled $web"
+  digest=${server##*@sha256:}
+  kit=$COMPOSE_DIR/releases/$TAG-${digest:0:12}
+  # the same image again (a redeploy) has the same kit
+  if [[ ! -f $kit/docker-compose.yml ]]; then
+    rm -rf "$kit"
+    extract_kit "$server" "$kit" || die "$server has no compose kit (/opt/xmage/deploy-kit): built before image deploys?"
+  fi
+
+  snapshot "$TAG" "$server" || die "the database snapshot failed; nothing was changed"
+  trap cancel_maintenance EXIT
+  drain
+
+  started=$(date +%s)
+  if run_stack "$server" "$web" "$kit"; then
+    took=$(( $(date +%s) - started ))
+    state_write "$TAG" "$server" "$web" "$kit" "$CURRENT_TAG" "$CURRENT_SERVER" "$CURRENT_WEB" "$CURRENT_KIT"
+    ln -sfn "$kit" "$COMPOSE_DIR/current"
+    log "deployed $TAG in ${took}s"
+    discord "Deployed $TAG (was $(describe "$CURRENT_TAG")); healthy ${took}s after the restart."
+    prune "$server" "$web" "$CURRENT_SERVER" "$CURRENT_WEB"
+    prune_kits "$kit" "$CURRENT_KIT"
+    echo "tag: $TAG"
+    echo "previous: ${CURRENT_TAG:-none}"
+    echo "server: $server"
+    echo "web: $web"
+    echo "result: ok"
+    return 0
+  fi
+
+  log "deploy of $TAG failed its health check; rolling back to $(describe "$CURRENT_TAG")"
+  if ensure_image "$CURRENT_SERVER" && ensure_image "$CURRENT_WEB" \
+      && run_stack "$CURRENT_SERVER" "$CURRENT_WEB" "$CURRENT_KIT"; then
+    discord "Deploy of $TAG failed its health check; rolled back to $(describe "$CURRENT_TAG"), which is healthy."
+    echo "previous: ${CURRENT_TAG:-none}"
+    die "deploy of $TAG failed; rolled back to $(describe "$CURRENT_TAG")"
+  fi
+  discord "Deploy of $TAG failed, and so did the rollback to $(describe "$CURRENT_TAG"). The server needs someone now."
+  die "deploy of $TAG failed and the rollback to $(describe "$CURRENT_TAG") is unhealthy too"
+}
+
+rollback() {
+  lock
+  [[ -n $PREVIOUS_KIT ]] || die "there is no previous version to go back to"
+  [[ -f $ENV_FILE ]] || die "$ENV_FILE is missing"
+  log "rollback from $(describe "$CURRENT_TAG") to $(describe "$PREVIOUS_TAG")"
+  ensure_image "$PREVIOUS_SERVER" || die "can't get $PREVIOUS_SERVER"
+  ensure_image "$PREVIOUS_WEB" || die "can't get $PREVIOUS_WEB"
+  [[ -f $PREVIOUS_KIT/docker-compose.yml ]] || die "the previous compose kit ($PREVIOUS_KIT) is gone"
+  snapshot "rollback-$PREVIOUS_TAG" "${PREVIOUS_SERVER:-$CURRENT_SERVER}" || log "snapshot failed; rolling back anyway"
+  if run_stack "$PREVIOUS_SERVER" "$PREVIOUS_WEB" "$PREVIOUS_KIT"; then
+    state_write "$PREVIOUS_TAG" "$PREVIOUS_SERVER" "$PREVIOUS_WEB" "$PREVIOUS_KIT" "$CURRENT_TAG" "$CURRENT_SERVER" "$CURRENT_WEB" "$CURRENT_KIT"
+    ln -sfn "$PREVIOUS_KIT" "$COMPOSE_DIR/current"
+    log "rolled back to $(describe "$PREVIOUS_TAG")"
+    discord "Rolled back from $(describe "$CURRENT_TAG") to $(describe "$PREVIOUS_TAG"); healthy."
+    echo "tag: $PREVIOUS_TAG"
+    echo "previous: $CURRENT_TAG"
+    echo "result: ok"
+    return 0
+  fi
+  discord "Rollback from $(describe "$CURRENT_TAG") to $(describe "$PREVIOUS_TAG") is unhealthy. The server needs someone now."
+  die "rollback to $(describe "$PREVIOUS_TAG") is unhealthy"
+}
+
+case "$ACTION" in
+  deploy) deploy ;;
+  rollback) rollback ;;
+  status) status ;;
+esac

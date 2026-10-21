@@ -11,12 +11,14 @@
 </p>
 
 <p align="center">
+  <a href="https://playmat.deimos.studio"><img alt="Play in your browser" src="https://img.shields.io/badge/Play-in%20your%20browser-f0b13d?style=for-the-badge&labelColor=f0b13d&color=ffc65a"></a>
   <a href="https://github.com/arcanite24/playmat/releases/latest/download/Playmat-Setup-Windows-x64.exe"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-Windows-f0b13d?style=for-the-badge&logo=windows&logoColor=1d1406&labelColor=f0b13d&color=ffc65a"></a>
   <a href="#play-on-your-computer"><img alt="Download for macOS" src="https://img.shields.io/badge/Download-macOS-f0b13d?style=for-the-badge&logo=apple&logoColor=1d1406&labelColor=f0b13d&color=ffc65a"></a>
   <a href="#play-on-your-computer"><img alt="Download for Linux" src="https://img.shields.io/badge/Download-Linux-f0b13d?style=for-the-badge&logo=linux&logoColor=1d1406&labelColor=f0b13d&color=ffc65a"></a>
 </p>
 
 <p align="center">
+  <a href="https://playmat.deimos.studio">Play online</a> ·
   <a href="https://arcanite24.github.io/playmat/">Website</a> ·
   <a href="#play-on-your-computer">Download</a> ·
   <a href="#running-a-server">Run a server</a> ·
@@ -42,8 +44,9 @@
 
 Playmat is a fork of [XMage](https://github.com/magefree/mage), the open-source Magic rules engine with its cards, AI
 opponents, drafts and tournaments. It adds a WebSocket bridge to the server and a browser client styled after MTG
-Arena. [Install it on your computer](#play-on-your-computer) to play the AI, Career or friends on your Wi-Fi, or
-[run a server](#running-a-server) for a group that plays from anywhere. The engine stays XMage, merged from upstream
+Arena. Play it in your browser at [playmat.deimos.studio](https://playmat.deimos.studio), where the project runs a
+public server, [install it on your computer](#play-on-your-computer) to play the AI, Career or friends on your
+Wi-Fi, or [run a server](#running-a-server) for a group that plays from anywhere. The engine stays XMage, merged from upstream
 regularly, so the cards it supports work here too.
 
 It's a work in progress with rough edges. Bug reports and pull requests are welcome.
@@ -136,11 +139,16 @@ built.
 You need Docker and a machine your players can reach.
 
 ```bash
-cp ops/web/.env.example ops/web/.env      # set DOMAIN, XMAGE_ADMIN_PASSWORD, XMAGE_AUTH
-docker compose -f ops/web/docker-compose.yml up -d --build
+cp ops/web/.env.example ops/web/.env      # set DOMAIN, XMAGE_AUTH, XMAGE_OWNER
+docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d
 ```
 
-Players open `https://<your domain>` and sign in. The first build compiles the card database, which takes a while.
+This runs the published images, so nothing is built. The [docs on the site](https://arcanite24.github.io/playmat/docs/) walk through
+[running a server](https://arcanite24.github.io/playmat/docs/server.html) and
+[updating it](https://arcanite24.github.io/playmat/docs/updates.html): the admin console's Updates section says when a
+newer version is out, and with the updater turned on the owner installs it with one button.
+
+Players open `https://<your domain>` and sign in.
 [ops/web/README.md](ops/web/README.md) covers private LAN servers, running behind another reverse proxy, every setting,
 accounts and moderation, Discord notifications, backups and capacity.
 

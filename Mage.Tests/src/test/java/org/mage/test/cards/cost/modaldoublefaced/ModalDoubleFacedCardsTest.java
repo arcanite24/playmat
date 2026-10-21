@@ -1565,4 +1565,32 @@ public class ModalDoubleFacedCardsTest extends CardTestPlayerBase {
         setStopAt(1, PhaseStep.END_TURN);
         execute();
     }
+
+    @Test
+    public void test_View_BackFaceLandShowsBackFace() {
+        removeAllCardsFromHand(playerA);
+
+        // Akoum Warrior {5}{R} - creature
+        // Akoum Teeth - land
+        addCard(Zone.HAND, playerA, "Akoum Warrior");
+        addCard(Zone.HAND, playerA, "Mountain");
+
+        playLand(1, PhaseStep.PRECOMBAT_MAIN, playerA, "Akoum Teeth");
+        playLand(3, PhaseStep.PRECOMBAT_MAIN, playerA, "Mountain");
+
+        setStrictChooseMode(true);
+        setStopAt(3, PhaseStep.END_TURN);
+        execute();
+
+        // both faces share one collector number: the client needs to know which picture to show
+        GameView gameView = getGameView(playerA);
+        PermanentView teeth = gameView.getMyPlayer().getBattlefield().values().stream()
+                .filter(p -> p.getName().equals("Akoum Teeth")).findFirst().orElse(null);
+        PermanentView mountain = gameView.getMyPlayer().getBattlefield().values().stream()
+                .filter(p -> p.getName().equals("Mountain")).findFirst().orElse(null);
+        Assert.assertNotNull(teeth);
+        Assert.assertNotNull(mountain);
+        Assert.assertTrue("MDFC played as its back face must show the back", teeth.isBackFace());
+        Assert.assertFalse("a normal card shows its front", mountain.isBackFace());
+    }
 }

@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
-import { isCommanderFormat } from '../../core/decks/formats';
+import { formatRules, isCommanderFormat } from '../../core/decks/formats';
+import { metaDecksFor } from '../../core/decks/metaDecks';
 import { api } from '../connection';
-import { rosterOf, useDecks } from '../stores/decks';
+import { META_PREFIX, rosterOf, useDecks } from '../stores/decks';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import {
-  adaptiveSentence,
-  adaptiveFormatFor, findMetaDeck, ghostOpponentId, ghostRecord, metaFormatsFor, metaOpponentId, MIRROR_OPPONENT_ID, normalizeGhostCode, opponentSource,
+  adaptiveSentence, adaptiveFormatFor, ghostOpponentId, ghostRecord, MIRROR_OPPONENT_ID, normalizeGhostCode, opponentSource,
 } from '../solo/freePlay';
 import type { GhostOpponent } from '../../protocol/generated/views';
 import { DEFAULT_AI_OPTIONS, usePlay } from '../stores/play';
@@ -56,6 +56,8 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   const roster = useMemo(() => rosterOf(decks), [decks]);
   const starters = roster.filter((deck) => deck.starter);
   const mine = roster.filter((deck) => !deck.starter);
+  // the AI's format decks, one group per format, in the order the index lists the formats
+  const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
   const difficulty = difficultyOf(options.skill);
   const t = useT();
   // a server can leave the Monte Carlo AI out
@@ -63,7 +65,6 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   const source = opponentSource(options.opponentDeckId);
   // the ghost entry is picked before its code is found; until then the saved choice stays as it was
   const [ghostPicked, setGhostPicked] = useState(source.kind === 'ghost');
-  const meta = useQuery({ queryKey: ['metaLibrary'], queryFn: () => api.metaLibrary(), staleTime: 60 * 60_000, enabled: open });
   const deckValue = ghostPicked ? GHOST_CHOICE : options.opponentDeckId ?? '';
 
   function pickDeck(value: string) {
@@ -72,9 +73,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
       return;
     }
     setGhostPicked(false);
-    const picked = opponentSource(value);
-    const label = picked.kind === 'meta' ? findMetaDeck(meta.data ?? [], picked.file)?.deck.name ?? null : null;
-    setOptions({ opponentDeckId: value || null, opponentLabel: label });
+    setOptions({ opponentDeckId: value || null, opponentLabel: null });
   }
 
   return (
@@ -125,10 +124,6 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             <option value="">{t('ai.deck.random')}</option>
             <option value={MIRROR_OPPONENT_ID}>{t('solo.mirror.option')}</option>
             <option value={GHOST_CHOICE}>{t('solo.ghost.option')}</option>
-            {/* a meta deck that left the library stays listed until another is picked */}
-            {source.kind === 'meta' && !findMetaDeck(meta.data ?? [], source.file) && (
-              <option value={options.opponentDeckId ?? ''}>{options.opponentLabel ?? source.file}</option>
-            )}
             <optgroup label={t('ai.deck.starters')}>
               {starters.filter((deck) => !isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
             </optgroup>
@@ -137,24 +132,18 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
                 {starters.filter((deck) => isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
               </optgroup>
             )}
+            {metaFormats.map((format) => (
+              <optgroup key={format} label={t('ai.deck.meta', { format: formatRules(format).label })}>
+                {metaDecksFor(decks.metaDecks, format).map((deck) => <option key={deck.file} value={META_PREFIX + deck.file}>{deck.name}</option>)}
+              </optgroup>
+            ))}
             {mine.length > 0 && (
               <optgroup label={t('ai.deck.yours')}>
                 {mine.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
               </optgroup>
             )}
-            {metaFormatsFor(meta.data ?? [], null, isCommanderFormat).map((format) => (
-              <optgroup key={format.id} label={t(format.snapshot ? 'solo.meta.group' : 'solo.meta.groupUndated', { name: format.name ?? format.id ?? '', date: format.snapshot ?? '' })}>
-                {(format.decks ?? []).map((deck) => (
-                  <option key={deck.file} value={metaOpponentId(deck.file ?? '')}>
-                    {deck.pilot ? t('solo.meta.deckPilot', { name: deck.name ?? '', pilot: deck.pilot }) : deck.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
           </select>
-          {source.kind === 'mirror' && !ghostPicked && <p className={styles.detail}>{t('solo.mirror.detail')}</p>}
-          {source.kind === 'meta' && !ghostPicked && <p className={styles.detail}>{t('solo.meta.detail')}</p>}
-          {meta.isError && <p className={styles.detail}>{t('solo.meta.unavailable')}</p>}
+          {!ghostPicked && <p className={styles.detail}>{t(source.kind === 'mirror' ? 'solo.mirror.detail' : 'ai.deck.detail')}</p>}
           {ghostPicked && (
             <GhostFinder
               current={source.kind === 'ghost' ? source.code : ''}

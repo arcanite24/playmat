@@ -4,6 +4,7 @@ import type {
   CardView,
   ChoiceImpl,
   GameClientMessage,
+  GameView,
   MultiAmountMessage,
 } from '../../protocol/generated/views';
 
@@ -258,11 +259,12 @@ export function parsePrompt<M extends PromptEventName>(method: M, data: Callback
     }
     case 'GAME_PLAY_MANA':
     case 'GAME_PLAY_XMANA': {
-      const common = base(data as GameClientMessage);
+      const message = data as GameClientMessage;
+      const common = base(message);
       return {
         ...common,
         kind: 'playMana',
-        specialLabel: label(common.options.specialButton),
+        specialLabel: label(common.options.specialButton) ?? (message?.gameView?.special ? specialPaymentLabel(message.gameView) : null),
         isX: method === 'GAME_PLAY_XMANA',
       };
     }
@@ -287,6 +289,21 @@ export function parsePrompt<M extends PromptEventName>(method: M, data: Callback
     default:
       throw new Error(`Not a prompt event: ${String(method)}`);
   }
+}
+
+const SPECIAL_PAYMENTS = ['Delve', 'Convoke', 'Improvise', 'Waterbend'];
+
+/**
+ * The server offers a special way to pay (delve, convoke, improvise) only through the view's `special` flag: name the
+ * button after the keyword of the spell on the stack that has one.
+ */
+function specialPaymentLabel(view: GameView): string {
+  for (const item of Object.values(view.stack ?? {}).reverse()) {
+    const rules = (item.rules ?? []).join(' ').replace(/<[^>]*>/g, '');
+    const keyword = SPECIAL_PAYMENTS.find((name) => new RegExp(`\\b${name}\\b`, 'i').test(rules));
+    if (keyword) return keyword;
+  }
+  return 'Special payment';
 }
 
 /** The game view carried by a prompt event, if any. */

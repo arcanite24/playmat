@@ -17,11 +17,11 @@ const STARTER = { file: 'red.dck', name: 'Red Starter', cards: 60, cover: { name
 beforeEach(async () => {
   localStorage.clear();
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
-    if (url.endsWith('index.json')) return new Response(JSON.stringify([STARTER]), { status: 200 });
+    if (url.endsWith('starter-decks/index.json')) return new Response(JSON.stringify([STARTER]), { status: 200 });
     if (url.endsWith('red.dck')) return new Response('20 [M19:156] Shock\n40 [M19:280] Mountain\n', { status: 200 });
     return new Response(null, { status: 404 });
   }));
-  useDecks.setState({ saved: [], starters: [], selectedId: null, sleeves: {}, loaded: false });
+  useDecks.setState({ saved: [], starters: [], metaDecks: [], selectedId: null, sleeves: {}, loaded: false });
 });
 
 describe('deck library', () => {

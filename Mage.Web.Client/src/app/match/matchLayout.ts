@@ -29,8 +29,12 @@ export interface MatchLayout {
   seam: number;
   /** a hand card dragged above this line is played */
   playLine: number;
-  /** your seat and piles (top-left corner) */
-  myPlate: { left: number; top: number };
+  /**
+   * your seat: wide, anchored by its bottom-left corner (`bottom` from the stage's bottom edge), so it grows upward as
+   * counters, commander damage and floating mana arrive instead of off the stage; tall, by its top-left corner
+   */
+  myPlate: { left: number; top?: number; bottom?: number };
+  /** your piles (top-left corner) */
   myPiles: { left: number; top: number };
   /** the opponent's seat: index among `count` opponents */
   theirPlate: (index: number, count: number) => { left: number; top: number };
@@ -41,13 +45,47 @@ export interface MatchLayout {
   stackPoint: { x: number; y: number };
   /** tall: how much higher than usual the hand stands, so more of each card shows */
   handRaise: number;
+  /** the hand keeps this far from the stage's right edge: wide, clear of the decision corner */
+  handClearRight: number;
+}
+
+/** A hand card's width in stage pixels. */
+export const HAND_CARD_WIDTH = 168;
+/** The hand's fan: cards at most this far apart, the fan at most HAND_FAN + a card wide, cards at least this far apart. */
+const HAND_MAX_SPREAD = HAND_CARD_WIDTH * 0.78;
+const HAND_FAN = 1000;
+const HAND_MIN_SPREAD = 36;
+
+/**
+ * Where the hand's fan sits along the bottom edge: centred on the stage when it can be, moved over (and fanned
+ * tighter, if it must) to keep between `clearLeft` (a crowded seat) and `clearRight` (the decision corner). When even
+ * the tightest fan can't fit, it keeps clear of the seat. `center` is the fan's middle, `spread` the step between cards.
+ */
+export function placeHand(count: number, stageWidth: number, clearLeft = 0, clearRight = 0): { center: number; spread: number; width: number } {
+  const natural = Math.min(HAND_MAX_SPREAD, HAND_FAN / Math.max(1, count));
+  const room = stageWidth - clearLeft - clearRight;
+  const fit = count > 1 ? (room - HAND_CARD_WIDTH) / (count - 1) : natural;
+  const spread = Math.max(HAND_MIN_SPREAD, Math.min(natural, fit));
+  const width = spread * Math.max(0, count - 1) + HAND_CARD_WIDTH;
+  const center = Math.max(clearLeft + width / 2, Math.min(stageWidth / 2, stageWidth - clearRight - width / 2));
+  return { center, spread, width };
 }
 
 /** The wide layout's columns: seats on the left, stack and decision corner on the right. */
 const FIELD_LEFT = 300;
+/** wide: your seat's margin from the stage's bottom-left corner */
+const WIDE_SEAT_MARGIN = 24;
+/** wide: the decision corner (ActionCluster: 420 wide, 40 from the edge) and a gap */
+const WIDE_CORNER = 472;
 const FIELD_RIGHT_MARGIN = 470;
 /** multiplayer: each opponent's seat (plate, counters) in the left column, this far apart */
 const SEAT_SPACING = 172;
+/**
+ * A wide stage taller than 1080 (a 16:10 or 4:3 window) splits its extra height between the two halves; each half
+ * spends most of it on bigger cards and the rest on the gaps between the rows.
+ */
+const WIDE_EXTRA_FRONT = 0.2;
+const WIDE_EXTRA_BACK = 0.15;
 
 /** The tall layout: margins, the bands above and below the battlefield, and the rows between them. */
 const TALL_MARGIN = 24;
@@ -97,31 +135,38 @@ export function matchLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 
 function computeLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 'height'>): MatchLayout {
   if (stage.layout === 'tall') return tallLayout(stage.width, stage.height);
   const fieldWidth = stage.width - FIELD_LEFT - FIELD_RIGHT_MARGIN;
+  const extra = Math.max(0, stage.height - STAGE_HEIGHT);
+  const half = Math.round(extra / 2);
+  const frontIdeal = Math.round(150 + extra * WIDE_EXTRA_FRONT);
+  const backIdeal = Math.round(112 + extra * WIDE_EXTRA_BACK);
+  const frontGrowth = Math.round((frontIdeal - 150) * CARD_RATIO);
+  const backGrowth = Math.round((backIdeal - 112) * CARD_RATIO);
   return {
     tall: false,
     fieldLeft: FIELD_LEFT,
     fieldWidth,
-    me: { left: FIELD_LEFT, width: fieldWidth, frontTop: 556, backTop: 778, frontIdeal: 150, backIdeal: 112 },
+    me: { left: FIELD_LEFT, width: fieldWidth, frontTop: 556 + half, backTop: 778 + half + frontGrowth, frontIdeal, backIdeal },
     them: (index, count) => {
       const width = fieldWidth / count;
       return {
         left: FIELD_LEFT + index * width,
         width: width - (count > 1 ? 24 : 0),
-        frontTop: count === 1 ? 330 : 300,
+        frontTop: (count === 1 ? 330 : 300) + backGrowth,
         backTop: count === 1 ? 160 : 150,
-        frontIdeal: 150,
-        backIdeal: 112,
+        frontIdeal,
+        backIdeal,
       };
     },
-    seam: STAGE_HEIGHT / 2,
-    playLine: STAGE_HEIGHT - 300,
-    myPlate: { left: 24, top: 936 },
-    myPiles: { left: 24, top: 600 },
+    seam: STAGE_HEIGHT / 2 + half,
+    playLine: stage.height - 300,
+    myPlate: { left: WIDE_SEAT_MARGIN, bottom: WIDE_SEAT_MARGIN },
+    myPiles: { left: 24, top: 600 + half },
     theirPlate: (index, count) => ({ left: 24, top: count === 1 ? 24 : 16 + index * SEAT_SPACING }),
     theirPiles: { left: 24, top: 140 },
     hiddenHandX: (index, count) => FIELD_LEFT + (index + 0.5) * (fieldWidth / count),
-    stackPoint: { x: stage.width - 341, y: 470 },
+    stackPoint: { x: stage.width - 341, y: 470 + half },
     handRaise: 0,
+    handClearRight: WIDE_CORNER,
   };
 }
 
@@ -163,5 +208,6 @@ function tallLayout(width: number, height: number): MatchLayout {
     hiddenHandX: (index, count) => (count === 1 ? width - 330 : fieldLeft + column(index + 1, count) - 120),
     stackPoint: { x: TALL_MARGIN + 95, y: seam - 180 },
     handRaise,
+    handClearRight: 0,
   };
 }

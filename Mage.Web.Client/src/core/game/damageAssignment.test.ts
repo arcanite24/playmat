@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { GameView, PermanentView } from '../../protocol/generated/views';
 import {
-  addDamage, assignmentAnswer, checkAssignment, lethalDamage, lethalFirst, parseDamageAssignment, removeDamage,
+  addDamage, assignmentAnswer, autoAssignment, checkAssignment, lethalDamage, lethalFirst, parseDamageAssignment, removeDamage,
   type DamageAssignment,
 } from './damageAssignment';
 import { deriveInteraction } from './interaction';
@@ -141,5 +141,26 @@ describe('combat damage assignment', () => {
     expect(trample.trample).toBe(true);
     expect(lethalFirst(trample)).toEqual([2, 5]);
     expect(checkAssignment([2, 5], trample)).toMatchObject({ valid: true, unassigned: 2 });
+  });
+});
+
+describe('autoAssignment', () => {
+  const recipient = (id: string, lethal: number) => ({ id, name: id, lethal, min: 0, max: 99 });
+  const split = (power: number, lethals: number[], trample = false): DamageAssignment => ({
+    sourceId: null, sourceName: 'Attacker', recipients: lethals.map((lethal, index) => recipient(`b${index}`, lethal)),
+    totalMin: trample ? 0 : power, totalMax: power, trample, defaults: [],
+  });
+
+  test('submits when the damage is exactly lethal to every blocker', () => {
+    expect(autoAssignment(split(4, [2, 2]), { trample: false })).toBe('2 2');
+  });
+  test('leaves surplus and shortfall to the player', () => {
+    expect(autoAssignment(split(5, [2, 2]), { trample: false })).toBeNull();
+    expect(autoAssignment(split(3, [2, 2]), { trample: false })).toBeNull();
+  });
+  test('tramples over only when allowed and every blocker gets lethal', () => {
+    expect(autoAssignment(split(6, [2, 2], true), { trample: false })).toBeNull();
+    expect(autoAssignment(split(6, [2, 2], true), { trample: true })).toBe('2 2');
+    expect(autoAssignment(split(3, [2, 2], true), { trample: true })).toBeNull();
   });
 });

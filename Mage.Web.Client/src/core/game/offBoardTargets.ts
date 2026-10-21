@@ -18,11 +18,10 @@ export function offBoardTargets(view: GameView | null | undefined, clickable: It
   for (const zone of view.exiles ?? []) {
     for (const [id, card] of Object.entries(zone ?? {})) zones.set(id, card);
   }
+  if (ids.some((id) => !zones.has(id))) return null;
+  // in zone order: the server's set of targets has none, and picking a card would reshuffle the rest
+  const wanted = new Set(ids);
   const cards: CardView[] = [];
-  for (const id of ids) {
-    const card = zones.get(id);
-    if (!card) return null;
-    cards.push(card.id ? card : { ...card, id });
-  }
+  for (const [id, card] of zones) if (wanted.has(id)) cards.push(card.id ? card : { ...card, id });
   return cards;
 }

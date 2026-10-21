@@ -54,6 +54,15 @@
 			events {$IMG_API_RATE_LIMIT:300}
 			window {$IMG_API_RATE_WINDOW:1m}
 		}
+		# payment webhooks and the public goal (the server limits them per address too)
+		zone hooks {
+			match {
+				path /hooks/* /public/*
+			}
+			key {client_ip}
+			events {$HOOKS_RATE_LIMIT:60}
+			window {$HOOKS_RATE_WINDOW:1m}
+		}
 	}
 
 	# the game connection: WebSocket upgrade to the server's bridge port
@@ -62,6 +71,28 @@
 			# The server limits and logs by client address. It trusts these headers only from the
 			# proxy network (XMAGE_TRUSTED_PROXIES). Both are set to the client address alone (the peer, or the
 			# client a trusted upstream proxy named), replacing whatever the client sent.
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	# support payments: Ko-fi's and GitHub Sponsors' webhooks, POST only, to the server's webhook listener (not
+	# published on the host: Caddy reaches it on the compose network). The server checks each provider's token or
+	# signature and limits the body size and the rate per client address.
+	handle /hooks/* {
+		@notPost not method POST
+		respond @notPost 405
+		reverse_proxy xmage:17174 {
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Real-IP {client_ip}
+		}
+	}
+
+	# the month's support goal as JSON for the project's site (GET; the server sets the cache and CORS headers)
+	handle /public/* {
+		@notRead not method GET HEAD OPTIONS
+		respond @notRead 405
+		reverse_proxy xmage:17174 {
 			header_up X-Forwarded-For {client_ip}
 			header_up X-Real-IP {client_ip}
 		}
@@ -91,6 +122,8 @@
 		# the service worker and the web manifest keep their names across releases, so browsers must revalidate
 		# them to notice an update (browsers also cap a service worker's HTTP caching at a day)
 		header /sw.js Cache-Control "no-cache"
+		# the release's notes for the "What's new" dialog, written with each release build
+		header /release-notes.json Cache-Control "no-cache"
 		header /manifest.webmanifest {
 			Cache-Control "no-cache"
 			Content-Type "application/manifest+json"
@@ -107,7 +140,7 @@
 		# Scryfall origins stay allowed for builds without the image proxy (VITE_IMAGE_PROXY unset); the exported
 		# link lists also point the card back at upload.wikimedia.org. wss: covers a client built with
 		# VITE_MAGE_SERVER_URL pointing at another host.
-		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cards.scryfall.io https://*.scryfall.io https://api.scryfall.com https://c1.scryfall.com https://svgs.scryfall.io https://upload.wikimedia.org; font-src 'self' data:; connect-src 'self' wss: https://api.scryfall.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'self' blob:; manifest-src 'self'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://cards.scryfall.io https://*.scryfall.io https://api.scryfall.com https://c1.scryfall.com https://svgs.scryfall.io https://upload.wikimedia.org; font-src 'self' data:; connect-src 'self' wss: https://api.scryfall.com https://challenges.cloudflare.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; worker-src 'self' blob:; manifest-src 'self'"
 	}
 }
 

@@ -68,6 +68,12 @@ final class AccountApi {
         public int maxGames;
         /** games waiting for a free slot */
         public int gamesWaiting;
+        /** Cloudflare Turnstile's site key: registration and access requests need the widget's token. Absent when off */
+        public String turnstileSiteKey;
+        /** where players write about their data and the server (XMAGE_CONTACT_EMAIL); absent when not set */
+        public String contactEmail;
+        /** players can support the server here: a support page is set, or payments arrive (supportStatus says more) */
+        public boolean support;
     }
 
     static List<RpcMethod> methods(ApiContext ctx) {
@@ -152,7 +158,7 @@ final class AccountApi {
         info.testMode = Main.isTestMode();
         if (config != null) {
             info.accounts = config.isAuthenticationActivated();
-            info.mail = !isBlank(config.getMailUser()) || !isBlank(config.getMailgunApiKey());
+            info.mail = mage.server.Mailer.configured(config);
             info.serverName = config.getServerName();
             info.minUserNameLength = config.getMinUserNameLength();
             info.maxUserNameLength = config.getMaxUserNameLength();
@@ -160,6 +166,8 @@ final class AccountApi {
             info.maxPasswordLength = config.getMaxPasswordLength();
         }
         info.deckSync = info.accounts;
+        info.turnstileSiteKey = ctx.turnstile.siteKey();
+        info.contactEmail = contactEmail();
         if (ctx.managers != null && ctx.managers.threadExecutor() != null
                 && ctx.managers.threadExecutor().getGameExecutor() instanceof ThreadPoolExecutor) {
             ThreadPoolExecutor games = (ThreadPoolExecutor) ctx.managers.threadExecutor().getGameExecutor();
@@ -179,12 +187,26 @@ final class AccountApi {
             info.notice = access.notice();
             info.github = info.accounts && mage.server.admin.GithubAuth.get().isEnabled();
             info.registration = RuntimeSettings.get().registrationOpen() ? "open" : "invite";
+            RuntimeSettings runtime = RuntimeSettings.get();
+            info.support = runtime.supportOn() && (!runtime.supportKofiUrl().isEmpty() || !runtime.supportSponsorsUrl().isEmpty()
+                    || mage.server.support.SupportHooks.listening());
         } catch (IllegalStateException e) {
             info.registration = "open";
             info.access = AccessPolicy.OPEN;
             info.notice = "";
         }
         return info;
+    }
+
+    public static final String CONTACT_EMAIL_PROP = "xmage.contactEmail";
+    public static final String CONTACT_EMAIL_ENV = "XMAGE_CONTACT_EMAIL";
+
+    static String contactEmail() {
+        String value = System.getProperty(CONTACT_EMAIL_PROP);
+        if (value == null || value.trim().isEmpty()) {
+            value = System.getenv(CONTACT_EMAIL_ENV);
+        }
+        return value == null || value.trim().isEmpty() ? null : value.trim();
     }
 
     /**
@@ -221,9 +243,5 @@ final class AccountApi {
         } catch (IllegalStateException | SQLException e) {
             throw new RpcException(RpcException.SERVER_ERROR, e.getMessage(), e);
         }
-    }
-
-    private static boolean isBlank(String text) {
-        return text == null || text.trim().isEmpty();
     }
 }

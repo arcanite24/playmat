@@ -83,13 +83,17 @@ final class SessionApi {
                                 optional("restoreSessionId", STRING), optional("clientVersion", STRING), optional("userIdStr", STRING),
                                 optional("rememberToken", STRING))
                         .doc("Log in. Creates the connection's session; restoreSessionId reattaches a user that lost its connection. "
-                                + "rememberToken (from authRememberLogin) stands in for an account's password.")
+                                + "rememberToken (from authRememberLogin) stands in for an account's password. Logging in as a user "
+                                + "that is connected elsewhere takes it over: the other connection is closed with code 4001.")
                         .handler(call -> {
                             String rememberToken = call.optString(6, "");
                             if (!rememberToken.isEmpty()) {
                                 ctx.sessions.trustRememberedLogin(call.string(2), call.string(0), rememberToken);
                             }
-                            return connectUser(ctx, call, serverVersion);
+                            boolean ok = connectUser(ctx, call, serverVersion);
+                            // the name the server knows the user by: a later login as it elsewhere ends this session
+                            call.getConnection().setUserName(ok ? ctx.sessions.userName(call.sessionId()).orElse(null) : null);
+                            return ok;
                         }),
 
                 RpcMethod.named("connectAdmin")
@@ -131,16 +135,28 @@ final class SessionApi {
                 RpcMethod.named("authRegister")
                         .establishes(0)
                         .params(of("sessionId", STRING), of("userName", STRING), of("password", STRING), of("email", STRING),
-                                optional("inviteCode", STRING))
+                                optional("inviteCode", STRING), optional("turnstileToken", STRING))
                         .doc("Register a new account (servers with authentication enabled). With a password it becomes the "
                                 + "account's password; without one the server emails a generated password. On a contributors-only "
                                 + "server the name or email must be on the allowlist, or inviteCode an invite that still works "
-                                + "(which puts the account on the list). Fails with the reason.")
+                                + "(which puts the account on the list). " + RegistrationLimiter.PER_HOUR + " accounts an hour and "
+                                + RegistrationLimiter.PER_DAY + " a day from one address. When serverInfo has a turnstileSiteKey, "
+                                + "turnstileToken is the Turnstile widget's token. Fails with the reason.")
                         .handler(call -> {
                             Session session = ctx.managers.sessionManager().getSession(call.string(0))
                                     .orElseThrow(() -> RpcException.notAuthorized("No session"));
-                            String problem = session.registerUser(call.string(1), call.string(2), call.string(3), call.optString(4, null));
+                            String address = call.getConnection().getRemoteHost();
+                            String problem = ctx.registrations.take("register:" + address);
                             if (problem != null) {
+                                logger.warn("Registration refused, too many from " + address);
+                                throw new RpcException(RpcException.RATE_LIMITED, problem);
+                            }
+                            problem = ctx.turnstile.check(call.optString(5, null), address);
+                            if (problem == null) {
+                                problem = session.registerUser(call.string(1), call.string(2), call.string(3), call.optString(4, null));
+                            }
+                            if (problem != null) {
+                                ctx.registrations.refund("register:" + address);
                                 throw RpcException.invalidParams(problem);
                             }
                             return true;

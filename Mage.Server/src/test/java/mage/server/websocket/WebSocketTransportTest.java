@@ -5,12 +5,15 @@ import com.google.gson.JsonParser;
 import mage.interfaces.MageServer;
 import mage.interfaces.ServerState;
 import mage.players.PlayerType;
+import mage.server.DisconnectReason;
+import mage.server.websocket.rpc.RpcSessions;
 import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft;
 import org.java_websocket.drafts.Draft_6455;
 import org.java_websocket.extensions.permessage_deflate.PerMessageDeflateExtension;
 import org.java_websocket.handshake.ServerHandshake;
+import org.jboss.remoting.callback.InvokerCallbackHandler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +31,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -81,6 +88,143 @@ public class WebSocketTransportTest {
         server = new WebSocketServerImpl(new InetSocketAddress("127.0.0.1", port), mageServer, null, allowedOrigins, "", limits);
         server.start();
         server.awaitStartup(10, TimeUnit.SECONDS);
+    }
+
+    /** A server whose logins work like the real one's with accounts: logging in as a connected user takes it over. */
+    private OneSessionPerUser startWithLogins() throws Exception {
+        server.shutdown();
+        try (ServerSocket socket = new ServerSocket(0)) {
+            port = socket.getLocalPort();
+        }
+        OneSessionPerUser sessions = new OneSessionPerUser();
+        MageServer mageServer = (MageServer) Proxy.newProxyInstance(MageServer.class.getClassLoader(),
+                new Class<?>[]{MageServer.class}, (proxy, method, args) -> {
+                    if (method.getName().equals("connectUser")) {
+                        sessions.login((String) args[0], (String) args[2]);
+                        return true;
+                    }
+                    return method.getReturnType() == boolean.class ? false : null;
+                });
+        server = new WebSocketServerImpl(new InetSocketAddress("127.0.0.1", port), mageServer, null, sessions, "", "",
+                WebSocketLimits.fromSystemProperties());
+        server.start();
+        server.awaitStartup(10, TimeUnit.SECONDS);
+        return sessions;
+    }
+
+    @Test
+    void aLoginAsTheSameUserClosesTheConnectionItTookTheUserFrom() throws Exception {
+        OneSessionPerUser sessions = startWithLogins();
+        TestClient first = TestClient.connect(port, null);
+        TestClient bob = TestClient.connect(port, null);
+        TestClient second = TestClient.connect(port, null);
+        try {
+            assertThat(login(first, "alice").get("result").getAsBoolean()).isTrue();
+            assertThat(login(bob, "bob").get("result").getAsBoolean()).isTrue();
+            assertThat(login(second, "alice").get("result").getAsBoolean()).isTrue();
+
+            assertThat(first.awaitClose(5000)).as("the connection alice was taken from is closed").isTrue();
+            assertThat(first.closeCode).isEqualTo(WebSocketServerImpl.CLOSE_SIGNED_IN_ELSEWHERE);
+            assertThat(bob.awaitClose(300)).as("other users stay").isFalse();
+            assertThat(second.awaitClose(300)).as("the new login stays").isFalse();
+            assertThat(sessions.live).hasSize(2);
+        } finally {
+            first.closeBlocking();
+            bob.closeBlocking();
+            second.closeBlocking();
+        }
+    }
+
+    @Test
+    void aConnectionWhoseSessionEndedOtherwiseIsNotClosed() throws Exception {
+        OneSessionPerUser sessions = startWithLogins();
+        TestClient first = TestClient.connect(port, null);
+        TestClient second = TestClient.connect(port, null);
+        try {
+            login(first, "alice");
+            // the session expired or the server dropped it: alice is nowhere else, and a login as bob is someone else
+            sessions.live.clear();
+            sessions.users.clear();
+            login(second, "bob");
+            assertThat(first.awaitClose(300)).isFalse();
+
+            JsonObject call = first.request("{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"roomGetAllTables\",\"params\":[\""
+                    + java.util.UUID.randomUUID() + "\"]}");
+            assertThat(errorCode(call)).isEqualTo(-32001);
+            assertThat(call.get("error").getAsJsonObject().has("data")).as("no reason: it just has no session").isFalse();
+        } finally {
+            first.closeBlocking();
+            second.closeBlocking();
+        }
+    }
+
+    private static JsonObject login(TestClient client, String userName) throws InterruptedException {
+        return client.request("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"connectUser\",\"params\":[\"" + userName
+                + "\",\"\",\"x\"]}");
+    }
+
+    /** The server's sessions as the bridge sees them, with one session per user like a server with accounts. */
+    private static final class OneSessionPerUser implements RpcSessions {
+        final Set<String> live = ConcurrentHashMap.newKeySet();
+        final Map<String, String> users = new ConcurrentHashMap<>(); // user name -> its session
+        final Map<String, String> names = new ConcurrentHashMap<>(); // session -> user name
+
+        void login(String userName, String sessionId) {
+            String previous = users.put(userName, sessionId);
+            if (previous != null && !previous.equals(sessionId)) {
+                live.remove(previous); // the server ends the other instance's session
+            }
+            names.put(sessionId, userName);
+        }
+
+        @Override
+        public void create(String sessionId, InvokerCallbackHandler callbackHandler, String host) {
+            live.add(sessionId);
+        }
+
+        @Override
+        public boolean exists(String sessionId) {
+            return live.contains(sessionId);
+        }
+
+        @Override
+        public void disconnect(String sessionId, DisconnectReason reason) {
+            live.remove(sessionId);
+        }
+
+        @Override
+        public boolean isSignedInElsewhere(String userName, String sessionId) {
+            String current = userName == null ? null : users.get(userName);
+            return current != null && !current.equals(sessionId) && live.contains(current);
+        }
+
+        @Override
+        public Optional<String> userName(String sessionId) {
+            return Optional.ofNullable(names.get(sessionId));
+        }
+
+        @Override
+        public Optional<String> restoreToken(String sessionId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<String> rememberLogin(String sessionId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void trustRememberedLogin(String sessionId, String userName, String token) {
+        }
+
+        @Override
+        public void forgetLogin(String userName, String token) {
+        }
+
+        @Override
+        public boolean isChatMember(String sessionId, UUID chatId) {
+            return false;
+        }
     }
 
     @Test

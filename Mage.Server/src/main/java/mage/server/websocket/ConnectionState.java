@@ -33,6 +33,7 @@ final class ConnectionState implements RpcConnection {
     private boolean running;
 
     private volatile String sessionId;
+    private volatile String userName;
     private volatile WebSocketCallbackHandler callbackHandler;
     private final GameStates gameStates = new GameStates();
     /** one per connection, shared by its logins' handlers, so its messages keep their order */
@@ -76,6 +77,16 @@ final class ConnectionState implements RpcConnection {
     @Override
     public void bindSession(String sessionId) {
         this.sessionId = sessionId;
+    }
+
+    @Override
+    public String getUserName() {
+        return userName;
+    }
+
+    @Override
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 
     @Override

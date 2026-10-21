@@ -1,0 +1,28 @@
+# Categories for GitHub's generated release notes (a release's "Generate release notes", or
+# gh release create vX.Y.Z --generate-notes; RELEASING.md). A pull request goes under the first category whose labels it
+# has. The web client shows these sections to players once after the update ("What's new"), with Features, Fixes, Ops
+# and Other headed New, Fixed, Server and Also (Mage.Web.Client/src/core/util/releaseNotes.ts).
+# Labels: enhancement and bug are GitHub's defaults; ops and dev come from the labeler (.github/labeler.yml), and
+# dependencies from Dependabot. skip-changelog leaves a pull request out.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+      - duplicate
+      - invalid
+      - wontfix
+  categories:
+    - title: Features
+      labels:
+        - enhancement
+    - title: Fixes
+      labels:
+        - bug
+    - title: Ops
+      labels:
+        - ops
+        - dev
+        - dependencies
+    - title: Other
+      labels:
+        - "*"

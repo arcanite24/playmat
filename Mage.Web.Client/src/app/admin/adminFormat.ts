@@ -57,3 +57,12 @@ const RANK: Record<StaffRole, number> = { moderator: 1, admin: 2, owner: 3 };
 export function atLeast(role: StaffRole | null | undefined, least: StaffRole): boolean {
   return !!role && (RANK[role] ?? 0) >= RANK[least];
 }
+
+/** A support payment's amount in its own currency: "$5.00", "€3.00". */
+export function money(cents: number, currency = 'USD'): string {
+  try {
+    return new Intl.NumberFormat('en', { style: 'currency', currency }).format(cents / 100);
+  } catch {
+    return `${(cents / 100).toFixed(2)} ${currency}`;
+  }
+}

@@ -30,14 +30,13 @@ export function difficultyOf(skill: number) {
 }
 
 /**
- * The AI's deck in the setup summary: a roster deck by its name, a meta or ghost deck by the name kept with it, the
+ * The AI's deck in the setup summary: a roster or format deck by its name, a ghost deck by the name kept with it, the
  * mirror as such. Null for a random starter, and for the solo sources until their messages (`soloReady`) are in.
  */
 export function aiDeckLabel(t: Translate, options: AiOptions, rosterName: string | null, soloReady: boolean): string | null {
   const source = opponentSource(options.opponentDeckId);
   switch (source.kind) {
     case 'roster': return rosterName;
-    case 'meta': return options.opponentLabel;
     case 'mirror': return soloReady ? t('solo.mirror.summary') : null;
     case 'ghost': return soloReady ? t('solo.ghost.summary', { name: options.opponentLabel ?? source.code }) : null;
   }
@@ -48,7 +47,7 @@ export function describeAi(t: Translate, options: AiOptions, deckName: string | 
   const difficulty = options.adaptive && adaptiveLabel ? adaptiveLabel : t(difficultyOf(options.skill).label);
   const parts = [
     options.opponents > 1 ? t('ai.summary.many', { count: options.opponents, difficulty }) : t('ai.summary.one', { difficulty }),
-    deckName ?? t('ai.summary.randomDeck'),
+    deckName ?? t(options.rules === 'deck' ? 'ai.summary.metaDeck' : 'ai.summary.randomDeck'),
     t(options.winsNeeded === 2 ? 'ai.summary.bestOf3' : 'ai.summary.bestOf1'),
   ];
   if (options.rules === 'deck') parts.push(t('ai.summary.deckFormat'));

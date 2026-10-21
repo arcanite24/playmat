@@ -1,7 +1,7 @@
 .zone {
   position: absolute;
   right: 236px;
-  top: 300px;
+  top: calc(var(--seam, 540px) - 240px);
   width: 210px;
   z-index: var(--z-rail);
 }

@@ -8,6 +8,8 @@ export interface MatCloth {
   dye: string;
   /** unlocked in Career (a playmat cosmetic of the same id) */
   career?: boolean;
+  /** a thank-you for supporting the server (a supporter perk of the same id) */
+  perk?: boolean;
 }
 
 export const MAT_CLOTHS: MatCloth[] = [
@@ -22,6 +24,8 @@ export const MAT_CLOTHS: MatCloth[] = [
   { id: 'slate', shades: ['#08090b', '#0d0f12', '#121519', '#191d22', '#232930', '#323a44', '#48535f'], dye: '#5a6878', career: true },
   { id: 'midnight', shades: ['#05050c', '#090914', '#0d0d1c', '#131327', '#1b1b37', '#27274f', '#3a3a6e'], dye: '#3e3a8a', career: true },
   { id: 'rose', shades: ['#0e080a', '#160c10', '#1d1015', '#28161d', '#371e28', '#4c2a38', '#693c4f'], dye: '#8a4a62', career: true },
+  // supporters' thanks: a deep verdigris with a brass dye, like the supporter sleeve
+  { id: 'patron', shades: ['#050c0a', '#081410', '#0c1b16', '#11261f', '#18352c', '#224a3e', '#326656'], dye: '#a9813f', perk: true },
 ];
 
 export const DEFAULT_CLOTH = MAT_CLOTHS[0];

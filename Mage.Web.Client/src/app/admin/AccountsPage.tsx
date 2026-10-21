@@ -56,7 +56,7 @@ function AccountList({ api, onOpen }: { api: AdminApi; onOpen(name: string): voi
             <tr key={account.name}>
               <td>
                 <button type="button" className={styles.linkButton} onClick={() => onOpen(account.name!)}>{account.name}</button>
-                {account.email && <div className={styles.quiet}>{account.email}</div>}
+                {account.email && <div className={styles.quiet}>{account.email}{account.emailVerified ? ' ✓ confirmed' : ' · not confirmed'}</div>}
               </td>
               <td><StatusChips account={account} now={now} /></td>
               <td>{account.online ? 'online now' : account.lastConnection ? describeAge(account.lastConnection, now) : 'never'}</td>
@@ -135,7 +135,7 @@ function Account({ api, role, name, onBack }: { api: AdminApi; role: StaffRole; 
           <StatusChips account={account} now={now} />
         </div>
         <p className={styles.quiet}>
-          {account.email ? `${account.email} · ` : ''}
+          {account.email ? `${account.email} (${account.emailVerified ? 'confirmed' : 'not confirmed'}) · ` : ''}
           {account.online ? 'online now' : account.lastConnection ? `last seen ${describeAge(account.lastConnection, now)}` : 'never signed in'}
           {data.githubLogin ? ` · GitHub ${data.githubLogin}` : ''}
           {muted ? ` · muted until ${formatDate(account.mutedUntil!)}` : ''}

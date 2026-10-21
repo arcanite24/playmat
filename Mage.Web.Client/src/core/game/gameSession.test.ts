@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GameView } from '../../protocol/generated/views';
 import type { EventBus } from '../rpc/EventBus';
 import { GameSession } from './gameSession';
+import { predict } from './prediction';
 
 type Handler = (data: unknown, event: { objectId: string | null }) => void;
 
@@ -62,11 +63,31 @@ function fakeApi() {
   const calls: string[] = [];
   const api = {
     sendPlayerBoolean: vi.fn(async () => { calls.push('boolean'); return true; }),
+    sendPlayerUUID: vi.fn(async () => { calls.push('uuid'); return true; }),
     gameResync: vi.fn(async () => { calls.push('resync'); return true; }),
     sendPlayerAction: vi.fn(async () => { calls.push('action'); return true; }),
   };
   return { api, calls };
 }
+
+describe('GameSession prediction', () => {
+  it('draws a clicked land tapped until the server says what happened', () => {
+    const { bus, emit } = fakeBus();
+    const { api } = fakeApi();
+    const session = new GameSession(api as never, bus, { gameId: 'g1', playerId: 'me', mode: 'play' });
+    const forest = { id: 'forest', cardTypes: ['LAND'], subTypes: ['FOREST'], rules: [] };
+    const board = { ...base, players: [{ playerId: 'me', battlefield: { forest } }] } as unknown as GameView;
+    emit('GAME_SELECT', { message: 'Play spells and abilities', gameView: { ...board, canPlayObjects: { objects: { forest: {} } } } });
+    const { view, interaction } = session.getState();
+    expect(session.click('forest', predict(view, interaction, 'forest'))).toBe(true);
+    expect(session.getState().prediction).toEqual({ id: 'forest', tapped: true });
+    expect(api.sendPlayerUUID).toHaveBeenCalledWith('g1', 'forest');
+
+    // the server's next view is the truth, whatever it says
+    emit('GAME_UPDATE', { ...board, turn: 5 });
+    expect(session.getState().prediction).toBeNull();
+  });
+});
 
 describe('GameSession reply timeout', () => {
   beforeEach(() => vi.useFakeTimers());
@@ -157,6 +178,50 @@ describe('GameSession reply timeout', () => {
     expect(await session.resync()).toBe(true);
     expect(calls).toEqual(['boolean', 'boolean', 'resync']);
     expect(session.getState()).toMatchObject({ awaitingServer: false, stalled: false });
+  });
+});
+
+describe('GameSession cancelling a payment', () => {
+  function paying() {
+    const { bus, emit } = fakeBus();
+    const calls: string[] = [];
+    const api = {
+      sendPlayerBoolean: vi.fn(async (_game: string, value: boolean) => { calls.push(`boolean ${value}`); return true; }),
+      sendPlayerUUID: vi.fn(async (_game: string, id: string) => { calls.push(`tap ${id}`); return true; }),
+    };
+    const session = new GameSession(api as never, bus, { gameId: 'g1', playerId: 'me', mode: 'play' });
+    emit('GAME_PLAY_MANA', { message: 'Pay {R}{4}', gameView: base });
+    return { session, emit, calls };
+  }
+
+  it('cancels at once when nothing is with the server', () => {
+    const { session, calls } = paying();
+    session.cancelPayment();
+    expect(calls).toEqual(['boolean false']);
+  });
+
+  it('waits for a tap in flight, then cancels at the next request for mana', () => {
+    const { session, emit, calls } = paying();
+    void session.respond({ type: 'uuid', id: 'mountain' });
+    session.cancelPayment();
+    expect(calls).toEqual(['tap mountain']);
+    emit('GAME_PLAY_MANA', { message: 'Pay {4}', gameView: base });
+    expect(calls).toEqual(['tap mountain', 'boolean false']);
+    expect(session.getState().awaitingServer).toBe(true);
+    // the rollback's priority prompt is not answered again
+    emit('GAME_SELECT', { message: 'Play spells and abilities', gameView: base });
+    expect(calls).toEqual(['tap mountain', 'boolean false']);
+    expect(session.getState().notices).toEqual([]);
+  });
+
+  it('says so when the tap in flight finished the payment', () => {
+    const { session, emit, calls } = paying();
+    void session.respond({ type: 'uuid', id: 'mountain' });
+    session.cancelPayment();
+    emit('GAME_SELECT', { message: 'Play spells and abilities', gameView: base });
+    // never sent: the priority prompt would take it as a pass, and the spell would resolve
+    expect(calls).toEqual(['tap mountain']);
+    expect(session.getState().notices.map((notice) => notice.text)).toEqual(['Too late to cancel: the cost was already paid.']);
   });
 });
 
