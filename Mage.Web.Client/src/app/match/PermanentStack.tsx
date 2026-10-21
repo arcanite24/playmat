@@ -146,7 +146,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
   const stage = useStage();
   const setBlockDrag = useMatchUi((state) => state.setBlockDrag);
   // drag a creature onto an attacker to block it; a press without moving stays a click
-  const canDrag = !!onBlockDrop && isClickable && !isAttacking;
+  // a declared attacker can still be dragged onto a planeswalker or battle, to attack that instead
+  const canDrag = !!onBlockDrop && isClickable && (!isAttacking || !!dropTargets);
   const gesture = useRef<{ startX: number; startY: number; moved: boolean } | null>(null);
   const suppressClick = useRef(false);
 
