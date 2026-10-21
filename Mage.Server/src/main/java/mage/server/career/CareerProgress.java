@@ -103,6 +103,28 @@ public final class CareerProgress {
         public int xp;
     }
 
+    /** A quest in the match menu (B284): its progress before the game and with what this game added so far. */
+    public static class CareerLiveQuest {
+        public String text;
+        public int before;
+        public int now;
+        public int target;
+    }
+
+    /** What anyone sees on a player's profile (B280). */
+    public static class CareerPublicProfile {
+        public int level;
+        public int xp;
+        /** XP into the current level, and what the level takes */
+        public int levelXp;
+        public int levelSize;
+        public int wins;
+        public int games;
+        public int achievements;
+        public int achievementsTotal;
+        public List<CareerStore.PaidGame> recent = new ArrayList<>();
+    }
+
     public static class CareerQuests {
         public List<CareerQuest> quests;
         /** a quest can be swapped for another once a day */
@@ -423,6 +445,57 @@ public final class CareerProgress {
         }
         view.canReroll = !day().equals(store.profileText(user, "reroll_day"));
         view.today = day();
+        return view;
+    }
+
+    /** the player's quests with what the game so far adds, from the game's live tally; nothing is saved */
+    public List<CareerLiveQuest> liveQuests(String user, Map<String, Integer> counters) throws SQLException {
+        CareerStore store = CareerStore.get();
+        List<CareerLiveQuest> live = new ArrayList<>();
+        if (store.profile(user) == null) {
+            return live;
+        }
+        for (CareerStore.QuestRow row : store.quests(user)) {
+            QuestTemplate template = quests.get(row.quest);
+            if (template == null || row.progress >= template.target) {
+                continue;
+            }
+            CareerLiveQuest quest = new CareerLiveQuest();
+            quest.text = template.text;
+            quest.before = row.progress;
+            quest.now = Math.min(template.target, row.progress + counters.getOrDefault(template.counter, 0));
+            quest.target = template.target;
+            live.add(quest);
+        }
+        return live;
+    }
+
+    public CareerPublicProfile publicProfile(String user) throws SQLException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null) {
+            return null;
+        }
+        CareerPublicProfile view = new CareerPublicProfile();
+        view.level = profile.level;
+        view.xp = profile.xp;
+        int left = profile.xp;
+        for (int level = 1; level < profile.level; level++) {
+            left -= CareerRules.xpForLevel(level);
+        }
+        view.levelXp = left;
+        view.levelSize = CareerRules.xpForLevel(profile.level);
+        view.achievements = store.achievements(user).size();
+        view.achievementsTotal = achievements.size();
+        for (CareerStore.PaidGame game : store.paidGames(user, 200)) {
+            view.games++;
+            if (game.won) {
+                view.wins++;
+            }
+            if (view.recent.size() < 10) {
+                view.recent.add(game);
+            }
+        }
         return view;
     }
 

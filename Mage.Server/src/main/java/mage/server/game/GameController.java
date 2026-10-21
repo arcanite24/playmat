@@ -322,6 +322,11 @@ public class GameController implements GameCallback {
         return userPlayerMap.get(userId);
     }
 
+    /** the user's seat in this game, or null when they don't play in it */
+    public UUID playerIdOf(UUID userId) {
+        return userId == null ? null : userPlayerMap.get(userId);
+    }
+
     public void join(UUID userId) {
         UUID playerId = userPlayerMap.get(userId);
         if (playerId == null) {

@@ -24,6 +24,8 @@ public class PlayerLook {
     public String flair;
     /** a pet's id: party-corgi */
     public String pet;
+    /** the account's progression level (B279); null on servers without Career or before its first counted game */
+    public Integer level;
 
     public PlayerLook() {
     }

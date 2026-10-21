@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Menu } from 'lucide-react';
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { GameSession, GameSessionState } from '../../core/game/gameSession';
 import type { Command } from '../../core/game/interaction';
@@ -69,6 +69,7 @@ import { clothOf, clothStyle } from './playmats';
 import { usePlayerLooks } from '../support/supportData';
 import { opponentSleeve } from '../support/supportModel';
 import { PracticeTools } from './PracticeTools';
+import { QuestTracker } from './QuestTracker';
 import { AdviceDialog } from './AdviceDialog';
 import { GameReview } from '../review/GameReview';
 import { WhatIfDialog } from '../solo/WhatIfDialog';
@@ -86,6 +87,9 @@ import { Stage } from './Stage';
 import { useRightEdge } from './useRightEdge';
 import { matchLayout, type MatchLayout, type RowsPlacement } from './matchLayout';
 import styles from './MatchStage.module.css';
+
+// what a counted game paid, on the game-over screen (B277); loads only when a game ends
+const RewardsBeat = lazy(() => import('../career/RewardsBeat'));
 
 const EMPTY: ReadonlySet<string> = new Set();
 const ignore = () => undefined;
@@ -313,7 +317,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     const back = eventId ? `/event/${eventId}` : vsPeople ? '/tables' : returnPath ?? '/';
     navigate(rewards ? `/career/rewards?game=${encodeURIComponent(state.gameId)}&back=${encodeURIComponent(back)}` : back);
   }, [navigate, state.gameId, eventId, returnPath, onLeave, vsPeople]);
-  const leave = useCallback(() => exit(rewardsAfter), [exit, rewardsAfter]);
+  // the rewards beat shows on the game-over screen itself (B277): leaving goes straight back, Details opens the screen
+  const leave = useCallback(() => exit(false), [exit]);
   const deckId = usePlay((play) => play.deckId);
   // players see who is watching them too
   const watchers = useWatchers(state.gameId, mode === 'play' && !state.gameOver);
@@ -566,6 +571,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             {mode === 'play' && <WatcherCount watchers={watchers} className={styles.watchers} />}
             <GameMenu
               gameId={state.gameId}
+              quests={mode === 'play' && !state.gameOver}
               practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
               solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
               careerAssists={mode === 'play' && !state.gameOver && career && !eventId && vsAi && (view?.turn ?? 0) > 0}
@@ -620,6 +626,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 // a rematch is only dealt against the computer; people go back to Tables
                 onPlayAgain={mode === 'play' && deckId && !eventId && vsAi ? playAgain : undefined}
                 onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
+                rewards={rewardsAfter ? <Suspense fallback={null}><RewardsBeat gameId={state.gameId} onDetails={() => exit(true)} /></Suspense> : undefined}
               />
             )}
             {reviewing && (
@@ -819,8 +826,10 @@ const CONFIRM = {
   },
 } as const;
 
-function GameMenu({ gameId, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
+function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
   gameId: string;
+  /** playing (not watching or replaying) a game still running: the player's quests and what this game added */
+  quests: boolean;
   /** a Career game against the computer, past the first turn: counted hints and one take-back, where the mode allows */
   careerAssists: boolean;
   /** every opponent is the computer */
@@ -841,6 +850,7 @@ function GameMenu({ gameId, practice, solo, careerAssists, vsAi, onSaved, canCon
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [adviceOpen, setAdviceOpen] = useState(false);
   const [whatIfOpen, setWhatIfOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const copy = confirming ? CONFIRM[confirming] : null;
   const assists = useSoloAssists(gameId, careerAssists).data;
   async function soloAction(choice: 'fork' | 'save' | 'takeBack') {
@@ -862,12 +872,13 @@ function GameMenu({ gameId, practice, solo, careerAssists, vsAi, onSaved, canCon
   }
   return (
     <div className={styles.menu}>
-      <DropdownMenu.Root>
+      <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger className={styles.menuButton} aria-label="Game menu">
           <Menu size={24} />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content className={styles.menuContent} align="end" sideOffset={8}>
+            {quests && <QuestTracker gameId={gameId} open={menuOpen} />}
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenu.Item>
             {practice && (
               <DropdownMenu.Item className={styles.menuItem} onSelect={() => setPracticeOpen(true)}>Practice tools</DropdownMenu.Item>

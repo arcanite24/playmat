@@ -7,6 +7,7 @@ import type match from './en/match';
 import type legal from './en/legal';
 import type whatsNew from './en/whatsNew';
 import type support from './en/support';
+import type social from './en/social';
 import type { Message } from './translate';
 
 /** Languages the app is translated into; English is the source and the fallback. */
@@ -23,7 +24,8 @@ export type LocalePreference = Locale | 'auto';
 export type MessageKey = keyof typeof core | keyof typeof settings | keyof typeof events | keyof typeof about | keyof typeof career | keyof typeof match
   | keyof typeof legal
   | keyof typeof whatsNew
-  | keyof typeof support;
+  | keyof typeof support
+  | keyof typeof social;
 
 /** A translation: every key, so a missing one is a type error (and a failing test). */
 export type Catalog = Record<MessageKey, Message>;

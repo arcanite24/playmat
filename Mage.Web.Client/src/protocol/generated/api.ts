@@ -383,6 +383,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerSetProgress'),
     careerShowProgress: (show: boolean) =>
       rpc.call('careerShowProgress', show),
+    careerProfileOf: (userName: string) =>
+      rpc.call('careerProfileOf', userName),
+    careerQuestTracker: (gameId: UUID) =>
+      rpc.call('careerQuestTracker', gameId),
     careerDaily: () =>
       rpc.call('careerDaily'),
     careerCampaigns: () =>

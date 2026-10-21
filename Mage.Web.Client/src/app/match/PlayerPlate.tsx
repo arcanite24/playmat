@@ -9,6 +9,7 @@ import { useT } from '../i18n';
 import './matchMessages';
 import { ManaCost } from '../ui/ManaCost';
 import { sigilOf } from '../../core/social/identity';
+import { LevelBadge } from '../social/LevelBadge';
 import { usePresence } from './presence';
 import styles from './PlayerPlate.module.css';
 
@@ -155,6 +156,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
       <div className={styles.info}>
         <div className={styles.name}>
           {player.name}
+          <LevelBadge level={look?.level} />
           {look?.flair === 'heart' && <Heart className={styles.flair} size={14} fill="currentColor" role="img" aria-label={t('shell.supporter')} />}
           {out && <span className={styles.range}>{t('match.plate.lost')}</span>}
           {disconnected && (

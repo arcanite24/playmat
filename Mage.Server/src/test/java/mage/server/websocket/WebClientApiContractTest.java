@@ -62,7 +62,7 @@ public class WebClientApiContractTest {
             "careerState", "careerStarters", "careerStart", "careerCollection", "careerOpponents", "careerPlay", "careerShop",
             "careerBuyPack", "careerCraft", "careerExport", "careerImport", // career store and service (career/CareerServiceTest)
             "careerQuests", "careerRerollQuest", "careerAchievements", "careerLevels", "careerWeekly", "careerGameResult",
-            "careerSetProgress", "careerShowProgress", "careerDaily", "careerDeck", "careerSaveDeck", // career progress (career/CareerProgressTest)
+            "careerSetProgress", "careerShowProgress", "careerDaily", "careerDeck", "careerSaveDeck", "careerProfileOf", "careerQuestTracker", // career progress (career/CareerProgressTest)
             "careerCampaigns", "careerCampaignPlay", "careerCampaignDeck", "careerCampaignChoose", "careerPuzzles", "careerPuzzlePlay",
             "careerChallenge", "careerChallengePlay", "careerGauntlet", "careerGauntletStart", "careerGauntletPick",
             "careerGauntletPlay", "careerGauntletAbandon", "careerGauntletMove", "careerDailyPuzzle", "careerDailyPuzzlePlay", "careerPuzzleFilePlay", "careerMinedPuzzles", "careerMinedPuzzlePlay", "gamePuzzleExport", "careerHordes", "careerHordePlay", "metaLibrary", "metaDeck", "ghostShare", "ghostMine", "ghostUnshare", "ghostDeck", "soloTableMark", "soloAdaptive", "inbox", "inboxSeen", "careerLimited", "careerLimitedStart", "careerLimitedPick",

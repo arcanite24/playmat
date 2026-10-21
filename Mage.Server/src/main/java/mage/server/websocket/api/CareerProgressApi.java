@@ -101,6 +101,38 @@ final class CareerProgressApi {
                             return CareerApi.store(() -> CareerService.get().setShowProgress(user, show));
                         }),
 
+                RpcMethod.named("careerProfileOf")
+                        .params(of("userName", STRING))
+                        .returns("CareerPublicProfile | null")
+                        .doc("What anyone sees of a player's progression on their profile: level, achievements and the last "
+                                + "counted games. Null when the player has none, or hid progression.")
+                        .handler(call -> {
+                            CareerApi.career(ctx, call);
+                            String name = call.string(0);
+                            return CareerApi.store(() -> {
+                                mage.server.career.CareerProfile profile = CareerStore.get().profile(name);
+                                return profile == null || !profile.showProgress ? null : CareerProgress.get().publicProfile(name);
+                            });
+                        }),
+
+                RpcMethod.named("careerQuestTracker")
+                        .params(of("gameId", mage.server.websocket.rpc.RpcParam.Type.UUID))
+                        .returns("CareerLiveQuest[]")
+                        .doc("The player's unfinished quests with what the running game has added so far, for the match menu. "
+                                + "Nothing is saved until the game ends. Empty when the game doesn't count.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            java.util.UUID gameId = call.uuid(0);
+                            mage.server.game.GameController controller = ctx.managers.gameManager().getGameController().get(gameId);
+                            java.util.UUID userId = ctx.managers.sessionManager().getSession(call.sessionId())
+                                    .map(mage.server.Session::getUserId).orElse(null);
+                            java.util.UUID playerId = controller == null ? null : controller.playerIdOf(userId);
+                            mage.server.career.CareerTally tally = playerId == null ? null : mage.server.career.CareerTally.of(gameId, playerId);
+                            java.util.Map<String, Integer> counters = tally == null || tally.taint() != null
+                                    ? java.util.Collections.emptyMap() : tally.counters();
+                            return CareerApi.store(() -> CareerProgress.get().liveQuests(user, counters));
+                        }),
+
                 RpcMethod.named("careerDaily")
                         .returns("CareerDaily")
                         .doc("Today (UTC): wins so far, the daily wins ladder's coins and which step is next, and whether the "

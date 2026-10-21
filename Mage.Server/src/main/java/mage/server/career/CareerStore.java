@@ -253,6 +253,22 @@ public final class CareerStore implements AutoCloseable {
         }
     }
 
+    /** levels by account name for the names that have a profile (B279) */
+    public synchronized Map<String, Integer> levels(java.util.Collection<String> users) throws SQLException {
+        Map<String, Integer> levels = new java.util.LinkedHashMap<>();
+        try (PreparedStatement select = connection.prepareStatement("SELECT xp FROM profile WHERE user = ?")) {
+            for (String user : users) {
+                select.setString(1, key(user));
+                try (ResultSet rows = select.executeQuery()) {
+                    if (rows.next()) {
+                        levels.put(user, CareerRules.levelFor(rows.getInt(1)));
+                    }
+                }
+            }
+        }
+        return levels;
+    }
+
     /** creates the profile; false when the account already has one */
     synchronized boolean createProfile(String user, String starter, int coins, long now) throws SQLException {
         try (PreparedStatement insert = connection.prepareStatement(

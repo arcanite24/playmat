@@ -26,6 +26,7 @@ const NAV: { to: string; label: MessageKey; end?: boolean }[] = [
   { to: '/decks', label: 'shell.nav.decks' },
   { to: '/events', label: 'shell.nav.events' },
   { to: '/tables', label: 'shell.nav.tables' },
+  { to: '/career', label: 'shell.nav.career' },
   { to: '/train', label: 'shell.nav.train' },
   { to: '/history', label: 'shell.nav.history' },
 ];
@@ -48,6 +49,10 @@ const FeedbackDialog = lazy(() => import('./screens/FeedbackDialog').then((modul
 
 // "What's new" loads only when there is something to show: once, after an update
 const WhatsNewDialog = lazy(() => import('./WhatsNewDialog').then((module) => ({ default: module.WhatsNewDialog })));
+
+// progression (B276, B282): the header and the one-time welcome load after the shell, on servers with Career
+const ProgressChip = lazy(() => import('./career/ProgressChip'));
+const WelcomeDialog = lazy(() => import('./career/WelcomeDialog'));
 
 // the thank-you after a payment reached the account; servers with accounts only
 const SupportNotice = lazy(() => import('./support/SupportNotice').then((module) => ({ default: module.SupportNotice })));
@@ -126,8 +131,9 @@ export function AppShell() {
   const navigate = useNavigate();
   const settingsOpen = useShellUi((state) => state.settingsOpen);
   const setSettingsOpen = useShellUi((state) => state.setSettingsOpen);
-  // Career is a game mode: its screens fill the mat under their own header
+  // Career is a game mode: its screens fill the mat under their own header, below the rail (B275)
   const immersive = useMatch('/career/*') !== null;
+  const career = useServerInfo().data?.career === true;
   const t = useT();
   // staff get Admin in the account menu; the role is checked again on every admin action
   const staff = useQuery({ queryKey: ['staffMe', userName], queryFn: () => api.staffMe(), enabled: connection === 'open', staleTime: 5 * 60_000 });
@@ -136,14 +142,14 @@ export function AppShell() {
   return (
     <div className={[styles.mat, immersive ? styles.immersive : ''].join(' ')}>
       <Stitch />
-      {!immersive && (
+      {(
         <header className={styles.rail}>
           <NavLink to="/" className={styles.brand} aria-label={t('shell.home', { app: APP_NAME })}>
             <Mark />
             <span>{APP_NAME}</span>
           </NavLink>
           <nav className={styles.nav} aria-label={t('shell.nav')}>
-            {NAV.map((item) => (
+            {NAV.filter((item) => career || item.to !== '/career').map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
@@ -162,6 +168,7 @@ export function AppShell() {
               </span>
             )}
             <MaintenanceChip />
+            {career && connection === 'open' && <Suspense fallback={null}><ProgressChip /></Suspense>}
             {connection === 'open' && <Suspense fallback={null}><InboxButton /></Suspense>}
             <LobbyButton />
             <IconButton label={t('shell.settings')} icon={<Settings size={18} />} onClick={() => setSettingsOpen(true)} />
@@ -212,6 +219,7 @@ export function AppShell() {
       <FeedbackHost />
       <WhatsNewHost />
       <SupportHost />
+      {career && connection === 'open' && <Suspense fallback={null}><WelcomeDialog /></Suspense>}
       <ImportSheetHost />
       <Toaster />
     </div>

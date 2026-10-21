@@ -131,6 +131,8 @@ export default {
   'settings.importantCues': 'Only important cues',
   'settings.importantCues.detail': 'Just your turn, decisions, your clock running low and the result.',
   'settings.careerMusic': 'Career music',
+  'settings.showProgress': 'Show progression',
+  'settings.showProgress.detail': 'Your level in the header, Today on Home and what each game paid. Games count either way. Kept with your account.',
   'settings.careerMusic.detail': "Quiet music on Career's screens. It stops for games.",
   'settings.musicVolume': 'Music volume',
   'settings.musicVolume.label': 'Career music volume',

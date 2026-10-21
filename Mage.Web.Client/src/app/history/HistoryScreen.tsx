@@ -1,16 +1,32 @@
 import { useQuery } from '@tanstack/react-query';
 import { Clapperboard, Trophy } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { MatchView, ReplayInfo } from '../../protocol/generated/views';
 import { formatRules } from '../../core/decks/formats';
 import { matchPlayers, matchWinner } from '../../core/history/matchRecord';
 import { describeResult, replayWinner } from '../../core/replay/timeline';
 import { api } from '../connection';
+import { NameLevel } from '../social/LevelBadge';
 import { useSession } from '../stores/session';
 import { Button } from '../ui/Button';
 import { Zone } from '../ui/Zone';
 import styles from './HistoryScreen.module.css';
+
+/** "Ana Lv 12 vs Ben Lv 3": the players, each with their level when the server keeps one. */
+function Players({ names }: { names: readonly string[] }) {
+  return (
+    <span className={styles.players}>
+      {names.map((name, index) => (
+        <Fragment key={`${index}-${name}`}>
+          {index > 0 && ' vs '}
+          {name}
+          <NameLevel name={name} />
+        </Fragment>
+      ))}
+    </span>
+  );
+}
 
 function when(time: number | undefined): string {
   return time ? new Date(time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
@@ -95,12 +111,13 @@ export function HistoryScreen() {
 function MatchRow({ match, me, replayIds, onReplay }: { match: MatchView; me: string; replayIds: Set<string | undefined>; onReplay(gameId: string): void }) {
   const games = match.games ?? [];
   const won = matchWinner(match.result) === me;
+  const players = matchPlayers(match.players);
   return (
     <li className={styles.row}>
       <div className={styles.main}>
         <p className={styles.name}>
           {won && <Trophy size={14} className={styles.trophy} aria-label="You won" />}
-          {matchPlayers(match.players).join(' vs ') || match.matchName}
+          {players.length > 0 ? <Players names={players} /> : match.matchName}
         </p>
         <p className={styles.meta}>
           {[formatRules(match.deckType ?? '').label, match.gameType, match.rated ? 'Rated' : '', when(match.endTime)].filter(Boolean).join(' · ')}
@@ -129,7 +146,7 @@ function ReplayRow({ replay, me, onWatch, onReview }: { replay: ReplayInfo; me: 
       <div className={styles.main}>
         <p className={styles.name}>
           {replayWinner(replay.result) === me && <Trophy size={14} className={styles.trophy} aria-label="You won" />}
-          {names.join(' vs ')}
+          <Players names={names} />
         </p>
         <p className={styles.meta}>
           {[

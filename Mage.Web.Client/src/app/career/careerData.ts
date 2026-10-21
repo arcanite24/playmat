@@ -78,6 +78,11 @@ export function useCareerWeekly(enabled: boolean) {
   return useQuery({ queryKey: KEY.weekly, queryFn: () => api.careerWeekly(), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
 
+/** Today (UTC): wins, the daily wins ladder and the day's first bonuses. */
+export function useCareerDaily(enabled: boolean) {
+  return useQuery({ queryKey: ['career', 'daily'], queryFn: () => api.careerDaily(), enabled: useSignedIn() && enabled, staleTime: 0 });
+}
+
 export function useCareerSetProgress(enabled: boolean) {
   return useQuery({ queryKey: KEY.sets, queryFn: () => api.careerSetProgress(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
 }

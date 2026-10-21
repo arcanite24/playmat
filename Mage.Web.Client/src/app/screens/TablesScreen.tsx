@@ -17,6 +17,7 @@ import { DEFAULT_ADVANCED, matchOptions, type TableAdvanced } from '../../core/g
 import { aiDecks } from '../stores/play';
 import { inviteLink } from '../../core/social/chatLine';
 import { ChatPanel } from '../social/ChatPanel';
+import { NameLevel } from '../social/LevelBadge';
 import { useChatRoom } from '../social/useChatRoom';
 import { useSocial } from '../stores/social';
 import { joinTable } from './joinTable';
@@ -184,7 +185,8 @@ function TableRow({ table, children }: { table: TableView; children?: React.Reac
         {(table.seats ?? []).map((seat, index) => (
           <li key={index} className={seat.playerName ? styles.seatTaken : styles.seatOpen} title={seat.playerName || 'Open seat'}>
             {seat.playerType && seat.playerType !== 'HUMAN' ? <Bot size={14} aria-hidden="true" /> : <UserRound size={14} aria-hidden="true" />}
-            <span>{seat.playerName || 'Open'}</span>
+            <span className={styles.seatName}>{seat.playerName || 'Open'}</span>
+            {seat.playerName && (!seat.playerType || seat.playerType === 'HUMAN') && <NameLevel name={seat.playerName} className={styles.seatLevel} />}
           </li>
         ))}
       </ul>

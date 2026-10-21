@@ -102,6 +102,13 @@
   white-space: nowrap;
 }
 
+/* the players and their levels, cut short together on a narrow row */
+.players {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .trophy {
   flex: none;
   color: var(--decision);

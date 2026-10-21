@@ -597,6 +597,13 @@ export interface CareerLines {
     win?: string;
 }
 
+export interface CareerLiveQuest {
+    before?: number;
+    now?: number;
+    target?: number;
+    text?: string;
+}
+
 export interface CareerMatch {
     opponentId?: string;
     tableId?: string;
@@ -748,6 +755,18 @@ export interface CareerProfile {
     showProgress?: boolean;
     starter?: string;
     wildcards?: Wildcards;
+    wins?: number;
+    xp?: number;
+}
+
+export interface CareerPublicProfile {
+    achievements?: number;
+    achievementsTotal?: number;
+    games?: number;
+    level?: number;
+    levelSize?: number;
+    levelXp?: number;
+    recent?: PaidGame[];
     wins?: number;
     xp?: number;
 }
@@ -1637,6 +1656,7 @@ export interface PlayerLook {
     cloth?: string;
     flair?: string;
     frame?: string;
+    level?: number;
     name?: string;
     pet?: string;
     sleeve?: string;

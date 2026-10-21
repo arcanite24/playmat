@@ -12,6 +12,7 @@ export default {
   'shell.nav.tables': 'Tables',
   'shell.nav.train': 'Train',
   'shell.nav.history': 'History',
+  'shell.nav.career': 'Career',
   'shell.reconnecting': 'Reconnecting…',
   'shell.offline': 'Offline',
   'shell.maintenance': 'Maintenance at {time}',

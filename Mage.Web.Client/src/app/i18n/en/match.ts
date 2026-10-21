@@ -57,6 +57,11 @@ export default {
   'match.end.drawMatch': 'The match ended {wins}–{losses}.',
   'match.end.backToTables': 'Back to Tables',
 
+  // the game menu's quest tracker
+  'match.quests': 'Quests',
+  'match.quests.count': '{now}/{target}',
+  'match.quests.gained': '{now} of {target}, {gained} from this game',
+
   // the score while sideboarding
   'match.score.won': 'You won game {game} · {wins}–{losses}',
   'match.score.lost': 'You lost game {game} · {wins}–{losses}',
