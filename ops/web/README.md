@@ -239,10 +239,18 @@ The Settings tab (admins) changes these at once, without a restart; they are kep
 | Career | on or off; `XMAGE_CAREER=off` turns it off for good |
 | AI opponents per table | 0 to 15, or empty for the config's `maxAiOpponents` |
 | Time to answer | 30 to 3600 seconds, or the config's `maxSecondsIdle` |
+| Batch games at once | 0 to 16 AI-against-AI games running together for players' batches (default 1); 0 stops the runner |
+| Batch games per player a day | 0 to 100000 (default 200) |
 | Discord posts | tables, events, matches and staff news, each on or off |
 | Support (owner only) | on or off; the monthly goal in cents (default 4000, $40); the Ko-fi page; the GitHub Sponsors page; what support pays for; whether the Discord thank-you says the amount. See [Support and the monthly goal](#support-and-the-monthly-goal) |
 
 The Discord part also says whether each webhook is set (the address stays on the server) and posts a test message on request.
+
+### Single player
+
+The Single player tab shows the batch runner (games playing now, each player's daily quota, the queue; staff can cancel a batch) and the content packs.
+
+A content pack adds campaigns, puzzles, weekly challenges and roster opponents without a new build: a zip holding `pack.json` and the `.dck` decks it names under `decks/`. Owners upload one from the tab, or anyone with the server's files drops the folder into `db/content-packs/<pack id>/` and presses **Reload**. A pack with problems (a missing deck, an unknown card) stays out and the tab says why. Packs live on the `xmage-db` volume and are in the nightly backup.
 
 ### Maintenance
 
@@ -326,7 +334,7 @@ Caddy allows one address 30 new `/ws` connections a minute (`WS_RATE_LIMIT`). A 
 
 | Volume | Mounted at | Holds | Back up? |
 |---|---|---|---|
-| `xmage-db` | `/opt/xmage/db` | `authorized_user.h2` (accounts), `feedback.h2`, `user_stats.db` (player stats), `table_record.db` (finished tables), `web_decks.db` (decks synced to accounts), `web_reports.db` (player reports), `career.db` (Career collections and progress), `web_admin.db` (/admin), `support.db` (support ledger, perks, looks) | yes, nightly |
+| `xmage-db` | `/opt/xmage/db` | `authorized_user.h2` (accounts), `feedback.h2`, `user_stats.db` (player stats), `table_record.db` (finished tables), `web_decks.db` (decks synced to accounts), `web_reports.db` (player reports), `career.db` (Career collections and progress), `web_admin.db` (/admin), `support.db` (support ledger, perks, looks), `solo.db` (single player: saved games, ghosts, AI batches, scores), `content-packs/` (packs staff added) | yes, nightly |
 | `xmage-cards` | `/opt/xmage/cards-db` | `cards.h2`, the card database | no: a cache built from the image |
 | `xmage-saved` | `/opt/xmage/saved` | saved games (`XMAGE_SAVE_GAMES`) and web client replays (`saved/replays`) | optional |
 | `xmage-logs` | `/opt/xmage/logs` | `mageserver.log*` | no |
@@ -341,7 +349,8 @@ XMage opens every database under `./db`. Only user data stays on `xmage-db`. The
 The `backup` service runs daily at `BACKUP_AT` and writes `/backups/<UTC timestamp>/` into the `xmage-backups` volume:
 
 - `authorized_user.h2.sql.gz` and `feedback.h2.sql.gz`: H2 SQL dumps. They're taken online by joining the running server's database through H2's auto-server mode, so each dump is consistent.
-- `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db` and `support.db`: SQLite copies made with SQLite's online backup API.
+- `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db` and `solo.db`: SQLite copies made with SQLite's online backup API.
+- `content-packs.tar.gz`: the `db/content-packs` folder, when there is one.
 
 Every run writes `db/backup-status.json` (when, whether it worked, its size and the last good one). The admin Overview shows it, and once an hour the server checks it: a failed run, or no good backup for 36 hours, is posted to the staff channel (once a day at most).
 
@@ -363,7 +372,7 @@ $C run --rm --no-deps backup restore 20261007T033000Z
 $C up -d
 ```
 
-The restore replaces the accounts and feedback databases (rebuilt from the dumps) and the SQLite files. Databases missing from the backup are left alone. To restore from a copy kept off the machine, first copy the directory back into the volume: `$C cp ./xmage-backup-20261007 backup:/backups/20261007T033000Z`.
+The restore replaces the accounts and feedback databases (rebuilt from the dumps), the SQLite files and the content packs folder. Databases missing from the backup are left alone. To restore from a copy kept off the machine, first copy the directory back into the volume: `$C cp ./xmage-backup-20261007 backup:/backups/20261007T033000Z`.
 
 ### Off-site copies
 

@@ -12,6 +12,8 @@
 #   web_decks.db, web_reports.db, career.db         SQLite copies (synced decks, player reports, Career progress)
 #   web_admin.db                                    SQLite copy (/admin: access, staff, audit log, settings)
 #   support.db                                      SQLite copy (support ledger, sponsorships, perks, looks)
+#   solo.db                                         SQLite copy (single player: saved games, ghosts, batches, scores)
+#   content-packs.tar.gz                            the content packs folder (campaigns, puzzles, opponents staff added)
 # H2 dumps are taken online: AUTO_SERVER lets this process join the running server's database.
 # SQLite copies use the online backup API. The newest $BACKUP_KEEP (default 14) backups are kept.
 # Every run writes db/backup-status.json, which the server reads for /admin and its staff alerts.
@@ -22,7 +24,8 @@ BACKUP_DIR=${BACKUP_DIR:-/backups}
 BACKUP_AT=${BACKUP_AT:-03:30}
 BACKUP_KEEP=${BACKUP_KEEP:-14}
 H2_DBS=(authorized_user.h2 feedback.h2)
-SQLITE_DBS=(user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db support.db)
+SQLITE_DBS=(user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db support.db solo.db)
+PACKS=content-packs
 STATUS=$DB_DIR/backup-status.json
 
 h2_jar() {
@@ -68,6 +71,9 @@ backup_once() {
     [[ -e $DB_DIR/$db ]] || continue
     sqlite3 -cmd ".timeout 30000" "$DB_DIR/$db" ".backup '$tmp/$db'"
   done
+  if [[ -d $DB_DIR/$PACKS ]]; then
+    tar -czf "$tmp/$PACKS.tar.gz" -C "$DB_DIR" "$PACKS"
+  fi
   mv "$tmp" "$BACKUP_DIR/$name"
   size=$(du -sh "$BACKUP_DIR/$name" | cut -f1)
   log "backup $name done ($size)"
@@ -116,6 +122,11 @@ restore() {
     cp "$src/$db" "$DB_DIR/$db"
     log "restored $db"
   done
+  if [[ -f $src/$PACKS.tar.gz ]]; then
+    rm -rf "${DB_DIR:?}/$PACKS"
+    tar -xzf "$src/$PACKS.tar.gz" -C "$DB_DIR"
+    log "restored $PACKS"
+  fi
   log "restore of $name complete; start the server: docker compose start xmage"
 }
 
