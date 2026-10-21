@@ -34,6 +34,8 @@ public final class CareerProgress {
     public static final int QUEST_SLOTS = 3;
     /** wins in a week that each give a free pack */
     public static final List<Integer> WEEKLY_GOALS = Collections.unmodifiableList(Arrays.asList(5, 10, 15));
+    /** XP each weekly goal pays besides its pack */
+    public static final int WEEKLY_GOAL_XP = 250;
 
     /** counters where a game's value replaces a smaller lifetime value instead of adding to it */
     private static final Set<String> MAX_COUNTERS = new HashSet<>(Arrays.asList(
@@ -185,9 +187,31 @@ public final class CareerProgress {
         }
     }
 
+    /** An extra a game paid: the daily wins ladder, the first win of the day, a match won. */
+    public static class CareerBonus {
+        public String text;
+        public int xp;
+        public int coins;
+
+        public CareerBonus() {
+        }
+
+        CareerBonus(String text, int xp, int coins) {
+            this.text = text;
+            this.xp = xp;
+            this.coins = coins;
+        }
+    }
+
     /** Everything a game paid, for the rewards screen after it. */
     public static class CareerGameResult {
         public String gameKey;
+        /** the kind of game: "career", "ai", "person", "pod" or "event" */
+        public String kind;
+        /** the account's XP before this game paid anything, for the XP bar's sweep */
+        public int xpBefore;
+        /** the day's extras this game paid */
+        public List<CareerBonus> bonuses = new ArrayList<>();
         /** whether this was a Career match (else a regular game against the AI that counts for quests) */
         public boolean career;
         public boolean won;
@@ -242,6 +266,39 @@ public final class CareerProgress {
         try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
             return gson.fromJson(reader, type.getType());
         }
+    }
+
+    /** Today's progress (UTC), for Home's Today panel. */
+    public static class CareerDaily {
+        public String day;
+        public int wins;
+        public int games;
+        /** the coins each daily win pays, first win first */
+        public List<Integer> winCoins = new ArrayList<>();
+        /** 1-based step of the ladder the next win pays; past the end when it's done for today */
+        public int nextWin;
+        public boolean firstWinPaid;
+        public boolean firstPersonGamePaid;
+        public int firstWinXp;
+        public int firstPersonGameXp;
+    }
+
+    public CareerDaily daily(String user) throws SQLException {
+        CareerRewards rewards = CareerRewards.get();
+        CareerDaily view = new CareerDaily();
+        view.day = day();
+        int[] today = CareerStore.get().daily(user, view.day);
+        view.wins = today[0];
+        view.games = today[1];
+        for (int i = 1; i <= rewards.dailyWinLadder().size(); i++) {
+            view.winCoins.add(rewards.dailyWinCoins(i));
+        }
+        view.nextWin = today[0] + 1;
+        view.firstWinPaid = today[0] > 0;
+        view.firstPersonGamePaid = today[2] > 0;
+        view.firstWinXp = rewards.firstWinXp();
+        view.firstPersonGameXp = rewards.firstPersonGameXp();
+        return view;
     }
 
     public static CareerProgress get() {
@@ -454,10 +511,10 @@ public final class CareerProgress {
             result.quests.add(progress);
         }
 
-        // the weekly goal: Career wins only, and not puzzles or the weekly challenge
+        // the weekly goal: every win of any kind (B287), but not puzzles, trials or the weekly challenge
         boolean weeklyGame = result.mode == null
                 || !("puzzle".equals(result.mode.kind) || "challenge".equals(result.mode.kind) || result.mode.trial);
-        if (result.career && result.won && weeklyGame) {
+        if (result.won && weeklyGame) {
             String week = week();
             int before = store.weeklyWins(user, week);
             store.addWeeklyWin(user, week);
@@ -465,6 +522,10 @@ public final class CareerProgress {
             if (WEEKLY_GOALS.contains(after)) {
                 store.addProfileInt(user, "pack_tokens", 1);
                 result.packs++;
+                int xp = CareerRewards.scaleXp(WEEKLY_GOAL_XP);
+                store.addProfileInt(user, "xp", xp);
+                result.xp += xp;
+                result.bonuses.add(new CareerBonus("Weekly goal: " + after + " wins", xp, 0));
             }
             store.maxStat(user, "weekly_best", after);
         }

@@ -114,17 +114,18 @@ public class GameController implements GameCallback {
     }
 
     /**
-     * A game of one person against the AI is tallied for Career quests and achievements: always at a Career table, and
-     * at other tables when the player lets regular AI games count (decided when the game ends). Never in test mode.
+     * Every human seat of a game with an opponent is tallied for progression (levels, quests, achievements), whatever
+     * the table: against the AI, against people, in a pod or an event. Whether the game pays is decided when it ends.
+     * Never in test mode.
      */
     private void tallyForCareer() {
         if (Main.isTestMode()
                 || !mage.server.career.CareerService.enabled(managerFactory.configSettings().isAuthenticationActivated())) {
             return;
         }
-        List<Player> humans = game.getPlayers().values().stream().filter(Player::isHuman).collect(Collectors.toList());
-        if (humans.size() == 1 && game.getPlayers().size() > 1) {
-            game.getState().addWatcher(mage.server.career.CareerTally.open(game.getId(), humans.get(0).getId()));
+        List<UUID> humans = game.getPlayers().values().stream().filter(Player::isHuman).map(Player::getId).collect(Collectors.toList());
+        if (!humans.isEmpty() && game.getPlayers().size() > 1) {
+            game.getState().addWatcher(mage.server.career.CareerTally.open(game.getId(), humans));
         }
     }
 

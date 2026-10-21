@@ -348,10 +348,25 @@ export interface CareerAchievement {
     xp?: number;
 }
 
+export interface CareerAdminView {
+    cappedPairs?: { [index: string]: number };
+    coins?: number;
+    collection?: boolean;
+    games?: PaidGame[];
+    level?: number;
+    xp?: number;
+}
+
 export interface CareerAscension {
     level?: number;
     text?: string;
     title?: string;
+}
+
+export interface CareerBonus {
+    coins?: number;
+    text?: string;
+    xp?: number;
 }
 
 export interface CareerCampaign {
@@ -435,6 +450,18 @@ export interface CareerCover {
     setCode?: string;
 }
 
+export interface CareerDaily {
+    day?: string;
+    firstPersonGamePaid?: boolean;
+    firstPersonGameXp?: number;
+    firstWinPaid?: boolean;
+    firstWinXp?: number;
+    games?: number;
+    nextWin?: number;
+    winCoins?: number[];
+    wins?: number;
+}
+
 export interface CareerDailyPuzzle {
     attempts?: number;
     date?: string;
@@ -448,9 +475,11 @@ export interface CareerDailyPuzzle {
 export interface CareerGameResult {
     achievements?: CareerAchievement[];
     assisted?: string;
+    bonuses?: CareerBonus[];
     career?: boolean;
     coins?: number;
     gameKey?: string;
+    kind?: string;
     levelAfter?: number;
     levelBefore?: number;
     levelRewards?: CareerLevelReward[];
@@ -463,6 +492,7 @@ export interface CareerGameResult {
     weekly?: CareerWeekly;
     won?: boolean;
     xp?: number;
+    xpBefore?: number;
     xpForNext?: number;
     xpIntoLevel?: number;
 }
@@ -709,11 +739,13 @@ export interface CareerPoolCard {
 export interface CareerProfile {
     cards?: number;
     coins?: number;
+    collection?: boolean;
     countAiGames?: boolean;
     created?: number;
     level?: number;
     losses?: number;
     packTokens?: number;
+    showProgress?: boolean;
     starter?: string;
     wildcards?: Wildcards;
     wins?: number;
@@ -1492,6 +1524,17 @@ export interface ObjectColor extends Serializable, Copyable<ObjectColor>, Compar
     green?: boolean;
     red?: boolean;
     white?: boolean;
+}
+
+export interface PaidGame {
+    at?: number;
+    coins?: number;
+    gameKey?: string;
+    kind?: string;
+    reason?: string;
+    revoked?: boolean;
+    won?: boolean;
+    xp?: number;
 }
 
 export interface PairAdvice {

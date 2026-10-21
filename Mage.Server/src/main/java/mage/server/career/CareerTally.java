@@ -18,9 +18,10 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * What one player did in one game, as named counters, for Career quests, achievements and lifetime stats. A watcher
- * fills it (watchers see every event); like the game event feed, tallies are found by game id because the watcher is
- * deep-copied with the game state. The AI's simulations run on copies and are skipped.
+ * What one player did in one game, as named counters, for Career quests, achievements and lifetime stats. Every human
+ * seat of a game has its own; one watcher per game fills them all (watchers see every event). Like the game event feed,
+ * tallies are found by game id because the watcher is deep-copied with the game state. The AI's simulations run on
+ * copies and are skipped.
  * <p>
  * A tally is "tainted" when the game shouldn't count: practice tools or cheats were used, or the opponent was a
  * goldfish. A tainted tally pays no progress.
@@ -29,7 +30,8 @@ public final class CareerTally {
 
     /** tallies older than this are dropped when a new one opens (games that never reported an end) */
     private static final long STALE_MILLIS = 12L * 60 * 60 * 1000;
-    private static final Map<UUID, CareerTally> TALLIES = new ConcurrentHashMap<>();
+    /** game id to each human seat's tally, by player id */
+    private static final Map<UUID, Map<UUID, CareerTally>> TALLIES = new ConcurrentHashMap<>();
 
     public static final String SPELLS = "spells";
     public static final String WINS = "wins";
@@ -46,30 +48,81 @@ public final class CareerTally {
         this.playerId = playerId;
     }
 
-    /** starts tallying a game for its one human player; the watcher goes into the game state */
+    /** starts tallying a game for one human player; the watcher goes into the game state */
     public static Watcher open(UUID gameId, UUID playerId) {
+        return open(gameId, java.util.Collections.singletonList(playerId));
+    }
+
+    /** starts tallying a game for each of its human players; one watcher goes into the game state */
+    public static Watcher open(UUID gameId, java.util.Collection<UUID> playerIds) {
         long now = System.currentTimeMillis();
-        TALLIES.values().removeIf(tally -> now - tally.opened > STALE_MILLIS);
-        TALLIES.put(gameId, new CareerTally(playerId));
+        TALLIES.values().removeIf(seats -> seats.values().stream().allMatch(tally -> now - tally.opened > STALE_MILLIS));
+        Map<UUID, CareerTally> seats = new java.util.LinkedHashMap<>();
+        for (UUID playerId : playerIds) {
+            seats.put(playerId, new CareerTally(playerId));
+        }
+        TALLIES.put(gameId, java.util.Collections.synchronizedMap(seats));
         return new Recorder(gameId);
     }
 
-    /** the game's tally, or null; it stays until taken */
+    /** a seat's tally, or null; it stays until taken */
+    public static CareerTally of(UUID gameId, UUID playerId) {
+        Map<UUID, CareerTally> seats = gameId == null ? null : TALLIES.get(gameId);
+        return seats == null || playerId == null ? null : seats.get(playerId);
+    }
+
+    /** the game's only (or first) tally, or null */
     public static CareerTally of(UUID gameId) {
-        return gameId == null ? null : TALLIES.get(gameId);
+        Map<UUID, CareerTally> seats = gameId == null ? null : TALLIES.get(gameId);
+        if (seats == null) {
+            return null;
+        }
+        synchronized (seats) {
+            return seats.values().stream().findFirst().orElse(null);
+        }
     }
 
-    /** removes and returns the game's tally */
+    /** removes and returns every seat's tally of the game, by player id (empty when nothing was tallied) */
+    public static Map<UUID, CareerTally> takeAll(UUID gameId) {
+        Map<UUID, CareerTally> seats = gameId == null ? null : TALLIES.remove(gameId);
+        if (seats == null) {
+            return java.util.Collections.emptyMap();
+        }
+        synchronized (seats) {
+            return new java.util.LinkedHashMap<>(seats);
+        }
+    }
+
+    /** removes the game's tallies and returns the only (or first) one */
     public static CareerTally take(UUID gameId) {
-        return gameId == null ? null : TALLIES.remove(gameId);
+        return takeAll(gameId).values().stream().findFirst().orElse(null);
     }
 
-    /** the game won't count for Career progress, and why */
+    /** the game won't count for Career progress for anyone in it, and why */
     public static void taint(UUID gameId, String why) {
-        CareerTally tally = of(gameId);
+        Map<UUID, CareerTally> seats = gameId == null ? null : TALLIES.get(gameId);
+        if (seats == null) {
+            return;
+        }
+        synchronized (seats) {
+            for (CareerTally tally : seats.values()) {
+                if (tally.taint == null) {
+                    tally.taint = why;
+                }
+            }
+        }
+    }
+
+    /** one seat's game won't count (a player who used help), and why */
+    public static void taint(UUID gameId, UUID playerId, String why) {
+        CareerTally tally = of(gameId, playerId);
         if (tally != null && tally.taint == null) {
             tally.taint = why;
         }
+    }
+
+    public UUID playerId() {
+        return playerId;
     }
 
     /** a tally outside a running game (tests, or a game nothing was recorded for) */
@@ -187,10 +240,20 @@ public final class CareerTally {
             if (game.isSimulation()) {
                 return;
             }
-            CareerTally tally = of(gameId);
-            if (tally == null) {
+            Map<UUID, CareerTally> seats = TALLIES.get(gameId);
+            if (seats == null) {
                 return;
             }
+            CareerTally[] tallies;
+            synchronized (seats) {
+                tallies = seats.values().toArray(new CareerTally[0]);
+            }
+            for (CareerTally tally : tallies) {
+                watch(tally, event, game);
+            }
+        }
+
+        private static void watch(CareerTally tally, GameEvent event, Game game) {
             UUID me = tally.playerId;
             switch (event.getType()) {
                 case BEGIN_TURN:

@@ -267,6 +267,8 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `adminResetCode` | `userName: string`, `reason?: string` | `StaffResetCode` | session | Staff (admin): a one-time password reset code for the account, shown once; it is emailed too when the server can send mail. The player enters it under Forgot password with the account's email. |
 | `adminAccountExport` | `userName: string` | `string` | session | Staff (admin): everything the server keeps about the account as JSON, for the player or before a deletion. Passwords and sign-in tokens are left out. |
 | `adminDeleteAccount` | `userName: string`, `reason: string` | `boolean` | session | Staff (admin): delete the account with its decks, Career, reports, stats, feedback, allowlist entry, staff role and supporter perks (its payments stay in the ledger, anonymized), signing its player out. Can't be undone: export first. The audit log keeps the record of the deletion. |
+| `adminCareer` | `userName: string` | `CareerAdminView \| null` | session | Staff (moderator): the account's progression: level, XP, coins, its last 50 counted games with kind, pay and why, and the people it hit the day's pair cap with over the last 14 days. Null when it has no progression yet. |
+| `adminCareerRevoke` | `userName: string`, `gameKey: string`, `reason: string` | `boolean` | session | Staff (admin): take back what a counted game paid the account (its XP and coins; quests and achievements it finished stay). False when it was taken back before. Goes in the audit log. |
 | `adminFeedback` | `status?: string` | `FeedbackEntry[]` | session | Staff (moderator): feedback players sent, newest first, 200 at most; status new, seen or done narrows it. |
 | `adminFeedbackMark` | `id: number`, `status: string`, `note?: string` | `FeedbackEntry` | session | Staff (moderator): mark feedback new, seen or done, with an optional note (such as the issue it became). |
 | `adminSettings` | - | `ServerSettings` | session | Staff (admin): settings that change without a restart (registration, Career, AI opponents, batch games, time to answer, Discord posts), each with where its value comes from; the Discord webhooks; planned maintenance. |
@@ -299,6 +301,8 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerState` | - | `CareerState` | session | Whether this server offers Career, and the signed-in account's Career (profile null before it opens one). |
 | `careerStarters` | - | `CareerStarter[]` | session | The starter decks a Career can open with. |
 | `careerStart` | `starterId: string` | `CareerProfile` | session | Open a Career with a starter deck: its cards become the collection, plus coins for a first pack. |
+| `careerDeck` | - | `DeckCardLists \| null` | session | The account's Career deck, kept on the server so it follows the account to any device. Null before one is saved. |
+| `careerSaveDeck` | `deck: DeckCardLists` | `boolean` | session | Save the account's Career deck. Refused, with the cards it's short of, when the deck holds more copies of a card than the collection does (basic lands are free). |
 | `careerCollection` | - | `CareerCard[]` | session | Every card the account owns in Career, by printing. Basic lands are free and not listed. |
 | `careerOpponents` | - | `CareerOpponent[]` | session | The AI opponents in tiers, with the account's wins against each and which are open. A tier opens after enough wins in the one before. |
 | `careerPlay` | `opponentId: string`, `deck: DeckCardLists`, `adaptive?: boolean` | `CareerMatch` | session | Start a Career match against an open opponent with a deck of owned cards (basic lands are free). The server sets up the table and starts the match; the game arrives like any other. Adaptive: the AI's skill follows your hidden Career rating instead of the tier's, to keep your win rate near 55%. |
@@ -314,7 +318,8 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerWeekly` | - | `CareerWeekly` | session | Career wins this week (ISO weeks, UTC) and the goals that each give a free pack. |
 | `careerGameResult` | `gameKey?: string` | `CareerGameResult \| null` | session | What a finished game paid: the match's coins and XP, quest progress, achievements, level rewards and the weekly goal. The key is the Career table id (or the game id of a regular AI game); without one, the latest game. Null when that game paid nothing. |
 | `careerSetProgress` | - | `CareerSetProgress[]` | session | How much of each set the collection has: different cards owned (any printing) out of the cards its packs hold, basic lands left out. Most complete first. |
-| `careerCountAiGames` | `count: boolean` | `CareerProfile` | session | Whether regular games against the AI also count for quests and achievements (off by default). They never pay coins for the match itself, and practice, goldfish and cheat games never count. |
+| `careerShowProgress` | `show: boolean` | `CareerProfile` | session | Whether the player sees progression: the header, Today on Home and the rewards after games. Kept with the account, so it holds on every device. Games still count while it's hidden. |
+| `careerDaily` | - | `CareerDaily` | session | Today (UTC): wins so far, the daily wins ladder's coins and which step is next, and whether the first win and the first game against a person have paid their bonus. |
 | `careerCampaigns` | - | `CareerCampaign[]` | session | Every campaign with its chapters and nodes, each locked, open or done for this account. |
 | `careerCampaignPlay` | `campaignId: string`, `nodeId: string` | `CareerMatch` | session | Play a campaign duel or trial that's open (or done, to play it again), with the node's deck or the chapter's, under the school's format: a pod seats every AI, a final is a best of three. A first win pays the node's reward. |
 | `careerCampaignDeck` | `campaignId: string`, `nodeId: string` | `DeckCardLists` | session | The list of the deck you play at a campaign duel, to read before it. |
@@ -386,6 +391,7 @@ Generated from `ClientCallbackMethod`. Do not edit the table by hand.
 | `CHATMESSAGE` | `ChatMessage` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |
 | `SHOW_USERMESSAGE` | `string[]` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |
 | `SERVER_MESSAGE` | `ChatMessage` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |
+| `CAREER_PROGRESS` | `string` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |
 | `JOINED_TABLE` | `TableClientMessage` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |
 | `START_TOURNAMENT` | `TableClientMessage` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |
 | `TOURNAMENT_INIT` | `TournamentView` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |

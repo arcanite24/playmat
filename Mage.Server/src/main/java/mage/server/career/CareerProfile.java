@@ -32,6 +32,10 @@ public class CareerProfile {
     public int cards;
     /** free packs earned (levels, the weekly goal); the shop spends these before coins */
     public int packTokens;
-    /** regular games against the AI count for quests and achievements too (off by default) */
+    /** always true since every game counts (M24); kept for older clients */
     public boolean countAiGames;
+    /** whether the Career collection is open (a starter deck was picked); progression runs without it */
+    public boolean collection;
+    /** whether the player wants progression shown: the header, Today and the rewards after games (B283) */
+    public boolean showProgress;
 }

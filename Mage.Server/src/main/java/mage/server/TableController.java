@@ -914,9 +914,9 @@ public class TableController {
     }
 
     /**
-     * A game ended: a Career match that's over pays its player, once (the service keys the payout by table), and a
-     * regular game against the AI counts for the player's Career quests when they chose that. Practice against a
-     * goldfish (an AI with only basic lands) never counts.
+     * A game ended: a Career match that's over pays its player, once (the service keys the payout by table), and any
+     * other game pays progression to every human seat (B265): against the AI, people, a pod or an event. Practice
+     * against a goldfish (an AI with only basic lands) never counts. Each paid player hears about it right away (B269).
      */
     private void payCareer(Game game) {
         if (mage.server.career.AdaptiveSkill.marked(table.getId()) && match.hasEnded()) {
@@ -935,34 +935,74 @@ public class TableController {
                 }
             }
         }
-        CareerTally tally = CareerTally.take(game.getId());
+        Map<UUID, CareerTally> tallies = CareerTally.takeAll(game.getId());
         CareerService career = CareerService.get();
         boolean careerTable = career.isCareerTable(table.getId());
-        if (!careerTable && tally == null) {
+        if (!careerTable && tallies.isEmpty()) {
             return;
         }
-        MatchPlayer human = null;
+        List<MatchPlayer> humans = new ArrayList<>();
+        boolean goldfish = false;
         for (MatchPlayer matchPlayer : match.getPlayers()) {
             if (matchPlayer.getPlayer().isHuman()) {
-                human = matchPlayer;
-            } else if (isGoldfish(matchPlayer) && tally != null) {
-                tally = null;
+                humans.add(matchPlayer);
+            } else if (isGoldfish(matchPlayer)) {
+                goldfish = true;
             }
         }
-        if (human == null) {
+        if (humans.isEmpty()) {
             return;
         }
         if (careerTable) {
             if (!match.hasEnded()) {
                 return;
             }
+            MatchPlayer human = humans.get(0);
+            CareerTally tally = goldfish ? null : tallies.get(human.getPlayer().getId());
             CareerPayout payout = career.matchEnded(table.getId(), game, human.isMatchWinner(), game.getTurnNum(), tally);
             if (payout != null) {
                 logger.info("Career: " + human.getName() + (payout.won ? " won" : " lost") + " against " + payout.opponent
                         + ", paid " + payout.coins + " coins and " + payout.xp + " XP");
+                tellProgress(human, payout.matchKey);
             }
-        } else if (tally != null && tally.taint() == null) {
-            career.aiGameEnded(game.getId(), human.getName(), game, human.getPlayer().hasWon(), game.getTurnNum(), tally);
+            return;
+        }
+        if (goldfish) {
+            return;
+        }
+        CareerService.FinishedGame finished = new CareerService.FinishedGame(game.getId(),
+                CareerService.kindOf(table.isTournamentSubTable(), match.getPlayers().size(), humans.size()),
+                match.getPlayers().size(), game.getTurnNum());
+        finished.game = game;
+        finished.bo3 = match.getOptions().getWinsNeeded() > 1;
+        for (MatchPlayer matchPlayer : match.getPlayers()) {
+            Integer skill = matchPlayer.getPlayer().isHuman() ? null : seatSkills.get(matchPlayer.getPlayer().getId());
+            finished.aiSkill = Math.max(finished.aiSkill, skill == null ? 0 : skill);
+        }
+        for (MatchPlayer human : humans) {
+            CareerService.Seat seat = new CareerService.Seat(human.getName(), human.getPlayer().hasWon(),
+                    tallies.get(human.getPlayer().getId()));
+            seat.matchWon = match.hasEnded() && human.isMatchWinner();
+            finished.seats.add(seat);
+        }
+        Map<String, mage.server.career.CareerProgress.CareerGameResult> paid = career.gameEnded(finished);
+        for (MatchPlayer human : humans) {
+            mage.server.career.CareerProgress.CareerGameResult result = paid.get(human.getName());
+            if (result != null) {
+                tellProgress(human, result.gameKey);
+            }
+        }
+    }
+
+    /** tells a player's web client what a game paid them: the key it asks for the rewards with */
+    private void tellProgress(MatchPlayer human, String gameKey) {
+        UUID playerId = human.getPlayer().getId();
+        for (Map.Entry<UUID, UUID> entry : userPlayerMap.entrySet()) {
+            if (playerId.equals(entry.getValue())) {
+                managerFactory.userManager().getUser(entry.getKey()).ifPresent(user ->
+                        user.fireCallback(new mage.interfaces.callback.ClientCallback(
+                                mage.interfaces.callback.ClientCallbackMethod.CAREER_PROGRESS, table.getId(), gameKey)));
+            }
         }
     }
 

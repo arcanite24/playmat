@@ -350,6 +350,13 @@ public final class Main {
                 BackupStatus.startChecks();
                 // AI-against-AI batches carry on from before a restart
                 mage.server.solo.BatchRunner.get().start();
+                // Career tables from before a restart still pay when their saved games resume (B270)
+                if (mage.server.career.CareerService.enabled(config.isAuthenticationActivated())) {
+                    int restored = mage.server.career.CareerService.get().restoreTables();
+                    if (restored > 0) {
+                        logger.info("Career: " + restored + " tables kept from before the restart");
+                    }
+                }
                 UpdateRunner.startWatching();
 
                 if (testMode) {

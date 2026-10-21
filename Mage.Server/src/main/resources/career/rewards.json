@@ -1,0 +1,16 @@
+{
+  "note": "What a game pays outside Career's own tables, by kind. Career tables keep CareerRules. XP only: coins come from the daily wins ladder. The admin XP and coin settings scale everything here (percent).",
+  "turnFloor": 3,
+  "pairCapPerDay": 5,
+  "kinds": {
+    "ai": {"winXp": 60, "lossXp": 20},
+    "person": {"winXp": 100, "lossXp": 40},
+    "pod": {"winXp": 100, "lossXp": 35, "perExtraPlayerXp": 15},
+    "event": {"winXp": 90, "lossXp": 35}
+  },
+  "aiSkill": {"1": 0.75, "2": 0.85, "3": 0.9, "4": 1.0, "5": 1.0, "6": 1.1, "7": 1.15, "8": 1.2, "9": 1.25, "10": 1.25},
+  "bo3MatchWinXp": 50,
+  "firstWinXp": 100,
+  "firstPersonGameXp": 50,
+  "dailyWinCoins": [30, 25, 25, 20, 20, 15, 15, 10, 10, 10]
+}

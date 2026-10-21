@@ -107,12 +107,12 @@ public class CareerProgressTest {
                 statement.execute("INSERT INTO profile (user, created, starter, coins, xp) VALUES ('bo', 1, 'x', 340, 600)");
             }
             try (CareerStore migrated = new CareerStore("jdbc:sqlite:" + old)) {
-                assertEquals(3, migrated.schemaVersion());
+                assertEquals(4, migrated.schemaVersion());
                 CareerProfile profile = migrated.profile("bo");
                 assertEquals(340, profile.coins);
                 assertEquals(600, profile.xp);
                 assertEquals(0, profile.packTokens);
-                assertFalse(profile.countAiGames);
+                assertTrue(profile.countAiGames, "every game counts now");
             }
         } finally {
             Files.deleteIfExists(old);
@@ -248,11 +248,8 @@ public class CareerProgressTest {
     }
 
     @Test
-    public void regularAiGamesCountOnlyWhenChosenAndNeverWhenTainted() throws Exception {
+    public void regularAiGamesAlwaysCountButNeverWhenTainted() throws Exception {
         UUID game = UUID.randomUUID();
-        assertNull(service.aiGameEnded(game, "Ana", null, true, 9, tally("spells", 5)), "off by default");
-        service.setCountAiGames("Ana", true);
-
         CareerTally practiced = tally("spells", 5);
         CareerTally.Recorder recorder = (CareerTally.Recorder) CareerTally.open(game, practiced.playerId);
         assertNotNull(recorder);
@@ -261,14 +258,16 @@ public class CareerProgressTest {
         assertNotNull(taken.taint());
         assertNull(service.aiGameEnded(game, "Ana", null, true, 9, taken), "practice never counts");
 
-        int coins = store.profile("Ana").coins;
+        int xp = store.profile("Ana").xp;
         UUID counted = UUID.randomUUID();
         CareerProgress.CareerGameResult result = service.aiGameEnded(counted, "Ana", null, true, 9, tally("spells", 5));
         assertNotNull(result);
         assertFalse(result.career);
-        assertEquals(0, result.weekly.wins, "the weekly goal counts Career wins only");
+        assertEquals(CareerRewards.AI, result.kind);
+        assertEquals(1, result.weekly.wins, "the weekly goal counts every win");
         assertEquals(5, (int) store.stats("Ana").get("spells"));
-        assertEquals(coins + result.coins, store.profile("Ana").coins, "only quests and achievements pay");
+        assertTrue(result.xp > 0, "a counted game pays XP");
+        assertEquals(xp + result.xp, store.profile("Ana").xp);
         assertNull(service.aiGameEnded(counted, "Ana", null, true, 9, tally("spells", 5)), "once per game");
     }
 

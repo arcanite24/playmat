@@ -197,7 +197,9 @@ public final class CareerService {
         }
         CareerStore store = CareerStore.get();
         boolean created = store.transaction(() -> {
-            if (!store.createProfile(user, starterId, CareerRules.START_COINS, System.currentTimeMillis())) {
+            // progression made the profile with the account's first counted game; picking a starter opens the collection
+            if (!store.createProfile(user, starterId, CareerRules.START_COINS, System.currentTimeMillis())
+                    && !store.openCollection(user, starterId, CareerRules.START_COINS)) {
                 return false;
             }
             for (DeckCardInfo info : CareerContent.allCards(deck)) {
@@ -212,6 +214,25 @@ public final class CareerService {
             throw new CareerException("You already have a Career.");
         }
         return store.profile(user);
+    }
+
+    /**
+     * The account's progression profile, made on its first counted game (B264): levels, quests and achievements need
+     * no starter deck. Runs inside the caller's transaction.
+     */
+    static void ensureProfile(CareerStore store, String user, long now) throws SQLException {
+        if (store.profile(user) == null) {
+            store.createProfile(user, "", 0, now);
+        }
+    }
+
+    /** the account's profile, made now if it has none: opening the Career's pages starts progression too */
+    public CareerProfile profileOrNew(String user) throws SQLException {
+        CareerStore store = CareerStore.get();
+        return store.transaction(() -> {
+            ensureProfile(store, user, System.currentTimeMillis());
+            return store.profile(user);
+        });
     }
 
     /** the Career card for a deck line: its printing, or the preferred printing of its name; null when unknown */
@@ -351,17 +372,68 @@ public final class CareerService {
     // ---- Career tables and payouts
 
     public void register(UUID tableId, String user, String opponentId, int tier) {
-        tables.put(tableId, new CareerTable(user, opponentId, tier));
+        keep(tableId, new CareerTable(user, opponentId, tier));
     }
 
     /** a roster duel with a setup: twists, a nemesis's edge, a personality (S037–S042) */
     public void register(UUID tableId, String user, String opponentId, int tier, CareerSetup setup) {
-        tables.put(tableId, new CareerTable(user, opponentId, tier, "duel", opponentId, setup));
+        keep(tableId, new CareerTable(user, opponentId, tier, "duel", opponentId, setup));
     }
 
     /** a Career table of a mode other than the roster duel */
     public void register(UUID tableId, String user, String kind, String ref, CareerSetup setup) {
-        tables.put(tableId, new CareerTable(user, kind + ":" + ref, 1, kind, ref, setup));
+        keep(tableId, new CareerTable(user, kind + ":" + ref, 1, kind, ref, setup));
+    }
+
+    /** Career tables are kept in the store too, so a restart in the middle of a match still pays it (B270) */
+    private void keep(UUID tableId, CareerTable table) {
+        tables.put(tableId, table);
+        save(tableId, table);
+    }
+
+    private static void save(UUID tableId, CareerTable table) {
+        try {
+            CareerStore.get().putCareerTable(tableId.toString(), new Gson().toJson(table), table.created);
+        } catch (SQLException | RuntimeException e) {
+            logger.warn("Career: table " + tableId + " can't be kept for a restart: " + e.getMessage());
+        }
+    }
+
+    private static void drop(UUID tableId) {
+        try {
+            CareerStore.get().deleteCareerTable(tableId.toString());
+        } catch (SQLException | RuntimeException e) {
+            logger.warn("Career: table " + tableId + " can't be dropped from the store: " + e.getMessage());
+        }
+    }
+
+    /** a day: Career tables older than this when the server starts are gone for good */
+    private static final long TABLE_KEEP_MILLIS = 24L * 60 * 60 * 1000;
+
+    /** brings back the Career tables kept before a restart (their games resume from a save, or end and pay) */
+    public int restoreTables() {
+        int restored = 0;
+        try {
+            for (String[] row : CareerStore.get().careerTables(System.currentTimeMillis() - TABLE_KEEP_MILLIS)) {
+                try {
+                    CareerTable table = new Gson().fromJson(row[1], CareerTable.class);
+                    if (table != null && table.user != null) {
+                        tables.putIfAbsent(UUID.fromString(row[0]), table);
+                        restored++;
+                    }
+                } catch (RuntimeException e) {
+                    logger.warn("Career: kept table " + row[0] + " can't be read: " + e.getMessage());
+                }
+            }
+        } catch (SQLException | RuntimeException e) {
+            logger.warn("Career: kept tables can't be read: " + e.getMessage());
+        }
+        return restored;
+    }
+
+    /** what a restart does to the tables in memory (tests) */
+    void dropTablesInMemory() {
+        tables.clear();
     }
 
     /** how a Career table's game starts; null for a plain game */
@@ -388,7 +460,7 @@ public final class CareerService {
     /** a resumed Career game: the new table plays for what the saved one did, and pays the same way */
     public void adopt(UUID tableId, CareerTable table) {
         if (tableId != null && table != null) {
-            tables.put(tableId, table);
+            keep(tableId, table);
         }
     }
 
@@ -417,11 +489,13 @@ public final class CareerService {
         if (gameId != null) {
             CareerTally.taint(gameId, "the player was helped by " + table.assisted);
         }
+        save(tableId, table);
     }
 
     public void forget(UUID tableId) {
         if (tableId != null) {
             tables.remove(tableId);
+            drop(tableId);
         }
     }
 
@@ -441,6 +515,11 @@ public final class CareerService {
     public CareerPayout matchEnded(UUID tableId, mage.game.Game game, boolean won, int turns, CareerTally tally) {
         CareerTable table = tables.remove(tableId);
         if (table == null) {
+            return null;
+        }
+        drop(tableId);
+        if (mage.server.Main.isTestMode()) {
+            // test mode pays nothing, Career tables included (B270)
             return null;
         }
         CareerRules.Reward reward = assistedReward(modeReward(table.kind, table.tier, won, turns), table.assisted);
@@ -464,6 +543,7 @@ public final class CareerService {
                 store.claimGame(tableId.toString(), table.user, now);
                 CareerProgress.CareerGameResult paid = new CareerProgress.CareerGameResult();
                 paid.gameKey = tableId.toString();
+                paid.kind = CareerRewards.CAREER;
                 paid.career = true;
                 paid.won = won;
                 paid.opponent = table.opponentId;
@@ -471,8 +551,12 @@ public final class CareerService {
                 paid.xp = reward.xp;
                 paid.note = reward.note;
                 paid.assisted = table.assisted;
+                paid.xpBefore = before.xp;
                 Set<Integer> tiersBefore = openTiers(table.user);
                 finishMode(store, table, won, turns, played, paid, now);
+                if (!"puzzle".equals(table.kind) && !"trial".equals(table.kind) && turns >= CareerRewards.get().turnFloor()) {
+                    dailyBonuses(store, table.user, CareerRewards.CAREER, won, paid);
+                }
                 CareerProgress.get().apply(store, table.user, played, paid, before.xp, now);
                 for (CareerOpponent opponent : opponents(table.user)) {
                     if (opponent.unlocked && !tiersBefore.contains(opponent.tier) && !paid.opened.contains(opponent.tierName)) {
@@ -480,6 +564,8 @@ public final class CareerService {
                     }
                 }
                 store.setGameDetails(paid.gameKey, new Gson().toJson(paid));
+                store.setGameRecord(paid.gameKey, CareerRewards.CAREER, won, paid.coins, paid.xp,
+                        paid.note != null ? paid.note : table.kind + " " + table.opponentId);
                 return paid;
             });
             if (result == null) {
@@ -564,56 +650,276 @@ public final class CareerService {
         return tiers;
     }
 
-    /**
-     * A regular game against the AI ended. When the player opted in (and the game wasn't practice, a goldfish or a
-     * cheat), it counts for quests, achievements and stats, once per game. It never pays the match itself.
-     *
-     * @return what it paid, or null when it doesn't count
-     */
-    public CareerProgress.CareerGameResult aiGameEnded(UUID gameId, String user, mage.game.Game game, boolean won, int turns, CareerTally tally) {
-        if (tally == null || tally.taint() != null) {
-            return null;
+    /** One human seat of a finished game, for progression. */
+    public static class Seat {
+        public final String user;
+        public final boolean won;
+        /** what the player did, or null when nothing was tallied */
+        public final CareerTally tally;
+        /** won the whole match (the last game of a best of three) */
+        public boolean matchWon;
+
+        public Seat(String user, boolean won, CareerTally tally) {
+            this.user = user;
+            this.won = won;
+            this.tally = tally;
         }
+    }
+
+    /** A finished game outside Career's own tables. */
+    public static class FinishedGame {
+        public final UUID gameId;
+        /** {@link CareerRewards#AI}, PERSON, POD or EVENT */
+        public final String kind;
+        public final int players;
+        public final int turns;
+        public final List<Seat> seats = new ArrayList<>();
+        /** the strongest AI's skill at an AI table, or 0 */
+        public int aiSkill;
+        /** the game, for how it ended; null in tests */
+        public mage.game.Game game;
+        /** the match was a best of three or longer */
+        public boolean bo3;
+
+        public FinishedGame(UUID gameId, String kind, int players, int turns) {
+            this.gameId = gameId;
+            this.kind = kind;
+            this.players = players;
+            this.turns = turns;
+        }
+    }
+
+    /** the kind of a game outside Career tables, from its table */
+    public static String kindOf(boolean event, int players, int humans) {
+        if (event) {
+            return CareerRewards.EVENT;
+        }
+        if (players >= 3) {
+            return CareerRewards.POD;
+        }
+        return humans >= 2 ? CareerRewards.PERSON : CareerRewards.AI;
+    }
+
+    /** the key a seat's game is kept under */
+    static String gameKey(UUID gameId, String user) {
+        return gameId + "/" + CareerStore.key(user);
+    }
+
+    /**
+     * A game outside Career's own tables ended: every human seat with a clean tally gets progression from it, once
+     * (B265). A game that ended before the turn floor pays nobody; people who already played each other the day's
+     * capped number of games get nothing more from each other (B268). Only XP: coins come from the daily wins ladder.
+     *
+     * @return what each seat got, by account name; seats that got nothing are left out
+     */
+    public Map<String, CareerProgress.CareerGameResult> gameEnded(FinishedGame finished) {
+        Map<String, CareerProgress.CareerGameResult> results = new LinkedHashMap<>();
+        if (mage.server.Main.isTestMode()) {
+            return results;
+        }
+        CareerRewards rewards = CareerRewards.get();
         CareerStore store = CareerStore.get();
+        long now = System.currentTimeMillis();
+        String day = CareerProgress.get().day();
+        List<Seat> humans = finished.seats;
+        boolean capped = CareerRewards.PERSON.equals(finished.kind) || CareerRewards.POD.equals(finished.kind);
         try {
-            CareerProfile profile = store.profile(user);
-            if (profile == null || !profile.countAiGames) {
-                return null;
-            }
-            tally.finish(game, won, turns);
-            long now = System.currentTimeMillis();
-            return store.transaction(() -> {
-                if (!store.claimGame(gameId.toString(), user, now)) {
-                    return null;
+            store.transaction(() -> {
+                for (Seat seat : humans) {
+                    if (seat.tally == null || seat.tally.taint() != null) {
+                        continue;
+                    }
+                    String key = gameKey(finished.gameId, seat.user);
+                    ensureProfile(store, seat.user, now);
+                    if (!store.claimGame(key, seat.user, now)) {
+                        continue;
+                    }
+                    CareerProgress.CareerGameResult result = new CareerProgress.CareerGameResult();
+                    result.gameKey = key;
+                    result.kind = finished.kind;
+                    result.won = seat.won;
+                    CareerProfile before = store.profile(seat.user);
+                    result.xpBefore = before.xp;
+                    String reason = null;
+                    if (finished.turns < rewards.turnFloor()) {
+                        reason = "The game ended before turn " + rewards.turnFloor() + ", so it paid nothing.";
+                    } else if (capped) {
+                        for (Seat other : humans) {
+                            if (other != seat && store.pairGames(day, pair(seat.user, other.user)) >= rewards.pairCapPerDay()) {
+                                reason = "You've played " + other.user + " " + rewards.pairCapPerDay()
+                                        + " times today; more games together pay nothing until tomorrow.";
+                                break;
+                            }
+                        }
+                    }
+                    if (reason != null) {
+                        result.note = reason;
+                        CareerProgress.get().levelsIn(store, seat.user, before.xp, result, now);
+                        store.setGameDetails(key, new Gson().toJson(result));
+                        store.setGameRecord(key, finished.kind, seat.won, 0, 0, reason);
+                        results.put(seat.user, result);
+                        continue;
+                    }
+                    int xp = rewards.gameXp(finished.kind, seat.won, finished.players, finished.aiSkill);
+                    if (finished.bo3 && seat.matchWon && rewards.bo3MatchWinXp() > 0) {
+                        xp += rewards.bo3MatchWinXp();
+                        result.bonuses.add(new CareerProgress.CareerBonus("You won the match", rewards.bo3MatchWinXp(), 0));
+                    }
+                    store.addProfileInt(seat.user, "xp", xp);
+                    result.xp = xp;
+                    dailyBonuses(store, seat.user, finished.kind, seat.won, result);
+                    seat.tally.finish(finished.game, seat.won, finished.turns);
+                    CareerProgress.get().apply(store, seat.user, seat.tally, result, before.xp, now);
+                    store.setGameDetails(key, new Gson().toJson(result));
+                    store.setGameRecord(key, finished.kind, seat.won, result.coins, result.xp,
+                            finished.kind + (seat.won ? " win" : " loss") + " on turn " + finished.turns);
+                    results.put(seat.user, result);
                 }
-                CareerProgress.CareerGameResult result = new CareerProgress.CareerGameResult();
-                result.gameKey = gameId.toString();
-                result.won = won;
-                CareerProgress.get().apply(store, user, tally, result, store.profile(user).xp, now);
-                store.setGameDetails(result.gameKey, new Gson().toJson(result));
-                return result;
+                if (capped && finished.turns >= rewards.turnFloor()) {
+                    for (int i = 0; i < humans.size(); i++) {
+                        for (int j = i + 1; j < humans.size(); j++) {
+                            store.addPairGame(day, pair(humans.get(i).user, humans.get(j).user));
+                        }
+                    }
+                }
+                return null;
             });
         } catch (SQLException | RuntimeException e) {
-            logger.error("Career progress failed for " + user + " in game " + gameId, e);
+            logger.error("Career progress failed for game " + finished.gameId, e);
+        }
+        return results;
+    }
+
+    /** two accounts as one key, the same either way round */
+    static String pair(String a, String b) {
+        String x = CareerStore.key(a);
+        String y = CareerStore.key(b);
+        return x.compareTo(y) <= 0 ? x + "|" + y : y + "|" + x;
+    }
+
+    /**
+     * The day's extras, for any kind of game: the daily wins ladder's coins (B285), the first win of the day and the
+     * first game against a person (B286). Inside the caller's transaction; the game is counted for the day here.
+     */
+    void dailyBonuses(CareerStore store, String user, String kind, boolean won, CareerProgress.CareerGameResult result) throws SQLException {
+        CareerRewards rewards = CareerRewards.get();
+        String day = CareerProgress.get().day();
+        int[] today = store.daily(user, day);
+        boolean person = CareerRewards.PERSON.equals(kind) || CareerRewards.POD.equals(kind) || CareerRewards.EVENT.equals(kind);
+        if (won) {
+            int nth = today[0] + 1;
+            int coins = rewards.dailyWinCoins(nth);
+            if (coins > 0) {
+                store.addCoins(user, coins);
+                result.coins += coins;
+                result.bonuses.add(new CareerProgress.CareerBonus("Daily win " + nth + " of " + rewards.dailyWinLadder().size(), 0, coins));
+            }
+            if (today[0] == 0 && rewards.firstWinXp() > 0) {
+                store.addProfileInt(user, "xp", rewards.firstWinXp());
+                result.xp += rewards.firstWinXp();
+                result.bonuses.add(new CareerProgress.CareerBonus("First win of the day", rewards.firstWinXp(), 0));
+            }
+        }
+        if (person && today[2] == 0 && rewards.firstPersonGameXp() > 0) {
+            store.addProfileInt(user, "xp", rewards.firstPersonGameXp());
+            result.xp += rewards.firstPersonGameXp();
+            result.bonuses.add(new CareerProgress.CareerBonus("First game against a person today", rewards.firstPersonGameXp(), 0));
+        }
+        store.addDaily(user, day, won, person);
+    }
+
+    /** a regular game against the AI with one player (tests and older callers) */
+    public CareerProgress.CareerGameResult aiGameEnded(UUID gameId, String user, mage.game.Game game, boolean won, int turns, CareerTally tally) {
+        FinishedGame finished = new FinishedGame(gameId, CareerRewards.AI, 2, turns);
+        finished.game = game;
+        finished.seats.add(new Seat(user, won, tally));
+        return gameEnded(finished).get(user);
+    }
+
+    /** One account's progression for /admin (B272). */
+    public static class CareerAdminView {
+        public int level;
+        public int xp;
+        public int coins;
+        public boolean collection;
+        public List<CareerStore.PaidGame> games;
+        /** pairs with this account that hit the day's cap, and on how many of the last 14 days */
+        public Map<String, Integer> cappedPairs;
+    }
+
+    public CareerAdminView adminView(String user) throws SQLException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null) {
             return null;
         }
+        CareerAdminView view = new CareerAdminView();
+        view.level = profile.level;
+        view.xp = profile.xp;
+        view.coins = profile.coins;
+        view.collection = profile.collection;
+        view.games = store.paidGames(user, 50);
+        view.cappedPairs = store.cappedPairs(user, java.time.LocalDate.now(java.time.ZoneOffset.UTC).minusDays(14).toString(),
+                CareerRewards.get().pairCapPerDay());
+        return view;
+    }
+
+    /**
+     * Takes back what a counted game paid (B272): its XP and coins (never below zero coins). Quests and achievements it
+     * finished stay. False when it was revoked before or isn't the account's.
+     */
+    public boolean revoke(String user, String gameKey) throws SQLException {
+        CareerStore store = CareerStore.get();
+        return store.transaction(() -> {
+            CareerStore.PaidGame game = store.paidGame(user, gameKey);
+            if (game == null || !store.revokeGame(gameKey)) {
+                return false;
+            }
+            CareerProfile profile = store.profile(user);
+            store.addProfileInt(user, "xp", -Math.min(game.xp, profile.xp));
+            store.addCoins(user, -Math.min(game.coins, profile.coins));
+            return true;
+        });
+    }
+
+    /** whether the player wants progression shown (B312): kept with the account, so it holds on every device */
+    public CareerProfile setShowProgress(String user, boolean show) throws SQLException {
+        CareerStore store = CareerStore.get();
+        return store.transaction(() -> {
+            ensureProfile(store, user, System.currentTimeMillis());
+            store.setProfileInt(user, "show_progress", show ? 1 : 0);
+            return store.profile(user);
+        });
+    }
+
+    /**
+     * Saves the account's Career deck (B311), checked against the collection: every card the deck has more copies of
+     * than the account owns is a problem, and nothing is saved.
+     */
+    public void saveDeck(String user, DeckCardLists deck) throws SQLException, CareerException {
+        CareerStore store = CareerStore.get();
+        CareerProfile profile = store.profile(user);
+        if (profile == null || !profile.collection) {
+            throw new CareerException("Open your Career collection first.");
+        }
+        List<String> problems = ownershipProblems(user, deck);
+        if (!problems.isEmpty()) {
+            throw new CareerException("The deck has cards you don't own: " + String.join("; ", problems) + ".");
+        }
+        store.putDeck(user, new Gson().toJson(deck), System.currentTimeMillis());
+    }
+
+    /** the account's saved Career deck, or null */
+    public DeckCardLists deck(String user) throws SQLException {
+        String json = CareerStore.get().deck(user);
+        return json == null ? null : new Gson().fromJson(json, DeckCardLists.class);
     }
 
     /** what a game paid, for the rewards screen; the latest game when the key is null */
     public CareerProgress.CareerGameResult gameResult(String user, String gameKey) throws SQLException {
         CareerStore store = CareerStore.get();
-        String json = gameKey == null || gameKey.isEmpty() ? store.latestGameDetails(user) : store.gameDetails(gameKey, user);
+        String json = gameKey == null || gameKey.isEmpty() ? store.latestGameDetails(user) : store.gameDetailsFor(gameKey, user);
         return json == null ? null : new Gson().fromJson(json, CareerProgress.CareerGameResult.class);
-    }
-
-    /** whether regular games against the AI count for quests and achievements */
-    public CareerProfile setCountAiGames(String user, boolean count) throws SQLException, CareerException {
-        CareerStore store = CareerStore.get();
-        if (store.profile(user) == null) {
-            throw new CareerException("Open a Career first.");
-        }
-        store.setProfileInt(user, "count_ai_games", count ? 1 : 0);
-        return store.profile(user);
     }
 
     // ---- collection progress
@@ -918,7 +1224,8 @@ public final class CareerService {
     // ---- export and import
 
     static class ExportFile {
-        int version = 1;
+        /** 2 since the Show progression switch (M24) */
+        int version = 2;
         String user;
         long exportedAt;
         CareerProfile profile;
@@ -1022,7 +1329,7 @@ public final class CareerService {
             // levels an old file reached were paid; newer files say so exactly
             store.setProfileInt(user, "level_paid", file.levelPaid > 0 ? file.levelPaid : CareerRules.levelFor(file.profile.xp));
             store.setProfileInt(user, "pack_tokens", file.profile.packTokens);
-            store.setProfileInt(user, "count_ai_games", file.profile.countAiGames ? 1 : 0);
+            store.setProfileInt(user, "show_progress", file.profile.showProgress || file.version < 2 ? 1 : 0);
             return null;
         });
         return store.profile(user);

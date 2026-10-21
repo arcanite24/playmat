@@ -173,6 +173,8 @@ final class SettingsApi {
                 String.valueOf(RuntimeSettings.BATCH_CONCURRENCY_DEFAULT), null));
         result.settings.add(setting(runtime, RuntimeSettings.BATCH_GAMES_PER_DAY, String.valueOf(runtime.batchGamesPerDay()),
                 String.valueOf(RuntimeSettings.BATCH_GAMES_PER_DAY_DEFAULT), null));
+        result.settings.add(setting(runtime, RuntimeSettings.PROGRESS_XP_PERCENT, String.valueOf(runtime.progressXpPercent()), "100", null));
+        result.settings.add(setting(runtime, RuntimeSettings.PROGRESS_COIN_PERCENT, String.valueOf(runtime.progressCoinPercent()), "100", null));
         for (String kind : Arrays.asList(RuntimeSettings.DISCORD_TABLES, RuntimeSettings.DISCORD_EVENTS, RuntimeSettings.DISCORD_MATCHES,
                 RuntimeSettings.DISCORD_STAFF)) {
             result.settings.add(setting(runtime, kind, runtime.discord(kind) ? "on" : "off", "on", null));

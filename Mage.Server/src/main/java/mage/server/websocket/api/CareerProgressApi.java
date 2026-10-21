@@ -90,15 +90,24 @@ final class CareerProgressApi {
                             return CareerApi.store(() -> CareerService.get().setProgress(user));
                         }),
 
-                RpcMethod.named("careerCountAiGames")
-                        .params(of("count", BOOLEAN))
+                RpcMethod.named("careerShowProgress")
+                        .params(of("show", BOOLEAN))
                         .returns("CareerProfile")
-                        .doc("Whether regular games against the AI also count for quests and achievements (off by default). They "
-                                + "never pay coins for the match itself, and practice, goldfish and cheat games never count.")
+                        .doc("Whether the player sees progression: the header, Today on Home and the rewards after games. Kept "
+                                + "with the account, so it holds on every device. Games still count while it's hidden.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
-                            boolean count = call.bool(0);
-                            return CareerApi.store(() -> CareerService.get().setCountAiGames(user, count));
+                            boolean show = call.bool(0);
+                            return CareerApi.store(() -> CareerService.get().setShowProgress(user, show));
+                        }),
+
+                RpcMethod.named("careerDaily")
+                        .returns("CareerDaily")
+                        .doc("Today (UTC): wins so far, the daily wins ladder's coins and which step is next, and whether the "
+                                + "first win and the first game against a person have paid their bonus.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerProgress.get().daily(user));
                         })
         );
     }

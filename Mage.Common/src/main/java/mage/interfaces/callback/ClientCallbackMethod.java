@@ -15,6 +15,8 @@ public enum ClientCallbackMethod {
     CHATMESSAGE(ClientCallbackType.MESSAGE, "chatMessage"),
     SHOW_USERMESSAGE(ClientCallbackType.MESSAGE, "showUserMessage"),
     SERVER_MESSAGE(ClientCallbackType.MESSAGE, "serverMessage"),
+    // progression: a finished game paid this player; the data is the key to ask for its rewards with (web client)
+    CAREER_PROGRESS(ClientCallbackType.MESSAGE, "careerProgress"),
 
     // table
     JOINED_TABLE(ClientCallbackType.TABLE_CHANGE, "joinedTable"),
