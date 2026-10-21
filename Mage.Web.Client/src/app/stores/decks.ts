@@ -4,6 +4,7 @@ import { deckStorage, type DeckSummary } from '../../core/decks/DeckStorageServi
 import { DeckSerializer } from '../../core/decks/DeckSerializer';
 import { copyName } from '../../core/decks/exportFormats';
 import type { DeckCardLists, DeckImportSource } from '../../core/decks/types';
+import type { MetaDeck, MetaDeckIndex } from '../../core/decks/metaDecks';
 import { readJson, writeJson } from './persist';
 
 export interface StarterDeck {
@@ -33,6 +34,8 @@ export interface RosterDeck {
 const SELECTED_KEY = 'playmat.selectedDeck';
 const SLEEVES_KEY = 'playmat.sleeves';
 export const STARTER_PREFIX = 'starter:';
+/** an AI format deck (public/meta-decks) in the AI settings */
+export const META_PREFIX = 'meta:';
 
 const COLOR_ORDER = ['white', 'blue', 'black', 'red', 'green'] as const;
 const COLOR_LETTER: Record<(typeof COLOR_ORDER)[number], string> = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
@@ -70,6 +73,8 @@ function starterToRoster(starter: StarterDeck): RosterDeck {
 export interface DeckLibraryState {
   saved: RosterDeck[];
   starters: StarterDeck[];
+  /** the AI's format decks */
+  metaDecks: MetaDeck[];
   selectedId: string | null;
   sleeves: Record<string, string>;
   loaded: boolean;
@@ -99,6 +104,15 @@ async function fetchStarters(): Promise<StarterDeck[]> {
   }
 }
 
+async function fetchMetaDecks(): Promise<MetaDeck[]> {
+  try {
+    const response = await fetch('/meta-decks/index.json');
+    return response.ok ? ((await response.json()) as Partial<MetaDeckIndex>).decks ?? [] : [];
+  } catch {
+    return [];
+  }
+}
+
 /** The deck type a starter deck is built for. */
 function starterFormat(starters: StarterDeck[], id: string): string {
   return starters.find((starter) => STARTER_PREFIX + starter.file === id)?.format ?? 'Constructed - Freeform';
@@ -107,19 +121,24 @@ function starterFormat(starters: StarterDeck[], id: string): string {
 export const useDecks = create<DeckLibraryState>((set, get) => ({
   saved: [],
   starters: [],
+  metaDecks: [],
   selectedId: readJson<string | null>(SELECTED_KEY, null),
   sleeves: readJson<Record<string, string>>(SLEEVES_KEY, {}),
   loaded: false,
 
   async refresh() {
-    const [summaries, starters] = await Promise.all([deckStorage.listDecks(), get().starters.length ? get().starters : fetchStarters()]);
+    const [summaries, starters, metaDecks] = await Promise.all([
+      deckStorage.listDecks(),
+      get().starters.length ? get().starters : fetchStarters(),
+      get().metaDecks.length ? get().metaDecks : fetchMetaDecks(),
+    ]);
     const saved = summaries.map(summaryToRoster);
     let selectedId = get().selectedId;
     const known = new Set([...saved.map((deck) => deck.id), ...starters.map((starter) => STARTER_PREFIX + starter.file)]);
     if (!selectedId || !known.has(selectedId)) {
       selectedId = saved[0]?.id ?? (starters[0] ? STARTER_PREFIX + starters[0].file : null);
     }
-    set({ saved, starters, selectedId, loaded: true });
+    set({ saved, starters, metaDecks, selectedId, loaded: true });
   },
 
   select(id) {

@@ -33,7 +33,7 @@ export function describeAi(t: Translate, options: AiOptions, deckName: string | 
   const difficulty = t(difficultyOf(options.skill).label);
   const parts = [
     options.opponents > 1 ? t('ai.summary.many', { count: options.opponents, difficulty }) : t('ai.summary.one', { difficulty }),
-    deckName ?? t('ai.summary.randomDeck'),
+    deckName ?? t(options.rules === 'deck' ? 'ai.summary.metaDeck' : 'ai.summary.randomDeck'),
     t(options.winsNeeded === 2 ? 'ai.summary.bestOf3' : 'ai.summary.bestOf1'),
   ];
   if (options.rules === 'deck') parts.push(t('ai.summary.deckFormat'));

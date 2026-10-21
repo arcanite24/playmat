@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { isCommanderFormat } from '../../core/decks/formats';
-import { rosterOf, useDecks } from '../stores/decks';
+import { formatRules, isCommanderFormat } from '../../core/decks/formats';
+import { metaDecksFor } from '../../core/decks/metaDecks';
+import { META_PREFIX, rosterOf, useDecks } from '../stores/decks';
 import { useT } from '../i18n';
 import { DEFAULT_AI_OPTIONS, usePlay } from '../stores/play';
 import { AI_TYPES, DIFFICULTIES, difficultyOf, offeredAiTypes } from './aiSetup';
@@ -41,6 +42,8 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   const roster = useMemo(() => rosterOf(decks), [decks]);
   const starters = roster.filter((deck) => deck.starter);
   const mine = roster.filter((deck) => !deck.starter);
+  // the AI's format decks, one group per format, in the order the index lists the formats
+  const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
   const difficulty = difficultyOf(options.skill);
   const t = useT();
   // a server can leave the Monte Carlo AI out
@@ -88,12 +91,18 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
                 {starters.filter((deck) => isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
               </optgroup>
             )}
+            {metaFormats.map((format) => (
+              <optgroup key={format} label={t('ai.deck.meta', { format: formatRules(format).label })}>
+                {metaDecksFor(decks.metaDecks, format).map((deck) => <option key={deck.file} value={META_PREFIX + deck.file}>{deck.name}</option>)}
+              </optgroup>
+            ))}
             {mine.length > 0 && (
               <optgroup label={t('ai.deck.yours')}>
                 {mine.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
               </optgroup>
             )}
           </select>
+          <p className={styles.detail}>{t('ai.deck.detail')}</p>
         </section>
 
         <section className={styles.row}>

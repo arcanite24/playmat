@@ -1,7 +1,7 @@
 import { ChevronRight, SlidersHorizontal, Trophy } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { rosterOf, sleeveFor, useDecks } from '../stores/decks';
+import { META_PREFIX, rosterOf, sleeveFor, useDecks } from '../stores/decks';
 import { useCoach } from '../stores/coach';
 import { usePlay } from '../stores/play';
 import { useT, type MessageKey } from '../i18n';
@@ -10,7 +10,6 @@ import { DeckBox } from '../ui/DeckBox';
 import { MatPrint } from '../ui/MatPrint';
 import { storeCards } from '../ui/imageCache';
 import { DEVICE_PICTURES } from '../nativePictures';
-import { AiSettingsDialog } from './AiSettingsDialog';
 import { useImportDrop, useImportPaste } from '../decks/import/useImportShortcuts';
 import { openImport } from '../stores/importSheet';
 import { describeAi } from './aiSetup';
@@ -20,6 +19,8 @@ import styles from './HomeScreen.module.css';
 // the banner and its code form load only for a player whose address still needs confirming
 const EmailBanner = lazy(() => import('./EmailConfirm').then((module) => ({ default: module.EmailBanner })));
 // the month's server costs, on servers that take support
+// the AI settings load the first time they are opened, out of the entry chunk
+const AiSettingsDialog = lazy(() => import('./AiSettingsDialog').then((module) => ({ default: module.AiSettingsDialog })));
 const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
 type Mode = 'ai' | 'practice' | 'friend';
@@ -39,6 +40,9 @@ export function HomeScreen() {
   const play = usePlay();
   const [mode, setMode] = useState<Mode>('ai');
   const [aiOpen, setAiOpen] = useState(false);
+  // stays mounted once opened, so it can animate closed
+  const [aiLoaded, setAiLoaded] = useState(false);
+  if (aiOpen && !aiLoaded) setAiLoaded(true);
   const emailStatus = useEmailStatus().data;
   const emailUnconfirmed = !!emailStatus?.email && !emailStatus.verified && !!emailStatus.mail;
   const roster = useMemo(() => rosterOf(decks), [decks]);
@@ -157,7 +161,7 @@ export function HomeScreen() {
           {mode === 'ai' && (
             <button type="button" className={styles.aiSetup} onClick={() => setAiOpen(true)} disabled={busy}>
               <SlidersHorizontal size={16} aria-hidden="true" />
-              <span>{describeAi(t, play.aiOptions, roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name ?? null)}</span>
+              <span>{describeAi(t, play.aiOptions, roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name ?? decks.metaDecks.find((deck) => META_PREFIX + deck.file === play.aiOptions.opponentDeckId)?.name ?? null)}</span>
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
             </button>
           )}
@@ -193,7 +197,7 @@ export function HomeScreen() {
           {serverInfo?.support && <Suspense fallback={null}><SupportBar place="home" /></Suspense>}
         </div>
       </section>
-      <AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} />
+      {aiLoaded && <Suspense fallback={null}><AiSettingsDialog open={aiOpen} onOpenChange={setAiOpen} /></Suspense>}
     </div>
   );
 }
