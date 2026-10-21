@@ -30,6 +30,70 @@
     {
       "id": "rose",
       "subject": "a ring of climbing roses and thorny vines around a single blooming rose"
+    },
+    {
+      "id": "ember",
+      "subject": "a ring of licking flames around a forge hammer"
+    },
+    {
+      "id": "tide",
+      "subject": "a ring of curling waves around a nautilus shell"
+    },
+    {
+      "id": "grove",
+      "subject": "a wreath of oak branches around an acorn"
+    },
+    {
+      "id": "dusk",
+      "subject": "a sunburst half sunk behind a row of hills, rays forming the ring"
+    },
+    {
+      "id": "ash",
+      "subject": "a ring of drifting feathers around a lantern"
+    },
+    {
+      "id": "storm",
+      "subject": "a ring of storm clouds split by forked lightning"
+    },
+    {
+      "id": "moss",
+      "subject": "a ring of ferns and toadstools around a snail"
+    },
+    {
+      "id": "wine",
+      "subject": "a ring of grapevines around a goblet"
+    },
+    {
+      "id": "ink",
+      "subject": "a ring of scrolls and quills around an open book"
+    },
+    {
+      "id": "rust",
+      "subject": "a ring of interlocking gears around an anvil"
+    },
+    {
+      "id": "jade",
+      "subject": "a coiled dragon chasing its tail around a pearl"
+    },
+    {
+      "id": "amber",
+      "subject": "a honeycomb ring around a bee"
+    },
+    {
+      "id": "indigo",
+      "subject": "a ring of zodiac-like glyph-free star symbols around an eye"
+    },
+    {
+      "id": "pine",
+      "subject": "a ring of pine trees around a mountain peak"
+    },
+    {
+      "id": "frost",
+      "subject": "a great six-fold snowflake with icicle spokes"
+    },
+    {
+      "id": "aurora",
+      "subject": "ribbons of northern lights circling a star above a pine"
     }
   ]
 }

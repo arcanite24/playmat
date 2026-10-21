@@ -1,18 +1,26 @@
 package mage.server.career;
 
 import mage.ObjectColor;
+import mage.constants.CommanderCardType;
+import mage.constants.SubType;
 import mage.constants.WatcherScope;
 import mage.constants.Zone;
 import mage.game.Game;
 import mage.game.events.DamagedEvent;
 import mage.game.events.GameEvent;
+import mage.game.events.ManaEvent;
 import mage.game.events.ZoneChangeEvent;
 import mage.game.permanent.Permanent;
 import mage.game.stack.Spell;
 import mage.players.Player;
 import mage.watchers.Watcher;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,7 +50,37 @@ public final class CareerTally {
     private final Map<String, Integer> counters = new TreeMap<>();
     private volatile String taint;
     private int spellsThisTurn;
+    private int manaThisTurn;
     private int lowestLife = Integer.MAX_VALUE;
+    /** opponents this player dealt the latest damage to, for pod eliminations */
+    private final Set<UUID> lastHit = new HashSet<>();
+    /** one-game feats (B309): the best value of each and the turn it happened on */
+    private final Map<String, Moment> moments = new LinkedHashMap<>();
+
+    /** A one-game feat: what it was, how big, and on which turn. */
+    public static final class Moment {
+        public final String id;
+        public final int value;
+        public final int turn;
+
+        Moment(String id, int value, int turn) {
+            this.id = id;
+            this.value = value;
+            this.turn = turn;
+        }
+    }
+
+    /** the feats a moment needs to reach, by id; below it, a game's best isn't worth telling */
+    static final Map<String, Integer> MOMENT_THRESHOLDS = new LinkedHashMap<>();
+
+    static {
+        MOMENT_THRESHOLDS.put("big_hit", 10);
+        MOMENT_THRESHOLDS.put("storm", 5);
+        MOMENT_THRESHOLDS.put("mana_surge", 10);
+        MOMENT_THRESHOLDS.put("life_swing", 10);
+        MOMENT_THRESHOLDS.put("elimination", 1);
+        MOMENT_THRESHOLDS.put("commander_hit", 7);
+    }
 
     private CareerTally(UUID playerId) {
         this.playerId = playerId;
@@ -156,6 +194,20 @@ public final class CareerTally {
         counters.put(counter, value);
     }
 
+    /** a feat in this game: kept when it's the biggest of its kind so far and big enough to tell */
+    synchronized void moment(String id, int value, int turn) {
+        Integer threshold = MOMENT_THRESHOLDS.get(id);
+        Moment best = moments.get(id);
+        if ((threshold == null || value >= threshold) && (best == null || value > best.value)) {
+            moments.put(id, new Moment(id, value, turn));
+        }
+    }
+
+    /** the game's feats, in the order they first happened */
+    public synchronized List<Moment> moments() {
+        return new ArrayList<>(moments.values());
+    }
+
     /**
      * The game is over: adds the counters only the end can tell (won, the life it ended on, how it was won).
      *
@@ -191,6 +243,7 @@ public final class CareerTally {
 
     public synchronized void finish(Game game, boolean won, int turns) {
         add(GAMES, 1);
+        add("turns_taken", get("my_turns"));
         if (won) {
             add(WINS, 1);
         }
@@ -214,12 +267,15 @@ public final class CareerTally {
         }
         if (life == 1) {
             set("won_at_one_life", 1);
+            moment("one_life", 1, turns);
         }
         if (lowestLife <= 5) {
             set("won_from_five_life", 1);
+            moment("comeback", lowestLife, turns);
         }
         if (get("damage_taken") == 0) {
             set("won_flawless", 1);
+            moment("flawless", 1, turns);
         }
         if (life > startingLife) {
             set("won_above_starting_life", 1);
@@ -230,6 +286,7 @@ public final class CareerTally {
         // the game's turn counter counts both players' turns; a win by your fourth turn is turn 8 at the latest
         if (get("my_turns") <= 4) {
             set("won_by_turn_four", 1);
+            moment("fast_win", get("my_turns"), turns);
         }
         {
             for (UUID opponentId : game.getOpponents(playerId)) {
@@ -287,6 +344,7 @@ public final class CareerTally {
                 case BEGIN_TURN:
                     synchronized (tally) {
                         tally.spellsThisTurn = 0;
+                        tally.manaThisTurn = 0;
                     }
                     if (me.equals(game.getActivePlayerId())) {
                         tally.add("my_turns", 1);
@@ -295,10 +353,82 @@ public final class CareerTally {
                 case SPELL_CAST:
                     if (me.equals(event.getPlayerId())) {
                         spell(tally, game.getSpell(event.getTargetId()), game);
+                        if (event.getZone() == Zone.GRAVEYARD) {
+                            tally.add("cast_from_graveyard", 1);
+                        }
+                    }
+                    break;
+                case COUNTERED:
+                    // the countering ability's controller counters another player's spell
+                    if (me.equals(game.getControllerId(event.getSourceId())) && !me.equals(event.getPlayerId())) {
+                        tally.add("spells_countered", 1);
+                    }
+                    break;
+                case ACTIVATED_ABILITY: {
+                    Permanent source = game.getPermanent(event.getSourceId());
+                    if (me.equals(event.getPlayerId()) && source != null && source.isPlaneswalker(game)) {
+                        tally.add("loyalty_abilities", 1);
+                    }
+                    break;
+                }
+                case ATTACHED: {
+                    Permanent attachment = game.getPermanent(event.getSourceId());
+                    if (me.equals(event.getPlayerId()) && attachment != null) {
+                        if (attachment.hasSubtype(SubType.AURA, game)) {
+                            tally.add("auras_attached", 1);
+                        } else if (attachment.hasSubtype(SubType.EQUIPMENT, game)) {
+                            tally.add("equipment_attached", 1);
+                        }
+                    }
+                    break;
+                }
+                case SACRIFICED_PERMANENT:
+                    if (me.equals(event.getPlayerId())) {
+                        tally.add("sacrificed", 1);
+                    }
+                    break;
+                case DISCARDED_CARD:
+                    if (event.getPlayerId() != null && !me.equals(event.getPlayerId())) {
+                        tally.add("opponent_discards", 1);
+                    }
+                    break;
+                case MILLED_CARD:
+                    if (event.getPlayerId() != null && !me.equals(event.getPlayerId())) {
+                        tally.add("opponent_milled", 1);
+                    }
+                    break;
+                case MANA_ADDED:
+                    if (me.equals(event.getPlayerId()) && event instanceof ManaEvent && ((ManaEvent) event).getMana() != null) {
+                        int mana;
+                        synchronized (tally) {
+                            tally.manaThisTurn += ((ManaEvent) event).getMana().count();
+                            mana = tally.manaThisTurn;
+                        }
+                        tally.max("most_mana_in_a_turn", mana);
+                        tally.moment("mana_surge", mana, game.getTurnNum());
+                    }
+                    break;
+                case LOST:
+                    if (!me.equals(event.getPlayerId()) && game.getPlayers().size() > 2) {
+                        boolean mine;
+                        synchronized (tally) {
+                            mine = tally.lastHit.contains(event.getPlayerId());
+                        }
+                        if (mine) {
+                            tally.add("pod_eliminations", 1);
+                            tally.moment("elimination", tally.get("pod_eliminations"), game.getTurnNum());
+                        }
                     }
                     break;
                 case DAMAGED_PLAYER: {
                     boolean combat = event instanceof DamagedEvent && ((DamagedEvent) event).isCombatDamage();
+                    synchronized (tally) {
+                        if (me.equals(game.getControllerId(event.getSourceId()))) {
+                            tally.lastHit.add(event.getTargetId());
+                        } else {
+                            tally.lastHit.remove(event.getTargetId());
+                        }
+                    }
                     if (me.equals(event.getTargetId())) {
                         tally.add("damage_taken", event.getAmount());
                         Player player = game.getPlayer(me);
@@ -309,9 +439,15 @@ public final class CareerTally {
                         tally.add("damage_to_opponents", event.getAmount());
                         tally.add(combat ? "combat_damage_to_opponents" : "noncombat_damage_to_opponents", event.getAmount());
                         tally.max("biggest_hit", event.getAmount());
+                        tally.moment("big_hit", event.getAmount(), game.getTurnNum());
                         Permanent source = game.getPermanentOrLKIBattlefield(event.getSourceId());
                         if (combat && source != null && source.isCreature(game)) {
                             tally.max("max_attacker_power", source.getPower().getValue());
+                            Player controller = game.getPlayer(me);
+                            if (controller != null && game.getCommandersIds(controller, CommanderCardType.COMMANDER_OR_OATHBREAKER, false).contains(source.getId())) {
+                                tally.add("commander_damage", event.getAmount());
+                                tally.moment("commander_hit", event.getAmount(), game.getTurnNum());
+                            }
                         }
                     }
                     break;
@@ -327,6 +463,7 @@ public final class CareerTally {
                 case GAINED_LIFE:
                     if (me.equals(event.getTargetId())) {
                         tally.add("life_gained", event.getAmount());
+                        tally.moment("life_swing", event.getAmount(), game.getTurnNum());
                     }
                     break;
                 case CREATED_TOKEN:
@@ -373,6 +510,7 @@ public final class CareerTally {
                 tally.spellsThisTurn++;
                 tally.counters.merge("most_spells_in_a_turn", tally.spellsThisTurn, Math::max);
             }
+            tally.moment("storm", tally.spellsThisTurn, game.getTurnNum());
             if (spell == null) {
                 return;
             }
@@ -430,6 +568,14 @@ public final class CareerTally {
             if (event.getFromZone() == Zone.BATTLEFIELD && event.getToZone() == Zone.GRAVEYARD && permanent != null
                     && permanent.isCreature(game) && !tally.playerId.equals(permanent.getControllerId())) {
                 tally.add("opponent_creatures_died", 1);
+            }
+            // an opponent's card exiled by something this player controls
+            if (event.getToZone() == Zone.EXILED && event.getFromZone() != Zone.STACK && event.getSourceId() != null
+                    && tally.playerId.equals(game.getControllerId(event.getSourceId()))) {
+                UUID owner = game.getOwnerId(event.getTargetId());
+                if (owner != null && !tally.playerId.equals(owner)) {
+                    tally.add("cards_exiled", 1);
+                }
             }
         }
     }

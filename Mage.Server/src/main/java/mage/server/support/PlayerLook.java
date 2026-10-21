@@ -22,8 +22,18 @@ public class PlayerLook {
     public String title;
     /** heart */
     public String flair;
-    /** a pet's id: party-corgi */
+    /** a pet's id: party-corgi, or an earned companion */
     public String pet;
+    /** an attack arrow colour's id (B300) */
+    public String arrow;
+    /** a hit spark's id (B300) */
+    public String spark;
+    /** a victory stamp's id (B300) */
+    public String stamp;
+    /** a basic land style's id: which full-art printing the basics show (B301) */
+    public String lands;
+    /** up to three achievement badges shown on the plate and profile (B307) */
+    public java.util.List<String> badges;
     /** the account's progression level (B279); null on servers without Career or before its first counted game */
     public Integer level;
 
@@ -31,6 +41,7 @@ public class PlayerLook {
     }
 
     boolean isEmpty() {
-        return sleeve == null && cloth == null && avatar == null && frame == null && title == null && flair == null && pet == null;
+        return sleeve == null && cloth == null && avatar == null && frame == null && title == null && flair == null && pet == null
+                && arrow == null && spark == null && stamp == null && lands == null && (badges == null || badges.isEmpty());
     }
 }

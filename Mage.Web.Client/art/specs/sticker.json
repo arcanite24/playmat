@@ -1,0 +1,97 @@
+{
+  "$comment": "Emote stickers (emote cosmetics in career/cosmetics.json): shown big for a moment over a player's side in a match, and in the emote wheel.",
+  "out": "public/career-art/sticker",
+  "grid": {
+    "cols": 4,
+    "rows": 4,
+    "canvas": "square"
+  },
+  "size": "192x192",
+  "pad": 0.06,
+  "anchors": [],
+  "style": "Emote stickers: one expressive pictogram per cell, bold and readable at 48 pixels, as an ivory pictogram, ivory ink ONLY, with a thick ivory outline all round like a die-cut sticker, filling about 85% of its cell.",
+  "ink": "#e9e4d6",
+  "spare": "a waving hand",
+  "items": [
+    {
+      "id": "owl-sleepy",
+      "subject": "a sleepy round owl with closed eyes, nodding off"
+    },
+    {
+      "id": "fox-grin",
+      "subject": "a fox head grinning slyly with one eye closed"
+    },
+    {
+      "id": "toad-grumpy",
+      "subject": "a grumpy toad with arms crossed"
+    },
+    {
+      "id": "cat-shocked",
+      "subject": "a startled cat with fur standing on end"
+    },
+    {
+      "id": "hourglass",
+      "subject": "an hourglass with sand running"
+    },
+    {
+      "id": "burning-card",
+      "subject": "a playing card on fire"
+    },
+    {
+      "id": "crown",
+      "subject": "a simple crown with three points"
+    },
+    {
+      "id": "shield",
+      "subject": "a round shield with a boss in the middle"
+    },
+    {
+      "id": "sun",
+      "subject": "a smiling sun with rays"
+    },
+    {
+      "id": "storm-cloud",
+      "subject": "a storm cloud with a lightning bolt"
+    },
+    {
+      "id": "rainbow",
+      "subject": "a rainbow arcing over two small clouds"
+    },
+    {
+      "id": "snowflake",
+      "subject": "a six-pointed snowflake"
+    },
+    {
+      "id": "heart",
+      "subject": "a plump heart"
+    },
+    {
+      "id": "bolt",
+      "subject": "a jagged lightning bolt"
+    },
+    {
+      "id": "flower",
+      "subject": "a five-petal flower on a short stem"
+    },
+    {
+      "id": "teacup",
+      "subject": "a steaming teacup on a saucer"
+    },
+    {
+      "id": "dragon-roar",
+      "subject": "a dragon head roaring with jaws wide"
+    },
+    {
+      "id": "angel-wings",
+      "subject": "a pair of spread angel wings around a halo"
+    },
+    {
+      "id": "goblin-cackle",
+      "subject": "a goblin head cackling with pointed ears"
+    },
+    {
+      "id": "sleeping-golem",
+      "subject": "a stone golem sitting asleep with a small bird on its head"
+    }
+  ]
+}

@@ -83,7 +83,7 @@ public class CareerProgressTest {
         }
         for (CareerProgress.AchievementTemplate achievement : progress.achievementTemplates().values()) {
             assertTrue("game".equals(achievement.scope) || "total".equals(achievement.scope), achievement.id);
-            assertTrue(achievement.target > 0, achievement.id);
+            assertTrue(achievement.target > 0 || (achievement.tiers != null && achievement.tiers.get(0).target > 0), achievement.id);
         }
     }
 
@@ -108,7 +108,7 @@ public class CareerProgressTest {
                 statement.execute("INSERT INTO profile (user, created, starter, coins, xp) VALUES ('bo', 1, 'x', 340, 600)");
             }
             try (CareerStore migrated = new CareerStore("jdbc:sqlite:" + old)) {
-                assertEquals(4, migrated.schemaVersion());
+                assertEquals(5, migrated.schemaVersion());
                 CareerProfile profile = migrated.profile("bo");
                 assertEquals(340, profile.coins);
                 assertEquals(600, profile.xp);

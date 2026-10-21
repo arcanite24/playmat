@@ -5,7 +5,11 @@
  },
  {
   "level": 3,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "hare"
+  }
  },
  {
   "level": 4,
@@ -21,7 +25,11 @@
  },
  {
   "level": 7,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "frog"
+  }
  },
  {
   "level": 8,
@@ -32,7 +40,11 @@
  },
  {
   "level": 9,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "land",
+   "id": "zen"
+  }
  },
  {
   "level": 10,
@@ -43,7 +55,11 @@
  },
  {
   "level": 11,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "otter"
+  }
  },
  {
   "level": 12,
@@ -58,7 +74,11 @@
  },
  {
   "level": 14,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "wolf"
+  }
  },
  {
   "level": 15,
@@ -71,7 +91,11 @@
  },
  {
   "level": 17,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "cat"
+  }
  },
  {
   "level": 18,
@@ -93,7 +117,11 @@
  },
  {
   "level": 21,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "raven"
+  }
  },
  {
   "level": 22,
@@ -108,7 +136,11 @@
  },
  {
   "level": 24,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "boar"
+  }
  },
  {
   "level": 25,
@@ -121,7 +153,11 @@
  },
  {
   "level": 27,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "badger"
+  }
  },
  {
   "level": 28,
@@ -143,7 +179,11 @@
  },
  {
   "level": 31,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "hound"
+  }
  },
  {
   "level": 32,
@@ -158,7 +198,11 @@
  },
  {
   "level": 34,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "tortoise"
+  }
  },
  {
   "level": 35,
@@ -171,7 +215,11 @@
  },
  {
   "level": 37,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "heron"
+  }
  },
  {
   "level": 38,
@@ -182,7 +230,11 @@
  },
  {
   "level": 39,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "land",
+   "id": "bfz"
+  }
  },
  {
   "level": 40,
@@ -193,7 +245,11 @@
  },
  {
   "level": 41,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "bat"
+  }
  },
  {
   "level": 42,
@@ -208,7 +264,11 @@
  },
  {
   "level": 44,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "ram"
+  }
  },
  {
   "level": 45,
@@ -221,7 +281,11 @@
  },
  {
   "level": 47,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "bull"
+  }
  },
  {
   "level": 48,
@@ -247,7 +311,11 @@
  },
  {
   "level": 52,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "eagle"
+  }
  },
  {
   "level": 53,
@@ -266,7 +334,11 @@
  },
  {
   "level": 56,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "minotaur"
+  }
  },
  {
   "level": 57,
@@ -278,7 +350,11 @@
  },
  {
   "level": 59,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "golem"
+  }
  },
  {
   "level": 60,
@@ -294,7 +370,11 @@
  },
  {
   "level": 62,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "griffin"
+  }
  },
  {
   "level": 63,
@@ -302,7 +382,11 @@
  },
  {
   "level": 64,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "land",
+   "id": "akh"
+  }
  },
  {
   "level": 65,
@@ -317,7 +401,11 @@
  },
  {
   "level": 67,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "basilisk"
+  }
  },
  {
   "level": 68,
@@ -337,7 +425,11 @@
  },
  {
   "level": 71,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "wyvern"
+  }
  },
  {
   "level": 72,
@@ -349,7 +441,11 @@
  },
  {
   "level": 74,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "pegasus"
+  }
  },
  {
   "level": 75,
@@ -364,7 +460,11 @@
  },
  {
   "level": 77,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "unicorn"
+  }
  },
  {
   "level": 78,
@@ -388,7 +488,11 @@
  },
  {
   "level": 82,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "sphinx"
+  }
  },
  {
   "level": 83,
@@ -407,7 +511,11 @@
  },
  {
   "level": 86,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "treant"
+  }
  },
  {
   "level": 87,
@@ -419,7 +527,11 @@
  },
  {
   "level": 89,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "djinn"
+  }
  },
  {
   "level": 90,
@@ -435,7 +547,11 @@
  },
  {
   "level": 92,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "chimera"
+  }
  },
  {
   "level": 93,
@@ -443,7 +559,11 @@
  },
  {
   "level": 94,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "hydra"
+  }
  },
  {
   "level": 95,
@@ -458,11 +578,19 @@
  },
  {
   "level": 97,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "kraken"
+  }
  },
  {
   "level": 98,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "angel"
+  }
  },
  {
   "level": 99,

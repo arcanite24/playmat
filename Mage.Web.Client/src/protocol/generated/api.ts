@@ -391,6 +391,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerMasteries', userName),
     careerDaily: () =>
       rpc.call('careerDaily'),
+    careerCosmetics: () =>
+      rpc.call('careerCosmetics'),
+    careerHall: () =>
+      rpc.call('careerHall'),
+    gameEmote: (gameId: UUID, emote: string) =>
+      rpc.call('gameEmote', gameId, emote),
     careerCampaigns: () =>
       rpc.call('careerCampaigns'),
     careerCampaignPlay: (campaignId: string, nodeId: string) =>

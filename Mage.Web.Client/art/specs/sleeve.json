@@ -69,6 +69,70 @@
     {
       "id": "school-brawl",
       "subject": "accent ink #7b3550 for the whole card, emblem: two crossed axes"
+    },
+    {
+      "id": "ember",
+      "subject": "accent ink #7a3318 for the whole card, emblem: a flame"
+    },
+    {
+      "id": "tide",
+      "subject": "accent ink #1d4f6b for the whole card, emblem: a breaking wave"
+    },
+    {
+      "id": "grove",
+      "subject": "accent ink #2f5a2a for the whole card, emblem: an oak leaf"
+    },
+    {
+      "id": "dusk",
+      "subject": "accent ink #4a2c55 for the whole card, emblem: a setting sun over hills"
+    },
+    {
+      "id": "ash",
+      "subject": "accent ink #3c3a38 for the whole card, emblem: a single feather"
+    },
+    {
+      "id": "bone",
+      "subject": "accent ink #6b6352 for the whole card, emblem: two crossed keys"
+    },
+    {
+      "id": "storm",
+      "subject": "accent ink #2e3d5c for the whole card, emblem: a lightning bolt from a cloud"
+    },
+    {
+      "id": "moss",
+      "subject": "accent ink #3e4f22 for the whole card, emblem: a mushroom cluster"
+    },
+    {
+      "id": "wine",
+      "subject": "accent ink #5a1f33 for the whole card, emblem: a goblet"
+    },
+    {
+      "id": "ink",
+      "subject": "accent ink #1a2433 for the whole card, emblem: a quill over an inkwell"
+    },
+    {
+      "id": "rust",
+      "subject": "accent ink #6a3a1e for the whole card, emblem: an anvil"
+    },
+    {
+      "id": "jade",
+      "subject": "accent ink #1f5a48 for the whole card, emblem: a coiled eastern dragon"
+    },
+    {
+      "id": "amber",
+      "subject": "accent ink #7a5a1a for the whole card, emblem: a honeybee"
+    },
+    {
+      "id": "indigo",
+      "subject": "accent ink #2a2f6a for the whole card, emblem: an open eye in a triangle"
+    },
+    {
+      "id": "pine",
+      "subject": "accent ink #23402f for the whole card, emblem: a pinecone"
+    },
+    {
+      "id": "clay",
+      "subject": "accent ink #6e4a36 for the whole card, emblem: an amphora with a meander band"
     }
   ]
 }

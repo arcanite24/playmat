@@ -1,0 +1,2352 @@
+[
+  {
+    "kind": "avatar",
+    "id": "owl",
+    "name": "Owl",
+    "es": "Búho",
+    "rarity": "common",
+    "light": "#7c7fb0",
+    "dark": "#262842",
+    "path": "M5 5l3 3m11-3l-3 3M8.5 8a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm7 0a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 14.5l-1.5 2.5h3z"
+  },
+  {
+    "kind": "avatar",
+    "id": "fox",
+    "name": "Fox",
+    "es": "Zorro",
+    "rarity": "common",
+    "light": "#d0743a",
+    "dark": "#4d1f0f",
+    "path": "M4 4l4 6h8l4-6-1.5 9L12 20l-6.5-7zM9.5 13h.01m5 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "stag",
+    "name": "Stag",
+    "es": "Ciervo",
+    "rarity": "uncommon",
+    "light": "#9a8650",
+    "dark": "#2a321d",
+    "path": "M12 21v-6m0 0c-3 0-5-2-5-6m0 0L5 6m2 3l1-4m4 10c3 0 5-2 5-6m0 0l2-3m-2 3l-1-4m-6 9a2 2 0 1 0 4 0"
+  },
+  {
+    "kind": "avatar",
+    "id": "drake",
+    "name": "Drake",
+    "es": "Dragoncillo",
+    "rarity": "rare",
+    "light": "#3f9a8e",
+    "dark": "#0f302c",
+    "path": "M3 18c4-2 6-6 6-12 2 3 4 4 7 4-1 2-1 4 0 6 2 0 4-1 5-3-1 4-4 7-9 7-3 0-6-1-9-2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "phoenix",
+    "name": "Phoenix",
+    "es": "Fénix",
+    "rarity": "mythic",
+    "light": "#e3923a",
+    "dark": "#6b1a1a",
+    "path": "M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-7 1 1 2 2 3 4 0-2 0-5 0-7z"
+  },
+  {
+    "kind": "avatar",
+    "id": "wolf",
+    "name": "Wolf",
+    "es": "Lobo",
+    "rarity": "common",
+    "light": "#7989a0",
+    "dark": "#20252d",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "bear",
+    "name": "Bear",
+    "es": "Oso",
+    "rarity": "common",
+    "light": "#ba885e",
+    "dark": "#362517",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01",
+    "mastery": "color_W",
+    "rank": 5
+  },
+  {
+    "kind": "avatar",
+    "id": "raven",
+    "name": "Raven",
+    "es": "Cuervo",
+    "rarity": "common",
+    "light": "#7477a5",
+    "dark": "#1e1f2e",
+    "path": "M12 5a5 5 0 0 1 5 5v2l3 2-3 1c-1 3-3 4-5 4s-4-1-5-4l-3-1 3-2v-2a5 5 0 0 1 5-5zM10 10h.01m4 0h.01M11 13h2l-1 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "lion",
+    "name": "Lion",
+    "es": "León",
+    "rarity": "uncommon",
+    "light": "#c09f59",
+    "dark": "#392d13",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "tiger",
+    "name": "Tiger",
+    "es": "Tigre",
+    "rarity": "uncommon",
+    "light": "#c08359",
+    "dark": "#392313",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "boar",
+    "name": "Boar",
+    "es": "Jabalí",
+    "rarity": "common",
+    "light": "#b07f69",
+    "dark": "#32221a",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "hare",
+    "name": "Hare",
+    "es": "Liebre",
+    "rarity": "common",
+    "light": "#a29476",
+    "dark": "#2e291f",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "otter",
+    "name": "Otter",
+    "es": "Nutria",
+    "rarity": "common",
+    "light": "#a98b70",
+    "dark": "#30261d",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "badger",
+    "name": "Badger",
+    "es": "Tejón",
+    "rarity": "common",
+    "light": "#8c8c8c",
+    "dark": "#262626",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "tortoise",
+    "name": "Tortoise",
+    "es": "Tortuga",
+    "rarity": "common",
+    "light": "#8eb168",
+    "dark": "#27321a",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "frog",
+    "name": "Frog",
+    "es": "Rana",
+    "rarity": "common",
+    "light": "#7eb563",
+    "dark": "#223419",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "bat",
+    "name": "Bat",
+    "es": "Murciélago",
+    "rarity": "uncommon",
+    "light": "#8971a7",
+    "dark": "#251d2f",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "cat",
+    "name": "Cat",
+    "es": "Gato",
+    "rarity": "common",
+    "light": "#8c7d9b",
+    "dark": "#26212b",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "hound",
+    "name": "Hound",
+    "es": "Sabueso",
+    "rarity": "common",
+    "light": "#b58c63",
+    "dark": "#342619",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "ram",
+    "name": "Ram",
+    "es": "Carnero",
+    "rarity": "uncommon",
+    "light": "#a49474",
+    "dark": "#2e291e",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "bull",
+    "name": "Bull",
+    "es": "Toro",
+    "rarity": "uncommon",
+    "light": "#be735b",
+    "dark": "#371e16",
+    "path": "M6 6l2 4h8l2-4-1 8-5 5-5-5zM10 13h.01m4 0h.01"
+  },
+  {
+    "kind": "avatar",
+    "id": "eagle",
+    "name": "Eagle",
+    "es": "Águila",
+    "rarity": "uncommon",
+    "light": "#bb965d",
+    "dark": "#362917",
+    "path": "M12 5a5 5 0 0 1 5 5v2l3 2-3 1c-1 3-3 4-5 4s-4-1-5-4l-3-1 3-2v-2a5 5 0 0 1 5-5zM10 10h.01m4 0h.01M11 13h2l-1 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "heron",
+    "name": "Heron",
+    "es": "Garza",
+    "rarity": "common",
+    "light": "#7494a4",
+    "dark": "#1e292e",
+    "path": "M12 5a5 5 0 0 1 5 5v2l3 2-3 1c-1 3-3 4-5 4s-4-1-5-4l-3-1 3-2v-2a5 5 0 0 1 5-5zM10 10h.01m4 0h.01M11 13h2l-1 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "octopus",
+    "name": "Octopus",
+    "es": "Pulpo",
+    "rarity": "uncommon",
+    "light": "#bb5d83",
+    "dark": "#361723",
+    "path": "M4 12c2-4 5-6 8-6s6 2 8 6c-2 4-5 6-8 6s-6-2-8-6zM9 12h.01M3 18c2-1 3-1 5 0s3 1 5 0 3-1 5 0"
+  },
+  {
+    "kind": "avatar",
+    "id": "serpent",
+    "name": "Serpent",
+    "es": "Serpiente",
+    "rarity": "uncommon",
+    "light": "#6bae81",
+    "dark": "#1b3123",
+    "path": "M4 12c2-4 5-6 8-6s6 2 8 6c-2 4-5 6-8 6s-6-2-8-6zM9 12h.01M3 18c2-1 3-1 5 0s3 1 5 0 3-1 5 0"
+  },
+  {
+    "kind": "avatar",
+    "id": "sphinx",
+    "name": "Sphinx",
+    "es": "Esfinge",
+    "rarity": "rare",
+    "light": "#b89b61",
+    "dark": "#352b18",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "griffin",
+    "name": "Griffin",
+    "es": "Grifo",
+    "rarity": "rare",
+    "light": "#b59464",
+    "dark": "#342919",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "unicorn",
+    "name": "Unicorn",
+    "es": "Unicornio",
+    "rarity": "rare",
+    "light": "#7575a3",
+    "dark": "#1f1f2e",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "pegasus",
+    "name": "Pegasus",
+    "es": "Pegaso",
+    "rarity": "rare",
+    "light": "#6f87a9",
+    "dark": "#1d2430",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "hydra",
+    "name": "Hydra",
+    "es": "Hidra",
+    "rarity": "mythic",
+    "light": "#63b58c",
+    "dark": "#193426",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "basilisk",
+    "name": "Basilisk",
+    "es": "Basilisco",
+    "rarity": "rare",
+    "light": "#8cb563",
+    "dark": "#263419",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "manticore",
+    "name": "Manticore",
+    "es": "Mantícora",
+    "rarity": "rare",
+    "light": "#c07759",
+    "dark": "#381f14",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "minotaur",
+    "name": "Minotaur",
+    "es": "Minotauro",
+    "rarity": "uncommon",
+    "light": "#b57863",
+    "dark": "#341f19",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "chimera",
+    "name": "Chimera",
+    "es": "Quimera",
+    "rarity": "mythic",
+    "light": "#c07b59",
+    "dark": "#382015",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "kraken",
+    "name": "Kraken",
+    "es": "Kraken",
+    "rarity": "mythic",
+    "light": "#5997c0",
+    "dark": "#142a39",
+    "path": "M4 12c2-4 5-6 8-6s6 2 8 6c-2 4-5 6-8 6s-6-2-8-6zM9 12h.01M3 18c2-1 3-1 5 0s3 1 5 0 3-1 5 0"
+  },
+  {
+    "kind": "avatar",
+    "id": "wyvern",
+    "name": "Wyvern",
+    "es": "Guiverno",
+    "rarity": "rare",
+    "light": "#976bae",
+    "dark": "#2a1b31",
+    "path": "M12 3l2 4 4-2-1 5 3 3-4 1-1 5-3-3-3 3-1-5-4-1 3-3-1-5 4 2z"
+  },
+  {
+    "kind": "avatar",
+    "id": "golem",
+    "name": "Golem",
+    "es": "Gólem",
+    "rarity": "uncommon",
+    "light": "#969683",
+    "dark": "#292923",
+    "path": "M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm-7 16c1-4 4-6 7-6s6 2 7 6"
+  },
+  {
+    "kind": "avatar",
+    "id": "treant",
+    "name": "Treant",
+    "es": "Ent",
+    "rarity": "rare",
+    "light": "#81ae6b",
+    "dark": "#23311b",
+    "path": "M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm-7 16c1-4 4-6 7-6s6 2 7 6"
+  },
+  {
+    "kind": "avatar",
+    "id": "djinn",
+    "name": "Djinn",
+    "es": "Genio",
+    "rarity": "rare",
+    "light": "#597bc0",
+    "dark": "#152038",
+    "path": "M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm-7 16c1-4 4-6 7-6s6 2 7 6"
+  },
+  {
+    "kind": "avatar",
+    "id": "angel",
+    "name": "Angel",
+    "es": "Ángel",
+    "rarity": "mythic",
+    "light": "#b3a066",
+    "dark": "#332d19",
+    "path": "M12 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm-7 16c1-4 4-6 7-6s6 2 7 6"
+  },
+  {
+    "kind": "title",
+    "id": "veteran",
+    "name": "Veteran",
+    "es": "Veterano",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "centurion",
+    "name": "Centurion",
+    "es": "Centurión",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "legend",
+    "name": "Legend",
+    "es": "Leyenda",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "archmage",
+    "name": "Archmage",
+    "es": "Archimago",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "lightbringer",
+    "name": "Lightbringer",
+    "es": "Portador de luz",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "tidecaller",
+    "name": "Tidecaller",
+    "es": "Llamamareas",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "gravecaller",
+    "name": "Gravecaller",
+    "es": "Llamatumbas",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "firebrand",
+    "name": "Firebrand",
+    "es": "Incendiario",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "wildspeaker",
+    "name": "Wildspeaker",
+    "es": "Hablasalvaje",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "questing-knight",
+    "name": "Questing Knight",
+    "es": "Caballero andante",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "collector",
+    "name": "Collector",
+    "es": "Coleccionista",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "summit",
+    "name": "Summit",
+    "es": "Cumbre",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "champion",
+    "name": "Champion",
+    "es": "Campeón",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "by-a-thread",
+    "name": "By a Thread",
+    "es": "Por un pelo",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "blitz",
+    "name": "Blitz",
+    "es": "Relámpago",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "scholar",
+    "name": "Scholar",
+    "es": "Erudito de escuela",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "headmaster",
+    "name": "Headmaster",
+    "es": "Director",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "seasoned",
+    "name": "Seasoned",
+    "es": "Curtido",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "tactician",
+    "name": "Tactician",
+    "es": "Táctico",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "planeswalker",
+    "name": "Planeswalker",
+    "es": "Planeswalker",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "living-legend",
+    "name": "Living Legend",
+    "es": "Leyenda viva",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "pauper-graduate",
+    "name": "Pauper Graduate",
+    "es": "Egresado de Pauper",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "commander-graduate",
+    "name": "Commander Graduate",
+    "es": "Egresado de Commander",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "limited-graduate",
+    "name": "Limited Graduate",
+    "es": "Egresado de Limited",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "pioneer-graduate",
+    "name": "Pioneer Graduate",
+    "es": "Egresado de Pioneer",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "standard-graduate",
+    "name": "Standard Graduate",
+    "es": "Egresado de Standard",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "modern-graduate",
+    "name": "Modern Graduate",
+    "es": "Egresado de Modern",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "legacy-graduate",
+    "name": "Legacy Graduate",
+    "es": "Egresado de Legacy",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "vintage-graduate",
+    "name": "Vintage Graduate",
+    "es": "Egresado de Vintage",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "brawl-graduate",
+    "name": "Brawl Graduate",
+    "es": "Egresado de Brawl",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "w-master",
+    "name": "White Master",
+    "es": "Maestro blanco",
+    "rarity": "mythic",
+    "mastery": "color_W",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "u-master",
+    "name": "Blue Master",
+    "es": "Maestro azul",
+    "rarity": "mythic",
+    "mastery": "color_U",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "b-master",
+    "name": "Black Master",
+    "es": "Maestro negro",
+    "rarity": "mythic",
+    "mastery": "color_B",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "r-master",
+    "name": "Red Master",
+    "es": "Maestro rojo",
+    "rarity": "mythic",
+    "mastery": "color_R",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "g-master",
+    "name": "Green Master",
+    "es": "Maestro verde",
+    "rarity": "mythic",
+    "mastery": "color_G",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "multicolor-master",
+    "name": "Multicolor Master",
+    "es": "Maestro multicolor",
+    "rarity": "mythic",
+    "mastery": "color_multicolor",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "colorless-master",
+    "name": "Colorless Master",
+    "es": "Maestro incoloro",
+    "rarity": "mythic",
+    "mastery": "color_colorless",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "standard-master",
+    "name": "Standard Master",
+    "es": "Maestro de Standard",
+    "rarity": "mythic",
+    "mastery": "format_standard",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "pioneer-master",
+    "name": "Pioneer Master",
+    "es": "Maestro de Pioneer",
+    "rarity": "mythic",
+    "mastery": "format_pioneer",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "modern-master",
+    "name": "Modern Master",
+    "es": "Maestro de Modern",
+    "rarity": "mythic",
+    "mastery": "format_modern",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "legacy-master",
+    "name": "Legacy Master",
+    "es": "Maestro de Legacy",
+    "rarity": "mythic",
+    "mastery": "format_legacy",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "vintage-master",
+    "name": "Vintage Master",
+    "es": "Maestro de Vintage",
+    "rarity": "mythic",
+    "mastery": "format_vintage",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "pauper-master",
+    "name": "Pauper Master",
+    "es": "Maestro de Pauper",
+    "rarity": "mythic",
+    "mastery": "format_pauper",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "commander-master",
+    "name": "Commander Master",
+    "es": "Maestro de Commander",
+    "rarity": "mythic",
+    "mastery": "format_commander",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "brawl-master",
+    "name": "Brawl Master",
+    "es": "Maestro de Brawl",
+    "rarity": "mythic",
+    "mastery": "format_brawl",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "limited-master",
+    "name": "Limited Master",
+    "es": "Maestro de Limited",
+    "rarity": "mythic",
+    "mastery": "format_limited",
+    "rank": 10
+  },
+  {
+    "kind": "title",
+    "id": "regular",
+    "name": "Regular",
+    "es": "Habitual",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "victor",
+    "name": "Victor",
+    "es": "Vencedor",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "sparring-partner",
+    "name": "Sparring Partner",
+    "es": "Compañero de práctica",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "machine-breaker",
+    "name": "Machine Breaker",
+    "es": "Rompemáquinas",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "contender",
+    "name": "Contender",
+    "es": "Aspirante",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "podium",
+    "name": "Podium",
+    "es": "Podio",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "closer",
+    "name": "Closer",
+    "es": "Rematador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "good-company",
+    "name": "Good Company",
+    "es": "Buena compañía",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "rival",
+    "name": "Rival",
+    "es": "Rival",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "round-table",
+    "name": "Round Table",
+    "es": "Mesa redonda",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "title",
+    "id": "last-standing",
+    "name": "Last Standing",
+    "es": "El último en pie",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "kingslayer",
+    "name": "Kingslayer",
+    "es": "Matarreyes",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "standard-devotee",
+    "name": "Standard Devotee",
+    "es": "Devoto de Standard",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "pioneer-devotee",
+    "name": "Pioneer Devotee",
+    "es": "Devoto de Pioneer",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "modern-devotee",
+    "name": "Modern Devotee",
+    "es": "Devoto de Modern",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "legacy-devotee",
+    "name": "Legacy Devotee",
+    "es": "Devoto de Legacy",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "vintage-devotee",
+    "name": "Vintage Devotee",
+    "es": "Devoto de Vintage",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "pauper-devotee",
+    "name": "Pauper Devotee",
+    "es": "Devoto de Pauper",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "commander-devotee",
+    "name": "Commander Devotee",
+    "es": "Devoto de Commander",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "brawl-devotee",
+    "name": "Brawl Devotee",
+    "es": "Devoto de Brawl",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "limited-devotee",
+    "name": "Limited Devotee",
+    "es": "Devoto de Limited",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "w-champion",
+    "name": "White Champion",
+    "es": "Campeón blanco",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "u-champion",
+    "name": "Blue Champion",
+    "es": "Campeón azul",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "b-champion",
+    "name": "Black Champion",
+    "es": "Campeón negro",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "r-champion",
+    "name": "Red Champion",
+    "es": "Campeón rojo",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "g-champion",
+    "name": "Green Champion",
+    "es": "Campeón verde",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "multicolor-champion",
+    "name": "Multicolor Champion",
+    "es": "Campeón multicolor",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "colorless-champion",
+    "name": "Colorless Champion",
+    "es": "Campeón incoloro",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "spellslinger",
+    "name": "Spellslinger",
+    "es": "Lanzahechizos",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "denier",
+    "name": "Denier",
+    "es": "Negador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "oathkeeper",
+    "name": "Oathkeeper",
+    "es": "Guardajuramentos",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "enchanter",
+    "name": "Enchanter",
+    "es": "Encantador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "armorer",
+    "name": "Armorer",
+    "es": "Armero",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "banisher",
+    "name": "Banisher",
+    "es": "Desterrador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "high-priest",
+    "name": "High Priest",
+    "es": "Sumo sacerdote",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "mindbreaker",
+    "name": "Mindbreaker",
+    "es": "Rompementes",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "millwright",
+    "name": "Millwright",
+    "es": "Molinero",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "necromancer",
+    "name": "Necromancer",
+    "es": "Nigromante",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "warlord",
+    "name": "Warlord",
+    "es": "Caudillo",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "swarmlord",
+    "name": "Swarmlord",
+    "es": "Señor del enjambre",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "beastmaster",
+    "name": "Beastmaster",
+    "es": "Señor de las bestias",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "devastator",
+    "name": "Devastator",
+    "es": "Devastador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "lifebinder",
+    "name": "Lifebinder",
+    "es": "Vinculavidas",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "archivist",
+    "name": "Archivist",
+    "es": "Archivista",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "vanguard",
+    "name": "Vanguard",
+    "es": "Vanguardia",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "bulwark",
+    "name": "Bulwark",
+    "es": "Baluarte",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "cultivator",
+    "name": "Cultivator",
+    "es": "Cultivador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "reaper",
+    "name": "Reaper",
+    "es": "Segador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "pathfinder",
+    "name": "Pathfinder",
+    "es": "Explorador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "hoarder",
+    "name": "Hoarder",
+    "es": "Acaparador",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "artisan",
+    "name": "Artisan",
+    "es": "Artesano",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "polymath",
+    "name": "Polymath",
+    "es": "Erudito",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "alumnus",
+    "name": "Alumnus",
+    "es": "Egresado",
+    "rarity": "rare"
+  },
+  {
+    "kind": "title",
+    "id": "old-friend",
+    "name": "Old Friend",
+    "es": "Viejo amigo",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "timeless",
+    "name": "Timeless",
+    "es": "Atemporal",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "renowned",
+    "name": "Renowned",
+    "es": "Renombrado",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "title",
+    "id": "mythmaker",
+    "name": "Mythmaker",
+    "es": "Forjador de mitos",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-bronze",
+    "name": "Bronze",
+    "es": "Bronce",
+    "rarity": "uncommon",
+    "ring": "#9a6a3a",
+    "style": "solid"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-silver",
+    "name": "Silver",
+    "es": "Plata",
+    "rarity": "uncommon",
+    "ring": "#aab0b8",
+    "style": "double"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-gold",
+    "name": "Gold",
+    "es": "Oro",
+    "rarity": "rare",
+    "ring": "#d0a640",
+    "style": "double"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-ember",
+    "name": "Ember",
+    "es": "Ascua",
+    "rarity": "rare",
+    "ring": "#d0602a",
+    "accent": "#f0b040",
+    "style": "notched"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-mythic",
+    "name": "Mythic",
+    "es": "Mítico",
+    "rarity": "mythic",
+    "ring": "#e07a2a",
+    "accent": "#f0d070",
+    "style": "rays"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-laurel",
+    "name": "Laurel",
+    "es": "Laurel",
+    "rarity": "rare",
+    "ring": "#8aa060",
+    "style": "beaded"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-thorn",
+    "name": "Thorn",
+    "es": "Espino",
+    "rarity": "uncommon",
+    "ring": "#5a7a3a",
+    "style": "notched"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-tide",
+    "name": "Tide",
+    "es": "Marea",
+    "rarity": "uncommon",
+    "ring": "#3a8ab0",
+    "accent": "#a0d0e0",
+    "style": "dashed"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-storm",
+    "name": "Storm",
+    "es": "Tormenta",
+    "rarity": "rare",
+    "ring": "#6a7ab0",
+    "accent": "#d0d8f0",
+    "style": "rays"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-grove",
+    "name": "Grove",
+    "es": "Arboleda",
+    "rarity": "uncommon",
+    "ring": "#4a8a4a",
+    "style": "beaded"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-star",
+    "name": "Star",
+    "es": "Estrella",
+    "rarity": "mythic",
+    "ring": "#c0b0f0",
+    "accent": "#f0e8ff",
+    "style": "rays"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-rune",
+    "name": "Rune",
+    "es": "Runa",
+    "rarity": "rare",
+    "ring": "#7a60a0",
+    "style": "dashed"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-crown",
+    "name": "Crown",
+    "es": "Corona",
+    "rarity": "mythic",
+    "ring": "#e0b040",
+    "accent": "#fff0b0",
+    "style": "notched"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-chain",
+    "name": "Chain",
+    "es": "Cadena",
+    "rarity": "uncommon",
+    "ring": "#8a8a8a",
+    "style": "beaded"
+  },
+  {
+    "kind": "frame",
+    "id": "frame-sun",
+    "name": "Sun",
+    "es": "Sol",
+    "rarity": "rare",
+    "ring": "#e0a030",
+    "accent": "#f8e090",
+    "style": "rays"
+  },
+  {
+    "kind": "sleeve",
+    "id": "copper",
+    "name": "Copper",
+    "es": "Cobre",
+    "rarity": "common",
+    "color": "#6e3f24"
+  },
+  {
+    "kind": "sleeve",
+    "id": "silver",
+    "name": "Silver",
+    "es": "Plata",
+    "rarity": "uncommon",
+    "color": "#5b6168"
+  },
+  {
+    "kind": "sleeve",
+    "id": "gold",
+    "name": "Gold",
+    "es": "Oro",
+    "rarity": "rare",
+    "color": "#7a5f1c"
+  },
+  {
+    "kind": "sleeve",
+    "id": "obsidian",
+    "name": "Obsidian",
+    "es": "Obsidiana",
+    "rarity": "uncommon",
+    "color": "#121014"
+  },
+  {
+    "kind": "sleeve",
+    "id": "foil",
+    "name": "Foil",
+    "es": "Foil",
+    "rarity": "rare",
+    "color": "#4a3d78"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-pauper",
+    "name": "Pauper School",
+    "es": "Escuela Pauper",
+    "rarity": "uncommon",
+    "color": "#3d5a36"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-commander",
+    "name": "Commander School",
+    "es": "Escuela Commander",
+    "rarity": "uncommon",
+    "color": "#4b2a5e"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-limited",
+    "name": "Limited School",
+    "es": "Escuela Limitado",
+    "rarity": "uncommon",
+    "color": "#66583c"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-pioneer",
+    "name": "Pioneer School",
+    "es": "Escuela Pioneer",
+    "rarity": "uncommon",
+    "color": "#2c4a66"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-standard",
+    "name": "Standard School",
+    "es": "Escuela Standard",
+    "rarity": "uncommon",
+    "color": "#22605b"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-modern",
+    "name": "Modern School",
+    "es": "Escuela Modern",
+    "rarity": "rare",
+    "color": "#6a2a2c"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-legacy",
+    "name": "Legacy School",
+    "es": "Escuela Legacy",
+    "rarity": "rare",
+    "color": "#25305e"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-vintage",
+    "name": "Vintage School",
+    "es": "Escuela Vintage",
+    "rarity": "mythic",
+    "color": "#4f4a1e"
+  },
+  {
+    "kind": "sleeve",
+    "id": "school-brawl",
+    "name": "Brawl School",
+    "es": "Escuela Brawl",
+    "rarity": "uncommon",
+    "color": "#7b3550"
+  },
+  {
+    "kind": "sleeve",
+    "id": "ember",
+    "name": "Ember",
+    "es": "Ascua",
+    "rarity": "uncommon",
+    "color": "#7a3318"
+  },
+  {
+    "kind": "sleeve",
+    "id": "tide",
+    "name": "Tide",
+    "es": "Marea",
+    "rarity": "uncommon",
+    "color": "#1d4f6b",
+    "mastery": "color_U",
+    "rank": 5
+  },
+  {
+    "kind": "sleeve",
+    "id": "grove",
+    "name": "Grove",
+    "es": "Arboleda",
+    "rarity": "uncommon",
+    "color": "#2f5a2a",
+    "mastery": "color_B",
+    "rank": 5
+  },
+  {
+    "kind": "sleeve",
+    "id": "dusk",
+    "name": "Dusk",
+    "es": "Ocaso",
+    "rarity": "uncommon",
+    "color": "#4a2c55",
+    "mastery": "color_R",
+    "rank": 5
+  },
+  {
+    "kind": "sleeve",
+    "id": "ash",
+    "name": "Ash",
+    "es": "Ceniza",
+    "rarity": "common",
+    "color": "#3c3a38"
+  },
+  {
+    "kind": "sleeve",
+    "id": "bone",
+    "name": "Bone",
+    "es": "Hueso",
+    "rarity": "common",
+    "color": "#6b6352"
+  },
+  {
+    "kind": "sleeve",
+    "id": "storm",
+    "name": "Storm",
+    "es": "Tormenta",
+    "rarity": "rare",
+    "color": "#2e3d5c"
+  },
+  {
+    "kind": "sleeve",
+    "id": "moss",
+    "name": "Moss",
+    "es": "Musgo",
+    "rarity": "common",
+    "color": "#3e4f22",
+    "mastery": "color_G",
+    "rank": 5
+  },
+  {
+    "kind": "sleeve",
+    "id": "wine",
+    "name": "Wine",
+    "es": "Vino",
+    "rarity": "uncommon",
+    "color": "#5a1f33"
+  },
+  {
+    "kind": "sleeve",
+    "id": "ink",
+    "name": "Ink",
+    "es": "Tinta",
+    "rarity": "rare",
+    "color": "#1a2433"
+  },
+  {
+    "kind": "sleeve",
+    "id": "rust",
+    "name": "Rust",
+    "es": "Óxido",
+    "rarity": "common",
+    "color": "#6a3a1e"
+  },
+  {
+    "kind": "sleeve",
+    "id": "jade",
+    "name": "Jade",
+    "es": "Jade",
+    "rarity": "rare",
+    "color": "#1f5a48"
+  },
+  {
+    "kind": "sleeve",
+    "id": "amber",
+    "name": "Amber",
+    "es": "Ámbar",
+    "rarity": "uncommon",
+    "color": "#7a5a1a"
+  },
+  {
+    "kind": "sleeve",
+    "id": "indigo",
+    "name": "Indigo",
+    "es": "Índigo",
+    "rarity": "rare",
+    "color": "#2a2f6a"
+  },
+  {
+    "kind": "sleeve",
+    "id": "pine",
+    "name": "Pine",
+    "es": "Pino",
+    "rarity": "common",
+    "color": "#23402f"
+  },
+  {
+    "kind": "sleeve",
+    "id": "clay",
+    "name": "Clay",
+    "es": "Arcilla",
+    "rarity": "mythic",
+    "color": "#6e4a36"
+  },
+  {
+    "kind": "playmat",
+    "id": "sand",
+    "name": "Sand",
+    "es": "Arena",
+    "rarity": "common",
+    "dye": "#8a7148",
+    "shades": [
+      "#0e0c08",
+      "#16130d",
+      "#1d1912",
+      "#282218",
+      "#372e21",
+      "#4c402e",
+      "#6a5a41"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "slate",
+    "name": "Slate",
+    "es": "Pizarra",
+    "rarity": "common",
+    "dye": "#5a6878",
+    "shades": [
+      "#08090b",
+      "#0d0f12",
+      "#121519",
+      "#191d22",
+      "#232930",
+      "#323a44",
+      "#48535f"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "midnight",
+    "name": "Midnight",
+    "es": "Medianoche",
+    "rarity": "rare",
+    "dye": "#3e3a8a",
+    "shades": [
+      "#05050c",
+      "#090914",
+      "#0d0d1c",
+      "#131327",
+      "#1b1b37",
+      "#27274f",
+      "#3a3a6e"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "rose",
+    "name": "Rose",
+    "es": "Rosa",
+    "rarity": "uncommon",
+    "dye": "#8a4a62",
+    "shades": [
+      "#0e080a",
+      "#160c10",
+      "#1d1015",
+      "#28161d",
+      "#371e28",
+      "#4c2a38",
+      "#693c4f"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "ember",
+    "name": "Ember",
+    "es": "Ascua",
+    "rarity": "uncommon",
+    "dye": "#9a4a2a",
+    "shades": [
+      "#0c0806",
+      "#130c09",
+      "#1a100c",
+      "#241711",
+      "#321f18",
+      "#472c22",
+      "#643f30"
+    ],
+    "mastery": "format_brawl",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "tide",
+    "name": "Tide",
+    "es": "Marea",
+    "rarity": "uncommon",
+    "dye": "#2a6a8a",
+    "shades": [
+      "#060a0c",
+      "#091013",
+      "#0c151a",
+      "#111e24",
+      "#182932",
+      "#223a47",
+      "#305364"
+    ],
+    "mastery": "color_multicolor",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "grove",
+    "name": "Grove",
+    "es": "Arboleda",
+    "rarity": "uncommon",
+    "dye": "#4a7a3a",
+    "shades": [
+      "#080c06",
+      "#0c120a",
+      "#10190d",
+      "#172313",
+      "#1f301a",
+      "#2c4424",
+      "#3f6034"
+    ],
+    "mastery": "format_limited",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "dusk",
+    "name": "Dusk",
+    "es": "Ocaso",
+    "rarity": "rare",
+    "dye": "#6a4a7a",
+    "shades": [
+      "#0a070b",
+      "#0f0b11",
+      "#140f17",
+      "#1d1520",
+      "#281d2d",
+      "#38293f",
+      "#4f3b59"
+    ],
+    "mastery": "format_vintage",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "ash",
+    "name": "Ash",
+    "es": "Ceniza",
+    "rarity": "common",
+    "dye": "#6a6660",
+    "shades": [
+      "#090909",
+      "#0f0e0d",
+      "#141312",
+      "#1c1b1a",
+      "#272523",
+      "#363532",
+      "#4d4b47"
+    ],
+    "mastery": "format_standard",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "storm",
+    "name": "Storm",
+    "es": "Tormenta",
+    "rarity": "rare",
+    "dye": "#4a5a8a",
+    "shades": [
+      "#07080b",
+      "#0a0c12",
+      "#0e1118",
+      "#141722",
+      "#1b202e",
+      "#272e42",
+      "#37405d"
+    ],
+    "mastery": "format_modern",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "moss",
+    "name": "Moss",
+    "es": "Musgo",
+    "rarity": "common",
+    "dye": "#5a7030",
+    "shades": [
+      "#0a0c06",
+      "#101309",
+      "#151a0d",
+      "#1e2412",
+      "#293218",
+      "#3a4623",
+      "#526331"
+    ],
+    "mastery": "format_pauper",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "wine",
+    "name": "Wine",
+    "es": "Vino",
+    "rarity": "uncommon",
+    "dye": "#7a2a44",
+    "shades": [
+      "#0c0608",
+      "#13090c",
+      "#1a0c11",
+      "#241117",
+      "#321820",
+      "#47222e",
+      "#643041"
+    ],
+    "mastery": "format_commander",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "ink",
+    "name": "Ink",
+    "es": "Tinta",
+    "rarity": "uncommon",
+    "dye": "#3a4a6a",
+    "shades": [
+      "#07080b",
+      "#0b0d12",
+      "#0e1218",
+      "#141921",
+      "#1c222e",
+      "#273041",
+      "#38445c"
+    ],
+    "mastery": "format_legacy",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "rust",
+    "name": "Rust",
+    "es": "Óxido",
+    "rarity": "common",
+    "dye": "#8a4a2a",
+    "shades": [
+      "#0c0806",
+      "#130c09",
+      "#1a110c",
+      "#241811",
+      "#322118",
+      "#472e22",
+      "#644130"
+    ],
+    "mastery": "color_colorless",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "jade",
+    "name": "Jade",
+    "es": "Jade",
+    "rarity": "rare",
+    "dye": "#2a7a5a",
+    "shades": [
+      "#060c0a",
+      "#09130f",
+      "#0c1a14",
+      "#11241d",
+      "#183228",
+      "#224738",
+      "#30644f"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "amber",
+    "name": "Amber",
+    "es": "Ámbar",
+    "rarity": "uncommon",
+    "dye": "#9a7a2a",
+    "shades": [
+      "#0c0a06",
+      "#131009",
+      "#1a160c",
+      "#241f11",
+      "#322b18",
+      "#473c22",
+      "#645530"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "indigo",
+    "name": "Indigo",
+    "es": "Índigo",
+    "rarity": "rare",
+    "dye": "#3a3a8a",
+    "shades": [
+      "#06060c",
+      "#090913",
+      "#0c0c1a",
+      "#111124",
+      "#181832",
+      "#222246",
+      "#303064"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "pine",
+    "name": "Pine",
+    "es": "Pino",
+    "rarity": "common",
+    "dye": "#2a5a3a",
+    "shades": [
+      "#060c08",
+      "#0a120d",
+      "#0d1911",
+      "#122318",
+      "#1a3021",
+      "#24442f",
+      "#336142"
+    ],
+    "mastery": "format_pioneer",
+    "rank": 5
+  },
+  {
+    "kind": "playmat",
+    "id": "frost",
+    "name": "Frost",
+    "es": "Escarcha",
+    "rarity": "mythic",
+    "dye": "#5a8aa0",
+    "shades": [
+      "#070a0b",
+      "#0b0f11",
+      "#0f1518",
+      "#141d21",
+      "#1c282e",
+      "#283941",
+      "#38505c"
+    ]
+  },
+  {
+    "kind": "playmat",
+    "id": "aurora",
+    "name": "Aurora",
+    "es": "Aurora",
+    "rarity": "mythic",
+    "dye": "#3a8a7a",
+    "shades": [
+      "#060c0b",
+      "#091311",
+      "#0c1a17",
+      "#112420",
+      "#18322d",
+      "#22463f",
+      "#306459"
+    ]
+  },
+  {
+    "kind": "pet",
+    "id": "ember-fox",
+    "name": "Ember fox",
+    "es": "Zorro de ascuas",
+    "rarity": "rare"
+  },
+  {
+    "kind": "pet",
+    "id": "tide-otter",
+    "name": "Tide otter",
+    "es": "Nutria de marea",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "pet",
+    "id": "moss-tortoise",
+    "name": "Moss tortoise",
+    "es": "Tortuga musgosa",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "pet",
+    "id": "paper-crane",
+    "name": "Paper crane",
+    "es": "Grulla de papel",
+    "rarity": "common"
+  },
+  {
+    "kind": "pet",
+    "id": "clockwork-owl",
+    "name": "Clockwork owl",
+    "es": "Búho de relojería",
+    "rarity": "rare"
+  },
+  {
+    "kind": "pet",
+    "id": "lantern-moth",
+    "name": "Lantern moth",
+    "es": "Polilla farol",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "pet",
+    "id": "pocket-drake",
+    "name": "Pocket drake",
+    "es": "Dragoncito de bolsillo",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "pet",
+    "id": "grove-hare",
+    "name": "Grove hare",
+    "es": "Liebre del bosque",
+    "rarity": "common"
+  },
+  {
+    "kind": "pet",
+    "id": "star-cat",
+    "name": "Star cat",
+    "es": "Gato estelar",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "pet",
+    "id": "mimic-chest",
+    "name": "Mimic",
+    "es": "Mímico",
+    "rarity": "rare"
+  },
+  {
+    "kind": "emote",
+    "id": "phrases",
+    "name": "Table talk",
+    "es": "Charla de mesa",
+    "rarity": "common",
+    "free": true,
+    "stickers": [
+      {
+        "id": "hello",
+        "phrase": "Hello!",
+        "es": "¡Hola!"
+      },
+      {
+        "id": "good-game",
+        "phrase": "Good game",
+        "es": "Buena partida"
+      },
+      {
+        "id": "well-played",
+        "phrase": "Well played",
+        "es": "Bien jugado"
+      },
+      {
+        "id": "thinking",
+        "phrase": "Thinking…",
+        "es": "Pensando…"
+      },
+      {
+        "id": "oops",
+        "phrase": "Oops",
+        "es": "Ups"
+      },
+      {
+        "id": "thanks",
+        "phrase": "Thanks",
+        "es": "Gracias"
+      }
+    ]
+  },
+  {
+    "kind": "emote",
+    "id": "critters",
+    "name": "Critters",
+    "es": "Bichos",
+    "rarity": "uncommon",
+    "stickers": [
+      {
+        "id": "owl-sleepy",
+        "phrase": "Zzz…",
+        "es": "Zzz…"
+      },
+      {
+        "id": "fox-grin",
+        "phrase": "Heh",
+        "es": "Je"
+      },
+      {
+        "id": "toad-grumpy",
+        "phrase": "Hmph",
+        "es": "Hmpf"
+      },
+      {
+        "id": "cat-shocked",
+        "phrase": "Whoa!",
+        "es": "¡Uau!"
+      }
+    ]
+  },
+  {
+    "kind": "emote",
+    "id": "table",
+    "name": "At the table",
+    "es": "En la mesa",
+    "rarity": "uncommon",
+    "stickers": [
+      {
+        "id": "hourglass",
+        "phrase": "One moment",
+        "es": "Un momento"
+      },
+      {
+        "id": "burning-card",
+        "phrase": "That hurt",
+        "es": "Eso dolió"
+      },
+      {
+        "id": "crown",
+        "phrase": "Your crown",
+        "es": "Tu corona"
+      },
+      {
+        "id": "shield",
+        "phrase": "Not today",
+        "es": "Hoy no"
+      }
+    ]
+  },
+  {
+    "kind": "emote",
+    "id": "weather",
+    "name": "Weather",
+    "es": "Clima",
+    "rarity": "rare",
+    "stickers": [
+      {
+        "id": "sun",
+        "phrase": "Sunny",
+        "es": "Despejado"
+      },
+      {
+        "id": "storm-cloud",
+        "phrase": "Storm coming",
+        "es": "Viene tormenta"
+      },
+      {
+        "id": "rainbow",
+        "phrase": "Lovely",
+        "es": "Precioso"
+      },
+      {
+        "id": "snowflake",
+        "phrase": "Chill",
+        "es": "Calma"
+      }
+    ]
+  },
+  {
+    "kind": "emote",
+    "id": "moods",
+    "name": "Moods",
+    "es": "Ánimos",
+    "rarity": "rare",
+    "stickers": [
+      {
+        "id": "heart",
+        "phrase": "Love it",
+        "es": "Me encanta"
+      },
+      {
+        "id": "bolt",
+        "phrase": "Let's go!",
+        "es": "¡Vamos!"
+      },
+      {
+        "id": "flower",
+        "phrase": "Nice",
+        "es": "Bonito"
+      },
+      {
+        "id": "teacup",
+        "phrase": "All calm",
+        "es": "Todo tranquilo"
+      }
+    ]
+  },
+  {
+    "kind": "emote",
+    "id": "legends",
+    "name": "Legends",
+    "es": "Leyendas",
+    "rarity": "mythic",
+    "stickers": [
+      {
+        "id": "dragon-roar",
+        "phrase": "ROAR",
+        "es": "ROAR"
+      },
+      {
+        "id": "angel-wings",
+        "phrase": "Saved!",
+        "es": "¡Salvado!"
+      },
+      {
+        "id": "goblin-cackle",
+        "phrase": "Hehehe",
+        "es": "Jejeje"
+      },
+      {
+        "id": "sleeping-golem",
+        "phrase": "Taking a rest",
+        "es": "Descansando"
+      }
+    ]
+  },
+  {
+    "kind": "arrow",
+    "id": "ember",
+    "name": "Ember",
+    "es": "Ascua",
+    "rarity": "common",
+    "color": "#e0602a"
+  },
+  {
+    "kind": "arrow",
+    "id": "frost",
+    "name": "Frost",
+    "es": "Escarcha",
+    "rarity": "common",
+    "color": "#7ac8e8"
+  },
+  {
+    "kind": "arrow",
+    "id": "venom",
+    "name": "Venom",
+    "es": "Veneno",
+    "rarity": "uncommon",
+    "color": "#7ac04a"
+  },
+  {
+    "kind": "arrow",
+    "id": "gold",
+    "name": "Gold",
+    "es": "Oro",
+    "rarity": "uncommon",
+    "color": "#e8c040"
+  },
+  {
+    "kind": "arrow",
+    "id": "violet",
+    "name": "Violet",
+    "es": "Violeta",
+    "rarity": "uncommon",
+    "color": "#a070e0"
+  },
+  {
+    "kind": "arrow",
+    "id": "ivory",
+    "name": "Ivory",
+    "es": "Marfil",
+    "rarity": "rare",
+    "color": "#e9e4d6"
+  },
+  {
+    "kind": "arrow",
+    "id": "rose",
+    "name": "Rose",
+    "es": "Rosa",
+    "rarity": "rare",
+    "color": "#e070a0"
+  },
+  {
+    "kind": "arrow",
+    "id": "storm",
+    "name": "Storm",
+    "es": "Tormenta",
+    "rarity": "mythic",
+    "color": "#8090f0"
+  },
+  {
+    "kind": "spark",
+    "id": "embers",
+    "name": "Embers",
+    "es": "Brasas",
+    "rarity": "uncommon",
+    "color": "#f0a040"
+  },
+  {
+    "kind": "spark",
+    "id": "shards",
+    "name": "Ice shards",
+    "es": "Esquirlas",
+    "rarity": "uncommon",
+    "color": "#a0e0f8"
+  },
+  {
+    "kind": "spark",
+    "id": "petals",
+    "name": "Petals",
+    "es": "Pétalos",
+    "rarity": "rare",
+    "color": "#f0a0c0"
+  },
+  {
+    "kind": "spark",
+    "id": "stars",
+    "name": "Stars",
+    "es": "Estrellas",
+    "rarity": "mythic",
+    "color": "#f8e8a0"
+  },
+  {
+    "kind": "stamp",
+    "id": "stamp-crown",
+    "name": "Crown",
+    "es": "Corona",
+    "rarity": "rare"
+  },
+  {
+    "kind": "stamp",
+    "id": "stamp-laurel",
+    "name": "Laurel",
+    "es": "Laurel",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "stamp",
+    "id": "stamp-dragon",
+    "name": "Dragon",
+    "es": "Dragón",
+    "rarity": "mythic"
+  },
+  {
+    "kind": "stamp",
+    "id": "stamp-sun",
+    "name": "Sun",
+    "es": "Sol",
+    "rarity": "rare"
+  },
+  {
+    "kind": "land",
+    "id": "zen",
+    "name": "Zendikar",
+    "es": "Zendikar",
+    "rarity": "common",
+    "set": "ZEN"
+  },
+  {
+    "kind": "land",
+    "id": "bfz",
+    "name": "Battle for Zendikar",
+    "es": "Batalla por Zendikar",
+    "rarity": "uncommon",
+    "set": "BFZ"
+  },
+  {
+    "kind": "land",
+    "id": "akh",
+    "name": "Amonkhet",
+    "es": "Amonkhet",
+    "rarity": "uncommon",
+    "set": "AKH"
+  },
+  {
+    "kind": "land",
+    "id": "ust",
+    "name": "Unstable",
+    "es": "Unstable",
+    "rarity": "rare",
+    "set": "UST"
+  },
+  {
+    "kind": "land",
+    "id": "znr",
+    "name": "Zendikar Rising",
+    "es": "El resurgir de Zendikar",
+    "rarity": "uncommon",
+    "set": "ZNR"
+  },
+  {
+    "kind": "land",
+    "id": "neo",
+    "name": "Kamigawa: Neon Dynasty",
+    "es": "Kamigawa: Dinastía de neón",
+    "rarity": "rare",
+    "set": "NEO"
+  },
+  {
+    "kind": "land",
+    "id": "unh",
+    "name": "Unhinged",
+    "es": "Unhinged",
+    "rarity": "rare",
+    "set": "UNH"
+  },
+  {
+    "kind": "land",
+    "id": "hou",
+    "name": "Hour of Devastation",
+    "es": "La hora de la devastación",
+    "rarity": "mythic",
+    "set": "HOU"
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "$comment": "Victory stamps (stamp cosmetics in career/cosmetics.json): pressed onto the game-over screen of a game the player won.",
+  "out": "public/career-art/stamp",
+  "grid": {
+    "cols": 2,
+    "rows": 2,
+    "canvas": "square"
+  },
+  "size": "320x320",
+  "pad": 0.06,
+  "anchors": [],
+  "style": "Victory stamps: one round seal per cell, front view, perfectly circular, printed ONLY in ivory ink like a rubber stamp pressed hard, a scalloped or toothed rim, the emblem carved inside, filling about 92% of its cell.",
+  "ink": "#e9e4d6",
+  "spare": "a star inside a round seal stamp with a scalloped edge",
+  "items": [
+    {
+      "id": "stamp-crown",
+      "subject": "a crown inside a round wax-seal stamp with a scalloped edge"
+    },
+    {
+      "id": "stamp-laurel",
+      "subject": "a laurel wreath inside a round seal stamp with a scalloped edge"
+    },
+    {
+      "id": "stamp-dragon",
+      "subject": "a dragon head inside a round seal stamp with a scalloped edge"
+    },
+    {
+      "id": "stamp-sun",
+      "subject": "a sunburst inside a round seal stamp with a scalloped edge"
+    }
+  ]
+}

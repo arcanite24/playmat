@@ -338,13 +338,29 @@ export interface CareerAchievement {
     at?: number;
     coins?: number;
     cosmetic?: CareerCosmetic;
+    family?: string;
+    holders?: number;
     id?: string;
     name?: string;
+    points?: number;
+    pointsTotal?: number;
     progress?: number;
     scope?: string;
     secret?: boolean;
     target?: number;
     text?: string;
+    tier?: number;
+    tiers?: CareerAchievementTier[];
+    xp?: number;
+}
+
+export interface CareerAchievementTier {
+    at?: number;
+    coins?: number;
+    cosmetic?: CareerCosmetic;
+    holders?: number;
+    points?: number;
+    target?: number;
     xp?: number;
 }
 
@@ -399,6 +415,29 @@ export interface CareerCard {
     setCode?: string;
 }
 
+export interface CareerCatalogItem {
+    accent?: string;
+    color?: string;
+    dark?: string;
+    dye?: string;
+    es?: string;
+    free?: boolean;
+    id?: string;
+    kind?: string;
+    light?: string;
+    mastery?: string;
+    name?: string;
+    path?: string;
+    rank?: number;
+    rarity?: string;
+    ring?: string;
+    set?: string;
+    shades?: string[];
+    sources?: CareerCosmeticSource[];
+    stickers?: CareerSticker[];
+    style?: string;
+}
+
 export interface CareerChallenge {
     attempts?: number;
     bestLife?: number;
@@ -444,6 +483,12 @@ export interface CareerCosmetic {
     kind?: string;
 }
 
+export interface CareerCosmeticSource {
+    at?: number;
+    kind?: string;
+    ref?: string;
+}
+
 export interface CareerCover {
     cardNumber?: string;
     name?: string;
@@ -485,6 +530,7 @@ export interface CareerGameResult {
     levelRewards?: CareerLevelReward[];
     masteries?: CareerMasteryRank[];
     mode?: CareerModeResult;
+    moments?: CareerMoment[];
     note?: string;
     opened?: string[];
     opponent?: string;
@@ -512,6 +558,16 @@ export interface CareerGauntletState {
     rewards?: CareerRunReward[];
     run?: CareerRun;
     variants?: CareerRunChoice[];
+}
+
+export interface CareerHall {
+    achievements?: CareerAchievement[];
+    players?: number;
+    points?: number;
+    rank?: number;
+    rankNames?: string[];
+    rankPoints?: number[];
+    recent?: CareerAchievement[];
 }
 
 export interface CareerHorde {
@@ -654,6 +710,13 @@ export interface CareerModeResult {
     xp?: number;
 }
 
+export interface CareerMoment {
+    id?: string;
+    text?: string;
+    turn?: number;
+    value?: number;
+}
+
 export interface CareerNode {
     after?: string;
     before?: string;
@@ -787,6 +850,8 @@ export interface CareerPublicProfile {
     level?: number;
     levelSize?: number;
     levelXp?: number;
+    points?: number;
+    rank?: string;
     recent?: PaidGame[];
     wins?: number;
     xp?: number;
@@ -975,6 +1040,12 @@ export interface CareerState {
     profile?: CareerProfile;
     rank?: CareerRank;
     recent?: CareerPayout[];
+}
+
+export interface CareerSticker {
+    es?: string;
+    id?: string;
+    phrase?: string;
 }
 
 export interface CareerTip {
@@ -1674,15 +1745,26 @@ export interface PlayableObjectsList extends Serializable, Copyable<PlayableObje
     objects?: { [index: string]: PlayableObjectStats };
 }
 
+export interface PlayerEmote extends Serializable {
+    emote?: string;
+    gameId?: string;
+    player?: string;
+}
+
 export interface PlayerLook {
+    arrow?: string;
     avatar?: string;
+    badges?: string[];
     cloth?: string;
     flair?: string;
     frame?: string;
+    lands?: string;
     level?: number;
     name?: string;
     pet?: string;
     sleeve?: string;
+    spark?: string;
+    stamp?: string;
     title?: string;
 }
 

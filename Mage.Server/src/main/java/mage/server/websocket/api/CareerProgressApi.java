@@ -158,6 +158,49 @@ final class CareerProgressApi {
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
                             return CareerApi.store(() -> CareerProgress.get().daily(user));
+                        }),
+
+                RpcMethod.named("careerCosmetics")
+                        .returns("CareerCatalogItem[]")
+                        .doc("Every cosmetic progression gives (B293): avatars, titles, frames, sleeves, playmats, companions, "
+                                + "emote sets, arrows, sparks, stamps and land styles, with names, rarity, how each looks and "
+                                + "where it comes from. The supporters' thank-you set is not in it.")
+                        .handler(call -> {
+                            CareerApi.career(ctx, call);
+                            return mage.server.career.CareerCosmetics.get().items();
+                        }),
+
+                RpcMethod.named("careerHall")
+                        .returns("CareerHall")
+                        .doc("The achievement hall: every achievement with its tiers and how many players have each, the "
+                                + "points total and its rank, and the latest earned.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerProgress.get().hall(user));
+                        }),
+
+                RpcMethod.named("gameEmote")
+                        .params(of("gameId", mage.server.websocket.rpc.RpcParam.Type.UUID), of("emote", STRING))
+                        .returns("boolean")
+                        .doc("Sends a quick emote to everyone at the table (a gameEmote callback). Only from an emote set the "
+                                + "account has, or the free phrases; one every few seconds. False when it wasn't sent.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            java.util.UUID gameId = call.uuid(0);
+                            String emote = call.string(1);
+                            mage.server.career.CareerCosmetics.CareerCatalogItem set = mage.server.career.CareerCosmetics.get().emoteSetOf(emote);
+                            if (set == null) {
+                                return false;
+                            }
+                            boolean owned = set.free || CareerApi.store(() -> CareerStore.get().unlocksOf(user).stream()
+                                    .anyMatch(unlock -> "emote".equals(unlock[0]) && set.id.equals(unlock[1])));
+                            if (!owned) {
+                                return false;
+                            }
+                            mage.server.game.GameController controller = ctx.managers.gameManager().getGameController().get(gameId);
+                            java.util.UUID userId = ctx.managers.sessionManager().getSession(call.sessionId())
+                                    .map(mage.server.Session::getUserId).orElse(null);
+                            return controller != null && controller.emote(userId, emote, System.currentTimeMillis());
                         })
         );
     }

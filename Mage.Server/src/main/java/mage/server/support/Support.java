@@ -92,6 +92,11 @@ public final class Support {
 
         /** the account's Career cosmetics, as {kind, item} */
         List<String[]> careerUnlocks(String account);
+
+        /** the achievement and mastery badges the account may show */
+        default Set<String> careerBadges(String account) {
+            return Collections.emptySet();
+        }
     }
 
     /** The public thank-you post (Discord). */
@@ -585,6 +590,21 @@ public final class Support {
         look.title = owned(owned, "title", wanted.title);
         look.flair = owned(owned, "flair", wanted.flair);
         look.pet = owned(owned, "pet", wanted.pet);
+        look.arrow = owned(owned, "arrow", wanted.arrow);
+        look.spark = owned(owned, "spark", wanted.spark);
+        look.stamp = owned(owned, "stamp", wanted.stamp);
+        look.lands = owned(owned, "land", wanted.lands);
+        if (wanted.badges != null) {
+            Set<String> earned = accounts.careerBadges(account);
+            List<String> badges = new ArrayList<>();
+            for (String badge : wanted.badges) {
+                String id = clean(badge);
+                if (id != null && earned.contains(id) && !badges.contains(id) && badges.size() < 3) {
+                    badges.add(id);
+                }
+            }
+            look.badges = badges.isEmpty() ? null : badges;
+        }
         return look;
     }
 
@@ -967,6 +987,15 @@ public final class Support {
                     return CareerStore.get().unlocksOf(account);
                 } catch (SQLException | IllegalStateException e) {
                     return Collections.emptyList();
+                }
+            }
+
+            @Override
+            public Set<String> careerBadges(String account) {
+                try {
+                    return mage.server.career.CareerProgress.get().badges(account);
+                } catch (SQLException | RuntimeException e) {
+                    return Collections.emptySet();
                 }
             }
         };

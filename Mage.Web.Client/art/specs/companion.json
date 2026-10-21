@@ -1,0 +1,57 @@
+{
+  "$comment": "Companions (pet cosmetics in career/cosmetics.json): painted stills that sit by a player's side of the battlefield in PetSpot, and in the locker.",
+  "out": "public/career-art/companion",
+  "grid": {
+    "cols": 4,
+    "rows": 3,
+    "canvas": "landscape"
+  },
+  "size": "256x256",
+  "pad": 0.06,
+  "anchors": [],
+  "style": "Companions: one small, cute creature or object per cell, whole body, sitting or standing on an implied ground line, three-quarter front view, as an ivory pictogram, ivory ink ONLY, friendly and round, filling about 85% of its cell.",
+  "ink": "#e9e4d6",
+  "spare": "a sitting puppy",
+  "items": [
+    {
+      "id": "ember-fox",
+      "subject": "a small fox kit sitting, its tail curling up like a flame"
+    },
+    {
+      "id": "tide-otter",
+      "subject": "a little otter floating on its back holding a shell"
+    },
+    {
+      "id": "moss-tortoise",
+      "subject": "a tiny tortoise with ferns and a mushroom growing on its shell"
+    },
+    {
+      "id": "paper-crane",
+      "subject": "a folded origami crane standing on one foot"
+    },
+    {
+      "id": "clockwork-owl",
+      "subject": "a round clockwork owl with gear eyes and a key in its back"
+    },
+    {
+      "id": "lantern-moth",
+      "subject": "a fluffy moth with wings patterned like a lantern"
+    },
+    {
+      "id": "pocket-drake",
+      "subject": "a chubby baby dragon sitting with stubby wings raised"
+    },
+    {
+      "id": "grove-hare",
+      "subject": "a small hare with a leaf tucked behind one ear, sitting upright"
+    },
+    {
+      "id": "star-cat",
+      "subject": "a sitting cat with a crescent moon on its forehead and stars on its fur"
+    },
+    {
+      "id": "mimic-chest",
+      "subject": "a small treasure chest with a toothy grin and a tongue poking out, on little legs"
+    }
+  ]
+}

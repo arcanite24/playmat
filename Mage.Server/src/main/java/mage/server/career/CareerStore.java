@@ -99,6 +99,11 @@ public final class CareerStore implements AutoCloseable {
                             + " games INTEGER NOT NULL DEFAULT 0, person_games INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user, day))",
                     "CREATE TABLE career_tables (table_id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL)",
                     "CREATE TABLE decks (user TEXT PRIMARY KEY, deck TEXT NOT NULL, updated INTEGER NOT NULL)"
+            },
+            {
+                    // M27: title ids with spaces never passed the look's id check; the catalog hyphenates them
+                    "UPDATE OR IGNORE unlocks SET item = REPLACE(item, ' ', '-') WHERE kind = 'title' AND item LIKE '% %'",
+                    "DELETE FROM unlocks WHERE kind = 'title' AND item LIKE '% %'"
             }
     };
 
@@ -211,6 +216,19 @@ public final class CareerStore implements AutoCloseable {
             insert.executeUpdate();
         }
         return secret;
+    }
+
+    /** a server-wide value kept with the Career, or null */
+    public synchronized String metaValue(String key) throws SQLException {
+        return meta(key);
+    }
+
+    public synchronized void setMeta(String key, String value) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)")) {
+            upsert.setString(1, key);
+            upsert.setString(2, value);
+            upsert.executeUpdate();
+        }
     }
 
     private String meta(String key) throws SQLException {

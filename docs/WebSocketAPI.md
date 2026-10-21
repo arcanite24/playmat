@@ -323,6 +323,9 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `careerQuestTracker` | `gameId: UUID` | `CareerLiveQuest[]` | session | The player's unfinished quests with what the running game has added so far, for the match menu. Nothing is saved until the game ends. Empty when the game doesn't count. |
 | `careerMasteries` | `userName?: string` | `CareerMastery[]` | session | Mastery tracks (each color, multicolor, colorless and each format): games played, rank of ten and games to the next rank. Another player's when a name is given and they show progression. |
 | `careerDaily` | - | `CareerDaily` | session | Today (UTC): wins so far, the daily wins ladder's coins and which step is next, and whether the first win and the first game against a person have paid their bonus. |
+| `careerCosmetics` | - | `CareerCatalogItem[]` | session | Every cosmetic progression gives (B293): avatars, titles, frames, sleeves, playmats, companions, emote sets, arrows, sparks, stamps and land styles, with names, rarity, how each looks and where it comes from. The supporters' thank-you set is not in it. |
+| `careerHall` | - | `CareerHall` | session | The achievement hall: every achievement with its tiers and how many players have each, the points total and its rank, and the latest earned. |
+| `gameEmote` | `gameId: UUID`, `emote: string` | `boolean` | session | Sends a quick emote to everyone at the table (a gameEmote callback). Only from an emote set the account has, or the free phrases; one every few seconds. False when it wasn't sent. |
 | `careerCampaigns` | - | `CareerCampaign[]` | session | Every campaign with its chapters and nodes, each locked, open or done for this account. |
 | `careerCampaignPlay` | `campaignId: string`, `nodeId: string` | `CareerMatch` | session | Play a campaign duel or trial that's open (or done, to play it again), with the node's deck or the chapter's, under the school's format: a pod seats every AI, a final is a best of three. A first win pays the node's reward. |
 | `careerCampaignDeck` | `campaignId: string`, `nodeId: string` | `DeckCardLists` | session | The list of the deck you play at a campaign duel, to read before it. |
@@ -395,6 +398,7 @@ Generated from `ClientCallbackMethod`. Do not edit the table by hand.
 | `SHOW_USERMESSAGE` | `string[]` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |
 | `SERVER_MESSAGE` | `ChatMessage` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |
 | `CAREER_PROGRESS` | `string` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |
+| `GAME_EMOTE` | `PlayerEmote` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |
 | `JOINED_TABLE` | `TableClientMessage` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |
 | `START_TOURNAMENT` | `TableClientMessage` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |
 | `TOURNAMENT_INIT` | `TournamentView` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |

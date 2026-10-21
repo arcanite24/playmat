@@ -327,6 +327,36 @@ public class GameController implements GameCallback {
         return userId == null ? null : userPlayerMap.get(userId);
     }
 
+    /** last emote per player, for the rate limit */
+    private final Map<UUID, Long> lastEmote = new ConcurrentHashMap<>();
+    static final long EMOTE_GAP_MS = 2500;
+
+    /**
+     * Sends a player's emote to everyone at the table, players and watchers (B298).
+     *
+     * @return false when the user doesn't play in this game or sent one too recently
+     */
+    public boolean emote(UUID userId, String emote, long now) {
+        UUID playerId = playerIdOf(userId);
+        Player player = playerId == null ? null : game.getPlayer(playerId);
+        if (player == null) {
+            return false;
+        }
+        Long last = lastEmote.get(playerId);
+        if (last != null && now - last < EMOTE_GAP_MS) {
+            return false;
+        }
+        lastEmote.put(playerId, now);
+        PlayerEmote sent = new PlayerEmote(game.getId().toString(), player.getName(), emote);
+        java.util.Set<UUID> users = new java.util.HashSet<>(userPlayerMap.keySet());
+        users.addAll(watchers.keySet());
+        for (UUID user : users) {
+            managerFactory.userManager().getUser(user).ifPresent(target -> target.fireCallback(
+                    new mage.interfaces.callback.ClientCallback(mage.interfaces.callback.ClientCallbackMethod.GAME_EMOTE, game.getId(), sent)));
+        }
+        return true;
+    }
+
     public void join(UUID userId) {
         UUID playerId = userPlayerMap.get(userId);
         if (playerId == null) {

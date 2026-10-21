@@ -8,7 +8,8 @@
     "target": 1,
     "secret": false,
     "coins": 25,
-    "xp": 100
+    "xp": 100,
+    "family": "play"
   },
   {
     "id": "wins-10",
@@ -19,7 +20,8 @@
     "target": 10,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "play"
   },
   {
     "id": "wins-50",
@@ -34,7 +36,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "veteran"
-    }
+    },
+    "family": "play"
   },
   {
     "id": "wins-100",
@@ -49,7 +52,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "centurion"
-    }
+    },
+    "family": "play"
   },
   {
     "id": "wins-250",
@@ -64,7 +68,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "legend"
-    }
+    },
+    "family": "play"
   },
   {
     "id": "games-10",
@@ -75,7 +80,8 @@
     "target": 10,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "play"
   },
   {
     "id": "games-100",
@@ -86,7 +92,8 @@
     "target": 100,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "play"
   },
   {
     "id": "spells-100",
@@ -97,7 +104,8 @@
     "target": 100,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "spells-1000",
@@ -112,7 +120,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "archmage"
-    }
+    },
+    "family": "mechanics"
   },
   {
     "id": "white-100",
@@ -127,7 +136,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "lightbringer"
-    }
+    },
+    "family": "colors"
   },
   {
     "id": "blue-100",
@@ -142,7 +152,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "tidecaller"
-    }
+    },
+    "family": "colors"
   },
   {
     "id": "black-100",
@@ -157,7 +168,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "gravecaller"
-    }
+    },
+    "family": "colors"
   },
   {
     "id": "red-100",
@@ -172,7 +184,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "firebrand"
-    }
+    },
+    "family": "colors"
   },
   {
     "id": "green-100",
@@ -187,7 +200,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "wildspeaker"
-    }
+    },
+    "family": "colors"
   },
   {
     "id": "colorless-50",
@@ -198,7 +212,8 @@
     "target": 50,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "colors"
   },
   {
     "id": "multicolor-50",
@@ -209,7 +224,8 @@
     "target": 50,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "colors"
   },
   {
     "id": "damage-1000",
@@ -220,7 +236,8 @@
     "target": 1000,
     "secret": false,
     "coins": 100,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "burn-200",
@@ -231,7 +248,8 @@
     "target": 200,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "life-500",
@@ -242,7 +260,8 @@
     "target": 500,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "tokens-100",
@@ -253,7 +272,8 @@
     "target": 100,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "creatures-250",
@@ -264,7 +284,8 @@
     "target": 250,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "kills-250",
@@ -275,7 +296,8 @@
     "target": 250,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "draw-1000",
@@ -286,7 +308,8 @@
     "target": 1000,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "lands-500",
@@ -297,7 +320,8 @@
     "target": 500,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "attacks-500",
@@ -308,7 +332,8 @@
     "target": 500,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "blocks-200",
@@ -319,7 +344,8 @@
     "target": 200,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "counters-300",
@@ -330,7 +356,8 @@
     "target": 300,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "mechanics"
   },
   {
     "id": "quests-10",
@@ -341,7 +368,8 @@
     "target": 10,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "career"
   },
   {
     "id": "quests-50",
@@ -355,8 +383,9 @@
     "xp": 100,
     "cosmetic": {
       "kind": "title",
-      "id": "questing knight"
-    }
+      "id": "questing-knight"
+    },
+    "family": "career"
   },
   {
     "id": "packs-10",
@@ -367,7 +396,8 @@
     "target": 10,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "career"
   },
   {
     "id": "packs-50",
@@ -382,7 +412,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "collector"
-    }
+    },
+    "family": "career"
   },
   {
     "id": "craft-10",
@@ -393,7 +424,8 @@
     "target": 10,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "career"
   },
   {
     "id": "level-10",
@@ -404,7 +436,8 @@
     "target": 10,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "long"
   },
   {
     "id": "level-25",
@@ -415,7 +448,8 @@
     "target": 25,
     "secret": false,
     "coins": 100,
-    "xp": 100
+    "xp": 100,
+    "family": "long"
   },
   {
     "id": "level-50",
@@ -430,7 +464,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "summit"
-    }
+    },
+    "family": "long"
   },
   {
     "id": "tier-2",
@@ -441,7 +476,8 @@
     "target": 2,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "career"
   },
   {
     "id": "tier-3",
@@ -452,7 +488,8 @@
     "target": 3,
     "secret": false,
     "coins": 100,
-    "xp": 100
+    "xp": 100,
+    "family": "career"
   },
   {
     "id": "beat-all",
@@ -467,7 +504,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "champion"
-    }
+    },
+    "family": "career"
   },
   {
     "id": "weekly-15",
@@ -478,7 +516,8 @@
     "target": 15,
     "secret": false,
     "coins": 100,
-    "xp": 100
+    "xp": 100,
+    "family": "long"
   },
   {
     "id": "one-life",
@@ -492,8 +531,9 @@
     "xp": 100,
     "cosmetic": {
       "kind": "title",
-      "id": "by a thread"
-    }
+      "id": "by-a-thread"
+    },
+    "family": "moments"
   },
   {
     "id": "comeback",
@@ -504,7 +544,8 @@
     "target": 1,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "flawless",
@@ -515,7 +556,8 @@
     "target": 1,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "fast-win",
@@ -530,7 +572,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "blitz"
-    }
+    },
+    "family": "moments"
   },
   {
     "id": "mill",
@@ -541,7 +584,8 @@
     "target": 1,
     "secret": true,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "poison",
@@ -552,7 +596,8 @@
     "target": 1,
     "secret": true,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "overkill",
@@ -563,7 +608,8 @@
     "target": 1,
     "secret": true,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "no-creatures",
@@ -574,7 +620,8 @@
     "target": 1,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "above-start",
@@ -585,7 +632,8 @@
     "target": 1,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "big-hit",
@@ -596,7 +644,8 @@
     "target": 10,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "giant",
@@ -607,7 +656,8 @@
     "target": 10,
     "secret": true,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "storm",
@@ -618,7 +668,8 @@
     "target": 5,
     "secret": false,
     "coins": 50,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "token-flood",
@@ -629,7 +680,8 @@
     "target": 10,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "life-20",
@@ -640,7 +692,8 @@
     "target": 20,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "creatures-10",
@@ -651,7 +704,8 @@
     "target": 10,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "counters-20",
@@ -662,7 +716,8 @@
     "target": 20,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "draw-15",
@@ -673,7 +728,8 @@
     "target": 15,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "kills-8",
@@ -684,7 +740,8 @@
     "target": 8,
     "secret": false,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "long-game",
@@ -695,7 +752,8 @@
     "target": 30,
     "secret": true,
     "coins": 0,
-    "xp": 100
+    "xp": 100,
+    "family": "moments"
   },
   {
     "id": "graduate-1",
@@ -706,7 +764,8 @@
     "target": 1,
     "secret": false,
     "coins": 100,
-    "xp": 200
+    "xp": 200,
+    "family": "career"
   },
   {
     "id": "graduate-3",
@@ -721,7 +780,8 @@
     "cosmetic": {
       "kind": "title",
       "id": "scholar"
-    }
+    },
+    "family": "career"
   },
   {
     "id": "graduate-9",
@@ -736,6 +796,2716 @@
     "cosmetic": {
       "kind": "title",
       "id": "headmaster"
-    }
+    },
+    "family": "career"
+  },
+  {
+    "id": "t-games",
+    "family": "play",
+    "name": "Regular",
+    "text": "Play {n} games of any kind.",
+    "scope": "total",
+    "counter": "games",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 25,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 100,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 500,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "regular"
+        }
+      },
+      {
+        "target": 2000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-chain"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-wins",
+    "family": "play",
+    "name": "Victor",
+    "text": "Win {n} games of any kind.",
+    "scope": "total",
+    "counter": "wins",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 25,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 100,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "avatar",
+          "id": "lion"
+        }
+      },
+      {
+        "target": 500,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "victor"
+        }
+      },
+      {
+        "target": 1500,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-crown"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-ai-games",
+    "family": "play",
+    "name": "Sparring partner",
+    "text": "Play {n} games against the AI.",
+    "scope": "total",
+    "counter": "games_kind_ai",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 25,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 100,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 400,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "sparring-partner"
+        }
+      },
+      {
+        "target": 1000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "clockwork-owl"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-ai-wins",
+    "family": "play",
+    "name": "Machine breaker",
+    "text": "Beat the AI {n} times.",
+    "scope": "total",
+    "counter": "wins_kind_ai",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "machine-breaker"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "rust"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-event-games",
+    "family": "play",
+    "name": "Contender",
+    "text": "Play {n} games in events.",
+    "scope": "total",
+    "counter": "games_kind_event",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 5,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 25,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 100,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "contender"
+        }
+      },
+      {
+        "target": 300,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "playmat",
+          "id": "frost"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-event-wins",
+    "family": "play",
+    "name": "Podium",
+    "text": "Win {n} games in events.",
+    "scope": "total",
+    "counter": "wins_kind_event",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 3,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 15,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "stamp",
+          "id": "stamp-laurel"
+        }
+      },
+      {
+        "target": 60,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "podium"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "stamp",
+          "id": "stamp-crown"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-bo3",
+    "family": "play",
+    "name": "Best of three",
+    "text": "Win {n} best-of-three matches.",
+    "scope": "total",
+    "counter": "bo3_match_wins",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 3,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 15,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 50,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "closer"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "arrow",
+          "id": "gold"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-person-games",
+    "family": "social",
+    "name": "Good company",
+    "text": "Play {n} games against people.",
+    "scope": "total",
+    "counter": "games_kind_person",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "emote",
+          "id": "critters"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "good-company"
+        }
+      },
+      {
+        "target": 750,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "grove-hare"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-person-wins",
+    "family": "social",
+    "name": "Rival",
+    "text": "Beat people {n} times.",
+    "scope": "total",
+    "counter": "wins_kind_person",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 5,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 25,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "arrow",
+          "id": "ember"
+        }
+      },
+      {
+        "target": 100,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "rival"
+        }
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-sun"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-pod-games",
+    "family": "social",
+    "name": "Round table",
+    "text": "Play {n} games with three or more players.",
+    "scope": "total",
+    "counter": "games_kind_pod",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 5,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 25,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "emote",
+          "id": "table"
+        }
+      },
+      {
+        "target": 100,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "round-table"
+        }
+      },
+      {
+        "target": 300,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "playmat",
+          "id": "amber"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-pod-wins",
+    "family": "social",
+    "name": "Last one standing",
+    "text": "Win {n} games with three or more players.",
+    "scope": "total",
+    "counter": "wins_kind_pod",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 1,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 10,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 40,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "last-standing"
+        }
+      },
+      {
+        "target": 120,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "mimic-chest"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-eliminations",
+    "family": "social",
+    "name": "Kingslayer",
+    "text": "Knock {n} players out of games with three or more players.",
+    "scope": "total",
+    "counter": "pod_eliminations",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 5,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 25,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 100,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "kingslayer"
+        }
+      },
+      {
+        "target": 300,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "spark",
+          "id": "stars"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-standard",
+    "family": "formats",
+    "name": "Standard regular",
+    "text": "Play {n} Standard games.",
+    "scope": "total",
+    "counter": "games_format_standard",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "ash"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "standard-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-pioneer",
+    "family": "formats",
+    "name": "Pioneer regular",
+    "text": "Play {n} Pioneer games.",
+    "scope": "total",
+    "counter": "games_format_pioneer",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "pine"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "pioneer-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-modern",
+    "family": "formats",
+    "name": "Modern regular",
+    "text": "Play {n} Modern games.",
+    "scope": "total",
+    "counter": "games_format_modern",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "storm"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "modern-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-legacy",
+    "family": "formats",
+    "name": "Legacy regular",
+    "text": "Play {n} Legacy games.",
+    "scope": "total",
+    "counter": "games_format_legacy",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "ink"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "legacy-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-vintage",
+    "family": "formats",
+    "name": "Vintage regular",
+    "text": "Play {n} Vintage games.",
+    "scope": "total",
+    "counter": "games_format_vintage",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "clay"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "vintage-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-pauper",
+    "family": "formats",
+    "name": "Pauper regular",
+    "text": "Play {n} Pauper games.",
+    "scope": "total",
+    "counter": "games_format_pauper",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "bone"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "pauper-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-commander",
+    "family": "formats",
+    "name": "Commander regular",
+    "text": "Play {n} Commander games.",
+    "scope": "total",
+    "counter": "games_format_commander",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "wine"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "commander-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-brawl",
+    "family": "formats",
+    "name": "Brawl regular",
+    "text": "Play {n} Brawl games.",
+    "scope": "total",
+    "counter": "games_format_brawl",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "ember"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "brawl-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-format-limited",
+    "family": "formats",
+    "name": "Limited regular",
+    "text": "Play {n} Limited games.",
+    "scope": "total",
+    "counter": "games_format_limited",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "amber"
+        }
+      },
+      {
+        "target": 150,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 400,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "limited-devotee"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-color-w",
+    "family": "colors",
+    "name": "White champion",
+    "text": "Win {n} games with a deck that plays white.",
+    "scope": "total",
+    "counter": "wins_color_W",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "arrow",
+          "id": "ivory"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "w-champion"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-laurel"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-color-u",
+    "family": "colors",
+    "name": "Blue champion",
+    "text": "Win {n} games with a deck that plays blue.",
+    "scope": "total",
+    "counter": "wins_color_U",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "arrow",
+          "id": "frost"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "u-champion"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-tide"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-color-b",
+    "family": "colors",
+    "name": "Black champion",
+    "text": "Win {n} games with a deck that plays black.",
+    "scope": "total",
+    "counter": "wins_color_B",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "arrow",
+          "id": "venom"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "b-champion"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-thorn"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-color-r",
+    "family": "colors",
+    "name": "Red champion",
+    "text": "Win {n} games with a deck that plays red.",
+    "scope": "total",
+    "counter": "wins_color_R",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "spark",
+          "id": "embers"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "r-champion"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-ember"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-color-g",
+    "family": "colors",
+    "name": "Green champion",
+    "text": "Win {n} games with a deck that plays green.",
+    "scope": "total",
+    "counter": "wins_color_G",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "spark",
+          "id": "petals"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "g-champion"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-grove"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-color-multicolor",
+    "family": "colors",
+    "name": "Multicolor champion",
+    "text": "Win {n} games with a deck that plays multicolor.",
+    "scope": "total",
+    "counter": "wins_color_multicolor",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "arrow",
+          "id": "violet"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "multicolor-champion"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-star"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-color-colorless",
+    "family": "colors",
+    "name": "Colorless champion",
+    "text": "Win {n} games with a deck that plays colorless.",
+    "scope": "total",
+    "counter": "wins_color_colorless",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "spark",
+          "id": "shards"
+        }
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "colorless-champion"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-rune"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-spells",
+    "family": "mechanics",
+    "name": "Spellslinger",
+    "text": "Cast {n} spells.",
+    "scope": "total",
+    "counter": "spells",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 100,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 1000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 5000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "spellslinger"
+        }
+      },
+      {
+        "target": 20000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "emote",
+          "id": "legends"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-countered",
+    "family": "mechanics",
+    "name": "Denied",
+    "text": "Counter {n} spells.",
+    "scope": "total",
+    "counter": "spells_countered",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 5,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "denier"
+        }
+      },
+      {
+        "target": 500,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "indigo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-loyalty",
+    "family": "mechanics",
+    "name": "Oathkeeper",
+    "text": "Activate {n} loyalty abilities.",
+    "scope": "total",
+    "counter": "loyalty_abilities",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 100,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 500,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "oathkeeper"
+        }
+      },
+      {
+        "target": 1500,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "playmat",
+          "id": "indigo"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-auras",
+    "family": "mechanics",
+    "name": "Enchanter",
+    "text": "Attach {n} Auras.",
+    "scope": "total",
+    "counter": "auras_attached",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 100,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 400,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "enchanter"
+        }
+      },
+      {
+        "target": 1000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "lantern-moth"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-equipment",
+    "family": "mechanics",
+    "name": "Armorer",
+    "text": "Attach Equipment {n} times.",
+    "scope": "total",
+    "counter": "equipment_attached",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 100,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 400,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "armorer"
+        }
+      },
+      {
+        "target": 1000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "jade"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-exiled",
+    "family": "mechanics",
+    "name": "Banisher",
+    "text": "Exile {n} of your opponents' cards.",
+    "scope": "total",
+    "counter": "cards_exiled",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 25,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 250,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 1000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "banisher"
+        }
+      },
+      {
+        "target": 3000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "playmat",
+          "id": "jade"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-sacrificed",
+    "family": "mechanics",
+    "name": "Offering",
+    "text": "Sacrifice {n} permanents.",
+    "scope": "total",
+    "counter": "sacrificed",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 25,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 250,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 1000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "high-priest"
+        }
+      },
+      {
+        "target": 3000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "arrow",
+          "id": "rose"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-discards",
+    "family": "mechanics",
+    "name": "Mind rot",
+    "text": "Make your opponents discard {n} cards.",
+    "scope": "total",
+    "counter": "opponent_discards",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 100,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 400,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "mindbreaker"
+        }
+      },
+      {
+        "target": 1000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "emote",
+          "id": "moods"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-milled",
+    "family": "mechanics",
+    "name": "Millstone",
+    "text": "Mill {n} of your opponents' cards.",
+    "scope": "total",
+    "counter": "opponent_milled",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 50,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 500,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 2500,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "millwright"
+        }
+      },
+      {
+        "target": 10000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "paper-crane"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-graveyard",
+    "family": "mechanics",
+    "name": "Second life",
+    "text": "Cast {n} spells from a graveyard.",
+    "scope": "total",
+    "counter": "cast_from_graveyard",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 5,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "necromancer"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "moss-tortoise"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-commander-damage",
+    "family": "mechanics",
+    "name": "General's blade",
+    "text": "Deal {n} combat damage with your commander.",
+    "scope": "total",
+    "counter": "commander_damage",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 21,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 210,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 1000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "warlord"
+        }
+      },
+      {
+        "target": 3000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "frame",
+          "id": "frame-storm"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-tokens",
+    "family": "mechanics",
+    "name": "Swarm",
+    "text": "Create {n} tokens.",
+    "scope": "total",
+    "counter": "tokens_created",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 100,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 1000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 5000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "swarmlord"
+        }
+      },
+      {
+        "target": 15000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "emote",
+          "id": "weather"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-creatures",
+    "family": "mechanics",
+    "name": "Beastmaster",
+    "text": "Have {n} creatures enter under your control.",
+    "scope": "total",
+    "counter": "creatures_entered",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 100,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 1000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 5000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "beastmaster"
+        }
+      },
+      {
+        "target": 15000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "tide-otter"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-damage",
+    "family": "mechanics",
+    "name": "Devastator",
+    "text": "Deal {n} damage to opponents.",
+    "scope": "total",
+    "counter": "damage_to_opponents",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 500,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 5000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 25000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "devastator"
+        }
+      },
+      {
+        "target": 75000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "pocket-drake"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-life",
+    "family": "mechanics",
+    "name": "Lifebloom",
+    "text": "Gain {n} life.",
+    "scope": "total",
+    "counter": "life_gained",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 200,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 2000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 10000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "lifebinder"
+        }
+      },
+      {
+        "target": 30000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "playmat",
+          "id": "aurora"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-draw",
+    "family": "mechanics",
+    "name": "Scholar of cards",
+    "text": "Draw {n} cards.",
+    "scope": "total",
+    "counter": "cards_drawn",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 250,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 2500,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 10000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "archivist"
+        }
+      },
+      {
+        "target": 30000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "star-cat"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-lands",
+    "family": "mechanics",
+    "name": "Landfall",
+    "text": "Play {n} lands.",
+    "scope": "total",
+    "counter": "lands_played",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 250,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 2500,
+        "coins": 50,
+        "xp": 100,
+        "points": 10,
+        "cosmetic": {
+          "kind": "land",
+          "id": "znr"
+        }
+      },
+      {
+        "target": 10000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "land",
+          "id": "neo"
+        }
+      },
+      {
+        "target": 25000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "land",
+          "id": "ust"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-attacks",
+    "family": "mechanics",
+    "name": "On the attack",
+    "text": "Attack with {n} creatures.",
+    "scope": "total",
+    "counter": "attacks",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 250,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 2500,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 10000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "vanguard"
+        }
+      },
+      {
+        "target": 30000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "arrow",
+          "id": "storm"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-blocks",
+    "family": "mechanics",
+    "name": "Wall",
+    "text": "Block with {n} creatures.",
+    "scope": "total",
+    "counter": "blocks",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 100,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 1000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 4000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "bulwark"
+        }
+      },
+      {
+        "target": 12000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "stamp",
+          "id": "stamp-sun"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-counters",
+    "family": "mechanics",
+    "name": "Growth",
+    "text": "Put {n} counters on your permanents.",
+    "scope": "total",
+    "counter": "counters_added",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 100,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 1000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 5000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "cultivator"
+        }
+      },
+      {
+        "target": 15000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "pet",
+          "id": "ember-fox"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-kills",
+    "family": "mechanics",
+    "name": "Reaper",
+    "text": "Have {n} opposing creatures die.",
+    "scope": "total",
+    "counter": "opponent_creatures_died",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 100,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 1000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 5000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "reaper"
+        }
+      },
+      {
+        "target": 15000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "stamp",
+          "id": "stamp-dragon"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-mana-turn",
+    "family": "moments",
+    "name": "Mana surge",
+    "text": "Make {n} mana in one turn.",
+    "scope": "game",
+    "counter": "most_mana_in_a_turn",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 6,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 10,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 15,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 25,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "avatar",
+          "id": "octopus"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-big-hit",
+    "family": "moments",
+    "name": "Haymaker",
+    "text": "Deal {n} damage with one hit.",
+    "scope": "game",
+    "counter": "biggest_hit",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 20,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 40,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 80,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "avatar",
+          "id": "tiger"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-storm",
+    "family": "moments",
+    "name": "Storm",
+    "text": "Cast {n} spells in one turn.",
+    "scope": "game",
+    "counter": "most_spells_in_a_turn",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 4,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 6,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 9,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 13,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "avatar",
+          "id": "serpent"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-life-game",
+    "family": "moments",
+    "name": "Overflowing",
+    "text": "Gain {n} life in one game.",
+    "scope": "game",
+    "counter": "life_gained",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 25,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 50,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 100,
+        "coins": 150,
+        "xp": 250,
+        "points": 50
+      }
+    ]
+  },
+  {
+    "id": "t-draw-game",
+    "family": "moments",
+    "name": "Library raid",
+    "text": "Draw {n} cards in one game.",
+    "scope": "game",
+    "counter": "cards_drawn",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 20,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 35,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 60,
+        "coins": 150,
+        "xp": 250,
+        "points": 50
+      }
+    ]
+  },
+  {
+    "id": "t-quests",
+    "family": "career",
+    "name": "Quest giver's friend",
+    "text": "Complete {n} quests.",
+    "scope": "total",
+    "counter": "quests_completed",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "pathfinder"
+        }
+      },
+      {
+        "target": 600,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "avatar",
+          "id": "manticore"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-packs",
+    "family": "career",
+    "name": "Pack rat",
+    "text": "Open {n} packs.",
+    "scope": "total",
+    "counter": "packs_opened",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "hoarder"
+        }
+      },
+      {
+        "target": 500,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "land",
+          "id": "unh"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-crafted",
+    "family": "career",
+    "name": "Artisan",
+    "text": "Craft {n} cards.",
+    "scope": "total",
+    "counter": "cards_crafted",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 50,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 200,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "artisan"
+        }
+      },
+      {
+        "target": 500,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "land",
+          "id": "hou"
+        }
+      }
+    ]
+  },
+  {
+    "id": "t-masteries",
+    "family": "career",
+    "name": "Many paths",
+    "text": "Reach {n} mastery ranks.",
+    "scope": "total",
+    "counter": "mastery_ranks",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 5,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 25,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 80,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "polymath"
+        }
+      },
+      {
+        "target": 160,
+        "coins": 150,
+        "xp": 250,
+        "points": 50
+      }
+    ]
+  },
+  {
+    "id": "t-levels",
+    "family": "career",
+    "name": "Ascent",
+    "text": "Reach level {n}.",
+    "scope": "total",
+    "counter": "level",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 10,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 30,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 60,
+        "coins": 100,
+        "xp": 150,
+        "points": 25
+      },
+      {
+        "target": 100,
+        "coins": 150,
+        "xp": 250,
+        "points": 50
+      }
+    ]
+  },
+  {
+    "id": "t-graduated",
+    "family": "career",
+    "name": "Alumnus",
+    "text": "Graduate from {n} schools.",
+    "scope": "total",
+    "counter": "schools_graduated",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 1,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 3,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 6,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "alumnus"
+        }
+      },
+      {
+        "target": 9,
+        "coins": 150,
+        "xp": 250,
+        "points": 50
+      }
+    ]
+  },
+  {
+    "id": "t-days",
+    "family": "long",
+    "name": "Old friend",
+    "text": "Play on {n} different days.",
+    "scope": "total",
+    "counter": "days_played",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 7,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 30,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 100,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "old-friend"
+        }
+      },
+      {
+        "target": 365,
+        "coins": 150,
+        "xp": 250,
+        "points": 50
+      }
+    ]
+  },
+  {
+    "id": "t-turns",
+    "family": "long",
+    "name": "Turn after turn",
+    "text": "Take {n} turns.",
+    "scope": "total",
+    "counter": "turns_taken",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 500,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 5000,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 20000,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "timeless"
+        }
+      },
+      {
+        "target": 60000,
+        "coins": 150,
+        "xp": 250,
+        "points": 50
+      }
+    ]
+  },
+  {
+    "id": "t-renown",
+    "family": "long",
+    "name": "Renowned",
+    "text": "Earn {n} Renown stars past level 100.",
+    "scope": "total",
+    "counter": "renown",
+    "secret": false,
+    "tiers": [
+      {
+        "target": 1,
+        "coins": 25,
+        "xp": 50,
+        "points": 5
+      },
+      {
+        "target": 5,
+        "coins": 50,
+        "xp": 100,
+        "points": 10
+      },
+      {
+        "target": 15,
+        "coins": 100,
+        "xp": 150,
+        "points": 25,
+        "cosmetic": {
+          "kind": "title",
+          "id": "renowned"
+        }
+      },
+      {
+        "target": 40,
+        "coins": 150,
+        "xp": 250,
+        "points": 50,
+        "cosmetic": {
+          "kind": "title",
+          "id": "mythmaker"
+        }
+      }
+    ]
   }
 ]

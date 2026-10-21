@@ -356,6 +356,8 @@ public final class Main {
                     if (restored > 0) {
                         logger.info("Career: " + restored + " tables kept from before the restart");
                     }
+                    // games played before progression counted them (B308), once per server
+                    mage.server.career.CareerHistoryCredit.startOnce();
                 }
                 UpdateRunner.startWatching();
 
