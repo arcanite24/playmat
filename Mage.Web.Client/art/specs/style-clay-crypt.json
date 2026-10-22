@@ -8,8 +8,13 @@
     "rows": 2,
     "canvas": "landscape"
   },
-  "size": "384x536",
+  "size": "640x894",
   "anchors": [],
+  "refs": [
+    "sld/1643",
+    "sld/1645",
+    "sld/1646"
+  ],
   "style": "Stop-motion claymation diorama: handmade plasticine figures with visible thumbprints, chunky rounded forms, miniature set dressing, soft studio lighting with a little depth of field, a playful spooky palette of purples, greens and bone white.",
   "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
   "spare": "an extra painting in the same style: a hunched clay gravedigger with a shovel, pulling a bony arm up out of a fresh grave",
@@ -37,7 +42,7 @@
     {
       "id": "set-clay-crypt",
       "out": "public/career-art/sleeve/set-clay-crypt.webp",
-      "size": "360x504",
+      "size": "540x756",
       "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
     }
   ]

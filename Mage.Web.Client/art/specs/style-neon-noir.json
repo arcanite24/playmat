@@ -8,9 +8,14 @@
     "rows": 2,
     "canvas": "landscape"
   },
-  "size": "384x536",
+  "size": "640x894",
   "anchors": [],
-  "style": "Rain-soaked synthwave noir: deep black-violet night, wet streets and glass reflecting hot magenta and electric cyan neon glow, hard rim light, film grain, cinematic and moody, shapes of signs with no readable lettering.",
+  "refs": [
+    "neo/267",
+    "neo/269",
+    "neo/86"
+  ],
+  "style": "Rain-soaked synthwave noir: deep black-violet night, wet streets and glass reflecting hot magenta and electric cyan neon glow, hard rim light, film grain, cinematic and moody, neon light from bare glowing tubes, strips and lamps rather than signs.",
   "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
   "spare": "an extra painting in the same style: a gloved hand pulling one glowing card out of a silhouette's head in a neon-lit alley",
   "items": [
@@ -37,7 +42,7 @@
     {
       "id": "set-neon-noir",
       "out": "public/career-art/sleeve/set-neon-noir.webp",
-      "size": "360x504",
+      "size": "540x756",
       "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
     }
   ]

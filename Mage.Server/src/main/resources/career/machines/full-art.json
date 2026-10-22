@@ -58,7 +58,7 @@
       "name": "Neon Noir",
       "es": "Neón noir",
       "capsule": "#c2307a",
-      "style": "Rain-soaked synthwave noir: deep black-violet night, wet streets and glass reflecting hot magenta and electric cyan neon glow, hard rim light, film grain, cinematic and moody, shapes of signs with no readable lettering.",
+      "style": "Rain-soaked synthwave noir: deep black-violet night, wet streets and glass reflecting hot magenta and electric cyan neon glow, hard rim light, film grain, cinematic and moody, neon light from bare glowing tubes, strips and lamps rather than signs.",
       "items": [
         {
           "id": "neon-noir-thoughtseize",
@@ -199,7 +199,7 @@
         {
           "id": "clockwork-atelier-sol-ring",
           "card": "Sol Ring",
-          "subject": "a heavy brass ring with a tiny sun turning inside it on gimbals, radiating warm light"
+          "subject": "a single heavy brass finger ring standing upright on a walnut workbench, a tiny glowing sun floating in its hole, warm light spilling over scattered gears"
         },
         {
           "id": "clockwork-atelier-arcane-signet",

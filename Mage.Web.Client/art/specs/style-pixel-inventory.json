@@ -8,8 +8,13 @@
     "rows": 2,
     "canvas": "landscape"
   },
-  "size": "384x536",
+  "size": "640x894",
   "anchors": [],
+  "refs": [
+    "sld/910",
+    "tmc/97",
+    "sld/2807"
+  ],
   "style": "True low-resolution pixel art, like a 16-bit console game's item screen drawn at about 96 pixels wide and scaled up with hard nearest-neighbour edges: every pixel a clearly visible square block, no smooth gradients, no painterly detail, no anti-aliasing, a limited palette of about 16 bright colours with dithering for shading, the item big and centred on a dark tiled dungeon floor, a few square sparkle pixels; no interface text or numbers.",
   "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
   "spare": "an extra painting in the same style: a pair of armoured boots crackling with yellow lightning sparks",
@@ -37,7 +42,7 @@
     {
       "id": "set-pixel-inventory",
       "out": "public/career-art/sleeve/set-pixel-inventory.webp",
-      "size": "360x504",
+      "size": "540x756",
       "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
     }
   ]

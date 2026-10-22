@@ -70,14 +70,15 @@
         <ol>
           <li>Write <code>career/machines/&lt;id&gt;.json</code> like <code>full-art.json</code>. Each set needs an id, English and Spanish names, a capsule colour, a style line for the painter, and five items. Item ids are <code>&lt;set&gt;-&lt;slug&gt;</code>, each naming a real single-faced card, and no card appears twice.</li>
           <li>Add it to <code>career/machines/index.json</code> with the next wave number.</li>
-          <li>Paint it, from <code>Mage.Web.Client</code>:</li>
+          <li>Pick two to four real Magic paintings per set that show the look you want, and list them in <code>art/style-refs.json</code> as <code>&lt;set code&gt;/&lt;collector number&gt;</code>. They guide the medium and finish only. They're downloaded into a git-ignored folder and never ship.</li>
+          <li>Paint it, from <code>Mage.Web.Client</code>, with <code>WAVESPEED_API_KEY</code> set:</li>
         </ol>
         <div class="terminal" role="region" aria-label="Commands to paint a machine">
 <pre><code>node art/machine-specs.mjs &lt;id&gt;
-node art/generate.mjs style-&lt;set&gt;</code></pre>
+node art/wavespeed.mjs style-&lt;set&gt;</code></pre>
         </div>
-        <p>The first command writes one spec per set. The second draws a set in one go (its five cards and its sleeve), so the set stays consistent. Run it once per set.</p>
-        <ol start="4">
+        <p>The first command writes one spec per set. The second draws the set's five cards and its sleeve with Nano Banana, one picture each, at about $0.05 a picture. The set's first card goes in as a reference for the rest, so the set stays consistent. Run it once per set, look at the results, and redraw any picture with <code>--only &lt;id&gt; --force</code>.</p>
+        <ol start="5">
           <li>Run <code>CareerCapsulesTest</code>. It fails on a missing picture, a card that doesn't exist, a repeated card or a reward that isn't in the cosmetics catalog.</li>
         </ol>
         <p class="note">Machine content ships with the server build, so a new machine reaches players with the next update.

@@ -1,0 +1,51 @@
+{
+  "$comment": "Reference paintings for each capsule set's card styles, as <set code>/<collector number> (Scryfall's numbering). art/wavespeed.mjs fetches them into art/.refs, which is git-ignored: they guide the medium and finish and never ship. A set with none is drawn from its text alone.",
+  "cathedral-glass": [
+    "dmu/295",
+    "dmu/302",
+    "dmu/314",
+    "dmu/298"
+  ],
+  "neon-noir": [
+    "neo/267",
+    "neo/269",
+    "neo/86"
+  ],
+  "clockwork-atelier": [
+    "mps/24",
+    "mps/19",
+    "mps/8",
+    "mps/15"
+  ],
+  "gilded-arcana": [
+    "sum/88",
+    "pcy/2",
+    "inv/83",
+    "ecl/247"
+  ],
+  "pixel-inventory": [
+    "sld/910",
+    "tmc/97",
+    "sld/2807"
+  ],
+  "field-guide": [
+    "usg/233",
+    "mh2/375",
+    "zen/182"
+  ],
+  "clay-crypt": [
+    "sld/1643",
+    "sld/1645",
+    "sld/1646"
+  ],
+  "pulp-inferno": [
+    "sld/1647",
+    "sld/1648"
+  ],
+  "ukiyo-tides": [
+    "neo/392",
+    "neo/389",
+    "neo/399"
+  ],
+  "paper-lands": []
+}

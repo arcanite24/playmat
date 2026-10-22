@@ -4,10 +4,10 @@
  * asked for with the same subjects and style the server ships.
  *
  *   node art/machine-specs.mjs [machine]     (default full-art; writes art/specs/style-<set>.json per set)
- *   node art/generate.mjs style-<set>        (then draw a set: its five cards and its sleeve, in one grid)
+ *   node art/wavespeed.mjs style-<set>       (then draw a set: its five cards and its sleeve, one picture each)
  *
- * A set is one panel grid (4 by 2 on a landscape canvas): its five cards, its reward sleeve (a card back in the same
- * style) and two spares, so the whole set comes from one picture and stays consistent. Cards go to
+ * A set's pictures are drawn by Nano Banana with the real paintings named in art/style-refs.json as references, and
+ * the set's first card as one more for the rest, so the set stays consistent. Cards go to
  * public/career-art/cardstyle/<set>/<card slug>.webp, the sleeve to public/career-art/sleeve/set-<set>.webp.
  * See site/docs/capsules.html for adding a machine.
  */
@@ -25,6 +25,7 @@ const RULES = [
 ].join(' ');
 
 const machine = process.argv[2] ?? 'full-art';
+const refs = JSON.parse(readFileSync(join(ART, 'style-refs.json'), 'utf8'));
 const content = JSON.parse(readFileSync(join(MACHINES, `${machine}.json`), 'utf8'));
 for (const set of content.sets) {
   const spec = {
@@ -33,8 +34,9 @@ for (const set of content.sets) {
     house: false,
     panels: true,
     grid: { cols: 4, rows: 2, canvas: 'landscape' },
-    size: '384x536',
+    size: '640x894',
     anchors: [],
+    refs: refs[set.id] ?? [],
     style: set.style,
     rules: RULES,
     spare: `an extra painting in the same style: ${set.items[0].subject}`,
@@ -43,7 +45,7 @@ for (const set of content.sets) {
       {
         id: `set-${set.id}`,
         out: `public/career-art/sleeve/set-${set.id}.webp`,
-        size: '360x504',
+        size: '540x756',
         subject: `the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering`,
       },
     ],

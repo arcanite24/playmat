@@ -315,10 +315,13 @@ To add a machine:
    colour, a style line for the painter, and five items (`<set>-<slug>` ids, each naming a real single-faced card).
    Every card appears once.
 2. Add it to `index.json` with the next wave number.
-3. Paint it: `node art/machine-specs.mjs <id>` writes one spec per set (`art/specs/style-<set>.json`, five cards and the set
-   sleeve), then `node art/generate.mjs style-<set>` draws each one into `public/career-art/cardstyle/<set>/` and
-   `public/career-art/sleeve/set-<set>.webp`.
-4. Run `CareerCapsulesTest`. It checks the content: ten sets of five, real cards, no repeats, every picture present and
+3. List two to four real Magic paintings per set in `art/style-refs.json` (`<set code>/<collector number>`). They steer
+   the medium and finish. `art/.refs` keeps them git-ignored, and they never ship.
+4. Paint it: `node art/machine-specs.mjs <id>` writes one spec per set (`art/specs/style-<set>.json`, five cards and the set
+   sleeve). Then `WAVESPEED_API_KEY=... node art/wavespeed.mjs style-<set>` draws each picture with Nano Banana 2.1 into
+   `public/career-art/cardstyle/<set>/` and `public/career-art/sleeve/set-<set>.webp`. The set's first card is a
+   reference for the rest. Answers and prompts are kept in `art/.wavespeed/`. Redraw one with `--only <id> --force`.
+5. Run `CareerCapsulesTest`. It checks the content: ten sets of five, real cards, no repeats, every picture present and
    every reward in the catalog.
 
 The `cardstyle` kind is the only one the shop deals in today. A machine of another kind (sleeves, playmats) needs the
