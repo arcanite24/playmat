@@ -231,10 +231,11 @@ public class Deck implements Serializable, Copyable<Deck> {
 
     // TODO: delete and replace by getCards()
     public Set<Card> getMaindeckCards() {
+        // in deck order: the library is built from it before the shuffle, so a seeded game deals the same cards
         return cards
                 .stream()
                 .filter(card -> !card.isExtraDeckCard())
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     public Card findCard(UUID cardId) {

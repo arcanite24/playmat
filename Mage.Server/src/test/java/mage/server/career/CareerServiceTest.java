@@ -232,25 +232,37 @@ public class CareerServiceTest {
     }
 
     @Test
-    public void theRosterIsDataWithTwelveOpponentsInThreeTiers() throws Exception {
+    public void theRosterIsDataWithFiveTiersAndARivalArc() throws Exception {
         CareerContent content = CareerContent.get();
-        assertEquals(12, content.opponents().size());
+        // twelve opponents in the first three tiers, the rival's four chapters, and tiers four and five past Champion (S037)
+        assertEquals(5, content.tiers().size());
         for (int tier = 1; tier <= 3; tier++) {
             final int t = tier;
-            assertEquals(4, content.opponents().stream().filter(opponent -> opponent.tier == t).count());
+            assertEquals(4, content.opponents().stream().filter(opponent -> opponent.tier == t && opponent.rival == null).count());
         }
+        for (int chapter = 1; chapter <= 4; chapter++) {
+            final int c = chapter;
+            assertEquals(1, content.opponents().stream().filter(opponent -> opponent.rival != null && opponent.rival.chapter == c).count());
+        }
+        assertTrue(content.opponents().stream().anyMatch(opponent -> opponent.tier == 4));
+        assertTrue(content.opponents().stream().anyMatch(opponent -> opponent.tier == 5 && opponent.raid));
         // the card database isn't loaded in unit tests: count the deck files' lines instead
         for (CareerContent.Opponent opponent : content.opponents()) {
-            try (java.io.InputStream in = CareerContent.class.getResourceAsStream("/career/opponents/" + opponent.deck)) {
-                assertNotNull(in, opponent.id + "'s deck file is shipped");
-                int size = 0;
-                for (String line : new String(readAll(in), java.nio.charset.StandardCharsets.UTF_8).split("\\R")) {
-                    java.util.regex.Matcher card = java.util.regex.Pattern.compile("^(\\d+) \\[").matcher(line);
-                    if (card.find()) {
-                        size += Integer.parseInt(card.group(1));
+            java.util.List<String> files = opponent.decks == null ? java.util.Collections.singletonList(opponent.deck) : opponent.decks;
+            assertEquals(opponent.deck, files.get(0), opponent.id + "'s first list is its deck");
+            for (String file : files) {
+                String path = file.startsWith("meta:") ? "/career/campaigns/decks/" + file.substring(5) : "/career/opponents/" + file;
+                try (java.io.InputStream in = CareerContent.class.getResourceAsStream(path)) {
+                    assertNotNull(in, opponent.id + "'s deck file " + file + " is shipped");
+                    int size = 0;
+                    for (String line : new String(readAll(in), java.nio.charset.StandardCharsets.UTF_8).split("\\R")) {
+                        java.util.regex.Matcher card = java.util.regex.Pattern.compile("^(\\d+) \\[").matcher(line);
+                        if (card.find()) {
+                            size += Integer.parseInt(card.group(1));
+                        }
                     }
+                    assertTrue(size >= 60, opponent.id + " plays a 60-card main deck, has " + size);
                 }
-                assertTrue(size >= 60, opponent.id + " plays a 60-card main deck, has " + size);
             }
         }
         assertFalse(content.starters().isEmpty());

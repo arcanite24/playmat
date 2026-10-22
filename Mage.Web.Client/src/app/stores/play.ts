@@ -7,7 +7,7 @@ import { useSession } from './session';
 import { readJson, writeJson } from './persist';
 import { deckStorage } from '../../core/decks/DeckStorageService';
 import { toWire } from '../decks/deckModel';
-import type { GameTypeView, ServerState } from '../../protocol/generated/views';
+import type { DeckCardLists as WireDeck, GameTypeView, ServerState } from '../../protocol/generated/views';
 import { queryClient } from '../queries';
 import { seatableAiType } from '../screens/aiSetup';
 import type { DeckCardLists } from '../../core/decks/types';
@@ -15,6 +15,9 @@ import { formatRules, gameTypesFor, isCommanderFormat } from '../../core/decks/f
 import { pickMetaDeck } from '../../core/decks/metaDecks';
 import { notify } from './toasts';
 import { useCoach } from './coach';
+import { t } from '../i18n';
+import { loadCareerMessages } from '../solo/careerMessages';
+import { adaptiveFormatFor, adaptiveSkill, looksCommander, opponentSource, tableMarkArgs, type OpponentSource } from '../solo/freePlay';
 
 /** the smallest deck worth a game (limited size; constructed formats are checked by the server) */
 const MIN_DECK_SIZE = 40;
@@ -28,8 +31,15 @@ export type AiType = 'COMPUTER_MAD' | 'COMPUTER_MONTE_CARLO';
 export interface AiOptions {
   /** server AI strength, 1-10 */
   skill: number;
-  /** the AI's deck: a deck id from the roster (saved or starter:<file>), or null for a random starter */
+  /**
+   * the AI's deck: a deck id from the roster (saved, starter:<file> or a format deck, meta:<file>), null for a random
+   * pick, or another source (ghost:<code>, mirror; see solo/freePlay)
+   */
   opponentDeckId: string | null;
+  /** the name of a ghost deck picked for the AI, for the setup summary */
+  opponentLabel: string | null;
+  /** the AI's skill follows the player's results (S049) instead of `skill` */
+  adaptive: boolean;
   aiType: AiType;
   /** games needed to win the match: 1 (best of one) or 2 (best of three) */
   winsNeeded: 1 | 2;
@@ -49,6 +59,8 @@ const AI_OPTIONS_KEY = 'playmat.aiOptions';
 export const DEFAULT_AI_OPTIONS: AiOptions = {
   skill: 4,
   opponentDeckId: null,
+  opponentLabel: null,
+  adaptive: false,
   aiType: 'COMPUTER_MAD',
   winsNeeded: 1,
   startingLife: null,
@@ -136,6 +148,20 @@ export async function aiDecks(chosenId: string | null, count: number, commander:
   return decks;
 }
 
+/**
+ * The first AI seat's deck when it doesn't come from the roster: a ghost deck, or a copy of the player's. Null for a
+ * roster deck, starter or format deck (aiDecks picks those).
+ */
+async function sourceDeck(source: OpponentSource, playerDeck: WireDeck, deckName: string | undefined, commander: boolean): Promise<WireDeck | null> {
+  if (source.kind === 'roster') return null;
+  if (source.kind === 'mirror') return { ...playerDeck, name: `${deckName || playerDeck.name || ''} (mirror)` };
+  await loadCareerMessages();
+  const ghost = await api.ghostDeck(source.code).catch(() => null);
+  if (!ghost?.deck) throw new Error(t('solo.ghost.notFound', { code: source.code }));
+  if (looksCommander(ghost.deck) !== commander) throw new Error(t(commander ? 'solo.ghost.notCommander' : 'solo.ghost.commanderOnly', { name: ghost.name ?? source.code }));
+  return { ...ghost.deck, name: ghost.name || ghost.deck.name };
+}
+
 /** The game type for a format and a number of seats, among the server's. */
 function gameTypeFor(deckType: string, seats: number, available: GameTypeView[]): string {
   const fits = (type: GameTypeView) => (type.minPlayers ?? 2) <= seats && seats <= (type.maxPlayers ?? 2);
@@ -169,7 +195,7 @@ export const usePlay = create<PlayState>((set, get) => ({
     const { practice = false, guided = false, ...picked } = overrides;
     // the guided first game: the easiest AI with a random starter deck, one game, nothing unusual
     const options: AiOptions = practice || guided
-      ? { ...get().aiOptions, rules: 'casual', opponents: 1, aiType: 'COMPUTER_MAD', skill: 1, winsNeeded: 1, startingLife: null, opponentDeckId: null }
+      ? { ...get().aiOptions, rules: 'casual', opponents: 1, aiType: 'COMPUTER_MAD', skill: 1, winsNeeded: 1, startingLife: null, opponentDeckId: null, adaptive: false }
       : { ...get().aiOptions, ...picked };
     useCoach.getState().setGuided(guided);
     set({ phase: 'starting', error: null, deckId, returnPath: null, lastOptions: practice ? { practice } : picked });
@@ -196,14 +222,21 @@ export const usePlay = create<PlayState>((set, get) => ({
       const seats = opponents + 1;
       const gameType = gameTypeFor(deckType, seats, await api.getGameTypes());
       const playerDeck = toWire(deck);
-      const rivalDecks = practice ? [goldfishDeck(commander)] : await aiDecks(options.opponentDeckId, opponents, commander, options.rules === 'deck' ? deckType : null);
-      const rivals = await Promise.all(rivalDecks.map(async (rival) => {
-        const wire = toWire(rival);
+      const source: OpponentSource = practice ? { kind: 'roster', id: null } : opponentSource(options.opponentDeckId);
+      const sourced = practice ? null : await sourceDeck(source, playerDeck, deck.name, commander);
+      const format = options.rules === 'deck' ? deckType : null;
+      const rivalDecks: WireDeck[] = practice
+        ? [toWire(goldfishDeck(commander))]
+        : [...(sourced ? [sourced] : []), ...(await aiDecks(source.kind === 'roster' ? source.id : null, opponents - (sourced ? 1 : 0), commander, format)).map(toWire)];
+      // adaptive: the AI plays at the skill the player's recent results call for
+      const adaptiveFormat = !practice && options.adaptive ? adaptiveFormatFor(commander) : null;
+      const skill = adaptiveFormat ? adaptiveSkill((await api.soloAdaptive(adaptiveFormat).catch(() => null))?.skill, options.skill) : options.skill;
+      const rivals = await Promise.all(rivalDecks.map(async (wire) => {
         if (options.rules !== 'deck') return wire;
         // the AI has to be legal too; a starter that isn't plays a copy of your deck instead
         const check = await api.deckValidate(deckType, wire).catch(() => null);
         if (check && !check.valid) {
-          notify('The AI plays your deck', `${rival.name} isn't legal in ${rules.label}, so the AI plays a copy of yours.`);
+          notify('The AI plays your deck', `${wire.name} isn't legal in ${rules.label}, so the AI plays a copy of yours.`);
           return { ...playerDeck, name: `${deck.name} (mirror)` };
         }
         return wire;
@@ -225,12 +258,16 @@ export const usePlay = create<PlayState>((set, get) => ({
       const tableId = table?.tableId;
       if (!tableId) throw new Error('The server did not create the table.');
       set({ tableId });
+      // a ghost game reports to the deck's owner (unless the ghost's deck gave way to a mirror); an adaptive one moves
+      // the player's rating. A server that can't mark the table still plays the game
+      const mark = tableMarkArgs(source.kind === 'ghost' && rivals[0] !== sourced ? { kind: 'roster', id: null } : source, adaptiveFormat);
+      if (mark) await api.soloTableMark(tableId, ...mark).catch(() => false);
       if (!await api.roomJoinTable(roomId, tableId, userName, 'HUMAN', 1, playerDeck)) {
         throw new Error(options.rules === 'deck' ? `Your deck isn't legal in ${rules.label}. Fix it in the deck builder, or play casual.` : 'Your deck was not accepted for this table.');
       }
       for (const [index, rival] of rivals.entries()) {
         const name = practice ? 'Goldfish' : rivals.length === 1 ? 'AI Opponent' : `AI ${index + 1}`;
-        if (!await api.roomJoinTable(roomId, tableId, name, options.aiType, options.skill, rival)) {
+        if (!await api.roomJoinTable(roomId, tableId, name, options.aiType, skill, rival)) {
           throw new Error('The AI could not take its seat.');
         }
       }

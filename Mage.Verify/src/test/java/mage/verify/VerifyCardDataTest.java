@@ -1800,6 +1800,7 @@ public class VerifyCardDataTest {
         Reflections reflections = new Reflections("mage.");
         Set<Class<? extends Emblem>> emblemClassesList = reflections.getSubTypesOf(Emblem.class).stream()
                 .filter(c -> !c.equals(EmblemOfCard.class)) // ignore emblem card
+                .filter(c -> !c.getName().startsWith("mage.server.")) // ignore the server's mode rules (Career hordes, timed twists): no card makes them
                 .collect(Collectors.toSet());
 
         // 1. correct class name

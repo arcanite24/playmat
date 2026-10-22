@@ -1,0 +1,74 @@
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.quiet {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finding {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 10px 12px;
+  border-left: 3px solid var(--ink-faint);
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.05);
+}
+
+.turningPoint {
+  border-left-color: var(--decision);
+}
+
+.missedLethal {
+  border-left-color: var(--oxblood-ink);
+}
+
+.unspentMana {
+  border-left-color: var(--mana-u);
+}
+
+.badBlock {
+  border-left-color: var(--sage);
+}
+
+.text {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--ink-soft);
+}
+
+.text b {
+  color: var(--ink-strong);
+}
+
+.kind {
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}

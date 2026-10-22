@@ -133,7 +133,7 @@ under a second a game.
 
 The academy's one-on-one duels were measured with the schools mode: each node's loaner played by the reference AI
 (skill 4) against the node's opponent at its own skill, 4 games per node (12 for the nodes changed below). Commander
-and Brawl duels and the act 4 pods aren't covered: the calibration plays two-player games without a command zone.
+and Brawl duels and the act 4 pods were left out then; see "Commander and pods" below.
 
 ```sh
 java -cp <test classpath> -Dxmage.careerCalibration.schools=pauper,limited -Dxmage.careerCalibration.games=4 \
@@ -166,6 +166,88 @@ modern-1a 0% to 75%, modern-1b 25% to 42%, legacy-1a 25% to 62%.
 the AI pilots those badly, so the starter side's score there understates a human. Still, the hot spots to watch in
 play are Modern's acts 2 to 4, Pioneer's act 4, and every school's act 2 combo and control duels (`-2c`, `-2d`):
 if humans lose them as often, soften the opponent's deck the way act 1 was.
+
+## The ladder past Champion (2026-10-13)
+
+The roster grew (S037–S048): Master and Archmage tiers (4 and 5, skills 8 and 9, with life twists), the rival's four
+chapters, a raid boss on 100 life, alternate lists for every opponent, and personalities. The calibration now plays
+them the way a duel seats them: list `i` in game `i`, the tier's and the opponent's starting life and life bonus
+(timed twists such as a boss's phases are not applied), and the opponent's personality. Options added:
+`opponentAi=mcts` seats the Monte Carlo AI, `personalities=false` drops the personalities.
+
+**Personalities (S042)** read `ai.personality.<playerId>` (aggression, risk, patience, each -100 to 100) in
+`ComputerPlayer6.applyPersonality`: aggression sends attackers that would only trade, risk sends ones that could die
+for nothing, patience keeps the smallest back while the defender can hit back. Tier 2 with and without them, 48 games
+each: 40% and 44% for the starters, inside the noise (about 7 points), so they change how an opponent plays more than
+how often it wins. The alternate lists did move tier 2: 44% here against 56% with the single lists.
+
+**First pass over the new opponents** (8 games each):
+
+| opponent | tier | skill | starter score |
+|---|---|---|---|
+| rival-1 | 1 | 1 | 63% |
+| rival-2 | 2 | 4 | 25% |
+| rival-3 | 3 | 7 | 0% |
+| rival-4 | 4 | 8 | 63% |
+| vesna | 4 | 8 | 0% |
+| thaddeus | 4 | 8 | 19% |
+| orla | 4 | 8 | 50% |
+| null-engine | 5 | 9 | 25% |
+| saint-adela | 5 | 9 | 25% |
+| leviathan | 5 | 9 | 0% |
+
+**Changes (S043):** the school and meta decks are much stronger than the starters, so skill barely moved the hot
+spots (rival-2 at skill 3 still scored 17%, then 8% on Pioneer Rakdos midrange). What worked was the deck:
+
+- rival-2 plays the Pauper Rakdos list of chapter 1 at the tier's skill (the rival comes back sharper, not richer);
+  rival-3 drops to skill 5; rival-4 gets 4 more life (it scored like a tier-2 opponent);
+- vesna drops to skill 6;
+- the Leviathan keeps its 100 life and phases but pilots the tier-1 Wilds and the Deep at skill 3.
+
+After (12 games each):
+
+| opponent | tier | skill | starter score |
+|---|---|---|---|
+| rival-2 | 2 | 4 | 42% |
+| rival-3 | 3 | 5 | 25% |
+| rival-4 | 4 | 8 | 42% |
+| vesna | 4 | 6 | 17% |
+| leviathan (raid) | 5 | 3 | 17% (2 draws) |
+
+Tier 4 now sits at about 30% for the starters and the raid boss can be beaten. These are 12-game samples, a standard
+error of about 14 points per opponent, so treat them as a first cut.
+
+**Skill 9.** Tier 5's skill-9 opponents were no harder than tier 3's skill 7 (25% against 0 to 25%), and their games
+ran faster, often under a second. Why isn't measured yet; until it is, tier 5's difficulty comes from its twists, and
+the Archmage seat (S050) is where a stronger AI goes.
+
+## The Monte Carlo AI (S044, 2026-10-13)
+
+The Monte Carlo AI (`Computer - monte carlo`) couldn't play at all: its simulation threads (`AI-SIM-MCTS`) failed the
+engine's game-thread check on every simulated priority (1,440 exceptions before the first game ended).
+`ThreadUtils.isRunGameThread` now accepts them. Measured in the opponent's seat at skill 4 against tier 2's starters:
+the starters won all 5 games played (against ilse, 11 to 17 turns), and each game took 7 to 12 minutes against
+about 5 seconds with the standard AI.
+
+It isn't seated for any opponent: it plays weaker than the standard AI at the same skill and takes several minutes a
+game. `opponentAi=mcts` keeps it measurable; an opponent can still name it with `"aiType": "COMPUTER_MONTE_CARLO"`.
+
+## Commander and pods (S043, 2026-10-13)
+
+The schools mode now plays Commander and Brawl games with a command zone (the Commander and Brawl game types, their own
+starting life) and seats every opponent of a pod; the starter side wins only by being the last one standing. A first
+pass, 2 games per node:
+
+| school act | games | starter score |
+|---|---|---|
+| commander act 1 | 6 | 67% |
+| commander act 2 | 8 | 63% |
+| commander act 3 | 4 | 0% |
+| commander act 4 (pod) | 1 | 0% |
+
+The run was stopped there (Commander games take about a minute each, so the full set of 52 is an hour); Brawl wasn't
+reached. Commander acts 1 and 2 land near the curriculum's targets; act 3 is the one to rerun with more games. Run it
+with `-Dxmage.careerCalibration.schools=commander,brawl`.
 
 ## Caveats
 

@@ -18,6 +18,7 @@ import { ManaCost } from '../ui/ManaCost';
 import { useCardInfo, useCardInfoStore } from './cardInfo';
 import { Collection } from './Collection';
 import { DeckInsights } from './DeckInsights';
+import { SideboardPlansDialog } from './SideboardPlansDialog';
 import { PrintingPicker } from './PrintingPicker';
 import { ExportMenu } from './ExportMenu';
 import { ManaCurve } from './ManaCurve';
@@ -249,6 +250,7 @@ function DeckPanel({ deck, zone, info, formats, rules, identity, saving, limitFo
   const problems = validation.data?.errors ?? [];
   const [printingFor, setPrintingFor] = useState<DeckRow | null>(null);
   const [insightsOpen, setInsightsOpen] = useState(false);
+  const [plansOpen, setPlansOpen] = useState(false);
   const commandZone = rules.commandZone;
   const listed = formats.some((group) => group.types.includes(format));
   // a commander deck counts its command zone; other decks count the main deck only
@@ -417,6 +419,7 @@ function DeckPanel({ deck, zone, info, formats, rules, identity, saving, limitFo
         </DropdownMenu.Root>}
         <ExportMenu getDeck={() => deck} side="top" />
         <Button variant="print" size="sm" icon={<BarChart3 size={16} />} onClick={() => setInsightsOpen(true)} disabled={mainCount === 0}>Numbers</Button>
+        <Button variant="print" size="sm" icon={<ArrowLeftRight size={16} />} onClick={() => setPlansOpen(true)} disabled={mainCount === 0}>Sideboard plans</Button>
         <Button variant="decision" onClick={onPlay} disabled={mainCount === 0}>Play this deck</Button>
       </footer>
       <PrintingPicker
@@ -429,6 +432,7 @@ function DeckPanel({ deck, zone, info, formats, rules, identity, saving, limitFo
         }}
       />
       <DeckInsights open={insightsOpen} onOpenChange={setInsightsOpen} deck={deck} info={info} />
+      <SideboardPlansDialog open={plansOpen} onOpenChange={setPlansOpen} deck={deck} onChange={onChange} />
     </aside>
   );
 }

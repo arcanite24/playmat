@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 import { api } from '../connection';
 import { notify } from '../stores/toasts';
+import { SavePuzzle } from '../career/PuzzleExtras';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { Field } from '../ui/Field';
@@ -82,6 +83,7 @@ export function PracticeTools({ gameId, open, onOpenChange }: { gameId: string; 
         <Button variant="print" onClick={() => void use('LIFE', life)}>Set life</Button>
       </div>
       {error && <p className={styles.error} role="alert">{error}</p>}
+      <SavePuzzle gameId={gameId} />
     </Dialog>
   );
 }

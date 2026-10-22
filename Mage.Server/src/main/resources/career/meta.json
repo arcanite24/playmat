@@ -1,0 +1,5 @@
+{
+ "snapshot": "2026-10-09",
+ "text": "The school decks: each format's lists as the academy teaches them, dated by when they were last rebuilt.",
+ "formats": ["standard", "pioneer", "modern", "pauper", "legacy", "vintage", "commander", "brawl"]
+}

@@ -1128,9 +1128,91 @@ public abstract class GameImpl implements Game {
     public void start(UUID choosingPlayerId) {
         startTime = new Date();
         DataCollectorServices.getInstance().onGameStart(this);
-        if (state.getPlayers().values().iterator().hasNext()) {
-            init(choosingPlayerId);
-            play(startingPlayerId);
+        prepareRandom();
+        // every random number this thread draws during the game comes from the game's own generator
+        Random before = RandomUtil.install(state.getRandom());
+        try {
+            GameSnapshot snapshot = gameOptions == null ? null : gameOptions.resumeFrom;
+            if (gameOptions != null && gameOptions.seed != null && snapshot == null && !simulation) {
+                informPlayers("This game is dealt from seed " + gameOptions.seed + ".");
+            }
+            if (snapshot != null) {
+                playFromSnapshot(snapshot);
+            } else if (state.getPlayers().values().iterator().hasNext()) {
+                init(choosingPlayerId);
+                play(startingPlayerId);
+            }
+        } finally {
+            RandomUtil.install(before);
+        }
+    }
+
+    /**
+     * Gives the game its own random numbers, from {@link GameOptions#seed} or, without one, from a seed drawn now.
+     */
+    private void prepareRandom() {
+        if (state.getRandom() == null) {
+            long seed = gameOptions != null && gameOptions.seed != null ? gameOptions.seed : RandomUtil.getRandom().nextLong();
+            state.setRandom(new GameRandom(seed));
+        }
+    }
+
+    @Override
+    public Long getSeed() {
+        return state.getSeed();
+    }
+
+    /**
+     * Carries on a saved game (see {@link GameSnapshot}): the players at the table must have the snapshot's player
+     * ids. The game picks up at the start of the turn the snapshot was taken in, as a turn rollback would.
+     */
+    protected void playFromSnapshot(GameSnapshot snapshot) {
+        GameSnapshot.Restored restored = snapshot.restore();
+        for (UUID playerId : restored.state.getPlayers().keySet()) {
+            if (state.getPlayer(playerId) == null) {
+                throw new IllegalStateException("Can't resume the game: player " + playerId + " isn't at the table");
+            }
+        }
+        // the table's own copies of the decks give way to the cards as they were
+        gameCards.clear();
+        gameCards.putAll(restored.gameCards);
+        meldCards.clear();
+        meldCards.putAll(restored.meldCards);
+        startingPlayerId = restored.startingPlayerId;
+        state.restoreForRollBack(restored.state);
+        state.setChoosingPlayerId(restored.state.getChoosingPlayerId());
+        // the generator object didn't change, only its position, so it's still the one this thread draws from
+        savedStates.clear();
+        gameStates.clear();
+        gameStatesRollBack.clear();
+        for (Player player : getPlayers().values()) {
+            player.abortReset();
+            if (priorityTime > 0 && player.getPriorityTimeLeft() == Integer.MAX_VALUE) {
+                initTimer(player.getId());
+            }
+        }
+        fireStatusEvent("Game resumed at the start of turn " + state.getTurnNum(), false, false);
+        informPlayers("The game carries on from the start of turn " + state.getTurnNum());
+        Player active = getPlayer(state.getActivePlayerId());
+        if (active == null) {
+            throw new IllegalStateException("Can't resume the game: no active player");
+        }
+        play(active.getId());
+    }
+
+    /**
+     * Hands the game as it stands at the start of this turn to {@link GameOptions#turnSnapshots}, if anyone listens.
+     * Runs on the game thread, where nothing else changes the game meanwhile.
+     */
+    private void offerTurnSnapshot() {
+        if (simulation || gameOptions == null || gameOptions.turnSnapshots == null || checkIfGameIsOver()) {
+            return;
+        }
+        try {
+            gameOptions.turnSnapshots.accept(GameSnapshot.of(state, gameCards, meldCards, startingPlayerId));
+        } catch (Throwable e) {
+            // a game that can't be saved still plays on
+            logger.warn("Game " + getId() + ": the turn " + getTurnNum() + " snapshot failed: " + e, e);
         }
     }
 
@@ -1243,6 +1325,7 @@ public abstract class GameImpl implements Game {
             } else {
                 state.setActivePlayerId(player.getId());
                 saveRollBackGameState();
+                offerTurnSnapshot();
             }
             if (checkStopOnTurnOption()) {
                 return false;
@@ -1263,6 +1346,16 @@ public abstract class GameImpl implements Game {
 
     @Override
     public void resume() {
+        prepareRandom();
+        Random before = RandomUtil.install(state.getRandom());
+        try {
+            resumePlay();
+        } finally {
+            RandomUtil.install(before);
+        }
+    }
+
+    private void resumePlay() {
         playerList = state.getPlayerList(state.getActivePlayerId());
         Player player = getPlayer(playerList.get());
         boolean wasPaused = state.isPaused();

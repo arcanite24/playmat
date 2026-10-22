@@ -55,8 +55,8 @@
             <thead><tr><th>Role</th><th>Can</th></tr></thead>
             <tbody>
               <tr><td>Moderator</td><td>See who is online, mute and sign players out, watch any running game, work through reports and client errors, and read the audit log and server stats.</td></tr>
-              <tr><td>Admin</td><td>Also lock and deactivate accounts, remove tables, broadcast, decide who can register (Access), change Settings, and see Updates.</td></tr>
-              <tr><td>Owner</td><td>Also give and take staff roles, plan maintenance, and update or roll back the server.</td></tr>
+              <tr><td>Admin</td><td>Also lock and deactivate accounts, remove tables, broadcast, decide who can register (Access), change Settings, and see Single player and Updates.</td></tr>
+              <tr><td>Owner</td><td>Also give and take staff roles, plan maintenance, add and remove content packs, and update or roll back the server.</td></tr>
             </tbody>
           </table>
         </div>
@@ -73,6 +73,16 @@
           on no new tables start, and everyone online is warned again 30, 10, 5 and 1 minutes before. With
           <strong>restart</strong> checked, the server restarts once the time has come and no game is running.
           The <a href="updates.html#steps">Update button</a> does this for you during an update.</p>
+
+        <h2 id="single-player">Single player</h2>
+        <p>The <strong>Single player</strong> tab shows the batch runner, which plays the AI-against-AI games players
+          queue to test decks: what's playing, each player's daily quota and the queue, with a button to stop a batch.
+          How many batch games run at once (default 1, and 0 stops the runner) and how many each player gets a day
+          (default 200) are in <strong>Settings</strong>.</p>
+        <p>The same tab lists <strong>content packs</strong>: campaigns, puzzles, weekly challenges and opponents added
+          without a new build. A pack is a zip with <code>pack.json</code> and its decks under <code>decks/</code>.
+          Owners upload one there, or put the folder in <code>db/content-packs/</code> and press <strong>Reload</strong>.
+          A pack with problems stays out and says why. Packs are in the nightly backup.</p>
 
         <h2 id="audit">The audit log</h2>
         <p>Every staff action that changes something goes in the <strong>Audit</strong> tab, with who did it and the

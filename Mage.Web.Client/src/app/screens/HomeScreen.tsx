@@ -12,15 +12,19 @@ import { storeCards } from '../ui/imageCache';
 import { DEVICE_PICTURES } from '../nativePictures';
 import { useImportDrop, useImportPaste } from '../decks/import/useImportShortcuts';
 import { openImport } from '../stores/importSheet';
-import { describeAi } from './aiSetup';
+import { aiDeckLabel, describeAi } from './aiSetup';
+import { opponentSource } from '../solo/freePlay';
+import { useCareerMessages } from '../solo/careerMessages';
 import { slotsFull, useEmailStatus, useGameSlots, useServerInfo } from '../queries';
 import styles from './HomeScreen.module.css';
 
 // the banner and its code form load only for a player whose address still needs confirming
 const EmailBanner = lazy(() => import('./EmailConfirm').then((module) => ({ default: module.EmailBanner })));
-// the month's server costs, on servers that take support
-// the AI settings load the first time they are opened, out of the entry chunk
+// the AI settings load the first time they are opened, out of the entry chunk (they bring the solo messages too)
 const AiSettingsDialog = lazy(() => import('./AiSettingsDialog').then((module) => ({ default: module.AiSettingsDialog })));
+// saved games against the AI, with what resuming one needs, load with Home but out of the entry chunk
+const SavedGames = lazy(() => import('../solo/SavedGames').then((module) => ({ default: module.SavedGames })));
+// the month's server costs, on servers that take support
 const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
 type Mode = 'ai' | 'practice' | 'friend';
@@ -46,6 +50,8 @@ export function HomeScreen() {
   const emailStatus = useEmailStatus().data;
   const emailUnconfirmed = !!emailStatus?.email && !emailStatus.verified && !!emailStatus.mail;
   const roster = useMemo(() => rosterOf(decks), [decks]);
+  // a meta, ghost or mirror opponent, or adaptive skill, is described with the solo messages
+  const soloReady = useCareerMessages(play.aiOptions.adaptive || opponentSource(play.aiOptions.opponentDeckId).kind !== 'roster');
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? roster[0] ?? null;
   const sleeve = sleeveFor(decks.sleeves, selected);
   const busy = play.phase !== 'idle';
@@ -161,7 +167,19 @@ export function HomeScreen() {
           {mode === 'ai' && (
             <button type="button" className={styles.aiSetup} onClick={() => setAiOpen(true)} disabled={busy}>
               <SlidersHorizontal size={16} aria-hidden="true" />
-              <span>{describeAi(t, play.aiOptions, roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name ?? decks.metaDecks.find((deck) => META_PREFIX + deck.file === play.aiOptions.opponentDeckId)?.name ?? null)}</span>
+              <span>{describeAi(
+                t,
+                play.aiOptions,
+                aiDeckLabel(
+                  t,
+                  play.aiOptions,
+                  roster.find((deck) => deck.id === play.aiOptions.opponentDeckId)?.name
+                    ?? decks.metaDecks.find((deck) => META_PREFIX + deck.file === play.aiOptions.opponentDeckId)?.name
+                    ?? null,
+                  soloReady,
+                ),
+                soloReady ? t('solo.adaptive.summary') : undefined,
+              )}</span>
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
             </button>
           )}
@@ -184,6 +202,7 @@ export function HomeScreen() {
               {t(busy ? (play.phase === 'waitingForGame' ? 'home.shuffling' : 'home.settingUp') : mode === 'friend' ? 'home.continue' : 'home.play')}
             </Button>
           </div>
+          <Suspense fallback={null}><SavedGames disabled={busy} /></Suspense>
           {career && (
             <button type="button" className={styles.career} onClick={() => navigate('/career')} disabled={busy}>
               <Trophy size={18} aria-hidden="true" />

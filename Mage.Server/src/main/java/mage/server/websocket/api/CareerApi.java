@@ -6,6 +6,7 @@ import mage.constants.RangeOfInfluence;
 import mage.game.match.MatchOptions;
 import mage.players.PlayerType;
 import mage.server.career.CareerCampaigns;
+import mage.server.career.CareerLadder;
 import mage.server.career.CareerContent;
 import mage.server.career.CareerPayout;
 import mage.server.career.CareerProfile;
@@ -26,9 +27,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
+import static mage.server.websocket.rpc.RpcParam.Type.BOOLEAN;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.object;
 import static mage.server.websocket.rpc.RpcParam.of;
+import static mage.server.websocket.rpc.RpcParam.optional;
 
 /**
  * Web client bridge: the optional single-player Career. Everything is kept and decided on the server: the
@@ -47,6 +50,10 @@ final class CareerApi {
         public CareerProfile profile;
         /** the latest payouts, newest first */
         public List<CareerPayout> recent;
+        /** the ladder badge earned (S037), null before the first */
+        public CareerLadder.CareerRank rank;
+        /** the adaptive skill Career games play at when asked for (S049) */
+        public mage.server.career.AdaptiveSkill.AdaptiveView adaptive;
     }
 
     /** A Career match was set up; the game starts like any other. */
@@ -90,6 +97,10 @@ final class CareerApi {
                                 String user = user(ctx, call);
                                 state.profile = store(() -> CareerStore.get().profile(user));
                                 state.recent = store(() -> CareerStore.get().payouts(user, 10));
+                                if (state.profile != null) {
+                                    state.rank = store(() -> CareerLadder.rank(user));
+                                    state.adaptive = store(() -> mage.server.career.AdaptiveSkill.view(user, "career"));
+                                }
                             }
                             return state;
                         }),
@@ -130,10 +141,11 @@ final class CareerApi {
                         }),
 
                 RpcMethod.named("careerPlay")
-                        .params(of("opponentId", STRING), object("deck", "DeckCardLists"))
+                        .params(of("opponentId", STRING), object("deck", "DeckCardLists"), optional("adaptive", BOOLEAN))
                         .returns("CareerMatch")
                         .doc("Start a Career match against an open opponent with a deck of owned cards (basic lands are free). "
-                                + "The server sets up the table and starts the match; the game arrives like any other.")
+                                + "The server sets up the table and starts the match; the game arrives like any other. Adaptive: the "
+                                + "AI's skill follows your hidden Career rating instead of the tier's, to keep your win rate near 55%.")
                         .handler(call -> play(ctx, call)),
 
                 RpcMethod.named("careerShop")
@@ -245,16 +257,27 @@ final class CareerApi {
                     + (problems.size() > 5 ? " (and " + (problems.size() - 5) + " more)" : "") + ".");
         }
         DeckCardLists opponentDeck;
+        long seed = store(() -> mage.server.career.CareerLadder.deckSeed(user, opponent.id));
         try {
-            opponentDeck = content.opponentDeck(opponent);
+            // the opponent's list rotates by seed (S038)
+            opponentDeck = content.opponentDeck(opponent, seed);
         } catch (java.io.IOException e) {
             throw new RpcException(RpcException.SERVER_ERROR, "The opponent's deck can't be read", e);
         }
 
-        int skill = opponent.skill != null ? opponent.skill : content.tier(opponent.tier).skill;
-        PlayerType aiType = opponent.aiType != null ? PlayerType.valueOf(opponent.aiType) : PlayerType.COMPUTER_MAD;
+        CareerContent.Tier tier = content.tier(opponent.tier);
+        boolean adaptive = call.has(2) && call.bool(2);
+        int skill = adaptive ? store(() -> mage.server.career.AdaptiveSkill.skillFor(user, "career"))
+                : opponent.skill != null ? opponent.skill : tier.skill;
+        PlayerType aiType = aiType(opponent.aiType != null ? opponent.aiType : tier.aiType);
+        mage.server.career.CareerSetup setup = store(() -> mage.server.career.CareerLadder.setup(user, opponent));
         String tableId = startMatch(ctx, call, user, opponent.name, "Constructed - Freeform", deck, aiType, skill, opponentDeck,
-                id -> CareerService.get().register(id, user, opponent.id, opponent.tier));
+                id -> {
+                    CareerService.get().register(id, user, opponent.id, opponent.tier, setup);
+                    if (adaptive) {
+                        mage.server.career.AdaptiveSkill.mark(id, user, "career");
+                    }
+                });
         CareerMatch match = new CareerMatch();
         match.tableId = tableId;
         match.opponentId = opponent.id;
@@ -348,6 +371,9 @@ final class CareerApi {
     static PlayerType aiType(String name) {
         if (name == null) {
             return PlayerType.COMPUTER_MAD;
+        }
+        if (mage.server.career.Archmage.AI_TYPE.equals(name)) {
+            return mage.server.career.Archmage.seat();
         }
         try {
             return PlayerType.valueOf(name);

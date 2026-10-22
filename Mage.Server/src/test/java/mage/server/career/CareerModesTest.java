@@ -32,6 +32,8 @@ public class CareerModesTest {
 
     private Path file;
     private CareerStore store;
+    private Path soloFile;
+    private mage.server.solo.SoloStore soloStore;
     private final CareerService service = CareerService.get();
 
     @BeforeEach
@@ -39,6 +41,10 @@ public class CareerModesTest {
         file = Files.createTempFile("career-modes-test", ".db");
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
+        soloFile = Files.createTempFile("career-modes-solo", ".db");
+        soloStore = new mage.server.solo.SoloStore("jdbc:sqlite:" + soloFile);
+        mage.server.solo.SoloStore.use(soloStore);
+        mage.server.solo.Leaderboards.get().forgetMigration();
         store.createProfile("Ana", "test", CareerRules.START_COINS, 1L);
     }
 
@@ -46,6 +52,9 @@ public class CareerModesTest {
     public void tearDown() throws Exception {
         store.close();
         CareerStore.use(null);
+        soloStore.close();
+        mage.server.solo.SoloStore.use(null);
+        Files.deleteIfExists(soloFile);
         CareerChallenges.get().useClock(() -> LocalDate.now(java.time.ZoneOffset.UTC));
         Files.deleteIfExists(file);
     }
@@ -186,9 +195,10 @@ public class CareerModesTest {
                     "each chapter opens a set");
         }
 
-        assertEquals(20, CareerPuzzles.get().puzzles().size(), "twenty puzzles");
+        assertEquals(25, CareerPuzzles.get().puzzles().size(), "twenty puzzles and the five stack drills");
         for (CareerSetup.Puzzle puzzle : CareerPuzzles.get().puzzles().values()) {
             assertNotNull(puzzle.name, puzzle.id);
+            assertNull(puzzle.problem(), puzzle.id + ": " + puzzle.problem());
             assertNotNull(puzzle.hint, puzzle.id + " has a hint");
             side(puzzle.id + " you", puzzle.you);
             side(puzzle.id + " opponent", puzzle.opponent);
@@ -449,7 +459,9 @@ public class CareerModesTest {
     public void aGauntletRunPicksPlaysAndPaysByWins() throws Exception {
         CareerGauntlet gauntlet = CareerGauntlet.get();
         int coins = store.profile("Ana").coins;
-        CareerGauntlet.CareerRun run = gauntlet.start("Ana");
+        CareerGauntlet.StartOptions endless = new CareerGauntlet.StartOptions();
+        endless.mode = CareerGauntlet.MODE_ENDLESS;
+        CareerGauntlet.CareerRun run = gauntlet.start("Ana", endless);
         assertEquals(coins - gauntlet.rules().entryCoins, store.profile("Ana").coins);
         assertThrows(CareerService.CareerException.class, () -> gauntlet.start("Ana"), "one run at a time");
         assertThrows(CareerService.CareerException.class, () -> gauntlet.plan("Ana"), "pick first");

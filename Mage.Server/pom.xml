@@ -418,6 +418,16 @@
                                 <class>mage.server.decks.DeckSyncEntry</class>
                                 <class>mage.server.decks.DeckStore$DeckPutResult</class>
                                 <class>mage.server.moderation.PlayerReport</class>
+                                <class>mage.server.solo.SoloViews$SoloSave</class>
+                                <class>mage.server.solo.SoloViews$SoloTable</class>
+                                <class>mage.server.solo.SoloViews$BatchJob</class>
+                                <class>mage.server.solo.SoloViews$BatchStatus</class>
+                                <class>mage.server.solo.SoloViews$Assists</class>
+                                <class>mage.server.solo.SoloViews$SoloTurn</class>
+                                <class>mage.server.solo.BatchRunner$JobSpec</class>
+                                <class>mage.server.solo.Leaderboards$Leaderboard</class>
+                                <class>mage.server.solo.ContentPacks$ContentPackView</class>
+                                <class>mage.game.advice.Advice</class>
                                 <class>mage.server.moderation.ClientErrors$ClientError</class>
                                 <class>mage.server.admin.ClientErrorGroup</class>
                                 <class>mage.server.websocket.api.SettingsApi$ServerSetting</class>
@@ -476,6 +486,20 @@
                                 <class>mage.server.career.CareerSetup$CareerTwists</class>
                                 <class>mage.server.career.CareerSetup$CareerPuzzleSide</class>
                                 <class>mage.server.career.CareerPuzzles$CareerPuzzle</class>
+                                <class>mage.server.career.CareerSetup$Puzzle</class>
+                                <class>mage.server.career.MetaLibrary$MetaDeck</class>
+                                <class>mage.server.career.MetaLibrary$MetaFormat</class>
+                                <class>mage.server.career.CareerLimited$LimitedShape</class>
+                                <class>mage.server.career.CareerHordes$CareerHorde</class>
+                                <class>mage.server.career.CareerPuzzles$CareerDailyPuzzle</class>
+                                <class>mage.server.career.CareerPuzzles$CareerMinedPuzzle</class>
+                                <class>mage.server.solo.PuzzleKit$PuzzleExport</class>
+                                <class>mage.server.career.CareerLadder$CareerRank</class>
+                                <class>mage.server.career.AdaptiveSkill$AdaptiveView</class>
+                                <class>mage.server.career.CareerSetup$Personality</class>
+                                <class>mage.server.solo.GhostDecks$GhostDeck</class>
+                                <class>mage.server.solo.GhostDecks$GhostOpponent</class>
+                                <class>mage.server.solo.GhostDecks$InboxNote</class>
                                 <class>mage.server.career.CareerChallenges$CareerChallenge</class>
                                 <class>mage.server.career.CareerChallenges$CareerChallengeEntry</class>
                                 <class>mage.server.career.CareerGauntlet$CareerGauntletState</class>
@@ -485,9 +509,18 @@
                                 <class>mage.server.career.CareerGauntlet$CareerOfferOption</class>
                                 <class>mage.server.career.CareerGauntlet$CareerRunCard</class>
                                 <class>mage.server.career.CareerGauntlet$CareerRunReward</class>
+                                <class>mage.server.career.CareerGauntlet$CareerRelic</class>
+                                <class>mage.server.career.CareerGauntlet$CareerRunNode</class>
+                                <class>mage.server.career.CareerGauntlet$CareerRunChoice</class>
+                                <class>mage.server.career.CareerGauntlet$CareerAscension</class>
+                                <class>mage.server.career.CareerGauntlet$StartOptions</class>
                                 <class>mage.server.career.CareerLimited$CareerLimitedState</class>
                                 <class>mage.server.career.CareerLimited$CareerLimitedRun</class>
                                 <class>mage.server.career.CareerLimited$CareerPoolCard</class>
+                                <class>mage.server.career.CareerLimited$PickRecord</class>
+                                <class>mage.server.career.CareerLimited$ColorSignal</class>
+                                <class>mage.server.career.CareerLimited$PairAdvice</class>
+                                <class>mage.server.career.CareerLimited$CareerLimitedCoach</class>
                             </classes>
                         </configuration>
                     </plugin>

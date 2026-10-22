@@ -1494,3 +1494,500 @@
   min-width: 1.6em;
   color: var(--ink-dim);
 }
+
+/* the draft trainer and the pool coach */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.coach {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 280px);
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 720px) {
+  .coach {
+    grid-template-columns: 1fr;
+  }
+}
+
+.coachPick {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.grade {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  min-width: 26px;
+  height: 26px;
+  margin-right: 6px;
+  border-radius: 6px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.15));
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.grade[data-grade='A'] {
+  background: color-mix(in srgb, #3ba55d 30%, transparent);
+}
+
+.grade[data-grade='B'] {
+  background: color-mix(in srgb, #7cb342 26%, transparent);
+}
+
+.grade[data-grade='D'],
+.grade[data-grade='F'] {
+  background: color-mix(in srgb, #e5534b 28%, transparent);
+}
+
+.signals .subhead {
+  margin-top: 0;
+}
+
+.signalBars {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.signalBars li {
+  display: grid;
+  grid-template-columns: 22px 1fr 32px;
+  gap: 8px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.signalTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(127, 127, 127, 0.18);
+  overflow: hidden;
+}
+
+.signalTrack span {
+  display: block;
+  height: 100%;
+  background: var(--accent, #c9a227);
+}
+
+.review {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.25));
+  border-radius: 10px;
+}
+
+.review summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.reviewList {
+  display: grid;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewList li {
+  display: flex;
+  gap: 4px;
+  align-items: flex-start;
+  color: var(--ink-soft);
+}
+
+.coachPanel {
+  margin-bottom: 14px;
+}
+
+.pairs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pair {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line, rgba(127, 127, 127, 0.25));
+  border-radius: 10px;
+}
+
+.pairHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.reasons {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+
+.curve {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  height: 56px;
+}
+
+.curve span {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 2px;
+}
+
+.curve i {
+  display: block;
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent, #c9a227);
+}
+
+.curve small {
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+}
+
+.puzzleGroups {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+.puzzleGroups .subhead {
+  margin: 0 0 6px;
+}
+
+/* gauntlet start options, the run's status, its map and offers (S022–S028) */
+
+.fieldset {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+}
+
+.fieldset legend {
+  margin-bottom: var(--space-2);
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.fieldRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.fieldRow .field {
+  flex: 1 1 200px;
+}
+
+.field input {
+  height: 40px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--mat-800);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-md);
+  text-transform: uppercase;
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.statusList,
+.relics {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.statusList li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.relics small {
+  display: block;
+  color: var(--ink-dim);
+}
+
+.runMap {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mapRow > ul {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mapNode {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 92px;
+  padding: var(--space-2) 4px;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-dim);
+  cursor: default;
+}
+
+.mapNode small {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--text-xs, 11px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapNode:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.node_elite {
+  color: var(--oxblood-ink);
+}
+
+.node_boss {
+  width: 120px;
+  color: var(--decision);
+}
+
+.nodeState_open {
+  background: rgb(var(--decision-rgb) / 0.1);
+  box-shadow: inset 0 0 0 2px var(--decision);
+  color: var(--ink-strong);
+  cursor: pointer;
+}
+
+.nodeState_open:hover:not(:disabled) {
+  background: rgb(var(--decision-rgb) / 0.18);
+}
+
+.nodeState_here {
+  box-shadow: inset 0 0 0 2px var(--ink-strong);
+  color: var(--ink-strong);
+}
+
+.nodeState_cleared {
+  opacity: 0.55;
+}
+
+.nodeState_missed {
+  opacity: 0.3;
+}
+
+.draftGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.draftCard {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.draftCard:hover:not(:disabled) {
+  box-shadow: inset 0 0 0 2px var(--decision);
+}
+
+.draftCard:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.draftArt {
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+}
+
+.choices {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choice {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+}
+
+.choice > small {
+  color: var(--ink-dim);
+}
+
+.boardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.boardHead h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.boardScope {
+  display: inline-flex;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+}
+
+.boardScope button {
+  padding: 2px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.boardScope button[aria-checked='true'] {
+  background: rgb(var(--decision-rgb) / 0.15);
+  color: var(--ink-strong);
+}
+
+.boardScope button:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+/* ---- the weekly challenge's rule (S032) */
+
+.rule {
+  margin: 0;
+  color: var(--decision);
+  font-family: var(--font-print);
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: var(--tracking-print);
+}
+
+/* ---- hordes (S036): a row of hordes to choose from */
+
+.hordeList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hordeTile {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2px 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+  color: var(--ink-strong);
+  text-align: left;
+  cursor: pointer;
+}
+
+.hordeTile b {
+  font-family: var(--font-print);
+  letter-spacing: var(--tracking-print);
+}
+
+.hordeTile small {
+  grid-column: 1;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.hordeTile svg {
+  grid-row: 1 / span 2;
+  grid-column: 2;
+  color: var(--sage);
+}
+
+.hordeTile:hover {
+  background: rgb(var(--ink-rgb) / 0.08);
+}
+
+.hordeTile:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}

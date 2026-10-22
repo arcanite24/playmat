@@ -168,6 +168,11 @@ public final class RateCard {
         }
     }
 
+    /** whether a card kills, exiles or deals damage to a permanent */
+    public static boolean isRemovalCard(Card card) {
+        return isRemoval(card) == 1;
+    }
+
     private static int isRemoval(Card card) {
         if (card.isEnchantment() || card.isInstantOrSorcery()) {
             for (Ability ability : card.getAbilities()) {

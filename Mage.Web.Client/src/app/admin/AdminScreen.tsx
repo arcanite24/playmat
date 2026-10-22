@@ -17,6 +17,7 @@ import { AuditPage } from './AuditPage';
 import { ConfirmAction } from './ConfirmAction';
 import { FeedbackPage } from './FeedbackPage';
 import { SettingsPage } from './SettingsPage';
+import { SoloPage } from './SoloPage';
 import { StaffPage } from './StaffPage';
 import { SupportPage } from './SupportPage';
 import { UpdatesPage } from './UpdatesPage';
@@ -150,6 +151,7 @@ const SECTIONS: { id: string; label: string; role: StaffRole }[] = [
   { id: 'broadcast', label: 'Broadcast', role: 'admin' },
   { id: 'access', label: 'Access', role: 'admin' },
   { id: 'settings', label: 'Settings', role: 'admin' },
+  { id: 'solo', label: 'Single player', role: 'admin' },
   // payments: admins and the owner, not moderators
   { id: 'support', label: 'Support', role: 'admin' },
   { id: 'updates', label: 'Updates', role: 'admin' },
@@ -183,6 +185,7 @@ function Console({ staff }: { staff: StaffSession }) {
           <Tabs.Content value="broadcast" className={styles.panel}><Broadcast api={api} /></Tabs.Content>
           <Tabs.Content value="access" className={styles.panel}><AccessPage api={api} /></Tabs.Content>
           <Tabs.Content value="settings" className={styles.panel}><SettingsPage api={api} role={role} /></Tabs.Content>
+          <Tabs.Content value="solo" className={styles.panel}><SoloPage api={api} role={role} /></Tabs.Content>
           <Tabs.Content value="support" className={styles.panel}><SupportPage api={api} /></Tabs.Content>
           <Tabs.Content value="updates" className={styles.panel}><UpdatesPage api={api} role={role} /></Tabs.Content>
         </>

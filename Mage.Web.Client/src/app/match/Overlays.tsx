@@ -369,7 +369,7 @@ const END_GAME: Record<string, MessageKey> = { won: 'match.end.wonGame', lost: '
 const END_MATCH: Record<string, MessageKey> = { won: 'match.end.wonMatch', lost: 'match.end.lostMatch', draw: 'match.end.drawMatch' };
 
 /** The end of a game: who won, the match score, and where to go next. */
-export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain }: {
+export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview }: {
   message: string;
   endInfo: GameEndView | null;
   /** the player's name, to tell from the server's message who won when there is no end-of-game info */
@@ -377,6 +377,8 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
   onLeave(): void;
   leaveLabel?: string;
   onPlayAgain?(): void;
+  /** look back over the game: its turning point and mistakes */
+  onReview?(): void;
 }) {
   const t = useT();
   // a match of several games ends on the match's result; a single game on the game's
@@ -398,6 +400,7 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
         {extra && <p className={styles.score}>{extra}</p>}
         <div className={styles.buttons}>
           <Button variant="print" size="lg" onClick={onLeave}>{leaveLabel}</Button>
+          {onReview && <Button variant="quiet" size="lg" onClick={onReview}>Review the game</Button>}
           {onPlayAgain && <Button variant="decision" size="xl" onClick={onPlayAgain}>Play again</Button>}
         </div>
       </div>

@@ -122,7 +122,7 @@ public final class CareerStore implements AutoCloseable {
     }
 
     /** for tests: use this store instead of db/career.db */
-    static void use(CareerStore store) {
+    public static void use(CareerStore store) {
         instance = store;
     }
 
@@ -918,6 +918,25 @@ public final class CareerStore implements AutoCloseable {
             update.setString(11, week);
             update.executeUpdate();
         }
+    }
+
+    /** every weekly challenge result: user, week, attempts, won, best turns, best life, at (moving them to the leaderboards) */
+    public synchronized List<Object[]> challengeRows() throws SQLException {
+        List<Object[]> rows = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT user, week, attempts, won, best_turns, best_life, at FROM challenge_results")) {
+            try (ResultSet result = select.executeQuery()) {
+                while (result.next()) {
+                    int turns = result.getInt(5);
+                    Integer bestTurns = result.wasNull() ? null : turns;
+                    int life = result.getInt(6);
+                    Integer bestLife = result.wasNull() ? null : life;
+                    rows.add(new Object[]{result.getString(1), result.getString(2), result.getInt(3), result.getInt(4) == 1,
+                            bestTurns, bestLife, result.getLong(7)});
+                }
+            }
+        }
+        return rows;
     }
 
     /** a week's results, best first: winners by fewest turns then most life, then everyone else by attempts */

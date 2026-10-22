@@ -70,10 +70,15 @@ import { gzipSync } from 'node:zlib';
 // entry raised 2026-10-15 from 75 kB for Settings, Cosmetics (the locker for everyone): master already measured 74.998 kB,
 // and the new code is all lazy (the locker, its tab); the entry only gains chunk-name churn (+7 bytes gzipped).
 // Measured entry 75.0 kB, app 650.8 kB
+// entry raised 2026-10-21 from 75.5 kB, initial from 212 kB and app from 665 kB for single player (S001–S050: saved
+// games, what-if, assists, ghosts, adaptive AI, the matchup lab, puzzles, inbox, and their English and Spanish messages,
+// all lazy). The entry gained the generated RPC client's solo methods and the free-play opponent helpers the play store
+// uses; Home's saved games went lazy so the Career progress model stays out of it (-3.6 kB). Measured entry 77.5 kB,
+// initial 212.0 kB, app 714.5 kB
 const BUDGET_KB = {
-  entry: 75.5,
-  initial: 212,
-  app: 665,
+  entry: 78,
+  initial: 214,
+  app: 720,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

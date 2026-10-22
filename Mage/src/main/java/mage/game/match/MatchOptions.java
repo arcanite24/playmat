@@ -50,6 +50,9 @@ public class MatchOptions implements Serializable {
     protected Collection<DeckCardInfo> perPlayerEmblemCards = Collections.emptySet();
     protected Collection<DeckCardInfo> globalEmblemCards = Collections.emptySet();
 
+    // the first game's random seed (each later game of the match adds its number); null for fresh random games
+    protected Long seed;
+
     public MatchOptions(String name, String gameType, boolean multiPlayer) {
         this.name = name;
         this.gameType = gameType;
@@ -59,6 +62,10 @@ public class MatchOptions implements Serializable {
 
     public boolean isSingleGameTourney() {
         return multiPlayer;
+    }
+
+    public void setName(String name) {
+        this.name = name;
     }
 
     public String getName() {
@@ -300,5 +307,16 @@ public class MatchOptions implements Serializable {
 
     public void setGlobalEmblemCards(Collection<DeckCardInfo> globalEmblemCards) {
         this.globalEmblemCards = globalEmblemCards;
+    }
+
+    /**
+     * @return the seed of the match's first game (game n uses seed + n - 1), or null for fresh random games
+     */
+    public Long getSeed() {
+        return seed;
+    }
+
+    public void setSeed(Long seed) {
+        this.seed = seed;
     }
 }

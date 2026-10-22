@@ -348,6 +348,8 @@ public final class Main {
                 mage.server.support.SupportHooks.start();
                 Health.start(managerFactory);
                 BackupStatus.startChecks();
+                // AI-against-AI batches carry on from before a restart
+                mage.server.solo.BatchRunner.get().start();
                 UpdateRunner.startWatching();
 
                 if (testMode) {

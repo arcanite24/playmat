@@ -1,0 +1,247 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px 16px 56px;
+  color: var(--ink);
+}
+
+.pageHead h1 {
+  margin: 0 0 4px;
+  color: var(--ink-strong);
+}
+
+.pageHead p {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tab {
+  padding: 8px 14px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.16);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.tab:hover {
+  color: var(--ink-strong);
+  border-color: rgb(var(--ink-rgb) / 0.32);
+}
+
+.tabOn {
+  composes: tab;
+  border-color: var(--decision);
+  color: var(--ink-strong);
+  background: rgb(var(--ink-rgb) / 0.06);
+}
+
+.tool {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.toolHead h2 {
+  margin: 0 0 4px;
+  color: var(--ink-strong);
+}
+
+.toolHead p {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.field select,
+.field input {
+  min-width: 180px;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.2);
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  color: var(--ink-strong);
+  font: inherit;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 8px;
+  color: var(--ink-soft);
+}
+
+.quiet {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.error {
+  margin: 0;
+  color: var(--danger-text);
+}
+
+.hand {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 10px;
+}
+
+.handCard {
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: none;
+  cursor: pointer;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+
+.handCard:disabled {
+  cursor: default;
+}
+
+.handCard:focus-visible {
+  outline: 2px solid var(--decision);
+  outline-offset: 2px;
+}
+
+.bottomed {
+  border-color: var(--oxblood-ink);
+  opacity: 0.55;
+  transform: translateY(6px);
+}
+
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.agree,
+.disagree {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--sage);
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  color: var(--ink-soft);
+}
+
+.disagree {
+  border-left-color: var(--decision);
+}
+
+.agree b,
+.disagree b {
+  color: var(--ink-strong);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th,
+.table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgb(var(--ink-rgb) / 0.1);
+  text-align: left;
+}
+
+.table thead th {
+  color: var(--ink-dim);
+  font-weight: 500;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(var(--ink-rgb) / 0.1);
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.stats b {
+  color: var(--ink-strong);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  color: var(--ink-strong);
+  font-size: var(--text-sm);
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stepper button {
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.2);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-strong);
+  cursor: pointer;
+}
+
+.stepper button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.good {
+  color: var(--sage);
+}
+
+.bad {
+  color: var(--oxblood-ink);
+}

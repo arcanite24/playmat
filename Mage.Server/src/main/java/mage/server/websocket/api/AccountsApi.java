@@ -348,6 +348,11 @@ final class AccountsApi {
         } catch (RuntimeException e) {
             logger.warn("No Career store to delete " + name + " from");
         }
+        try {
+            mage.server.solo.SoloStore.get().deleteUser(name);
+        } catch (java.sql.SQLException | RuntimeException e) {
+            logger.warn("Saved games and scores of " + name + " couldn't be deleted", e);
+        }
         ReportStore.get().forget(name);
         try {
             // the ledger keeps the amounts, for the months' totals, without anything that names the payer

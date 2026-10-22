@@ -20,6 +20,7 @@ import { dealStyle, useCountUp, useSequence, useStill } from './motion';
 import { PortraitCard, type ArtCard } from './Portraits';
 import { describePay, describeReward, fetchResult, fraction, resultIsEmpty, rewardParts, safeBack, xpSweep } from './progressModel';
 import motion from './motion.module.css';
+import modeStyles from './CareerModes.module.css';
 import styles from './Results.module.css';
 
 registerMessages(messages);
@@ -177,6 +178,18 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
           {result.note ? <p className={styles.note}>{result.note}</p> : !result.career && <p className={styles.note}>{t('career.rewards.aiNote')}</p>}
         </div>
       </header>
+
+      {/* a roster duel's or a horde's own summary: the nemesis paid back, the turns lived */}
+      {step >= 1 && (result.mode?.kind === 'duel' || result.mode?.kind === 'horde') && ((result.mode.lines ?? []).length > 0 || result.mode.title) && (
+        <section className={[styles.block, motion.deal].join(' ')} aria-label={result.mode.title || t('career.modes.lastGame')}>
+          {result.mode.title && <h2 className={styles.label}>{result.mode.title}</h2>}
+          {(result.mode.lines ?? []).length > 0 && (
+            <ul className={modeStyles.lines}>
+              {(result.mode.lines ?? []).map((line, index) => <li key={index}>{line}</li>)}
+            </ul>
+          )}
+        </section>
+      )}
 
       {step >= 1 && (
         <div className={[styles.pay, motion.deal].join(' ')}>

@@ -9,6 +9,7 @@ on:
       - "Mage.Server/src/main/java/mage/server/websocket/**"
       - "Mage.Server/src/main/java/mage/server/career/**"
       - "Mage.Server/src/main/java/mage/server/admin/**"
+      - "Mage.Server/src/main/java/mage/server/solo/**"
       - "Mage.Server/src/main/java/mage/server/Moderation.java"
       - "Mage.Server/src/main/java/mage/server/Maintenance.java"
       - "Mage.Server/src/main/java/mage/server/Health.java"
@@ -28,6 +29,7 @@ on:
       - "Mage.Server/src/main/java/mage/server/websocket/**"
       - "Mage.Server/src/main/java/mage/server/career/**"
       - "Mage.Server/src/main/java/mage/server/admin/**"
+      - "Mage.Server/src/main/java/mage/server/solo/**"
       - "Mage.Server/src/main/java/mage/server/Moderation.java"
       - "Mage.Server/src/main/java/mage/server/Maintenance.java"
       - "Mage.Server/src/main/java/mage/server/Health.java"
@@ -65,7 +67,7 @@ jobs:
       - name: Bridge tests
         run: >
           mvn -B -pl Mage.Server test
-          -Dtest='mage/server/websocket/**/*Test,mage/server/career/**/*Test,mage/server/admin/**/*Test,mage/server/AccessGateTest,mage/server/HealthTest'
+          -Dtest='mage/server/websocket/**/*Test,mage/server/career/**/*Test,mage/server/admin/**/*Test,mage/server/solo/**/*Test,mage/server/AccessGateTest,mage/server/HealthTest'
           -Dsurefire.failIfNoSpecifiedTests=false
           -Dxmage.dataCollectors.printGameLogs=false
           -Dlog4j.configuration=file:${GITHUB_WORKSPACE}/.travis/log4j.properties

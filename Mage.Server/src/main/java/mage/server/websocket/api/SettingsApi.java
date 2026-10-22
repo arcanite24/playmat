@@ -60,7 +60,7 @@ final class SettingsApi {
         return Arrays.asList(
                 RpcMethod.named("adminSettings")
                         .returns("ServerSettings")
-                        .doc("Staff (admin): settings that change without a restart (registration, Career, AI opponents, time to "
+                        .doc("Staff (admin): settings that change without a restart (registration, Career, AI opponents, batch games, time to "
                                 + "answer, Discord posts), each with where its value comes from; the Discord webhooks; planned maintenance.")
                         .handler(call -> {
                             Staff.require(ctx, call, StaffRole.ADMIN);
@@ -169,6 +169,10 @@ final class SettingsApi {
         int idleConfig = config == null ? 0 : config.getMaxSecondsIdle();
         result.settings.add(setting(runtime, RuntimeSettings.MAX_SECONDS_IDLE, String.valueOf(runtime.maxSecondsIdle(idleConfig)),
                 String.valueOf(idleConfig), null));
+        result.settings.add(setting(runtime, RuntimeSettings.BATCH_CONCURRENCY, String.valueOf(runtime.batchConcurrency()),
+                String.valueOf(RuntimeSettings.BATCH_CONCURRENCY_DEFAULT), null));
+        result.settings.add(setting(runtime, RuntimeSettings.BATCH_GAMES_PER_DAY, String.valueOf(runtime.batchGamesPerDay()),
+                String.valueOf(RuntimeSettings.BATCH_GAMES_PER_DAY_DEFAULT), null));
         for (String kind : Arrays.asList(RuntimeSettings.DISCORD_TABLES, RuntimeSettings.DISCORD_EVENTS, RuntimeSettings.DISCORD_MATCHES,
                 RuntimeSettings.DISCORD_STAFF)) {
             result.settings.add(setting(runtime, kind, runtime.discord(kind) ? "on" : "off", "on", null));

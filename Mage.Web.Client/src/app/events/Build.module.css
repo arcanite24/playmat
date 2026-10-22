@@ -291,3 +291,20 @@
   margin: 0;
   line-height: 1.45;
 }
+
+.planBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.planNote {
+  color: var(--ink-dim);
+}

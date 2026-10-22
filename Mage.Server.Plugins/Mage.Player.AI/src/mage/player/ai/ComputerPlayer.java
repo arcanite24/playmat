@@ -85,7 +85,14 @@ public class ComputerPlayer extends PlayerImpl {
     private transient boolean alreadyTryingToPayPhyrexian;
 
     public ComputerPlayer(String name, RangeOfInfluence range) {
-        super(name, range);
+        this(name, range, UUID.randomUUID());
+    }
+
+    /**
+     * An AI with a chosen id, to think from another player's seat in a copy of the game (see GameAdvisor)
+     */
+    protected ComputerPlayer(String name, RangeOfInfluence range, UUID id) {
+        super(name, range, id);
         human = false;
         userData = UserData.getDefaultUserDataView();
         userData.setAvatarId(64);

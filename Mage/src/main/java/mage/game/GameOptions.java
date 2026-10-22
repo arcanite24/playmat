@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * Game options for Mage game. Mainly used in tests to configure
@@ -70,6 +71,24 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
      */
     public GameSetup setup = null;
 
+    /**
+     * Seed for the game's own random numbers (shuffles, mulligans, coin flips, the starting toss); null for a fresh
+     * one. Two games with the same decks, seed and decisions draw the same cards.
+     */
+    public Long seed = null;
+
+    /**
+     * Start from a saved position instead of from opening hands (a resumed or forked game, see {@link GameSnapshot});
+     * null for a normal game
+     */
+    public GameSnapshot resumeFrom = null;
+
+    /**
+     * Receives the game as it stands at the start of every turn (on the game thread), to save it or fork it later;
+     * null for none. Not part of a saved game.
+     */
+    public transient Consumer<GameSnapshot> turnSnapshots = null;
+
     // PLANECHASE game mode
     public boolean planeChase = false;
     // xmage uses increased by 1/3 chances (2/2/9) for chaos/planar result, see 1a9f12f5767ce0beeed26a8ff5c8a8f9490c9c47
@@ -93,6 +112,9 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
         this.perPlayerEmblemCards = new HashSet<>(options.perPlayerEmblemCards);
         this.globalEmblemCards = new HashSet<>(options.globalEmblemCards);
         this.setup = options.setup;
+        this.seed = options.seed;
+        this.resumeFrom = options.resumeFrom;
+        this.turnSnapshots = options.turnSnapshots;
     }
 
     @Override

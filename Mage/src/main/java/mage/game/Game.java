@@ -435,6 +435,13 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
 
     void resume();
 
+    /**
+     * @return the seed of the game's own random numbers, null before the game starts
+     */
+    default Long getSeed() {
+        return null;
+    }
+
     void pause();
 
     boolean isPaused();

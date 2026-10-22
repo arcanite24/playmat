@@ -34,6 +34,7 @@ import mage.players.PlayerList;
 import mage.players.Players;
 import mage.target.Target;
 import mage.util.CardUtil;
+import mage.util.GameRandom;
 import mage.util.Copyable;
 import mage.util.ThreadLocalStringBuilder;
 import mage.watchers.Watcher;
@@ -118,6 +119,9 @@ public class GameState implements Serializable, Copyable<GameState> {
     private boolean reverseTurnOrder = false;
 
     private int applyEffectsCounter; // Upcounting number of each applyEffects execution
+    // the game's own random numbers (set when the game starts, see GameImpl#start): kept in the state so a rollback,
+    // a saved game or a fork carries on drawing exactly where the game was
+    private GameRandom random;
 
     public GameState() {
         players = new Players();
@@ -143,6 +147,7 @@ public class GameState implements Serializable, Copyable<GameState> {
         this.players = state.players.copy();
         this.playerList = state.playerList.copy();
         this.choosingPlayerId = state.choosingPlayerId;
+        this.random = state.random == null ? null : state.random.copy();
         this.revealed = state.revealed.copy();
         this.lookedAt.putAll(state.lookedAt);
         this.companion = state.companion.copy();
@@ -242,6 +247,14 @@ public class GameState implements Serializable, Copyable<GameState> {
 
     public void restore(GameState state) {
         // no needs in copy here cause GameState already copied on save and it will be used only one time here
+        if (state.random != null) {
+            // the game thread holds this state's generator: move it back in place instead of swapping it
+            if (this.random == null) {
+                this.random = state.random.copy();
+            } else {
+                this.random.restoreFrom(state.random);
+            }
+        }
         this.activePlayerId = state.activePlayerId;
         this.playerList.setCurrent(state.activePlayerId);
         this.playerByOrderId = state.playerByOrderId;
@@ -293,6 +306,24 @@ public class GameState implements Serializable, Copyable<GameState> {
     @Override
     public GameState copy() {
         return new GameState(this);
+    }
+
+    /**
+     * @return the game's own generator, null before the game starts
+     */
+    public GameRandom getRandom() {
+        return random;
+    }
+
+    public void setRandom(GameRandom random) {
+        this.random = random;
+    }
+
+    /**
+     * @return the seed the game's random numbers started from, null before the game starts
+     */
+    public Long getSeed() {
+        return random == null ? null : random.getSeed();
     }
 
     public void addPlayer(Player player) {

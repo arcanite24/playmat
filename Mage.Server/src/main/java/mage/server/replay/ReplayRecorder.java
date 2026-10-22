@@ -94,6 +94,55 @@ public final class ReplayRecorder {
         }
     }
 
+    /**
+     * Starts recording an AI-against-AI game of a player's batch (the matchup lab keeps the closest few): frames come
+     * from the game's update events and log lines from its info events, since no game controller runs it.
+     */
+    public static ReplayRecorder startBatch(Game game, String name, String owner) {
+        try {
+            ReplayStore store = ReplayStore.get();
+            if (!store.settings().enabled || game == null) {
+                return null;
+            }
+            ReplayInfo info = new ReplayInfo();
+            info.gameId = game.getId().toString();
+            info.startedAt = System.currentTimeMillis();
+            info.gameType = game.getGameType() == null ? null : game.getGameType().getName();
+            info.tableName = name;
+            info.batchOwner = owner;
+            for (Player player : game.getPlayers().values()) {
+                info.players.add(new ReplayInfo.ReplayPlayer(player.getName(), false));
+            }
+            Files.createDirectories(store.settings().dir);
+            ReplayRecorder recorder = new ReplayRecorder(store, game, null, info);
+            recorder.out = new BufferedWriter(new OutputStreamWriter(
+                    new GZIPOutputStream(Files.newOutputStream(store.partFile(info.gameId))), StandardCharsets.UTF_8));
+            game.addTableEventListener((mage.game.events.Listener<mage.game.events.TableEvent>) event -> {
+                switch (event.getEventType()) {
+                    case UPDATE:
+                        recorder.frame();
+                        break;
+                    case INFO:
+                    case STATUS:
+                        recorder.log(new ChatMessage("", event.getMessage(), new java.util.Date(), game,
+                                mage.view.ChatMessage.MessageColor.BLACK, mage.view.ChatMessage.MessageType.GAME, null));
+                        break;
+                    default:
+                        break;
+                }
+            });
+            recorder.frame(true);
+            return recorder;
+        } catch (Throwable e) {
+            logger.error("Can't record batch game " + (game == null ? null : game.getId()), e);
+            return null;
+        }
+    }
+
+    public String gameId() {
+        return info.gameId;
+    }
+
     /** a game log line, from the chat of a game being recorded */
     public static void onLog(UUID chatId, ChatMessage message) {
         ReplayRecorder recorder = chatId == null ? null : BY_CHAT.get(chatId);

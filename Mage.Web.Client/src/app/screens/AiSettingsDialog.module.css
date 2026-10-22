@@ -76,3 +76,30 @@
   color: var(--ink-strong);
   font-size: var(--text-md);
 }
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.ghost {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* the code field and its Find button, bottoms aligned */
+.ghostRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.ghostRow > :first-child {
+  flex: 1;
+  min-width: 0;
+}

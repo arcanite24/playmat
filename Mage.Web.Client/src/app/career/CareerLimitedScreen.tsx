@@ -10,21 +10,38 @@ import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { useCareerShop, useCareerState } from './careerData';
-import { abandonLimited, pickLimited, playMode, startLimited, useLimited } from './careerModesData';
+import { abandonLimited, pickLimited, playMode, startLimited, useDraftCubes, useLimited } from './careerModesData';
 import { LIMITED_LOSSES, LIMITED_WINS } from './careerModesModel';
+import { runLimits, shapeRewards } from './ladderModel';
 import { LimitedBuilder } from './CareerLimitedBuild';
+import { DraftCoach } from './CareerLimitedCoach';
 import { ModeResult } from './ModeParts';
 import styles from './CareerModes.module.css';
 
 registerMessages(messages);
 
-type Kind = 'sealed' | 'draft';
+type Kind = 'sealed' | 'draft' | 'cube';
+
+const KIND_NAMES: Record<Kind, 'career.limited.sealed' | 'career.limited.draft' | 'career.limited.cube'> = {
+  sealed: 'career.limited.sealed',
+  draft: 'career.limited.draft',
+  cube: 'career.limited.cube',
+};
+
+const KIND_TEXTS: Record<Kind, 'career.limited.sealedText' | 'career.limited.draftText' | 'career.limited.cubeText'> = {
+  sealed: 'career.limited.sealedText',
+  draft: 'career.limited.draftText',
+  cube: 'career.limited.cubeText',
+};
 
 function message(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason);
 }
 
-/** Solo sealed and draft: open a set's packs (or draft them against bots), build 40 cards, play to three wins or two losses. */
+/**
+ * Solo sealed, draft and cube: open a set's packs (or draft them, or a server cube, against bots), build 40 cards, and
+ * play the run's shape out: three wins or two losses, Arena's seven or three, or a league's five matches.
+ */
 export function CareerLimitedScreen() {
   const t = useT();
   const state = useCareerState();
@@ -43,7 +60,10 @@ export function CareerLimitedScreen() {
         <header className={styles.modeHead}>
           <div>
             <h1 className={styles.modeTitle}>{run ? t('career.limited.runTitle', { set: run.setName ?? run.setCode ?? '', kind: t(run.kind === 'draft' ? 'career.limited.draft' : 'career.limited.sealed') }) : t('career.limited.title')}</h1>
-            <p className={styles.lead}>{t('career.limited.lead', { wins: LIMITED_WINS, losses: LIMITED_LOSSES })}</p>
+            <p className={styles.lead}>
+              {run ? data?.shapes?.find((shape) => shape.id === (run.shape || 'classic'))?.text ?? t('career.limited.lead', { wins: LIMITED_WINS, losses: LIMITED_LOSSES })
+                : t('career.limited.lead', { wins: LIMITED_WINS, losses: LIMITED_LOSSES })}
+            </p>
           </div>
         </header>
         {limited.isPending && <p className={styles.note}>{t('career.loading')}</p>}
@@ -61,17 +81,25 @@ function Start({ data, coins }: { data: CareerLimitedState; coins: number }) {
   const shop = useCareerShop(true);
   const sets = useMemo(() => (shop.data ?? []).filter((set) => !set.locked), [shop.data]);
   const [kind, setKind] = useState<Kind>('sealed');
+  const [shape, setShape] = useState('classic');
   const [setCode, setSetCode] = useState('');
+  const [cube, setCube] = useState('');
   const [busy, setBusy] = useState(false);
+  const cubes = useDraftCubes(kind === 'cube');
   const chosenSet = setCode || sets[0]?.setCode || '';
-  const price = (kind === 'sealed' ? data.sealedEntry : data.draftEntry) ?? 0;
-  const rewards = (kind === 'sealed' ? data.sealedRewards : data.draftRewards) ?? [];
+  const chosenCube = cube || cubes.data?.[0] || '';
+  const shapes = data.shapes ?? [];
+  // a cube run is a draft on the server: it costs and pays as one
+  const entryOf = (item: Kind) => (item === 'sealed' ? data.sealedEntry : data.draftEntry) ?? 0;
+  const price = entryOf(kind);
+  const rewards = shapeRewards(shapes, shape, kind === 'sealed' ? 'sealed' : 'draft', data);
   const short = coins < price;
+  const source = kind === 'cube' ? chosenCube : chosenSet;
 
   async function start() {
     setBusy(true);
     try {
-      await startLimited(kind, chosenSet);
+      await startLimited(kind, source, shapes.length > 0 ? shape : undefined);
     } catch (reason) {
       notify(t('career.limited.startFailed'), message(reason), 'error');
     } finally {
@@ -83,7 +111,7 @@ function Start({ data, coins }: { data: CareerLimitedState; coins: number }) {
     <section className={styles.panel} aria-labelledby="limited-start">
       <h2 id="limited-start" className={styles.panelTitle}>{t('career.limited.newRun')}</h2>
       <div className={styles.kinds} role="radiogroup" aria-label={t('career.limited.kind')}>
-        {(['sealed', 'draft'] as const).map((item) => (
+        {(['sealed', 'draft', 'cube'] as const).map((item) => (
           <button
             key={item}
             type="button"
@@ -92,22 +120,48 @@ function Start({ data, coins }: { data: CareerLimitedState; coins: number }) {
             className={[styles.kind, kind === item ? styles.kindOn : ''].join(' ')}
             onClick={() => setKind(item)}
           >
-            <b>{t(item === 'sealed' ? 'career.limited.sealed' : 'career.limited.draft')}</b>
-            <small>{t(item === 'sealed' ? 'career.limited.sealedText' : 'career.limited.draftText')}</small>
-            <small>{t('career.limited.entry', { price: (item === 'sealed' ? data.sealedEntry : data.draftEntry) ?? 0 })}</small>
+            <b>{t(KIND_NAMES[item])}</b>
+            <small>{t(KIND_TEXTS[item])}</small>
+            <small>{t('career.limited.entry', { price: entryOf(item) })}</small>
           </button>
         ))}
       </div>
-      <label className={styles.field}>
-        <span>{t('career.limited.set')}</span>
-        <select value={chosenSet} onChange={(event) => setSetCode(event.target.value)} disabled={sets.length === 0}>
-          {sets.map((set) => <option key={set.setCode} value={set.setCode}>{set.name} ({set.setCode})</option>)}
-        </select>
-      </label>
+      {shapes.length > 0 && (
+        <div className={styles.kinds} role="radiogroup" aria-label={t('career.limited.shape')}>
+          {shapes.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="radio"
+              aria-checked={shape === item.id}
+              className={[styles.kind, shape === item.id ? styles.kindOn : ''].join(' ')}
+              onClick={() => setShape(item.id ?? 'classic')}
+            >
+              <b>{item.name}</b>
+              <small>{item.text}</small>
+            </button>
+          ))}
+        </div>
+      )}
+      {kind === 'cube' ? (
+        <label className={styles.field}>
+          <span>{t('career.limited.cubeName')}</span>
+          <select value={chosenCube} onChange={(event) => setCube(event.target.value)} disabled={!cubes.data?.length}>
+            {(cubes.data ?? []).map((name) => <option key={name} value={name}>{name}</option>)}
+          </select>
+        </label>
+      ) : (
+        <label className={styles.field}>
+          <span>{t('career.limited.set')}</span>
+          <select value={chosenSet} onChange={(event) => setSetCode(event.target.value)} disabled={sets.length === 0}>
+            {sets.map((set) => <option key={set.setCode} value={set.setCode}>{set.name} ({set.setCode})</option>)}
+          </select>
+        </label>
+      )}
       <p className={styles.small}>{t('career.limited.rewardsBy', { rewards: rewards.map((coinsFor, wins) => t('career.limited.rewardAt', { wins, coins: coinsFor })).join(' · ') })}</p>
-      <p className={styles.small}>{t('career.limited.keepCards')}</p>
+      <p className={styles.small}>{t(kind === 'cube' ? 'career.limited.cubeLoan' : 'career.limited.keepCards')}</p>
       <div className={styles.actions}>
-        <Button variant="decision" size="lg" icon={<Coins size={18} />} busy={busy} disabled={short || !chosenSet} aria-describedby={short ? 'limited-short' : undefined} onClick={() => void start()}>
+        <Button variant="decision" size="lg" icon={<Coins size={18} />} busy={busy} disabled={short || !source} aria-describedby={short ? 'limited-short' : undefined} onClick={() => void start()}>
           {t('career.limited.start', { price })}
         </Button>
         {short && <span id="limited-short" className={styles.warn}>{t('career.shop.short')}</span>}
@@ -149,6 +203,7 @@ function Draft({ run }: { run: CareerLimitedRun }) {
         <h2 id="limited-draft" className={styles.panelTitle}>{t('career.limited.pick', { round: run.round ?? 1, pick: run.pick ?? 1 })}</h2>
         <p className={styles.small}>{t('career.limited.pickHint', { count: pool.length })}</p>
       </header>
+      <DraftCoach run={run} />
       <ul className={styles.packGrid}>
         {pack.map((card, index) => (
           <li key={`${index}-${card.name}`}>
@@ -189,7 +244,9 @@ function Games({ run, data, onEdit }: { run: CareerLimitedRun; data: CareerLimit
   const [error, setError] = useState<string | null>(null);
   const wins = run.wins ?? 0;
   const losses = run.losses ?? 0;
-  const rewards = (run.kind === 'draft' ? data.draftRewards : data.sealedRewards) ?? [];
+  const limits = runLimits(run);
+  const rewards = shapeRewards(data.shapes, run.shape, run.kind, data);
+  const added = run.added ?? [];
   const deckSize = (run.deck ?? []).reduce((sum, card) => sum + (card.amount ?? 0), 0);
 
   async function play() {
@@ -217,19 +274,38 @@ function Games({ run, data, onEdit }: { run: CareerLimitedRun; data: CareerLimit
   return (
     <section className={styles.panel} aria-labelledby="limited-games">
       <h2 id="limited-games" className={styles.panelTitle}>{t('career.limited.game', { number: wins + losses + 1 })}</h2>
-      <div className={styles.record} role="img" aria-label={t('career.limited.record', { wins, losses, maxWins: LIMITED_WINS, maxLosses: LIMITED_LOSSES })}>
-        <span className={styles.pips} aria-hidden="true">
-          {Array.from({ length: LIMITED_WINS }, (_, index) => <i key={index} className={index < wins ? styles.pipWin : styles.pip}>{index < wins ? 'W' : ''}</i>)}
-        </span>
-        <span className={styles.pips} aria-hidden="true">
-          {Array.from({ length: LIMITED_LOSSES }, (_, index) => <i key={index} className={index < losses ? styles.pipLoss : styles.pip}>{index < losses ? 'L' : ''}</i>)}
-        </span>
-        <span aria-hidden="true">{t('career.run.record', { wins, losses })}</span>
-      </div>
+      {limits.league ? (
+        <div className={styles.record} role="img" aria-label={t('career.limited.leagueRecord', { played: wins + losses, games: limits.maxGames, wins, losses })}>
+          <span className={styles.pips} aria-hidden="true">
+            {Array.from({ length: limits.maxGames }, (_, index) => (
+              <i key={index} className={index < wins ? styles.pipWin : index < wins + losses ? styles.pipLoss : styles.pip}>
+                {index < wins ? 'W' : index < wins + losses ? 'L' : ''}
+              </i>
+            ))}
+          </span>
+          <span aria-hidden="true">{t('career.limited.leagueRecord', { played: wins + losses, games: limits.maxGames, wins, losses })}</span>
+        </div>
+      ) : (
+        <div className={styles.record} role="img" aria-label={t('career.limited.record', { wins, losses, maxWins: limits.maxWins, maxLosses: limits.maxLosses })}>
+          <span className={styles.pips} aria-hidden="true">
+            {Array.from({ length: limits.maxWins }, (_, index) => <i key={index} className={index < wins ? styles.pipWin : styles.pip}>{index < wins ? 'W' : ''}</i>)}
+          </span>
+          <span className={styles.pips} aria-hidden="true">
+            {Array.from({ length: limits.maxLosses }, (_, index) => <i key={index} className={index < losses ? styles.pipLoss : styles.pip}>{index < losses ? 'L' : ''}</i>)}
+          </span>
+          <span aria-hidden="true">{t('career.limited.record', { wins, losses, maxWins: limits.maxWins, maxLosses: limits.maxLosses })}</span>
+        </div>
+      )}
       <p className={styles.small}>
         {t('career.limited.nowPays', { coins: rewards[Math.min(wins, rewards.length - 1)] ?? 0 })} · {t('career.limited.nextPays', { coins: run.nextReward ?? 0 })}
       </p>
       <p className={styles.small}>{t('career.limited.yourDeck', { count: deckSize })}</p>
+      {added.length > 0 && (
+        <details className={styles.poolSummary} open>
+          <summary>{t('career.limited.added', { count: added.length })}</summary>
+          <ul className={styles.names}>{added.map((card, index) => <li key={index}>{card.name}</li>)}</ul>
+        </details>
+      )}
       {error && <p className={styles.error} role="alert">{t('career.playFailed')}: {error}</p>}
       <div className={styles.actions}>
         <Button variant="decision" size="lg" icon={<Swords size={18} />} busy={starting} disabled={playing} onClick={() => void play()}>

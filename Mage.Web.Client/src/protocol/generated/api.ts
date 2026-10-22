@@ -2,7 +2,7 @@
 // Regenerate: mvn -pl Mage.Server test -Dtest=WebClientApiDocsTest -Dxmage.updateWebApiDocs=true
 
 import type { RpcMethodName, RpcMethods, UUID } from './protocol';
-import type { CardCriteria, ClientError, DeckCardInfo, DeckCardLists, ManaType, PlayerAction, PlayerLook, UserData } from './views';
+import type { CardCriteria, ClientError, DeckCardInfo, DeckCardLists, JobSpec, ManaType, PlayerAction, PlayerLook, Puzzle, StartOptions, UserData } from './views';
 import type { WebCardFilters, WebMatchOptions, WebTournamentOptions } from '../options';
 
 export interface RpcCaller {
@@ -347,8 +347,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerCollection'),
     careerOpponents: () =>
       rpc.call('careerOpponents'),
-    careerPlay: (opponentId: string, deck: DeckCardLists) =>
-      rpc.call('careerPlay', opponentId, deck),
+    careerPlay: (opponentId: string, deck: DeckCardLists, adaptive?: boolean | null) =>
+      rpc.call('careerPlay', opponentId, deck, adaptive),
     careerShop: () =>
       rpc.call('careerShop'),
     careerBuyPack: (setCode: string) =>
@@ -387,14 +387,32 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerPuzzles'),
     careerPuzzlePlay: (puzzleId: string) =>
       rpc.call('careerPuzzlePlay', puzzleId),
+    careerDailyPuzzle: () =>
+      rpc.call('careerDailyPuzzle'),
+    careerDailyPuzzlePlay: () =>
+      rpc.call('careerDailyPuzzlePlay'),
+    careerPuzzleFilePlay: (puzzle: Puzzle) =>
+      rpc.call('careerPuzzleFilePlay', puzzle),
+    careerMinedPuzzles: () =>
+      rpc.call('careerMinedPuzzles'),
+    careerMinedPuzzlePlay: (puzzleId: string) =>
+      rpc.call('careerMinedPuzzlePlay', puzzleId),
+    careerHordes: () =>
+      rpc.call('careerHordes'),
+    careerHordePlay: (hordeId: string, deckFile: string) =>
+      rpc.call('careerHordePlay', hordeId, deckFile),
+    metaLibrary: () =>
+      rpc.call('metaLibrary'),
     careerChallenge: () =>
       rpc.call('careerChallenge'),
     careerChallengePlay: () =>
       rpc.call('careerChallengePlay'),
     careerGauntlet: () =>
       rpc.call('careerGauntlet'),
-    careerGauntletStart: () =>
-      rpc.call('careerGauntletStart'),
+    careerGauntletStart: (options?: StartOptions | null) =>
+      rpc.call('careerGauntletStart', options),
+    careerGauntletMove: (nodeId: string) =>
+      rpc.call('careerGauntletMove', nodeId),
     careerGauntletPick: (optionIds: unknown[]) =>
       rpc.call('careerGauntletPick', optionIds),
     careerGauntletPlay: () =>
@@ -403,16 +421,78 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerGauntletAbandon'),
     careerLimited: () =>
       rpc.call('careerLimited'),
-    careerLimitedStart: (kind: string, setCode: string) =>
-      rpc.call('careerLimitedStart', kind, setCode),
+    careerLimitedStart: (kind: string, setCode: string, shape?: string | null, cubeCards?: string[] | null) =>
+      rpc.call('careerLimitedStart', kind, setCode, shape, cubeCards),
     careerLimitedPick: (index: number) =>
       rpc.call('careerLimitedPick', index),
+    careerLimitedCoach: () =>
+      rpc.call('careerLimitedCoach'),
     careerLimitedDeck: (deck: DeckCardLists) =>
       rpc.call('careerLimitedDeck', deck),
     careerLimitedPlay: () =>
       rpc.call('careerLimitedPlay'),
     careerLimitedAbandon: () =>
       rpc.call('careerLimitedAbandon'),
+    soloSaves: () =>
+      rpc.call('soloSaves'),
+    soloResume: (saveId: string) =>
+      rpc.call('soloResume', saveId),
+    soloDelete: (saveId: string) =>
+      rpc.call('soloDelete', saveId),
+    soloSaveAndLeave: (gameId: UUID) =>
+      rpc.call('soloSaveAndLeave', gameId, SESSION),
+    soloFork: (gameId: UUID) =>
+      rpc.call('soloFork', gameId, SESSION),
+    soloTurns: (gameId: UUID) =>
+      rpc.call('soloTurns', gameId),
+    soloWhatIf: (gameId: UUID, turn: number) =>
+      rpc.call('soloWhatIf', gameId, turn, SESSION),
+    soloAssists: (gameId: UUID) =>
+      rpc.call('soloAssists', gameId, SESSION),
+    gameAdvise: (gameId: UUID, skill?: number | null) =>
+      rpc.call('gameAdvise', gameId, SESSION, skill),
+    gamePuzzleExport: (gameId: UUID, name?: string | null, text?: string | null, objective?: string | null) =>
+      rpc.call('gamePuzzleExport', gameId, SESSION, name, text, objective),
+    soloBatchSubmit: (spec: JobSpec, kind?: string | null) =>
+      rpc.call('soloBatchSubmit', spec, kind),
+    soloBatchJobs: () =>
+      rpc.call('soloBatchJobs'),
+    soloBatchJob: (jobId: string) =>
+      rpc.call('soloBatchJob', jobId),
+    soloBatchCancel: (jobId: string) =>
+      rpc.call('soloBatchCancel', jobId),
+    leaderboard: (mode: string, board: string, scope?: string | null, names?: unknown[] | null) =>
+      rpc.call('leaderboard', mode, board, scope, names),
+    adminBatchJobs: () =>
+      rpc.call('adminBatchJobs'),
+    adminBatchCancel: (jobId: string) =>
+      rpc.call('adminBatchCancel', jobId),
+    adminContentPacks: () =>
+      rpc.call('adminContentPacks'),
+    adminContentPackUpload: (zipBase64: string, reason?: string | null) =>
+      rpc.call('adminContentPackUpload', zipBase64, reason),
+    adminContentPackRemove: (packId: string, reason?: string | null) =>
+      rpc.call('adminContentPackRemove', packId, reason),
+    adminContentPackReload: () =>
+      rpc.call('adminContentPackReload'),
+    metaDeck: (file: string) =>
+      rpc.call('metaDeck', file),
+    ghostShare: (name: string | null, deck: DeckCardLists) =>
+      rpc.call('ghostShare', name, deck),
+    ghostMine: () =>
+      rpc.call('ghostMine'),
+    ghostUnshare: (code: string) =>
+      rpc.call('ghostUnshare', code),
+    ghostDeck: (code: string) =>
+      rpc.call('ghostDeck', code),
+    soloTableMark: (tableId: UUID, ghostCode?: string | null, adaptiveFormat?: string | null) =>
+      rpc.call('soloTableMark', tableId, ghostCode, adaptiveFormat),
+    soloAdaptive: (format: string) =>
+      rpc.call('soloAdaptive', format),
+    inbox: () =>
+      rpc.call('inbox'),
+    inboxSeen: () =>
+      rpc.call('inboxSeen'),
   };
 }
 

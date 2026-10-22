@@ -68,6 +68,10 @@ import { clothOf, clothStyle } from './playmats';
 import { usePlayerLooks } from '../support/supportData';
 import { opponentSleeve } from '../support/supportModel';
 import { PracticeTools } from './PracticeTools';
+import { AdviceDialog } from './AdviceDialog';
+import { GameReview } from '../review/GameReview';
+import { WhatIfDialog } from '../solo/WhatIfDialog';
+import { refreshAssists, saveAndLeave, tryTurnAgain, useSoloAssists } from '../solo/soloData';
 import { PhaseLadder } from './PhaseLadder';
 import { DefenderPicker } from './DefenderPicker';
 import { MiniPiles, Piles } from './Piles';
@@ -230,6 +234,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const [lastBlocker, setLastBlocker] = useState<string | null>(null);
   // likewise the attacker, when the server asks what it attacks
   const [lastAttacker, setLastAttacker] = useState<string | null>(null);
+  const [reviewing, setReviewing] = useState(false);
   const onClick = useCallback((id: string) => {
     const recipient = damageSplit?.assignment.recipients.findIndex((candidate) => candidate.id === id) ?? -1;
     if (damageSplit && recipient >= 0) {
@@ -561,6 +566,10 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             <GameMenu
               gameId={state.gameId}
               practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
+              solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
+              careerAssists={mode === 'play' && !state.gameOver && career && !eventId && vsAi && (view?.turn ?? 0) > 0}
+              vsAi={vsAi}
+              onSaved={() => exit(false)}
               canConcede={canAct}
               onConcede={() => onCommand({ type: 'action', action: 'CONCEDE' })}
               onLeave={leave}
@@ -609,7 +618,13 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 leaveLabel={eventId ? 'Back to the event' : career ? 'Back to Career' : vsPeople ? t('match.end.backToTables') : 'Back to Play'}
                 // a rematch is only dealt against the computer; people go back to Tables
                 onPlayAgain={mode === 'play' && deckId && !eventId && vsAi ? playAgain : undefined}
+                onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
               />
+            )}
+            {reviewing && (
+              <Dialog open onOpenChange={(open) => !open && setReviewing(false)} title="Game review" width="lg">
+                <GameReview gameId={state.gameId} me={board.me?.player.name ?? null} onNavigate={() => setReviewing(false)} />
+              </Dialog>
             )}
             <CardZoom large={spectating && largeZoom} />
             <CardDetail view={view} extra={pickerCards ?? viewer?.cards ?? NO_CARDS} sleeveOf={sleeveOf} attacking={attacking} blocking={blocking} />
@@ -776,17 +791,44 @@ const CONFIRM = {
     description: 'You concede this game and the rest of the match. You can\'t undo it.',
     action: 'Leave match',
   },
+  fork: {
+    title: 'Try this turn again?',
+    description: 'A new game starts from the start of this turn, with the same cards in the same places and the same draws to come. You leave this one.',
+    action: 'Start the turn again',
+  },
+  save: {
+    title: 'Save and leave?',
+    description: 'The game is kept as it was at the start of this turn. Resume it from Home whenever you like.',
+    action: 'Save and leave',
+  },
   rollback: {
     title: 'Go back to the start of this turn?',
     description: 'Every other player must agree; a game against the computer goes back at once.',
     action: 'Ask to go back',
   },
+  rollbackAi: {
+    title: 'Take back this turn?',
+    description: 'The game goes back to the start of this turn at once. Against the computer you can take back as often as you like.',
+    action: 'Take it back',
+  },
+  takeBack: {
+    title: 'Take back this turn?',
+    description: 'A new game starts from the start of this turn, with the same cards and the same draws to come. You get one take-back a Career game, and the game then pays half and counts for no quests.',
+    action: 'Take it back',
+  },
 } as const;
 
-function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }: {
+function GameMenu({ gameId, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
   gameId: string;
+  /** a Career game against the computer, past the first turn: counted hints and one take-back, where the mode allows */
+  careerAssists: boolean;
+  /** every opponent is the computer */
+  vsAi: boolean;
   /** a game against the computer only: the practice tools are on offer */
   practice: boolean;
+  /** free play against the computer, past the first turn: advice, a fresh try at the turn, save and leave */
+  solo: boolean;
+  onSaved(): void;
   canConcede: boolean;
   onConcede(): void;
   onLeave(): void;
@@ -796,7 +838,27 @@ function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }
   const [confirming, setConfirming] = useState<keyof typeof CONFIRM | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
+  const [adviceOpen, setAdviceOpen] = useState(false);
+  const [whatIfOpen, setWhatIfOpen] = useState(false);
   const copy = confirming ? CONFIRM[confirming] : null;
+  const assists = useSoloAssists(gameId, careerAssists).data;
+  async function soloAction(choice: 'fork' | 'save' | 'takeBack') {
+    try {
+      if (choice === 'takeBack') {
+        await tryTurnAgain(gameId, true);
+        notify('Take back', 'A new game starts from the start of this turn.');
+      } else if (choice === 'fork') {
+        await tryTurnAgain(gameId);
+        notify('Try again', 'A new game starts from the start of this turn.');
+      } else {
+        await saveAndLeave(gameId);
+        notify('Saved', 'Resume the game from Home.');
+        onSaved();
+      }
+    } catch (failure) {
+      notify(choice === 'fork' ? 'Try again' : choice === 'takeBack' ? 'Take back' : 'Save', failure instanceof Error ? failure.message : String(failure));
+    }
+  }
   return (
     <div className={styles.menu}>
       <DropdownMenu.Root>
@@ -809,14 +871,34 @@ function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }
             {practice && (
               <DropdownMenu.Item className={styles.menuItem} onSelect={() => setPracticeOpen(true)}>Practice tools</DropdownMenu.Item>
             )}
+            {practice && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setAdviceOpen(true)}>Ask the AI</DropdownMenu.Item>
+            )}
+            {careerAssists && assists?.hints && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setAdviceOpen(true)}>
+                Ask for a hint ({assists.hintsLeft ?? 0} left)
+              </DropdownMenu.Item>
+            )}
+            {careerAssists && assists?.takeBack && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('takeBack')}>Take back this turn</DropdownMenu.Item>
+            )}
+            {solo && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('fork')}>Try this turn again</DropdownMenu.Item>
+            )}
+            {solo && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setWhatIfOpen(true)}>Play an earlier turn…</DropdownMenu.Item>
+            )}
+            {solo && (
+              <DropdownMenu.Item className={styles.menuItem} onSelect={() => setConfirming('save')}>Save and leave</DropdownMenu.Item>
+            )}
             {rollback && (
               <DropdownMenu.Item
                 className={styles.menuItem}
                 disabled={!rollback.ready}
                 title={rollback.ready ? undefined : 'Available while you have priority'}
-                onSelect={() => setConfirming('rollback')}
+                onSelect={() => setConfirming(vsAi ? 'rollbackAi' : 'rollback')}
               >
-                Request rollback to start of turn
+                {vsAi ? 'Take back this turn' : 'Request rollback to start of turn'}
               </DropdownMenu.Item>
             )}
             {canConcede && (
@@ -830,6 +912,17 @@ function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }
       </DropdownMenu.Root>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {practice && <PracticeTools gameId={gameId} open={practiceOpen} onOpenChange={setPracticeOpen} />}
+      {practice && <AdviceDialog gameId={gameId} open={adviceOpen} onOpenChange={setAdviceOpen} />}
+      {solo && <WhatIfDialog gameId={gameId} open={whatIfOpen} onOpenChange={setWhatIfOpen} />}
+      {careerAssists && !practice && (
+        <AdviceDialog
+          gameId={gameId}
+          open={adviceOpen}
+          onOpenChange={setAdviceOpen}
+          counted={{ hintsLeft: assists?.hintsLeft ?? 0 }}
+          onUsed={() => refreshAssists(gameId)}
+        />
+      )}
       <Dialog
         open={confirming !== null}
         onOpenChange={(open) => !open && setConfirming(null)}
@@ -840,13 +933,14 @@ function GameMenu({ gameId, practice, canConcede, onConcede, onLeave, rollback }
           <>
             <Button variant="quiet" onClick={() => setConfirming(null)}>Keep playing</Button>
             <Button
-              variant={confirming === 'rollback' ? 'decision' : 'danger'}
+              variant={confirming === 'concede' || confirming === 'leave' ? 'danger' : 'decision'}
               onClick={() => {
                 const choice = confirming;
                 setConfirming(null);
                 if (choice === 'leave') onLeave();
                 else if (choice === 'concede') onConcede();
-                else if (choice === 'rollback') rollback?.request();
+                else if (choice === 'rollback' || choice === 'rollbackAi') rollback?.request();
+                else if (choice === 'fork' || choice === 'save' || choice === 'takeBack') void soloAction(choice);
               }}
             >
               {copy?.action}

@@ -40,6 +40,8 @@ export interface WebMatchOptions {
   limited?: boolean;
   rated?: boolean;
   rollbackTurnsAllowed?: boolean;
+  /** deal every game from this seed: the same seed deals the same cards */
+  seed?: number;
   spectatorsAllowed?: boolean;
   matchTimeLimit?: MatchTimeLimit;
   matchBufferTime?: MatchBufferTime;

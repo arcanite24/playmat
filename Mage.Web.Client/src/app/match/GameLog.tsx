@@ -1,9 +1,10 @@
 import {
-  AlertTriangle, ArrowDownToLine, Ban, BellRing, BookOpen, Dot, Flag, Flame, Heart, HeartCrack, MessageCircle,
+  AlertTriangle, ArrowDownToLine, HelpCircle, Ban, BellRing, BookOpen, Dot, Flag, Flame, Heart, HeartCrack, MessageCircle,
   MessageSquare, Mountain, Shield, Shuffle, Skull, Sparkles, Swords, Trophy, Archive, Zap, X, type LucideIcon,
 } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { DelayedRelay } from '../../core/game/broadcastDelay';
+import { explainLog } from '../../core/game/logRules';
 import type { GameNotice } from '../../core/game/gameSession';
 import {
   buildLogRows, cardInk, collectCards, EMOTES, findLogCard, isEmote, noticeEntry, parseChatMessage, presenceChange,
@@ -243,12 +244,34 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
 
 const LogLine = memo(function LogLine({ entry, cards }: { entry: LogEntry; cards: { current: Map<string, CardView> } }) {
   const Icon = ICONS[entry.icon];
+  // the rule behind a game line, on request (S009)
+  const notes = useMemo(() => (entry.tone === 'game' ? explainLog(entry.text) : []), [entry.tone, entry.text]);
+  const [open, setOpen] = useState(false);
   return (
     <li className={[styles.line, styles[entry.tone]].join(' ')}>
       <Icon className={[styles.icon, styles[`icon_${entry.icon}`] ?? ''].join(' ')} size={16} aria-hidden="true" />
       <span className={styles.body}>
         {entry.who && <b>{entry.who}: </b>}
         {entry.segments.map((segment, index) => <Segment key={index} segment={segment} cards={cards} />)}
+        {notes.length > 0 && (
+          <button
+            type="button"
+            className={styles.why}
+            aria-expanded={open}
+            aria-label={open ? 'Hide the rule behind this' : 'Why did that happen?'}
+            title="Why did that happen?"
+            onClick={() => setOpen((value) => !value)}
+          >
+            <HelpCircle size={13} aria-hidden="true" />
+          </button>
+        )}
+        {open && notes.map((note) => (
+          <span key={note.id} className={styles.rule}>
+            <b>{note.title}</b>
+            {note.rule !== '—' && <small> · rule {note.rule}</small>}
+            <span>{note.text}</span>
+          </span>
+        ))}
       </span>
     </li>
   );

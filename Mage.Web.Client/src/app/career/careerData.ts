@@ -154,13 +154,14 @@ export async function importCareer(data: string): Promise<void> {
  * Start a Career match: the server sets the table up and starts it; the game opens like any other (the signed-in shell
  * follows the server into it), and leaving it comes back to Career.
  */
-export async function playCareer(opponentId: string, deck: DeckCardLists, voice: VoiceLines | null = null): Promise<void> {
+export async function playCareer(opponentId: string, deck: DeckCardLists, voice: VoiceLines | null = null, adaptive = false): Promise<void> {
   useEvents.setState({ currentTournamentId: null });
   useCareerVoice.getState().speak(voice);
   usePlay.setState({ phase: 'waitingForGame', error: null, deckId: null, returnPath: '/career' });
   warmCards([...deck.cards, ...deck.sideboard].map((card) => ({ name: card.cardName, setCode: card.setCode ?? undefined, cardNumber: card.cardNumber ?? undefined })));
   try {
-    const match = await api.careerPlay(opponentId, toWire(deck));
+    // adaptive: the server fits the opponent to the player's measured skill (S043)
+    const match = await api.careerPlay(opponentId, toWire(deck), adaptive || null);
     warmMatch(match);
     // leaving the match shows what it paid, then comes back to Career
     usePlay.setState({ tableId: match?.tableId ?? null, returnPath: rewardsPath(match?.tableId ?? null, true, '/career') });

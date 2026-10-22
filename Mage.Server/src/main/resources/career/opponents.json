@@ -1,21 +1,689 @@
 {
-  "tiers": [
-    { "tier": 1, "name": "Apprentice", "skill": 1 },
-    { "tier": 2, "name": "Journeyman", "skill": 4 },
-    { "tier": 3, "name": "Champion", "skill": 7 }
-  ],
-  "opponents": [
-    {"id": "wren", "name": "Wren of the Hedgerow", "tier": 1, "colors": "GW", "deck": "anthousas-army.dck", "tagline": "Raises an army from the garden wall.", "cover": {"name": "Anthousa, Setessan Hero", "setCode": "THS", "cardNumber": "149"}, "lines": {"intro": "Mind the hedge. It bites back.", "bigPlay": "Out of the garden, all of you!", "lowLife": "Hold the wall. Just hold it.", "win": "The garden keeps its gate. Come back any time.", "lose": "Fair. I'll grow a taller wall."}},
-    {"id": "odo", "name": "Brother Odo", "tier": 1, "colors": "WB", "deck": "orzhov-oppression.dck", "tagline": "Collects tithes, mostly in life points.", "cover": {"name": "Basilica Screecher", "setCode": "GTC", "cardNumber": "58"}, "lines": {"intro": "Every spell has a price. I'll collect.", "bigPlay": "A small tithe, if you please.", "lowLife": "The collection plate is looking thin.", "win": "Your offering is received. Go in peace.", "lose": "Keep the change. This time."}},
-    {"id": "pip", "name": "Pip Kettlewhistle", "tier": 1, "colors": "RG", "deck": "gruul-siege.dck", "tagline": "Small, loud, and fond of large animals.", "cover": {"name": "Ruination Wurm", "setCode": "GTC", "cardNumber": "192"}, "lines": {"intro": "Hope you like big animals!", "bigPlay": "Look how BIG it is!", "lowLife": "Uh oh. Uh oh. UH OH.", "win": "Told you. Big animals win.", "lose": "Aww. My wurm needs a nap now."}},
-    {"id": "marisol", "name": "Marisol Tidecaller", "tier": 1, "colors": "UG", "deck": "wilds-and-the-deep.dck", "tagline": "Waits for the tide, then brings it in.", "cover": {"name": "Sealock Monster", "setCode": "THS", "cardNumber": "62"}, "lines": {"intro": "The tide's out. For now.", "bigPlay": "Here it comes.", "lowLife": "Even the sea runs dry sometimes.", "win": "The tide always comes in.", "lose": "You swam well. Few do."}},
-    {"id": "ilse", "name": "Ilse Vantorre", "tier": 2, "colors": "UR", "deck": "manipulative-monstrosities.dck", "tagline": "Turns your plans into her monsters.", "cover": {"name": "Stoneshock Giant", "setCode": "THS", "cardNumber": "142"}, "lines": {"intro": "Show me your plan. I'll improve it.", "bigPlay": "Thank you for the idea.", "lowLife": "Hm. Unexpected. I'll take notes.", "win": "Your plan was good. Mine was yours, but bigger.", "lose": "Clever. I'll be studying this one."}},
-    {"id": "hask", "name": "Captain Hask", "tier": 2, "colors": "RW", "deck": "boros-battalion.dck", "tagline": "Drills the line until it charges as one.", "cover": {"name": "Skyknight Legionnaire", "setCode": "GTC", "cardNumber": "197"}, "lines": {"intro": "Line up! On my mark!", "bigPlay": "Charge, as one!", "lowLife": "Close ranks! Hold!", "win": "Discipline wins. Every time.", "lose": "At ease. You earned that."}},
-    {"id": "widow", "name": "The Lantern Widow", "tier": 2, "colors": "B", "deck": "devotion-to-darkness.dck", "tagline": "Every candle she lights, one of yours goes out.", "cover": {"name": "Gray Merchant of Asphodel", "setCode": "THS", "cardNumber": "89"}, "lines": {"intro": "I've lit a candle for you.", "bigPlay": "Another flame for my lantern.", "lowLife": "The wick is short tonight.", "win": "Your candle's out. Rest now.", "lose": "You burn brighter than most."}},
-    {"id": "grondel", "name": "Grondel Two-Axes", "tier": 2, "colors": "RG", "deck": "voracious-rage.dck", "tagline": "Has never once blocked.", "cover": {"name": "Deathbellow Raider", "setCode": "THS", "cardNumber": "117"}, "lines": {"intro": "Blocking is for cowards. Let's go.", "bigPlay": "AXES!", "lowLife": "Still not blocking.", "win": "Never blocked. Never needed to.", "lose": "...Maybe I should have blocked."}},
-    {"id": "korvath", "name": "Korvath the Patient", "tier": 3, "colors": "WBG", "deck": "abzan-midrange.dck", "tagline": "Answers everything, then waits.", "cover": {"name": "Siege Rhino", "setCode": "KTK", "cardNumber": "200"}, "lines": {"intro": "No hurry. I have all the time you don't.", "bigPlay": "Patience pays.", "lowLife": "A setback. Only that.", "win": "I told you there was no hurry.", "lose": "Well played. I'll wait for the next one."}},
-    {"id": "aldous", "name": "Aldous Brightwing", "tier": 3, "colors": "WU", "deck": "azorius-heroic.dck", "tagline": "One hero, every blessing at once.", "cover": {"name": "Hero of Iroas", "setCode": "BNG", "cardNumber": "17"}, "lines": {"intro": "For glory, and for a good show.", "bigPlay": "A hero rises!", "lowLife": "Heroes fall. Then they get up.", "win": "Another verse for the song!", "lose": "The song will remember you, friend."}},
-    {"id": "sera", "name": "Seraphine Ashmark", "tier": 3, "colors": "RW", "deck": "boros-aggro.dck", "tagline": "Wins before the second cup of tea.", "cover": {"name": "Chandra's Phoenix", "setCode": "M14", "cardNumber": "134"}, "lines": {"intro": "I'll be quick. You won't feel a thing.", "bigPlay": "Burn!", "lowLife": "Ashes come back. So do I.", "win": "Over already? I barely warmed up.", "lose": "From the ashes. Next time."}},
-    {"id": "mirela", "name": "Mirela Nightcourt", "tier": 3, "colors": "BR", "deck": "rakdos-aristocrats.dck", "tagline": "The court is always hungry.", "cover": {"name": "Falkenrath Aristocrat", "setCode": "DKA", "cardNumber": "138"}, "lines": {"intro": "Welcome to my court. Do stay.", "bigPlay": "Someone has to be the sacrifice.", "lowLife": "How rude. I'm bleeding.", "win": "Thank you for coming. Your life was delicious.", "lose": "Charming. You must visit again."}}
-  ]
+ "tiers": [
+  {
+   "tier": 1,
+   "name": "Apprentice",
+   "skill": 1,
+   "badge": "Apprentice duelist"
+  },
+  {
+   "tier": 2,
+   "name": "Journeyman",
+   "skill": 4,
+   "badge": "Journeyman duelist"
+  },
+  {
+   "tier": 3,
+   "name": "Champion",
+   "skill": 7,
+   "badge": "Champion"
+  },
+  {
+   "tier": 4,
+   "name": "Master",
+   "skill": 8,
+   "badge": "Master of the ladder",
+   "twists": {
+    "lifeBonus": 3
+   }
+  },
+  {
+   "tier": 5,
+   "name": "Archmage",
+   "skill": 9,
+   "badge": "Archmage",
+   "aiType": "archmage",
+   "twists": {
+    "lifeBonus": 5,
+    "extraCards": 1
+   }
+  }
+ ],
+ "opponents": [
+  {
+   "id": "wren",
+   "measured": 67,
+   "name": "Wren of the Hedgerow",
+   "tier": 1,
+   "colors": "GW",
+   "deck": "anthousas-army.dck",
+   "tagline": "Raises an army from the garden wall.",
+   "cover": {
+    "name": "Anthousa, Setessan Hero",
+    "setCode": "THS",
+    "cardNumber": "149"
+   },
+   "lines": {
+    "intro": "Mind the hedge. It bites back.",
+    "bigPlay": "Out of the garden, all of you!",
+    "lowLife": "Hold the wall. Just hold it.",
+    "win": "The garden keeps its gate. Come back any time.",
+    "lose": "Fair. I'll grow a taller wall.",
+    "nemesis": "You again. The hedge remembers you."
+   },
+   "decks": [
+    "anthousas-army.dck",
+    "meta:standard/act1-stompy.dck",
+    "meta:pioneer/act1-green-stompy.dck"
+   ]
+  },
+  {
+   "id": "odo",
+   "measured": 77,
+   "name": "Brother Odo",
+   "tier": 1,
+   "colors": "WB",
+   "deck": "orzhov-oppression.dck",
+   "tagline": "Collects tithes, mostly in life points.",
+   "cover": {
+    "name": "Basilica Screecher",
+    "setCode": "GTC",
+    "cardNumber": "58"
+   },
+   "lines": {
+    "intro": "Every spell has a price. I'll collect.",
+    "bigPlay": "A small tithe, if you please.",
+    "lowLife": "The collection plate is looking thin.",
+    "win": "Your offering is received. Go in peace.",
+    "lose": "Keep the change. This time."
+   },
+   "decks": [
+    "orzhov-oppression.dck",
+    "meta:standard/act1-boss-vampires.dck",
+    "meta:pauper/act1-weenie.dck"
+   ]
+  },
+  {
+   "id": "pip",
+   "measured": 58,
+   "name": "Pip Kettlewhistle",
+   "tier": 1,
+   "colors": "RG",
+   "deck": "gruul-siege.dck",
+   "tagline": "Small, loud, and fond of large animals.",
+   "cover": {
+    "name": "Ruination Wurm",
+    "setCode": "GTC",
+    "cardNumber": "192"
+   },
+   "lines": {
+    "intro": "Hope you like big animals!",
+    "bigPlay": "Look how BIG it is!",
+    "lowLife": "Uh oh. Uh oh. UH OH.",
+    "win": "Told you. Big animals win.",
+    "lose": "Aww. My wurm needs a nap now.",
+    "nemesis": "Back for more? I've been sharpening the siege engines."
+   },
+   "decks": [
+    "gruul-siege.dck",
+    "meta:pauper/act1-goblins.dck",
+    "meta:vintage/act1-red.dck"
+   ],
+   "personality": {
+    "aggression": 50,
+    "risk": 30,
+    "patience": -30
+   }
+  },
+  {
+   "id": "marisol",
+   "measured": 63,
+   "name": "Marisol Tidecaller",
+   "tier": 1,
+   "colors": "UG",
+   "deck": "wilds-and-the-deep.dck",
+   "tagline": "Waits for the tide, then brings it in.",
+   "cover": {
+    "name": "Sealock Monster",
+    "setCode": "THS",
+    "cardNumber": "62"
+   },
+   "lines": {
+    "intro": "The tide's out. For now.",
+    "bigPlay": "Here it comes.",
+    "lowLife": "Even the sea runs dry sometimes.",
+    "win": "The tide always comes in.",
+    "lose": "You swam well. Few do."
+   },
+   "decks": [
+    "wilds-and-the-deep.dck",
+    "meta:standard/act1-skies.dck",
+    "meta:modern/act1-merfolk.dck"
+   ]
+  },
+  {
+   "id": "ilse",
+   "measured": 67,
+   "name": "Ilse Vantorre",
+   "tier": 2,
+   "colors": "UR",
+   "deck": "manipulative-monstrosities.dck",
+   "tagline": "Turns your plans into her monsters.",
+   "cover": {
+    "name": "Stoneshock Giant",
+    "setCode": "THS",
+    "cardNumber": "142"
+   },
+   "lines": {
+    "intro": "Show me your plan. I'll improve it.",
+    "bigPlay": "Thank you for the idea.",
+    "lowLife": "Hm. Unexpected. I'll take notes.",
+    "win": "Your plan was good. Mine was yours, but bigger.",
+    "lose": "Clever. I'll be studying this one."
+   },
+   "decks": [
+    "manipulative-monstrosities.dck",
+    "meta:pioneer/act2-red-burn.dck",
+    "meta:standard/act2-aggro.dck"
+   ],
+   "personality": {
+    "aggression": -10,
+    "risk": 20,
+    "patience": 40
+   }
+  },
+  {
+   "id": "hask",
+   "measured": 58,
+   "name": "Captain Hask",
+   "tier": 2,
+   "colors": "RW",
+   "deck": "boros-battalion.dck",
+   "tagline": "Drills the line until it charges as one.",
+   "cover": {
+    "name": "Skyknight Legionnaire",
+    "setCode": "GTC",
+    "cardNumber": "197"
+   },
+   "lines": {
+    "intro": "Line up! On my mark!",
+    "bigPlay": "Charge, as one!",
+    "lowLife": "Close ranks! Hold!",
+    "win": "Discipline wins. Every time.",
+    "lose": "At ease. You earned that."
+   },
+   "decks": [
+    "boros-battalion.dck",
+    "meta:pauper/act2-boros.dck",
+    "meta:legacy/opp-boros.dck"
+   ]
+  },
+  {
+   "id": "widow",
+   "measured": 54,
+   "name": "The Lantern Widow",
+   "tier": 2,
+   "colors": "B",
+   "deck": "devotion-to-darkness.dck",
+   "tagline": "Every candle she lights, one of yours goes out.",
+   "cover": {
+    "name": "Gray Merchant of Asphodel",
+    "setCode": "THS",
+    "cardNumber": "89"
+   },
+   "lines": {
+    "intro": "I've lit a candle for you.",
+    "bigPlay": "Another flame for my lantern.",
+    "lowLife": "The wick is short tonight.",
+    "win": "Your candle's out. Rest now.",
+    "lose": "You burn brighter than most.",
+    "nemesis": "I knew you'd return. They always do."
+   },
+   "decks": [
+    "devotion-to-darkness.dck",
+    "meta:pioneer/act1-mono-black-devotion.dck",
+    "meta:pauper/act1-boss.dck"
+   ],
+   "personality": {
+    "aggression": -20,
+    "risk": -30,
+    "patience": 50
+   }
+  },
+  {
+   "id": "grondel",
+   "measured": 43,
+   "name": "Grondel Two-Axes",
+   "tier": 2,
+   "colors": "RG",
+   "deck": "voracious-rage.dck",
+   "tagline": "Has never once blocked.",
+   "cover": {
+    "name": "Deathbellow Raider",
+    "setCode": "THS",
+    "cardNumber": "117"
+   },
+   "lines": {
+    "intro": "Blocking is for cowards. Let's go.",
+    "bigPlay": "AXES!",
+    "lowLife": "Still not blocking.",
+    "win": "Never blocked. Never needed to.",
+    "lose": "...Maybe I should have blocked."
+   },
+   "decks": [
+    "voracious-rage.dck",
+    "meta:standard/act2-opp-gruul.dck",
+    "meta:pauper/act2-gruul.dck"
+   ],
+   "personality": {
+    "aggression": 60,
+    "risk": 40,
+    "patience": -50
+   }
+  },
+  {
+   "id": "korvath",
+   "measured": 36,
+   "name": "Korvath the Patient",
+   "tier": 3,
+   "colors": "WBG",
+   "deck": "abzan-midrange.dck",
+   "tagline": "Answers everything, then waits.",
+   "cover": {
+    "name": "Siege Rhino",
+    "setCode": "KTK",
+    "cardNumber": "200"
+   },
+   "lines": {
+    "intro": "No hurry. I have all the time you don't.",
+    "bigPlay": "Patience pays.",
+    "lowLife": "A setback. Only that.",
+    "win": "I told you there was no hurry.",
+    "lose": "Well played. I'll wait for the next one."
+   },
+   "decks": [
+    "abzan-midrange.dck",
+    "meta:modern/act2-abzan.dck",
+    "meta:pioneer/act2-golgari-midrange.dck"
+   ]
+  },
+  {
+   "id": "aldous",
+   "measured": 28,
+   "name": "Aldous Brightwing",
+   "tier": 3,
+   "colors": "WU",
+   "deck": "azorius-heroic.dck",
+   "tagline": "One hero, every blessing at once.",
+   "cover": {
+    "name": "Hero of Iroas",
+    "setCode": "BNG",
+    "cardNumber": "17"
+   },
+   "lines": {
+    "intro": "For glory, and for a good show.",
+    "bigPlay": "A hero rises!",
+    "lowLife": "Heroes fall. Then they get up.",
+    "win": "Another verse for the song!",
+    "lose": "The song will remember you, friend."
+   },
+   "decks": [
+    "azorius-heroic.dck",
+    "meta:pioneer/act3-azorius-spirits.dck",
+    "meta:standard/act3-angels.dck"
+   ],
+   "personality": {
+    "aggression": -30,
+    "risk": -40,
+    "patience": 60
+   }
+  },
+  {
+   "id": "sera",
+   "measured": 25,
+   "name": "Seraphine Ashmark",
+   "tier": 3,
+   "colors": "RW",
+   "deck": "boros-aggro.dck",
+   "tagline": "Wins before the second cup of tea.",
+   "cover": {
+    "name": "Chandra's Phoenix",
+    "setCode": "M14",
+    "cardNumber": "134"
+   },
+   "lines": {
+    "intro": "I'll be quick. You won't feel a thing.",
+    "bigPlay": "Burn!",
+    "lowLife": "Ashes come back. So do I.",
+    "win": "Over already? I barely warmed up.",
+    "lose": "From the ashes. Next time.",
+    "nemesis": "Last time was a warm-up. This one counts."
+   },
+   "decks": [
+    "boros-aggro.dck",
+    "meta:vintage/act3-boros-rod.dck",
+    "meta:pauper/act3-boss.dck"
+   ],
+   "personality": {
+    "aggression": 70,
+    "risk": 50,
+    "patience": -40
+   }
+  },
+  {
+   "id": "mirela",
+   "measured": 19,
+   "name": "Mirela Nightcourt",
+   "tier": 3,
+   "colors": "BR",
+   "deck": "rakdos-aristocrats.dck",
+   "tagline": "The court is always hungry.",
+   "cover": {
+    "name": "Falkenrath Aristocrat",
+    "setCode": "DKA",
+    "cardNumber": "138"
+   },
+   "lines": {
+    "intro": "Welcome to my court. Do stay.",
+    "bigPlay": "Someone has to be the sacrifice.",
+    "lowLife": "How rude. I'm bleeding.",
+    "win": "Thank you for coming. Your life was delicious.",
+    "lose": "Charming. You must visit again.",
+    "nemesis": "The aristocrats saved you a seat. Front row."
+   },
+   "decks": [
+    "rakdos-aristocrats.dck",
+    "meta:pioneer/act3-rakdos-graveyard.dck",
+    "meta:modern/act3-gravedancers.dck"
+   ]
+  },
+  {
+   "id": "rival-1",
+   "name": "Kestrel Ashe",
+   "tier": 1,
+   "colors": "BR",
+   "deck": "meta:pauper/act2-rakdos.dck",
+   "tagline": "A rival with a chip on her shoulder.",
+   "lines": {
+    "intro": "Name's Kestrel. You're the new one everyone keeps beating. Let's see if it sticks.",
+    "win": "Ha! Told you.",
+    "lose": "Huh. Fine. I'll be back sharper, with a better grudge.",
+    "lowLife": "Not like this. Not again."
+   },
+   "rival": {
+    "chapter": 1,
+    "before": "Name's Kestrel. You're the new one everyone keeps beating. Let's see if it sticks.",
+    "after": "Huh. Fine. I'll be back sharper, with a better grudge."
+   },
+   "personality": {
+    "aggression": 20,
+    "risk": 10,
+    "patience": 0
+   }
+  },
+  {
+   "id": "rival-2",
+   "name": "Kestrel Ashe",
+   "tier": 2,
+   "colors": "BR",
+   "deck": "meta:pauper/act2-rakdos.dck",
+   "tagline": "The rival, playing sharper.",
+   "lines": {
+    "intro": "Told you I'd be back. Same deck, a lot more practice.",
+    "win": "Ha! Told you.",
+    "lose": "You keep doing that. I keep learning. Next tier, then.",
+    "lowLife": "Not like this. Not again."
+   },
+   "rival": {
+    "chapter": 2,
+    "before": "Told you I'd be back. Same deck, a lot more practice.",
+    "after": "You keep doing that. I keep learning. Next tier, then."
+   },
+   "personality": {
+    "aggression": 40,
+    "risk": 20,
+    "patience": 0
+   }
+  },
+  {
+   "id": "rival-3",
+   "skill": 5,
+   "name": "Kestrel Ashe",
+   "tier": 3,
+   "colors": "BR",
+   "deck": "meta:standard/meta-rakdos-lizards.dck",
+   "tagline": "The rival, out for blood.",
+   "lines": {
+    "intro": "Champion tier. I skipped meals to tune this one.",
+    "win": "Ha! Told you.",
+    "lose": "...Okay. You're good. That doesn't mean you get to keep winning.",
+    "lowLife": "Not like this. Not again."
+   },
+   "rival": {
+    "chapter": 3,
+    "before": "Champion tier. I skipped meals to tune this one.",
+    "after": "...Okay. You're good. That doesn't mean you get to keep winning."
+   },
+   "personality": {
+    "aggression": 60,
+    "risk": 30,
+    "patience": 0
+   }
+  },
+  {
+   "id": "rival-4",
+   "twists": {
+    "lifeBonus": 4
+   },
+   "name": "Kestrel Ashe",
+   "tier": 4,
+   "colors": "BR",
+   "deck": "meta:modern/act3-gravedancers.dck",
+   "tagline": "The rival's last stand.",
+   "lines": {
+    "intro": "Last time, I promise. Everything I've got, every card I wanted.",
+    "win": "Ha! Told you.",
+    "lose": "Well played. Really. Buy you a coffee? I'll still want a rematch.",
+    "lowLife": "Not like this. Not again."
+   },
+   "rival": {
+    "chapter": 4,
+    "before": "Last time, I promise. Everything I've got, every card I wanted.",
+    "after": "Well played. Really. Buy you a coffee? I'll still want a rematch."
+   },
+   "personality": {
+    "aggression": 80,
+    "risk": 40,
+    "patience": 0
+   }
+  },
+  {
+   "id": "vesna",
+   "skill": 6,
+   "name": "Vesna the Unbowed",
+   "tier": 4,
+   "colors": "WR",
+   "deck": "meta:modern/meta-boros-energy.dck",
+   "tagline": "Energy, tempo and no apologies.",
+   "cover": null,
+   "lines": {
+    "intro": "Charge up. This won't take long.",
+    "bigPlay": "Feel that? That's momentum.",
+    "lowLife": "Still standing. Still swinging.",
+    "win": "Faster than you. Every time.",
+    "lose": "I'll find another gear."
+   },
+   "personality": {
+    "aggression": 60,
+    "risk": 40,
+    "patience": -40
+   },
+   "decks": [
+    "meta:modern/meta-boros-energy.dck",
+    "meta:legacy/meta-boros-energy.dck",
+    "meta:standard/meta-boros-dragons.dck"
+   ]
+  },
+  {
+   "id": "thaddeus",
+   "name": "Thaddeus Grail",
+   "tier": 4,
+   "colors": "UB",
+   "deck": "meta:pioneer/meta-dimir-aggro.dck",
+   "tagline": "Answers first, questions never.",
+   "cover": null,
+   "lines": {
+    "intro": "Go ahead. Cast something.",
+    "bigPlay": "Exactly as I planned.",
+    "lowLife": "Interesting. Recalculating.",
+    "win": "Checkmate, as they say.",
+    "lose": "Noted. I'll adjust."
+   },
+   "personality": {
+    "aggression": -20,
+    "risk": -20,
+    "patience": 50
+   },
+   "decks": [
+    "meta:pioneer/meta-dimir-aggro.dck",
+    "meta:pauper/meta-affinity.dck"
+   ]
+  },
+  {
+   "id": "orla",
+   "name": "Orla of the Thousand",
+   "tier": 4,
+   "colors": "G",
+   "deck": "meta:pauper/meta-elves.dck",
+   "tagline": "Where there's one elf, there's a forest.",
+   "cover": null,
+   "lines": {
+    "intro": "We are many. You are one.",
+    "bigPlay": "The forest answers!",
+    "lowLife": "Roots run deep.",
+    "win": "The forest grows back. You don't.",
+    "lose": "We'll take root elsewhere."
+   },
+   "personality": {
+    "aggression": 10,
+    "risk": 0,
+    "patience": 40
+   },
+   "decks": [
+    "meta:pauper/meta-elves.dck",
+    "meta:standard/meta-mono-green-landfall.dck"
+   ]
+  },
+  {
+   "id": "null-engine",
+   "name": "The Null Engine",
+   "tier": 5,
+   "colors": "",
+   "deck": "meta:vintage/meta-raker-shops.dck",
+   "tagline": "It doesn't think. It computes.",
+   "cover": null,
+   "lines": {
+    "intro": "PROCESS: OPPONENT. RESULT: PENDING.",
+    "bigPlay": "OUTPUT INCREASED.",
+    "lowLife": "PHASE SHIFT.",
+    "win": "RESULT: AS EXPECTED.",
+    "lose": "ERROR. REBOOTING."
+   },
+   "twists": {
+    "timed": [
+     {
+      "when": "life",
+      "life": 12,
+      "then": {
+       "extraCards": 2
+      },
+      "message": "Phase two: the Null Engine overclocks and draws two."
+     },
+     {
+      "when": "life",
+      "life": 6,
+      "then": {
+       "emblem": "Glorious Anthem"
+      },
+      "message": "Phase three: the Null Engine's constructs grow stronger."
+     }
+    ]
+   },
+   "personality": {
+    "aggression": 30,
+    "risk": 20,
+    "patience": 0
+   }
+  },
+  {
+   "id": "saint-adela",
+   "name": "Saint Adela",
+   "tier": 5,
+   "colors": "W",
+   "deck": "meta:vintage/meta-initiative.dck",
+   "tagline": "The dungeon is hers; you're only visiting.",
+   "cover": null,
+   "lines": {
+    "intro": "Kneel, or be knelt upon.",
+    "bigPlay": "By my light!",
+    "lowLife": "Faith holds.",
+    "win": "Go in peace.",
+    "lose": "Even saints fall. Once."
+   },
+   "twists": {
+    "timed": [
+     {
+      "when": "life",
+      "life": 10,
+      "gainLife": 5,
+      "message": "Saint Adela's second wind: she gains 5 life."
+     }
+    ]
+   },
+   "personality": {
+    "aggression": 20,
+    "risk": -10,
+    "patience": 20
+   }
+  },
+  {
+   "id": "leviathan",
+   "skill": 3,
+   "name": "The Leviathan",
+   "tier": 5,
+   "colors": "",
+   "deck": "wilds-and-the-deep.dck",
+   "tagline": "A raid boss: 100 life and three phases. Bring everything.",
+   "cover": null,
+   "lines": {
+    "intro": "The deep stirs. Something vast rises.",
+    "bigPlay": "The sea itself attacks.",
+    "lowLife": "It thrashes in the depths.",
+    "win": "The tide takes you.",
+    "lose": "It sinks, for now."
+   },
+   "twists": {
+    "startingLife": 100,
+    "timed": [
+     {
+      "when": "life",
+      "life": 75,
+      "then": {
+       "extraCards": 2
+      },
+      "message": "Phase two: the Leviathan surfaces and draws two."
+     },
+     {
+      "when": "life",
+      "life": 50,
+      "then": {
+       "permanents": [
+        "Ulamog's Crusher"
+       ]
+      },
+      "message": "Phase three: a spawn of the deep joins the fight."
+     },
+     {
+      "when": "life",
+      "life": 25,
+      "then": {
+       "emblem": "Glorious Anthem"
+      },
+      "message": "Final phase: the Leviathan's brood grows stronger."
+     }
+    ]
+   },
+   "raid": true
+  }
+ ]
 }

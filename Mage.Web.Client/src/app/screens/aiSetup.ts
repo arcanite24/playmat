@@ -1,5 +1,6 @@
 import type { MessageKey, Translate } from '../i18n';
 import type { AiOptions, AiType } from '../stores/play';
+import { opponentSource } from '../solo/freePlay';
 
 /** The server AI's skill (1-10) behind each difficulty. */
 export const DIFFICULTIES: { label: MessageKey; skill: number; detail: MessageKey }[] = [
@@ -28,9 +29,22 @@ export function difficultyOf(skill: number) {
   return DIFFICULTIES.reduce((best, item) => (Math.abs(item.skill - skill) < Math.abs(best.skill - skill) ? item : best));
 }
 
-/** One line describing the AI setup, for the Play zone. */
-export function describeAi(t: Translate, options: AiOptions, deckName: string | null): string {
-  const difficulty = t(difficultyOf(options.skill).label);
+/**
+ * The AI's deck in the setup summary: a roster or format deck by its name, a ghost deck by the name kept with it, the
+ * mirror as such. Null for a random starter, and for the solo sources until their messages (`soloReady`) are in.
+ */
+export function aiDeckLabel(t: Translate, options: AiOptions, rosterName: string | null, soloReady: boolean): string | null {
+  const source = opponentSource(options.opponentDeckId);
+  switch (source.kind) {
+    case 'roster': return rosterName;
+    case 'mirror': return soloReady ? t('solo.mirror.summary') : null;
+    case 'ghost': return soloReady ? t('solo.ghost.summary', { name: options.opponentLabel ?? source.code }) : null;
+  }
+}
+
+/** One line describing the AI setup, for the Play zone; `adaptiveLabel` stands in for the difficulty when adaptive. */
+export function describeAi(t: Translate, options: AiOptions, deckName: string | null, adaptiveLabel?: string): string {
+  const difficulty = options.adaptive && adaptiveLabel ? adaptiveLabel : t(difficultyOf(options.skill).label);
   const parts = [
     options.opponents > 1 ? t('ai.summary.many', { count: options.opponents, difficulty }) : t('ai.summary.one', { difficulty }),
     deckName ?? t(options.rules === 'deck' ? 'ai.summary.metaDeck' : 'ai.summary.randomDeck'),

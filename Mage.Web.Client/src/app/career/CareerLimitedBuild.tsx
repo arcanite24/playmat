@@ -6,6 +6,7 @@ import { readJson, writeJson } from '../stores/persist';
 import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
+import { DraftReview, PoolCoach } from './CareerLimitedCoach';
 import { submitLimitedDeck } from './careerModesData';
 import {
   BASIC_LANDS, LIMITED_DECK_MIN, buildDeck, buildFrom, buildProblems, buildSize, changeBasic, changePick, poolEntries, suggestBasics,
@@ -84,6 +85,14 @@ export function LimitedBuilder({ run, onDone, onCancel }: { run: CareerLimitedRu
           </div>
         </header>
         <p className={styles.small}>{t('career.limited.buildHint')}</p>
+        {run.kind === 'draft' && <DraftReview picks={run.picks ?? []} />}
+        <PoolCoach
+          run={run}
+          onBuild={(pair) => {
+            setBuild(buildFrom(pair.deck));
+            notify(t('career.coach.built'), t('career.coach.builtText', { colors: pair.colors ?? '' }));
+          }}
+        />
         <ul className={styles.poolGrid}>
           {shown.map((entry) => (
             <li key={entry.key}>

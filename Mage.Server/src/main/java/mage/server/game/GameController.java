@@ -865,6 +865,91 @@ public class GameController implements GameCallback {
         return null;
     }
 
+    /**
+     * The board as a puzzle file (S030), read on the game thread the next time the user's player is asked something.
+     * Like the practice tools, only for the one human in a game against the computer, outside Career.
+     *
+     * @return the puzzle to come, or null with why not in {@code problem}
+     */
+    public java.util.concurrent.CompletableFuture<mage.server.solo.PuzzleKit.PuzzleExport> exportPuzzle(UUID userId, String name, String text,
+                                                                                                    String objective, StringBuilder problem) {
+        UUID playerId = getPlayerId(userId);
+        Player player = playerId == null ? null : game.getPlayer(playerId);
+        if (player == null) {
+            problem.append("You aren't playing in this game.");
+            return null;
+        }
+        if (mage.server.career.CareerService.get().isCareerTable(tableId)) {
+            problem.append("Career games can't be saved as puzzles.");
+            return null;
+        }
+        long humans = game.getPlayers().values().stream().filter(Player::isHuman).count();
+        if (humans != 1 || !player.isHuman() || game.getPlayers().size() != 2) {
+            problem.append("A puzzle is a duel against the computer.");
+            return null;
+        }
+        if (game.hasEnded() || !player.isInGame()) {
+            problem.append("The game is over.");
+            return null;
+        }
+        java.util.concurrent.CompletableFuture<mage.server.solo.PuzzleKit.PuzzleExport> export = new java.util.concurrent.CompletableFuture<>();
+        player.queueGameThreadAction(g -> {
+            try {
+                export.complete(mage.server.solo.PuzzleKit.capture(g, playerId, name, text, objective));
+            } catch (Throwable e) {
+                export.completeExceptionally(e);
+            }
+        });
+        return export;
+    }
+
+    /**
+     * A copy of the game for the advisor to think on, taken on the game thread the next time the user's player is
+     * asked something (they are, while they wait to act). Only for the one human in a game against the computer,
+     * outside Career.
+     *
+     * @param playerIdOut receives the user's player id
+     * @return the copy to come, or null with why not in {@code problem}
+     */
+    public java.util.concurrent.CompletableFuture<Game> copyForAdvice(UUID userId, UUID[] playerIdOut, StringBuilder problem) {
+        UUID playerId = getPlayerId(userId);
+        Player player = playerId == null ? null : game.getPlayer(playerId);
+        if (player == null) {
+            problem.append("You aren't playing in this game.");
+            return null;
+        }
+        mage.server.career.CareerService.CareerTable career = mage.server.career.CareerService.get().tableInfo(tableId);
+        if (career != null) {
+            if (!career.allowsAssists()) {
+                problem.append("Puzzles and trials are tests of their own: no hints here.");
+                return null;
+            }
+            if (career.hintsUsed >= mage.server.career.CareerService.HINTS_PER_GAME) {
+                problem.append("You've used this game's " + mage.server.career.CareerService.HINTS_PER_GAME + " hints.");
+                return null;
+            }
+        }
+        long humans = game.getPlayers().values().stream().filter(Player::isHuman).count();
+        if (humans != 1 || !player.isHuman()) {
+            problem.append("Advice only works in a game against the computer.");
+            return null;
+        }
+        if (game.hasEnded() || !player.isInGame()) {
+            problem.append("The game is over.");
+            return null;
+        }
+        playerIdOut[0] = playerId;
+        java.util.concurrent.CompletableFuture<Game> copy = new java.util.concurrent.CompletableFuture<>();
+        player.queueGameThreadAction(g -> {
+            try {
+                copy.complete(g.createSimulationForAI());
+            } catch (Throwable e) {
+                copy.completeExceptionally(e);
+            }
+        });
+        return copy;
+    }
+
     public void cheatShow(UUID playerId) {
         mage.server.career.CareerTally.taint(game.getId(), "a cheat was used");
         Player player = game.getPlayer(playerId);
@@ -1684,6 +1769,10 @@ public class GameController implements GameCallback {
         }
 
         return fixedAlready;
+    }
+
+    public UUID getGameId() {
+        return game.getId();
     }
 
     public UUID getTableId() {
