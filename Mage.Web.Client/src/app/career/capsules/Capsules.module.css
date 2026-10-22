@@ -482,14 +482,16 @@
   inset: 0;
   z-index: var(--z-overlay, 50);
   display: grid;
-  place-items: center;
-  overflow: hidden;
+  place-items: safe center;
+  /* a step taller than a short screen scrolls instead of losing its button */
+  overflow: hidden auto;
   color: var(--ink-strong);
   outline: none;
 }
 
 .seqBackdrop {
-  position: absolute;
+  /* fixed, so it still covers everything when the sequence scrolls */
+  position: fixed;
   inset: 0;
   background:
     radial-gradient(60% 50% at 50% 55%, color-mix(in srgb, var(--capsule) 22%, transparent), transparent 70%),
@@ -551,7 +553,8 @@
 }
 
 .seqCabinet {
-  width: min(320px, 70vw, 52vh);
+  /* the cabinet is 2:3; the prompt and its button stay on screen under it */
+  width: min(320px, 70vw, calc((100dvh - 180px) * 2 / 3));
 }
 
 /* the capsule that drops from the chute and rolls to the front */
@@ -724,7 +727,8 @@
 .revealArt {
   position: relative;
   display: block;
-  width: min(340px, 72vw, 50vh);
+  /* a card is 63:88; its name and the button stay on screen under it */
+  width: min(340px, 72vw, calc((100dvh - 250px) * 63 / 88));
   aspect-ratio: 63 / 88;
   overflow: hidden;
   border-radius: 4.5%;
@@ -810,7 +814,8 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
-  width: min(760px, 92vw);
+  /* two rows of cards, short enough for the prompt and Open all to stay on screen */
+  width: min(760px, 92vw, calc((100dvh - 190px) / 2 * 63 / 88 * 5 + 56px));
   margin: 0;
   padding: 0;
   list-style: none;
@@ -965,7 +970,7 @@
 
 .goldCapsule {
   position: relative;
-  margin-top: 96px;
+  margin-top: min(96px, 14dvh);
   display: grid;
   place-items: center;
   animation: gold 1.2s cubic-bezier(0.2, 1.4, 0.4, 1) both, glow 2.4s ease-in-out 1.2s infinite;
@@ -1044,5 +1049,41 @@
   .goldPet,
   .sleeveRow li {
     animation: none;
+  }
+}
+
+/* a short landscape screen (a handheld): the board beside a small cabinet, its pull buttons next to it, all in view */
+@media (max-height: 560px) and (min-width: 600px) {
+  .screen {
+    gap: var(--space-3);
+  }
+
+  .wallet {
+    padding: 8px 14px;
+  }
+
+  .earn {
+    display: none;
+  }
+
+  .machineView {
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .machineStage {
+    position: sticky;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .bigCabinet {
+    width: 120px;
+  }
+
+  .pulls {
+    width: auto;
   }
 }

@@ -356,6 +356,29 @@
   }
 }
 
+/* a short landscape screen: a slimmer header leaves the screen its height */
+@media (max-height: 560px) {
+  .hud {
+    padding-top: calc(var(--stitch-inset) + var(--space-2));
+    padding-bottom: var(--space-2);
+    row-gap: var(--space-2);
+  }
+
+  .back {
+    height: 36px;
+  }
+
+  .coin,
+  .wild,
+  .packs {
+    height: 28px;
+  }
+
+  .identity {
+    zoom: 0.7;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .back,
   .ringFill {
