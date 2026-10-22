@@ -1364,7 +1364,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-banner"
+        }
       },
       {
         "target": 400,
@@ -1407,7 +1411,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-trail"
+        }
       },
       {
         "target": 400,
@@ -1450,7 +1458,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-clockwork"
+        }
       },
       {
         "target": 400,
@@ -1493,7 +1505,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-archive"
+        }
       },
       {
         "target": 400,
@@ -1536,7 +1552,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-vault"
+        }
       },
       {
         "target": 400,
@@ -1579,7 +1599,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-market"
+        }
       },
       {
         "target": 400,
@@ -1622,7 +1646,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-war-table"
+        }
       },
       {
         "target": 400,
@@ -1665,7 +1693,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-arena"
+        }
       },
       {
         "target": 400,
@@ -1708,7 +1740,11 @@
         "target": 150,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-draft"
+        }
       },
       {
         "target": 400,
@@ -2983,7 +3019,11 @@
         "target": 15,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-mana-well"
+        }
       },
       {
         "target": 25,
@@ -3022,7 +3062,11 @@
         "target": 40,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-anvil"
+        }
       },
       {
         "target": 80,
@@ -3061,7 +3105,11 @@
         "target": 9,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-stormsea"
+        }
       },
       {
         "target": 13,
@@ -3135,7 +3183,11 @@
         "target": 35,
         "coins": 100,
         "xp": 150,
-        "points": 25
+        "points": 25,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-book-tower"
+        }
       },
       {
         "target": 60,
@@ -3344,7 +3396,11 @@
         "target": 100,
         "coins": 150,
         "xp": 250,
-        "points": 50
+        "points": 50,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-summit"
+        }
       }
     ]
   },
@@ -3422,7 +3478,11 @@
         "target": 365,
         "coins": 150,
         "xp": 250,
-        "points": 50
+        "points": 50,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-sun-moon"
+        }
       }
     ]
   },
@@ -3461,7 +3521,11 @@
         "target": 60000,
         "coins": 150,
         "xp": 250,
-        "points": 50
+        "points": 50,
+        "cosmetic": {
+          "kind": "sleeve",
+          "id": "scene-hourglass"
+        }
       }
     ]
   },

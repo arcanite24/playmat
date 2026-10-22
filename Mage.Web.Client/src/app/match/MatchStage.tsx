@@ -67,7 +67,7 @@ import { Vfx } from './Vfx';
 import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
-import { arrowTints, landSetOf, lookCloth, pairsOf, sparkColorOf, stampOf, theirClothBox } from './touches';
+import { arrowTints, landStyleKey, lookCloth, pairsOf, sparkColorOf, stampOf, theirClothBox } from './touches';
 import { LandStyleContext } from '../ui/landStyles';
 import { useCosmetics } from '../ui/cosmeticsCatalog';
 import { usePlayerLooks } from '../support/supportData';
@@ -436,7 +436,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // keyed by text, so a new game view doesn't hand the effects and every card a new lookup (the catalog arriving
   // changes the text)
   const sparkKey = seated.map((one) => `${one.player.playerId}=${sparkColorOf(lookOf(one.player)) ?? ''}`).join(',');
-  const landKey = seated.map((one) => `${one.player.playerId}=${landSetOf(lookOf(one.player)) ?? ''}`).join(',');
+  const landKey = seated.map((one) => `${one.player.playerId}=${landStyleKey(lookOf(one.player)) ?? ''}`).join(',');
   const sparks = useMemo(() => pairsOf(sparkKey), [sparkKey]);
   const landStyleOf = useMemo(() => {
     const lands = pairsOf(landKey);
