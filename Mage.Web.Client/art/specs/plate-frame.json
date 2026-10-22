@@ -1,0 +1,78 @@
+{
+  "$comment": "Plate frames (catalog kind frame, PlateFrame.tsx): an earned ring drawn round a player's avatar disc on plates, profiles and the locker. After slicing, run `python3 art/fit_rings.py public/career-art/plate-frame/*.webp` so every ring's hole is the same share of the picture (the share LookParts.module.css .framePainted assumes).",
+  "out": "public/career-art/plate-frame",
+  "grid": {
+    "cols": 4,
+    "rows": 4,
+    "canvas": "square"
+  },
+  "size": "512x512",
+  "pad": 0.02,
+  "anchors": [
+    "refs/achievement/anchor.png"
+  ],
+  "style": "Avatar frame rings seen straight on, perfectly circular and symmetrical where the subject allows: a decorative ring printed in the accent ink the subject names (a flat solid letterpress ink with its speckle), with fine carved detail in ivory ink. Its centre is a large EMPTY round hole (fully transparent, nothing inside it) whose width is about 70% of the whole piece, so a portrait can show through; the ring and its ornaments live in the band outside the hole and never cross into it. Every ring is the same overall size and fills about 90% of its cell.",
+  "spare": "a plain thin ivory ring with an empty centre",
+  "items": [
+    {
+      "id": "frame-bronze",
+      "subject": "accent ink #9a6a3a for the ring; a plain sturdy ring with round rivets spaced evenly around it"
+    },
+    {
+      "id": "frame-silver",
+      "subject": "accent ink #aab0b8 for the ring; a double ring with a fine engraved band between the two rims"
+    },
+    {
+      "id": "frame-gold",
+      "subject": "accent ink #d0a640 for the ring; a double ring engraved with a running laurel, four small round gems at the compass points"
+    },
+    {
+      "id": "frame-ember",
+      "subject": "accent ink #d0602a for the ring; a ring of licking flames rising outward all the way round"
+    },
+    {
+      "id": "frame-mythic",
+      "subject": "accent ink #e07a2a for the ring; a radiant ring with long and short sunburst spikes all round, alternating"
+    },
+    {
+      "id": "frame-laurel",
+      "subject": "accent ink #8aa060 for the ring; a wreath of laurel leaves meeting at the bottom with a small bow"
+    },
+    {
+      "id": "frame-thorn",
+      "subject": "accent ink #5a7a3a for the ring; twisting brambles with sharp thorns pointing outward"
+    },
+    {
+      "id": "frame-tide",
+      "subject": "accent ink #3a8ab0 for the ring; a ring of curling breaking waves chasing each other round"
+    },
+    {
+      "id": "frame-storm",
+      "subject": "accent ink #6a7ab0 for the ring; a ring of storm clouds with short forked lightning bolts striking outward"
+    },
+    {
+      "id": "frame-grove",
+      "subject": "accent ink #4a8a4a for the ring; woven branches with small leaves and acorns"
+    },
+    {
+      "id": "frame-star",
+      "subject": "accent ink #c0b0f0 for the ring; a ring of small five-pointed stars with thin rays between them, a crescent moon at the top"
+    },
+    {
+      "id": "frame-rune",
+      "subject": "accent ink #7a60a0 for the ring; a ring carved with geometric notches and dots (abstract patterns, never letters or runes that read as text)"
+    },
+    {
+      "id": "frame-crown",
+      "subject": "accent ink #e0b040 for the ring; a jewelled ring with a small crown sitting on top of it"
+    },
+    {
+      "id": "frame-chain",
+      "subject": "accent ink #8a8a8a for the ring; interlocking oval chain links all the way round"
+    },
+    {
+      "id": "frame-sun",
+      "subject": "accent ink #e0a030 for the ring; a ring of short sun rays with four small sun discs at the compass points"
+    }
+  ]
+}

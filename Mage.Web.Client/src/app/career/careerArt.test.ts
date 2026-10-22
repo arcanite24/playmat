@@ -16,7 +16,7 @@ const OTHER_SPECS: { spec: string; out: string }[] = [
 ];
 const otherSpec = (name: string): string[] => read(`art/specs/${name}.json`).items.map((item: { id: string }) => item.id);
 
-const KINDS: ArtKind[] = ['achievement', 'reward', 'frame', 'avatar', 'portrait', 'crest', 'sleeve', 'playmat', 'companion', 'sticker', 'stamp'];
+const KINDS: ArtKind[] = ['achievement', 'reward', 'frame', 'avatar', 'portrait', 'crest', 'sleeve', 'playmat', 'companion', 'sticker', 'stamp', 'plate-frame'];
 const REWARDS: RewardArt[] = [
   'coins', 'xp', 'wildcard-common', 'wildcard-uncommon', 'wildcard-rare', 'wildcard-mythic', 'pack', 'title', 'achievement', 'level',
   'graduate', 'unlock', 'lock', 'secret', 'sleeve', 'playmat',
@@ -47,6 +47,7 @@ describe('painted art', () => {
     expect(missing('playmat', 'playmat')).toEqual([]);
     expect(missing('pet', 'companion')).toEqual([]);
     expect(missing('stamp', 'stamp')).toEqual([]);
+    expect(missing('frame', 'plate-frame')).toEqual([]);
     // the free table-talk phrases are words, not pictures
     const stickers = catalog.filter((item) => item.kind === 'emote' && !item.free).flatMap((item) => item.stickers ?? []).map((sticker) => sticker.id!);
     expect(stickers.filter((id) => !spec('sticker').includes(id))).toEqual([]);

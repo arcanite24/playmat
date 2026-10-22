@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useCatalogItem } from '../ui/cosmeticsCatalog';
+import { artUrl, usePaintedArt } from './careerArt';
 import { frameLook, frameShapes, type FrameShape } from './frameModel';
 import styles from './LookParts.module.css';
 
@@ -7,10 +8,24 @@ function paint(shape: FrameShape, ring: string, accent: string): string {
   return shape.paint === 'ring' ? ring : accent;
 }
 
-/** An earned plate frame (B296) round its child, an avatar disc; anything else (no frame, the supporter ring) draws nothing. */
+/**
+ * An earned plate frame (B296) round its child, an avatar disc; anything else (no frame, the supporter ring) draws
+ * nothing. With painted art on it's the frame's painted ring (art/specs/plate-frame.json), else, or when the picture
+ * won't load, the ring drawn here from its style.
+ */
 export function PlateFrame({ frame, children, className }: { frame: string | null | undefined; children: ReactNode; className?: string }) {
   const look = frameLook(useCatalogItem('frame', frame));
-  if (!look) return <>{children}</>;
+  const paintedArt = usePaintedArt();
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!look || !frame) return <>{children}</>;
+  if (paintedArt && failed !== frame) {
+    return (
+      <span className={[styles.frame, className ?? ''].join(' ')} data-frame={look.style}>
+        {children}
+        <img className={styles.framePainted} src={artUrl('plate-frame', frame)} alt="" draggable={false} onError={() => setFailed(frame)} />
+      </span>
+    );
+  }
   return (
     <span className={[styles.frame, className ?? ''].join(' ')} data-frame={look.style}>
       {children}
