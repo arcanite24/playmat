@@ -17,6 +17,18 @@
   filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.55));
 }
 
+/* a painted ring: every picture's hole is 34% of it (art/fit_rings.py); drawn at 236% of the avatar the hole is 80% of
+   the disc, so the ring's inner band lies over the disc's rim and the ornate rings stay near the drawn ones' size */
+.framePainted {
+  position: absolute;
+  inset: -68%;
+  width: 236%;
+  height: 236%;
+  max-width: none;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.55));
+}
+
 /* the showcase: up to three small discs, each rimmed in its tier's colour */
 .badges {
   display: inline-flex;
