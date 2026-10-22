@@ -9,6 +9,12 @@ const client = new URL('../../../', import.meta.url);
 const read = (path: string) => JSON.parse(readFileSync(new URL(path, client), 'utf8'));
 const spec = (kind: ArtKind): string[] => read(`art/specs/${kind}.json`).items.map((item: { id: string }) => item.id);
 const painted = (kind: ArtKind, id: string) => existsSync(new URL(`public/career-art/${kind}/${id}.webp`, client));
+// specs that draw into another type's folder: illustrated sleeves are sleeves; painted lands have their own folder
+const OTHER_SPECS: { spec: string; out: string }[] = [
+  { spec: 'sleeve-scene', out: 'sleeve' },
+  { spec: 'land', out: 'land' },
+];
+const otherSpec = (name: string): string[] => read(`art/specs/${name}.json`).items.map((item: { id: string }) => item.id);
 
 const KINDS: ArtKind[] = ['achievement', 'reward', 'frame', 'avatar', 'portrait', 'crest', 'sleeve', 'playmat', 'companion', 'sticker', 'stamp', 'plate-frame'];
 const REWARDS: RewardArt[] = [
@@ -21,6 +27,10 @@ describe('painted art', () => {
     expect(spec(kind).filter((id) => !painted(kind, id))).toEqual([]);
   });
 
+  test.each(OTHER_SPECS)('every item of $spec has its picture', ({ spec: name, out }) => {
+    expect(otherSpec(name).filter((id) => !existsSync(new URL(`public/career-art/${out}/${id}.webp`, client)))).toEqual([]);
+  });
+
   test('every Career achievement, cosmetic and school has its picture', () => {
     const achievements: { id: string }[] = read('../Mage.Server/src/main/resources/career/achievements.json');
     expect(achievements.map((item) => item.id).filter((id) => !spec('achievement').includes(id))).toEqual([]);
@@ -29,7 +39,11 @@ describe('painted art', () => {
     const ids = (kind: string) => catalog.filter((item) => item.kind === kind).map((item) => item.id!);
     const missing = (kind: string, art: ArtKind) => ids(kind).filter((id) => !spec(art).includes(id));
     expect(missing('avatar', 'avatar')).toEqual([]);
-    expect(missing('sleeve', 'sleeve')).toEqual([]);
+    expect(ids('sleeve').filter((id) => !spec('sleeve').includes(id) && !otherSpec('sleeve-scene').includes(id))).toEqual([]);
+    // a painted land style (no set code) has a card for each basic
+    const basics = ['plains', 'island', 'swamp', 'mountain', 'forest'];
+    const paintedLands = catalog.filter((item) => item.kind === 'land' && !item.set).flatMap((item) => basics.map((basic) => `${item.id}-${basic}`));
+    expect(paintedLands.filter((id) => !otherSpec('land').includes(id))).toEqual([]);
     expect(missing('playmat', 'playmat')).toEqual([]);
     expect(missing('pet', 'companion')).toEqual([]);
     expect(missing('stamp', 'stamp')).toEqual([]);

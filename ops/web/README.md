@@ -271,7 +271,11 @@ stamps and basic land styles), each with its English and Spanish name, rarity an
 `careerCosmetics`. Where an item comes from is read from the content that gives it (`levels.json`, `achievements.json`,
 the campaigns), or from its own `mastery` and `rank` for mastery rewards; a test fails when an item comes from nowhere
 or the content gives an item the catalog lacks. The supporters' thank-you set stays outside it. Painted pictures come
-from the art pipeline (`Mage.Web.Client/art`, `node art/generate.mjs <type>`). Achievements (`achievements.json`) are
+from the art pipeline (`Mage.Web.Client/art`, `node art/generate.mjs <type>`). A basic land style with a `set` swaps
+in that set's full-art basics (the printings are listed in `src/app/ui/landStyles.ts`); a style without one is painted
+by Playmat (`art/specs/land.json`, one card per basic at `public/career-art/land/<style>-<basic>.webp`, with the name
+printed by the app). Illustrated sleeves (`art/specs/sleeve-scene.json`) are ordinary sleeves with a fuller back.
+Achievements (`achievements.json`) are
 single or tiered: a tiered row has bronze, silver, gold and mythic targets, each with its own pay and points, stored as
 `<id>:<tier>`. Points add up to named ranks, and anyone can see how many players have each tier in the achievement
 hall. On the first start after this update, the server credits each player's games from the table records it already

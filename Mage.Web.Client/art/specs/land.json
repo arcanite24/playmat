@@ -1,0 +1,98 @@
+{
+  "$comment": "Painted basic lands (land styles in the cosmetics catalog with no set code): five cards per style, drawn in place of a player's basic lands in matches (ui/landStyles.ts). The name is printed by the client in the empty band at the top. Grids are two styles (rows) of five basics. After drawing, run `python3 art/fit_cards.py public/career-art/land/*.webp` to fit each card.",
+  "out": "public/career-art/land",
+  "grid": {
+    "cols": 5,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "360x504",
+  "pad": 0.0,
+  "anchors": [
+    "refs/sleeve/anchor.png"
+  ],
+  "style": "Basic land cards: one upright full-art land card per cell, front view, all the same 5:7 rectangle with slightly rounded corners and straight edges; nothing sticks out past the card's edge. The whole card is ONE flat solid field of the accent ink named by the subject (the land's colour, printed like a solid letterpress block, with its speckle), with a thin ivory border inset from the edge, and the subject's scene carved in ivory filling the card inside that border. Across the top, just inside the border, leave a plain empty name band about one ninth of the card's height: a thin ivory outline around a strip of plain accent ink with NOTHING inside it (no marks, no symbols, no letters). No other text anywhere. Each row of the grid is one style; keep the five cards of a row clearly one family. Each card fills about 90% of its cell's height.",
+  "spare": "a land card in deep green-black accent ink with a thin ivory border and an empty name band",
+  "items": [
+    {
+      "id": "vista-plains",
+      "subject": "accent ink #a88a4a for the whole card; Plains in the \"vista\" set (a wide classic vista filling the card): rolling grassland under a wide sky, a lone tree and a low sun on the horizon"
+    },
+    {
+      "id": "vista-island",
+      "subject": "accent ink #2c5a86 for the whole card; Island in the \"vista\" set (a wide classic vista filling the card): a small island with two palms in a calm sea, gentle waves rolling in rows to the horizon"
+    },
+    {
+      "id": "vista-swamp",
+      "subject": "accent ink #3a3046 for the whole card; Swamp in the \"vista\" set (a wide classic vista filling the card): a still bog with crooked dead trees, hanging moss and a few reeds reflected in black water"
+    },
+    {
+      "id": "vista-mountain",
+      "subject": "accent ink #8b3b28 for the whole card; Mountain in the \"vista\" set (a wide classic vista filling the card): a range of jagged peaks with a tall central summit, a winding path climbing toward it"
+    },
+    {
+      "id": "vista-forest",
+      "subject": "accent ink #2e5a38 for the whole card; Forest in the \"vista\" set (a wide classic vista filling the card): a deep wood of tall pines and one broad oak, a trail leading in between the trunks"
+    },
+    {
+      "id": "nightfall-plains",
+      "subject": "accent ink #a88a4a for the whole card; Plains in the \"nightfall\" set (the same kind of land at night: a crescent moon and a few small carved stars in the sky): moonlit fields of tall grass with a lone windmill"
+    },
+    {
+      "id": "nightfall-island",
+      "subject": "accent ink #2c5a86 for the whole card; Island in the \"nightfall\" set (the same kind of land at night: a crescent moon and a few small carved stars in the sky): a lighthouse on a rocky islet over a night sea, its beam drawn as carved rays"
+    },
+    {
+      "id": "nightfall-swamp",
+      "subject": "accent ink #3a3046 for the whole card; Swamp in the \"nightfall\" set (the same kind of land at night: a crescent moon and a few small carved stars in the sky): a sunken ruin in a bog at night, will-o-wisps drawn as small rings over the water"
+    },
+    {
+      "id": "nightfall-mountain",
+      "subject": "accent ink #8b3b28 for the whole card; Mountain in the \"nightfall\" set (the same kind of land at night: a crescent moon and a few small carved stars in the sky): a volcano at night with a thin plume of smoke and sparks"
+    },
+    {
+      "id": "nightfall-forest",
+      "subject": "accent ink #2e5a38 for the whole card; Forest in the \"nightfall\" set (the same kind of land at night: a crescent moon and a few small carved stars in the sky): tall trees at night with an owl on a branch and fireflies as dots"
+    },
+    {
+      "id": "emblem-plains",
+      "subject": "accent ink #a88a4a for the whole card; Plains in the \"emblem\" set (one large iconic emblem centred on the card with a few simple motif lines around it, plenty of plain ink around the emblem): a big sheaf of wheat tied with a cord"
+    },
+    {
+      "id": "emblem-island",
+      "subject": "accent ink #2c5a86 for the whole card; Island in the \"emblem\" set (one large iconic emblem centred on the card with a few simple motif lines around it, plenty of plain ink around the emblem): one great curling wave"
+    },
+    {
+      "id": "emblem-swamp",
+      "subject": "accent ink #3a3046 for the whole card; Swamp in the \"emblem\" set (one large iconic emblem centred on the card with a few simple motif lines around it, plenty of plain ink around the emblem): a skull wreathed in creeping vines"
+    },
+    {
+      "id": "emblem-mountain",
+      "subject": "accent ink #8b3b28 for the whole card; Mountain in the \"emblem\" set (one large iconic emblem centred on the card with a few simple motif lines around it, plenty of plain ink around the emblem): a volcano erupting, drawn as one bold emblem"
+    },
+    {
+      "id": "emblem-forest",
+      "subject": "accent ink #2e5a38 for the whole card; Forest in the \"emblem\" set (one large iconic emblem centred on the card with a few simple motif lines around it, plenty of plain ink around the emblem): a single great oak tree with spreading roots"
+    },
+    {
+      "id": "knotwork-plains",
+      "subject": "accent ink #a88a4a for the whole card; Plains in the \"knotwork\" set (a landscape scene inside an ornate interlaced knotwork border that runs all round the card): a sunrise over a meadow with a winding stream"
+    },
+    {
+      "id": "knotwork-island",
+      "subject": "accent ink #2c5a86 for the whole card; Island in the \"knotwork\" set (a landscape scene inside an ornate interlaced knotwork border that runs all round the card): a ship with full sails between islands"
+    },
+    {
+      "id": "knotwork-swamp",
+      "subject": "accent ink #3a3046 for the whole card; Swamp in the \"knotwork\" set (a landscape scene inside an ornate interlaced knotwork border that runs all round the card): a heron standing among reeds in dark water"
+    },
+    {
+      "id": "knotwork-mountain",
+      "subject": "accent ink #8b3b28 for the whole card; Mountain in the \"knotwork\" set (a landscape scene inside an ornate interlaced knotwork border that runs all round the card): twin peaks with a waterfall between them"
+    },
+    {
+      "id": "knotwork-forest",
+      "subject": "accent ink #2e5a38 for the whole card; Forest in the \"knotwork\" set (a landscape scene inside an ornate interlaced knotwork border that runs all round the card): a stag standing between birch trunks"
+    }
+  ]
+}

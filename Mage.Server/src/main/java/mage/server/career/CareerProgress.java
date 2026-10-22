@@ -224,6 +224,8 @@ public final class CareerProgress {
         public int xp;
         public int points;
         public CareerCosmetic cosmetic;
+        /** what this tier asks ("Cast 1,000 spells."); null for a secret achievement's tier not yet earned */
+        public String text;
         /** when it was earned; 0 when not yet */
         public long at;
         /** accounts that have this tier */
@@ -1211,6 +1213,9 @@ public final class CareerProgress {
             tierView.points = step.points;
             tierView.cosmetic = step.cosmetic;
             tierView.at = at == null ? 0 : at;
+            if (at != null || !template.secret) {
+                tierView.text = text(template, step.target);
+            }
             view.tiers.add(tierView);
             view.pointsTotal += step.points;
             if (at != null) {

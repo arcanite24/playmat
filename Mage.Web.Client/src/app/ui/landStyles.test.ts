@@ -33,4 +33,13 @@ describe('styledLand', () => {
     expect(landStylist(forest)).toBe('p1');
     expect(landStylist({ controllerId: 'p2' })).toBe('p2');
   });
+
+  test("a painted style gives a basic land Playmat's own card, and leaves everything else", () => {
+    expect(styledLand(forest, 'painted:vista').paintedLand).toBe('/career-art/land/vista-forest.webp');
+    // the printing is untouched, so with painted art off the land draws as printed
+    expect(styledLand(forest, 'painted:vista').expansionSetCode).toBe('M21');
+    const wastes = { id: 'w', name: 'Wastes', expansionSetCode: 'OGW', cardNumber: '183a' };
+    expect(styledLand(wastes, 'painted:vista')).toBe(wastes);
+    expect(styledLand({ ...forest, isToken: true }, 'painted:vista').paintedLand).toBeUndefined();
+  });
 });

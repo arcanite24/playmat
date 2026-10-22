@@ -10,6 +10,7 @@ import { useSettings } from '../stores/settings';
 import { useThankYou, type ThankYou } from '../support/supportData';
 import { CardFace } from '../ui/CardFace';
 import { catalogName, catalogOf, rarityOf, RARITY_COLORS, useCatalog, type CatalogKind } from '../ui/cosmeticsCatalog';
+import { LandStyleContext, PAINTED_STYLE } from '../ui/landStyles';
 import { Art } from './Art';
 import { useCareerAchievements, useCareerLevels, useCareerLook, type CareerLook } from './careerData';
 import { CareerAvatar } from './CareerScreen';
@@ -448,6 +449,18 @@ function SetMark({ set }: { set?: string }) {
   return <img className={styles.setSymbol} src={`https://svgs.scryfall.io/sets/${set.toLowerCase()}.svg`} alt="" decoding="async" loading="lazy" onError={() => setFailed(true)} />;
 }
 
+/** A painted land style's Forest, as the table will see it. */
+function PaintedLand({ style }: { style: string }) {
+  const styleOf = useMemo(() => () => `${PAINTED_STYLE}${style}`, [style]);
+  return (
+    <span className={styles.sleeve}>
+      <LandStyleContext.Provider value={styleOf}>
+        <CardFace card={{ name: 'Forest', ownerId: 'you' }} size="normal" />
+      </LandStyleContext.Provider>
+    </span>
+  );
+}
+
 function LandShelf({ shelf, catalog }: ShelfProps) {
   const t = useT();
   return (
@@ -458,7 +471,7 @@ function LandShelf({ shelf, catalog }: ShelfProps) {
         </PlainTile>
         {shelfOrder(shelf, catalogOf('land', catalog)).map((item) => (
           <Tile key={item.id} shelf={shelf} item={item} on={shelf.look.lands === item.id} onPick={() => choose(shelf, { lands: item.id })}>
-            <SetMark set={item.set} />
+            {item.set ? <SetMark set={item.set} /> : <PaintedLand style={item.id!} />}
           </Tile>
         ))}
       </div>

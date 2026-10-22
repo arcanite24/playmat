@@ -1,0 +1,82 @@
+{
+  "$comment": "Illustrated Career sleeves: earned card backs like art/specs/sleeve.json, but a whole carved scene instead of one emblem. They are catalog sleeves (kind sleeve) and go to the same folder, so they draw like any sleeve. After drawing, run `python3 art/fit_cards.py public/career-art/sleeve/<ids>.webp`.",
+  "out": "public/career-art/sleeve",
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "360x504",
+  "pad": 0.0,
+  "anchors": [
+    "refs/sleeve/anchor.png"
+  ],
+  "style": "Illustrated card backs: one upright card back per cell, front view, all the same 5:7 rectangle with slightly rounded corners and straight edges; nothing sticks out past the card's edge. The whole card is ONE flat solid field of the accent ink named by the subject (printed like a solid letterpress block, with its speckle), with an ornamental ivory border inset from the edge, and inside it a whole carved ivory scene that fills the card: richer and more detailed than a single emblem, still bold enough to read at small size. Symmetrical where the scene allows, since a back is also seen upside down across the table. It must read as an original premium card back, never as any existing trading card game's back: no oval frame around a logo, no five coloured dots, no banner with a word. Each card fills about 90% of its cell's height.",
+  "spare": "an illustrated card back in deep green-black accent ink with an ornamental ivory border and a carved ivory compass rose",
+  "items": [
+    {
+      "id": "scene-banner",
+      "subject": "accent ink #34466b for the whole card; scene: a great hall hung with long banners, an arch of columns framing them"
+    },
+    {
+      "id": "scene-trail",
+      "subject": "accent ink #7d5626 for the whole card; scene: a covered wagon on a trail winding toward distant mountains under a big sun"
+    },
+    {
+      "id": "scene-clockwork",
+      "subject": "accent ink #3d4f57 for the whole card; scene: a city skyline of towers and gears with one great clock face in the centre"
+    },
+    {
+      "id": "scene-archive",
+      "subject": "accent ink #5c2e24 for the whole card; scene: an old library: tall shelves of books in an arch, a lectern with an open book"
+    },
+    {
+      "id": "scene-vault",
+      "subject": "accent ink #5e4a14 for the whole card; scene: a round vault door with radiating bolts, five small gems set in a ring on it"
+    },
+    {
+      "id": "scene-market",
+      "subject": "accent ink #55603a for the whole card; scene: a market square with striped awnings and one large coin hung above it as a sign"
+    },
+    {
+      "id": "scene-war-table",
+      "subject": "accent ink #4e2246 for the whole card; scene: a war table seen from above: a map, a crown in the centre and four candles at the corners"
+    },
+    {
+      "id": "scene-arena",
+      "subject": "accent ink #742a20 for the whole card; scene: a round arena of stone tiers with two crossed swords over its centre"
+    },
+    {
+      "id": "scene-draft",
+      "subject": "accent ink #2a5560 for the whole card; scene: a table seen from above with cards fanned in a circle around a single upturned card"
+    },
+    {
+      "id": "scene-mana-well",
+      "subject": "accent ink #26406e for the whole card; scene: a stone well overflowing with water that spirals up into five droplets"
+    },
+    {
+      "id": "scene-anvil",
+      "subject": "accent ink #49301f for the whole card; scene: a hammer striking an anvil, sparks drawn as bold carved rays"
+    },
+    {
+      "id": "scene-stormsea",
+      "subject": "accent ink #1e3a4a for the whole card; scene: a storm over a rolling sea: forked lightning from heavy clouds onto tall waves"
+    },
+    {
+      "id": "scene-book-tower",
+      "subject": "accent ink #3f2f52 for the whole card; scene: a tower built of stacked books rising to a single star"
+    },
+    {
+      "id": "scene-summit",
+      "subject": "accent ink #38506a for the whole card; scene: a lone banner planted on a mountain summit above a sea of clouds"
+    },
+    {
+      "id": "scene-sun-moon",
+      "subject": "accent ink #6a4c2a for the whole card; scene: the sun and the moon facing each other in one circle, split down the middle, with stars on the moon side"
+    },
+    {
+      "id": "scene-hourglass",
+      "subject": "accent ink #2d3f36 for the whole card; scene: a great hourglass inside a wheel of twelve spokes, sand drawn as dots"
+    }
+  ]
+}
