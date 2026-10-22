@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Coins, Gift, GraduationCap, Package, Sparkles, Trophy, Unlock } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import type { CareerGameResult } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { formatNumber, registerMessages, useT } from '../i18n';
@@ -18,6 +18,7 @@ import { DoneMark, ProgressBar, WeeklyGoal } from './CareerScreen';
 import { Art } from './Art';
 import { dealStyle, useCountUp, useSequence, useStill } from './motion';
 import { PortraitCard, type ArtCard } from './Portraits';
+import { TokenIcon } from './capsules/TokenIcon';
 import { describePay, describeReward, fetchResult, fraction, momentLine, resultIsEmpty, resultTier, rewardParts, safeBack, xpSweep } from './progressModel';
 import motion from './motion.module.css';
 import modeStyles from './CareerModes.module.css';
@@ -204,6 +205,13 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
             <Art kind="reward" id="xp" size={36} fallback={<Sparkles size={22} aria-hidden="true" />} />
             <b>+{t('career.reward.xp', { xp: result.xp ?? 0 })}</b>
           </span>
+          {(result.tokens ?? 0) > 0 && (
+            <Link to="/career/capsules" className={styles.coins} title={t('capsules.hud', { count: result.tokens ?? 0 })}>
+              <TokenIcon size={34} />
+              <b>+{result.tokens}</b>
+              <span className={styles.srOnly}>{t('capsules.hud', { count: result.tokens ?? 0 })}</span>
+            </Link>
+          )}
         </div>
       )}
 

@@ -47,6 +47,18 @@ public final class CareerRewards {
         List<Integer> masteryRankGames = Collections.emptyList();
         int masteryRankXp;
         int masteryRankCoins;
+        Capsules capsules = new Capsules();
+    }
+
+    /** Capsule tokens (B314): what one costs in coins and what earns them. They never expire and have no cap. */
+    public static class Capsules {
+        public int tokenPrice = 120;
+        public int firstWinTokens = 1;
+        public int weeklyGoalTokens = 3;
+        public int levelTokens = 1;
+        public int levelTokensEvery = 5;
+        /** by achievement tier, bronze first */
+        public List<Integer> tierTokens = Arrays.asList(0, 0, 1, 2);
     }
 
     static class EventPrizes {
@@ -88,6 +100,10 @@ public final class CareerRewards {
         } catch (IOException e) {
             throw new IllegalStateException("rewards.json can't be read: " + e.getMessage(), e);
         }
+    }
+
+    public Capsules capsules() {
+        return file.capsules == null ? new Capsules() : file.capsules;
     }
 
     public int turnFloor() {

@@ -288,6 +288,45 @@ An account's page under Accounts shows its progression: level, XP, coins, the la
 why, and who it hit the daily pair cap with in the last 14 days. Admins can take back what a game paid (XP and coins,
 never below zero coins); it goes in the audit log as `career.revoke`.
 
+### Capsule machines
+
+Capsules are Career's gachapon (`career/machines/`): a player spends a **capsule token** on a machine and gets a
+random cosmetic from it that they don't own yet, so a machine of 50 takes exactly 50 tokens to finish and never gives a
+duplicate. Machines come in waves. `machines/index.json` lists each machine file with its wave, and the shop shows the
+newest wave first, with how many capsules each machine has left for the player.
+
+A machine is ten sets of five. Finishing a set gives that set's sleeve, and finishing the machine gives its reward and
+title (`reward` and `title`, which must be in `cosmetics.json`). Wave 1 is **Full Art**: card styles, painted whole-card
+art for a staple with no frame and no text. A player wears one style per card name from the locker's Card styles tab,
+and everyone at the table sees it unless they choose otherwise under Settings, Display (all styles, only mine, or none).
+Players can hold Alt, or use the card detail's button, to see the printed card. Styles are kept in `career.db`
+(`card_styles`), along with the token log (`token_log`) and the pulls (`pulls`), and they travel with Career's
+export and import.
+
+Tokens come from the first win of the day, each weekly goal step, every fifth level and an achievement's gold and
+mythic tiers. Players can also buy them for coins (120 each, in bundles of 1, 5 and 10). They have no cap and don't
+expire. The numbers are the `capsules` block in `rewards.json`. `ProgressionBalanceTest` prints tokens with the rest
+of the sheet: a regular player earns about 47 in the first month, roughly one machine every four to five weeks before
+spending coins.
+
+To add a machine:
+
+1. Write `career/machines/<id>.json` like `full-art.json`. For each set give its id, English and Spanish names, a capsule
+   colour, a style line for the painter, and five items (`<set>-<slug>` ids, each naming a real single-faced card).
+   Every card appears once.
+2. Add it to `index.json` with the next wave number.
+3. List two to four real Magic paintings per set in `art/style-refs.json` (`<set code>/<collector number>`). They steer
+   the medium and finish. `art/.refs` keeps them git-ignored, and they never ship.
+4. Paint it: `node art/machine-specs.mjs <id>` writes one spec per set (`art/specs/style-<set>.json`, five cards and the set
+   sleeve). Then `WAVESPEED_API_KEY=... node art/wavespeed.mjs style-<set>` draws each picture with Nano Banana 2.1 into
+   `public/career-art/cardstyle/<set>/` and `public/career-art/sleeve/set-<set>.webp`. The set's first card is a
+   reference for the rest. Answers and prompts are kept in `art/.wavespeed/`. Redraw one with `--only <id> --force`.
+5. Run `CareerCapsulesTest`. It checks the content: ten sets of five, real cards, no repeats, every picture present and
+   every reward in the catalog.
+
+The `cardstyle` kind is the only one the shop deals in today. A machine of another kind (sleeves, playmats) needs the
+client to know how to show its items.
+
 ### Single player
 
 The Single player tab shows the batch runner (games playing now, each player's daily quota, the queue; staff can cancel a batch) and the content packs.

@@ -4,6 +4,8 @@ import { isStackAbility } from '../../core/game/cards';
 import { AbilityCard } from '../ui/AbilityCard';
 import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
+import { useCardStyle } from '../ui/cardStyles';
+import { PromptText } from '../ui/PromptText';
 import { useMatchUi } from './matchUi';
 import { toStagePoint, useStage } from './stageContext';
 import { lastPointerType } from './useLongPress';
@@ -34,6 +36,8 @@ export function CardZoom({ large = false }: { large?: boolean }) {
 
   // show the hovered card only once the pointer has rested on it
   const shown = zoom && !dragging && settled === zoom ? zoom : null;
+  // a card wearing a card style shows its painting: the rules text goes under it
+  const styled = !!useCardStyle(shown && !isStackAbility(shown.card) ? shown.card as PermanentView : undefined);
   // a card that left its place while hovered (cast from hand, died) never reports the pointer leaving it
   // ...or that changed zone under the same id (a spell becoming a permanent): only the hovered element counts
   const element = shown?.anchor
@@ -44,6 +48,7 @@ export function CardZoom({ large = false }: { large?: boolean }) {
   const card = shown.card as PermanentView;
   const back = card.secondCardFace;
   const extra = details(card);
+  const rules = styled ? (card.rules ?? []).filter((line) => line.trim()) : [];
   const width = large ? LARGE_WIDTH : ZOOM_WIDTH;
   const height = width * (88 / 63);
   const point = toStagePoint(stage, shown.x, shown.y);
@@ -67,6 +72,11 @@ export function CardZoom({ large = false }: { large?: boolean }) {
           <CardFace card={back} face={showsBackFace(card) ? 'front' : 'back'} size="normal" sleeve={shown.sleeve} style={{ width: width * 0.62 }} />
         )}
       </div>
+      {rules.length > 0 && (
+        <ul className={styles.rules}>
+          {rules.map((line) => <li key={line}><PromptText text={line} /></li>)}
+        </ul>
+      )}
       {extra.length > 0 && (
         <ul className={styles.details}>
           {extra.map((line) => <li key={line}>{line}</li>)}

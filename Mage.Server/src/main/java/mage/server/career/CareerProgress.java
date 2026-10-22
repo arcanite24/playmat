@@ -93,6 +93,8 @@ public final class CareerProgress {
         public int xp;
         public int points;
         public CareerCosmetic cosmetic;
+        /** capsule tokens (B314); the tier's place in rewards.json when the file doesn't say */
+        public int tokens;
     }
 
     /** What reaching a level gives. */
@@ -103,6 +105,8 @@ public final class CareerProgress {
         /** a wildcard of this rarity */
         public String wildcard;
         public CareerCosmetic cosmetic;
+        /** capsule tokens (B314): every few levels, by rewards.json */
+        public int tokens;
     }
 
     /** A cosmetic: any kind in the catalog (CareerCosmetics); the catalog says how it looks. */
@@ -205,6 +209,8 @@ public final class CareerProgress {
         public int coins;
         public int xp;
         public CareerCosmetic cosmetic;
+        /** capsule tokens the tier this game reached gave */
+        public int tokens;
         public String family;
         /** tiers earned (0 to 4); for an achievement without tiers, 1 once earned */
         public int tier;
@@ -224,6 +230,7 @@ public final class CareerProgress {
         public int xp;
         public int points;
         public CareerCosmetic cosmetic;
+        public int tokens;
         /** what this tier asks ("Cast 1,000 spells."); null for a secret achievement's tier not yet earned */
         public String text;
         /** when it was earned; 0 when not yet */
@@ -319,6 +326,8 @@ public final class CareerProgress {
         public String text;
         public int xp;
         public int coins;
+        /** capsule tokens (B314) */
+        public int tokens;
 
         public CareerBonus() {
         }
@@ -363,6 +372,8 @@ public final class CareerProgress {
         public CareerWeekly weekly;
         /** free packs this game gave */
         public int packs;
+        /** capsule tokens this game gave (B314) */
+        public int tokens;
         /** opponents' tiers this game opened */
         public List<String> opened = new ArrayList<>();
         /** what a Career mode made of the game; null for a roster duel or a regular game */
@@ -390,6 +401,23 @@ public final class CareerProgress {
         List<CareerLevelReward> levelList = read(gson, "levels.json", new TypeToken<List<CareerLevelReward>>() {
         });
         levelList.forEach(level -> levels.put(level.level, level));
+        // capsule tokens (B314): a level every few, and an achievement's higher tiers, unless the file says otherwise
+        CareerRewards.Capsules capsules = CareerRewards.get().capsules();
+        for (CareerLevelReward level : levels.values()) {
+            if (level.tokens == 0 && capsules.levelTokensEvery > 0 && level.level % capsules.levelTokensEvery == 0) {
+                level.tokens = capsules.levelTokens;
+            }
+        }
+        for (AchievementTemplate achievement : achievements.values()) {
+            if (achievement.tiers != null) {
+                for (int tier = 0; tier < achievement.tiers.size() && tier < capsules.tierTokens.size(); tier++) {
+                    AchievementTier step = achievement.tiers.get(tier);
+                    if (step.tokens == 0) {
+                        step.tokens = capsules.tierTokens.get(tier);
+                    }
+                }
+            }
+        }
     }
 
     private static <T> T read(Gson gson, String name, TypeToken<T> type) throws IOException {
@@ -748,7 +776,13 @@ public final class CareerProgress {
                 int xp = CareerRewards.scaleXp(WEEKLY_GOAL_XP);
                 store.addProfileInt(user, "xp", xp);
                 result.xp += xp;
-                result.bonuses.add(new CareerBonus("Weekly goal: " + after + " wins", xp, 0));
+                CareerBonus bonus = new CareerBonus("Weekly goal: " + after + " wins", xp, 0);
+                bonus.tokens = CareerRewards.get().capsules().weeklyGoalTokens;
+                if (bonus.tokens > 0) {
+                    CareerCapsules.addTokens(store, user, bonus.tokens, "weekly goal", System.currentTimeMillis());
+                    result.tokens += bonus.tokens;
+                }
+                result.bonuses.add(bonus);
             }
             store.maxStat(user, "weekly_best", after);
         }
@@ -885,9 +919,13 @@ public final class CareerProgress {
                 }
                 earned.put(key, now);
                 pay(store, user, step.coins, step.xp, step.cosmetic, now);
+                if (step.tokens > 0) {
+                    CareerCapsules.addTokens(store, user, step.tokens, "achievement " + key, now);
+                }
                 if (result != null) {
                     result.coins += step.coins;
                     result.xp += step.xp;
+                    result.tokens += step.tokens;
                     CareerAchievement view = view(template, earned, value);
                     // the tier this game reached, as the rewards show it
                     view.tier = tier;
@@ -896,6 +934,7 @@ public final class CareerProgress {
                     view.coins = step.coins;
                     view.xp = step.xp;
                     view.cosmetic = step.cosmetic;
+                    view.tokens = step.tokens;
                     result.achievements.add(view);
                 }
             }
@@ -1105,6 +1144,7 @@ public final class CareerProgress {
                 result.levelRewards.add(reward);
                 result.coins += reward.coins;
                 result.packs += reward.packs;
+                result.tokens += reward.tokens;
             }
         }
         if (profile.level > paid) {
@@ -1137,6 +1177,9 @@ public final class CareerProgress {
         }
         if (reward.cosmetic != null) {
             store.addUnlock(user, reward.cosmetic.kind, reward.cosmetic.id, now);
+        }
+        if (reward.tokens > 0) {
+            CareerCapsules.addTokens(store, user, reward.tokens, "level " + reward.level, now);
         }
     }
 
@@ -1212,6 +1255,7 @@ public final class CareerProgress {
             tierView.xp = step.xp;
             tierView.points = step.points;
             tierView.cosmetic = step.cosmetic;
+            tierView.tokens = step.tokens;
             tierView.at = at == null ? 0 : at;
             if (at != null || !template.secret) {
                 tierView.text = text(template, step.target);

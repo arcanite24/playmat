@@ -5,6 +5,7 @@ import messages from '../i18n/en/career';
 import { useCareerDaily, useCareerLevels, useCareerQuests, useCareerState, useCareerWeekly } from './careerData';
 import { describeReward, fraction, rewardParts } from './progressModel';
 import { dailySteps, nextLevelReward, packsPath } from './todayModel';
+import { TokenIcon } from './capsules/TokenIcon';
 import styles from './TodayPanel.module.css';
 
 registerMessages(messages);
@@ -90,6 +91,13 @@ export default function TodayPanel({ onNavigate }: { onNavigate?: () => void }) 
           <button type="button" className={styles.action} onClick={() => go(packsPath(profile))}>
             <Package size={16} aria-hidden="true" />
             <span>{t('career.hud.packs', { count: packs })}</span>
+            <ChevronRight size={16} aria-hidden="true" />
+          </button>
+        )}
+        {(profile.capsuleTokens ?? 0) > 0 && (
+          <button type="button" className={styles.action} onClick={() => go('/career/capsules')}>
+            <TokenIcon size={16} />
+            <span>{t('capsules.today', { count: profile.capsuleTokens ?? 0 })}</span>
             <ChevronRight size={16} aria-hidden="true" />
           </button>
         )}

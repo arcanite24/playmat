@@ -485,6 +485,8 @@
                                 <class>mage.server.career.CareerProgress$CareerHall</class>
                                 <class>mage.server.career.CareerProgress$CareerMoment</class>
                                 <class>mage.server.career.CareerCosmetics$CareerCatalogItem</class>
+                                <class>mage.server.career.CareerCapsules$CareerMachines</class>
+                                <class>mage.server.career.CareerCapsules$CareerPullResult</class>
                                 <class>mage.server.career.CareerCosmetics$CareerSticker</class>
                                 <class>mage.server.career.CareerCosmetics$CareerCosmeticSource</class>
                                 <class>mage.server.game.PlayerEmote</class>

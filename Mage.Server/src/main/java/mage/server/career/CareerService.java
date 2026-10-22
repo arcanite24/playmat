@@ -939,7 +939,13 @@ public final class CareerService {
             if (today[0] == 0 && rewards.firstWinXp() > 0) {
                 store.addProfileInt(user, "xp", rewards.firstWinXp());
                 result.xp += rewards.firstWinXp();
-                result.bonuses.add(new CareerProgress.CareerBonus("First win of the day", rewards.firstWinXp(), 0));
+                CareerProgress.CareerBonus bonus = new CareerProgress.CareerBonus("First win of the day", rewards.firstWinXp(), 0);
+                bonus.tokens = rewards.capsules().firstWinTokens;
+                if (bonus.tokens > 0) {
+                    CareerCapsules.addTokens(store, user, bonus.tokens, "first win of the day", System.currentTimeMillis());
+                    result.tokens += bonus.tokens;
+                }
+                result.bonuses.add(bonus);
             }
         }
         if (person && today[2] == 0 && rewards.firstPersonGameXp() > 0) {
@@ -1358,6 +1364,8 @@ public final class CareerService {
         Map<String, Long> achievements;
         List<String[]> unlocks;
         int levelPaid;
+        // since M29
+        Map<String, String> cardStyles;
     }
 
     /** The account's Career, gone for good (an account deletion). False when it had none. */
@@ -1389,6 +1397,7 @@ public final class CareerService {
         file.achievements = store.achievements(user);
         file.unlocks = store.unlocks(user);
         file.levelPaid = store.profileInt(user, "level_paid");
+        file.cardStyles = store.cardStyles(user);
         String body = Base64.getEncoder().encodeToString(new Gson().toJson(file).getBytes(StandardCharsets.UTF_8));
         return "career1." + body + "." + sign(body, store.secret());
     }
@@ -1451,6 +1460,12 @@ public final class CareerService {
             // levels an old file reached were paid; newer files say so exactly
             store.setProfileInt(user, "level_paid", file.levelPaid > 0 ? file.levelPaid : CareerRules.levelFor(file.profile.xp));
             store.setProfileInt(user, "pack_tokens", file.profile.packTokens);
+            store.setProfileInt(user, "capsule_tokens", file.profile.capsuleTokens);
+            if (file.cardStyles != null) {
+                for (Map.Entry<String, String> style : file.cardStyles.entrySet()) {
+                    store.setCardStyle(user, style.getKey(), style.getValue());
+                }
+            }
             store.setProfileInt(user, "show_progress", file.profile.showProgress || file.version < 2 ? 1 : 0);
             return null;
         });
@@ -1474,12 +1489,12 @@ public final class CareerService {
         }
     }
 
-    private interface Refusable {
+    interface Refusable {
         void run() throws SQLException;
     }
 
     /** a refusal is thrown out of a store transaction wrapped in an SQLException (to roll it back); unwrap it */
-    private static void refusing(Refusable work) throws SQLException, CareerException {
+    static void refusing(Refusable work) throws SQLException, CareerException {
         try {
             work.run();
         } catch (SQLException e) {

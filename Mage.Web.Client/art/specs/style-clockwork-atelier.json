@@ -1,0 +1,50 @@
+{
+  "$comment": "Card styles of the Clockwork Atelier set (Full Art capsule machine), written by art/machine-specs.mjs from career/machines/full-art.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/clockwork-atelier",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "640x894",
+  "anchors": [],
+  "refs": [
+    "mps/24",
+    "mps/19",
+    "mps/8",
+    "mps/15"
+  ],
+  "style": "Victorian clockwork technical illustration crossed with oil painting: polished brass, copper and walnut, intricate gears and springs, warm workshop lamplight, a faint blueprint grid in the background, precise and rich.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a single heavy brass finger ring standing upright on a walnut workbench, a tiny glowing sun floating in its hole, warm light spilling over scattered gears",
+  "items": [
+    {
+      "id": "sol-ring",
+      "subject": "a single heavy brass finger ring standing upright on a walnut workbench, a tiny glowing sun floating in its hole, warm light spilling over scattered gears"
+    },
+    {
+      "id": "arcane-signet",
+      "subject": "a signet ring with an engraved gear seal resting on a wax-sealed envelope, glowing faintly"
+    },
+    {
+      "id": "mind-stone",
+      "subject": "a smooth polished stone mounted in a brass cradle of gears, a soft glow pulsing inside it"
+    },
+    {
+      "id": "thought-vessel",
+      "subject": "a glass flask in a brass cage, swirling with luminous thoughts like tiny drifting cogs"
+    },
+    {
+      "id": "commanders-sphere",
+      "subject": "an armillary sphere of brass rings around a glowing orb, standing on a walnut workbench"
+    },
+    {
+      "id": "set-clockwork-atelier",
+      "out": "public/career-art/sleeve/set-clockwork-atelier.webp",
+      "size": "540x756",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

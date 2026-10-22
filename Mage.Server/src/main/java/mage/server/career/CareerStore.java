@@ -104,13 +104,22 @@ public final class CareerStore implements AutoCloseable {
                     // M27: title ids with spaces never passed the look's id check; the catalog hyphenates them
                     "UPDATE OR IGNORE unlocks SET item = REPLACE(item, ' ', '-') WHERE kind = 'title' AND item LIKE '% %'",
                     "DELETE FROM unlocks WHERE kind = 'title' AND item LIKE '% %'"
+            },
+            {
+                    // M29: capsule machines: the token balance, every token earned or spent, every pull, the card styles worn
+                    "ALTER TABLE profile ADD COLUMN capsule_tokens INTEGER NOT NULL DEFAULT 0",
+                    "CREATE TABLE token_log (user TEXT NOT NULL, at INTEGER NOT NULL, amount INTEGER NOT NULL, reason TEXT NOT NULL)",
+                    "CREATE INDEX token_log_by_user ON token_log (user, at)",
+                    "CREATE TABLE pulls (user TEXT NOT NULL, machine TEXT NOT NULL, item TEXT NOT NULL, at INTEGER NOT NULL,"
+                            + " PRIMARY KEY (user, item))",
+                    "CREATE TABLE card_styles (user TEXT NOT NULL, card TEXT NOT NULL, item TEXT NOT NULL, PRIMARY KEY (user, card))"
             }
     };
 
     /** every table that holds an account's rows, for deleting a Career */
     private static final String[] USER_TABLES = {"profile", "cards", "payouts", "stats", "quests", "achievements",
             "unlocks", "weekly", "progress_games", "campaign_nodes", "set_unlocks", "runs", "puzzle_results", "challenge_results",
-            "daily", "decks"};
+            "daily", "decks", "token_log", "pulls", "card_styles"};
 
     private static volatile CareerStore instance;
 
@@ -265,6 +274,7 @@ public final class CareerStore implements AutoCloseable {
                 profile.level = CareerRules.levelFor(profile.xp);
                 profile.renown = CareerRules.renownFor(profile.xp, CareerRewards.get().renownXp());
                 profile.packTokens = rows.getInt("pack_tokens");
+                profile.capsuleTokens = rows.getInt("capsule_tokens");
                 profile.countAiGames = true;
                 profile.collection = !profile.starter.isEmpty();
                 profile.showProgress = rows.getInt("show_progress") == 1;
@@ -656,6 +666,7 @@ public final class CareerStore implements AutoCloseable {
             case "reroll_day":
             case "quest_week":
             case "pack_tokens":
+            case "capsule_tokens":
             case "level_paid":
             case "count_ai_games":
             case "show_progress":
@@ -706,6 +717,71 @@ public final class CareerStore implements AutoCloseable {
     /** The account's cosmetic unlocks as {kind, item}, for checking the look it plays with. */
     public List<String[]> unlocksOf(String user) throws SQLException {
         return unlocks(user);
+    }
+
+    // ---- capsule machines (M29)
+
+    synchronized void logTokens(String user, int amount, String reason, long now) throws SQLException {
+        try (PreparedStatement insert = connection.prepareStatement("INSERT INTO token_log (user, at, amount, reason) VALUES (?, ?, ?, ?)")) {
+            insert.setString(1, key(user));
+            insert.setLong(2, now);
+            insert.setInt(3, amount);
+            insert.setString(4, reason);
+            insert.executeUpdate();
+        }
+    }
+
+    /** the items this account has pulled from a machine */
+    synchronized List<String> pulls(String user, String machine) throws SQLException {
+        List<String> items = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement("SELECT item FROM pulls WHERE user = ? AND machine = ? ORDER BY at, item")) {
+            select.setString(1, key(user));
+            select.setString(2, machine);
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    items.add(rows.getString(1));
+                }
+            }
+        }
+        return items;
+    }
+
+    synchronized void addPull(String user, String machine, String item, long now) throws SQLException {
+        try (PreparedStatement insert = connection.prepareStatement("INSERT INTO pulls (user, machine, item, at) VALUES (?, ?, ?, ?)")) {
+            insert.setString(1, key(user));
+            insert.setString(2, machine);
+            insert.setString(3, item);
+            insert.setLong(4, now);
+            insert.executeUpdate();
+        }
+    }
+
+    /** the card styles an account wears: card name to style */
+    public synchronized Map<String, String> cardStyles(String user) throws SQLException {
+        Map<String, String> styles = new java.util.TreeMap<>();
+        try (PreparedStatement select = connection.prepareStatement("SELECT card, item FROM card_styles WHERE user = ?")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    styles.put(rows.getString(1), rows.getString(2));
+                }
+            }
+        }
+        return styles;
+    }
+
+    /** wears a style on a card, or takes the card's style off (null) */
+    synchronized void setCardStyle(String user, String card, String item) throws SQLException {
+        String sql = item == null ? "DELETE FROM card_styles WHERE user = ? AND card = ?"
+                : "INSERT OR REPLACE INTO card_styles (user, card, item) VALUES (?, ?, ?)";
+        try (PreparedStatement update = connection.prepareStatement(sql)) {
+            update.setString(1, key(user));
+            update.setString(2, card);
+            if (item != null) {
+                update.setString(3, item);
+            }
+            update.executeUpdate();
+        }
     }
 
     /** @return true when this is new */

@@ -351,6 +351,7 @@ export interface CareerAchievement {
     text?: string;
     tier?: number;
     tiers?: CareerAchievementTier[];
+    tokens?: number;
     xp?: number;
 }
 
@@ -362,6 +363,7 @@ export interface CareerAchievementTier {
     points?: number;
     target?: number;
     text?: string;
+    tokens?: number;
     xp?: number;
 }
 
@@ -383,7 +385,13 @@ export interface CareerAscension {
 export interface CareerBonus {
     coins?: number;
     text?: string;
+    tokens?: number;
     xp?: number;
+}
+
+export interface CareerCabinet {
+    body?: string;
+    trim?: string;
 }
 
 export interface CareerCampaign {
@@ -418,6 +426,7 @@ export interface CareerCard {
 
 export interface CareerCatalogItem {
     accent?: string;
+    card?: string;
     color?: string;
     dark?: string;
     dye?: string;
@@ -432,6 +441,7 @@ export interface CareerCatalogItem {
     rank?: number;
     rarity?: string;
     ring?: string;
+    series?: string;
     set?: string;
     shades?: string[];
     sources?: CareerCosmeticSource[];
@@ -539,6 +549,7 @@ export interface CareerGameResult {
     quests?: CareerQuestProgress[];
     renownAfter?: number;
     renownBefore?: number;
+    tokens?: number;
     weekly?: CareerWeekly;
     won?: boolean;
     xp?: number;
@@ -598,6 +609,7 @@ export interface CareerLevelReward {
     cosmetic?: CareerCosmetic;
     level?: number;
     packs?: number;
+    tokens?: number;
     wildcard?: string;
 }
 
@@ -662,6 +674,46 @@ export interface CareerLiveQuest {
     now?: number;
     target?: number;
     text?: string;
+}
+
+export interface CareerMachine {
+    blurb?: string;
+    blurbEs?: string;
+    cabinet?: CareerCabinet;
+    es?: string;
+    id?: string;
+    kind?: string;
+    name?: string;
+    reward?: CareerCosmetic;
+    sets?: CareerMachineSet[];
+    title?: CareerCosmetic;
+    wave?: number;
+}
+
+export interface CareerMachineItem {
+    card?: string;
+    id?: string;
+    subject?: string;
+}
+
+export interface CareerMachineSet {
+    capsule?: string;
+    es?: string;
+    id?: string;
+    items?: CareerMachineItem[];
+    name?: string;
+    reward?: CareerCosmetic;
+    style?: string;
+}
+
+export interface CareerMachines {
+    bundles?: number[];
+    coins?: number;
+    machines?: CareerMachine[];
+    owned?: string[];
+    styles?: { [index: string]: string };
+    tokenPrice?: number;
+    tokens?: number;
 }
 
 export interface CareerMastery {
@@ -828,6 +880,7 @@ export interface CareerPoolCard {
 }
 
 export interface CareerProfile {
+    capsuleTokens?: number;
     cards?: number;
     coins?: number;
     collection?: boolean;
@@ -856,6 +909,23 @@ export interface CareerPublicProfile {
     recent?: PaidGame[];
     wins?: number;
     xp?: number;
+}
+
+export interface CareerPull {
+    card?: string;
+    item?: string;
+    machineDone?: boolean;
+    machineRewards?: CareerCosmetic[];
+    set?: string;
+    setDone?: boolean;
+    setReward?: CareerCosmetic;
+}
+
+export interface CareerPullResult {
+    left?: number;
+    machine?: string;
+    pulls?: CareerPull[];
+    tokens?: number;
 }
 
 export interface CareerPuzzle {
@@ -1756,6 +1826,7 @@ export interface PlayerLook {
     arrow?: string;
     avatar?: string;
     badges?: string[];
+    cardStyles?: { [index: string]: string };
     cloth?: string;
     flair?: string;
     frame?: string;

@@ -1,5 +1,6 @@
 package mage.server.websocket.api;
 
+import mage.server.career.CareerCapsules;
 import mage.server.career.CareerProgress;
 import mage.server.career.CareerService;
 import mage.server.career.CareerStore;
@@ -168,6 +169,49 @@ final class CareerProgressApi {
                         .handler(call -> {
                             CareerApi.career(ctx, call);
                             return mage.server.career.CareerCosmetics.get().items();
+                        }),
+
+                RpcMethod.named("careerMachines")
+                        .returns("CareerMachines")
+                        .doc("The capsule shop (M29): every capsule machine with its sets, the account's capsule tokens and coins, "
+                                + "what a token costs, the capsules pulled so far and the card styles worn.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerCapsules.get().shop(user));
+                        }),
+
+                RpcMethod.named("careerBuyTokens")
+                        .params(of("count", INT))
+                        .returns("CareerProfile")
+                        .doc("Buy capsule tokens with coins, in a bundle of 1, 5 or 10; returns the profile after.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            int count = call.integer(0);
+                            return CareerApi.store(() -> CareerCapsules.get().buyTokens(user, count));
+                        }),
+
+                RpcMethod.named("careerPull")
+                        .params(of("machine", STRING), of("count", INT))
+                        .returns("CareerPullResult")
+                        .doc("Pull 1 to 10 capsules from a machine, a token each: every capsule is an item the account doesn't have, "
+                                + "picked at random. Asking for more than the machine has left gives (and charges) what's left.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String machine = call.string(0);
+                            int count = call.integer(1);
+                            return CareerApi.store(() -> CareerCapsules.get().pull(user, machine, count));
+                        }),
+
+                RpcMethod.named("careerEquipStyle")
+                        .params(of("card", STRING), optional("item", STRING))
+                        .returns("{ [card: string]: string }")
+                        .doc("Wear a full-art card style on its card, or take the card's style off (no item). Returns every style worn, "
+                                + "card name to style.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String card = call.string(0);
+                            String item = call.optString(1, null);
+                            return CareerApi.store(() -> CareerCapsules.get().equipStyle(user, card, item == null || item.isEmpty() ? null : item));
                         }),
 
                 RpcMethod.named("careerHall")

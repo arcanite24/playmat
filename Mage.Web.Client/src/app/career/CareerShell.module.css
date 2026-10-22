@@ -337,7 +337,45 @@
   }
 
   .hudRight {
+    flex-wrap: wrap;
     gap: var(--space-2);
+  }
+}
+
+/* a phone: the wallet's chips wrap rather than push the mat wider than the screen */
+@media (max-width: 560px) {
+  .wallet {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .coin,
+  .wild,
+  .packs {
+    padding: 0 8px;
+  }
+}
+
+/* a short landscape screen: a slimmer header leaves the screen its height */
+@media (max-height: 560px) {
+  .hud {
+    padding-top: calc(var(--stitch-inset) + var(--space-2));
+    padding-bottom: var(--space-2);
+    row-gap: var(--space-2);
+  }
+
+  .back {
+    height: 36px;
+  }
+
+  .coin,
+  .wild,
+  .packs {
+    height: 28px;
+  }
+
+  .identity {
+    zoom: 0.7;
   }
 }
 

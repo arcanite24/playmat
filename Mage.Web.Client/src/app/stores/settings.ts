@@ -105,6 +105,8 @@ export interface PlaySettings {
   /** painted art (generated with an image model: icons, avatars, crests, sleeves, playmat prints) instead of the
    * drawn SVG and CSS art (local only) */
   paintedArt: boolean;
+  /** full-art card styles from the capsule machines (ui/cardStyles.ts): everyone's, only mine, or none (local only) */
+  cardStyles: 'all' | 'mine' | 'off';
   /** the back of hidden cards: one of Playmat's designs, or the original Magic back loaded from Scryfall like card
    * pictures (a Career sleeve's back still wins; local only) */
   cardBack: CardBackId;
@@ -169,6 +171,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   careerMusic: true,
   musicVolume: 0.5,
   paintedArt: true,
+  cardStyles: 'all',
   cardBack: DEFAULT_CARD_BACK,
   stops: {
     yourTurn: { upkeep: false, draw: false, main1: true, beforeCombat: false, endOfCombat: false, main2: true, endOfTurn: false },

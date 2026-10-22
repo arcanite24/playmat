@@ -34,6 +34,8 @@ public class PlayerLook {
     public String lands;
     /** up to three achievement badges shown on the plate and profile (B307) */
     public java.util.List<String> badges;
+    /** the full-art card styles the player wears, card name to style (M30); filled by the server from the capsule shop */
+    public java.util.Map<String, String> cardStyles;
     /** the account's progression level (B279); null on servers without Career or before its first counted game */
     public Integer level;
 
@@ -42,6 +44,7 @@ public class PlayerLook {
 
     boolean isEmpty() {
         return sleeve == null && cloth == null && avatar == null && frame == null && title == null && flair == null && pet == null
-                && arrow == null && spark == null && stamp == null && lands == null && (badges == null || badges.isEmpty());
+                && arrow == null && spark == null && stamp == null && lands == null && (badges == null || badges.isEmpty())
+                && (cardStyles == null || cardStyles.isEmpty());
     }
 }

@@ -52,6 +52,10 @@
     {
       "id": "mimic-chest",
       "subject": "a small treasure chest with a toothy grin and a tongue poking out, on little legs"
+    },
+    {
+      "id": "golden-capsule",
+      "subject": "a round gachapon capsule with a little face, its top half open like a lid, a tiny star popping out, sitting on its base"
     }
   ]
 }

@@ -1,0 +1,1089 @@
+/* The capsule shop (career/capsules): storefront, machine view, collection board and the pull sequence. */
+
+.screen {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+  height: 100%;
+  min-height: 0;
+  /* the career shell clips on wide screens; the shop scrolls itself */
+  overflow-y: auto;
+  padding: 0 max(0px, calc((100% - 1280px) / 2)) var(--space-6);
+  scrollbar-gutter: stable;
+}
+
+.note {
+  color: var(--ink-dim);
+  text-align: center;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- the wallet */
+
+.wallet {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  padding: 12px 18px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.05);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+}
+
+.tokens {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-strong);
+}
+
+.tokens b {
+  font-family: var(--font-print);
+  font-size: 28px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tokens span {
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.buy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.buy button {
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.earn {
+  flex-basis: 100%;
+  color: var(--ink-dim);
+}
+
+.unopened {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 16px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--brass-rgb) / 0.14);
+  box-shadow: inset 0 0 0 1px rgb(var(--brass-rgb) / 0.5);
+  color: var(--ink-strong);
+  animation: nudge 2.4s ease-in-out infinite;
+}
+
+.unopened span {
+  flex: 1;
+}
+
+@keyframes nudge {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgb(var(--brass-rgb) / 0.5); }
+  50% { box-shadow: inset 0 0 0 1px rgb(var(--brass-rgb) / 0.9), 0 0 18px rgb(var(--brass-rgb) / 0.3); }
+}
+
+/* ---- the cabinet */
+
+.cabinet {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 18px 24px rgb(0 0 0 / 0.45));
+}
+
+.tokenOut {
+  opacity: 0;
+}
+
+.tokenIn {
+  animation: token-in 700ms cubic-bezier(0.5, 0, 0.7, 1) both;
+}
+
+@keyframes token-in {
+  0% { opacity: 0; transform: translateY(-60px) scale(1.6); }
+  25% { opacity: 1; }
+  70% { opacity: 1; transform: translateY(14px) scale(0.9); }
+  100% { opacity: 0; transform: translateY(30px) scale(0.5); }
+}
+
+.crankLive {
+  cursor: grab;
+  touch-action: none;
+}
+
+.crankLive:active {
+  cursor: grabbing;
+}
+
+.rattle {
+  animation: rattle 420ms ease-in-out;
+}
+
+@keyframes rattle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-1.6deg); }
+  45% { transform: rotate(1.4deg); }
+  70% { transform: rotate(-0.8deg); }
+}
+
+.idle {
+  animation: idle 5.5s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+@keyframes idle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* ---- the storefront */
+
+.storefront {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-5);
+  align-items: start;
+}
+
+/* one machine stands centre stage; more line up */
+.storefront[data-count='1'] {
+  grid-template-columns: minmax(0, 420px);
+  justify-content: center;
+}
+
+.storefront > .note {
+  grid-column: 1 / -1;
+}
+
+.machineCard {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 22px 20px 20px;
+  border-radius: 18px;
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgb(255 255 255 / 0.06), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--cab-body) 22%, var(--mat-700)), var(--mat-800));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08), 0 18px 40px rgb(0 0 0 / 0.35);
+  color: var(--ink);
+  text-decoration: none;
+  transition: transform var(--dur-place) var(--ease-place), box-shadow var(--dur-place) linear;
+}
+
+.machineCard:hover,
+.machineCard:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cab-trim) 70%, transparent), 0 24px 50px rgb(0 0 0 / 0.45);
+}
+
+.machineCard:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 3px;
+}
+
+.storeCabinet {
+  width: min(220px, 70%);
+  transition: transform 600ms var(--ease-place);
+}
+
+.machineCard:hover .storeCabinet {
+  transform: rotate(-1.5deg) scale(1.02);
+}
+
+.wave {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--cab-trim);
+  color: #1d150b;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.machineName {
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: var(--text-2xl, 28px);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}
+
+.machineBlurb {
+  max-width: 34ch;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.left {
+  margin-top: 4px;
+  color: var(--ink-strong);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.meter {
+  width: 80%;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: rgb(var(--ink-rgb) / 0.12);
+}
+
+.meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cab-trim);
+  transition: width 800ms var(--ease-place);
+}
+
+.enter {
+  margin-top: 6px;
+  color: var(--cab-trim);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---- a machine */
+
+.machineView {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.machineStage {
+  position: sticky;
+  top: 0;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+}
+
+.bigCabinet {
+  /* short enough that the pull buttons stay on screen beside the board (the cabinet is 2:3) */
+  width: min(340px, 100%, max(180px, calc((100dvh - 420px) * 2 / 3)));
+}
+
+.pulls {
+  display: grid;
+  justify-items: stretch;
+  gap: var(--space-2);
+  width: min(320px, 100%);
+}
+
+.pullButton {
+  justify-content: space-between;
+  min-height: 52px;
+  font-size: var(--text-lg);
+}
+
+.cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.short,
+.odds {
+  color: var(--ink-dim);
+  text-align: center;
+}
+
+.completeNote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--brass);
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .machineView {
+    grid-template-columns: 1fr;
+  }
+
+  .machineStage {
+    position: static;
+  }
+
+  .bigCabinet {
+    width: min(260px, 70vw);
+  }
+}
+
+/* ---- the collection board */
+
+.board {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.boardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.boardHead b {
+  color: var(--ink-strong);
+  font-family: var(--font-print);
+  font-size: var(--text-xl);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+}
+
+.boardHead span {
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+.sets {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setRow {
+  display: grid;
+  grid-template-columns: minmax(120px, 170px) minmax(0, 1fr) 46px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 3px 0 0 var(--capsule);
+}
+
+.setRow[data-done] {
+  background: color-mix(in srgb, var(--capsule) 16%, transparent);
+  box-shadow: inset 3px 0 0 var(--capsule), inset 0 0 0 1px color-mix(in srgb, var(--capsule) 55%, transparent);
+}
+
+.setName {
+  display: grid;
+  min-width: 0;
+}
+
+.setName b {
+  overflow: hidden;
+  color: var(--ink-strong);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setName small {
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 63 / 88;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.25);
+  box-shadow: inset 0 0 0 1px rgb(var(--ink-rgb) / 0.08);
+}
+
+.slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.slot[data-have] {
+  box-shadow: 0 4px 10px rgb(0 0 0 / 0.35);
+}
+
+.slot[data-flash] {
+  animation: slot-in 900ms var(--ease-place) both;
+}
+
+@keyframes slot-in {
+  0% { transform: scale(1.35); filter: brightness(2); }
+  100% { transform: scale(1); filter: none; }
+}
+
+.slotCapsule {
+  width: 46%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--capsule) 0 50%, rgb(var(--ink-rgb) / 0.18) 50% 100%);
+  opacity: 0.45;
+}
+
+.setReward {
+  aspect-ratio: 5 / 7;
+  overflow: hidden;
+  border-radius: 4px;
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+
+.setReward[data-have] {
+  opacity: 1;
+  filter: none;
+  box-shadow: 0 0 0 2px var(--capsule), 0 0 14px color-mix(in srgb, var(--capsule) 60%, transparent);
+}
+
+.setReward img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@media (max-width: 560px) {
+  .setRow {
+    grid-template-columns: 1fr 40px;
+  }
+
+  .slots {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* ---- the pull sequence */
+
+.sequence {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay, 50);
+  display: grid;
+  place-items: safe center;
+  /* a step taller than a short screen scrolls instead of losing its button */
+  overflow: hidden auto;
+  color: var(--ink-strong);
+  outline: none;
+}
+
+.seqBackdrop {
+  /* fixed, so it still covers everything when the sequence scrolls */
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(60% 50% at 50% 55%, color-mix(in srgb, var(--capsule) 22%, transparent), transparent 70%),
+    rgb(8 12 10 / 0.88);
+  backdrop-filter: blur(6px);
+  animation: fade-in 300ms linear both;
+  transition: background 600ms linear;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+.later {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.later:hover {
+  background: rgb(var(--ink-rgb) / 0.16);
+}
+
+.prompt {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-lg);
+  text-align: center;
+}
+
+.counter {
+  margin: 0;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.seqMachine,
+.seqOpen,
+.seqReveal,
+.seqTray,
+.finale {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  max-width: 100%;
+  padding: var(--space-4);
+}
+
+.seqCabinet {
+  /* the cabinet is 2:3; the prompt and its button stay on screen under it */
+  width: min(320px, 70vw, calc((100dvh - 180px) * 2 / 3));
+}
+
+/* the capsule that drops from the chute and rolls to the front */
+.falling {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  animation: fall 950ms cubic-bezier(0.3, 0, 0.5, 1) both;
+}
+
+@keyframes fall {
+  0% { transform: translate(-50%, -40px) scale(0.4); opacity: 0; }
+  20% { opacity: 1; }
+  45% { transform: translate(-50%, 60px) scale(0.9) rotate(80deg); }
+  62% { transform: translate(-50%, 30px) scale(1) rotate(150deg); }
+  78% { transform: translate(-50%, 60px) scale(1.05) rotate(200deg); }
+  100% { transform: translate(-50%, 54px) scale(1.15) rotate(220deg); }
+}
+
+.pour {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: 0;
+  height: 0;
+}
+
+.pour > span {
+  position: absolute;
+  animation: pour 700ms cubic-bezier(0.3, 0, 0.5, 1) calc(var(--i) * 90ms) both;
+}
+
+@keyframes pour {
+  0% { transform: translate(-50%, -40px) scale(0.3); opacity: 0; }
+  30% { opacity: 1; }
+  100% { transform: translate(calc(-50% + (var(--i) - 4.5) * 34px), 70px) scale(0.8) rotate(calc(var(--i) * 70deg)); }
+}
+
+.capsule {
+  position: relative;
+  display: block;
+  width: 56px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.45));
+}
+
+.capsuleBig {
+  width: min(220px, 50vw, 36vh);
+}
+
+.capsuleTop,
+.capsuleBottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  transition: transform 260ms var(--ease-place);
+}
+
+.capsuleTop {
+  top: 0;
+  border-radius: 999px 999px 0 0;
+  background:
+    radial-gradient(40% 50% at 32% 36%, rgb(255 255 255 / 0.55), transparent 70%),
+    var(--capsule);
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.2);
+  transform: rotate(var(--twist, 0deg));
+  transform-origin: 50% 100%;
+}
+
+.capsuleBottom {
+  bottom: 0;
+  border-radius: 0 0 999px 999px;
+  background:
+    radial-gradient(50% 60% at 40% 30%, rgb(255 255 255 / 0.4), transparent 70%),
+    rgb(240 236 226 / 0.88);
+  box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.12);
+}
+
+.bigCapsule {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: grab;
+  touch-action: none;
+  animation: wobble 2.2s ease-in-out infinite;
+}
+
+.bigCapsule:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 4px;
+}
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(0); }
+  10% { transform: rotate(-4deg); }
+  20% { transform: rotate(3deg); }
+  30% { transform: rotate(0); }
+}
+
+.burst {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.popping {
+  animation: none;
+}
+
+.popping .capsuleTop {
+  transform: translate(-30%, -90%) rotate(-40deg);
+  opacity: 0;
+  transition: transform 380ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 380ms linear;
+}
+
+.popping .capsuleBottom {
+  transform: translate(25%, 70%) rotate(30deg);
+  opacity: 0;
+  transition: transform 380ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 380ms linear;
+}
+
+.popping .burst {
+  animation: burst 420ms ease-out both;
+}
+
+@keyframes burst {
+  0% { opacity: 1; box-shadow: 0 0 0 0 #fff, 0 0 0 0 var(--capsule); transform: scale(0.4); }
+  100% { opacity: 0; box-shadow: 0 0 60px 30px #fff, 0 0 120px 80px var(--capsule); transform: scale(1.6); }
+}
+
+/* the painting rising out of the capsule */
+.seqReveal {
+  cursor: pointer;
+}
+
+.rays {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 160vmax;
+  height: 160vmax;
+  margin: -80vmax 0 0 -80vmax;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--capsule) 30%, transparent) 0 6deg, transparent 6deg 18deg);
+  mask-image: radial-gradient(circle, #000 0, transparent 45%);
+  animation: rays 24s linear infinite, fade-in 600ms linear both;
+  pointer-events: none;
+}
+
+@keyframes rays {
+  to { transform: rotate(360deg); }
+}
+
+.revealCard {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.revealArt {
+  position: relative;
+  display: block;
+  /* a card is 63:88; its name and the button stay on screen under it */
+  width: min(340px, 72vw, calc((100dvh - 250px) * 63 / 88));
+  aspect-ratio: 63 / 88;
+  overflow: hidden;
+  border-radius: 4.5%;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.85), 0 0 60px color-mix(in srgb, var(--capsule) 70%, transparent), 0 30px 60px rgb(0 0 0 / 0.6);
+  animation: rise 900ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+@keyframes rise {
+  0% { transform: translateY(40%) scale(0.2) rotateY(180deg); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+
+.revealArt img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.revealPlate {
+  position: absolute;
+  top: 3.5%;
+  left: 4%;
+  right: 4%;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgb(14 18 16 / 0.62);
+  color: #f2eee2;
+  font-family: var(--font-print);
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.shine {
+  position: absolute;
+  inset: -50%;
+  background: linear-gradient(105deg, transparent 40%, rgb(255 255 255 / 0.55) 50%, transparent 60%);
+  transform: translateX(-100%);
+  animation: shine 1.2s ease-out 700ms both;
+  pointer-events: none;
+}
+
+@keyframes shine {
+  to { transform: translateX(100%); }
+}
+
+.revealCard figcaption {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+  animation: fade-up 500ms ease-out 500ms both;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
+.revealCard figcaption b {
+  font-family: var(--font-print);
+  font-size: var(--text-2xl, 28px);
+  letter-spacing: var(--tracking-print);
+}
+
+.revealCard figcaption span:last-child {
+  color: var(--ink-dim);
+}
+
+.newTag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--capsule);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.5);
+  text-transform: uppercase;
+}
+
+/* several capsules: the tray */
+.tray {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+  /* two rows of cards, short enough for the prompt and Open all to stay on screen */
+  width: min(760px, 92vw, calc((100dvh - 190px) / 2 * 63 / 88 * 5 + 56px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tray li {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 63 / 88;
+}
+
+.trayCapsule {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(var(--ink-rgb) / 0.05);
+  cursor: pointer;
+  animation: tray-in 500ms cubic-bezier(0.3, 1.4, 0.5, 1) calc(var(--i) * 60ms) both;
+}
+
+.trayCapsule:hover .capsule {
+  transform: rotate(-8deg) scale(1.06);
+}
+
+.trayCapsule .capsule {
+  width: 70%;
+  transition: transform 200ms var(--ease-place);
+}
+
+@keyframes tray-in {
+  from { transform: translateY(-30px) scale(0.6); opacity: 0; }
+}
+
+.trayCard {
+  position: relative;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 7px;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.7), 0 0 22px color-mix(in srgb, var(--capsule) 70%, transparent);
+  animation: tray-flip 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+.trayCard[data-set-done] {
+  box-shadow: 0 0 0 3px var(--capsule), 0 0 30px var(--capsule);
+}
+
+@keyframes tray-flip {
+  from { transform: rotateY(90deg) scale(0.8); filter: brightness(2.5); }
+}
+
+.trayCard img {
+  grid-area: 1 / 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.trayCard figcaption {
+  grid-area: 1 / 1;
+  align-self: end;
+  display: grid;
+  padding: 6px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.75));
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.trayCard figcaption small {
+  color: rgb(255 255 255 / 0.7);
+}
+
+@media (max-width: 600px) {
+  .tray {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* finishing a set, or the machine */
+.finale {
+  text-align: center;
+}
+
+.finaleKicker {
+  margin: 0;
+  color: var(--capsule);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  animation: fade-up 400ms ease-out both;
+}
+
+.finaleTitle {
+  margin: 0;
+  font-family: var(--font-print);
+  font-size: var(--text-3xl);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  animation: stamp 600ms cubic-bezier(0.2, 1.6, 0.4, 1) 120ms both;
+}
+
+@keyframes stamp {
+  from { transform: scale(2.2); opacity: 0; }
+}
+
+.fan {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  height: min(260px, 32vh);
+  margin: var(--space-3) 0;
+}
+
+.fan img {
+  width: calc(min(260px, 32vh) * 0.716);
+  height: 100%;
+  margin: 0 -26px;
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.8), 0 14px 30px rgb(0 0 0 / 0.5);
+  transform: rotate(calc(var(--at) * 8deg)) translateY(calc(var(--at) * var(--at) * 6px));
+  animation: fan-in 700ms cubic-bezier(0.2, 0.9, 0.3, 1.1) calc((var(--at) + 2) * 90ms + 200ms) both;
+}
+
+@keyframes fan-in {
+  from { transform: translateY(80px) rotate(0); opacity: 0; }
+}
+
+.finaleReward {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  animation: fade-up 500ms ease-out 900ms both;
+}
+
+.finaleSleeve {
+  width: 64px;
+  aspect-ratio: 5 / 7;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px var(--capsule), 0 0 24px var(--capsule);
+}
+
+.finaleMachine {
+  --capsule: #e7c25e;
+}
+
+.goldCapsule {
+  position: relative;
+  margin-top: min(96px, 14dvh);
+  display: grid;
+  place-items: center;
+  animation: gold 1.2s cubic-bezier(0.2, 1.4, 0.4, 1) both, glow 2.4s ease-in-out 1.2s infinite;
+}
+
+@keyframes gold {
+  from { transform: scale(0) rotate(-180deg); }
+}
+
+@keyframes glow {
+  50% { filter: drop-shadow(0 0 30px #e7c25e); }
+}
+
+.finaleText {
+  max-width: 42ch;
+  margin: 0;
+  color: var(--ink);
+}
+
+/* reduced motion: every beat lands at once */
+.still *,
+.still {
+  animation-duration: 1ms !important;
+  animation-delay: 0ms !important;
+  transition-duration: 1ms !important;
+}
+
+.still .rays {
+  animation: none;
+}
+
+/* the machine's companion climbs out of the gold capsule */
+.goldPet {
+  position: absolute;
+  bottom: 84%;
+  width: 62%;
+  filter: drop-shadow(0 6px 14px rgb(0 0 0 / 0.5));
+  animation: pet-out 800ms cubic-bezier(0.2, 1.5, 0.4, 1) 1.3s both;
+}
+
+@keyframes pet-out {
+  from { transform: translateY(60%) scale(0.4); opacity: 0; }
+}
+
+/* several sets at once: their sleeves in a row */
+.sleeveRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  max-width: 720px;
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sleeveRow li {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  width: 96px;
+  font-size: var(--text-xs);
+  text-align: center;
+  animation: fan-in 600ms cubic-bezier(0.2, 0.9, 0.3, 1.1) calc(var(--at) * 110ms + 200ms) both;
+}
+
+.sleeveRow img {
+  width: 80px;
+  aspect-ratio: 5 / 7;
+  border-radius: 4px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px var(--capsule), 0 0 22px var(--capsule);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goldPet,
+  .sleeveRow li {
+    animation: none;
+  }
+}
+
+/* a short landscape screen (a handheld): the board beside a small cabinet, its pull buttons next to it, all in view */
+@media (max-height: 560px) and (min-width: 600px) {
+  .screen {
+    gap: var(--space-3);
+  }
+
+  .wallet {
+    padding: 8px 14px;
+  }
+
+  .earn {
+    display: none;
+  }
+
+  .machineView {
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .machineStage {
+    position: sticky;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: stretch;
+    gap: var(--space-3);
+  }
+
+  .bigCabinet {
+    width: 120px;
+  }
+
+  .pulls {
+    width: auto;
+  }
+}

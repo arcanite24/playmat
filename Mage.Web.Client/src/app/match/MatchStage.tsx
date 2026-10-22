@@ -68,6 +68,7 @@ import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlay
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
 import { arrowTints, landStyleKey, lookCloth, pairsOf, sparkColorOf, stampOf, theirClothBox } from './touches';
+import { CardStyleContext } from '../ui/cardStyles';
 import { LandStyleContext } from '../ui/landStyles';
 import { useCosmetics } from '../ui/cosmeticsCatalog';
 import { usePlayerLooks } from '../support/supportData';
@@ -442,6 +443,17 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     const lands = pairsOf(landKey);
     return lands.size > 0 ? (playerId: string) => lands.get(playerId) : null;
   }, [landKey]);
+  // card styles (capsule machines): each player's worn paintings, keyed by text like the land styles
+  const cardStylesSetting = useSettings((state) => state.settings.cardStyles);
+  const styleKey = JSON.stringify(seated.map((one) => [
+    one.player.playerId,
+    cardStylesSetting === 'mine' && !(one === board.me && board.me.isMe) ? null : lookOf(one.player)?.cardStyles ?? null,
+  ]));
+  const cardStylesOf = useMemo(() => {
+    const byPlayer = new Map<string, Record<string, string>>();
+    for (const [id, worn] of JSON.parse(styleKey) as [string, Record<string, string> | null][]) if (worn) byPlayer.set(id, worn);
+    return (playerId: string) => byPlayer.get(playerId);
+  }, [styleKey]);
   const stamps = useMemo(() => {
     void catalog;
     return {
@@ -456,7 +468,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
   return (
     // basic lands show their players' land styles anywhere on the stage (B301, ui/landStyles.ts)
-    <LandStyleContext.Provider value={landStyleOf}><Stage style={matStyle}>
+    <LandStyleContext.Provider value={landStyleOf}><CardStyleContext.Provider value={cardStylesOf}><Stage style={matStyle}>
       {(stage) => {
         // the stage widens with the window and the field takes the extra width; a portrait window gets the tall layout
         const layout = matchLayout(stage);
@@ -692,7 +704,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
           </div>
         );
       }}
-    </Stage></LandStyleContext.Provider>
+    </Stage></CardStyleContext.Provider></LandStyleContext.Provider>
   );
 }
 

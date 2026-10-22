@@ -1,6 +1,6 @@
 import { ArrowLeft, Coins, Music, Package, Settings, Sparkles, VolumeX } from 'lucide-react';
 import { useEffect, useRef, type CSSProperties } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import type { CareerProfile } from '../../protocol/generated/views';
 import { formatNumber, registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
@@ -22,6 +22,7 @@ import { useCountUp, useStill } from './motion';
 import { Art } from './Art';
 import { usePaintedArt, wildcardArt } from './careerArt';
 import { TitleText } from './LookParts';
+import { TokenIcon } from './capsules/TokenIcon';
 import { safeBack } from './progressModel';
 import motion from './motion.module.css';
 import styles from './CareerShell.module.css';
@@ -126,6 +127,7 @@ function Hud({ profile }: { profile: CareerProfile }) {
   const level = levelProgress(profile.xp ?? 0, profile.level ?? 1);
   const wildcards = WALLET_WILDCARDS.map((rarity) => ({ rarity, count: profile.wildcards?.[rarity] ?? 0 }));
   const packs = profile.packTokens ?? 0;
+  const capsuleTokens = profile.capsuleTokens ?? 0;
   // the ladder rank's badge (S037), under the name with the title
   const rank = useCareerState().data?.rank;
 
@@ -145,6 +147,13 @@ function Hud({ profile }: { profile: CareerProfile }) {
             </span>
           ))}
         </span>
+        {capsuleTokens > 0 && (
+          <Link to="/career/capsules" className={styles.packs} title={t('capsules.hud', { count: capsuleTokens })} data-nav>
+            <TokenIcon size={24} />
+            <b aria-hidden="true">{capsuleTokens}</b>
+            <span className={styles.srOnly}>{t('capsules.hud', { count: capsuleTokens })}</span>
+          </Link>
+        )}
         {packs > 0 && (
           <span className={styles.packs} title={t('career.hud.packs', { count: packs })}>
             <Art kind="reward" id="pack" size={26} fallback={<Package size={16} aria-hidden="true" />} />

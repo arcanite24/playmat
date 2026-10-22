@@ -115,6 +115,11 @@ export default {
 
   'settings.motion': 'Card motion',
   'settings.paintedArt': 'Painted art',
+  'settings.cardStyles': 'Card styles',
+  'settings.cardStyles.detail': 'Full-art paintings from the capsule machines, worn on cards. Hold Alt to see a card as printed. Needs painted art.',
+  'settings.cardStyles.all': "Everyone's",
+  'settings.cardStyles.mine': 'Only mine',
+  'settings.cardStyles.off': 'Off',
   'settings.paintedArt.detail': 'AI-generated pictures for Career icons, avatars, crests, sleeves, card backs and playmat prints. Off, the simple drawn versions show instead.',
   'settings.pictureStore': 'Card pictures on this device',
   'settings.pictureStore.detail': '{count} pictures, {size} MB. Kept so games open without waiting on the network.',

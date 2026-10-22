@@ -97,6 +97,11 @@ public final class Support {
         default Set<String> careerBadges(String account) {
             return Collections.emptySet();
         }
+
+        /** the card styles the account wears and owns: card name to style (M30) */
+        default java.util.Map<String, String> careerCardStyles(String account) {
+            return Collections.emptyMap();
+        }
     }
 
     /** The public thank-you post (Discord). */
@@ -605,6 +610,9 @@ public final class Support {
             }
             look.badges = badges.isEmpty() ? null : badges;
         }
+        // card styles are worn from the capsule shop, not sent with the look: the server says which (M30)
+        java.util.Map<String, String> styles = accounts.careerCardStyles(account);
+        look.cardStyles = styles.isEmpty() ? null : new java.util.TreeMap<>(styles);
         return look;
     }
 
@@ -996,6 +1004,15 @@ public final class Support {
                     return mage.server.career.CareerProgress.get().badges(account);
                 } catch (SQLException | RuntimeException e) {
                     return Collections.emptySet();
+                }
+            }
+
+            @Override
+            public java.util.Map<String, String> careerCardStyles(String account) {
+                try {
+                    return mage.server.career.CareerCapsules.get().worn(account);
+                } catch (SQLException | RuntimeException e) {
+                    return Collections.emptyMap();
                 }
             }
         };

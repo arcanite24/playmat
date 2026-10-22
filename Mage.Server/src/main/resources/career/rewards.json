@@ -79,5 +79,19 @@
     200
   ],
   "masteryRankXp": 25,
-  "masteryRankCoins": 10
+  "masteryRankCoins": 10,
+  "capsules": {
+    "note": "Capsule tokens (B314): bought for tokenPrice coins, earned by the first win of the day, each weekly goal step, every levelTokensEvery levels and an achievement's higher tiers (tierTokens, bronze first). No cap, no expiry.",
+    "tokenPrice": 120,
+    "firstWinTokens": 1,
+    "weeklyGoalTokens": 1,
+    "levelTokens": 1,
+    "levelTokensEvery": 5,
+    "tierTokens": [
+      0,
+      0,
+      1,
+      1
+    ]
+  }
 }

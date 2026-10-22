@@ -752,3 +752,8 @@
 .identity span {
   margin-right: 4px;
 }
+
+.styledMark {
+  flex: none;
+  color: var(--brass);
+}

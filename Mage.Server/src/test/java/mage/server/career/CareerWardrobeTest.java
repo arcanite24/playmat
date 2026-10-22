@@ -106,7 +106,7 @@ public class CareerWardrobeTest {
         assertTrue(catalog.items().size() >= 240, "about 250 cosmetics");
         assertTrue(catalog.items().stream().filter(item -> "title".equals(item.kind)).count() >= 80, "at least 80 titles");
         assertEquals(15, catalog.items().stream().filter(item -> "frame".equals(item.kind)).count());
-        assertEquals(10, catalog.items().stream().filter(item -> "pet".equals(item.kind)).count());
+        assertEquals(11, catalog.items().stream().filter(item -> "pet".equals(item.kind)).count());
         for (String track : CareerProgress.masteryTracks()) {
             assertNotNull(catalog.masteryReward(track, 5), track + " pays a cosmetic at rank 5");
             assertNotNull(catalog.masteryReward(track, 10), track + " pays its master title at rank 10");
@@ -251,10 +251,15 @@ public class CareerWardrobeTest {
         store.close();
         try (Connection raw = DriverManager.getConnection("jdbc:sqlite:" + file); Statement sql = raw.createStatement()) {
             sql.execute("UPDATE schema_version SET version = 4");
+            // back to before M29 too, which comes after it
+            sql.execute("ALTER TABLE profile DROP COLUMN capsule_tokens");
+            for (String table : new String[]{"token_log", "pulls", "card_styles"}) {
+                sql.execute("DROP TABLE " + table);
+            }
         }
         store = new CareerStore("jdbc:sqlite:" + file);
         CareerStore.use(store);
-        assertEquals(5, store.schemaVersion());
+        assertEquals(6, store.schemaVersion());
         assertTrue(store.unlocksOf("Ana").stream().anyMatch(unlock -> unlock[1].equals("questing-knight")));
         assertTrue(store.unlocksOf("Ana").stream().noneMatch(unlock -> unlock[1].contains(" ")));
     }

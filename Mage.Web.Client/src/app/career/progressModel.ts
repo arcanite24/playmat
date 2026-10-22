@@ -83,6 +83,7 @@ export function weeklyMarks(weekly: CareerWeekly | undefined): { goals: { goal: 
 export type RewardPart =
   | { kind: 'coins'; amount: number }
   | { kind: 'packs'; amount: number }
+  | { kind: 'tokens'; amount: number }
   | { kind: 'wildcard'; rarity: string }
   | { kind: 'cosmetic'; cosmetic: CareerCosmetic };
 
@@ -91,6 +92,7 @@ export function rewardParts(reward: CareerLevelReward | undefined): RewardPart[]
   const parts: RewardPart[] = [];
   if (reward.coins) parts.push({ kind: 'coins', amount: reward.coins });
   if (reward.packs) parts.push({ kind: 'packs', amount: reward.packs });
+  if (reward.tokens) parts.push({ kind: 'tokens', amount: reward.tokens });
   if (reward.wildcard) parts.push({ kind: 'wildcard', rarity: reward.wildcard });
   if (reward.cosmetic?.kind && reward.cosmetic.id) parts.push({ kind: 'cosmetic', cosmetic: reward.cosmetic });
   return parts;
@@ -243,6 +245,8 @@ export function describeReward(t: Translate, parts: readonly RewardPart[]): stri
         return t('career.coins', { count: part.amount });
       case 'packs':
         return t('career.reward.packs', { count: part.amount });
+      case 'tokens':
+        return t('capsules.hud', { count: part.amount });
       case 'wildcard':
         return t('career.reward.wildcard', { rarity: t(`career.rarity.${part.rarity}` as MessageKey).toLowerCase() });
       default:

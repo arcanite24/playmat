@@ -44,6 +44,7 @@ export default function RewardsBeat({ gameId, onDetails }: { gameId: string; onD
           <p className={styles.pay}>
             {(paid.xp ?? 0) > 0 && <b className={styles.xp}>+{t('career.reward.xp', { xp: paid.xp ?? 0 })}</b>}
             {(paid.coins ?? 0) > 0 && <b className={styles.coins}>+{t('career.coins', { count: paid.coins ?? 0 })}</b>}
+            {(paid.tokens ?? 0) > 0 && <b className={styles.coins}>+{t('capsules.hud', { count: paid.tokens ?? 0 })}</b>}
           </p>
         )}
       {levelUp && <p className={styles.level}>{t('career.beat.levelUp', { level: paid.levelAfter ?? 0 })}</p>}

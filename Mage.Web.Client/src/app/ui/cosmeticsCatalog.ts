@@ -9,7 +9,7 @@ import { readJson, writeJson } from '../stores/persist';
  * thank-you set isn't in it (support/thankYou.ts).
  */
 
-export type CatalogKind = 'avatar' | 'title' | 'frame' | 'sleeve' | 'playmat' | 'pet' | 'emote' | 'arrow' | 'spark' | 'stamp' | 'land';
+export type CatalogKind = 'avatar' | 'title' | 'frame' | 'sleeve' | 'playmat' | 'pet' | 'emote' | 'arrow' | 'spark' | 'stamp' | 'land' | 'cardstyle';
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'mythic';
 
 const CACHE_KEY = 'playmat.cosmetics';

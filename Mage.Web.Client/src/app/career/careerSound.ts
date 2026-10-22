@@ -6,7 +6,9 @@ import { useSettings } from '../stores/settings';
  * packs and cards. Short and quiet like the rest; the Sound settings (on/off, volume) apply to them too.
  */
 export type CareerCue =
-  | 'tap' | 'whoosh' | 'coin' | 'coins' | 'xp' | 'levelUp' | 'unlock' | 'tear' | 'flip' | 'rare' | 'mythic' | 'versus' | 'win' | 'loss';
+  | 'tap' | 'whoosh' | 'coin' | 'coins' | 'xp' | 'levelUp' | 'unlock' | 'tear' | 'flip' | 'rare' | 'mythic' | 'versus' | 'win' | 'loss'
+  // the capsule machines (career/capsules)
+  | 'tokenIn' | 'crank' | 'drop' | 'twist' | 'pop' | 'setDone';
 
 function render(b: Bus, out: AudioNode, cue: CareerCue, t: number) {
   switch (cue) {
@@ -79,6 +81,38 @@ function render(b: Bus, out: AudioNode, cue: CareerCue, t: number) {
     case 'win':
       [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((freq, i) => bell(b, out, freq, t + i * 0.11, 1.4, 0.11));
       [NOTE.C5, NOTE.E5, NOTE.G5].forEach((freq) => tone(b, out, { freq, start: t + 0.45, length: 1.6, type: 'triangle', gain: 0.045, attack: 0.08 }));
+      break;
+    case 'tokenIn':
+      // a token down the slot: a ring, then it rattles to the bottom
+      tone(b, out, { freq: 3135, start: t, length: 0.12, type: 'triangle', gain: 0.04, attack: 0.002 });
+      [0.08, 0.15, 0.2].forEach((offset, i) => knock(b, out, 1500 - i * 260, t + offset, 0.05 - i * 0.012));
+      break;
+    case 'crank':
+      // one click of the crank's ratchet
+      knock(b, out, 1900, t, 0.05);
+      noise(b, out, { start: t, length: 0.025, from: 5200, to: 4200, gain: 0.03, type: 'highpass', q: 1 });
+      break;
+    case 'drop':
+      // the capsule drops down the chute and bounces in the tray
+      noise(b, out, { start: t, length: 0.18, from: 600, to: 1600, gain: 0.04, q: 0.9 });
+      [0.16, 0.34, 0.45, 0.52].forEach((offset, i) => knock(b, out, 420 + i * 40, t + offset, 0.11 / (i + 1)));
+      break;
+    case 'twist':
+      // plastic halves turning against each other
+      noise(b, out, { start: t, length: 0.22, from: 1400, to: 900, gain: 0.05, q: 4 });
+      break;
+    case 'pop':
+      // the capsule pops open, light spilling out
+      thud(b, out, t, 0.08, 220);
+      knock(b, out, 980, t, 0.08);
+      noise(b, out, { start: t + 0.02, length: 0.5, from: 3000, to: 9000, gain: 0.04, type: 'highpass', q: 0.5 });
+      [NOTE.C6, NOTE.G5 * 2].forEach((freq, i) => bell(b, out, freq, t + 0.08 + i * 0.07, 0.9, 0.06));
+      break;
+    case 'setDone':
+      // a set finished: five bells, one a capsule, then the chord
+      [NOTE.C5, NOTE.D5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((freq, i) => bell(b, out, freq, t + i * 0.08, 1.1, 0.09));
+      [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((freq) => tone(b, out, { freq, start: t + 0.42, length: 1.6, type: 'triangle', gain: 0.035, attack: 0.08 }));
+      thud(b, out, t + 0.42, 0.14, 100);
       break;
     case 'loss':
       [NOTE.G4, NOTE.E4 * 0.944, NOTE.C4].forEach((freq, i) => tone(b, out, { freq, start: t + i * 0.2, length: 0.9, gain: 0.1, attack: 0.03 }));

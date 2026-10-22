@@ -59,12 +59,13 @@ const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 
 /** The anchors that exist: the house's and the type's, as absolute paths. */
 function anchors(style, spec) {
-  return [...style.anchors, ...(spec.anchors ?? [])].map((path) => join(ART, path)).filter((path) => existsSync(path));
+  return [...(spec.house === false ? [] : style.anchors), ...(spec.anchors ?? [])].map((path) => join(ART, path)).filter((path) => existsSync(path));
 }
 
 export function prompt(style, spec, subjects, references) {
   const { cols, rows, canvas } = spec.grid;
   const cells = subjects.map((subject, index) => `${index + 1}. ${subject}`).join('\n');
+  if (spec.panels) return panelPrompt(spec, cells, references);
   return [
     `Use your image generation tool to create ONE image${references ? ', passing every attached image to it as a reference image' : ''}.`,
     references
@@ -79,6 +80,29 @@ export function prompt(style, spec, subjects, references) {
     'No text, letters or numbers anywhere.',
     'Copy the generated PNG into the current directory as grid.png exactly as the tool made it, even if it is not transparent: do not edit, cut out, key, convert or delete it (a later step does that). Make one generation only, use no other tool, model or API, ask no questions, and create no other files.',
   ].filter(Boolean).join('\n\n');
+}
+
+/** A grid of opaque paintings (a card style set): each cell is a whole picture, edge to edge, in the set's own style
+ * rather than the house letterpress. */
+function panelPrompt(spec, cells, references) {
+  const { cols, rows, canvas } = spec.grid;
+  return [
+    `Use your image generation tool to create ONE image${references ? ', passing every attached image to it as a reference image' : ''}.`,
+    references
+      ? 'The attached images are STYLE REFERENCES from the same art set. Match their rendering, palette, texture and level of detail exactly. Do not copy their subjects or their layout.'
+      : '',
+    `Layout: ${CANVAS[canvas]} holding a precise grid of ${cols} columns by ${rows} rows of equal tall portrait panels (each about 5 wide by 7 tall), ${cols * rows} paintings in all, separated by thin straight gutters of flat ${KEY} that also run round the outside edge. Each panel is a complete painting that fills its panel edge to edge (full bleed): no border, frame, card frame, text box or margin painted inside it. Panels are read left to right, top to bottom:`,
+    cells,
+    `Style, the same in every panel: ${spec.style}`,
+    spec.rules ?? '',
+    'No text, letters, numbers, symbols that read as text, signatures, logos or watermarks anywhere, and nothing taken from any existing trading card game\'s art: every picture is original.',
+    'Copy the generated PNG into the current directory as grid.png exactly as the tool made it: do not edit, crop or convert it. Make one generation only, use no other tool, model or API, ask no questions, and create no other files.',
+  ].filter(Boolean).join('\n\n');
+}
+
+/** where an item's picture goes: its own `out` file, or the spec's folder */
+function target(spec, item) {
+  return join(CLIENT, item.out ?? join(spec.out, `${item.id}.webp`));
 }
 
 function codex(work, text, references) {
@@ -96,10 +120,10 @@ function codex(work, text, references) {
   });
 }
 
-function python(args) {
+function python(args, script = 'slice.py') {
   return new Promise((done, fail) => {
-    const child = spawn('python3', [join(ART, 'slice.py'), ...args], { stdio: 'inherit', cwd: CLIENT });
-    child.on('close', (code) => (code === 0 ? done() : fail(new Error(`slice.py exited ${code}`))));
+    const child = spawn('python3', [join(ART, script), ...args], { stdio: 'inherit', cwd: CLIENT });
+    child.on('close', (code) => (code === 0 ? done() : fail(new Error(`${script} exited ${code}`))));
   });
 }
 
@@ -107,6 +131,14 @@ function python(args) {
 async function slice(spec, grid) {
   const batch = readJson(grid.replace(/\.png$/, '.json'));
   const { cols, rows } = spec.grid;
+  if (spec.panels) {
+    const targets = batch.ids.map((id) => {
+      const item = spec.items.find((one) => one.id === id);
+      return item ? `${target(spec, item)}:${item.size ?? spec.size}` : '-';
+    });
+    return python([grid, '--cols', String(cols), '--rows', String(rows), '--targets', targets.join(','),
+      '--sheet', grid.replace(/\.png$/, '.sheet.jpg')], 'slice_panels.py');
+  }
   await python([
     grid, '--cols', String(cols), '--rows', String(rows), '--ids', batch.ids.join(','), '--out', join(CLIENT, spec.out),
     '--size', spec.size, '--pad', String(spec.pad ?? 0.06), '--align', spec.align ?? 'center',
@@ -150,9 +182,8 @@ async function main() {
   if (flags.promote) return promote(flags.type, resolve(flags.promote));
   if (flags.slice) return slice(spec, resolve(flags.slice));
 
-  const out = join(CLIENT, spec.out);
   const wanted = spec.items.filter((item) =>
-    flags.only ? flags.only.includes(item.id) : flags.force || !existsSync(join(out, `${item.id}.webp`)));
+    flags.only ? flags.only.includes(item.id) : flags.force || !existsSync(target(spec, item)));
   const unknown = (flags.only ?? []).filter((id) => !spec.items.some((item) => item.id === id));
   if (unknown.length) throw new Error(`not in specs/${flags.type}.json: ${unknown.join(', ')}`);
   if (!wanted.length) return console.log(`${flags.type}: nothing to draw`);

@@ -1155,6 +1155,13 @@
     "rarity": "mythic"
   },
   {
+    "kind": "title",
+    "id": "curator",
+    "name": "Curator",
+    "es": "Curador",
+    "rarity": "mythic"
+  },
+  {
     "kind": "frame",
     "id": "frame-bronze",
     "name": "Bronze",
@@ -2103,6 +2110,13 @@
     "name": "Mimic",
     "es": "Mímico",
     "rarity": "rare"
+  },
+  {
+    "kind": "pet",
+    "id": "golden-capsule",
+    "name": "Golden capsule",
+    "es": "Cápsula dorada",
+    "rarity": "mythic"
   },
   {
     "kind": "emote",
