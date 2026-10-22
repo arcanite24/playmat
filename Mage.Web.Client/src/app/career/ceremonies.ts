@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { CareerAchievement } from '../../protocol/generated/views';
 import type { useT } from '../i18n';
 import type { CareerCue } from './careerSound';
+import { achievementFact } from './hubModel';
 import { describePay, describeReward } from './progressModel';
 
 /**
@@ -41,15 +42,20 @@ export const useCeremonies = create<CeremonyState>((set, get) => ({
   },
 }));
 
-/** An achievement's moment: its name, what it asked, and what it paid. */
+/**
+ * An achievement's moment: its name, what it asked, and what it paid. A tiered achievement in the hall's view
+ * describes its next tier, so the moment reads the tier it reached from its tiers instead.
+ */
 export function achievementMoment(t: ReturnType<typeof useT>, achievement: CareerAchievement): CeremonyMoment {
-  const pay = [describePay(t, achievement.coins, achievement.xp), achievement.cosmetic ? describeReward(t, [{ kind: 'cosmetic', cosmetic: achievement.cosmetic }]) : '']
+  const reached = achievement.tier ? achievement.tiers?.[achievement.tier - 1] : undefined;
+  const step = reached ? { ...achievement, text: reached.text ?? achievement.text, coins: reached.coins, xp: reached.xp, cosmetic: reached.cosmetic } : achievement;
+  const pay = [describePay(t, step.coins, step.xp), step.cosmetic ? describeReward(t, [{ kind: 'cosmetic', cosmetic: step.cosmetic }]) : '']
     .filter(Boolean).join(' · ');
   return {
-    id: `achievement:${achievement.id}`,
+    id: achievementFact(achievement),
     kicker: t('career.ceremony.achievement'),
     title: achievement.name ?? '',
-    text: [achievement.text, pay].filter(Boolean).join(' — '),
+    text: [step.text, pay].filter(Boolean).join(' — '),
     crest: { name: achievement.name ?? '', colors: 'C' },
     achievement: achievement.id,
     cue: 'levelUp',

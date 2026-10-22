@@ -161,6 +161,7 @@ public class CareerWardrobeTest {
         assertEquals(5000, spells.target, "the next tier's target");
         assertEquals(2, spells.tiers.get(0).holders, "Ana and Bea have bronze");
         assertEquals(1, spells.tiers.get(1).holders);
+        assertEquals("Cast 100 spells.", spells.tiers.get(0).text, "each tier says what it asked");
         assertEquals(15, spells.points);
         assertTrue(hall.points >= 15);
         assertEquals(hall.points, CareerProgress.get().points("Ana"));

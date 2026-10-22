@@ -361,6 +361,7 @@ export interface CareerAchievementTier {
     holders?: number;
     points?: number;
     target?: number;
+    text?: string;
     xp?: number;
 }
 

@@ -81,6 +81,13 @@
   background: conic-gradient(var(--brass) calc(var(--fill) * 360deg), transparent 0);
 }
 
+/* a laptop: the daily-win pips give their room to the rail's labels (the panel the chip opens shows them) */
+@media (max-width: 1280px) {
+  .pips {
+    display: none;
+  }
+}
+
 @media (max-width: 900px) {
   .coins,
   .pips {
