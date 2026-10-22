@@ -30,6 +30,7 @@ import {
   CAREER_SLEEVES, describeReward, fraction, levelRows, recentOpponent, rewardParts,
   type RewardPart,
 } from './progressModel';
+import { TokenIcon } from './capsules/TokenIcon';
 import styles from './Career.module.css';
 import progress from './Progress.module.css';
 
@@ -202,6 +203,8 @@ function RewardArt({ parts }: { parts: RewardPart[] }) {
       return painted
         ? <span className={[progress.art, progress.painted].join(' ')}><Art kind="reward" id="pack" size={84} label={t('career.progress.freePack')} /></span>
         : <span className={progress.art}><BoosterPack setCode="" setName={t('career.progress.freePack')} size="sm" className={progress.artPack} /></span>;
+    case 'tokens':
+      return <span className={[progress.art, progress.artCoins].join(' ')}><TokenIcon size={40} /><b>+{first.amount}</b></span>;
     case 'wildcard':
       return painted
         ? <span className={[progress.art, progress.painted].join(' ')}><Art kind="reward" id={wildcardArt(first.rarity)} size={84} /></span>

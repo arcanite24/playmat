@@ -11,6 +11,9 @@ import { useThankYou, type ThankYou } from '../support/supportData';
 import { CardFace } from '../ui/CardFace';
 import { catalogName, catalogOf, rarityOf, RARITY_COLORS, useCatalog, type CatalogKind } from '../ui/cosmeticsCatalog';
 import { LandStyleContext, PAINTED_STYLE } from '../ui/landStyles';
+import { cardStyleArt, useMyCardStyles } from '../ui/cardStyles';
+import { Link } from 'react-router-dom';
+import { equipStyle } from './capsules/capsuleData';
 import { Art } from './Art';
 import { useCareerAchievements, useCareerLevels, useCareerLook, type CareerLook } from './careerData';
 import { CareerAvatar } from './CareerScreen';
@@ -119,6 +122,7 @@ export function CosmeticsLocker({ track, achievements, career = true }: {
         {tab === 'emote' && <EmoteShelf shelf={shelf} catalog={catalog} />}
         {tab === 'battlefield' && <BattlefieldShelf shelf={shelf} catalog={catalog} />}
         {tab === 'land' && <LandShelf shelf={shelf} catalog={catalog} />}
+        {tab === 'cardstyle' && <CardStyleShelf shelf={shelf} catalog={catalog} />}
         {tab === 'thanks' && <ThanksShelf thanks={thanks} />}
       </div>
     </div>
@@ -476,6 +480,44 @@ function LandShelf({ shelf, catalog }: ShelfProps) {
         ))}
       </div>
     </ShelfPanel>
+  );
+}
+
+/**
+ * Card styles (capsule machines): one shelf a capsule set, each style worn on its own card. Picking a worn style takes
+ * it off; the Capsules screen is where they're pulled.
+ */
+function CardStyleShelf({ shelf, catalog }: ShelfProps) {
+  const t = useT();
+  const worn = useMyCardStyles() ?? {};
+  const styles_ = catalogOf('cardstyle', catalog);
+  const sets = [...new Set(styles_.map((item) => item.series ?? ''))];
+  const setName = (series: string) => catalogName(catalog.find((item) => item.kind === 'sleeve' && item.series === series), shelf.locale) || series;
+  const [busy, setBusy] = useState(false);
+  const wear = (card: string, item: string | null) => {
+    if (busy) return;
+    setBusy(true);
+    void equipStyle(card, item).catch(() => undefined).finally(() => setBusy(false));
+  };
+  return (
+    <>
+      <p className={progress.panelNote}>{t('career.locker.cardStyleNote')} <Link to="/career/capsules">{t('career.locker.toCapsules')}</Link></p>
+      {sets.map((series) => (
+        <ShelfPanel key={series} id={`style-${series}`} title={setName(series)}>
+          <div className={styles.tiles}>
+            {styles_.filter((item) => item.series === series).map((item) => {
+              const card = item.card ?? item.name ?? '';
+              const on = worn[card] === item.id;
+              return (
+                <Tile key={item.id} shelf={shelf} item={item} on={on} onPick={() => wear(card, on ? null : item.id!)}>
+                  <span className={styles.cardStyle} style={{ backgroundImage: `url(${cardStyleArt(item.id!, card)})` }} />
+                </Tile>
+              );
+            })}
+          </div>
+        </ShelfPanel>
+      ))}
+    </>
   );
 }
 

@@ -9,6 +9,7 @@ import type { CardView, GameView, PermanentView } from '../../protocol/generated
 import { AbilityCard } from '../ui/AbilityCard';
 import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
+import { useCardStyle } from '../ui/cardStyles';
 import { ManaCost } from '../ui/ManaCost';
 import { PromptText } from '../ui/PromptText';
 import { useMatchUi } from './matchUi';
@@ -104,6 +105,8 @@ export function CardDetail({ view, extra, sleeveOf, attacking, blocking }: {
   const detail = useMatchUi((state) => state.detail);
   const openDetail = useMatchUi((state) => state.openDetail);
   const [backFace, setBackFace] = useState(false);
+  // a card wearing a card style opens as its painting; the switch shows the printed card
+  const [asPrinted, setAsPrinted] = useState(false);
   const sheet = useRef<HTMLDivElement>(null);
 
   // the card under a pointer, when it can be opened: anything on the stage that carries its id
@@ -125,6 +128,7 @@ export function CardDetail({ view, extra, sleeveOf, attacking, blocking }: {
       const found = cardAt(event.target);
       if (!found) return;
       setBackFace(false);
+      setAsPrinted(false);
       openDetail(found);
     };
     element.addEventListener('contextmenu', onContextMenu);
@@ -150,6 +154,7 @@ export function CardDetail({ view, extra, sleeveOf, attacking, blocking }: {
   const live = detail ? findCard(view, detail.id, extra) ?? detail.card : null;
   const card = live && backFace && live.secondCardFace ? live.secondCardFace : live;
   const explanation = useMemo(() => (card ? explainCard(isStackAbility(card) ? { ...card, cardTypes: [] } : card) : null), [card]);
+  const styled = !!useCardStyle(live && !isStackAbility(live) ? live : undefined);
   if (!detail || !live || !card || !explanation) return null;
 
   // closing waits a tick: the key that closed it must not also reach the board's own shortcuts
@@ -193,8 +198,13 @@ export function CardDetail({ view, extra, sleeveOf, attacking, blocking }: {
             <div className={styles.card}>
               {ability
                 ? <AbilityCard ability={live} sleeve={sleeve} />
-                : <CardFace card={card} face={backFace && !showsBackFace(live) ? 'back' : 'front'} size="large" sleeve={sleeve} />}
+                : <CardFace card={card} face={backFace && !showsBackFace(live) ? 'back' : 'front'} size="large" sleeve={sleeve} printed={asPrinted} />}
             </div>
+            {styled && !backFace && (
+              <button type="button" className={styles.turn} aria-pressed={asPrinted} onClick={() => setAsPrinted((value) => !value)}>
+                {asPrinted ? 'Show the card style' : 'Show the printed card'}
+              </button>
+            )}
             {canTurn && (
               <button type="button" className={styles.turn} onClick={() => setBackFace((value) => !value)}>
                 {backFace ? 'Show the front face' : 'Show the back face'}

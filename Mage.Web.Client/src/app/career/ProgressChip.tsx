@@ -7,6 +7,7 @@ import { useCareerQuests, useCareerState, useProgressionShown } from './careerDa
 import { levelProgress } from './careerModel';
 import { fraction } from './progressModel';
 import TodayPanel from './TodayPanel';
+import { TokenIcon } from './capsules/TokenIcon';
 import styles from './ProgressChip.module.css';
 
 registerMessages(messages);
@@ -43,6 +44,7 @@ export default function ProgressChip() {
         {(profile.renown ?? 0) > 0 && <span className={styles.coins} aria-hidden="true">★{profile.renown}</span>}
         <span className={styles.coins} aria-hidden="true"><Coins size={14} /> {formatNumber(profile.coins ?? 0)}</span>
         {packs > 0 && <span className={styles.packs} aria-hidden="true"><Package size={14} /> {packs}</span>}
+        {(profile.capsuleTokens ?? 0) > 0 && <span className={styles.packs} aria-hidden="true"><TokenIcon size={14} /> {profile.capsuleTokens}</span>}
         <span className={styles.pips} aria-hidden="true">
           {(quests.data?.quests ?? []).map((quest) => (
             <i key={quest.slot} style={{ '--fill': fraction(quest.progress, quest.target) } as React.CSSProperties} />

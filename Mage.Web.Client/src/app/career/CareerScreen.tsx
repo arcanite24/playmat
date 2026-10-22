@@ -23,6 +23,7 @@ import { playCareerCue } from './careerSound';
 import { achievementFact, beatenCount, freshUnlocks, nextOpponent, readSeen, unlockFacts, writeSeen } from './hubModel';
 import { dealStyle, useStill } from './motion';
 import { CardArt, PortraitCard, type ArtCard } from './Portraits';
+import { useCapsuleSummary } from './capsules/capsuleData';
 import { CAREER_SLEEVES, cosmeticName, describePay, fraction, unlockedIds, weeklyMarks } from './progressModel';
 import { TitleText } from './LookParts';
 import { RANDOM_SLEEVE } from '../ui/sleeveArt';
@@ -207,6 +208,7 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
   const challenge = useChallenge(true);
   const hordes = useHordes(true);
   const shop = useCareerShop(true);
+  const capsules = useCapsuleSummary(true);
   const achievements = useCareerAchievements(true);
   const quests = useCareerQuests(true);
   const weekly = useCareerWeekly(true);
@@ -280,6 +282,11 @@ function CareerHub({ profile }: { profile: CareerProfile }) {
     ...((hordes.data ?? []).length > 0 ? [{
       to: '/career/hordes', title: t('career.modes.hordes'), art: (hordes.data ?? []).find((item) => !item.beaten)?.cover ?? hordes.data?.[0]?.cover ?? null, artName: '',
       status: t('career.horde.beatenCount', { beaten: (hordes.data ?? []).filter((item) => item.beaten).length, total: hordes.data?.length ?? 0 }),
+    }] : []),
+    ...(capsules ? [{
+      to: '/career/capsules', title: t('capsules.title'), art: null, artName: '', image: capsules.art,
+      status: t('capsules.hub', { have: capsules.have, total: capsules.total }),
+      badge: capsules.tokens > 0 ? t('capsules.hubTokens', { count: capsules.tokens }) : undefined,
     }] : []),
     {
       to: '/career/shop', title: t('career.nav.shop'), art: HUB_ART.shop, artName: '',
@@ -379,12 +386,16 @@ interface Tile {
   art: ArtCard | null;
   artName: string;
   badge?: string;
+  /** a painted picture in place of a card's art (the capsule machines) */
+  image?: string | null;
 }
 
 function ModeTile({ tile, index }: { tile: Tile; index: number }) {
   return (
     <Link to={tile.to} className={[hub.tile, motion.deal].join(' ')} style={dealStyle(index)} onClick={() => playCareerCue('whoosh')} data-nav>
-      <CardArt card={tile.art} name={tile.artName || tile.title} className={hub.tileArt} />
+      {tile.image
+        ? <img src={tile.image} alt="" className={[hub.tileArt, hub.tileImage].join(' ')} draggable={false} />
+        : <CardArt card={tile.art} name={tile.artName || tile.title} className={hub.tileArt} />}
       <span className={hub.tileText}>
         <b>{tile.title}</b>
         <small>{tile.status}</small>

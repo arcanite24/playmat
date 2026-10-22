@@ -18,7 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * The balancing sheet (B292): a casual (2 games a day), a regular (6) and a heavy player (20) play 90 days of mixed
  * games through the real progression code (rewards.json, quests, achievements, masteries, the weekly goal), and the
  * level they reach and the coins they earn must stay inside the targets below. Measured 2026-10-21: level after 90
- * days 22 (casual), 45 (regular), 67 (heavy). Run it with
+ * days 22 (casual), 45 (regular), 67 (heavy). Capsule tokens (M29, before any bought with coins) after 90 days: 78, 142
+ * and 168, so a regular player empties a 50-capsule machine in about four and a half weeks. Run it with
  * -Dxmage.progressionReport=true to print the sheet.
  */
 public class ProgressionBalanceTest {
@@ -49,6 +50,7 @@ public class ProgressionBalanceTest {
     private static final class Sheet {
         final int[] level = new int[3];
         final int[] coins = new int[3];
+        final int[] tokens = new int[3];
         int packs;
     }
 
@@ -88,6 +90,7 @@ public class ProgressionBalanceTest {
                 CareerProfile profile = store.profile(user);
                 sheet.level[checkpoint] = profile.level;
                 sheet.coins[checkpoint] = profile.coins;
+                sheet.tokens[checkpoint] = profile.capsuleTokens;
                 sheet.packs = profile.packTokens;
                 checkpoint++;
             }
@@ -102,11 +105,12 @@ public class ProgressionBalanceTest {
         Sheet regular = play("regular", 6, random);
         Sheet heavy = play("heavy", 20, random);
         if (Boolean.getBoolean("xmage.progressionReport")) {
-            StringBuilder report = new StringBuilder("player   games/day  level d7  d30  d90  coins d7  d30  d90  packs d90\n");
+            StringBuilder report = new StringBuilder("player   games/day  level d7  d30  d90  coins d7  d30  d90  packs d90  tokens d7  d30  d90\n");
             for (Object[] row : new Object[][]{{"casual", 2, casual}, {"regular", 6, regular}, {"heavy", 20, heavy}}) {
                 Sheet sheet = (Sheet) row[2];
-                report.append(String.format("%-8s %9d  %8d %4d %4d  %8d %4d %4d  %9d%n", row[0], row[1],
-                        sheet.level[0], sheet.level[1], sheet.level[2], sheet.coins[0], sheet.coins[1], sheet.coins[2], sheet.packs));
+                report.append(String.format("%-8s %9d  %8d %4d %4d  %8d %4d %4d  %9d  %9d %4d %4d%n", row[0], row[1],
+                        sheet.level[0], sheet.level[1], sheet.level[2], sheet.coins[0], sheet.coins[1], sheet.coins[2], sheet.packs,
+                        sheet.tokens[0], sheet.tokens[1], sheet.tokens[2]));
             }
             System.out.println(report);
         }
@@ -117,6 +121,11 @@ public class ProgressionBalanceTest {
         assertTrue(regular.level[2] >= 35 && regular.level[2] <= 55, "regular level after 90 days: " + Arrays.toString(regular.level));
         // a heavy player doesn't finish the track in a season
         assertTrue(heavy.level[2] >= 50 && heavy.level[2] <= 85, "heavy level after 90 days: " + Arrays.toString(heavy.level));
+        // a machine is 50 capsules: a regular player fills one in a month or so without spending coins, a casual player
+        // within the season, and heavy play doesn't turn every wave into a weekend
+        assertTrue(regular.tokens[1] >= 30 && regular.tokens[1] <= 70, "regular tokens after 30 days: " + Arrays.toString(regular.tokens));
+        assertTrue(casual.tokens[2] >= 50, "casual tokens after 90 days: " + Arrays.toString(casual.tokens));
+        assertTrue(heavy.tokens[1] < 100, "heavy tokens after 30 days: " + Arrays.toString(heavy.tokens));
         // the daily wins ladder caps coins: heavy play earns more, but not ten times more
         assertTrue(heavy.coins[2] < regular.coins[2] * 4, "coins after 90 days: regular " + regular.coins[2] + ", heavy " + heavy.coins[2]);
     }

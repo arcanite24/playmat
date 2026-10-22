@@ -178,6 +178,19 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           <Row label={t('settings.compactBoard')} detail={t('settings.compactBoard.detail')}>{toggle('compactBoard')}</Row>
           <Row label={t('settings.muteEmotes')} detail={t('settings.muteEmotes.detail')}>{toggle('muteEmotes')}</Row>
           <Row label={t('settings.paintedArt')} detail={t('settings.paintedArt.detail')}>{toggle('paintedArt')}</Row>
+          <Row label={t('settings.cardStyles')} detail={t('settings.cardStyles.detail')}>
+            <select
+              className={styles.select}
+              value={settings.paintedArt ? settings.cardStyles : 'off'}
+              disabled={!settings.paintedArt}
+              aria-label={t('settings.cardStyles')}
+              onChange={(event) => update({ cardStyles: event.target.value as PlaySettings['cardStyles'] })}
+            >
+              <option value="all">{t('settings.cardStyles.all')}</option>
+              <option value="mine">{t('settings.cardStyles.mine')}</option>
+              <option value="off">{t('settings.cardStyles.off')}</option>
+            </select>
+          </Row>
           {DEVICE_PICTURES && <PictureStoreRow />}
         </Tabs.Content>
 

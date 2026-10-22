@@ -32,6 +32,8 @@ public class CareerProfile {
     public int cards;
     /** free packs earned (levels, the weekly goal); the shop spends these before coins */
     public int packTokens;
+    /** capsule machine tokens (B314): earned or bought, spent one per pull */
+    public int capsuleTokens;
     /** Renown stars past the top level (B291) */
     public int renown;
     /** always true since every game counts (M24); kept for older clients */

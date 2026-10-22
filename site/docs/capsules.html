@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Capsule machines · Playmat docs</title>
+  <meta name="description" content="Career's capsule machines: how tokens and pulls work, the numbers to tune, and how to add a machine.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="capsules.html" aria-current="page">Capsule machines</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Capsule machines</h1>
+        <p class="lede">Capsules are Career's gachapon. A player spends a capsule token on a machine and gets a random
+          cosmetic they don't own yet. A machine of 50 takes exactly 50 tokens and never gives a duplicate.</p>
+
+        <h2 id="how">How it works</h2>
+        <ul>
+          <li><strong>Machines come in waves.</strong> The shop (Career → Capsules) shows the newest wave first, and how many capsules each machine has left for the player.</li>
+          <li><strong>A machine is ten sets of five.</strong> Finishing a set gives its sleeve. Finishing the machine gives its reward and a title.</li>
+          <li><strong>Wave 1 is Full Art:</strong> card styles, whole-card paintings of staples with no frame and no text. Players wear one per card name from the locker's Card styles tab. The table sees them unless someone picks <em>Only mine</em> or <em>None</em> under Settings → Display. Holding Alt shows the printed card.</li>
+          <li><strong>Unopened capsules are safe.</strong> The server records a pull the moment it happens, so closing the page mid-animation only leaves the capsules waiting to be opened.</li>
+        </ul>
+
+        <h2 id="tokens">Tokens</h2>
+        <p>Tokens come from the first win of the day, each weekly goal step, every fifth level and an achievement's gold
+          and mythic tiers. Players can also buy them for coins: 120 each, in bundles of 1, 5 and 10. They have no cap and don't expire.</p>
+        <p>The numbers are the <code>capsules</code> block in <code>Mage.Server/src/main/resources/career/rewards.json</code>.
+          At these numbers a regular player (six games a day) earns about 47 tokens in the first month, roughly one machine
+          every four to five weeks before spending coins. A casual player finishes one within a season.
+          <code>ProgressionBalanceTest</code> prints the sheet with <code>-Dxmage.progressionReport=true</code>.</p>
+
+        <h2 id="add">Add a machine</h2>
+        <ol>
+          <li>Write <code>career/machines/&lt;id&gt;.json</code> like <code>full-art.json</code>. Each set needs an id, English and Spanish names, a capsule colour, a style line for the painter, and five items. Item ids are <code>&lt;set&gt;-&lt;slug&gt;</code>, each naming a real single-faced card, and no card appears twice.</li>
+          <li>Add it to <code>career/machines/index.json</code> with the next wave number.</li>
+          <li>Paint it, from <code>Mage.Web.Client</code>:</li>
+        </ol>
+        <div class="terminal" role="region" aria-label="Commands to paint a machine">
+<pre><code>node art/machine-specs.mjs &lt;id&gt;
+node art/generate.mjs style-&lt;set&gt;</code></pre>
+        </div>
+        <p>The first command writes one spec per set. The second draws a set in one go (its five cards and its sleeve), so the set stays consistent. Run it once per set.</p>
+        <ol start="4">
+          <li>Run <code>CareerCapsulesTest</code>. It fails on a missing picture, a card that doesn't exist, a repeated card or a reward that isn't in the cosmetics catalog.</li>
+        </ol>
+        <p class="note">Machine content ships with the server build, so a new machine reaches players with the next update.
+          Machines hold card styles for now; another kind of item would need the client to learn how to show it.</p>
+
+        <p class="small">The full reference, including where everything is stored, is the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#capsule-machines">Capsule machines section</a>
+          of the deployment guide.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

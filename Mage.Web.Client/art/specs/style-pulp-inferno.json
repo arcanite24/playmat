@@ -1,0 +1,44 @@
+{
+  "$comment": "Card styles of the Pulp Inferno set (Full Art capsule machine), written by art/machine-specs.mjs from career/machines/full-art.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/pulp-inferno",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "384x536",
+  "anchors": [],
+  "style": "1950s pulp magazine cover painting: saturated reds, oranges and yellows against deep blue shadows, dramatic low angles, halftone dot texture, bold painterly highlights, explosive action, a retro adventure feel, no title block or lettering.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a jagged red-gold lightning bolt striking down from a storm, a figure thrown back by the blast",
+  "items": [
+    {
+      "id": "lightning-bolt",
+      "subject": "a jagged red-gold lightning bolt striking down from a storm, a figure thrown back by the blast"
+    },
+    {
+      "id": "burst-lightning",
+      "subject": "a hero firing crackling lightning from both hands, the burst exploding into a star of sparks"
+    },
+    {
+      "id": "unholy-heat",
+      "subject": "a demon's clawed hand rising from a lava crack, waves of heat warping the air around it"
+    },
+    {
+      "id": "fiery-intervention",
+      "subject": "a rocket-pack hero swooping down through flames to smash a clanking robot apart"
+    },
+    {
+      "id": "fire-elemental",
+      "subject": "a towering humanoid of living flame stomping through a burning town at night"
+    },
+    {
+      "id": "set-pulp-inferno",
+      "out": "public/career-art/sleeve/set-pulp-inferno.webp",
+      "size": "360x504",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

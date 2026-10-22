@@ -29,7 +29,7 @@ import java.util.Map;
 public final class CareerCosmetics {
 
     public static final List<String> KINDS = Collections.unmodifiableList(java.util.Arrays.asList(
-            "avatar", "title", "frame", "sleeve", "playmat", "pet", "emote", "arrow", "spark", "stamp", "land"));
+            "avatar", "title", "frame", "sleeve", "playmat", "pet", "emote", "arrow", "spark", "stamp", "land", "cardstyle"));
 
     /** One sticker or phrase of an emote set. */
     public static class CareerSticker {
@@ -40,7 +40,7 @@ public final class CareerCosmetics {
 
     /** Where a cosmetic comes from. */
     public static class CareerCosmeticSource {
-        /** "level", "achievement", "campaign", "mastery" or "free" */
+        /** "level", "achievement", "campaign", "mastery", "free", "capsule" (pulled from a machine, or finishing it) or "capsuleSet" (finishing a capsule set) */
         public String kind;
         /** the achievement, campaign or mastery track; null for a level */
         public String ref;
@@ -81,6 +81,9 @@ public final class CareerCosmetics {
         public String style;
         /** a basic land style's set code */
         public String set;
+        /** a card style's card (its English name) and, for card styles and a capsule set's sleeve, the capsule set */
+        public String card;
+        public String series;
         /** an emote set's stickers (or phrases) */
         public List<CareerSticker> stickers;
         /** a mastery track and rank that give it (else the content says) */
@@ -131,7 +134,13 @@ public final class CareerCosmetics {
     private static CareerCosmetics load() throws IOException {
         List<CareerCatalogItem> items = new Gson().fromJson(text("cosmetics.json"), new TypeToken<List<CareerCatalogItem>>() {
         }.getType());
+        CareerCapsules capsules = CareerCapsules.get();
+        items.addAll(capsules.catalogItems());
         CareerCosmetics catalog = new CareerCosmetics(items);
+        for (CareerCapsules.CareerMachine machine : capsules.machines()) {
+            catalog.source(machine.reward, new CareerCosmeticSource("capsule", machine.id, 0));
+            catalog.source(machine.title, new CareerCosmeticSource("capsule", machine.id, 0));
+        }
         CareerProgress progress = CareerProgress.get();
         for (CareerProgress.CareerLevelReward level : progress.levelRewards().values()) {
             catalog.source(level.cosmetic, new CareerCosmeticSource("level", null, level.level));

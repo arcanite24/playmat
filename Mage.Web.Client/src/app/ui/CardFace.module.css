@@ -154,3 +154,81 @@
   background-repeat: no-repeat;
   box-shadow: none;
 }
+
+/* a card style (capsule machines, cardStyles.ts): the painting fills the card; a slim plate keeps it readable */
+.styleOverlay {
+  position: absolute;
+  inset: 0;
+  container-type: inline-size;
+  opacity: 0;
+  transition: opacity var(--dur-place) linear;
+  pointer-events: none;
+}
+
+[data-loaded] .styleOverlay {
+  opacity: 1;
+}
+
+.stylePlate {
+  position: absolute;
+  top: 3.5%;
+  left: 4%;
+  right: 4%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4cqi;
+  padding: 1.6cqi 3cqi;
+  border-radius: 3cqi;
+  background: rgb(14 18 16 / 0.62);
+  box-shadow: inset 0 0 0 1px rgb(233 228 214 / 0.18);
+  backdrop-filter: blur(2px);
+}
+
+.styleName {
+  min-width: 0;
+  overflow: hidden;
+  color: #f2eee2;
+  font-family: var(--font-print);
+  font-size: max(6px, 7.4cqi);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stylePlate > :last-child {
+  flex: none;
+}
+
+.styleType {
+  position: absolute;
+  left: 4%;
+  bottom: 3.5%;
+  max-width: 62%;
+  overflow: hidden;
+  padding: 0.8cqi 2.6cqi;
+  border-radius: 2.4cqi;
+  background: rgb(14 18 16 / 0.5);
+  color: rgb(242 238 226 / 0.86);
+  font-size: max(5px, 5.2cqi);
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stylePt {
+  position: absolute;
+  right: 4%;
+  bottom: 3%;
+  padding: 1cqi 3.2cqi;
+  border-radius: 2.6cqi;
+  background: rgb(233 228 214 / 0.92);
+  color: #15201b;
+  font-family: var(--font-print);
+  font-size: max(7px, 8.6cqi);
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}

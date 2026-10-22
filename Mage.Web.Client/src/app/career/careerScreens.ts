@@ -9,6 +9,9 @@ const SCREENS: { path: string; title: MessageKey; back: string }[] = [
   { path: '/career/deck', title: 'career.nav.deck', back: '/career' },
   { path: '/career/collection', title: 'career.nav.collection', back: '/career' },
   { path: '/career/shop', title: 'career.nav.shop', back: '/career' },
+  // a machine goes back to the storefront
+  { path: '/career/capsules/', title: 'capsules.title', back: '/career/capsules' },
+  { path: '/career/capsules', title: 'capsules.title', back: '/career' },
   { path: '/career/progress', title: 'career.nav.progress', back: '/career' },
   { path: '/career/rewards', title: 'career.rewards.title', back: '/career' },
   { path: '/career/campaign', title: 'career.modes.campaign', back: '/career' },

@@ -378,3 +378,17 @@ button.tile:not(:disabled):hover {
     transition: none;
   }
 }
+
+/* a card style's painting, at card proportions */
+.cardStyle {
+  display: block;
+  width: 64px;
+  aspect-ratio: 63 / 88;
+  border-radius: 4px;
+  background: var(--mat-700) center / cover no-repeat;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.4);
+}
+
+.locked .cardStyle {
+  filter: grayscale(0.85) brightness(0.55);
+}

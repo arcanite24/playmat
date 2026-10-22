@@ -1,5 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Crown, Images, ListPlus, Minus, Mountain, Plus, Replace, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Crown, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
+import { useMyCardStyles } from '../ui/cardStyles';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { CardView } from '../../protocol/generated/views';
@@ -351,6 +352,7 @@ function DeckPanel({ deck, zone, info, formats, rules, identity, saving, limitFo
                 >
                   <span className={styles.rowCount}>{row.entry.amount}</span>
                   <span className={styles.rowName}>{row.entry.cardName}</span>
+                  <StyledMark card={row.entry.cardName} />
                   {identity && zone === 'cards' && row.card && !withinIdentity(row.card, identity) && (
                     <TriangleAlert size={14} className={styles.offColor} aria-label="Outside your commander's colors" />
                   )}
@@ -567,4 +569,10 @@ function Preview({ card, anchor, side }: { card: CardView; anchor: DOMRect; side
       <CardFace card={card} size="large" />
     </div>
   );
+}
+
+/** A card wearing one of the account's card styles (capsule machines) is marked in the list. */
+function StyledMark({ card }: { card: string }) {
+  const worn = useMyCardStyles()?.[card];
+  return worn ? <Sparkles size={13} className={styles.styledMark} aria-label="Wears a card style" /> : null;
 }

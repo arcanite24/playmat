@@ -1,0 +1,44 @@
+{
+  "$comment": "Card styles of the Gilded Arcana set (Full Art capsule machine), written by art/machine-specs.mjs from career/machines/full-art.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/gilded-arcana",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "384x536",
+  "anchors": [],
+  "style": "Art nouveau tarot: elegant flowing linework, gold leaf ornament and halos, ivory, deep teal and rose palette, a decorative arched border of vines and stars painted as part of the picture, symmetrical and serene, no numerals, titles or lettering.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a single dark lotus flower in full bloom floating on still water, gold light at its heart",
+  "items": [
+    {
+      "id": "black-lotus",
+      "subject": "a single dark lotus flower in full bloom floating on still water, gold light at its heart"
+    },
+    {
+      "id": "ancestral-recall",
+      "subject": "an old sage surrounded by three translucent ancestor spirits each offering a glowing page"
+    },
+    {
+      "id": "time-walk",
+      "subject": "a robed traveller stepping through a great hourglass whose sand flows upward"
+    },
+    {
+      "id": "mox-pearl",
+      "subject": "a luminous white pearl set in an ornate gold pendant, hanging against a starry night"
+    },
+    {
+      "id": "mox-sapphire",
+      "subject": "a deep blue sapphire in an ornate gold pendant, hanging against flowing water"
+    },
+    {
+      "id": "set-gilded-arcana",
+      "out": "public/career-art/sleeve/set-gilded-arcana.webp",
+      "size": "360x504",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

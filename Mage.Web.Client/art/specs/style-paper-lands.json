@@ -1,0 +1,44 @@
+{
+  "$comment": "Card styles of the Paper Lands set (Full Art capsule machine), written by art/machine-specs.mjs from career/machines/full-art.json: edit that file and re-run, not this one.",
+  "out": "public/career-art/cardstyle/paper-lands",
+  "house": false,
+  "panels": true,
+  "grid": {
+    "cols": 4,
+    "rows": 2,
+    "canvas": "landscape"
+  },
+  "size": "384x536",
+  "anchors": [],
+  "style": "Layered paper-cut diorama: many stacked layers of cut coloured paper with soft drop shadows between layers giving depth, clean curved silhouettes, matte paper texture, a gentle backlight glowing through the deepest layer.",
+  "rules": "These are full-art pictures for playing cards: the client draws a small name plate over the top edge, mana symbols at the top right and power and toughness at the bottom right, so keep the main subject in the middle of the panel and the top 15% and bottom 15% calm and uncluttered (sky, ground, water, background texture), with nothing important in the corners. Each panel shows its own subject as one clear, readable scene, the same style and palette as its neighbours, as if the whole row were a matched, limited-edition art series.",
+  "spare": "an extra painting in the same style: a pale beach where white sand meets layered turquoise waves, a low sun behind cliffs",
+  "items": [
+    {
+      "id": "flooded-strand",
+      "subject": "a pale beach where white sand meets layered turquoise waves, a low sun behind cliffs"
+    },
+    {
+      "id": "misty-rainforest",
+      "subject": "a rainforest valley in layers of mist, a river winding between tall green trees and waterfalls"
+    },
+    {
+      "id": "polluted-delta",
+      "subject": "a dark marshy river delta under a violet sky, dead trees and black water channels"
+    },
+    {
+      "id": "scalding-tarn",
+      "subject": "a steaming mountain lake in a red volcanic crater, plumes of steam rising into the sky"
+    },
+    {
+      "id": "wooded-foothills",
+      "subject": "rolling foothills covered in pine forest rising toward a smoking red mountain"
+    },
+    {
+      "id": "set-paper-lands",
+      "out": "public/career-art/sleeve/set-paper-lands.webp",
+      "size": "360x504",
+      "subject": "the BACK of a playing card in the same style: a symmetrical ornamental design (it is seen upside down too) with a central emblem drawn from this set's theme, framed by a painted border; no logo, no oval, no five dots, no lettering"
+    }
+  ]
+}

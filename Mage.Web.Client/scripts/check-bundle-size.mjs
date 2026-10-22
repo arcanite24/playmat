@@ -84,10 +84,13 @@ import { gzipSync } from 'node:zlib';
 // catalog, the locker redone, plate frames, companions, emotes, battlefield touches, land styles, the achievement hall,
 // showcase badges, moments). The entry gains the catalog store, which the sleeve and cloth lookups read synchronously;
 // the rest is lazy. Measured entry 80.2 kB, initial 214.5 kB, app 746.2 kB
+// raised 2026-10-21 from entry 81, initial 216, app 755 for M29-M33 (the capsule machines): card styles show wherever
+// a card face does, so the style lookup and the face's overlay load with the entry, as do the four capsule RPC methods;
+// the shop, the pull sequence and their messages are lazy. Measured entry 83.4 kB, initial 217.6 kB, app 762.5 kB
 const BUDGET_KB = {
-  entry: 81,
-  initial: 216,
-  app: 755,
+  entry: 84,
+  initial: 218,
+  app: 765,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

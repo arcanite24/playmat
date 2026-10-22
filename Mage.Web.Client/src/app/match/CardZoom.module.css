@@ -39,3 +39,15 @@
   max-width: 520px;
   font-size: 24px;
 }
+
+/* a styled card's rules text, which its painting doesn't print */
+.rules {
+  composes: details;
+  display: grid;
+  gap: 6px;
+}
+
+.large .rules {
+  max-width: 520px;
+  font-size: 24px;
+}

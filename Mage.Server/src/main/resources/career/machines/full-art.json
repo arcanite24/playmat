@@ -1,0 +1,363 @@
+{
+  "id": "full-art",
+  "wave": 1,
+  "name": "Full Art",
+  "es": "Arte completo",
+  "blurb": "Ten painted sets of five: whole-card art for staples, no frame and no text.",
+  "blurbEs": "Diez sets pintados de cinco: arte de carta completa para clásicos, sin marco ni texto.",
+  "kind": "cardstyle",
+  "cabinet": {
+    "body": "#8a2f2a",
+    "trim": "#e3b25a"
+  },
+  "reward": {
+    "kind": "pet",
+    "id": "golden-capsule"
+  },
+  "title": {
+    "kind": "title",
+    "id": "curator"
+  },
+  "sets": [
+    {
+      "id": "ukiyo-tides",
+      "name": "Ukiyo Tides",
+      "es": "Mareas Ukiyo",
+      "capsule": "#2c4a8c",
+      "style": "Japanese woodblock print (ukiyo-e): flat areas of indigo, Prussian blue and pale cream, bold black key lines, wood-grain texture in the flat colour, stylised curling waves with claw-like foam, a muted coral accent used sparingly.",
+      "items": [
+        {
+          "id": "ukiyo-tides-counterspell",
+          "card": "Counterspell",
+          "subject": "a great curling wave rising to swallow a falling spark of light, the spark snuffed in its foam"
+        },
+        {
+          "id": "ukiyo-tides-brainstorm",
+          "card": "Brainstorm",
+          "subject": "a scholar in a small boat under a storm sky, three paper charms whirling up out of the sea around them"
+        },
+        {
+          "id": "ukiyo-tides-ponder",
+          "card": "Ponder",
+          "subject": "a lone figure on a rock at dusk looking down into a still tide pool that mirrors the moon"
+        },
+        {
+          "id": "ukiyo-tides-force-of-will",
+          "card": "Force of Will",
+          "subject": "a robed sage standing on the crest of a towering wave, one open palm raised to halt the sea"
+        },
+        {
+          "id": "ukiyo-tides-spell-pierce",
+          "card": "Spell Pierce",
+          "subject": "a single long heron's beak spearing a glowing bubble on the water's surface, ripples spreading"
+        }
+      ]
+    },
+    {
+      "id": "neon-noir",
+      "name": "Neon Noir",
+      "es": "Neón noir",
+      "capsule": "#c2307a",
+      "style": "Rain-soaked synthwave noir: deep black-violet night, wet streets and glass reflecting hot magenta and electric cyan neon glow, hard rim light, film grain, cinematic and moody, shapes of signs with no readable lettering.",
+      "items": [
+        {
+          "id": "neon-noir-thoughtseize",
+          "card": "Thoughtseize",
+          "subject": "a gloved hand pulling one glowing card out of a silhouette's head in a neon-lit alley"
+        },
+        {
+          "id": "neon-noir-fatal-push",
+          "card": "Fatal Push",
+          "subject": "a shadowy figure toppling backwards off a rain-slick rooftop ledge, neon city far below"
+        },
+        {
+          "id": "neon-noir-duress",
+          "card": "Duress",
+          "subject": "an interrogation room lit by one cyan lamp, a hooded figure leaning over a table of scattered cards"
+        },
+        {
+          "id": "neon-noir-snuff-out",
+          "card": "Snuff Out",
+          "subject": "two fingers pinching out a candle flame, the smoke curling into a magenta skull against the rain"
+        },
+        {
+          "id": "neon-noir-dismember",
+          "card": "Dismember",
+          "subject": "a shattered chrome mannequin in a puddle, its limbs scattered and reflecting pink neon"
+        }
+      ]
+    },
+    {
+      "id": "cathedral-glass",
+      "name": "Cathedral Glass",
+      "es": "Vitral catedral",
+      "capsule": "#d9a62e",
+      "style": "Gothic stained glass window: jewel-tone glass panes in gold, ruby, sapphire and white, thick dark lead lines between panes, light glowing through the glass, a pointed-arch tracery feel, saints and symbols shown as simple heraldic figures.",
+      "items": [
+        {
+          "id": "cathedral-glass-swords-to-plowshares",
+          "card": "Swords to Plowshares",
+          "subject": "a sword bending and turning into a plough blade in a field of golden wheat, sun rays behind"
+        },
+        {
+          "id": "cathedral-glass-rest-in-peace",
+          "card": "Rest in Peace",
+          "subject": "a sealed stone tomb under a white lily, a ring of candles and a closed gate around it"
+        },
+        {
+          "id": "cathedral-glass-containment-priest",
+          "card": "Containment Priest",
+          "subject": "a hooded priest holding a glowing lantern before a barred door, a shadow pressing against it"
+        },
+        {
+          "id": "cathedral-glass-prismatic-ending",
+          "card": "Prismatic Ending",
+          "subject": "a beam of white light splitting through a prism into five coloured rays that dissolve a dark shape"
+        },
+        {
+          "id": "cathedral-glass-solitude",
+          "card": "Solitude",
+          "subject": "a pale elemental swordswoman with a blade of light, standing alone in a radiant halo"
+        }
+      ]
+    },
+    {
+      "id": "field-guide",
+      "name": "Field Guide",
+      "es": "Guía de campo",
+      "capsule": "#7b9a6b",
+      "style": "Vintage naturalist's field journal: delicate watercolour and fine ink linework on aged cream paper, specimen-plate composition, soft greens, ochres and browns, pressed leaves and small sketched details around the main specimen, no labels or handwriting.",
+      "items": [
+        {
+          "id": "field-guide-llanowar-elves",
+          "card": "Llanowar Elves",
+          "subject": "a slender elf druid crouched on a mossy root, a sprout of glowing green growing from their palm"
+        },
+        {
+          "id": "field-guide-elvish-mystic",
+          "card": "Elvish Mystic",
+          "subject": "an elf mystic in a cloak of leaves, eyes closed, fireflies circling a staff of living wood"
+        },
+        {
+          "id": "field-guide-giant-spider",
+          "card": "Giant Spider",
+          "subject": "a large banded forest spider in the middle of a dew-covered web strung between two branches"
+        },
+        {
+          "id": "field-guide-dune-beetle",
+          "card": "Dune Beetle",
+          "subject": "a scarab beetle with an iridescent shell walking over rippled sand, studied from above"
+        },
+        {
+          "id": "field-guide-crocodile-of-the-crossing",
+          "card": "Crocodile of the Crossing",
+          "subject": "a great crocodile half-submerged at a river ford, reeds and a stepping-stone path beside it"
+        }
+      ]
+    },
+    {
+      "id": "pulp-inferno",
+      "name": "Pulp Inferno",
+      "es": "Infierno pulp",
+      "capsule": "#d2462b",
+      "style": "1950s pulp magazine cover painting: saturated reds, oranges and yellows against deep blue shadows, dramatic low angles, halftone dot texture, bold painterly highlights, explosive action, a retro adventure feel, no title block or lettering.",
+      "items": [
+        {
+          "id": "pulp-inferno-lightning-bolt",
+          "card": "Lightning Bolt",
+          "subject": "a jagged red-gold lightning bolt striking down from a storm, a figure thrown back by the blast"
+        },
+        {
+          "id": "pulp-inferno-burst-lightning",
+          "card": "Burst Lightning",
+          "subject": "a hero firing crackling lightning from both hands, the burst exploding into a star of sparks"
+        },
+        {
+          "id": "pulp-inferno-unholy-heat",
+          "card": "Unholy Heat",
+          "subject": "a demon's clawed hand rising from a lava crack, waves of heat warping the air around it"
+        },
+        {
+          "id": "pulp-inferno-fiery-intervention",
+          "card": "Fiery Intervention",
+          "subject": "a rocket-pack hero swooping down through flames to smash a clanking robot apart"
+        },
+        {
+          "id": "pulp-inferno-fire-elemental",
+          "card": "Fire Elemental",
+          "subject": "a towering humanoid of living flame stomping through a burning town at night"
+        }
+      ]
+    },
+    {
+      "id": "clockwork-atelier",
+      "name": "Clockwork Atelier",
+      "es": "Taller de relojería",
+      "capsule": "#a8793a",
+      "style": "Victorian clockwork technical illustration crossed with oil painting: polished brass, copper and walnut, intricate gears and springs, warm workshop lamplight, a faint blueprint grid in the background, precise and rich.",
+      "items": [
+        {
+          "id": "clockwork-atelier-sol-ring",
+          "card": "Sol Ring",
+          "subject": "a heavy brass ring with a tiny sun turning inside it on gimbals, radiating warm light"
+        },
+        {
+          "id": "clockwork-atelier-arcane-signet",
+          "card": "Arcane Signet",
+          "subject": "a signet ring with an engraved gear seal resting on a wax-sealed envelope, glowing faintly"
+        },
+        {
+          "id": "clockwork-atelier-mind-stone",
+          "card": "Mind Stone",
+          "subject": "a smooth polished stone mounted in a brass cradle of gears, a soft glow pulsing inside it"
+        },
+        {
+          "id": "clockwork-atelier-thought-vessel",
+          "card": "Thought Vessel",
+          "subject": "a glass flask in a brass cage, swirling with luminous thoughts like tiny drifting cogs"
+        },
+        {
+          "id": "clockwork-atelier-commanders-sphere",
+          "card": "Commander's Sphere",
+          "subject": "an armillary sphere of brass rings around a glowing orb, standing on a walnut workbench"
+        }
+      ]
+    },
+    {
+      "id": "paper-lands",
+      "name": "Paper Lands",
+      "es": "Tierras de papel",
+      "capsule": "#2f8a85",
+      "style": "Layered paper-cut diorama: many stacked layers of cut coloured paper with soft drop shadows between layers giving depth, clean curved silhouettes, matte paper texture, a gentle backlight glowing through the deepest layer.",
+      "items": [
+        {
+          "id": "paper-lands-flooded-strand",
+          "card": "Flooded Strand",
+          "subject": "a pale beach where white sand meets layered turquoise waves, a low sun behind cliffs"
+        },
+        {
+          "id": "paper-lands-misty-rainforest",
+          "card": "Misty Rainforest",
+          "subject": "a rainforest valley in layers of mist, a river winding between tall green trees and waterfalls"
+        },
+        {
+          "id": "paper-lands-polluted-delta",
+          "card": "Polluted Delta",
+          "subject": "a dark marshy river delta under a violet sky, dead trees and black water channels"
+        },
+        {
+          "id": "paper-lands-scalding-tarn",
+          "card": "Scalding Tarn",
+          "subject": "a steaming mountain lake in a red volcanic crater, plumes of steam rising into the sky"
+        },
+        {
+          "id": "paper-lands-wooded-foothills",
+          "card": "Wooded Foothills",
+          "subject": "rolling foothills covered in pine forest rising toward a smoking red mountain"
+        }
+      ]
+    },
+    {
+      "id": "pixel-inventory",
+      "name": "Pixel Inventory",
+      "es": "Inventario pixel",
+      "capsule": "#8fbf3a",
+      "style": "True low-resolution pixel art, like a 16-bit console game's item screen drawn at about 96 pixels wide and scaled up with hard nearest-neighbour edges: every pixel a clearly visible square block, no smooth gradients, no painterly detail, no anti-aliasing, a limited palette of about 16 bright colours with dithering for shading, the item big and centred on a dark tiled dungeon floor, a few square sparkle pixels; no interface text or numbers.",
+      "items": [
+        {
+          "id": "pixel-inventory-lightning-greaves",
+          "card": "Lightning Greaves",
+          "subject": "a pair of armoured boots crackling with yellow lightning sparks"
+        },
+        {
+          "id": "pixel-inventory-swiftfoot-boots",
+          "card": "Swiftfoot Boots",
+          "subject": "a pair of winged leather boots with motion lines behind them"
+        },
+        {
+          "id": "pixel-inventory-mishras-bauble",
+          "card": "Mishra's Bauble",
+          "subject": "a small glowing glass orb on a little bronze stand, a tiny eye reflected inside"
+        },
+        {
+          "id": "pixel-inventory-pithing-needle",
+          "card": "Pithing Needle",
+          "subject": "a long silver needle pinning a glowing rune-less scroll to the ground"
+        },
+        {
+          "id": "pixel-inventory-tormods-crypt",
+          "card": "Tormod's Crypt",
+          "subject": "a small stone crypt with its lid slid open and ghostly wisps escaping into the air"
+        }
+      ]
+    },
+    {
+      "id": "gilded-arcana",
+      "name": "Gilded Arcana",
+      "es": "Arcanos dorados",
+      "capsule": "#efe3c4",
+      "style": "Art nouveau tarot: elegant flowing linework, gold leaf ornament and halos, ivory, deep teal and rose palette, a decorative arched border of vines and stars painted as part of the picture, symmetrical and serene, no numerals, titles or lettering.",
+      "items": [
+        {
+          "id": "gilded-arcana-black-lotus",
+          "card": "Black Lotus",
+          "subject": "a single dark lotus flower in full bloom floating on still water, gold light at its heart"
+        },
+        {
+          "id": "gilded-arcana-ancestral-recall",
+          "card": "Ancestral Recall",
+          "subject": "an old sage surrounded by three translucent ancestor spirits each offering a glowing page"
+        },
+        {
+          "id": "gilded-arcana-time-walk",
+          "card": "Time Walk",
+          "subject": "a robed traveller stepping through a great hourglass whose sand flows upward"
+        },
+        {
+          "id": "gilded-arcana-mox-pearl",
+          "card": "Mox Pearl",
+          "subject": "a luminous white pearl set in an ornate gold pendant, hanging against a starry night"
+        },
+        {
+          "id": "gilded-arcana-mox-sapphire",
+          "card": "Mox Sapphire",
+          "subject": "a deep blue sapphire in an ornate gold pendant, hanging against flowing water"
+        }
+      ]
+    },
+    {
+      "id": "clay-crypt",
+      "name": "Clay Crypt",
+      "es": "Cripta de arcilla",
+      "capsule": "#6c4a9a",
+      "style": "Stop-motion claymation diorama: handmade plasticine figures with visible thumbprints, chunky rounded forms, miniature set dressing, soft studio lighting with a little depth of field, a playful spooky palette of purples, greens and bone white.",
+      "items": [
+        {
+          "id": "clay-crypt-gravedigger",
+          "card": "Gravedigger",
+          "subject": "a hunched clay gravedigger with a shovel, pulling a bony arm up out of a fresh grave"
+        },
+        {
+          "id": "clay-crypt-festering-mummy",
+          "card": "Festering Mummy",
+          "subject": "a lumpy clay mummy with loose bandages and a green ooze, shuffling out of a sarcophagus"
+        },
+        {
+          "id": "clay-crypt-tattered-mummy",
+          "card": "Tattered Mummy",
+          "subject": "a skinny clay mummy with trailing tattered wraps, arms out, lurching through a tomb corridor"
+        },
+        {
+          "id": "clay-crypt-desiccated-naga",
+          "card": "Desiccated Naga",
+          "subject": "a dried-out clay serpent-woman coiled on a sandy tomb floor, cracked scales and hollow eyes"
+        },
+        {
+          "id": "clay-crypt-baleful-ammit",
+          "card": "Baleful Ammit",
+          "subject": "a chubby clay beast with a crocodile head, lion's mane and hippo body, guarding a set of scales"
+        }
+      ]
+    }
+  ]
+}

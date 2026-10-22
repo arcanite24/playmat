@@ -76,6 +76,10 @@ export function sourceWords(t: Translate, source: CareerCosmeticSource, achievem
       return t('career.locker.fromMastery', { track: masteryName(t, source.ref), rank: value });
     case 'free':
       return t('career.locker.free');
+    case 'capsule':
+      return t('career.locker.fromCapsule', { name: titleLabel(source.ref ?? '') });
+    case 'capsuleSet':
+      return t('career.locker.fromCapsuleSet', { name: titleLabel(source.ref ?? '') });
     default:
       return t('career.look.inCareer');
   }
@@ -94,9 +98,9 @@ export function ownsItem(unlocks: readonly CareerCosmetic[], item: CareerCatalog
 
 // ---- the locker's tabs
 
-export type LockerTab = 'avatar' | 'title' | 'frame' | 'sleeve' | 'playmat' | 'pet' | 'emote' | 'battlefield' | 'land' | 'thanks';
+export type LockerTab = 'avatar' | 'title' | 'frame' | 'sleeve' | 'playmat' | 'pet' | 'emote' | 'battlefield' | 'land' | 'cardstyle' | 'thanks';
 
-export const LOCKER_TABS: LockerTab[] = ['avatar', 'title', 'frame', 'sleeve', 'playmat', 'pet', 'emote', 'battlefield', 'land', 'thanks'];
+export const LOCKER_TABS: LockerTab[] = ['avatar', 'title', 'frame', 'sleeve', 'playmat', 'pet', 'emote', 'battlefield', 'land', 'cardstyle', 'thanks'];
 
 /** The tab a catalog kind sits under: arrows, sparks and stamps share the battlefield's. */
 export function tabOf(kind: string | undefined): LockerTab | null {
