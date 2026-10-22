@@ -161,6 +161,31 @@
   color: var(--ink-strong);
 }
 
+.metaFormat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.04);
+  box-shadow: inset 0 0 0 1px var(--ink-ghost);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.metaFormat > select {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.6);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-size: var(--text-md);
+}
+
 .modeNote {
   padding: 10px 12px;
   font-size: var(--text-sm);

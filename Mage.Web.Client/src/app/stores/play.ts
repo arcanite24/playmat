@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { api } from '../connection';
-import { useDecks, META_PREFIX, STARTER_PREFIX } from './decks';
+import { useDecks, META_PREFIX, RANDOM_META_PREFIX, STARTER_PREFIX } from './decks';
 import { useEvents } from './events';
 import { warmCards } from '../ui/imageCache';
 import { useSession } from './session';
@@ -115,14 +115,15 @@ const metaDeck = (file: string, name: string) => deckFile(`/meta-decks/${encodeU
  * that format's decks (the most played ones more often); otherwise, or when they run out, random starter decks of the
  * same kind (commander or not). Never the same deck twice while there are others.
  */
-export async function aiDecks(chosenId: string | null, count: number, commander: boolean, format: string | null = null): Promise<DeckCardLists[]> {
+export async function aiDecks(chosenId: string | null, count: number, commander: boolean, format: string | null = null, avoid: string | null = null): Promise<DeckCardLists[]> {
   const decks: DeckCardLists[] = [];
   if (chosenId && !chosenId.startsWith(STARTER_PREFIX) && !chosenId.startsWith(META_PREFIX)) {
     const saved = await deckStorage.loadDeck(chosenId);
     if (saved && isCommanderFormat(saved.format) === commander) decks.push(saved);
   }
   const { starters, metaDecks } = useDecks.getState();
-  const taken = new Set<string>();
+  // the player's own format deck, when they play one, isn't dealt to the AI too
+  const taken = new Set<string>(avoid ? [avoid] : []);
   const chosenMeta = metaDecks.find((deck) => META_PREFIX + deck.file === chosenId && isCommanderFormat(deck.format) === commander);
   if (decks.length === 0 && chosenMeta) {
     taken.add(chosenMeta.file);
@@ -194,15 +195,21 @@ export const usePlay = create<PlayState>((set, get) => ({
     if (!roomId) return;
     const { practice = false, guided = false, ...picked } = overrides;
     // the guided first game: the easiest AI with a random starter deck, one game, nothing unusual
+    // a format deck for the player (Home's Meta deck mode): the format's rules, and the AI takes one of its decks too
+    const metaGame = deckId.startsWith(META_PREFIX) || deckId.startsWith(RANDOM_META_PREFIX);
     const options: AiOptions = practice || guided
       ? { ...get().aiOptions, rules: 'casual', opponents: 1, aiType: 'COMPUTER_MAD', skill: 1, winsNeeded: 1, startingLife: null, opponentDeckId: null, adaptive: false }
-      : { ...get().aiOptions, ...picked };
+      : metaGame
+        ? { ...get().aiOptions, ...picked, rules: 'deck', opponentDeckId: null }
+        : { ...get().aiOptions, ...picked };
     useCoach.getState().setGuided(guided);
     set({ phase: 'starting', error: null, deckId, returnPath: null, lastOptions: practice ? { practice } : picked });
     // a game outside any event: leaving it goes back to Play
     useEvents.setState({ currentTournamentId: null });
     try {
-      const { deck } = await useDecks.getState().loadForPlay(deckId);
+      const { deck, meta } = await useDecks.getState().loadForPlay(deckId);
+      if (meta && deckId.startsWith(RANDOM_META_PREFIX)) await loadCareerMessages();
+      if (meta && deckId.startsWith(RANDOM_META_PREFIX)) notify(t('solo.metaDeck.dealt', { name: meta.name }), t('solo.metaDeck.dealtNote', { format: formatRules(meta.format).label, share: Math.round(meta.share) }));
       // both decks' pictures download while the table is set up, before the first card is drawn: nothing either
       // player casts should wait on the network
       warmCards([...deck.cards, ...deck.sideboard].map((card) => ({ name: card.cardName, setCode: card.setCode ?? undefined, cardNumber: card.cardNumber ?? undefined })));
@@ -227,7 +234,7 @@ export const usePlay = create<PlayState>((set, get) => ({
       const format = options.rules === 'deck' ? deckType : null;
       const rivalDecks: WireDeck[] = practice
         ? [toWire(goldfishDeck(commander))]
-        : [...(sourced ? [sourced] : []), ...(await aiDecks(source.kind === 'roster' ? source.id : null, opponents - (sourced ? 1 : 0), commander, format)).map(toWire)];
+        : [...(sourced ? [sourced] : []), ...(await aiDecks(source.kind === 'roster' ? source.id : null, opponents - (sourced ? 1 : 0), commander, format, meta?.file ?? null)).map(toWire)];
       // adaptive: the AI plays at the skill the player's recent results call for
       const adaptiveFormat = !practice && options.adaptive ? adaptiveFormatFor(commander) : null;
       const skill = adaptiveFormat ? adaptiveSkill((await api.soloAdaptive(adaptiveFormat).catch(() => null))?.skill, options.skill) : options.skill;
