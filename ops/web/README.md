@@ -237,6 +237,7 @@ The Settings tab (admins) changes these at once, without a restart; they are kep
 |---|---|
 | New accounts | anyone can register, or invite only: an invite link, a place on the allowlist, or an approved access request |
 | Career | on or off; `XMAGE_CAREER=off` turns it off for good |
+| Progression XP / coins | 0 to 500 percent (default 100): scales the XP and coins every game pays (see [Progression](#progression)) |
 | AI opponents per table | 0 to 15, or empty for the config's `maxAiOpponents` |
 | Time to answer | 30 to 3600 seconds, or the config's `maxSecondsIdle` |
 | Batch games at once | 0 to 16 AI-against-AI games running together for players' batches (default 1); 0 stops the runner |
@@ -245,6 +246,43 @@ The Settings tab (admins) changes these at once, without a restart; they are kep
 | Support (owner only) | on or off; the monthly goal in cents (default 4000, $40); the Ko-fi page; the GitHub Sponsors page; what support pays for; whether the Discord thank-you says the amount. See [Support and the monthly goal](#support-and-the-monthly-goal) |
 
 The Discord part also says whether each webhook is set (the address stays on the server) and posts a test message on request.
+
+### Progression
+
+Every counted game outside Career's own tables gives each human seat XP, once: against the AI (more for stronger AI),
+against people, in a pod (more for more players) and in events. A game that ends before turn 3 pays nothing, and two
+people stop paying each other after five games together in a UTC day (events aren't capped). Coins come from the daily
+wins ladder, and the first win and the first game against a person each day pay extra XP. The numbers live in
+`Mage.Server/src/main/resources/career/rewards.json`; the two Settings percentages scale them. Practice tools, goldfish,
+puzzles and test mode never pay. Progress, the Career deck and each player's **Show progression** choice are kept per
+account in `career.db`, and Career tables survive a restart for a day.
+
+Beyond each game: three daily quests and a weekly one (`career/quests.json`, about 90, each naming which games count),
+a weekly goal of 5, 10 and 15 wins of any kind (a pack and XP each), mastery tracks for each color and format (ten
+ranks from games played, `masteryRankGames` in `rewards.json`), a level track to 100 (`career/levels.json`) and Renown
+past it (a pack every `renownXp` XP). Finishing an event pays Career packs by match wins, but only when at least one
+other person played; events against the AI pay XP only. `ProgressionBalanceTest` plays 90 days for a casual, regular
+and heavy player through all of it; run it with `-Dxmage.progressionReport=true` to print the sheet after changing the
+numbers.
+
+Cosmetics and achievements. `career/cosmetics.json` is the one catalog of what progression can give (about 250 items:
+avatars, titles, plate frames, sleeves, playmats, companions, emote sets, attack-arrow colours, hit sparks, victory
+stamps and basic land styles), each with its English and Spanish name, rarity and how it looks; the app reads it with
+`careerCosmetics`. Where an item comes from is read from the content that gives it (`levels.json`, `achievements.json`,
+the campaigns), or from its own `mastery` and `rank` for mastery rewards; a test fails when an item comes from nowhere
+or the content gives an item the catalog lacks. The supporters' thank-you set stays outside it. Painted pictures come
+from the art pipeline (`Mage.Web.Client/art`, `node art/generate.mjs <type>`). Achievements (`achievements.json`) are
+single or tiered: a tiered row has bronze, silver, gold and mythic targets, each with its own pay and points, stored as
+`<id>:<tier>`. Points add up to named ranks, and anyone can see how many players have each tier in the achievement
+hall. On the first start after this update, the server credits each player's games from the table records it already
+keeps (games and wins by kind and format, best-of-three matches won, events and days played) so achievements don't
+start from zero; it runs once (the `history_credit` key in `career.db`'s `meta` table) and only ever raises counters.
+Quick emotes in a match (`gameEmote`) go to everyone at the table, at most one every 2.5 seconds per player, and only
+from sets the account owns; players can mute their opponents' emotes in Settings.
+
+An account's page under Accounts shows its progression: level, XP, coins, the last 50 counted games with kind, pay and
+why, and who it hit the daily pair cap with in the last 14 days. Admins can take back what a game paid (XP and coins,
+never below zero coins); it goes in the audit log as `career.revoke`.
 
 ### Single player
 

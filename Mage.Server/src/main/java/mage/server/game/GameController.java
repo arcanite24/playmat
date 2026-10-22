@@ -114,17 +114,18 @@ public class GameController implements GameCallback {
     }
 
     /**
-     * A game of one person against the AI is tallied for Career quests and achievements: always at a Career table, and
-     * at other tables when the player lets regular AI games count (decided when the game ends). Never in test mode.
+     * Every human seat of a game with an opponent is tallied for progression (levels, quests, achievements), whatever
+     * the table: against the AI, against people, in a pod or an event. Whether the game pays is decided when it ends.
+     * Never in test mode.
      */
     private void tallyForCareer() {
         if (Main.isTestMode()
                 || !mage.server.career.CareerService.enabled(managerFactory.configSettings().isAuthenticationActivated())) {
             return;
         }
-        List<Player> humans = game.getPlayers().values().stream().filter(Player::isHuman).collect(Collectors.toList());
-        if (humans.size() == 1 && game.getPlayers().size() > 1) {
-            game.getState().addWatcher(mage.server.career.CareerTally.open(game.getId(), humans.get(0).getId()));
+        List<UUID> humans = game.getPlayers().values().stream().filter(Player::isHuman).map(Player::getId).collect(Collectors.toList());
+        if (!humans.isEmpty() && game.getPlayers().size() > 1) {
+            game.getState().addWatcher(mage.server.career.CareerTally.open(game.getId(), humans));
         }
     }
 
@@ -319,6 +320,41 @@ public class GameController implements GameCallback {
 
     private UUID getPlayerId(UUID userId) {
         return userPlayerMap.get(userId);
+    }
+
+    /** the user's seat in this game, or null when they don't play in it */
+    public UUID playerIdOf(UUID userId) {
+        return userId == null ? null : userPlayerMap.get(userId);
+    }
+
+    /** last emote per player, for the rate limit */
+    private final Map<UUID, Long> lastEmote = new ConcurrentHashMap<>();
+    static final long EMOTE_GAP_MS = 2500;
+
+    /**
+     * Sends a player's emote to everyone at the table, players and watchers (B298).
+     *
+     * @return false when the user doesn't play in this game or sent one too recently
+     */
+    public boolean emote(UUID userId, String emote, long now) {
+        UUID playerId = playerIdOf(userId);
+        Player player = playerId == null ? null : game.getPlayer(playerId);
+        if (player == null) {
+            return false;
+        }
+        Long last = lastEmote.get(playerId);
+        if (last != null && now - last < EMOTE_GAP_MS) {
+            return false;
+        }
+        lastEmote.put(playerId, now);
+        PlayerEmote sent = new PlayerEmote(game.getId().toString(), player.getName(), emote);
+        java.util.Set<UUID> users = new java.util.HashSet<>(userPlayerMap.keySet());
+        users.addAll(watchers.keySet());
+        for (UUID user : users) {
+            managerFactory.userManager().getUser(user).ifPresent(target -> target.fireCallback(
+                    new mage.interfaces.callback.ClientCallback(mage.interfaces.callback.ClientCallbackMethod.GAME_EMOTE, game.getId(), sent)));
+        }
+        return true;
     }
 
     public void join(UUID userId) {

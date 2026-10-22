@@ -12,7 +12,7 @@ import { deckStorage } from '../../core/decks/DeckStorageService';
 import { applyUpdate } from '../../core/deckImport/diff';
 import { t as translate, useT } from '../i18n';
 import { RichText } from '../i18n/RichText';
-import { SLEEVE_COLORS, rosterOf, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
+import { SLEEVE_COLORS, chosenSleeve, rosterOf, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
 import { useDeckSyncStatus } from '../stores/deckSyncStatus';
 import { useSettings } from '../stores/settings';
 import { useServerInfo } from '../queries';
@@ -144,7 +144,7 @@ export function DecksScreen() {
                       key={color}
                       type="button"
                       role="radio"
-                      aria-checked={sleeveFor(decks.sleeves, selected) === color}
+                      aria-checked={chosenSleeve(decks.sleeves, selected) === color}
                       aria-label={t('decks.sleeve', { color })}
                       className={styles.swatch}
                       style={{ background: color }}
@@ -153,12 +153,12 @@ export function DecksScreen() {
                   ))}
                   {career && (
                     <Suspense fallback={null}>
-                      <CareerSleeves current={sleeveFor(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
+                      <CareerSleeves current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
                     </Suspense>
                   )}
                   {accounts && (
                     <Suspense fallback={null}>
-                      <SupporterSleeve current={sleeveFor(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
+                      <SupporterSleeve current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
                     </Suspense>
                   )}
                 </div>

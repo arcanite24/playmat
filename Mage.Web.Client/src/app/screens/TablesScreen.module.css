@@ -86,13 +86,24 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  max-width: 120px;
+  max-width: 150px;
   padding: 3px 8px;
   border-radius: var(--radius-chip);
   font-size: var(--text-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* the name gives way before the level beside it */
+.seatName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seatLevel {
+  margin-inline-start: 2px;
 }
 
 .seatTaken {

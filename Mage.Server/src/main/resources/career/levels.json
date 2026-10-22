@@ -5,7 +5,11 @@
  },
  {
   "level": 3,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "hare"
+  }
  },
  {
   "level": 4,
@@ -21,7 +25,11 @@
  },
  {
   "level": 7,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "frog"
+  }
  },
  {
   "level": 8,
@@ -32,7 +40,11 @@
  },
  {
   "level": 9,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "land",
+   "id": "zen"
+  }
  },
  {
   "level": 10,
@@ -43,7 +55,11 @@
  },
  {
   "level": 11,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "otter"
+  }
  },
  {
   "level": 12,
@@ -58,7 +74,11 @@
  },
  {
   "level": 14,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "wolf"
+  }
  },
  {
   "level": 15,
@@ -71,7 +91,11 @@
  },
  {
   "level": 17,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "cat"
+  }
  },
  {
   "level": 18,
@@ -93,7 +117,11 @@
  },
  {
   "level": 21,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "raven"
+  }
  },
  {
   "level": 22,
@@ -108,7 +136,11 @@
  },
  {
   "level": 24,
-  "coins": 25
+  "coins": 25,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "boar"
+  }
  },
  {
   "level": 25,
@@ -121,7 +153,11 @@
  },
  {
   "level": 27,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "badger"
+  }
  },
  {
   "level": 28,
@@ -143,7 +179,11 @@
  },
  {
   "level": 31,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "hound"
+  }
  },
  {
   "level": 32,
@@ -158,7 +198,11 @@
  },
  {
   "level": 34,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "tortoise"
+  }
  },
  {
   "level": 35,
@@ -171,7 +215,11 @@
  },
  {
   "level": 37,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "heron"
+  }
  },
  {
   "level": 38,
@@ -182,7 +230,11 @@
  },
  {
   "level": 39,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "land",
+   "id": "bfz"
+  }
  },
  {
   "level": 40,
@@ -193,7 +245,11 @@
  },
  {
   "level": 41,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "bat"
+  }
  },
  {
   "level": 42,
@@ -208,7 +264,11 @@
  },
  {
   "level": 44,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "ram"
+  }
  },
  {
   "level": 45,
@@ -221,7 +281,11 @@
  },
  {
   "level": 47,
-  "coins": 40
+  "coins": 40,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "bull"
+  }
  },
  {
   "level": 48,
@@ -240,5 +304,304 @@
    "kind": "sleeve",
    "id": "gold"
   }
+ },
+ {
+  "level": 51,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 52,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "eagle"
+  }
+ },
+ {
+  "level": 53,
+  "coins": 50
+ },
+ {
+  "level": 54,
+  "wildcard": "rare"
+ },
+ {
+  "level": 55,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-bronze"
+  }
+ },
+ {
+  "level": 56,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "minotaur"
+  }
+ },
+ {
+  "level": 57,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 58,
+  "coins": 50
+ },
+ {
+  "level": 59,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "golem"
+  }
+ },
+ {
+  "level": 60,
+  "cosmetic": {
+   "kind": "title",
+   "id": "seasoned"
+  },
+  "packs": 1
+ },
+ {
+  "level": 61,
+  "coins": 50
+ },
+ {
+  "level": 62,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "griffin"
+  }
+ },
+ {
+  "level": 63,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 64,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "land",
+   "id": "akh"
+  }
+ },
+ {
+  "level": 65,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-silver"
+  }
+ },
+ {
+  "level": 66,
+  "wildcard": "rare"
+ },
+ {
+  "level": 67,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "basilisk"
+  }
+ },
+ {
+  "level": 68,
+  "coins": 50
+ },
+ {
+  "level": 69,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 70,
+  "cosmetic": {
+   "kind": "title",
+   "id": "tactician"
+  },
+  "packs": 1
+ },
+ {
+  "level": 71,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "wyvern"
+  }
+ },
+ {
+  "level": 72,
+  "wildcard": "rare"
+ },
+ {
+  "level": 73,
+  "coins": 50
+ },
+ {
+  "level": 74,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "pegasus"
+  }
+ },
+ {
+  "level": 75,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-gold"
+  }
+ },
+ {
+  "level": 76,
+  "coins": 50
+ },
+ {
+  "level": 77,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "unicorn"
+  }
+ },
+ {
+  "level": 78,
+  "wildcard": "rare"
+ },
+ {
+  "level": 79,
+  "coins": 50
+ },
+ {
+  "level": 80,
+  "cosmetic": {
+   "kind": "title",
+   "id": "archmage"
+  },
+  "packs": 1
+ },
+ {
+  "level": 81,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 82,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "sphinx"
+  }
+ },
+ {
+  "level": 83,
+  "coins": 50
+ },
+ {
+  "level": 84,
+  "wildcard": "rare"
+ },
+ {
+  "level": 85,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-ember"
+  }
+ },
+ {
+  "level": 86,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "treant"
+  }
+ },
+ {
+  "level": 87,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 88,
+  "coins": 50
+ },
+ {
+  "level": 89,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "djinn"
+  }
+ },
+ {
+  "level": 90,
+  "cosmetic": {
+   "kind": "title",
+   "id": "planeswalker"
+  },
+  "packs": 1
+ },
+ {
+  "level": 91,
+  "coins": 50
+ },
+ {
+  "level": 92,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "chimera"
+  }
+ },
+ {
+  "level": 93,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 94,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "hydra"
+  }
+ },
+ {
+  "level": 95,
+  "cosmetic": {
+   "kind": "frame",
+   "id": "frame-mythic"
+  }
+ },
+ {
+  "level": 96,
+  "wildcard": "rare"
+ },
+ {
+  "level": 97,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "kraken"
+  }
+ },
+ {
+  "level": 98,
+  "coins": 50,
+  "cosmetic": {
+   "kind": "avatar",
+   "id": "angel"
+  }
+ },
+ {
+  "level": 99,
+  "wildcard": "uncommon"
+ },
+ {
+  "level": 100,
+  "cosmetic": {
+   "kind": "title",
+   "id": "living-legend"
+  },
+  "packs": 1
  }
 ]

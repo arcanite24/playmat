@@ -1,0 +1,111 @@
+.beat {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  animation: rise 420ms ease both;
+}
+
+.pay {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+  font-family: var(--font-print);
+  font-size: var(--text-xl);
+}
+
+.xp {
+  color: var(--ink-strong);
+}
+
+.coins {
+  color: var(--brass-ink);
+}
+
+.level {
+  margin: 0;
+  font-family: var(--font-print);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.bonuses {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bonuses li {
+  padding: 2px 10px;
+  border-radius: var(--radius-chip);
+  background: rgb(var(--brass-rgb) / 0.18);
+  color: var(--brass-ink);
+  font-size: var(--text-sm);
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: var(--text-sm);
+}
+
+/* a tier reached, with a pip in its metal */
+.tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tier i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--metal, var(--brass));
+}
+
+.tier[data-tier='bronze'] {
+  --metal: #c07a45;
+}
+
+.tier[data-tier='silver'] {
+  --metal: #c9d1d9;
+}
+
+.tier[data-tier='gold'] {
+  --metal: #e8c158;
+}
+
+.tier[data-tier='mythic'] {
+  --metal: #ec6a35;
+}
+
+/* the game's moments, a short line each */
+.moments {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beat {
+    animation: none;
+  }
+}

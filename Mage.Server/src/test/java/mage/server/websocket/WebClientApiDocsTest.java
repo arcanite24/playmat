@@ -45,6 +45,8 @@ public class WebClientApiDocsTest {
         CALLBACK_DATA.put(ClientCallbackMethod.CHATMESSAGE, "ChatMessage");
         CALLBACK_DATA.put(ClientCallbackMethod.SHOW_USERMESSAGE, "string[]");
         CALLBACK_DATA.put(ClientCallbackMethod.SERVER_MESSAGE, "ChatMessage");
+        CALLBACK_DATA.put(ClientCallbackMethod.CAREER_PROGRESS, "string");
+        CALLBACK_DATA.put(ClientCallbackMethod.GAME_EMOTE, "PlayerEmote");
         CALLBACK_DATA.put(ClientCallbackMethod.JOINED_TABLE, "TableClientMessage");
         CALLBACK_DATA.put(ClientCallbackMethod.START_TOURNAMENT, "TableClientMessage");
         CALLBACK_DATA.put(ClientCallbackMethod.TOURNAMENT_INIT, "TournamentView");

@@ -1,13 +1,15 @@
-import type { PlayerLook, ServerInfo, SupportYou } from '../../protocol/generated/views';
+import type { CareerLevelTrack, PlayerLook, ServerInfo, SupportYou } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { queryClient } from '../queries';
 import { rosterOf, sleeveFor, useDecks } from '../stores/decks';
-import { readJson } from '../stores/persist';
+import { readJson, writeJson } from '../stores/persist';
 import { usePlay } from '../stores/play';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
 import { rememberLook, SUPPORT_PERKS, useWear, wearOf } from './supportData';
 import { lookOf, sameLook } from './supportModel';
+import { loadCatalog } from '../ui/cosmeticsCatalog';
+import { CAREER_SLEEVES, provideRandomSleeves, setRandomSeed } from '../ui/sleeveArt';
 
 /**
  * Tells the server the look this account plays with (the deck's sleeve, the cloth, the Career avatar and title, the
@@ -22,6 +24,7 @@ const CAREER_LOOK_KEY = 'playmat.career.look';
 let sent: { account: string; look: PlayerLook } | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let accounts: boolean | null = null;
+let careerOn = false;
 
 function currentLook(account: string): PlayerLook {
   const decks = useDecks.getState();
@@ -29,13 +32,14 @@ function currentLook(account: string): PlayerLook {
   // the deck being played, else the one chosen on Home
   const deckId = usePlay.getState().deckId ?? decks.selectedId;
   const deck = roster.find((candidate) => candidate.id === deckId) ?? roster[0];
-  const career = readJson<Record<string, { avatar: string | null; title: string | null }>>(CAREER_LOOK_KEY, {})[account];
+  const career = readJson<Record<string, { avatar: string | null; title: string | null } & NonNullable<Parameters<typeof lookOf>[0]['career']>>>(CAREER_LOOK_KEY, {})[account];
   const perks = queryClient.getQueryData<SupportYou>([...SUPPORT_PERKS, account])?.perks;
   return lookOf({
     sleeve: deck ? sleeveFor(decks.sleeves, deck) : undefined,
     cloth: useSettings.getState().settings.matCloth,
     careerAvatar: career?.avatar,
     careerTitle: career?.title,
+    career,
     perks,
     wear: wearOf(useWear.getState().wear, account),
   });
@@ -50,8 +54,11 @@ async function push(): Promise<void> {
     const info = await queryClient.fetchQuery({ queryKey: ['serverInfo'], queryFn: () => api.serverInfo().catch(() => null), staleTime: 5 * 60_000 })
       .catch(() => null) as ServerInfo | null;
     accounts = info?.accounts === true;
+    careerOn = info?.career === true;
   }
   if (!accounts) return;
+  // the cosmetics catalog, for drawing everyone's look (servers with progression)
+  if (careerOn) void loadCatalog(() => api.careerCosmetics());
   // the thank-you set first, so the look can wear it
   await queryClient.fetchQuery({ queryKey: [...SUPPORT_PERKS, account], queryFn: () => api.supportPerks(), staleTime: 5 * 60_000 }).catch(() => null);
   const look = currentLook(account);
@@ -82,12 +89,31 @@ useSettings.subscribe((state, previous) => {
   if (state.settings.matCloth !== previous.settings.matCloth) syncLook();
 });
 useWear.subscribe(() => syncLook());
+if (typeof window !== 'undefined') window.addEventListener('playmat:career-look', () => syncLook());
 usePlay.subscribe((state, previous) => {
   if (state.deckId !== previous.deckId && state.deckId) syncLook(true);
 });
 queryClient.getQueryCache().subscribe((event) => {
   // a payment just reached the account: wear the thank-you set
   if (event.type === 'updated' && event.action.type === 'success' && event.query.queryKey[0] === 'support' && event.query.queryKey[1] === 'perks') syncLook();
+});
+
+// a deck sleeved "random" (ui/sleeveArt.ts) picks among the Career sleeves this account owns: from Career's unlocks
+// when they're loaded, else the last ones seen in this browser; a new table is a new pick
+const RANDOM_SLEEVES_KEY = 'playmat.randomSleeves';
+provideRandomSleeves(() => {
+  const account = useSession.getState().userName.toLowerCase();
+  const saved = readJson<Record<string, string[]>>(RANDOM_SLEEVES_KEY, {});
+  const unlocks = queryClient.getQueryData<CareerLevelTrack>(['career', 'levels'])?.unlocks;
+  if (!unlocks) return saved[account] ?? [];
+  const owned = unlocks.flatMap((unlock) => (unlock.kind === 'sleeve' && unlock.id && CAREER_SLEEVES[unlock.id] ? [CAREER_SLEEVES[unlock.id]] : []));
+  if (owned.join() !== (saved[account] ?? []).join()) writeJson(RANDOM_SLEEVES_KEY, { ...saved, [account]: owned });
+  return owned;
+});
+usePlay.subscribe((state, previous) => {
+  if (state.tableId === previous.tableId || !state.tableId) return;
+  setRandomSeed(state.tableId);
+  syncLook(true);
 });
 
 syncLook();

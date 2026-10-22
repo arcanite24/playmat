@@ -1,4 +1,4 @@
-import { ChevronRight, SlidersHorizontal, Trophy } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { META_PREFIX, rosterOf, sleeveFor, useDecks } from '../stores/decks';
@@ -25,6 +25,9 @@ const AiSettingsDialog = lazy(() => import('./AiSettingsDialog').then((module) =
 // saved games against the AI, with what resuming one needs, load with Home but out of the entry chunk
 const SavedGames = lazy(() => import('../solo/SavedGames').then((module) => ({ default: module.SavedGames })));
 // the month's server costs, on servers that take support
+// Today (B278): quests, the daily wins ladder, the weekly goal and packs, on servers with Career
+const TodayPanel = lazy(() => import('../career/TodayPanel'));
+
 const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
 type Mode = 'ai' | 'practice' | 'friend';
@@ -203,16 +206,7 @@ export function HomeScreen() {
             </Button>
           </div>
           <Suspense fallback={null}><SavedGames disabled={busy} /></Suspense>
-          {career && (
-            <button type="button" className={styles.career} onClick={() => navigate('/career')} disabled={busy}>
-              <Trophy size={18} aria-hidden="true" />
-              <span className={styles.careerText}>
-                <b>{t('home.career')}</b>
-                <small>{t('home.career.note')}</small>
-              </span>
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
-          )}
+          {career && <Suspense fallback={null}><TodayPanel /></Suspense>}
           {serverInfo?.support && <Suspense fallback={null}><SupportBar place="home" /></Suspense>}
         </div>
       </section>

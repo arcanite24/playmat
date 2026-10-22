@@ -1,12 +1,12 @@
 import * as Tabs from '@radix-ui/react-tabs';
 import { BookmarkPlus } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { api } from '../connection';
 import { MAT_CLOTHS, clothSwatch } from '../match/playmats';
 import bookmarkletSource from '../decks/import/bookmarklet.source.js?raw';
-import type { SkipPrioritySteps } from '../../protocol/generated/views';
+import type { CareerState, SkipPrioritySteps } from '../../protocol/generated/views';
 import { resetCommand, type AutoRule, type AutoRuleKind } from '../../core/game/autoAnswer';
 import { notificationsSupported, requestNotifications } from '../stores/attention';
 import { useAutoAnswers } from '../stores/autoAnswers';
@@ -46,6 +46,15 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const t = useT();
   // the Account tab: servers with accounts only
   const accounts = useServerInfo().data?.accounts === true;
+  const career = useServerInfo().data?.career === true;
+  // progression shows or hides per account, on every device (B283, B312)
+  const careerState = useQuery<CareerState>({ queryKey: ['career', 'state'], queryFn: () => api.careerState(), enabled: career && accounts });
+  const showProgress = careerState.data?.profile ? careerState.data.profile.showProgress !== false : null;
+  const queryClient = useQueryClient();
+  async function setShowProgress(show: boolean) {
+    const profile = await api.careerShowProgress(show);
+    queryClient.setQueryData<CareerState>(['career', 'state'], (state) => ({ ...(state ?? { enabled: true }), profile }));
+  }
   // a link inside (a locked cosmetic, to the support page) leaves for another screen: the dialog goes with it
   const path = useLocation().pathname;
   const shownAt = useRef(path);
@@ -167,6 +176,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           <Row label={t('settings.sortHand')} detail={t('settings.sortHand.detail')}>{toggle('sortHand')}</Row>
           <Row label={t('settings.autoDismissReveals')} detail={t('settings.autoDismissReveals.detail')}>{toggle('autoDismissReveals')}</Row>
           <Row label={t('settings.compactBoard')} detail={t('settings.compactBoard.detail')}>{toggle('compactBoard')}</Row>
+          <Row label={t('settings.muteEmotes')} detail={t('settings.muteEmotes.detail')}>{toggle('muteEmotes')}</Row>
           <Row label={t('settings.paintedArt')} detail={t('settings.paintedArt.detail')}>{toggle('paintedArt')}</Row>
           {DEVICE_PICTURES && <PictureStoreRow />}
         </Tabs.Content>
@@ -215,6 +225,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </div>
           </Row>
           <Row label={t('settings.importantCues')} detail={t('settings.importantCues.detail')}>{toggle('importantCuesOnly')}</Row>
+          {showProgress !== null && (
+            <Row label={t('settings.showProgress')} detail={t('settings.showProgress.detail')}>
+              <Switch checked={showProgress} onChange={(value) => void setShowProgress(value)} />
+            </Row>
+          )}
           {settings.careerOptIn && (
             <>
               <Row label={t('settings.careerMusic')} detail={t('settings.careerMusic.detail')}>{toggle('careerMusic')}</Row>

@@ -1,7 +1,11 @@
+import { useQuery } from '@tanstack/react-query';
 import { Ban, Flag as FlagIcon, History, MessageCircle, Star, StarOff } from 'lucide-react';
 import { lazy, Suspense, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DEFAULT_AVATAR_ID, flagChoices, SIGILS } from '../../core/social/identity';
+import { api } from '../connection';
+import { useT } from '../i18n';
+import { useServerInfo } from '../queries';
 import { useLobby } from '../stores/lobby';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
@@ -12,11 +16,15 @@ import { Avatar, Flag } from './Avatar';
 import { Flair } from '../support/Flair';
 import { useLook } from '../support/supportData';
 import { THANK_YOU } from '../support/thankYou';
-import { titleLabel } from '../career/progressModel';
+import { titleColor, titleName } from '../career/progressModel';
+import { LevelBadge } from './LevelBadge';
+import { gameKind, levelShare, recentGames, shownLevel } from './progressionModel';
 import styles from './ProfileDialog.module.css';
 
 // your Career line loads with the Career screens, for players who opted in
 const CareerSummary = lazy(() => import('../career/CareerScreen').then((m) => ({ default: m.CareerSummary })));
+// achievement points and the badges a player shows (B307), with the Career code
+const CareerShowcase = lazy(() => import('../career/ShowcaseBadges'));
 
 /** A player's card: ratings, match and event record, what they're doing now; your own sigil and flag. */
 export function ProfileDialog() {
@@ -52,10 +60,10 @@ function Profile({ name, onClose }: { name: string; onClose(): void }) {
   return (
     <div className={styles.profile}>
       <header className={styles.head}>
-        <Avatar name={name} avatarId={avatarId} size="lg" ring={look?.frame === THANK_YOU.frame} />
+        <Avatar name={name} avatarId={avatarId} size="lg" ring={look?.frame === THANK_YOU.frame} frame={look?.frame} />
         <div>
-          <p className={styles.name}>{name}<Flair name={name} /> <Flag flagName={flagName} always /></p>
-          {look?.title && <p className={styles.title}>{titleLabel(look.title)}</p>}
+          <p className={styles.name}>{name}<LevelBadge level={look?.level} /><Flair name={name} /> <Flag flagName={flagName} always /></p>
+          {look?.title && <p className={styles.title} style={{ color: titleColor(look.title) }}>{titleName(look.title)}</p>}
           <p className={styles.presence}>{user ? (user.infoGames?.trim() || 'Online') : 'Offline'}</p>
         </div>
       </header>
@@ -80,6 +88,8 @@ function Profile({ name, onClose }: { name: string; onClose(): void }) {
       ) : (
         <p className={styles.note}>{name} is not online, so their record isn't available right now.</p>
       )}
+
+      <Progression name={name} />
 
       {isMe ? <Identity /> : (
         <div className={styles.actions}>
@@ -118,6 +128,84 @@ function Profile({ name, onClose }: { name: string; onClose(): void }) {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * The player's level, XP into it, achievements, recent record and last counted games (servers with Career). Nothing
+ * when they have none, hid it, or the server doesn't keep Career.
+ */
+function Progression({ name }: { name: string }) {
+  const t = useT();
+  const accounts = useServerInfo().data?.accounts === true;
+  const me = useSession((state) => state.userName.toLowerCase());
+  const profile = useQuery({
+    queryKey: ['careerProfileOf', me, name.toLowerCase()],
+    queryFn: () => api.careerProfileOf(name),
+    enabled: accounts,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const badges = useLook(name)?.badges;
+  const data = profile.data;
+  const level = shownLevel(data?.level);
+  if (!data || level === null) return null;
+  const share = levelShare(data.levelXp, data.levelSize);
+  const recent = recentGames(data.recent, 5);
+  return (
+    <section className={styles.progress} aria-label={t('social.progress.title')}>
+      <div className={styles.levelRow}>
+        <span className={styles.level}>{t('social.progress.level', { level })}</span>
+        {share !== null && (
+          <span className={styles.xpText}>{t('social.progress.xp', { xp: data.levelXp ?? 0, size: data.levelSize ?? 0, next: level + 1 })}</span>
+        )}
+      </div>
+      {share !== null && (
+        <div
+          className={styles.xpBar}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={data.levelSize}
+          aria-valuenow={Math.min(data.levelXp ?? 0, data.levelSize ?? 0)}
+          aria-label={t('social.progress.xpAria', { next: level + 1 })}
+        >
+          <span style={{ width: `${Math.round(share * 100)}%` }} />
+        </div>
+      )}
+      {(!!data.points || (badges?.length ?? 0) > 0 || name.toLowerCase() === me) && (
+        <Suspense fallback={null}><CareerShowcase name={name} points={data.points} rank={data.rank} badges={badges} /></Suspense>
+      )}
+      <dl className={styles.record}>
+        {data.achievementsTotal ? (
+          <>
+            <dt>{t('social.progress.achievements')}</dt>
+            <dd>{t('social.progress.achievementsValue', { earned: data.achievements ?? 0, total: data.achievementsTotal })}</dd>
+          </>
+        ) : null}
+        {data.games ? (
+          <>
+            <dt>{t('social.progress.record')}</dt>
+            <dd>{t('social.progress.recordValue', { wins: data.wins ?? 0, count: data.games })}</dd>
+          </>
+        ) : null}
+      </dl>
+      {recent.length > 0 && (
+        <>
+          <h3 className={styles.recentTitle}>{t('social.progress.recent')}</h3>
+          <ul className={styles.recent}>
+            {recent.map((game, index) => (
+              <li key={game.gameKey ?? index} className={game.revoked ? styles.revoked : undefined}>
+                <span className={game.won ? styles.won : styles.lost}>{t(game.won ? 'social.progress.won' : 'social.progress.lost')}</span>
+                <span className={styles.kind}>{t(`social.progress.kind.${gameKind(game.kind)}`)}</span>
+                <span className={styles.gain}>
+                  {game.revoked ? t('social.progress.revoked') : t('social.progress.gain', { xp: game.xp ?? 0 })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }
 

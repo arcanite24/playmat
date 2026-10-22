@@ -50,6 +50,8 @@ export interface PlaySettings {
   autoDismissReveals: boolean;
   /** battlefield cards are drawn smaller, so big boards stay roomy (local only) */
   compactBoard: boolean;
+  /** other players' quick emotes and emote bubbles stay hidden; your own still show (local only) */
+  muteEmotes: boolean;
   /** pick the only legal target automatically (0 off, 1 when obvious, 2 always) */
   autoTargetLevel: 0 | 1 | 2;
   /** where the game stops to give you priority */
@@ -142,6 +144,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   sortHand: true,
   autoDismissReveals: true,
   compactBoard: false,
+  muteEmotes: false,
   autoTargetLevel: 1,
   animations: true,
   allowHandRequests: true,

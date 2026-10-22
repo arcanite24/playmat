@@ -11,10 +11,11 @@ import styles from './Vfx.module.css';
  * in sage, shockwaves where cards land, bursts where spells resolve, lunges when combat damage is dealt and ink
  * dissolving where creatures die. Damage, healing and the bolts of noncombat damage come from the game events a view
  * carries (exact even when a creature dies in the same update); the rest, and servers without events, from the
- * difference between two game views.
+ * difference between two game views. A player who earned hit sparks (B300) throws a brief burst of them, in the
+ * spark's color, where their creatures' combat damage lands.
  */
 
-type EffectKind = 'damage' | 'heal' | 'enter' | 'resolve' | 'death' | 'charge' | 'bolt';
+type EffectKind = 'damage' | 'heal' | 'enter' | 'resolve' | 'death' | 'charge' | 'bolt' | 'spark';
 
 interface Effect {
   key: number;
@@ -26,6 +27,8 @@ interface Effect {
   size?: number;
   /** where a bolt lands */
   to?: { x: number; y: number };
+  /** a hit spark's color */
+  color?: string;
 }
 
 interface Snapshot {
@@ -36,7 +39,7 @@ interface Snapshot {
   step: string | undefined;
 }
 
-const LIFETIME: Record<EffectKind, number> = { damage: 1300, heal: 1300, enter: 700, resolve: 800, death: 900, charge: 600, bolt: 480 };
+const LIFETIME: Record<EffectKind, number> = { damage: 1300, heal: 1300, enter: 700, resolve: 800, death: 900, charge: 600, bolt: 480, spark: 760 };
 
 function snapshot(view: GameView): Snapshot {
   const permanents = new Map<string, PermanentView>();
@@ -69,8 +72,18 @@ function lunge(element: Element | null, from: { x: number; y: number }, to: { x:
   );
 }
 
-export function Vfx({ view, myPlayerId }: { view: GameView | null; myPlayerId: string | null }) {
+export function Vfx({ view, myPlayerId, sparks }: {
+  view: GameView | null;
+  myPlayerId: string | null;
+  /** players who earned hit sparks: player id to the spark's color */
+  sparks?: ReadonlyMap<string, string>;
+}) {
   const [effects, setEffects] = useState<Effect[]>([]);
+  // read when a view arrives: a look arriving later doesn't replay the last view's effects
+  const sparksRef = useRef(sparks);
+  useEffect(() => {
+    sparksRef.current = sparks;
+  }, [sparks]);
   const [hurt, setHurt] = useState(0);
   const previous = useRef<Snapshot | null>(null);
   const nextKey = useRef(0);
@@ -94,6 +107,11 @@ export function Vfx({ view, myPlayerId }: { view: GameView | null; myPlayerId: s
       }
     };
     const elementOf = (id: string) => stage.element?.querySelector(`[data-object-id="${CSS.escape(id)}"]`) ?? null;
+    // the spark color of whoever controls a creature (now, or before it died in this update)
+    const sparkOf = (id: string) => {
+      const controller = (now.permanents.get(id) ?? before.permanents.get(id))?.controllerId;
+      return controller ? sparksRef.current?.get(controller) ?? null : null;
+    };
 
     // where a card or player is now, or where a card stood before it left (a creature killed by this damage)
     const pointOf = (id: string) => {
@@ -123,6 +141,11 @@ export function Vfx({ view, myPlayerId }: { view: GameView | null; myPlayerId: s
         const from = pointOf(bolt.from);
         const to = pointOf(bolt.to);
         if (from && to) add({ kind: 'bolt', ...from, to });
+      }
+      for (const hit of visuals.hits) {
+        const color = sparkOf(hit.from);
+        const at = color ? pointOf(hit.to) : null;
+        if (color && at) add({ kind: 'spark', ...at, color });
       }
     } else {
       // damage marked on permanents
@@ -186,6 +209,9 @@ export function Vfx({ view, myPlayerId }: { view: GameView | null; myPlayerId: s
         for (const attacker of Object.keys(group.attackers ?? {})) {
           const from = center(attacker);
           if (from && to) lunge(elementOf(attacker), from, to, 1);
+          // servers without events: the sparks land where the attacker strikes
+          const color = view.events ? null : sparkOf(attacker);
+          if (color && to) add({ kind: 'spark', ...to, color });
         }
       }
     }
@@ -211,6 +237,13 @@ const DROPLETS = Array.from({ length: 12 }, (_, i) => ({
   distance: 50 + (i * 37) % 60,
   size: 8 + (i * 13) % 12,
 }));
+
+/** A hit spark: a few small bits thrown a short way, unevenly. */
+const SPARKS = Array.from({ length: 9 }, (_, i) => {
+  const angle = (i / 9) * Math.PI * 2 + (i % 3) * 0.4;
+  const distance = 34 + (i * 23) % 30;
+  return { dx: Math.cos(angle) * distance, dy: Math.sin(angle) * distance };
+});
 
 function EffectView({ effect }: { effect: Effect }) {
   const position: CSSProperties = { left: effect.x, top: effect.y };
@@ -256,6 +289,14 @@ function EffectView({ effect }: { effect: Effect }) {
       return <span className={styles.charge} style={position} />;
     case 'bolt':
       return <Bolt from={effect} to={effect.to ?? effect} />;
+    case 'spark':
+      return (
+        <div className={styles.sparks} style={{ ...position, ['--spark' as string]: effect.color }}>
+          {SPARKS.map((spark, index) => (
+            <span key={index} className={styles.sparkBit} style={{ ['--dx' as string]: `${spark.dx}px`, ['--dy' as string]: `${spark.dy}px` }} />
+          ))}
+        </div>
+      );
   }
 }
 

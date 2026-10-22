@@ -1,14 +1,19 @@
 import { flagCode, flagGlyph, flagLabel, sigilOf } from '../../core/social/identity';
+import { PlateFrame } from '../career/PlateFrame';
 import styles from './Avatar.module.css';
 
-/** A player's disc: their sigil, or their initial; a supporter who wears it gets the brass ring. */
-export function Avatar({ name, avatarId, size = 'md', ring = false }: { name: string; avatarId?: number | null; size?: 'sm' | 'md' | 'lg'; ring?: boolean }) {
+/**
+ * A player's disc: their sigil, or their initial; a supporter who wears it gets the brass ring, a player wearing an
+ * earned plate frame (their look's frame) gets it drawn round the disc.
+ */
+export function Avatar({ name, avatarId, size = 'md', ring = false, frame }: { name: string; avatarId?: number | null; size?: 'sm' | 'md' | 'lg'; ring?: boolean; frame?: string | null }) {
   const sigil = sigilOf(avatarId);
-  return (
+  const disc = (
     <span className={[styles.avatar, styles[size], sigil ? styles.sigil : '', ring ? styles.ring : ''].join(' ')} aria-hidden="true">
       {sigil ?? (name.slice(0, 1).toUpperCase() || '?')}
     </span>
   );
+  return ring ? disc : <PlateFrame frame={frame}>{disc}</PlateFrame>;
 }
 
 /** A player's flag, from the server's flag file name; nothing for the default globe unless asked. */

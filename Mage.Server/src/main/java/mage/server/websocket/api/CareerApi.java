@@ -95,7 +95,8 @@ final class CareerApi {
                             state.enabled = enabled(ctx);
                             if (state.enabled) {
                                 String user = user(ctx, call);
-                                state.profile = store(() -> CareerStore.get().profile(user));
+                                // progression starts with the account's first visit or first counted game (B264)
+                                state.profile = store(() -> CareerService.get().profileOrNew(user));
                                 state.recent = store(() -> CareerStore.get().payouts(user, 10));
                                 if (state.profile != null) {
                                     state.rank = store(() -> CareerLadder.rank(user));
@@ -121,6 +122,29 @@ final class CareerApi {
                             String user = career(ctx, call);
                             String starterId = call.string(0);
                             return store(() -> CareerService.get().start(user, starterId));
+                        }),
+
+                RpcMethod.named("careerDeck")
+                        .returns("DeckCardLists | null")
+                        .doc("The account's Career deck, kept on the server so it follows the account to any device. Null "
+                                + "before one is saved.")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            return store(() -> CareerService.get().deck(user));
+                        }),
+
+                RpcMethod.named("careerSaveDeck")
+                        .params(object("deck", "DeckCardLists"))
+                        .returns("boolean")
+                        .doc("Save the account's Career deck. Refused, with the cards it's short of, when the deck holds more "
+                                + "copies of a card than the collection does (basic lands are free).")
+                        .handler(call -> {
+                            String user = career(ctx, call);
+                            DeckCardLists deck = call.object(0, DeckCardLists.class);
+                            return store(() -> {
+                                CareerService.get().saveDeck(user, deck);
+                                return true;
+                            });
                         }),
 
                 RpcMethod.named("careerCollection")

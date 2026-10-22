@@ -10,7 +10,8 @@ describe('career model', () => {
     expect(xpForLevel(3)).toBe(350);
     expect(levelProgress(0, 1)).toMatchObject({ into: 0, needed: 250, fraction: 0 });
     expect(levelProgress(400, 2)).toMatchObject({ into: 150, needed: 300, fraction: 0.5 });
-    expect(levelProgress(99999, 50).max).toBe(true);
+    expect(levelProgress(99999, 50).max).toBe(false);
+    expect(levelProgress(999999, 100).max).toBe(true);
   });
 
   test('opponents group into tiers in order, with the tier wins', () => {

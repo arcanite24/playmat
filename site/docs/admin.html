@@ -84,9 +84,28 @@
           Owners upload one there, or put the folder in <code>db/content-packs/</code> and press <strong>Reload</strong>.
           A pack with problems stays out and says why. Packs are in the nightly backup.</p>
 
+        <h2 id="progression">Progression</h2>
+        <p>Every counted game gives the players in it XP, whether it's against the AI, people, a pod or an event: once
+          per game, nothing for a game that ends before turn 3, and nothing more between the same two people after five
+          games together in a day. Coins come from the daily wins ladder. The numbers are in
+          <code>career/rewards.json</code>; <strong>Settings</strong> scales all XP and all coins with two percentages
+          (default 100, 0 to 500). Practice games and test mode pay nothing. Events pay Career packs by record when at
+          least one other person played.</p>
+        <p>An account's page in <strong>Accounts</strong> shows its level, XP and coins, its last 50 counted games with
+          what each paid and why, and who it hit the daily cap with. Admins can <strong>take back</strong> what a game
+          paid, with a reason for the audit log; quests and achievements it finished stay.</p>
+        <p>What players can earn is in two files: <code>career/cosmetics.json</code>, the catalog of every cosmetic
+          (avatars, titles, frames, sleeves, playmats, companions, emotes, arrows, sparks, stamps, land styles), and
+          <code>career/achievements.json</code>, where most achievements have bronze, silver, gold and mythic tiers. A
+          test checks that every cosmetic comes from somewhere. The first start after updating credits players with the
+          games the server's table records already show, once, so long-time players don't start from zero. Quick emotes
+          in matches are limited to one every few seconds, and players can mute their opponents'.
+          See the <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#progression">full
+          reference</a>.</p>
+
         <h2 id="audit">The audit log</h2>
         <p>Every staff action that changes something goes in the <strong>Audit</strong> tab, with who did it and the
-          reason they gave: mutes, locks, role changes, maintenance, updates and rollbacks.</p>
+          reason they gave: mutes, locks, role changes, maintenance, updates, rollbacks and progression taken back.</p>
 
         <p class="small">Accounts, reports, feedback, client errors and the support ledger are described in the
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#staff">deployment guide</a>.</p>

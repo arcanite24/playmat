@@ -79,6 +79,8 @@ export interface LookInputs {
   /** the Career avatar and title chosen (Career's look) */
   careerAvatar?: string | null;
   careerTitle?: string | null;
+  /** the rest of the progression look (career/careerData.ts CareerLook) */
+  career?: { frame?: string | null; pet?: string | null; arrow?: string | null; spark?: string | null; stamp?: string | null; lands?: string | null; badges?: string[] };
   perks?: readonly SupportPerk[];
   wear?: Wear;
 }
@@ -87,15 +89,23 @@ export interface LookInputs {
  * The look sent to the server. It drops what the account doesn't own anyway; this only leaves out the thank-you
  * pieces the player chose not to wear, so the server can keep the rest.
  */
-export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, perks, wear = DEFAULT_WEAR }: LookInputs): PlayerLook {
+export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks, wear = DEFAULT_WEAR }: LookInputs): PlayerLook {
   const look: PlayerLook = {};
   const sleeveId = sleeveIdOf(sleeve);
   if (sleeveId) look.sleeve = sleeveId;
   if (cloth) look.cloth = cloth;
   if (careerAvatar) look.avatar = careerAvatar;
+  // the supporter ring and corgi, when worn, come before an earned frame and companion
   if (wear.frame && owns(perks, 'frame', THANK_YOU.frame)) look.frame = THANK_YOU.frame;
+  else if (career?.frame) look.frame = career.frame;
   if (wear.flair && owns(perks, 'flair', THANK_YOU.flair)) look.flair = THANK_YOU.flair;
   if (wear.pet && owns(perks, 'pet', THANK_YOU.pet)) look.pet = THANK_YOU.pet;
+  else if (career?.pet) look.pet = career.pet;
+  if (career?.arrow) look.arrow = career.arrow;
+  if (career?.spark) look.spark = career.spark;
+  if (career?.stamp) look.stamp = career.stamp;
+  if (career?.lands) look.lands = career.lands;
+  if (career?.badges?.length) look.badges = career.badges.slice(0, 3);
   const title = wear.title && owns(perks, 'title', THANK_YOU.title) ? THANK_YOU.title : careerTitle;
   if (title) look.title = title;
   return look;
@@ -103,8 +113,8 @@ export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, perks, wear =
 
 /** Whether two looks are the same, so an unchanged look isn't sent again. */
 export function sameLook(a: PlayerLook | null | undefined, b: PlayerLook | null | undefined): boolean {
-  const keys: (keyof PlayerLook)[] = ['sleeve', 'cloth', 'avatar', 'frame', 'title', 'flair', 'pet'];
-  return !!a && !!b && keys.every((key) => (a[key] ?? null) === (b[key] ?? null));
+  const keys: (keyof PlayerLook)[] = ['sleeve', 'cloth', 'avatar', 'frame', 'title', 'flair', 'pet', 'arrow', 'spark', 'stamp', 'lands'];
+  return !!a && !!b && keys.every((key) => (a[key] ?? null) === (b[key] ?? null)) && (a.badges ?? []).join() === (b.badges ?? []).join();
 }
 
 /**

@@ -111,7 +111,8 @@ final class SupportApi {
                                     names.add(name.getAsString());
                                 }
                             }
-                            return support(() -> Support.get().looks(names));
+                            List<PlayerLook> looks = support(() -> Support.get().looks(names));
+                            return withLevels(ctx, names, looks);
                         }),
 
                 RpcMethod.named("adminSupportLedger")
@@ -204,5 +205,29 @@ final class SupportApi {
         } catch (SQLException | IllegalStateException e) {
             return null;
         }
+    }
+
+    /** adds each player's progression level to the looks (B279); players with a level but no look get one */
+    static List<PlayerLook> withLevels(ApiContext ctx, List<String> names, List<PlayerLook> looks) {
+        if (!CareerApi.enabled(ctx)) {
+            return looks;
+        }
+        java.util.Map<String, Integer> levels;
+        try {
+            levels = mage.server.career.CareerStore.get().levels(names);
+        } catch (java.sql.SQLException | RuntimeException e) {
+            return looks;
+        }
+        List<PlayerLook> all = new ArrayList<>(looks);
+        for (java.util.Map.Entry<String, Integer> entry : levels.entrySet()) {
+            PlayerLook look = all.stream().filter(candidate -> entry.getKey().equalsIgnoreCase(candidate.name)).findFirst().orElse(null);
+            if (look == null) {
+                look = new PlayerLook();
+                look.name = entry.getKey();
+                all.add(look);
+            }
+            look.level = entry.getValue();
+        }
+        return all;
     }
 }

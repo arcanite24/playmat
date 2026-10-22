@@ -81,12 +81,36 @@ public final class CareerStore implements AutoCloseable {
                             + " won INTEGER NOT NULL DEFAULT 0, best_turns INTEGER, best_life INTEGER, at INTEGER NOT NULL,"
                             + " PRIMARY KEY (user, week))",
                     "CREATE INDEX challenge_results_by_week ON challenge_results (week, won, best_turns)"
+            },
+            {
+                    // M24: progression for every game. A profile without a starter ("") hasn't opened the collection yet
+                    "ALTER TABLE profile ADD COLUMN show_progress INTEGER NOT NULL DEFAULT 1",
+                    // M26: the weekly quest's week
+                    "ALTER TABLE profile ADD COLUMN quest_week TEXT",
+                    "ALTER TABLE progress_games ADD COLUMN kind TEXT",
+                    "ALTER TABLE progress_games ADD COLUMN won INTEGER",
+                    "ALTER TABLE progress_games ADD COLUMN coins INTEGER NOT NULL DEFAULT 0",
+                    "ALTER TABLE progress_games ADD COLUMN xp INTEGER NOT NULL DEFAULT 0",
+                    "ALTER TABLE progress_games ADD COLUMN reason TEXT",
+                    "ALTER TABLE progress_games ADD COLUMN revoked INTEGER NOT NULL DEFAULT 0",
+                    "CREATE TABLE pair_games (day TEXT NOT NULL, pair TEXT NOT NULL, games INTEGER NOT NULL DEFAULT 0,"
+                            + " PRIMARY KEY (day, pair))",
+                    "CREATE TABLE daily (user TEXT NOT NULL, day TEXT NOT NULL, wins INTEGER NOT NULL DEFAULT 0,"
+                            + " games INTEGER NOT NULL DEFAULT 0, person_games INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user, day))",
+                    "CREATE TABLE career_tables (table_id TEXT PRIMARY KEY, data TEXT NOT NULL, created INTEGER NOT NULL)",
+                    "CREATE TABLE decks (user TEXT PRIMARY KEY, deck TEXT NOT NULL, updated INTEGER NOT NULL)"
+            },
+            {
+                    // M27: title ids with spaces never passed the look's id check; the catalog hyphenates them
+                    "UPDATE OR IGNORE unlocks SET item = REPLACE(item, ' ', '-') WHERE kind = 'title' AND item LIKE '% %'",
+                    "DELETE FROM unlocks WHERE kind = 'title' AND item LIKE '% %'"
             }
     };
 
     /** every table that holds an account's rows, for deleting a Career */
     private static final String[] USER_TABLES = {"profile", "cards", "payouts", "stats", "quests", "achievements",
-            "unlocks", "weekly", "progress_games", "campaign_nodes", "set_unlocks", "runs", "puzzle_results", "challenge_results"};
+            "unlocks", "weekly", "progress_games", "campaign_nodes", "set_unlocks", "runs", "puzzle_results", "challenge_results",
+            "daily", "decks"};
 
     private static volatile CareerStore instance;
 
@@ -194,6 +218,19 @@ public final class CareerStore implements AutoCloseable {
         return secret;
     }
 
+    /** a server-wide value kept with the Career, or null */
+    public synchronized String metaValue(String key) throws SQLException {
+        return meta(key);
+    }
+
+    public synchronized void setMeta(String key, String value) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement("INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)")) {
+            upsert.setString(1, key);
+            upsert.setString(2, value);
+            upsert.executeUpdate();
+        }
+    }
+
     private String meta(String key) throws SQLException {
         try (PreparedStatement select = connection.prepareStatement("SELECT value FROM meta WHERE key = ?")) {
             select.setString(1, key);
@@ -226,12 +263,31 @@ public final class CareerStore implements AutoCloseable {
                 profile.wildcards = new CareerProfile.Wildcards(rows.getInt("wc_common"), rows.getInt("wc_uncommon"),
                         rows.getInt("wc_rare"), rows.getInt("wc_mythic"));
                 profile.level = CareerRules.levelFor(profile.xp);
+                profile.renown = CareerRules.renownFor(profile.xp, CareerRewards.get().renownXp());
                 profile.packTokens = rows.getInt("pack_tokens");
-                profile.countAiGames = rows.getInt("count_ai_games") == 1;
+                profile.countAiGames = true;
+                profile.collection = !profile.starter.isEmpty();
+                profile.showProgress = rows.getInt("show_progress") == 1;
                 profile.cards = cardTotal(user);
                 return profile;
             }
         }
+    }
+
+    /** levels by account name for the names that have a profile (B279) */
+    public synchronized Map<String, Integer> levels(java.util.Collection<String> users) throws SQLException {
+        Map<String, Integer> levels = new java.util.LinkedHashMap<>();
+        try (PreparedStatement select = connection.prepareStatement("SELECT xp FROM profile WHERE user = ?")) {
+            for (String user : users) {
+                select.setString(1, key(user));
+                try (ResultSet rows = select.executeQuery()) {
+                    if (rows.next()) {
+                        levels.put(user, CareerRules.levelFor(rows.getInt(1)));
+                    }
+                }
+            }
+        }
+        return levels;
     }
 
     /** creates the profile; false when the account already has one */
@@ -243,6 +299,17 @@ public final class CareerStore implements AutoCloseable {
             insert.setString(3, starter);
             insert.setInt(4, coins);
             return insert.executeUpdate() == 1;
+        }
+    }
+
+    /** opens the collection of a profile that has none yet: its starter and the coins it starts with */
+    synchronized boolean openCollection(String user, String starter, int coins) throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE profile SET starter = ?, coins = coins + ? WHERE user = ? AND starter = ''")) {
+            update.setString(1, starter);
+            update.setInt(2, coins);
+            update.setString(3, key(user));
+            return update.executeUpdate() == 1;
         }
     }
 
@@ -587,9 +654,11 @@ public final class CareerStore implements AutoCloseable {
         switch (column) {
             case "quest_day":
             case "reroll_day":
+            case "quest_week":
             case "pack_tokens":
             case "level_paid":
             case "count_ai_games":
+            case "show_progress":
             case "xp":
             case "coins":
                 return column;
@@ -700,6 +769,222 @@ public final class CareerStore implements AutoCloseable {
                 return rows.next() ? rows.getString(1) : null;
             }
         }
+    }
+
+    /** a game's stored details for the account: by its exact key, or by the game id it was claimed under */
+    synchronized String gameDetailsFor(String gameKey, String user) throws SQLException {
+        String exact = gameDetails(gameKey, user);
+        return exact != null ? exact : gameDetails(gameKey + "/" + key(user), user);
+    }
+
+    /** what a paid game was, for the admin's list: its kind, result, pay and why it paid what it did */
+    synchronized void setGameRecord(String gameKey, String kind, boolean won, int coins, int xp, String reason) throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE progress_games SET kind = ?, won = ?, coins = ?, xp = ?, reason = ? WHERE game_key = ?")) {
+            update.setString(1, kind);
+            update.setInt(2, won ? 1 : 0);
+            update.setInt(3, coins);
+            update.setInt(4, xp);
+            update.setString(5, reason);
+            update.setString(6, gameKey);
+            update.executeUpdate();
+        }
+    }
+
+    /** One game progression counted, for /admin. */
+    public static class PaidGame {
+        public String gameKey;
+        public long at;
+        public String kind;
+        public boolean won;
+        public int coins;
+        public int xp;
+        public String reason;
+        public boolean revoked;
+    }
+
+    /** the account's latest counted games, newest first */
+    public synchronized List<PaidGame> paidGames(String user, int limit) throws SQLException {
+        List<PaidGame> games = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT game_key, at, kind, won, coins, xp, reason, revoked FROM progress_games WHERE user = ? ORDER BY at DESC LIMIT ?")) {
+            select.setString(1, key(user));
+            select.setInt(2, limit);
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    PaidGame game = new PaidGame();
+                    game.gameKey = rows.getString(1);
+                    game.at = rows.getLong(2);
+                    game.kind = rows.getString(3) == null ? CareerRewards.CAREER : rows.getString(3);
+                    game.won = rows.getInt(4) == 1;
+                    game.coins = rows.getInt(5);
+                    game.xp = rows.getInt(6);
+                    game.reason = rows.getString(7);
+                    game.revoked = rows.getInt(8) == 1;
+                    games.add(game);
+                }
+            }
+        }
+        return games;
+    }
+
+    /** a counted game, or null when it isn't the account's */
+    synchronized PaidGame paidGame(String user, String gameKey) throws SQLException {
+        for (PaidGame game : paidGames(user, Integer.MAX_VALUE)) {
+            if (game.gameKey.equals(gameKey)) {
+                return game;
+            }
+        }
+        return null;
+    }
+
+    /** @return true when this call revoked it */
+    synchronized boolean revokeGame(String gameKey) throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement("UPDATE progress_games SET revoked = 1 WHERE game_key = ? AND revoked = 0")) {
+            update.setString(1, gameKey);
+            return update.executeUpdate() == 1;
+        }
+    }
+
+    // ---- M24: the pair cap, the day's games, Career tables, the Career deck
+
+    /** paid games a pair of people played together on a day */
+    synchronized int pairGames(String day, String pair) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT games FROM pair_games WHERE day = ? AND pair = ?")) {
+            select.setString(1, day);
+            select.setString(2, pair);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getInt(1) : 0;
+            }
+        }
+    }
+
+    synchronized void addPairGame(String day, String pair) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement(
+                "INSERT INTO pair_games (day, pair, games) VALUES (?, ?, 1) ON CONFLICT (day, pair) DO UPDATE SET games = games + 1")) {
+            upsert.setString(1, day);
+            upsert.setString(2, pair);
+            upsert.executeUpdate();
+        }
+    }
+
+    /** pairs with the account in them that reached the cap, and on how many days, over the last days given */
+    public synchronized Map<String, Integer> cappedPairs(String user, String sinceDay, int cap) throws SQLException {
+        Map<String, Integer> pairs = new java.util.TreeMap<>();
+        String me = key(user);
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT pair, COUNT(*) FROM pair_games WHERE day >= ? AND games >= ? AND (pair LIKE ? OR pair LIKE ?) GROUP BY pair")) {
+            select.setString(1, sinceDay);
+            select.setInt(2, cap);
+            select.setString(3, me + "|%");
+            select.setString(4, "%|" + me);
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    pairs.put(rows.getString(1), rows.getInt(2));
+                }
+            }
+        }
+        return pairs;
+    }
+
+    /** {wins, games, games against people} on a day */
+    synchronized int[] daily(String user, String day) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT wins, games, person_games FROM daily WHERE user = ? AND day = ?")) {
+            select.setString(1, key(user));
+            select.setString(2, day);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? new int[]{rows.getInt(1), rows.getInt(2), rows.getInt(3)} : new int[]{0, 0, 0};
+            }
+        }
+    }
+
+    synchronized void addDaily(String user, String day, boolean won, boolean person) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement(
+                "INSERT INTO daily (user, day, wins, games, person_games) VALUES (?, ?, ?, 1, ?)"
+                        + " ON CONFLICT (user, day) DO UPDATE SET wins = wins + excluded.wins, games = games + 1,"
+                        + " person_games = person_games + excluded.person_games")) {
+            upsert.setString(1, key(user));
+            upsert.setString(2, day);
+            upsert.setInt(3, won ? 1 : 0);
+            upsert.setInt(4, person ? 1 : 0);
+            upsert.executeUpdate();
+        }
+    }
+
+    /** a Career table, so it survives a restart */
+    synchronized void putCareerTable(String tableId, String data, long now) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement(
+                "INSERT OR REPLACE INTO career_tables (table_id, data, created) VALUES (?, ?, ?)")) {
+            upsert.setString(1, tableId);
+            upsert.setString(2, data);
+            upsert.setLong(3, now);
+            upsert.executeUpdate();
+        }
+    }
+
+    synchronized void deleteCareerTable(String tableId) throws SQLException {
+        try (PreparedStatement delete = connection.prepareStatement("DELETE FROM career_tables WHERE table_id = ?")) {
+            delete.setString(1, tableId);
+            delete.executeUpdate();
+        }
+    }
+
+    /** Career tables kept from before a restart, as {table id, data}; ones older than the cutoff are dropped */
+    synchronized List<String[]> careerTables(long olderThan) throws SQLException {
+        try (PreparedStatement delete = connection.prepareStatement("DELETE FROM career_tables WHERE created < ?")) {
+            delete.setLong(1, olderThan);
+            delete.executeUpdate();
+        }
+        List<String[]> tables = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement("SELECT table_id, data FROM career_tables")) {
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    tables.add(new String[]{rows.getString(1), rows.getString(2)});
+                }
+            }
+        }
+        return tables;
+    }
+
+    /** the account's Career deck as JSON, or null */
+    public synchronized String deck(String user) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT deck FROM decks WHERE user = ?")) {
+            select.setString(1, key(user));
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getString(1) : null;
+            }
+        }
+    }
+
+    synchronized void putDeck(String user, String deck, long now) throws SQLException {
+        try (PreparedStatement upsert = connection.prepareStatement("INSERT OR REPLACE INTO decks (user, deck, updated) VALUES (?, ?, ?)")) {
+            upsert.setString(1, key(user));
+            upsert.setString(2, deck);
+            upsert.setLong(3, now);
+            upsert.executeUpdate();
+        }
+    }
+
+    /** every account with a profile, for counting how many players have an achievement */
+    synchronized int profileCount() throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT COUNT(*) FROM profile")) {
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? rows.getInt(1) : 0;
+            }
+        }
+    }
+
+    /** how many accounts have each achievement */
+    synchronized Map<String, Integer> achievementCounts() throws SQLException {
+        Map<String, Integer> counts = new java.util.HashMap<>();
+        try (PreparedStatement select = connection.prepareStatement("SELECT id, COUNT(*) FROM achievements GROUP BY id")) {
+            try (ResultSet rows = select.executeQuery()) {
+                while (rows.next()) {
+                    counts.put(rows.getString(1), rows.getInt(2));
+                }
+            }
+        }
+        return counts;
     }
 
     /** the account's latest game with stored details */

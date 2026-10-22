@@ -20,7 +20,8 @@ public final class CareerRules {
     public static final int PLAYSET = 4;
     /** a loss that ended before this turn pays nothing (no conceding for coins) */
     public static final int MIN_TURN_FOR_REWARD = 3;
-    public static final int MAX_LEVEL = 50;
+    /** the top of the level track; past it, Renown (B291) */
+    public static final int MAX_LEVEL = 100;
     /** wins against a tier's opponents that open the next tier */
     public static final int WINS_TO_UNLOCK_NEXT_TIER = 3;
 
@@ -97,6 +98,21 @@ public final class CareerRules {
     /** XP from one level to the next: 250, then 50 more for each level */
     public static int xpForLevel(int level) {
         return 250 + 50 * (level - 1);
+    }
+
+    /** XP from zero to the start of a level */
+    public static int xpToReach(int level) {
+        int total = 0;
+        for (int past = 1; past < Math.min(level, MAX_LEVEL); past++) {
+            total += xpForLevel(past);
+        }
+        return total;
+    }
+
+    /** Renown stars past the top level: one for every renownXp XP beyond it */
+    public static int renownFor(int xp, int renownXp) {
+        int past = xp - xpToReach(MAX_LEVEL);
+        return past <= 0 ? 0 : past / renownXp;
     }
 
     public static int levelFor(int xp) {

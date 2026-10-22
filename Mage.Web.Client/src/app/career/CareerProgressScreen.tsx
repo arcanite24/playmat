@@ -1,4 +1,4 @@
-import { CalendarDays, Check, Coins, Download, HelpCircle, KeyRound, Lock, Package, Sparkles, Trophy } from 'lucide-react';
+import { CalendarDays, Check, Coins, Download, KeyRound, Package, Sparkles, Trophy } from 'lucide-react';
 import { useEffect, useMemo, useRef, type CSSProperties, type WheelEvent } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import type { CareerAchievement, CareerCosmetic, CareerLevelTrack, CareerPayout, CareerProfile } from '../../protocol/generated/views';
@@ -11,20 +11,23 @@ import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { downloadText } from '../ui/download';
 import { BoosterPack } from './BoosterPack';
-import { exportCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerOpponents, useCareerState } from './careerData';
+import { exportCareer, useCareerAchievements, useCareerHall, useCareerLevels, useCareerLook, useCareerMasteries, useCareerOpponents, useCareerState } from './careerData';
+import { AchievementHall } from './AchievementHall';
+import { Masteries } from './Masteries';
 import { exportFileName } from './careerModel';
 import { Art } from './Art';
 import { usePaintedArt, wildcardArt } from './careerArt';
-import { CareerAvatar, CountAiGames, ProgressBar } from './CareerScreen';
+import { CareerAvatar, ProgressBar, ShowProgress } from './CareerScreen';
 import { LevelMedallion } from './CareerShell';
 import { dealStyle } from './motion';
 import motion from './motion.module.css';
 import { CardArt } from './Portraits';
 import { Crest } from './ModeArt';
 import { CosmeticsLocker } from './CosmeticsLocker';
+import { TitleText } from './LookParts';
 import { useCampaigns } from './careerModesData';
 import {
-  CAREER_SLEEVES, achievementState, describePay, describeReward, fraction, levelRows, recentOpponent, rewardParts, sortAchievements, titleLabel,
+  CAREER_SLEEVES, describeReward, fraction, levelRows, recentOpponent, rewardParts,
   type RewardPart,
 } from './progressModel';
 import styles from './Career.module.css';
@@ -32,9 +35,10 @@ import progress from './Progress.module.css';
 
 registerMessages(messages);
 
-const TABS: { id: 'levels' | 'achievements' | 'look' | 'options'; label: MessageKey }[] = [
+const TABS: { id: 'levels' | 'achievements' | 'masteries' | 'look' | 'options'; label: MessageKey }[] = [
   { id: 'levels', label: 'career.progress.levels' },
   { id: 'achievements', label: 'career.progress.achievements' },
+  { id: 'masteries', label: 'career.progress.masteries' },
   { id: 'look', label: 'career.progress.look' },
   { id: 'options', label: 'career.progress.options' },
 ];
@@ -50,6 +54,8 @@ export function CareerProgressScreen() {
   const levels = useCareerLevels(!!profile);
   const achievements = useCareerAchievements(!!profile);
   const [params, setParams] = useSearchParams();
+  const masteries = useCareerMasteries(!!profile && params.get('tab') === 'masteries');
+  const hall = useCareerHall(!!profile && params.get('tab') === 'achievements');
   const tab = TABS.find((candidate) => candidate.id === params.get('tab'))?.id ?? 'levels';
 
   if (state.isPending) return <p className={styles.note}>{t('career.loading')}</p>;
@@ -75,7 +81,8 @@ export function CareerProgressScreen() {
       </div>
       <div className={[progress.body, motion.scene].join(' ')} key={tab}>
         {tab === 'levels' && (levels.data ? <RewardRoad track={levels.data} /> : loading)}
-        {tab === 'achievements' && (achievements.data ? <MedalCase list={achievements.data} /> : loading)}
+        {tab === 'achievements' && (hall.data ? <AchievementHall hall={hall.data} /> : loading)}
+        {tab === 'masteries' && (masteries.data ? <Masteries list={masteries.data} /> : loading)}
         {tab === 'look' && (levels.data ? <CosmeticsLocker track={levels.data} achievements={achievements.data ?? []} /> : loading)}
         {tab === 'options' && <Record profile={profile} recent={state.data?.recent ?? []} />}
       </div>
@@ -104,7 +111,7 @@ function Banner({ profile, track, achievements }: { profile: CareerProfile; trac
         <CareerAvatar id={avatar} name={user} size={80} />
       </LevelMedallion>
       <div className={progress.who}>
-        <p className={progress.kicker}>{titleId ? titleLabel(titleId) : t('career.progress.kicker')}</p>
+        <p className={progress.kicker}>{titleId ? <TitleText id={titleId} /> : t('career.progress.kicker')}</p>
         <h2 className={progress.levelName}>{t('career.level', { level })}</h2>
         <div className={progress.xp}>
           <ProgressBar value={max ? 1 : fraction(into, needed)} label={xpLabel} />
@@ -216,56 +223,8 @@ function CosmeticPreview({ cosmetic, user }: { cosmetic: CareerCosmetic; user: s
       return <span className={progress.cloth} style={cloth ? clothSwatch(cloth) : undefined}><Art kind="playmat" id={id} size={56} className={progress.clothPrint} /></span>;
     }
     default:
-      return <span className={progress.titleArt}><Art kind="reward" id="title" size={64} /><span className={progress.plate}>{titleLabel(id)}</span></span>;
+      return <span className={progress.titleArt}><Art kind="reward" id="title" size={64} /><TitleText className={progress.plate} id={id} /></span>;
   }
-}
-
-// ---- the medal case
-
-function MedalCase({ list }: { list: CareerAchievement[] }) {
-  const t = useT();
-  const sorted = useMemo(() => sortAchievements(list), [list]);
-  const earned = list.filter((achievement) => achievement.achieved).length;
-  const dates = useMemo(() => new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }), []);
-  const painted = usePaintedArt();
-  return (
-    <section className={progress.case} aria-label={t('career.progress.achievements')}>
-      <header className={progress.caseHead}>
-        <p>{t('career.achievements.count', { earned, total: list.length })}</p>
-        <ProgressBar value={fraction(earned, list.length)} label={t('career.achievements.count', { earned, total: list.length })} />
-      </header>
-      <ul className={progress.medals}>
-        {sorted.map((achievement, index) => {
-          const kind = achievementState(achievement);
-          const part = fraction(achievement.progress, achievement.target);
-          const pay = [
-            describePay(t, achievement.coins, achievement.xp),
-            achievement.cosmetic ? describeReward(t, [{ kind: 'cosmetic', cosmetic: achievement.cosmetic }]) : '',
-          ].filter(Boolean).join(' · ');
-          return (
-            <li key={achievement.id} className={[progress.medal, progress[kind], motion.deal].join(' ')} style={dealStyle(index)}>
-              <span className={[progress.disc, painted ? progress.discArt : ''].join(' ')} style={{ '--part': kind === 'progress' ? part : kind === 'earned' ? 1 : 0 } as CSSProperties} aria-hidden="true">
-                {painted ? (
-                  <>
-                    <Art kind={kind === 'secret' ? 'reward' : 'achievement'} id={kind === 'secret' ? 'secret' : achievement.id ?? ''} size={54} />
-                    {kind === 'progress' && part > 0 && <b>{Math.round(part * 100)}%</b>}
-                    {kind === 'open' && <Lock size={14} className={progress.medalLock} />}
-                  </>
-                ) : kind === 'earned' ? <Trophy size={26} /> : kind === 'secret' ? <HelpCircle size={24} /> : kind === 'progress' && part > 0 ? <b>{Math.round(part * 100)}%</b> : <Lock size={20} />}
-              </span>
-              <span className={progress.medalText}>
-                <b>{kind === 'secret' ? t('career.achievements.secret') : achievement.name}</b>
-                <small>{kind === 'secret' ? t('career.achievements.secretText') : achievement.text}</small>
-                {kind === 'progress' && <small className={progress.count}>{formatNumber(achievement.progress ?? 0)} / {formatNumber(achievement.target ?? 0)}</small>}
-                {kind === 'earned' && achievement.at ? <small className={progress.count}>{t('career.achievements.earned', { date: dates.format(new Date(achievement.at)) })}</small> : null}
-                {kind !== 'secret' && pay && <span className={progress.pay}>{pay}</span>}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
 }
 
 // ---- the record
@@ -322,7 +281,7 @@ function Record({ profile, recent }: { profile: CareerProfile; recent: CareerPay
       </section>
       <section className={progress.shelfPanel} aria-labelledby="record-settings">
         <h3 id="record-settings">{t('career.settings')}</h3>
-        <CountAiGames profile={profile} />
+        <ShowProgress profile={profile} />
         <Button variant="print" size="sm" icon={<Download size={16} />} onClick={() => void exportNow()}>{t('career.export')}</Button>
       </section>
     </div>

@@ -5,7 +5,7 @@ import { useSettings } from '../stores/settings';
  * folder per kind under public/career-art, every picture of a kind the same size. A kind's ids are its spec's items;
  * careerArt.test.ts checks every id here has its picture.
  */
-export type ArtKind = 'achievement' | 'reward' | 'frame' | 'avatar' | 'portrait' | 'crest' | 'sleeve' | 'playmat';
+export type ArtKind = 'achievement' | 'reward' | 'frame' | 'avatar' | 'portrait' | 'crest' | 'sleeve' | 'playmat' | 'companion' | 'sticker' | 'stamp';
 
 export function artUrl(kind: ArtKind, id: string): string {
   return `/career-art/${kind}/${id}.webp`;

@@ -356,6 +356,35 @@
   from { opacity: 0; transform: scale(1.25); filter: blur(6px); }
 }
 
+/* the winner's earned stamp (B300), pressed slantwise over the end of the result once it has landed */
+.endHead {
+  position: relative;
+}
+
+.victoryStamp {
+  position: absolute;
+  right: -110px;
+  top: -70px;
+  width: 190px;
+  height: 190px;
+  object-fit: contain;
+  opacity: 0.88;
+  rotate: -14deg;
+  pointer-events: none;
+  animation: press 520ms var(--ease-place) 550ms both;
+}
+
+@keyframes press {
+  from { opacity: 0; transform: scale(1.6); }
+  70% { opacity: 0.95; transform: scale(0.96); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .victoryStamp {
+    animation: none;
+  }
+}
+
 /* tall: the stage is 1080 wide; panels keep a margin and the opening hand wraps into rows */
 :global([data-layout='tall']) .panel,
 :global([data-layout='tall']) .panelNarrow,

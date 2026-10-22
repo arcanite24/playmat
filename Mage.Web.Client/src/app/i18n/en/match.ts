@@ -49,6 +49,12 @@ export default {
   'match.end.defeat': 'Defeat',
   'match.end.draw': 'Draw',
   'match.end.over': 'Game over',
+
+  // quick emotes (B298)
+  'match.emote.open': 'Emotes',
+  'match.emote.wait': 'One emote every few seconds',
+  'match.emote.failed': "That emote didn't go through.",
+  'match.emote.bubble': '{name}: {phrase}',
   'match.end.wonGame': 'You won the game.',
   'match.end.lostGame': 'You lost the game.',
   'match.end.drawGame': 'The game is a draw.',
@@ -56,6 +62,11 @@ export default {
   'match.end.lostMatch': 'You lost the match {wins}–{losses}.',
   'match.end.drawMatch': 'The match ended {wins}–{losses}.',
   'match.end.backToTables': 'Back to Tables',
+
+  // the game menu's quest tracker
+  'match.quests': 'Quests',
+  'match.quests.count': '{now}/{target}',
+  'match.quests.gained': '{now} of {target}, {gained} from this game',
 
   // the score while sideboarding
   'match.score.won': 'You won game {game} · {wins}–{losses}',

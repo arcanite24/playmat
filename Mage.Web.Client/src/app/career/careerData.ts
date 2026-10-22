@@ -78,6 +78,21 @@ export function useCareerWeekly(enabled: boolean) {
   return useQuery({ queryKey: KEY.weekly, queryFn: () => api.careerWeekly(), enabled: useSignedIn() && enabled, staleTime: 0 });
 }
 
+/** Mastery tracks: each color and format, ten ranks from games (B290). */
+export function useCareerMasteries(enabled: boolean) {
+  return useQuery({ queryKey: ['career', 'masteries'], queryFn: () => api.careerMasteries(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
+}
+
+/** The achievement hall: every achievement with its tiers and holders, points and rank, the latest earned (B304). */
+export function useCareerHall(enabled: boolean) {
+  return useQuery({ queryKey: ['career', 'hall'], queryFn: () => api.careerHall(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
+}
+
+/** Today (UTC): wins, the daily wins ladder and the day's first bonuses. */
+export function useCareerDaily(enabled: boolean) {
+  return useQuery({ queryKey: ['career', 'daily'], queryFn: () => api.careerDaily(), enabled: useSignedIn() && enabled, staleTime: 0 });
+}
+
 export function useCareerSetProgress(enabled: boolean) {
   return useQuery({ queryKey: KEY.sets, queryFn: () => api.careerSetProgress(), enabled: useSignedIn() && enabled, staleTime: 30_000 });
 }
@@ -93,7 +108,7 @@ export async function startCareer(starterId: string, starterName: string): Promi
   const profile = await api.careerStart(starterId);
   const user = useSession.getState().userName;
   const deck = await fetchStarterDeck(starterId, starterName).catch(() => null);
-  if (deck) saveCareerDeck(user, deck);
+  if (deck) await saveCareerDeck(user, deck);
   setProfile(profile);
   void queryClient.invalidateQueries({ queryKey: ['career'] });
 }
@@ -136,9 +151,14 @@ export async function rerollQuest(slot: number): Promise<CareerQuests> {
   return quests;
 }
 
-/** Whether regular games against the AI count for quests and achievements. */
-export async function setCountAiGames(count: boolean): Promise<void> {
-  setProfile(await api.careerCountAiGames(count));
+/** Whether the player sees progression (header, Today, rewards after games); kept with the account (B312). */
+export async function setShowProgress(show: boolean): Promise<void> {
+  setProfile(await api.careerShowProgress(show));
+}
+
+export function useProgressionShown(): boolean {
+  const state = useCareerState();
+  return !!state.data?.enabled && state.data.profile?.showProgress !== false;
 }
 
 export async function exportCareer(): Promise<string> {
@@ -176,11 +196,25 @@ export function refreshCareer(): void {
   void queryClient.invalidateQueries({ queryKey: ['career'] });
 }
 
-/** The avatar and title a player shows in Career, among the ones unlocked; kept in this browser, per account. */
+/**
+ * The progression cosmetics a player wears, among the ones unlocked; kept in this browser, per account, and sent with
+ * the look (support/lookSync.ts) so opponents see them. Older saved looks have only the avatar and title.
+ */
 export interface CareerLook {
   avatar: string | null;
   title: string | null;
+  frame?: string | null;
+  pet?: string | null;
+  arrow?: string | null;
+  spark?: string | null;
+  stamp?: string | null;
+  lands?: string | null;
+  /** up to three showcase badges (career/badges.ts) */
+  badges?: string[];
 }
+
+/** fired when the look changes, so the look is sent again */
+export const CAREER_LOOK_EVENT = 'playmat:career-look';
 
 const LOOK_KEY = 'playmat.career.look';
 
@@ -197,5 +231,6 @@ export const useCareerLook = create<LookState>((set, get) => ({
     const looks = { ...get().looks, [name]: { ...current, ...patch } };
     writeJson(LOOK_KEY, looks);
     set({ looks });
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event(CAREER_LOOK_EVENT));
   },
 }));

@@ -475,6 +475,21 @@
                                 <class>mage.server.career.CareerProgress$CareerCosmetic</class>
                                 <class>mage.server.career.CareerProgress$CareerWeekly</class>
                                 <class>mage.server.career.CareerProgress$CareerGameResult</class>
+                                <class>mage.server.career.CareerProgress$CareerBonus</class>
+                                <class>mage.server.career.CareerProgress$CareerDaily</class>
+                                <class>mage.server.career.CareerProgress$CareerMastery</class>
+                                <class>mage.server.career.CareerProgress$CareerMasteryRank</class>
+                                <class>mage.server.career.CareerProgress$CareerLiveQuest</class>
+                                <class>mage.server.career.CareerProgress$CareerPublicProfile</class>
+                                <class>mage.server.career.CareerProgress$CareerAchievementTier</class>
+                                <class>mage.server.career.CareerProgress$CareerHall</class>
+                                <class>mage.server.career.CareerProgress$CareerMoment</class>
+                                <class>mage.server.career.CareerCosmetics$CareerCatalogItem</class>
+                                <class>mage.server.career.CareerCosmetics$CareerSticker</class>
+                                <class>mage.server.career.CareerCosmetics$CareerCosmeticSource</class>
+                                <class>mage.server.game.PlayerEmote</class>
+                                <class>mage.server.career.CareerService$CareerAdminView</class>
+                                <class>mage.server.career.CareerStore$PaidGame</class>
                                 <class>mage.server.career.CareerProgress$CareerQuestProgress</class>
                                 <class>mage.server.career.CareerService$CareerSetProgress</class>
                                 <class>mage.server.career.CareerProgress$CareerModeResult</class>

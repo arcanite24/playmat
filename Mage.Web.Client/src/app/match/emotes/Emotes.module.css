@@ -1,0 +1,141 @@
+/* the quick-emote button, beside your seat (wide) or on its corner (tall); placed in stage pixels */
+.spot {
+  position: absolute;
+  left: calc(100% + 10px);
+  bottom: 6px;
+  z-index: var(--z-seat);
+}
+
+:global([data-layout='tall']) .spot {
+  left: auto;
+  right: -14px;
+  top: -18px;
+  bottom: auto;
+}
+
+.button {
+  display: grid;
+  place-items: center;
+  width: max(48px, var(--touch-target, 0px));
+  height: max(48px, var(--touch-target, 0px));
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--mat-rgb) / 0.62);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.button:hover,
+.button[data-state='open'] {
+  box-shadow: inset 0 0 0 2px var(--ink);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--decision);
+  outline-offset: 2px;
+}
+
+/* the wheel opens outside the stage, at window size: a compact grid that fits a phone */
+.wheel {
+  z-index: var(--z-dialog);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(460px, calc(100vh - 120px));
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--mat-800);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint), var(--shadow-held);
+}
+
+.loading {
+  height: 120px;
+}
+
+.wait {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.set {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setName {
+  color: var(--ink-soft);
+  font-size: var(--text-xs, 12px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.phrases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.stickers {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 6px;
+}
+
+.phraseItem,
+.stickerItem {
+  border-radius: 10px;
+  color: var(--ink-strong);
+  cursor: pointer;
+  outline: none;
+}
+
+.phraseItem {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px 12px;
+  background: rgb(var(--ink-rgb) / 0.06);
+  font-size: var(--text-md);
+}
+
+.stickerItem {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  padding: 4px;
+}
+
+.stickerItem img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.stickerWords {
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.phraseItem[data-highlighted],
+.stickerItem[data-highlighted] {
+  background: rgb(var(--ink-rgb) / 0.14);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+}
+
+.phraseItem[data-disabled],
+.stickerItem[data-disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (pointer: coarse) {
+  .phraseItem {
+    min-height: 48px;
+  }
+}

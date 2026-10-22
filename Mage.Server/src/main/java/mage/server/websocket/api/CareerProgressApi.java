@@ -90,15 +90,117 @@ final class CareerProgressApi {
                             return CareerApi.store(() -> CareerService.get().setProgress(user));
                         }),
 
-                RpcMethod.named("careerCountAiGames")
-                        .params(of("count", BOOLEAN))
+                RpcMethod.named("careerShowProgress")
+                        .params(of("show", BOOLEAN))
                         .returns("CareerProfile")
-                        .doc("Whether regular games against the AI also count for quests and achievements (off by default). They "
-                                + "never pay coins for the match itself, and practice, goldfish and cheat games never count.")
+                        .doc("Whether the player sees progression: the header, Today on Home and the rewards after games. Kept "
+                                + "with the account, so it holds on every device. Games still count while it's hidden.")
                         .handler(call -> {
                             String user = CareerApi.career(ctx, call);
-                            boolean count = call.bool(0);
-                            return CareerApi.store(() -> CareerService.get().setCountAiGames(user, count));
+                            boolean show = call.bool(0);
+                            return CareerApi.store(() -> CareerService.get().setShowProgress(user, show));
+                        }),
+
+                RpcMethod.named("careerProfileOf")
+                        .params(of("userName", STRING))
+                        .returns("CareerPublicProfile | null")
+                        .doc("What anyone sees of a player's progression on their profile: level, achievements and the last "
+                                + "counted games. Null when the player has none, or hid progression.")
+                        .handler(call -> {
+                            CareerApi.career(ctx, call);
+                            String name = call.string(0);
+                            return CareerApi.store(() -> {
+                                mage.server.career.CareerProfile profile = CareerStore.get().profile(name);
+                                return profile == null || !profile.showProgress ? null : CareerProgress.get().publicProfile(name);
+                            });
+                        }),
+
+                RpcMethod.named("careerQuestTracker")
+                        .params(of("gameId", mage.server.websocket.rpc.RpcParam.Type.UUID))
+                        .returns("CareerLiveQuest[]")
+                        .doc("The player's unfinished quests with what the running game has added so far, for the match menu. "
+                                + "Nothing is saved until the game ends. Empty when the game doesn't count.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            java.util.UUID gameId = call.uuid(0);
+                            mage.server.game.GameController controller = ctx.managers.gameManager().getGameController().get(gameId);
+                            java.util.UUID userId = ctx.managers.sessionManager().getSession(call.sessionId())
+                                    .map(mage.server.Session::getUserId).orElse(null);
+                            java.util.UUID playerId = controller == null ? null : controller.playerIdOf(userId);
+                            mage.server.career.CareerTally tally = playerId == null ? null : mage.server.career.CareerTally.of(gameId, playerId);
+                            java.util.Map<String, Integer> counters = tally == null || tally.taint() != null
+                                    ? java.util.Collections.emptyMap() : tally.counters();
+                            return CareerApi.store(() -> CareerProgress.get().liveQuests(user, counters));
+                        }),
+
+                RpcMethod.named("careerMasteries")
+                        .params(optional("userName", STRING))
+                        .returns("CareerMastery[]")
+                        .doc("Mastery tracks (each color, multicolor, colorless and each format): games played, rank of ten and "
+                                + "games to the next rank. Another player's when a name is given and they show progression.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            String name = call.optString(0, "").trim();
+                            String who = name.isEmpty() ? user : name;
+                            return CareerApi.store(() -> {
+                                mage.server.career.CareerProfile profile = CareerStore.get().profile(who);
+                                if (profile == null || (!who.equalsIgnoreCase(user) && !profile.showProgress)) {
+                                    return java.util.Collections.emptyList();
+                                }
+                                return CareerProgress.get().masteries(who);
+                            });
+                        }),
+
+                RpcMethod.named("careerDaily")
+                        .returns("CareerDaily")
+                        .doc("Today (UTC): wins so far, the daily wins ladder's coins and which step is next, and whether the "
+                                + "first win and the first game against a person have paid their bonus.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerProgress.get().daily(user));
+                        }),
+
+                RpcMethod.named("careerCosmetics")
+                        .returns("CareerCatalogItem[]")
+                        .doc("Every cosmetic progression gives (B293): avatars, titles, frames, sleeves, playmats, companions, "
+                                + "emote sets, arrows, sparks, stamps and land styles, with names, rarity, how each looks and "
+                                + "where it comes from. The supporters' thank-you set is not in it.")
+                        .handler(call -> {
+                            CareerApi.career(ctx, call);
+                            return mage.server.career.CareerCosmetics.get().items();
+                        }),
+
+                RpcMethod.named("careerHall")
+                        .returns("CareerHall")
+                        .doc("The achievement hall: every achievement with its tiers and how many players have each, the "
+                                + "points total and its rank, and the latest earned.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            return CareerApi.store(() -> CareerProgress.get().hall(user));
+                        }),
+
+                RpcMethod.named("gameEmote")
+                        .params(of("gameId", mage.server.websocket.rpc.RpcParam.Type.UUID), of("emote", STRING))
+                        .returns("boolean")
+                        .doc("Sends a quick emote to everyone at the table (a gameEmote callback). Only from an emote set the "
+                                + "account has, or the free phrases; one every few seconds. False when it wasn't sent.")
+                        .handler(call -> {
+                            String user = CareerApi.career(ctx, call);
+                            java.util.UUID gameId = call.uuid(0);
+                            String emote = call.string(1);
+                            mage.server.career.CareerCosmetics.CareerCatalogItem set = mage.server.career.CareerCosmetics.get().emoteSetOf(emote);
+                            if (set == null) {
+                                return false;
+                            }
+                            boolean owned = set.free || CareerApi.store(() -> CareerStore.get().unlocksOf(user).stream()
+                                    .anyMatch(unlock -> "emote".equals(unlock[0]) && set.id.equals(unlock[1])));
+                            if (!owned) {
+                                return false;
+                            }
+                            mage.server.game.GameController controller = ctx.managers.gameManager().getGameController().get(gameId);
+                            java.util.UUID userId = ctx.managers.sessionManager().getSession(call.sessionId())
+                                    .map(mage.server.Session::getUserId).orElse(null);
+                            return controller != null && controller.emote(userId, emote, System.currentTimeMillis());
                         })
         );
     }

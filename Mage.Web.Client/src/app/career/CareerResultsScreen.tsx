@@ -18,7 +18,7 @@ import { DoneMark, ProgressBar, WeeklyGoal } from './CareerScreen';
 import { Art } from './Art';
 import { dealStyle, useCountUp, useSequence, useStill } from './motion';
 import { PortraitCard, type ArtCard } from './Portraits';
-import { describePay, describeReward, fetchResult, fraction, resultIsEmpty, rewardParts, safeBack, xpSweep } from './progressModel';
+import { describePay, describeReward, fetchResult, fraction, momentLine, resultIsEmpty, resultTier, rewardParts, safeBack, xpSweep } from './progressModel';
 import motion from './motion.module.css';
 import modeStyles from './CareerModes.module.css';
 import styles from './Results.module.css';
@@ -38,7 +38,8 @@ export function CareerRewardsScreen() {
   const back = safeBack(params.get('back'));
   const state = useCareerState();
   const profile = state.data?.profile;
-  const counts = career || !!profile?.countAiGames;
+  // every game counts now; a player who hid progression skips the screen (B312)
+  const counts = career || profile?.showProgress !== false;
   const result = useQuery({
     queryKey: ['careerResult', key ?? 'latest'],
     queryFn: () => fetchResult(() => api.careerGameResult(key)),
@@ -111,6 +112,7 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
   useSceneArt(foe?.cover);
   const won = !!result.won;
   const quests = result.quests ?? [];
+  const moments = result.moments ?? [];
   const achievements = useMemo(() => result.achievements ?? [], [result.achievements]);
   const levelRewards = result.levelRewards ?? [];
   const opened = useMemo(() => result.opened ?? [], [result.opened]);
@@ -207,6 +209,16 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
 
       {step >= 2 && <XpSweep result={result} still={still} />}
 
+      {/* the game's moments: a big hit, a storm turn, a comeback (B309) */}
+      {step >= 3 && moments.length > 0 && (
+        <section className={[styles.block, motion.deal].join(' ')} aria-label={t('career.moments.title')}>
+          <h2 className={styles.label}>{t('career.moments.title')}</h2>
+          <ul className={styles.moments}>
+            {moments.map((moment, index) => <li key={`${moment.id}-${index}`}>{momentLine(t, moment)}</li>)}
+          </ul>
+        </section>
+      )}
+
       {step >= 3 && quests.length > 0 && (
         <section className={styles.block} aria-label={t('career.rewards.quests')}>
           <h2 className={styles.label}>{t('career.rewards.quests')}</h2>
@@ -229,16 +241,20 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
         <section className={styles.block} aria-label={t('career.rewards.achievements')}>
           <h2 className={styles.label}>{t('career.results.earned')}</h2>
           <ul className={styles.prizes}>
-            {achievements.map((achievement, index) => (
-              <li key={achievement.id} className={[styles.prize, motion.deal].join(' ')} style={dealStyle(index)}>
+            {achievements.map((achievement, index) => {
+              const tier = resultTier(achievement);
+              return (
+              <li key={`${achievement.id}-${achievement.tier}`} className={[styles.prize, motion.deal].join(' ')} style={dealStyle(index)} data-tier={tier ?? undefined}>
                 <Art kind="achievement" id={achievement.id ?? ''} size={56} fallback={<Trophy size={28} aria-hidden="true" />} />
+                {tier && <small className={styles.prizeTier}><i aria-hidden="true" />{t('career.results.tier', { tier: t(`career.hall.tier.${tier}`) })}</small>}
                 <b>{achievement.name}</b>
                 <small>{achievement.text}</small>
                 <small className={styles.prizePay}>
                   {[describePay(t, achievement.coins, achievement.xp), achievement.cosmetic ? describeReward(t, [{ kind: 'cosmetic', cosmetic: achievement.cosmetic }]) : ''].filter(Boolean).join(' · ')}
                 </small>
               </li>
-            ))}
+              );
+            })}
             {levelRewards.map((reward, index) => (
               <li key={`level-${reward.level}`} className={[styles.prize, styles.prizeLevel, motion.deal].join(' ')} style={dealStyle(achievements.length + index)}>
                 <Art kind="reward" id="level" size={56} fallback={<Gift size={28} aria-hidden="true" />} />

@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Menu } from 'lucide-react';
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { GameSession, GameSessionState } from '../../core/game/gameSession';
 import type { Command } from '../../core/game/interaction';
@@ -24,6 +24,7 @@ import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
 import { useAutomation, useSettings } from '../stores/settings';
+import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
@@ -44,6 +45,7 @@ import { CardZoom } from './CardZoom';
 import { DamageAssigner } from './DamageAssigner';
 import { damageCorner, useDamageSplit } from './useDamageSplit';
 import { EmoteBubbles } from './EmoteBubbles';
+import { EmoteButton } from './emotes/EmoteButton';
 import { useOpponentVoice } from './useOpponentVoice';
 import { setCardMotion, useFlipOrigin } from './flip';
 import { GameLog } from './GameLog';
@@ -65,9 +67,13 @@ import { Vfx } from './Vfx';
 import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
 import { PermanentStack } from './PermanentStack';
 import { clothOf, clothStyle } from './playmats';
+import { arrowTints, landSetOf, lookCloth, pairsOf, sparkColorOf, stampOf, theirClothBox } from './touches';
+import { LandStyleContext } from '../ui/landStyles';
+import { useCosmetics } from '../ui/cosmeticsCatalog';
 import { usePlayerLooks } from '../support/supportData';
 import { opponentSleeve } from '../support/supportModel';
 import { PracticeTools } from './PracticeTools';
+import { QuestTracker } from './QuestTracker';
 import { AdviceDialog } from './AdviceDialog';
 import { GameReview } from '../review/GameReview';
 import { WhatIfDialog } from '../solo/WhatIfDialog';
@@ -86,12 +92,17 @@ import { useRightEdge } from './useRightEdge';
 import { matchLayout, type MatchLayout, type RowsPlacement } from './matchLayout';
 import styles from './MatchStage.module.css';
 
+// what a counted game paid, on the game-over screen (B277); loads only when a game ends
+const RewardsBeat = lazy(() => import('../career/RewardsBeat'));
+
 const EMPTY: ReadonlySet<string> = new Set();
 const ignore = () => undefined;
 const NO_CARDS: readonly CardView[] = [];
 const NO_COMMANDERS: readonly CommanderStatus[] = [];
 /** stage pixels between your seat and the hand's fan */
 const HAND_SEAT_GAP = 24;
+/** wide: the quick-emote button beside your seat (48 and its gap); the hand keeps clear of it too */
+const EMOTE_BUTTON_ROOM = 58;
 
 /** Attacking and blocking permanents, from the combat groups. */
 function combatSets(combat: GameView['combat']) {
@@ -294,13 +305,13 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // games inside an event lead back to the event; others back to Play
   const eventId = useEvents((events) => events.currentTournamentId);
   const returnPath = usePlay((play) => play.returnPath);
-  // Career matches come back through their rewards (the return path); a counted game against the AI shows what it
-  // paid on the way out too
+  // Career matches come back through their rewards (the return path); any other counted game shows what it paid on
+  // the way out too, unless the player hid progression (B265, B312)
   const career = !!returnPath?.startsWith('/career');
   const vsAi = board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false);
   useOpponentVoice(state, myId, career);
   const rewardsAfter = mode === 'play' && !!state.gameOver && !eventId && !career
-    && vsAi && !usePlay.getState().lastOptions.practice && useSettings.getState().settings.careerOptIn;
+    && !(vsAi && usePlay.getState().lastOptions.practice) && progressionShown();
   // a match against people (not in an event or Career) was found on Tables, and leads back there
   const vsPeople = mode === 'play' && !eventId && !career && board.opponents.length > 0 && !vsAi;
   const exit = useCallback((rewards: boolean) => {
@@ -312,7 +323,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     const back = eventId ? `/event/${eventId}` : vsPeople ? '/tables' : returnPath ?? '/';
     navigate(rewards ? `/career/rewards?game=${encodeURIComponent(state.gameId)}&back=${encodeURIComponent(back)}` : back);
   }, [navigate, state.gameId, eventId, returnPath, onLeave, vsPeople]);
-  const leave = useCallback(() => exit(rewardsAfter), [exit, rewardsAfter]);
+  // the rewards beat shows on the game-over screen itself (B277): leaving goes straight back, Details opens the screen
+  const leave = useCallback(() => exit(false), [exit]);
   const deckId = usePlay((play) => play.deckId);
   // players see who is watching them too
   const watchers = useWatchers(state.gameId, mode === 'play' && !state.gameOver);
@@ -404,19 +416,64 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
       ? { setCode: permanent.expansionSetCode, cardNumber: permanent.cardNumber, name: permanent.name }
       : null;
   }, [board.opponents]);
+  // what the players earned for the table (touches.ts): opponents' cloths, arrow colors, hit sparks, stamps and land
+  // styles. The lookups read the cosmetics catalog, so they run again when it arrives.
+  const catalog = useCosmetics((cosmetics) => cosmetics.byKey);
+  const seated = useMemo(() => [board.me, ...board.opponents].filter((one): one is PlayerBoard => !!one), [board.me, board.opponents]);
+  const theirCloths = useMemo(() => {
+    void catalog;
+    return board.opponents.map((opponent) => {
+      const cloth = lookCloth(lookOf(opponent.player));
+      // the same cloth as yours needs no second dye
+      return cloth && cloth.id !== clothOf(matCloth).id ? cloth : null;
+    });
+  }, [catalog, board.opponents, lookOf, matCloth]);
+  const theirPrintStyle = useMemo(() => (theirCloths.length === 1 && theirCloths[0] ? clothStyle(theirCloths[0]) : undefined), [theirCloths]);
+  const arrowTint = useMemo(() => {
+    void catalog;
+    return arrowTints(seated.map((one) => ({ look: lookOf(one.player), permanents: Object.keys(one.player.battlefield ?? {}) })));
+  }, [catalog, seated, lookOf]);
+  // keyed by text, so a new game view doesn't hand the effects and every card a new lookup (the catalog arriving
+  // changes the text)
+  const sparkKey = seated.map((one) => `${one.player.playerId}=${sparkColorOf(lookOf(one.player)) ?? ''}`).join(',');
+  const landKey = seated.map((one) => `${one.player.playerId}=${landSetOf(lookOf(one.player)) ?? ''}`).join(',');
+  const sparks = useMemo(() => pairsOf(sparkKey), [sparkKey]);
+  const landStyleOf = useMemo(() => {
+    const lands = pairsOf(landKey);
+    return lands.size > 0 ? (playerId: string) => lands.get(playerId) : null;
+  }, [landKey]);
+  const stamps = useMemo(() => {
+    void catalog;
+    return {
+      mine: board.me?.isMe ? stampOf(lookOf(board.me.player)) : null,
+      theirs: board.opponents.length === 1 ? stampOf(lookOf(board.opponents[0].player)) : null,
+    };
+  }, [catalog, board.me, board.opponents, lookOf]);
 
   const [plateRef, plateRight] = useRightEdge();
+  // quick emotes (B298): players only, at their own seat
+  const emotes = mode === 'play' && !!board.me?.isMe;
 
   return (
-    <Stage style={matStyle}>
+    // basic lands show their players' land styles anywhere on the stage (B301, ui/landStyles.ts)
+    <LandStyleContext.Provider value={landStyleOf}><Stage style={matStyle}>
       {(stage) => {
         // the stage widens with the window and the field takes the extra width; a portrait window gets the tall layout
         const layout = matchLayout(stage);
         return (
           <div className={styles.layout} style={{ ['--seam' as string]: `${layout.seam}px`, ['--hand-raise' as string]: `${layout.handRaise}px` }}>
+            {/* an opponent's own cloth dyes their half of the table (B295); several opponents dye their columns */}
+            {theirCloths.map((cloth, index) => cloth && (
+              <div
+                key={board.opponents[index]?.player.playerId ?? index}
+                className={theirCloths.length === 1 ? styles.theirCloth : styles.theirClothColumn}
+                style={theirClothBox(cloth, theirCloths.length === 1 ? null : layout.them(index, theirCloths.length))}
+                aria-hidden="true"
+              />
+            ))}
             <div className={styles.mat} aria-hidden="true" />
-            {/* each half carries its player's deck art, printed faintly into the mat */}
-            <div className={styles.printTheirs}><MatPrint card={opponentArt} /></div>
+            {/* each half carries its player's deck art, printed faintly into the mat (in their cloth's dye) */}
+            <div className={styles.printTheirs} style={theirPrintStyle}><MatPrint card={opponentArt} /></div>
             <div className={styles.printMine}><MatPrint card={myArt} /></div>
             <div className={styles.seam} aria-hidden="true" />
             {/* under the hand and the controls, over the mat */}
@@ -470,6 +527,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                       <PetSpot pet={lookOf(board.me.player)?.pet} owner={board.me.player.name ?? ''} isMe={board.me.isMe} />
                     </div>
                   )}
+                  {emotes && <EmoteButton gameId={state.gameId} />}
                 </div>
                 <div className={styles.myPiles} style={layout.myPiles}>
                   <Piles
@@ -520,7 +578,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 playLine={layout.playLine}
                 libraryOrigin={`library:${board.me.player.playerId}`}
                 // wide: the fan keeps clear of your seat (it grows sideways with counters) and of the decision corner
-                clearLeft={layout.tall || !plateRight ? 0 : plateRight + HAND_SEAT_GAP}
+                clearLeft={layout.tall || !plateRight ? 0 : plateRight + HAND_SEAT_GAP + (emotes ? EMOTE_BUTTON_ROOM : 0)}
                 clearRight={layout.handClearRight}
               />
             )}
@@ -551,9 +609,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
             {defenders && !(automation.attackPlayerByDefault && defaultDefender(defenders)) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
-            <Vfx view={view} myPlayerId={myId} />
-            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} />
-            <EmoteBubbles view={view} />
+            <Vfx view={view} myPlayerId={myId} sparks={sparks} />
+            <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />
+            <EmoteBubbles view={view} gameId={state.gameId} />
             {mode === 'play' && <Coach view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             {mode === 'play' && <LessonCoach gameId={state.gameId} view={view ?? null} mode={choosingStarter ? 'panel' : interaction.mode} awaiting={awaitingServer} gameOver={!!state.gameOver} />}
             <GameLog gameId={state.gameId} notices={state.notices} canChat={mode !== 'replay'} view={view} replayLog={replayLog} delayMs={state.broadcastDelayMs} />
@@ -565,6 +623,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             {mode === 'play' && <WatcherCount watchers={watchers} className={styles.watchers} />}
             <GameMenu
               gameId={state.gameId}
+              quests={mode === 'play' && !state.gameOver}
               practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
               solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
               careerAssists={mode === 'play' && !state.gameOver && career && !eventId && vsAi && (view?.turn ?? 0) > 0}
@@ -619,6 +678,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 // a rematch is only dealt against the computer; people go back to Tables
                 onPlayAgain={mode === 'play' && deckId && !eventId && vsAi ? playAgain : undefined}
                 onReview={mode === 'play' && vsAi && board.me ? () => setReviewing(true) : undefined}
+                rewards={rewardsAfter ? <Suspense fallback={null}><RewardsBeat gameId={state.gameId} onDetails={() => exit(true)} /></Suspense> : undefined}
+                stamps={stamps}
               />
             )}
             {reviewing && (
@@ -631,7 +692,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
           </div>
         );
       }}
-    </Stage>
+    </Stage></LandStyleContext.Provider>
   );
 }
 
@@ -818,8 +879,10 @@ const CONFIRM = {
   },
 } as const;
 
-function GameMenu({ gameId, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
+function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved, canConcede, onConcede, onLeave, rollback }: {
   gameId: string;
+  /** playing (not watching or replaying) a game still running: the player's quests and what this game added */
+  quests: boolean;
   /** a Career game against the computer, past the first turn: counted hints and one take-back, where the mode allows */
   careerAssists: boolean;
   /** every opponent is the computer */
@@ -840,6 +903,7 @@ function GameMenu({ gameId, practice, solo, careerAssists, vsAi, onSaved, canCon
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [adviceOpen, setAdviceOpen] = useState(false);
   const [whatIfOpen, setWhatIfOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const copy = confirming ? CONFIRM[confirming] : null;
   const assists = useSoloAssists(gameId, careerAssists).data;
   async function soloAction(choice: 'fork' | 'save' | 'takeBack') {
@@ -861,12 +925,13 @@ function GameMenu({ gameId, practice, solo, careerAssists, vsAi, onSaved, canCon
   }
   return (
     <div className={styles.menu}>
-      <DropdownMenu.Root>
+      <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger className={styles.menuButton} aria-label="Game menu">
           <Menu size={24} />
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content className={styles.menuContent} align="end" sideOffset={8}>
+            {quests && <QuestTracker gameId={gameId} open={menuOpen} />}
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenu.Item>
             {practice && (
               <DropdownMenu.Item className={styles.menuItem} onSelect={() => setPracticeOpen(true)}>Practice tools</DropdownMenu.Item>

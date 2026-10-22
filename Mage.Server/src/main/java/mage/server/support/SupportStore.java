@@ -54,6 +54,14 @@ public final class SupportStore implements AutoCloseable {
                     "ALTER TABLE looks ADD COLUMN pet TEXT",
                     "INSERT OR IGNORE INTO perks (account, kind, item, granted_at, payment_id)"
                             + " SELECT account, 'pet', 'party-corgi', granted_at, payment_id FROM perks WHERE kind = 'sleeve' AND item = 'supporter'"
+            },
+            {
+                    // progression cosmetics (B298, B300, B301, B307): arrow, hit spark, victory stamp, land style, showcase badges
+                    "ALTER TABLE looks ADD COLUMN arrow TEXT",
+                    "ALTER TABLE looks ADD COLUMN spark TEXT",
+                    "ALTER TABLE looks ADD COLUMN stamp TEXT",
+                    "ALTER TABLE looks ADD COLUMN lands TEXT",
+                    "ALTER TABLE looks ADD COLUMN badges TEXT"
             }
     };
 
@@ -516,7 +524,7 @@ public final class SupportStore implements AutoCloseable {
     // ---- looks
 
     public synchronized PlayerLook look(String account) throws SQLException {
-        try (PreparedStatement select = connection.prepareStatement("SELECT account, sleeve, cloth, avatar, frame, title, flair, pet FROM looks WHERE account = ?")) {
+        try (PreparedStatement select = connection.prepareStatement("SELECT account, sleeve, cloth, avatar, frame, title, flair, pet, arrow, spark, stamp, lands, badges FROM looks WHERE account = ?")) {
             select.setString(1, account);
             try (ResultSet rows = select.executeQuery()) {
                 if (!rows.next()) {
@@ -531,6 +539,12 @@ public final class SupportStore implements AutoCloseable {
                 look.title = rows.getString(6);
                 look.flair = rows.getString(7);
                 look.pet = rows.getString(8);
+                look.arrow = rows.getString(9);
+                look.spark = rows.getString(10);
+                look.stamp = rows.getString(11);
+                look.lands = rows.getString(12);
+                String badges = rows.getString(13);
+                look.badges = badges == null || badges.isEmpty() ? null : new java.util.ArrayList<>(java.util.Arrays.asList(badges.split(",")));
                 return look;
             }
         }
@@ -538,7 +552,7 @@ public final class SupportStore implements AutoCloseable {
 
     public synchronized void putLook(String account, PlayerLook look, long now) throws SQLException {
         try (PreparedStatement upsert = connection.prepareStatement("INSERT OR REPLACE INTO looks (account, sleeve, cloth, avatar, frame,"
-                + " title, flair, pet, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                + " title, flair, pet, arrow, spark, stamp, lands, badges, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             upsert.setString(1, account);
             upsert.setString(2, look.sleeve);
             upsert.setString(3, look.cloth);
@@ -547,7 +561,12 @@ public final class SupportStore implements AutoCloseable {
             upsert.setString(6, look.title);
             upsert.setString(7, look.flair);
             upsert.setString(8, look.pet);
-            upsert.setLong(9, now);
+            upsert.setString(9, look.arrow);
+            upsert.setString(10, look.spark);
+            upsert.setString(11, look.stamp);
+            upsert.setString(12, look.lands);
+            upsert.setString(13, look.badges == null || look.badges.isEmpty() ? null : String.join(",", look.badges));
+            upsert.setLong(14, now);
             upsert.executeUpdate();
         }
     }

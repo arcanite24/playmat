@@ -75,10 +75,19 @@ import { gzipSync } from 'node:zlib';
 // all lazy). The entry gained the generated RPC client's solo methods and the free-play opponent helpers the play store
 // uses; Home's saved games went lazy so the Career progress model stays out of it (-3.6 kB). Measured entry 77.5 kB,
 // initial 212.0 kB, app 714.5 kB
+// entry raised 2026-10-21 from 78 kB and app from 720 kB for progression everywhere (M24, M25: the Career deck on the
+// server, Show progression, the progress header and its drawer, Today on Home, the welcome, the rewards beat after
+// games, the match menu's quest tracker, levels on plates and lists, the profile's progression, the admin panel; their
+// English and Spanish messages). All of it is lazy; the entry gains the rail's Career link, the header's lazy imports
+// and the generated RPC client's new methods. Measured entry 78.0 kB, initial 212.3 kB, app 724.1 kB
+// raised 2026-10-21 from entry 79, initial 214 and app 740 kB for the wardrobe and the chase (M27, M28: the cosmetics
+// catalog, the locker redone, plate frames, companions, emotes, battlefield touches, land styles, the achievement hall,
+// showcase badges, moments). The entry gains the catalog store, which the sleeve and cloth lookups read synchronously;
+// the rest is lazy. Measured entry 80.2 kB, initial 214.5 kB, app 746.2 kB
 const BUDGET_KB = {
-  entry: 78,
-  initial: 214,
-  app: 720,
+  entry: 81,
+  initial: 216,
+  app: 755,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

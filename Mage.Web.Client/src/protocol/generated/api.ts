@@ -279,6 +279,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('adminAccountExport', userName),
     adminDeleteAccount: (userName: string, reason: string) =>
       rpc.call('adminDeleteAccount', userName, reason),
+    adminCareer: (userName: string) =>
+      rpc.call('adminCareer', userName),
+    adminCareerRevoke: (userName: string, gameKey: string, reason: string) =>
+      rpc.call('adminCareerRevoke', userName, gameKey, reason),
     adminFeedback: (status?: string | null) =>
       rpc.call('adminFeedback', status),
     adminFeedbackMark: (id: number, status: string, note?: string | null) =>
@@ -343,6 +347,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerStarters'),
     careerStart: (starterId: string) =>
       rpc.call('careerStart', starterId),
+    careerDeck: () =>
+      rpc.call('careerDeck'),
+    careerSaveDeck: (deck: DeckCardLists) =>
+      rpc.call('careerSaveDeck', deck),
     careerCollection: () =>
       rpc.call('careerCollection'),
     careerOpponents: () =>
@@ -373,8 +381,22 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('careerGameResult', gameKey),
     careerSetProgress: () =>
       rpc.call('careerSetProgress'),
-    careerCountAiGames: (count: boolean) =>
-      rpc.call('careerCountAiGames', count),
+    careerShowProgress: (show: boolean) =>
+      rpc.call('careerShowProgress', show),
+    careerProfileOf: (userName: string) =>
+      rpc.call('careerProfileOf', userName),
+    careerQuestTracker: (gameId: UUID) =>
+      rpc.call('careerQuestTracker', gameId),
+    careerMasteries: (userName?: string | null) =>
+      rpc.call('careerMasteries', userName),
+    careerDaily: () =>
+      rpc.call('careerDaily'),
+    careerCosmetics: () =>
+      rpc.call('careerCosmetics'),
+    careerHall: () =>
+      rpc.call('careerHall'),
+    gameEmote: (gameId: UUID, emote: string) =>
+      rpc.call('gameEmote', gameId, emote),
     careerCampaigns: () =>
       rpc.call('careerCampaigns'),
     careerCampaignPlay: (campaignId: string, nodeId: string) =>

@@ -8,7 +8,7 @@ import type { DeckCardLists } from '../../core/decks/types';
 export const PLAYSET = 4;
 export const DECK_MIN = 60;
 export const WINS_TO_UNLOCK = 3;
-export const MAX_LEVEL = 50;
+export const MAX_LEVEL = 100;
 
 /** Basic lands are free and unlimited in a Career. */
 const BASICS = new Set(

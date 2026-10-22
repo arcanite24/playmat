@@ -14,6 +14,8 @@ import { PromptText } from '../ui/PromptText';
 import { cleanText } from '../ui/text';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
+import { stampArt } from './touches';
+import { usePaintedArt } from '../career/careerArt';
 import styles from './Overlays.module.css';
 
 /** Opening hand, shown large: keep it or mulligan. */
@@ -369,7 +371,7 @@ const END_GAME: Record<string, MessageKey> = { won: 'match.end.wonGame', lost: '
 const END_MATCH: Record<string, MessageKey> = { won: 'match.end.wonMatch', lost: 'match.end.lostMatch', draw: 'match.end.drawMatch' };
 
 /** The end of a game: who won, the match score, and where to go next. */
-export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview }: {
+export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel = 'Back to Play', onPlayAgain, onReview, rewards, stamps }: {
   message: string;
   endInfo: GameEndView | null;
   /** the player's name, to tell from the server's message who won when there is no end-of-game info */
@@ -379,8 +381,13 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
   onPlayAgain?(): void;
   /** look back over the game: its turning point and mistakes */
   onReview?(): void;
+  /** what the game paid, once the server says (B277) */
+  rewards?: ReactNode;
+  /** victory stamps (B300): yours, and the opponent's in a game against one; the winner's is pressed on the result */
+  stamps?: { mine: string | null; theirs: string | null };
 }) {
   const t = useT();
+  const paintedArt = usePaintedArt();
   // a match of several games ends on the match's result; a single game on the game's
   const matchEnd = matchResult(endInfo);
   const progress = matchEnd ? matchProgress(endInfo) : null;
@@ -390,14 +397,19 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
     : result ? t(END_GAME[result]) : stripMarkup(endInfo?.gameInfo) || message;
   // why a match ended early ("Bob has quit the match.")
   const extra = stripMarkup(endInfo?.additionalInfo);
+  const stamp = !paintedArt ? null : result === 'won' ? stamps?.mine : result === 'lost' ? stamps?.theirs : null;
   return (
     <div className={[styles.scrim, styles.endScrim].join(' ')} role="dialog" aria-modal="true" aria-labelledby="game-over-title">
       <div className={styles.center}>
-        <h2 id="game-over-title" className={[styles.endTitle, result === 'won' ? styles.victory : result === 'lost' ? styles.defeat : ''].join(' ')}>
-          {t(result ? END_TITLE[result] : 'match.end.over')}
-        </h2>
+        <div className={styles.endHead}>
+          <h2 id="game-over-title" className={[styles.endTitle, result === 'won' ? styles.victory : result === 'lost' ? styles.defeat : ''].join(' ')}>
+            {t(result ? END_TITLE[result] : 'match.end.over')}
+          </h2>
+          {stamp && <VictoryStamp id={stamp} />}
+        </div>
         <p className={styles.subtitle}>{line}</p>
         {extra && <p className={styles.score}>{extra}</p>}
+        {rewards}
         <div className={styles.buttons}>
           <Button variant="print" size="lg" onClick={onLeave}>{leaveLabel}</Button>
           {onReview && <Button variant="quiet" size="lg" onClick={onReview}>Review the game</Button>}
@@ -406,6 +418,13 @@ export function GameOverOverlay({ message, endInfo, myName, onLeave, leaveLabel 
       </div>
     </div>
   );
+}
+
+/** The winner's stamp, pressed onto the result a moment after it lands; a picture that fails to load just isn't there. */
+function VictoryStamp({ id }: { id: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return <img className={styles.victoryStamp} src={stampArt(id)} alt="" aria-hidden="true" draggable={false} onError={() => setFailed(true)} />;
 }
 
 /** A zone's cards laid out to read (graveyard, exile, revealed). */

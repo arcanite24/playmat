@@ -258,6 +258,258 @@
     {
       "id": "graduate-9",
       "subject": "a scholar's mortarboard cap with a gold tassel on a stack of books"
+    },
+    {
+      "id": "t-games",
+      "subject": "a well-worn chair at a game table"
+    },
+    {
+      "id": "t-wins",
+      "subject": "a raised sword with a laurel wreath hung on it"
+    },
+    {
+      "id": "t-ai-games",
+      "subject": "a practice dummy of straw and sacking"
+    },
+    {
+      "id": "t-ai-wins",
+      "subject": "a cracked gear with a hammer resting on it"
+    },
+    {
+      "id": "t-event-games",
+      "subject": "a hanging tournament banner with a pennant tail"
+    },
+    {
+      "id": "t-event-wins",
+      "subject": "a three-step podium with a star above the top step"
+    },
+    {
+      "id": "t-bo3",
+      "subject": "three stacked rings, two filled"
+    },
+    {
+      "id": "t-person-games",
+      "subject": "two cups raised in a toast"
+    },
+    {
+      "id": "t-person-wins",
+      "subject": "two crossed swords over a small shield"
+    },
+    {
+      "id": "t-pod-games",
+      "subject": "a round table seen from above with four chairs"
+    },
+    {
+      "id": "t-pod-wins",
+      "subject": "a single chess king standing among toppled pieces"
+    },
+    {
+      "id": "t-eliminations",
+      "subject": "a toppled crown on its side"
+    },
+    {
+      "id": "t-format-standard",
+      "subject": "a battle standard on a pole"
+    },
+    {
+      "id": "t-format-pioneer",
+      "subject": "a covered wagon wheel"
+    },
+    {
+      "id": "t-format-modern",
+      "subject": "a gear with a lightning bolt through it"
+    },
+    {
+      "id": "t-format-legacy",
+      "subject": "an ancient stone tablet"
+    },
+    {
+      "id": "t-format-vintage",
+      "subject": "an old oil lamp"
+    },
+    {
+      "id": "t-format-pauper",
+      "subject": "a single copper coin on a string"
+    },
+    {
+      "id": "t-format-commander",
+      "subject": "a general's helm with a plume"
+    },
+    {
+      "id": "t-format-brawl",
+      "subject": "a spiked gauntlet"
+    },
+    {
+      "id": "t-format-limited",
+      "subject": "an opened booster pack with cards fanning out"
+    },
+    {
+      "id": "t-color-w",
+      "subject": "a sun disc over a plain"
+    },
+    {
+      "id": "t-color-u",
+      "subject": "a water drop"
+    },
+    {
+      "id": "t-color-b",
+      "subject": "a skull with a crack"
+    },
+    {
+      "id": "t-color-r",
+      "subject": "a fireball"
+    },
+    {
+      "id": "t-color-g",
+      "subject": "a tree with spreading roots"
+    },
+    {
+      "id": "t-color-multicolor",
+      "subject": "a five-pointed star of interlocking drops"
+    },
+    {
+      "id": "t-color-colorless",
+      "subject": "a faceted diamond"
+    },
+    {
+      "id": "t-spells",
+      "subject": "a wand trailing sparks"
+    },
+    {
+      "id": "t-countered",
+      "subject": "a hand raised palm-out stopping a spark"
+    },
+    {
+      "id": "t-loyalty",
+      "subject": "a shield with a loyalty arrow carved on it"
+    },
+    {
+      "id": "t-auras",
+      "subject": "a glowing ring floating over a hand"
+    },
+    {
+      "id": "t-equipment",
+      "subject": "a breastplate on a stand"
+    },
+    {
+      "id": "t-exiled",
+      "subject": "a door slammed shut with a bar across it"
+    },
+    {
+      "id": "t-sacrificed",
+      "subject": "a stone altar with a small flame"
+    },
+    {
+      "id": "t-discards",
+      "subject": "a torn card drifting down"
+    },
+    {
+      "id": "t-milled",
+      "subject": "a round millstone"
+    },
+    {
+      "id": "t-graveyard",
+      "subject": "a hand reaching up out of a grave mound"
+    },
+    {
+      "id": "t-commander-damage",
+      "subject": "a sword with a crown on its crossguard"
+    },
+    {
+      "id": "t-tokens",
+      "subject": "a cluster of small identical shields"
+    },
+    {
+      "id": "t-creatures",
+      "subject": "a paw print"
+    },
+    {
+      "id": "t-damage",
+      "subject": "a battering ram"
+    },
+    {
+      "id": "t-life",
+      "subject": "a blooming lily"
+    },
+    {
+      "id": "t-draw",
+      "subject": "a hand fanning three cards"
+    },
+    {
+      "id": "t-lands",
+      "subject": "a mountain with a flag on its peak"
+    },
+    {
+      "id": "t-attacks",
+      "subject": "a charging war horse"
+    },
+    {
+      "id": "t-blocks",
+      "subject": "a stone wall with a gate"
+    },
+    {
+      "id": "t-counters",
+      "subject": "a sprouting seedling with three leaves"
+    },
+    {
+      "id": "t-kills",
+      "subject": "a scythe"
+    },
+    {
+      "id": "t-mana-turn",
+      "subject": "a fountain overflowing"
+    },
+    {
+      "id": "t-big-hit",
+      "subject": "a big fist"
+    },
+    {
+      "id": "t-storm",
+      "subject": "a whirlwind"
+    },
+    {
+      "id": "t-life-game",
+      "subject": "a chalice overflowing"
+    },
+    {
+      "id": "t-draw-game",
+      "subject": "a tall stack of books"
+    },
+    {
+      "id": "t-quests",
+      "subject": "a rolled scroll with a wax seal"
+    },
+    {
+      "id": "t-packs",
+      "subject": "a torn-open pack with a star spilling out"
+    },
+    {
+      "id": "t-crafted",
+      "subject": "a crafting hammer over a card"
+    },
+    {
+      "id": "t-masteries",
+      "subject": "a signpost with many arrows"
+    },
+    {
+      "id": "t-levels",
+      "subject": "a staircase climbing to a star"
+    },
+    {
+      "id": "t-graduated",
+      "subject": "a mortarboard over a diploma scroll"
+    },
+    {
+      "id": "t-days",
+      "subject": "a calendar page with a ribbon bookmark"
+    },
+    {
+      "id": "t-turns",
+      "subject": "an hourglass on its side with a turning arrow around it"
+    },
+    {
+      "id": "t-renown",
+      "subject": "a five-pointed star inside a ring of smaller stars"
     }
   ]
 }

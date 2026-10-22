@@ -33,6 +33,9 @@ public final class RuntimeSettings {
     public static final String BATCH_GAMES_PER_DAY = "batchGamesPerDay";
     /** a day's spending cap, in US cents, for the hybrid Archmage AI in Career's tier five (S050); 0 keeps it off */
     public static final String ARCHMAGE_DAILY_CENTS = "archmageDailyCents";
+    /** progression pay outside Career's own tables, in percent of rewards.json: XP and coins */
+    public static final String PROGRESS_XP_PERCENT = "progressXpPercent";
+    public static final String PROGRESS_COIN_PERCENT = "progressCoinPercent";
     public static final int BATCH_CONCURRENCY_DEFAULT = 1;
     public static final int BATCH_GAMES_PER_DAY_DEFAULT = 200;
 
@@ -61,7 +64,7 @@ public final class RuntimeSettings {
     static final int MAX_URL = 200;
 
     public static final List<String> NAMES = Collections.unmodifiableList(Arrays.asList(REGISTRATION, CAREER, MAX_AI_OPPONENTS, MAX_SECONDS_IDLE,
-            BATCH_CONCURRENCY, BATCH_GAMES_PER_DAY, ARCHMAGE_DAILY_CENTS,
+            BATCH_CONCURRENCY, BATCH_GAMES_PER_DAY, ARCHMAGE_DAILY_CENTS, PROGRESS_XP_PERCENT, PROGRESS_COIN_PERCENT,
             DISCORD_TABLES, DISCORD_EVENTS, DISCORD_MATCHES, DISCORD_STAFF, SUPPORT_ENABLED, SUPPORT_GOAL_CENTS, SUPPORT_KOFI_URL,
             SUPPORT_SPONSORS_URL, SUPPORT_COSTS, SUPPORT_DISCORD_AMOUNTS));
 
@@ -189,6 +192,9 @@ public final class RuntimeSettings {
                 return String.valueOf(number(text, 0, 100000, "Batch games per player a day are 0 to 100000"));
             case ARCHMAGE_DAILY_CENTS:
                 return String.valueOf(number(text, 0, 100000, "The Archmage's daily cap is 0 to 100000 cents"));
+            case PROGRESS_XP_PERCENT:
+            case PROGRESS_COIN_PERCENT:
+                return String.valueOf(number(text, 0, 500, "Progression pay is 0 to 500 percent"));
             default:
                 return String.valueOf(number(text, 30, 3600, "Time to answer is 30 to 3600 seconds"));
         }
@@ -233,6 +239,18 @@ public final class RuntimeSettings {
     public int archmageDailyCents() {
         String stored = stored(ARCHMAGE_DAILY_CENTS);
         return stored != null ? Integer.parseInt(stored) : 0;
+    }
+
+    /** XP progression pays outside Career tables, in percent; 100 by default */
+    public int progressXpPercent() {
+        String stored = stored(PROGRESS_XP_PERCENT);
+        return stored != null ? Integer.parseInt(stored) : 100;
+    }
+
+    /** coins progression pays (the daily wins ladder), in percent; 100 by default */
+    public int progressCoinPercent() {
+        String stored = stored(PROGRESS_COIN_PERCENT);
+        return stored != null ? Integer.parseInt(stored) : 100;
     }
 
     public int batchGamesPerDay() {

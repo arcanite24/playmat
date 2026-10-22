@@ -1,8 +1,15 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
   achievementState, careerSleeveOf, fetchResult, fraction, hasUnlock, levelAt, levelRows, resultIsEmpty, rewardParts, sortAchievements, titleLabel, unlockedIds, weeklyMarks, xpAtLevel, xpSweep,
-  recentOpponent, rewardsPath, safeBack,
+  recentOpponent, rewardsPath, safeBack, momentLine, resultTier,
 } from './progressModel';
+import career from '../i18n/en/career';
+import type { Translate } from '../i18n';
+import { createTranslator } from '../i18n/translate';
+import { loadTestCatalog } from '../../test/catalog';
+
+// the Career sleeves come from the cosmetics catalog
+loadTestCatalog();
 
 describe('recent games', () => {
   test('a roster opponent, or the mode a game was played in', () => {
@@ -21,7 +28,7 @@ describe('career progress model', () => {
     expect(xpAtLevel(3)).toBe(550);
     expect(levelAt(0)).toMatchObject({ level: 1, into: 0, needed: 250, fraction: 0 });
     expect(levelAt(400)).toMatchObject({ level: 2, into: 150, needed: 300, fraction: 0.5 });
-    expect(levelAt(10_000_000)).toMatchObject({ level: 50, needed: 0, fraction: 1 });
+    expect(levelAt(10_000_000)).toMatchObject({ level: 100, needed: 0, fraction: 1 });
   });
 
   test('the XP bar sweeps within a level', () => {
@@ -41,7 +48,7 @@ describe('career progress model', () => {
 
   test('no XP is a still bar; the top level is a full one', () => {
     expect(xpSweep({ levelBefore: 4, levelAfter: 4, xpIntoLevel: 0, xpForNext: 400, xp: 0 })).toEqual([{ level: 4, from: 0, to: 0 }]);
-    expect(xpSweep({ levelBefore: 50, levelAfter: 50, xpIntoLevel: 20, xpForNext: 0, xp: 20 }).at(-1)).toMatchObject({ level: 50, to: 1 });
+    expect(xpSweep({ levelBefore: 100, levelAfter: 100, xpIntoLevel: 20, xpForNext: 0, xp: 20 }).at(-1)).toMatchObject({ level: 100, to: 1 });
   });
 
   test('bars clamp progress to the target', () => {
@@ -64,13 +71,14 @@ describe('career progress model', () => {
     expect(rewardParts(undefined)).toEqual([]);
   });
 
-  test('the level track lists levels 1 to 50', () => {
+  test('the level track lists levels 1 to 100', () => {
     const rows = levelRows([{ level: 2, coins: 25 }, { level: 50, cosmetic: { kind: 'sleeve', id: 'gold' } }]);
-    expect(rows).toHaveLength(50);
+    expect(rows).toHaveLength(100);
     expect(rows[0]).toEqual({ level: 1, reward: undefined });
     expect(rows[1]).toEqual({ level: 2, reward: { level: 2, coins: 25 } });
     expect(rows[2].reward).toBeUndefined();
-    expect(rows.at(-1)?.level).toBe(50);
+    expect(rows.at(-1)?.level).toBe(100);
+    expect(rows[49].reward).toEqual({ level: 50, cosmetic: { kind: 'sleeve', id: 'gold' } });
   });
 
   test('achievements: earned, in progress, secret', () => {
@@ -122,5 +130,23 @@ describe('career progress model', () => {
     expect(resultIsEmpty({ career: false, coins: 0, xp: 0, quests: [], achievements: [], levelRewards: [], packs: 0 })).toBe(true);
     expect(resultIsEmpty({ career: false, quests: [{ id: 'q' }] })).toBe(false);
     expect(resultIsEmpty({ career: true })).toBe(false);
+  });
+});
+
+describe('after a game: moments and tiers', () => {
+  const t = createTranslator({ locale: 'en', messages: career, fallback: {} }) as Translate;
+
+  test('a moment reads in the player language, with its turn', () => {
+    expect(momentLine(t, { id: 'big_hit', value: 12, turn: 7, text: 'Hit for 12 in one blow' })).toBe('Turn 7 · Hit for 12 in one blow');
+    expect(momentLine(t, { id: 'elimination', value: 1, turn: 5 })).toBe('Turn 5 · Knocked a player out');
+    expect(momentLine(t, { id: 'elimination', value: 3 })).toBe('Knocked out 3 players');
+    // a moment this client doesn't know keeps the server's words
+    expect(momentLine(t, { id: 'new_feat', value: 2, turn: 3, text: 'Did something new' })).toBe('Turn 3 · Did something new');
+  });
+
+  test('only a tiered achievement has a tier to show', () => {
+    expect(resultTier({ id: 't-spells', tier: 3, tiers: [{}, {}, {}, {}] })).toBe('gold');
+    expect(resultTier({ id: 'first-win', tier: 1, tiers: [] })).toBeNull();
+    expect(resultTier({ id: 'first-win', tier: 1 })).toBeNull();
   });
 });

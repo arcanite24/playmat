@@ -35,6 +35,146 @@
     {
       "id": "phoenix",
       "subject": "a phoenix of orange and crimson flame-feathers with a gold crest"
+    },
+    {
+      "id": "wolf",
+      "subject": "a grey wolf with a notched ear and a silver collar"
+    },
+    {
+      "id": "bear",
+      "subject": "a broad brown bear with a small leather pauldron"
+    },
+    {
+      "id": "raven",
+      "subject": "a sleek raven with a single bead charm on a cord"
+    },
+    {
+      "id": "lion",
+      "subject": "a maned lion wearing a thin circlet"
+    },
+    {
+      "id": "tiger",
+      "subject": "a striped tiger with bold carved stripes"
+    },
+    {
+      "id": "boar",
+      "subject": "a tusked boar with a bristled mane"
+    },
+    {
+      "id": "hare",
+      "subject": "a long-eared hare with a tiny scarf"
+    },
+    {
+      "id": "otter",
+      "subject": "a whiskered otter holding a pebble"
+    },
+    {
+      "id": "badger",
+      "subject": "a striped badger in a miner's cap"
+    },
+    {
+      "id": "tortoise",
+      "subject": "an old tortoise with a carved shell and spectacles"
+    },
+    {
+      "id": "frog",
+      "subject": "a wide-mouthed frog wearing a lily-pad hat"
+    },
+    {
+      "id": "bat",
+      "subject": "a bat with wings folded like a cloak"
+    },
+    {
+      "id": "cat",
+      "subject": "a sly cat with a bell on a ribbon"
+    },
+    {
+      "id": "hound",
+      "subject": "a floppy-eared hound with a studded collar"
+    },
+    {
+      "id": "ram",
+      "subject": "a ram with great curled horns"
+    },
+    {
+      "id": "bull",
+      "subject": "a bull with a ring in its nose and short horns"
+    },
+    {
+      "id": "eagle",
+      "subject": "a fierce eagle with a hooked beak"
+    },
+    {
+      "id": "heron",
+      "subject": "a slender heron with a plumed crest"
+    },
+    {
+      "id": "octopus",
+      "subject": "an octopus head with curling arms framing it"
+    },
+    {
+      "id": "serpent",
+      "subject": "a hooded serpent rising, scales carved in rows"
+    },
+    {
+      "id": "sphinx",
+      "subject": "a sphinx with a striped headdress and calm eyes"
+    },
+    {
+      "id": "griffin",
+      "subject": "a griffin with an eagle head and tufted ears"
+    },
+    {
+      "id": "unicorn",
+      "subject": "a unicorn with a spiral horn and flowing mane"
+    },
+    {
+      "id": "pegasus",
+      "subject": "a winged horse with wings raised behind its head"
+    },
+    {
+      "id": "hydra",
+      "subject": "a three-headed hydra, heads fanned out"
+    },
+    {
+      "id": "basilisk",
+      "subject": "a crested basilisk lizard with a frill"
+    },
+    {
+      "id": "manticore",
+      "subject": "a manticore with a lion mane and a scorpion tail curling above"
+    },
+    {
+      "id": "minotaur",
+      "subject": "a minotaur with broad horns and a nose ring"
+    },
+    {
+      "id": "chimera",
+      "subject": "a chimera with a lion head and a goat head side by side"
+    },
+    {
+      "id": "kraken",
+      "subject": "a kraken head with great eyes and coiled tentacles"
+    },
+    {
+      "id": "wyvern",
+      "subject": "a horned wyvern with wing claws at its shoulders"
+    },
+    {
+      "id": "golem",
+      "subject": "a stone golem with a glowing rune carved on its brow"
+    },
+    {
+      "id": "treant",
+      "subject": "a treant with bark skin and a crown of leaves"
+    },
+    {
+      "id": "djinn",
+      "subject": "a djinn with a topknot and a crescent earring"
+    },
+    {
+      "id": "angel",
+      "subject": "an angel with a halo and wings rising behind the shoulders"
     }
   ]
 }

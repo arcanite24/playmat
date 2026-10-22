@@ -21,7 +21,8 @@ import { useMenuNav } from './menuNav';
 import { useCountUp, useStill } from './motion';
 import { Art } from './Art';
 import { usePaintedArt, wildcardArt } from './careerArt';
-import { safeBack, titleLabel } from './progressModel';
+import { TitleText } from './LookParts';
+import { safeBack } from './progressModel';
 import motion from './motion.module.css';
 import styles from './CareerShell.module.css';
 
@@ -158,7 +159,7 @@ function Hud({ profile }: { profile: CareerProfile }) {
         </LevelMedallion>
         <span className={styles.name}>
           <b>{user}</b>
-          {titleId && <small>{titleLabel(titleId)}</small>}
+          {titleId && <TitleText as="small" id={titleId} />}
           {rank?.badge && <small title={t('career.rank.label')}>{rank.badge}</small>}
         </span>
       </div>

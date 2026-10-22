@@ -11,6 +11,7 @@ import { notify } from '../stores/toasts';
 import { IconButton } from '../ui/Button';
 import { Avatar, Flag } from './Avatar';
 import { ChatPanel } from './ChatPanel';
+import { LevelBadge, NameLevel } from './LevelBadge';
 import { Flair } from '../support/Flair';
 import { useLook } from '../support/supportData';
 import { THANK_YOU } from '../support/thankYou';
@@ -136,7 +137,7 @@ function PlayerList() {
             {offlineFriends.map((name) => (
               <li key={name} className={[styles.player, styles.offline].join(' ')}>
                 <Avatar name={name} size="sm" />
-                <span className={styles.playerName}>{name}</span>
+                <span className={styles.playerName}>{name}<NameLevel name={name} /></span>
                 <IconButton label={`Remove ${name} from friends`} icon={<StarOff size={16} />} onClick={() => useSocial.getState().removeFriend(name)} />
               </li>
             ))}
@@ -166,9 +167,9 @@ function PlayerRow({ user, me, myTables }: { user: UsersView; me: string; myTabl
   return (
     <li className={[styles.player, ignoredUser ? styles.ignored : ''].join(' ')}>
       <button type="button" className={styles.identity} onClick={() => useLobby.getState().openProfile(name)} title={`${name}'s profile`}>
-        <Avatar name={name} avatarId={user.avatarId} size="sm" ring={look?.frame === THANK_YOU.frame} />
+        <Avatar name={name} avatarId={user.avatarId} size="sm" ring={look?.frame === THANK_YOU.frame} frame={look?.frame} />
         <span className={styles.playerName}>
-          {name}<Flair name={name} />{isMe ? ' (you)' : ''} <Flag flagName={user.flagName} />
+          {name}<LevelBadge level={look?.level} /><Flair name={name} />{isMe ? ' (you)' : ''} <Flag flagName={user.flagName} />
         </span>
         {friend && <Star className={styles.star} size={14} aria-label="Friend" />}
       </button>

@@ -194,6 +194,38 @@ final class AccountsApi {
                             return true;
                         }),
 
+                RpcMethod.named("adminCareer")
+                        .params(of("userName", STRING))
+                        .returns("CareerAdminView | null")
+                        .doc("Staff (moderator): the account's progression: level, XP, coins, its last 50 counted games with "
+                                + "kind, pay and why, and the people it hit the day's pair cap with over the last 14 days. "
+                                + "Null when it has no progression yet.")
+                        .handler(call -> {
+                            Staff.require(ctx, call, StaffRole.MODERATOR);
+                            String name = account(call.string(0)).getName();
+                            return AccessApi.store(() -> mage.server.career.CareerService.get().adminView(name));
+                        }),
+
+                RpcMethod.named("adminCareerRevoke")
+                        .params(of("userName", STRING), of("gameKey", STRING), of("reason", STRING))
+                        .returns("boolean")
+                        .doc("Staff (admin): take back what a counted game paid the account (its XP and coins; quests and "
+                                + "achievements it finished stay). False when it was taken back before. Goes in the audit log.")
+                        .handler(call -> {
+                            String actor = Staff.require(ctx, call, StaffRole.ADMIN);
+                            String name = account(call.string(0)).getName();
+                            String gameKey = call.string(1);
+                            String reason = call.string(2).trim();
+                            if (reason.isEmpty()) {
+                                throw RpcException.invalidParams("Say why the payout is taken back; it goes in the audit log");
+                            }
+                            boolean revoked = AccessApi.store(() -> mage.server.career.CareerService.get().revoke(name, gameKey));
+                            if (revoked) {
+                                Staff.audit(actor, "career.revoke", name, gameKey, reason);
+                            }
+                            return revoked;
+                        }),
+
                 RpcMethod.named("adminFeedback")
                         .params(optional("status", STRING))
                         .returns("FeedbackEntry[]")

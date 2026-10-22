@@ -1,8 +1,9 @@
 import type {
-  CareerAchievement, CareerCosmetic, CareerGameResult, CareerLevelReward, CareerWeekly,
+  CareerAchievement, CareerCosmetic, CareerGameResult, CareerLevelReward, CareerMoment, CareerWeekly,
 } from '../../protocol/generated/views';
-import type { MessageKey, Translate } from '../i18n';
-import { CAREER_SLEEVES } from '../ui/sleeveArt';
+import { useI18n, type MessageKey, type Translate } from '../i18n';
+import { catalogItem, catalogName, catalogOf, onCatalog, rarityOf, RARITY_COLORS, type CatalogKind } from '../ui/cosmeticsCatalog';
+import { tierName, type TierName } from './badges';
 import { MAX_LEVEL, xpForLevel } from './careerModel';
 
 /**
@@ -123,24 +124,27 @@ export function sortAchievements(achievements: readonly CareerAchievement[]): Ca
 
 // ---- cosmetics
 
-export type CosmeticKind = 'sleeve' | 'playmat' | 'avatar' | 'title';
+export type CosmeticKind = CatalogKind;
 
 export { CAREER_SLEEVES, careerSleeveOf } from '../ui/sleeveArt';
 
 /**
  * Career avatars: the colours (light, dark) of the medallion their painted bust sits on, and the line drawing (in a
- * 24px box) that stands in for the bust when painted art is off.
+ * 24px box) that stands in for the bust when painted art is off. Filled from the cosmetics catalog
+ * (ui/cosmeticsCatalog.ts), like the playmats' ids below, and refilled when a new one arrives.
  */
-export const CAREER_AVATARS: Record<string, { light: string; dark: string; path: string }> = {
-  owl: { light: '#7c7fb0', dark: '#262842', path: 'M5 5l3 3m11-3l-3 3M8.5 8a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm7 0a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 14.5l-1.5 2.5h3z' },
-  fox: { light: '#d0743a', dark: '#4d1f0f', path: 'M4 4l4 6h8l4-6-1.5 9L12 20l-6.5-7zM9.5 13h.01m5 0h.01' },
-  stag: { light: '#9a8650', dark: '#2a321d', path: 'M12 21v-6m0 0c-3 0-5-2-5-6m0 0L5 6m2 3l1-4m4 10c3 0 5-2 5-6m0 0l2-3m-2 3l-1-4m-6 9a2 2 0 1 0 4 0' },
-  drake: { light: '#3f9a8e', dark: '#0f302c', path: 'M3 18c4-2 6-6 6-12 2 3 4 4 7 4-1 2-1 4 0 6 2 0 4-1 5-3-1 4-4 7-9 7-3 0-6-1-9-2z' },
-  phoenix: { light: '#e3923a', dark: '#6b1a1a', path: 'M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-3 2-4 2-7 1 1 2 2 3 4 0-2 0-5 0-7z' },
-};
+export const CAREER_AVATARS: Record<string, { light: string; dark: string; path: string }> = {};
 
 /** Career playmat cloths (their shades live with the other cloths, in the match's playmats). */
-export const CAREER_PLAYMATS = ['sand', 'slate', 'midnight', 'rose'];
+export const CAREER_PLAYMATS: string[] = [];
+
+onCatalog((items) => {
+  for (const id of Object.keys(CAREER_AVATARS)) delete CAREER_AVATARS[id];
+  for (const item of catalogOf('avatar', items)) {
+    if (item.id) CAREER_AVATARS[item.id] = { light: item.light ?? '#7a7466', dark: item.dark ?? '#22201b', path: item.path ?? '' };
+  }
+  CAREER_PLAYMATS.splice(0, CAREER_PLAYMATS.length, ...catalogOf('playmat', items).flatMap((item) => (item.id ? [item.id] : [])));
+});
 
 /** What a recent game was played against: a roster opponent (by id), or a mode's game ("campaign:pauper/n3"). */
 export type RecentOpponent =
@@ -175,17 +179,29 @@ export function titleLabel(id: string): string {
   return id.replace(/-/g, ' ').replace(/\b\p{L}/gu, (letter) => letter.toUpperCase());
 }
 
-function knownCosmetic(kind: string | undefined, id: string): boolean {
-  if (kind === 'sleeve') return id in CAREER_SLEEVES;
-  if (kind === 'avatar') return id in CAREER_AVATARS;
-  if (kind === 'playmat') return CAREER_PLAYMATS.includes(id);
-  return false;
-}
+/** The older cosmetics that also have a name in the message catalogs, for before the cosmetics catalog loads. */
+const NAMED = /^(sleeve\.(copper|silver|gold|obsidian|foil|school-[a-z]+)|playmat\.(sand|slate|midnight|rose)|avatar\.(owl|fox|stag|drake|phoenix))$/;
 
-/** A cosmetic's name in the player's language (titles are names, kept as they are). */
+/**
+ * A cosmetic's name in the player's language: the catalog's (its Spanish name in Spanish), else the message catalogs'
+ * for the older ones, else the id read as words.
+ */
 export function cosmeticName(t: Translate, cosmetic: CareerCosmetic): string {
   const id = cosmetic.id ?? '';
-  return knownCosmetic(cosmetic.kind, id) ? t(`career.cosmetic.${cosmetic.kind}.${id}` as MessageKey) : titleLabel(id);
+  const item = catalogItem(cosmetic.kind, id);
+  if (item) return catalogName(item, useI18n.getState().locale);
+  return NAMED.test(`${cosmetic.kind}.${id}`) ? t(`career.cosmetic.${cosmetic.kind}.${id}` as MessageKey) : titleLabel(id);
+}
+
+/** A title as shown under a name, in the player's language (the catalog's name, else the id read as words). */
+export function titleName(id: string): string {
+  const item = catalogItem('title', id);
+  return item ? catalogName(item, useI18n.getState().locale) : titleLabel(id);
+}
+
+/** A title's colour: its rarity's (ui/cosmeticsCatalog.ts RARITY_COLORS); a title the catalog doesn't know reads common. */
+export function titleColor(id: string): string {
+  return RARITY_COLORS[rarityOf(catalogItem('title', id))];
 }
 
 /** A cosmetic as a reward: "Copper sleeves", "the title "Veteran"". */
@@ -198,6 +214,22 @@ export function cosmeticReward(t: Translate, cosmetic: CareerCosmetic): string {
       return t('career.reward.playmat', { name });
     case 'avatar':
       return t('career.reward.avatar', { name });
+    case 'frame':
+      return t('career.reward.frame', { name });
+    case 'badge':
+      return t('career.reward.badge', { name });
+    case 'pet':
+      return t('career.reward.pet', { name });
+    case 'emote':
+      return t('career.reward.emote', { name });
+    case 'arrow':
+      return t('career.reward.arrow', { name });
+    case 'spark':
+      return t('career.reward.spark', { name });
+    case 'stamp':
+      return t('career.reward.stamp', { name });
+    case 'land':
+      return t('career.reward.land', { name });
     default:
       return t('career.reward.title', { name });
   }
@@ -217,6 +249,11 @@ export function describeReward(t: Translate, parts: readonly RewardPart[]): stri
         return cosmeticReward(t, part.cosmetic);
     }
   }).join(' · ');
+}
+
+/** A mastery track's name: "White", "Multicolor", "Commander" (B290). */
+export function masteryName(t: Translate, track: string | undefined): string {
+  return t(`career.mastery.${track ?? ''}` as MessageKey);
 }
 
 /** Coins and XP an achievement or quest pays, in words. */
@@ -261,6 +298,22 @@ function sleep(ms: number): Promise<void> {
 export function resultIsEmpty(result: CareerGameResult): boolean {
   return !result.career && !result.coins && !result.xp && !(result.quests?.length) && !(result.achievements?.length)
     && !(result.levelRewards?.length) && !result.packs;
+}
+
+/** The one-game feats the server tells about (B309); others show the server's own words. */
+const MOMENTS = ['big_hit', 'storm', 'mana_surge', 'life_swing', 'elimination', 'commander_hit', 'one_life', 'comeback', 'flawless', 'fast_win'];
+
+/** A moment from a game in words: "Turn 7 · Hit for 12 in one blow". */
+export function momentLine(t: Translate, moment: CareerMoment): string {
+  const id = moment.id ?? '';
+  const value = moment.value ?? 0;
+  const text = MOMENTS.includes(id) ? t(`career.moment.${id}` as MessageKey, { value, count: value }) : moment.text || id;
+  return moment.turn && moment.turn > 0 ? t('career.moment.line', { turn: moment.turn, text }) : text;
+}
+
+/** An achievement reached in a game: its tier's name for a tiered one ("gold"), null without tiers. */
+export function resultTier(achievement: CareerAchievement): TierName | null {
+  return achievement.tiers?.length ? tierName(achievement.tier ?? 0) : null;
 }
 
 /** The player's system asks for less motion. */

@@ -1,4 +1,4 @@
-import { Check, Coins, Gift, RefreshCw, Swords, Trophy, Upload } from 'lucide-react';
+import { Check, Coins, Gift, RefreshCw, Shuffle, Swords, Trophy, Upload } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ChangeEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { CareerAchievement, CareerCampaign, CareerOpponent, CareerProfile, CareerShopSet, CareerQuest, CareerQuests, CareerStarter, CareerWeekly } from '../../protocol/generated/views';
@@ -13,7 +13,7 @@ import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { achievementMoment, useCeremonies, type CeremonyMoment } from './ceremonies';
 import {
-  importCareer, rerollQuest, setCountAiGames, startCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerOpponents,
+  importCareer, rerollQuest, setShowProgress, startCareer, useCareerAchievements, useCareerLevels, useCareerLook, useCareerOpponents,
   useCareerQuests, useCareerShop, useCareerStarters, useCareerState, useCareerUnlocks, useCareerWeekly,
 } from './careerData';
 import { useCampaigns, useChallenge, useGauntlet, useHordes, useLimited, usePuzzles } from './careerModesData';
@@ -23,7 +23,10 @@ import { playCareerCue } from './careerSound';
 import { beatenCount, freshUnlocks, nextOpponent, readSeen, unlockFacts, writeSeen } from './hubModel';
 import { dealStyle, useStill } from './motion';
 import { CardArt, PortraitCard, type ArtCard } from './Portraits';
-import { CAREER_AVATARS, CAREER_SLEEVES, cosmeticName, describePay, fraction, titleLabel, unlockedIds, weeklyMarks } from './progressModel';
+import { CAREER_SLEEVES, cosmeticName, describePay, fraction, unlockedIds, weeklyMarks } from './progressModel';
+import { TitleText } from './LookParts';
+import { RANDOM_SLEEVE } from '../ui/sleeveArt';
+import { useCatalog, useCatalogItem } from '../ui/cosmeticsCatalog';
 import { RosterVersus } from './rosterPlay';
 import { useCareerDeck } from './useCareerDeck';
 import hub from './CareerHub.module.css';
@@ -40,8 +43,9 @@ export function CareerScreen() {
   const navigate = useNavigate();
   const state = useCareerState();
   const optedIn = useSettings((settings) => settings.settings.careerOptIn);
-  // a Career opened elsewhere counts as opted in on this browser too (its cosmetics show in Decks and Settings)
-  const hasProfile = !!state.data?.profile;
+  // a Career opened elsewhere counts as opted in on this browser too (its cosmetics show in Decks and Settings);
+  // every account has progression, so it's the collection that says a Career was opened
+  const hasProfile = !!state.data?.profile?.collection;
   useEffect(() => {
     if (hasProfile && !optedIn) useSettings.getState().update({ careerOptIn: true });
   }, [hasProfile, optedIn]);
@@ -64,7 +68,7 @@ export function CareerScreen() {
     );
   }
   const profile = state.data.profile;
-  if (profile) return <CareerHub profile={profile} />;
+  if (profile?.collection) return <CareerHub profile={profile} />;
   if (!optedIn) return <Intro />;
   return <StarterPicker />;
 }
@@ -459,7 +463,7 @@ export function CareerSummary({ user, onOpen }: { user: string; onOpen(): void }
     <div className={styles.summary}>
       <CareerAvatar id={avatar} name={user} size={32} />
       <span className={styles.identityText}>
-        {title && <b>{titleLabel(title)}</b>}
+        {title && <TitleText as="b" id={title} />}
         <small>{t('career.profile.line', { level: levels.data.level ?? 1, earned, total: achievements.data.length })}</small>
       </span>
       <Button size="sm" variant="quiet" icon={<Trophy size={16} />} onClick={() => { onOpen(); navigate('/career/progress?tab=achievements'); }}>
@@ -469,27 +473,52 @@ export function CareerSummary({ user, onOpen }: { user: string; onOpen(): void }
   );
 }
 
-/** The sleeves a Career unlocked, beside the free ones wherever a deck's sleeves are chosen. */
+/**
+ * The sleeves a Career unlocked, beside the free ones wherever a deck's sleeves are chosen, and "random" (once there
+ * are two to pick from): the deck wears one of them, a different one each game (ui/sleeveArt.ts).
+ */
 export function CareerSleeves({ current, swatchClass, onPick }: { current: string; swatchClass: string; onPick(color: string): void }) {
   const t = useT();
   const unlocks = useCareerUnlocks();
-  return unlockedIds(unlocks, 'sleeve').filter((id) => id in CAREER_SLEEVES).map((id) => {
-    const color = CAREER_SLEEVES[id];
-    const name = t('career.reward.sleeve', { name: cosmeticName(t, { kind: 'sleeve', id }) });
-    return (
-      <button
-        key={id}
-        type="button"
-        role="radio"
-        aria-checked={current === color}
-        aria-label={name}
-        title={name}
-        className={swatchClass}
-        style={{ background: color }}
-        onClick={() => onPick(color)}
-      />
-    );
-  });
+  // the catalog says which sleeves exist and their dyes
+  useCatalog();
+  const owned = unlockedIds(unlocks, 'sleeve').filter((id) => id in CAREER_SLEEVES);
+  const random = t('career.locker.randomSleeve');
+  return (
+    <>
+      {owned.map((id) => {
+        const color = CAREER_SLEEVES[id];
+        const name = t('career.reward.sleeve', { name: cosmeticName(t, { kind: 'sleeve', id }) });
+        return (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={current === color}
+            aria-label={name}
+            title={name}
+            className={swatchClass}
+            style={{ background: color }}
+            onClick={() => onPick(color)}
+          />
+        );
+      })}
+      {owned.length >= 2 && (
+        <button
+          type="button"
+          role="radio"
+          aria-checked={current === RANDOM_SLEEVE}
+          aria-label={random}
+          title={random}
+          className={swatchClass}
+          style={{ display: 'grid', placeItems: 'center', color: 'var(--ink-strong)', background: `conic-gradient(${owned.slice(0, 6).map((id) => CAREER_SLEEVES[id]).join(', ')}, ${CAREER_SLEEVES[owned[0]]})` }}
+          onClick={() => onPick(RANDOM_SLEEVE)}
+        >
+          <Shuffle size={14} aria-hidden="true" />
+        </button>
+      )}
+    </>
+  );
 }
 
 // ---- progress pieces the Career screens share
@@ -497,7 +526,8 @@ export function CareerSleeves({ current, swatchClass, onPick }: { current: strin
 /** A Career avatar: its painted bust on a medallion in its colours, or the player's initial before one is chosen. */
 export function CareerAvatar({ id, name, size = 48 }: { id: string | null | undefined; name: string; size?: number }) {
   const painted = usePaintedArt();
-  const art = id ? CAREER_AVATARS[id] : undefined;
+  const item = useCatalogItem('avatar', id);
+  const art = item ? { light: item.light ?? '#7a7466', dark: item.dark ?? '#22201b', path: item.path ?? '' } : undefined;
   const style = { '--crest-size': `${size}px`, ...(art ? { '--crest-light': art.light, '--crest-dark': art.dark } : {}) } as CSSProperties;
   const drawn = art && (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -574,10 +604,10 @@ export function QuestList({ quests }: { quests: CareerQuests | undefined }) {
         {list.map((quest) => (
           <li key={quest.slot} className={styles.quest}>
             <span>
-              <b>{quest.text}</b>
-              <small>{describePay(t, quest.coins, quest.xp)}</small>
+              <b>{quest.weekly && <em className={styles.weeklyTag}>{t('career.quests.weekly')}</em>}{quest.text}</b>
+              <small>{[quest.counts, describePay(t, quest.coins, quest.xp)].filter(Boolean).join(' · ')}</small>
             </span>
-            <Button
+            {quest.weekly ? <span /> : <Button
               variant="quiet"
               size="sm"
               icon={<RefreshCw size={14} />}
@@ -588,7 +618,7 @@ export function QuestList({ quests }: { quests: CareerQuests | undefined }) {
               onClick={() => void swap(quest)}
             >
               {t('career.quests.swap')}
-            </Button>
+            </Button>}
             <ProgressBar value={fraction(quest.progress, quest.target)} label={quest.text ?? ''} />
             <small>{quest.progress ?? 0} / {quest.target ?? 0}</small>
           </li>
@@ -599,15 +629,15 @@ export function QuestList({ quests }: { quests: CareerQuests | undefined }) {
   );
 }
 
-/** Career's own setting: whether regular games against the AI count for quests and achievements. */
-export function CountAiGames({ profile }: { profile: CareerProfile }) {
+/** Whether progression shows: the header, Today on Home and rewards after games. Games count either way. */
+export function ShowProgress({ profile }: { profile: CareerProfile }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
 
-  async function change(count: boolean) {
+  async function change(show: boolean) {
     setBusy(true);
     try {
-      await setCountAiGames(count);
+      await setShowProgress(show);
     } catch (reason) {
       notify(t('career.settings.failed'), reason instanceof Error ? reason.message : String(reason), 'error');
     } finally {
@@ -617,10 +647,10 @@ export function CountAiGames({ profile }: { profile: CareerProfile }) {
 
   return (
     <label className={styles.setting}>
-      <input type="checkbox" checked={!!profile.countAiGames} disabled={busy} onChange={(event) => void change(event.target.checked)} />
+      <input type="checkbox" checked={profile.showProgress !== false} disabled={busy} onChange={(event) => void change(event.target.checked)} />
       <span>
-        {t('career.settings.countAi')}
-        <small>{t('career.settings.countAiNote')}</small>
+        {t('career.settings.showProgress')}
+        <small>{t('career.settings.showProgressNote')}</small>
       </span>
     </label>
   );

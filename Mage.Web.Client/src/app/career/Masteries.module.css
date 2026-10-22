@@ -1,0 +1,89 @@
+.masteries {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.note {
+  margin: 0;
+  color: var(--ink-dim);
+}
+
+.head {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-print);
+  font-size: var(--text-lg);
+  letter-spacing: var(--tracking-print);
+  text-transform: uppercase;
+  color: var(--ink-strong);
+}
+
+.tracks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.track {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--ink-ghost);
+  border-radius: var(--radius-zone);
+  background: rgb(var(--mat-rgb) / 0.3);
+}
+
+.top {
+  border-color: rgb(var(--brass-rgb) / 0.6);
+}
+
+.name {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.rank {
+  font-size: var(--text-sm);
+  color: var(--brass-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.pips {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 3px;
+}
+
+.pips i {
+  flex: 1;
+  height: 5px;
+  border-radius: 2px;
+  background: var(--ink-ghost);
+}
+
+.pips i.on {
+  background: var(--brass);
+}
+
+.next {
+  grid-column: 1 / -1;
+  font-size: var(--text-sm);
+  color: var(--ink-dim);
+}
+
+.bar {
+  grid-column: 1 / -1;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--ink-ghost);
+  overflow: hidden;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  background: var(--ink-faint);
+}

@@ -73,7 +73,8 @@ public class CareerProgressTest {
 
     @Test
     public void theContentIsComplete() {
-        assertEquals(30, progress.questTemplates().size(), "thirty quest templates");
+        assertTrue(progress.questTemplates().size() >= 90, "about ninety quest templates");
+        assertTrue(progress.questTemplates().values().stream().filter(quest -> quest.weekly).count() >= 10, "weekly quests");
         assertTrue(progress.achievementTemplates().size() >= 55, "about sixty achievements");
         for (int level = 2; level <= CareerRules.MAX_LEVEL; level++) {
             CareerProgress.CareerLevelReward reward = progress.levelRewards().get(level);
@@ -82,7 +83,7 @@ public class CareerProgressTest {
         }
         for (CareerProgress.AchievementTemplate achievement : progress.achievementTemplates().values()) {
             assertTrue("game".equals(achievement.scope) || "total".equals(achievement.scope), achievement.id);
-            assertTrue(achievement.target > 0, achievement.id);
+            assertTrue(achievement.target > 0 || (achievement.tiers != null && achievement.tiers.get(0).target > 0), achievement.id);
         }
     }
 
@@ -107,30 +108,44 @@ public class CareerProgressTest {
                 statement.execute("INSERT INTO profile (user, created, starter, coins, xp) VALUES ('bo', 1, 'x', 340, 600)");
             }
             try (CareerStore migrated = new CareerStore("jdbc:sqlite:" + old)) {
-                assertEquals(3, migrated.schemaVersion());
+                assertEquals(5, migrated.schemaVersion());
                 CareerProfile profile = migrated.profile("bo");
                 assertEquals(340, profile.coins);
                 assertEquals(600, profile.xp);
                 assertEquals(0, profile.packTokens);
-                assertFalse(profile.countAiGames);
+                assertTrue(profile.countAiGames, "every game counts now");
             }
         } finally {
             Files.deleteIfExists(old);
         }
     }
 
+    private long dailyQuests() throws Exception {
+        return progress.quests("Ana").quests.stream().filter(quest -> !quest.weekly).count();
+    }
+
     @Test
     public void threeQuestsToStartThenOneADay() throws Exception {
-        assertEquals(3, progress.quests("Ana").quests.size());
+        assertEquals(3, dailyQuests());
         store.deleteQuest("Ana", 0);
         store.deleteQuest("Ana", 1);
-        assertEquals(1, progress.quests("Ana").quests.size(), "the same day brings no new quest");
+        assertEquals(1, dailyQuests(), "the same day brings no new quest");
         day.set(day.get().plusDays(1));
-        assertEquals(2, progress.quests("Ana").quests.size(), "a new day brings one");
+        assertEquals(2, dailyQuests(), "a new day brings one");
         day.set(day.get().plusDays(5));
-        assertEquals(3, progress.quests("Ana").quests.size(), "days away add one, not one per day");
+        assertEquals(3, dailyQuests(), "days away add one, not one per day");
         day.set(day.get().plusDays(1));
-        assertEquals(3, progress.quests("Ana").quests.size(), "never more than three wait");
+        assertEquals(3, dailyQuests(), "never more than three wait");
+    }
+
+    @Test
+    public void aWeeklyQuestWaitsInTheFourthSlotAndChangesEachWeek() throws Exception {
+        CareerProgress.CareerQuest weekly = progress.quests("Ana").quests.stream().filter(quest -> quest.weekly).findFirst().orElse(null);
+        assertNotNull(weekly);
+        assertEquals(CareerProgress.WEEKLY_SLOT, weekly.slot);
+        assertThrows(CareerService.CareerException.class, () -> progress.reroll("Ana", CareerProgress.WEEKLY_SLOT), "not swappable");
+        day.set(day.get().plusDays(7));
+        assertEquals(1, progress.quests("Ana").quests.stream().filter(quest -> quest.weekly).count(), "one weekly quest at a time");
     }
 
     @Test
@@ -248,11 +263,8 @@ public class CareerProgressTest {
     }
 
     @Test
-    public void regularAiGamesCountOnlyWhenChosenAndNeverWhenTainted() throws Exception {
+    public void regularAiGamesAlwaysCountButNeverWhenTainted() throws Exception {
         UUID game = UUID.randomUUID();
-        assertNull(service.aiGameEnded(game, "Ana", null, true, 9, tally("spells", 5)), "off by default");
-        service.setCountAiGames("Ana", true);
-
         CareerTally practiced = tally("spells", 5);
         CareerTally.Recorder recorder = (CareerTally.Recorder) CareerTally.open(game, practiced.playerId);
         assertNotNull(recorder);
@@ -261,14 +273,16 @@ public class CareerProgressTest {
         assertNotNull(taken.taint());
         assertNull(service.aiGameEnded(game, "Ana", null, true, 9, taken), "practice never counts");
 
-        int coins = store.profile("Ana").coins;
+        int xp = store.profile("Ana").xp;
         UUID counted = UUID.randomUUID();
         CareerProgress.CareerGameResult result = service.aiGameEnded(counted, "Ana", null, true, 9, tally("spells", 5));
         assertNotNull(result);
         assertFalse(result.career);
-        assertEquals(0, result.weekly.wins, "the weekly goal counts Career wins only");
+        assertEquals(CareerRewards.AI, result.kind);
+        assertEquals(1, result.weekly.wins, "the weekly goal counts every win");
         assertEquals(5, (int) store.stats("Ana").get("spells"));
-        assertEquals(coins + result.coins, store.profile("Ana").coins, "only quests and achievements pay");
+        assertTrue(result.xp > 0, "a counted game pays XP");
+        assertEquals(xp + result.xp, store.profile("Ana").xp);
         assertNull(service.aiGameEnded(counted, "Ana", null, true, 9, tally("spells", 5)), "once per game");
     }
 

@@ -62,7 +62,7 @@ public class WebClientApiContractTest {
             "careerState", "careerStarters", "careerStart", "careerCollection", "careerOpponents", "careerPlay", "careerShop",
             "careerBuyPack", "careerCraft", "careerExport", "careerImport", // career store and service (career/CareerServiceTest)
             "careerQuests", "careerRerollQuest", "careerAchievements", "careerLevels", "careerWeekly", "careerGameResult",
-            "careerSetProgress", "careerCountAiGames", // career progress (career/CareerProgressTest)
+            "careerSetProgress", "careerShowProgress", "careerDaily", "careerDeck", "careerSaveDeck", "careerProfileOf", "careerQuestTracker", "careerMasteries", "careerCosmetics", "careerHall", "gameEmote", // career progress (career/CareerProgressTest)
             "careerCampaigns", "careerCampaignPlay", "careerCampaignDeck", "careerCampaignChoose", "careerPuzzles", "careerPuzzlePlay",
             "careerChallenge", "careerChallengePlay", "careerGauntlet", "careerGauntletStart", "careerGauntletPick",
             "careerGauntletPlay", "careerGauntletAbandon", "careerGauntletMove", "careerDailyPuzzle", "careerDailyPuzzlePlay", "careerPuzzleFilePlay", "careerMinedPuzzles", "careerMinedPuzzlePlay", "gamePuzzleExport", "careerHordes", "careerHordePlay", "metaLibrary", "metaDeck", "ghostShare", "ghostMine", "ghostUnshare", "ghostDeck", "soloTableMark", "soloAdaptive", "inbox", "inboxSeen", "careerLimited", "careerLimitedStart", "careerLimitedPick",
@@ -75,7 +75,7 @@ public class WebClientApiContractTest {
             "adminGetUsers", "adminDisconnectUser", "adminEndUserSession", "adminMuteUser", "adminLockUser", "adminActivateUser",
             "adminToggleActivateUser", "adminTableRemove", "adminSendBroadcastMessage", // Moderation, for staff on player sessions too
             "staffMe", "adminStaff", "adminStaffGrant", "adminStaffRevoke", // staff roles (api/StaffRolesTest)
-            "adminAccounts", "adminAccount", "adminResetCode", "adminAccountExport", "adminDeleteAccount", "adminFeedback",
+            "adminAccounts", "adminAccount", "adminCareer", "adminCareerRevoke", "adminResetCode", "adminAccountExport", "adminDeleteAccount", "adminFeedback",
             "adminFeedbackMark", "sendFeedback", // accounts and feedback (api/AccountsApiTest)
             "adminTableWatch", "adminClientErrorResolve", "adminSettings", "adminSetSetting", "adminMaintenance",
             "adminMaintenanceCancel", "adminDiscordTest", // watching, client errors, settings and maintenance (M15)
