@@ -11,7 +11,7 @@ import { Button } from '../ui/Button';
 import { refreshCareer, useCareerOpponents, useCareerState } from './careerData';
 import { useCampaigns } from './careerModesData';
 import { achievementMoment, useCeremonies } from './ceremonies';
-import { markSeen } from './hubModel';
+import { achievementFact, markSeen } from './hubModel';
 import { useSceneArt } from './careerScene';
 import { playCareerCue } from './careerSound';
 import { DoneMark, ProgressBar, WeeklyGoal } from './CareerScreen';
@@ -140,7 +140,7 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
   const user = useSession((session) => session.userName);
   useEffect(() => {
     if (!done || achievements.length === 0) return;
-    markSeen(user, achievements.map((achievement) => `achievement:${achievement.id}`));
+    markSeen(user, achievements.map(achievementFact));
     useCeremonies.getState().show(achievements.map((achievement) => achievementMoment(t, achievement)));
   }, [done, achievements, user, t]);
 

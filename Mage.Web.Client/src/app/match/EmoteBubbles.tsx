@@ -28,15 +28,18 @@ export function EmoteBubbles({ view, gameId }: { view: GameView | null; gameId?:
 
 function Bubble({ bubble, playerId }: { bubble: EmoteBubble; playerId: string }) {
   const stage = useStage();
-  const [at, setAt] = useState<{ left: number; top: number } | null>(null);
-  // the seat is measured once the bubble mounts: seats don't move while a bubble lasts
+  const [at, setAt] = useState<{ left: number; top?: number; bottom?: number } | null>(null);
+  // the seat is measured once the bubble mounts: seats don't move while a bubble lasts. A seat in the top half gets
+  // its bubble hanging from the plate's top corner; one in the bottom half (yours) gets it standing on that corner,
+  // so a sticker grows up into the board instead of off the screen and under the hand
   useLayoutEffect(() => {
     const plate = stage.element?.querySelector(`[data-object-id="${CSS.escape(playerId)}"]`);
     if (!plate) return;
     const box = plate.getBoundingClientRect();
     const corner = toStagePoint(stage, box.right, box.top);
+    const lower = corner.y > stage.height / 2;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- measuring the DOM must happen after layout
-    setAt({ left: corner.x + 14, top: corner.y + 6 });
+    setAt(lower ? { left: corner.x + 14, bottom: stage.height - corner.y + 6 } : { left: corner.x + 14, top: corner.y + 6 });
   }, [stage, playerId]);
   if (!at) return null;
   if (bubble.sticker) {

@@ -195,7 +195,45 @@
   }
 }
 
-/* a portrait tablet: the name gives way to the mark, and the labels pull closer so the rail fits the width */
+/* a laptop: eight labels and the progress chip don't fit beside the name, so the labels pull closer, the account
+   shows its avatar only, and the labels scroll rather than push the tools off the edge */
+@media (max-width: 1400px) {
+  .rail {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-4);
+  }
+
+  .nav {
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .navItem {
+    padding: 8px 9px;
+  }
+
+  .navItem::after {
+    left: 9px;
+    right: 9px;
+  }
+
+  .user {
+    padding: 0 4px;
+  }
+
+  .user > span:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 1180px) {
+  .brand > span {
+    display: none;
+  }
+}
+
+/* a portrait tablet: the labels pull closer still */
 @media (max-width: 860px) {
   .rail {
     grid-template-columns: auto minmax(0, 1fr) auto;

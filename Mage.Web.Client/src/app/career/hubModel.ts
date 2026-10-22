@@ -24,6 +24,11 @@ export function beatenCount(opponents: readonly CareerOpponent[]): number {
   return opponents.filter((opponent) => (opponent.wins ?? 0) > 0).length;
 }
 
+/** An earned achievement's unlock id; a tiered one names its tier, so each new tier gets its own moment. */
+export function achievementFact(achievement: Pick<CareerAchievement, 'id' | 'tier' | 'tiers'>): string {
+  return achievement.tiers?.length && achievement.tier ? `achievement:${achievement.id}:${achievement.tier}` : `achievement:${achievement.id}`;
+}
+
 /**
  * Every unlock the hub announces, as ids: open tiers above the first, open campaign chapters after the first, earned
  * achievements, and shop sets a chapter opened.
@@ -36,7 +41,7 @@ export function unlockFacts(
 ): string[] {
   const facts = new Set<string>();
   for (const achievement of achievements) {
-    if (achievement.achieved && achievement.id) facts.add(`achievement:${achievement.id}`);
+    if (achievement.achieved && achievement.id) facts.add(achievementFact(achievement));
   }
   for (const set of shop) {
     if (set.unlockedBy && !set.locked && set.setCode) facts.add(`set:${set.setCode}`);

@@ -20,7 +20,7 @@ import { useCampaigns, useChallenge, useGauntlet, useHordes, useLimited, usePuzz
 import { focusNode, graduated, schoolsOf, storiesOf } from './careerModesModel';
 import { useRotatingSceneArt } from './careerScene';
 import { playCareerCue } from './careerSound';
-import { beatenCount, freshUnlocks, nextOpponent, readSeen, unlockFacts, writeSeen } from './hubModel';
+import { achievementFact, beatenCount, freshUnlocks, nextOpponent, readSeen, unlockFacts, writeSeen } from './hubModel';
 import { dealStyle, useStill } from './motion';
 import { CardArt, PortraitCard, type ArtCard } from './Portraits';
 import { CAREER_SLEEVES, cosmeticName, describePay, fraction, unlockedIds, weeklyMarks } from './progressModel';
@@ -439,7 +439,7 @@ function useUnlockMoments(
         if (!set) return [];
         return [{ id: fact, kicker: t('career.ceremony.set'), title: set.name ?? set.setCode ?? '', text: t('career.ceremony.setText', { chapter: set.unlockedBy ?? '' }), crest: { name: set.setCode ?? '' }, cue: 'coins' }];
       }
-      const achievement = achievements?.find((item) => item.id === rest.join(':'));
+      const achievement = achievements?.find((item) => achievementFact(item) === fact);
       if (!achievement) return [];
       return [achievementMoment(t, achievement)];
     });

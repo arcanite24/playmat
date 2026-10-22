@@ -50,6 +50,13 @@ describe('unlocks', () => {
     expect(facts).toEqual(['achievement:first-win', 'set:THS']);
   });
 
+  test('each tier of a tiered achievement is its own unlock', () => {
+    const silver = { id: 't-spells', achieved: true, tier: 2, tiers: [{ target: 100 }, { target: 1000 }] };
+    expect(unlockFacts([], [], [silver])).toEqual(['achievement:t-spells:2']);
+    const { fresh } = freshUnlocks(['achievement:t-spells:1'], unlockFacts([], [], [silver]));
+    expect(fresh).toEqual(['achievement:t-spells:2']);
+  });
+
   test('the first look only records what is open', () => {
     expect(freshUnlocks(null, ['tier:2'])).toEqual({ fresh: [], seen: ['tier:2'] });
   });
