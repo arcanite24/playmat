@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { CareerCatalogItem, PlayerLook } from '../../protocol/generated/views';
 import { catalogItem } from '../ui/cosmeticsCatalog';
+import { PAINTED_STYLE } from '../ui/landStyles';
 import { clothOf, type MatCloth } from './playmats';
 
 /**
@@ -41,10 +42,11 @@ export function stampArt(id: string): string {
   return `/career-art/stamp/${id}.webp`;
 }
 
-/** The set code a player's basic lands are drawn from, or undefined. */
-export function landSetOf(look: PlayerLook | null | undefined, lookup: Lookup = fromCatalog): string | undefined {
-  const set = look?.lands ? lookup('land', look.lands)?.set : undefined;
-  return set ? set.toUpperCase() : undefined;
+/** A player's land style as the styler takes it (ui/landStyles.ts): a set code, "painted:<style>", or undefined. */
+export function landStyleKey(look: PlayerLook | null | undefined, lookup: Lookup = fromCatalog): string | undefined {
+  const item = look?.lands ? lookup('land', look.lands) : undefined;
+  if (!item) return undefined;
+  return item.set ? item.set.toUpperCase() : `${PAINTED_STYLE}${item.id}`;
 }
 
 /**

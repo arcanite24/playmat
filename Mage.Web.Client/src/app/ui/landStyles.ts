@@ -12,9 +12,22 @@ import type { CardImageRef } from '../../core/images/imageLinks';
  * and no extra Scryfall searches. The collector numbers below are the full-art basics of each set as XMage's own set
  * files list them (Mage.Sets, FULL_ART_* graphic info), so every one of them is a printing the server and Scryfall
  * both know. A set without a basic of some name (none of these print Wastes) leaves that land as it is.
+ *
+ * A painted style (a catalog land with no set code) is Playmat's own art instead (art/specs/land.json): its five cards
+ * are /career-art/land/<style>-<basic>.webp, and the card face prints the land's name in the band left for it. Such a
+ * style is passed around as "painted:<style>" where a set code would be.
  */
 
 export type BasicName = 'Plains' | 'Island' | 'Swamp' | 'Mountain' | 'Forest';
+
+const BASICS: readonly string[] = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
+
+export const PAINTED_STYLE = 'painted:';
+
+/** A painted style's card for a basic land. */
+export function paintedLandArt(style: string, name: BasicName): string {
+  return `/career-art/land/${style}-${name.toLowerCase()}.webp`;
+}
 
 const range = (from: number, count: number) => Array.from({ length: count }, (_, i) => String(from + i));
 
@@ -30,9 +43,17 @@ export const LAND_STYLE_PRINTINGS: Record<string, Partial<Record<BasicName, read
 };
 
 /** A card as the styler sees it: its picture reference plus who owns and controls it. */
-export type StylableCard = CardImageRef & { id?: string; cardId?: string; ownerId?: string; controllerId?: string; faceDown?: boolean };
+export type StylableCard = CardImageRef & {
+  id?: string;
+  cardId?: string;
+  ownerId?: string;
+  controllerId?: string;
+  faceDown?: boolean;
+  /** a painted style's picture for this basic land, set by styledLand */
+  paintedLand?: string;
+};
 
-/** The land style (a set code) of a card's player, or undefined: given by the match, null everywhere else. */
+/** The land style (a set code, or "painted:<style>") of a card's player, or undefined: given by the match, null everywhere else. */
 export type LandStyleOf = (playerId: string) => string | undefined;
 
 export const LandStyleContext = createContext<LandStyleOf | null>(null);
@@ -46,12 +67,15 @@ function pick(key: string, count: number): number {
 
 /**
  * The card to draw for a basic land in the set `style`: the same card with that set's full-art printing, chosen by the
- * card's id among the set's arts for its name. Anything else (not a basic, a token, a face-down card, a set without
+ * card's id among the set's arts for its name; for a painted style, the card with its painted picture. Anything else (not a basic, a token, a face-down card, a set without
  * that basic) comes back as it is.
  */
-export function styledLand<T extends StylableCard>(card: T, style: string | undefined): T {
+export function styledLand<T extends StylableCard>(card: T, style: string | undefined): T & { paintedLand?: string } {
   if (!style || card.isToken || card.faceDown) return card;
   const name = (card.name ?? '') as BasicName;
+  if (style.startsWith(PAINTED_STYLE)) {
+    return BASICS.includes(name) ? { ...card, paintedLand: paintedLandArt(style.slice(PAINTED_STYLE.length), name) } : card;
+  }
   const numbers = LAND_STYLE_PRINTINGS[style.toUpperCase()]?.[name];
   if (!numbers || numbers.length === 0) return card;
   const cardNumber = numbers[pick(card.cardId ?? card.id ?? name, numbers.length)];

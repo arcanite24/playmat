@@ -44,7 +44,11 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
   const landStyleOf = useContext(LandStyleContext);
   const stylist = landStyleOf ? landStylist(printed) : undefined;
   const card = stylist ? styledLand(printed, landStyleOf!(stylist)) : printed;
-  const src = useCardImage(hidden ? null : card, face === 'back' || showsBackFace(card) ? 'back' : 'front', size);
+  // a painted land style's own card (with painted art on) takes the place of the printing's picture
+  const paintedArt = useSettings((state) => state.settings.paintedArt);
+  const painted = !hidden && paintedArt && face !== 'back' ? card.paintedLand : undefined;
+  const printing = useCardImage(hidden || painted ? null : card, face === 'back' || showsBackFace(card) ? 'back' : 'front', size);
+  const src = painted ?? printing;
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const showImage = typeof src === 'string' && src !== failedSrc;
@@ -92,6 +96,7 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
                 onError={() => setFailedSrc(src)}
               />
             )}
+            {showImage && painted && <span className={styles.landBand} aria-hidden="true"><span>{name}</span></span>}
           </>
         )}
       </div>

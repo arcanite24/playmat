@@ -346,7 +346,11 @@
  },
  {
   "level": 58,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "land",
+   "id": "vista"
+  }
  },
  {
   "level": 59,
@@ -409,7 +413,11 @@
  },
  {
   "level": 68,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "land",
+   "id": "nightfall"
+  }
  },
  {
   "level": 69,
@@ -472,7 +480,11 @@
  },
  {
   "level": 79,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "land",
+   "id": "emblem"
+  }
  },
  {
   "level": 80,
@@ -543,7 +555,11 @@
  },
  {
   "level": 91,
-  "coins": 50
+  "coins": 50,
+  "cosmetic": {
+   "kind": "land",
+   "id": "knotwork"
+  }
  },
  {
   "level": 92,

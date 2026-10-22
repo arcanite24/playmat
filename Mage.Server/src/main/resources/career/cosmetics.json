@@ -1545,6 +1545,134 @@
     "color": "#6e4a36"
   },
   {
+    "kind": "sleeve",
+    "id": "scene-banner",
+    "name": "Banner hall",
+    "es": "Salón de estandartes",
+    "rarity": "rare",
+    "color": "#34466b"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-trail",
+    "name": "Wagon trail",
+    "es": "Senda de carretas",
+    "rarity": "rare",
+    "color": "#7d5626"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-clockwork",
+    "name": "Clockwork city",
+    "es": "Ciudad de engranajes",
+    "rarity": "rare",
+    "color": "#3d4f57"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-archive",
+    "name": "Old archive",
+    "es": "Archivo antiguo",
+    "rarity": "rare",
+    "color": "#5c2e24"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-vault",
+    "name": "The vault",
+    "es": "La bóveda",
+    "rarity": "rare",
+    "color": "#5e4a14"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-market",
+    "name": "Market square",
+    "es": "Plaza del mercado",
+    "rarity": "rare",
+    "color": "#55603a"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-war-table",
+    "name": "War table",
+    "es": "Mesa de guerra",
+    "rarity": "rare",
+    "color": "#4e2246"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-arena",
+    "name": "The arena",
+    "es": "La arena",
+    "rarity": "rare",
+    "color": "#742a20"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-draft",
+    "name": "Draft table",
+    "es": "Mesa de draft",
+    "rarity": "rare",
+    "color": "#2a5560"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-mana-well",
+    "name": "Mana well",
+    "es": "Pozo de maná",
+    "rarity": "rare",
+    "color": "#26406e"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-anvil",
+    "name": "Anvil strike",
+    "es": "Golpe de yunque",
+    "rarity": "rare",
+    "color": "#49301f"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-stormsea",
+    "name": "Storm at sea",
+    "es": "Tormenta en el mar",
+    "rarity": "rare",
+    "color": "#1e3a4a"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-book-tower",
+    "name": "Tower of books",
+    "es": "Torre de libros",
+    "rarity": "rare",
+    "color": "#3f2f52"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-summit",
+    "name": "The summit",
+    "es": "La cumbre",
+    "rarity": "mythic",
+    "color": "#38506a"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-sun-moon",
+    "name": "Sun and moon",
+    "es": "Sol y luna",
+    "rarity": "mythic",
+    "color": "#6a4c2a"
+  },
+  {
+    "kind": "sleeve",
+    "id": "scene-hourglass",
+    "name": "Hourglass",
+    "es": "Reloj de arena",
+    "rarity": "mythic",
+    "color": "#2d3f36"
+  },
+  {
     "kind": "playmat",
     "id": "sand",
     "name": "Sand",
@@ -2348,5 +2476,33 @@
     "es": "La hora de la devastación",
     "rarity": "mythic",
     "set": "HOU"
+  },
+  {
+    "kind": "land",
+    "id": "vista",
+    "name": "Vista",
+    "es": "Vista",
+    "rarity": "uncommon"
+  },
+  {
+    "kind": "land",
+    "id": "nightfall",
+    "name": "Nightfall",
+    "es": "Anochecer",
+    "rarity": "rare"
+  },
+  {
+    "kind": "land",
+    "id": "emblem",
+    "name": "Emblem",
+    "es": "Emblema",
+    "rarity": "rare"
+  },
+  {
+    "kind": "land",
+    "id": "knotwork",
+    "name": "Knotwork",
+    "es": "Entrelazado",
+    "rarity": "mythic"
   }
 ]

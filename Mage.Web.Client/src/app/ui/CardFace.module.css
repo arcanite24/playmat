@@ -36,6 +36,36 @@
   opacity: 1;
 }
 
+/* a painted land style's name, printed in the empty band its card leaves at the top (art/specs/land.json) */
+.landBand {
+  position: absolute;
+  top: 5.5%;
+  right: 10%;
+  left: 10%;
+  height: 10%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: inline-size;
+  opacity: 0;
+  transition: opacity var(--dur-place) linear;
+  pointer-events: none;
+}
+
+.landBand span {
+  color: #e9e4d6;
+  font-family: var(--font-print);
+  font-size: max(7px, 11cqi);
+  font-weight: 700;
+  letter-spacing: var(--tracking-print);
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+[data-loaded] .landBand {
+  opacity: 1;
+}
+
 /* text frame shown until the picture arrives */
 .frame {
   position: absolute;

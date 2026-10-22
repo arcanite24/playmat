@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { CareerCatalogItem } from '../../protocol/generated/views';
-import { arrowColorOf, arrowTints, landSetOf, lookCloth, pairsOf, sparkColorOf, stampOf } from './touches';
+import { arrowColorOf, arrowTints, landStyleKey, lookCloth, pairsOf, sparkColorOf, stampOf } from './touches';
 
 const CATALOG: CareerCatalogItem[] = [
   { kind: 'arrow', id: 'ember', color: '#e0602a' },
@@ -8,6 +8,7 @@ const CATALOG: CareerCatalogItem[] = [
   { kind: 'spark', id: 'shards', color: '#a0e0f8' },
   { kind: 'stamp', id: 'stamp-crown' },
   { kind: 'land', id: 'zen', set: 'zen' },
+  { kind: 'land', id: 'vista' },
   { kind: 'playmat', id: 'copper', dye: '#a06030', shades: ['#1', '#2', '#3', '#4', '#5', '#6', '#7'] },
   { kind: 'playmat', id: 'torn', dye: '#a06030', shades: ['#1'] },
 ];
@@ -35,8 +36,9 @@ describe('battlefield touches', () => {
     expect(sparkColorOf({ spark: 'shards' }, lookup)).toBe('#a0e0f8');
     expect(stampOf({ stamp: 'stamp-crown' }, lookup)).toBe('stamp-crown');
     expect(stampOf({ stamp: 'stamp-gone' }, lookup)).toBeNull();
-    expect(landSetOf({ lands: 'zen' }, lookup)).toBe('ZEN');
-    expect(landSetOf({ lands: 'nope' }, lookup)).toBeUndefined();
+    expect(landStyleKey({ lands: 'zen' }, lookup)).toBe('ZEN');
+    expect(landStyleKey({ lands: 'vista' }, lookup)).toBe('painted:vista');
+    expect(landStyleKey({ lands: 'nope' }, lookup)).toBeUndefined();
   });
 
   test("a cloth of the stage's own list is used as is; a catalog-only cloth needs all seven shades", () => {
