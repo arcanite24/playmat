@@ -1,7 +1,10 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { META_PREFIX, rosterOf, sleeveFor, useDecks } from '../stores/decks';
+import { META_PREFIX, RANDOM_META_PREFIX, rosterOf, sleeveFor, useDecks } from '../stores/decks';
+import { formatRules } from '../../core/decks/formats';
+import { metaDecksFor } from '../../core/decks/metaDecks';
+import { readJson } from '../stores/persist';
 import { useCoach } from '../stores/coach';
 import { usePlay } from '../stores/play';
 import { useT, type MessageKey } from '../i18n';
@@ -28,13 +31,19 @@ const SavedGames = lazy(() => import('../solo/SavedGames').then((module) => ({ d
 // Today (B278): quests, the daily wins ladder, the weekly goal and packs, on servers with Career
 const TodayPanel = lazy(() => import('../career/TodayPanel'));
 
+// Meta deck mode's format picker, out of the entry chunk
+const MetaFormatPicker = lazy(() => import('./MetaFormatPicker'));
+
 const SupportBar = lazy(() => import('../support/SupportBar').then((module) => ({ default: module.SupportBar })));
 
-type Mode = 'ai' | 'practice' | 'friend';
+type Mode = 'ai' | 'meta' | 'practice' | 'friend';
+
+export const META_FORMAT_KEY = 'playmat.metaFormat';
 
 // open tables and events have their own pages in the rail; here the only question is who you play
 const MODES: { id: Mode; label: MessageKey }[] = [
   { id: 'ai', label: 'home.mode.ai' },
+  { id: 'meta', label: 'home.mode.meta' },
   { id: 'practice', label: 'home.mode.practice' },
   { id: 'friend', label: 'home.mode.friend' },
 ];
@@ -54,10 +63,17 @@ export function HomeScreen() {
   const emailUnconfirmed = !!emailStatus?.email && !emailStatus.verified && !!emailStatus.mail;
   const roster = useMemo(() => rosterOf(decks), [decks]);
   // a meta, ghost or mirror opponent, or adaptive skill, is described with the solo messages
-  const soloReady = useCareerMessages(play.aiOptions.adaptive || opponentSource(play.aiOptions.opponentDeckId).kind !== 'roster');
+  const soloReady = useCareerMessages(mode === 'meta' || play.aiOptions.adaptive || opponentSource(play.aiOptions.opponentDeckId).kind !== 'roster');
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? roster[0] ?? null;
   const sleeve = sleeveFor(decks.sleeves, selected);
   const busy = play.phase !== 'idle';
+  // Meta deck: the AI and the player each get a random top deck of one format (public/meta-decks)
+  const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
+  const [metaFormat, setMetaFormat] = useState(() => readJson<string | null>(META_FORMAT_KEY, null));
+  const pickedFormat = metaFormat && metaFormats.includes(metaFormat) ? metaFormat : metaFormats[0] ?? null;
+  const ready = mode === 'meta' ? !!pickedFormat : !!selected;
+  // the mat shows the format's most played deck while Meta deck is chosen
+  const metaTop = mode === 'meta' ? metaDecksFor(decks.metaDecks, pickedFormat)[0] : undefined;
   const firstGameDone = useCoach((state) => state.firstGameDone);
   const skipFirstGame = useCoach((state) => state.finish);
   // Career is offered by servers with accounts; it is opt-in, and its screen explains it first
@@ -84,6 +100,10 @@ export function HomeScreen() {
   }, [selectedId]);
 
   function start() {
+    if (mode === 'meta') {
+      if (pickedFormat) void play.playVsAi(RANDOM_META_PREFIX + pickedFormat);
+      return;
+    }
     if (!selected) return;
     switch (mode) {
       case 'ai':
@@ -131,11 +151,20 @@ export function HomeScreen() {
       </aside>
 
       <section className={styles.mat} style={{ '--sleeve': sleeve } as CSSProperties}>
-        <MatPrint card={selected?.cover ?? null} />
+        <MatPrint card={metaTop?.cover ?? selected?.cover ?? null} />
         {notice && <p className={styles.serverNotice} role="note" aria-label={t('home.notice')}>{notice}</p>}
         <div className={styles.deckTitle}>
-          <h1 className={styles.deckName}>{selected?.name ?? t('home.chooseDeck')}</h1>
-          <p className={styles.deckNote}>{selected?.fromStarter ? t('decks.fromStarter', { count: selected.cardCount }) : selected?.note ?? ' '}</p>
+          {mode === 'meta' ? (
+            <>
+              <h1 className={styles.deckName}>{soloReady ? t('solo.metaDeck.title') : ' '}</h1>
+              <p className={styles.deckNote}>{pickedFormat ? formatRules(pickedFormat).label : ' '}</p>
+            </>
+          ) : (
+            <>
+              <h1 className={styles.deckName}>{selected?.name ?? t('home.chooseDeck')}</h1>
+              <p className={styles.deckNote}>{selected?.fromStarter ? t('decks.fromStarter', { count: selected.cardCount }) : selected?.note ?? ' '}</p>
+            </>
+          )}
         </div>
 
         <div className={styles.playZone} role="group" aria-labelledby="play-zone-label">
@@ -186,6 +215,7 @@ export function HomeScreen() {
               <span className={styles.aiSetupAction}>{t('home.change')}</span>
             </button>
           )}
+          {mode === 'meta' && soloReady && <Suspense fallback={null}><MetaFormatPicker formats={metaFormats} value={pickedFormat} disabled={busy} onChange={setMetaFormat} /></Suspense>}
           {mode === 'practice' && <p className={styles.modeNote}>{t('home.practiceNote')}</p>}
           {mode === 'friend' && <p className={styles.modeNote}>{t('home.friendNote')}</p>}
           {full && <p className={styles.modeNote} role="status">{t('home.serverFull')}</p>}
@@ -198,7 +228,7 @@ export function HomeScreen() {
               variant="decision"
               size="xl"
               busy={busy}
-              disabled={!selected}
+              disabled={!ready}
               onClick={start}
               className={styles.playButton}
             >

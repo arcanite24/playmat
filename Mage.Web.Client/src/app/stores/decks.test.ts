@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { deckStorage } from '../../core/decks/DeckStorageService';
 import type { DeckCardLists } from '../../core/decks/types';
-import { rosterOf, STARTER_PREFIX, useDecks } from './decks';
+import { RANDOM_META_PREFIX, rosterOf, STARTER_PREFIX, useDecks } from './decks';
 
 const BURN: DeckCardLists = {
   name: 'Burn',
@@ -12,13 +12,19 @@ const BURN: DeckCardLists = {
   source: { site: 'moxfield', url: 'https://moxfield.com/decks/x', remoteId: 'x', importedAt: 1 },
 };
 
+const META = {
+  file: 'modern-burn.dck', name: 'Burn', format: 'Constructed - Modern', share: 9, cards: 60,
+  cover: { name: 'Lightning Bolt', setCode: 'M10', cardNumber: '146' }, source: 'https://example.test/burn',
+};
+
 const STARTER = { file: 'red.dck', name: 'Red Starter', cards: 60, cover: { name: 'Shock', setCode: 'M19', cardNumber: '156' } };
 
 beforeEach(async () => {
   localStorage.clear();
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.endsWith('starter-decks/index.json')) return new Response(JSON.stringify([STARTER]), { status: 200 });
-    if (url.endsWith('red.dck')) return new Response('20 [M19:156] Shock\n40 [M19:280] Mountain\n', { status: 200 });
+    if (url.endsWith('meta-decks/index.json')) return new Response(JSON.stringify({ updated: '2026-10-20', source: '', decks: [META] }), { status: 200 });
+    if (url.endsWith('red.dck') || url.endsWith('modern-burn.dck')) return new Response('20 [M19:156] Shock\n40 [M19:280] Mountain\n', { status: 200 });
     return new Response(null, { status: 404 });
   }));
   useDecks.setState({ saved: [], starters: [], metaDecks: [], selectedId: null, sleeves: {}, loaded: false });
@@ -31,6 +37,17 @@ describe('deck library', () => {
     const roster = rosterOf(useDecks.getState());
     expect(roster).toHaveLength(1);
     expect(roster[0]).toMatchObject({ id, name: 'Red Starter', fromStarter: true });
+  });
+
+  test('a random format deck plays in its format without a copy in the library', async () => {
+    await useDecks.getState().refresh();
+    const { deck, id, meta } = await useDecks.getState().loadForPlay(RANDOM_META_PREFIX + 'Constructed - Modern');
+    expect(id).toBe(RANDOM_META_PREFIX + 'Constructed - Modern');
+    expect(meta?.file).toBe('modern-burn.dck');
+    expect(deck).toMatchObject({ name: 'Burn', format: 'Constructed - Modern' });
+    expect(deck.cards.reduce((sum, card) => sum + card.amount, 0)).toBe(60);
+    expect(useDecks.getState().saved).toEqual([]);
+    await expect(useDecks.getState().loadForPlay(RANDOM_META_PREFIX + 'Constructed - Pauper')).rejects.toThrow();
   });
 
   test('duplicate saves a renamed copy with the same cards and sleeve, without the import source', async () => {

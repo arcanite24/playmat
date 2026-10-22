@@ -4,7 +4,7 @@ import { deckStorage, type DeckSummary } from '../../core/decks/DeckStorageServi
 import { DeckSerializer } from '../../core/decks/DeckSerializer';
 import { copyName } from '../../core/decks/exportFormats';
 import type { DeckCardLists, DeckImportSource } from '../../core/decks/types';
-import type { MetaDeck, MetaDeckIndex } from '../../core/decks/metaDecks';
+import { pickMetaDeck, type MetaDeck, type MetaDeckIndex } from '../../core/decks/metaDecks';
 import { readJson, writeJson } from './persist';
 import { RANDOM_SLEEVE, randomSleeveFor } from '../ui/sleeveArt';
 
@@ -37,6 +37,8 @@ const SLEEVES_KEY = 'playmat.sleeves';
 export const STARTER_PREFIX = 'starter:';
 /** an AI format deck (public/meta-decks) in the AI settings */
 export const META_PREFIX = 'meta:';
+/** a game against the AI with a random format deck for the player ("meta-random:Constructed - Modern"), drawn each game */
+export const RANDOM_META_PREFIX = 'meta-random:';
 
 const COLOR_ORDER = ['white', 'blue', 'black', 'red', 'green'] as const;
 const COLOR_LETTER: Record<(typeof COLOR_ORDER)[number], string> = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
@@ -83,7 +85,7 @@ export interface DeckLibraryState {
   select(id: string): void;
   setSleeve(id: string, color: string): void;
   /** the deck list to send to the server; starter decks are saved to the library on first use */
-  loadForPlay(id: string): Promise<{ deck: DeckCardLists; id: string }>;
+  loadForPlay(id: string): Promise<{ deck: DeckCardLists; id: string; meta?: MetaDeck }>;
   /** a deck from the import sheet, saved as a new deck and selected */
   saveImported(deck: DeckCardLists): Promise<string>;
   /** a deck brought up to date with its site, under its own id */
@@ -112,6 +114,14 @@ async function fetchMetaDecks(): Promise<MetaDeck[]> {
   } catch {
     return [];
   }
+}
+
+/** A shipped deck's list: a starter (public/starter-decks) or a format deck (public/meta-decks). */
+async function shippedDeck(folder: string, deck: StarterDeck | MetaDeck): Promise<DeckCardLists> {
+  const response = await fetch(`/${folder}/${encodeURIComponent(deck.file)}`);
+  const text = response.ok ? await response.text() : '';
+  if (!text || /^\s*</.test(text)) throw new Error(`Couldn't load ${deck.name}.`);
+  return { ...DeckSerializer.importDeck(text), name: deck.name, coverCard: deck.cover, format: deck.format ?? 'Constructed - Freeform' };
 }
 
 /** The deck type a starter deck is built for. */
@@ -154,6 +164,15 @@ export const useDecks = create<DeckLibraryState>((set, get) => ({
   },
 
   async loadForPlay(id) {
+    // a format deck plays as it is, without a copy in the player's library
+    if (id.startsWith(META_PREFIX) || id.startsWith(RANDOM_META_PREFIX)) {
+      const { metaDecks } = get().metaDecks.length ? get() : (await get().refresh(), get());
+      const meta = id.startsWith(META_PREFIX)
+        ? metaDecks.find((deck) => META_PREFIX + deck.file === id)
+        : pickMetaDeck(metaDecks, id.slice(RANDOM_META_PREFIX.length));
+      if (!meta) throw new Error('No format deck is available for that format.');
+      return { deck: await shippedDeck('meta-decks', meta), id, meta };
+    }
     if (id.startsWith(STARTER_PREFIX)) {
       const deck = await get().loadList(id);
       deck.format = starterFormat(get().starters, id);
@@ -217,11 +236,7 @@ export const useDecks = create<DeckLibraryState>((set, get) => ({
     if (id.startsWith(STARTER_PREFIX)) {
       const starter = get().starters.find((candidate) => STARTER_PREFIX + candidate.file === id);
       if (!starter) throw new Error('That starter deck is not available.');
-      const response = await fetch(`/starter-decks/${encodeURIComponent(starter.file)}`);
-      const text = response.ok ? await response.text() : '';
-      if (!text || /^\s*</.test(text)) throw new Error(`Couldn't load ${starter.name}.`);
-      const deck = DeckSerializer.importDeck(text);
-      return { ...deck, name: starter.name, coverCard: starter.cover, format: starter.format ?? 'Constructed - Freeform' };
+      return shippedDeck('starter-decks', starter);
     }
     const deck = await deckStorage.loadDeck(id);
     if (!deck) throw new Error('That deck is no longer saved.');

@@ -113,6 +113,7 @@ export default {
   'home.firstGame.text': 'New to Magic? Play a guided first game: an easy opponent, and a tip each time something new comes up.',
   'home.firstGame.start': 'Guided game',
   'home.firstGame.skip': 'No thanks',
+  'home.mode.meta': 'Meta deck',
   'home.mode.practice': 'Practice',
   'home.mode.friend': 'A friend',
   'home.practiceNote': 'Goldfish: an opponent that only plays lands. In the game, Practice tools put any card in your hand or on the battlefield, draw, untap and set your life.',
