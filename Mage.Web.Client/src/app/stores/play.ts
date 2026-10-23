@@ -209,7 +209,7 @@ export const usePlay = create<PlayState>((set, get) => ({
     try {
       const { deck, meta } = await useDecks.getState().loadForPlay(deckId);
       if (meta && deckId.startsWith(RANDOM_META_PREFIX)) await loadCareerMessages();
-      if (meta && deckId.startsWith(RANDOM_META_PREFIX)) notify(t('solo.metaDeck.dealt', { name: meta.name }), t('solo.metaDeck.dealtNote', { format: formatRules(meta.format).label, share: Math.round(meta.share) }));
+      if (meta && deckId.startsWith(RANDOM_META_PREFIX)) notify(t('solo.metaDeck.dealt', { name: meta.name }), t('solo.metaDeck.dealtNote', { format: formatRules(meta.format).label }));
       // both decks' pictures download while the table is set up, before the first card is drawn: nothing either
       // player casts should wait on the network
       warmCards([...deck.cards, ...deck.sideboard].map((card) => ({ name: card.cardName, setCode: card.setCode ?? undefined, cardNumber: card.cardNumber ?? undefined })));

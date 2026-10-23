@@ -108,6 +108,18 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
           <code>XMAGE_WEB_IMAGE=ghcr.io/arcanite24/playmat-web:master</code>; the Update button does that by itself on its
           first update.</p>
 
+        <h2 id="format-decks">The AI's format decks</h2>
+        <p>The web client ships 12 decks per supported format, mixing metagame snapshots with original rogue and
+          casual lists. Home's <strong>Format deck</strong> mode deals different decks to you and the AI; random
+          picks favor metagame share, but every list can be drawn.</p>
+        <p>Self-hosters get the pool with the web image. Custom builds keep its index and fetched deck files in
+          <code>Mage.Web.Client/public/meta-decks/</code>, outside the JavaScript bundle. Each index entry has a
+          <code>tier</code> of <code>meta</code>, <code>rogue</code> or <code>fun</code> and records its source.
+          When changing lists, run <code>npm test</code> in <code>Mage.Web.Client</code> to check card counts,
+          implemented printings and format restrictions. With a local server, the optional
+          <code>metaDecks.live.test.ts</code> suite also checks the server's deck validation; its refresh mode
+          preserves original rogue and fun lists.</p>
+
         <h2 id="trouble">When something goes wrong</h2>
         <ul>
           <li><strong>“The updater isn't running.”</strong> <code>COMPOSE_PROFILES=updater</code> is missing from <code>.env</code>, or the <code>up -d</code> after adding it hasn't run. <code>docker compose … logs updater</code> shows what it saw at start.</li>

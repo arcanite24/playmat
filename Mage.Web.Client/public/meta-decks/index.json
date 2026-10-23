@@ -1,6 +1,6 @@
 {
-  "updated": "2026-10-21",
-  "source": "MTGGoldfish metagame (paper)",
+  "updated": "2026-10-22",
+  "source": "Existing MTGGoldfish metagame snapshots and Playmat original lists",
   "decks": [
     {
       "file": "standard-izzet-spellementals.dck",
@@ -13,7 +13,8 @@
         "setCode": "ECL",
         "cardNumber": "309"
       },
-      "source": "https://www.mtggoldfish.com/archetype/standard-izzet-spellementals-woe"
+      "source": "https://www.mtggoldfish.com/archetype/standard-izzet-spellementals-woe",
+      "tier": "meta"
     },
     {
       "file": "standard-dimir-midrange.dck",
@@ -26,7 +27,8 @@
         "setCode": "DSK",
         "cardNumber": "220"
       },
-      "source": "https://www.mtggoldfish.com/archetype/standard-dimir-midrange-woe"
+      "source": "https://www.mtggoldfish.com/archetype/standard-dimir-midrange-woe",
+      "tier": "meta"
     },
     {
       "file": "standard-mono-green-landfall.dck",
@@ -39,7 +41,8 @@
         "setCode": "EOE",
         "cardNumber": "192"
       },
-      "source": "https://www.mtggoldfish.com/archetype/standard-mono-green-landfall-woe"
+      "source": "https://www.mtggoldfish.com/archetype/standard-mono-green-landfall-woe",
+      "tier": "meta"
     },
     {
       "file": "standard-izzet-prowess.dck",
@@ -52,7 +55,8 @@
         "setCode": "OTJ",
         "cardNumber": "146"
       },
-      "source": "https://www.mtggoldfish.com/archetype/standard-izzet-prowess-woe"
+      "source": "https://www.mtggoldfish.com/archetype/standard-izzet-prowess-woe",
+      "tier": "meta"
     },
     {
       "file": "standard-boros-dragons.dck",
@@ -65,7 +69,8 @@
         "setCode": "HOB",
         "cardNumber": "110"
       },
-      "source": "https://www.mtggoldfish.com/archetype/standard-boros-dragons-woe"
+      "source": "https://www.mtggoldfish.com/archetype/standard-boros-dragons-woe",
+      "tier": "meta"
     },
     {
       "file": "standard-azorius-control.dck",
@@ -78,7 +83,8 @@
         "setCode": "SOS",
         "cardNumber": "15"
       },
-      "source": "https://www.mtggoldfish.com/archetype/standard-azorius-control-woe"
+      "source": "https://www.mtggoldfish.com/archetype/standard-azorius-control-woe",
+      "tier": "meta"
     },
     {
       "file": "pioneer-izzet-prowess.dck",
@@ -91,7 +97,8 @@
         "setCode": "FRA",
         "cardNumber": "428"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pioneer-izzet-prowess"
+      "source": "https://www.mtggoldfish.com/archetype/pioneer-izzet-prowess",
+      "tier": "meta"
     },
     {
       "file": "pioneer-golgari-midrange.dck",
@@ -104,7 +111,8 @@
         "setCode": "TLA",
         "cardNumber": "167"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pioneer-golgari-midrange"
+      "source": "https://www.mtggoldfish.com/archetype/pioneer-golgari-midrange",
+      "tier": "meta"
     },
     {
       "file": "pioneer-dimir-aggro.dck",
@@ -117,7 +125,8 @@
         "setCode": "DSK",
         "cardNumber": "220"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pioneer-dimir-aggro"
+      "source": "https://www.mtggoldfish.com/archetype/pioneer-dimir-aggro",
+      "tier": "meta"
     },
     {
       "file": "pioneer-jund-artifact-sacrifice.dck",
@@ -130,7 +139,8 @@
         "setCode": "HOB",
         "cardNumber": "299"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pioneer-jund-artifact-sacrifice"
+      "source": "https://www.mtggoldfish.com/archetype/pioneer-jund-artifact-sacrifice",
+      "tier": "meta"
     },
     {
       "file": "pioneer-jund-sacrifice.dck",
@@ -143,7 +153,8 @@
         "setCode": "WAR",
         "cardNumber": "204"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pioneer-jund-sacrifice-a753541c-3269-45a7-beeb-d907ff98334d"
+      "source": "https://www.mtggoldfish.com/archetype/pioneer-jund-sacrifice-a753541c-3269-45a7-beeb-d907ff98334d",
+      "tier": "meta"
     },
     {
       "file": "pioneer-nykthos-ramp.dck",
@@ -156,7 +167,8 @@
         "setCode": "THS",
         "cardNumber": "223"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pioneer-nykthos-ramp"
+      "source": "https://www.mtggoldfish.com/archetype/pioneer-nykthos-ramp",
+      "tier": "meta"
     },
     {
       "file": "modern-eldrazi-ramp.dck",
@@ -169,7 +181,8 @@
         "setCode": "ROE",
         "cardNumber": "227"
       },
-      "source": "https://www.mtggoldfish.com/archetype/modern-eldrazi-ramp"
+      "source": "https://www.mtggoldfish.com/archetype/modern-eldrazi-ramp",
+      "tier": "meta"
     },
     {
       "file": "modern-izzet-prowess.dck",
@@ -182,7 +195,8 @@
         "setCode": "OTJ",
         "cardNumber": "146"
       },
-      "source": "https://www.mtggoldfish.com/archetype/modern-izzet-prowess"
+      "source": "https://www.mtggoldfish.com/archetype/modern-izzet-prowess",
+      "tier": "meta"
     },
     {
       "file": "modern-eldrazi.dck",
@@ -195,7 +209,8 @@
         "setCode": "OGW",
         "cardNumber": "9"
       },
-      "source": "https://www.mtggoldfish.com/archetype/modern-eldrazi"
+      "source": "https://www.mtggoldfish.com/archetype/modern-eldrazi",
+      "tier": "meta"
     },
     {
       "file": "modern-affinity.dck",
@@ -208,7 +223,8 @@
         "setCode": "SOM",
         "cardNumber": "179"
       },
-      "source": "https://www.mtggoldfish.com/archetype/modern-affinity"
+      "source": "https://www.mtggoldfish.com/archetype/modern-affinity",
+      "tier": "meta"
     },
     {
       "file": "modern-esper-blink.dck",
@@ -221,7 +237,8 @@
         "setCode": "EOE",
         "cardNumber": "305"
       },
-      "source": "https://www.mtggoldfish.com/archetype/modern-esper-blink"
+      "source": "https://www.mtggoldfish.com/archetype/modern-esper-blink",
+      "tier": "meta"
     },
     {
       "file": "modern-domain-zoo.dck",
@@ -234,7 +251,8 @@
         "setCode": "TSB",
         "cardNumber": "70"
       },
-      "source": "https://www.mtggoldfish.com/archetype/modern-domain-zoo"
+      "source": "https://www.mtggoldfish.com/archetype/modern-domain-zoo",
+      "tier": "meta"
     },
     {
       "file": "legacy-dimir-tempo.dck",
@@ -247,7 +265,8 @@
         "setCode": "ECL",
         "cardNumber": "110"
       },
-      "source": "https://www.mtggoldfish.com/archetype/legacy-dimir-tempo"
+      "source": "https://www.mtggoldfish.com/archetype/legacy-dimir-tempo",
+      "tier": "meta"
     },
     {
       "file": "legacy-boros-energy.dck",
@@ -260,7 +279,8 @@
         "setCode": "MH3",
         "cardNumber": "237"
       },
-      "source": "https://www.mtggoldfish.com/archetype/legacy-boros-energy"
+      "source": "https://www.mtggoldfish.com/archetype/legacy-boros-energy",
+      "tier": "meta"
     },
     {
       "file": "legacy-izzet-delver.dck",
@@ -273,7 +293,8 @@
         "setCode": "MID",
         "cardNumber": "47"
       },
-      "source": "https://www.mtggoldfish.com/archetype/legacy-izzet-delver"
+      "source": "https://www.mtggoldfish.com/archetype/legacy-izzet-delver",
+      "tier": "meta"
     },
     {
       "file": "legacy-eldrazi.dck",
@@ -286,7 +307,8 @@
         "setCode": "TMP",
         "cardNumber": "294"
       },
-      "source": "https://www.mtggoldfish.com/archetype/legacy-eldrazi"
+      "source": "https://www.mtggoldfish.com/archetype/legacy-eldrazi",
+      "tier": "meta"
     },
     {
       "file": "legacy-doomsday.dck",
@@ -299,7 +321,8 @@
         "setCode": "6ED",
         "cardNumber": "121"
       },
-      "source": "https://www.mtggoldfish.com/archetype/legacy-doomsday"
+      "source": "https://www.mtggoldfish.com/archetype/legacy-doomsday",
+      "tier": "meta"
     },
     {
       "file": "legacy-sneak-and-show.dck",
@@ -312,7 +335,8 @@
         "setCode": "USG",
         "cardNumber": "218"
       },
-      "source": "https://www.mtggoldfish.com/archetype/legacy-sneak-and-show"
+      "source": "https://www.mtggoldfish.com/archetype/legacy-sneak-and-show",
+      "tier": "meta"
     },
     {
       "file": "vintage-jewel-shops.dck",
@@ -325,7 +349,8 @@
         "setCode": "MSC",
         "cardNumber": "196"
       },
-      "source": "https://www.mtggoldfish.com/archetype/vintage-jewel-shops"
+      "source": "https://www.mtggoldfish.com/archetype/vintage-jewel-shops",
+      "tier": "meta"
     },
     {
       "file": "vintage-mono-white-initiative.dck",
@@ -338,7 +363,8 @@
         "setCode": "CLB",
         "cardNumber": "49"
       },
-      "source": "https://www.mtggoldfish.com/archetype/vintage-mono-white-initiative"
+      "source": "https://www.mtggoldfish.com/archetype/vintage-mono-white-initiative",
+      "tier": "meta"
     },
     {
       "file": "vintage-esper-lurrus-control.dck",
@@ -351,7 +377,8 @@
         "setCode": "TLE",
         "cardNumber": "13"
       },
-      "source": "https://www.mtggoldfish.com/archetype/vintage-esper-lurrus-control"
+      "source": "https://www.mtggoldfish.com/archetype/vintage-esper-lurrus-control",
+      "tier": "meta"
     },
     {
       "file": "vintage-dimir-lurrus-control.dck",
@@ -364,7 +391,8 @@
         "setCode": "TLE",
         "cardNumber": "13"
       },
-      "source": "https://www.mtggoldfish.com/archetype/vintage-dimir-lurrus-control"
+      "source": "https://www.mtggoldfish.com/archetype/vintage-dimir-lurrus-control",
+      "tier": "meta"
     },
     {
       "file": "vintage-lurrus-po.dck",
@@ -377,7 +405,8 @@
         "setCode": "DFT",
         "cardNumber": "67"
       },
-      "source": "https://www.mtggoldfish.com/archetype/vintage-lurrus-po"
+      "source": "https://www.mtggoldfish.com/archetype/vintage-lurrus-po",
+      "tier": "meta"
     },
     {
       "file": "pauper-mono-red-madness.dck",
@@ -390,7 +419,8 @@
         "setCode": "VOW",
         "cardNumber": "164"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pauper-mono-red-madness"
+      "source": "https://www.mtggoldfish.com/archetype/pauper-mono-red-madness",
+      "tier": "meta"
     },
     {
       "file": "pauper-blue-terror.dck",
@@ -403,7 +433,8 @@
         "setCode": "JUD",
         "cardNumber": "46"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pauper-blue-terror-2b4f6710-ccb2-4660-b5f9-ea85c8875ec5"
+      "source": "https://www.mtggoldfish.com/archetype/pauper-blue-terror-2b4f6710-ccb2-4660-b5f9-ea85c8875ec5",
+      "tier": "meta"
     },
     {
       "file": "pauper-elves.dck",
@@ -416,7 +447,8 @@
         "setCode": "FDN",
         "cardNumber": "227"
       },
-      "source": "https://www.mtggoldfish.com/archetype/elves-67156d3a-d400-4269-8400-3a0258a274b3"
+      "source": "https://www.mtggoldfish.com/archetype/elves-67156d3a-d400-4269-8400-3a0258a274b3",
+      "tier": "meta"
     },
     {
       "file": "pauper-tron.dck",
@@ -429,7 +461,8 @@
         "setCode": "ODY",
         "cardNumber": "251"
       },
-      "source": "https://www.mtggoldfish.com/archetype/tron-c244ab01-c9e3-400d-8db1-6d717616b7e2"
+      "source": "https://www.mtggoldfish.com/archetype/tron-c244ab01-c9e3-400d-8db1-6d717616b7e2",
+      "tier": "meta"
     },
     {
       "file": "pauper-dimir-faeries.dck",
@@ -442,7 +475,8 @@
         "setCode": "LRW",
         "cardNumber": "89"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pauper-dimir-faeries-625747e4-1ba6-4401-af7b-5c8033a12c6c"
+      "source": "https://www.mtggoldfish.com/archetype/pauper-dimir-faeries-625747e4-1ba6-4401-af7b-5c8033a12c6c",
+      "tier": "meta"
     },
     {
       "file": "pauper-grixis-affinity.dck",
@@ -455,7 +489,8 @@
         "setCode": "MRD",
         "cardNumber": "54"
       },
-      "source": "https://www.mtggoldfish.com/archetype/pauper-grixis-affinity"
+      "source": "https://www.mtggoldfish.com/archetype/pauper-grixis-affinity",
+      "tier": "meta"
     },
     {
       "file": "premodern-selesnya-enchantress.dck",
@@ -468,7 +503,8 @@
         "setCode": "ONS",
         "cardNumber": "261"
       },
-      "source": "https://www.mtggoldfish.com/archetype/premodern-selesnya-enchantress"
+      "source": "https://www.mtggoldfish.com/archetype/premodern-selesnya-enchantress",
+      "tier": "meta"
     },
     {
       "file": "premodern-mono-blue-stiflenought.dck",
@@ -481,7 +517,8 @@
         "setCode": "MIR",
         "cardNumber": "315"
       },
-      "source": "https://www.mtggoldfish.com/archetype/premodern-mono-blue-stiflenought"
+      "source": "https://www.mtggoldfish.com/archetype/premodern-mono-blue-stiflenought",
+      "tier": "meta"
     },
     {
       "file": "premodern-mono-red-sligh.dck",
@@ -494,7 +531,8 @@
         "setCode": "M12",
         "cardNumber": "145"
       },
-      "source": "https://www.mtggoldfish.com/archetype/premodern-mono-red-sligh-deff71e0-ef6f-4135-8e5f-56b718e04d0d"
+      "source": "https://www.mtggoldfish.com/archetype/premodern-mono-red-sligh-deff71e0-ef6f-4135-8e5f-56b718e04d0d",
+      "tier": "meta"
     },
     {
       "file": "premodern-mono-black-midrange.dck",
@@ -507,7 +545,8 @@
         "setCode": "M10",
         "cardNumber": "100"
       },
-      "source": "https://www.mtggoldfish.com/archetype/premodern-mono-black-midrange-ba3cf91e-df0c-47d4-8068-bbfc327bd0dc"
+      "source": "https://www.mtggoldfish.com/archetype/premodern-mono-black-midrange-ba3cf91e-df0c-47d4-8068-bbfc327bd0dc",
+      "tier": "meta"
     },
     {
       "file": "premodern-naya-terragedon.dck",
@@ -520,7 +559,8 @@
         "setCode": "ICE",
         "cardNumber": "54"
       },
-      "source": "https://www.mtggoldfish.com/archetype/premodern-naya-terragedon"
+      "source": "https://www.mtggoldfish.com/archetype/premodern-naya-terragedon",
+      "tier": "meta"
     },
     {
       "file": "premodern-azorius-stiflenought.dck",
@@ -533,7 +573,8 @@
         "setCode": "ICE",
         "cardNumber": "54"
       },
-      "source": "https://www.mtggoldfish.com/archetype/premodern-azorius-stiflenought"
+      "source": "https://www.mtggoldfish.com/archetype/premodern-azorius-stiflenought",
+      "tier": "meta"
     },
     {
       "file": "duel_commander-cloud-midgar-mercenary.dck",
@@ -546,7 +587,8 @@
         "setCode": "FIN",
         "cardNumber": "10"
       },
-      "source": "https://www.mtggoldfish.com/archetype/duel_commander-cloud-midgar-mercenary"
+      "source": "https://www.mtggoldfish.com/archetype/duel_commander-cloud-midgar-mercenary",
+      "tier": "meta"
     },
     {
       "file": "duel_commander-brigid-clachan-s-heart.dck",
@@ -559,7 +601,8 @@
         "setCode": "ECL",
         "cardNumber": "285"
       },
-      "source": "https://www.mtggoldfish.com/archetype/duel_commander-brigid-clachan-s-heart"
+      "source": "https://www.mtggoldfish.com/archetype/duel_commander-brigid-clachan-s-heart",
+      "tier": "meta"
     },
     {
       "file": "duel_commander-namor-the-sub-mariner.dck",
@@ -572,7 +615,8 @@
         "setCode": "MSH",
         "cardNumber": "362"
       },
-      "source": "https://www.mtggoldfish.com/archetype/duel_commander-namor-the-sub-mariner"
+      "source": "https://www.mtggoldfish.com/archetype/duel_commander-namor-the-sub-mariner",
+      "tier": "meta"
     },
     {
       "file": "duel_commander-aragorn-king-of-gondor.dck",
@@ -585,7 +629,8 @@
         "setCode": "LTC",
         "cardNumber": "448"
       },
-      "source": "https://www.mtggoldfish.com/archetype/duel_commander-aragorn-king-of-gondor"
+      "source": "https://www.mtggoldfish.com/archetype/duel_commander-aragorn-king-of-gondor",
+      "tier": "meta"
     },
     {
       "file": "commander-y-shtola-night-s-blessed.dck",
@@ -598,7 +643,8 @@
         "setCode": "FIC",
         "cardNumber": "191"
       },
-      "source": "https://www.mtggoldfish.com/archetype/commander-y-shtola-night-s-blessed"
+      "source": "https://www.mtggoldfish.com/archetype/commander-y-shtola-night-s-blessed",
+      "tier": "meta"
     },
     {
       "file": "commander-vraska-soul-of-stone.dck",
@@ -611,7 +657,8 @@
         "setCode": "FRA",
         "cardNumber": "277"
       },
-      "source": "https://www.mtggoldfish.com/archetype/commander-vraska-soul-of-stone"
+      "source": "https://www.mtggoldfish.com/archetype/commander-vraska-soul-of-stone",
+      "tier": "meta"
     },
     {
       "file": "commander-ghalta-primal-hunger.dck",
@@ -624,7 +671,8 @@
         "setCode": "FDN",
         "cardNumber": "222"
       },
-      "source": "https://www.mtggoldfish.com/archetype/ghalta-primal-hunger"
+      "source": "https://www.mtggoldfish.com/archetype/ghalta-primal-hunger",
+      "tier": "meta"
     },
     {
       "file": "commander-tam-the-possibility.dck",
@@ -637,7 +685,8 @@
         "setCode": "FRA",
         "cardNumber": "276"
       },
-      "source": "https://www.mtggoldfish.com/archetype/commander-tam-the-possibility"
+      "source": "https://www.mtggoldfish.com/archetype/commander-tam-the-possibility",
+      "tier": "meta"
     },
     {
       "file": "commander-ghoulcaller-gisa.dck",
@@ -650,7 +699,820 @@
         "setCode": "FDC",
         "cardNumber": "6"
       },
-      "source": "https://www.mtggoldfish.com/archetype/ghoulcaller-gisa"
+      "source": "https://www.mtggoldfish.com/archetype/ghoulcaller-gisa",
+      "tier": "meta"
+    },
+    {
+      "file": "standard-mono-white-lifegain.dck",
+      "name": "Mono-White Lifegain",
+      "format": "Constructed - Standard",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Ajani's Pridemate",
+        "setCode": "FDN",
+        "cardNumber": "135"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "standard-mono-blue-terror.dck",
+      "name": "Mono-Blue Terror",
+      "format": "Constructed - Standard",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Tolarian Terror",
+        "setCode": "FDN",
+        "cardNumber": "167"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "standard-mono-black-reanimator.dck",
+      "name": "Mono-Black Reanimator",
+      "format": "Constructed - Standard",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Valgavoth, Terror Eater",
+        "setCode": "DSK",
+        "cardNumber": "120"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "standard-gruul-dragons.dck",
+      "name": "Gruul Dragons",
+      "format": "Constructed - Standard",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Twinflame Tyrant",
+        "setCode": "FDN",
+        "cardNumber": "97"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "standard-hare-apparent-tokens.dck",
+      "name": "Hare Apparent Tokens",
+      "format": "Constructed - Standard",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Hare Apparent",
+        "setCode": "FDN",
+        "cardNumber": "15"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "standard-golgari-squirrels.dck",
+      "name": "Golgari Squirrels",
+      "format": "Constructed - Standard",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Camellia, the Seedmiser",
+        "setCode": "BLB",
+        "cardNumber": "207"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "pioneer-azorius-spirits.dck",
+      "name": "Azorius Spirits",
+      "format": "Constructed - Pioneer",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Supreme Phantom",
+        "setCode": "M19",
+        "cardNumber": "76"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "pioneer-mono-white-humans.dck",
+      "name": "Mono-White Humans",
+      "format": "Constructed - Pioneer",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Thalia's Lieutenant",
+        "setCode": "SOI",
+        "cardNumber": "43"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "pioneer-selesnya-angels.dck",
+      "name": "Selesnya Angels",
+      "format": "Constructed - Pioneer",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Giada, Font of Hope",
+        "setCode": "FDN",
+        "cardNumber": "141"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "pioneer-gruul-dinosaurs.dck",
+      "name": "Gruul Dinosaurs",
+      "format": "Constructed - Pioneer",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Marauding Raptor",
+        "setCode": "M20",
+        "cardNumber": "150"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "pioneer-jeskai-ensoul.dck",
+      "name": "Jeskai Ensoul",
+      "format": "Constructed - Pioneer",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Ensoul Artifact",
+        "setCode": "M15",
+        "cardNumber": "54"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "pioneer-mono-black-zombies.dck",
+      "name": "Mono-Black Zombies",
+      "format": "Constructed - Pioneer",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Champion of the Perished",
+        "setCode": "PRM",
+        "cardNumber": "93964"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "modern-boros-burn.dck",
+      "name": "Boros Burn",
+      "format": "Constructed - Modern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Goblin Guide",
+        "setCode": "PRM",
+        "cardNumber": "44309"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "modern-mono-blue-merfolk.dck",
+      "name": "Mono-Blue Merfolk",
+      "format": "Constructed - Modern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Lord of Atlantis",
+        "setCode": "LEA",
+        "cardNumber": "62"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "modern-selesnya-bogles.dck",
+      "name": "Selesnya Bogles",
+      "format": "Constructed - Modern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Slippery Bogle",
+        "setCode": "EVE",
+        "cardNumber": "160"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "modern-mono-green-elves.dck",
+      "name": "Mono-Green Elves",
+      "format": "Constructed - Modern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Elvish Archdruid",
+        "setCode": "FDN",
+        "cardNumber": "219"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "modern-mono-white-soul-sisters.dck",
+      "name": "Mono-White Soul Sisters",
+      "format": "Constructed - Modern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Soul Warden",
+        "setCode": "EXO",
+        "cardNumber": "21"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "modern-mono-black-rats.dck",
+      "name": "Mono-Black Rats",
+      "format": "Constructed - Modern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Pack Rat",
+        "setCode": "RTR",
+        "cardNumber": "73"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "legacy-death-and-taxes.dck",
+      "name": "Death and Taxes",
+      "format": "Constructed - Legacy",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Mother of Runes",
+        "setCode": "ULG",
+        "cardNumber": "14"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "legacy-mono-red-burn.dck",
+      "name": "Mono-Red Burn",
+      "format": "Constructed - Legacy",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Goblin Guide",
+        "setCode": "PRM",
+        "cardNumber": "44309"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "legacy-mono-green-elves.dck",
+      "name": "Mono-Green Elves",
+      "format": "Constructed - Legacy",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Heritage Druid",
+        "setCode": "MOR",
+        "cardNumber": "126"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "legacy-rakdos-goblins.dck",
+      "name": "Rakdos Goblins",
+      "format": "Constructed - Legacy",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Goblin Lackey",
+        "setCode": "USG",
+        "cardNumber": "190"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "legacy-mono-white-soldiers.dck",
+      "name": "Mono-White Soldiers",
+      "format": "Constructed - Legacy",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Preeminent Captain",
+        "setCode": "MOR",
+        "cardNumber": "20"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "legacy-simic-infect.dck",
+      "name": "Simic Infect",
+      "format": "Constructed - Legacy",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Glistener Elf",
+        "setCode": "PRM",
+        "cardNumber": "43067"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "vintage-oath-of-druids.dck",
+      "name": "Oath of Druids",
+      "format": "Constructed - Vintage",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Oath of Druids",
+        "setCode": "EXO",
+        "cardNumber": "115"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "vintage-mono-blue-merfolk.dck",
+      "name": "Mono-Blue Merfolk",
+      "format": "Constructed - Vintage",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Lord of Atlantis",
+        "setCode": "LEA",
+        "cardNumber": "62"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "vintage-mono-green-hatebears.dck",
+      "name": "Mono-Green Hatebears",
+      "format": "Constructed - Vintage",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Collector Ouphe",
+        "setCode": "MH1",
+        "cardNumber": "158"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "vintage-mono-red-goblins.dck",
+      "name": "Mono-Red Goblins",
+      "format": "Constructed - Vintage",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Goblin Lackey",
+        "setCode": "USG",
+        "cardNumber": "190"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "vintage-mono-black-devotion.dck",
+      "name": "Mono-Black Devotion",
+      "format": "Constructed - Vintage",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Gray Merchant of Asphodel",
+        "setCode": "THS",
+        "cardNumber": "89"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "vintage-white-weenie.dck",
+      "name": "White Weenie",
+      "format": "Constructed - Vintage",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Mother of Runes",
+        "setCode": "ULG",
+        "cardNumber": "14"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "vintage-mono-red-dragons.dck",
+      "name": "Mono-Red Dragons",
+      "format": "Constructed - Vintage",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Thunderbreak Regent",
+        "setCode": "PRM",
+        "cardNumber": "55892"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "pauper-selesnya-bogles.dck",
+      "name": "Selesnya Bogles",
+      "format": "Constructed - Pauper",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Slippery Bogle",
+        "setCode": "EVE",
+        "cardNumber": "160"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "pauper-mono-white-heroic.dck",
+      "name": "Mono-White Heroic",
+      "format": "Constructed - Pauper",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Lagonna-Band Trailblazer",
+        "setCode": "JOU",
+        "cardNumber": "14"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "pauper-mono-green-stompy.dck",
+      "name": "Mono-Green Stompy",
+      "format": "Constructed - Pauper",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Nettle Sentinel",
+        "setCode": "EVE",
+        "cardNumber": "71"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "pauper-mono-black-devotion.dck",
+      "name": "Mono-Black Devotion",
+      "format": "Constructed - Pauper",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Gray Merchant of Asphodel",
+        "setCode": "THS",
+        "cardNumber": "89"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "pauper-slivers.dck",
+      "name": "Slivers",
+      "format": "Constructed - Pauper",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Muscle Sliver",
+        "setCode": "TMP",
+        "cardNumber": "238"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "pauper-walls-combo.dck",
+      "name": "Walls Combo",
+      "format": "Constructed - Pauper",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Overgrown Battlement",
+        "setCode": "ROE",
+        "cardNumber": "203"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "premodern-goblins.dck",
+      "name": "Goblins",
+      "format": "Constructed - Premodern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Goblin Lackey",
+        "setCode": "USG",
+        "cardNumber": "190"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "premodern-azorius-standstill.dck",
+      "name": "Azorius Standstill",
+      "format": "Constructed - Premodern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Standstill",
+        "setCode": "ODY",
+        "cardNumber": "102"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "premodern-mono-green-stompy.dck",
+      "name": "Mono-Green Stompy",
+      "format": "Constructed - Premodern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Rancor",
+        "setCode": "ULG",
+        "cardNumber": "110"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "premodern-white-weenie.dck",
+      "name": "White Weenie",
+      "format": "Constructed - Premodern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Savannah Lions",
+        "setCode": "FDN",
+        "cardNumber": "146"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "premodern-mono-blue-merfolk.dck",
+      "name": "Mono-Blue Merfolk",
+      "format": "Constructed - Premodern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Lord of Atlantis",
+        "setCode": "LEA",
+        "cardNumber": "62"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "premodern-mono-black-zombies.dck",
+      "name": "Mono-Black Zombies",
+      "format": "Constructed - Premodern",
+      "share": 0,
+      "cards": 60,
+      "cover": {
+        "name": "Lord of the Undead",
+        "setCode": "PLS",
+        "cardNumber": "44"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "commander-talrand-sky-summoner.dck",
+      "name": "Talrand, Sky Summoner",
+      "format": "Variant Magic - Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Talrand, Sky Summoner",
+        "setCode": "M13",
+        "cardNumber": "72"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "duel_commander-talrand-sky-summoner.dck",
+      "name": "Talrand, Sky Summoner",
+      "format": "Variant Magic - Duel Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Talrand, Sky Summoner",
+        "setCode": "M13",
+        "cardNumber": "72"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "commander-krenko-mob-boss.dck",
+      "name": "Krenko, Mob Boss",
+      "format": "Variant Magic - Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Krenko, Mob Boss",
+        "setCode": "FDN",
+        "cardNumber": "204"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "duel_commander-krenko-mob-boss.dck",
+      "name": "Krenko, Mob Boss",
+      "format": "Variant Magic - Duel Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Krenko, Mob Boss",
+        "setCode": "FDN",
+        "cardNumber": "204"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "commander-sram-senior-edificer.dck",
+      "name": "Sram, Senior Edificer",
+      "format": "Variant Magic - Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Sram, Senior Edificer",
+        "setCode": "AER",
+        "cardNumber": "23"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "duel_commander-sram-senior-edificer.dck",
+      "name": "Sram, Senior Edificer",
+      "format": "Variant Magic - Duel Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Sram, Senior Edificer",
+        "setCode": "AER",
+        "cardNumber": "23"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "commander-ayula-queen-among-bears.dck",
+      "name": "Ayula, Queen Among Bears",
+      "format": "Variant Magic - Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Ayula, Queen Among Bears",
+        "setCode": "PRM",
+        "cardNumber": "91303"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "duel_commander-ayula-queen-among-bears.dck",
+      "name": "Ayula, Queen Among Bears",
+      "format": "Variant Magic - Duel Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Ayula, Queen Among Bears",
+        "setCode": "PRM",
+        "cardNumber": "91303"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "commander-ezuri-renegade-leader.dck",
+      "name": "Ezuri, Renegade Leader",
+      "format": "Variant Magic - Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Ezuri, Renegade Leader",
+        "setCode": "SOM",
+        "cardNumber": "119"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "duel_commander-ezuri-renegade-leader.dck",
+      "name": "Ezuri, Renegade Leader",
+      "format": "Variant Magic - Duel Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Ezuri, Renegade Leader",
+        "setCode": "SOM",
+        "cardNumber": "119"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
+    },
+    {
+      "file": "commander-shirei-shizo-s-caretaker.dck",
+      "name": "Shirei, Shizo's Caretaker",
+      "format": "Variant Magic - Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Shirei, Shizo's Caretaker",
+        "setCode": "BOK",
+        "cardNumber": "81"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "duel_commander-shirei-shizo-s-caretaker.dck",
+      "name": "Shirei, Shizo's Caretaker",
+      "format": "Variant Magic - Duel Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Shirei, Shizo's Caretaker",
+        "setCode": "BOK",
+        "cardNumber": "81"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "commander-goreclaw-terror-of-qal-sisma.dck",
+      "name": "Goreclaw, Terror of Qal Sisma",
+      "format": "Variant Magic - Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Goreclaw, Terror of Qal Sisma",
+        "setCode": "M19",
+        "cardNumber": "186"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "duel_commander-goreclaw-terror-of-qal-sisma.dck",
+      "name": "Goreclaw, Terror of Qal Sisma",
+      "format": "Variant Magic - Duel Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Goreclaw, Terror of Qal Sisma",
+        "setCode": "M19",
+        "cardNumber": "186"
+      },
+      "source": "Playmat original list",
+      "tier": "fun"
+    },
+    {
+      "file": "duel_commander-torbran-thane-of-red-fell.dck",
+      "name": "Torbran, Thane of Red Fell",
+      "format": "Variant Magic - Duel Commander",
+      "share": 0,
+      "cards": 100,
+      "cover": {
+        "name": "Torbran, Thane of Red Fell",
+        "setCode": "ELD",
+        "cardNumber": "147"
+      },
+      "source": "Playmat original list",
+      "tier": "rogue"
     }
   ]
 }
