@@ -1,4 +1,4 @@
-import { Coins, Package } from 'lucide-react';
+import { Coins, Package, Star } from 'lucide-react';
 import { useState } from 'react';
 import { formatNumber, registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
@@ -41,7 +41,7 @@ export default function ProgressChip() {
           </svg>
           <b>{level}</b>
         </span>
-        {(profile.renown ?? 0) > 0 && <span className={styles.coins} aria-hidden="true">★{profile.renown}</span>}
+        {(profile.renown ?? 0) > 0 && <span className={styles.coins} aria-hidden="true"><Star size={14} /> {profile.renown}</span>}
         <span className={styles.coins} aria-hidden="true"><Coins size={14} /> {formatNumber(profile.coins ?? 0)}</span>
         {packs > 0 && <span className={styles.packs} aria-hidden="true"><Package size={14} /> {packs}</span>}
         {(profile.capsuleTokens ?? 0) > 0 && <span className={styles.packs} aria-hidden="true"><TokenIcon size={14} /> {profile.capsuleTokens}</span>}

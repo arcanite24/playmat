@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { flagChoices, flagCode, flagGlyph, sigilOf } from './identity';
+import { flagChoices, flagCode, flagText, sigilOf } from './identity';
 
 describe('identity', () => {
   it('reads the server flag file name', () => {
@@ -8,14 +8,19 @@ describe('identity', () => {
     expect(flagCode(undefined)).toBe('world');
   });
 
-  it('draws country flags with regional indicators', () => {
-    expect(flagGlyph('de')).toBe('🇩🇪');
-    expect(flagGlyph('world')).toBe('🌐');
-    expect(flagGlyph('genderfluid')).toBe('🌐');
+  it('uses text badges for known flags and a globe fallback for unknown flags', () => {
+    expect(flagText('de')).toBe('DE');
+    expect(flagText('europeanunion')).toBe('EU');
+    expect(flagText('england')).toBe('ENG');
+    expect(flagText('lgbt')).toBe('LGBT');
+    expect(flagText('trans')).toBe('TRANS');
+    expect(flagText('zz')).toBe('');
+    expect(flagText('world')).toBe('');
+    expect(flagText('genderfluid')).toBe('');
   });
 
   it('maps avatar ids to sigils, with the initial for the default', () => {
-    expect(sigilOf(12)).toBe('🐉');
+    expect(sigilOf(12)).toBe('dragon');
     expect(sigilOf(10)).toBeNull();
     expect(sigilOf(51)).toBeNull();
   });

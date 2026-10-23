@@ -45,6 +45,9 @@
 }
 
 .flag {
-  font-size: 1.05em;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75em;
+  font-weight: 600;
   line-height: 1;
 }

@@ -24,7 +24,7 @@ export function PuzzleBoard({ puzzleId }: { puzzleId: string }) {
               <tr key={`${entry.rank}-${entry.user}`} className={entry.you ? styles.rowOn : undefined} aria-current={entry.you ? 'true' : undefined}>
                 <th scope="row">{entry.rank}</th>
                 <td>{entry.user}{entry.you && <b className={styles.youTag}> {t('career.challenge.you')}</b>}</td>
-                <td>{t('career.puzzle.boardResult', { stars: entry.v1 ?? 0, tries: entry.v2 ?? 1 })}</td>
+                <td>{t('career.puzzle.boardResult', { count: entry.v1 ?? 0, tries: entry.v2 ?? 1 })}</td>
               </tr>
             ))}
           </tbody>

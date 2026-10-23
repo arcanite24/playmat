@@ -19,6 +19,9 @@
 }
 
 .sigil {
+  display: grid;
+  place-items: center;
+  color: var(--ink-strong);
   width: 40px;
   height: 40px;
   border: 1px solid var(--ink-ghost);

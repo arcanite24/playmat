@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Eye, RadioTower } from 'lucide-react';
+import { Check, Eye, RadioTower } from 'lucide-react';
 import { BROADCAST_DELAYS, delayLabel, isBroadcastDelay } from '../../core/game/broadcastDelay';
 import type { GameSession, GameSessionState } from '../../core/game/gameSession';
 import { useSettings } from '../stores/settings';
@@ -77,7 +77,7 @@ function BroadcastMenu({ session, watching, live }: { session: GameSession; watc
                 {BROADCAST_DELAYS.map((seconds) => (
                   <DropdownMenu.RadioItem key={seconds} value={String(seconds)} className={styles.menuItem} onSelect={(event) => event.preventDefault()}>
                     {delayLabel(seconds)}
-                    <DropdownMenu.ItemIndicator className={styles.check}>✓</DropdownMenu.ItemIndicator>
+                    <DropdownMenu.ItemIndicator className={styles.check}><Check size={16} aria-hidden="true" /></DropdownMenu.ItemIndicator>
                   </DropdownMenu.RadioItem>
                 ))}
               </DropdownMenu.RadioGroup>

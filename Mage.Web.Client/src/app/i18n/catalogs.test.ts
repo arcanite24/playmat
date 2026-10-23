@@ -10,7 +10,7 @@ import whatsNew from './en/whatsNew';
 import support from './en/support';
 import social from './en/social';
 import es from './es';
-import type { Message } from './translate';
+import { createTranslator, type Message } from './translate';
 
 const english: Record<string, Message> = { ...core, ...settings, ...events, ...about, ...career, ...match, ...legal, ...whatsNew, ...support, ...social };
 
@@ -39,5 +39,14 @@ describe('catalogs', () => {
     for (const message of [...Object.values(english), ...Object.values(es)]) {
       if (typeof message !== 'string') expect(message.other).toBeTruthy();
     }
+  });
+
+  test.each([
+    ['en', english, '1 star on try 2', '3 stars on try 2'],
+    ['es', es, '1 estrella en el intento 2', '3 estrellas en el intento 2'],
+  ] as const)('puzzle results use words and plural forms in %s', (locale, messages, one, other) => {
+    const t = createTranslator({ locale, messages, fallback: english });
+    expect(t('career.puzzle.boardResult', { count: 1, tries: 2 })).toBe(one);
+    expect(t('career.puzzle.boardResult', { count: 3, tries: 2 })).toBe(other);
   });
 });

@@ -5,6 +5,7 @@ import messages from '../i18n/en/career';
 import { readJson, writeJson } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
+import { SigilIcon } from '../ui/SigilIcon';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { useCareerState, useProgressionShown } from './careerData';
@@ -46,7 +47,7 @@ export default function WelcomeDialog() {
           <button key={sigil.id} type="button" role="radio" aria-checked={avatarId === sigil.id} aria-label={sigil.label}
             className={[styles.sigil, avatarId === sigil.id ? styles.on : ''].join(' ')}
             onClick={() => useSettings.getState().update({ avatarId: sigil.id })}>
-            {sigil.glyph}
+            <SigilIcon sigil={sigil.key} size={24} />
           </button>
         ))}
       </div>

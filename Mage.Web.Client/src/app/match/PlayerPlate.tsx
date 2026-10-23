@@ -11,6 +11,7 @@ import { useCatalogItem } from '../ui/cosmeticsCatalog';
 import { useT } from '../i18n';
 import './matchMessages';
 import { ManaCost } from '../ui/ManaCost';
+import { SigilIcon } from '../ui/SigilIcon';
 import { sigilOf } from '../../core/social/identity';
 import { LevelBadge } from '../social/LevelBadge';
 import { usePresence } from './presence';
@@ -107,7 +108,8 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
   const timeLeft = useRopeSeconds(player);
   const ticking = ropeVisible(player.timerActive, player.hasPriority, timeLeft);
   // the player's sigil from their profile, or their initial
-  const initial = sigilOf(player.userData?.avatarId) ?? (player.name ?? '?').slice(0, 1).toUpperCase();
+  const sigil = sigilOf(player.userData?.avatarId);
+  const initial = (player.name ?? '?').slice(0, 1).toUpperCase();
   // a Career avatar, drawn in its colours, replaces the initial
   const avatar = useCatalogItem('avatar', look?.avatar);
   const crest = avatar?.path ? { light: avatar.light ?? '#7a7466', dark: avatar.dark ?? '#22201b', path: avatar.path } : undefined;
@@ -152,7 +154,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
               <path d={crest.path} />
             </svg>
           ) : (
-            <span aria-hidden="true">{initial}</span>
+            <span aria-hidden="true">{sigil ? <SigilIcon sigil={sigil} size="1em" /> : initial}</span>
           )}
           {ticking && (
             <svg className={styles.rope} viewBox="0 0 100 100" role="img" aria-label={`${Math.ceil(timeLeft)} seconds left`}>
