@@ -7,7 +7,7 @@ import { queryClient, useServerInfo } from '../queries';
 import { readJson, writeJson } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { DEFAULT_WEAR, THANK_YOU, type Wear } from './thankYou';
-import { owns } from './supportModel';
+import { owns, sameLook } from './supportModel';
 
 /** Supporting the server, as the screens ask for it: the month's goal, the player's thank-you set, and others' looks. */
 
@@ -131,6 +131,8 @@ interface LooksState {
 export const useLooks = create<LooksState>(() => ({ looks: {} }));
 
 const askedAt = new Map<string, number>();
+const lookSequence = new Map<string, number>();
+let sequence = 0;
 const queued = new Set<string>();
 let flushing: ReturnType<typeof setTimeout> | null = null;
 
@@ -157,17 +159,28 @@ async function flush(): Promise<void> {
   flushing = null;
   const names = [...queued];
   queued.clear();
+  const stamps = new Map(names.map((name) => [name.toLowerCase(), ++sequence]));
+  for (const [name, stamp] of stamps) lookSequence.set(name, stamp);
   for (let start = 0; start < names.length; start += BATCH) {
     const batch = names.slice(start, start + BATCH);
+    const requests = new Map(batch.map((name) => [name.toLowerCase(), stamps.get(name.toLowerCase())!]));
     try {
       const found = await api.profileLooks(batch);
-      const looks = { ...useLooks.getState().looks };
-      for (const name of batch) looks[name.toLowerCase()] = null;
-      for (const look of found ?? []) if (look.name) looks[look.name.toLowerCase()] = look;
-      useLooks.setState({ looks });
+      const previous = useLooks.getState().looks;
+      const looks = { ...previous };
+      const byName = new Map((found ?? []).filter((look) => look.name).map((look) => [look.name!.toLowerCase(), look]));
+      let changed = false;
+      for (const [name, stamp] of requests) {
+        if (lookSequence.get(name) !== stamp) continue;
+        const look = byName.get(name) ?? null;
+        if (previous[name] === look || sameLook(previous[name], look)) continue;
+        looks[name] = look;
+        changed = true;
+      }
+      if (changed) useLooks.setState({ looks });
     } catch {
       // asked again next time
-      for (const name of batch) askedAt.delete(name.toLowerCase());
+      for (const [name, stamp] of requests) if (lookSequence.get(name) === stamp) askedAt.delete(name);
     }
   }
 }
@@ -175,25 +188,39 @@ async function flush(): Promise<void> {
 /** The player's own look as the server kept it, so their own plate and name show it too. */
 export function rememberLook(look: PlayerLook): void {
   if (!look.name) return;
-  askedAt.set(look.name.toLowerCase(), Date.now());
-  useLooks.setState((state) => ({ looks: { ...state.looks, [look.name!.toLowerCase()]: look } }));
+  const name = look.name.toLowerCase();
+  askedAt.set(name, Date.now());
+  lookSequence.set(name, ++sequence);
+  if (!sameLook(useLooks.getState().looks[name], look)) {
+    useLooks.setState((state) => ({ looks: { ...state.looks, [name]: look } }));
+  }
+}
+
+function useWantLooks(names: readonly (string | undefined)[], fresh = false): void {
+  const accounts = useServerInfo().data?.accounts === true;
+  const loginCount = useSession((state) => state.loginCount);
+  const key = names.map((name) => name?.trim().toLowerCase() ?? '').join('\n');
+  useEffect(() => {
+    if (!key || !accounts) return;
+    wantLooks(key.split('\n'), fresh);
+    // A seat can arrive before its browser uploads its look; matches refresh while they stay open.
+    if (!fresh) return;
+    const timer = setInterval(() => wantLooks(key.split('\n'), true), 30_000);
+    return () => clearInterval(timer);
+  }, [key, fresh, accounts, loginCount]);
 }
 
 /** These players' looks, asked for when the list changes. */
 export function usePlayerLooks(names: readonly (string | undefined)[], fresh = false): Record<string, PlayerLook | null> {
-  const key = names.map((name) => name?.toLowerCase() ?? '').join('\n');
-  useEffect(() => {
-    if (key) wantLooks(key.split('\n'), fresh);
-  }, [key, fresh]);
+  useWantLooks(names, fresh);
   return useLooks((state) => state.looks);
 }
 
 /** One player's look (ring, title, flair, pet), asked for if unknown. */
 export function useLook(name: string | undefined): PlayerLook | undefined {
-  useEffect(() => {
-    if (name) wantLooks([name]);
-  }, [name]);
-  return useLooks((state) => (name ? state.looks[name.toLowerCase()] ?? undefined : undefined));
+  useWantLooks([name]);
+  const key = name?.trim().toLowerCase() ?? '';
+  return useLooks((state) => state.looks[key] ?? undefined);
 }
 
 /** One player's flair ("heart"), asked for if unknown. */
@@ -205,6 +232,10 @@ export function useFlair(name: string | undefined): string | undefined {
 useSession.subscribe((state, previous) => {
   if (state.userName !== previous.userName || state.serverUrl !== previous.serverUrl) {
     askedAt.clear();
+    lookSequence.clear();
+    queued.clear();
+    if (flushing) clearTimeout(flushing);
+    flushing = null;
     useLooks.setState({ looks: {} });
   }
 });

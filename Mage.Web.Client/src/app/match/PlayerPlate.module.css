@@ -67,6 +67,12 @@
   color: var(--ink-strong);
 }
 
+.avatarArt {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .crest {
   width: 62%;
   height: 62%;
