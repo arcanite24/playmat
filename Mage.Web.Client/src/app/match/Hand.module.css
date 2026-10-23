@@ -126,3 +126,24 @@
   white-space: nowrap;
   pointer-events: none;
 }
+
+.keyHint {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--mat-950);
+  color: var(--ink-strong);
+  font-family: inherit;
+  font-size: 21px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.keyHintShown,
+.card:hover .keyHint,
+.card:focus-visible .keyHint {
+  opacity: 1;
+}

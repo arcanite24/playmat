@@ -15,6 +15,7 @@ import { ManaCost } from '../ui/ManaCost';
 import { sigilOf } from '../../core/social/identity';
 import { LevelBadge } from '../social/LevelBadge';
 import { usePresence } from './presence';
+import { isMatchObjectKey, preventMatchObjectMouseFocus } from './keyboard';
 import styles from './PlayerPlate.module.css';
 
 export interface PlayerPlateProps {
@@ -135,12 +136,13 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
       style={sleeve ? ({ '--sleeve': sleeve } as CSSProperties) : undefined}
       role={targetable ? 'button' : 'group'}
       tabIndex={targetable ? 0 : undefined}
+      onMouseDown={preventMatchObjectMouseFocus}
       aria-label={out
         ? t('match.plate.aria.lost', { name: player.name ?? '' })
         : `${player.name}, ${life} life${disconnected ? `, ${t('match.plate.aria.disconnected')}` : ''}${outOfRange ? ', out of range' : ''}${targetable ? ', can be targeted' : ''}`}
       onClick={() => targetable && onClick()}
       onKeyDown={(event) => {
-        if (targetable && event.key === 'Enter') {
+        if (targetable && isMatchObjectKey(event.nativeEvent)) {
           event.preventDefault();
           onClick();
         }

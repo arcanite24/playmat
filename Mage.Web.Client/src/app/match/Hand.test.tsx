@@ -7,6 +7,7 @@ import { GameSession } from '../../core/game/gameSession';
 import type { Api } from '../../protocol/generated/api';
 import type { CardView, GameView } from '../../protocol/generated/views';
 import { Hand } from './Hand';
+import { ActionCluster } from './ActionCluster';
 import { DEFAULT_STAGE, StageContext } from './stageContext';
 
 const BOLT: CardView = { id: 'bolt', name: 'Lightning Bolt', expansionSetCode: 'M10', cardNumber: '146' } as CardView;
@@ -125,6 +126,39 @@ describe('Hand', () => {
     const bolt = card(/Lightning Bolt/);
     fireEvent.pointerDown(bolt, { button: 2, pointerId: 1, clientX: 100, clientY: 900 });
     fireEvent.pointerUp(bolt, { button: 2, pointerId: 1, clientX: 100, clientY: 900 });
+    expect(api.sendPlayerUUID).not.toHaveBeenCalled();
+  });
+});
+
+describe('hand number shortcuts', () => {
+  test('plays the visible numbered card only when eligible, once until the server answers', () => {
+    const { api } = setup();
+    fireEvent.keyDown(window, { key: '2' });
+    fireEvent.keyDown(window, { key: '1', altKey: true });
+    fireEvent.keyDown(window, { key: '1', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '1', repeat: true });
+    expect(api.sendPlayerUUID).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(window, { key: '1' });
+    expect(api.sendPlayerUUID).toHaveBeenCalledTimes(1);
+    expect(api.sendPlayerUUID).toHaveBeenCalledWith('g1', 'bolt');
+  });
+
+  test('activating a focused hand card never also passes priority', () => {
+    const { api } = setup();
+    const onCommand = vi.fn();
+    render(<ActionCluster interaction={{ mode: 'priority', prompt: null, headline: '', clickable: new Map(), selected: new Set(), mainButton: { label: 'Pass', tone: 'primary', command: { type: 'boolean', value: false } }, secondaryButtons: [] }} awaiting={false} status={null} canAct special={false} holdingPriority={false} onCommand={onCommand} />);
+    fireEvent.keyDown(card(/Lightning Bolt/), { key: 'Enter' });
+    expect(api.sendPlayerUUID).toHaveBeenCalledTimes(1);
+    expect(onCommand).not.toHaveBeenCalled();
+  });
+
+  test('does not play cards behind dialogs or while typing', () => {
+    const { api } = setup();
+    const overlay = render(<div role="dialog"><textarea aria-label="Chat" /></div>);
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: '1' });
+    overlay.unmount();
     expect(api.sendPlayerUUID).not.toHaveBeenCalled();
   });
 });

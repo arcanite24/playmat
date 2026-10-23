@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { PlayableZone } from '../../core/game/offZonePlayables';
 import type { CardView } from '../../protocol/generated/views';
 import { useT } from '../i18n';
@@ -9,6 +9,8 @@ import { useFlip } from './flip';
 import { placeHand } from './matchLayout';
 import { useMatchUi } from './matchUi';
 import { useStage } from './stageContext';
+import { ignoreMatchKey, isMatchObjectKey, matchKeysBlocked, numberKeyIndex, preventMatchObjectMouseFocus } from './keyboard';
+import { useKeyboardHints } from './useKeyboardHints';
 import styles from './Hand.module.css';
 
 export interface HandProps {
@@ -44,6 +46,21 @@ const DRAG_THRESHOLD = 12;
 export function Hand({ cards, choosing = false, clickable, selected, pending = null, sleeve, onPlay, playLine, libraryOrigin, faceDown = false, label = 'Your hand', fromZone, clearLeft = 0, clearRight = 0 }: HandProps) {
   const t = useT();
   const stage = useStage();
+  const hints = useKeyboardHints();
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (faceDown || pending || ignoreMatchKey(event) || matchKeysBlocked() || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const index = numberKeyIndex(event);
+      const id = index === null ? null : cards[index]?.id;
+      if (id && clickable.has(id)) {
+        event.preventDefault();
+        event.stopPropagation();
+        onPlay(id);
+      }
+    }
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [cards, clickable, faceDown, pending, onPlay]);
   const count = cards.length;
   const { center, spread, width } = placeHand(count, stage.width, clearLeft, clearRight);
   const arc = Math.min(4, 26 / Math.max(1, count));
@@ -58,6 +75,7 @@ export function Hand({ cards, choosing = false, clickable, selected, pending = n
             key={keys[index]}
             card={card}
             index={index}
+            hints={hints}
             left={index * spread}
             rotate={offset * arc}
             drop={Math.abs(offset) * Math.abs(offset) * arc * 0.9}
@@ -82,6 +100,7 @@ interface HandCardProps {
   card: CardView;
   choosing: boolean;
   index: number;
+  hints: boolean;
   left: number;
   rotate: number;
   drop: number;
@@ -96,7 +115,7 @@ interface HandCardProps {
   fromZone?: PlayableZone;
 }
 
-function HandCard({ card, choosing, index, left, rotate, drop, clickable, selected, pending, sleeve, onPlay, playLine, libraryOrigin, faceDown, fromZone }: HandCardProps) {
+function HandCard({ card, choosing, index, hints, left, rotate, drop, clickable, selected, pending, sleeve, onPlay, playLine, libraryOrigin, faceDown, fromZone }: HandCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const stage = useStage();
   const setZoom = useMatchUi((state) => state.setZoom);
@@ -149,6 +168,7 @@ function HandCard({ card, choosing, index, left, rotate, drop, clickable, select
       className={[styles.card, faceDown ? styles.faceDown : '', clickable ? (choosing ? styles.choosable : styles.playable) : choosing ? styles.unchoosable : '', selected ? styles.selected : '', pending && !selected ? styles.pending : '', drag?.moved ? styles.dragging : ''].join(' ')}
       style={style}
       tabIndex={clickable ? 0 : -1}
+      onMouseDown={preventMatchObjectMouseFocus}
       aria-label={`${faceDown ? 'Hidden card' : card.name ?? 'Card'}${fromZone ? `, ${ZONE_TAG[fromZone].toLowerCase()}` : ''}${clickable ? ', playable' : ''}${selected ? ', chosen' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -159,16 +179,18 @@ function HandCard({ card, choosing, index, left, rotate, drop, clickable, select
         setDragging(null);
       }}
       onKeyDown={(event) => {
-        if (clickable && event.key === 'Enter') {
+        if (clickable && !pending && isMatchObjectKey(event.nativeEvent)) {
           event.preventDefault();
           onPlay(card.id!);
         }
       }}
       onPointerEnter={(event) => !drag && !faceDown && setZoom({ card, x: event.clientX, y: event.clientY, sleeve })}
       onPointerLeave={() => setZoom(null)}
+      aria-keyshortcuts={clickable && index < 10 ? `${(index + 1) % 10}` : undefined}
       data-object-id={card.id}
     >
       <CardFace card={card} sleeve={sleeve} hidden={faceDown} />
+      {!faceDown && clickable && index < 10 && <kbd className={[styles.keyHint, hints ? styles.keyHintShown : ''].join(' ')} aria-hidden="true">{(index + 1) % 10}</kbd>}
       {fromZone && <span className={styles.fromZone} aria-hidden="true">{ZONE_TAG[fromZone]}</span>}
     </div>
   );

@@ -3,6 +3,23 @@
  * the server's own messages stay in English.
  */
 export default {
+  // match keyboard help
+  'match.shortcuts.title': "Keyboard shortcuts",
+  'match.shortcuts.primaryKeys': "Space / Enter",
+  'match.shortcuts.primary': "Use the main action (except yes/no questions), or activate a card or button reached with the keyboard.",
+  'match.shortcuts.hand': "Play or select hand card 1–10, from left to right. 0 is the tenth card.",
+  'match.shortcuts.secondary': "Use the first secondary option (No attackers, Cancel…).",
+  'match.shortcuts.secondaryNumber': "Use that secondary option in the current prompt.",
+  'match.shortcuts.hints': "Hold for hints; release before using hand numbers.",
+  'match.shortcuts.focus': "Move between cards, targets and controls; Enter activates.",
+  'match.shortcuts.choices': "Choices open without a selection: arrows or Tab move focus; Enter chooses. Numbers choose directly.",
+  'match.shortcuts.cancel': "Cancel or skip a choice when allowed.",
+  'match.shortcuts.undo': "Undo mana taps at priority, when available.",
+  'match.shortcuts.control': "Press and release together to toggle full control.",
+  'match.shortcuts.ahead': "Pass to end of turn / next turn / your next turn / resolve the stack.",
+  'match.shortcuts.mute': "Toggle game sounds.",
+  'match.shortcuts.note': "Shortcuts pause while typing or using menus. Tab reaches cards beyond the first ten.",
+
   // a count of cards after a pile's name ("Your graveyard, 1 card")
   'match.cards': { one: '{label}, {count} card', other: '{label}, {count} cards' },
 

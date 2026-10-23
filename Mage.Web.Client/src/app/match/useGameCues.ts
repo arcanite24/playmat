@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import type { GameSessionState } from '../../core/game/gameSession';
 import { useSettings } from '../stores/settings';
 import { notify } from '../stores/toasts';
-import { isEditableEventTarget } from '../ui/keys';
+import { ignoreMatchKey, matchKeysBlocked } from './keyboard';
 import { cueSnapshot, pickCue, type CueSnapshot } from './cueRules';
 import { playCue } from './sound';
 
@@ -22,12 +22,12 @@ export function useGameCues(state: GameSessionState, myId: string | null, autoPa
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key !== 'm' && event.key !== 'M') return;
-      if (event.metaKey || event.ctrlKey || event.altKey || event.repeat || isEditableEventTarget(event.target)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey || ignoreMatchKey(event) || matchKeysBlocked()) return;
       const { settings, update } = useSettings.getState();
       update({ sound: !settings.sound });
       notify(settings.sound ? 'Sound off' : 'Sound on', 'Press M to switch it back.');
     }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, []);
 }

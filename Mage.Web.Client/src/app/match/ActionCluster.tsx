@@ -1,6 +1,6 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ChevronUp } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import type { Command, Interaction, PromptButton } from '../../core/game/interaction';
 import type { CardView, PlayerAction } from '../../protocol/generated/views';
 import { useT } from '../i18n';
@@ -10,6 +10,8 @@ import { CardFace } from '../ui/CardFace';
 import { PromptText } from '../ui/PromptText';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
+import { ignoreMatchKey, matchKeysBlocked, promptKey } from './keyboard';
+import { useKeyboardHints } from './useKeyboardHints';
 import styles from './ActionCluster.module.css';
 
 export interface ActionClusterProps {
@@ -57,46 +59,49 @@ export function ActionCluster({
   const t = useT();
   const openViewer = useMatchUi((state) => state.openViewer);
   const main = interaction.mainButton;
-  const secondary = [...interaction.secondaryButtons];
-  if (special && interaction.mode === 'priority') {
-    secondary.unshift({ label: 'Special action', command: { type: 'string', value: 'special' }, tone: 'secondary' });
-  }
-  // mana tapped at priority can be taken back while the stack is empty (the server restores the lands and the
-  // pool), as in the desktop client. Never while paying: undo would roll back to before the spell while the
-  // server is still collecting its cost, and the half-cast spell then resolves or vanishes (#55); Cancel there
-  // already untaps everything.
+  const primaryShortcut = interaction.mode !== 'question' || main?.shortcut === 'Space';
+  const hints = useKeyboardHints();
+  // Never undo while paying: Cancel rolls back the half-cast spell and its mana taps (#55).
   const undo = undoable && interaction.mode === 'priority' && canAct ? UNDO : null;
-  if (undo) secondary.unshift(undo);
+  const secondary = useMemo(() => {
+    const buttons = [...interaction.secondaryButtons];
+    if (special && interaction.mode === 'priority') {
+      buttons.unshift({ label: 'Special action', command: { type: 'string', value: 'special' }, tone: 'secondary' });
+    }
+    if (undo) buttons.unshift(undo);
+    return buttons;
+  }, [interaction.secondaryButtons, interaction.mode, special, undo]);
   const cancel = secondary.find((button) => button.label === 'Cancel');
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      // while a card is open in the detail view, keys belong to it: Space must never pass by accident
-      if (useMatchUi.getState().detail) return;
-      // Space always answers with the main button (as on the table, the big button is the one decision);
-      // a focused real button keeps its own Space and Enter
-      if (isEditableEventTarget(event.target) || event.target instanceof HTMLButtonElement) return;
-      // Enter belongs to a focused card or plate; with nothing focused it also answers with the main button
-      const onObject = event.target instanceof HTMLElement && event.target.getAttribute('role') === 'button';
-      if ((event.code === 'Space' || (event.key === 'Enter' && !onObject)) && main?.shortcut === 'Space' && !awaiting) {
-        event.preventDefault();
-        onCommand(main.command);
-      } else if (undo && (event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
-        event.preventDefault();
-        onCommand(undo.command);
-      } else if (event.key === 'Escape' && cancel && (!awaiting || interaction.mode === 'payMana')) {
-        onCommand(cancel.command);
-      } else {
+      if (ignoreMatchKey(event) || matchKeysBlocked() || !canAct) return;
+      const key = promptKey(event);
+      const focusedControl = event.target instanceof HTMLElement && event.target.closest('button, [role="button"], [role="listitem"], a');
+      let command: Command | undefined;
+      if (key === 'primary' && primaryShortcut && !focusedControl && !awaiting && !autoPassing) {
+        command = main?.command;
+      } else if (key && typeof key === 'object' && interaction.mode !== 'waiting') {
+        const button = secondary[key.secondary];
+        if (!awaiting || (interaction.mode === 'payMana' && button === cancel)) command = button?.command;
+      } else if (key === 'cancel' && (!awaiting || interaction.mode === 'payMana')) {
+        command = cancel?.command;
+      } else if (undo && !awaiting && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'z') {
+        command = undo.command;
+      } else if (!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && (interaction.mode === 'priority' || interaction.mode === 'waiting')) {
         const ahead = PASS_AHEAD.find((item) => item.key === event.key);
-        if (ahead && canAct) {
-          event.preventDefault();
-          onCommand({ type: 'action', action: ahead.action });
-        }
+        if (ahead) command = { type: 'action', action: ahead.action };
+      }
+      // Reserved Alt shortcuts must not fall through to a focused button's native activation.
+      if (command || (key && typeof key === 'object')) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (command) onCommand(command);
       }
     }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [main, cancel, undo, awaiting, canAct, interaction.mode, onCommand]);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [main, primaryShortcut, secondary, cancel, undo, awaiting, autoPassing, canAct, interaction.mode, onCommand]);
 
   // Ctrl+Shift on its own, as on Arena, locks full control on or off (released without any other key in between)
   useEffect(() => {
@@ -104,12 +109,12 @@ export function ActionCluster({
     let armed = false;
     const isModifier = (event: KeyboardEvent) => event.key === 'Control' || event.key === 'Shift';
     function onDown(event: KeyboardEvent) {
-      armed = isModifier(event) && event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey;
+      armed = !ignoreMatchKey(event) && !matchKeysBlocked() && isModifier(event) && event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey;
     }
     function onUp(event: KeyboardEvent) {
       if (!armed || !isModifier(event)) return;
       armed = false;
-      if (!isEditableEventTarget(event.target)) onFullControl!(!fullControl);
+      if (!isEditableEventTarget(event.target) && !matchKeysBlocked()) onFullControl!(!fullControl);
     }
     const disarm = () => { armed = false; };
     window.addEventListener('keydown', onDown);
@@ -165,16 +170,21 @@ export function ActionCluster({
       {(secondary.length > 0 || extra) && deciding && (
         <div className={styles.secondary}>
           {extra}
-          {secondary.map((button) => (
+          {secondary.map((button, index) => (
             <Button
               key={button.label}
               variant={button.tone === 'danger' ? 'danger' : button.tone === 'attack' ? 'print' : 'print'}
               size="md"
+              aria-keyshortcuts={index < 10 ? `Alt+${(index + 1) % 10}${index === 0 ? ' Alt+Enter' : ''}` : undefined}
               title={button.shortcut && button.shortcut !== 'Space' ? `${button.label} (${button.shortcut})` : undefined}
+              onKeyDown={(event) => {
+                if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
+              }}
               onClick={() => onCommand(button.command)}
               className={button.tone === 'attack' ? styles.attack : undefined}
             >
               {button.label}
+              {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
             </Button>
           ))}
         </div>
@@ -223,10 +233,15 @@ export function ActionCluster({
             size="xl"
             className={[styles.main, awaiting ? styles.sending : ''].join(' ')}
             // while the last answer is on its way a click can't be taken (one answer per question): show it
+            aria-keyshortcuts={primaryShortcut ? 'Space Enter' : undefined}
             aria-disabled={awaiting || undefined}
+            onKeyDown={(event) => {
+              if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
+            }}
             onClick={() => onCommand(main.command)}
           >
             {main.label}
+            {hints && primaryShortcut && <kbd aria-hidden="true">{t('match.shortcuts.primaryKeys')}</kbd>}
           </Button>
         ) : deciding ? null : (
           <div className={styles.waiting}>{awaiting ? 'Sending…' : 'Waiting'}</div>

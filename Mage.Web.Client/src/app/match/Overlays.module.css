@@ -420,3 +420,12 @@
 :global([data-touch]) .option {
   min-height: var(--touch-target, 0px);
 }
+
+.panelFoot kbd,
+.buttons kbd {
+  margin-inline-start: 10px;
+  font-family: inherit;
+  font-size: 21px;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
