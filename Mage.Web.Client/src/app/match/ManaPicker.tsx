@@ -93,14 +93,14 @@ export function ManaPicker({ title, choices, sourceId, subMessage, onPick, onCan
         <div className={styles.choices}>
           {choices.map((choice, index) => (
             <button key={index} type="button" className={styles.choice} aria-label={choice.label} title={choice.label} onClick={() => onPick(index)}>
-              <span className={styles.symbols} aria-hidden="true">
+              {choice.outputs.length > 0 && <span className={styles.symbols} aria-hidden="true">
                 {choice.outputs.map((output, group) => (
                   <Fragment key={group}>
                     {group > 0 && <span className={styles.or}>{t('match.mana.or')}</span>}
                     <ManaCost cost={output} size="lg" />
                   </Fragment>
                 ))}
-              </span>
+              </span>}
               {choice.detail && <span className={styles.detail}><PromptText text={choice.detail} /></span>}
               {index < 9 && <kbd className={styles.key} aria-hidden="true">{index + 1}</kbd>}
             </button>

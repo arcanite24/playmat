@@ -1,7 +1,7 @@
 import { stripMarkup } from './prompt';
 
 export interface ManaChoice {
-  /** Each group is one output; separate groups are alternatives, not a combined output. */
+  /** Each group is one output; separate groups are alternatives. Empty for label-only any-color output. */
   outputs: string[];
   label: string;
   detail: string | null;
@@ -19,7 +19,8 @@ export function parseManaAbility(text: string): ManaChoice | null {
   if (plain.test(output.trim())) {
     outputs = output.trim().split(/\s*,\s*(?:or\s+)?|\s+or\s+/i).map((group) => group.replace(/\s/g, '').toUpperCase());
   } else if (/^(?:one|two|three|\d+) mana (?:of any (?:one )?colou?r|in any combination of colou?rs)$/i.test(output.trim())) {
-    outputs = ['{W}', '{U}', '{B}', '{R}', '{G}'];
+    // The server asks for colors after activation; keep the amount and costs in the label.
+    outputs = [];
   } else {
     return null;
   }

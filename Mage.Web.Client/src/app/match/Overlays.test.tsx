@@ -164,6 +164,51 @@ describe('ChoicePanel', () => {
     expect(button(/Draw a card/)).toBeTruthy();
   });
 
+  test.each([
+    ['Treasure', '{T}, Sacrifice this artifact: Add one mana of any color.'],
+    ['Lotus Petal', 'Sacrifice Lotus Petal: Add one mana of any color.'],
+    ['Jeweled Lotus', '{T}, Sacrifice Jeweled Lotus: Add three mana of any one color.'],
+    ['Crystal Vein', '{T}, Sacrifice Crystal Vein: Add {C}{C}.'],
+  ])('a lone mana ability confirms using %s before activating it', (source, text) => {
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_ABILITY', {
+      message: `Choose spell or ability to play<br><font color='#ccc'>${source} [a16]</font>`,
+      choices: { sacrifice: text },
+    })} onCommand={onCommand} />);
+    const panel = dialog(`Use ${source}?`);
+    expect(screen.queryByRole('dialog', { name: 'Choose mana' })).toBeNull();
+    expect(within(panel).getByText(/Sacrifice/)).toBeTruthy();
+    expect(panel.querySelector('.ms-w, .ms-u, .ms-b, .ms-r, .ms-g')).toBeNull();
+    expect(sent).toEqual([]);
+    fireEvent.click(button(/Sacrifice/));
+    fireEvent.click(button('Cancel'));
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(sent).toEqual([
+      { type: 'uuid', id: 'sacrifice' }, { type: 'uuid', id: null },
+      { type: 'uuid', id: 'sacrifice' }, { type: 'uuid', id: null },
+    ]);
+  });
+
+  test.each([
+    'one mana of any color',
+    'two mana of any one color',
+    'three mana in any combination of colors',
+  ])('any-color output stays a single labelled ability in a mana list: %s', (output) => {
+    const { sent, onCommand } = answers();
+    const text = `{T}, Sacrifice this artifact: Add ${output}.`;
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_ABILITY', {
+      message: 'Choose ability', choices: { colorless: '{T}: Add {C}.', any: text },
+    })} onCommand={onCommand} />);
+    expect(dialog('Choose mana')).toBeTruthy();
+    const any = button(text);
+    expect(within(any).getByText(/Sacrifice this artifact: Add/)).toBeTruthy();
+    expect(any.querySelector('.ms-w, .ms-u, .ms-b, .ms-r, .ms-g')).toBeNull();
+    expect(screen.getAllByRole('button')).toHaveLength(3);
+    fireEvent.click(any);
+    expect(sent).toEqual([{ type: 'uuid', id: 'any' }]);
+  });
+
   test('required colors preserve sort order and string values; shortcuts ignore modifiers and details', async () => {
     const user = userEvent.setup();
     const { sent, onCommand } = answers();

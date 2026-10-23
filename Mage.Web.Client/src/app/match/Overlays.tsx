@@ -142,7 +142,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
   switch (prompt.kind) {
     case 'chooseAbility': {
       const mana = prompt.choices.map((choice) => parseManaAbility(choice.text));
-      if (mana.length > 0 && mana.every((choice) => choice !== null)) {
+      if (mana.length > 1 && mana.every((choice) => choice !== null)) {
         return <ManaPicker title={t('match.mana.choose')} choices={mana} sourceId={sourceId}
           onPick={(index) => onCommand({ type: 'uuid', id: prompt.choices[index].id })}
           onCancel={() => onCommand({ type: 'uuid', id: null })} />;

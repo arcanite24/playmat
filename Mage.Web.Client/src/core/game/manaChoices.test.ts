@@ -14,10 +14,11 @@ describe('parseManaAbility', () => {
   test.each([
     ['{T}: Add {U} or {R}. Shivan Reef deals 1 damage to you.', ['{U}', '{R}']],
     ['{W/U}, {T}: Add {W}{W}, {W}{U}, or {U}{U}.', ['{W}{W}', '{W}{U}', '{U}{U}']],
-    ['{T}, Sacrifice Lotus Petal: Add one mana of any color.', ['{W}', '{U}', '{B}', '{R}', '{G}']],
-    ['{T}: Add one mana of any color.', ['{W}', '{U}', '{B}', '{R}', '{G}']],
-    ['{T}: Add two mana of any one color.', ['{W}', '{U}', '{B}', '{R}', '{G}']],
-    ['{T}: Add three mana in any combination of colors.', ['{W}', '{U}', '{B}', '{R}', '{G}']],
+    ['{T}, Sacrifice Lotus Petal: Add one mana of any color.', []],
+    ['{T}: Add one mana of any color.', []],
+    ['{T}: Add two mana of any one color.', []],
+    ['{T}: Add three mana in any combination of colors.', []],
+    ['{T}: Add 3 mana in any combination of colours.', []],
     ['{T}: Add {C}. Spend this mana only to pay {1}.', ['{C}']],
     ['Pay 1 life: Add {B}.', ['{B}']],
   ])('keeps costs and consequences: %s', (text, outputs) => {
