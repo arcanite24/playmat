@@ -22,6 +22,15 @@ describe('identity', () => {
     expect(flagText(flagCode(`${code.toUpperCase()}.PNG`))).toBe(code.toUpperCase());
   });
 
+  it('accepts every two-letter code, independently of the country picker', () => {
+    for (const first of 'abcdefghijklmnopqrstuvwxyz') {
+      for (const second of 'abcdefghijklmnopqrstuvwxyz') {
+        const code = first + second;
+        expect(flagText(code)).toBe(code.toUpperCase());
+      }
+    }
+  });
+
   it.each(['', 'a', 'abc', 'a1', '1a', ' de', 'de ', 'éa'])('uses the globe fallback for invalid code %j', (code) => {
     expect(flagText(code)).toBe('');
   });

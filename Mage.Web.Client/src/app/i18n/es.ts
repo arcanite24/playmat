@@ -33,6 +33,9 @@ const es: Catalog = {
   'shell.support': 'Apoyar el servidor',
   'shell.supporter': 'Apoya el servidor',
 
+  // admin accounts
+  'admin.accounts.notConfirmed': 'sin confirmar',
+
   // sign-in
   'login.title.sit': 'Toma asiento',
   'login.title.signIn': 'Inicia sesión',
