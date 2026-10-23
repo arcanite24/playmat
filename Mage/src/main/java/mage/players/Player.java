@@ -322,6 +322,13 @@ public interface Player extends MageItem, Copyable<Player> {
     void setTopCardRevealed(boolean topCardRevealed);
 
     /**
+     * The player may look at the top card of their library any time (only they see it, unlike a revealed top card)
+     */
+    boolean isTopCardVisibleToSelf();
+
+    void setTopCardVisibleToSelf(boolean topCardVisibleToSelf);
+
+    /**
      * User's settings like avatar or skip buttons.
      * WARNING, game related code must use controlling player settings only, e.g. getControllingPlayersUserData
      */

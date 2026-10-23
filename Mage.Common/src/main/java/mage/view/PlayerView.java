@@ -104,7 +104,10 @@ public class PlayerView implements Serializable {
             }
         }
 
-        Card cardOnTop = (player.isTopCardRevealed() && player.getLibrary().hasCards())
+        // revealed to everyone, or only to the player who may look at it any time (in their own view)
+        boolean topCardVisible = player.isTopCardRevealed()
+                || (player.isTopCardVisibleToSelf() && player.getId().equals(createdForPlayerId));
+        Card cardOnTop = (topCardVisible && player.getLibrary().hasCards())
                 ? player.getLibrary().getFromTop(game) : null;
         this.topCard = cardOnTop != null ? new CardView(cardOnTop, game) : null;
         if (player.getUserData() != null) {

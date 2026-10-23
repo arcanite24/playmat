@@ -2,6 +2,8 @@ import { useMemo, useState, type ReactNode } from 'react';
 import type { Command, Interaction } from '../../core/game/interaction';
 import type { Prompt } from '../../core/game/prompt';
 import { abilityChooserSource, stripMarkup } from '../../core/game/prompt';
+import { parseManaAbility, parseManaColor } from '../../core/game/manaChoices';
+import { ManaPicker } from './ManaPicker';
 import { isStackAbility } from '../../core/game/cards';
 import { matchProgress } from '../../core/game/matchProgress';
 import { gameResult, matchResult } from '../../core/game/matchResult';
@@ -133,8 +135,9 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
 }
 
 /** Choices that don't live on the board: modes, named choices, piles, numbers. */
-export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false }: {
+export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = false, sourceId }: {
   prompt: Prompt;
+  sourceId?: string | null;
   onCommand(command: Command): void;
   /** announcing X: the most the player could pay (see xLimit), when the server sets no real limit */
   xLimit?: number | null;
@@ -145,6 +148,12 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
   const hints = useKeyboardHints();
   switch (prompt.kind) {
     case 'chooseAbility': {
+      const mana = prompt.choices.map((choice) => parseManaAbility(choice.text));
+      if (mana.length > 1 && mana.every((choice) => choice !== null)) {
+        return <ManaPicker title={t('match.mana.choose')} choices={mana} sourceId={sourceId}
+          onPick={(index) => onCommand({ type: 'uuid', id: prompt.choices[index].id })}
+          onCancel={() => onCommand({ type: 'uuid', id: null })} />;
+      }
       // the server asks even with one ability, to confirm one that sacrifices its source: say so plainly
       const source = prompt.choices.length === 1 ? abilityChooserSource(prompt.text) : null;
       return (
@@ -166,7 +175,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
       );
     }
     case 'chooseChoice':
-      return <ChoiceList prompt={prompt} onCommand={onCommand} />;
+      return <ChoiceList prompt={prompt} onCommand={onCommand} sourceId={sourceId} />;
     case 'choosePile':
       return (
         <PanelShell title={prompt.text || 'Choose a pile'} wide>
@@ -203,7 +212,8 @@ function PanelShell({ title, children, wide }: { title: string; children: React.
   );
 }
 
-function ChoiceList({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'chooseChoice' }>; onCommand(command: Command): void }) {
+function ChoiceList({ prompt, onCommand, sourceId }: { prompt: Extract<Prompt, { kind: 'chooseChoice' }>; onCommand(command: Command): void; sourceId?: string | null }) {
+  const t = useT();
   const hints = useKeyboardHints();
   const choice = prompt.choice;
   const keyed = Object.entries(choice.keyChoices ?? {});
@@ -219,6 +229,13 @@ function ChoiceList({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'ch
     [sorted, query],
   );
   const title = stripMarkup(choice.message) || prompt.text || 'Choose one';
+  const mana = sorted.map((entry) => parseManaColor(entry.label));
+  if (mana.length > 0 && mana.every((entry) => entry !== null)) {
+    return <ManaPicker title={title} choices={mana} sourceId={sourceId} subMessage={choice.subMessage}
+      onPick={(index) => onCommand({ type: 'string', value: sorted[index].value })}
+      onCancel={choice.required ? undefined : () => onCommand({ type: 'string', value: '' })}
+      cancelLabel={t('match.mana.skip')} />;
+  }
   return (
     <PanelShell title={title}>
       {choice.subMessage && <p className={styles.panelText}>{stripMarkup(choice.subMessage)}</p>}

@@ -112,8 +112,8 @@ const metaDeck = (file: string, name: string) => deckFile(`/meta-decks/${encodeU
 
 /**
  * Decks for the AI seats: the one picked in the AI settings for the first seat, then, for a game played in a format,
- * that format's decks (the most played ones more often); otherwise, or when they run out, random starter decks of the
- * same kind (commander or not). Never the same deck twice while there are others.
+ * that format's pool (weighted by recorded share, with a minimum weight of one); otherwise, or when it runs out,
+ * random starter decks of the same kind (commander or not). Never the same deck twice while there are others.
  */
 export async function aiDecks(chosenId: string | null, count: number, commander: boolean, format: string | null = null, avoid: string | null = null): Promise<DeckCardLists[]> {
   const decks: DeckCardLists[] = [];
@@ -195,7 +195,7 @@ export const usePlay = create<PlayState>((set, get) => ({
     if (!roomId) return;
     const { practice = false, guided = false, ...picked } = overrides;
     // the guided first game: the easiest AI with a random starter deck, one game, nothing unusual
-    // a format deck for the player (Home's Meta deck mode): the format's rules, and the AI takes one of its decks too
+    // a format deck for the player (Home's Format deck mode): the format's rules, and the AI takes one of its decks too
     const metaGame = deckId.startsWith(META_PREFIX) || deckId.startsWith(RANDOM_META_PREFIX);
     const options: AiOptions = practice || guided
       ? { ...get().aiOptions, rules: 'casual', opponents: 1, aiType: 'COMPUTER_MAD', skill: 1, winsNeeded: 1, startingLife: null, opponentDeckId: null, adaptive: false }
@@ -209,7 +209,7 @@ export const usePlay = create<PlayState>((set, get) => ({
     try {
       const { deck, meta } = await useDecks.getState().loadForPlay(deckId);
       if (meta && deckId.startsWith(RANDOM_META_PREFIX)) await loadCareerMessages();
-      if (meta && deckId.startsWith(RANDOM_META_PREFIX)) notify(t('solo.metaDeck.dealt', { name: meta.name }), t('solo.metaDeck.dealtNote', { format: formatRules(meta.format).label, share: Math.round(meta.share) }));
+      if (meta && deckId.startsWith(RANDOM_META_PREFIX)) notify(t('solo.metaDeck.dealt', { name: meta.name }), t('solo.metaDeck.dealtNote', { format: formatRules(meta.format).label }));
       // both decks' pictures download while the table is set up, before the first card is drawn: nothing either
       // player casts should wait on the network
       warmCards([...deck.cards, ...deck.sideboard].map((card) => ({ name: card.cardName, setCode: card.setCode ?? undefined, cardNumber: card.cardNumber ?? undefined })));

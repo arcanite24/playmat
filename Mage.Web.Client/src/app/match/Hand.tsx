@@ -38,7 +38,7 @@ export interface HandProps {
   clearRight?: number;
 }
 
-const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard' };
+const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard', library: 'From library' };
 
 const DRAG_THRESHOLD = 12;
 

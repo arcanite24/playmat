@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { SUPPORTER_SLEEVE } from '../ui/sleeveArt';
-import { goalProgress, lookOf, monthName, opponentSleeve, owns, sameLook, sleeveColorOf, sleeveIdOf, THANK_YOU, usd } from './supportModel';
+import { goalProgress, lookOf, monthName, opponentSleeve, playerSleeve, owns, sameLook, sleeveColorOf, sleeveIdOf, THANK_YOU, usd } from './supportModel';
 import { loadTestCatalog } from '../../test/catalog';
 
 // the Career sleeves come from the cosmetics catalog
@@ -52,15 +52,35 @@ describe('the look', () => {
     expect(owns(undefined, 'sleeve', 'supporter')).toBe(false);
   });
 
+  test('Career selections map to the same avatar, frame, sleeve and cloth fields matches read', () => {
+    expect(lookOf({
+      sleeve: '#6e3f24', cloth: 'sand', careerAvatar: 'owl', career: { frame: 'frame-bronze' },
+    })).toEqual({ sleeve: 'copper', cloth: 'sand', avatar: 'owl', frame: 'frame-bronze' });
+    expect(playerSleeve({ sleeve: 'unknown' }, '#20302b')).toBe('#20302b');
+  });
+
   test('an unchanged look is the same look', () => {
     expect(sameLook({ sleeve: '#20302b' }, { sleeve: '#20302b', title: undefined })).toBe(true);
     expect(sameLook({ sleeve: '#20302b' }, { sleeve: '#1f2a44' })).toBe(false);
     expect(sameLook(null, {})).toBe(false);
+    expect(sameLook({ level: 1 }, { level: 2 })).toBe(false);
+    expect(sameLook({ badges: ['first'] }, { badges: ['second'] })).toBe(false);
+    expect(sameLook({ cardStyles: { Forest: 'old' } }, { cardStyles: { Forest: 'new' } })).toBe(false);
+    expect(sameLook({ cardStyles: { Forest: 'old' } }, {})).toBe(false);
+    expect(sameLook({}, { cardStyles: { Forest: 'new' } })).toBe(false);
+    expect(sameLook({ cardStyles: { Forest: 'a', Island: 'b' } }, { cardStyles: { Island: 'b', Forest: 'a' } })).toBe(true);
   });
 
-  test('an opponent shows their own sleeve, unless it would look like mine', () => {
+  test('each seat shows its equipped sleeve, including when both players wear the same one', () => {
+    expect(playerSleeve({ sleeve: 'copper' }, '#3b1f2b')).toBe('#6e3f24');
+    expect(playerSleeve({ sleeve: '#20302b' }, '#3b1f2b')).toBe('#20302b');
+    expect(playerSleeve(undefined, '#3b1f2b')).toBe('#3b1f2b');
+  });
+
+  test('only opponents whose sleeves match the bottom seat use the contrasting default', () => {
+    expect(opponentSleeve({ sleeve: 'copper' }, '#6E3F24', '#3b1f2b')).toBe('#3b1f2b');
+    expect(opponentSleeve({ sleeve: '#20302B' }, '#20302b', '#3b1f2b')).toBe('#3b1f2b');
     expect(opponentSleeve({ sleeve: 'copper' }, '#20302b', '#3b1f2b')).toBe('#6e3f24');
-    expect(opponentSleeve({ sleeve: '#20302b' }, '#20302B', '#3b1f2b')).toBe('#3b1f2b');
     expect(opponentSleeve(undefined, '#20302b', '#3b1f2b')).toBe('#3b1f2b');
   });
 });

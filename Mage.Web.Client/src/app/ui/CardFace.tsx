@@ -7,6 +7,7 @@ import type { CardType, SubType } from '../../protocol/generated/views';
 import { useT } from '../i18n';
 import { ManaCost } from './ManaCost';
 import { cardBackOf } from './cardBack';
+import { useCosmetics } from './cosmeticsCatalog';
 import { sleeveBackOf } from './sleeveArt';
 import { LandStyleContext, landStylist, styledLand, type StylableCard } from './landStyles';
 import { useCardStyle } from './cardStyles';
@@ -124,14 +125,18 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
 function CardBack({ sleeve, label }: { sleeve: string | undefined; label: string }) {
   const paintedArt = useSettings((state) => state.settings.paintedArt);
   const back = useSettings((state) => state.settings.cardBack);
+  useCosmetics((state) => state.byKey);
   const art = cardBackOf(sleeveBackOf(sleeve), { paintedArt, back });
+  const [failed, setFailed] = useState<string | null>(null);
+  const showArt = art && art !== failed;
   return (
     <div
       className={styles.back}
       aria-label={label}
       role="img"
-      data-art={art ? '' : undefined}
-      style={art ? { backgroundImage: `url(${art})` } : undefined}
-    />
+      data-art={showArt ? '' : undefined}
+    >
+      {showArt && <img className={styles.backArt} src={art} alt="" draggable={false} onError={() => setFailed(art)} />}
+    </div>
   );
 }
