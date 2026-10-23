@@ -31,6 +31,7 @@ import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { MatPrint } from '../ui/MatPrint';
 import { SettingsDialog } from '../screens/SettingsDialog';
+import { KeyboardShortcuts } from './KeyboardShortcuts';
 import { Stitch } from '../ui/Stitch';
 import { ActionCluster } from './ActionCluster';
 import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
@@ -911,6 +912,8 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
 }) {
   // conceding gives up this game; leaving a game in progress gives up the whole match
   const [confirming, setConfirming] = useState<keyof typeof CONFIRM | null>(null);
+  const t = useT();
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
   const [adviceOpen, setAdviceOpen] = useState(false);
@@ -945,6 +948,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
           <DropdownMenu.Content className={styles.menuContent} align="end" sideOffset={8}>
             {quests && <QuestTracker gameId={gameId} open={menuOpen} />}
             <DropdownMenu.Item className={styles.menuItem} onSelect={() => setSettingsOpen(true)}>Settings</DropdownMenu.Item>
+            <DropdownMenu.Item className={styles.menuItem} onSelect={() => setShortcutsOpen(true)}>{t('match.shortcuts.title')}</DropdownMenu.Item>
             {practice && (
               <DropdownMenu.Item className={styles.menuItem} onSelect={() => setPracticeOpen(true)}>Practice tools</DropdownMenu.Item>
             )}
@@ -987,6 +991,7 @@ function GameMenu({ gameId, quests, practice, solo, careerAssists, vsAi, onSaved
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
+      <KeyboardShortcuts open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       {practice && <PracticeTools gameId={gameId} open={practiceOpen} onOpenChange={setPracticeOpen} />}
       {practice && <AdviceDialog gameId={gameId} open={adviceOpen} onOpenChange={setAdviceOpen} />}

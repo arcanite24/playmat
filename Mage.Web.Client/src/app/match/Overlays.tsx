@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { Command, Interaction } from '../../core/game/interaction';
 import type { Prompt } from '../../core/game/prompt';
 import { abilityChooserSource, stripMarkup } from '../../core/game/prompt';
@@ -13,7 +13,8 @@ import { CardFace } from '../ui/CardFace';
 import { PromptText } from '../ui/PromptText';
 import { cleanText } from '../ui/text';
 import './matchMessages';
-import { useMatchUi } from './matchUi';
+import { useChoiceKeyboard } from './useChoiceKeyboard';
+import { useKeyboardHints } from './useKeyboardHints';
 import { stampArt } from './touches';
 import { usePaintedArt } from '../career/careerArt';
 import styles from './Overlays.module.css';
@@ -26,9 +27,11 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
   onCommand(command: Command): void;
 }) {
   const prompt = interaction.prompt;
+  const keyboard = useChoiceKeyboard(prompt?.kind === 'ask');
+  const hints = useKeyboardHints();
   if (!prompt || prompt.kind !== 'ask') return null;
   return (
-    <div className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="mulligan-title">
+    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="mulligan-title">
       <div className={styles.center}>
         <h2 id="mulligan-title" className={styles.bigTitle}>Opening hand</h2>
         <p className={styles.subtitle}>{prompt.text}</p>
@@ -40,8 +43,8 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
           ))}
         </div>
         <div className={styles.buttons}>
-          <Button variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{prompt.yesLabel}</Button>
-          <Button variant="decision" size="xl" onClick={() => onCommand({ type: 'boolean', value: false })} autoFocus>{prompt.noLabel}</Button>
+          <Button data-secondary aria-keyshortcuts="Alt+Enter Alt+1" variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{prompt.yesLabel}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
+          <Button data-primary variant="decision" size="xl" onClick={() => onCommand({ type: 'boolean', value: false })} autoFocus>{prompt.noLabel}</Button>
         </div>
       </div>
     </div>
@@ -63,6 +66,8 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
   onCommand(command: Command): void;
 }) {
   const [hidden, setHidden] = useState(false);
+  const keyboard = useChoiceKeyboard(!hidden);
+  const hints = useKeyboardHints();
   const [showAll, setShowAll] = useState(false);
   const main = interaction.mainButton;
   const choosable = cards.filter((card) => interaction.clickable.has(card.id!) || interaction.selected.has(card.id!));
@@ -76,7 +81,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
     );
   }
   return (
-    <div className={styles.scrim} role="dialog" aria-modal="true" aria-label={title}>
+    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title}>
       <div className={styles.panel}>
         <header className={styles.panelHead}>
           <h2 className={styles.panelTitle}>{cards.length > 0 && cards.every(isStackAbility) ? 'Choose an ability' : cleanText(title)}</h2>
@@ -99,6 +104,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
             return (
               <button
                 key={id}
+                data-choice
                 type="button"
                 className={[styles.pick, clickable ? styles.pickable : styles.unpickable, selected ? styles.picked : ''].join(' ')}
                 disabled={!clickable}
@@ -115,10 +121,10 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
         {(main || footer || interaction.secondaryButtons.length > 0) && (
           <footer className={styles.panelFoot}>
             {footer}
-            {interaction.secondaryButtons.map((button) => (
-              <Button key={button.label} variant="quiet" size="lg" onClick={() => onCommand(button.command)}>{button.label}</Button>
+            {interaction.secondaryButtons.map((button, index) => (
+              <Button key={button.label} data-secondary data-cancel={button.label === 'Cancel' || undefined} variant="quiet" size="lg" onClick={() => onCommand(button.command)}>{button.label}{hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}</Button>
             ))}
-            {main && <Button variant="decision" size="lg" onClick={() => onCommand(main.command)}>{main.label}</Button>}
+            {main && <Button data-primary variant="decision" size="lg" onClick={() => onCommand(main.command)}>{main.label}</Button>}
           </footer>
         )}
       </div>
@@ -136,6 +142,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
   startAtLimit?: boolean;
 }) {
   const t = useT();
+  const hints = useKeyboardHints();
   switch (prompt.kind) {
     case 'chooseAbility': {
       // the server asks even with one ability, to confirm one that sacrifices its source: say so plainly
@@ -144,18 +151,16 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
         <PanelShell title={source ? t('match.ability.one', { name: source }) : prompt.text || 'Choose one'}>
           <div className={styles.options}>
             {prompt.choices.map((choice, index) => (
-              <button key={choice.id} type="button" className={styles.option} onClick={() => onCommand({ type: 'uuid', id: choice.id })}>
-                <span className={styles.optionKey}>{index + 1}</span>
+              <button key={choice.id} data-choice type="button" className={styles.option} onClick={() => onCommand({ type: 'uuid', id: choice.id })}>
+                <span className={styles.optionKey} aria-hidden="true">{index < 10 ? (index + 1) % 10 : ''}</span>
                 {/* the server numbers its choices; the key already shows the number */}
                 <span><PromptText text={stripMarkup(choice.text).replace(/^\d+\.\s*/, '')} /></span>
               </button>
             ))}
           </div>
-          <NumberKeys count={prompt.choices.length} onPick={(index) => onCommand({ type: 'uuid', id: prompt.choices[index].id })} />
           {/* backing out: nothing is cast or activated */}
-          <EscapeKey onEscape={() => onCommand({ type: 'uuid', id: null })} />
           <footer className={styles.panelFoot}>
-            <Button variant="quiet" onClick={() => onCommand({ type: 'uuid', id: null })}>{t('match.ability.cancel')}</Button>
+            <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'uuid', id: null })}>{t('match.ability.cancel')}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
           </footer>
         </PanelShell>
       );
@@ -167,7 +172,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
         <PanelShell title={prompt.text || 'Choose a pile'} wide>
           <div className={styles.piles}>
             {[prompt.pile1, prompt.pile2].map((pile, index) => (
-              <button key={index} type="button" className={styles.pileChoice} onClick={() => onCommand({ type: 'boolean', value: index === 0 })}>
+              <button key={index} data-choice type="button" className={styles.pileChoice} onClick={() => onCommand({ type: 'boolean', value: index === 0 })}>
                 <span className={styles.pileLabel}>Pile {index + 1} · {pile.length} {pile.length === 1 ? 'card' : 'cards'}</span>
                 <div className={styles.pileCards}>
                   {pile.map((card) => <div key={card.id} className={styles.pileCard}><CardFace card={card} size="small" /></div>)}
@@ -187,8 +192,9 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
 }
 
 function PanelShell({ title, children, wide }: { title: string; children: React.ReactNode; wide?: boolean }) {
+  const keyboard = useChoiceKeyboard();
   return (
-    <div className={styles.scrim} role="dialog" aria-modal="true" aria-label={cleanText(title)}>
+    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-label={cleanText(title)}>
       <div className={[styles.panel, wide ? styles.panelWide : styles.panelNarrow].join(' ')}>
         <h2 className={styles.panelTitle}><PromptText text={title} /></h2>
         {children}
@@ -197,39 +203,8 @@ function PanelShell({ title, children, wide }: { title: string; children: React.
   );
 }
 
-function EscapeKey({ onEscape }: { onEscape(): void }) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (useMatchUi.getState().detail) return;
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        onEscape();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onEscape]);
-  return null;
-}
-
-function NumberKeys({ count, onPick }: { count: number; onPick(index: number): void }) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (useMatchUi.getState().detail) return;
-      if (event.target instanceof HTMLInputElement) return;
-      const value = Number.parseInt(event.key, 10);
-      if (value >= 1 && value <= Math.min(9, count)) {
-        event.preventDefault();
-        onPick(value - 1);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [count, onPick]);
-  return null;
-}
-
 function ChoiceList({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'chooseChoice' }>; onCommand(command: Command): void }) {
+  const hints = useKeyboardHints();
   const choice = prompt.choice;
   const keyed = Object.entries(choice.keyChoices ?? {});
   const entries = keyed.length > 0
@@ -252,16 +227,15 @@ function ChoiceList({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'ch
       )}
       <div className={[styles.options, entries.length > 8 ? styles.optionsScroll : ''].join(' ')}>
         {filtered.map((entry, index) => (
-          <button key={entry.value} type="button" className={styles.option} onClick={() => onCommand({ type: 'string', value: entry.value })}>
-            {entries.length <= 9 && <span className={styles.optionKey}>{index + 1}</span>}
+          <button key={entry.value} data-choice type="button" className={styles.option} onClick={() => onCommand({ type: 'string', value: entry.value })}>
+            {index < 10 && <span className={styles.optionKey} aria-hidden="true">{(index + 1) % 10}</span>}
             <span><PromptText text={stripMarkup(entry.label)} /></span>
           </button>
         ))}
       </div>
-      {entries.length <= 9 && <NumberKeys count={filtered.length} onPick={(index) => onCommand({ type: 'string', value: filtered[index].value })} />}
       {!choice.required && (
         <footer className={styles.panelFoot}>
-          <Button variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Skip</Button>
+          <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Skip{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
         </footer>
       )}
     </PanelShell>
@@ -292,7 +266,12 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
           min={prompt.min}
           max={max}
           onChange={(event) => setValue(clamp(Number(event.target.value)))}
-          onKeyDown={(event) => event.key === 'Enter' && onCommand({ type: 'integer', value })}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && !event.repeat && !event.nativeEvent.isComposing && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+              event.preventDefault();
+              onCommand({ type: 'integer', value });
+            }
+          }}
           aria-label="Amount"
           autoFocus
         />
@@ -304,13 +283,14 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
       {limit !== null && <p className={styles.panelText}>{t('match.amount.mana', { count: limit })}</p>}
       <footer className={styles.panelFoot}>
         <span className={styles.range}>{prompt.min} to {shown}</span>
-        <Button variant="decision" size="lg" onClick={() => onCommand({ type: 'integer', value })}>Choose {value}</Button>
+        <Button data-primary variant="decision" size="lg" onClick={() => onCommand({ type: 'integer', value })}>Choose {value}</Button>
       </footer>
     </PanelShell>
   );
 }
 
 function MultiAmountChooser({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'multiAmount' }>; onCommand(command: Command): void }) {
+  const hints = useKeyboardHints();
   const [values, setValues] = useState(prompt.items.map((item) => item.defaultValue ?? item.min ?? 0));
   const total = values.reduce((sum, value) => sum + value, 0);
   const valid = total >= prompt.min && total <= prompt.max
@@ -335,8 +315,8 @@ function MultiAmountChooser({ prompt, onCommand }: { prompt: Extract<Prompt, { k
       </div>
       <footer className={styles.panelFoot}>
         <span className={styles.range}>Total {total} · needs {prompt.min === prompt.max ? prompt.min : `${prompt.min} to ${prompt.max}`}</span>
-        {prompt.canCancel && <Button variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Cancel</Button>}
-        <Button variant="decision" size="lg" disabled={!valid} onClick={() => onCommand({ type: 'string', value: values.join(' ') })}>Done</Button>
+        {prompt.canCancel && <Button data-secondary data-cancel variant="quiet" onClick={() => onCommand({ type: 'string', value: '' })}>Cancel{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>}
+        <Button data-primary variant="decision" size="lg" disabled={!valid} onClick={() => onCommand({ type: 'string', value: values.join(' ') })}>Done</Button>
       </footer>
     </PanelShell>
   );
@@ -348,18 +328,21 @@ export function StartingPlayerOverlay({ me, opponents, onChoose }: {
   opponents: { id: string; name: string }[];
   onChoose(playerId: string): void;
 }) {
+  const keyboard = useChoiceKeyboard();
+  const hints = useKeyboardHints();
   return (
-    <div className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="start-title">
+    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="start-title">
       <div className={styles.center}>
         <h2 id="start-title" className={styles.bigTitle}>You choose who starts</h2>
         <p className={styles.subtitle}>The player who goes first skips their first draw.</p>
         <div className={styles.buttons}>
-          {opponents.map((opponent) => (
-            <Button key={opponent.id} variant="print" size="lg" onClick={() => onChoose(opponent.id)}>
+          {opponents.map((opponent, index) => (
+            <Button key={opponent.id} data-choice data-secondary variant="print" size="lg" onClick={() => onChoose(opponent.id)}>
               {opponents.length === 1 ? 'Draw first' : `${opponent.name} starts`}
+              {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
             </Button>
           ))}
-          <Button variant="decision" size="xl" onClick={() => onChoose(me.id)} autoFocus>Play first</Button>
+          <Button data-choice data-primary variant="decision" size="xl" onClick={() => onChoose(me.id)} autoFocus>Play first</Button>
         </div>
       </div>
     </div>
@@ -429,17 +412,13 @@ function VictoryStamp({ id }: { id: string }) {
 
 /** A zone's cards laid out to read (graveyard, exile, revealed). */
 export function ZoneViewer({ title, cards, onClose }: { title: string; cards: CardView[]; onClose(): void }) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && !useMatchUi.getState().detail && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  const keyboard = useChoiceKeyboard();
   return (
-    <div className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
       <div className={styles.panel} onClick={(event) => event.stopPropagation()}>
         <header className={styles.panelHead}>
           <h2 className={styles.panelTitle}>{title}</h2>
-          <Button variant="quiet" size="sm" onClick={onClose}>Close</Button>
+          <Button data-cancel variant="quiet" size="sm" onClick={onClose}>Close</Button>
         </header>
         {cards.length === 0 ? <p className={styles.panelText}>Empty.</p> : (
           <div className={styles.grid}>

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
+import userEvent from '@testing-library/user-event';
 import type { Command, Interaction } from '../../core/game/interaction';
 import { parsePrompt } from '../../core/game/prompt';
 import type { CardView, GameClientMessage } from '../../protocol/generated/views';
@@ -308,5 +309,113 @@ describe('ZoneViewer', () => {
   test('says when the zone is empty', () => {
     render(<ZoneViewer title="Exile" cards={[]} onClose={vi.fn()} />);
     expect(screen.getByText('Empty.')).toBeTruthy();
+  });
+
+  test('owns focus until closed and leaves a dialog above it in control', () => {
+    const onClose = vi.fn();
+    render(<button>Graveyard</button>);
+    button('Graveyard').focus();
+    const viewer = render(<ZoneViewer title="Your graveyard" cards={[]} onClose={onClose} />);
+    expect(document.activeElement).toBe(button('Close'));
+    const layer = render(<div role="dialog"><textarea aria-label="Chat" /></div>);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
+    expect(onClose).not.toHaveBeenCalled();
+    layer.unmount();
+    viewer.unmount();
+    expect(document.activeElement).toBe(button('Graveyard'));
+  });
+});
+
+describe('choice keyboard ownership', () => {
+  const abilityPrompt = () => parsePrompt('GAME_CHOOSE_ABILITY', {
+    message: 'Choose mode', choices: { a: 'Draw a card', b: 'Gain life' },
+  });
+
+  test('Enter confirms the arrow-focused choice once', async () => {
+    const user = userEvent.setup();
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={abilityPrompt()} onCommand={onCommand} />);
+    await user.keyboard('{ArrowDown}{Enter}');
+    expect(sent).toEqual([{ type: 'uuid', id: 'b' }]);
+  });
+
+  test('arrows move focus, Tab stays inside and Escape cancels', () => {
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={abilityPrompt()} onCommand={onCommand} />);
+    expect(document.activeElement).toBe(button(/Draw a card/));
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(button(/Gain life/));
+    fireEvent.keyDown(document.activeElement!, { key: 'Home' });
+    expect(document.activeElement).toBe(button(/Draw a card/));
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(button('Cancel'));
+    fireEvent.keyDown(document.activeElement!, { key: 'Tab' });
+    expect(document.activeElement).toBe(button(/Draw a card/));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(sent).toEqual([{ type: 'uuid', id: null }]);
+  });
+
+  test('ignores typing, modifiers and repeats, and only the top dialog answers', () => {
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={abilityPrompt()} onCommand={onCommand} />);
+    fireEvent.keyDown(window, { key: '1', ctrlKey: true });
+    fireEvent.keyDown(window, { key: '1', repeat: true });
+    const layer = render(<div role="dialog"><textarea aria-label="Chat" /></div>);
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
+    layer.unmount();
+    expect(sent).toEqual([]);
+    fireEvent.keyDown(window, { key: '1' });
+    expect(sent).toEqual([{ type: 'uuid', id: 'a' }]);
+  });
+
+  test('0 chooses the tenth option and filtered lists use their visible order', () => {
+    const { sent, onCommand } = answers();
+    const choices = Array.from({ length: 12 }, (_, index) => `Choice ${index + 1}`);
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_CHOICE', { choice: { choices, required: true } } as unknown as GameClientMessage)} onCommand={onCommand} />);
+    fireEvent.keyDown(window, { key: '0' });
+    expect(sent).toEqual([{ type: 'string', value: 'Choice 10' }]);
+    const search = screen.getByRole('textbox');
+    fireEvent.keyDown(search, { key: '1' });
+    expect(sent).toHaveLength(1);
+    fireEvent.change(search, { target: { value: 'Choice 12' } });
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(sent).toEqual([{ type: 'string', value: 'Choice 10' }, { type: 'string', value: 'Choice 12' }]);
+  });
+
+  test('optional choices can be skipped with Escape or Alt+Enter', () => {
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_CHOICE', { choice: { choices: ['Red'], required: false } } as unknown as GameClientMessage)} onCommand={onCommand} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(window, { key: 'Enter', altKey: true });
+    expect(sent).toEqual([{ type: 'string', value: '' }, { type: 'string', value: '' }]);
+  });
+
+  test('Alt+Enter cannot select a focused choice when no secondary option exists', async () => {
+    const user = userEvent.setup();
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_CHOICE', { choice: { choices: ['Red'], required: true } } as unknown as GameClientMessage)} onCommand={onCommand} />);
+    await user.keyboard('{Alt>}{Enter}{/Alt}');
+    expect(sent).toEqual([]);
+    await user.keyboard('{Enter}');
+    expect(sent).toEqual([{ type: 'string', value: 'Red' }]);
+  });
+
+  test('piles support number shortcuts', () => {
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_PILE', { cardsView1: {}, cardsView2: {} })} onCommand={onCommand} />);
+    fireEvent.keyDown(window, { key: '2' });
+    expect(sent).toEqual([{ type: 'boolean', value: false }]);
+  });
+
+  test('card pickers select eligible cards by number and use their main action', () => {
+    const { sent, onCommand } = answers();
+    render(<CardPicker title="Choose cards" cards={[card('f', 'Forest'), card('i', 'Island')]} interaction={interaction({ clickable: new Map([['i', { type: 'uuid', id: 'i' }]]), mainButton: { label: 'Done', command: { type: 'boolean', value: true }, tone: 'primary' } })} sleeve="default" onCommand={onCommand} />);
+    expect(document.activeElement).toBe(button('Done'));
+    fireEvent.keyDown(window, { key: '1' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(sent).toEqual([{ type: 'uuid', id: 'i' }, { type: 'boolean', value: true }]);
   });
 });

@@ -228,7 +228,7 @@ export function deriveInteraction(view: GameView | null | undefined, prompt: Pro
         headline: prompt.text,
         clickable: EMPTY_MAP,
         selected: EMPTY_SET,
-        // no Space shortcut: a yes/no answer must be explicit
+        // the main button is the negative answer; the affirmative stays secondary
         mainButton: { label: prompt.noLabel, command: { type: 'boolean', value: false }, tone: 'primary' },
         secondaryButtons: [{ label: prompt.yesLabel, command: { type: 'boolean', value: true }, tone: 'secondary' }],
       };

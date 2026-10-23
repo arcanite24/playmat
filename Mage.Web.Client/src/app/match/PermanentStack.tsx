@@ -11,6 +11,7 @@ import { cardKey, stackOffsetRatio, type PermanentGroup } from './boardModel';
 import { useFlip } from './flip';
 import { useMatchUi } from './matchUi';
 import { useStage } from './stageContext';
+import { isMatchObjectKey } from './keyboard';
 import styles from './PermanentStack.module.css';
 
 export interface PermanentStackProps {
@@ -231,7 +232,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       onPointerUp={(event) => endDrag(event, true)}
       onPointerCancel={(event) => endDrag(event, false)}
       onKeyDown={(event) => {
-        if (isClickable && event.key === 'Enter') {
+        if (isClickable && isMatchObjectKey(event.nativeEvent)) {
           event.preventDefault();
           onClick(id);
         }
