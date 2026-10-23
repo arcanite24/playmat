@@ -41,6 +41,10 @@ export default {
   'match.attack': 'Attack…',
   'match.attack.named': '{name} attacks…',
   'match.ability.one': 'Use {name}?',
+  'match.mana.choose': 'Choose mana',
+  'match.mana.or': 'or',
+  'match.mana.keys': '1–9 to choose · Arrows + Enter',
+  'match.mana.skip': 'Skip',
   'match.ability.cancel': 'Cancel',
   'match.amount.mana': 'You have {count} mana to pay with.',
 

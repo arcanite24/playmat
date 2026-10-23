@@ -4,6 +4,7 @@ import { COMMANDER_DAMAGE_LETHAL } from '../../core/game/commander';
 import { POOL_MANA, poolId } from '../../core/game/payment';
 import { ROPE_SECONDS, ropeSecondsLeft, ropeVisible } from '../../core/game/rope';
 import type { PlayerLook, PlayerView } from '../../protocol/generated/views';
+import { Art } from '../career/Art';
 import { ShowcaseBadges } from '../career/LookParts';
 import { PlateFrame } from '../career/PlateFrame';
 import { titleColor, titleName } from '../career/progressModel';
@@ -110,9 +111,14 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
   // the player's sigil from their profile, or their initial
   const sigil = sigilOf(player.userData?.avatarId);
   const initial = (player.name ?? '?').slice(0, 1).toUpperCase();
-  // a Career avatar, drawn in its colours, replaces the initial
+  // a Career avatar replaces the initial, with its drawn crest as the fallback
   const avatar = useCatalogItem('avatar', look?.avatar);
   const crest = avatar?.path ? { light: avatar.light ?? '#7a7466', dark: avatar.dark ?? '#22201b', path: avatar.path } : undefined;
+  const drawnAvatar = crest ? (
+    <svg className={styles.crest} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={crest.path} />
+    </svg>
+  ) : <span aria-hidden="true">{sigil ? <SigilIcon sigil={sigil} size="1em" /> : initial}</span>;
   // the supporter ring, when worn, is the plate's frame; otherwise an earned one (B296) is drawn round the disc
   const supporterRing = look?.frame === 'supporter-ring';
 
@@ -149,13 +155,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
           style={crest ? ({ '--crest-light': crest.light, '--crest-dark': crest.dark } as CSSProperties) : undefined}
           data-crest={crest ? '' : undefined}
         >
-          {crest ? (
-            <svg className={styles.crest} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d={crest.path} />
-            </svg>
-          ) : (
-            <span aria-hidden="true">{sigil ? <SigilIcon sigil={sigil} size="1em" /> : initial}</span>
-          )}
+          {avatar?.id ? <Art kind="avatar" id={avatar.id} size={72} className={styles.avatarArt} fallback={drawnAvatar} /> : drawnAvatar}
           {ticking && (
             <svg className={styles.rope} viewBox="0 0 100 100" role="img" aria-label={`${Math.ceil(timeLeft)} seconds left`}>
               <circle cx="50" cy="50" r="47" pathLength={ROPE_SECONDS} strokeDasharray={`${timeLeft} ${ROPE_SECONDS}`} />

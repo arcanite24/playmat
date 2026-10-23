@@ -58,7 +58,7 @@ async function push(): Promise<void> {
   }
   if (!accounts) return;
   // the cosmetics catalog, for drawing everyone's look (servers with progression)
-  if (careerOn) void loadCatalog(() => api.careerCosmetics());
+  if (careerOn) await loadCatalog(() => api.careerCosmetics());
   // the thank-you set first, so the look can wear it
   await queryClient.fetchQuery({ queryKey: [...SUPPORT_PERKS, account], queryFn: () => api.supportPerks(), staleTime: 5 * 60_000 }).catch(() => null);
   const look = currentLook(account);

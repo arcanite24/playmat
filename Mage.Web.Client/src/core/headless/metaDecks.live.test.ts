@@ -1,11 +1,11 @@
 /**
- * The AI's format decks (public/meta-decks): the most played archetypes of each format, from MTGGoldfish's metagame
- * pages, with printings the server knows. Every deck must be legal in its format, or the AI can't take its seat.
+ * The AI's format decks (public/meta-decks): metagame snapshots and original rogue and casual lists, with printings
+ * the server knows. Every deck must be legal in its format, or the AI can't take its seat.
  *
  * Check them (needs a running local server):
  *   MAGE_LIVE_SERVER=1 npx vitest run src/core/headless/metaDecks
- * Refresh them from MTGGoldfish first, then check (rewrites public/meta-decks; decks the server can't play are left out
- * and listed):
+ * Refresh only the meta tier from MTGGoldfish first, then check (preserves original rogue and fun lists; meta decks
+ * the server can't play are left out and listed):
  *   MAGE_LIVE_SERVER=1 META_DECKS_REFRESH=1 npx vitest run src/core/headless/metaDecks
  */
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -101,9 +101,9 @@ async function connect() {
 describe.skipIf(!live)('the AI\'s format decks', () => {
   test.skipIf(!refresh)('refresh from MTGGoldfish', async () => {
     const { rpc, api } = await connect();
-    const decks: MetaDeck[] = [];
+    const previous = JSON.parse(readFileSync(join(DIR, 'index.json'), 'utf8')) as MetaDeckIndex;
+    const decks: MetaDeck[] = previous.decks.filter((deck) => deck.tier === 'rogue' || deck.tier === 'fun');
     const skipped: string[] = [];
-    rmSync(DIR, { recursive: true, force: true });
     mkdirSync(DIR, { recursive: true });
     for (const format of FORMATS) {
       const commander = isCommanderFormat(format.deckType);
@@ -146,11 +146,13 @@ describe.skipIf(!live)('the AI\'s format decks', () => {
         const coverName = commander ? list.sideboard[0].cardName : tile.keyCards.find((name) => all.some((card) => card.cardName === name));
         const cover = all.find((card) => card.cardName === coverName) ?? list.cards[0];
         const file = `${format.page}-${slugOf(tile.name)}.dck`;
+        if (decks.some((deck) => deck.file === file)) continue;
         writeFileSync(join(DIR, file), `NAME:${tile.name}\n${DeckSerializer.exportDeck(deck)}`);
         decks.push({
           file,
           name: tile.name,
           format: format.deckType,
+          tier: 'meta',
           share: tile.share,
           cards: all.reduce((sum, card) => sum + card.amount, 0) - (commander ? 0 : list.sideboard.reduce((sum, card) => sum + card.amount, 0)),
           cover: { name: cover.cardName, setCode: cover.setCode!, cardNumber: cover.cardNumber! },
@@ -159,7 +161,11 @@ describe.skipIf(!live)('the AI\'s format decks', () => {
         kept++;
       }
     }
-    const index: MetaDeckIndex = { updated: new Date().toISOString().slice(0, 10), source: 'MTGGoldfish metagame (paper)', decks };
+    const keptFiles = new Set(decks.map((deck) => deck.file));
+    for (const file of readdirSync(DIR)) {
+      if (file.endsWith('.dck') && !keptFiles.has(file)) rmSync(join(DIR, file));
+    }
+    const index: MetaDeckIndex = { updated: new Date().toISOString().slice(0, 10), source: 'MTGGoldfish metagame snapshots and Playmat original lists', decks };
     writeFileSync(join(DIR, 'index.json'), `${JSON.stringify(index, null, 2)}\n`);
     console.log(`${decks.length} decks written; left out:\n${skipped.join('\n') || '(none)'}`);
     rpc.disconnect();

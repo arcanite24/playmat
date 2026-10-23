@@ -41,6 +41,15 @@ describe('revealed and looked-at cards', () => {
     expect(looked.cards[1].name).toBe('Opt');
   });
 
+  test('a look at the top card the library already shows face up is not repeated as a strip (Realmwalker)', () => {
+    const withTop: GameView = {
+      ...view,
+      players: [{ playerId: 'me', topCard: { id: 't1', name: 'Grizzly Bears' } }],
+      lookedAt: [{ name: 'Top card of your library', cards: { t1: { id: 't1' } } }, ...(view.lookedAt ?? [])],
+    };
+    expect(revealGroups(withTop).filter((group) => group.kind === 'lookedAt').map((group) => group.title)).toEqual(['Opt']);
+  });
+
   test('a group sits at its owner\'s seat, or the viewer\'s', () => {
     const [revealed, looked] = revealGroups(view);
     const seats = new Set(['me', 'them']);

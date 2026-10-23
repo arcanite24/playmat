@@ -41,6 +41,8 @@ public class LookAtTopCardOfLibraryAnyTimeEffect extends ContinuousEffectImpl {
         if (!canLookAtNextTopLibraryCard(game)) {
             return false;
         }
+        // lets the game view show the card on the library to this player for as long as the effect lasts
+        controller.setTopCardVisibleToSelf(true);
         Card topCard = controller.getLibrary().getFromTop(game);
         if (topCard == null) {
             return false;

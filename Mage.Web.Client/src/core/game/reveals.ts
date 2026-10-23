@@ -54,12 +54,15 @@ export function revealGroups(view: GameView | null | undefined): RevealGroup[] {
       cards,
     });
   }
+  // a top card this player may look at any time (Realmwalker) shows face up on their library; the server also sends
+  // it as a look on every update, which would only flash a strip
+  const myTop = (view.players ?? []).find((player) => player.playerId === view.myPlayerId)?.topCard?.id;
   for (const looked of view.lookedAt ?? []) {
     const cards = Object.entries(looked.cards ?? {}).map(([id, simple]): CardView => {
       const cardId = simple.id ?? id;
       return known.get(cardId) ?? { id: cardId, expansionSetCode: simple.expansionSetCode, cardNumber: simple.cardNumber, usesVariousArt: simple.usesVariousArt };
     });
-    if (cards.length === 0) continue;
+    if (cards.length === 0 || (myTop && cards.every((card) => card.id === myTop))) continue;
     groups.push({
       key: `lookedAt|${looked.name ?? ''}|${cards.map((card) => card.id).join(',')}`,
       kind: 'lookedAt',

@@ -14,6 +14,7 @@ const BURN: DeckCardLists = {
 
 const META = {
   file: 'modern-burn.dck', name: 'Burn', format: 'Constructed - Modern', share: 9, cards: 60,
+  tier: 'meta' as const,
   cover: { name: 'Lightning Bolt', setCode: 'M10', cardNumber: '146' }, source: 'https://example.test/burn',
 };
 

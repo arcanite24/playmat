@@ -3817,6 +3817,16 @@ public class TestPlayer implements Player {
     }
 
     @Override
+    public boolean isTopCardVisibleToSelf() {
+        return computerPlayer.isTopCardVisibleToSelf();
+    }
+
+    @Override
+    public void setTopCardVisibleToSelf(boolean topCardVisibleToSelf) {
+        computerPlayer.setTopCardVisibleToSelf(topCardVisibleToSelf);
+    }
+
+    @Override
     public UserData getUserData() {
         return computerPlayer.getUserData();
     }
