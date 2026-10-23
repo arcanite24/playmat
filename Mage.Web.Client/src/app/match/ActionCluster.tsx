@@ -59,6 +59,7 @@ export function ActionCluster({
   const t = useT();
   const openViewer = useMatchUi((state) => state.openViewer);
   const main = interaction.mainButton;
+  const primaryShortcut = interaction.mode !== 'question' || main?.shortcut === 'Space';
   const hints = useKeyboardHints();
   // Never undo while paying: Cancel rolls back the half-cast spell and its mana taps (#55).
   const undo = undoable && interaction.mode === 'priority' && canAct ? UNDO : null;
@@ -78,7 +79,7 @@ export function ActionCluster({
       const key = promptKey(event);
       const focusedControl = event.target instanceof HTMLElement && event.target.closest('button, [role="button"], [role="listitem"], a');
       let command: Command | undefined;
-      if (key === 'primary' && !focusedControl && !awaiting && !autoPassing) {
+      if (key === 'primary' && primaryShortcut && !focusedControl && !awaiting && !autoPassing) {
         command = main?.command;
       } else if (key && typeof key === 'object' && interaction.mode !== 'waiting') {
         const button = secondary[key.secondary];
@@ -100,7 +101,7 @@ export function ActionCluster({
     }
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [main, secondary, cancel, undo, awaiting, autoPassing, canAct, interaction.mode, onCommand]);
+  }, [main, primaryShortcut, secondary, cancel, undo, awaiting, autoPassing, canAct, interaction.mode, onCommand]);
 
   // Ctrl+Shift on its own, as on Arena, locks full control on or off (released without any other key in between)
   useEffect(() => {
@@ -232,7 +233,7 @@ export function ActionCluster({
             size="xl"
             className={[styles.main, awaiting ? styles.sending : ''].join(' ')}
             // while the last answer is on its way a click can't be taken (one answer per question): show it
-            aria-keyshortcuts="Space Enter"
+            aria-keyshortcuts={primaryShortcut ? 'Space Enter' : undefined}
             aria-disabled={awaiting || undefined}
             onKeyDown={(event) => {
               if (event.repeat && (event.key === 'Enter' || event.key === ' ')) event.preventDefault();
@@ -240,7 +241,7 @@ export function ActionCluster({
             onClick={() => onCommand(main.command)}
           >
             {main.label}
-            {hints && <kbd aria-hidden="true">{t('match.shortcuts.primaryKeys')}</kbd>}
+            {hints && primaryShortcut && <kbd aria-hidden="true">{t('match.shortcuts.primaryKeys')}</kbd>}
           </Button>
         ) : deciding ? null : (
           <div className={styles.waiting}>{awaiting ? 'Sending…' : 'Waiting'}</div>

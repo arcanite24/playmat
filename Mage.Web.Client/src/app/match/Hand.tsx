@@ -9,7 +9,7 @@ import { useFlip } from './flip';
 import { placeHand } from './matchLayout';
 import { useMatchUi } from './matchUi';
 import { useStage } from './stageContext';
-import { ignoreMatchKey, isMatchObjectKey, matchKeysBlocked, numberKeyIndex } from './keyboard';
+import { ignoreMatchKey, isMatchObjectKey, matchKeysBlocked, numberKeyIndex, preventMatchObjectMouseFocus } from './keyboard';
 import { useKeyboardHints } from './useKeyboardHints';
 import styles from './Hand.module.css';
 
@@ -168,6 +168,7 @@ function HandCard({ card, choosing, index, hints, left, rotate, drop, clickable,
       className={[styles.card, faceDown ? styles.faceDown : '', clickable ? (choosing ? styles.choosable : styles.playable) : choosing ? styles.unchoosable : '', selected ? styles.selected : '', pending && !selected ? styles.pending : '', drag?.moved ? styles.dragging : ''].join(' ')}
       style={style}
       tabIndex={clickable ? 0 : -1}
+      onMouseDown={preventMatchObjectMouseFocus}
       aria-label={`${faceDown ? 'Hidden card' : card.name ?? 'Card'}${fromZone ? `, ${ZONE_TAG[fromZone].toLowerCase()}` : ''}${clickable ? ', playable' : ''}${selected ? ', chosen' : ''}`}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}

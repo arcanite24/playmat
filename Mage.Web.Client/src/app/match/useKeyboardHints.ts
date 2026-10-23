@@ -5,7 +5,11 @@ import { isEditableEventTarget } from '../ui/keys';
 export function useKeyboardHints() {
   const [shown, setShown] = useState(false);
   useEffect(() => {
-    const update = (event: KeyboardEvent) => setShown(event.altKey && !event.ctrlKey && !event.metaKey && !isEditableEventTarget(event.target));
+    const update = (event: KeyboardEvent) => {
+      const editable = isEditableEventTarget(event.target);
+      if (event.key === 'Alt' && !event.ctrlKey && !event.metaKey && !event.shiftKey && !editable) event.preventDefault();
+      setShown(event.altKey && !event.ctrlKey && !event.metaKey && !editable);
+    };
     const clear = () => setShown(false);
     window.addEventListener('keydown', update);
     window.addEventListener('keyup', update);

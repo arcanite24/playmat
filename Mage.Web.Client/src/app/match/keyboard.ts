@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { isEditableEventTarget } from '../ui/keys';
 import { useMatchUi } from './matchUi';
 
@@ -31,4 +32,11 @@ export function promptKey(event: KeyboardEvent): 'primary' | 'cancel' | { second
 /** Focused battlefield objects use the same guarded activation as hand cards. */
 export function isMatchObjectKey(event: KeyboardEvent): boolean {
   return !matchKeysBlocked() && promptKey(event) === 'primary';
+}
+
+/** Clicking an object leaves Space for the main action, even after earlier keyboard navigation. */
+export function preventMatchObjectMouseFocus(event: MouseEvent<HTMLElement>) {
+  if (event.target instanceof Element && event.target.closest('button, a, input, textarea, select')) return;
+  event.preventDefault();
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
 }

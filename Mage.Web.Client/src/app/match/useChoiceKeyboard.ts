@@ -12,12 +12,7 @@ export function useChoiceKeyboard(active = true) {
     const root = ref.current;
     if (!active || !root) return;
     const previous = document.activeElement;
-    if (!root.contains(previous)) {
-      const initial = root.querySelector<HTMLElement>(`[data-primary]${ENABLED}`)
-        ?? root.querySelector<HTMLElement>(`[data-choice]${ENABLED}`)
-        ?? root.querySelector<HTMLElement>(FOCUSABLE);
-      initial?.focus();
-    }
+    root.focus();
     function onKey(event: KeyboardEvent) {
       if (useMatchUi.getState().detail) return;
       const layers = document.querySelectorAll('[role="dialog"], [role="alertdialog"], [role="menu"]');
@@ -55,8 +50,6 @@ export function useChoiceKeyboard(active = true) {
           event.preventDefault();
           options[next].focus();
           return;
-        } else if (action === 'primary' && !(event.target instanceof HTMLElement && event.target.closest('button, [role="button"]'))) {
-          target = root!.querySelector<HTMLButtonElement>(`[data-primary]${ENABLED}`) ?? options[0];
         }
       }
       if (target) {

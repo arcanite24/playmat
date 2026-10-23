@@ -31,7 +31,7 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
   const hints = useKeyboardHints();
   if (!prompt || prompt.kind !== 'ask') return null;
   return (
-    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="mulligan-title">
+    <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="mulligan-title">
       <div className={styles.center}>
         <h2 id="mulligan-title" className={styles.bigTitle}>Opening hand</h2>
         <p className={styles.subtitle}>{prompt.text}</p>
@@ -44,7 +44,7 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
         </div>
         <div className={styles.buttons}>
           <Button data-secondary aria-keyshortcuts="Alt+Enter Alt+1" variant="print" size="lg" onClick={() => onCommand({ type: 'boolean', value: true })}>{prompt.yesLabel}{hints && <kbd aria-hidden="true">Alt+1</kbd>}</Button>
-          <Button data-primary variant="decision" size="xl" onClick={() => onCommand({ type: 'boolean', value: false })} autoFocus>{prompt.noLabel}</Button>
+          <Button data-primary variant="decision" size="xl" onClick={() => onCommand({ type: 'boolean', value: false })}>{prompt.noLabel}</Button>
         </div>
       </div>
     </div>
@@ -81,7 +81,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
     );
   }
   return (
-    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title}>
+    <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title}>
       <div className={styles.panel}>
         <header className={styles.panelHead}>
           <h2 className={styles.panelTitle}>{cards.length > 0 && cards.every(isStackAbility) ? 'Choose an ability' : cleanText(title)}</h2>
@@ -194,7 +194,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
 function PanelShell({ title, children, wide }: { title: string; children: React.ReactNode; wide?: boolean }) {
   const keyboard = useChoiceKeyboard();
   return (
-    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-label={cleanText(title)}>
+    <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={cleanText(title)}>
       <div className={[styles.panel, wide ? styles.panelWide : styles.panelNarrow].join(' ')}>
         <h2 className={styles.panelTitle}><PromptText text={title} /></h2>
         {children}
@@ -223,7 +223,7 @@ function ChoiceList({ prompt, onCommand }: { prompt: Extract<Prompt, { kind: 'ch
     <PanelShell title={title}>
       {choice.subMessage && <p className={styles.panelText}>{stripMarkup(choice.subMessage)}</p>}
       {entries.length > 8 && (
-        <input className={styles.search} placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} autoFocus aria-label="Search choices" />
+        <input className={styles.search} placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} aria-label="Search choices" />
       )}
       <div className={[styles.options, entries.length > 8 ? styles.optionsScroll : ''].join(' ')}>
         {filtered.map((entry, index) => (
@@ -273,7 +273,6 @@ function AmountChooser({ prompt, onCommand, limit, startAtLimit }: {
             }
           }}
           aria-label="Amount"
-          autoFocus
         />
         <Button variant="print" size="lg" onClick={() => setValue((current) => clamp(current + 1))} aria-label="More" disabled={value >= max}>+</Button>
       </div>
@@ -331,7 +330,7 @@ export function StartingPlayerOverlay({ me, opponents, onChoose }: {
   const keyboard = useChoiceKeyboard();
   const hints = useKeyboardHints();
   return (
-    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="start-title">
+    <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="start-title">
       <div className={styles.center}>
         <h2 id="start-title" className={styles.bigTitle}>You choose who starts</h2>
         <p className={styles.subtitle}>The player who goes first skips their first draw.</p>
@@ -342,7 +341,7 @@ export function StartingPlayerOverlay({ me, opponents, onChoose }: {
               {hints && index < 10 && <kbd aria-hidden="true">Alt+{(index + 1) % 10}</kbd>}
             </Button>
           ))}
-          <Button data-choice data-primary variant="decision" size="xl" onClick={() => onChoose(me.id)} autoFocus>Play first</Button>
+          <Button data-choice data-primary variant="decision" size="xl" onClick={() => onChoose(me.id)}>Play first</Button>
         </div>
       </div>
     </div>
@@ -414,7 +413,7 @@ function VictoryStamp({ id }: { id: string }) {
 export function ZoneViewer({ title, cards, onClose }: { title: string; cards: CardView[]; onClose(): void }) {
   const keyboard = useChoiceKeyboard();
   return (
-    <div ref={keyboard} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+    <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
       <div className={styles.panel} onClick={(event) => event.stopPropagation()}>
         <header className={styles.panelHead}>
           <h2 className={styles.panelTitle}>{title}</h2>

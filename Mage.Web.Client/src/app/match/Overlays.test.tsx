@@ -316,7 +316,7 @@ describe('ZoneViewer', () => {
     render(<button>Graveyard</button>);
     button('Graveyard').focus();
     const viewer = render(<ZoneViewer title="Your graveyard" cards={[]} onClose={onClose} />);
-    expect(document.activeElement).toBe(button('Close'));
+    expect(document.activeElement).toBe(dialog('Your graveyard'));
     const layer = render(<div role="dialog"><textarea aria-label="Chat" /></div>);
     fireEvent.keyDown(window, { key: 'Escape' });
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
@@ -332,19 +332,60 @@ describe('choice keyboard ownership', () => {
     message: 'Choose mode', choices: { a: 'Draw a card', b: 'Gain life' },
   });
 
+  test.each([
+    abilityPrompt(),
+    parsePrompt('GAME_CHOOSE_CHOICE', { choice: { choices: ['Red', 'Green'], required: true } } as unknown as GameClientMessage),
+    parsePrompt('GAME_GET_AMOUNT', { message: 'Choose X', min: 0, max: 3 }),
+  ])('Space and Enter wait for navigation when a $kind panel opens', async (prompt) => {
+    const user = userEvent.setup();
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={prompt} onCommand={onCommand} />);
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
+    await user.keyboard(' {Enter} {Enter}');
+    (document.activeElement as HTMLElement).blur();
+    expect(document.activeElement).toBe(document.body);
+    await user.keyboard(' {Enter}');
+    expect(sent).toEqual([]);
+  });
+
+  test('opening hand and starting-player dialogs wait for deliberate focus', async () => {
+    const user = userEvent.setup();
+    const { sent, onCommand } = answers();
+    const prompt = parsePrompt('GAME_ASK', {
+      message: 'Mulligan?', options: { 'UI.left.btn.text': 'Mulligan', 'UI.right.btn.text': 'Keep' },
+    } as unknown as GameClientMessage);
+    const opening = render(<MulliganOverlay hand={[]} interaction={interaction({ mode: 'mulligan', prompt })} sleeve="default" onCommand={onCommand} />);
+    expect(document.activeElement).toBe(dialog('Opening hand'));
+    await user.keyboard(' {Enter}');
+    expect(sent).toEqual([]);
+    opening.unmount();
+    const onChoose = vi.fn();
+    render(<StartingPlayerOverlay me={{ id: 'me', name: 'Me' }} opponents={[{ id: 'ai', name: 'Computer' }]} onChoose={onChoose} />);
+    expect(document.activeElement).toBe(dialog('You choose who starts'));
+    await user.keyboard(' {Enter}');
+    expect(onChoose).not.toHaveBeenCalled();
+    await user.tab();
+    await user.keyboard('{Enter}');
+    expect(onChoose).toHaveBeenCalledWith('ai');
+  });
+
   test('Enter confirms the arrow-focused choice once', async () => {
     const user = userEvent.setup();
     const { sent, onCommand } = answers();
     render(<ChoicePanel prompt={abilityPrompt()} onCommand={onCommand} />);
     await user.keyboard('{ArrowDown}{Enter}');
-    expect(sent).toEqual([{ type: 'uuid', id: 'b' }]);
+    expect(sent).toEqual([{ type: 'uuid', id: 'a' }]);
   });
 
   test('arrows move focus, Tab stays inside and Escape cancels', () => {
     const { sent, onCommand } = answers();
     render(<ChoicePanel prompt={abilityPrompt()} onCommand={onCommand} />);
-    expect(document.activeElement).toBe(button(/Draw a card/));
+    expect(document.activeElement).toBe(dialog('Choose mode'));
+    fireEvent.keyDown(document.activeElement!, { key: 'ArrowUp' });
+    expect(document.activeElement).toBe(button(/Gain life/));
     fireEvent.keyDown(document.activeElement!, { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(button(/Draw a card/));
+    fireEvent.keyDown(document.activeElement!, { key: 'End' });
     expect(document.activeElement).toBe(button(/Gain life/));
     fireEvent.keyDown(document.activeElement!, { key: 'Home' });
     expect(document.activeElement).toBe(button(/Draw a card/));
@@ -397,6 +438,7 @@ describe('choice keyboard ownership', () => {
     const user = userEvent.setup();
     const { sent, onCommand } = answers();
     render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_CHOICE', { choice: { choices: ['Red'], required: true } } as unknown as GameClientMessage)} onCommand={onCommand} />);
+    await user.keyboard('{ArrowDown}');
     await user.keyboard('{Alt>}{Enter}{/Alt}');
     expect(sent).toEqual([]);
     await user.keyboard('{Enter}');
@@ -410,12 +452,32 @@ describe('choice keyboard ownership', () => {
     expect(sent).toEqual([{ type: 'boolean', value: false }]);
   });
 
-  test('card pickers select eligible cards by number and use their main action', () => {
+  test('card pickers select eligible cards by number and finish only with deliberate focus', async () => {
+    const user = userEvent.setup();
     const { sent, onCommand } = answers();
     render(<CardPicker title="Choose cards" cards={[card('f', 'Forest'), card('i', 'Island')]} interaction={interaction({ clickable: new Map([['i', { type: 'uuid', id: 'i' }]]), mainButton: { label: 'Done', command: { type: 'boolean', value: true }, tone: 'primary' } })} sleeve="default" onCommand={onCommand} />);
-    expect(document.activeElement).toBe(button('Done'));
+    expect(document.activeElement).toBe(dialog('Choose cards'));
+    await user.keyboard(' {Enter}');
+    expect(sent).toEqual([]);
     fireEvent.keyDown(window, { key: '1' });
-    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(document.activeElement).toBe(button('Island'));
+    await user.tab();
+    expect(document.activeElement).toBe(button('Done'));
+    await user.keyboard('{Enter}');
     expect(sent).toEqual([{ type: 'uuid', id: 'i' }, { type: 'boolean', value: true }]);
+  });
+
+  test('Space mashing cannot finish a library search with no selectable cards', async () => {
+    const user = userEvent.setup();
+    const { sent, onCommand } = answers();
+    render(<CardPicker title="Search your library" cards={[]} interaction={interaction({ mainButton: { label: 'Done', command: { type: 'uuid', id: null }, tone: 'primary' } })} sleeve="default" onCommand={onCommand} />);
+    expect(document.activeElement).toBe(dialog('Search your library'));
+    await user.keyboard(' {Enter}   ');
+    expect(sent).toEqual([]);
+    await user.tab();
+    await user.tab();
+    expect(document.activeElement).toBe(button('Done'));
+    await user.keyboard('{Enter}');
+    expect(sent).toEqual([{ type: 'uuid', id: null }]);
   });
 });

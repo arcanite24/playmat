@@ -65,6 +65,30 @@ describe('ActionCluster shortcuts', () => {
     expect(sent).toEqual([main.command, main.command]);
   });
 
+  test.each(['Pay {1}?', 'Use the optional trigger?'])('Space and Enter do not answer a question: %s', async (headline) => {
+    const user = userEvent.setup();
+    const no = { ...main, label: 'No', command: { type: 'boolean', value: false } as Command };
+    const sent = cluster({ interaction: interaction({ mode: 'question', headline, mainButton: no, secondaryButtons: [{ ...main, label: 'Yes' }] }) });
+    await user.keyboard(' {Enter} {Enter}');
+    expect(sent).toEqual([]);
+    fireEvent.keyDown(window, { key: 'Alt', altKey: true });
+    expect(screen.queryByText('Space / Enter')).toBeNull();
+    expect(screen.getByRole('button', { name: 'No' }).getAttribute('aria-keyshortcuts')).toBeNull();
+    await user.keyboard('{Alt>}{Enter}{/Alt}');
+    expect(sent).toEqual([main.command]);
+    // A deliberate click or Tab to the button still allows an answer.
+    screen.getByRole('button', { name: 'No' }).focus();
+    await user.keyboard('{Enter}');
+    expect(sent).toEqual([main.command, no.command]);
+  });
+
+  test('a question can explicitly opt in to the primary shortcut', () => {
+    const sent = cluster({ interaction: interaction({ mode: 'question', mainButton: { ...main, shortcut: 'Space' } }) });
+    fireEvent.keyDown(window, { key: ' ', code: 'Space' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(sent).toEqual([main.command, main.command]);
+  });
+
   test('Alt chooses secondary actions, reveals hints and clears them on blur', () => {
     const sent = cluster({ interaction: interaction({ mainButton: main, secondaryButtons: [CANCEL] }) });
     fireEvent.keyDown(window, { key: 'Alt', altKey: true });
