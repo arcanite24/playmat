@@ -242,6 +242,12 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
       if (!resent) notify('Nothing to answer', "The game isn't waiting for you. It goes on as soon as the server is ready.");
     });
   }, [session]);
+  // The ability/color prompt has no source id; keep the card through consecutive choices.
+  const [choiceSource, setChoiceSource] = useState<string | null>(null);
+  useEffect(() => session.store.subscribe((next) => {
+    const kind = next.prompt?.kind;
+    if (!next.awaitingServer && kind !== 'chooseAbility' && kind !== 'chooseChoice') setChoiceSource(null);
+  }), [session]);
   // the blocker just chosen: the server's follow-up question ("Select attacker to block") doesn't say which it is
   const [lastBlocker, setLastBlocker] = useState<string | null>(null);
   // likewise the attacker, when the server asks what it attacks
@@ -257,7 +263,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     if (session.getState().interaction.mode === 'declareAttackers') setLastAttacker(id);
     // what the click will likely do shows at once (prediction.ts), until the server's answer
     const { view: current, interaction: now } = session.getState();
-    session.click(id, predict(current, now, id));
+    if (session.click(id, predict(current, now, id))) setChoiceSource(id);
   }, [session, damageSplit]);
 
   const blockDrop = useBlockDrag(session, state);
@@ -669,7 +675,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onCommand={onCommand}
               />
             )}
-            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
+            {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
             {viewer && <ZoneViewer title={viewer.title} cards={viewer.cards} onClose={() => openViewer(null)} />}
             {state.gameOver && betweenGames && (
               <BetweenGames
