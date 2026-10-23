@@ -4,7 +4,7 @@ import { writeJson } from '../stores/persist';
 import { META_FORMAT_KEY } from './HomeScreen';
 import styles from './HomeScreen.module.css';
 
-/** Home's Meta deck mode: the format whose top decks the player and the AI are dealt, kept in this browser. */
+/** Home's format deck mode: the pool the player and the AI are dealt from, kept in this browser. */
 export default function MetaFormatPicker({ formats, value, disabled, onChange }: {
   formats: string[];
   value: string | null;
