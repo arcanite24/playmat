@@ -44,7 +44,7 @@ test('returns keyboard focus to the source when the picker closes', () => {
     <button>Land</button>
     <ManaPicker title="Choose mana" choices={[parseManaAbility('{T}: Add {W}.')!]} onPick={vi.fn()} />
   </>);
-  expect(document.activeElement).toBe(screen.getByRole('button', { name: '{T}: Add {W}.' }));
+  expect(document.activeElement).toBe(screen.getByRole('dialog', { name: 'Choose mana' }));
   rerender(<button>Land</button>);
   expect(document.activeElement).toBe(source);
 });

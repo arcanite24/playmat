@@ -87,10 +87,13 @@ import { gzipSync } from 'node:zlib';
 // raised 2026-10-21 from entry 81, initial 216, app 755 for M29-M33 (the capsule machines): card styles show wherever
 // a card face does, so the style lookup and the face's overlay load with the entry, as do the four capsule RPC methods;
 // the shop, the pull sequence and their messages are lazy. Measured entry 83.4 kB, initial 217.6 kB, app 762.5 kB
+// app raised 2026-10-23 from 765 kB for keyboard play (Space and Enter, Alt for options, number keys for the hand and
+// choices, focus kept inside each choice): match code, lazy with the match screen; merged with the AI deck pool, mana
+// symbol buttons and table cosmetics, which left master at 764.9 kB. Measured app 767.7 kB
 const BUDGET_KB = {
   entry: 84,
   initial: 218,
-  app: 765,
+  app: 768,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

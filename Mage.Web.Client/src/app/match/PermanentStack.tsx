@@ -11,6 +11,7 @@ import { cardKey, stackOffsetRatio, type PermanentGroup } from './boardModel';
 import { useFlip } from './flip';
 import { useMatchUi } from './matchUi';
 import { useStage } from './stageContext';
+import { isMatchObjectKey, preventMatchObjectMouseFocus } from './keyboard';
 import styles from './PermanentStack.module.css';
 
 export interface PermanentStackProps {
@@ -217,6 +218,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       style={style}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
+      onMouseDown={preventMatchObjectMouseFocus}
       aria-label={describe(permanent, { tapped, asleep, isAttacking, isBlocking, isSelected, keywords: keywords.map((mark) => (mark.gained ? `${mark.name.toLowerCase()} (gained)` : mark.name.toLowerCase())) }) + (isClickable && targeting && !isSelected ? ', can be targeted' : '')}
       aria-pressed={isClickable ? isSelected : undefined}
       onClick={() => {
@@ -231,7 +233,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       onPointerUp={(event) => endDrag(event, true)}
       onPointerCancel={(event) => endDrag(event, false)}
       onKeyDown={(event) => {
-        if (isClickable && event.key === 'Enter') {
+        if (isClickable && isMatchObjectKey(event.nativeEvent)) {
           event.preventDefault();
           onClick(id);
         }

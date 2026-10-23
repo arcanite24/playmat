@@ -6,6 +6,23 @@ import type { Catalog } from './locales';
  * Spanish. Card names, rules text and server messages stay in English.
  */
 const es: Catalog = {
+  // match keyboard help
+  'match.shortcuts.title': "Atajos de teclado",
+  'match.shortcuts.primaryKeys': "Espacio / Intro",
+  'match.shortcuts.primary': "Usa la acción principal (excepto en preguntas de sí o no) o activa una carta o botón al que llegaste con el teclado.",
+  'match.shortcuts.hand': "Juega o selecciona la carta 1–10 de la mano, de izquierda a derecha. 0 es la décima.",
+  'match.shortcuts.secondary': "Usa la primera opción secundaria (No attackers, Cancel…).",
+  'match.shortcuts.secondaryNumber': "Usa esa opción secundaria de la decisión actual.",
+  'match.shortcuts.hints': "Mantén pulsado para ver los atajos; suelta antes de usar números de la mano.",
+  'match.shortcuts.focus': "Recorre cartas, objetivos y controles; Intro activa.",
+  'match.shortcuts.choices': "Las elecciones se abren sin selección: las flechas o Tab mueven el foco e Intro elige. Los números eligen directamente.",
+  'match.shortcuts.cancel': "Cancela u omite una elección cuando esté permitido.",
+  'match.shortcuts.undo': "Deshaz acciones de maná cuando tengas prioridad y esté disponible.",
+  'match.shortcuts.control': "Pulsa y suelta ambas teclas para alternar el control total.",
+  'match.shortcuts.ahead': "Pasa al final del turno / siguiente turno / tu siguiente turno / resuelve la pila.",
+  'match.shortcuts.mute': "Activa o desactiva los sonidos de la partida.",
+  'match.shortcuts.note': "Los atajos se pausan al escribir o usar menús. Tab llega a las cartas después de las primeras diez.",
+
   // app shell
   'shell.home': 'Inicio de {app}',
   'shell.nav': 'Principal',
