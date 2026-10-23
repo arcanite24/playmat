@@ -90,10 +90,13 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-10-23 from 765 kB for keyboard play (Space and Enter, Alt for options, number keys for the hand and
 // choices, focus kept inside each choice): match code, lazy with the match screen; merged with the AI deck pool, mana
 // symbol buttons and table cosmetics, which left master at 764.9 kB. Measured app 767.7 kB
+// raised 2026-10-23 from entry 84, initial 218, app 768 for drawn icons in place of emoji: avatars show their sigil
+// as an icon (eight lucide icons and thirteen drawn creatures) and flags as text badges, and the avatar is in the
+// header, so the sigils load with the entry. Measured entry 84.6 kB, initial 219.7 kB, app 769.2 kB
 const BUDGET_KB = {
-  entry: 84,
-  initial: 218,
-  app: 768,
+  entry: 85,
+  initial: 220,
+  app: 770,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
