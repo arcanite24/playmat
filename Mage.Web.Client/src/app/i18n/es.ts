@@ -50,6 +50,9 @@ const es: Catalog = {
   'shell.support': 'Apoyar el servidor',
   'shell.supporter': 'Apoya el servidor',
 
+  // admin accounts
+  'admin.accounts.notConfirmed': 'sin confirmar',
+
   // sign-in
   'login.title.sit': 'Toma asiento',
   'login.title.signIn': 'Inicia sesión',
@@ -1219,7 +1222,7 @@ const es: Catalog = {
   'career.puzzle.starRule': 'Tres estrellas al primer intento, dos en tres intentos.',
   'career.puzzle.board': 'Mejores resoluciones',
   'career.puzzle.boardEmpty': 'Nadie lo ha resuelto todavía.',
-  'career.puzzle.boardResult': '{stars}★ en el intento {tries}',
+  'career.puzzle.boardResult': { one: '{count} estrella en el intento {tries}', other: '{count} estrellas en el intento {tries}' },
   'career.puzzle.opponent': 'Rival',
   'career.puzzle.you': 'Tú',
   'career.puzzle.life': '{life} vidas',

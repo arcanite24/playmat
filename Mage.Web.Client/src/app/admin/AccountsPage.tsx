@@ -3,6 +3,7 @@ import { ArrowLeft, Ban, Download, KeyRound, Mic, MicOff, Power, ShieldCheck, Tr
 import { useEffect, useState } from 'react';
 import type { createApi } from '../../protocol/generated/api';
 import type { AccountDetail, AccountRow, StaffResetCode } from '../../protocol/generated/views';
+import { useT } from '../i18n';
 import { downloadText } from '../ui/download';
 import { Button } from '../ui/Button';
 import { Field } from '../ui/Field';
@@ -23,6 +24,7 @@ export function AccountsPage({ api, role }: { api: AdminApi; role: StaffRole }) 
 }
 
 function AccountList({ api, onOpen }: { api: AdminApi; onOpen(name: string): void }) {
+  const t = useT();
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [offset, setOffset] = useState(0);
@@ -57,7 +59,7 @@ function AccountList({ api, onOpen }: { api: AdminApi; onOpen(name: string): voi
             <tr key={account.name}>
               <td>
                 <button type="button" className={styles.linkButton} onClick={() => onOpen(account.name!)}>{account.name}</button>
-                {account.email && <div className={styles.quiet}>{account.email}{account.emailVerified ? ' ✓ confirmed' : ' · not confirmed'}</div>}
+                {account.email && <div className={styles.quiet}>{account.email}{account.emailVerified ? '' : ` · ${t('admin.accounts.notConfirmed')}`}</div>}
               </td>
               <td><StatusChips account={account} now={now} /></td>
               <td>{account.online ? 'online now' : account.lastConnection ? describeAge(account.lastConnection, now) : 'never'}</td>

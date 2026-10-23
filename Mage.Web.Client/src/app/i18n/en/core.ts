@@ -31,6 +31,9 @@ export default {
   // the heart by a supporter's name
   'shell.supporter': 'Supporter',
 
+  // admin accounts
+  'admin.accounts.notConfirmed': 'not confirmed',
+
   // sign-in
   'login.title.sit': 'Take a seat',
   'login.title.signIn': 'Sign in',

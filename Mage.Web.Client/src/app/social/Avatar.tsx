@@ -1,5 +1,7 @@
-import { flagCode, flagGlyph, flagLabel, sigilOf } from '../../core/social/identity';
+import { Globe } from 'lucide-react';
+import { flagCode, flagText, flagLabel, sigilOf } from '../../core/social/identity';
 import { PlateFrame } from '../career/PlateFrame';
+import { SigilIcon } from '../ui/SigilIcon';
 import styles from './Avatar.module.css';
 
 /**
@@ -10,7 +12,7 @@ export function Avatar({ name, avatarId, size = 'md', ring = false, frame }: { n
   const sigil = sigilOf(avatarId);
   const disc = (
     <span className={[styles.avatar, styles[size], sigil ? styles.sigil : '', ring ? styles.ring : ''].join(' ')} aria-hidden="true">
-      {sigil ?? (name.slice(0, 1).toUpperCase() || '?')}
+      {sigil ? <SigilIcon sigil={sigil} size="1em" /> : (name.slice(0, 1).toUpperCase() || '?')}
     </span>
   );
   return ring ? disc : <PlateFrame frame={frame}>{disc}</PlateFrame>;
@@ -20,5 +22,5 @@ export function Avatar({ name, avatarId, size = 'md', ring = false, frame }: { n
 export function Flag({ flagName, always = false }: { flagName?: string | null; always?: boolean }) {
   const code = flagCode(flagName);
   if (code === 'world' && !always) return null;
-  return <span className={styles.flag} role="img" aria-label={flagLabel(code)} title={flagLabel(code)}>{flagGlyph(code)}</span>;
+  return <span className={styles.flag} role="img" aria-label={flagLabel(code)} title={flagLabel(code)}>{flagText(code) || <Globe size="1em" aria-hidden="true" />}</span>;
 }

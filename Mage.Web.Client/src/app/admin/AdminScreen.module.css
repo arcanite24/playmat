@@ -339,11 +339,19 @@ input.settingWide { inline-size: min(40ch, 100%); }
 
 /* Update button: the job's steps, and the updater's log */
 .steps { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); list-style: none; margin: 0; padding: 0; color: var(--ink-dim); font-size: var(--text-sm); }
-.steps li::before { content: "○ "; }
+.steps li::before {
+  content: '';
+  display: inline-block;
+  width: 0.65em;
+  height: 0.65em;
+  margin-right: 0.4em;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
 .stepDone { color: var(--ink-soft); }
-.stepDone::before { content: "● " !important; color: var(--decision); }
+.steps .stepDone::before { background: currentColor; color: var(--decision); }
 .stepNow { color: var(--ink-strong); font-weight: 600; }
-.stepNow::before { content: "◐ " !important; color: var(--decision); }
+.steps .stepNow::before { background: linear-gradient(to right, currentColor 50%, transparent 50%); color: var(--decision); }
 .updateLog summary { cursor: pointer; color: var(--ink-dim); font-size: var(--text-sm); }
 .updateLog pre {
   margin: var(--space-2) 0 0;

@@ -240,7 +240,7 @@ function Identity() {
       <label className={styles.flagField}>
         <span>Flag</span>
         <select value={flag} onChange={(event) => update({ flag: event.target.value })}>
-          {flags.map((choice) => <option key={choice.code} value={choice.code}>{choice.glyph} {choice.label}</option>)}
+          {flags.map((choice) => <option key={choice.code} value={choice.code}>{choice.label}</option>)}
         </select>
       </label>
     </div>

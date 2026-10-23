@@ -413,7 +413,7 @@ export default {
   'career.puzzle.starRule': 'Three stars on the first try, two within three.',
   'career.puzzle.board': 'Best solves',
   'career.puzzle.boardEmpty': 'Nobody has solved it yet.',
-  'career.puzzle.boardResult': '{stars}★ on try {tries}',
+  'career.puzzle.boardResult': { one: '{count} star on try {tries}', other: '{count} stars on try {tries}' },
   'career.puzzle.opponent': 'Opponent',
   'career.puzzle.you': 'You',
   'career.puzzle.life': '{life} life',

@@ -358,10 +358,14 @@
 }
 
 .moments li::before {
-  content: '◆';
+  content: '';
+  display: inline-block;
+  width: 0.4em;
+  height: 0.4em;
   margin-right: 8px;
-  color: var(--brass);
-  font-size: 0.7em;
+  background: var(--brass);
+  transform: rotate(45deg);
+  vertical-align: middle;
 }
 
 .prizeLevel svg {

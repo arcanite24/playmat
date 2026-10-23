@@ -12,6 +12,7 @@ import { useCatalogItem } from '../ui/cosmeticsCatalog';
 import { useT } from '../i18n';
 import './matchMessages';
 import { ManaCost } from '../ui/ManaCost';
+import { SigilIcon } from '../ui/SigilIcon';
 import { sigilOf } from '../../core/social/identity';
 import { LevelBadge } from '../social/LevelBadge';
 import { usePresence } from './presence';
@@ -109,7 +110,8 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
   const timeLeft = useRopeSeconds(player);
   const ticking = ropeVisible(player.timerActive, player.hasPriority, timeLeft);
   // the player's sigil from their profile, or their initial
-  const initial = sigilOf(player.userData?.avatarId) ?? (player.name ?? '?').slice(0, 1).toUpperCase();
+  const sigil = sigilOf(player.userData?.avatarId);
+  const initial = (player.name ?? '?').slice(0, 1).toUpperCase();
   // a Career avatar replaces the initial, with its drawn crest as the fallback
   const avatar = useCatalogItem('avatar', look?.avatar);
   const crest = avatar?.path ? { light: avatar.light ?? '#7a7466', dark: avatar.dark ?? '#22201b', path: avatar.path } : undefined;
@@ -117,7 +119,7 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
     <svg className={styles.crest} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={crest.path} />
     </svg>
-  ) : <span aria-hidden="true">{initial}</span>;
+  ) : <span aria-hidden="true">{sigil ? <SigilIcon sigil={sigil} size="1em" /> : initial}</span>;
   // the supporter ring, when worn, is the plate's frame; otherwise an earned one (B296) is drawn round the disc
   const supporterRing = look?.frame === 'supporter-ring';
 

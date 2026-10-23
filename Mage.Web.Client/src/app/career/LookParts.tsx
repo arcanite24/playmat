@@ -1,3 +1,4 @@
+import { Star } from 'lucide-react';
 import type { CSSProperties } from 'react';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
@@ -27,7 +28,7 @@ function BadgeFace({ look }: { look: BadgeLook }) {
     const fallback = <b className={styles.badgeRank}>{look.rank}</b>;
     return look.crest ? <Art kind="crest" id={look.crest} size={28} fallback={fallback} /> : fallback;
   }
-  return <Art kind="achievement" id={look.achievement} size={28} fallback={<b className={styles.badgeRank}>★</b>} />;
+  return <Art kind="achievement" id={look.achievement} size={28} fallback={<Star className={styles.badgeRank} size={12} aria-hidden="true" />} />;
 }
 
 /** Up to three showcase badges, each a small disc rimmed in its tier's colour. */
