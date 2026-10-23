@@ -173,6 +173,8 @@ public abstract class PlayerImpl implements Player, Serializable {
     protected Set<UUID> usersAllowedToSeeHandCards = new HashSet<>();
     protected List<UUID> attachments = new ArrayList<>();
     protected boolean topCardRevealed = false;
+    // the controller may look at the top card of their library any time (Realmwalker, Bolas's Citadel), set in layers
+    protected boolean topCardVisibleToSelf = false;
 
     // 800.4i When a player leaves the game, any continuous effects with durations that last until that player's next turn
     // or until a specific point in that turn will last until that turn would have begun.
@@ -278,6 +280,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         this.storedBookmark = player.storedBookmark;
 
         this.topCardRevealed = player.topCardRevealed;
+        this.topCardVisibleToSelf = player.topCardVisibleToSelf;
         this.usersAllowedToSeeHandCards.addAll(player.usersAllowedToSeeHandCards);
 
         this.isTestMode = player.isTestMode;
@@ -381,6 +384,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         this.speed = player.getSpeed();
 
         this.topCardRevealed = player.isTopCardRevealed();
+        this.topCardVisibleToSelf = player.isTopCardVisibleToSelf();
 
         this.isGameUnderControl = player.isGameUnderControl();
         this.turnController = this.getId().equals(player.getTurnControlledBy()) ? null : player.getTurnControlledBy();
@@ -504,6 +508,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         //this.usersAllowedToSeeHandCards; // must keep
         this.attachments.clear();
         this.topCardRevealed = false;
+        this.topCardVisibleToSelf = false;
 
         this.reachedNextTurnAfterLeaving = false;
         this.clearCastSourceIdManaCosts();
@@ -535,6 +540,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         this.drawsFromBottom = false;
         this.drawsOnOpponentsTurn = false;
         this.topCardRevealed = false;
+        this.topCardVisibleToSelf = false;
         this.alternativeSourceCosts.clear();
         this.clearCastSourceIdManaCosts();
         this.getManaPool().clearEmptyManaPoolRules();
@@ -4837,6 +4843,16 @@ public abstract class PlayerImpl implements Player, Serializable {
     @Override
     public void setTopCardRevealed(boolean topCardRevealed) {
         this.topCardRevealed = topCardRevealed;
+    }
+
+    @Override
+    public boolean isTopCardVisibleToSelf() {
+        return topCardVisibleToSelf;
+    }
+
+    @Override
+    public void setTopCardVisibleToSelf(boolean topCardVisibleToSelf) {
+        this.topCardVisibleToSelf = topCardVisibleToSelf;
     }
 
     @Override
