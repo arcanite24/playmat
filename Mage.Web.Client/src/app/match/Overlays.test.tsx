@@ -1,9 +1,11 @@
+import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 import type { Command, Interaction } from '../../core/game/interaction';
 import { parsePrompt } from '../../core/game/prompt';
 import type { CardView, GameClientMessage } from '../../protocol/generated/views';
 import { CardPicker, ChoicePanel, GameOverOverlay, MulliganOverlay, StartingPlayerOverlay, ZoneViewer } from './Overlays';
+import { useMatchUi } from './matchUi';
 
 const card = (id: string, name: string) => ({ id, name, expansionSetCode: 'M10', cardNumber: '1' } as CardView);
 
@@ -126,6 +128,58 @@ describe('ChoicePanel', () => {
       { type: 'uuid', id: null },
       { type: 'uuid', id: null },
     ]);
+  });
+
+  test('mana abilities use symbols, retain complex costs, and answer with the original id', async () => {
+    const user = userEvent.setup();
+    const { sent, onCommand } = answers();
+    const prompt = parsePrompt('GAME_CHOOSE_ABILITY', {
+      message: 'Choose ability',
+      choices: { free: '{T}: Add {C}.', pain: '{T}: Add {U}. Reef deals 1 damage to you.' },
+    });
+    render(<ChoicePanel prompt={prompt} onCommand={onCommand} />);
+    expect(dialog('Choose mana')).toBeTruthy();
+    const free = button('{T}: Add {C}.');
+    const pain = button('{T}: Add {U}. Reef deals 1 damage to you.');
+    expect(free.querySelector('.ms-c')).toBeTruthy();
+    expect(pain.querySelector('.ms-u')).toBeTruthy();
+    expect(pain.textContent).toContain('Reef deals 1 damage to you.');
+    expect(document.activeElement).toBe(free);
+    await user.keyboard('{ArrowRight}{Enter}');
+    await user.keyboard('1');
+    await user.keyboard('{Escape}');
+    expect(sent).toEqual([{ type: 'uuid', id: 'pain' }, { type: 'uuid', id: 'free' }, { type: 'uuid', id: null }]);
+    await user.tab();
+    expect(document.activeElement).toBe(button('Cancel'));
+    await user.tab();
+    expect(document.activeElement).toBe(free);
+  });
+
+  test('a mixed mana and non-mana list retains the ordinary ability picker', () => {
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_ABILITY', {
+      message: 'Choose ability', choices: { mana: '{T}: Add {G}.', draw: '{T}: Draw a card.' },
+    })} onCommand={vi.fn()} />);
+    expect(dialog('Choose ability')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Choose mana' })).toBeNull();
+    expect(button(/Draw a card/)).toBeTruthy();
+  });
+
+  test('required colors preserve sort order and string values; shortcuts ignore modifiers and details', async () => {
+    const user = userEvent.setup();
+    const { sent, onCommand } = answers();
+    render(<ChoicePanel prompt={parsePrompt('GAME_CHOOSE_CHOICE', {
+      choice: { message: 'Choose color', choices: ['Green', 'Blue'], sortData: { Blue: 0, Green: 1 }, required: true, manaColorChoice: true },
+    })} onCommand={onCommand} />);
+    expect(button('Blue').querySelector('.ms-u')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull();
+    fireEvent.keyDown(window, { key: '1', ctrlKey: true });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    useMatchUi.setState({ detail: { id: 'source', card: card('source', 'Birds of Paradise') } });
+    fireEvent.keyDown(window, { key: '1' });
+    useMatchUi.setState({ detail: null });
+    expect(sent).toEqual([]);
+    await user.keyboard('2');
+    expect(sent).toEqual([{ type: 'string', value: 'Green' }]);
   });
 
   test('chooseAbility: a lone ability (the server confirms a sacrifice) reads as a plain question', () => {
