@@ -53,9 +53,9 @@ export function flagCode(flagName: string | null | undefined): string {
   return (flagName ?? '').replace(/\.png$/i, '').toLowerCase() || 'world';
 }
 
-/** A compact text badge for known flags; an empty value asks the UI for the globe fallback. */
+/** A compact text badge for special flags and two-letter codes; empty asks the UI for the globe fallback. */
 export function flagText(code: string): string {
-  return SPECIAL[code]?.text ?? (COUNTRIES.includes(code) ? code.toUpperCase() : '');
+  return SPECIAL[code]?.text ?? (/^[a-z]{2}$/.test(code) ? code.toUpperCase() : '');
 }
 
 let regionNames: Intl.DisplayNames | null | undefined;

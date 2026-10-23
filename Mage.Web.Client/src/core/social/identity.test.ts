@@ -8,15 +8,22 @@ describe('identity', () => {
     expect(flagCode(undefined)).toBe('world');
   });
 
-  it('uses text badges for known flags and a globe fallback for unknown flags', () => {
+  it('uses text badges for known flags and a globe fallback for unsupported names', () => {
     expect(flagText('de')).toBe('DE');
     expect(flagText('europeanunion')).toBe('EU');
     expect(flagText('england')).toBe('ENG');
     expect(flagText('lgbt')).toBe('LGBT');
     expect(flagText('trans')).toBe('TRANS');
-    expect(flagText('zz')).toBe('');
     expect(flagText('world')).toBe('');
     expect(flagText('genderfluid')).toBe('');
+  });
+
+  it.each(['bv', 'hm', 'sj', 'um', 'cs', 'nb', 'zz'])('keeps a text badge for the desktop flag %s', (code) => {
+    expect(flagText(flagCode(`${code.toUpperCase()}.PNG`))).toBe(code.toUpperCase());
+  });
+
+  it.each(['', 'a', 'abc', 'a1', '1a', ' de', 'de ', 'éa'])('uses the globe fallback for invalid code %j', (code) => {
+    expect(flagText(code)).toBe('');
   });
 
   it('maps avatar ids to sigils, with the initial for the default', () => {
