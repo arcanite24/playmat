@@ -61,17 +61,26 @@ describe('battlefield cosmetics', () => {
   test('equipped playmats use their art, with the deck print as the missing-image and art-off fallback', () => {
     const cloth = lookCloth({ cloth: 'sand' });
     expect(cloth?.career).toBe(true);
-    const { container, getByTestId, rerender } = render(<MatPrint cloth={cloth} card={null} />);
+    const { container, getByTestId, rerender } = render(<MatPrint cloth={cloth} card={null} enabled />);
     const image = container.querySelector('img')!;
     expect(image.getAttribute('src')).toBe('/career-art/playmat/sand.webp');
     fireEvent.error(image);
     expect(getByTestId('deck-print')).toBeTruthy();
     act(() => useSettings.getState().update({ paintedArt: false }));
-    rerender(<MatPrint cloth={lookCloth({ cloth: 'navy' })} card={null} />);
+    rerender(<MatPrint cloth={lookCloth({ cloth: 'navy' })} card={null} enabled />);
     expect(container.querySelector('img')).toBeNull();
     expect(getByTestId('deck-print')).toBeTruthy();
-    rerender(<MatPrint key="art-off" cloth={cloth} card={null} />);
+    rerender(<MatPrint key="art-off" cloth={cloth} card={null} enabled />);
     expect(container.querySelector('img')).toBeNull();
+  });
+
+  test('mat art none hides Career paintings and deck prints, and can be switched back on', () => {
+    const { container, rerender } = render(<MatPrint cloth={lookCloth({ cloth: 'sand' })} card={null} enabled={false} />);
+    expect(container.childElementCount).toBe(0);
+    rerender(<MatPrint cloth={lookCloth({ cloth: 'sand' })} card={null} enabled />);
+    expect(container.querySelector('img')).toBeTruthy();
+    rerender(<MatPrint cloth={lookCloth({ cloth: 'navy' })} card={{ name: 'Forest', setCode: 'M21', cardNumber: '274' }} enabled={false} />);
+    expect(container.childElementCount).toBe(0);
   });
 
   test('equipped card backs map by sleeve id for both seats and fall back to the weave', () => {
