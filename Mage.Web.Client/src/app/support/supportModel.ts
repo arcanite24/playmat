@@ -117,11 +117,7 @@ export function sameLook(a: PlayerLook | null | undefined, b: PlayerLook | null 
   return !!a && !!b && keys.every((key) => (a[key] ?? null) === (b[key] ?? null)) && (a.badges ?? []).join() === (b.badges ?? []).join();
 }
 
-/**
- * The sleeve an opponent's cards show: their own, when the server has it and it reads differently from mine;
- * otherwise the one invented for them, so their cards never look like mine.
- */
-export function opponentSleeve(look: PlayerLook | undefined, mine: string, invented: string): string {
-  const theirs = sleeveColorOf(look?.sleeve);
-  return theirs && theirs !== mine.toLowerCase() ? theirs : invented;
+/** The sleeve a player equipped, or the seat's default when none is known. */
+export function playerSleeve(look: PlayerLook | undefined, fallback: string): string {
+  return sleeveColorOf(look?.sleeve) ?? fallback;
 }

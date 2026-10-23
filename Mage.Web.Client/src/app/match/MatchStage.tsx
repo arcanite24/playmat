@@ -29,7 +29,7 @@ import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
-import { MatPrint } from '../ui/MatPrint';
+import { MatPrint } from './MatPrint';
 import { SettingsDialog } from '../screens/SettingsDialog';
 import { Stitch } from '../ui/Stitch';
 import { ActionCluster } from './ActionCluster';
@@ -72,7 +72,7 @@ import { CardStyleContext } from '../ui/cardStyles';
 import { LandStyleContext } from '../ui/landStyles';
 import { useCosmetics } from '../ui/cosmeticsCatalog';
 import { usePlayerLooks } from '../support/supportData';
-import { opponentSleeve } from '../support/supportModel';
+import { playerSleeve } from '../support/supportModel';
 import { PracticeTools } from './PracticeTools';
 import { QuestTracker } from './QuestTracker';
 import { AdviceDialog } from './AdviceDialog';
@@ -133,8 +133,7 @@ function useSleeves() {
   return useMemo(() => {
     const deck = rosterOf({ saved, starters }).find((candidate) => candidate.id === deckId);
     const mine = sleeveFor(sleeves, deck);
-    // opponents' sleeves must read as "theirs" at a glance; an opponent's own sleeve, when the server knows it, is used
-    // instead unless it looks like mine (support/supportModel.ts opponentSleeve)
+    // seats without an equipped sleeve use contrasting defaults
     const theirs = SLEEVE_COLORS.find((color) => color !== mine && color !== SLEEVE_COLORS[0]) ?? SLEEVE_COLORS[2];
     return { mine, theirs, cover: deck?.cover ?? null };
   }, [deckId, sleeves, saved, starters]);
@@ -168,7 +167,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   }, [session, mode, broadcastDelay]);
   const viewer = useMatchUi((ui) => ui.viewer);
   const openViewer = useMatchUi((ui) => ui.openViewer);
-  const sleeves = useSleeves();
+  const deckSleeves = useSleeves();
+  const catalog = useCosmetics((cosmetics) => cosmetics.byKey);
   const [holding, setHolding] = useState(false);
   const fullControl = useSettings((settings) => settings.fullControl);
   const setFullControl = useSettings((settings) => settings.setFullControl);
@@ -289,13 +289,18 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const autoPassing = useAutoPass(session, state, !holding);
   useGameCues(state, myId, !!autoPassing);
   useAutoOrder(session, state);
-  // the players' own looks (servers with accounts), asked for once a game: opponents' sleeves, avatars, titles and flair
+  // the players' own looks (servers with accounts), refreshed during the match so late uploads reach every seat
   const playerNames = (view?.players ?? []).map((player) => player.name).join('\n');
   const looks = usePlayerLooks(playerNames.split('\n'), true);
-  const lookOf = useCallback((player: PlayerView | undefined): PlayerLook | undefined => (player?.name ? looks[player.name.toLowerCase()] ?? undefined : undefined), [looks]);
+  const lookOf = useCallback((player: PlayerView | undefined): PlayerLook | undefined => (player?.name ? looks[player.name.trim().toLowerCase()] ?? undefined : undefined), [looks]);
+  const mine = playerSleeve(lookOf(board.me?.player), deckSleeves.mine);
+  const sleeves = useMemo(() => ({ ...deckSleeves, mine }), [deckSleeves, mine]);
   const theirSleeves = useMemo(
-    () => new Map(board.opponents.map((opponent) => [opponent.player.playerId!, opponentSleeve(lookOf(opponent.player), sleeves.mine, sleeves.theirs)])),
-    [board.opponents, lookOf, sleeves],
+    () => {
+      void catalog;
+      return new Map(board.opponents.map((opponent) => [opponent.player.playerId!, playerSleeve(lookOf(opponent.player), deckSleeves.theirs)]));
+    },
+    [board.opponents, lookOf, deckSleeves.theirs, catalog],
   );
   const sleeveOf = useCallback(
     (card: CardView) => (card.controllerId && card.controllerId !== myId ? theirSleeves.get(card.controllerId) ?? sleeves.theirs : sleeves.mine),
@@ -409,27 +414,22 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const matCloth = useSettings((state) => state.settings.matCloth);
   const matArt = useSettings((state) => state.settings.matArt);
   const matCard = useSettings((state) => state.settings.matCard);
-  const matStyle = useMemo(() => clothStyle(clothOf(matCloth)), [matCloth]);
+  const myCloth = lookCloth(lookOf(board.me?.player)) ?? clothOf(matCloth);
+  const matStyle = clothStyle(myCloth);
   const myArt = matArt === 'none' ? null : matArt === 'card' ? matCard : sleeves.cover;
-  const opponentArt = useMemo(() => {
-    const permanent = board.opponents[0]?.front[0]?.lead ?? board.opponents[0]?.back.find((group) => !(group.lead.cardTypes ?? []).includes('LAND'))?.lead;
+  const opponentArt = useMemo(() => board.opponents.map((opponent) => {
+    const permanent = opponent.front[0]?.lead ?? opponent.back.find((group) => !(group.lead.cardTypes ?? []).includes('LAND'))?.lead;
     return permanent?.expansionSetCode && permanent.cardNumber
       ? { setCode: permanent.expansionSetCode, cardNumber: permanent.cardNumber, name: permanent.name }
       : null;
-  }, [board.opponents]);
+  }), [board.opponents]);
   // what the players earned for the table (touches.ts): opponents' cloths, arrow colors, hit sparks, stamps and land
   // styles. The lookups read the cosmetics catalog, so they run again when it arrives.
-  const catalog = useCosmetics((cosmetics) => cosmetics.byKey);
   const seated = useMemo(() => [board.me, ...board.opponents].filter((one): one is PlayerBoard => !!one), [board.me, board.opponents]);
   const theirCloths = useMemo(() => {
     void catalog;
-    return board.opponents.map((opponent) => {
-      const cloth = lookCloth(lookOf(opponent.player));
-      // the same cloth as yours needs no second dye
-      return cloth && cloth.id !== clothOf(matCloth).id ? cloth : null;
-    });
-  }, [catalog, board.opponents, lookOf, matCloth]);
-  const theirPrintStyle = useMemo(() => (theirCloths.length === 1 && theirCloths[0] ? clothStyle(theirCloths[0]) : undefined), [theirCloths]);
+    return board.opponents.map((opponent) => lookCloth(lookOf(opponent.player)));
+  }, [catalog, board.opponents, lookOf]);
   const arrowTint = useMemo(() => {
     void catalog;
     return arrowTints(seated.map((one) => ({ look: lookOf(one.player), permanents: Object.keys(one.player.battlefield ?? {}) })));
@@ -485,8 +485,18 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             ))}
             <div className={styles.mat} aria-hidden="true" />
             {/* each half carries its player's deck art, printed faintly into the mat (in their cloth's dye) */}
-            <div className={styles.printTheirs} style={theirPrintStyle}><MatPrint card={opponentArt} /></div>
-            <div className={styles.printMine}><MatPrint card={myArt} /></div>
+            {board.opponents.map((opponent, index) => {
+              const column = layout.them(index, board.opponents.length);
+              return (
+                <div key={opponent.player.playerId} className={styles.printTheirs} style={{
+                  ...(theirCloths[index] ? clothStyle(theirCloths[index]) : {}),
+                  ...(board.opponents.length > 1 ? { left: column.left, width: column.width, right: 'auto' } : {}),
+                }}>
+                  <MatPrint cloth={theirCloths[index]} card={opponentArt[index]} />
+                </div>
+              );
+            })}
+            <div className={styles.printMine}><MatPrint cloth={myCloth} card={myArt} /></div>
             <div className={styles.seam} aria-hidden="true" />
             {/* under the hand and the controls, over the mat */}
             <Stitch inset={10} radius={22} zIndex={2} />

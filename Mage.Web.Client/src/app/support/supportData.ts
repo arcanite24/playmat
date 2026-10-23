@@ -181,19 +181,24 @@ export function rememberLook(look: PlayerLook): void {
 
 /** These players' looks, asked for when the list changes. */
 export function usePlayerLooks(names: readonly (string | undefined)[], fresh = false): Record<string, PlayerLook | null> {
-  const key = names.map((name) => name?.toLowerCase() ?? '').join('\n');
+  const accounts = useServerInfo().data?.accounts === true;
+  const loginCount = useSession((state) => state.loginCount);
+  const key = names.map((name) => name?.trim().toLowerCase() ?? '').join('\n');
   useEffect(() => {
-    if (key) wantLooks(key.split('\n'), fresh);
-  }, [key, fresh]);
+    if (!key || !accounts) return;
+    wantLooks(key.split('\n'), fresh);
+    // A seat can arrive before its browser uploads its look; matches refresh while they stay open.
+    if (!fresh) return;
+    const timer = setInterval(() => wantLooks(key.split('\n'), true), 30_000);
+    return () => clearInterval(timer);
+  }, [key, fresh, accounts, loginCount]);
   return useLooks((state) => state.looks);
 }
 
 /** One player's look (ring, title, flair, pet), asked for if unknown. */
 export function useLook(name: string | undefined): PlayerLook | undefined {
-  useEffect(() => {
-    if (name) wantLooks([name]);
-  }, [name]);
-  return useLooks((state) => (name ? state.looks[name.toLowerCase()] ?? undefined : undefined));
+  const looks = usePlayerLooks([name]);
+  return name ? looks[name.trim().toLowerCase()] ?? undefined : undefined;
 }
 
 /** One player's flair ("heart"), asked for if unknown. */
