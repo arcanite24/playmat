@@ -1319,17 +1319,17 @@
       "tier": "rogue"
     },
     {
-      "file": "duel_commander-talrand-sky-summoner.dck",
-      "name": "Talrand, Sky Summoner",
+      "file": "duel_commander-balmor-battlemage-captain.dck",
+      "name": "Balmor, Battlemage Captain",
       "format": "Variant Magic - Duel Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Talrand, Sky Summoner",
-        "setCode": "M13",
-        "cardNumber": "72"
+        "name": "Balmor, Battlemage Captain",
+        "setCode": "DMU",
+        "cardNumber": "196"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: cheap spells and prowess tempo",
       "tier": "rogue"
     },
     {
@@ -1347,17 +1347,17 @@
       "tier": "fun"
     },
     {
-      "file": "duel_commander-krenko-mob-boss.dck",
-      "name": "Krenko, Mob Boss",
+      "file": "duel_commander-judith-the-scourge-diva.dck",
+      "name": "Judith, the Scourge Diva",
       "format": "Variant Magic - Duel Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Krenko, Mob Boss",
-        "setCode": "FDN",
-        "cardNumber": "204"
+        "name": "Judith, the Scourge Diva",
+        "setCode": "CMM",
+        "cardNumber": "341"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: Rakdos sacrifice aggro",
       "tier": "fun"
     },
     {
@@ -1375,17 +1375,17 @@
       "tier": "rogue"
     },
     {
-      "file": "duel_commander-sram-senior-edificer.dck",
-      "name": "Sram, Senior Edificer",
+      "file": "duel_commander-feather-the-redeemed.dck",
+      "name": "Feather, the Redeemed",
       "format": "Variant Magic - Duel Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Sram, Senior Edificer",
-        "setCode": "AER",
-        "cardNumber": "23"
+        "name": "Feather, the Redeemed",
+        "setCode": "SLD",
+        "cardNumber": "1602*"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: Boros heroic and reusable targeted spells",
       "tier": "rogue"
     },
     {
@@ -1403,45 +1403,45 @@
       "tier": "fun"
     },
     {
-      "file": "duel_commander-ayula-queen-among-bears.dck",
-      "name": "Ayula, Queen Among Bears",
+      "file": "duel_commander-sythis-harvest-s-hand.dck",
+      "name": "Sythis, Harvest's Hand",
       "format": "Variant Magic - Duel Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Ayula, Queen Among Bears",
-        "setCode": "PRM",
-        "cardNumber": "91303"
+        "name": "Sythis, Harvest's Hand",
+        "setCode": "CMM",
+        "cardNumber": "938"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: Selesnya enchantress and enchantment tokens",
       "tier": "fun"
     },
     {
-      "file": "commander-ezuri-renegade-leader.dck",
-      "name": "Ezuri, Renegade Leader",
+      "file": "commander-meren-of-clan-nel-toth.dck",
+      "name": "Meren of Clan Nel Toth",
       "format": "Variant Magic - Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Ezuri, Renegade Leader",
-        "setCode": "SOM",
-        "cardNumber": "119"
+        "name": "Meren of Clan Nel Toth",
+        "setCode": "C15",
+        "cardNumber": "49"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: sacrifice and graveyard recursion",
       "tier": "rogue"
     },
     {
-      "file": "duel_commander-ezuri-renegade-leader.dck",
-      "name": "Ezuri, Renegade Leader",
+      "file": "duel_commander-hapatra-vizier-of-poisons.dck",
+      "name": "Hapatra, Vizier of Poisons",
       "format": "Variant Magic - Duel Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Ezuri, Renegade Leader",
-        "setCode": "SOM",
-        "cardNumber": "119"
+        "name": "Hapatra, Vizier of Poisons",
+        "setCode": "AKH",
+        "cardNumber": "199"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: minus-one counters and deathtouch snakes",
       "tier": "rogue"
     },
     {
@@ -1459,45 +1459,45 @@
       "tier": "fun"
     },
     {
-      "file": "duel_commander-shirei-shizo-s-caretaker.dck",
-      "name": "Shirei, Shizo's Caretaker",
+      "file": "duel_commander-alesha-who-smiles-at-death.dck",
+      "name": "Alesha, Who Smiles at Death",
       "format": "Variant Magic - Duel Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Shirei, Shizo's Caretaker",
-        "setCode": "BOK",
-        "cardNumber": "81"
+        "name": "Alesha, Who Smiles at Death",
+        "setCode": "C16",
+        "cardNumber": "119"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: Mardu low-power creature reanimation",
       "tier": "fun"
     },
     {
-      "file": "commander-goreclaw-terror-of-qal-sisma.dck",
-      "name": "Goreclaw, Terror of Qal Sisma",
+      "file": "commander-tatyova-benthic-druid.dck",
+      "name": "Tatyova, Benthic Druid",
       "format": "Variant Magic - Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Goreclaw, Terror of Qal Sisma",
-        "setCode": "M19",
-        "cardNumber": "186"
+        "name": "Tatyova, Benthic Druid",
+        "setCode": "CMM",
+        "cardNumber": "358"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: landfall and extra land drops",
       "tier": "fun"
     },
     {
-      "file": "duel_commander-goreclaw-terror-of-qal-sisma.dck",
-      "name": "Goreclaw, Terror of Qal Sisma",
+      "file": "duel_commander-rafiq-of-the-many.dck",
+      "name": "Rafiq of the Many",
       "format": "Variant Magic - Duel Commander",
       "share": 0,
       "cards": 100,
       "cover": {
-        "name": "Goreclaw, Terror of Qal Sisma",
-        "setCode": "M19",
-        "cardNumber": "186"
+        "name": "Rafiq of the Many",
+        "setCode": "CMM",
+        "cardNumber": "352"
       },
-      "source": "Playmat original list",
+      "source": "Playmat original list: Bant exalted and evasive attackers",
       "tier": "fun"
     },
     {

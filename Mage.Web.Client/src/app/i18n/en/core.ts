@@ -197,7 +197,7 @@ export default {
   'ai.summary.one': '{difficulty} AI',
   'ai.summary.many': '{count} {difficulty} AIs',
   'ai.summary.randomDeck': 'random starter deck',
-  'ai.summary.metaDeck': 'a top deck of the format',
+  'ai.summary.metaDeck': "a deck from the format's pool",
   'ai.summary.bestOf1': 'best of one',
   'ai.summary.bestOf3': 'best of three',
   'ai.summary.deckFormat': "your deck's format",

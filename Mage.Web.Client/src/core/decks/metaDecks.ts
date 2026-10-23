@@ -27,7 +27,7 @@ export interface MetaDeckIndex {
   decks: MetaDeck[];
 }
 
-/** A format's decks, most played first. */
+/** A format's pool, ordered by recorded metagame share; original lists have zero share. */
 export function metaDecksFor(decks: readonly MetaDeck[], format: string | null | undefined): MetaDeck[] {
   return decks.filter((deck) => deck.format === format).sort((a, b) => b.share - a.share);
 }

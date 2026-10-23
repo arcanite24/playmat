@@ -201,7 +201,7 @@ const es: Catalog = {
   'ai.summary.one': 'IA ({difficulty})',
   'ai.summary.many': '{count} IA ({difficulty})',
   'ai.summary.randomDeck': 'mazo inicial al azar',
-  'ai.summary.metaDeck': 'un mazo top del formato',
+  'ai.summary.metaDeck': 'un mazo del formato',
   'ai.summary.bestOf1': 'al mejor de una',
   'ai.summary.bestOf3': 'al mejor de tres',
   'ai.summary.deckFormat': 'formato de tu mazo',

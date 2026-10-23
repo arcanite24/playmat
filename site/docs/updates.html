@@ -116,7 +116,12 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
           <code>Mage.Web.Client/public/meta-decks/</code>, outside the JavaScript bundle. Each index entry has a
           <code>tier</code> of <code>meta</code>, <code>rogue</code> or <code>fun</code> and records its source.
           When changing lists, run <code>npm test</code> in <code>Mage.Web.Client</code> to check card counts,
-          implemented printings and format restrictions. With a local server, the optional
+          implemented printings, set legality, bans, restricted cards and copy limits against this checkout at the
+          pool's snapshot date. Commander lists must have one legendary creature commander and stay within its
+          color identity, derived from Java card definitions' mana symbols, mana abilities and color indicators
+          (including both faces). Pool checks also enforce distinct commanders, multiple color combinations and
+          at most 25 shared nonland cards between Commander lists. These static checks do not execute Java or
+          validate every special deck-building rule. With a local server, the optional
           <code>metaDecks.live.test.ts</code> suite also checks the server's deck validation; its refresh mode
           preserves original rogue and fun lists.</p>
 

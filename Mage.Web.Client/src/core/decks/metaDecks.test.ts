@@ -12,7 +12,7 @@ const DECKS = [
 ];
 
 describe('meta decks', () => {
-  test('a format lists its own decks, most played first', () => {
+  test('a format lists its own pool by recorded share', () => {
     expect(metaDecksFor(DECKS, 'Constructed - Modern').map((d) => d.file)).toEqual(['tron', 'burn']);
     expect(metaDecksFor(DECKS, 'Constructed - Freeform')).toEqual([]);
   });

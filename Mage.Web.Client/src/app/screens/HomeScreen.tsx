@@ -67,12 +67,12 @@ export function HomeScreen() {
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? roster[0] ?? null;
   const sleeve = sleeveFor(decks.sleeves, selected);
   const busy = play.phase !== 'idle';
-  // Meta deck: the AI and the player each get a random top deck of one format (public/meta-decks)
+  // Format deck: the AI and the player each draw a different list from one format's pool (public/meta-decks)
   const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
   const [metaFormat, setMetaFormat] = useState(() => readJson<string | null>(META_FORMAT_KEY, null));
   const pickedFormat = metaFormat && metaFormats.includes(metaFormat) ? metaFormat : metaFormats[0] ?? null;
   const ready = mode === 'meta' ? !!pickedFormat : !!selected;
-  // the mat shows the format's most played deck while Meta deck is chosen
+  // the mat previews the first list by recorded share while Format deck is chosen
   const metaTop = mode === 'meta' ? metaDecksFor(decks.metaDecks, pickedFormat)[0] : undefined;
   const firstGameDone = useCoach((state) => state.firstGameDone);
   const skipFirstGame = useCoach((state) => state.finish);

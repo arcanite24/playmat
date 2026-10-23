@@ -47,6 +47,7 @@ for (const file of readdirSync(join(SETS, 'mage/sets')).filter((file) => file.en
     });
   }
 }
+const implementations = new Map([...printings.values()].map(({ name, implementation }) => [name, implementation]));
 
 // Check the pool at its snapshot date against this checkout's format rules; the live test checks server behavior.
 const standardTypes = new Set(['CORE', 'EXPANSION', 'SUPPLEMENTAL_STANDARD_LEGAL']);
@@ -73,7 +74,81 @@ function formatRules(format: string) {
   return { banned, restricted, bannedCommander, codes };
 }
 
+function cardSource(implementation: string): string {
+  return readFileSync(join(existsSync(join(SETS, implementation)) ? SETS : CORE, implementation), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, '').split(/\r?\n\}/)[0];
+}
+
+// Static checks for the shipped implementations, not a Java interpreter. Include both faces and mana-ability helpers.
+function colorIdentity(source: string): Set<string> {
+  const colors = new Set([...source.matchAll(/\{([WUBRG0-9/PC]+)\}/g)]
+    .flatMap((match) => [...match[1]].filter((color) => 'WUBRG'.includes(color))));
+  for (const [name, symbol] of Object.entries({ White: 'W', Blue: 'U', Black: 'B', Red: 'R', Green: 'G' })) {
+    if (new RegExp(`(?:this\\.color\\.set${name}\\(true\\)|new ${name}ManaAbility\\(|Mana\\.${name}Mana\\()`).test(source)) colors.add(symbol);
+  }
+  // TransformingDoubleFacedCard constructors encode the back face's color indicator as a bare string.
+  if (source.includes('extends TransformingDoubleFacedCard')) {
+    for (const match of source.matchAll(/new SubType\[\]\s*\{[^}]*\},\s*"([WUBRG]+)"/g)) {
+      for (const color of match[1]) colors.add(color);
+    }
+  }
+  return colors;
+}
+
+function definition(name: string) {
+  return cardSource(implementations.get(name)!);
+}
+
+function frontTypes(source: string): string {
+  return /super\([\s\S]*?new CardType\[\]\s*\{([^}]*)\}/.exec(source)?.[1] ?? '';
+}
+
+function legendaryCreature(source: string): boolean {
+  const constructor = /super\([\s\S]*?\);/.exec(source)?.[0] ?? '';
+  return frontTypes(source).includes('CardType.CREATURE')
+    && (/this\.supertype\.add\(SuperType\.LEGENDARY\)/.test(source)
+      || /setInfo,\s*new SuperType\[\]\s*\{SuperType\.LEGENDARY\}/.test(constructor));
+}
+
 describe('shipped AI deck pool', () => {
+  test('color identity includes ability costs, hybrid and Phyrexian mana, indicators and both faces', () => {
+    for (const [name, colors] of [
+      ['Tam, the Possibility', 'WUBRG'], ['Dryad Arbor', 'G'], ['Transguild Courier', 'WUBRG'],
+      ['Elbrus, the Binding Blade', 'B'], ['Hengegate Pathway', 'WU'], ['Fire // Ice', 'UR'],
+      ['Kitchen Finks', 'WG'], ['Dismember', 'B'], ['Command Tower', ''], ['Savannah', 'WG'],
+      ['War Room', ''], ['Multiversal Passage', ''],
+    ]) expect([...colorIdentity(definition(name))].sort(), name).toEqual([...colors].sort());
+  });
+
+  test('commanders must be legendary creatures on their front face', () => {
+    expect(legendaryCreature(definition('Talrand, Sky Summoner'))).toBe(true);
+    expect(legendaryCreature(definition("Brigid, Clachan's Heart"))).toBe(true);
+    expect(legendaryCreature(definition('Llanowar Elves'))).toBe(false);
+    expect(legendaryCreature(definition('Elbrus, the Binding Blade'))).toBe(false);
+  });
+
+  test('Commander pools have distinct commanders, multiple color combinations and different nonland cores', () => {
+    const pools = formats.filter(isCommanderFormat).map((format) => metaDecksFor(index.decks, format)
+      .map((entry) => ({ entry, deck: DeckSerializer.importDeck(readFileSync(join(DIR, entry.file), 'utf8')) })));
+    const commanders = pools.map((pool) => new Set(pool.flatMap(({ deck }) => deck.sideboard.map((card) => card.cardName))));
+    expect([...commanders[0]].filter((name) => commanders[1].has(name))).toEqual([]);
+    for (const pool of pools) {
+      const identities = pool.map(({ deck }) => [...colorIdentity(definition(deck.sideboard[0].cardName))].sort().join(''));
+      expect(identities.filter((colors) => colors.length > 1).length).toBeGreaterThanOrEqual(4);
+      expect(new Set(identities).size).toBeGreaterThanOrEqual(4);
+    }
+    const decks = pools.flat().map(({ entry, deck }) => ({
+      entry,
+      nonlands: new Set(deck.cards.filter((card) => !basics.has(card.cardName) && !frontTypes(definition(card.cardName)).includes('CardType.LAND'))
+        .map((card) => card.cardName)),
+    }));
+    for (let i = 0; i < decks.length; i++) for (const other of decks.slice(i + 1)) {
+      const shared = [...decks[i].nonlands].filter((name) => other.nonlands.has(name));
+      // Normal staples can overlap; a reused ~30-card support shell or a copied list cannot.
+      expect(shared.length, `${decks[i].entry.file} / ${other.entry.file}`).toBeLessThanOrEqual(25);
+    }
+  });
+
   test('the index and deck files match, with no duplicate entries', () => {
     const files = index.decks.map((deck) => deck.file);
     expect(new Set(files).size).toBe(files.length);
@@ -115,17 +190,26 @@ describe('shipped AI deck pool', () => {
     expect(entry.cards).toBe(commander ? 100 : 60);
     expect(main + (commander ? side : 0)).toBe(entry.cards);
     if (commander) {
-      expect(side).toBeGreaterThanOrEqual(1);
-      expect(side).toBeLessThanOrEqual(2);
+      // The shipped pool uses single commanders; partners need an additional compatibility check before inclusion.
+      expect(side).toBe(1);
     } else {
       expect(side).toBeLessThanOrEqual(15);
     }
     const counts = new Map<string, number>();
     const rules = formatRules(entry.format);
+    const leader = deck.sideboard[0];
+    const commanderColors = commander ? colorIdentity(cardSource(printings.get(`${leader.setCode}:${leader.cardNumber}`)!.implementation)) : new Set<string>();
     for (const card of all) {
       const printing = printings.get(`${card.setCode}:${card.cardNumber}`);
       expect(printing?.name, `${card.setCode}:${card.cardNumber}`).toBe(card.cardName);
       expect(existsSync(join(SETS, printing!.implementation)) || existsSync(join(CORE, printing!.implementation)), card.cardName).toBe(true);
+      if (commander) {
+        const source = cardSource(printing!.implementation);
+        expect([...colorIdentity(source)].filter((color) => !commanderColors.has(color)), `color identity: ${card.cardName}`).toEqual([]);
+        if (deck.sideboard.includes(card)) {
+          expect(legendaryCreature(source), `legendary creature commander: ${card.cardName}`).toBe(true);
+        }
+      }
       counts.set(card.cardName, (counts.get(card.cardName) ?? 0) + card.amount);
       expect(rules.banned.has(card.cardName), `banned: ${card.cardName}`).toBe(false);
       expect(legalPrintings.get(card.cardName)?.some((printing) => rules.codes.has(printing.code)
