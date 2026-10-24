@@ -22,6 +22,9 @@ export default {
 
   // a count of cards after a pile's name ("Your graveyard, 1 card")
   'match.cards': { one: '{label}, {count} card', other: '{label}, {count} cards' },
+  // the badge on a stack of lands or tokens; a land stack with any tapped counts the untapped ones
+  'match.stack.count': '×{count}',
+  'match.stack.open': '{open} / {count} open',
 
   // a school duel's tips
   'match.lesson.tip': 'School tip',
