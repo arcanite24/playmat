@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Crown, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Columns3, Crown, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMyCardStyles } from '../ui/cardStyles';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -13,6 +13,7 @@ import { useServerState } from '../queries';
 import { STARTER_PREFIX, useDecks } from '../stores/decks';
 import { openImport, type ImportTarget } from '../stores/importSheet';
 import { notify } from '../stores/toasts';
+import { readJson, writeJson } from '../stores/persist';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { ManaCost } from '../ui/ManaCost';
@@ -23,6 +24,7 @@ import { SideboardPlansDialog } from './SideboardPlansDialog';
 import { PrintingPicker } from './PrintingPicker';
 import { ExportMenu } from './ExportMenu';
 import { ManaCurve } from './ManaCurve';
+import { ManaColumns } from './ManaColumns';
 import { SourceLine } from './import/SourceLine';
 import { useImportPaste } from './import/useImportShortcuts';
 import { useValidation } from './useValidation';
@@ -33,6 +35,10 @@ import {
 import styles from './DeckBuilder.module.css';
 
 const DEFAULT_FORMAT = 'Constructed - Freeform';
+
+// the deck by mana value in place of the collection, remembered per browser
+type DeckView = 'list' | 'mana';
+const DECK_VIEW_KEY = 'playmat.deckBuilder.view';
 
 /** What the card pool on the left gets from the builder (the collection of every card, or a player's own binder). */
 export interface BinderProps {
@@ -115,6 +121,11 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
   const [deck, setDeck] = useState(initial);
   const [zone, setZone] = useState<DeckZone>('cards');
   const [preview, setPreview] = useState<{ card: CardView; anchor: DOMRect; side: 'auto' | 'left' } | null>(null);
+  const [view, setViewState] = useState<DeckView>(() => readJson<DeckView>(DECK_VIEW_KEY, 'list'));
+  const setView = useCallback((next: DeckView) => {
+    setViewState(next);
+    writeJson(DECK_VIEW_KEY, next);
+  }, []);
   // a deck pasted here becomes its own deck; "From a list…" brings cards into this one
   useImportPaste();
   const allEntries = useMemo(() => [...deck.cards, ...deck.sideboard], [deck.cards, deck.sideboard]);
@@ -178,13 +189,30 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
       return current;
     });
   }, [zone]);
+  // a card in the mana value columns: click for one more, right-click for one less
+  const addRow = useCallback((row: DeckRow) => setDeck((current) => (copiesByName(current, row.entry.cardName) >= limitFor(row.card, row.entry.cardName)
+    ? current
+    : addCard(current, zone, { cardName: row.entry.cardName, setCode: row.entry.setCode ?? '', cardNumber: row.entry.cardNumber ?? '' }))), [zone, limitFor]);
+  const removeRow = useCallback((row: DeckRow) => setDeck((current) => removeCard(current, zone, row.key)), [zone]);
   // collection cards preview beside the card; deck rows preview to the left of the deck list
   const onPreview = useCallback((card: CardView | null, anchor?: DOMRect) => setPreview(card && anchor ? { card, anchor, side: 'auto' } : null), []);
   const onRowPreview = useCallback((card: CardView | null, anchor?: DOMRect) => setPreview(card && anchor ? { card, anchor, side: 'left' } : null), []);
 
   return (
     <div className={styles.page}>
-      {mode ? (
+      {view === 'mana' ? (
+        <section className={styles.collection} aria-label="Deck by mana value">
+          <div className={styles.filters}>
+            <span className={styles.toggle}>{zone === 'cards' ? 'Deck' : rules.commandZone ? 'Command zone' : 'Sideboard'} by mana value. Click a card for one more, right-click for one less.</span>
+            <button type="button" className={styles.reset} onClick={() => setView('list')}>Back to the cards</button>
+          </div>
+          <div className={styles.results}>
+            {deck[zone].length === 0
+              ? <p className={styles.note}>No cards here yet.</p>
+              : <ManaColumns entries={deck[zone]} info={info} onAdd={addRow} onRemove={removeRow} onPreview={onPreview} />}
+          </div>
+        </section>
+      ) : mode ? (
         <mode.Binder format={format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} />
       ) : (
         <Collection format={format === 'Limited' ? '' : format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} />
@@ -192,6 +220,8 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
       <DeckPanel
         deck={deck}
         zone={zone}
+        view={view}
+        onView={setView}
         info={info}
         formats={formats}
         rules={rules}
@@ -223,9 +253,11 @@ function useCommanderIdentity(deck: DeckCardLists, info: ReadonlyMap<string, Car
   }, [deck.sideboard, info, rules.commandZone]);
 }
 
-function DeckPanel({ deck, zone, info, formats, rules, identity, saving, limitFor, fixedFormat, doneLabel, onZone, onChange, onPreview, onDone, onPlay }: {
+function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, saving, limitFor, fixedFormat, doneLabel, onZone, onChange, onPreview, onDone, onPlay }: {
   deck: DeckCardLists;
   zone: DeckZone;
+  view: DeckView;
+  onView(view: DeckView): void;
   info: ReadonlyMap<string, CardView>;
   formats: { label: string; types: string[] }[];
   rules: FormatRules;
@@ -322,10 +354,21 @@ function DeckPanel({ deck, zone, info, formats, rules, identity, saving, limitFo
 
       {commandZone && <CommandZone deck={deck} info={info} rules={rules} identity={identity} onChange={onChange} onPreview={onPreview} />}
 
-      <div className={styles.tabs} role="tablist" aria-label="Deck zone">
-        <button type="button" role="tab" aria-selected={zone === 'cards'} className={zone === 'cards' ? styles.tabOn : styles.tab} onClick={() => onZone('cards')}>Deck {mainCount}</button>
-        <button type="button" role="tab" aria-selected={zone === 'sideboard'} className={zone === 'sideboard' ? styles.tabOn : styles.tab} onClick={() => onZone('sideboard')}>
-          {commandZone ? 'Command zone' : 'Sideboard'} {sideCount}
+      <div className={styles.tabs}>
+        <div className={styles.zoneTabs} role="tablist" aria-label="Deck zone">
+          <button type="button" role="tab" aria-selected={zone === 'cards'} className={zone === 'cards' ? styles.tabOn : styles.tab} onClick={() => onZone('cards')}>Deck {mainCount}</button>
+          <button type="button" role="tab" aria-selected={zone === 'sideboard'} className={zone === 'sideboard' ? styles.tabOn : styles.tab} onClick={() => onZone('sideboard')}>
+            {commandZone ? 'Command zone' : 'Sideboard'} {sideCount}
+          </button>
+        </div>
+        <button
+          type="button"
+          className={[styles.viewToggle, view === 'mana' ? styles.viewToggleOn : ''].join(' ')}
+          aria-pressed={view === 'mana'}
+          title={view === 'mana' ? 'Back to the cards' : 'Lay out the deck in columns by mana value'}
+          onClick={() => onView(view === 'mana' ? 'list' : 'mana')}
+        >
+          <Columns3 size={15} aria-hidden="true" /> By mana value
         </button>
       </div>
 

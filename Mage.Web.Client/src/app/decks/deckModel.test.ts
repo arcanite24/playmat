@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CardView } from '../../protocol/generated/views';
 import type { DeckCardLists } from '../../core/decks/types';
-import { addCard, changePrinting, copiesByName, copyLimit, countZone, entryKey, groupDeck, manaCurve, moveCard, removeCard } from './deckModel';
+import { addCard, changePrinting, copiesByName, copyLimit, countZone, entryKey, groupDeck, manaColumns, manaCurve, moveCard, removeCard } from './deckModel';
 
 const empty: DeckCardLists = { name: 'Test', cards: [], sideboard: [] };
 const bolt = { cardName: 'Lightning Bolt', setCode: 'M10', cardNumber: '146' };
@@ -65,5 +65,29 @@ describe('grouping and curve', () => {
 
   it('counts nonland cards by mana value', () => {
     expect(manaCurve(deck.cards, info)).toEqual([0, 4, 0, 0, 0, 0, 0, 0]);
+  });
+});
+
+describe('mana value columns', () => {
+  it('puts 0 and 1 together, 6 and up together, lands apart, and counts copies', () => {
+    const card = (name: string, manaValue: number, types: CardView['cardTypes']) => ({ name, manaValue, cardTypes: types }) as CardView;
+    const entries = [
+      { cardName: 'Ornithopter', setCode: 'A', cardNumber: '1', amount: 1 },
+      { cardName: 'Bolt', setCode: 'A', cardNumber: '2', amount: 2 },
+      { cardName: 'Bear', setCode: 'A', cardNumber: '3', amount: 3 },
+      { cardName: 'Dragon', setCode: 'A', cardNumber: '4', amount: 1 },
+      { cardName: 'Mountain', setCode: 'A', cardNumber: '5', amount: 16 },
+    ];
+    const info = new Map([
+      ['A:1', card('Ornithopter', 0, ['ARTIFACT', 'CREATURE'])],
+      ['A:2', card('Bolt', 1, ['INSTANT'])],
+      ['A:3', card('Bear', 2, ['CREATURE'])],
+      ['A:4', card('Dragon', 7, ['CREATURE'])],
+      ['A:5', card('Mountain', 0, ['LAND'])],
+    ]);
+    const columns = manaColumns(entries, info);
+    expect(columns.map((column) => [column.key, column.count])).toEqual([['0-1', 3], ['2', 3], ['3', 0], ['4', 0], ['5', 0], ['6+', 1], ['lands', 16]]);
+    expect(columns[0].rows.map((row) => row.entry.cardName)).toEqual(['Ornithopter', 'Bolt']);
+    expect(manaColumns([{ cardName: 'X', amount: 1 }], new Map()).at(-1)?.key).toBe('unknown');
   });
 });
