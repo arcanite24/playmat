@@ -76,6 +76,8 @@ export interface PlaySettings {
   volume: number;
   /** only your turn, decisions, the clock and the result make a sound */
   importantCuesOnly: boolean;
+  /** a short chime when a triggered ability goes on the stack (else the spell cue) */
+  triggerSounds: boolean;
   /** browser notifications while the tab is in the background: your move, a draft pick, a game starting, a whisper */
   notifications: boolean;
   /** profile: the sigil shown for the player (server avatar ids 10 to 32; 10 shows the initial) */
@@ -157,6 +159,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   sound: true,
   volume: 0.6,
   importantCuesOnly: false,
+  triggerSounds: true,
   notifications: false,
   avatarId: 10,
   flag: 'world',

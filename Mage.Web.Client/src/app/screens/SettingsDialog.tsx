@@ -238,6 +238,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
             </div>
           </Row>
           <Row label={t('settings.importantCues')} detail={t('settings.importantCues.detail')}>{toggle('importantCuesOnly')}</Row>
+          <Row label={t('settings.triggerSounds')} detail={t('settings.triggerSounds.detail')}>{toggle('triggerSounds')}</Row>
           {showProgress !== null && (
             <Row label={t('settings.showProgress')} detail={t('settings.showProgress.detail')}>
               <Switch checked={showProgress} onChange={(value) => void setShowProgress(value)} />
