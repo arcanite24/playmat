@@ -93,4 +93,6 @@ export default {
   'match.score.won': 'You won game {game} · {wins}–{losses}',
   'match.score.lost': 'You lost game {game} · {wins}–{losses}',
   'match.score.draw': 'Game {game} was a draw · {wins}–{losses}',
+  // the hovered card's keywords and mechanics, explained beside it
+  'match.zoom.mechanics': 'Mechanics',
 };

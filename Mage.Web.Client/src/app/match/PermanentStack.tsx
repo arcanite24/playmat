@@ -7,6 +7,7 @@ import { keywordEffects, keywordMarks, type KeywordEffect, type MarkedKeyword } 
 import type { PermanentView } from '../../protocol/generated/views';
 import { useSettings } from '../stores/settings';
 import { CardFace } from '../ui/CardFace';
+import { CounterBadges } from './CounterBadges';
 import { cardKey, stackOffsetRatio, type PermanentGroup } from './boardModel';
 import { useFlip } from './flip';
 import { useMatchUi } from './matchUi';
@@ -182,7 +183,6 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
   }
 
   const damage = permanent.damage ?? 0;
-  const counters = (permanent.counters ?? []).filter((counter) => (counter.count ?? 0) > 0);
   const isCreature = (permanent.cardTypes ?? []).includes('CREATURE');
   const loyalty = permanent.loyalty || permanent.defense;
   // summoning sick: it can't attack or tap yet, so it dozes (the server's flag ignores haste; a hasty creature is awake)
@@ -273,16 +273,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
         </div>
       )}
 
-      {counters.length > 0 && (
-        <ul className={styles.counters} aria-label="Counters">
-          {counters.map((counter) => (
-            <li key={counter.name} title={`${counter.count} ${counter.name}`}>
-              <span>{counterLabel(counter.name ?? '')}</span>
-              {(counter.count ?? 0) > 1 && <b>{counter.count}</b>}
-            </li>
-          ))}
-        </ul>
-      )}
+      <CounterBadges permanent={permanent} className={styles.counters} />
 
       {isCreature && permanent.power !== undefined && (
         <span className={[styles.pt, ptTone(permanent)].join(' ')}>
@@ -294,11 +285,6 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       {count !== undefined && <span className={styles.count}>×{count}</span>}
     </div>
   );
-}
-
-function counterLabel(name: string): string {
-  if (/^[+-]\d+\/[+-]\d+$/.test(name)) return name;
-  return name.replace(/counter$/i, '').trim().slice(0, 10);
 }
 
 function ptTone(permanent: PermanentView): string {

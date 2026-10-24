@@ -1478,6 +1478,7 @@ const es: Catalog = {
   'match.score.won': 'Ganaste la partida {game} · {wins}–{losses}',
   'match.score.lost': 'Perdiste la partida {game} · {wins}–{losses}',
   'match.score.draw': 'La partida {game} fue empate · {wins}–{losses}',
+  'match.zoom.mechanics': 'Mecánicas',
   'career.board.scope': 'Alcance de la tabla',
   'career.board.server': 'Servidor',
   'career.board.friends': 'Amigos',
