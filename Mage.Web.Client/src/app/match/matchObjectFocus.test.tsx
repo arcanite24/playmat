@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, test, vi } from 'vitest';
 import type { Interaction } from '../../core/game/interaction';
@@ -23,6 +23,26 @@ function object(kind: string, onClick: () => void) {
 }
 
 describe('match object focus', () => {
+  test.each([false, true])('dragging an attacker (declared: %s) chooses the permanent under the pointer without toggling it', (declared) => {
+    const onClick = vi.fn();
+    const onDrop = vi.fn(() => true);
+    const { container } = render(<PermanentStack group={{ key: 'bear', lead: bear, members: [bear], attachments: [] }} width={100} sleeve="default" clickable={new Set(['bear'])} selected={new Set(declared ? ['bear'] : [])} attacking={new Set(declared ? ['bear'] : [])} blocking={new Set()} forward={1} onClick={onClick} onBlockDrop={onDrop} dropTargets={new Set(['jace'])} />);
+    const card = container.querySelector<HTMLElement>('[data-object-id="bear"]')!;
+    card.setPointerCapture = vi.fn();
+    card.hasPointerCapture = () => true;
+    card.releasePointerCapture = vi.fn();
+    const target = document.createElement('div');
+    target.dataset.objectId = 'jace';
+    Object.defineProperty(document, 'elementsFromPoint', { configurable: true, value: () => [target] });
+    fireEvent.pointerDown(card, { button: 0, pointerId: 1, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(card, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.pointerUp(card, { pointerId: 1, clientX: 100, clientY: 100 });
+    fireEvent.click(card);
+    expect(onDrop).toHaveBeenCalledWith('bear', 'jace');
+    expect(onClick).not.toHaveBeenCalled();
+    Reflect.deleteProperty(document, 'elementsFromPoint');
+  });
+
   test('available lands have the action border', () => {
     const land = { id: 'forest', name: 'Forest', cardTypes: ['LAND'] } as PermanentView;
     const { container } = render(<PermanentStack group={{ key: 'forest', lead: land, members: [land], attachments: [] }} width={100} sleeve="default" clickable={new Set(['forest'])} selected={new Set()} attacking={new Set()} blocking={new Set()} forward={1} onClick={vi.fn()} />);
