@@ -1,5 +1,5 @@
 import { ClipboardPaste, Cloud, CloudOff, Copy, Download, PencilLine, PencilRuler, RefreshCw, Trash2 } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { siteById } from '../../core/deckImport/sites';
 import { ExportMenu } from '../decks/ExportMenu';
@@ -12,7 +12,8 @@ import { deckStorage } from '../../core/decks/DeckStorageService';
 import { applyUpdate } from '../../core/deckImport/diff';
 import { t as translate, useT } from '../i18n';
 import { RichText } from '../i18n/RichText';
-import { SLEEVE_COLORS, chosenSleeve, rosterOf, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
+import { SLEEVE_COLORS, chosenSleeve, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { useDeckSyncStatus } from '../stores/deckSyncStatus';
 import { useSettings } from '../stores/settings';
 import { useServerInfo } from '../queries';
@@ -38,7 +39,7 @@ const GhostActions = lazy(() => import('../solo/Ghosts').then((m) => ({ default:
 export function DecksScreen() {
   const decks = useDecks();
   const t = useT();
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
   const [removing, setRemoving] = useState<RosterDeck | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<RosterDeck | null>(null);

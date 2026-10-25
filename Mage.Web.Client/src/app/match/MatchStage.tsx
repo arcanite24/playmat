@@ -24,6 +24,7 @@ import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
 import { useAutomation, useSettings } from '../stores/settings';
+import { useManaPaymentSettings } from './useManaPaymentSettings';
 import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
@@ -155,6 +156,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const autoDismissReveals = useSettings((settings) => settings.settings.autoDismissReveals);
   const autoPay = useSettings((settings) => settings.settings.autoPayMana);
   const automation = useAutomation();
+  useManaPaymentSettings(session, mode === 'play' && !!playerId && !!view);
   // watching and replays: the broadcast options
   const spectating = mode !== 'play';
   const broadcastDelay = useSettings((settings) => settings.settings.broadcastDelay);
@@ -194,17 +196,6 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const attacking = useMemo(() => withPredictedAttack(combatNow.attacking, prediction), [combatNow.attacking, prediction]);
   const chosen = useMemo(() => withPredictedAttack(interaction.selected, prediction), [interaction.selected, prediction]);
   const pending = prediction?.id ?? null;
-  // lands can always tap for mana while you hold priority; glowing them all would drown the real options
-  const quiet = useMemo(() => {
-    if (interaction.mode !== 'priority' || !board.me) return EMPTY;
-    const lands = new Set<string>();
-    for (const group of board.me.back) {
-      for (const permanent of group.members) {
-        if ((permanent.cardTypes ?? []).includes('LAND')) lands.add(permanent.id!);
-      }
-    }
-    return lands;
-  }, [interaction.mode, board.me]);
   const sortedHand = useSettings((settings) => settings.settings.sortHand);
   const hand = useMemo(() => {
     const cards = Object.values(view?.myHand ?? {});
@@ -520,7 +511,6 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 handCount={opponent.player.handCount ?? 0}
                 clickable={clickable}
                 selected={interaction.selected}
-                quiet={EMPTY}
                 attacking={attacking}
                 targeting={targeting}
                 blocking={blocking}
@@ -536,7 +526,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
             {board.me && (
               <>
-                <Battlefield board={board.me} sleeve={sleeves.mine} clickable={clickable} selected={chosen} quiet={quiet} attacking={attacking} blocking={blocking} targeting={targeting} onClick={onClick} pending={pending} onBlockDrop={interaction.mode === 'declareBlockers' && canAct ? onBlockDrop : interaction.mode === 'declareAttackers' && canAct ? attackDrop.onDrop : undefined} dropTargets={interaction.mode === 'declareAttackers' ? attackDrop.targets : undefined} place={layout.me} />
+                <Battlefield board={board.me} sleeve={sleeves.mine} clickable={clickable} selected={chosen} attacking={attacking} blocking={blocking} targeting={targeting} onClick={onClick} pending={pending} onBlockDrop={interaction.mode === 'declareBlockers' && canAct ? onBlockDrop : interaction.mode === 'declareAttackers' && canAct ? attackDrop.onDrop : undefined} dropTargets={interaction.mode === 'declareAttackers' ? attackDrop.targets : undefined} place={layout.me} />
                 <div ref={plateRef} className={styles.myPlate} style={layout.myPlate}>
                   <PlayerPlate
                     player={board.me.player}
@@ -638,7 +628,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
-            {defenders && !(automation.attackPlayerByDefault && defaultDefender(defenders)) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
+            {defenders && (attackDrop.manualDefender || !(automation.attackPlayerByDefault && defaultDefender(defenders))) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
             <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />
             <EmoteBubbles view={view} gameId={state.gameId} />
@@ -730,7 +720,6 @@ interface RowProps {
   sleeve: string;
   clickable: ReadonlySet<string>;
   selected: ReadonlySet<string>;
-  quiet: ReadonlySet<string>;
   attacking: ReadonlySet<string>;
   blocking: ReadonlySet<string>;
   targeting: boolean;

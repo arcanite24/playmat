@@ -1,7 +1,8 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { lazy, Suspense, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { META_PREFIX, RANDOM_META_PREFIX, rosterOf, sleeveFor, useDecks } from '../stores/decks';
+import { META_PREFIX, RANDOM_META_PREFIX, sleeveFor, useDecks } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { formatRules } from '../../core/decks/formats';
 import { metaDecksFor } from '../../core/decks/metaDecks';
 import { readJson } from '../stores/persist';
@@ -61,7 +62,7 @@ export function HomeScreen() {
   if (aiOpen && !aiLoaded) setAiLoaded(true);
   const emailStatus = useEmailStatus().data;
   const emailUnconfirmed = !!emailStatus?.email && !emailStatus.verified && !!emailStatus.mail;
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
   // a meta, ghost or mirror opponent, or adaptive skill, is described with the solo messages
   const soloReady = useCareerMessages(mode === 'meta' || play.aiOptions.adaptive || opponentSource(play.aiOptions.opponentDeckId).kind !== 'roster');
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? roster[0] ?? null;

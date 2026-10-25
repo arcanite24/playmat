@@ -4,7 +4,8 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { formatRules, isCommanderFormat } from '../../core/decks/formats';
 import { metaDecksFor } from '../../core/decks/metaDecks';
 import { api } from '../connection';
-import { META_PREFIX, rosterOf, useDecks, type RosterDeck } from '../stores/decks';
+import { META_PREFIX, useDecks, type RosterDeck } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import {
@@ -54,7 +55,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   const options = usePlay((state) => state.aiOptions);
   const setOptions = usePlay((state) => state.setAiOptions);
   const decks = useDecks();
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
   const difficulty = difficultyOf(options.skill);
   const t = useT();
   // a server can leave the Monte Carlo AI out

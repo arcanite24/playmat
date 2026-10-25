@@ -4,7 +4,8 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../connection';
 import { toWire } from '../decks/deckModel';
 import { refreshTables, useServerState, useTables } from '../queries';
-import { rosterOf, useDecks } from '../stores/decks';
+import { useDecks } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { useSession } from '../stores/session';
 import { notify } from '../stores/toasts';
 import type { TableView } from '../../protocol/generated/views';
@@ -44,7 +45,7 @@ export function TablesScreen() {
   const userName = useSession((state) => state.userName);
   const roomId = useSession((state) => state.roomId);
   const decks = useDecks();
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
   const selectedDeck = roster.find((deck) => deck.id === decks.selectedId) ?? roster[0] ?? null;
   const [hostOpen, setHostOpen] = useState(!!(location.state as { host?: string } | null)?.host);
   const [busyTable, setBusyTable] = useState<string | null>(null);
