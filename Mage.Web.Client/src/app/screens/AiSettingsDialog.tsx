@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { formatRules, isCommanderFormat } from '../../core/decks/formats';
 import { metaDecksFor } from '../../core/decks/metaDecks';
 import { api } from '../connection';
-import { META_PREFIX, useDecks } from '../stores/decks';
+import { META_PREFIX, useDecks, type RosterDeck } from '../stores/decks';
 import { useDeckRoster } from '../stores/useDeckRoster';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
@@ -12,6 +12,7 @@ import {
   adaptiveSentence, adaptiveFormatFor, ghostOpponentId, ghostRecord, MIRROR_OPPONENT_ID, normalizeGhostCode, opponentSource,
 } from '../solo/freePlay';
 import type { GhostOpponent } from '../../protocol/generated/views';
+import type { MetaDeck } from '../../core/decks/metaDecks';
 import { DEFAULT_AI_OPTIONS, usePlay } from '../stores/play';
 import { AI_TYPES, DIFFICULTIES, difficultyOf, offeredAiTypes } from './aiSetup';
 import { useServerState } from '../queries';
@@ -55,10 +56,6 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   const setOptions = usePlay((state) => state.setAiOptions);
   const decks = useDecks();
   const roster = useDeckRoster();
-  const starters = roster.filter((deck) => deck.starter);
-  const mine = roster.filter((deck) => !deck.starter);
-  // the AI's format decks, one group per format, in the order the index lists the formats
-  const metaFormats = useMemo(() => [...new Set(decks.metaDecks.map((deck) => deck.format))], [decks.metaDecks]);
   const difficulty = difficultyOf(options.skill);
   const t = useT();
   // a server can leave the Monte Carlo AI out
@@ -115,7 +112,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
         </section>
 
         <section className={styles.row}>
-          <label className={styles.label} htmlFor="ai-deck">{t('ai.deck')}</label>
+          <label className={styles.label} htmlFor="ai-deck">{t(options.opponents > 1 ? 'ai.deck.first' : 'ai.deck')}</label>
           <select
             id="ai-deck"
             className={styles.select}
@@ -125,24 +122,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             <option value="">{t('ai.deck.random')}</option>
             <option value={MIRROR_OPPONENT_ID}>{t('solo.mirror.option')}</option>
             <option value={GHOST_CHOICE}>{t('solo.ghost.option')}</option>
-            <optgroup label={t('ai.deck.starters')}>
-              {starters.filter((deck) => !isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-            </optgroup>
-            {starters.some((deck) => isCommanderFormat(deck.starter?.format)) && (
-              <optgroup label={t('ai.deck.commanderStarters')}>
-                {starters.filter((deck) => isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-              </optgroup>
-            )}
-            {metaFormats.map((format) => (
-              <optgroup key={format} label={t('ai.deck.meta', { format: formatRules(format).label })}>
-                {metaDecksFor(decks.metaDecks, format).map((deck) => <option key={deck.file} value={META_PREFIX + deck.file}>{deck.name}</option>)}
-              </optgroup>
-            ))}
-            {mine.length > 0 && (
-              <optgroup label={t('ai.deck.yours')}>
-                {mine.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
-              </optgroup>
-            )}
+            <DeckGroups roster={roster} metaDecks={decks.metaDecks} />
           </select>
           {!ghostPicked && <p className={styles.detail}>{t(source.kind === 'mirror' ? 'solo.mirror.detail' : 'ai.deck.detail')}</p>}
           {ghostPicked && (
@@ -152,6 +132,17 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
               onFound={(ghost) => setOptions({ opponentDeckId: ghostOpponentId(ghost.code ?? ''), opponentLabel: ghost.name ?? null })}
             />
           )}
+        </section>
+
+        <section className={styles.row}>
+          <h3 className={styles.label}>{t('ai.pool')}</h3>
+          <Segmented
+            label={t('ai.pool')}
+            value={options.randomPool}
+            options={[{ value: 'starters' as const, label: t('ai.pool.starters') }, { value: 'every' as const, label: t('ai.pool.every') }]}
+            onChange={(randomPool) => setOptions({ randomPool })}
+          />
+          <p className={styles.detail}>{t(options.randomPool === 'every' ? 'ai.pool.every.detail' : 'ai.pool.starters.detail')}</p>
         </section>
 
         <section className={styles.row}>
@@ -203,9 +194,70 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             onChange={(opponents) => setOptions({ opponents })}
           />
           <p className={styles.detail}>{t('ai.pod.detail')}</p>
+          {/* the pod's other seats; the first is "First AI's deck" above */}
+          {POD_SEATS.slice(0, options.opponents - 1).map((seat, index) => (
+            <div key={seat} className={styles.row}>
+              <label className={styles.label} htmlFor={`ai-pod-deck-${index}`}>{t(seat)}</label>
+              <select
+                id={`ai-pod-deck-${index}`}
+                className={styles.select}
+                value={options.podDeckIds[index] ?? ''}
+                onChange={(event) => {
+                  const podDeckIds = [...options.podDeckIds];
+                  podDeckIds[index] = event.target.value || null;
+                  setOptions({ podDeckIds });
+                }}
+              >
+                <option value="">{t('ai.deck.random')}</option>
+                <DeckGroups roster={roster} metaDecks={decks.metaDecks} commanderOnly />
+              </select>
+            </div>
+          ))}
+          {options.opponents > 1 && <p className={styles.detail}>{t('ai.pod.seatDetail')}</p>}
         </section>
       </div>
     </Dialog>
+  );
+}
+
+const POD_SEATS = ['ai.pod.seat2', 'ai.pod.seat3'] as const;
+
+/**
+ * The decks the AI can be given, grouped: starters, commander starters, each format's decks, the player's own.
+ * `commanderOnly` (a pod's seats) leaves out the starters and format decks that aren't commander decks.
+ */
+function DeckGroups({ roster, metaDecks, commanderOnly = false }: { roster: RosterDeck[]; metaDecks: MetaDeck[]; commanderOnly?: boolean }) {
+  const t = useT();
+  const starters = roster.filter((deck) => deck.starter);
+  const mine = roster.filter((deck) => !deck.starter);
+  // the AI's format decks, one group per format, in the order the index lists the formats
+  const metaFormats = useMemo(
+    () => [...new Set(metaDecks.map((deck) => deck.format))].filter((format) => !commanderOnly || isCommanderFormat(format)),
+    [metaDecks, commanderOnly],
+  );
+  return (
+    <>
+      {!commanderOnly && (
+        <optgroup label={t('ai.deck.starters')}>
+          {starters.filter((deck) => !isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
+        </optgroup>
+      )}
+      {starters.some((deck) => isCommanderFormat(deck.starter?.format)) && (
+        <optgroup label={t('ai.deck.commanderStarters')}>
+          {starters.filter((deck) => isCommanderFormat(deck.starter?.format)).map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
+        </optgroup>
+      )}
+      {metaFormats.map((format) => (
+        <optgroup key={format} label={t('ai.deck.meta', { format: formatRules(format).label })}>
+          {metaDecksFor(metaDecks, format).map((deck) => <option key={deck.file} value={META_PREFIX + deck.file}>{deck.name}</option>)}
+        </optgroup>
+      ))}
+      {mine.length > 0 && (
+        <optgroup label={t('ai.deck.yours')}>
+          {mine.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
+        </optgroup>
+      )}
+    </>
   );
 }
 
