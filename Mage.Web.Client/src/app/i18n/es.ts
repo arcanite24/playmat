@@ -359,6 +359,8 @@ const es: Catalog = {
   'settings.autoAssignDamage.detail': "Cuando solo un reparto de daño tiene sentido, se asigna sin preguntar.",
   'settings.autoAssignTrample': "Asignar el daño de arrollar por mí",
   'settings.autoAssignTrample.detail': "Arrollar hace daño letal a los bloqueadores y el resto al jugador sin preguntar.",
+  'settings.hideStarterDecks': 'Ocultar mazos iniciales',
+  'settings.hideStarterDecks.detail': 'Oculta los mazos iniciales en tu biblioteca y al elegir mazo. Las copias guardadas siguen visibles. Los oponentes de IA aleatorios aún pueden usarlos.',
   'settings.sortHand': "Ordenar mi mano",
   'settings.sortHand.detail': "Tierras primero, luego por valor de maná y color.",
   'settings.autoDismissReveals': "Ocultar las cartas reveladas tras un momento",

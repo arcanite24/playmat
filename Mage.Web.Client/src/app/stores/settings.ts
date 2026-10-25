@@ -46,6 +46,8 @@ export interface PlaySettings {
   autoAssignTrample: boolean;
   /** the hand is sorted: lands first, then by mana value and color (local only) */
   sortHand: boolean;
+  /** shipped starter decks stay out of the library and deck pickers (local only) */
+  hideStarterDecks: boolean;
   /** revealed cards fade away after a few seconds (local only) */
   autoDismissReveals: boolean;
   /** battlefield cards are drawn smaller, so big boards stay roomy (local only) */
@@ -144,6 +146,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   autoAssignDamage: true,
   autoAssignTrample: false,
   sortHand: true,
+  hideStarterDecks: false,
   autoDismissReveals: true,
   compactBoard: false,
   muteEmotes: false,

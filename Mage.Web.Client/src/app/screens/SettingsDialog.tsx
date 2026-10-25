@@ -172,6 +172,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         </Tabs.Content>
 
         <Tabs.Content value="display" className={styles.panel}>
+          <Row label={t('settings.hideStarterDecks')} detail={t('settings.hideStarterDecks.detail')}>{toggle('hideStarterDecks')}</Row>
           <Row label={t('settings.motion')} detail={t('settings.motion.detail')}>{toggle('animations')}</Row>
           <Row label={t('settings.sortHand')} detail={t('settings.sortHand.detail')}>{toggle('sortHand')}</Row>
           <Row label={t('settings.autoDismissReveals')} detail={t('settings.autoDismissReveals.detail')}>{toggle('autoDismissReveals')}</Row>

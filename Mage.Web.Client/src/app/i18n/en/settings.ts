@@ -84,6 +84,8 @@ export default {
   'settings.autoAssignDamage.detail': "When only one damage split makes sense, it is assigned without asking.",
   'settings.autoAssignTrample': "Assign trample damage for me",
   'settings.autoAssignTrample.detail': "Trample deals lethal damage to blockers and the rest to the player without asking.",
+  'settings.hideStarterDecks': 'Hide starter decks',
+  'settings.hideStarterDecks.detail': 'Hide starter decks in your library and deck pickers. Saved copies stay visible. Random AI opponents can still use starters.',
   'settings.sortHand': "Sort my hand",
   'settings.sortHand.detail': "Lands first, then by mana value and color.",
   'settings.autoDismissReveals': "Hide revealed cards after a moment",
