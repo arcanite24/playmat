@@ -43,6 +43,7 @@ import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
 import { LessonCoach } from './LessonCoach';
 import { CardZoom } from './CardZoom';
+import { CombatPreview } from './CombatPreview';
 import { DamageAssigner } from './DamageAssigner';
 import { damageCorner, useDamageSplit } from './useDamageSplit';
 import { EmoteBubbles } from './EmoteBubbles';
@@ -638,6 +639,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
+            {canAct && <CombatPreview view={view} mode={interaction.mode} />}
             {defenders && !(automation.attackPlayerByDefault && defaultDefender(defenders)) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
             <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />

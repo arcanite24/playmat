@@ -93,10 +93,13 @@ import { gzipSync } from 'node:zlib';
 // raised 2026-10-23 from entry 84, initial 218, app 768 for drawn icons in place of emoji: avatars show their sigil
 // as an icon (eight lucide icons and thirteen drawn creatures) and flags as text badges, and the avatar is in the
 // header, so the sigils load with the entry. Measured entry 84.6 kB, initial 219.7 kB, app 769.2 kB
+// app raised 2026-10-24 from 770 kB for the combat estimate (who dies and the damage that gets through, while declaring
+// attackers and blockers, and its English and Spanish messages): match code, lazy with the match screen. Measured app
+// 771.0 kB
 const BUDGET_KB = {
   entry: 85,
   initial: 220,
-  app: 770,
+  app: 772,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
