@@ -20,8 +20,6 @@ export interface PermanentStackProps {
   sleeve: string;
   clickable: ReadonlySet<string>;
   selected: ReadonlySet<string>;
-  /** clickable but not worth a glow (lands while you hold priority: tapping for mana is always possible) */
-  quiet?: ReadonlySet<string>;
   attacking: ReadonlySet<string>;
   blocking: ReadonlySet<string>;
   /** opponents' attackers slide toward the player, ours toward the opponent */
@@ -130,7 +128,7 @@ interface PlacedCardProps extends PermanentStackProps {
   count?: number;
 }
 
-function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
+function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const id = permanent.id!;
   const tapped = !!permanent.tapped;
@@ -209,7 +207,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       ref={ref}
       className={[
         styles.card,
-        isClickable && !quiet?.has(id) ? styles.clickable : '',
+        isClickable ? styles.clickable : '',
         isClickable && targeting && !isSelected ? styles.target : '',
         isSelected ? styles.selected : '',
         isAttacking ? styles.attacking : '',

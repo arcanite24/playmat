@@ -6,6 +6,7 @@ import type { PermanentView } from '../../protocol/generated/views';
 import { ActionCluster } from './ActionCluster';
 import { Hand } from './Hand';
 import { PermanentStack } from './PermanentStack';
+import styles from './PermanentStack.module.css';
 import { PlayerPlate } from './PlayerPlate';
 
 const bear = { id: 'bear', name: 'Grizzly Bears', cardTypes: ['CREATURE'] } as PermanentView;
@@ -22,6 +23,12 @@ function object(kind: string, onClick: () => void) {
 }
 
 describe('match object focus', () => {
+  test('available lands have the action border', () => {
+    const land = { id: 'forest', name: 'Forest', cardTypes: ['LAND'] } as PermanentView;
+    const { container } = render(<PermanentStack group={{ key: 'forest', lead: land, members: [land], attachments: [] }} width={100} sleeve="default" clickable={new Set(['forest'])} selected={new Set()} attacking={new Set()} blocking={new Set()} forward={1} onClick={vi.fn()} />);
+    expect(container.querySelector('[data-object-id="forest"]')?.classList.contains(styles.clickable)).toBe(true);
+  });
+
   test.each(['hand', 'battlefield', 'player'])('clicking a %s object leaves Space for the main action; Tab still activates it', async (kind) => {
     const user = userEvent.setup();
     const activate = vi.fn();
