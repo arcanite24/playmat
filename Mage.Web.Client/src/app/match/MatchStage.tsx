@@ -24,6 +24,7 @@ import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
 import { useAutomation, useSettings } from '../stores/settings';
+import { useManaPaymentSettings } from './useManaPaymentSettings';
 import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
@@ -155,6 +156,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const autoDismissReveals = useSettings((settings) => settings.settings.autoDismissReveals);
   const autoPay = useSettings((settings) => settings.settings.autoPayMana);
   const automation = useAutomation();
+  useManaPaymentSettings(session, mode === 'play' && !!playerId && !!view);
   // watching and replays: the broadcast options
   const spectating = mode !== 'play';
   const broadcastDelay = useSettings((settings) => settings.settings.broadcastDelay);

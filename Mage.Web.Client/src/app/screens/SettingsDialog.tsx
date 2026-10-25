@@ -117,7 +117,9 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           <Row label={t('settings.skipCombat')} detail={t('settings.skipCombat.detail')}>{toggle('autoSkipCombat')}</Row>
           <Row label={t('settings.passAfterCasting')} detail={t('settings.passAfterCasting.detail')}>{toggle('passAfterCasting')}</Row>
           <Row label={t('settings.autoPay')} detail={t('settings.autoPay.detail')}>{toggle('autoPayMana')}</Row>
-          <Row label={t('settings.autoPayRestricted')} detail={t('settings.autoPayRestricted.detail')}>{toggle('autoPayRestricted')}</Row>
+          <Row label={t('settings.autoPayPool')} detail={t('settings.autoPayPool.detail')}>
+            <Switch checked={!settings.autoPayRestricted} onChange={(value) => update({ autoPayRestricted: !value })} />
+          </Row>
           <Row label={t('settings.emptyPool')} detail={t('settings.emptyPool.detail')}>{toggle('confirmEmptyManaPool')}</Row>
           <Row label={t('settings.orderTriggers')} detail={t('settings.orderTriggers.detail')}>{toggle('autoOrderTriggers')}</Row>
           <Row label={t('settings.autoTarget')} detail={t('settings.autoTarget.detail')}>
