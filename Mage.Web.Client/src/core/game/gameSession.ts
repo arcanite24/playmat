@@ -7,6 +7,7 @@ import { DelayedRelay } from './broadcastDelay';
 import { deriveInteraction, type Command, type Interaction } from './interaction';
 import type { Prediction } from './prediction';
 import { PROMPT_EVENTS, parsePrompt, promptGameView, stripMarkup, type Prompt, type PromptEventName } from './prompt';
+import { NO_REVEALED_HANDS, rememberRevealedHands, type RevealedHands } from './revealedHand';
 import { structuralShare } from './structuralShare';
 
 export type GameSessionMode = 'play' | 'watch' | 'replay';
@@ -44,6 +45,8 @@ export interface GameSessionState {
   endInfo: GameEndView | null;
   /** watching: the broadcast delay in ms (0: live); what the server sends is shown this much later */
   broadcastDelayMs: number;
+  /** cards revealed from each player's hand that are still there (revealedHand.ts) */
+  revealedHands: RevealedHands;
 }
 
 const MAX_NOTICES = 50;
@@ -111,6 +114,7 @@ export class GameSession {
       gameOver: null,
       endInfo: null,
       broadcastDelayMs: 0,
+      revealedHands: NO_REVEALED_HANDS,
     }));
 
     const forThisGame = <T>(handler: (data: T, event: ServerEvent) => void) =>
@@ -370,7 +374,9 @@ export class GameSession {
     // the server's view is the truth: whatever the click was expected to do, this shows what it did
     if (this.store.getState().prediction) this.store.setState({ prediction: null });
     const playerId = this.store.getState().playerId ?? (this.store.getState().mode === 'play' ? view.myPlayerId ?? null : null);
-    this.store.setState({ view: next, playerId });
+    // a replay jumps between moments, so what was revealed is only remembered live
+    const { mode, revealedHands } = this.store.getState();
+    this.store.setState({ view: next, playerId, revealedHands: mode === 'replay' ? revealedHands : rememberRevealedHands(revealedHands, next) });
     this.refreshInteraction();
   }
 

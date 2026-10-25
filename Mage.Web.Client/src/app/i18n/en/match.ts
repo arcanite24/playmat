@@ -48,6 +48,9 @@ export default {
   'match.plate.aria.lost': '{name}, out of the game',
   'match.plate.aria.disconnected': 'disconnected',
 
+  // an opponent's card revealed from their hand, still in it
+  'match.hand.revealed': 'Revealed',
+
   // the decision corner
   'match.conceding': 'Concession sent. The game ends as soon as the server applies it.',
   'match.conceding.waiting': 'Concession sent. It takes effect when {name} passes priority.',

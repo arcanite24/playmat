@@ -1444,6 +1444,7 @@ const es: Catalog = {
   'match.plate.disconnectedTitle': 'Perdió la conexión con el servidor. Tiene unos minutos para volver antes de perder.',
   'match.plate.aria.lost': '{name}, fuera de la partida',
   'match.plate.aria.disconnected': 'desconectado',
+  'match.hand.revealed': 'Revelada',
   'match.conceding': 'Concesión enviada. La partida termina en cuanto el servidor la aplique.',
   'match.conceding.waiting': 'Concesión enviada. Se aplica cuando {name} pase la prioridad.',
   'match.ask.cards': { one: 'La carta que estás mirando', other: 'Las {count} cartas que estás mirando' },

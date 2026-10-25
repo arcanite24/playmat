@@ -1771,6 +1771,10 @@ export interface PermanentView extends CardView {
     nameOwner?: string;
     original?: CardView;
     phasedIn?: boolean;
+    roomLeftDoor?: string;
+    roomLeftUnlocked?: boolean;
+    roomRightDoor?: string;
+    roomRightUnlocked?: boolean;
     summoningSickness?: boolean;
     tapped?: boolean;
 }

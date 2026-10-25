@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isStackAbility, printsPowerToughness } from './cards';
+import { isStackAbility, printsPowerToughness, roomDoors } from './cards';
 
 describe('isStackAbility', () => {
   it('recognises abilities as the server sends them (no isAbility flag)', () => {
@@ -26,5 +26,17 @@ describe('printsPowerToughness', () => {
     expect(printsPowerToughness({ power: '0', toughness: '0' })).toBe(false);
     expect(printsPowerToughness({ power: '2', toughness: '1' })).toBe(true);
     expect(printsPowerToughness({ power: '', toughness: '' })).toBe(false);
+  });
+});
+
+describe('roomDoors', () => {
+  it('lists both doors, left first, with which are unlocked', () => {
+    expect(roomDoors({ roomLeftDoor: 'Bottomless Pool', roomRightDoor: 'Locker Room', roomRightUnlocked: true })).toEqual([
+      { name: 'Bottomless Pool', unlocked: false },
+      { name: 'Locker Room', unlocked: true },
+    ]);
+  });
+  it('is null for anything that is not a face-up Room', () => {
+    expect(roomDoors({})).toBeNull();
   });
 });
