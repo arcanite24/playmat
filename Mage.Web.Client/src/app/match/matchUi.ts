@@ -14,8 +14,8 @@ interface MatchUiState {
   dragging: string | null;
   /** a creature being dragged onto an attacker to block it, and the attacker under the pointer */
   blockDrag: { blockerId: string; attackerId: string | null } | null;
-  /** zone viewer (graveyard, exile...) */
-  viewer: { title: string; cards: CardView[] } | null;
+  /** zone viewer (graveyard, exile...); `note` a line under the title, `counts` copies per card id */
+  viewer: { title: string; cards: CardView[]; note?: string; counts?: Record<string, number> } | null;
   logOpen: boolean;
   /** card opened in the detail view (right click); the id keeps it live as the game changes */
   detail: { id: string; card: CardView } | null;

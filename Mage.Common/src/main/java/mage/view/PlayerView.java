@@ -31,6 +31,9 @@ public class PlayerView implements Serializable {
     private final int wins;
     private final int winsNeeded;
     private final int libraryCount;
+    // the cards in this player's library by name (sorted, so the library order is not in it), only in the view made
+    // for that same player; null for opponents and watchers
+    private final Map<String, Integer> libraryCards;
     private final int handCount;
     private final boolean isActive;
     private final boolean hasPriority;
@@ -69,6 +72,15 @@ public class PlayerView implements Serializable {
         this.wins = player.getMatchPlayer().getWins();
         this.winsNeeded = player.getMatchPlayer().getWinsNeeded();
         this.libraryCount = player.getLibrary().size();
+        if (this.controlled) {
+            Map<String, Integer> cards = new TreeMap<>();
+            for (Card card : player.getLibrary().getCards(game)) {
+                cards.merge(card.getName(), 1, Integer::sum);
+            }
+            this.libraryCards = cards;
+        } else {
+            this.libraryCards = null;
+        }
         this.handCount = player.getHand().size();
         this.manaPool = new ManaPoolView(player.getManaPool());
         this.isActive = (player.getId().equals(state.getActivePlayerId()));
@@ -198,6 +210,11 @@ public class PlayerView implements Serializable {
 
     public int getLibraryCount() {
         return this.libraryCount;
+    }
+
+    /** this player's library by card name, in the player's own view only (else null) */
+    public Map<String, Integer> getLibraryCards() {
+        return this.libraryCards;
     }
 
     public int getWins() {

@@ -688,7 +688,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
               />
             )}
             {interaction.mode === 'panel' && prompt && !awaitingServer && <ChoicePanel prompt={prompt} sourceId={choiceSource} onCommand={onCommand} xLimit={announceLimit} startAtLimit={automation.xDefaultsToMax} />}
-            {viewer && <ZoneViewer title={viewer.title} cards={viewer.cards} onClose={() => openViewer(null)} />}
+            {viewer && <ZoneViewer {...viewer} onClose={() => openViewer(null)} />}
             {state.gameOver && betweenGames && (
               <BetweenGames
                 progress={betweenGames}

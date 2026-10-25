@@ -47,6 +47,15 @@ export default {
   'match.plate.disconnectedTitle': 'Lost connection to the server. They have a few minutes to come back before they lose.',
   'match.plate.aria.lost': '{name}, out of the game',
   'match.plate.aria.disconnected': 'disconnected',
+  'match.plate.thinking': 'Thinking… {seconds}s',
+  'match.plate.mana': '{count} mana available',
+  'match.plate.manaAbout': 'about {count} mana available',
+  'match.plate.manaTitle': 'Untapped lands and mana sources you control, plus your mana pool',
+
+  // the zone viewer, and your library in it (names and counts only)
+  'match.viewer.copies': { one: '{count} copy', other: '{count} copies' },
+  'match.library.order': 'Shown in random order, not the library order',
+  'match.library.orderTop': 'Shown in random order, not the library order · top card revealed: {name}',
 
   // the decision corner
   'match.conceding': 'Concession sent. The game ends as soon as the server applies it.',
