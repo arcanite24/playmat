@@ -65,6 +65,10 @@ export default {
   'match.ability.cancel': 'Cancel',
   'match.amount.mana': 'You have {count} mana to pay with.',
 
+  // blocks that break a requirement, said before they are sent
+  'match.block.mustBeBlocked': '{name} must be blocked if able. Block it, or press again to send these blocks anyway.',
+  'match.block.anAttacker': 'An attacker',
+
   // the end of a game or match
   'match.end.victory': 'Victory',
   'match.end.defeat': 'Defeat',

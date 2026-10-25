@@ -16,9 +16,16 @@ export const MARKED_KEYWORDS = [
   'Flying', 'Reach', 'Menace', 'Defender',
   'First strike', 'Double strike', 'Deathtouch', 'Trample', 'Lifelink', 'Infect', 'Vigilance', 'Haste',
   'Indestructible', 'Hexproof', 'Shroud', 'Ward', 'Protection',
+  // not a keyword, but blocks depend on it (Fear of Being Hunted)
+  'Must be blocked',
 ] as const;
 
 export type MarkedKeyword = typeof MARKED_KEYWORDS[number];
+
+/** An attacker that must be blocked if able, from its current rules text. */
+export function mustBeBlocked(card: CardView | undefined): boolean {
+  return (card?.rules ?? []).some((line) => /must be blocked\b/i.test(line.replace(/<[^>]+>/g, '')));
+}
 
 /** The server's ability icons (computed from the permanent's current abilities, granted ones included). */
 const ICON_KEYWORDS: Record<string, MarkedKeyword> = {
@@ -48,6 +55,7 @@ export function keywordMarks(card: CardView): KeywordMark[] {
   }
   // the server has no icon for these; its current rules text lists them, granted ones included
   for (const name of keywordsOf(card)) now.add(name);
+  if (mustBeBlocked(card)) now.add('Must be blocked');
   const original = (card as PermanentView).original;
   const printed = original ? new Set(keywordsOf(original)) : null;
   return MARKED_KEYWORDS

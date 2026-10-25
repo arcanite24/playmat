@@ -23,6 +23,11 @@ describe('keywordMarks', () => {
     ]);
   });
 
+  it('marks an attacker that must be blocked if able', () => {
+    const card = { rules: ['Haste', 'This creature must be blocked if able.'] } as unknown as CardView;
+    expect(keywordMarks(card).map((mark) => mark.name)).toEqual(['Haste', 'Must be blocked']);
+  });
+
   it("doesn't count keywords a card only mentions", () => {
     const card = { rules: ["Creatures you control with flying get +1/+1."], original: { rules: [] } } as unknown as CardView;
     expect(keywordMarks(card)).toEqual([]);
