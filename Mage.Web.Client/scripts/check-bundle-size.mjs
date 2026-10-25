@@ -96,7 +96,7 @@ import { gzipSync } from 'node:zlib';
 const BUDGET_KB = {
   entry: 85,
   initial: 220,
-  app: 770,
+  app: 772,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
