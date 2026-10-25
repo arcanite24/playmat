@@ -8,6 +8,8 @@ import type { Api } from '../../protocol/generated/api';
 import type { CardView, GameView } from '../../protocol/generated/views';
 import { Hand } from './Hand';
 import { ActionCluster } from './ActionCluster';
+import { placeHand } from './matchLayout';
+import { useMatchUi } from './matchUi';
 import { DEFAULT_STAGE, StageContext } from './stageContext';
 
 const BOLT: CardView = { id: 'bolt', name: 'Lightning Bolt', expansionSetCode: 'M10', cardNumber: '146' } as CardView;
@@ -127,6 +129,26 @@ describe('Hand', () => {
     fireEvent.pointerDown(bolt, { button: 2, pointerId: 1, clientX: 100, clientY: 900 });
     fireEvent.pointerUp(bolt, { button: 2, pointerId: 1, clientX: 100, clientY: 900 });
     expect(api.sendPlayerUUID).not.toHaveBeenCalled();
+  });
+
+  test('in a big hand a mouse lifts the card its x falls on, one card per slice, not the wide lifted card it rests on', () => {
+    const cards = Array.from({ length: 20 }, (_, index) => ({ id: `c${index}`, name: `Card ${index}` }) as CardView);
+    const { spread } = placeHand(cards.length, DEFAULT_STAGE.width);
+    render(
+      <StageContext.Provider value={DEFAULT_STAGE}>
+        <Hand cards={cards} clickable={new Set()} selected={new Set()} sleeve="default" onPlay={() => undefined} playLine={PLAY_LINE} libraryOrigin="library:me" />
+      </StageContext.Provider>,
+    );
+    const hand = screen.getByRole('list', { name: 'Your hand, 20 cards' });
+    const lifted = () => screen.getAllByRole('listitem').filter((item) => item.className.includes('lifted')).map((item) => item.getAttribute('aria-label'));
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', clientX: spread * 5 + 2, clientY: 900 });
+    expect(lifted()).toEqual(['Card 5']);
+    expect(useMatchUi.getState().zoom?.card.name).toBe('Card 5');
+    fireEvent.pointerMove(hand, { pointerType: 'mouse', clientX: spread * 6 + 2, clientY: 900 });
+    expect(lifted()).toEqual(['Card 6']);
+    fireEvent.pointerLeave(hand, { pointerType: 'mouse' });
+    expect(lifted()).toEqual([]);
+    expect(useMatchUi.getState().zoom).toBeNull();
   });
 });
 

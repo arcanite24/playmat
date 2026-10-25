@@ -41,6 +41,8 @@ export interface HandProps {
 const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard', library: 'From library' };
 
 const DRAG_THRESHOLD = 12;
+/** how far the fan's outermost cards sit below its middle, at most: a big hand stays a shallow arc instead of sinking off the stage */
+const MAX_DROP = 36;
 
 /** The player's hand, fanned along the bottom edge. Hover lifts a card; drag it up (or click it) to play it. */
 export function Hand({ cards, choosing = false, clickable, selected, pending = null, sleeve, onPlay, playLine, libraryOrigin, faceDown = false, label = 'Your hand', fromZone, clearLeft = 0, clearRight = 0 }: HandProps) {
@@ -64,12 +66,34 @@ export function Hand({ cards, choosing = false, clickable, selected, pending = n
   const count = cards.length;
   const { center, spread, width } = placeHand(count, stage.width, clearLeft, clearRight);
   const arc = Math.min(4, 26 / Math.max(1, count));
+  const edge = (count - 1) / 2;
+  const curve = Math.min(MAX_DROP, edge * edge * arc * 0.9);
   const keys = useMemo(() => zoneKeys(cards), [cards]);
+  const setZoom = useMatchUi((state) => state.setZoom);
+  const dragging = useMatchUi((state) => state.dragging);
+  // the card a mouse rests on, by key. It's found from the pointer's x along the fan, not from what's under the
+  // pointer: a lifted card is wider than the slice each card gets in a big hand, and would swallow its neighbours
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.pointerType === 'touch' || faceDown || dragging || count === 0) return;
+    const x = (event.clientX - event.currentTarget.getBoundingClientRect().left) / stage.scale;
+    const index = Math.max(0, Math.min(count - 1, Math.floor(x / spread)));
+    if (keys[index] === hovered) return;
+    setHovered(keys[index]);
+    setZoom({ card: cards[index], x: event.clientX, y: event.clientY, sleeve });
+  }
+
+  function onPointerLeave(event: ReactPointerEvent) {
+    if (event.pointerType === 'touch' || hovered === null) return;
+    setHovered(null);
+    setZoom(null);
+  }
 
   return (
-    <div className={styles.hand} style={{ width, left: center }} role="list" aria-label={t('match.cards', { label, count })}>
+    <div className={styles.hand} style={{ width, left: center }} role="list" aria-label={t('match.cards', { label, count })} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave}>
       {cards.map((card, index) => {
-        const offset = index - (count - 1) / 2;
+        const offset = index - edge;
         return (
           <HandCard
             key={keys[index]}
@@ -78,7 +102,8 @@ export function Hand({ cards, choosing = false, clickable, selected, pending = n
             hints={hints}
             left={index * spread}
             rotate={offset * arc}
-            drop={Math.abs(offset) * Math.abs(offset) * arc * 0.9}
+            drop={edge > 0 ? curve * (offset / edge) ** 2 : 0}
+            lifted={!dragging && keys[index] === hovered}
             clickable={clickable.has(card.id!)}
             choosing={choosing}
             selected={selected.has(card.id!)}
@@ -104,6 +129,8 @@ interface HandCardProps {
   left: number;
   rotate: number;
   drop: number;
+  /** a mouse rests on it: it rises out of the hand */
+  lifted: boolean;
   clickable: boolean;
   selected: boolean;
   pending: boolean;
@@ -115,7 +142,7 @@ interface HandCardProps {
   fromZone?: PlayableZone;
 }
 
-function HandCard({ card, choosing, index, hints, left, rotate, drop, clickable, selected, pending, sleeve, onPlay, playLine, libraryOrigin, faceDown, fromZone }: HandCardProps) {
+function HandCard({ card, choosing, index, hints, left, rotate, drop, lifted, clickable, selected, pending, sleeve, onPlay, playLine, libraryOrigin, faceDown, fromZone }: HandCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const stage = useStage();
   const setZoom = useMatchUi((state) => state.setZoom);
@@ -165,7 +192,7 @@ function HandCard({ card, choosing, index, hints, left, rotate, drop, clickable,
     <div
       ref={ref}
       role="listitem"
-      className={[styles.card, faceDown ? styles.faceDown : '', clickable ? (choosing ? styles.choosable : styles.playable) : choosing ? styles.unchoosable : '', selected ? styles.selected : '', pending && !selected ? styles.pending : '', drag?.moved ? styles.dragging : ''].join(' ')}
+      className={[styles.card, lifted ? styles.lifted : '', faceDown ? styles.faceDown : '', clickable ? (choosing ? styles.choosable : styles.playable) : choosing ? styles.unchoosable : '', selected ? styles.selected : '', pending && !selected ? styles.pending : '', drag?.moved ? styles.dragging : ''].join(' ')}
       style={style}
       tabIndex={clickable ? 0 : -1}
       onMouseDown={preventMatchObjectMouseFocus}
@@ -184,8 +211,9 @@ function HandCard({ card, choosing, index, hints, left, rotate, drop, clickable,
           onPlay(card.id!);
         }
       }}
-      onPointerEnter={(event) => !drag && !faceDown && setZoom({ card, x: event.clientX, y: event.clientY, sleeve })}
-      onPointerLeave={() => setZoom(null)}
+      // a mouse is followed by the fan (Hand); a finger shows the card it holds
+      onPointerEnter={(event) => event.pointerType === 'touch' && !drag && !faceDown && setZoom({ card, x: event.clientX, y: event.clientY, sleeve })}
+      onPointerLeave={(event) => event.pointerType === 'touch' && setZoom(null)}
       aria-keyshortcuts={clickable && index < 10 ? `${(index + 1) % 10}` : undefined}
       data-object-id={card.id}
     >

@@ -25,12 +25,11 @@
   z-index: var(--z-held) !important;
 }
 
-/* a mouse lifts the card it rests on; a finger has no hover (a tapped card would stay up), so it lifts the card it holds */
-@media (hover: hover) {
-  .card:hover {
-    transform: translateY(-120px) rotate(0deg) scale(1.22);
-    z-index: var(--z-held) !important;
-  }
+/* a mouse lifts the card it rests on (picked by Hand from the pointer's x); a finger has no hover (a tapped card would
+   stay up), so it lifts the card it holds */
+.card.lifted {
+  transform: translateY(-120px) rotate(0deg) scale(1.22);
+  z-index: var(--z-held) !important;
 }
 
 @media (hover: none) {
@@ -76,7 +75,7 @@
 
 /* played, and the server hasn't answered yet: already on its way out of the hand */
 .pending,
-.pending:hover {
+.card.pending {
   transform: translateY(-150px) rotate(0deg) scale(1.08);
   cursor: progress;
   z-index: var(--z-held) !important;
@@ -143,7 +142,7 @@
 }
 
 .keyHintShown,
-.card:hover .keyHint,
+.lifted .keyHint,
 .card:focus-visible .keyHint {
   opacity: 1;
 }
