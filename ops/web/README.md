@@ -321,7 +321,14 @@ To add a machine:
    sleeve). Then `WAVESPEED_API_KEY=... node art/wavespeed.mjs style-<set>` draws each picture with Nano Banana 2.1 into
    `public/career-art/cardstyle/<set>/` and `public/career-art/sleeve/set-<set>.webp`. The set's first card is a
    reference for the rest. Answers and prompts are kept in `art/.wavespeed/`. Redraw one with `--only <id> --force`.
-5. Run `CareerCapsulesTest`. It checks the content: ten sets of five, real cards, no repeats, every picture present and
+5. Paint its cabinet: `node art/cabinet.mjs <id>` draws three parts on magenta with the same model, the machine in its
+   `cabinet` colours with an empty globe and no crank, the crank wheel, and a capsule (shared by every machine; skip it
+   with `--only body,crank`). Cut each one with `python3 art/cabinet_cut.py <answer.png> <out.webp> <width>` (`--wheel`
+   for the crank, `--grey` for the capsule) into `public/career-art/cabinet/`. Then measure the cut body and add the
+   globe's centre, radius and floor, the crank mount, the coin slot and the chute's opening to `CABINETS` in
+   `src/app/career/capsules/cabinetArt.ts`. The client fills the globe with live capsules, turns the wheel and rolls
+   capsules out of the chute at those spots. Without an entry the shop draws a plain SVG cabinet.
+6. Run `CareerCapsulesTest`. It checks the content: ten sets of five, real cards, no repeats, every picture present and
    every reward in the catalog.
 
 The `cardstyle` kind is the only one the shop deals in today. A machine of another kind (sleeves, playmats) needs the

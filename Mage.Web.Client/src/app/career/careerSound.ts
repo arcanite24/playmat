@@ -8,7 +8,8 @@ import { useSettings } from '../stores/settings';
 export type CareerCue =
   | 'tap' | 'whoosh' | 'coin' | 'coins' | 'xp' | 'levelUp' | 'unlock' | 'tear' | 'flip' | 'rare' | 'mythic' | 'versus' | 'win' | 'loss'
   // the capsule machines (career/capsules)
-  | 'tokenIn' | 'crank' | 'drop' | 'twist' | 'pop' | 'setDone';
+  | 'tokenIn' | 'crank' | 'drop' | 'twist' | 'pop' | 'setDone'
+  | 'glassTap' | 'clatter' | 'land' | 'seam' | 'crack';
 
 function render(b: Bus, out: AudioNode, cue: CareerCue, t: number) {
   switch (cue) {
@@ -107,6 +108,34 @@ function render(b: Bus, out: AudioNode, cue: CareerCue, t: number) {
       knock(b, out, 980, t, 0.08);
       noise(b, out, { start: t + 0.02, length: 0.5, from: 3000, to: 9000, gain: 0.04, type: 'highpass', q: 0.5 });
       [NOTE.C6, NOTE.G5 * 2].forEach((freq, i) => bell(b, out, freq, t + 0.08 + i * 0.07, 0.9, 0.06));
+      break;
+    case 'glassTap':
+      // a fingertip on the globe, and the capsules shifting inside
+      tone(b, out, { freq: 2350, start: t, length: 0.16, type: 'sine', gain: 0.03, attack: 0.002 });
+      [0.04, 0.09, 0.13].forEach((offset, i) => knock(b, out, 760 + i * 110, t + offset, 0.035 - i * 0.008));
+      break;
+    case 'clatter':
+      // the capsules tumbling in the globe as the crank stirs them
+      [0, 0.035, 0.06, 0.1, 0.13].forEach((offset, i) => knock(b, out, 640 + ((i * 173) % 420), t + offset, 0.032 - i * 0.004));
+      break;
+    case 'land':
+      // a capsule hits the chute's tray
+      thud(b, out, t, 0.07, 180);
+      knock(b, out, 520, t, 0.07);
+      knock(b, out, 560, t + 0.12, 0.035);
+      knock(b, out, 590, t + 0.2, 0.015);
+      break;
+    case 'seam':
+      // something better than usual is in there: light humming at the seam
+      tone(b, out, { freq: NOTE.E5, start: t, length: 0.9, type: 'triangle', gain: 0.025, attack: 0.3, slide: NOTE.E5 * 1.5 });
+      noise(b, out, { start: t, length: 0.8, from: 2500, to: 7000, gain: 0.02, type: 'highpass', q: 0.5 });
+      break;
+    case 'crack':
+      // a capsule that was holding something big: a sharper crack, a low hit and a long shimmer
+      thud(b, out, t, 0.16, 120);
+      knock(b, out, 1300, t, 0.1);
+      noise(b, out, { start: t, length: 0.9, from: 2000, to: 10000, gain: 0.06, type: 'highpass', q: 0.5 });
+      [NOTE.G5, NOTE.C6, NOTE.E5 * 2].forEach((freq, i) => bell(b, out, freq, t + 0.06 + i * 0.06, 1.2, 0.07));
       break;
     case 'setDone':
       // a set finished: five bells, one a capsule, then the chord

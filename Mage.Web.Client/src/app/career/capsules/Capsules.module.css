@@ -138,16 +138,6 @@
   70% { transform: rotate(-0.8deg); }
 }
 
-.idle {
-  animation: idle 5.5s ease-in-out infinite;
-  transform-origin: 50% 100%;
-}
-
-@keyframes idle {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
-}
-
 /* ---- the storefront */
 
 .storefront {
@@ -195,7 +185,7 @@
 }
 
 .storeCabinet {
-  width: min(220px, 70%);
+  width: min(170px, 54%);
   transition: transform 600ms var(--ease-place);
 }
 
@@ -278,8 +268,8 @@
 }
 
 .bigCabinet {
-  /* short enough that the pull buttons stay on screen beside the board (the cabinet is 2:3) */
-  width: min(340px, 100%, max(180px, calc((100dvh - 420px) * 2 / 3)));
+  /* short enough that the pull buttons stay on screen beside the board (the painted cabinet is about 1:1.9) */
+  width: min(300px, 100%, max(140px, calc((100dvh - 400px) * 0.52)));
 }
 
 .pulls {
@@ -327,7 +317,7 @@
   }
 
   .bigCabinet {
-    width: min(260px, 70vw);
+    width: min(220px, 56vw);
   }
 }
 
@@ -495,8 +485,7 @@
   inset: 0;
   background:
     radial-gradient(60% 50% at 50% 55%, color-mix(in srgb, var(--capsule) 22%, transparent), transparent 70%),
-    rgb(8 12 10 / 0.88);
-  backdrop-filter: blur(6px);
+    rgb(8 12 10 / 0.93);
   animation: fade-in 300ms linear both;
   transition: background 600ms linear;
 }
@@ -550,148 +539,6 @@
   gap: var(--space-4);
   max-width: 100%;
   padding: var(--space-4);
-}
-
-.seqCabinet {
-  /* the cabinet is 2:3; the prompt and its button stay on screen under it */
-  width: min(320px, 70vw, calc((100dvh - 180px) * 2 / 3));
-}
-
-/* the capsule that drops from the chute and rolls to the front */
-.falling {
-  position: absolute;
-  left: 50%;
-  top: 58%;
-  animation: fall 950ms cubic-bezier(0.3, 0, 0.5, 1) both;
-}
-
-@keyframes fall {
-  0% { transform: translate(-50%, -40px) scale(0.4); opacity: 0; }
-  20% { opacity: 1; }
-  45% { transform: translate(-50%, 60px) scale(0.9) rotate(80deg); }
-  62% { transform: translate(-50%, 30px) scale(1) rotate(150deg); }
-  78% { transform: translate(-50%, 60px) scale(1.05) rotate(200deg); }
-  100% { transform: translate(-50%, 54px) scale(1.15) rotate(220deg); }
-}
-
-.pour {
-  position: absolute;
-  left: 50%;
-  top: 60%;
-  width: 0;
-  height: 0;
-}
-
-.pour > span {
-  position: absolute;
-  animation: pour 700ms cubic-bezier(0.3, 0, 0.5, 1) calc(var(--i) * 90ms) both;
-}
-
-@keyframes pour {
-  0% { transform: translate(-50%, -40px) scale(0.3); opacity: 0; }
-  30% { opacity: 1; }
-  100% { transform: translate(calc(-50% + (var(--i) - 4.5) * 34px), 70px) scale(0.8) rotate(calc(var(--i) * 70deg)); }
-}
-
-.capsule {
-  position: relative;
-  display: block;
-  width: 56px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.45));
-}
-
-.capsuleBig {
-  width: min(220px, 50vw, 36vh);
-}
-
-.capsuleTop,
-.capsuleBottom {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 50%;
-  transition: transform 260ms var(--ease-place);
-}
-
-.capsuleTop {
-  top: 0;
-  border-radius: 999px 999px 0 0;
-  background:
-    radial-gradient(40% 50% at 32% 36%, rgb(255 255 255 / 0.55), transparent 70%),
-    var(--capsule);
-  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.2);
-  transform: rotate(var(--twist, 0deg));
-  transform-origin: 50% 100%;
-}
-
-.capsuleBottom {
-  bottom: 0;
-  border-radius: 0 0 999px 999px;
-  background:
-    radial-gradient(50% 60% at 40% 30%, rgb(255 255 255 / 0.4), transparent 70%),
-    rgb(240 236 226 / 0.88);
-  box-shadow: inset 0 3px 0 rgb(0 0 0 / 0.12);
-}
-
-.bigCapsule {
-  position: relative;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: inherit;
-  cursor: grab;
-  touch-action: none;
-  animation: wobble 2.2s ease-in-out infinite;
-}
-
-.bigCapsule:focus-visible {
-  outline: 2px solid var(--ink-strong);
-  outline-offset: 4px;
-}
-
-@keyframes wobble {
-  0%, 100% { transform: rotate(0); }
-  10% { transform: rotate(-4deg); }
-  20% { transform: rotate(3deg); }
-  30% { transform: rotate(0); }
-}
-
-.burst {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  pointer-events: none;
-  opacity: 0;
-}
-
-.popping {
-  animation: none;
-}
-
-.popping .capsuleTop {
-  transform: translate(-30%, -90%) rotate(-40deg);
-  opacity: 0;
-  transition: transform 380ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 380ms linear;
-}
-
-.popping .capsuleBottom {
-  transform: translate(25%, 70%) rotate(30deg);
-  opacity: 0;
-  transition: transform 380ms cubic-bezier(0.2, 0.8, 0.3, 1), opacity 380ms linear;
-}
-
-.popping .burst {
-  animation: burst 420ms ease-out both;
-}
-
-@keyframes burst {
-  0% { opacity: 1; box-shadow: 0 0 0 0 #fff, 0 0 0 0 var(--capsule); transform: scale(0.4); }
-  100% { opacity: 0; box-shadow: 0 0 60px 30px #fff, 0 0 120px 80px var(--capsule); transform: scale(1.6); }
 }
 
 /* the painting rising out of the capsule */
@@ -839,13 +686,8 @@
   animation: tray-in 500ms cubic-bezier(0.3, 1.4, 0.5, 1) calc(var(--i) * 60ms) both;
 }
 
-.trayCapsule:hover .capsule {
-  transform: rotate(-8deg) scale(1.06);
-}
-
-.trayCapsule .capsule {
-  width: 70%;
-  transition: transform 200ms var(--ease-place);
+.trayCapsule:hover {
+  background: rgb(var(--ink-rgb) / 0.1);
 }
 
 @keyframes tray-in {
@@ -1080,7 +922,7 @@
   }
 
   .bigCabinet {
-    width: 120px;
+    width: 96px;
   }
 
   .pulls {

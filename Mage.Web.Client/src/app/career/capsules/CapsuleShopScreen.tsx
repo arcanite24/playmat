@@ -12,7 +12,7 @@ import { catalogName, useCatalog } from '../../ui/cosmeticsCatalog';
 import { sleeveArtOf } from './capsuleArt';
 import { playCareerCue } from '../careerSound';
 import { useStill } from '../motion';
-import { Cabinet } from './Cabinet';
+import { Machine } from './Machine';
 import { buyTokens, machineItems, machineSize, ownedIn, pull, reveal, setOwned, useMachines } from './capsuleData';
 import { readUnopened, saveUnopened } from './unopened';
 import { TokenIcon } from './TokenIcon';
@@ -156,7 +156,7 @@ function Storefront({ shop, owned }: { shop: CareerMachines; owned: ReadonlySet<
           <Link key={machine.id} to={`/career/capsules/${machine.id}`} className={styles.machineCard} data-nav
             onClick={() => playCareerCue('whoosh')}
             style={{ '--cab-body': machine.cabinet?.body, '--cab-trim': machine.cabinet?.trim } as CSSProperties}>
-            <Cabinet seed={machine.id ?? ''} body={machine.cabinet?.body ?? '#7a2c28'} trim={machine.cabinet?.trim ?? '#e3b25a'}
+            <Machine id={machine.id ?? ''} body={machine.cabinet?.body ?? '#7a2c28'} trim={machine.cabinet?.trim ?? '#e3b25a'}
               capsules={capsulesLeft(machine, owned)} label={name} className={styles.storeCabinet} />
             <span className={styles.wave}>{t('capsules.wave', { wave: machine.wave ?? 1 })}</span>
             <b className={styles.machineName}>{name}</b>
@@ -208,8 +208,8 @@ function MachineView({ machine, shop, owned, flash, onPulled }: {
   return (
     <div className={styles.machineView}>
       <div className={styles.machineStage}>
-        <Cabinet seed={machine.id ?? ''} body={machine.cabinet?.body ?? '#7a2c28'} trim={machine.cabinet?.trim ?? '#e3b25a'}
-          capsules={capsulesLeft(machine, owned)} label={t('capsules.cabinet', { name, left })} className={[styles.bigCabinet, still ? '' : styles.idle].join(' ')} />
+        <Machine id={machine.id ?? ''} body={machine.cabinet?.body ?? '#7a2c28'} trim={machine.cabinet?.trim ?? '#e3b25a'}
+          capsules={capsulesLeft(machine, owned)} label={t('capsules.cabinet', { name, left })} className={styles.bigCabinet} live still={still} />
         <div className={styles.pulls}>
           {left === 0 ? (
             <p className={styles.completeNote}><Sparkles size={18} aria-hidden="true" /> {t('capsules.machineComplete', { name })}</p>
