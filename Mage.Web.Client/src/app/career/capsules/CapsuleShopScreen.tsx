@@ -8,15 +8,17 @@ import { notify } from '../../stores/toasts';
 import { useSession } from '../../stores/session';
 import { Button } from '../../ui/Button';
 import { cardStyleArt } from '../../ui/cardStyles';
-import { catalogName, useCatalog } from '../../ui/cosmeticsCatalog';
+import { catalogName, rarityOf, useCatalog } from '../../ui/cosmeticsCatalog';
 import { sleeveArtOf } from './capsuleArt';
 import { playCareerCue } from '../careerSound';
 import { useStill } from '../motion';
 import { Cabinet } from './Cabinet';
+import { ItemShowcase, type ShowcaseItem } from './ItemShowcase';
+import showcase from './ItemShowcase.module.css';
 import { buyTokens, machineItems, machineSize, ownedIn, pull, reveal, setOwned, useMachines } from './capsuleData';
 import { readUnopened, saveUnopened } from './unopened';
 import { TokenIcon } from './TokenIcon';
-import { WearSlot } from './WearStyle';
+import { WearButton, WearSlot } from './WearStyle';
 import styles from './Capsules.module.css';
 
 registerMessages(messages);
@@ -244,6 +246,8 @@ export function CollectionBoard({ machine, owned, flash }: { machine: CareerMach
   const title = machine.title ? catalog.find((item) => item.kind === machine.title!.kind && item.id === machine.title!.id) : undefined;
   const have = ownedIn(machine, [...owned]);
   const size = machineSize(machine);
+  // the item looked at up close, and the slot it came out of
+  const [showing, setShowing] = useState<{ item: ShowcaseItem; from: HTMLElement } | null>(null);
   return (
     <section className={styles.board} aria-label={t('capsules.board', { name: nameOf(machine, locale) })}>
       <header className={styles.boardHead}>
@@ -251,18 +255,38 @@ export function CollectionBoard({ machine, owned, flash }: { machine: CareerMach
         <span>{t('capsules.machineReward', { reward: catalogName(reward, locale), title: catalogName(title, locale) })}</span>
       </header>
       <ol className={styles.sets}>
-        {(machine.sets ?? []).map((set) => <SetRow key={set.id} set={set} owned={owned} flash={flash} />)}
+        {(machine.sets ?? []).map((set) => (
+          <SetRow key={set.id} set={set} machine={machine} owned={owned} flash={flash} onShow={(item, from) => setShowing({ item, from })} />
+        ))}
       </ol>
+      {showing && (
+        <ItemShowcase key={showing.item.id} item={showing.item} origin={showing.from} onClose={() => setShowing(null)}
+          actions={showing.item.kind === 'cardstyle' && showing.item.card ? <WearButton card={showing.item.card} item={showing.item.id} /> : undefined} />
+      )}
     </section>
   );
 }
 
-function SetRow({ set, owned, flash }: { set: CareerMachineSet; owned: ReadonlySet<string>; flash?: ReadonlySet<string> }) {
+function SetRow({ set, machine, owned, flash, onShow }: {
+  set: CareerMachineSet;
+  machine: CareerMachine;
+  owned: ReadonlySet<string>;
+  flash?: ReadonlySet<string>;
+  onShow(item: ShowcaseItem, from: HTMLElement): void;
+}) {
   const t = useT();
   const locale = useI18n((state) => state.locale);
+  const catalog = useCatalog();
   const count = setOwned(set, [...owned]);
   const done = count === (set.items?.length ?? 5);
   const sleeve = sleeveArtOf(set);
+  const setName = nameOf(set, locale);
+  // rarity as the catalog has it; before it loads, what CareerCapsules gives them (styles rare, set sleeves mythic)
+  const rarity = (kind: string, id: string) => {
+    const found = catalog.find((item) => item.kind === kind && item.id === id);
+    return found ? rarityOf(found) : kind === 'sleeve' ? 'mythic' : 'rare';
+  };
+  const source = t('capsules.show.from', { set: `${setName} · ${nameOf(machine, locale)}` });
   return (
     <li className={styles.setRow} data-done={done || undefined} style={{ '--capsule': set.capsule } as CSSProperties}>
       <span className={styles.setName}>
@@ -272,7 +296,23 @@ function SetRow({ set, owned, flash }: { set: CareerMachineSet; owned: ReadonlyS
       <span className={styles.slots}>
         {(set.items ?? []).map((item) => {
           const have = owned.has(item.id ?? '');
-          if (have) return <WearSlot key={item.id} card={item.card ?? ''} item={item.id ?? ''} flash={flash?.has(item.id ?? '') ?? false} art={cardStyleArt(item.id ?? '', item.card ?? '')} />;
+          if (have) {
+            return (
+              <WearSlot key={item.id} card={item.card ?? ''} item={item.id ?? ''} flash={flash?.has(item.id ?? '') ?? false}
+                art={cardStyleArt(item.id ?? '', item.card ?? '')}
+                onOpen={(from) => onShow({
+                  kind: 'cardstyle',
+                  id: item.id ?? '',
+                  card: item.card ?? '',
+                  art: cardStyleArt(item.id ?? '', item.card ?? '') ?? '',
+                  name: item.card ?? '',
+                  rarity: rarity('cardstyle', item.id ?? ''),
+                  source,
+                  note: t('capsules.show.wornOn', { card: item.card ?? '' }),
+                  accent: set.capsule,
+                }, from)} />
+            );
+          }
           return (
             <span key={item.id} className={styles.slot} title={t('capsules.unknown')}>
               <span className={styles.slotCapsule} aria-label={t('capsules.unknown')} />
@@ -280,9 +320,28 @@ function SetRow({ set, owned, flash }: { set: CareerMachineSet; owned: ReadonlyS
           );
         })}
       </span>
-      <span className={styles.setReward} data-have={done || undefined} title={t('capsules.setReward')}>
-        {sleeve && <img src={sleeve} alt={t('capsules.setRewardOf', { name: nameOf(set, locale) })} loading="lazy" draggable={false} />}
-      </span>
+      {sleeve && set.reward?.id ? (
+        <button type="button" className={`${styles.setReward} ${showcase.trigger}`} data-have={done || undefined} title={t('capsules.setReward')} data-nav
+          aria-label={t('capsules.look', { name: t('capsules.setRewardOf', { name: setName }) })}
+          onClick={(event) => onShow({
+            kind: 'sleeve',
+            id: set.reward!.id!,
+            art: sleeve,
+            name: t('capsules.setRewardOf', { name: setName }),
+            rarity: rarity('sleeve', set.reward!.id!),
+            source,
+            note: t('capsules.show.sleeveNote', { set: setName }),
+            locked: done ? undefined : t('capsules.show.locked', { set: setName }),
+            accent: set.capsule,
+            ratio: 5 / 7,
+          }, event.currentTarget)}>
+          <img src={sleeve} alt="" loading="lazy" draggable={false} />
+        </button>
+      ) : (
+        <span className={styles.setReward} data-have={done || undefined} title={t('capsules.setReward')}>
+          {sleeve && <img src={sleeve} alt={t('capsules.setRewardOf', { name: setName })} loading="lazy" draggable={false} />}
+        </span>
+      )}
     </li>
   );
 }
