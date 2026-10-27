@@ -18,6 +18,7 @@ import showcase from './ItemShowcase.module.css';
 import { buyTokens, machineItems, machineSize, ownedIn, pull, reveal, setOwned, useMachines } from './capsuleData';
 import { readUnopened, saveUnopened } from './unopened';
 import { TokenIcon } from './TokenIcon';
+import { WearButton, WearSlot } from './WearStyle';
 import styles from './Capsules.module.css';
 
 registerMessages(messages);
@@ -258,7 +259,10 @@ export function CollectionBoard({ machine, owned, flash }: { machine: CareerMach
           <SetRow key={set.id} set={set} machine={machine} owned={owned} flash={flash} onShow={(item, from) => setShowing({ item, from })} />
         ))}
       </ol>
-      {showing && <ItemShowcase key={showing.item.id} item={showing.item} origin={showing.from} onClose={() => setShowing(null)} />}
+      {showing && (
+        <ItemShowcase key={showing.item.id} item={showing.item} origin={showing.from} onClose={() => setShowing(null)}
+          actions={showing.item.kind === 'cardstyle' && showing.item.card ? <WearButton card={showing.item.card} item={showing.item.id} /> : undefined} />
+      )}
     </section>
   );
 }
@@ -292,27 +296,27 @@ function SetRow({ set, machine, owned, flash, onShow }: {
       <span className={styles.slots}>
         {(set.items ?? []).map((item) => {
           const have = owned.has(item.id ?? '');
-          return (
-            have ? (
-              <button key={item.id} type="button" className={`${styles.slot} ${showcase.trigger}`} data-have data-flash={flash?.has(item.id ?? '') || undefined}
-                title={item.card} aria-label={t('capsules.look', { name: item.card ?? '' })} data-nav
-                onClick={(event) => onShow({
+          if (have) {
+            return (
+              <WearSlot key={item.id} card={item.card ?? ''} item={item.id ?? ''} flash={flash?.has(item.id ?? '') ?? false}
+                art={cardStyleArt(item.id ?? '', item.card ?? '')}
+                onOpen={(from) => onShow({
                   kind: 'cardstyle',
                   id: item.id ?? '',
+                  card: item.card ?? '',
                   art: cardStyleArt(item.id ?? '', item.card ?? '') ?? '',
                   name: item.card ?? '',
                   rarity: rarity('cardstyle', item.id ?? ''),
                   source,
                   note: t('capsules.show.wornOn', { card: item.card ?? '' }),
                   accent: set.capsule,
-                }, event.currentTarget)}>
-                <img src={cardStyleArt(item.id ?? '', item.card ?? '')} alt="" loading="lazy" draggable={false} />
-              </button>
-            ) : (
-              <span key={item.id} className={styles.slot} title={t('capsules.unknown')}>
-                <span className={styles.slotCapsule} aria-label={t('capsules.unknown')} />
-              </span>
-            )
+                }, from)} />
+            );
+          }
+          return (
+            <span key={item.id} className={styles.slot} title={t('capsules.unknown')}>
+              <span className={styles.slotCapsule} aria-label={t('capsules.unknown')} />
+            </span>
           );
         })}
       </span>

@@ -12,6 +12,8 @@ export interface ShowcaseItem {
   /** the catalog kind, for the label ("cardstyle", "sleeve", ...) */
   kind: string;
   id: string;
+  /** for a card style, the card it's worn on */
+  card?: string;
   art: string;
   name: string;
   rarity: Rarity;
