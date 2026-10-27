@@ -13,6 +13,7 @@ import { Burst, type Tier } from './Burst';
 import { sleeveArtOf } from './capsuleArt';
 import { machineItems } from './capsuleData';
 import { Machine, PaintedCapsule, type MachineHandle } from './Machine';
+import { WearButton } from './WearStyle';
 import styles from './Capsules.module.css';
 import seq from './Pull.module.css';
 
@@ -533,6 +534,7 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
               <span>{t('capsules.seq.inSet', { set: setName(setOf(current)), count: countInSet(current), total: setOf(current)?.items?.length ?? 5 })}</span>
             </figcaption>
           </figure>
+          <WearButton card={current.card ?? ''} item={current.item ?? ''} />
           <Button onClick={(event) => {
             event.stopPropagation();
             next();
