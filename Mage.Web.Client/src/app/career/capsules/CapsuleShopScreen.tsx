@@ -16,6 +16,7 @@ import { Cabinet } from './Cabinet';
 import { buyTokens, machineItems, machineSize, ownedIn, pull, reveal, setOwned, useMachines } from './capsuleData';
 import { readUnopened, saveUnopened } from './unopened';
 import { TokenIcon } from './TokenIcon';
+import { WearSlot } from './WearStyle';
 import styles from './Capsules.module.css';
 
 registerMessages(messages);
@@ -271,12 +272,10 @@ function SetRow({ set, owned, flash }: { set: CareerMachineSet; owned: ReadonlyS
       <span className={styles.slots}>
         {(set.items ?? []).map((item) => {
           const have = owned.has(item.id ?? '');
+          if (have) return <WearSlot key={item.id} card={item.card ?? ''} item={item.id ?? ''} flash={flash?.has(item.id ?? '') ?? false} art={cardStyleArt(item.id ?? '', item.card ?? '')} />;
           return (
-            <span key={item.id} className={styles.slot} data-have={have || undefined} data-flash={flash?.has(item.id ?? '') || undefined}
-              title={have ? item.card : t('capsules.unknown')}>
-              {have
-                ? <img src={cardStyleArt(item.id ?? '', item.card ?? '')} alt={item.card} loading="lazy" draggable={false} />
-                : <span className={styles.slotCapsule} aria-label={t('capsules.unknown')} />}
+            <span key={item.id} className={styles.slot} title={t('capsules.unknown')}>
+              <span className={styles.slotCapsule} aria-label={t('capsules.unknown')} />
             </span>
           );
         })}

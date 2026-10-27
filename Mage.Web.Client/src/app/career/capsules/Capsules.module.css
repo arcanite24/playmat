@@ -1087,3 +1087,38 @@
     width: auto;
   }
 }
+
+.wearButton {
+  min-width: 9rem;
+}
+
+button.slot {
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+
+button.slot:hover,
+button.slot:focus-visible {
+  outline: 2px solid var(--capsule);
+  outline-offset: 2px;
+}
+
+.slot[data-worn] {
+  box-shadow: 0 0 0 2px var(--capsule), 0 4px 10px rgb(0 0 0 / 0.35);
+}
+
+.wornTag {
+  position: absolute;
+  inset: auto 4px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.72);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
