@@ -94,11 +94,12 @@ import { gzipSync } from 'node:zlib';
 // as an icon (eight lucide icons and thirteen drawn creatures) and flags as text badges, and the avatar is in the
 // header, so the sigils load with the entry. Measured entry 84.6 kB, initial 219.7 kB, app 769.2 kB
 // app raised 2026-10-27 from 772 kB for the capsule item showcase (a board item up close: the turn, light and foil
-// by rarity, the flight in and out of its slot), with the Capsule Shop. Measured app 775.0 kB
+// by rarity, the flight in and out of its slot) and the painted capsule machine (the globe's capsule physics, the
+// machine and the pull sequence's opening and light), all lazy with the capsule shop. Measured app 781.5 kB
 const BUDGET_KB = {
   entry: 85,
   initial: 220,
-  app: 778,
+  app: 784,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
