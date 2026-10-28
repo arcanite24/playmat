@@ -14,6 +14,7 @@ import mage.filter.predicate.Predicate;
 import mage.filter.predicate.Predicates;
 import mage.filter.predicate.mageobject.CardIdPredicate;
 import mage.game.Game;
+import mage.game.SimulationInterruptedException;
 import mage.game.events.GameEvent;
 import mage.game.events.ZoneChangeEvent;
 import mage.game.permanent.Permanent;
@@ -187,6 +188,11 @@ public class ContinuousEffects implements Serializable {
      * @return effects list ordered by timestamp
      */
     public synchronized List<ContinuousEffect> getLayeredEffects(Game game, String timestampGroupName) {
+        if (game.isSimulation() && Thread.currentThread().isInterrupted()) {
+            // the AI's search ran out of time: stop here, deep inside a resolving effect, instead of keeping one of the
+            // few shared search threads busy (every other AI on the server waits for those, then passes)
+            throw new SimulationInterruptedException();
+        }
         List<ContinuousEffect> layerEffects = new ArrayList<>();
         for (ContinuousEffect effect : layeredEffects) {
             switch (effect.getDuration()) {
@@ -241,9 +247,15 @@ public class ContinuousEffects implements Serializable {
             lastEffectsListOnLayer.put(timestampGroupName, new ContinuousEffectsList<>());
         }
         ContinuousEffectsList<ContinuousEffect> prevs = lastEffectsListOnLayer.get(timestampGroupName);
+        // by id, as ContinuousEffectsList.contains does, in one pass: a contains per effect was quadratic, and a game
+        // with thousands of layered effects stalled there for hours
+        Set<UUID> prevIds = new HashSet<>(prevs.size());
+        for (ContinuousEffect prev : prevs) {
+            prevIds.add(prev.getId());
+        }
         for (ContinuousEffect continuousEffect : layerEffects) {
             // check if it's new, then set order
-            if (!prevs.contains(continuousEffect)) {
+            if (!prevIds.contains(continuousEffect.getId())) {
                 setOrder(continuousEffect);
             }
         }
