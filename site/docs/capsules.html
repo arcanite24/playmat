@@ -79,6 +79,7 @@ node art/wavespeed.mjs style-&lt;set&gt;</code></pre>
         </div>
         <p>The first command writes one spec per set. The second draws the set's five cards and its sleeve with Nano Banana, one picture each, at about $0.05 a picture. The set's first card goes in as a reference for the rest, so the set stays consistent. Run it once per set, look at the results, and redraw any picture with <code>--only &lt;id&gt; --force</code>.</p>
         <ol start="5">
+          <li>Paint its cabinet: <code>node art/cabinet.mjs &lt;id&gt;</code> draws the machine (in its <code>cabinet</code> colours, with an empty globe), its crank wheel and a capsule on magenta. Cut the ones you like with <code>python3 art/cabinet_cut.py</code>, then add the globe, crank, slot and chute positions to <code>CABINETS</code> in <code>cabinetArt.ts</code>. A machine without a painted cabinet still works: the shop draws a plain one.</li>
           <li>Run <code>CareerCapsulesTest</code>. It fails on a missing picture, a card that doesn't exist, a repeated card or a reward that isn't in the cosmetics catalog.</li>
         </ol>
         <p class="note">Machine content ships with the server build, so a new machine reaches players with the next update.

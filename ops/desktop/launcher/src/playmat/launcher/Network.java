@@ -72,6 +72,14 @@ final class Network {
         for (String host : hosts) {
             origins.add("http://" + host + ":" + port);
         }
+        // a public name in front of this launcher (a tunnel or reverse proxy), e.g.
+        // PLAYMAT_EXTRA_ORIGINS="https://play.example.com"; several separated by commas or spaces
+        String extra = System.getenv("PLAYMAT_EXTRA_ORIGINS");
+        if (extra != null) {
+            for (String origin : extra.split("[,\\s]+")) {
+                if (!origin.isEmpty() && !origins.contains(origin)) origins.add(origin);
+            }
+        }
         return origins;
     }
 

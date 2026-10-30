@@ -51,7 +51,7 @@ function permanentById(view: GameView, id: string): { permanent: PermanentView; 
 export function defenderChoice(prompt: Prompt | null | undefined, view: GameView | null | undefined): DefenderOption[] | null {
   if (!prompt || prompt.kind !== 'target' || !view || view.step !== 'DECLARE_ATTACKERS' || prompt.cards) return null;
   // the filter is named "player, planeswalker, or battle to attack"
-  if (prompt.targets.length < 2 || !/\bto attack\b/i.test(prompt.text ?? '')) return null;
+  if (prompt.targets.length === 0 || !/\bto attack\b/i.test(prompt.text ?? '')) return null;
   const players = new Map((view.players ?? []).map((player) => [player.playerId!, player]));
   const options: DefenderOption[] = [];
   for (const id of prompt.targets) {

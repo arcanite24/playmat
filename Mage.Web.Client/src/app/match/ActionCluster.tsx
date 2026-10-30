@@ -37,6 +37,8 @@ export interface ActionClusterProps {
   onResync?(): void;
   /** the player conceded and the server hasn't ended the game yet; waitingOn: who holds priority meanwhile */
   conceding?: { waitingOn: string | null } | null;
+  /** why the answer about to be sent may be refused (blocks that break a requirement): pressing again sends it */
+  warning?: string | null;
   /** the cards the question is about (an effect looked at them just before asking), shown with it */
   cards?: CardView[] | null;
   onCommand(command: Command): void;
@@ -54,7 +56,7 @@ const UNDO: PromptButton = { label: 'Undo tap', command: { type: 'action', actio
 /** The decision corner: what the game is asking, and the one big button that answers it. */
 export function ActionCluster({
   interaction, awaiting, status, canAct, special, holdingPriority, undoable = false, autoPassing = false, fullControl = false, onFullControl, extra,
-  stalled = false, onResend, onResync, conceding = null, cards = null, onCommand,
+  stalled = false, onResend, onResync, conceding = null, warning = null, cards = null, onCommand,
 }: ActionClusterProps) {
   const t = useT();
   const openViewer = useMatchUi((state) => state.openViewer);
@@ -146,6 +148,7 @@ export function ActionCluster({
           {conceding.waitingOn ? t('match.conceding.waiting', { name: conceding.waitingOn }) : t('match.conceding')}
         </p>
       )}
+      {warning && deciding && <p className={styles.warning} role="alert">{warning}</p>}
       {cards && cards.length > 0 && deciding && (
         <button
           type="button"

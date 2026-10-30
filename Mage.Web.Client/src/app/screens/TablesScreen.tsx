@@ -4,7 +4,8 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../connection';
 import { toWire } from '../decks/deckModel';
 import { refreshTables, useServerState, useTables } from '../queries';
-import { rosterOf, useDecks } from '../stores/decks';
+import { useDecks } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { useSession } from '../stores/session';
 import { notify } from '../stores/toasts';
 import type { TableView } from '../../protocol/generated/views';
@@ -14,7 +15,6 @@ import { Field } from '../ui/Field';
 import { Zone } from '../ui/Zone';
 import { formatMenu, formatRules, gameTypesFor, isCommanderFormat } from '../../core/decks/formats';
 import { DEFAULT_ADVANCED, matchOptions, type TableAdvanced } from '../../core/game/tableSetup';
-import { aiDecks } from '../stores/play';
 import { inviteLink } from '../../core/social/chatLine';
 import { ChatPanel } from '../social/ChatPanel';
 import { NameLevel } from '../social/LevelBadge';
@@ -45,7 +45,7 @@ export function TablesScreen() {
   const userName = useSession((state) => state.userName);
   const roomId = useSession((state) => state.roomId);
   const decks = useDecks();
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
   const selectedDeck = roster.find((deck) => deck.id === decks.selectedId) ?? roster[0] ?? null;
   const [hostOpen, setHostOpen] = useState(!!(location.state as { host?: string } | null)?.host);
   const [busyTable, setBusyTable] = useState<string | null>(null);
@@ -310,7 +310,7 @@ function HostDialog({ open, onOpenChange, deckId }: { open: boolean; onOpenChang
       }
       if (aiSeats > 0) {
         // the AI brings the format's own decks, or starter decks of the right kind; a deck that doesn't fit gets a copy of yours
-        const rivals = await aiDecks(null, aiSeats, commander, deckType).catch(() => []);
+        const rivals = await (await import('../stores/aiDecks')).aiDecks([], aiSeats, commander, { format: deckType }).catch(() => []);
         for (let seat = 1; seat <= aiSeats; seat++) {
           const rival = rivals[seat - 1] ? toWire(rivals[seat - 1]) : wire;
           const joined = await api.roomJoinTable(roomId, table.tableId, `AI ${seat}`, 'COMPUTER_MAD', 4, rival, password);

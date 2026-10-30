@@ -244,11 +244,12 @@ export const useDecks = create<DeckLibraryState>((set, get) => ({
   },
 }));
 
-export function rosterOf(state: Pick<DeckLibraryState, 'saved' | 'starters'>): RosterDeck[] {
+export function rosterOf(state: Pick<DeckLibraryState, 'saved' | 'starters'>, hideStarterDecks = false): RosterDeck[] {
   const savedNames = new Set(state.saved.map((deck) => deck.name));
   const starterNames = new Set(state.starters.map((starter) => starter.name));
   // starters already saved by the player don't show twice: the copy stands in for them, and says where it came from
   const saved = state.saved.map((deck) => (starterNames.has(deck.name) ? { ...deck, fromStarter: true } : deck));
+  if (hideStarterDecks) return saved;
   return [...saved, ...state.starters.filter((starter) => !savedNames.has(starter.name)).map(starterToRoster)];
 }
 

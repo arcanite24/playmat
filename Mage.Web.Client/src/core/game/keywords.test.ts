@@ -23,6 +23,22 @@ describe('keywordMarks', () => {
     ]);
   });
 
+  it('marks an attacker that must be blocked if able', () => {
+    const card = { rules: ['Haste', 'This creature must be blocked if able.'] } as unknown as CardView;
+    expect(keywordMarks(card).map((mark) => mark.name)).toEqual(['Haste', 'Must be blocked']);
+  });
+
+  it('counts a printed must-be-blocked as printed, not gained', () => {
+    const rules = ['This creature must be blocked if able.'];
+    const card = { rules, original: { rules } } as unknown as CardView;
+    expect(keywordMarks(card)).toEqual([{ name: 'Must be blocked', gained: false }]);
+  });
+
+  it("doesn't mark an Aura that makes the creature it enchants be blocked", () => {
+    const card = { rules: ['Enchant creature', 'Enchanted creature must be blocked if able.'] } as unknown as CardView;
+    expect(keywordMarks(card)).toEqual([]);
+  });
+
   it("doesn't count keywords a card only mentions", () => {
     const card = { rules: ["Creatures you control with flying get +1/+1."], original: { rules: [] } } as unknown as CardView;
     expect(keywordMarks(card)).toEqual([]);

@@ -13,6 +13,7 @@ import mage.game.mulligan.MulliganType;
 import mage.player.human.HumanPlayer;
 import mage.players.Player;
 import mage.util.RandomUtil;
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -36,6 +37,12 @@ public class RandomTest {
     @BeforeClass
     public static void setup() {
         CardScanner.scan();
+    }
+
+    @AfterClass
+    public static void restoreRandom() {
+        // the fixed seeds above must not leak: later tests in this JVM would draw the same numbers on every run
+        RandomUtil.setSeed(System.nanoTime());
     }
 
     @Test

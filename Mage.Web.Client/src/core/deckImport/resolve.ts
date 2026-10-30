@@ -44,9 +44,14 @@ export function foldName(name: string): string {
     .replace(/[‘’`´]/g, "'").replace(/[“”]/g, '"');
 }
 
+/** Arena's Alchemy rebalances are named "A-Name"; the paper card is "Name". */
+export function paperName(name: string): string {
+  return name.replace(/^A-\s*/, '');
+}
+
 function sameCard(a: string, b: string): boolean {
-  const x = foldName(a).trim().toLowerCase();
-  const y = foldName(b).trim().toLowerCase();
+  const x = foldName(paperName(a)).trim().toLowerCase();
+  const y = foldName(paperName(b)).trim().toLowerCase();
   return x === y || frontFace(x) === frontFace(y) || x === frontFace(y) || frontFace(x) === y;
 }
 
@@ -83,6 +88,8 @@ export async function resolveCards(
     const entry = unique.get(key)!;
     const fix = options.fixes?.get(key);
     if (fix) return wire(fix.cardName, fix.setCode, fix.cardNumber);
+    // an Alchemy set and number name an Arena-only printing, so look for the paper card by name
+    if (paperName(entry.cardName) !== entry.cardName) return wire(paperName(entry.cardName));
     return options.printings === 'preferred' ? wire(entry.cardName) : wire(entry.cardName, entry.setCode, entry.cardNumber);
   });
   const found = await lookupAll(lookup, firstPass);
@@ -104,7 +111,8 @@ export async function resolveCards(
     }
     result.set(key, null);
     const front = frontFace(entry.cardName);
-    if (entry.setCode || entry.cardNumber || card) {
+    if (entry.setCode || entry.cardNumber || card || paperName(entry.cardName) !== entry.cardName) {
+      // by name alone, and for an Alchemy card with no paper twin, under its own "A-" name
       retryKeys.push(key);
       retries.push(wire(entry.cardName));
     } else if (front !== entry.cardName) {
