@@ -1457,6 +1457,8 @@ const es: Catalog = {
 
   // the match stage
   'match.cards': { one: '{label}, {count} carta', other: '{label}, {count} cartas' },
+  'match.stack.count': '×{count}',
+  'match.stack.open': '{open} / {count} sin girar',
   'match.turn': 'Turno {turn}',
   'match.turn.yours': 'Tuyo',
   'match.turn.theirs': 'Rival',
