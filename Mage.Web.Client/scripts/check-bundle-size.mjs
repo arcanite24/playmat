@@ -96,9 +96,11 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-10-27 from 772 kB for the capsule item showcase (a board item up close: the turn, light and foil
 // by rarity, the flight in and out of its slot) and the painted capsule machine (the globe's capsule physics, the
 // machine and the pull sequence's opening and light), all lazy with the capsule shop. Measured app 781.5 kB
+// initial raised 2026-10-30 from 220 kB for card pictures that retry after a failed load (CardFace, on every
+// board). Measured initial 220.0 kB
 const BUDGET_KB = {
   entry: 85,
-  initial: 220,
+  initial: 221,
   app: 784,
 };
 
