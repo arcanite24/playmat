@@ -51,6 +51,9 @@ export default {
   'match.plate.aria.lost': '{name}, out of the game',
   'match.plate.aria.disconnected': 'disconnected',
 
+  // an opponent's card revealed from their hand, still in it
+  'match.hand.revealed': 'Revealed',
+
   // the decision corner
   'match.conceding': 'Concession sent. The game ends as soon as the server applies it.',
   'match.conceding.waiting': 'Concession sent. It takes effect when {name} passes priority.',
@@ -132,6 +135,10 @@ export default {
   'match.trigger.label': 'Triggered',
   // the hovered card's keywords and mechanics, explained beside it
   'match.zoom.mechanics': 'Mechanics',
+  // a Room's doors on the board
+  'match.room.doors': 'Doors',
+  'match.room.unlocked': '{name}: unlocked',
+  'match.room.locked': '{name}: locked',
   // counters on a permanent, as badges on the board
   'match.counter.list': 'Counters',
   'match.counter.named': { one: '{count} {name} counter', other: '{count} {name} counters' },

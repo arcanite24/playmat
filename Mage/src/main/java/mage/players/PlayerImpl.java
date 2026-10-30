@@ -2003,6 +2003,7 @@ public abstract class PlayerImpl implements Player, Serializable {
         } else {
             game.getState().getRevealed().update(CardUtil.createObjectRelatedWindowTitle(source, game, titleSuffix), cards);
         }
+        game.getState().getRevealed().noteZones(cards, game);
         if (postToLog && !game.isSimulation()) {
             StringBuilder sb = new StringBuilder(getLogName()).append(" reveals ");
             int current = 0;

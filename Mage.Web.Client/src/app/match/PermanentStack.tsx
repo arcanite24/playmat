@@ -1,8 +1,9 @@
 import {
-  Anvil, ArrowUpToLine, Castle, Crosshair, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Shield, ShieldCheck,
+  Anvil, ArrowUpToLine, Castle, Crosshair, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Lock, LockOpen, Shield, ShieldCheck,
   ShieldHalf, Skull, Sword, Swords, Users, Zap, type LucideIcon,
 } from 'lucide-react';
 import { memo, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
+import { roomDoors } from '../../core/game/rooms';
 import { keywordEffects, keywordMarks, type KeywordEffect, type MarkedKeyword } from '../../core/game/keywords';
 import type { PermanentView } from '../../protocol/generated/views';
 import { useT } from '../i18n';
@@ -138,6 +139,7 @@ interface PlacedCardProps extends PermanentStackProps {
 function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const id = permanent.id!;
+  const t = useT();
   const tapped = !!permanent.tapped;
   const height = width * CARD_RATIO;
   const isClickable = clickable.has(id);
@@ -189,6 +191,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
   const damage = permanent.damage ?? 0;
   const isCreature = (permanent.cardTypes ?? []).includes('CREATURE');
   const loyalty = permanent.loyalty || permanent.defense;
+  const doors = roomDoors(permanent);
   // summoning sick: it can't attack or tap yet, so it dozes (the server's flag ignores haste; a hasty creature is awake)
   const asleep = isCreature && !!permanent.summoningSickness && !keywords.some((mark) => mark.name === 'Haste');
   const flying = effects.includes('float');
@@ -279,6 +282,20 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
 
       <CounterBadges permanent={permanent} className={styles.counters} />
 
+      {doors && (
+        <ul className={styles.doors} style={{ transform: tapped ? 'rotate(-90deg)' : undefined }} aria-label={t('match.room.doors')}>
+          {doors.map((door) => {
+            const Icon = door.unlocked ? LockOpen : Lock;
+            return (
+              <li key={door.name} className={door.unlocked ? styles.doorUnlocked : styles.doorLocked} title={t(door.unlocked ? 'match.room.unlocked' : 'match.room.locked', { name: door.name })}>
+                <Icon size={11} strokeWidth={2.6} aria-hidden="true" />
+                <span>{door.name}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
       {isCreature && permanent.power !== undefined && (
         <span className={[styles.pt, ptTone(permanent)].join(' ')}>
           {permanent.power}/{permanent.toughness}
@@ -307,6 +324,7 @@ function describe(permanent: PermanentView, state: { tapped: boolean; asleep: bo
   const parts = [permanent.name ?? 'Permanent'];
   if (permanent.power !== undefined && (permanent.cardTypes ?? []).includes('CREATURE')) parts.push(`${permanent.power}/${permanent.toughness}`);
   parts.push(...state.keywords);
+  for (const door of roomDoors(permanent) ?? []) parts.push(`${door.name} ${door.unlocked ? 'unlocked' : 'locked'}`);
   if (state.tapped) parts.push('tapped');
   if (state.asleep) parts.push('summoning sick');
   if (state.isAttacking) parts.push('attacking');
