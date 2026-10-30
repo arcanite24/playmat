@@ -112,6 +112,7 @@ const es: Catalog = {
   'login.submit.ask': 'Enviar la solicitud',
   'login.contributors': 'Solo para colaboradores: este servidor deja entrar a quienes están en su lista. Inicia sesión, abre tu enlace de invitación o pide acceso.',
   'login.ask': 'Pedir acceso',
+  'login.ownerPending': 'Servidor nuevo: registra el nombre de XMAGE_OWNER para crear la cuenta de su dueño.',
   'login.inviteOnly': 'Por ahora, para crear una cuenta aquí hace falta un enlace de invitación. Si tienes uno, ábrelo; si no, pide acceso.',
   'login.askNote': 'Una nota para el equipo del servidor',
   'login.askNoteHint': 'Por ejemplo tu usuario de GitHub, o en qué trabajas.',
