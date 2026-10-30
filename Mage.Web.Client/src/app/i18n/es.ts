@@ -1486,6 +1486,8 @@ const es: Catalog = {
   'match.mana.skip': 'Omitir',
   'match.ability.cancel': 'Cancelar',
   'match.amount.mana': 'Tienes {count} de maná para pagar.',
+  'match.block.mustBeBlocked': 'Hay que bloquear a {name} si se puede. Bloquéala o vuelve a pulsar para enviar estos bloqueos igualmente.',
+  'match.block.anAttacker': 'Un atacante',
   'match.end.victory': 'Victoria',
   'match.end.defeat': 'Derrota',
   'match.end.draw': 'Empate',

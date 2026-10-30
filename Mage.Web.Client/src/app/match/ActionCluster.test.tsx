@@ -153,4 +153,10 @@ describe('ActionCluster shortcuts', () => {
     fireEvent.keyDown(window, { key: '2', altKey: true });
     expect(sent).toEqual([CANCEL.command]);
   });
+
+  test('says why an answer may be refused, above the button that sends it anyway', () => {
+    render(<ActionCluster interaction={interaction({ mode: 'declareBlockers', mainButton: main })} awaiting={false} status={null} canAct special={false} holdingPriority={false} warning="Fear of Being Hunted must be blocked if able." onCommand={() => undefined} />);
+    expect(screen.getByRole('alert').textContent).toBe('Fear of Being Hunted must be blocked if able.');
+    expect(screen.getByRole('button', { name: 'OK' })).toBeTruthy();
+  });
 });

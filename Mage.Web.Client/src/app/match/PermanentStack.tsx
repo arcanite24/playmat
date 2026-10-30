@@ -1,5 +1,5 @@
 import {
-  Anvil, ArrowUpToLine, Castle, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Shield, ShieldCheck,
+  Anvil, ArrowUpToLine, Castle, Crosshair, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Shield, ShieldCheck,
   ShieldHalf, Skull, Sword, Swords, Users, Zap, type LucideIcon,
 } from 'lucide-react';
 import { memo, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
@@ -67,6 +67,7 @@ const KEYWORD_ICONS: Record<MarkedKeyword, LucideIcon> = {
   Shroud: EyeOff,
   Ward: ShieldHalf,
   Protection: ShieldCheck,
+  'Must be blocked': Crosshair,
 };
 
 /** The layer each keyword effect draws (PermanentStack.module.css); float moves the card itself. */

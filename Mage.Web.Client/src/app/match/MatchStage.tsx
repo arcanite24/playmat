@@ -27,6 +27,7 @@ import { useAutomation, useSettings } from '../stores/settings';
 import { useManaPaymentSettings } from './useManaPaymentSettings';
 import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
+import { blockWarning } from '../../core/game/blockRequirements';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
@@ -213,6 +214,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   );
   const stack = useMemo(() => Object.values(view?.stack ?? {}), [view?.stack]);
 
+  // the declare-blockers prompt whose blocks were warned about, and why (a second press sends them anyway)
+  const [blockWarned, setBlockWarned] = useState<{ prompt: unknown; text: string } | null>(null);
   const onCommand = useCallback((command: Command) => {
     // Cancel on a payment is never dropped: auto-pay keeps a tap with the server most of the time
     if (command.type === 'boolean' && !command.value && session.getState().interaction.mode === 'payMana') {
@@ -221,11 +224,22 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     }
     // one answer per question: while the server works on the last one, further answers are dropped
     if (command.type !== 'action' && session.getState().awaitingServer) return;
+    // blocks that leave a "must be blocked if able" attacker unblocked are not sent on the first press
+    const current = session.getState();
+    const asked = current.interaction.prompt;
+    if (command.type === 'boolean' && command.value && current.interaction.mode === 'declareBlockers'
+      && asked?.kind === 'declareBlockers' && blockWarned?.prompt !== asked) {
+      const unblocked = blockWarning(current.view, asked);
+      if (unblocked) {
+        setBlockWarned({ prompt: asked, text: t('match.block.mustBeBlocked', { name: unblocked.name || t('match.block.anAttacker') }) });
+        return;
+      }
+    }
     if (command.type === 'action' && (command.action === 'HOLD_PRIORITY' || command.action === 'UNHOLD_PRIORITY')) {
       setHolding(command.action === 'HOLD_PRIORITY');
     }
     void session.respond(command).catch(() => undefined);
-  }, [session]);
+  }, [session, t, blockWarned]);
   const onResend = useCallback(() => void session.resend().catch(() => undefined), [session]);
   const onResync = useCallback(() => {
     void session.resync().then((resent) => {
@@ -618,6 +632,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onFullControl={setFullControl}
                 stalled={state.stalled}
                 conceding={state.conceding ? { waitingOn: priorityName } : null}
+                warning={blockWarned && blockWarned.prompt === interaction.prompt ? blockWarned.text : null}
                 cards={askCards}
                 onResend={onResend}
                 onResync={onResync}
