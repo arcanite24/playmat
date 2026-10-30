@@ -23,8 +23,11 @@ public class RevealedView implements Serializable {
             if (card instanceof PermanentCard && card.isFaceDown(game)) {
                 this.cards.put(card.getId(), new CardView(card.getMainCard())); // do not use game param, so it will take default card
             } else {
-                // with its zone, so a client can tell a card revealed from a hand
-                this.cards.put(card.getId(), new CardView(card, game, false, true));
+                // with the zone it was revealed from, so a client can tell a card revealed from a hand; never its
+                // current zone, which would follow the card into a hidden zone for as long as the reveal is listed
+                CardView view = new CardView(card, game, false, false);
+                view.zone = game.getState().getRevealed().getRevealedFrom(card.getId());
+                this.cards.put(card.getId(), view);
             }
         }
     }

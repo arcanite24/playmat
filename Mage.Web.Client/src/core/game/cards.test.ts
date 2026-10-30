@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isStackAbility, printsPowerToughness, roomDoors } from './cards';
+import { isStackAbility, printsPowerToughness } from './cards';
+import { roomDoors } from './rooms';
 
 describe('isStackAbility', () => {
   it('recognises abilities as the server sends them (no isAbility flag)', () => {

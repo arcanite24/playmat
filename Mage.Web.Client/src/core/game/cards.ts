@@ -1,4 +1,4 @@
-import type { CardView, PermanentView, StackAbilityView } from '../../protocol/generated/views';
+import type { CardView, StackAbilityView } from '../../protocol/generated/views';
 
 /**
  * Whether a stack object is an ability rather than a spell. The server's ability views never set `isAbility`;
@@ -19,18 +19,4 @@ export function printsPowerToughness(card: Pick<CardView, 'power' | 'toughness' 
   if (card.cardTypes) return card.cardTypes.includes('CREATURE') || (card.subTypes ?? []).some((type) => type === 'VEHICLE' || type === 'SPACECRAFT');
   if (card.typeText) return /\b(?:creature|vehicle|spacecraft)\b/i.test(card.typeText);
   return card.power !== '0' || card.toughness !== '0';
-}
-
-export interface RoomDoor {
-  name: string;
-  unlocked: boolean;
-}
-
-/** A Room permanent's two doors, left first, as the server tells them (null: not a face-up Room). */
-export function roomDoors(permanent: Pick<PermanentView, 'roomLeftDoor' | 'roomRightDoor' | 'roomLeftUnlocked' | 'roomRightUnlocked'>): [RoomDoor, RoomDoor] | null {
-  if (!permanent.roomLeftDoor || !permanent.roomRightDoor) return null;
-  return [
-    { name: permanent.roomLeftDoor, unlocked: !!permanent.roomLeftUnlocked },
-    { name: permanent.roomRightDoor, unlocked: !!permanent.roomRightUnlocked },
-  ];
 }

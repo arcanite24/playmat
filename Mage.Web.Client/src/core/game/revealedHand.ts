@@ -2,18 +2,23 @@ import type { CardView, GameView } from '../../protocol/generated/views';
 
 /**
  * Cards revealed from a player's hand stay known while they stay in that hand. The server lists reveals in
- * `GameView.revealed` only for the rest of the turn and sends an opponent's hand as a count, so the client keeps
- * what it saw: a revealed card whose zone was the hand, by its physical card id, until that card shows up anywhere
- * else (cast, discarded, exiled, back on the library while still listed as revealed). When a card leaves the hand
- * for a hidden zone (put back on the library: the hand shrinks as the library grows) or the hand holds fewer cards
- * than are remembered, which ones left is unknown, and all of them are forgotten. Nothing that was not revealed is
- * ever remembered; a server that doesn't send the zone of revealed cards gives nothing to remember.
+ * `GameView.revealed` only for the rest of the turn, each card with the zone it was revealed from (never where it is
+ * now), and sends an opponent's hand as a count, so the client keeps what it saw: a card revealed from the hand, by
+ * its physical card id, until it shows up anywhere public (cast, discarded, exiled, played).
+ *
+ * When the hand shrinks by more cards than showed up in public zones (one went back to the library, was exiled face
+ * down, or was shuffled away), which ones left is unknown, and all of them are forgotten. So is everything when the
+ * hand holds fewer cards than are remembered. A forgotten card is not picked up again from a reveal that is still
+ * listed. Nothing that was not revealed is ever remembered; a reveal without a zone gives nothing to remember.
  */
 export interface RevealedHand {
   /** revealed cards still in the hand, by physical card id (cardId, else id), in the order they were revealed */
   cards: ReadonlyMap<string, CardView>;
   handCount: number;
-  libraryCount: number;
+  /** this player's cards in public zones, by physical card id: what the hand can lose without a secret */
+  inPublic: ReadonlySet<string>;
+  /** cards known to have left the hand while their reveal is still listed */
+  forgotten: ReadonlySet<string>;
 }
 
 /** by player id */
@@ -27,10 +32,10 @@ function physicalId(card: CardView, fallback: string): string {
 
 /** The memory after one more game view. */
 export function rememberRevealedHands(previous: RevealedHands, view: GameView): RevealedHands {
-  // every card in a public zone: none of them is in a hand
-  const seen = new Set<string>();
+  // every card in a public zone (none of them is in a hand), and whose each one is
+  const seen = new Map<string, string | undefined>();
   const addSeen = (cards: Record<string, CardView> | undefined) => {
-    for (const [id, card] of Object.entries(cards ?? {})) seen.add(physicalId(card, id));
+    for (const [id, card] of Object.entries(cards ?? {})) seen.set(physicalId(card, id), card.ownerId);
   };
   addSeen(view.stack);
   for (const zone of view.exiles ?? []) addSeen(zone);
@@ -39,11 +44,12 @@ export function rememberRevealedHands(previous: RevealedHands, view: GameView): 
     addSeen(player.graveyard);
     addSeen(player.exile);
   }
-  // the revealed cards, with where each one is now (the server says while the reveal lasts)
+  // the reveals still listed, each card with the zone it was revealed from
   const revealed: { key: string; card: CardView }[] = [];
   for (const group of view.revealed ?? []) {
     for (const [id, card] of Object.entries(group.cards ?? {})) revealed.push({ key: physicalId(card, id), card: { ...card, id: card.id ?? id } });
   }
+  const listed = new Set(revealed.map(({ key }) => key));
 
   const next = new Map<string, RevealedHand>();
   for (const player of view.players ?? []) {
@@ -51,22 +57,35 @@ export function rememberRevealedHands(previous: RevealedHands, view: GameView): 
     if (!playerId) continue;
     const before = previous.get(playerId);
     const handCount = player.handCount ?? 0;
-    const libraryCount = player.libraryCount ?? 0;
-    const putBack = !!before && handCount < before.handCount && libraryCount > before.libraryCount;
-    const cards = new Map(putBack ? [] : before?.cards ?? []);
-    for (const key of cards.keys()) if (seen.has(key)) cards.delete(key);
+    const inPublic = new Set([...seen].filter(([, owner]) => owner === playerId).map(([key]) => key));
+    const forgotten = new Set([...before?.forgotten ?? []].filter((key) => listed.has(key)));
+    const cards = new Map(before?.cards ?? []);
+    const forgetAll = () => {
+      for (const key of cards.keys()) forgotten.add(key);
+      for (const { key, card } of revealed) if (card.ownerId === playerId && card.zone === 'HAND') forgotten.add(key);
+      cards.clear();
+    };
+
+    // the hand lost more cards than showed up in public: some left for a hidden zone, which ones is unknown
+    if (before) {
+      const lost = before.handCount - handCount;
+      // theirs by owner, or by being a card remembered in their hand
+      const surfaced = new Set([...inPublic, ...[...cards.keys()].filter((key) => seen.has(key))].filter((key) => !before.inPublic.has(key))).size;
+      if (lost > 0 && lost > surfaced) forgetAll();
+    }
+    for (const key of cards.keys()) {
+      if (seen.has(key)) {
+        cards.delete(key);
+        forgotten.add(key);
+      }
+    }
     for (const { key, card } of revealed) {
-      if (card.ownerId !== playerId || !card.zone) continue;
-      if (card.zone === 'HAND') cards.set(key, card);
-      else cards.delete(key);
+      if (card.ownerId !== playerId || card.zone !== 'HAND' || seen.has(key) || forgotten.has(key)) continue;
+      if (!cards.has(key)) cards.set(key, card);
     }
-    // more remembered than held: which ones left is unknown; only the ones seen in the hand right now stay
-    if (cards.size > handCount) {
-      const now = new Set(revealed.filter(({ card }) => card.ownerId === playerId && card.zone === 'HAND').map(({ key }) => key));
-      for (const key of cards.keys()) if (!now.has(key)) cards.delete(key);
-      if (cards.size > handCount) cards.clear();
-    }
-    next.set(playerId, { cards, handCount, libraryCount });
+    // more remembered than held: which ones left is unknown
+    if (cards.size > handCount) forgetAll();
+    next.set(playerId, { cards, handCount, inPublic, forgotten });
   }
   return next;
 }

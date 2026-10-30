@@ -52,6 +52,7 @@ import { damageCorner, useDamageSplit } from './useDamageSplit';
 import { EmoteBubbles } from './EmoteBubbles';
 import { EmoteButton } from './emotes/EmoteButton';
 import { useOpponentVoice } from './useOpponentVoice';
+import { useRevealedHands } from './useRevealedHands';
 import { setCardMotion, useFlipOrigin } from './flip';
 import { GameLog } from './GameLog';
 import { Hand } from './Hand';
@@ -153,6 +154,7 @@ export interface MatchStageProps {
 
 export function MatchStage({ session, state, replayLog, onLeave }: MatchStageProps) {
   const { view, interaction, playerId, mode, awaitingServer, prediction } = state;
+  const revealedHands = useRevealedHands(view, mode !== 'replay');
   const t = useT();
   const navigate = useNavigate();
   const animations = useSettings((settings) => settings.settings.animations);
@@ -525,7 +527,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 sleeve={theirSleeves.get(opponent.player.playerId!) ?? sleeves.theirs}
                 look={lookOf(opponent.player)}
                 handCount={opponent.player.handCount ?? 0}
-                revealed={revealedInHand(state.revealedHands, opponent.player.playerId)}
+                revealed={revealedInHand(revealedHands, opponent.player.playerId)}
                 clickable={clickable}
                 selected={interaction.selected}
                 attacking={attacking}

@@ -3,7 +3,7 @@ import {
   ShieldHalf, Skull, Sword, Swords, Users, Zap, type LucideIcon,
 } from 'lucide-react';
 import { memo, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
-import { roomDoors } from '../../core/game/cards';
+import { roomDoors } from '../../core/game/rooms';
 import { keywordEffects, keywordMarks, type KeywordEffect, type MarkedKeyword } from '../../core/game/keywords';
 import type { PermanentView } from '../../protocol/generated/views';
 import { useT } from '../i18n';
@@ -139,6 +139,7 @@ interface PlacedCardProps extends PermanentStackProps {
 function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const id = permanent.id!;
+  const t = useT();
   const tapped = !!permanent.tapped;
   const height = width * CARD_RATIO;
   const isClickable = clickable.has(id);
@@ -282,11 +283,11 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
       <CounterBadges permanent={permanent} className={styles.counters} />
 
       {doors && (
-        <ul className={styles.doors} style={{ transform: tapped ? 'rotate(-90deg)' : undefined }} aria-label="Doors">
+        <ul className={styles.doors} style={{ transform: tapped ? 'rotate(-90deg)' : undefined }} aria-label={t('match.room.doors')}>
           {doors.map((door) => {
             const Icon = door.unlocked ? LockOpen : Lock;
             return (
-              <li key={door.name} className={door.unlocked ? styles.doorUnlocked : styles.doorLocked} title={`${door.name}: ${door.unlocked ? 'unlocked' : 'locked'}`}>
+              <li key={door.name} className={door.unlocked ? styles.doorUnlocked : styles.doorLocked} title={t(door.unlocked ? 'match.room.unlocked' : 'match.room.locked', { name: door.name })}>
                 <Icon size={11} strokeWidth={2.6} aria-hidden="true" />
                 <span>{door.name}</span>
               </li>

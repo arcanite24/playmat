@@ -135,6 +135,10 @@ export default {
   'match.trigger.label': 'Triggered',
   // the hovered card's keywords and mechanics, explained beside it
   'match.zoom.mechanics': 'Mechanics',
+  // a Room's doors on the board
+  'match.room.doors': 'Doors',
+  'match.room.unlocked': '{name}: unlocked',
+  'match.room.locked': '{name}: locked',
   // counters on a permanent, as badges on the board
   'match.counter.list': 'Counters',
   'match.counter.named': { one: '{count} {name} counter', other: '{count} {name} counters' },

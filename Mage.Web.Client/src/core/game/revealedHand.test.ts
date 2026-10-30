@@ -59,19 +59,26 @@ describe('rememberRevealedHands', () => {
     expect(names(exiled)).toEqual(['Bottomless Pool // Locker Room']);
   });
 
-  it('forgets a card the reveal still lists in another zone', () => {
-    const start = rememberRevealedHands(NO_REVEALED_HANDS, view(player(THEM, 5), { revealed: revealed({ ...pool, zone: 'HAND' }) }));
-    const back = rememberRevealedHands(start, view(player(THEM, 4, 31), { revealed: revealed({ ...pool, zone: 'LIBRARY' }) }));
+  it("doesn't pick a card up again from a reveal still listed after it left the hand unseen", () => {
+    // the server keeps saying "revealed from the hand" for the rest of the turn, wherever the card went
+    const listed = revealed({ ...pool, zone: 'HAND' });
+    const start = rememberRevealedHands(NO_REVEALED_HANDS, view(player(THEM, 5), { revealed: listed }));
+    const back = rememberRevealedHands(start, view(player(THEM, 4, 31), { revealed: listed }));
     expect(names(back)).toEqual([]);
+    expect(names(rememberRevealedHands(back, view(player(THEM, 4, 31), { revealed: listed })))).toEqual([]);
   });
 
-  it('forgets everything when a card goes from the hand to the library unseen', () => {
+  it('forgets everything when the hand loses a card that shows up nowhere public', () => {
     const start = rememberRevealedHands(NO_REVEALED_HANDS, view(player(THEM, 5), { revealed: revealed({ ...pool, zone: 'HAND' }) }));
+    // back on the library
     expect(names(rememberRevealedHands(start, view(player(THEM, 4, 31))))).toEqual([]);
+    // exiled face down (foretell): the library doesn't change
+    expect(names(rememberRevealedHands(start, view(player(THEM, 4, 30))))).toEqual([]);
     // drawing is not that: the hand grows as the library shrinks
     expect(names(rememberRevealedHands(start, view(player(THEM, 6, 29))))).toEqual(['Bottomless Pool // Locker Room']);
-    // nor is casting an unrevealed card
-    expect(names(rememberRevealedHands(start, view(player(THEM, 4, 30))))).toEqual(['Bottomless Pool // Locker Room']);
+    // nor is casting an unrevealed card: it shows up on the stack
+    const cast = view(player(THEM, 4, 30), { stack: { spell: { id: 'spell', cardId: 'c9', ownerId: THEM, name: 'Opt' } } });
+    expect(names(rememberRevealedHands(start, cast))).toEqual(['Bottomless Pool // Locker Room']);
   });
 
   it('forgets everything when the hand holds fewer cards than remembered (shuffled away, discarded unseen)', () => {
