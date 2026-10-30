@@ -5,14 +5,12 @@ import { useEvents } from './events';
 import { warmCards } from '../ui/imageCache';
 import { useSession } from './session';
 import { readJson, writeJson } from './persist';
-import { deckStorage } from '../../core/decks/DeckStorageService';
 import { toWire } from '../decks/deckModel';
 import type { DeckCardLists as WireDeck, GameTypeView, ServerState } from '../../protocol/generated/views';
 import { queryClient } from '../queries';
 import { seatableAiType } from '../screens/aiSetup';
 import type { DeckCardLists } from '../../core/decks/types';
-import { formatRules, gameTypesFor, isCommanderFormat } from '../../core/decks/formats';
-import { pickMetaDeck } from '../../core/decks/metaDecks';
+import { formatRules, gameTypesFor } from '../../core/decks/formats';
 import { notify } from './toasts';
 import { useCoach } from './coach';
 import { t } from '../i18n';
@@ -20,13 +18,16 @@ import { loadCareerMessages } from '../solo/careerMessages';
 import { adaptiveFormatFor, adaptiveSkill, looksCommander, opponentSource, tableMarkArgs, type OpponentSource } from '../solo/freePlay';
 
 /** the smallest deck worth a game (limited size; constructed formats are checked by the server) */
-const MIN_DECK_SIZE = 40;
+export const MIN_DECK_SIZE = 40;
 const FREEFORM = 'Constructed - Freeform';
 const FREEFORM_COMMANDER = 'Variant Magic - Freeform Commander';
 
 export type PlayPhase = 'idle' | 'starting' | 'waitingForGame';
 
 export type AiType = 'COMPUTER_MAD' | 'COMPUTER_MONTE_CARLO';
+
+/** Where a random AI deck comes from: the starter decks (a format game's own decks first), or every deck there is. */
+export type RandomPool = 'starters' | 'every';
 
 export interface AiOptions {
   /** server AI strength, 1-10 */
@@ -36,6 +37,10 @@ export interface AiOptions {
    * pick, or another source (ghost:<code>, mirror; see solo/freePlay)
    */
   opponentDeckId: string | null;
+  /** a pod's other AI seats, in order: a deck id from the roster (as `opponentDeckId`), or null for a random pick */
+  podDeckIds: (string | null)[];
+  /** random picks: starter decks, or 'every': starters, format decks and the player's own decks of the right kind */
+  randomPool: RandomPool;
   /** the name of a ghost deck picked for the AI, for the setup summary */
   opponentLabel: string | null;
   /** the AI's skill follows the player's results (S049) instead of `skill` */
@@ -59,6 +64,8 @@ const AI_OPTIONS_KEY = 'playmat.aiOptions';
 export const DEFAULT_AI_OPTIONS: AiOptions = {
   skill: 4,
   opponentDeckId: null,
+  podDeckIds: [],
+  randomPool: 'starters',
   opponentLabel: null,
   adaptive: false,
   aiType: 'COMPUTER_MAD',
@@ -97,58 +104,6 @@ interface PlayState {
   cancel(): Promise<void>;
 }
 
-async function deckFile(path: string, name: string): Promise<DeckCardLists> {
-  const response = await fetch(path);
-  const text = response.ok ? await response.text() : '';
-  if (!text || /^\s*</.test(text)) throw new Error(`Couldn't load the AI's deck (${name}).`);
-  const { DeckSerializer } = await import('../../core/decks/DeckSerializer');
-  const deck = DeckSerializer.importDeck(text);
-  deck.name = name;
-  return deck;
-}
-
-const starterDeck = (file: string, name: string) => deckFile(`/starter-decks/${encodeURIComponent(file)}`, name);
-const metaDeck = (file: string, name: string) => deckFile(`/meta-decks/${encodeURIComponent(file)}`, name);
-
-/**
- * Decks for the AI seats: the one picked in the AI settings for the first seat, then, for a game played in a format,
- * that format's pool (weighted by recorded share, with a minimum weight of one); otherwise, or when it runs out,
- * random starter decks of the same kind (commander or not). Never the same deck twice while there are others.
- */
-export async function aiDecks(chosenId: string | null, count: number, commander: boolean, format: string | null = null, avoid: string | null = null): Promise<DeckCardLists[]> {
-  const decks: DeckCardLists[] = [];
-  if (chosenId && !chosenId.startsWith(STARTER_PREFIX) && !chosenId.startsWith(META_PREFIX)) {
-    const saved = await deckStorage.loadDeck(chosenId);
-    if (saved && isCommanderFormat(saved.format) === commander) decks.push(saved);
-  }
-  const { starters, metaDecks } = useDecks.getState();
-  // the player's own format deck, when they play one, isn't dealt to the AI too
-  const taken = new Set<string>(avoid ? [avoid] : []);
-  const chosenMeta = metaDecks.find((deck) => META_PREFIX + deck.file === chosenId && isCommanderFormat(deck.format) === commander);
-  if (decks.length === 0 && chosenMeta) {
-    taken.add(chosenMeta.file);
-    decks.push(await metaDeck(chosenMeta.file, chosenMeta.name));
-  }
-  const fitting = starters.filter((starter) => isCommanderFormat(starter.format) === commander);
-  const chosenFile = chosenId?.startsWith(STARTER_PREFIX) ? chosenId.slice(STARTER_PREFIX.length) : null;
-  const chosen = fitting.find((starter) => starter.file === chosenFile);
-  if (decks.length === 0 && chosen) decks.push(await starterDeck(chosen.file, chosen.name));
-  const pool = fitting.filter((starter) => starter !== chosen);
-  while (decks.length < count) {
-    const meta = format ? pickMetaDeck(metaDecks, format, taken) : null;
-    if (meta) {
-      taken.add(meta.file);
-      decks.push(await metaDeck(meta.file, meta.name));
-      continue;
-    }
-    const candidates = pool.length > 0 ? pool : fitting;
-    if (candidates.length === 0) throw new Error(commander ? 'No commander deck is available for the AI.' : 'No deck available for the AI.');
-    const starter = candidates.splice(Math.floor(Math.random() * candidates.length), 1)[0];
-    decks.push(await starterDeck(starter.file, starter.name));
-  }
-  return decks;
-}
-
 /**
  * The first AI seat's deck when it doesn't come from the roster: a ghost deck, or a copy of the player's. Null for a
  * roster deck, starter or format deck (aiDecks picks those).
@@ -171,7 +126,7 @@ function gameTypeFor(deckType: string, seats: number, available: GameTypeView[])
   return names[0];
 }
 
-function cardCount(cards: DeckCardLists['cards']): number {
+export function cardCount(cards: DeckCardLists['cards']): number {
   return cards.reduce((sum, card) => sum + card.amount, 0);
 }
 
@@ -198,9 +153,9 @@ export const usePlay = create<PlayState>((set, get) => ({
     // a format deck for the player (Home's Format deck mode): the format's rules, and the AI takes one of its decks too
     const metaGame = deckId.startsWith(META_PREFIX) || deckId.startsWith(RANDOM_META_PREFIX);
     const options: AiOptions = practice || guided
-      ? { ...get().aiOptions, rules: 'casual', opponents: 1, aiType: 'COMPUTER_MAD', skill: 1, winsNeeded: 1, startingLife: null, opponentDeckId: null, adaptive: false }
+      ? { ...get().aiOptions, rules: 'casual', opponents: 1, aiType: 'COMPUTER_MAD', skill: 1, winsNeeded: 1, startingLife: null, opponentDeckId: null, podDeckIds: [], randomPool: 'starters', adaptive: false }
       : metaGame
-        ? { ...get().aiOptions, ...picked, rules: 'deck', opponentDeckId: null }
+        ? { ...get().aiOptions, ...picked, rules: 'deck', opponentDeckId: null, podDeckIds: [] }
         : { ...get().aiOptions, ...picked };
     useCoach.getState().setGuided(guided);
     set({ phase: 'starting', error: null, deckId, returnPath: null, lastOptions: practice ? { practice } : picked });
@@ -234,7 +189,12 @@ export const usePlay = create<PlayState>((set, get) => ({
       const format = options.rules === 'deck' ? deckType : null;
       const rivalDecks: WireDeck[] = practice
         ? [toWire(goldfishDeck(commander))]
-        : [...(sourced ? [sourced] : []), ...(await aiDecks(source.kind === 'roster' ? source.id : null, opponents - (sourced ? 1 : 0), commander, format, meta?.file ?? null)).map(toWire)];
+        : [...(sourced ? [sourced] : []), ...(await (await import('./aiDecks')).aiDecks(
+          sourced ? options.podDeckIds : [source.kind === 'roster' ? source.id : null, ...options.podDeckIds],
+          opponents - (sourced ? 1 : 0),
+          commander,
+          { format, avoid: meta?.file ?? null, pool: options.randomPool, own: deckId },
+        )).map(toWire)];
       // adaptive: the AI plays at the skill the player's recent results call for
       const adaptiveFormat = !practice && options.adaptive ? adaptiveFormatFor(commander) : null;
       const skill = adaptiveFormat ? adaptiveSkill((await api.soloAdaptive(adaptiveFormat).catch(() => null))?.skill, options.skill) : options.skill;

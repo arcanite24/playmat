@@ -48,7 +48,7 @@ function lifeLines(t: Translate, preview: Preview, attacking: boolean): string[]
       ? t('match.combat.ifUnblocked', { damage: defender.damage, name: defender.name, life: defender.lifeAfter })
       : defender.isMe ? t('match.combat.lifeYou', { life: defender.lifeAfter }) : t('match.combat.lifeThem', { name: defender.name, life: defender.lifeAfter });
     if (defender.poison > 0) line = t('match.combat.poison', { line, poison: defender.poison });
-    if (defender.lifeAfter <= 0) line = t('match.combat.lethal', { line });
+    if (defender.lethal) line = t('match.combat.lethal', { line });
     return line;
   });
 }

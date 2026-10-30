@@ -36,6 +36,7 @@ export function readingFromServer(deck: ImportedDeck, site: DeckSiteId, fallback
       commanders: cards(deck.commanders),
       companion: cards(deck.companion),
       maybe: [],
+      skipped: [],
     },
     maybeCount: deck.maybeboardCount ?? 0,
     name: deck.name,

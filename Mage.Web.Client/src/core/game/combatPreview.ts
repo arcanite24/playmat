@@ -109,9 +109,11 @@ function deal(source: Fighter, target: Hurt, amount: number) {
  * or double strike. The attacker divides its damage to kill as many blockers as it can, cheapest first; an
  * indestructible blocker gets lethal damage last (trample needs it before the rest goes through).
  */
-export function fight(attacker: Fighter, blockers: readonly Fighter[]): FightResult {
+export function fight(attacker: Fighter, blockers: readonly Fighter[], blocked = blockers.length > 0): FightResult {
   const result: FightResult = { attackerDies: false, deadBlockers: [], toDefender: 0, attackerGain: 0, defenderGain: 0 };
   if (blockers.length === 0) {
+    // blocked by creatures that have since left combat: it stays blocked, and only trample gets through
+    if (blocked && !attacker.trample) return result;
     const hits = attacker.double ? 2 : 1;
     result.toDefender = attacker.power * hits;
     if (attacker.lifelink) result.attackerGain = attacker.power * hits;
@@ -198,6 +200,10 @@ export interface DefenderTotal {
   /** life before and after combat damage (players only) */
   life: number | null;
   lifeAfter: number | null;
+  /** poison counters before combat damage (players only) */
+  poisonBefore: number;
+  /** combat would leave this player at 0 life or 10 poison */
+  lethal: boolean;
 }
 
 export interface CombatPreview {
@@ -250,7 +256,7 @@ export function combatPreview(view: GameView | null | undefined): CombatPreview 
       pairs.push({
         attacker,
         blockers,
-        result: fight(attacker, blockers),
+        result: fight(attacker, blockers, blockers.length > 0 || !!group.isBlocked),
         defenderId,
         defenderName: group.defenderName ?? permanent?.name ?? 'defender',
         menaceAlone: attacker.menace && blockers.length === 1,
@@ -285,6 +291,8 @@ export function combatPreview(view: GameView | null | undefined): CombatPreview 
         poison: 0,
         life: player?.life ?? null,
         lifeAfter: null,
+        poisonBefore: player?.counters?.find((counter) => counter.name?.toLowerCase() === 'poison')?.count ?? 0,
+        lethal: false,
       };
       totals.set(pair.defenderId, total);
     }
@@ -293,6 +301,7 @@ export function combatPreview(view: GameView | null | undefined): CombatPreview 
   }
   for (const total of totals.values()) {
     if (total.life !== null) total.lifeAfter = total.life - total.damage + (gains.get(total.id) ?? 0);
+    total.lethal = total.isPlayer && ((total.lifeAfter !== null && total.lifeAfter <= 0) || (total.poison > 0 && total.poisonBefore + total.poison >= 10));
   }
 
   const sharedBlockers = [...blockCount].filter(([, count]) => count > 1).map(([id, count]) => ({

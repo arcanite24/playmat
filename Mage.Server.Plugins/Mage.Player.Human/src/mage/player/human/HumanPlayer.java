@@ -2151,9 +2151,7 @@ public class HumanPlayer extends PlayerImpl {
             prepareForResponse(game);
             if (!isExecutingMacro()) {
                 Map<String, Serializable> options = new HashMap<>();
-                java.util.List<UUID> possibleBlockers = game.getBattlefield().getActivePermanents(filter, playerId, game).stream()
-                        .map(p -> p.getId())
-                        .collect(Collectors.toList());
+                List<UUID> possibleBlockers = getPossibleBlockers(filter, game);
                 options.put(Constants.Option.POSSIBLE_BLOCKERS, (Serializable) possibleBlockers);
                 game.fireSelectEvent(playerId, "Select blockers", options);
             }
@@ -2182,6 +2180,14 @@ public class HumanPlayer extends PlayerImpl {
                 }
             }
         }
+    }
+
+    protected List<UUID> getPossibleBlockers(FilterCreatureForCombatBlock filter, Game game) {
+        return game.getBattlefield().getActivePermanents(filter, playerId, game).stream()
+                // Use the same legality check as the subsequent attacker choice (flying, protection, etc.).
+                .filter(blocker -> game.getCombat().getGroups().stream().anyMatch(group -> group.canBlock(blocker, game)))
+                .map(Permanent::getId)
+                .collect(Collectors.toList());
     }
 
     protected void selectCombatGroup(UUID defenderId, UUID blockerId, Game game) {

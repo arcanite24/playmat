@@ -93,13 +93,19 @@ import { gzipSync } from 'node:zlib';
 // raised 2026-10-23 from entry 84, initial 218, app 768 for drawn icons in place of emoji: avatars show their sigil
 // as an icon (eight lucide icons and thirteen drawn creatures) and flags as text badges, and the avatar is in the
 // header, so the sigils load with the entry. Measured entry 84.6 kB, initial 219.7 kB, app 769.2 kB
-// app raised 2026-10-24 from 770 kB for the combat estimate (who dies and the damage that gets through, while declaring
-// attackers and blockers, and its English and Spanish messages): match code, lazy with the match screen. Measured app
-// 771.0 kB
+// app raised 2026-10-27 from 772 kB for the capsule item showcase (a board item up close: the turn, light and foil
+// by rarity, the flight in and out of its slot) and the painted capsule machine (the globe's capsule physics, the
+// machine and the pull sequence's opening and light), all lazy with the capsule shop. Measured app 781.5 kB
+// initial raised 2026-10-30 from 220 kB for card pictures that retry after a failed load (CardFace, on every
+// board). Measured initial 220.0 kB
+// app raised 2026-10-30 from 784 kB for the deck builder's mana value columns, lazy with the deck builder. Measured
+// app 785.0 kB
+// app raised 2026-10-30 from 786 kB for the combat estimate (who dies and the damage that gets through, while declaring
+// attackers and blockers): match code, lazy with the match screen. Measured app 788.7 kB
 const BUDGET_KB = {
   entry: 85,
-  initial: 220,
-  app: 772,
+  initial: 221,
+  app: 790,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

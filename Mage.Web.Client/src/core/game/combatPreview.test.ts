@@ -112,6 +112,23 @@ describe('combatPreview', () => {
     expect(preview.fate.get('wurm')).toBe('survives');
   });
 
+  it('keeps an attacker blocked after its blockers are gone: no damage unless it tramples', () => {
+    const v = view([creature('bear', 'them', 2, 2), creature('wurm', 'them', 5, 5, ['Trample'])], {});
+    for (const group of v.combat!) group.isBlocked = true;
+    const me = combatPreview(v)!.defenders.find((defender) => defender.isMe)!;
+    expect(me.damage).toBe(5);
+  });
+
+  it('calls ten poison lethal, counting what the player already has', () => {
+    const v = view([creature('rat', 'them', 3, 1, ['Infect'])], {});
+    v.players![0].counters = [{ name: 'Poison', count: 7 }];
+    const me = combatPreview(v)!.defenders.find((defender) => defender.isMe)!;
+    expect(me.poison).toBe(3);
+    expect(me.lethal).toBe(true);
+    v.players![0].counters = [];
+    expect(combatPreview(v)!.defenders.find((defender) => defender.isMe)!.lethal).toBe(false);
+  });
+
   it('reads keywords from the rules text and flags a menace attacker with one blocker', () => {
     const preview = combatPreview(view([creature('brute', 'them', 3, 3, ['Menace'])], { brute: ['w1'] }))!;
     expect(preview.pairs[0].menaceAlone).toBe(true);
