@@ -22,6 +22,9 @@ export default {
 
   // a count of cards after a pile's name ("Your graveyard, 1 card")
   'match.cards': { one: '{label}, {count} card', other: '{label}, {count} cards' },
+  // the badge on a stack of lands or tokens; a land stack with any tapped counts the untapped ones
+  'match.stack.count': '×{count}',
+  'match.stack.open': '{open} / {count} open',
 
   // a school duel's tips
   'match.lesson.tip': 'School tip',
@@ -64,6 +67,10 @@ export default {
   'match.mana.skip': 'Skip',
   'match.ability.cancel': 'Cancel',
   'match.amount.mana': 'You have {count} mana to pay with.',
+
+  // blocks that break a requirement, said before they are sent
+  'match.block.mustBeBlocked': '{name} must be blocked if able. Block it, or press again to send these blocks anyway.',
+  'match.block.anAttacker': 'An attacker',
 
   // the end of a game or match
   'match.end.victory': 'Victory',

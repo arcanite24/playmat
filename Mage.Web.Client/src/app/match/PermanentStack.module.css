@@ -228,8 +228,17 @@
   font-weight: 700;
   font-size: 21px;
   box-shadow: var(--shadow-placed);
+  white-space: nowrap;
   transform: scale(var(--badge, 1));
   transform-origin: top right;
+}
+
+/* on a turned card the badge turns back, so it reads level at the turned card's top right corner */
+.count[data-turned] {
+  right: auto;
+  left: -10px;
+  transform: rotate(-90deg) scale(var(--badge, 1)) translateX(-100%);
+  transform-origin: top left;
 }
 
 
@@ -291,6 +300,15 @@
     opacity: 0.45;
     transform: translateY(calc(var(--lift, 10px) * 0.55)) scale(0.9);
   }
+}
+
+/* tapped: dimmed as well as turned, so the untapped lands stand out; rings and badges stay bright */
+.body > :last-child {
+  transition: filter var(--dur-place) ease;
+}
+
+.body.tapped > :last-child {
+  filter: brightness(0.62) saturate(0.45);
 }
 
 /* summoning sick: the creature dozes until it can act; its picture dims and greys a little and z's drift up off it */

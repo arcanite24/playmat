@@ -14,7 +14,7 @@ import { DEFAULT_CARD_BACK, type CardBackId } from '../ui/cardBack';
 export interface PlaySettings {
   /** tap lands automatically when the payment is unambiguous */
   autoPayMana: boolean;
-  /** only auto-pay with mana that can't be spent elsewhere this turn */
+  /** leave mana already in the pool for manual payment (the inverse of Use floating mana automatically) */
   autoPayRestricted: boolean;
   /** ask before passing with mana in the pool */
   confirmEmptyManaPool: boolean;
@@ -46,6 +46,8 @@ export interface PlaySettings {
   autoAssignTrample: boolean;
   /** the hand is sorted: lands first, then by mana value and color (local only) */
   sortHand: boolean;
+  /** shipped starter decks stay out of the library and deck pickers (local only) */
+  hideStarterDecks: boolean;
   /** revealed cards fade away after a few seconds (local only) */
   autoDismissReveals: boolean;
   /** battlefield cards are drawn smaller, so big boards stay roomy (local only) */
@@ -124,7 +126,7 @@ export const STREAMLINED: Partial<PlaySettings> = {
 
 /** Classic XMage: every stop and every choice is the player's. */
 export const FULL_CONTROL: Partial<PlaySettings> = {
-  autoPass: false, autoSkipCombat: false, abilitiesOnTheirTurn: true, passAfterCasting: false, autoPayMana: false, autoTargetLevel: 0, autoOrderTriggers: false,
+  autoPass: false, autoSkipCombat: false, abilitiesOnTheirTurn: true, passAfterCasting: false, autoPayMana: false, autoPayRestricted: true, autoTargetLevel: 0, autoOrderTriggers: false,
   autoCrew: false, autoPayHybrid: false, autoPayAnyColor: false, autoPayPainful: false, autoPayX: false, xDefaultsToMax: false, skipSingleChoice: false, pickIdentical: false, smartPreselect: false, attackPlayerByDefault: false, autoAssignDamage: false, autoAssignTrample: false,
 };
 
@@ -146,6 +148,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   autoAssignDamage: true,
   autoAssignTrample: false,
   sortHand: true,
+  hideStarterDecks: false,
   autoDismissReveals: true,
   compactBoard: false,
   muteEmotes: false,
@@ -213,7 +216,7 @@ export function toUserData(settings: PlaySettings, fullControl = false): UserDat
     userSkipPrioritySteps: serverStops(settings.stops, fullControl),
     flagName: `${settings.flag || 'world'}.png`,
     askMoveToGraveOrder: false,
-    manaPoolAutomatic: settings.autoPayMana,
+    manaPoolAutomatic: !fullControl && (settings.autoPayMana || !settings.autoPayRestricted),
     manaPoolAutomaticRestricted: settings.autoPayRestricted,
     passPriorityCast: settings.passAfterCasting && !fullControl,
     passPriorityActivation: settings.passAfterCasting && !fullControl,
