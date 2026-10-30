@@ -19,6 +19,8 @@ const LIFETIME = 1300;
 const LANDING = 650;
 /** the longest a label waits for its source to finish moving */
 const SETTLE = 500;
+/** at most this many cards glow for one update (a landfall board, a swarm of tokens): every glow repaints its card */
+const MAX_GLOWS = 6;
 
 interface Label {
   key: number;
@@ -31,8 +33,7 @@ interface Label {
 }
 
 /** A soft ivory bloom around the card, filter only, so the card's own transform (tapped, attacking) is untouched. */
-function glow(element: Element) {
-  const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink-strong-rgb').trim() || '246 242 232';
+function glow(element: Element, ink: string) {
   element.animate(
     [
       { filter: `drop-shadow(0 0 0 rgb(${ink} / 0)) brightness(1)` },
@@ -75,6 +76,23 @@ export function TriggerSignals({ view }: { view: GameView | null }) {
   const [labels, setLabels] = useState<Label[]>([]);
   const seen = useRef<Set<string> | null>(null);
   const nextKey = useRef(0);
+  // pending timers and frames, cancelled when the match closes so nothing updates an unmounted board
+  const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const frames = useRef(new Set<number>());
+  const alive = useRef(true);
+
+  useEffect(() => {
+    alive.current = true;
+    const pendingTimers = timers.current;
+    const pendingFrames = frames.current;
+    return () => {
+      alive.current = false;
+      pendingTimers.forEach(clearTimeout);
+      pendingTimers.clear();
+      pendingFrames.forEach(cancelAnimationFrame);
+      pendingFrames.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!view) return;
@@ -82,11 +100,21 @@ export function TriggerSignals({ view }: { view: GameView | null }) {
     seen.current = stackIds(view);
     if (triggers.length === 0) return;
 
+    const later = (run: () => void, ms: number) => {
+      const timer = setTimeout(() => {
+        timers.current.delete(timer);
+        run();
+      }, ms);
+      timers.current.add(timer);
+    };
+    // read once per update: getComputedStyle forces a style recalculation
+    const ink = getComputedStyle(document.documentElement).getPropertyValue('--ink-strong-rgb').trim() || '246 242 232';
+    let glows = 0;
     const elementOf = (id: string) => stage.element?.querySelector(`[data-object-id="${CSS.escape(id)}"]`) ?? null;
     const show = (label: Omit<Label, 'key'>) => {
       const key = nextKey.current++;
       setLabels((current) => [...current, { ...label, key }]);
-      setTimeout(() => setLabels((current) => current.filter((item) => item.key !== key)), LIFETIME);
+      later(() => setLabels((current) => current.filter((item) => item.key !== key)), LIFETIME);
     };
 
     const onBattlefield = new Set((view.players ?? []).flatMap((player) => Object.values(player.battlefield ?? {}).map((card) => card.id)));
@@ -101,15 +129,18 @@ export function TriggerSignals({ view }: { view: GameView | null }) {
         const still = !motionAllowed();
         const element = permanent ? elementOf(signal.sourceId!) : null;
         if (permanent && !element && retry) {
-          setTimeout(() => place(false), LANDING);
+          later(() => place(false), LANDING);
           return;
         }
         if (element) {
           const landed = settled(element);
           // the glow is light, not motion: it shows with reduced motion too; the wiggle doesn't
-          glow(element);
-          if (!still) wiggle(element);
+          if (glows++ < MAX_GLOWS) {
+            glow(element, ink);
+            if (!still) wiggle(element);
+          }
           void landed.then(() => {
+            if (!alive.current) return;
             const box = element.getBoundingClientRect();
             show({ ...toStagePoint(stage, box.left + box.width / 2, box.top), text, word, still });
           });
@@ -117,7 +148,11 @@ export function TriggerSignals({ view }: { view: GameView | null }) {
           show({ ...matchLayout(stage).stackPoint, text, word, still });
         }
       };
-      requestAnimationFrame(() => place(true));
+      const frame = requestAnimationFrame(() => {
+        frames.current.delete(frame);
+        place(true);
+      });
+      frames.current.add(frame);
     }
   }, [view, stage, t]);
 
