@@ -27,6 +27,13 @@ describe('blockWarning', () => {
   it('accepts blocks that meet the requirement', () => {
     expect(blockWarning(view({ b1: 'a1' }), { ...prompt, possibleBlockers: [] })).toBeNull();
   });
+  it('leaves attacks on another player to that player', () => {
+    const v = view({});
+    v.combat![0].defenderId = 'someone-else';
+    expect(blockWarning(v, prompt)).toBeNull();
+    v.combat![0].defenderId = 'me';
+    expect(blockWarning(v, prompt)?.name).toBe('Fear of Being Hunted');
+  });
   it('knows a flier needs flying or reach', () => {
     const flier = { ...fear, rules: ['Flying', 'This creature must be blocked if able.'] };
     const v = view({});

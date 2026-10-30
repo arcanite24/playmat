@@ -30,13 +30,17 @@ function canBlock(blocker: PermanentView | undefined, attacker: CardView): boole
  */
 export function blockWarning(view: GameView | null | undefined, prompt: DeclareBlockersPrompt): CardView | null {
   if (!view) return null;
+  // in multiplayer only the attacks on this player (or on what they defend) are theirs to block
+  const me = view.players?.find((player) => player.playerId === view.myPlayerId);
+  const defendsHere = (defenderId: string | undefined) =>
+    !defenderId || !me || defenderId === me.playerId || !!me.battlefield?.[defenderId];
   const blocking = new Map<string, string>(); // blocker -> the attacker it blocks
   for (const group of view.combat ?? []) {
     const first = Object.keys(group.attackers ?? {})[0];
     for (const id of Object.keys(group.blockers ?? {})) if (first) blocking.set(id, first);
   }
   for (const group of view.combat ?? []) {
-    if (Object.keys(group.blockers ?? {}).length > 0) continue;
+    if (Object.keys(group.blockers ?? {}).length > 0 || !defendsHere(group.defenderId)) continue;
     for (const attacker of Object.values(group.attackers ?? {})) {
       if (!mustBeBlocked(attacker)) continue;
       const free = [...new Set([...prompt.possibleBlockers, ...blocking.keys()])].filter((id) => {

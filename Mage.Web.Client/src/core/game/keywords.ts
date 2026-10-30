@@ -24,8 +24,14 @@ export type MarkedKeyword = typeof MARKED_KEYWORDS[number];
 
 /** An attacker that must be blocked if able, from its current rules text. */
 export function mustBeBlocked(card: CardView | undefined): boolean {
-  return (card?.rules ?? []).some((line) => /must be blocked\b/i.test(line.replace(/<[^>]+>/g, '')));
+  return (card?.rules ?? []).some((line) => {
+    const text = line.replace(/<[^>]+>/g, '');
+    // an Aura, Equipment or anthem that hands the requirement to other creatures doesn't have it itself
+    return /must be blocked\b/i.test(text) && !OTHERS_MUST_BE_BLOCKED.test(text);
+  });
 }
+
+const OTHERS_MUST_BE_BLOCKED = /\b(enchanted|equipped|fortified|target|other) creatures?\b|\bcreatures (you|your opponents) control\b|\b(each|all) creatures?\b/i;
 
 /** The server's ability icons (computed from the permanent's current abilities, granted ones included). */
 const ICON_KEYWORDS: Record<string, MarkedKeyword> = {
@@ -57,7 +63,8 @@ export function keywordMarks(card: CardView): KeywordMark[] {
   for (const name of keywordsOf(card)) now.add(name);
   if (mustBeBlocked(card)) now.add('Must be blocked');
   const original = (card as PermanentView).original;
-  const printed = original ? new Set(keywordsOf(original)) : null;
+  const printed = original ? new Set<string>(keywordsOf(original)) : null;
+  if (printed && mustBeBlocked(original)) printed.add('Must be blocked');
   return MARKED_KEYWORDS
     .filter((name) => now.has(name))
     .map((name) => ({ name, gained: !!printed && !printed.has(name) && !(card.isToken ?? false) }));
