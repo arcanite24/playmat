@@ -37,6 +37,10 @@ services:
       XMAGE_GITHUB_CLIENT_SECRET: ${XMAGE_GITHUB_CLIENT_SECRET:-}
       XMAGE_GITHUB_REPO: ${XMAGE_GITHUB_REPO:-}
       XMAGE_GITHUB_TOKEN: ${XMAGE_GITHUB_TOKEN:-}
+      # single sign-on: the header the proxy in front names the user with (Caddy passes it on only from that proxy)
+      XMAGE_AUTH_TRUSTED_HEADER: ${AUTH_TRUSTED_HEADER:-}
+      XMAGE_PASSWORD_SIGNIN: ${XMAGE_PASSWORD_SIGNIN:-}
+      XMAGE_TRUSTED_HEADER_STRIP_DOMAIN: ${XMAGE_TRUSTED_HEADER_STRIP_DOMAIN:-}
       XMAGE_PUBLIC_URL: ${XMAGE_PUBLIC_URL:-https://${DOMAIN}}
       XMAGE_SERVER_NAME: ${XMAGE_SERVER_NAME:-}
       XMAGE_SERVER_ADDRESS: ${XMAGE_SERVER_ADDRESS:-}
@@ -111,6 +115,10 @@ services:
       # the address range that proxy connects from (believed about who the client is)
       PROXIED_HOST: ${PROXIED_HOST:-proxied.invalid}
       UPSTREAM_PROXIES: ${UPSTREAM_PROXIES:-127.0.0.1/32}
+      # single sign-on: the header naming the signed-in user is kept only on requests from these addresses. Unset, the
+      # header is a name nobody sends and the range matches no peer (255.255.255.255 never connects)
+      AUTH_TRUSTED_HEADER: ${AUTH_TRUSTED_HEADER:-X-Playmat-Sign-On-Off}
+      AUTH_TRUSTED_PROXIES: ${AUTH_TRUSTED_PROXIES:-${UPSTREAM_PROXIES:-255.255.255.255/32}}
       # per client address, at the proxy (the server adds its own cap of concurrent game connections per address)
       WS_RATE_LIMIT: ${WS_RATE_LIMIT:-30}
       WS_RATE_WINDOW: ${WS_RATE_WINDOW:-1m}

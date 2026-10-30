@@ -58,6 +58,13 @@ final class AccountApi {
         public String notice;
         /** players can sign in with GitHub (githubStart) */
         public boolean github;
+        /**
+         * single sign-on: the account name the sign-on proxy in front named for this connection; connectUser with it and
+         * no password signs in. Absent when the server has no single sign-on or the connection didn't come through it
+         */
+        public String signOn;
+        /** the server signs in only through its single sign-on: no passwords, registration, reset codes or GitHub */
+        public boolean signOnOnly;
         /** open, or invite: new accounts need an invite link (or a place on the allowlist) */
         public String registration;
         /** when planned maintenance starts (epoch ms), or 0; no new tables can start meanwhile */
@@ -82,7 +89,7 @@ final class AccountApi {
                         .publicAccess()
                         .returns("ServerInfo")
                         .doc("Whether the server has accounts and mail, and its name and password rules. Callable before login.")
-                        .handler(call -> serverInfo(ctx)),
+                        .handler(call -> serverInfo(ctx, call.getConnection())),
 
                 RpcMethod.named("deckSyncList")
                         .returns("DeckSyncEntry[]")
@@ -153,6 +160,10 @@ final class AccountApi {
     }
 
     static ServerInfo serverInfo(ApiContext ctx) {
+        return serverInfo(ctx, null);
+    }
+
+    static ServerInfo serverInfo(ApiContext ctx, mage.server.websocket.rpc.RpcConnection connection) {
         ServerInfo info = new ServerInfo();
         ConfigSettings config = ctx.managers == null ? null : ctx.managers.configSettings();
         info.testMode = Main.isTestMode();
@@ -166,6 +177,11 @@ final class AccountApi {
             info.maxPasswordLength = config.getMaxPasswordLength();
         }
         info.deckSync = info.accounts;
+        mage.server.TrustedHeaderAuth signOn = mage.server.TrustedHeaderAuth.get();
+        if (info.accounts && signOn.isEnabled()) {
+            info.signOn = connection == null ? null : connection.getSignedOnUser();
+            info.signOnOnly = !signOn.passwordSignIn();
+        }
         info.turnstileSiteKey = ctx.turnstile.siteKey();
         info.contactEmail = contactEmail();
         if (ctx.managers != null && ctx.managers.threadExecutor() != null
@@ -185,7 +201,7 @@ final class AccountApi {
             AccessPolicy access = AccessPolicy.get();
             info.access = info.accounts ? access.mode() : AccessPolicy.OPEN;
             info.notice = access.notice();
-            info.github = info.accounts && mage.server.admin.GithubAuth.get().isEnabled();
+            info.github = info.accounts && !info.signOnOnly && mage.server.admin.GithubAuth.get().isEnabled();
             info.registration = RuntimeSettings.get().registrationOpen() ? "open" : "invite";
             RuntimeSettings runtime = RuntimeSettings.get();
             info.support = runtime.supportOn() && (!runtime.supportKofiUrl().isEmpty() || !runtime.supportSponsorsUrl().isEmpty()

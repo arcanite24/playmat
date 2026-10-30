@@ -1986,6 +1986,8 @@ export interface ServerInfo {
     notice?: string;
     registration?: string;
     serverName?: string;
+    signOn?: string;
+    signOnOnly?: boolean;
     support?: boolean;
     testMode?: boolean;
     turnstileSiteKey?: string;

@@ -27,6 +27,10 @@ public final class AccountService {
         if (!managers.configSettings().isAuthenticationActivated()) {
             return Session.REGISTRATION_DISABLED_MESSAGE;
         }
+        // single sign-on only: a password would sign nobody in
+        if (!TrustedHeaderAuth.get().passwordSignIn()) {
+            return TrustedHeaderAuth.PASSWORDS_OFF;
+        }
         AuthorizedUser user = email == null ? null : AuthorizedUserRepository.getInstance().getByEmail(email.trim());
         if (user == null) {
             logger.info("Password reset code asked for an address without an account");
@@ -95,6 +99,10 @@ public final class AccountService {
     public String resetPassword(String email, String code, String password) {
         if (!managers.configSettings().isAuthenticationActivated()) {
             return Session.REGISTRATION_DISABLED_MESSAGE;
+        }
+        // single sign-on only: a password would sign nobody in
+        if (!TrustedHeaderAuth.get().passwordSignIn()) {
+            return TrustedHeaderAuth.PASSWORDS_OFF;
         }
         AuthorizedUser user = email == null ? null : AuthorizedUserRepository.getInstance().getByEmail(email.trim());
         if (user == null) {

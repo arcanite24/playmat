@@ -34,6 +34,8 @@ final class ConnectionState implements RpcConnection {
 
     private volatile String sessionId;
     private volatile String userName;
+    /** set once, from the handshake, before the connection's first request */
+    private volatile String signedOnUser;
     private volatile WebSocketCallbackHandler callbackHandler;
     private final GameStates gameStates = new GameStates();
     /** one per connection, shared by its logins' handlers, so its messages keep their order */
@@ -87,6 +89,15 @@ final class ConnectionState implements RpcConnection {
     @Override
     public void setUserName(String userName) {
         this.userName = userName;
+    }
+
+    @Override
+    public String getSignedOnUser() {
+        return signedOnUser;
+    }
+
+    void setSignedOnUser(String signedOnUser) {
+        this.signedOnUser = signedOnUser;
     }
 
     @Override

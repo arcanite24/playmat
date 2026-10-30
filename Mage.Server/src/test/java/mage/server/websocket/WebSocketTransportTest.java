@@ -6,6 +6,7 @@ import mage.interfaces.MageServer;
 import mage.interfaces.ServerState;
 import mage.players.PlayerType;
 import mage.server.DisconnectReason;
+import mage.server.TrustedHeaderAuth;
 import mage.server.websocket.rpc.RpcSessions;
 import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
@@ -62,6 +63,7 @@ public class WebSocketTransportTest {
         if (server != null) {
             server.shutdown();
         }
+        TrustedHeaderAuth.use(null);
     }
 
     private void start(String allowedOrigins) throws Exception {
@@ -92,6 +94,10 @@ public class WebSocketTransportTest {
 
     /** A server whose logins work like the real one's with accounts: logging in as a connected user takes it over. */
     private OneSessionPerUser startWithLogins() throws Exception {
+        return startWithLogins(WebSocketLimits.fromSystemProperties());
+    }
+
+    private OneSessionPerUser startWithLogins(WebSocketLimits limits) throws Exception {
         server.shutdown();
         try (ServerSocket socket = new ServerSocket(0)) {
             port = socket.getLocalPort();
@@ -100,13 +106,13 @@ public class WebSocketTransportTest {
         MageServer mageServer = (MageServer) Proxy.newProxyInstance(MageServer.class.getClassLoader(),
                 new Class<?>[]{MageServer.class}, (proxy, method, args) -> {
                     if (method.getName().equals("connectUser")) {
+                        sessions.passwords.add((String) args[1]);
                         sessions.login((String) args[0], (String) args[2]);
                         return true;
                     }
                     return method.getReturnType() == boolean.class ? false : null;
                 });
-        server = new WebSocketServerImpl(new InetSocketAddress("127.0.0.1", port), mageServer, null, sessions, "", "",
-                WebSocketLimits.fromSystemProperties());
+        server = new WebSocketServerImpl(new InetSocketAddress("127.0.0.1", port), mageServer, null, sessions, "", "", limits);
         server.start();
         server.awaitStartup(10, TimeUnit.SECONDS);
         return sessions;
@@ -158,6 +164,68 @@ public class WebSocketTransportTest {
         }
     }
 
+    @Test
+    void theSignOnHeaderSignsInFromATrustedProxy() throws Exception {
+        TrustedHeaderAuth.use(new TrustedHeaderAuth("Remote-User", true, false));
+        OneSessionPerUser sessions = startWithLogins(
+                new WebSocketLimits(new ClientAddressResolver("127.0.0.1"), 16, true, WebSocketLimits.DEFAULT_MAX_OUTGOING_BYTES));
+        TestClient client = TestClient.connectWithHeaders(port, Collections.singletonMap("Remote-User", "Alice"));
+        try {
+            assertThat(login(client, "alice").get("result").getAsBoolean()).isTrue();
+            assertThat(sessions.signedOn).containsExactly("Alice");
+            assertThat(sessions.names.values()).as("signed in as the account").containsExactly("Alice");
+        } finally {
+            client.closeBlocking();
+        }
+    }
+
+    @Test
+    void theSignOnHeaderNamesTheOnlyAccountOfItsConnection() throws Exception {
+        TrustedHeaderAuth.use(new TrustedHeaderAuth("Remote-User", true, false));
+        OneSessionPerUser sessions = startWithLogins(
+                new WebSocketLimits(new ClientAddressResolver("127.0.0.1"), 16, true, WebSocketLimits.DEFAULT_MAX_OUTGOING_BYTES));
+        TestClient client = TestClient.connectWithHeaders(port, Collections.singletonMap("Remote-User", "alice"));
+        try {
+            JsonObject response = login(client, "owner");
+            assertThat(errorCode(response)).isEqualTo(-32001);
+            assertThat(response.get("error").getAsJsonObject().get("message").getAsString()).contains("signed on as alice");
+            assertThat(sessions.names).as("nobody signed in").isEmpty();
+            assertThat(sessions.live).as("the login's session is closed again").isEmpty();
+        } finally {
+            client.closeBlocking();
+        }
+    }
+
+    @Test
+    void theSignOnHeaderIsIgnoredFromAnyoneElse() throws Exception {
+        TrustedHeaderAuth.use(new TrustedHeaderAuth("Remote-User", true, false));
+        // no trusted proxy: the client itself sent the header
+        OneSessionPerUser sessions = startWithLogins(
+                new WebSocketLimits(new ClientAddressResolver(""), 16, true, WebSocketLimits.DEFAULT_MAX_OUTGOING_BYTES));
+        TestClient client = TestClient.connectWithHeaders(port, Collections.singletonMap("Remote-User", "owner"));
+        try {
+            login(client, "owner");
+            assertThat(sessions.signedOn).isEmpty();
+            assertThat(sessions.passwords).as("an ordinary login, checked by the server").containsExactly("");
+        } finally {
+            client.closeBlocking();
+        }
+    }
+
+    @Test
+    void theSignOnHeaderMeansNothingWithSignOnOff() throws Exception {
+        TrustedHeaderAuth.use(TrustedHeaderAuth.off());
+        OneSessionPerUser sessions = startWithLogins(
+                new WebSocketLimits(new ClientAddressResolver("127.0.0.1"), 16, true, WebSocketLimits.DEFAULT_MAX_OUTGOING_BYTES));
+        TestClient client = TestClient.connectWithHeaders(port, Collections.singletonMap("Remote-User", "owner"));
+        try {
+            login(client, "owner");
+            assertThat(sessions.signedOn).isEmpty();
+        } finally {
+            client.closeBlocking();
+        }
+    }
+
     private static JsonObject login(TestClient client, String userName) throws InterruptedException {
         return client.request("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"connectUser\",\"params\":[\"" + userName
                 + "\",\"\",\"x\"]}");
@@ -168,6 +236,8 @@ public class WebSocketTransportTest {
         final Set<String> live = ConcurrentHashMap.newKeySet();
         final Map<String, String> users = new ConcurrentHashMap<>(); // user name -> its session
         final Map<String, String> names = new ConcurrentHashMap<>(); // session -> user name
+        final List<String> signedOn = Collections.synchronizedList(new ArrayList<>()); // names the sign-on trusted
+        final List<String> passwords = Collections.synchronizedList(new ArrayList<>()); // what the server was asked to check
 
         void login(String userName, String sessionId) {
             String previous = users.put(userName, sessionId);
@@ -215,6 +285,12 @@ public class WebSocketTransportTest {
 
         @Override
         public void trustRememberedLogin(String sessionId, String userName, String token) {
+        }
+
+        @Override
+        public String trustSignedOnLogin(String sessionId, String signedOnUser) {
+            signedOn.add(signedOnUser);
+            return signedOnUser;
         }
 
         @Override
