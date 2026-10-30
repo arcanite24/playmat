@@ -162,7 +162,8 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   }, [view]);
 
   const rows = useMemo(() => {
-    const errors = notices.filter((notice) => notice.kind === 'error').map((notice) => noticeEntry(`n${notice.id}`, notice.text, notice.at));
+    // the server's errors, and its messages to this player alone (why a block was refused, for one)
+    const errors = notices.filter((notice) => notice.kind === 'error' || notice.kind === 'personal').map((notice) => noticeEntry(`n${notice.id}`, notice.text, notice.at));
     const blocked = new Set(ignored.map((name) => name.toLowerCase()));
     const heard = blocked.size > 0 ? chat.entries.filter((entry) => entry.tone !== 'chat' || !entry.who || !blocked.has(entry.who.toLowerCase())) : chat.entries;
     const visible = muted ? heard.filter((entry) => entry.tone !== 'chat' || entry.who === myName) : heard;

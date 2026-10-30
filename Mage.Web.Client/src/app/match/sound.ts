@@ -1,5 +1,5 @@
 import { useSettings } from '../stores/settings';
-import { cueAllowed, type Cue } from './cueRules';
+import { cueToPlay, type Cue } from './cueRules';
 
 export type { Cue } from './cueRules';
 
@@ -187,6 +187,13 @@ function render(b: Bus, out: AudioNode, cue: Cue, t: number) {
       // your clock is running out: a clock's double tick, twice
       [0, 0.12, 0.5, 0.62].forEach((offset, i) => knock(b, out, i % 2 === 0 ? 1650 : 1350, t + offset, 0.13));
       break;
+    case 'trigger':
+      // a triggered ability: a quick rising pair of small bells over a pinch of shimmer, brighter and
+      // shorter than a spell's breath
+      noise(b, out, { start: t, length: 0.16, from: 3000, to: 7000, gain: 0.05, type: 'highpass', q: 0.8 });
+      bell(b, out, NOTE.E5 * 2, t + 0.01, 0.45, 0.06);
+      bell(b, out, NOTE.A4 * 4, t + 0.08, 0.6, 0.055);
+      break;
     case 'victory':
       // a bright arpeggio landing on a held chord
       [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach((freq, i) => bell(b, out, freq, t + i * 0.11, 1.4, 0.11));
@@ -203,8 +210,9 @@ function render(b: Bus, out: AudioNode, cue: Cue, t: number) {
 /** Plays a cue if the player's sound settings allow it. */
 export function playCue(cue: Cue) {
   const settings = useSettings.getState().settings;
-  if (!cueAllowed(cue, settings)) return;
-  previewCue(cue, settings.volume);
+  const played = cueToPlay(cue, settings);
+  if (!played) return;
+  previewCue(played, settings.volume);
 }
 
 /** Plays a cue regardless of the on/off settings (the volume preview in Settings). */

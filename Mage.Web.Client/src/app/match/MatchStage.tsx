@@ -25,8 +25,10 @@ import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
 import { usePlay } from '../stores/play';
 import { useAutomation, useSettings } from '../stores/settings';
+import { useManaPaymentSettings } from './useManaPaymentSettings';
 import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
+import { blockWarning } from '../../core/game/blockRequirements';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
@@ -44,6 +46,7 @@ import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
 import { LessonCoach } from './LessonCoach';
 import { CardZoom } from './CardZoom';
+import { CombatPreview } from './CombatPreview';
 import { DamageAssigner } from './DamageAssigner';
 import { damageCorner, useDamageSplit } from './useDamageSplit';
 import { EmoteBubbles } from './EmoteBubbles';
@@ -156,6 +159,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const autoDismissReveals = useSettings((settings) => settings.settings.autoDismissReveals);
   const autoPay = useSettings((settings) => settings.settings.autoPayMana);
   const automation = useAutomation();
+  useManaPaymentSettings(session, mode === 'play' && !!playerId && !!view);
   // watching and replays: the broadcast options
   const spectating = mode !== 'play';
   const broadcastDelay = useSettings((settings) => settings.settings.broadcastDelay);
@@ -195,17 +199,6 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const attacking = useMemo(() => withPredictedAttack(combatNow.attacking, prediction), [combatNow.attacking, prediction]);
   const chosen = useMemo(() => withPredictedAttack(interaction.selected, prediction), [interaction.selected, prediction]);
   const pending = prediction?.id ?? null;
-  // lands can always tap for mana while you hold priority; glowing them all would drown the real options
-  const quiet = useMemo(() => {
-    if (interaction.mode !== 'priority' || !board.me) return EMPTY;
-    const lands = new Set<string>();
-    for (const group of board.me.back) {
-      for (const permanent of group.members) {
-        if ((permanent.cardTypes ?? []).includes('LAND')) lands.add(permanent.id!);
-      }
-    }
-    return lands;
-  }, [interaction.mode, board.me]);
   const sortedHand = useSettings((settings) => settings.settings.sortHand);
   const hand = useMemo(() => {
     const cards = Object.values(view?.myHand ?? {});
@@ -223,6 +216,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   );
   const stack = useMemo(() => Object.values(view?.stack ?? {}), [view?.stack]);
 
+  // the declare-blockers prompt whose blocks were warned about, and why (a second press sends them anyway)
+  const [blockWarned, setBlockWarned] = useState<{ prompt: unknown; text: string } | null>(null);
   const onCommand = useCallback((command: Command) => {
     // Cancel on a payment is never dropped: auto-pay keeps a tap with the server most of the time
     if (command.type === 'boolean' && !command.value && session.getState().interaction.mode === 'payMana') {
@@ -231,11 +226,22 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     }
     // one answer per question: while the server works on the last one, further answers are dropped
     if (command.type !== 'action' && session.getState().awaitingServer) return;
+    // blocks that leave a "must be blocked if able" attacker unblocked are not sent on the first press
+    const current = session.getState();
+    const asked = current.interaction.prompt;
+    if (command.type === 'boolean' && command.value && current.interaction.mode === 'declareBlockers'
+      && asked?.kind === 'declareBlockers' && blockWarned?.prompt !== asked) {
+      const unblocked = blockWarning(current.view, asked);
+      if (unblocked) {
+        setBlockWarned({ prompt: asked, text: t('match.block.mustBeBlocked', { name: unblocked.name || t('match.block.anAttacker') }) });
+        return;
+      }
+    }
     if (command.type === 'action' && (command.action === 'HOLD_PRIORITY' || command.action === 'UNHOLD_PRIORITY')) {
       setHolding(command.action === 'HOLD_PRIORITY');
     }
     void session.respond(command).catch(() => undefined);
-  }, [session]);
+  }, [session, t, blockWarned]);
   const onResend = useCallback(() => void session.resend().catch(() => undefined), [session]);
   const onResync = useCallback(() => {
     void session.resync().then((resent) => {
@@ -522,7 +528,6 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 revealed={revealedInHand(state.revealedHands, opponent.player.playerId)}
                 clickable={clickable}
                 selected={interaction.selected}
-                quiet={EMPTY}
                 attacking={attacking}
                 targeting={targeting}
                 blocking={blocking}
@@ -538,7 +543,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
             {board.me && (
               <>
-                <Battlefield board={board.me} sleeve={sleeves.mine} clickable={clickable} selected={chosen} quiet={quiet} attacking={attacking} blocking={blocking} targeting={targeting} onClick={onClick} pending={pending} onBlockDrop={interaction.mode === 'declareBlockers' && canAct ? onBlockDrop : interaction.mode === 'declareAttackers' && canAct ? attackDrop.onDrop : undefined} dropTargets={interaction.mode === 'declareAttackers' ? attackDrop.targets : undefined} place={layout.me} />
+                <Battlefield board={board.me} sleeve={sleeves.mine} clickable={clickable} selected={chosen} attacking={attacking} blocking={blocking} targeting={targeting} onClick={onClick} pending={pending} onBlockDrop={interaction.mode === 'declareBlockers' && canAct ? onBlockDrop : interaction.mode === 'declareAttackers' && canAct ? attackDrop.onDrop : undefined} dropTargets={interaction.mode === 'declareAttackers' ? attackDrop.targets : undefined} place={layout.me} />
                 <div ref={plateRef} className={styles.myPlate} style={layout.myPlate}>
                   <PlayerPlate
                     player={board.me.player}
@@ -630,6 +635,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onFullControl={setFullControl}
                 stalled={state.stalled}
                 conceding={state.conceding ? { waitingOn: priorityName } : null}
+                warning={blockWarned && blockWarned.prompt === interaction.prompt ? blockWarned.text : null}
                 cards={askCards}
                 onResend={onResend}
                 onResync={onResync}
@@ -640,7 +646,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
-            {defenders && !(automation.attackPlayerByDefault && defaultDefender(defenders)) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
+            {canAct && <CombatPreview view={view} mode={interaction.mode} />}
+            {defenders && (attackDrop.manualDefender || !(automation.attackPlayerByDefault && defaultDefender(defenders))) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
             <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />
             <EmoteBubbles view={view} gameId={state.gameId} />
@@ -732,7 +739,6 @@ interface RowProps {
   sleeve: string;
   clickable: ReadonlySet<string>;
   selected: ReadonlySet<string>;
-  quiet: ReadonlySet<string>;
   attacking: ReadonlySet<string>;
   blocking: ReadonlySet<string>;
   targeting: boolean;

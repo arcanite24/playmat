@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GameView, PermanentView, PlayerView } from '../../protocol/generated/views';
-import { buildBoard, buildPlayerBoard, cardKey, fitRow, ROW_FLOOR, zoneKeys, type PermanentGroup, type RowFit } from './boardModel';
+import { buildBoard, buildPlayerBoard, cardKey, fitRow, ROW_FLOOR, splitOpenFirst, stackBadge, zoneKeys, type PermanentGroup, type RowFit } from './boardModel';
 
 function permanent(id: string, overrides: Partial<PermanentView> = {}): PermanentView {
   return { id, name: 'Forest', expansionSetCode: 'M21', cardTypes: ['LAND'], ...overrides };
@@ -135,5 +135,36 @@ describe('card identity across zones', () => {
 
   it('keeps keys unique when copies share a card', () => {
     expect(zoneKeys([{ id: 's1', cardId: 'c1' }, { id: 's2', cardId: 'c1' }, { id: 's3' }])).toEqual(['c1', 'c1:s2', 's3']);
+  });
+});
+
+describe('land stacks: open first, and how many are open', () => {
+  it('puts untapped lands first and tapped after, keeping arrival order and the stack key', () => {
+    const board = buildPlayerBoard(player('me', [
+      permanent('a', { tapped: true }), permanent('b'), permanent('c', { tapped: true }), permanent('d'),
+    ]), true);
+    expect(board.back).toHaveLength(1);
+    expect(board.back[0].key).toBe('a');
+    expect(board.back[0].members.map((p) => p.id)).toEqual(['b', 'd', 'a', 'c']);
+    expect(stackBadge(board.back[0])).toEqual({ count: 4, open: 2 });
+  });
+
+  it('counts the stack when none is tapped, and 0 open when all are', () => {
+    const open = buildPlayerBoard(player('me', [permanent('a'), permanent('b'), permanent('c')]), true);
+    expect(stackBadge(open.back[0])).toEqual({ count: 3 });
+    const closed = buildPlayerBoard(player('me', [permanent('a', { tapped: true }), permanent('b', { tapped: true })]), true);
+    expect(stackBadge(closed.back[0])).toEqual({ count: 2, open: 0 });
+  });
+
+  it('has no badge for a single card, and leaves token stacks in arrival order with a plain count', () => {
+    expect(stackBadge(buildPlayerBoard(player('me', [permanent('a', { tapped: true })]), true).back[0])).toBeNull();
+    const token: Partial<PermanentView> = { name: 'Clue', cardTypes: ['ARTIFACT'], isToken: true };
+    const board = buildPlayerBoard(player('me', [permanent('t1', { ...token, tapped: true }), permanent('t2', token)]), true);
+    expect(board.back[0].members.map((p) => p.id)).toEqual(['t1', 't2']);
+    expect(stackBadge(board.back[0])).toEqual({ count: 2 });
+  });
+
+  it('splitOpenFirst is stable within each half', () => {
+    expect(splitOpenFirst([permanent('x', { tapped: true }), permanent('y'), permanent('z')]).map((p) => p.id)).toEqual(['y', 'z', 'x']);
   });
 });

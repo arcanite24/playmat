@@ -17,7 +17,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ART = dirname(fileURLToPath(import.meta.url));
 const CLIENT = resolve(ART, '..');
@@ -72,7 +72,7 @@ function auth() {
   return { Authorization: `Bearer ${key}` };
 }
 
-async function upload(path) {
+export async function upload(path) {
   const bytes = readFileSync(path);
   const type = path.endsWith('.png') ? 'image/png' : 'image/jpeg';
   const ticket = await http(`${API}/media/uploads`, {
@@ -86,7 +86,7 @@ async function upload(path) {
 }
 
 /** Submit once (a retry could bill twice), then poll. */
-async function draw(prompt, images, aspect) {
+export async function draw(prompt, images, aspect) {
   const model = images.length ? MODEL : TEXT_MODEL;
   const payload = { prompt, aspect_ratio: aspect, resolution: '1k', output_format: 'png', ...(images.length ? { images } : {}) };
   const task = await http(`${API}/${model}`, { method: 'POST', headers: { ...auth(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }, 'submit');
@@ -105,7 +105,7 @@ async function draw(prompt, images, aspect) {
   throw new Error(`task ${task.id} still running after 5 minutes`);
 }
 
-async function fetchRef(ref, dir) {
+export async function fetchRef(ref, dir) {
   const [set, number] = ref.split('/');
   const out = join(dir, `${set}-${number}.jpg`);
   if (existsSync(out)) return out;
@@ -188,7 +188,10 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error.message ?? error);
-  process.exit(1);
-});
+// art/cabinet.mjs borrows upload, draw and fetchRef; only a direct run draws card styles
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error.message ?? error);
+    process.exit(1);
+  });
+}

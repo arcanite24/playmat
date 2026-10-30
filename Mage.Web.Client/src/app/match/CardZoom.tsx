@@ -1,9 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CardView, PermanentView } from '../../protocol/generated/views';
 import { isStackAbility } from '../../core/game/cards';
+import { explainCard } from '../../core/game/glossary';
 import { AbilityCard } from '../ui/AbilityCard';
 import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
+import { useT } from '../i18n';
 import { useCardStyle } from '../ui/cardStyles';
 import { PromptText } from '../ui/PromptText';
 import { useMatchUi } from './matchUi';
@@ -16,6 +18,10 @@ const ZOOM_WIDTH = 340;
 const LARGE_WIDTH = 520;
 const DELAY_MS = 260;
 const EDGE = 24;
+/** the Mechanics panel beside the card, and the gap between them */
+const PANEL_WIDTH = 300;
+const LARGE_PANEL_WIDTH = 420;
+const PANEL_GAP = 14;
 
 /**
  * The hovered card, large, beside the pointer (after a short delay so sweeping the board stays calm). `large`
@@ -25,8 +31,12 @@ export function CardZoom({ large = false }: { large?: boolean }) {
   const zoom = useMatchUi((state) => state.zoom);
   const dragging = useMatchUi((state) => state.dragging);
   const detailOpen = useMatchUi((state) => !!state.detail);
+  const t = useT();
   const stage = useStage();
   const [settled, setSettled] = useState<typeof zoom>(null);
+  const hovered = zoom && !dragging && settled === zoom ? zoom.card : null;
+  // what the card's keywords and mechanics mean, beside it (an ability on the stack has no card types)
+  const terms = useMemo(() => (hovered ? explainCard(isStackAbility(hovered) ? { ...hovered, cardTypes: [] } : hovered).terms : []), [hovered]);
 
   useEffect(() => {
     if (!zoom || dragging) return;
@@ -62,6 +72,13 @@ export function CardZoom({ large = false }: { large?: boolean }) {
     ? Math.max(EDGE, (stage.height - height) / 2 - 40)
     : Math.max(EDGE, Math.min(stage.height - height - EDGE, point.y - height / 2));
 
+  // the panel goes on the side of the card away from the pointer (toward the middle of the table when large)
+  const panelWidth = large ? LARGE_PANEL_WIDTH : PANEL_WIDTH;
+  const panelRight = large ? pointerRight : !pointerRight;
+  const panelLeft = panelRight
+    ? Math.min(left + span + PANEL_GAP, stage.width - panelWidth - 8)
+    : Math.max(8, left - panelWidth - PANEL_GAP);
+
   return (
     <div className={[styles.zoom, large ? styles.large : ''].join(' ')} style={{ left, top }} aria-hidden="true">
       <div className={styles.faces}>
@@ -81,6 +98,19 @@ export function CardZoom({ large = false }: { large?: boolean }) {
         <ul className={styles.details}>
           {extra.map((line) => <li key={line}>{line}</li>)}
         </ul>
+      )}
+      {terms.length > 0 && (
+        <aside className={styles.mechanics} style={{ left: panelLeft - left, width: panelWidth, maxHeight: stage.height - top - EDGE }}>
+          <h3 className={styles.mechanicsTitle}>{t('match.zoom.mechanics')}</h3>
+          <dl className={styles.terms}>
+            {terms.map((term) => (
+              <div key={term.name} className={styles.term}>
+                <dt>{term.name}</dt>
+                <dd><PromptText text={term.text} /></dd>
+              </div>
+            ))}
+          </dl>
+        </aside>
       )}
     </div>
   );

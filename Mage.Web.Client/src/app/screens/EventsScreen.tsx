@@ -10,7 +10,8 @@ import { toWire } from '../decks/deckModel';
 import { registerMessages, t as translate, useT, type MessageKey } from '../i18n';
 import messages from '../i18n/en/events';
 import { useServerState, useTables } from '../queries';
-import { rosterOf, useDecks } from '../stores/decks';
+import { useDecks } from '../stores/decks';
+import { useDeckRoster } from '../stores/useDeckRoster';
 import { useEvents } from '../stores/events';
 import { useSession } from '../stores/session';
 import { notify } from '../stores/toasts';
@@ -66,6 +67,7 @@ export function EventsScreen() {
   const mine = useMemo(() => Object.values(tournaments).filter((tournament) => !tournament.over), [tournaments]);
   const navigate = useNavigate();
   const t = useT();
+  const roster = useDeckRoster();
   const [hosting, setHosting] = useState<EventKind | null>(null);
   const events = tables.filter((table) => table.isTournament && table.tableState !== 'FINISHED');
   const open = events.filter((table) => table.tableState === 'WAITING');
@@ -76,7 +78,7 @@ export function EventsScreen() {
     // limited events need no deck to join; constructed events take the selected deck
     let deck = EMPTY_DECK as Parameters<typeof api.roomJoinTournament>[5];
     if (!table.limited) {
-      const selected = useDecks.getState().selectedId;
+      const selected = roster.find((deck) => deck.id === useDecks.getState().selectedId)?.id ?? roster[0]?.id;
       if (!selected) {
         notify(translate('events.pickDeckFirst'), translate('events.pickDeckFirst.detail'), 'error');
         return;
@@ -194,7 +196,7 @@ function HostDialog({ open, initialKind, onOpenChange }: { open: boolean; initia
     [sets.data],
   );
   const decks = useDecks();
-  const roster = useMemo(() => rosterOf(decks), [decks]);
+  const roster = useDeckRoster();
   const cubes = useMemo(() => [...(server.data?.draftCubes ?? [])].sort((a, b) => a.localeCompare(b)), [server.data?.draftCubes]);
   const types = useMemo(() => server.data?.tournamentTypes ?? [], [server.data?.tournamentTypes]);
 
@@ -217,6 +219,7 @@ function HostDialog({ open, initialKind, onOpenChange }: { open: boolean; initia
   const [deckId, setDeckId] = useState<string | null>(decks.selectedId);
   const [busy, setBusy] = useState(false);
 
+  const chosenDeckId = roster.find((deck) => deck.id === deckId)?.id ?? roster[0]?.id ?? null;
   const chosenSet = setCode || boosterSets[0]?.setCode || '';
   // the six newest sets until the host picks a pool
   const chosenPool = pool ?? boosterSets.slice(0, 6).map((set) => set.setCode ?? '');
@@ -298,8 +301,8 @@ function HostDialog({ open, initialKind, onOpenChange }: { open: boolean; initia
 
       let deck = EMPTY_DECK as Parameters<typeof api.roomJoinTournament>[5];
       if (!limited) {
-        if (!deckId) throw new Error(translate('events.pickDeckToPlay'));
-        deck = toWire((await useDecks.getState().loadForPlay(deckId)).deck);
+        if (!chosenDeckId) throw new Error(translate('events.pickDeckToPlay'));
+        deck = toWire((await useDecks.getState().loadForPlay(chosenDeckId)).deck);
       }
       if (!await api.roomJoinTournament(roomId, tableId, userName, 'HUMAN', 1, deck)) throw new Error(translate('events.yourSeatRefused'));
       if (fillAi) {
@@ -328,7 +331,7 @@ function HostDialog({ open, initialKind, onOpenChange }: { open: boolean; initia
         <>
           {problem && problem !== 'Loading…' && <p className={styles.problem} role="status">{problem}</p>}
           <Button variant="quiet" onClick={() => onOpenChange(false)}>{t('events.cancel')}</Button>
-          <Button variant="decision" busy={busy} disabled={!!problem || (!limited && !deckId)} onClick={() => void create()}>
+          <Button variant="decision" busy={busy} disabled={!!problem || (!limited && !chosenDeckId)} onClick={() => void create()}>
             {fillAi ? t('events.start') : t('events.openEvent')}
           </Button>
         </>
@@ -404,7 +407,7 @@ function HostDialog({ open, initialKind, onOpenChange }: { open: boolean; initia
               </label>
               <label className={styles.control}>
                 <span>{t('events.yourDeck')}</span>
-                <select value={deckId ?? ''} onChange={(event) => setDeckId(event.target.value || null)}>
+                <select value={chosenDeckId ?? ''} onChange={(event) => setDeckId(event.target.value || null)}>
                   {roster.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
                 </select>
               </label>

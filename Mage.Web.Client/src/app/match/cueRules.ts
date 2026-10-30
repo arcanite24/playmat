@@ -1,9 +1,12 @@
 import type { GameSessionState } from '../../core/game/gameSession';
+import { stackTriggers } from './triggerSignal';
 
 /** Every game cue. Synthesized in sound.ts; chosen here from what changed between two game states. */
 export type Cue =
   | 'turn' | 'decide' | 'cast' | 'resolve' | 'land' | 'attack' | 'block' | 'damage' | 'lifeGain' | 'draw'
-  | 'victory' | 'defeat' | 'timer';
+  | 'victory' | 'defeat' | 'timer'
+  // a triggered ability went on the stack (triggerSignal.ts)
+  | 'trigger';
 
 /** The cues that still play with "Only important cues": your turn, a decision, combat against you, the clock, the result. */
 export const IMPORTANT_CUES: ReadonlySet<Cue> = new Set<Cue>(['turn', 'decide', 'timer', 'victory', 'defeat']);
@@ -16,6 +19,8 @@ export interface CueSnapshot {
   active: string | null;
   deciding: boolean;
   stack: number;
+  /** stack ids of the triggered abilities on the stack */
+  triggers?: readonly string[];
   hand: number;
   life: Map<string, number>;
   /** lands on your battlefield */
@@ -36,6 +41,7 @@ export function cueSnapshot(state: GameSessionState, myId: string | null): CueSn
     active: view?.activePlayerId ?? null,
     deciding: state.mode === 'play' && state.interaction.mode !== 'waiting' && !state.awaitingServer,
     stack: Object.keys(view?.stack ?? {}).length,
+    triggers: [...stackTriggers(view).keys()],
     hand: Object.keys(view?.myHand ?? {}).length,
     life: new Map((view?.players ?? []).map((player) => [player.playerId ?? '', player.life ?? 0])),
     myLands: Object.values(me?.battlefield ?? {}).filter((card) => (card.cardTypes ?? []).includes('LAND')).length,
@@ -60,7 +66,11 @@ export function pickCue(before: CueSnapshot | null, now: CueSnapshot, myId: stri
   if (now.myClock !== null && now.myClock <= TIMER_WARNING_SECS && (before.myClock === null || before.myClock > TIMER_WARNING_SECS)) return 'timer';
   if (now.attackers > 0 && before.attackers === 0) return 'attack';
   if (now.blockers > before.blockers) return 'block';
-  if (now.stack > before.stack) return 'cast';
+  if (now.stack > before.stack) {
+    // a new triggered ability chimes instead of the spell cue
+    const triggered = (now.triggers ?? []).some((id) => !(before.triggers ?? []).includes(id));
+    return triggered ? 'trigger' : 'cast';
+  }
   const lost = [...now.life].some(([id, life]) => life < (before.life.get(id) ?? life));
   if (lost) return 'damage';
   const gained = [...now.life].some(([id, life]) => life > (before.life.get(id) ?? life));
@@ -76,4 +86,13 @@ export function pickCue(before: CueSnapshot | null, now: CueSnapshot, myId: stri
 export function cueAllowed(cue: Cue, settings: { sound: boolean; volume: number; importantCuesOnly?: boolean }): boolean {
   if (!settings.sound || settings.volume <= 0) return false;
   return !settings.importantCuesOnly || IMPORTANT_CUES.has(cue);
+}
+
+/**
+ * The cue that plays for a picked one under the player's settings, or null. With "Trigger sounds" off a
+ * trigger sounds like any other new stack object (the spell cue, as before the trigger chime).
+ */
+export function cueToPlay(cue: Cue, settings: { sound: boolean; volume: number; importantCuesOnly?: boolean; triggerSounds?: boolean }): Cue | null {
+  const played = cue === 'trigger' && settings.triggerSounds === false ? 'cast' : cue;
+  return cueAllowed(played, settings) ? played : null;
 }

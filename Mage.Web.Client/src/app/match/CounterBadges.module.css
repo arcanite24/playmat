@@ -1,0 +1,23 @@
+/* counter badges (the pill itself is PermanentStack's .counters li); a tint per kind of counter */
+.symbol {
+  flex: none;
+}
+
+ul > li.stun {
+  color: #9fc6ef;
+}
+
+ul > li.finality {
+  color: var(--danger-text);
+}
+
+ul > li.time {
+  color: var(--brass-ink);
+}
+
+/* an impending permanent: not a creature yet, counting down in brass (beats the pill's own colour and ring) */
+ul > li.impending {
+  color: var(--brass-ink);
+  box-shadow: 0 0 0 1px rgb(var(--brass-rgb) / 0.75);
+  font-size: 17px;
+}

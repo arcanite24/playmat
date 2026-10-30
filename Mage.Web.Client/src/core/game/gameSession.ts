@@ -83,8 +83,9 @@ export class GameSession {
   private readonly replyTimeoutMs: number;
   /** the last answer sent, for "Send again" */
   private lastCommand: Command | null = null;
-  /** Cancel was pressed on a payment while a mana tap was still with the server: sent at the next request for mana */
+  /** Keep cancelling through nested mana abilities until the cast returns to priority. */
   private cancelPending = false;
+  private paymentCancelSent = false;
   /** the newest game event a view has carried; a view repeated from the server's cache carries old ones again */
   private lastEventSeq = 0;
   /** every server event for this game passes through here: at once, or after the broadcast delay when watching */
@@ -324,10 +325,9 @@ export class GameSession {
   cancelPayment(): void {
     const { interaction, awaitingServer } = this.store.getState();
     if (interaction.mode !== 'payMana') return;
-    if (awaitingServer) {
-      this.cancelPending = true;
-      return;
-    }
+    this.cancelPending = true;
+    if (awaitingServer) return;
+    this.paymentCancelSent = true;
     void this.respond(CANCEL_PAYMENT).catch(() => undefined);
   }
 
@@ -365,8 +365,7 @@ export class GameSession {
       this.clearHold();
       this.store.setState({ awaitingServer: false, stalled: false, prompt: null, prediction: null });
       if (this.cancelPending) {
-        this.cancelPending = false;
-        this.tooLateToCancel();
+        this.finishCancel();
       }
       if (next === previous) this.refreshInteraction();
     }
@@ -396,17 +395,22 @@ export class GameSession {
     this.clearReplyTimer();
     this.store.setState({ prompt, awaitingServer: false, prediction: null, stalled: false, resyncing: false });
     if (this.cancelPending) {
-      this.cancelPending = false;
-      // answered at once, before auto-pay can tap the next source
-      if (prompt?.kind === 'playMana') void this.respond(CANCEL_PAYMENT).catch(() => undefined);
-      else if (prompt?.kind === 'priority') this.tooLateToCancel();
+      // A mana ability can ask for its own payment or a choice before the original spell asks again.
+      if (prompt?.kind === 'playMana') {
+        this.paymentCancelSent = true;
+        void this.respond(CANCEL_PAYMENT).catch(() => undefined);
+      } else if (prompt?.kind === 'chooseAbility') {
+        // Any boolean closes the engine's ability picker without activating a mana source.
+        void this.respond(CANCEL_PAYMENT).catch(() => undefined);
+      } else if (prompt?.kind === 'priority') this.finishCancel();
     }
     this.refreshInteraction();
   }
 
-  /** the tap Cancel waited for completed the payment: the spell or ability went ahead */
-  private tooLateToCancel(): void {
-    this.addNotice('error', 'Too late to cancel: the cost was already paid.');
+  private finishCancel(): void {
+    this.cancelPending = false;
+    if (!this.paymentCancelSent) this.addNotice('error', 'Too late to cancel: the cost was already paid.');
+    this.paymentCancelSent = false;
   }
 
   private refreshInteraction(): void {
