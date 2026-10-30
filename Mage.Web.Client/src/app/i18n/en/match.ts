@@ -22,6 +22,8 @@ export default {
 
   // a count of cards after a pile's name ("Your graveyard, 1 card")
   'match.cards': { one: '{label}, {count} card', other: '{label}, {count} cards' },
+  'match.handEarlier': { one: 'Show {count} earlier card', other: 'Show {count} earlier cards' },
+  'match.handLater': { one: 'Show {count} more card', other: 'Show {count} more cards' },
 
   // a school duel's tips
   'match.lesson.tip': 'School tip',

@@ -85,10 +85,11 @@ describe('matchLayout', () => {
 
 describe('placeHand', () => {
   test('a hand with room is centred on the stage, fanned as usual', () => {
-    expect(placeHand(7, 1920)).toEqual({ center: 960, spread: HAND_CARD_WIDTH * 0.78, width: 6 * HAND_CARD_WIDTH * 0.78 + HAND_CARD_WIDTH });
+    const seven = 6 * HAND_CARD_WIDTH * 0.78 + HAND_CARD_WIDTH;
+    expect(placeHand(7, 1920)).toEqual({ center: 960, spread: HAND_CARD_WIDTH * 0.78, width: seven, view: seven });
     // a big hand fans tighter to stay about a thousand pixels wide
     expect(placeHand(10, 1920).spread).toBe(100);
-    expect(placeHand(1, 1920)).toEqual({ center: 960, spread: HAND_CARD_WIDTH * 0.78, width: HAND_CARD_WIDTH });
+    expect(placeHand(1, 1920)).toEqual({ center: 960, spread: HAND_CARD_WIDTH * 0.78, width: HAND_CARD_WIDTH, view: HAND_CARD_WIDTH });
     expect(placeHand(0, 1920).width).toBe(HAND_CARD_WIDTH);
   });
 
@@ -109,9 +110,19 @@ describe('placeHand', () => {
     expect(hand.center - hand.width / 2).toBeGreaterThanOrEqual(640 - 0.001);
   });
 
-  test('when even the tightest fan cannot fit, the hand keeps clear of the seat', () => {
+  test('when even the tightest fan cannot fit, it is seen through a window between the seat and the corner', () => {
     const hand = placeHand(20, 1920, 900, 472);
     expect(hand.spread).toBe(36);
-    expect(hand.center - hand.width / 2).toBe(900);
+    expect(hand.width).toBe(19 * 36 + HAND_CARD_WIDTH);
+    expect(hand.view).toBe(1920 - 900 - 472);
+    expect(hand.center - hand.view / 2).toBe(900);
+    expect(hand.center + hand.view / 2).toBe(1920 - 472);
+  });
+
+  test('a seventy-card hand on a portrait tablet scrolls in a window as wide as the stage', () => {
+    const hand = placeHand(70, TALL_STAGE_WIDTH);
+    expect(hand.spread).toBe(36);
+    expect(hand.view).toBe(TALL_STAGE_WIDTH);
+    expect(hand.center).toBe(TALL_STAGE_WIDTH / 2);
   });
 });
