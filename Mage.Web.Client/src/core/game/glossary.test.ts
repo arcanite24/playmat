@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CardView } from '../../protocol/generated/views';
-import { explainCard } from './glossary';
+import { explainCard, termSpans } from './glossary';
 
 const creature = (rules: string[]): CardView => ({ name: 'Test', cardTypes: ['CREATURE'], rules });
 
@@ -58,5 +58,112 @@ describe('hints', () => {
     expect(lines[1].text).toContain('Test enters');
     expect(hints).toEqual([{ text: 'A permanent left the battlefield under your control this turn', tone: 'bad' }]);
     expect(terms.map((term) => term.name)).toEqual(['Deathtouch', 'Revolt']);
+  });
+});
+
+describe('Duskmourn', () => {
+  const names = (card: CardView) => explainCard(card).terms.map((term) => term.name);
+
+  it('explains impending on an Overlord as a keyword line', () => {
+    const overlord: CardView = {
+      name: 'Overlord of the Mistmoors',
+      cardTypes: ['ENCHANTMENT', 'CREATURE'],
+      rules: [
+        'Impending 4&mdash;{2}{W}{W} <i>(If you cast this spell for its impending cost, it enters with four time counters and isn\'t a creature until the last is removed. At the beginning of your end step, remove a time counter from it.)</i>',
+        'Whenever {this} enters or attacks, create two 2/1 white Insect creature tokens with flying.',
+      ],
+    };
+    const { lines, terms } = explainCard(overlord);
+    expect(lines[0].kind).toBe('keyword');
+    expect(terms.map((term) => term.name)).toEqual(['Impending', 'Flying']);
+    expect(terms[0].text).toMatch(/time counters/);
+  });
+
+  it('tells manifest dread from manifest', () => {
+    expect(names(creature(['When {this} dies, manifest dread.']))).toEqual(['Manifest dread']);
+    expect(names(creature(['Whenever you manifest dread, put a card you put into your graveyard this way into your hand.']))).toEqual(['Manifest dread']);
+    expect(names(creature(['Its controller manifests dread.']))).toEqual(['Manifest dread']);
+    expect(names(creature(['Manifest the top card of your library.']))).toEqual(['Manifest']);
+  });
+
+  it('explains Rooms by their type, and doors and unlocking where they are mentioned', () => {
+    const room = { name: 'Bottomless Pool // Locker Room', cardTypes: ['ENCHANTMENT'], subTypes: ['ROOM'], rules: ['(You may cast either half. That door unlocks on the battlefield.)'] } as unknown as CardView;
+    expect(names(room)).toEqual(['Room']);
+    expect(names(creature(['Whenever {this} deals combat damage to a player, unlock a locked door of up to one target Room you control.']))).toEqual(['Room']);
+    const room2 = explainCard(room).terms[0].text;
+    expect(room2).toMatch(/sorcery/);
+    expect(room2).toMatch(/eerie/);
+  });
+
+  it('reads the ability words, landcycling and counters with rules of their own', () => {
+    expect(names(creature(['<i>Eerie</i> &mdash; Whenever an enchantment you control enters and whenever you fully unlock a Room, draw a card.'])))
+      .toEqual(['Eerie', 'Room']);
+    expect(names(creature(['<i>Survival</i> &mdash; At the beginning of your second main phase, if {this} is tapped, manifest dread.'])))
+      .toEqual(['Survival', 'Manifest dread']);
+    expect(names(creature(['Mountaincycling {2}']))).toEqual(['Cycling']);
+    expect(names(creature(['When {this} enters, tap target creature an opponent controls and put a stun counter on it.']))).toEqual(['Stun counter']);
+    expect(names(creature(['Return target creature card from your graveyard to the battlefield with a finality counter on it.']))).toEqual(['Finality counter']);
+    expect(names(creature(["<i>Council's dilemma</i> &mdash; Starting with you, each player votes for time or money."]))).toEqual(["Council's dilemma"]);
+  });
+
+  it("doesn't read keywords out of the card's own name, and finds an ability word after a sentence", () => {
+    const bargain: CardView = { name: "Betrayer's Bargain", cardTypes: ['INSTANT'], rules: ['{this} deals 5 damage to target creature.'] };
+    expect(names(bargain)).toEqual([]);
+    expect(termSpans("Betrayer's Bargain deals 5 damage.", bargain).some((span) => span.term)).toBe(false);
+    expect(names({ name: 'Unholy Heat', cardTypes: ['INSTANT'], rules: ['{this} deals 2 damage to target creature.<i>Delirium</i> &mdash; It deals 6 damage instead.'] }))
+      .toEqual(['Delirium']);
+  });
+
+  it('explains a face-down permanent, whatever it is', () => {
+    expect(names({ name: 'Manifest', faceDown: true, cardTypes: ['CREATURE'], rules: [] })).toEqual(['Face-down']);
+  });
+
+  it('explains a counter the permanent has even when its text never mentions it', () => {
+    const stunned = { ...creature(['Flying']), counters: [{ name: 'stun', count: 1 }] } as unknown as CardView;
+    expect(names(stunned)).toEqual(['Flying', 'Stun counter']);
+  });
+
+  it('has an explanation for every keyword and ability word printed on a DSK card', () => {
+    const printed = ['Flash', 'Ward {2}', 'Convoke', 'Flashback {3}{W}{W}{B}', 'Ninjutsu {1}{U}{B}', 'Crew 1', 'Equip {2}', 'Enchant creature', 'Delirium — Draw a card.', 'Surveil 2.'];
+    for (const line of printed) expect(names(creature([line])).length, line).toBeGreaterThan(0);
+  });
+});
+
+describe('termSpans', () => {
+  const marked = (text: string) => termSpans(text).filter((span) => span.term).map((span) => [span.text, span.term!.name]);
+
+  it('cuts text into terms and the text between, losing nothing', () => {
+    const text = 'Flying, lifelink. Whenever this attacks, scry 1 and manifest dread.';
+    const spans = termSpans(text);
+    expect(spans.map((span) => span.text).join('')).toBe(text);
+    expect(marked(text)).toEqual([['Flying', 'Flying'], ['lifelink', 'Lifelink'], ['scry', 'Scry'], ['manifest dread', 'Manifest dread']]);
+  });
+
+  it("doesn't mark reminder text, card names or strict keywords inside sentences", () => {
+    expect(marked('Trample (This creature can deal excess combat damage to the player or planeswalker it\'s attacking.)')).toEqual([['Trample', 'Trample']]);
+    expect(marked('Shadow of Doubt deals 2 damage.')).toEqual([]);
+    expect(marked('Shadow')).toEqual([['Shadow', 'Shadow']]);
+    expect(marked('Put a +1/+1 counter on it.')).toEqual([]);
+  });
+
+  it("leaves dungeon rooms and plain doors alone: only Room wording explains Rooms", () => {
+    expect(marked("Venture into the dungeon. (Enter the first room or move to the next room.)").map(([, term]) => term)).toEqual(['Venture into the dungeon']);
+    expect(marked('Whenever a creature enters, the door to the vault opens.')).toEqual([]);
+    expect(marked('Unlock a locked door of target Room you control.')).toEqual([['Unlock a locked door', 'Room']]);
+  });
+
+  it("hides the card's name only as a whole word", () => {
+    const bargain = { name: 'Bargain' } as CardView;
+    expect(termSpans('Bargain deals 2 damage. Each opponent sacrifices a creature.', bargain).filter((span) => span.term).map((span) => span.text)).toEqual(['sacrifices']);
+    // a card named Exile still explains "Exiled" (a plain split used to hide its first five letters)
+    const exile = { name: 'Exile' } as CardView;
+    expect(termSpans('Exiled cards stay. Exile deals 1 damage.', exile).filter((span) => span.term).map((span) => span.text)).toEqual(['Exiled']);
+  });
+
+  it('marks ability words only before their dash, and the DSK mechanics', () => {
+    expect(marked('Eerie — Whenever you fully unlock a Room, draw a card.')).toEqual([['Eerie', 'Eerie'], ['fully unlock', 'Room']]);
+    expect(marked('The eerie silence.')).toEqual([]);
+    expect(marked('Impending 4—{1}{U}{U}')).toEqual([['Impending', 'Impending']]);
+    expect(marked('Put a stun counter on it.')).toEqual([['stun counter', 'Stun counter']]);
   });
 });
