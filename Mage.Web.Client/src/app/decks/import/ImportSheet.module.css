@@ -841,3 +841,14 @@
 @keyframes waiting {
   50% { box-shadow: inset 0 0 0 2px var(--decision), 0 0 0 10px transparent; }
 }
+
+.fixName .fixReason {
+  display: block;
+  white-space: normal;
+  font-size: 0.85em;
+}
+
+.skipped code {
+  font-family: inherit;
+  color: var(--ink-dim);
+}

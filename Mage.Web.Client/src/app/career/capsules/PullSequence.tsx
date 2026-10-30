@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { CareerMachine, CareerMachineSet, CareerPull, CareerPullResult } from '../../../protocol/generated/views';
 import { useI18n, useT } from '../../i18n';
@@ -9,10 +9,13 @@ import { catalogName, useCatalog } from '../../ui/cosmeticsCatalog';
 import { artUrl } from '../careerArt';
 import { playCareerCue } from '../careerSound';
 import { useStill } from '../motion';
-import { Cabinet } from './Cabinet';
+import { Burst, type Tier } from './Burst';
 import { sleeveArtOf } from './capsuleArt';
 import { machineItems } from './capsuleData';
+import { Machine, PaintedCapsule, type MachineHandle } from './Machine';
+import { WearButton } from './WearStyle';
 import styles from './Capsules.module.css';
+import seq from './Pull.module.css';
 
 type Phase = 'insert' | 'crank' | 'drop' | 'open' | 'reveal' | 'tray' | 'finale';
 
@@ -21,6 +24,10 @@ type Finale = { kind: 'set'; set: CareerMachineSet } | { kind: 'sets'; sets: Car
 
 const NOTCH = 45;
 const TWIST_TO_OPEN = 70;
+const GOLD = '#e7c25e';
+
+/** what a capsule holds, as far as the opening goes: it finishes the machine, a set, or neither */
+const tierOf = (one: CareerPull | undefined): Tier => (one?.machineDone ? 'machine' : one?.setDone ? 'set' : 'common');
 
 function buzz(pattern: number | number[]) {
   try {
@@ -32,8 +39,10 @@ function buzz(pattern: number | number[]) {
 
 /**
  * A pull, played out (B324 to B327): the token drops in the slot while the server draws; the player turns the crank
- * (a drag round, or a tap), a capsule rolls out of the chute, the player twists it open, and the painting rises out of
- * it. Pulling several drops them all in a tray to open one by one or all at once. Finishing a set shows its sleeve,
+ * (a drag round, or a tap), which stirs the capsules in the globe until one falls through and bounces down the chute;
+ * it comes up to the middle of the screen, the player prises it open, and the painting rises out of it. A capsule
+ * that finishes a set or the machine gives itself away first (light at its seam, a shudder) and opens bigger.
+ * Pulling several pours them all into a tray to open one by one or all at once. Finishing a set shows its sleeve,
  * finishing the machine its reward. Every gesture has a button (and a key), reduced motion skips the movement, and
  * each beat is announced. Closing early keeps the capsules unopened for later (unopened.ts).
  */
@@ -51,7 +60,7 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
   const pulls = useMemo(() => result.pulls ?? [], [result.pulls]);
   const many = pulls.length > 1;
   const sets = useMemo(() => new Map((machine.sets ?? []).map((set) => [set.id, set])), [machine.sets]);
-  const setOf = (pull: CareerPull) => sets.get(pull.set);
+  const setOf = (one: CareerPull) => sets.get(one.set);
   const finales = useMemo<Finale[]>(() => {
     const done = pulls.filter((one) => one.setDone).flatMap((one) => (sets.get(one.set) ? [sets.get(one.set)!] : []));
     // a big pull can close half the machine at once: past two sets, one screen for all of them
@@ -66,14 +75,20 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
   const [crank, setCrank] = useState(0);
   const [announce, setAnnounce] = useState('');
   const dialog = useRef<HTMLDivElement>(null);
+  const cabinet = useRef<MachineHandle>(null);
+  // where the capsule came to rest in the chute: it comes up to the middle from there
+  const [from, setFrom] = useState<DOMRect | null>(null);
+  const [burst, setBurst] = useState<{ at: { x: number; y: number }; color: string; tier: Tier; key: number } | null>(null);
 
   const current = pulls[index];
-  const capsuleColor = (pull: CareerPull | undefined) => (pull ? setOf(pull)?.capsule : undefined) ?? '#c9a545';
-  // the capsules the dome still shows: everything not pulled before, less what has come out so far
-  const leftColors = useMemo(() => {
-    const out = new Set(pulls.slice(0, phase === 'insert' || phase === 'crank' ? 0 : pulls.length).map((one) => one.item));
-    return machineItems(machine).filter((one) => !owned.has(one.item) && !out.has(one.item)).map((one) => one.set.capsule ?? '#888');
-  }, [machine, owned, pulls, phase]);
+  const capsuleColor = (one: CareerPull | undefined) => (one ? setOf(one)?.capsule : undefined) ?? '#c9a545';
+  // the globe holds everything not pulled before; the machine takes this pull's capsules out itself
+  const inside = useMemo(
+    () => machineItems(machine).filter((one) => !owned.has(one.item)).map((one) => one.set.capsule ?? '#888'),
+    // once per sequence: the heap mustn't refill under the player's hand
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
   useEffect(() => {
     dialog.current?.focus();
@@ -84,8 +99,12 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
     if (phase !== 'insert') return;
     playCareerCue('tokenIn');
     buzz(10);
-    const timer = setTimeout(() => setPhase('crank'), 750);
-    return () => clearTimeout(timer);
+    const land = setTimeout(() => cabinet.current?.jolt(0.5), 560);
+    const timer = setTimeout(() => setPhase('crank'), 800);
+    return () => {
+      clearTimeout(land);
+      clearTimeout(timer);
+    };
   }, [phase]);
 
   useEffect(() => {
@@ -94,48 +113,73 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
     if (phase === 'tray') setAnnounce(t('capsules.seq.tray', { count: pulls.length }));
   }, [phase, t, pulls.length]);
 
-  const dropped = useCallback(() => {
+  const dropping = useRef(false);
+  const dropped = useCallback(async () => {
+    if (dropping.current) return;
+    dropping.current = true;
     playCareerCue('drop');
     buzz([18, 40, 12]);
     setPhase('drop');
-    setTimeout(() => setPhase(many ? 'tray' : 'open'), still ? 0 : many ? 700 + pulls.length * 90 : 950);
-  }, [many, pulls.length, still]);
+    const rest = await cabinet.current?.deliver(pulls.map(capsuleColor));
+    setFrom(rest ?? null);
+    setPhase(many ? 'tray' : 'open');
+    // capsuleColor reads sets, which is steady for a sequence
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [many, pulls]);
 
   // ---- the crank: dragged round, or turned for the player on a tap
-  const crankRef = useRef<SVGGElement>(null);
+  const crankRef = useRef<HTMLElement>(null);
   const turning = useRef<{ last: number; total: number; moved: boolean; notch: number } | null>(null);
+  const [held, setHeld] = useState(false);
+  const notched = (notch: number) => {
+    playCareerCue(notch % 2 ? 'crank' : 'clatter');
+    cabinet.current?.stir(notch === 8 ? 1.4 : 0.8);
+    buzz(5);
+  };
   const autoTurn = useCallback(() => {
     if (still) {
-      dropped();
+      void dropped();
       return;
     }
     const start = performance.now();
-    let notch = 0;
+    const begun = crank;
+    let notch = Math.floor(begun / NOTCH);
     const step = (now: number) => {
-      const turn = Math.min(1, (now - start) / 720);
-      const angle = 360 * (1 - (1 - turn) ** 2);
+      const turn = Math.min(1, (now - start) / 900);
+      // the ratchet's pull: quick off the mark, a slower last notch
+      const angle = begun + (360 - begun) * (1 - (1 - turn) ** 2.4);
       setCrank(angle);
       if (Math.floor(angle / NOTCH) > notch) {
         notch = Math.floor(angle / NOTCH);
-        playCareerCue('crank');
-        buzz(5);
+        notched(notch);
       }
       if (turn < 1) requestAnimationFrame(step);
-      else dropped();
+      else void dropped();
     };
     requestAnimationFrame(step);
-  }, [dropped, still]);
+  }, [dropped, still, crank]);
 
   const angleAt = (event: { clientX: number; clientY: number }) => {
     const box = crankRef.current?.getBoundingClientRect();
     if (!box) return 0;
     return (Math.atan2(event.clientY - (box.top + box.height / 2), event.clientX - (box.left + box.width / 2)) * 180) / Math.PI;
   };
-  const onCrankDown = (event: ReactPointerEvent<SVGGElement>) => {
-    if (phase !== 'crank') return;
+  const onCrankDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (phase !== 'crank' || turning.current) return;
     event.preventDefault();
     (event.currentTarget as Element).setPointerCapture?.(event.pointerId);
-    turning.current = { last: angleAt(event), total: 0, moved: false, notch: 0 };
+    turning.current = { last: angleAt(event), total: crank, moved: false, notch: Math.floor(crank / NOTCH) };
+    setHeld(true);
+  };
+  // a drag let go short of a turn winds back, the ratchet clicking
+  const windBack = (at: number) => {
+    const start = performance.now();
+    const step = (now: number) => {
+      const turn = Math.min(1, (now - start) / 420);
+      setCrank(at * (1 - turn) ** 3);
+      if (turn < 1 && !turning.current) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
   };
   useEffect(() => {
     if (phase !== 'crank') return;
@@ -154,21 +198,22 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
       setCrank(Math.min(360, turn.total));
       if (Math.floor(turn.total / NOTCH) > turn.notch) {
         turn.notch = Math.floor(turn.total / NOTCH);
-        playCareerCue('crank');
-        buzz(5);
+        notched(turn.notch);
       }
       if (turn.total >= 360) {
         turning.current = null;
-        dropped();
+        setHeld(false);
+        void dropped();
       }
     };
     const up = () => {
       const turn = turning.current;
       turning.current = null;
+      setHeld(false);
       if (!turn) return;
-      // a tap turns it for you; a drag that stopped short winds back
-      if (!turn.moved) autoTurn();
-      else if (turn.total < 360) setCrank(0);
+      // a tap turns it for you; most of a turn finishes itself; a short drag winds back
+      if (!turn.moved || turn.total >= 270) autoTurn();
+      else if (turn.total < 360) windBack(turn.total);
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
@@ -180,26 +225,69 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
     };
   }, [phase, autoTurn, dropped]);
 
-  // ---- opening: a twist of the capsule (dragged sideways, or a tap)
+  // ---- opening: prised open (dragged sideways, or a tap)
   const [twist, setTwist] = useState(0);
   const twisting = useRef<{ x: number; moved: boolean } | null>(null);
   const [popping, setPopping] = useState(false);
+  const [hold, setHold] = useState(0);
+  const capsuleRef = useRef<HTMLButtonElement>(null);
+  const tier = tierOf(current);
+
+  // a capsule holding something big gives itself away as it arrives
+  useEffect(() => {
+    if (phase === 'open' && tier !== 'common') {
+      const timer = setTimeout(() => {
+        playCareerCue('seam');
+        buzz(tier === 'machine' ? [12, 60, 12, 60, 12] : [10, 70, 10]);
+      }, still ? 0 : 650);
+      return () => clearTimeout(timer);
+    }
+  }, [phase, tier, still, index]);
+
+  const shake = (power: number) => {
+    if (still) return;
+    dialog.current?.animate(
+      [
+        { transform: 'none' },
+        { transform: `translate(${-6 * power}px, ${3 * power}px)` },
+        { transform: `translate(${5 * power}px, ${-4 * power}px)` },
+        { transform: `translate(${-3 * power}px, ${2 * power}px)` },
+        { transform: 'none' },
+      ],
+      { duration: 320 + 120 * power, easing: 'cubic-bezier(0.3, 0.7, 0.4, 1)' },
+    );
+  };
+
+  const burstFrom = (el: Element | null | undefined, color: string, which: Tier) => {
+    if (still || !el) return;
+    const box = el.getBoundingClientRect();
+    setBurst({ at: { x: box.left + box.width / 2, y: box.top + box.height * 0.55 }, color, tier: which, key: Date.now() });
+  };
+
   const pop = useCallback((which: number) => {
-    playCareerCue('pop');
-    buzz([10, 30, 22]);
+    const one = pulls[which];
+    const level = tierOf(one);
     setPopping(true);
+    // the bigger the prize, the longer the light holds before it breaks
+    const hold = still ? 0 : level === 'machine' ? 360 : level === 'set' ? 200 : 0;
+    setHold(hold);
+    setTimeout(() => {
+      playCareerCue(level === 'common' ? 'pop' : 'crack');
+      buzz(level === 'machine' ? [30, 40, 60] : level === 'set' ? [20, 30, 40] : [10, 30, 22]);
+      burstFrom(capsuleRef.current, level === 'machine' ? GOLD : capsuleColor(one), level);
+      if (level !== 'common') shake(level === 'machine' ? 2 : 1.2);
+    }, hold);
     setTimeout(() => {
       setPopping(false);
       setTwist(0);
       setOpened((before) => new Set([...before, which]));
-      const pull = pulls[which];
-      setAnnounce(t('capsules.seq.got', { card: pull?.card ?? '', set: catalogName(setOf(pull) ? { name: setOf(pull)!.name, es: setOf(pull)!.es } : undefined, locale) }));
+      setAnnounce(t('capsules.seq.got', { card: one?.card ?? '', set: catalogName(setOf(one) ? { name: setOf(one)!.name, es: setOf(one)!.es } : undefined, locale) }));
       if (!many) {
         setPhase('reveal');
-        setTimeout(() => playCareerCue('rare'), still ? 0 : 380);
+        setTimeout(() => playCareerCue(level === 'machine' ? 'mythic' : level === 'set' ? 'rare' : 'flip'), still ? 0 : 260);
       }
-    }, still ? 0 : 380);
-    // setOf and locale are steady for a sequence
+    }, still ? 0 : hold + 420);
+    // setOf, locale and the helpers are steady for a sequence
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pulls, many, still, t]);
   const autoTwist = () => {
@@ -209,8 +297,14 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
       return;
     }
     playCareerCue('twist');
-    setTwist(TWIST_TO_OPEN);
-    setTimeout(() => pop(index), 260);
+    const start = performance.now();
+    const step = (now: number) => {
+      const turn = Math.min(1, (now - start) / 240);
+      setTwist(TWIST_TO_OPEN * turn * turn);
+      if (turn < 1) requestAnimationFrame(step);
+      else pop(index);
+    };
+    requestAnimationFrame(step);
   };
   const onTwistDown = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (popping) return;
@@ -220,7 +314,8 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
   const onTwistMove = (event: ReactPointerEvent<HTMLButtonElement>) => {
     const twistNow = twisting.current;
     if (!twistNow || popping) return;
-    const amount = Math.max(0, Math.min(90, (event.clientX - twistNow.x) * 0.9));
+    // either way: a capsule prises open from whichever side the finger pulls
+    const amount = Math.max(0, Math.min(90, Math.abs(event.clientX - twistNow.x) * 0.8));
     if (amount > 8 && !twistNow.moved) {
       twistNow.moved = true;
       playCareerCue('twist');
@@ -238,6 +333,26 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
     if (!twistNow.moved) autoTwist();
     else setTwist(0);
   };
+
+  // the capsule comes up from the chute to the middle of the screen
+  useLayoutEffect(() => {
+    const el = capsuleRef.current;
+    if (phase !== 'open' || !el || still) return;
+    const to = el.getBoundingClientRect();
+    if (index === 0 && from) {
+      const scale = from.width / to.width;
+      el.animate(
+        [
+          { transform: `translate(${from.left + from.width / 2 - (to.left + to.width / 2)}px, ${from.top + from.height / 2 - (to.top + to.height / 2)}px) scale(${scale}) rotate(44deg)` },
+          { transform: 'translate(0, -6%) scale(1.04) rotate(-4deg)', offset: 0.75 },
+          { transform: 'none' },
+        ],
+        { duration: 720, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' },
+      );
+    } else {
+      el.animate([{ transform: 'translateY(40%) scale(0.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
+    }
+  }, [phase, index, from, still]);
 
   // ---- after the capsules
   const nextAfterCapsules = () => {
@@ -273,23 +388,28 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
     }
   };
 
-  // Pull several: open them all, one after another
+  // Pull several: open them all, one after another, the big ones last and loudest
+  const trayRefs = useRef<(HTMLElement | null)[]>([]);
+  const openTray = (which: number) => {
+    const one = pulls[which];
+    const level = tierOf(one);
+    playCareerCue(level === 'common' ? 'pop' : 'crack');
+    buzz(level === 'common' ? 8 : [16, 30, 24]);
+    burstFrom(trayRefs.current[which], level === 'machine' ? GOLD : capsuleColor(one), level === 'common' ? 'common' : 'set');
+    if (level !== 'common') shake(level === 'machine' ? 1.4 : 0.8);
+    setOpened((before) => new Set([...before, which]));
+  };
   const openAll = () => {
     const closed = pulls.map((_, which) => which).filter((which) => !opened.has(which));
-    closed.forEach((which, order) => setTimeout(() => {
-      playCareerCue(order === closed.length - 1 ? 'rare' : 'pop');
-      buzz(8);
-      setOpened((before) => new Set([...before, which]));
-    }, still ? 0 : order * 240));
+    closed.sort((a, b) => ['common', 'set', 'machine'].indexOf(tierOf(pulls[a])) - ['common', 'set', 'machine'].indexOf(tierOf(pulls[b])) || a - b);
+    closed.forEach((which, order) => setTimeout(() => openTray(which), still ? 0 : order * 220 + (tierOf(pulls[which]) === 'common' ? 0 : 260)));
     setAnnounce(t('capsules.seq.allOpen', { cards: pulls.map((one) => one.card).join(', ') }));
   };
   const openOne = (which: number) => {
     if (opened.has(which)) return;
-    playCareerCue('pop');
-    buzz(10);
-    setOpened((before) => new Set([...before, which]));
-    const pull = pulls[which];
-    setAnnounce(t('capsules.seq.got', { card: pull.card ?? '', set: setOf(pull)?.name ?? '' }));
+    openTray(which);
+    const one = pulls[which];
+    setAnnounce(t('capsules.seq.got', { card: one.card ?? '', set: setOf(one)?.name ?? '' }));
   };
 
   const later = () => (onLater ?? onDone)();
@@ -311,12 +431,13 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
 
   const setName = (set: CareerMachineSet | undefined) => catalogName(set ? { name: set.name, es: set.es } : undefined, locale);
   // how many of its set the player has once this capsule is in
-  const countInSet = (pull: CareerPull) => {
-    const set = setOf(pull);
-    const now = new Set([...owned, ...pulls.slice(0, pulls.indexOf(pull) + 1).map((one) => one.item ?? '')]);
+  const countInSet = (one: CareerPull) => {
+    const set = setOf(one);
+    const now = new Set([...owned, ...pulls.slice(0, pulls.indexOf(one) + 1).map((p) => p.item ?? '')]);
     return (set?.items ?? []).filter((item) => now.has(item.id ?? '')).length;
   };
   const allOpen = opened.size === pulls.length;
+  const glow = tier === 'machine' ? GOLD : capsuleColor(current);
 
   return createPortal(
     <div
@@ -327,7 +448,9 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
       aria-label={t('capsules.seq.label', { name: catalogName(machine, locale) })}
       tabIndex={-1}
       onKeyDown={onKey}
-      style={{ '--capsule': capsuleColor(current) } as CSSProperties}
+      data-tier={phase === 'open' || phase === 'reveal' ? tier : undefined}
+      data-still={still || undefined}
+      style={{ '--capsule': capsuleColor(current), '--glow': glow } as CSSProperties}
     >
       <div className={styles.seqBackdrop} aria-hidden="true" />
       <p className={styles.srOnly} aria-live="assertive">{announce}</p>
@@ -339,27 +462,21 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
 
       {(phase === 'insert' || phase === 'crank' || phase === 'drop') && (
         <div className={styles.seqMachine}>
-          <Cabinet
-            seed={machine.id ?? ''}
+          <Machine
+            ref={cabinet}
+            id={machine.id ?? ''}
             body={machine.cabinet?.body ?? '#7a2c28'}
             trim={machine.cabinet?.trim ?? '#e3b25a'}
-            capsules={leftColors}
+            capsules={inside}
+            still={still}
             crank={crank}
+            inviting={phase === 'crank' && !held && crank === 0}
             inserting={phase === 'insert'}
-            rattling={phase === 'drop'}
             crankRef={crankRef}
             onCrankDown={phase === 'crank' ? onCrankDown : undefined}
-            className={styles.seqCabinet}
+            className={seq.seqCabinet}
             label={t('capsules.seq.machine')}
           />
-          {phase === 'drop' && !many && <span className={styles.falling} aria-hidden="true"><Capsule color={capsuleColor(current)} /></span>}
-          {phase === 'drop' && many && (
-            <span className={styles.pour} aria-hidden="true">
-              {pulls.map((one, which) => (
-                <span key={which} style={{ '--i': which } as CSSProperties}><Capsule color={capsuleColor(one)} /></span>
-              ))}
-            </span>
-          )}
           <p className={styles.prompt}>
             {phase === 'insert' && t('capsules.seq.inserting', { count: pulls.length })}
             {phase === 'crank' && t('capsules.seq.crank')}
@@ -369,12 +486,15 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
       )}
 
       {phase === 'open' && current && (
-        <div className={styles.seqOpen}>
+        <div className={seq.open}>
           {many && <p className={styles.counter}>{t('capsules.seq.of', { at: index + 1, count: pulls.length })}</p>}
           <button
+            ref={capsuleRef}
             type="button"
-            className={[styles.bigCapsule, popping ? styles.popping : ''].join(' ')}
-            style={{ '--twist': `${twist}deg` } as CSSProperties}
+            className={seq.held}
+            data-tier={tier}
+            data-popping={popping || undefined}
+            style={{ '--twist': `${twist}deg`, '--gap': Math.min(1, twist / TWIST_TO_OPEN), '--hold': `${hold}ms` } as CSSProperties}
             onPointerDown={onTwistDown}
             onPointerMove={onTwistMove}
             onPointerUp={onTwistUp}
@@ -388,16 +508,20 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
             aria-label={t('capsules.seq.twist')}
             autoFocus
           >
-            <Capsule color={capsuleColor(current)} big />
-            <span className={styles.burst} aria-hidden="true" />
+            <span className={seq.shadow} aria-hidden="true" />
+            <span className={seq.rock}>
+              <PaintedCapsule color={capsuleColor(current)} className={seq.bigCapsule} />
+              <span className={seq.seam} aria-hidden="true" />
+            </span>
           </button>
           <p className={styles.prompt}>{t('capsules.seq.open')}</p>
         </div>
       )}
 
       {phase === 'reveal' && current && (
-        <div className={styles.seqReveal} onClick={next}>
-          <span className={styles.rays} aria-hidden="true" />
+        <div className={styles.seqReveal} onClick={next} data-tier={tier}>
+          {tier !== 'common' && <span className={styles.rays} aria-hidden="true" />}
+          <span className={seq.flash} aria-hidden="true" />
           <figure className={styles.revealCard}>
             <span className={styles.revealArt}>
               <img src={cardStyleArt(current.item ?? '', current.card ?? '')} alt="" draggable={false} />
@@ -410,6 +534,7 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
               <span>{t('capsules.seq.inSet', { set: setName(setOf(current)), count: countInSet(current), total: setOf(current)?.items?.length ?? 5 })}</span>
             </figcaption>
           </figure>
+          <WearButton card={current.card ?? ''} item={current.item ?? ''} />
           <Button onClick={(event) => {
             event.stopPropagation();
             next();
@@ -426,15 +551,18 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
             {pulls.map((one, which) => {
               const open = opened.has(which);
               return (
-                <li key={which} style={{ '--capsule': capsuleColor(one), '--i': which } as CSSProperties}>
+                <li key={which} ref={(el) => { trayRefs.current[which] = el; }} style={{ '--capsule': capsuleColor(one), '--i': which } as CSSProperties}>
                   {open ? (
                     <figure className={styles.trayCard} data-set-done={one.setDone || undefined}>
                       <img src={cardStyleArt(one.item ?? '', one.card ?? '')} alt="" draggable={false} />
                       <figcaption><b>{one.card}</b><small>{setName(setOf(one))}</small></figcaption>
                     </figure>
                   ) : (
-                    <button type="button" className={styles.trayCapsule} onClick={() => openOne(which)} aria-label={t('capsules.seq.openOne', { at: which + 1 })}>
-                      <Capsule color={capsuleColor(one)} />
+                    <button type="button" className={styles.trayCapsule} data-tier={tierOf(one)} onClick={() => openOne(which)} aria-label={t('capsules.seq.openOne', { at: which + 1 })}>
+                      <span className={seq.rock}>
+                        <PaintedCapsule color={capsuleColor(one)} className={seq.trayPainted} />
+                        <span className={seq.seam} aria-hidden="true" />
+                      </span>
                     </button>
                   )}
                 </li>
@@ -448,18 +576,9 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
       )}
 
       {phase === 'finale' && finales[finale] && <FinaleView finale={finales[finale]} machine={machine} onNext={next} last={finale === finales.length - 1} />}
+      {burst && <Burst key={burst.key} at={burst.at} color={burst.color} tier={burst.tier} />}
     </div>,
     document.body,
-  );
-}
-
-/** A capsule: its set's colour on top, clear plastic below. */
-function Capsule({ color, big = false }: { color: string; big?: boolean }) {
-  return (
-    <span className={[styles.capsule, big ? styles.capsuleBig : ''].join(' ')} style={{ '--capsule': color } as CSSProperties} aria-hidden="true">
-      <span className={styles.capsuleTop} />
-      <span className={styles.capsuleBottom} />
-    </span>
   );
 }
 
@@ -514,7 +633,7 @@ function FinaleView({ finale, machine, onNext, last }: { finale: Finale; machine
       <p className={styles.finaleKicker}>{t('capsules.finale.machine')}</p>
       <h2 className={styles.finaleTitle}>{catalogName(machine, locale)}</h2>
       <span className={styles.goldCapsule} aria-hidden="true">
-        <Capsule color="#e7c25e" big />
+        <PaintedCapsule color={GOLD} className={seq.goldPainted} />
         {machine.reward?.kind === 'pet' && machine.reward.id && <img src={artUrl('companion', machine.reward.id)} alt="" className={styles.goldPet} draggable={false} />}
       </span>
       <p className={styles.finaleText}>
