@@ -3,6 +3,7 @@ import type { GameView, PermanentView } from '../../protocol/generated/views';
 import { lastPlacement, motionAllowed } from './flip';
 import { eventVisuals } from './vfxEvents';
 import { matchLayout } from './matchLayout';
+import { TriggerSignals } from './TriggerSignals';
 import { useObjectCenter, useStage } from './stageContext';
 import styles from './Vfx.module.css';
 
@@ -228,6 +229,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
     <div className={styles.layer} aria-hidden="true">
       {effects.map((effect) => <EffectView key={effect.key} effect={effect} />)}
       {hurt > 0 && <div key={hurt} className={styles.hurt} />}
+      <TriggerSignals view={view} />
     </div>
   );
 }

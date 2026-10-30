@@ -100,4 +100,6 @@ export default {
   'match.score.won': 'You won game {game} · {wins}–{losses}',
   'match.score.lost': 'You lost game {game} · {wins}–{losses}',
   'match.score.draw': 'Game {game} was a draw · {wins}–{losses}',
+  // the trigger signal over a permanent whose triggered ability has no ability word
+  'match.trigger.label': 'Triggered',
 };
