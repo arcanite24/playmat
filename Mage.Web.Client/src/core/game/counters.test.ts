@@ -13,7 +13,7 @@ describe('counterBadges', () => {
       ['stun', '', false],
       ['finality', '', false],
     ]);
-    expect(badges[2].title).toMatch(/stun counter: instead of untapping/);
+    expect(badges[2].word).toBe('stun');
   });
 
   it('always shows how many time counters, and keeps unknown names whole when short', () => {
@@ -28,7 +28,7 @@ describe('counterBadges', () => {
       rules: ['Impending 4&mdash;{2}{W}{W} <i>(If you cast this spell for its impending cost...)</i>'],
     });
     expect(isImpending(overlord)).toBe(true);
-    expect(counterBadges(overlord)[0]).toMatchObject({ kind: 'time', label: 'Impending 4', impending: true });
+    expect(counterBadges(overlord)[0]).toMatchObject({ kind: 'time', count: 4, impending: true });
     // once it is a creature (the counters gone, or cast for its full cost) it is not impending
     expect(isImpending({ ...overlord, cardTypes: ['ENCHANTMENT', 'CREATURE'] })).toBe(false);
     expect(isImpending({ ...overlord, counters: [] })).toBe(false);

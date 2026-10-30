@@ -146,8 +146,22 @@ describe('termSpans', () => {
     expect(marked('Put a +1/+1 counter on it.')).toEqual([]);
   });
 
+  it("leaves dungeon rooms and plain doors alone: only Room wording explains Rooms", () => {
+    expect(marked("Venture into the dungeon. (Enter the first room or move to the next room.)").map(([, term]) => term)).toEqual(['Venture into the dungeon']);
+    expect(marked('Whenever a creature enters, the door to the vault opens.')).toEqual([]);
+    expect(marked('Unlock a locked door of target Room you control.')).toEqual([['Unlock a locked door', 'Room']]);
+  });
+
+  it("hides the card's name only as a whole word", () => {
+    const bargain = { name: 'Bargain' } as CardView;
+    expect(termSpans('Bargain deals 2 damage. Each opponent sacrifices a creature.', bargain).filter((span) => span.term).map((span) => span.text)).toEqual(['sacrifices']);
+    // a card named Exile still explains "Exiled" (a plain split used to hide its first five letters)
+    const exile = { name: 'Exile' } as CardView;
+    expect(termSpans('Exiled cards stay. Exile deals 1 damage.', exile).filter((span) => span.term).map((span) => span.text)).toEqual(['Exiled']);
+  });
+
   it('marks ability words only before their dash, and the DSK mechanics', () => {
-    expect(marked('Eerie — Whenever you fully unlock a Room, draw a card.')).toEqual([['Eerie', 'Eerie'], ['unlock', 'Room'], ['Room', 'Room']]);
+    expect(marked('Eerie — Whenever you fully unlock a Room, draw a card.')).toEqual([['Eerie', 'Eerie'], ['fully unlock', 'Room']]);
     expect(marked('The eerie silence.')).toEqual([]);
     expect(marked('Impending 4—{1}{U}{U}')).toEqual([['Impending', 'Impending']]);
     expect(marked('Put a stun counter on it.')).toEqual([['stun counter', 'Stun counter']]);

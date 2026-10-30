@@ -132,4 +132,23 @@ export default {
   'match.trigger.label': 'Triggered',
   // the hovered card's keywords and mechanics, explained beside it
   'match.zoom.mechanics': 'Mechanics',
+  // counters on a permanent, as badges on the board
+  'match.counter.list': 'Counters',
+  'match.counter.named': { one: '{count} {name} counter', other: '{count} {name} counters' },
+  'match.counter.time': { one: '{count} time counter', other: '{count} time counters' },
+  'match.counter.stun': { one: '{count} stun counter: instead of untapping, it loses one', other: '{count} stun counters: instead of untapping, it loses one' },
+  'match.counter.finality': { one: '{count} finality counter: if it would die, it is exiled instead', other: '{count} finality counters: if it would die, it is exiled instead' },
+  'match.counter.shield': { one: '{count} shield counter: damage or destruction removes the counter instead', other: '{count} shield counters: damage or destruction removes a counter instead' },
+  'match.counter.lore': { one: '{count} lore counter', other: '{count} lore counters' },
+  'match.counter.oil': { one: '{count} oil counter', other: '{count} oil counters' },
+  'match.counter.age': { one: '{count} age counter', other: '{count} age counters' },
+  'match.counter.fade': { one: '{count} fade counter', other: '{count} fade counters' },
+  'match.counter.ice': { one: '{count} ice counter', other: '{count} ice counters' },
+  'match.counter.charge': { one: '{count} charge counter', other: '{count} charge counters' },
+  'match.counter.nest': { one: '{count} nest counter', other: '{count} nest counters' },
+  'match.counter.impending': 'Impending {count}',
+  'match.counter.impendingHelp': {
+    one: "Impending: {count} time counter left. It isn't a creature until the last is removed; one comes off at each of its controller's end steps.",
+    other: "Impending: {count} time counters left. It isn't a creature until the last is removed; one comes off at each of its controller's end steps.",
+  },
 };

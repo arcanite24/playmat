@@ -12,26 +12,19 @@ export interface CounterBadge {
   name: string;
   count: number;
   kind: CounterKind;
-  /** text printed on the badge beside its symbol ("+1/+1", "Impending 4"); empty when the symbol says it */
+  /** text printed on the badge beside its symbol ("+1/+1", a short unknown name); empty when the symbol says it */
   label: string;
+  /** the counter's own word for the tooltip ("+1/+1", "bounty"); the symbol kinds have their own help in the catalogue */
+  word: string;
   /** the count is printed too (always for time counters: the number is the point) */
   showCount: boolean;
-  title: string;
+  /** an impending permanent's time counters: the badge reads "Impending N" */
   impending?: boolean;
 }
 
-const SYMBOLS: Record<string, { kind: CounterKind; help: string }> = {
-  time: { kind: 'time', help: 'time counter' },
-  stun: { kind: 'stun', help: "stun counter: instead of untapping, it loses one" },
-  finality: { kind: 'finality', help: 'finality counter: if it would die, it is exiled instead' },
-  shield: { kind: 'shield', help: 'shield counter: damage or destruction removes the counter instead' },
-  lore: { kind: 'lore', help: 'lore counter' },
-  oil: { kind: 'oil', help: 'oil counter' },
-  age: { kind: 'age', help: 'age counter' },
-  fade: { kind: 'fade', help: 'fade counter' },
-  ice: { kind: 'ice', help: 'ice counter' },
-  charge: { kind: 'charge', help: 'charge counter' },
-  nest: { kind: 'nest', help: 'nest counter' },
+const SYMBOLS: Record<string, CounterKind> = {
+  time: 'time', stun: 'stun', finality: 'finality', shield: 'shield', lore: 'lore', oil: 'oil', age: 'age', fade: 'fade',
+  ice: 'ice', charge: 'charge', nest: 'nest',
 };
 
 /** Cast for its impending cost: it has time counters, isn't a creature yet, and has impending. */
@@ -47,23 +40,17 @@ export function counterBadges(permanent: Pick<PermanentView, 'counters' | 'cardT
   return (permanent.counters ?? []).filter((counter) => (counter.count ?? 0) > 0).map((counter) => {
     const name = counter.name ?? '';
     const count = counter.count ?? 0;
-    const plural = count === 1 ? '' : 's';
     if (/^[+-]\d+\/[+-]\d+$/.test(name)) {
-      return { name, count, kind: 'pt' as const, label: name.replace(/-/g, '−'), showCount: count > 1, title: `${count} ${name} counter${plural}` };
+      return { name, count, kind: 'pt' as const, label: name.replace(/-/g, '−'), word: name, showCount: count > 1 };
     }
     const key = name.replace(/\s*counters?$/i, '').trim().toLowerCase();
-    const symbol = SYMBOLS[key];
-    if (symbol?.kind === 'time' && impending) {
-      return {
-        name, count, kind: 'time' as const, label: `Impending ${count}`, showCount: false, impending: true,
-        title: `Impending: ${count} time counter${plural} left. It isn't a creature until the last is removed; one comes off at each of its controller's end steps.`,
-      };
+    const kind = SYMBOLS[key];
+    if (kind === 'time' && impending) {
+      return { name, count, kind, label: '', word: key, showCount: false, impending: true };
     }
-    if (symbol) {
-      return { name, count, kind: symbol.kind, label: '', showCount: symbol.kind === 'time' || count > 1, title: `${count} ${symbol.help.replace('counter', `counter${plural}`)}` };
-    }
+    if (kind) return { name, count, kind, label: '', word: key, showCount: kind === 'time' || count > 1 };
     // a counter without a symbol keeps its name, whole when it is short
     const label = key.length <= 10 ? key : `${key.slice(0, 9)}…`;
-    return { name, count, kind: 'other' as const, label, showCount: count > 1, title: `${count} ${key} counter${plural}` };
+    return { name, count, kind: 'other' as const, label, word: key, showCount: count > 1 };
   });
 }

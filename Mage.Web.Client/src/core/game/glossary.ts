@@ -171,7 +171,7 @@ const ACTIONS: Entry[] = [
   { name: 'Manifest', text: 'Put the card onto the battlefield face down as a 2/2 creature; if it is a creature card you may turn it face up for its mana cost.', match: /\bmanifests?\b(?!\s+dread)/i },
   // Duskmourn
   { name: 'Face-down', text: "A face-down permanent is a 2/2 creature with no name, text, color or mana cost. Its controller may look at it; other players can't. A face-down creature card can be turned face up for its mana cost.", match: /\bface[- ](down|up)\b/i },
-  { name: 'Room', text: 'An enchantment with two doors, each with its own name, cost and abilities. Cast either door: it enters unlocked. Later, as a sorcery, you may pay a locked door\'s cost to unlock it. Unlocking the second door fully unlocks the Room, which triggers eerie.', match: /\b(rooms?|unlock(s|ed)?|(locked )?doors?)\b/i },
+  { name: 'Room', text: 'An enchantment with two doors, each with its own name, cost and abilities. Cast either door: it enters unlocked. Later, as a sorcery, you may pay a locked door\'s cost to unlock it. Unlocking the second door fully unlocks the Room, which triggers eerie.', match: /\b((un)?locked doors?|unlock(s|ed)? (a|the|this|that|each|another) (locked )?(door|room)|fully unlock(s|ed)?)\b/i },
   { name: 'Stun counter', text: 'If a permanent with a stun counter would untap, remove a stun counter from it instead.', match: /\bstun counters?\b/i, counter: 'stun' },
   { name: 'Finality counter', text: 'If a permanent with a finality counter would go to a graveyard from the battlefield, exile it instead.', match: /\bfinality counters?\b/i, counter: 'finality' },
   { name: 'Populate', text: 'Create a copy of a creature token you control.', forms: ['populates'] },
@@ -270,9 +270,16 @@ function leadingKeywords(line: string): Entry[] {
   })));
 }
 
+const mentionPatterns = new WeakMap<Entry, RegExp>();
+
 function mentions(text: string, entry: Entry): boolean {
   if (entry.match) return entry.match.test(text);
-  return [entry.name, ...(entry.forms ?? [])].some((form) => new RegExp(`\\b${escape(form)}\\b`, 'i').test(text));
+  let pattern = mentionPatterns.get(entry);
+  if (!pattern) {
+    pattern = new RegExp(`\\b(${[entry.name, ...(entry.forms ?? [])].map(escape).join('|')})\\b`, 'i');
+    mentionPatterns.set(entry, pattern);
+  }
+  return pattern.test(text);
 }
 
 function isKeywordLine(line: string): boolean {
@@ -340,6 +347,11 @@ export function rulesOf(card: CardView): string[] {
   return splitRules(card).rules;
 }
 
+/** The card's name where it stands as a whole word ("Bargain" doesn't hide "bargaining") */
+function namePattern(name: string): RegExp {
+  return new RegExp(`(?<![\\p{L}\\p{N}'])${escape(name)}(?![\\p{L}\\p{N}])`, 'gu');
+}
+
 /** The names the card goes by in its own text: its name, and each half of a split card or Room */
 function ownNames(card: Pick<CardView, 'name' | 'displayName'>): string[] {
   const names = new Set<string>();
@@ -369,13 +381,13 @@ export function explainCard(card: CardView): CardExplanation {
   const names = ownNames(card);
   for (const line of lines) {
     // the card's own name says nothing ("Betrayer's Bargain deals 5 damage" isn't bargain)
-    const text = names.reduce((rest, name) => rest.split(name).join('This'), plain(line.text));
+    const text = names.reduce((rest, name) => rest.replace(namePattern(name), 'This'), plain(line.text));
     if (line.abilityWord) add(ABILITY_WORDS.find((entry) => entry.name === line.abilityWord)!);
     for (const part of text.split(DASH)) leadingKeywords(part).forEach(add);
     KEYWORDS.filter((entry) => !entry.strict && mentions(text, entry)).forEach(add);
     ACTIONS.filter((entry) => mentions(text, entry)).forEach(add);
     // an ability word after a sentence of the same line ("Draw a card. Delirium — ...")
-    ABILITY_WORDS.filter((entry) => new RegExp(`\\b${escape(entry.name)}\\s*[—–]`, 'i').test(text)).forEach(add);
+    ABILITY_WORDS.filter((entry) => abilityWordPattern(entry).test(text)).forEach(add);
   }
   // counters with a rule of their own, on a permanent whose text doesn't mention them (a stunned creature)
   for (const counter of (card as { counters?: { name?: string; count?: number }[] }).counters ?? []) {
@@ -391,10 +403,32 @@ export interface TermSpan {
   term?: Term;
 }
 
+// built once per entry: termSpans runs for every rules line each time the detail panel draws
+const formsPatterns = new WeakMap<Entry, RegExp>();
+const abilityWordPatterns = new WeakMap<Entry, RegExp>();
+
 function formsPattern(entry: Entry): RegExp {
-  if (entry.match) return new RegExp(entry.match.source, entry.match.flags.includes('g') ? entry.match.flags : `${entry.match.flags}g`);
-  const forms = [entry.name, ...(entry.forms ?? [])].sort((a, b) => b.length - a.length).map(escape);
-  return new RegExp(`\\b(${forms.join('|')})\\b`, 'gi');
+  let pattern = formsPatterns.get(entry);
+  if (!pattern) {
+    if (entry.match) {
+      pattern = new RegExp(entry.match.source, entry.match.flags.includes('g') ? entry.match.flags : `${entry.match.flags}g`);
+    } else {
+      const forms = [entry.name, ...(entry.forms ?? [])].sort((a, b) => b.length - a.length).map(escape);
+      pattern = new RegExp(`\\b(${forms.join('|')})\\b`, 'gi');
+    }
+    formsPatterns.set(entry, pattern);
+  }
+  // matchAll works on a copy, so the shared pattern's lastIndex never moves
+  return pattern;
+}
+
+function abilityWordPattern(entry: Entry): RegExp {
+  let pattern = abilityWordPatterns.get(entry);
+  if (!pattern) {
+    pattern = new RegExp(`\\b${escape(entry.name)}\\s*[—–]`, 'i');
+    abilityWordPatterns.set(entry, pattern);
+  }
+  return pattern;
 }
 
 /**
@@ -409,7 +443,7 @@ export function termSpans(text: string, card?: Pick<CardView, 'name' | 'displayN
   const reminders: [number, number][] = [];
   for (const found of text.matchAll(/\([^)]*\)/g)) reminders.push([found.index, found.index + found[0].length]);
   for (const name of card ? ownNames(card) : []) {
-    for (let at = text.indexOf(name); at >= 0; at = text.indexOf(name, at + name.length)) reminders.push([at, at + name.length]);
+    for (const found of text.matchAll(namePattern(name))) reminders.push([found.index, found.index + found[0].length]);
   }
   const inReminder = (start: number) => reminders.some(([from, to]) => start >= from && start < to);
   const hits: { start: number; end: number; entry: Entry }[] = [];

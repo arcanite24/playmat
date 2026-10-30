@@ -102,10 +102,12 @@ import { gzipSync } from 'node:zlib';
 // app 785.0 kB
 // app raised 2026-10-30 from 786 kB for the combat estimate (who dies and the damage that gets through, while declaring
 // attackers and blockers): match code, lazy with the match screen. Measured app 788.7 kB
+// app raised 2026-10-30 from 790 kB for keyword explanations where they are printed (about 150 glossary entries, a
+// tooltip of our own so Radix's positioning stays off the first page) and counters as symbols. Measured app 792.6 kB
 const BUDGET_KB = {
   entry: 85,
   initial: 221,
-  app: 790,
+  app: 794,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

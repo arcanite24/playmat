@@ -16,10 +16,15 @@
 }
 
 .tip {
+  position: fixed;
   z-index: var(--z-toast);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  box-sizing: border-box;
+  width: max-content;
   display: grid;
   gap: 4px;
-  max-width: 340px;
+  max-width: min(340px, calc(100vw - 24px));
   padding: 10px 14px;
   border-radius: 10px;
   background: var(--mat-800);
@@ -37,13 +42,12 @@
   text-transform: uppercase;
 }
 
-.arrow {
-  fill: var(--mat-800);
+.tip[data-below] {
+  transform: translate(-50%, 0);
 }
 
 @keyframes show {
   from {
     opacity: 0;
-    transform: translateY(4px);
   }
 }
