@@ -1,6 +1,7 @@
 # Container scripts run on Linux: keep LF even in a Windows checkout (core.autocrlf)
 *.sh text eol=lf
 Caddyfile text eol=lf
+*.caddy text eol=lf
 *.properties text eol=lf
 *.template text eol=lf
 # the host-side deploy scripts run on Linux too

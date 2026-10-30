@@ -310,8 +310,11 @@ run_stack() {
   deadline=$(( $(date +%s) + HEALTH_TIMEOUT ))
   env_set XMAGE_SERVER_IMAGE "$1"
   env_set XMAGE_WEB_IMAGE "$2"
+  local files=(-f "$3/docker-compose.yml")
+  # behind the host's own reverse proxy (TLS_MODE=external): the kit's override too (kits from before it have none)
+  [[ $(env_get TLS_MODE) == external && -f $3/docker-compose.proxy.yml ]] && files+=(-f "$3/docker-compose.proxy.yml")
   # up waits for the server to be healthy before it starts the web container
-  timeout "$HEALTH_TIMEOUT" docker compose -p "$COMPOSE_PROJECT" --project-directory "$3" -f "$3/docker-compose.yml" \
+  timeout "$HEALTH_TIMEOUT" docker compose -p "$COMPOSE_PROJECT" --project-directory "$3" "${files[@]}" \
     --env-file "$ENV_FILE" up -d --no-build --remove-orphans || log "compose up failed or timed out"
   health_gate "$deadline"
 }
