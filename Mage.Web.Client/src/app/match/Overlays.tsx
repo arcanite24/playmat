@@ -427,7 +427,8 @@ function VictoryStamp({ id }: { id: string }) {
 }
 
 /** A zone's cards laid out to read (graveyard, exile, revealed). */
-export function ZoneViewer({ title, cards, onClose }: { title: string; cards: CardView[]; onClose(): void }) {
+export function ZoneViewer({ title, cards, note, counts, onClose }: { title: string; cards: CardView[]; note?: string; counts?: Record<string, number>; onClose(): void }) {
+  const t = useT();
   const keyboard = useChoiceKeyboard();
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
@@ -436,9 +437,18 @@ export function ZoneViewer({ title, cards, onClose }: { title: string; cards: Ca
           <h2 className={styles.panelTitle}>{title}</h2>
           <Button data-cancel variant="quiet" size="sm" onClick={onClose}>Close</Button>
         </header>
+        {note && <p className={styles.viewerNote} role="note">{note}</p>}
         {cards.length === 0 ? <p className={styles.panelText}>Empty.</p> : (
           <div className={styles.grid}>
-            {cards.map((card) => <div key={card.id} className={styles.pick} data-card-id={card.id}><CardFace card={card} size="normal" /></div>)}
+            {cards.map((card) => {
+              const copies = counts?.[card.id!] ?? 1;
+              return (
+                <div key={card.id} className={styles.pick} data-card-id={card.id}>
+                  <CardFace card={card} size="normal" />
+                  {copies > 1 && <span className={styles.viewerCount} aria-label={t('match.viewer.copies', { count: copies })}>×{copies}</span>}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

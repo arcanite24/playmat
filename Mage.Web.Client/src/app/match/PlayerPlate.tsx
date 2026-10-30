@@ -3,6 +3,7 @@ import { Heart, Swords } from 'lucide-react';
 import { COMMANDER_DAMAGE_LETHAL } from '../../core/game/commander';
 import { POOL_MANA, poolId } from '../../core/game/payment';
 import { ROPE_SECONDS, ropeSecondsLeft, ropeVisible } from '../../core/game/rope';
+import { availableMana } from '../../core/game/availableMana';
 import type { PlayerLook, PlayerView } from '../../protocol/generated/views';
 import { Art } from '../career/Art';
 import { ShowcaseBadges } from '../career/LookParts';
@@ -66,6 +67,30 @@ function useDisconnected(name: string | undefined): { since: number; now: number
   return since === undefined ? null : { since, now: Math.max(now, since) };
 }
 
+/**
+ * Whole seconds since `active` turned on, counted locally for the thinking label (0 while off). A gap shorter than
+ * THINKING_GAP_MS (one decision answered, the next asked) keeps counting.
+ */
+const THINKING_GAP_MS = 800;
+
+function useSecondsWhile(active: boolean): number {
+  const [since, setSince] = useState<number | null>(null);
+  const [now, setNow] = useState(0);
+  useEffect(() => {
+    if (!active) {
+      const reset = setTimeout(() => setSince(null), THINKING_GAP_MS);
+      return () => clearTimeout(reset);
+    }
+    const start = setTimeout(() => setSince((at) => at ?? Date.now()), 0);
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      clearTimeout(start);
+      clearInterval(timer);
+    };
+  }, [active]);
+  return active && since !== null ? Math.max(0, Math.floor((now - since) / 1000)) : 0;
+}
+
 /** The player's priority time left, counted down locally between the server's reports. */
 function useRopeSeconds(player: PlayerView): number {
   const reported = player.priorityTimeLeftSecs ?? 0;
@@ -103,6 +128,12 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
     const timer = setTimeout(() => setDelta(null), DELTA_MS);
     return () => clearTimeout(timer);
   }, [delta]);
+
+  // an AI opponent the game waits on says so, with how long it has been thinking
+  const thinking = deciding && !isMe && player.isHuman === false && !out;
+  const thinkingFor = useSecondsWhile(thinking);
+  // your untapped mana sources plus your pool, an estimate ("about") when a source can't be read for sure
+  const mana = isMe && !out ? availableMana(player) : null;
 
   const counters = (player.counters ?? []).filter((counter) => (counter.count ?? 0) > 0);
   const pool = POOL_MANA.filter(({ key }) => (player.manaPool?.[key] ?? 0) > 0);
@@ -200,6 +231,12 @@ export function PlayerPlate({ player, isMe, targetable, selected, deciding, slee
             </span>
           )}
         </div>
+        {thinking && <div className={styles.thinking} role="status">{t('match.plate.thinking', { seconds: thinkingFor })}</div>}
+        {mana && (
+          <div className={styles.manaAvailable} title={t('match.plate.manaTitle')}>
+            {t(mana.exact ? 'match.plate.mana' : 'match.plate.manaAbout', { count: mana.count })}
+          </div>
+        )}
       </div>
       {hasExtras && (
         // what's on the seat besides life, in short columns beside it: a crowded seat grows sideways, not off the stage

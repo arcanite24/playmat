@@ -383,3 +383,35 @@
   min-width: 0;
   margin-top: 0;
 }
+
+/* an AI opponent thinking (the game waits on it), pulsing gently in the decision color */
+.thinking {
+  align-self: flex-start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 15px;
+  white-space: nowrap;
+  color: var(--decision);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--decision-rgb) / 0.6);
+  animation: thinking 1.8s ease-in-out infinite;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes thinking {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking {
+    animation: none;
+  }
+}
+
+/* your mana available now, under your life */
+.manaAvailable {
+  font-size: 16px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}

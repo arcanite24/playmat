@@ -6,6 +6,7 @@ import { useT } from '../i18n';
 import './matchMessages';
 import { CardFace } from '../ui/CardFace';
 import { cardKey } from './boardModel';
+import { shuffledLibrary } from '../../core/game/libraryList';
 import { useFlip, useFlipOrigin } from './flip';
 import { useMatchUi } from './matchUi';
 import styles from './Piles.module.css';
@@ -28,6 +29,14 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
   const exile = Object.values(player.exile ?? {});
   const { waiting, others } = splitCommand(player, commanders);
   const name = isMe ? 'Your' : `${player.name}'s`;
+  // your own library's cards (names and counts only, sent to you alone), shuffled on every opening
+  const openLibrary = () => {
+    const entries = shuffledLibrary(player.libraryCards);
+    const cards = entries.map((entry, i): CardView => ({ id: `library-list-${i}`, name: entry.name, displayName: entry.name }));
+    const counts = Object.fromEntries(entries.map((entry, i) => [`library-list-${i}`, entry.count]));
+    const note = player.topCard?.name ? t('match.library.orderTop', { name: player.topCard.name }) : t('match.library.order');
+    openViewer({ title: `${name} library (${player.libraryCount ?? 0} cards)`, cards, counts, note });
+  };
 
   return (
     <div className={[styles.piles, isMe ? styles.mine : styles.theirs].join(' ')}>
@@ -36,7 +45,7 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
         type="button"
         className={styles.pile}
         aria-label={t('match.cards', { label: `${name} library`, count: player.libraryCount ?? 0 })}
-        onClick={() => player.topCard && openViewer({ title: `${name} library (top card)`, cards: [player.topCard] })}
+        onClick={() => (isMe && player.libraryCards ? openLibrary() : player.topCard && openViewer({ title: `${name} library (top card)`, cards: [player.topCard] }))}
       >
         <div className={styles.stack} style={{ ['--depth' as string]: Math.min(6, Math.ceil((player.libraryCount ?? 0) / 10)) }}>
           <CardFace card={player.topCard ?? {}} hidden={!player.topCard} sleeve={sleeve} size="small" />
