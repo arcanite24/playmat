@@ -169,15 +169,19 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
   }, [format, rules.singleton, mode]);
   const limitOf = useCallback((card: CardView) => limitFor(card, card.name ?? ''), [limitFor]);
 
+  // a card already at its limit says why nothing was added
+  const atLimit = useCallback((card: CardView | undefined, name: string, limit: number) => {
+    if (mode && limit < copyLimit(card, name, rules.singleton)) notify(limit === 1 ? 'You own 1 copy' : `You own ${limit} copies`, `Every copy of ${name} you own is in the deck.`);
+    else notify(`${limit} copies at most`, `${name} is already at its limit.`);
+  }, [mode, rules.singleton]);
   const add = useCallback((card: CardView) => {
     const limit = limitOf(card);
     if (copiesByName(deck, card.name ?? '') >= limit) {
-      if (mode && limit < copyLimit(card, card.name ?? '', rules.singleton)) notify(limit === 1 ? 'You own 1 copy' : `You own ${limit} copies`, `Every copy of ${card.name} you own is in the deck.`);
-      else notify(`${limit} copies at most`, `${card.name} is already at its limit.`);
+      atLimit(card, card.name ?? '', limit);
       return;
     }
     setDeck((current) => (copiesByName(current, card.name ?? '') >= limit ? current : addCard(current, zone, printingOf(card))));
-  }, [deck, zone, limitOf, mode, rules.singleton]);
+  }, [deck, zone, limitOf, atLimit]);
   const removeOne = useCallback((card: CardView) => {
     setDeck((current) => {
       const name = (card.name ?? '').toLowerCase();
@@ -190,9 +194,17 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
     });
   }, [zone]);
   // a card in the mana value columns: click for one more, right-click for one less
-  const addRow = useCallback((row: DeckRow) => setDeck((current) => (copiesByName(current, row.entry.cardName) >= limitFor(row.card, row.entry.cardName)
-    ? current
-    : addCard(current, zone, { cardName: row.entry.cardName, setCode: row.entry.setCode ?? '', cardNumber: row.entry.cardNumber ?? '' }))), [zone, limitFor]);
+  const addRow = useCallback((row: DeckRow) => {
+    const name = row.entry.cardName;
+    const limit = limitFor(row.card, name);
+    if (copiesByName(deck, name) >= limit) {
+      atLimit(row.card, name, limit);
+      return;
+    }
+    setDeck((current) => (copiesByName(current, name) >= limit
+      ? current
+      : addCard(current, zone, { cardName: name, setCode: row.entry.setCode ?? '', cardNumber: row.entry.cardNumber ?? '' })));
+  }, [deck, zone, limitFor, atLimit]);
   const removeRow = useCallback((row: DeckRow) => setDeck((current) => removeCard(current, zone, row.key)), [zone]);
   // collection cards preview beside the card; deck rows preview to the left of the deck list
   const onPreview = useCallback((card: CardView | null, anchor?: DOMRect) => setPreview(card && anchor ? { card, anchor, side: 'auto' } : null), []);

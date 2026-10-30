@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { CardView } from '../../protocol/generated/views';
 import type { DeckCardLists } from '../../core/decks/types';
-import { addCard, changePrinting, copiesByName, copyLimit, countZone, entryKey, groupDeck, manaColumns, manaCurve, moveCard, removeCard } from './deckModel';
+import { manaColumns } from './manaColumnLayout';
+import { addCard, changePrinting, copiesByName, copyLimit, countZone, entryKey, groupDeck, manaCurve, moveCard, removeCard } from './deckModel';
 
 const empty: DeckCardLists = { name: 'Test', cards: [], sideboard: [] };
 const bolt = { cardName: 'Lightning Bolt', setCode: 'M10', cardNumber: '146' };

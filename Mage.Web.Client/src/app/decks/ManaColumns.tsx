@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import type { CardView } from '../../protocol/generated/views';
 import type { DeckCardLists } from '../../core/decks/types';
 import { CardFace } from '../ui/CardFace';
-import { manaColumns, type DeckRow } from './deckModel';
+import type { DeckRow } from './deckModel';
+import { manaColumns } from './manaColumnLayout';
 import styles from './ManaColumns.module.css';
 
 /** The deck's cards stacked in columns by mana value (0-1, 2, 3, 4, 5, 6+, lands); click adds a copy, right-click removes one. */
@@ -28,6 +29,8 @@ export function ManaColumns({ entries, info, onAdd, onRemove, onPreview }: {
                   onClick={() => onAdd(row)}
                   onContextMenu={(event) => {
                     event.preventDefault();
+                    // the last copy's tile goes away under the pointer, which then never leaves it
+                    if (row.entry.amount <= 1) onPreview(null);
                     onRemove(row);
                   }}
                   onPointerEnter={(event) => row.card && onPreview(row.card, event.currentTarget.getBoundingClientRect())}
