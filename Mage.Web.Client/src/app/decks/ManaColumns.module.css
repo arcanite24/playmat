@@ -1,0 +1,75 @@
+/* the deck in columns by mana value; each card shows its name strip, the last one in full */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.column {
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ink-ghost);
+  font-family: var(--font-print);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: var(--tracking-print-wide);
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.head span {
+  color: var(--ink-strong);
+}
+
+.stack {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* each card covers all but the top 19% of the one above; a card is 88/63 (139.7%) of its width tall, and margin
+   percentages follow the column's width */
+.card + .card {
+  margin-top: calc(19% - 139.7%);
+}
+
+.tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: var(--card-radius);
+  background: transparent;
+  cursor: pointer;
+  transition: transform var(--dur-quick) var(--ease-lift);
+}
+
+.tile:hover {
+  transform: translateY(-4px);
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.amount {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(var(--mat-rgb) / 0.92);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+  font-family: var(--font-print);
+  font-size: 13px;
+  color: var(--ink-strong);
+}

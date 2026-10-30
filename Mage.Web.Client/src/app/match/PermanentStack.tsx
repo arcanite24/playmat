@@ -1,15 +1,17 @@
 import {
-  Anvil, ArrowUpToLine, Castle, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Shield, ShieldCheck,
+  Anvil, ArrowUpToLine, Castle, Crosshair, Eye, EyeOff, Feather, FlaskConical, Footprints, HeartPulse, Shield, ShieldCheck,
   ShieldHalf, Skull, Sword, Swords, Users, Zap, type LucideIcon,
 } from 'lucide-react';
 import { memo, useMemo, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import { keywordEffects, keywordMarks, type KeywordEffect, type MarkedKeyword } from '../../core/game/keywords';
 import type { PermanentView } from '../../protocol/generated/views';
+import { useT } from '../i18n';
 import { useSettings } from '../stores/settings';
 import { CardFace } from '../ui/CardFace';
 import { CounterBadges } from './CounterBadges';
-import { cardKey, stackOffsetRatio, type PermanentGroup } from './boardModel';
+import { cardKey, stackBadge, stackOffsetRatio, type PermanentGroup } from './boardModel';
 import { useFlip } from './flip';
+import './matchMessages';
 import { useMatchUi } from './matchUi';
 import { useStage } from './stageContext';
 import { isMatchObjectKey, preventMatchObjectMouseFocus } from './keyboard';
@@ -21,8 +23,6 @@ export interface PermanentStackProps {
   sleeve: string;
   clickable: ReadonlySet<string>;
   selected: ReadonlySet<string>;
-  /** clickable but not worth a glow (lands while you hold priority: tapping for mana is always possible) */
-  quiet?: ReadonlySet<string>;
   attacking: ReadonlySet<string>;
   blocking: ReadonlySet<string>;
   /** opponents' attackers slide toward the player, ours toward the opponent */
@@ -68,6 +68,7 @@ const KEYWORD_ICONS: Record<MarkedKeyword, LucideIcon> = {
   Shroud: EyeOff,
   Ward: ShieldHalf,
   Protection: ShieldCheck,
+  'Must be blocked': Crosshair,
 };
 
 /** The layer each keyword effect draws (PermanentStack.module.css); float moves the card itself. */
@@ -95,6 +96,9 @@ export const PermanentStack = memo(function PermanentStack(props: PermanentStack
   const attachOffset = width * 0.18;
   const slotWidth = (anyTapped ? height : width) + (group.members.length - 1) * stackOffset + group.attachments.length * attachOffset;
   const slotHeight = height + group.attachments.length * attachOffset;
+  const t = useT();
+  const badge = stackBadge(group);
+  const count = badge && (badge.open === undefined ? t('match.stack.count', badge) : t('match.stack.open', badge));
 
   return (
     <div className={styles.slot} style={{ width: slotWidth, height: slotHeight }}>
@@ -116,7 +120,7 @@ export const PermanentStack = memo(function PermanentStack(props: PermanentStack
           left={group.attachments.length * attachOffset + (reversed.length - 1 - index) * stackOffset}
           top={group.attachments.length * attachOffset}
           depth={group.attachments.length + index}
-          count={index === reversed.length - 1 && group.members.length > 1 ? group.members.length : undefined}
+          count={index === reversed.length - 1 ? count : null}
         />
       ))}
     </div>
@@ -128,10 +132,10 @@ interface PlacedCardProps extends PermanentStackProps {
   left: number;
   top: number;
   depth: number;
-  count?: number;
+  count?: string | null;
 }
 
-function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
+function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, blocking, forward, targeting, onClick, onBlockDrop, dropTargets, pending, left, top, depth, count }: PlacedCardProps) {
   const ref = useRef<HTMLDivElement>(null);
   const id = permanent.id!;
   const tapped = !!permanent.tapped;
@@ -209,7 +213,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       ref={ref}
       className={[
         styles.card,
-        isClickable && !quiet?.has(id) ? styles.clickable : '',
+        isClickable ? styles.clickable : '',
         isClickable && targeting && !isSelected ? styles.target : '',
         isSelected ? styles.selected : '',
         isAttacking ? styles.attacking : '',
@@ -243,7 +247,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
       data-object-id={id}
     >
       {flying && <span className={styles.flightShadow} data-still={motion ? undefined : ''} aria-hidden="true" />}
-      <div className={[styles.body, flying ? styles.floating : '', asleep ? styles.asleep : ''].join(' ')} data-still={motion ? undefined : ''}>
+      <div className={[styles.body, flying ? styles.floating : '', asleep ? styles.asleep : '', tapped ? styles.tapped : ''].join(' ')} data-still={motion ? undefined : ''}>
         {effects.map((effect) => <span key={effect} className={[styles.fx, styles[FX_CLASS[effect]]].join(' ')} aria-hidden="true" />)}
         <CardFace card={permanent} sleeve={sleeve} size={width > 140 ? 'normal' : 'small'} />
       </div>
@@ -282,7 +286,7 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, quiet, atta
         </span>
       )}
       {!isCreature && loyalty && <span className={[styles.pt, styles.loyalty].join(' ')}>{loyalty}</span>}
-      {count !== undefined && <span className={styles.count}>×{count}</span>}
+      {count && <span className={styles.count} data-turned={tapped ? '' : undefined}>{count}</span>}
     </div>
   );
 }

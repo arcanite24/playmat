@@ -1,4 +1,4 @@
-import { useContext, useState, type CSSProperties } from 'react';
+import { useContext, useEffect, useState, type CSSProperties } from 'react';
 import { printsPowerToughness } from '../../core/game/cards';
 import { useCardImage } from '../../core/images/useCardImage';
 import { isDecoded, markDecoded } from './imageCache';
@@ -13,6 +13,12 @@ import { LandStyleContext, landStylist, styledLand, type StylableCard } from './
 import { useCardStyle } from './cardStyles';
 import { useSettings } from '../stores/settings';
 import styles from './CardFace.module.css';
+
+/**
+ * Waits before loading a picture that failed again: a passing CDN or proxy error (Scryfall once refused every uncached
+ * picture for an hour) must not leave cards blank for the rest of the match. After the last one the text frame stays.
+ */
+const RETRY_DELAYS_MS = [2_000, 10_000, 30_000, 60_000, 120_000, 300_000];
 
 export interface CardFaceProps {
   card: StylableCard & {
@@ -58,6 +64,16 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
   const src = styled ?? painted ?? printing;
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const [retries, setRetries] = useState<{ src: string; count: number } | null>(null);
+  const retryCount = retries && retries.src === src ? retries.count : 0;
+  useEffect(() => {
+    if (failedSrc === null || failedSrc !== src || retryCount >= RETRY_DELAYS_MS.length) return;
+    const timer = setTimeout(() => {
+      setRetries({ src: failedSrc, count: retryCount + 1 });
+      setFailedSrc(null);
+    }, RETRY_DELAYS_MS[retryCount]);
+    return () => clearTimeout(timer);
+  }, [failedSrc, src, retryCount]);
   const showImage = typeof src === 'string' && src !== failedSrc;
   // a picture decoded earlier this session shows on the first frame: no text-frame flash when a card changes zone
   const loaded = showImage && (loadedSrc === src || isDecoded(src));
@@ -90,6 +106,8 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
             )}
             {showImage && (
               <img
+                // a new element for each retry, so the browser asks again
+                key={retryCount}
                 className={styles.image}
                 src={src}
                 alt={name}

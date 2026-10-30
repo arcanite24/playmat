@@ -175,7 +175,7 @@ function InputStep({ flow, failure }: { flow: Flow; failure?: string }) {
         )}
       </div>
       <p id="import-hint" className={failure ? styles.failure : styles.hint} role={failure ? 'alert' : undefined}>
-        {failure ?? `Paste a link from a deck site, or a list in Arena, MTGO or XMage format. You can also drop a deck file here.`}
+        {failure ?? `Paste a link from a deck site, or a list with one card per line, like “4 Lightning Bolt”. Lists from Arena, MTGO and XMage work too. You can also drop a deck file here.`}
       </p>
 
       <p className={styles.sitesLegend}>Sites marked <Link2 size={12} aria-hidden="true" className={styles.siteTier} /> read in one step. The others take a copy and a paste.</p>
@@ -323,6 +323,7 @@ function FixRow({ issue, onPick, onSkip, autoFocus }: { issue: CardIssue; onPick
         <span className={styles.fixName}>
           {issue.cardName}
           {issue.setCode && <small> {issue.setCode}{issue.cardNumber ? ` ${issue.cardNumber}` : ''}</small>}
+          <small className={styles.fixReason}>{issue.reason}</small>
         </span>
         <Button ref={button} size="sm" variant="decision" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
           {open ? 'Hide' : 'Find it'}
@@ -572,6 +573,17 @@ function PreviewStep({ flow, draft, onDone }: { flow: Flow; draft: ImportDraft; 
             </>
           ) : (
             <p className={styles.allMatched}><Check size={16} aria-hidden="true" /> Every card matched.</p>
+          )}
+          {draft.list.skipped.length > 0 && (
+            <div className={styles.skipped}>
+              <h3 className={styles.fixesTitle}>
+                {draft.list.skipped.length === 1 ? '1 line couldn’t be read' : `${draft.list.skipped.length} lines couldn’t be read`}
+              </h3>
+              <ul className={styles.notes}>
+                {draft.list.skipped.map((line, index) => <li key={`${index}:${line}`}><code>{line}</code></li>)}
+              </ul>
+              <p className={styles.hint}>These aren’t in the deck. Cards are read as a count, then a name: “4 Lightning Bolt”.</p>
+            </div>
           )}
           {(counts.maybeboard > 0 || counts.sideboardDropped > 0 || counts.missing > 0) && (
             <ul className={styles.notes}>

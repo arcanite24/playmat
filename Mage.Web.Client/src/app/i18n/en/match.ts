@@ -22,6 +22,9 @@ export default {
 
   // a count of cards after a pile's name ("Your graveyard, 1 card")
   'match.cards': { one: '{label}, {count} card', other: '{label}, {count} cards' },
+  // the badge on a stack of lands or tokens; a land stack with any tapped counts the untapped ones
+  'match.stack.count': '×{count}',
+  'match.stack.open': '{open} / {count} open',
 
   // a school duel's tips
   'match.lesson.tip': 'School tip',
@@ -65,6 +68,38 @@ export default {
   'match.ability.cancel': 'Cancel',
   'match.amount.mana': 'You have {count} mana to pay with.',
 
+  // blocks that break a requirement, said before they are sent
+  'match.block.mustBeBlocked': '{name} must be blocked if able. Block it, or press again to send these blocks anyway.',
+  'match.block.anAttacker': 'An attacker',
+  // the combat estimate while declaring attackers or blockers
+  'match.combat.title': 'Combat estimate',
+  'match.combat.attackTitle': 'Attack estimate',
+  'match.combat.markDies': 'Dies',
+  'match.combat.markSurvives': 'Survives',
+  'match.combat.faceDownName': 'Face-down creature',
+  'match.combat.you': 'you',
+  'match.combat.unblocked': '{attacker} unblocked: {damage} to {target}',
+  'match.combat.fight': '{attacker} vs {blockers}: {outcome}',
+  'match.combat.noneDie': 'no one dies',
+  'match.combat.trade': 'they trade',
+  'match.combat.allDie': 'all die',
+  'match.combat.dies': { one: '{names} dies', other: '{names} die' },
+  'match.combat.trample': '{outcome}, {damage} tramples over to {target}',
+  'match.combat.more': 'and {count} more',
+  'match.combat.damageTo': '{damage} damage to {name}',
+  'match.combat.lifeYou': 'You go to {life}',
+  'match.combat.lifeThem': '{name} goes to {life}',
+  'match.combat.ifUnblocked': 'If nothing blocks: {damage} damage, {name} goes to {life}',
+  'match.combat.poison': '{line}, {poison} poison',
+  'match.combat.lethal': '{line}: lethal',
+  'match.combat.gainYou': 'You gain {life} (lifelink)',
+  'match.combat.gainThem': '{name} gains {life} (lifelink)',
+  'match.combat.menace': '{name} has menace: it needs two or more blockers',
+  'match.combat.sharedBlocker': '{name} blocks {count} attackers: its damage is counted against each',
+  'match.combat.faceDown': 'Face-down creatures may be turned face up',
+  'match.combat.caveat': 'Estimate: ignores tricks and triggers.',
+  'match.combat.caveatSplit': 'Estimate: ignores tricks and triggers. With several blockers, assumes the attacker kills as many as it can.',
+
   // the end of a game or match
   'match.end.victory': 'Victory',
   'match.end.defeat': 'Defeat',
@@ -93,6 +128,8 @@ export default {
   'match.score.won': 'You won game {game} · {wins}–{losses}',
   'match.score.lost': 'You lost game {game} · {wins}–{losses}',
   'match.score.draw': 'Game {game} was a draw · {wins}–{losses}',
+  // the trigger signal over a permanent whose triggered ability has no ability word
+  'match.trigger.label': 'Triggered',
   // the hovered card's keywords and mechanics, explained beside it
   'match.zoom.mechanics': 'Mechanics',
 };

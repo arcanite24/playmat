@@ -188,6 +188,7 @@ describe('GameSession cancelling a payment', () => {
     const api = {
       sendPlayerBoolean: vi.fn(async (_game: string, value: boolean) => { calls.push(`boolean ${value}`); return true; }),
       sendPlayerUUID: vi.fn(async (_game: string, id: string) => { calls.push(`tap ${id}`); return true; }),
+      sendPlayerString: vi.fn(async (_game: string, value: string) => { calls.push(`string ${value}`); return true; }),
     };
     const session = new GameSession(api as never, bus, { gameId: 'g1', playerId: 'me', mode: 'play' });
     emit('GAME_PLAY_MANA', { message: 'Pay {R}{4}', gameView: base });
@@ -212,6 +213,59 @@ describe('GameSession cancelling a payment', () => {
     emit('GAME_SELECT', { message: 'Play spells and abilities', gameView: base });
     expect(calls).toEqual(['tap mountain', 'boolean false']);
     expect(session.getState().notices).toEqual([]);
+  });
+
+  it('cancels a mana ability picker and then the original spell', () => {
+    const { session, emit, calls } = paying();
+    void session.respond({ type: 'uuid', id: 'dual-land' });
+    session.cancelPayment();
+    emit('GAME_CHOOSE_ABILITY', { message: 'Choose spell or ability to play', choices: { red: '{T}: Add {R}', blue: '{T}: Add {U}' } });
+    expect(calls).toEqual(['tap dual-land', 'boolean false']);
+    expect(session.getState().awaitingServer).toBe(true);
+    emit('GAME_PLAY_MANA', { message: 'Pay {R}{4}', gameView: base });
+    expect(calls).toEqual(['tap dual-land', 'boolean false', 'boolean false']);
+    emit('GAME_SELECT', { message: 'Play spells and abilities', gameView: base });
+    expect(session.getState().notices).toEqual([]);
+    session.dispose();
+  });
+
+  it('keeps cancelling after an inner mana cost rolls back', () => {
+    const { session, emit, calls } = paying();
+    void session.respond({ type: 'uuid', id: 'nykthos' });
+    session.cancelPayment();
+    emit('GAME_PLAY_MANA', { message: 'Pay {2}', gameView: base });
+    // Cancelling Nykthos only aborts its activation, not the spell it was paying for.
+    emit('GAME_PLAY_MANA', { message: 'Pay {R}{4}', gameView: base });
+    expect(calls).toEqual(['tap nykthos', 'boolean false', 'boolean false']);
+    emit('GAME_SELECT', { message: 'Play spells and abilities', gameView: base });
+    expect(session.getState().notices).toEqual([]);
+    // A later cast is independent of the cancelled one.
+    emit('GAME_PLAY_MANA', { message: 'Pay {U}', gameView: base });
+    expect(calls).toHaveLength(3);
+    session.dispose();
+  });
+
+  it('cancels the original spell after directly cancelling a mana ability cost', () => {
+    const { session, emit, calls } = paying();
+    emit('GAME_PLAY_MANA', { message: 'Pay {2}', gameView: base });
+    session.cancelPayment();
+    emit('GAME_PLAY_MANA', { message: 'Pay {R}{4}', gameView: base });
+    expect(calls).toEqual(['boolean false', 'boolean false']);
+    emit('GAME_SELECT', { message: 'Play spells and abilities', gameView: base });
+    expect(session.getState().notices).toEqual([]);
+    session.dispose();
+  });
+
+  it('keeps Cancel queued across a required mana colour choice', () => {
+    const { session, emit, calls } = paying();
+    void session.respond({ type: 'uuid', id: 'mana-source' });
+    session.cancelPayment();
+    emit('GAME_CHOOSE_CHOICE', { choice: { required: true, manaColorChoice: true, choices: ['Red', 'Blue'] } });
+    expect(calls).toEqual(['tap mana-source']);
+    void session.respond({ type: 'string', value: 'Red' });
+    emit('GAME_PLAY_MANA', { message: 'Pay {4}', gameView: base });
+    expect(calls).toEqual(['tap mana-source', 'string Red', 'boolean false']);
+    session.dispose();
   });
 
   it('says so when the tap in flight finished the payment', () => {
