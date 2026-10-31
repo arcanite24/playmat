@@ -333,7 +333,7 @@ const es: Catalog = {
   'settings.autoPass': 'Pasar cuando no tengo nada que hacer',
   'settings.autoPass.detail': 'Resuelve hechizos y avanza por los pasos cuando no tienes nada que lanzar, jugar ni activar. Las tierras que solo producen maná no cuentan.',
   'settings.theirTurn': 'Parar por las habilidades de mis permanentes en el turno del rival',
-  'settings.theirTurn.detail': 'Si está desactivado, durante su turno solo te detienen los instantáneos y los hechizos con destello.',
+  'settings.theirTurn.detail': 'Si está desactivado, durante su turno las habilidades solo te detienen mientras te atacan criaturas o hay algo en la pila.',
   'settings.skipCombat': 'Saltar ataques y bloqueos cuando nadie puede',
   'settings.skipCombat.detail': 'Responde por ti cuando ninguna criatura puede atacar o bloquear, y deja pasar el resto del combate cuando nadie ataca.',
   'settings.passAfterCasting': 'Resolver mis hechizos de inmediato',

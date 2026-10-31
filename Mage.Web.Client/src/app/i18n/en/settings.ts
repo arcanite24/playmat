@@ -45,7 +45,7 @@ export default {
   'settings.autoPass': 'Pass when I have nothing to do',
   'settings.autoPass.detail': "Resolves spells and moves through steps when you have nothing to cast, play or activate. Lands that only make mana don't count.",
   'settings.theirTurn': "Stop for my permanents' abilities on the opponent's turn",
-  'settings.theirTurn.detail': 'With this off, only instants and flash spells stop you during their turn.',
+  'settings.theirTurn.detail': 'With this off, abilities stop you during their turn only while creatures attack or something is on the stack.',
   'settings.skipCombat': 'Skip attacks and blocks when nothing can',
   'settings.skipCombat.detail': 'Answers for you when no creature can attack or block, and lets the rest of combat go by when nobody attacks.',
   'settings.passAfterCasting': 'Resolve my spells right away',
