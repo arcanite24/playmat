@@ -93,7 +93,9 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
 
         <h2 id="first">After the first start</h2>
         <ol>
-          <li>Open your domain and register the account named in <code>XMAGE_OWNER</code>.</li>
+          <li>Open your domain and register the account named in <code>XMAGE_OWNER</code>. Until you do, the sign-in
+            screen says the owner account doesn't exist yet. <code>XMAGE_ADMIN_PASSWORD</code> doesn't sign you in to
+            the site; it only opens the desktop admin console.</li>
           <li>Find <strong>Admin</strong> in the account menu. Its Overview shows the server's load, and <strong>Updates</strong> says whether it's up to date.</li>
           <li>To update from there with one button later, <a href="updates.html#button">turn on the updater</a>.</li>
         </ol>
@@ -125,6 +127,21 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
           port or name, set <code>XMAGE_ALLOWED_ORIGINS</code> and <code>XMAGE_PUBLIC_URL</code> to the address they open.
           Keep <code>TLS_MODE=external</code> in <code>.env</code>: the <a href="updates.html#button">Update button</a>
           reads it to keep using the override.</p>
+
+        <h2 id="faq">Questions</h2>
+        <h3 id="image-cache">How big does the card picture cache get?</h3>
+        <p>The <code>imgcache</code> service keeps every picture players have looked at, so it grows with use. It's
+          capped at 20 GB (<code>IMGCACHE_IMAGES_MAX_SIZE</code>); once full, the pictures used least recently are
+          dropped first, and so is any picture nobody has looked at in a year. Scryfall lookups have their own 1 GB cap
+          (<code>IMGCACHE_API_MAX_SIZE</code>). A playgroup's server usually stays far below that. Pictures are only
+          downloaded as cards are shown, unless you fill the cache ahead of time with
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md">warm-images.mjs</a>.</p>
+        <h3 id="new-cards">A new set is out. How do I get its cards?</h3>
+        <p>See <a href="updates.html#new-cards">New cards and sets</a>.</p>
+        <h3 id="official">Where do the official images come from?</h3>
+        <p>From <code>ghcr.io/arcanite24/playmat-server</code> and <code>ghcr.io/arcanite24/playmat-web</code>, built
+          from <a href="https://github.com/arcanite24/playmat">github.com/arcanite24/playmat</a>. Other copies of the
+          repository on GitHub aren't ours: don't take images, installers or install commands from them.</p>
 
         <h2 id="build">Building the images yourself</h2>
         <p>To run your own changes, empty <code>XMAGE_SERVER_IMAGE</code> and <code>XMAGE_WEB_IMAGE</code> in

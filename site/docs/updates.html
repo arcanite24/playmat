@@ -110,6 +110,13 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
           <code>XMAGE_WEB_IMAGE=ghcr.io/arcanite24/playmat-web:master</code>; the Update button does that by itself on its
           first update.</p>
 
+        <h2 id="new-cards">New cards and sets</h2>
+        <p>Cards are part of the server: each one is rules code in XMage, the engine Playmat is built on. New sets
+          arrive with Playmat updates, which bring in XMage's latest cards, so updating the server is the only way to
+          get them. There's no way to add a card by hand. A card can be missing because XMage hasn't written its rules
+          yet; ask on Discord or <a href="https://github.com/arcanite24/playmat/issues">open an issue</a> if a card
+          you need is missing.</p>
+
         <h2 id="format-decks">The AI's format decks</h2>
         <p>The web client ships 12 decks per supported format, mixing metagame snapshots with original rogue and
           casual lists. Home's <strong>Format deck</strong> mode deals different decks to you and the AI; random

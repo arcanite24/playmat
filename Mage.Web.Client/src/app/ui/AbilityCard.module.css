@@ -4,9 +4,8 @@
   position: relative;
   aspect-ratio: var(--card-ratio);
   width: 100%;
-  padding: 2.2%;
-  border-radius: calc(var(--card-radius) + 1.5%);
-  background: linear-gradient(160deg, rgb(var(--gloss-rgb) / 0.12), transparent 40%), var(--sleeve);
+  /* edge to edge like a face-up card: no sleeve rim */
+  border-radius: var(--card-radius) / calc(var(--card-radius) * 63 / 88);
   box-shadow: var(--shadow-placed);
   container-type: inline-size;
 }

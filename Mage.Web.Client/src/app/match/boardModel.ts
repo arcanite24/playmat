@@ -81,7 +81,24 @@ function groupRow(permanents: PermanentView[], attachmentsByHost: Map<string, Pe
     groups.push(group);
     if (signature) bySignature.set(signature, group);
   }
+  // a land stack shows its untapped lands first and the tapped ones after, so what's open is easy to count
+  for (const group of groups) {
+    if (group.members.length > 1 && isLand(group.lead)) group.members = splitOpenFirst(group.members);
+  }
   return groups;
+}
+
+/** Untapped first, then tapped, each in arrival order. */
+export function splitOpenFirst(members: PermanentView[]): PermanentView[] {
+  return [...members.filter((member) => !member.tapped), ...members.filter((member) => member.tapped)];
+}
+
+/** What a stack's badge counts: its cards, and for a land stack with any tapped, the untapped ones; null for a single card. */
+export function stackBadge(group: PermanentGroup): { count: number; open?: number } | null {
+  const count = group.members.length;
+  if (count < 2) return null;
+  const open = group.members.filter((member) => !member.tapped).length;
+  return isLand(group.lead) && open < count ? { count, open } : { count };
 }
 
 /**

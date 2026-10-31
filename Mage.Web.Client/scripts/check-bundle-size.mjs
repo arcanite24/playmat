@@ -96,10 +96,18 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-10-27 from 772 kB for the capsule item showcase (a board item up close: the turn, light and foil
 // by rarity, the flight in and out of its slot) and the painted capsule machine (the globe's capsule physics, the
 // machine and the pull sequence's opening and light), all lazy with the capsule shop. Measured app 781.5 kB
+// initial raised 2026-10-30 from 220 kB for card pictures that retry after a failed load (CardFace, on every
+// board). Measured initial 220.0 kB
+// app raised 2026-10-30 from 784 kB for the deck builder's mana value columns, lazy with the deck builder. Measured
+// app 785.0 kB
+// app raised 2026-10-30 from 786 kB for the combat estimate (who dies and the damage that gets through, while declaring
+// attackers and blockers): match code, lazy with the match screen. Measured app 788.7 kB
+// app raised 2026-10-30 from 790 kB for keyword explanations where they are printed (about 150 glossary entries, a
+// tooltip of our own so Radix's positioning stays off the first page) and counters as symbols. Measured app 792.6 kB
 const BUDGET_KB = {
   entry: 85,
-  initial: 220,
-  app: 784,
+  initial: 221,
+  app: 794,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

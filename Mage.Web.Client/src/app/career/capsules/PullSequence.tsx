@@ -477,11 +477,14 @@ export default function PullSequence({ result, machine, owned, onDone, onLater }
             className={seq.seqCabinet}
             label={t('capsules.seq.machine')}
           />
-          <p className={styles.prompt}>
+          {/* the prompt and the button keep their room in every step, so the machine above never shifts */}
+          <p className={[styles.prompt, seq.machinePrompt].join(' ')}>
             {phase === 'insert' && t('capsules.seq.inserting', { count: pulls.length })}
             {phase === 'crank' && t('capsules.seq.crank')}
           </p>
-          {phase === 'crank' && <Button onClick={autoTurn} autoFocus>{t('capsules.seq.turn')}</Button>}
+          <div className={seq.turnSlot}>
+            {phase === 'crank' && <Button onClick={autoTurn} autoFocus>{t('capsules.seq.turn')}</Button>}
+          </div>
         </div>
       )}
 

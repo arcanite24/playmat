@@ -176,6 +176,57 @@
   color: var(--ink-strong);
 }
 
+/* a Room's two doors along the bottom: the unlocked ones lit, the locked ones dim behind a lock */
+.doors {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: 4%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.doors li {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-family: var(--font-print);
+  font-size: calc(11px * var(--badge, 1));
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.doors li > svg {
+  flex: none;
+}
+
+.doors li > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doorUnlocked {
+  background: rgb(var(--brass-rgb) / 0.92);
+  color: var(--mat-900);
+  box-shadow: 0 0 0 1px rgb(var(--brass-rgb) / 0.5), 0 0 8px rgb(var(--brass-rgb) / 0.45);
+}
+
+.doorLocked {
+  background: rgb(var(--mat-rgb) / 0.88);
+  color: var(--ink-dim);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+}
+
 /* power/toughness plate printed over the card's corner */
 .pt {
   position: absolute;
@@ -228,8 +279,17 @@
   font-weight: 700;
   font-size: 21px;
   box-shadow: var(--shadow-placed);
+  white-space: nowrap;
   transform: scale(var(--badge, 1));
   transform-origin: top right;
+}
+
+/* on a turned card the badge turns back, so it reads level at the turned card's top right corner */
+.count[data-turned] {
+  right: auto;
+  left: -10px;
+  transform: rotate(-90deg) scale(var(--badge, 1)) translateX(-100%);
+  transform-origin: top left;
 }
 
 
@@ -291,6 +351,15 @@
     opacity: 0.45;
     transform: translateY(calc(var(--lift, 10px) * 0.55)) scale(0.9);
   }
+}
+
+/* tapped: dimmed as well as turned, so the untapped lands stand out; rings and badges stay bright */
+.body > :last-child {
+  transition: filter var(--dur-place) ease;
+}
+
+.body.tapped > :last-child {
+  filter: brightness(0.62) saturate(0.45);
 }
 
 /* summoning sick: the creature dozes until it can act; its picture dims and greys a little and z's drift up off it */
