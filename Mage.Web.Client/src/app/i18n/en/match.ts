@@ -22,6 +22,8 @@ export default {
 
   // a count of cards after a pile's name ("Your graveyard, 1 card")
   'match.cards': { one: '{label}, {count} card', other: '{label}, {count} cards' },
+  'match.handEarlier': { one: 'Show {count} earlier card', other: 'Show {count} earlier cards' },
+  'match.handLater': { one: 'Show {count} more card', other: 'Show {count} more cards' },
   // the badge on a stack of lands or tokens; a land stack with any tapped counts the untapped ones
   'match.stack.count': '×{count}',
   'match.stack.open': '{open} / {count} open',

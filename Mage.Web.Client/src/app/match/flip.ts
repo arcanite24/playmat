@@ -69,12 +69,16 @@ export function useFlipOrigin(key: string, ref: RefObject<HTMLElement | null>) {
 /**
  * Animate a card element from wherever that card was last seen.
  * `fallbackOrigin` names a zone to fly from when the card was never on screen (a draw, an opponent's cast).
+ * `shift` is how far the card's zone has scrolled it (a big hand): when it changes, the card's new place is noted
+ * without a flight, since the card itself didn't go anywhere.
  */
-export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement | null>, options: { rotation?: number; fallbackOrigin?: string } = {}) {
+export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement | null>, options: { rotation?: number; fallbackOrigin?: string; shift?: number } = {}) {
   const stage = useStage();
   const rotation = options.rotation ?? 0;
+  const shift = options.shift ?? 0;
   // the element's first layout: it may have come from another zone at another angle (the fanned hand)
   const arrived = useRef(false);
+  const shifted = useRef(shift);
 
   useLayoutEffect(() => {
     const element = ref.current;
@@ -90,6 +94,10 @@ export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement |
     // opponent's spell) comes from its zone's origin. A card that hasn't moved has the same box: no flight.
     const from = before ?? (options.fallbackOrigin ? origins.get(options.fallbackOrigin) ?? null : null);
     placements.set(cardId, now);
+    if (shifted.current !== shift) {
+      shifted.current = shift;
+      return;
+    }
 
     if (!from || !motionEnabled || reducedMotion()) return;
     const dx = from.x + from.width / 2 - (now.x + now.width / 2);

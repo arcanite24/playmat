@@ -1460,6 +1460,8 @@ const es: Catalog = {
 
   // the match stage
   'match.cards': { one: '{label}, {count} carta', other: '{label}, {count} cartas' },
+  'match.handEarlier': { one: 'Mostrar {count} carta anterior', other: 'Mostrar {count} cartas anteriores' },
+  'match.handLater': { one: 'Mostrar {count} carta más', other: 'Mostrar {count} cartas más' },
   'match.stack.count': '×{count}',
   'match.stack.open': '{open} / {count} sin girar',
   'match.turn': 'Turno {turn}',
