@@ -1988,6 +1988,7 @@ export interface ServerInfo {
     minPasswordLength?: number;
     minUserNameLength?: number;
     notice?: string;
+    ownerPending?: boolean;
     registration?: string;
     serverName?: string;
     support?: boolean;
