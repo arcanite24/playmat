@@ -305,6 +305,7 @@ public final class SupportHooks {
         if (length != null) {
             try {
                 if (Long.parseLong(length.trim()) > MAX_BODY) {
+                    drain(exchange);
                     return null;
                 }
             } catch (NumberFormatException ignored) {
@@ -318,11 +319,27 @@ public final class SupportHooks {
             while ((read = in.read(chunk)) > 0) {
                 out.write(chunk, 0, read);
                 if (out.size() > MAX_BODY) {
+                    drain(exchange);
                     return null;
                 }
             }
         }
         return out.toByteArray();
+    }
+
+    /** Reads off (and drops) some of what is left, so closing on an unread body does not reset the client before it sees the 413. */
+    private static void drain(HttpExchange exchange) {
+        byte[] chunk = new byte[8192];
+        long left = 1024 * 1024;
+        try {
+            InputStream in = exchange.getRequestBody();
+            int read;
+            while (left > 0 && (read = in.read(chunk)) > 0) {
+                left -= read;
+            }
+        } catch (IOException ignored) {
+            // the client gave up; nothing to answer
+        }
     }
 
     private static void cors(HttpExchange exchange) {
