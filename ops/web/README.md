@@ -3,7 +3,7 @@
 Runs the XMage server and the web client together:
 
 - **xmage**: the XMage server. Its WebSocket bridge listens on 17172 inside the network, and only the proxy can reach it.
-- **web**: Caddy serves the built client with automatic HTTPS, forwards `/ws` to the server and `/img` to the image cache. It also sets the security headers and per-address rate limits.
+- **web**: Caddy serves the built client with automatic HTTPS (or plain HTTP on its port 80 behind [your own reverse proxy](#behind-your-own-reverse-proxy)), forwards `/ws` to the server and `/img` to the image cache. It also sets the security headers and per-address rate limits.
 - **imgcache**: nginx caching proxy for Scryfall card pictures and lookups (see [Card image cache](#card-image-cache)).
 - **backup**: dumps the user databases every night into the `xmage-backups` volume.
 
@@ -39,9 +39,89 @@ COMPOSE_PROJECT_NAME=xmage
 
 Caddy can't get a public certificate for a `.local` name, so it signs one with its own local CA. Each player accepts the browser warning once, or installs Caddy's root certificate (`docker compose cp web:/data/caddy/pki/authorities/local/root.crt .`). Players then open `https://multivac.local:8443`, or `https://192.168.1.156:8443` on devices that don't resolve `.local` names (Android, some Windows setups); typing `http://` or leaving the scheme out redirects to HTTPS. Reserve the address for the host in the router's DHCP settings so it doesn't change. Nothing is reachable from the internet unless the router forwards the port.
 
-## Behind another reverse proxy
+## Behind your own reverse proxy
 
-When the host already runs a public reverse proxy that holds certificates (Multivac's main Caddy serves `playmat.multivac.club`), let it terminate TLS and forward the name to this stack's HTTP port:
+When the host already runs a reverse proxy that holds the certificates (Traefik, nginx, Nginx Proxy Manager, Caddy, SWAG), set `TLS_MODE=external`. The `web` container stays (it serves the client and does the routing: `/ws`, `/img`, `/hooks`, the security headers and rate limits), but Caddy serves only plain HTTP on **port 80 inside the container**. It never requests certificates, and with the proxy override it publishes nothing on the host, so your proxy keeps ports 80 and 443.
+
+```bash
+# ops/web/.env
+DOMAIN=play.example.com          # the public name your proxy serves
+TLS_MODE=external
+PROXY_NETWORK=proxy              # the Docker network your proxy is on
+```
+
+```bash
+docker network create proxy      # only if your proxy doesn't have one yet
+docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml --env-file ops/web/.env up -d
+```
+
+[`docker-compose.proxy.yml`](docker-compose.proxy.yml) removes the host ports (`ports: !reset []`, Compose 2.24 or later), puts `web` on `PROXY_NETWORK` under the name `playmat`, and carries Traefik labels. Point your proxy at `http://playmat:80` and make sure it forwards WebSocket upgrades on `/ws`.
+
+- `DOMAIN` is the public name. `XMAGE_ALLOWED_ORIGINS` and `XMAGE_PUBLIC_URL` default to `https://$DOMAIN`, which is right when the proxy serves it on 443. If players use another port or more than one name, set both: the server refuses game connections whose browser origin isn't in `XMAGE_ALLOWED_ORIGINS`, and `XMAGE_PUBLIC_URL` goes into join links, emails and the GitHub sign-in callback.
+- Caddy believes `X-Forwarded-For` from any private address (`UPSTREAM_PROXIES` defaults to `private_ranges` in this mode), so rate limits and the server's per-address caps see each player. Set `UPSTREAM_PROXIES` to your proxy network's subnet to narrow it (`docker network inspect proxy -f '{{(index .IPAM.Config 0).Subnet}}'`).
+- Caddy answers any `Host` on port 80, so a proxy that rewrites the host name still works.
+- Keep `TLS_MODE=external` in `.env`, not only in your command line: the [Update button](#update-button) and the [image-based deploy](deploy/) add `docker-compose.proxy.yml` when `.env` says so. They use the stock files only, so put your own changes in `.env` (the variables below) rather than in a third compose file.
+- A proxy on the host itself, not in Docker (a distro nginx): skip the network and proxy to Caddy's address on the compose network, `http://10.89.17.10:80` (`CADDY_IP`; Linux only). Use the override anyway, or 80/443 stay published.
+
+**Traefik.** The override's labels route `Host(DOMAIN)` on `TRAEFIK_ENTRYPOINT` (default `websecure`) with the certificate resolver `TRAEFIK_CERTRESOLVER` (empty: Traefik's default certificate) to port 80:
+
+```bash
+TRAEFIK_ENTRYPOINT=websecure
+TRAEFIK_CERTRESOLVER=letsencrypt
+```
+
+Traefik proxies WebSockets without extra settings.
+
+**nginx (or SWAG).** On the same Docker network:
+
+```nginx
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name play.example.com;
+    # ssl_certificate ... (SWAG: include /config/nginx/ssl.conf;)
+
+    location / {
+        resolver 127.0.0.11 valid=30s;          # Docker's DNS, so nginx starts before Playmat does
+        set $playmat http://playmat:80;
+        proxy_pass $playmat;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # /ws is the game connection: WebSocket upgrade, and games stay idle for minutes
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+        client_max_body_size 2m;
+    }
+}
+
+# in the http block, once
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+```
+
+SWAG users can save this as `/config/nginx/proxy-confs/playmat.subdomain.conf` and put SWAG's container on `PROXY_NETWORK`.
+
+**Nginx Proxy Manager.** Put NPM's container on `PROXY_NETWORK`, then add a proxy host: domain `play.example.com`, scheme `http`, forward hostname `playmat`, port `80`, **Websockets Support** on, and an SSL certificate on the SSL tab (Force SSL on). In Advanced, add `proxy_read_timeout 1h;` so idle games aren't cut off after a minute.
+
+**Caddy.** On the same network:
+
+```caddyfile
+play.example.com {
+	reverse_proxy playmat:80
+}
+```
+
+Check it from any container on the proxy network: `curl -H 'Host: play.example.com' http://playmat/` returns the client's page.
+
+### Next to Caddy's own HTTPS (PROXIED_HOST)
+
+To keep Caddy's HTTPS on its own ports (the LAN name, say) and also serve one public name through a proxy in front, leave `TLS_MODE` at `https` and use `PROXIED_HOST`: that name is served over plain HTTP on the stack's `HTTP_PORT`. Multivac's main Caddy serves `playmat.multivac.club` this way:
 
 ```bash
 PROXIED_HOST=playmat.multivac.club
@@ -67,7 +147,9 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | Variable | Default | Meaning |
 |---|---|---|
 | `DOMAIN` | required | Public host name. It becomes the only allowed browser origin. |
-| `PROXIED_HOST`, `UPSTREAM_PROXIES` | none (a name that matches nothing), `127.0.0.1/32` | A public name served over plain HTTP on `HTTP_PORT` for a reverse proxy in front that holds its certificate, and the range that proxy connects from, whose `X-Forwarded-For` names the client. See [Behind another reverse proxy](#behind-another-reverse-proxy), and [CLOUDFLARE.md](CLOUDFLARE.md) for Cloudflare's proxy (several ranges, separated by spaces). |
+| `TLS_MODE` | `https` | `https`: Caddy owns ports 80/443 and gets the certificates. `external`: your own reverse proxy holds them, and Caddy serves plain HTTP on the container's port 80. See [Behind your own reverse proxy](#behind-your-own-reverse-proxy). |
+| `PROXY_NETWORK`, `TRAEFIK_ENTRYPOINT`, `TRAEFIK_CERTRESOLVER` | `proxy`, `websecure`, empty | With `TLS_MODE=external` and `docker-compose.proxy.yml`: your proxy's Docker network, and the Traefik entrypoint and certificate resolver its labels use. |
+| `PROXIED_HOST`, `UPSTREAM_PROXIES` | none (a name that matches nothing), `127.0.0.1/32` | A public name served over plain HTTP on `HTTP_PORT` for a reverse proxy in front that holds its certificate, and the range that proxy connects from, whose `X-Forwarded-For` names the client. See [Next to Caddy's own HTTPS](#next-to-caddys-own-https-proxied_host), and [CLOUDFLARE.md](CLOUDFLARE.md) for Cloudflare's proxy (several ranges, separated by spaces). |
 | `LAN_IP` | empty | The host's LAN address, served too (Caddy signs a certificate for it) for devices that can't resolve `DOMAIN`. Add `https://<LAN_IP>:<HTTPS_PORT>` to `XMAGE_ALLOWED_ORIGINS`. |
 | `XMAGE_ADMIN_PASSWORD` | unset | Admin password (`-Dxmage.adminPassword`). Unset: admin login is disabled. |
 | `XMAGE_AUTH` | `false` | `authenticationActivated`. `true` makes players register and log in with a password. Use it on a public server. |
@@ -555,6 +637,8 @@ git pull
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env pull xmage web
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-build
 ```
+
+Behind [your own reverse proxy](#behind-your-own-reverse-proxy) (`TLS_MODE=external`), add `-f ops/web/docker-compose.proxy.yml` after the first `-f` in both commands.
 
 The volumes (accounts, stats, backups, the image cache) and `.env` are kept. `master` is the newest build of master, rebuilt for every merged change; `:latest` follows releases instead, once a release has been published with images. To build from the checkout again, empty the two lines and run `up -d --build`.
 

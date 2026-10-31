@@ -65,7 +65,7 @@ RUN sed -i "s/\r$//" /usr/local/bin/xmage-server /usr/local/bin/xmage-backup \
 # The compose kit this image belongs with: the image-based deploy (ops/web/deploy/playmat-deploy) runs the compose file
 # of the version it deploys, taken from here, so a rollback rolls the compose file back too. Copied last: editing it
 # rebuilds this layer only.
-COPY ops/web/docker-compose.yml ops/web/imgcache.conf.template /opt/xmage/deploy-kit/
+COPY ops/web/docker-compose.yml ops/web/docker-compose.proxy.yml ops/web/imgcache.conf.template /opt/xmage/deploy-kit/
 # What a published image is (images.yml sets these): its tag (vX.Y.Z or sha-<7>), the channel it follows (release or
 # master; empty for another branch), the image names without the -server/-web suffix, and the GitHub repository. The
 # admin console's Updates section compares them with what's newest. A local build leaves them empty: it has nothing

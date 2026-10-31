@@ -107,6 +107,9 @@ services:
         VITE_APP_NAME: ${APP_NAME:-Playmat}
     environment:
       DOMAIN: ${DOMAIN:?set DOMAIN}
+      # https: Caddy owns 80/443 and the certificates. external: plain HTTP on port 80 for your own reverse proxy
+      # (docker-compose.proxy.yml, README "Behind your own reverse proxy")
+      TLS_MODE: ${TLS_MODE:-https}
       # optional: the host's LAN address, served too (with its own certificate) for devices that can't resolve DOMAIN
       LAN_IP: ${LAN_IP:-}
       TLS_DEFAULT_SNI: ${LAN_IP:-${DOMAIN}}

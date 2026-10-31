@@ -151,19 +151,6 @@
 	}
 }
 
-# Served on $DOMAIN (and on $LAN_IP, for devices that can't resolve the name) with automatic HTTPS.
-{$DOMAIN:localhost} {$LAN_IP} {
-	import site
-}
-
-# Served over plain HTTP on PROXIED_HOST, for a reverse proxy in front that holds that name's certificate (the
-# host's main Caddy, say). Only that proxy should reach this port; the default name matches nothing.
-http://{$PROXIED_HOST:proxied.invalid} {
-	import site
-}
-
-# http:// on the HTTP port goes to HTTPS on the port players actually use (Caddy's own redirect would assume 443,
-# which is wrong when HTTPS_PORT maps another host port to it). ACME HTTP challenges are answered before this.
-http:// {
-	redir https://{host}:{$PUBLIC_HTTPS_PORT:443}{uri} permanent
-}
+# The sites: TLS_MODE picks them (sites-https.caddy, the default, or sites-external.caddy behind your own reverse
+# proxy). Both import the site above.
+import sites-{$TLS_MODE:https}.caddy

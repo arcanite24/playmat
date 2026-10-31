@@ -102,6 +102,8 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env pull xmage web
 docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-build</code></pre>
         </div>
+        <p>Behind your own reverse proxy (<code>TLS_MODE=external</code>), add
+          <code>-f ops/web/docker-compose.proxy.yml</code> after the first <code>-f</code> in both commands.</p>
         <p>If <code>.env</code> names the images with a digest (<code>…@sha256:…</code>, the updater writes them that way),
           set them back to <code>:master</code> first, or the pull keeps the same version. A server that was built from
           the source (empty image lines) switches to the published images by setting

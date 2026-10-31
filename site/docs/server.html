@@ -56,7 +56,7 @@
         <ul>
           <li>A Linux machine with <strong>Docker Engine</strong> and the Compose plugin (<code>docker compose version</code> answers). Docker Desktop on a Mac or Windows works too, but the <a href="updates.html#button">Update button</a> needs Linux.</li>
           <li>About 1 GB of memory for the server; 2 GB leaves room. One CPU is enough for a group's evening.</li>
-          <li>A domain name pointed at the machine, with ports 80 and 443 open, so Caddy can get a certificate. For a group on one home network you can do without one: see <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#private-server-on-a-lan">Private server on a LAN</a>.</li>
+          <li>A domain name pointed at the machine, with ports 80 and 443 open, so Caddy can get a certificate. For a group on one home network you can do without one: see <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#private-server-on-a-lan">Private server on a LAN</a>. Already running Traefik, nginx or another reverse proxy on 80 and 443? See <a href="#proxy">Behind your own reverse proxy</a>.</li>
         </ul>
 
         <h2 id="install">Install</h2>
@@ -103,6 +103,31 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
         <p class="note">On a machine with 1 GB of memory, add the small-VPS preset first:
           <code>cat ops/web/small-vps.env &gt;&gt; ops/web/.env</code>. It lowers the limits to what one CPU keeps
           responsive. See <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#small-vps-1-vcpu-1-gb">Small VPS</a>.</p>
+
+        <h2 id="proxy">Behind your own reverse proxy</h2>
+        <p>If the machine already runs Traefik, nginx, Nginx Proxy Manager, Caddy or SWAG, let it keep ports 80 and 443
+          and the certificates. Playmat's web container stays (it routes the game connection and card pictures), but
+          serves plain HTTP on its port 80 and publishes nothing on the host.</p>
+        <div class="terminal" role="region" aria-label="Settings and commands for running behind a reverse proxy">
+<pre><code><span class="c"># in ops/web/.env</span>
+DOMAIN=play.example.com      <span class="c"># the name your proxy serves</span>
+TLS_MODE=external
+PROXY_NETWORK=proxy          <span class="c"># the Docker network your proxy is on</span>
+
+<span class="c"># start it with the proxy override</span>
+docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml --env-file ops/web/.env up -d</code></pre>
+        </div>
+        <p>Then point your proxy at <code>http://playmat:80</code> on that network, with WebSocket upgrades allowed on
+          <code>/ws</code> (the game connection) and a long read timeout so idle games aren't cut off:</p>
+        <ul>
+          <li><strong>Traefik</strong>: nothing to write. The override carries the labels; set <code>TRAEFIK_ENTRYPOINT</code> and <code>TRAEFIK_CERTRESOLVER</code> in <code>.env</code> to your entrypoint and resolver names.</li>
+          <li><strong>Nginx Proxy Manager</strong>: a proxy host for your domain, forward to <code>http</code>, <code>playmat</code>, port <code>80</code>, with <em>Websockets Support</em> on and a certificate on the SSL tab.</li>
+          <li><strong>nginx, SWAG, Caddy</strong>: ready-made configs are in <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#behind-your-own-reverse-proxy">the README</a>.</li>
+        </ul>
+        <p>The game server only accepts browsers from <code>https://</code> plus <code>DOMAIN</code>. If players use another
+          port or name, set <code>XMAGE_ALLOWED_ORIGINS</code> and <code>XMAGE_PUBLIC_URL</code> to the address they open.
+          Keep <code>TLS_MODE=external</code> in <code>.env</code>: the <a href="updates.html#button">Update button</a>
+          reads it to keep using the override.</p>
 
         <h2 id="faq">Questions</h2>
         <h3 id="image-cache">How big does the card picture cache get?</h3>
