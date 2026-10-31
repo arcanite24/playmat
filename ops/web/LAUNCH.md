@@ -45,6 +45,7 @@ Last assessed 2026-10-14 on the Hetzner CAX21 (4 Ampere cores, 8 GB, Falkenstein
 
 1. **Moderators** (B260). At least two besides the owner, in different time zones, added in /admin, Staff.
 2. **Sign in with GitHub** (B238). The OAuth app (callback `https://playmat.deimos.studio/auth/github`) is configured and the button shows; one sign-in still has to approve the app and confirm the round trip.
+3. **Sign in with the identity provider** (optional): `XMAGE_OIDC_*` set, a client created in the IdP with the callback URL; `XMAGE_OIDC_ONLY=true` when it is to be the only sign-in (desktop clients can't sign in then).
 
 Done on 2026-10-14: mail (B228), contact address (B231), Discord webhooks and `UPTIME_DISCORD_WEBHOOK` (B236), Turnstile (B230) and Ko-fi (B255). The steps are in ops/web/README.md.
 
