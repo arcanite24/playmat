@@ -72,6 +72,7 @@ public class WebClientApiContractTest {
             "adminAudit", "adminAccess", "adminAccessPreview", "adminSetAccessMode", "adminAllowAdd", "adminAllowRemovePreview",
             "adminAllowRemove", "adminInviteCreate", "adminInviteRevoke", "adminAccessDecide", "adminSetNotice", "inviteCheck",
             "accessRequest", "githubStart", "githubFinish", // access policy and admin store (admin/AccessPolicyTest, AccessGateTest)
+            "oidcStart", "oidcFinish", // identity provider sign-in (admin/OidcSignInTest; the handlers call OidcAuth.get())
             "adminGetUsers", "adminDisconnectUser", "adminEndUserSession", "adminMuteUser", "adminLockUser", "adminActivateUser",
             "adminToggleActivateUser", "adminTableRemove", "adminSendBroadcastMessage", // Moderation, for staff on player sessions too
             "staffMe", "adminStaff", "adminStaffGrant", "adminStaffRevoke", // staff roles (api/StaffRolesTest)

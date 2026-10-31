@@ -12,6 +12,7 @@ import mage.server.admin.AdminStore;
 import mage.server.admin.AuditEntry;
 import mage.server.admin.FeedbackEntry;
 import mage.server.admin.GithubLink;
+import mage.server.admin.OidcLink;
 import mage.server.admin.StaffRole;
 import mage.server.career.CareerService;
 import mage.server.career.CareerStore;
@@ -99,6 +100,8 @@ final class AccountsApi {
         public int rating;
         public int decks;
         public String githubLogin;
+        /** the provider's display name for the account, or its user id; null when it doesn't sign in with the provider */
+        public String oidcName;
         public List<PlayerReport> reports;
         public List<FeedbackEntry> feedback;
         /** what staff did to or about this account, newest first */
@@ -327,6 +330,8 @@ final class AccountsApi {
             detail.decks = DeckStore.get().export(name).size();
             GithubLink link = store.githubLinkOf(name);
             detail.githubLogin = link == null ? null : link.login;
+            OidcLink oidcLink = store.oidcLinkOf(name);
+            detail.oidcName = oidcLink == null ? null : (oidcLink.displayName != null && !oidcLink.displayName.isEmpty() ? oidcLink.displayName : oidcLink.sub);
             detail.reports = ReportStore.get().involving(name, 50);
             detail.feedback = store.feedbackFrom(name, 50);
             detail.audit = store.auditLog(null, null, name, 0, 50);
@@ -363,6 +368,8 @@ final class AccountsApi {
         out.put("stats", stats == null || stats.getProto() == null ? null : stats.getProto().toString());
         GithubLink link = AccessPolicy.get().store().githubLinkOf(name);
         out.put("githubLogin", link == null ? null : link.login);
+        OidcLink oidcLink = AccessPolicy.get().store().oidcLinkOf(name);
+        out.put("oidcName", oidcLink == null ? null : (oidcLink.displayName != null && !oidcLink.displayName.isEmpty() ? oidcLink.displayName : oidcLink.sub));
         // support for the server: the code, payments (without the providers' payloads), perks and the look
         out.put("support", SupportApi.export(name));
         Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();

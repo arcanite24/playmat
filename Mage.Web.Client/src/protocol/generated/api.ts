@@ -261,6 +261,10 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('githubStart'),
     githubFinish: (state: string, code: string, userName?: string | null) =>
       rpc.call('githubFinish', state, code, userName),
+    oidcStart: () =>
+      rpc.call('oidcStart'),
+    oidcFinish: (state: string, code: string, userName?: string | null) =>
+      rpc.call('oidcFinish', state, code, userName),
     accessRequest: (userName: string, email: string, note?: string | null, turnstileToken?: string | null) =>
       rpc.call('accessRequest', userName, email, note, turnstileToken),
     staffMe: () =>

@@ -10,6 +10,7 @@ import mage.players.net.UserGroup;
 import mage.remote.CustomThreadPool;
 import mage.server.admin.AccessPolicy;
 import mage.server.admin.Invite;
+import mage.server.admin.OidcAuth;
 import mage.server.admin.RuntimeSettings;
 import mage.server.game.GamesRoom;
 import mage.server.managers.ConfigSettings;
@@ -98,6 +99,12 @@ public class Session {
         if (!TrustedHeaderAuth.get().passwordSignIn()) {
             sendErrorMessageToClient(TrustedHeaderAuth.PASSWORDS_OFF);
             return TrustedHeaderAuth.PASSWORDS_OFF;
+        }
+        // the OIDC-only mode: the provider is the only sign-in method, and every registration makes a password identity
+        if (OidcAuth.get().isOidcOnly()) {
+            String returnMessage = OidcAuth.get().refusal();
+            sendErrorMessageToClient(returnMessage);
+            return returnMessage;
         }
         synchronized (AuthorizedUserRepository.getInstance()) {
             // name
@@ -376,6 +383,12 @@ public class Session {
             if (!signedOn && !TrustedHeaderAuth.get().passwordSignIn()) {
                 // single sign-on only: passwords, remembered devices and restore tokens don't sign in without it
                 return TrustedHeaderAuth.PASSWORDS_OFF;
+            }
+            // the OIDC-only mode: this login relies on the password, which the server's identity provider replaces;
+            // remembered devices and restored sessions never do, so they keep working
+            if (OidcAuth.get().isOidcOnly() && !restoring && !remembered
+                    && password != null && !password.isEmpty()) {
+                return OidcAuth.get().refusal();
             }
             if (!Main.isTestMode() && !signedOn && !restoring && !remembered && !authorizedUser.doCredentialsMatch(userName, password)) {
                 return errorMsg;

@@ -3,6 +3,7 @@ package mage.server.websocket.api;
 import com.google.gson.JsonElement;
 import mage.server.AccountService;
 import mage.server.Session;
+import mage.server.admin.OidcAuth;
 import mage.players.net.UserData;
 import mage.server.DisconnectReason;
 import mage.server.Main;
@@ -242,6 +243,13 @@ final class SessionApi {
 
     private static boolean connectUser(ApiContext ctx, RpcCall call, MageVersion serverVersion) throws Exception {
         String password = call.string(1);
+        // the OIDC-only mode refuses a password sign-in before it counts as a failed guess: the web client sees
+        // connectUser as a bare boolean and couldn't read the engine's message. A login that is remembered or
+        // restored is never refused: the mode forbids password sign-ins, not an account's standing
+        if (!password.isEmpty() && call.optString(3, "").isEmpty() && call.optString(6, "").isEmpty()
+                && OidcAuth.get().isOidcOnly()) {
+            throw RpcException.invalidParams(OidcAuth.get().refusal());
+        }
         if (password.isEmpty()) {
             return ctx.server.connectUser(call.string(0), password, call.string(2), call.optString(3, ""), serverVersion, call.optString(5, ""));
         }

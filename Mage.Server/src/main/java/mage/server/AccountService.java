@@ -1,5 +1,6 @@
 package mage.server;
 
+import mage.server.admin.OidcAuth;
 import mage.server.managers.ManagerFactory;
 import org.apache.log4j.Logger;
 
@@ -30,6 +31,11 @@ public final class AccountService {
         // single sign-on only: a password would sign nobody in
         if (!TrustedHeaderAuth.get().passwordSignIn()) {
             return TrustedHeaderAuth.PASSWORDS_OFF;
+        }
+        // the OIDC-only mode: the account's password can no longer be its sign-in method, so it can't be reset
+        if (OidcAuth.get().isOidcOnly()) {
+            return OidcAuth.get().refusal();
+
         }
         AuthorizedUser user = email == null ? null : AuthorizedUserRepository.getInstance().getByEmail(email.trim());
         if (user == null) {
@@ -103,6 +109,11 @@ public final class AccountService {
         // single sign-on only: a password would sign nobody in
         if (!TrustedHeaderAuth.get().passwordSignIn()) {
             return TrustedHeaderAuth.PASSWORDS_OFF;
+        }
+        // the OIDC-only mode: the account's password can no longer be its sign-in method, so it can't be reset
+        if (OidcAuth.get().isOidcOnly()) {
+            return OidcAuth.get().refusal();
+
         }
         AuthorizedUser user = email == null ? null : AuthorizedUserRepository.getInstance().getByEmail(email.trim());
         if (user == null) {

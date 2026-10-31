@@ -190,6 +190,14 @@ public final class OidcAuth {
         return only;
     }
 
+    /**
+     * The one player-readable refusal every password path gives while this server signs in with the provider only:
+     * it says nothing about the account, so it leaks nothing.
+     */
+    public String refusal() {
+        return "This server signs in with " + label + " only.";
+    }
+
     /** why the last discovery fetch failed, or null */
     public String discoveryProblem() {
         return discoveryProblem;

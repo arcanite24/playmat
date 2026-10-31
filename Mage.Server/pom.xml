@@ -466,6 +466,7 @@
                                 <class>mage.server.admin.FeedbackEntry</class>
                                 <class>mage.server.websocket.api.AccessApi$InviteCheck</class>
                                 <class>mage.server.admin.GithubSignIn$GithubSignInResult</class>
+                                <class>mage.server.admin.OidcSignIn$OidcSignInResult</class>
                                 <class>mage.server.websocket.api.CareerApi$CareerState</class>
                                 <class>mage.server.websocket.api.CareerApi$CareerMatch</class>
                                 <class>mage.server.career.CareerContent$CareerStarter</class>
