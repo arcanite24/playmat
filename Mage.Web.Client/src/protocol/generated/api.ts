@@ -25,6 +25,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('connectAdmin', password, SESSION),
     sessionGetRestoreToken: () =>
       rpc.call('sessionGetRestoreToken', SESSION),
+    sessionUserName: () =>
+      rpc.call('sessionUserName', SESSION),
     authRememberLogin: () =>
       rpc.call('authRememberLogin', SESSION),
     authForgetLogin: (userName: string, rememberToken: string) =>

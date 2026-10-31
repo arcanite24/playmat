@@ -41,6 +41,18 @@ describe('session store', () => {
     expect(JSON.parse(localStorage.getItem('playmat.login')!)).toEqual({ serverUrl: SERVER, userName: 'alice', passwordless: true, account: false });
   });
 
+  test('goes on as the account name the server spells, whatever case was typed', async () => {
+    localStorage.setItem('playmat.restore', JSON.stringify({ serverUrl: SERVER, userName: 'Alice', token: 'old' }));
+    const { useSession, fake } = await load();
+    fake.api.sessionUserName.mockResolvedValueOnce('Alice');
+    expect(await useSession.getState().signIn(SERVER, 'alice', 'pw')).toBe(true);
+
+    expect(fake.api.connectUser).toHaveBeenCalledWith('alice', 'pw', 'old');
+    expect(useSession.getState().userName).toBe('Alice');
+    expect(restoreSaved()).toEqual({ serverUrl: SERVER, userName: 'Alice', token: 'token-1' });
+    expect(JSON.parse(localStorage.getItem('playmat.login')!)).toMatchObject({ userName: 'Alice', account: true });
+  });
+
   test('sends the saved restore token only to the same server and user', async () => {
     localStorage.setItem('playmat.restore', JSON.stringify({ serverUrl: SERVER, userName: 'alice', token: 'old' }));
     const { useSession, fake } = await load();

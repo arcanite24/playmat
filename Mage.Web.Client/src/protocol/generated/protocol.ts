@@ -15,6 +15,7 @@ export interface RpcMethods {
   connectUser: { params: [userName: string, password: string, sessionId: string, restoreSessionId?: string | null, clientVersion?: string | null, userIdStr?: string | null, rememberToken?: string | null]; result: boolean };
   connectAdmin: { params: [password: string, sessionId: string]; result: boolean };
   sessionGetRestoreToken: { params: [sessionId: string]; result: string };
+  sessionUserName: { params: [sessionId: string]; result: string };
   authRememberLogin: { params: [sessionId: string]; result: string };
   authForgetLogin: { params: [userName: string, rememberToken: string]; result: boolean };
   authRegister: { params: [sessionId: string, userName: string, password: string, email: string, inviteCode?: string | null, turnstileToken?: string | null]; result: boolean };
@@ -275,6 +276,7 @@ export const RPC_METHODS: { readonly [M in RpcMethodName]: { readonly access: Rp
   connectUser: { access: 'login', sessionParam: 2 },
   connectAdmin: { access: 'login', sessionParam: 1 },
   sessionGetRestoreToken: { access: 'session', sessionParam: 0 },
+  sessionUserName: { access: 'session', sessionParam: 0 },
   authRememberLogin: { access: 'session', sessionParam: 0 },
   authForgetLogin: { access: 'public', sessionParam: -1 },
   authRegister: { access: 'login', sessionParam: 0 },
