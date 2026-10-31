@@ -11,7 +11,6 @@ import { AppShell } from './AppShell';
 import { i18nReady } from './i18n';
 import { queryClient } from './queries';
 import { ImportRoute } from './decks/import/ImportRoute';
-import { DecksScreen } from './screens/DecksScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { RequestDialog } from './RequestDialog';
@@ -107,7 +106,7 @@ const router = createBrowserRouter([
         errorElement: <RouteError />,
         children: [
           { path: '/', element: <HomeScreen /> },
-          { path: '/decks', element: <DecksScreen /> },
+          { path: '/decks', lazy: () => import('./screens/DecksScreen').then((m) => ({ Component: m.DecksScreen })) },
           { path: '/import', element: <ImportRoute /> },
           { path: '/decks/:deckId', lazy: () => import('./decks/DeckBuilderScreen').then((m) => ({ Component: m.DeckBuilderScreen })) },
           { path: '/events', lazy: () => import('./screens/EventsScreen').then((m) => ({ Component: m.EventsScreen })) },
