@@ -84,6 +84,7 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
       className={[styles.sleeve, className ?? ''].join(' ')}
       style={{ ...(sleeve ? { '--sleeve': sleeve } : {}), ...style } as CSSProperties}
       data-loaded={loaded || undefined}
+      data-back={hidden || undefined}
     >
       <div className={styles.card}>
         {hidden ? (
