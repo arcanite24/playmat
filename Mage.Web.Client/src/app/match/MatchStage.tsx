@@ -513,7 +513,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 </div>
               );
             })}
-            <div className={styles.printMine}><MatPrint cloth={myCloth} card={myArt} enabled={matArt !== 'none'} /></div>
+            <div className={styles.printMine}><MatPrint cloth={myCloth} card={myArt} enabled={matArt !== 'none'} chosenCard={matArt === 'card'} /></div>
             <div className={styles.seam} aria-hidden="true" />
             {/* under the hand and the controls, over the mat */}
             <Stitch inset={10} radius={22} zIndex={2} />
