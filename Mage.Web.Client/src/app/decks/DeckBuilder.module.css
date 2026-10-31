@@ -383,6 +383,38 @@
   color: var(--ink-strong);
 }
 
+.zoneTabs {
+  display: flex;
+  gap: 4px;
+}
+
+/* the mana value view's switch, at the end of the zone tabs */
+.viewToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: center;
+  margin-left: auto;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.viewToggle:hover {
+  color: var(--ink-strong);
+}
+
+.viewToggleOn {
+  background: rgb(var(--ink-rgb) / 0.1);
+  color: var(--ink-strong);
+}
+
 .list {
   flex: 1;
   min-height: 0;

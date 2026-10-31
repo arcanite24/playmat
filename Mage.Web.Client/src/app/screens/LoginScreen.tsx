@@ -267,6 +267,7 @@ export function LoginScreen() {
         {info?.notice && <p className={styles.serverNotice}>{info.notice}</p>}
         {contributors && mode === 'sit' && <p className={styles.notice}>{t('login.contributors')}</p>}
         {inviteOnly && !invite && mode === 'register' && <p className={styles.notice}>{t('login.inviteOnly')}</p>}
+        {info?.ownerPending && (mode === 'sit' || mode === 'register') && <p className={styles.notice}>{t('login.ownerPending')}</p>}
         {maintenanceAt > 0 && <p className={styles.notice} role="status">{t('shell.maintenanceHint')}{info?.maintenanceMessage ? ` ${info.maintenanceMessage}` : ''}</p>}
         {invite && mode === 'register' && (
           <p className={inviteCheck?.valid === false ? styles.error : styles.notice} role="status">

@@ -56,6 +56,11 @@ final class AccountApi {
         public String access;
         /** what staff want everyone to know, shown on sign-in and Home; empty when there is nothing */
         public String notice;
+        /**
+         * XMAGE_OWNER names an account nobody has registered yet: the sign-in screen tells whoever set up the server to
+         * create it (the name itself is never sent)
+         */
+        public boolean ownerPending;
         /** players can sign in with GitHub (githubStart) */
         public boolean github;
         /** open, or invite: new accounts need an invite link (or a place on the allowlist) */
@@ -185,6 +190,8 @@ final class AccountApi {
             AccessPolicy access = AccessPolicy.get();
             info.access = info.accounts ? access.mode() : AccessPolicy.OPEN;
             info.notice = access.notice();
+            info.ownerPending = info.accounts && !access.owner().isEmpty()
+                    && mage.server.AuthorizedUserRepository.getInstance().getByName(access.owner()) == null;
             info.github = info.accounts && mage.server.admin.GithubAuth.get().isEnabled();
             info.registration = RuntimeSettings.get().registrationOpen() ? "open" : "invite";
             RuntimeSettings runtime = RuntimeSettings.get();

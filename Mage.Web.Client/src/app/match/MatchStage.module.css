@@ -202,6 +202,31 @@
   transform-origin: 50% 0;
 }
 
+/* a card revealed from the hand hangs a little lower, face up over its neighbours, with a mark */
+.revealedCard {
+  top: 30px;
+  z-index: 1;
+}
+
+.revealedMark {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  translate: -50% 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(var(--mat-rgb) / 0.9);
+  box-shadow: inset 0 0 0 1px var(--brass);
+  color: var(--brass-ink);
+  font-family: var(--font-print);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .handCount {
   position: absolute;
   left: 0;

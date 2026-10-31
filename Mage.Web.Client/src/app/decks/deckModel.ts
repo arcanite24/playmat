@@ -88,7 +88,7 @@ export function changePrinting(deck: DeckCardLists, zone: DeckZone, key: string,
 
 export type DeckGroupKey = 'creatures' | 'planeswalkers' | 'spells' | 'artifacts' | 'enchantments' | 'lands' | 'unknown';
 
-const GROUP_LABELS: Record<DeckGroupKey, string> = {
+export const GROUP_LABELS: Record<DeckGroupKey, string> = {
   creatures: 'Creatures',
   planeswalkers: 'Planeswalkers',
   spells: 'Instants & sorceries',
