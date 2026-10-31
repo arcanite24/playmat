@@ -44,6 +44,8 @@ public class AccountRecordsTest {
         store.allow("sam", "friend", "owner", 1);
         store.grantStaff("Pat", StaffRole.MODERATOR, "owner", 1);
         store.linkGithub(7, "pat-gh", "Pat", 1);
+        store.linkOidc("sub-pat", "Pat", "pat@example.test", "Pat", 1);
+        store.linkOidc("sub-sam", "Sam", "sam@example.test", "sam", 1);
         store.addFeedback("Pat", "bug", "", "Cards overlap", "/game", 1);
         store.addFeedback("sam", "idea", "Dark mode", "More of it", "", 1);
         store.audit("owner", "user.mute", "Pat", null, null, 1);
@@ -54,6 +56,8 @@ public class AccountRecordsTest {
         assertThat(store.isListed("sam", null)).isTrue();
         assertThat(store.staffRole("pat")).isNull();
         assertThat(store.githubLinkOf("Pat")).isNull();
+        assertThat(store.oidcLinkOf("Pat")).isNull();
+        assertThat(store.oidcLink("sub-sam").account).isEqualTo("sam");
         assertThat(store.feedback(null, 10)).extracting(f -> f.userName).containsExactly("sam");
         assertThat(store.auditLog(null, null, "Pat", 0, 10)).as("the audit log stays").hasSize(1);
 

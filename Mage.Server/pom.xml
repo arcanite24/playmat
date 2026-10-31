@@ -256,6 +256,12 @@
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
         </dependency>
+        <dependency>
+            <!-- JOSE: verifying the OIDC ID token (signature + claims). 9.x keeps the Java 8 baseline (root pom java.release=8). -->
+            <groupId>com.nimbusds</groupId>
+            <artifactId>nimbus-jose-jwt</artifactId>
+            <version>9.48</version>
+        </dependency>
     </dependencies>
 
     <build>
