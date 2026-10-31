@@ -20,6 +20,7 @@ import { useServerInfo } from '../queries';
 import { openImport, useImportSheet } from '../stores/importSheet';
 import { Button } from '../ui/Button';
 import { DeckBox } from '../ui/DeckBox';
+import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
 import { Field } from '../ui/Field';
 import { notify } from '../stores/toasts';
@@ -43,6 +44,8 @@ export function DecksScreen() {
   const [removing, setRemoving] = useState<RosterDeck | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<RosterDeck | null>(null);
+  // a sleeve up close (right-click its swatch)
+  const [sleevePreview, setSleevePreview] = useState<{ color: string; name: string } | null>(null);
   const selected = roster.find((deck) => deck.id === decks.selectedId) ?? null;
   const arrivedId = useImportSheet((state) => state.arrivedId);
   const career = useSettings((state) => state.settings.careerOptIn);
@@ -150,16 +153,20 @@ export function DecksScreen() {
                       className={styles.swatch}
                       style={{ background: color }}
                       onClick={() => decks.setSleeve(selected.id, color)}
+                      onContextMenu={(event) => {
+                        event.preventDefault();
+                        setSleevePreview({ color, name: t('decks.sleeve', { color }) });
+                      }}
                     />
                   ))}
                   {career && (
                     <Suspense fallback={null}>
-                      <CareerSleeves current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
+                      <CareerSleeves current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} onPreview={(color, name) => setSleevePreview({ color, name })} />
                     </Suspense>
                   )}
                   {accounts && (
                     <Suspense fallback={null}>
-                      <SupporterSleeve current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} />
+                      <SupporterSleeve current={chosenSleeve(decks.sleeves, selected)} swatchClass={styles.swatch} onPick={(color) => decks.setSleeve(selected.id, color)} onPreview={(color, name) => setSleevePreview({ color, name })} />
                     </Suspense>
                   )}
                 </div>
@@ -191,6 +198,20 @@ export function DecksScreen() {
       <UpdateDialog deckId={updating} onClose={() => setUpdating(null)} />
 
       <RenameDialog deck={renaming} onClose={() => setRenaming(null)} />
+
+      <Dialog
+        open={!!sleevePreview}
+        onOpenChange={(open) => !open && setSleevePreview(null)}
+        title={sleevePreview?.name ?? ''}
+        width="sm"
+        footer={<Button variant="quiet" onClick={() => setSleevePreview(null)}>{t('ui.close')}</Button>}
+      >
+        {sleevePreview && (
+          <div className={styles.sleevePreview}>
+            <CardFace card={{ name: '' }} hidden sleeve={sleevePreview.color} size="large" />
+          </div>
+        )}
+      </Dialog>
 
       <Dialog
         open={!!removing}

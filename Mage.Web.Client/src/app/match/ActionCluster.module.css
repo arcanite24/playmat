@@ -217,6 +217,20 @@
   color: var(--ink-strong);
 }
 
+/* an answer the server may refuse, said before it is sent */
+.warning {
+  margin: 0;
+  max-width: 420px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: rgb(var(--mat-rgb) / 0.85);
+  box-shadow: inset 0 0 0 1.5px var(--oxblood-lit);
+  font-size: 20px;
+  line-height: 1.3;
+  text-align: right;
+  color: var(--danger-text);
+}
+
 /* the cards a question is about, fanned beside it; click to read them */
 .cards {
   display: flex;

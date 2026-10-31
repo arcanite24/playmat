@@ -1,4 +1,4 @@
-/* sleeve: a thin matte rim in the deck's color around the card */
+/* sleeve: the card at real proportions; face down, a thin matte rim in the deck's sleeve color shows around its back */
 .sleeve {
   --sleeve: var(--sleeve-default);
   position: relative;
@@ -11,6 +11,13 @@
     var(--sleeve);
   box-shadow: var(--shadow-placed);
   user-select: none;
+}
+
+/* face up, the card shows edge to edge: no sleeve rim */
+.sleeve:not([data-back]) {
+  padding: 0;
+  border-radius: var(--card-radius) / calc(var(--card-radius) * 63 / 88);
+  background: none;
 }
 
 .card {

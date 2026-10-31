@@ -1,5 +1,17 @@
 /* The pull sequence's machine, the capsule the player prises open, and the light that comes out of it. */
 
+/* one line of prompt and one button, reserved whether or not they show */
+.machinePrompt {
+  min-height: 1.5em;
+  line-height: 1.5;
+}
+
+.turnSlot {
+  display: grid;
+  place-items: center;
+  min-height: max(var(--btn-h), var(--touch-target, 0px));
+}
+
 .seqCabinet {
   /* tall (the painting is 640 by 1229); the prompt and its button stay on screen under it */
   width: min(340px, 66vw, calc((100dvh - 190px) * 640 / 1229));

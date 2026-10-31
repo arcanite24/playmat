@@ -97,6 +97,8 @@ export default {
   'login.submit.ask': 'Send the request',
   'login.contributors': "Contributors only: this server lets in the people on its list. Sign in, open your invite link, or ask for access.",
   'login.ask': 'Ask for access',
+  // XMAGE_OWNER names an account nobody has registered yet
+  'login.ownerPending': 'New server: register the name in XMAGE_OWNER to create its owner account.',
   'login.inviteOnly': 'New accounts need an invite link here right now. If you have one, open it; otherwise ask for access.',
   'login.askNote': "A note for the server's staff",
   'login.askNoteHint': 'For example your GitHub handle, or what you work on.',

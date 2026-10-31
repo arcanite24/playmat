@@ -10,6 +10,7 @@ import { parsePayment } from '../../core/game/payment';
 import { xLimit } from '../../core/game/announceX';
 import { sortHand } from '../../core/game/handOrder';
 import { askedAboutCards } from '../../core/game/reveals';
+import { revealedInHand } from '../../core/game/revealedHand';
 import { delayLabel, isBroadcastDelay } from '../../core/game/broadcastDelay';
 import { spectatorHand } from '../../core/game/spectatorHand';
 import { matchProgress } from '../../core/game/matchProgress';
@@ -27,6 +28,7 @@ import { useAutomation, useSettings } from '../stores/settings';
 import { useManaPaymentSettings } from './useManaPaymentSettings';
 import { progressionShown } from '../career/progressionEvents';
 import { notify } from '../stores/toasts';
+import { blockWarning } from '../../core/game/blockRequirements';
 import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { Dialog } from '../ui/Dialog';
@@ -44,11 +46,13 @@ import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
 import { LessonCoach } from './LessonCoach';
 import { CardZoom } from './CardZoom';
+import { CombatPreview } from './CombatPreview';
 import { DamageAssigner } from './DamageAssigner';
 import { damageCorner, useDamageSplit } from './useDamageSplit';
 import { EmoteBubbles } from './EmoteBubbles';
 import { EmoteButton } from './emotes/EmoteButton';
 import { useOpponentVoice } from './useOpponentVoice';
+import { useRevealedHands } from './useRevealedHands';
 import { setCardMotion, useFlipOrigin } from './flip';
 import { GameLog } from './GameLog';
 import { Hand } from './Hand';
@@ -150,6 +154,7 @@ export interface MatchStageProps {
 
 export function MatchStage({ session, state, replayLog, onLeave }: MatchStageProps) {
   const { view, interaction, playerId, mode, awaitingServer, prediction } = state;
+  const revealedHands = useRevealedHands(view, mode !== 'replay');
   const t = useT();
   const navigate = useNavigate();
   const animations = useSettings((settings) => settings.settings.animations);
@@ -213,6 +218,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   );
   const stack = useMemo(() => Object.values(view?.stack ?? {}), [view?.stack]);
 
+  // the declare-blockers prompt whose blocks were warned about, and why (a second press sends them anyway)
+  const [blockWarned, setBlockWarned] = useState<{ prompt: unknown; text: string } | null>(null);
   const onCommand = useCallback((command: Command) => {
     // Cancel on a payment is never dropped: auto-pay keeps a tap with the server most of the time
     if (command.type === 'boolean' && !command.value && session.getState().interaction.mode === 'payMana') {
@@ -221,11 +228,22 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     }
     // one answer per question: while the server works on the last one, further answers are dropped
     if (command.type !== 'action' && session.getState().awaitingServer) return;
+    // blocks that leave a "must be blocked if able" attacker unblocked are not sent on the first press
+    const current = session.getState();
+    const asked = current.interaction.prompt;
+    if (command.type === 'boolean' && command.value && current.interaction.mode === 'declareBlockers'
+      && asked?.kind === 'declareBlockers' && blockWarned?.prompt !== asked) {
+      const unblocked = blockWarning(current.view, asked);
+      if (unblocked) {
+        setBlockWarned({ prompt: asked, text: t('match.block.mustBeBlocked', { name: unblocked.name || t('match.block.anAttacker') }) });
+        return;
+      }
+    }
     if (command.type === 'action' && (command.action === 'HOLD_PRIORITY' || command.action === 'UNHOLD_PRIORITY')) {
       setHolding(command.action === 'HOLD_PRIORITY');
     }
     void session.respond(command).catch(() => undefined);
-  }, [session]);
+  }, [session, t, blockWarned]);
   const onResend = useCallback(() => void session.resend().catch(() => undefined), [session]);
   const onResync = useCallback(() => {
     void session.resync().then((resent) => {
@@ -509,6 +527,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 sleeve={theirSleeves.get(opponent.player.playerId!) ?? sleeves.theirs}
                 look={lookOf(opponent.player)}
                 handCount={opponent.player.handCount ?? 0}
+                revealed={revealedInHand(revealedHands, opponent.player.playerId)}
                 clickable={clickable}
                 selected={interaction.selected}
                 attacking={attacking}
@@ -618,6 +637,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onFullControl={setFullControl}
                 stalled={state.stalled}
                 conceding={state.conceding ? { waitingOn: priorityName } : null}
+                warning={blockWarned && blockWarned.prompt === interaction.prompt ? blockWarned.text : null}
                 cards={askCards}
                 onResend={onResend}
                 onResync={onResync}
@@ -628,6 +648,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             )}
 
             {damageSplit && canAct && !awaitingServer && <DamageAssigner split={damageSplit} />}
+            {canAct && <CombatPreview view={view} mode={interaction.mode} />}
             {defenders && (attackDrop.manualDefender || !(automation.attackPlayerByDefault && defaultDefender(defenders))) && <DefenderPicker attacker={attackerName} options={defenders} onPick={onClick} />}
             <Vfx view={view} myPlayerId={myId} sparks={sparks} />
             <Arrows sourceId={arrowSource} targetIds={arrowTargets} live={choosingTargets} links={links} attacks={attacks} leads={leads} tints={arrowTint} />
@@ -785,13 +806,15 @@ function Row({ groups, left, width, top, ideal, min, forward, label, flip, ...re
 }
 
 /** An opponent's half: their rows mirrored above the seam, their seat, piles and hidden hand. */
-function OpponentSide({ board, index, count, sleeve, handCount, deciding, layout, commanders, commanderDamage, outOfRange, look, ...row }: RowProps & {
+function OpponentSide({ board, index, count, sleeve, handCount, revealed, deciding, layout, commanders, commanderDamage, outOfRange, look, ...row }: RowProps & {
   layout: MatchLayout;
   look: PlayerLook | undefined;
   board: PlayerBoard;
   index: number;
   count: number;
   handCount: number;
+  /** cards revealed from this hand and still in it */
+  revealed: CardView[];
   deciding: boolean;
   commanders: readonly CommanderStatus[];
   commanderDamage: readonly { name: string; amount: number }[];
@@ -832,23 +855,42 @@ function OpponentSide({ board, index, count, sleeve, handCount, deciding, layout
         </div>
       )}
       {count > 1 && !layout.tall && <span className={styles.seatName} style={{ left: place.left + 16 }} aria-hidden="true">{player.name}</span>}
-      <HiddenHand playerId={player.playerId!} count={handCount} sleeve={sleeve} left={layout.hiddenHandX(index, count)} />
+      <HiddenHand playerId={player.playerId!} count={handCount} revealed={revealed} sleeve={sleeve} left={layout.hiddenHandX(index, count)} />
     </>
   );
 }
 
 /** The backs of an opponent's hand peeking over the top edge; their spells fly out of it. */
-function HiddenHand({ playerId, count, sleeve, left }: { playerId: string; count: number; sleeve: string; left: number }) {
+function HiddenHand({ playerId, count, revealed, sleeve, left }: { playerId: string; count: number; revealed: CardView[]; sleeve: string; left: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useFlipOrigin(`hand:${playerId}`, ref);
+  const t = useT();
+  const setZoom = useMatchUi((state) => state.setZoom);
   const shown = Math.min(count, 10);
+  // cards revealed from this hand show face up, marked, in place of as many backs
+  const faceUp = revealed.slice(0, shown);
+  const label = `${count} cards in hand` + (faceUp.length > 0 ? `, revealed: ${faceUp.map((card) => card.displayName ?? card.name).join(', ')}` : '');
   return (
-    <div ref={ref} className={styles.hiddenHand} style={{ left }} aria-label={`${count} cards in hand`} role="img">
-      {Array.from({ length: shown }, (_, i) => (
-        <div key={i} className={styles.hiddenCard} style={{ ['--i' as string]: i - (shown - 1) / 2 }}>
-          <CardFace card={{}} hidden sleeve={sleeve} size="small" />
-        </div>
-      ))}
+    <div ref={ref} className={styles.hiddenHand} style={{ left }} aria-label={label} role="img">
+      {Array.from({ length: shown }, (_, i) => {
+        const card = faceUp[i];
+        return card ? (
+          <div
+            key={card.cardId ?? card.id ?? i}
+            className={[styles.hiddenCard, styles.revealedCard].join(' ')}
+            style={{ ['--i' as string]: i - (shown - 1) / 2 }}
+            onPointerEnter={(event) => setZoom({ card, x: event.clientX, y: event.clientY, sleeve, anchor: event.currentTarget })}
+            onPointerLeave={() => setZoom(null)}
+          >
+            <CardFace card={card} sleeve={sleeve} size="small" />
+            <span className={styles.revealedMark}>{t('match.hand.revealed')}</span>
+          </div>
+        ) : (
+          <div key={i} className={styles.hiddenCard} style={{ ['--i' as string]: i - (shown - 1) / 2 }}>
+            <CardFace card={{}} hidden sleeve={sleeve} size="small" />
+          </div>
+        );
+      })}
       {count > 0 && <span className={styles.handCount}>{count}</span>}
     </div>
   );

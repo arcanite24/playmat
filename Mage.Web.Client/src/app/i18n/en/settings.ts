@@ -139,6 +139,8 @@ export default {
   'settings.volume.label': 'Sound volume',
   'settings.importantCues': 'Only important cues',
   'settings.importantCues.detail': 'Just your turn, decisions, your clock running low and the result.',
+  'settings.triggerSounds': 'Trigger sounds',
+  'settings.triggerSounds.detail': 'A short chime when a triggered ability ("when", "whenever", "at") goes on the stack. Off, it sounds like a spell.',
   'settings.careerMusic': 'Career music',
   'settings.showProgress': 'Show progression',
   'settings.showProgress.detail': 'Your level in the header, Today on Home and what each game paid. Games count either way. Kept with your account.',
