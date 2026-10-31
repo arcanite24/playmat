@@ -149,10 +149,14 @@ env_set() {
   rm -f "$tmp"
 }
 
-# compose_args KIT: sets ARGS to docker compose's arguments for this project, with KIT's compose file and the .env
+# compose_args KIT: sets ARGS to docker compose's arguments for this project, with KIT's compose file and the .env, plus
+# KIT's proxy override when .env puts Caddy behind the host's own reverse proxy (TLS_MODE=external; kits from before it
+# have none)
 ARGS=()
 compose_args() {
-  ARGS=(-p "$PROJECT" --project-directory "$1" -f "$1/docker-compose.yml" --env-file "$ENV_FILE")
+  ARGS=(-p "$PROJECT" --project-directory "$1" -f "$1/docker-compose.yml")
+  [[ $(env_get TLS_MODE) == external && -f $1/docker-compose.proxy.yml ]] && ARGS+=(-f "$1/docker-compose.proxy.yml")
+  ARGS+=(--env-file "$ENV_FILE")
 }
 
 compose() {

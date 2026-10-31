@@ -34,4 +34,4 @@ RUN GOOS=$TARGETOS GOARCH=$TARGETARCH xcaddy build --with github.com/mholt/caddy
 FROM caddy:${CADDY_VERSION}-alpine
 COPY --from=caddy /usr/bin/caddy /usr/bin/caddy
 COPY --from=build /app/dist /srv
-COPY ops/web/Caddyfile /etc/caddy/Caddyfile
+COPY ops/web/Caddyfile ops/web/sites-https.caddy ops/web/sites-external.caddy /etc/caddy/

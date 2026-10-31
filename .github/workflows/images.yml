@@ -23,12 +23,14 @@ on:
       - "Mage.Web.Client/**"
       - "ops/web/Dockerfile.*"
       - "ops/web/Caddyfile"
+      - "ops/web/*.caddy"
       - "ops/web/server-entrypoint.sh"
       - "ops/web/backup.sh"
       - "ops/web/log4j-docker.properties"
       - "ops/web/updater/**"
       # the server image carries the compose kit the deploy runs (ops/web/deploy)
       - "ops/web/docker-compose.yml"
+      - "ops/web/docker-compose.proxy.yml"
       - "ops/web/imgcache.conf.template"
       - ".github/workflows/images.yml"
   workflow_dispatch:
