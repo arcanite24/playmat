@@ -26,7 +26,7 @@ import { CardArt, PortraitCard, type ArtCard } from './Portraits';
 import { useCapsuleSummary } from './capsules/capsuleData';
 import { CAREER_SLEEVES, cosmeticName, describePay, fraction, unlockedIds, weeklyMarks } from './progressModel';
 import { TitleText } from './LookParts';
-import { RANDOM_SLEEVE } from '../ui/sleeveArt';
+import { RANDOM_SLEEVE, sleeveBackOf } from '../ui/sleeveArt';
 import { useCatalog, useCatalogItem } from '../ui/cosmeticsCatalog';
 import { RosterVersus } from './rosterPlay';
 import { useCareerDeck } from './useCareerDeck';
@@ -488,8 +488,21 @@ export function CareerSummary({ user, onOpen }: { user: string; onOpen(): void }
  * The sleeves a Career unlocked, beside the free ones wherever a deck's sleeves are chosen, and "random" (once there
  * are two to pick from): the deck wears one of them, a different one each game (ui/sleeveArt.ts).
  */
-export function CareerSleeves({ current, swatchClass, onPick }: { current: string; swatchClass: string; onPick(color: string): void }) {
+/** A sleeve's swatch in a picker: its painted back when painted art is on, its dye otherwise. */
+function sleeveSwatchBackground(color: string, paintedArt: boolean): string {
+  const back = sleeveBackOf(color);
+  return back && paintedArt ? `center / cover no-repeat url("${back}"), ${color}` : color;
+}
+
+export function CareerSleeves({ current, swatchClass, onPick, onPreview }: {
+  current: string;
+  swatchClass: string;
+  onPick(color: string): void;
+  /** right-click: a sleeve up close */
+  onPreview?(color: string, name: string): void;
+}) {
   const t = useT();
+  const paintedArt = useSettings((state) => state.settings.paintedArt);
   const unlocks = useCareerUnlocks();
   // the catalog says which sleeves exist and their dyes
   useCatalog();
@@ -509,8 +522,12 @@ export function CareerSleeves({ current, swatchClass, onPick }: { current: strin
             aria-label={name}
             title={name}
             className={swatchClass}
-            style={{ background: color }}
+            style={{ background: sleeveSwatchBackground(color, paintedArt) }}
             onClick={() => onPick(color)}
+            onContextMenu={onPreview ? (event) => {
+              event.preventDefault();
+              onPreview(color, name);
+            } : undefined}
           />
         );
       })}

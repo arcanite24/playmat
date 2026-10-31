@@ -75,6 +75,12 @@
   cursor: pointer;
 }
 
+/* a sleeve up close: its back at a size you can see the painting */
+.sleevePreview {
+  width: min(240px, 70%);
+  margin: 0 auto;
+}
+
 .swatch[aria-checked='true'] {
   box-shadow: inset 0 0 0 1px rgb(var(--shade-rgb) / 0.4), 0 0 0 2px var(--ink);
 }
