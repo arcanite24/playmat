@@ -30,6 +30,14 @@ public interface RpcConnection {
     }
 
     /**
+     * @return the user the single sign-on proxy in front named in this connection's handshake (see
+     * {@code TrustedHeaderAuth}), or null when it named nobody or the server has no single sign-on
+     */
+    default String getSignedOnUser() {
+        return null;
+    }
+
+    /**
      * @return remote IP address, used by the server to identify anonymous users on reconnect
      */
     String getRemoteHost();

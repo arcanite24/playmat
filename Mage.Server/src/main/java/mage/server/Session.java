@@ -84,6 +84,7 @@ public class Session {
     private final Date timeConnected;
     private boolean isAdmin = false;
     private volatile String rememberedUserName; // see trustRememberedLogin
+    private volatile String signedOnUserName; // see trustSignedOnLogin
     private final AsynchInvokerCallbackHandler callbackHandler;
     private boolean valid = true;
 
@@ -146,6 +147,11 @@ public class Session {
             String returnMessage = REGISTRATION_DISABLED_MESSAGE;
             sendErrorMessageToClient(returnMessage);
             return returnMessage;
+        }
+        // single sign-on only: accounts are made by the first sign-in through it
+        if (!TrustedHeaderAuth.get().passwordSignIn()) {
+            sendErrorMessageToClient(TrustedHeaderAuth.PASSWORDS_OFF);
+            return TrustedHeaderAuth.PASSWORDS_OFF;
         }
         synchronized (AuthorizedUserRepository.getInstance()) {
             // name
@@ -233,7 +239,7 @@ public class Session {
     /**
      * Null when the new account may be created; an invite is used up here and its account allowlisted.
      */
-    private static String admitNewAccount(String userName, String email, String inviteCode) {
+    static String admitNewAccount(String userName, String email, String inviteCode) {
         AccessPolicy access = AccessPolicy.get();
         boolean hasInvite = inviteCode != null && !inviteCode.trim().isEmpty();
         if (!hasInvite) {
@@ -379,6 +385,14 @@ public class Session {
         this.rememberedUserName = userName;
     }
 
+    /**
+     * The next login as this user needs no password: the sign-on proxy in front named this user in the connection's
+     * handshake (see {@link TrustedHeaderAuth}).
+     */
+    public void trustSignedOnLogin(String userName) {
+        this.signedOnUserName = userName;
+    }
+
     public boolean isLocked() {
         return lock.isLocked();
     }
@@ -392,6 +406,9 @@ public class Session {
         // a remembered device's token, checked by the web bridge just before this login: good for this login only
         boolean remembered = userName != null && userName.equals(rememberedUserName);
         rememberedUserName = null;
+        // named by the sign-on proxy for this connection (the web bridge sets it before every login on it)
+        boolean signedOn = userName != null && userName.equals(signedOnUserName);
+        signedOnUserName = null;
 
         // find auth user
         AuthorizedUser authorizedUser = null;
@@ -407,7 +424,11 @@ public class Session {
                     && managerFactory.userManager().getUserByName(userName)
                     .map(user -> restoreSessionId.equals(user.getRestoreSessionId()))
                     .orElse(false);
-            if (!Main.isTestMode() && !restoring && !remembered && !authorizedUser.doCredentialsMatch(userName, password)) {
+            if (!signedOn && !TrustedHeaderAuth.get().passwordSignIn()) {
+                // single sign-on only: passwords, remembered devices and restore tokens don't sign in without it
+                return TrustedHeaderAuth.PASSWORDS_OFF;
+            }
+            if (!Main.isTestMode() && !signedOn && !restoring && !remembered && !authorizedUser.doCredentialsMatch(userName, password)) {
                 return errorMsg;
             }
 

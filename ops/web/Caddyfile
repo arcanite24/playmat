@@ -34,6 +34,13 @@
 (site) {
 	encode zstd gzip
 
+	# Single sign-on (AUTH_TRUSTED_HEADER): the header a sign-on proxy names the signed-in user with. It is kept only on
+	# requests whose TCP peer is that proxy (AUTH_TRUSTED_PROXIES; remote_ip is the peer, never a forwarded address)
+	# and deleted from everyone else's before any route sees it, so a player can't name themselves. The server
+	# believes it only from this Caddy.
+	@notSignOnProxy not remote_ip {$AUTH_TRUSTED_PROXIES:255.255.255.255/32}
+	request_header @notSignOnProxy -{$AUTH_TRUSTED_HEADER:X-Playmat-Sign-On-Off}
+
 	# Per client address: the peer, or the client a trusted upstream proxy names (see UPSTREAM_PROXIES).
 	# Over the limit: 429 with Retry-After. The server also caps concurrent game connections per address.
 	rate_limit {

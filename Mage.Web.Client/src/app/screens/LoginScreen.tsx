@@ -96,6 +96,9 @@ export function LoginScreen() {
   }, [session, navigate, destination, invite, backFromGithub]);
 
   const accounts = !!info?.accounts;
+  // single sign-on: the proxy in front already said who this is, or the server takes nobody else
+  const signOn = mode === 'sit' && !elsewhere ? info?.signOn ?? null : null;
+  const signOnOnly = !!info?.signOnOnly;
   const contributors = info?.access === 'allowlist';
   const inviteOnly = info?.registration === 'invite';
   const maintenanceAt = info?.maintenanceAt ?? 0;
@@ -130,6 +133,21 @@ export function LoginScreen() {
   function refuse() {
     setRefused((count) => count + 1);
     setTurnstileToken('');
+  }
+
+  // signed on: in straight away on a first visit or a reload, unless this device signed out
+  const signedOn = useRef(false);
+  useEffect(() => {
+    if (!signOn || signedOn.current || invite || backFromGithub) return;
+    signedOn.current = true;
+    if (useSession.getState().phase !== 'signedOut') return;
+    void session.signInWithSignOn(serverUrl.trim(), signOn, true).then((ok) => ok && seated());
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the server names the player
+  }, [signOn]);
+
+  async function continueSignedOn() {
+    if (signOn && await session.signInWithSignOn(serverUrl.trim(), signOn)) seated();
+    else refuse();
   }
 
   // back from GitHub: sign in to the account it names, or pick a name for a new one first
@@ -275,7 +293,18 @@ export function LoginScreen() {
           </p>
         )}
 
-        {(mode === 'sit' || mode === 'register' || mode === 'ask' || mode === 'githubName') && (
+        {signOn && (
+          <>
+            <SeatPlate name={signOn} placeholder={t('login.yourName')} />
+            <Button type="button" variant="decision" size="xl" busy={busy} className={styles.submit} onClick={() => void continueSignedOn()}>
+              {t('login.signOn.continue')}
+            </Button>
+            <p className={styles.quiet}>{t('login.signOn.hint')}</p>
+          </>
+        )}
+        {!signOn && signOnOnly && mode === 'sit' && <p className={styles.notice} role="status">{t('login.signOn.only')}</p>}
+
+        {!signOn && !signOnOnly && (mode === 'sit' || mode === 'register' || mode === 'ask' || mode === 'githubName') && (
           <>
             <SeatPlate name={name && !nameError ? name : ''} placeholder={t('login.yourName')} />
             <Field
@@ -329,7 +358,7 @@ export function LoginScreen() {
           />
         )}
 
-        {mode === 'sit' && (accounts || needsPassword) && (
+        {mode === 'sit' && !signOn && !signOnOnly && (accounts || needsPassword) && (
           <Field
             label={t('login.password')}
             type="password"
@@ -353,7 +382,7 @@ export function LoginScreen() {
           />
         )}
 
-        {((mode === 'sit' && accounts) || mode === 'register') && (
+        {((mode === 'sit' && accounts && !signOn && !signOnOnly) || mode === 'register') && (
           <label className={styles.remember}>
             <input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} />
             {t('login.remember')}
@@ -415,17 +444,19 @@ export function LoginScreen() {
         {session.staleLogin && !session.error && <p className={styles.notice} role="status">{t('login.staleLogin')}</p>}
         {session.error && <p className={styles.error} role="alert">{session.error}</p>}
 
-        <Button type="submit" variant="decision" size="xl" busy={busy || working} disabled={!canSubmit} className={styles.submit}>
-          {submitLabel}
-        </Button>
+        {!signOn && !(signOnOnly && mode === 'sit') && (
+          <Button type="submit" variant="decision" size="xl" busy={busy || working} disabled={!canSubmit} className={styles.submit}>
+            {submitLabel}
+          </Button>
+        )}
 
-        {mode === 'sit' && accounts && info?.github && (
+        {mode === 'sit' && accounts && !signOn && info?.github && (
           <Button type="button" variant="quiet" icon={<GithubMark />} onClick={startGithub} busy={working}>
             {t('login.github')}
           </Button>
         )}
 
-        {mode === 'sit' && accounts && (
+        {mode === 'sit' && accounts && !signOn && !signOnOnly && (
           <div className={styles.accountLinks}>
             <button type="button" className={styles.linkButton} onClick={() => switchMode('register')}>{t('login.createAccount')}</button>
             {(contributors || inviteOnly) && <button type="button" className={styles.linkButton} onClick={() => switchMode('ask')}>{t('login.ask')}</button>}

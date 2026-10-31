@@ -47,6 +47,17 @@ public interface RpcSessions {
     void trustRememberedLogin(String sessionId, String userName, String token);
 
     /**
+     * Single sign-on: lets the session's next login skip the password for the account the sign-on proxy named, linking
+     * the account of that name or creating one first.
+     *
+     * @return the account's name as stored
+     * @throws IllegalArgumentException with the reason for the player when there is no account and none can be made
+     */
+    default String trustSignedOnLogin(String sessionId, String signedOnUser) {
+        throw new IllegalArgumentException("This server has no single sign-on");
+    }
+
+    /**
      * Forgets a remembered device (signing out on it).
      */
     void forgetLogin(String userName, String token);

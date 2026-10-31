@@ -150,6 +150,24 @@ case "$ALLOWLIST" in
   @*) [ -r "${ALLOWLIST#@}" ] || die "XMAGE_ALLOWLIST file ${ALLOWLIST#@} can't be read" ;;
 esac
 
+# --- single sign-on ----------------------------------------------------------------------------
+# A proxy in front names the signed-in user in AUTH_TRUSTED_HEADER (passed in as XMAGE_AUTH_TRUSTED_HEADER); Caddy keeps
+# the header only on its requests, and the server believes it only from Caddy (XMAGE_TRUSTED_PROXIES).
+SIGN_ON_HEADER=${XMAGE_AUTH_TRUSTED_HEADER:-}
+PASSWORD_SIGNIN=${XMAGE_PASSWORD_SIGNIN:-true}
+STRIP_DOMAIN=${XMAGE_TRUSTED_HEADER_STRIP_DOMAIN:-false}
+is_bool "$PASSWORD_SIGNIN" || die "XMAGE_PASSWORD_SIGNIN must be true or false (got '$PASSWORD_SIGNIN')"
+is_bool "$STRIP_DOMAIN" || die "XMAGE_TRUSTED_HEADER_STRIP_DOMAIN must be true or false (got '$STRIP_DOMAIN')"
+case "$SIGN_ON_HEADER" in
+  *[!A-Za-z0-9-]*) die "AUTH_TRUSTED_HEADER must be a header name like Remote-User (got '$SIGN_ON_HEADER')" ;;
+esac
+if [ -n "$SIGN_ON_HEADER" ] && [ "${XMAGE_AUTH:-false}" != true ]; then
+  die "AUTH_TRUSTED_HEADER needs XMAGE_AUTH=true: single sign-on signs in to accounts"
+fi
+if [ -z "$SIGN_ON_HEADER" ] && [ "$PASSWORD_SIGNIN" = false ]; then
+  die "XMAGE_PASSWORD_SIGNIN=false needs AUTH_TRUSTED_HEADER: nobody could sign in"
+fi
+
 # --- support for the server ---------------------------------------------------------------------
 # The payment webhooks' listener (Caddy forwards /hooks and /public to it): on 17174 when Ko-fi or GitHub Sponsors is
 # set up, unless XMAGE_HOOKS_PORT says otherwise (0 = off)
@@ -308,6 +326,11 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
     printf '"-Dxmage.githubSponsors.secret=%s"\n' "$(printf '%s' "$XMAGE_GITHUB_SPONSORS_SECRET" | sed 's/[\\"]/\\&/g')"
   fi
   [ -z "$HOOKS_PORT" ] || echo "-Dxmage.hooksPort=$HOOKS_PORT"
+  if [ -n "$SIGN_ON_HEADER" ]; then
+    echo "-Dxmage.auth.trustedHeader=$SIGN_ON_HEADER"
+    echo "-Dxmage.auth.passwordSignIn=$PASSWORD_SIGNIN"
+    echo "-Dxmage.auth.trustedHeaderStripDomain=$STRIP_DOMAIN"
+  fi
   if [ -n "${XMAGE_TRUSTED_PROXIES:-}" ]; then
     echo "-Dxmage.web.trustedProxies=$XMAGE_TRUSTED_PROXIES"
   fi

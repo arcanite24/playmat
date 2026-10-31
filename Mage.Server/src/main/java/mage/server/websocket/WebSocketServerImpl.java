@@ -7,6 +7,7 @@ import com.google.gson.JsonParser;
 import mage.MageException;
 import mage.interfaces.MageServer;
 import mage.server.DisconnectReason;
+import mage.server.TrustedHeaderAuth;
 import mage.server.managers.ManagerFactory;
 import mage.server.websocket.api.ApiContext;
 import mage.server.websocket.api.WebClientApi;
@@ -69,6 +70,7 @@ public class WebSocketServerImpl extends WebSocketServer {
     private final Set<String> allowedOrigins;
     private final WebSocketLimits limits;
     private final ConnectionLimiter connectionLimiter;
+    private final TrustedHeaderAuth signOn;
     private final ThreadPoolExecutor workers;
     private final CountDownLatch startupLatch = new CountDownLatch(1);
     private volatile Exception startupException;
@@ -107,6 +109,15 @@ public class WebSocketServerImpl extends WebSocketServer {
         if (!limits.addressResolver.hasTrustedProxies()) {
             logger.info("WebSocket: no trusted reverse proxies (-D" + WebSocketLimits.TRUSTED_PROXIES_PROP
                     + "), client IPs are the TCP peers");
+        }
+        this.signOn = TrustedHeaderAuth.get();
+        if (signOn.isEnabled()) {
+            logger.info("WebSocket: single sign-on by the " + signOn.header() + " header from trusted proxies"
+                    + (signOn.passwordSignIn() ? ", passwords work too" : ", passwords off"));
+            if (!limits.addressResolver.hasTrustedProxies()) {
+                logger.warn("WebSocket: single sign-on is on but no proxy is trusted (-D" + WebSocketLimits.TRUSTED_PROXIES_PROP
+                        + "): nobody can sign on");
+            }
         }
 
         AtomicInteger threadNumber = new AtomicInteger();
@@ -153,6 +164,7 @@ public class WebSocketServerImpl extends WebSocketServer {
     public void onOpen(WebSocket conn, ClientHandshake handshake) {
         String clientIp = clientIp(conn, handshake);
         ConnectionState state = new ConnectionState(conn, workers, clientIp, limits.maxOutgoingBytes);
+        state.setSignedOnUser(signedOnUser(conn, handshake));
         conn.setAttachment(state);
         BridgeMetrics.get().opened(); // every connection with a state is closed through onClose
         if (limits.limitLoopback || !isLoopback(clientIp)) {
@@ -172,6 +184,27 @@ public class WebSocketServerImpl extends WebSocketServer {
         return limits.addressResolver.resolve(peer,
                 handshake == null ? null : handshake.getFieldValue("X-Forwarded-For"),
                 handshake == null ? null : handshake.getFieldValue("X-Real-IP"));
+    }
+
+    /**
+     * Single sign-on: who the proxy in front says this is, believed only when the TCP peer is a trusted proxy (in the
+     * Docker stack, Caddy, which deletes the header from requests that didn't come from the sign-on proxy).
+     */
+    private String signedOnUser(WebSocket conn, ClientHandshake handshake) {
+        if (!signOn.isEnabled() || handshake == null) {
+            return null;
+        }
+        String value = handshake.getFieldValue(signOn.header());
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        InetSocketAddress remote = conn.getRemoteSocketAddress();
+        if (remote == null || remote.getAddress() == null || !limits.addressResolver.isTrusted(remote.getAddress())) {
+            logger.warn("Ignoring the sign-on header " + signOn.header() + " from " + (remote == null ? "?" : remote.getAddress())
+                    + ", which is not a trusted proxy");
+            return null;
+        }
+        return signOn.nameFrom(value);
     }
 
     private static boolean isLoopback(String ip) {
