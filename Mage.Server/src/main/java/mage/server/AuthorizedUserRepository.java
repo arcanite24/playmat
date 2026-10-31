@@ -254,6 +254,29 @@ public class AuthorizedUserRepository {
         return null;
     }
 
+    /**
+     * The account with this name in any case, or null when there is none (or, from before names were checked that
+     * way, more than one).
+     */
+    public AuthorizedUser getByNameIgnoreCase(String userName) {
+        if (userName == null) {
+            return null;
+        }
+        try {
+            QueryBuilder<AuthorizedUser, Object> qb = usersDao.queryBuilder();
+            qb.where().raw("LOWER(name) = ?", new SelectArg(com.j256.ormlite.field.SqlType.STRING,
+                    userName.toLowerCase(java.util.Locale.ROOT)));
+            List<AuthorizedUser> results = usersDao.query(qb.prepare());
+            if (results.size() == 1) {
+                return results.get(0);
+            }
+            return null;
+        } catch (SQLException ex) {
+            LOGGER.error("Error getting a authorized_user - ", ex);
+        }
+        return null;
+    }
+
     public void update(AuthorizedUser authorizedUser) {
         try {
             usersDao.update(authorizedUser);

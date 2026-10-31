@@ -115,6 +115,10 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_OWNER` | empty | The owner's account name (`-Dxmage.owner`), always let in. |
 | `XMAGE_ALLOWLIST` | empty | The first boot's allowlist (`-Dxmage.allowlist`): account names and emails, comma separated, or `@/path` to a file in the container with one per line (`#` starts a comment). |
 | `XMAGE_GITHUB_CLIENT_ID`, `XMAGE_GITHUB_CLIENT_SECRET` | empty | An OAuth app for Sign in with GitHub (`-Dxmage.github.*`). Its callback URL is `XMAGE_PUBLIC_URL/auth/github`. Both set: the sign-in screen offers GitHub. The secret is a secret. |
+| `AUTH_TRUSTED_HEADER` | empty (off) | Single sign-on: the header a sign-on proxy in front sets to the signed-in user's name, such as `Remote-User` (`-Dxmage.auth.trustedHeader`). Needs `XMAGE_AUTH=true`. See [Single sign-on](#single-sign-on). |
+| `AUTH_TRUSTED_PROXIES` | `UPSTREAM_PROXIES` | The addresses (space separated) the sign-on proxy connects to Caddy from. Caddy keeps `AUTH_TRUSTED_HEADER` only on their requests and deletes it from all others. |
+| `XMAGE_PASSWORD_SIGNIN` | `true` | `false` with single sign-on: it is the only way in. Password sign-in, registration, reset codes, remembered devices and Sign in with GitHub are off (`-Dxmage.auth.passwordSignIn`). The admin password still works. Refuses to start without `AUTH_TRUSTED_HEADER`. |
+| `XMAGE_TRUSTED_HEADER_STRIP_DOMAIN` | `false` | `true`: a header value `alice@example.com` signs in as `alice` (Tailscale logins, proxies that send an email). Only safe when every user shares one domain. |
 | `XMAGE_GITHUB_REPO`, `XMAGE_GITHUB_TOKEN` | empty | `owner/name` of a repository whose people get in to a contributors server by signing in with GitHub, fetched every 6 hours: its collaborators when the token can read them, its public contributors without a token. |
 | `XMAGE_PUBLIC_URL` | `https://$DOMAIN` | The web client's public address (`-Dxmage.publicUrl`), for join links in Discord posts. Include the port when `HTTPS_PORT` isn't 443. Empty: posts without links. |
 | `XMAGE_KOFI_TOKEN` | empty | Ko-fi's webhook verification token (`-Dxmage.kofi.token`). Set: Ko-fi payments are taken at `https://DOMAIN/hooks/kofi`. A secret. See [Support and the monthly goal](#support-and-the-monthly-goal). |
@@ -202,6 +206,40 @@ With Sign in with GitHub set up (`XMAGE_GITHUB_CLIENT_ID` and `XMAGE_GITHUB_CLIE
 The owner and the admin console are always let in. The check runs at registration, sign-in, on a remembered device and on a restored session. Every change is in the console's Audit tab.
 
 To run a contributors server next to an open one on the same host, give it its own Compose project and ports, for example `docker compose -p playmat-dev -f ops/web/docker-compose.yml --env-file ops/web/.env.dev up -d` with a different `DOMAIN`, `HTTP_PORT`/`HTTPS_PORT`, `XMAGE_SUBNET` and `CADDY_IP`. The volumes are named after the project, so the two servers don't share accounts or data.
+
+## Single sign-on
+
+Behind a sign-on proxy (Authelia, Authentik's proxy outpost, oauth2-proxy, `tailscale serve`), players can sign in with it instead of a Playmat password. The proxy names the signed-in user in a header; Playmat believes it. The design and threat model are in [docs/TrustedHeaderAuth.md](../../docs/TrustedHeaderAuth.md); the site's [Single sign-on](https://arcanite24.github.io/playmat/docs/sso.html) guide is the short version.
+
+1. Put the stack behind the proxy as in [Behind another reverse proxy](#behind-another-reverse-proxy), with the sign-on check on every path, `/ws` included.
+2. Set `XMAGE_AUTH=true` and `AUTH_TRUSTED_HEADER` to the proxy's header: Authelia `Remote-User`, Authentik `X-authentik-username`, oauth2-proxy `X-Forwarded-Preferred-Username` (or `X-Forwarded-User`), Tailscale `Tailscale-User-Login` with `XMAGE_TRUSTED_HEADER_STRIP_DOMAIN=true`. `AUTH_TRUSTED_PROXIES` defaults to `UPSTREAM_PROXIES`.
+3. `up -d`. The sign-in screen of a player who came through the proxy says **Continue as <name>**, and signs in by itself on later visits until they sign out.
+
+How the header is trusted:
+
+- Caddy deletes `AUTH_TRUSTED_HEADER` from every request whose TCP peer isn't in `AUTH_TRUSTED_PROXIES` (`remote_ip`, never a forwarded address), before any route.
+- The server reads it only in the WebSocket handshake, and only when the peer is in `XMAGE_TRUSTED_PROXIES` (Caddy). The name is fixed for the connection: a login on it as any other name is refused, and no call can change it. Reconnects carry the header again.
+- The sign-on proxy must replace a client's own copy of its header. The ones above do; a hand-written nginx `auth_request` must use `proxy_set_header`.
+
+Accounts:
+
+- The first sign-in uses the account with that name in any case, or makes one (3 to 14 letters, digits or underscores) with a random password and no email. New accounts pass the same gates as registration: a contributors server's allowlist and the admin console's closed registration. The audit log records them (`access.sso.register`).
+- Roles, bans, locks and deactivation stay in the admin console. Groups from the sign-on aren't mapped to roles.
+- Accounts link by name, so whoever controls a name in the sign-on controls that account, `XMAGE_OWNER` included. Use a sign-on where the admin, not the players, picks user names.
+- Existing accounts keep everything when the sign-on names match. Playmat has no rename, so change the name on the sign-on side where they differ. Start with `XMAGE_PASSWORD_SIGNIN=true` (both work), then turn passwords off once everyone has signed in once.
+- Turning single sign-on off later: the accounts it made have no known password. Players add an email in Settings, Account and reset it, or staff make a reset code in the console.
+
+With `XMAGE_PASSWORD_SIGNIN=false`, every account login needs the header: passwords, remembered devices and restore tokens alone are refused, and so are the desktop client's logins (port 17171). The admin password (`XMAGE_ADMIN_PASSWORD`) still opens the console.
+
+**Check it.** From a machine that reaches Playmat without the proxy, send the header and ask who you are; the answer must have no `signOn`:
+
+```sh
+echo '{"jsonrpc":"2.0","id":1,"method":"serverInfo","params":[]}' | websocat -n1 -H 'Remote-User: owner' wss://DOMAIN/ws
+```
+
+Docker can make every client look like the bridge gateway (rootless Docker, the userland proxy). If `AUTH_TRUSTED_PROXIES` is that gateway, everyone who reaches the stack's ports directly counts as the proxy. Keep `HTTP_PORT` and `HTTPS_PORT` reachable only by the proxy (bind them to `127.0.0.1`, or firewall them).
+
+**The Android app** opens its game connection itself, without the sign-on's cookie, so the proxy turns it away and it can't use single sign-on. For the app, keep `XMAGE_PASSWORD_SIGNIN=true` and a route to Caddy that skips the proxy; the header is absent there and players use passwords.
 
 ## Staff
 
@@ -689,4 +727,5 @@ Add the page origin to `websocketAllowedOrigins` in `config.xml` on the `<server
   share both limits.
 - The Caddy binary is built with [caddy-ratelimit](https://github.com/mholt/caddy-ratelimit), pinned to a commit in
   `Dockerfile.web`. Check `caddy validate` after bumping `CADDY_VERSION` or the module.
+- With single sign-on, Caddy deletes `AUTH_TRUSTED_HEADER` from requests that don't come from `AUTH_TRUSTED_PROXIES`, and the server believes it only from `XMAGE_TRUSTED_PROXIES`. See [Single sign-on](#single-sign-on) for the check to run.
 - Caddy sets `X-Forwarded-For` to the real client address and drops any value the client sent, because Caddy itself trusts no upstream proxies. It also adds `X-Real-IP`. The server only trusts those headers from `XMAGE_TRUSTED_PROXIES`. It defaults to `CADDY_IP`, so changing `XMAGE_SUBNET` and `CADDY_IP` together is enough.

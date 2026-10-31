@@ -84,13 +84,17 @@ final class SessionApi {
                                 optional("rememberToken", STRING))
                         .doc("Log in. Creates the connection's session; restoreSessionId reattaches a user that lost its connection. "
                                 + "rememberToken (from authRememberLogin) stands in for an account's password. Logging in as a user "
-                                + "that is connected elsewhere takes it over: the other connection is closed with code 4001.")
+                                + "that is connected elsewhere takes it over: the other connection is closed with code 4001. "
+                                + "On a connection that came through the server's single sign-on (serverInfo's signOn), only that "
+                                + "name signs in, without a password; its account is linked or created on the first sign-in.")
                         .handler(call -> {
+                            String signedOn = call.getConnection().getSignedOnUser();
                             String rememberToken = call.optString(6, "");
-                            if (!rememberToken.isEmpty()) {
+                            if (signedOn == null && !rememberToken.isEmpty()) {
                                 ctx.sessions.trustRememberedLogin(call.string(2), call.string(0), rememberToken);
                             }
-                            boolean ok = connectUser(ctx, call, serverVersion);
+                            boolean ok = signedOn != null ? connectSignedOn(ctx, call, signedOn, serverVersion)
+                                    : connectUser(ctx, call, serverVersion);
                             // the name the server knows the user by: a later login as it elsewhere ends this session
                             call.getConnection().setUserName(ok ? ctx.sessions.userName(call.sessionId()).orElse(null) : null);
                             return ok;
@@ -248,6 +252,28 @@ final class SessionApi {
             ctx.playerLoginThrottle.recordFailure(nameKey);
         }
         return ok;
+    }
+
+    /**
+     * The sign-on proxy in front named this connection's user: that account signs in without a password (and is made on
+     * its first sign-in), and no other name does on this connection.
+     */
+    private static boolean connectSignedOn(ApiContext ctx, RpcCall call, String signedOn, MageVersion serverVersion) throws Exception {
+        String account;
+        try {
+            if (!signedOn.equalsIgnoreCase(call.string(0).trim())) {
+                throw new IllegalArgumentException("You're signed on as " + signedOn + ". Sign out of the single sign-on to "
+                        + "use another account.");
+            }
+            account = ctx.sessions.trustSignedOnLogin(call.sessionId(), signedOn);
+        } catch (IllegalArgumentException e) {
+            // the dispatcher already opened a session for this login: do not leave it behind
+            ctx.sessions.disconnect(call.sessionId(), DisconnectReason.LostConnection);
+            call.getConnection().bindSession(null);
+            logger.info("Single sign-on refused for " + signedOn + " from " + call.getConnection().getRemoteHost() + ": " + e.getMessage());
+            throw RpcException.notAuthorized(e.getMessage());
+        }
+        return ctx.server.connectUser(account, "", call.string(2), call.optString(3, ""), serverVersion, call.optString(5, ""));
     }
 
     private static boolean connectAdmin(ApiContext ctx, RpcCall call, MageVersion serverVersion) throws Exception {

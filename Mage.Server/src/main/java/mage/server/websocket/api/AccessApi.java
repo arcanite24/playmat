@@ -238,7 +238,10 @@ final class AccessApi {
                         .returns("string")
                         .doc("Sign in with GitHub: the GitHub page to send the player to. GitHub sends them back to "
                                 + GithubAuth.CALLBACK_PATH + "?code=...&state=..., for githubFinish. Fails when it isn't set up.")
-                        .handler(call -> store(() -> GithubAuth.get().start())),
+                        .handler(call -> {
+                            signOnOnly();
+                            return store(() -> GithubAuth.get().start());
+                        }),
 
                 RpcMethod.named("githubFinish")
                         .publicAccess()
@@ -248,6 +251,7 @@ final class AccessApi {
                                 + "(connectUser's), or a suggestedName when a new account needs a name (call again with "
                                 + "userName). On a contributors server, the repository's people and allowlisted emails get in.")
                         .handler(call -> {
+                            signOnOnly();
                             String state = call.string(0);
                             String code = call.string(1);
                             String name = call.optString(2, null);
@@ -264,6 +268,13 @@ final class AccessApi {
                                 + "When serverInfo has a turnstileSiteKey, turnstileToken is the Turnstile widget's token. Callable before login.")
                         .handler(call -> requestAccess(ctx, call))
         );
+    }
+
+    /** A server that signs in only through its single sign-on has no other way in. */
+    private static void signOnOnly() throws RpcException {
+        if (!mage.server.TrustedHeaderAuth.get().passwordSignIn()) {
+            throw RpcException.notAuthorized(mage.server.TrustedHeaderAuth.PASSWORDS_OFF);
+        }
     }
 
     // --- overview ---------------------------------------------------------------------------------

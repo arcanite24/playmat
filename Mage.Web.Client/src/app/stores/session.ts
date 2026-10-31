@@ -13,6 +13,8 @@ interface RememberedLogin {
   passwordless?: boolean;
   /** signed in to an account: a reload signs back in with the restore token while the server still holds the user */
   account?: boolean;
+  /** signed in through the server's single sign-on: a reload signs in the same way, without asking */
+  signOn?: boolean;
 }
 
 const LOGIN_KEY = 'playmat.login';
@@ -57,6 +59,11 @@ export interface SessionState {
   /** inviteCode: an invite link's code, which lets the account in to a contributors-only server */
   /** turnstileToken: Cloudflare Turnstile's token, for servers that ask for one */
   register(serverUrl: string, userName: string, email: string, password: string, remember?: boolean, inviteCode?: string, turnstileToken?: string): Promise<boolean>;
+  /**
+   * signs in as the account the server's single sign-on named for this connection (serverInfo's signOn). With silent,
+   * only when this device didn't sign out of it: a first visit or a reload
+   */
+  signInWithSignOn(serverUrl: string, userName: string, silent?: boolean): Promise<boolean>;
   /** signs in with a remembered-device token the server gave this device (after Sign in with GitHub) */
   signInWithToken(serverUrl: string, userName: string, token: string): Promise<boolean>;
   /** emails a reset code to the account with this address (the server doesn't say whether there is one) */
@@ -171,8 +178,11 @@ export const useSession = create<SessionState>((set, get) => ({
       const roomId = await api.serverGetMainRoomId();
       // an account signed back in with the restore token stays an account
       const before = readJson<RememberedLogin | null>(LOGIN_KEY, null);
-      const account = !!password || (!!before?.account && before.serverUrl === serverUrl && before.userName === userName);
-      writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl, userName, passwordless: !password && !account, account });
+      const same = !!before && before.serverUrl === serverUrl && before.userName === userName;
+      const account = !!password || (!!before?.account && same);
+      // left out unless set, like the stored logins before single sign-on
+      const signOn = !password && !!before?.signOn && same ? true : undefined;
+      writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl, userName, passwordless: !password && !account, account, signOn });
       set((state) => ({ phase: 'signedIn', roomId, loginCount: state.loginCount + 1 }));
       return true;
     } catch (error) {
@@ -188,7 +198,7 @@ export const useSession = create<SessionState>((set, get) => ({
     // an account needs its password again unless this device is remembered or the server still holds the user for
     // our restore token
     const known = rememberToken(login.serverUrl, login.userName) || restoreToken(login.serverUrl, login.userName);
-    if (!login.passwordless && !(login.account && known)) return false;
+    if (!login.passwordless && !(login.account && known) && !login.signOn) return false;
     const ok = await get().signIn(login.serverUrl, login.userName, '');
     if (!ok) set({ error: null });
     return ok;
@@ -202,6 +212,14 @@ export const useSession = create<SessionState>((set, get) => ({
     // what this tab had no longer works (the password changed since): the sign-in form, saying why
     if (get().error === REFUSED || get().staleLogin) set({ error: null, staleLogin: true });
     return false;
+  },
+
+  async signInWithSignOn(serverUrl, userName, silent = false) {
+    const before = readJson<RememberedLogin | null>(LOGIN_KEY, null);
+    // signed out on this device: the player asks again (the sign-on would sign straight back in otherwise)
+    if (silent && before && !(before.signOn && before.serverUrl === serverUrl)) return false;
+    writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl, userName, passwordless: false, account: true, signOn: true });
+    return get().signIn(serverUrl, userName, '');
   },
 
   async signInWithToken(serverUrl, userName, token) {
@@ -286,7 +304,7 @@ function expire(): void {
   writeJson<RememberedRestore | null>(RESTORE_KEY, null);
   forgetOpenGames(serverUrl, userName);
   const before = readJson<RememberedLogin | null>(LOGIN_KEY, null);
-  writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl, userName, passwordless: false, account: !!before?.account });
+  writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl, userName, passwordless: false, account: !!before?.account, signOn: before?.signOn || undefined });
   useSession.setState({ phase: 'signedOut', roomId: null, error: null, expired: true });
 }
 

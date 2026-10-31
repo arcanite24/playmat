@@ -104,10 +104,13 @@ import { gzipSync } from 'node:zlib';
 // attackers and blockers): match code, lazy with the match screen. Measured app 788.7 kB
 // app raised 2026-10-30 from 790 kB for keyword explanations where they are printed (about 150 glossary entries, a
 // tooltip of our own so Radix's positioning stays off the first page) and counters as symbols. Measured app 792.6 kB
+// app raised 2026-10-30 from 794 kB when the Decks screen went lazy (its own route chunk, like the other screens):
+// the entry measured 85.0 kB on master and drops 11.5 kB, the first load 12.6 kB; the app total gains about 3.7 kB of
+// chunk overhead for the modules the split shares. Measured entry 73.5 kB, initial 207.6 kB, app 798.6 kB
 const BUDGET_KB = {
   entry: 85,
   initial: 221,
-  app: 794,
+  app: 802,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

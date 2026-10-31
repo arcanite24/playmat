@@ -2,6 +2,7 @@ package mage.server.websocket;
 
 import mage.server.AuthorizedUserRepository;
 import mage.server.DisconnectReason;
+import mage.server.TrustedHeaderAuth;
 import mage.server.User;
 import mage.server.managers.ManagerFactory;
 import mage.server.websocket.rpc.RpcSessions;
@@ -66,7 +67,8 @@ final class ServerRpcSessions implements RpcSessions {
 
     @Override
     public Optional<String> rememberLogin(String sessionId) {
-        if (!managers.configSettings().isAuthenticationActivated()) {
+        // single sign-on only: remembered devices don't sign in, so there is nothing to remember
+        if (!managers.configSettings().isAuthenticationActivated() || !TrustedHeaderAuth.get().passwordSignIn()) {
             return Optional.empty();
         }
         return userName(sessionId).map(name -> AuthorizedUserRepository.getInstance().rememberLogin(name));
@@ -78,6 +80,16 @@ final class ServerRpcSessions implements RpcSessions {
                 && AuthorizedUserRepository.getInstance().isRememberedLogin(userName, token)) {
             managers.sessionManager().getSession(sessionId).ifPresent(session -> session.trustRememberedLogin(userName));
         }
+    }
+
+    @Override
+    public String trustSignedOnLogin(String sessionId, String signedOnUser) {
+        if (!managers.configSettings().isAuthenticationActivated() || !TrustedHeaderAuth.get().isEnabled()) {
+            throw new IllegalArgumentException("This server has no single sign-on");
+        }
+        String account = TrustedHeaderAuth.get().account(AuthorizedUserRepository.getInstance(), signedOnUser, System.currentTimeMillis());
+        managers.sessionManager().getSession(sessionId).ifPresent(session -> session.trustSignedOnLogin(account));
+        return account;
     }
 
     @Override

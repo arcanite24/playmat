@@ -195,6 +195,45 @@ describe('session store', () => {
     expect(useSession.getState().error).toBeNull();
   });
 
+  describe('single sign-on', () => {
+    function loginSaved() {
+      return JSON.parse(localStorage.getItem('playmat.login') ?? 'null');
+    }
+
+    test('signs in as the signed-on account without a password, and a reload does it again', async () => {
+      let loaded = await load();
+      expect(await loaded.useSession.getState().signInWithSignOn(SERVER, 'alice', true)).toBe(true);
+      expect(loaded.fake.api.connectUser).toHaveBeenCalledWith('alice', '', '');
+      expect(loginSaved()).toEqual({ serverUrl: SERVER, userName: 'alice', passwordless: false, account: true, signOn: true });
+
+      freshModules();
+      loaded = await load();
+      expect(await loaded.useSession.getState().resume()).toBe(true);
+      expect(loaded.fake.api.connectUser).toHaveBeenCalledWith('alice', '', 'token-1');
+      expect(loginSaved().signOn).toBe(true);
+    });
+
+    test('after signing out, only the player signs back in', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signInWithSignOn(SERVER, 'alice');
+      await useSession.getState().signOut();
+      fake.api.connectUser.mockClear();
+
+      expect(await useSession.getState().resume()).toBe(false);
+      expect(await useSession.getState().signInWithSignOn(SERVER, 'alice', true)).toBe(false);
+      expect(fake.api.connectUser).not.toHaveBeenCalled();
+      expect(await useSession.getState().signInWithSignOn(SERVER, 'alice')).toBe(true);
+    });
+
+    test('a password sign-in is not remembered as a sign-on', async () => {
+      const { useSession } = await load();
+      await useSession.getState().signInWithSignOn(SERVER, 'alice');
+      await useSession.getState().signOut();
+      await useSession.getState().signIn(SERVER, 'alice', 'secret');
+      expect(loginSaved().signOn).toBeUndefined();
+    });
+  });
+
   describe('keep me signed in', () => {
     function deviceSaved() {
       return JSON.parse(localStorage.getItem('playmat.remember') ?? 'null');

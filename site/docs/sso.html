@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Single sign-on · Playmat docs</title>
+  <meta name="description" content="Sign players in through Authelia, Authentik, oauth2-proxy or Tailscale instead of Playmat passwords.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="docs.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="./" aria-current="true">Docs</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main" class="docs">
+    <div class="wrap docs-row">
+      <nav class="docs-nav" aria-label="Docs">
+        <h2>Docs</h2>
+        <ul>
+          <li><a href="index.html">Overview</a></li>
+          <li><a href="server.html">Run a server</a></li>
+          <li><a href="updates.html">Updating</a></li>
+          <li><a href="admin.html">Staff and the admin console</a></li>
+          <li><a href="sso.html" aria-current="page">Single sign-on</a></li>
+          <li><a href="capsules.html">Capsule machines</a></li>
+        </ul>
+      </nav>
+      <article class="doc">
+        <h1>Single sign-on</h1>
+        <p class="lede">If your apps already sit behind a sign-on proxy (Authelia, Authentik, oauth2-proxy or
+          <code>tailscale serve</code>), Playmat can use it: the proxy tells Playmat who signed in, and players skip
+          Playmat's own password. This is the header-based kind; Playmat doesn't speak OIDC itself yet.</p>
+
+        <h2 id="how">How it works</h2>
+        <ul>
+          <li>The proxy checks the player and adds a header with their user name, like <code>Remote-User: alice</code>.</li>
+          <li>Playmat's Caddy keeps that header only on requests from the proxy's address and deletes it from everyone
+            else's, so a player can't send it themselves. The game server believes it only from Caddy.</li>
+          <li>The sign-in screen offers <strong>Continue as alice</strong>, and signs in by itself on later visits.</li>
+          <li>The first time, Playmat uses the account named <code>alice</code> (any case) or makes one. Roles, bans and
+            the allowlist stay in the <a href="admin.html">admin console</a>.</li>
+        </ul>
+
+        <h2 id="settings">Settings</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Setting</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr><td><code>AUTH_TRUSTED_HEADER</code></td><td>The header your proxy sets. Setting it turns single sign-on on. Needs <code>XMAGE_AUTH=true</code>.</td></tr>
+              <tr><td><code>AUTH_TRUSTED_PROXIES</code></td><td>Where the proxy connects to Playmat from: IPs or ranges, separated by spaces. Empty uses <code>UPSTREAM_PROXIES</code>.</td></tr>
+              <tr><td><code>XMAGE_PASSWORD_SIGNIN</code></td><td><code>false</code> makes the sign-on the only way in: no passwords, registration, reset codes or Sign in with GitHub. The admin password still opens the console.</td></tr>
+              <tr><td><code>XMAGE_TRUSTED_HEADER_STRIP_DOMAIN</code></td><td><code>true</code> signs <code>alice@example.com</code> in as <code>alice</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Which header each proxy sends:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Proxy</th><th><code>AUTH_TRUSTED_HEADER</code></th></tr></thead>
+            <tbody>
+              <tr><td>Authelia</td><td><code>Remote-User</code></td></tr>
+              <tr><td>Authentik (proxy outpost)</td><td><code>X-authentik-username</code></td></tr>
+              <tr><td>oauth2-proxy</td><td><code>X-Forwarded-Preferred-Username</code> or <code>X-Forwarded-User</code> (with <code>--set-xauthrequest</code> or <code>--pass-user-headers</code>)</td></tr>
+              <tr><td><code>tailscale serve</code></td><td><code>Tailscale-User-Login</code>, with <code>XMAGE_TRUSTED_HEADER_STRIP_DOMAIN=true</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="setup">Set it up</h2>
+        <p>Put Playmat behind your proxy the way <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#behind-another-reverse-proxy">Behind another reverse proxy</a>
+          describes (<code>PROXIED_HOST</code> and <code>UPSTREAM_PROXIES</code>), with the proxy's sign-on check on
+          every path, <code>/ws</code> included. Then add to <code>ops/web/.env</code>:</p>
+        <div class="terminal" role="region" aria-label="Single sign-on settings">
+<pre><code>XMAGE_AUTH=true
+AUTH_TRUSTED_HEADER=Remote-User
+<span class="c"># keep passwords on until everyone has come through the sign-on once</span>
+XMAGE_PASSWORD_SIGNIN=true</code></pre>
+        </div>
+        <p>Run <code>up -d</code> again. For a host Caddy in front with Authelia, the front site looks like this:</p>
+        <div class="terminal" role="region" aria-label="Host Caddy with Authelia in front of Playmat">
+<pre><code>playmat.example.com {
+	forward_auth authelia:9091 {
+		uri /api/authz/forward-auth
+		copy_headers Remote-User
+	}
+	reverse_proxy 127.0.0.1:8080   <span class="c"># Playmat's HTTP_PORT</span>
+}</code></pre>
+        </div>
+
+        <h2 id="check">Check that nobody can fake it</h2>
+        <p>From a machine that reaches Playmat without going through the proxy (or through it, signed out), send the
+          header yourself and ask the server who you are. <code>signOn</code> must not be in the answer:</p>
+        <div class="terminal" role="region" aria-label="Commands to check the header can't be faked">
+<pre><code>echo '{"jsonrpc":"2.0","id":1,"method":"serverInfo","params":[]}' \
+  | websocat -n1 -H 'Remote-User: owner' wss://playmat.example.com/ws</code></pre>
+        </div>
+        <p class="note warn">Docker can make every client look like it comes from the bridge gateway (rootless Docker,
+          or the userland proxy). If <code>AUTH_TRUSTED_PROXIES</code> is that gateway, anyone who reaches Playmat's ports
+          directly counts as the proxy. Run the check above, and keep Playmat's ports reachable only by the proxy.</p>
+
+        <h2 id="accounts">Existing accounts</h2>
+        <ul>
+          <li>Accounts are matched by name. When your sign-on user names are the Playmat names, nothing moves: stats,
+            decks, Career and roles stay.</li>
+          <li>Playmat has no rename, so where they differ, change the name in the sign-on before switching.</li>
+          <li>Whoever controls a name in the sign-on controls that Playmat account, the owner's included. Use a sign-on
+            where you, not the players, choose user names.</li>
+          <li>Accounts made by the sign-on have no email and no password. Players can add an email in Settings, Account.</li>
+          <li>Turn <code>XMAGE_PASSWORD_SIGNIN=false</code> once everyone has signed in through the sign-on.</li>
+        </ul>
+
+        <h2 id="android">The Android app</h2>
+        <p>The app can't pass through a sign-on proxy, so it signs in with a password. If your group uses it, keep
+          <code>XMAGE_PASSWORD_SIGNIN=true</code> and a way to reach Playmat that skips the proxy.</p>
+
+        <p>The full reference, with the threat model, is in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#single-sign-on">ops/web/README.md</a>.</p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>Something wrong or missing here? <a href="https://github.com/arcanite24/playmat/tree/master/site/docs">The docs are in the repository</a>; open an issue or a pull request.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

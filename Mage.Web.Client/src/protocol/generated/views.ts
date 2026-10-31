@@ -1991,6 +1991,8 @@ export interface ServerInfo {
     ownerPending?: boolean;
     registration?: string;
     serverName?: string;
+    signOn?: string;
+    signOnOnly?: boolean;
     support?: boolean;
     testMode?: boolean;
     turnstileSiteKey?: string;
