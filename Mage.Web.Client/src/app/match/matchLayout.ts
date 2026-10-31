@@ -59,16 +59,19 @@ const HAND_MIN_SPREAD = 36;
 /**
  * Where the hand's fan sits along the bottom edge: centred on the stage when it can be, moved over (and fanned
  * tighter, if it must) to keep between `clearLeft` (a crowded seat) and `clearRight` (the decision corner). When even
- * the tightest fan can't fit, it keeps clear of the seat. `center` is the fan's middle, `spread` the step between cards.
+ * the tightest fan can't fit (a storm or Commander hand of dozens), the fan keeps its tightest spread and is seen
+ * through a window that fills the room between them, and scrolls. `center` is the window's middle, `view` its width,
+ * `width` the whole fan's, `spread` the step between cards.
  */
-export function placeHand(count: number, stageWidth: number, clearLeft = 0, clearRight = 0): { center: number; spread: number; width: number } {
+export function placeHand(count: number, stageWidth: number, clearLeft = 0, clearRight = 0): { center: number; spread: number; width: number; view: number } {
   const natural = Math.min(HAND_MAX_SPREAD, HAND_FAN / Math.max(1, count));
   const room = stageWidth - clearLeft - clearRight;
   const fit = count > 1 ? (room - HAND_CARD_WIDTH) / (count - 1) : natural;
   const spread = Math.max(HAND_MIN_SPREAD, Math.min(natural, fit));
   const width = spread * Math.max(0, count - 1) + HAND_CARD_WIDTH;
-  const center = Math.max(clearLeft + width / 2, Math.min(stageWidth / 2, stageWidth - clearRight - width / 2));
-  return { center, spread, width };
+  const view = Math.min(width, Math.max(HAND_CARD_WIDTH, room));
+  const center = Math.max(clearLeft + view / 2, Math.min(stageWidth / 2, stageWidth - clearRight - view / 2));
+  return { center, spread, width, view };
 }
 
 /** The wide layout's columns: seats on the left, stack and decision corner on the right. */

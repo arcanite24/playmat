@@ -7,6 +7,67 @@
   z-index: var(--z-hand);
 }
 
+/* the whole fan; in a hand too big for its room it's wider than .hand, and slides along inside it */
+.fan {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 100%;
+}
+
+/* a hand that scrolls shows only its window across, but still lets cards rise above it */
+.scrolls {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+/* a card held in a drag travels anywhere on the stage */
+.scrolls.holding {
+  overflow: visible;
+}
+
+/* the window's ends, when cards lie beyond them: how many, and a click away */
+.more {
+  position: absolute;
+  top: 48px;
+  z-index: calc(var(--z-held) + 1);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 48px;
+  padding: 0 8px;
+  border: 1px solid rgb(var(--ink-rgb) / 0.2);
+  border-radius: 999px;
+  background: rgb(var(--shade-rgb) / 0.85);
+  color: var(--ink-strong);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.more:hover {
+  background: var(--mat-950);
+}
+
+.earlier {
+  left: 6px;
+}
+
+.later {
+  right: 6px;
+}
+
+.holding .more {
+  display: none;
+}
+
+/* keyboard focus scrolls the fan itself, and the arrows would cover the risen card */
+.hand:has(.card:focus-visible) .more {
+  opacity: 0;
+  pointer-events: none;
+}
+
 .card {
   position: absolute;
   bottom: 0;
