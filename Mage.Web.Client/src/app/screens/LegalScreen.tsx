@@ -23,7 +23,7 @@ const COLLECTED: MessageKey[] = [
 ];
 const OTHERS: MessageKey[] = [
   'privacy.others.hetzner', 'privacy.others.cloudflare', 'privacy.others.scryfall', 'privacy.others.mail',
-  'privacy.others.payments', 'privacy.others.github', 'privacy.others.discord',
+  'privacy.others.payments', 'privacy.others.github', 'privacy.others.oidc', 'privacy.others.discord',
 ];
 const RIGHTS: MessageKey[] = ['privacy.rights.download', 'privacy.rights.delete', 'privacy.rights.correct'];
 

@@ -79,20 +79,20 @@ export function AccountSettings() {
         </p>
       </section>
 
-      <DeleteAccountDialog open={deleting} onOpenChange={setDeleting} userName={userName} github={!!email?.github} />
+      <DeleteAccountDialog open={deleting} onOpenChange={setDeleting} userName={userName} github={!!email?.github} oidc={!!email?.oidc} />
     </>
   );
 }
 
-/** The last step: the account's name typed out, and its password (not needed for an account that signs in with GitHub). */
-function DeleteAccountDialog({ open, onOpenChange, userName, github }: { open: boolean; onOpenChange(open: boolean): void; userName: string; github: boolean }) {
+/** The last step: the account's name typed out, and its password (not needed for an account that signs in with GitHub or the identity provider). */
+function DeleteAccountDialog({ open, onOpenChange, userName, github, oidc }: { open: boolean; onOpenChange(open: boolean): void; userName: string; github: boolean; oidc: boolean }) {
   const t = useT();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [working, setWorking] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
-  const ready = name.trim() === userName && (github || !!password);
+  const ready = name.trim() === userName && (github || oidc || !!password);
 
   async function remove(event: FormEvent) {
     event.preventDefault();
@@ -128,7 +128,7 @@ function DeleteAccountDialog({ open, onOpenChange, userName, github }: { open: b
     >
       <form className={styles.accountSection} onSubmit={remove}>
         <p>{t('settings.account.delete.text')}</p>
-        {github && <p className={styles.rowDetail}>{t('settings.account.delete.github')}</p>}
+        {(github || oidc) && <p className={styles.rowDetail}>{t(github ? 'settings.account.delete.github' : 'settings.account.delete.oidc')}</p>}
         <Field label={t('settings.account.delete.name')} value={name} autoComplete="off" spellCheck={false} onChange={(event) => setName(event.target.value)} />
         <Field label={t('settings.account.delete.password')} type="password" value={password} autoComplete="current-password" onChange={(event) => setPassword(event.target.value)} />
         {problem && <p className={styles.rowDetail} role="alert">{problem}</p>}

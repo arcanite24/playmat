@@ -107,10 +107,13 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-10-30 from 794 kB when the Decks screen went lazy (its own route chunk, like the other screens):
 // the entry measured 85.0 kB on master and drops 11.5 kB, the first load 12.6 kB; the app total gains about 3.7 kB of
 // chunk overhead for the modules the split shares. Measured entry 73.5 kB, initial 207.6 kB, app 798.6 kB
+// entry raised 2026-11-04 from 85 kB and app from 803 kB for OIDC sign-in (the provider button, the /auth/oidc
+// catch, the naming mode, the provider-only screen, oidcStart/oidcFinish): re-based onto the 2026-10-30 raises
+// above. Measured entry 74.5 kB, initial 208.8 kB, app 803.2 kB
 const BUDGET_KB = {
-  entry: 85,
+  entry: 86,
   initial: 221,
-  app: 803,
+  app: 804,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

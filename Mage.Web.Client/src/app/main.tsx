@@ -84,6 +84,8 @@ const router = createBrowserRouter([
   { path: '/join', element: <LoginScreen /> },
   // back from Sign in with GitHub
   { path: '/auth/github', element: <LoginScreen /> },
+  // back from Sign in with the identity provider (OpenID Connect)
+  { path: '/auth/oidc', element: <LoginScreen /> },
   // credits and legal notices, readable before signing in
   { path: '/about', lazy: () => import('./screens/AboutScreen').then((m) => ({ Component: m.AboutScreen })) },
   { path: '/privacy', lazy: () => import('./screens/LegalScreen').then((m) => ({ Component: m.PrivacyScreen })) },
