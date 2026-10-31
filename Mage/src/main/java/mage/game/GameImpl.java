@@ -1064,7 +1064,10 @@ public abstract class GameImpl implements Game {
     private GameState restoreState(int bookmark, String context, boolean keepStack) {
         if (!simulation && !this.hasEnded()) { // if player left or game is over no undo is possible - this could lead to wrong winner
             if (bookmark != 0) {
-                if (!savedStates.contains(bookmark - 1)) {
+                // a bookmark is a position in savedStates (its size when it was made), not the state index stored there:
+                // the two drift apart in long games, and checking the value then refused real bookmarks, so cancelling
+                // a payment left the half-cast spell on the stack for free (#148)
+                if (bookmark < 0 || bookmark > savedStates.size()) {
                     if (!savedStates.isEmpty()) { // empty if rollback to a turn was requested before, otherwise unclear why
                         logger.error("It was not possible to do the requested undo operation (bookmark " + (bookmark - 1) + " does not exist) context: " + context);
                         logger.info("Saved states: " + savedStates.toString());
@@ -1091,7 +1094,8 @@ public abstract class GameImpl implements Game {
                 while (savedStates.size() > bookmark) {
                     savedStates.pop();
                 }
-                gameStates.remove(bookmark);
+                // keep the states the remaining bookmarks point at: their stored indexes, not their positions
+                gameStates.remove(savedStates.isEmpty() ? 0 : savedStates.peek() + 1);
             }
         }
     }
