@@ -786,6 +786,9 @@ export default {
   'career.map.state.missed': 'passed by',
   'career.twist.lifeBonus': '{life} life',
   'career.daily.title': 'Daily puzzle',
+  // the daily card sits beside the book's selected puzzle: its button says which puzzle it starts (#141)
+  'career.daily.play': "Play today's puzzle",
+  'career.daily.again': "Try today's puzzle again",
   'career.daily.failed': "Today's puzzle couldn't load.",
   'career.daily.solved': 'Solved today',
   'career.daily.solvers': { one: '{count} player solved it today', other: '{count} players solved it today' },

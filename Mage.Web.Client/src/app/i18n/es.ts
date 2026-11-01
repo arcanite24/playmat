@@ -1620,6 +1620,8 @@ const es: Catalog = {
   'career.map.state.missed': 'dejado atrás',
   'career.twist.lifeBonus': '{life} vidas',
   'career.daily.title': 'Puzle del día',
+  'career.daily.play': 'Jugar el puzle del día',
+  'career.daily.again': 'Intentar otra vez el puzle del día',
   'career.daily.failed': 'No se pudo cargar el puzle de hoy.',
   'career.daily.solved': 'Resuelto hoy',
   'career.daily.solvers': { one: '{count} jugador lo resolvió hoy', other: '{count} jugadores lo resolvieron hoy' },

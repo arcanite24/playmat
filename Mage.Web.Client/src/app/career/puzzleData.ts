@@ -6,7 +6,8 @@ import { useSession } from '../stores/session';
 /** Puzzles beyond the book: today's puzzle (S029), puzzle files (S030) and positions mined from AI games (S031). */
 
 const KEY = {
-  daily: ['career', 'daily'],
+  // not ['career', 'daily']: that's the daily wins ladder (careerData), and two queries on one key overwrite each other
+  daily: ['career', 'dailyPuzzle'],
   mined: ['career', 'mined'],
 } as const;
 
