@@ -137,6 +137,19 @@ docker compose -f ops/web/docker-compose.yml -f ops/web/docker-compose.proxy.yml
           (<code>IMGCACHE_API_MAX_SIZE</code>). A playgroup's server usually stays far below that. Pictures are only
           downloaded as cards are shown, unless you fill the cache ahead of time with
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md">warm-images.mjs</a>.</p>
+        <h3 id="scryfall-mirror">Can the server take card pictures from my own Scryfall mirror?</h3>
+        <p>Yes. Point the image cache at it in <code>.env</code> and run <code>up -d</code>:</p>
+        <div class="terminal" role="region" aria-label="Settings for a Scryfall mirror">
+<pre><code><span class="c"># in ops/web/.env</span>
+IMGCACHE_CARDS_UPSTREAM=http://192.168.1.50:8000/cards   <span class="c"># your mirror's pictures</span>
+IMGCACHE_FALLBACK=on                                     <span class="c"># Scryfall fills what it lacks</span></code></pre>
+        </div>
+        <p>The mirror serves pictures in Scryfall's CDN layout (<code>/normal/front/7/6/&lt;id&gt;.jpg</code>). Plain
+          <code>http://</code> works for a mirror on your LAN. With <code>IMGCACHE_FALLBACK=on</code>, anything the mirror
+          lacks comes from Scryfall. If your mirror also answers Scryfall's API, set <code>IMGCACHE_API_UPSTREAM</code>
+          too; otherwise card lookups stay on Scryfall, cached for a day. The full list of what the mirror has to serve is
+          in <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#your-own-scryfall-mirror">the
+          README</a>.</p>
         <h3 id="new-cards">A new set is out. How do I get its cards?</h3>
         <p>See <a href="updates.html#new-cards">New cards and sets</a>.</p>
         <h3 id="official">Where do the official images come from?</h3>

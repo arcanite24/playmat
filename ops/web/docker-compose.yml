@@ -162,6 +162,12 @@ services:
       IMGCACHE_API_MAX_SIZE: ${IMGCACHE_API_MAX_SIZE:-1g}
       IMGCACHE_API_RATE: ${IMGCACHE_API_RATE:-10r/s}
       IMGCACHE_API_BURST: ${IMGCACHE_API_BURST:-20}
+      # a Scryfall mirror: base URLs (http:// works for one on the LAN), and Scryfall for whatever it lacks
+      IMGCACHE_CARDS_UPSTREAM: ${IMGCACHE_CARDS_UPSTREAM:-https://cards.scryfall.io}
+      IMGCACHE_BACKS_UPSTREAM: ${IMGCACHE_BACKS_UPSTREAM:-https://backs.scryfall.io}
+      IMGCACHE_API_UPSTREAM: ${IMGCACHE_API_UPSTREAM:-https://api.scryfall.com}
+      IMGCACHE_FALLBACK: ${IMGCACHE_FALLBACK:-off}
+      IMGCACHE_UPSTREAM_TLS_VERIFY: ${IMGCACHE_UPSTREAM_TLS_VERIFY:-on}
     volumes:
       # rendered into /etc/nginx/conf.d/default.conf (replacing the stock site) on every start
       - ./imgcache.conf.template:/etc/nginx/templates/default.conf.template:ro
