@@ -4,6 +4,7 @@ import { APP_NAME, APP_VERSION } from '../brand';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/about';
 import { RichText } from '../i18n/RichText';
+import { WhatsNewLink } from '../WhatsNewLink';
 import styles from './AboutScreen.module.css';
 
 const XMAGE_URL = 'https://github.com/magefree/mage';
@@ -27,7 +28,7 @@ export function AboutScreen() {
         </button>
         <h1 className={styles.title}>{t('about.title', app)}</h1>
         <p className={styles.lede}>{t('about.lede', app)}</p>
-        <p className={styles.version}>{t('about.version', { version: APP_VERSION })}</p>
+        <p className={styles.version}>{t('about.version', { version: APP_VERSION })} <WhatsNewLink /></p>
 
         <section className={styles.section} aria-labelledby="about-wotc">
           <h2 id="about-wotc">{t('about.wotc')}</h2>

@@ -13,6 +13,7 @@ import { useAutoAnswers } from '../stores/autoAnswers';
 import { useGames } from '../stores/games';
 import { DEFAULT_SETTINGS, FULL_CONTROL, STREAMLINED, useSettings, type PlaySettings } from '../stores/settings';
 import { APP_NAME, APP_VERSION, PUBLIC_ORIGIN } from '../brand';
+import { WhatsNewLink } from '../WhatsNewLink';
 import { clearPictureStore, DEVICE_PICTURES, pictureStoreStats } from '../nativePictures';
 import { formatNumber, LOCALES, registerMessages, useT, type LocalePreference, type MessageKey, type Translate } from '../i18n';
 import messages from '../i18n/en/settings';
@@ -76,7 +77,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     <Dialog open={open} onOpenChange={onOpenChange} title={t('settings.title')} width="lg"
       footer={(
         <>
-          <span className={styles.version}>{t('settings.version', { app: APP_NAME, version: APP_VERSION })}</span>
+          <span className={styles.version}>{t('settings.version', { app: APP_NAME, version: APP_VERSION })} <WhatsNewLink /></span>
           <Button variant="quiet" onClick={() => update({ ...DEFAULT_SETTINGS, avatarId: settings.avatarId, flag: settings.flag, locale: settings.locale, matCloth: settings.matCloth, matArt: settings.matArt, matCard: settings.matCard, cardBack: settings.cardBack })}>
             {t('settings.restore')}
           </Button>
