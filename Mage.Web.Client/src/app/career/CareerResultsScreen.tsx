@@ -23,6 +23,7 @@ import { describePay, describeReward, fetchResult, fraction, momentLine, resultI
 import motion from './motion.module.css';
 import modeStyles from './CareerModes.module.css';
 import styles from './Results.module.css';
+import { opponentName } from './opponentName';
 
 registerMessages(messages);
 
@@ -164,8 +165,8 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
 
   const headline = result.mode?.trial
     ? t(won ? 'career.rewards.trialWon' : 'career.rewards.trialLost', { trial: foe?.name ?? '' })
-    : result.career
-    ? t(won ? 'career.rewards.won' : 'career.rewards.lost', { opponent: foe?.name ?? result.opponent ?? '' })
+    : result.career && opponentName(foe?.name, result.opponent)
+    ? t(won ? 'career.rewards.won' : 'career.rewards.lost', { opponent: opponentName(foe?.name, result.opponent) ?? '' })
     : t(won ? 'career.rewards.wonAi' : 'career.rewards.lostAi');
 
   return (
