@@ -218,6 +218,9 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `IMGCACHE_IMAGES_MAX_SIZE` | `20g` | Disk cap of the picture cache. The least recently used files go first. |
 | `IMGCACHE_API_MAX_SIZE` | `1g` | Disk cap of the lookup cache. |
 | `IMGCACHE_API_RATE` / `IMGCACHE_API_BURST` | `10r/s` / `20` | Requests per second the image cache sends to `api.scryfall.com` for the whole site (cache misses only), and how many more may queue before it answers `429`. |
+| `IMGCACHE_CARDS_UPSTREAM` / `IMGCACHE_BACKS_UPSTREAM` / `IMGCACHE_API_UPSTREAM` | `https://cards.scryfall.io` / `https://backs.scryfall.io` / `https://api.scryfall.com` | Where the image cache gets pictures, card backs and lookups. Point them at your own Scryfall mirror: see [Your own Scryfall mirror](#your-own-scryfall-mirror). |
+| `IMGCACHE_FALLBACK` | `off` | `on`: what the mirror doesn't have (404) or can't answer (502/504) comes from Scryfall instead. |
+| `IMGCACHE_UPSTREAM_TLS_VERIFY` | `on` | `off` accepts a mirror's self-signed certificate. Plain `http://` mirrors don't need it. |
 
 Secrets can also come from files: `XMAGE_ADMIN_PASSWORD_FILE`, `XMAGE_MAIL_PASSWORD_FILE`, `XMAGE_MAILGUN_API_KEY_FILE`, `XMAGE_DISCORD_WEBHOOK_FILE`, `XMAGE_DISCORD_STAFF_WEBHOOK_FILE`, `XMAGE_GITHUB_CLIENT_SECRET_FILE`, `XMAGE_GITHUB_TOKEN_FILE`, `XMAGE_TURNSTILE_SECRET_FILE`, `XMAGE_KOFI_TOKEN_FILE` and `XMAGE_GITHUB_SPONSORS_SECRET_FILE` take precedence over the plain variables. To use them, mount the file and add the variable to the `xmage` service. The JVM gets its flags through a private argument file, so the admin password and the webhook address don't show up in `ps`.
 
@@ -782,6 +785,42 @@ node ops/web/warm-images.mjs --site https://play.example.org --names decks.txt -
   pictures after a year, and whatever the cache holds is served when Scryfall can't be reached.
 - Players' browsers keep the pictures they have shown, and the links they looked up, for a month.
 - It needs this cache: a server run without Docker (below) sends players to Scryfall directly.
+
+### Your own Scryfall mirror
+
+If you keep a copy of Scryfall on your own network (pictures, and optionally its API), the image cache can take
+everything from there instead. Set the base URLs in `.env` and run `up -d`:
+
+```bash
+IMGCACHE_CARDS_UPSTREAM=http://192.168.1.50:8000/cards   # plain http is fine on a LAN; a path prefix is fine
+IMGCACHE_BACKS_UPSTREAM=http://192.168.1.50:8000/backs   # only for the classic card back setting
+IMGCACHE_API_UPSTREAM=http://192.168.1.50:8000/api       # leave it on Scryfall if the mirror has pictures only
+IMGCACHE_FALLBACK=on                                     # optional: Scryfall fills whatever the mirror lacks
+```
+
+What the mirror has to serve:
+
+- **Pictures**: Scryfall's CDN layout under the base URL, `/{size}/{face}/{a}/{b}/{id}.jpg` (for example
+  `/normal/front/7/6/7673784e-....jpg`). The query string Scryfall adds (`?1783903008`) is passed on, so ignore it.
+  The board uses `small` and `normal`; the enlarged card uses `large`; mat prints and deck boxes use `art_crop`.
+- **Lookups** (only if `IMGCACHE_API_UPSTREAM` points at the mirror): `POST /cards/collection` and
+  `GET /cards/named` (with `format=image`, a redirect to the picture), answering with Scryfall's JSON. Keep the
+  picture links in that JSON pointing at `https://cards.scryfall.io/...`: the client turns those into `/img/cards/...`,
+  which this cache serves from `IMGCACHE_CARDS_UPSTREAM`. A redirect to the mirror's own picture URL (the
+  `IMGCACHE_CARDS_UPSTREAM` address) is turned into `/img/cards/...` too.
+- A mirror built from Scryfall's bulk data plus downloaded pictures usually has no API. Leave the lookups on Scryfall
+  then: they are small, cached for a day, and held to `IMGCACHE_API_RATE`, and the pictures they point to come from
+  your mirror.
+
+Notes:
+
+- The access log's `up=` field shows where each cache miss went: `docker compose logs imgcache`. Lookups appear twice,
+  once as `/img/api/...` and once as the internal hop to the lookup upstream, which shows the mirror's address (or
+  the mirror's and Scryfall's, when the fallback stepped in).
+- Pictures already in the cache stay there. To take everything from the mirror right away, clear the cache (above).
+- `IMGCACHE_API_RATE` limits lookups to the mirror too. A mirror on your LAN can take more: raise it.
+- With `IMGCACHE_FALLBACK=off` (the default) a picture the mirror lacks is a blank card, and a mirror that's down
+  answers `502`, which the client retries.
 
 ## Without Docker on a LAN
 

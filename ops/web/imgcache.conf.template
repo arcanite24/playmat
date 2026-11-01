@@ -2,10 +2,13 @@
 # The official nginx image renders this template into /etc/nginx/conf.d/default.conf at start, filling the
 # ${IMGCACHE_*} variables from the environment (docker-compose.yml gives every one a default).
 #
-#   /img/cards/...  -> https://cards.scryfall.io/...   card pictures, cached a year
-#   /img/backs/...  -> https://backs.scryfall.io/...   card backs (the classic back setting), cached a year
-#   /img/api/...    -> https://api.scryfall.com/...    GET lookups (and image redirects), cached 24 hours
-#   POST /img/api/cards/collection                      batch lookups, cached 24 hours keyed on the request body
+#   /img/cards/...  -> IMGCACHE_CARDS_UPSTREAM (https://cards.scryfall.io)   card pictures, cached a year
+#   /img/backs/...  -> IMGCACHE_BACKS_UPSTREAM (https://backs.scryfall.io)   card backs (the classic back setting), a year
+#   /img/api/...    -> IMGCACHE_API_UPSTREAM (https://api.scryfall.com)      GET lookups (and image redirects), 24 hours
+#   POST /img/api/cards/collection                                            batch lookups, 24 hours keyed on the body
+#
+# The upstreams default to Scryfall; a self-hoster with their own Scryfall mirror points them at it, and with
+# IMGCACHE_FALLBACK=on whatever the mirror lacks (404) or can't answer (502/504) comes from Scryfall instead.
 #
 # Only cache misses reach Scryfall. API misses go through an internal server on 127.0.0.1:8081 that holds them to
 # Scryfall's requested rate for the whole site, so cached answers are never slowed down by the limit.
@@ -31,7 +34,25 @@ proxy_busy_buffers_size 64k;
 
 # timings and cache hits, to tell a slow Scryfall from a slow host
 log_format imgcache '$remote_addr [$time_local] "$request" $status $body_bytes_sent '
-                    'rt=$request_time urt=$upstream_response_time cache=$upstream_cache_status';
+                    'rt=$request_time urt=$upstream_response_time cache=$upstream_cache_status up=$upstream_addr';
+
+# --- where pictures and lookups come from -------------------------------------------------------------------
+# Each upstream is a base URL (http:// or https://, optionally with a path, trailing slash or not). The maps split it
+# into what proxy_pass, the Host header and TLS need; they read only constants and $request_uri, so they hold the
+# same value in the named fallback locations too.
+map "${IMGCACHE_CARDS_UPSTREAM}" $cards_base { "~^(?<u>.*?)/*$" $u; }
+map "${IMGCACHE_BACKS_UPSTREAM}" $backs_base { "~^(?<u>.*?)/*$" $u; }
+map "${IMGCACHE_API_UPSTREAM}" $api_base { "~^(?<u>.*?)/*$" $u; }
+map $api_base $api_host { "~^[a-z]+://(?<h>[^/]+)" $h; }
+map $api_base $api_name { "~^[a-z]+://(?<h>[^/:]+)" $h; }
+map "${IMGCACHE_FALLBACK}" $imgcache_fallback { default off; on on; }
+
+# /img/cards/<rest> and /img/backs/<rest>: which CDN, and the rest exactly as the browser sent it (still escaped)
+map $request_uri $img_kind { "~^/img/(?<k>cards|backs)/" $k; }
+map $request_uri $img_rest { "~^/img/[a-z]+/(?<r>.*)$" $r; }
+map $img_kind $img_base { cards $cards_base; backs $backs_base; }
+map $img_base $img_host { "~^[a-z]+://(?<h>[^/]+)" $h; }
+map $img_base $img_name { "~^[a-z]+://(?<h>[^/:]+)" $h; }
 
 # --- what Caddy talks to ------------------------------------------------------------------------------------
 server {
@@ -82,16 +103,13 @@ server {
     # card pictures and card backs from the CDNs (no rate limit upstream)
     location ~ ^/img/(cards|backs)/ {
         limit_except GET { deny all; }
-        # (every set before the rewrite: "break" ends the rewrite directives, and replaces $1)
-        set $scryfall_cdn $1.scryfall.io;
-        set $imgcache_host $1.scryfall.io;
+        set $imgcache_host $img_host;
         set $imgcache_accept "*/*";
-        # a variable in proxy_pass re-resolves the name; the rewritten URI is passed (re-escaped) as is
-        rewrite ^/img/[a-z]+/(.*)$ /$1 break;
-        proxy_pass https://$scryfall_cdn;
+        # a variable in proxy_pass re-resolves the name; the path goes on exactly as the browser sent it
+        proxy_pass $img_base/$img_rest;
         proxy_ssl_server_name on;
-        proxy_ssl_name $scryfall_cdn;
-        proxy_ssl_verify on;
+        proxy_ssl_name $img_name;
+        proxy_ssl_verify ${IMGCACHE_UPSTREAM_TLS_VERIFY};
         proxy_ssl_verify_depth 4;
         proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
 
@@ -99,6 +117,36 @@ server {
         proxy_cache_key $request_uri;
         # pictures never change at a given address (Scryfall changes the query when it replaces one), so a copy stays
         # good for a year: a server prepared with warm-images.mjs keeps its pictures offline without asking again
+        proxy_cache_valid 200 301 302 365d;
+        proxy_cache_valid 404 1d;
+        proxy_hide_header Set-Cookie;
+        proxy_hide_header Cache-Control;
+        proxy_hide_header Expires;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        add_header X-Cache-Status $upstream_cache_status always;
+
+        # a mirror's misses go to Scryfall when IMGCACHE_FALLBACK is on (off: they pass through as they are)
+        proxy_intercept_errors ${IMGCACHE_FALLBACK};
+        error_page 404 502 504 = @img_scryfall;
+    }
+
+    location @img_scryfall {
+        # fallback off: only nginx's own 502/504 (upstream unreachable) land here; answer them as they were
+        set $imgcache_giveup "${imgcache_fallback}:$upstream_status";
+        if ($imgcache_giveup = "off:502") { return 502; }
+        if ($imgcache_fallback = off) { return 504; }
+        set $imgcache_host $img_kind.scryfall.io;
+        set $imgcache_accept "*/*";
+        proxy_pass https://$img_kind.scryfall.io/$img_rest;
+        proxy_ssl_server_name on;
+        proxy_ssl_name $img_kind.scryfall.io;
+        proxy_ssl_verify on;
+        proxy_ssl_verify_depth 4;
+        proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+
+        proxy_cache scryfall_images;
+        # its own key: the mirror's 404 stays cached under the plain one
+        proxy_cache_key "scryfall$request_uri";
         proxy_cache_valid 200 301 302 365d;
         proxy_cache_valid 404 1d;
         proxy_hide_header Set-Cookie;
@@ -127,8 +175,9 @@ server {
         proxy_pass http://127.0.0.1:8081/;
         set $imgcache_host api.scryfall.com;
         set $imgcache_accept "application/json";
-        # keep the browser on this proxy when Scryfall redirects to its CDN
+        # keep the browser on this proxy when Scryfall (or the mirror) redirects to its CDN
         proxy_redirect https://cards.scryfall.io/ /img/cards/;
+        proxy_redirect $cards_base/ /img/cards/;
 
         proxy_cache scryfall_api;
         proxy_cache_key $request_uri;
@@ -141,30 +190,47 @@ server {
     }
 }
 
-# --- internal: the only way out to api.scryfall.com, rate limited ---------------------------------------------
+# --- internal: the only way out to the lookup upstream, rate limited ------------------------------------------
 server {
     listen 127.0.0.1:8081;
     server_name _;
     server_tokens off;
-    access_log off;
+    # lookups that missed the cache, with where they went (up=): the mirror, or Scryfall
+    access_log /var/log/nginx/access.log imgcache;
     client_body_buffer_size 64k;
     client_max_body_size 64k;
+    # queue up to the burst (delayed, not refused); beyond that 429, which the client retries with backoff. Set here,
+    # it covers the Scryfall fallback too (a request is counted once).
+    limit_req zone=scryfall_upstream burst=${IMGCACHE_API_BURST};
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_ssl_server_name on;
+    proxy_ssl_verify_depth 4;
+    proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    proxy_redirect off;
+    proxy_connect_timeout 10s;
+    proxy_read_timeout 30s;
 
     location / {
-        # queue up to the burst (delayed, not refused); beyond that 429, which the client retries with backoff
-        limit_req zone=scryfall_upstream burst=${IMGCACHE_API_BURST};
+        proxy_pass $api_base$request_uri;
+        proxy_set_header Connection "";
+        proxy_set_header Host $api_host;
+        proxy_ssl_name $api_name;
+        proxy_ssl_verify ${IMGCACHE_UPSTREAM_TLS_VERIFY};
+        proxy_intercept_errors ${IMGCACHE_FALLBACK};
+        error_page 404 502 504 = @api_scryfall;
+    }
+
+    location @api_scryfall {
+        set $imgcache_giveup "${imgcache_fallback}:$upstream_status";
+        if ($imgcache_giveup = "off:502") { return 502; }
+        if ($imgcache_fallback = off) { return 504; }
         set $scryfall_api api.scryfall.com;
-        proxy_pass https://$scryfall_api;
-        proxy_http_version 1.1;
+        proxy_pass https://$scryfall_api$request_uri;
         proxy_set_header Connection "";
         proxy_set_header Host $scryfall_api;
-        proxy_ssl_server_name on;
         proxy_ssl_name $scryfall_api;
         proxy_ssl_verify on;
-        proxy_ssl_verify_depth 4;
-        proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
-        proxy_redirect off;
-        proxy_connect_timeout 10s;
-        proxy_read_timeout 30s;
     }
 }
