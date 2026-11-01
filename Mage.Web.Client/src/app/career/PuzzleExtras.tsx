@@ -79,7 +79,7 @@ export function DailyPuzzleCard() {
         {error && <p className={styles.error} role="alert">{t('career.playFailed')}: {error}</p>}
         <div className={styles.actions}>
           <Button variant="decision" busy={starting === 'daily'} disabled={playing} onClick={() => void start('daily', () => api.careerDailyPuzzlePlay())}>
-            {starting === 'daily' ? t('career.playing') : t(data.solved ? 'career.puzzle.again' : 'career.puzzle.play')}
+            {starting === 'daily' ? t('career.playing') : t(data.solved ? 'career.daily.again' : 'career.daily.play')}
           </Button>
         </div>
       </div>
