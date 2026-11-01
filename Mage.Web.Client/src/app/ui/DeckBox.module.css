@@ -23,6 +23,14 @@
     box-shadow var(--dur-place) var(--ease-place);
 }
 
+/* a painted sleeve: its back fills the shell, shaded behind the name plate so the print stays legible */
+.painted {
+  background:
+    linear-gradient(90deg, rgb(var(--shade-rgb) / 0.1), rgb(var(--shade-rgb) / 0.55) 40%, rgb(var(--shade-rgb) / 0.7)),
+    var(--sleeve-art) center / cover no-repeat,
+    var(--sleeve);
+}
+
 .box:hover {
   transform: translateX(3px);
 }
