@@ -6,6 +6,7 @@ import mage.server.Session;
 import mage.players.net.UserData;
 import mage.server.DisconnectReason;
 import mage.server.Main;
+import mage.server.User;
 import mage.server.websocket.rpc.RpcCall;
 import mage.server.websocket.rpc.RpcException;
 import mage.server.websocket.rpc.RpcMethod;
@@ -116,6 +117,17 @@ final class SessionApi {
                                 + "connectUser's restoreSessionId. It changes on every login, so fetch it again after each one.")
                         .handler(call -> ctx.sessions.restoreToken(call.sessionId())
                                 .orElseThrow(() -> RpcException.notAuthorized("Log in before asking for a restore token"))),
+
+                RpcMethod.named("sessionUserName")
+                        .session(0)
+                        .params(of("sessionId", STRING))
+                        .returns("string")
+                        .doc("The signed in user's name as the server knows it: an account's own spelling, which can differ "
+                                + "in case from the name typed into connectUser.")
+                        .handler(call -> ctx.managers.sessionManager().getSession(call.sessionId())
+                                .flatMap(session -> ctx.managers.userManager().getUser(session.getUserId()))
+                                .map(User::getName)
+                                .orElseThrow(() -> RpcException.notAuthorized("Log in first"))),
 
                 RpcMethod.named("authRememberLogin")
                         .session(0)

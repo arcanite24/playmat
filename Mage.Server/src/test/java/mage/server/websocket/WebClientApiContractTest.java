@@ -46,7 +46,7 @@ public class WebClientApiContractTest {
     // RPC methods that are served by the bridge itself instead of a same-named MageServer method
     private static final Map<String, String> SERVER_METHOD_OVERRIDES = new HashMap<>();
     private static final Set<String> NOT_MAPPED_TO_SERVER = new HashSet<>(Arrays.asList(
-            "disconnectSession", "playerLogout", "sessionGetRestoreToken", // session manager
+            "disconnectSession", "playerLogout", "sessionGetRestoreToken", "sessionUserName", // session manager
             "getExpansionSets", "getBasicLandSets", "searchCards", "lookupCards", "deckValidate", // card database services
             "deckImportFromUrl", "deckImportSources", // deck website import service
             "testEndGame", "testConcedeMatch", // test mode helpers on table manager

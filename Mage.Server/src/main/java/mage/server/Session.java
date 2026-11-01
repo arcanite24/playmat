@@ -418,6 +418,9 @@ public class Session {
             if (authorizedUser == null) {
                 return errorMsg;
             }
+            // accounts are found ignoring case: go on as the account's own name, or "john" plays, records history and
+            // keeps a second user instance apart from "John" (#135)
+            userName = authorizedUser.getName();
 
             // a reconnect with the restore token of the user's live instance stands in for the password (browser reloads)
             boolean restoring = restoreSessionId != null && !restoreSessionId.isEmpty()

@@ -76,10 +76,15 @@ export interface SessionState {
   takeBack(): Promise<boolean>;
 }
 
+/** Accounts sign in with any case and the server answers with its own spelling, so stored logins match either way. */
+function sameName(a: string | undefined, b: string): boolean {
+  return a?.toLowerCase() === b.toLowerCase();
+}
+
 /** The restore token the server gave this player on this server, '' when there is none. */
 function restoreToken(serverUrl: string, userName: string): string {
   const saved = readJson<RememberedRestore | null>(RESTORE_KEY, null);
-  return saved && saved.serverUrl === serverUrl && saved.userName === userName ? saved.token : '';
+  return saved && saved.serverUrl === serverUrl && sameName(saved.userName, userName) ? saved.token : '';
 }
 
 /** The token changes with every login, so ask for the new one each time. */
@@ -95,7 +100,7 @@ async function rememberRestoreToken(serverUrl: string, userName: string): Promis
 /** This device's "keep me signed in" token for the player on this server, '' when there is none. */
 function rememberToken(serverUrl: string, userName: string): string {
   const saved = readJson<RememberedDevice | null>(REMEMBER_KEY, null);
-  return saved && saved.serverUrl === serverUrl && saved.userName === userName ? saved.token : '';
+  return saved && saved.serverUrl === serverUrl && sameName(saved.userName, userName) ? saved.token : '';
 }
 
 async function rememberDevice(serverUrl: string, userName: string): Promise<void> {
@@ -171,6 +176,13 @@ export const useSession = create<SessionState>((set, get) => ({
         return false;
       }
       sessionPassword = password;
+      // an account signs in with any case ("john" for John): go on as the server's spelling, the one seats and history use
+      try {
+        userName = (await api.sessionUserName()) || userName;
+      } catch {
+        // older server: keep the typed name
+      }
+      set({ userName });
       await rememberRestoreToken(serverUrl, userName);
       // typing the password decides it again: remembered from now on, or this device forgotten
       if (password && remember) await rememberDevice(serverUrl, userName);
@@ -178,7 +190,7 @@ export const useSession = create<SessionState>((set, get) => ({
       const roomId = await api.serverGetMainRoomId();
       // an account signed back in with the restore token stays an account
       const before = readJson<RememberedLogin | null>(LOGIN_KEY, null);
-      const same = !!before && before.serverUrl === serverUrl && before.userName === userName;
+      const same = !!before && before.serverUrl === serverUrl && sameName(before.userName, userName);
       const account = !!password || (!!before?.account && same);
       // left out unless set, like the stored logins before single sign-on
       const signOn = !password && !!before?.signOn && same ? true : undefined;
