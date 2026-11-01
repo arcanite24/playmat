@@ -166,7 +166,7 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
   const headline = result.mode?.trial
     ? t(won ? 'career.rewards.trialWon' : 'career.rewards.trialLost', { trial: foe?.name ?? '' })
     : result.career && opponentName(foe?.name, result.opponent)
-    ? t(won ? 'career.rewards.won' : 'career.rewards.lost', { opponent: opponentName(foe?.name, result.opponent) })
+    ? t(won ? 'career.rewards.won' : 'career.rewards.lost', { opponent: opponentName(foe?.name, result.opponent) ?? '' })
     : t(won ? 'career.rewards.wonAi' : 'career.rewards.lostAi');
 
   return (
