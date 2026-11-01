@@ -32,6 +32,16 @@ export async function pendingReleaseNotes(deps: WhatsNewDeps = browserDeps()): P
   return notes && notes.version === deps.version ? notes : null;
 }
 
+/** This build's notes for the "What's new" link (About, Settings), any time after the update; null when there are none. */
+export async function currentReleaseNotes(deps: Pick<WhatsNewDeps, 'version' | 'load'> = browserDeps()): Promise<ReleaseNotes | null> {
+  try {
+    const notes = readReleaseNotes(await deps.load());
+    return notes && notes.version === deps.version ? notes : null;
+  } catch {
+    return null;
+  }
+}
+
 function browserDeps(): WhatsNewDeps {
   return {
     version: APP_VERSION,

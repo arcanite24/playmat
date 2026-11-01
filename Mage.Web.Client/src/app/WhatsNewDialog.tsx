@@ -16,12 +16,15 @@ const SECTION_TITLES: Record<NonNullable<ReleaseSection['id']>, MessageKey> = {
   other: 'whatsNew.other',
 };
 
-/** Shown once after an update (src/app/whatsNew.ts): the release's changes, in its notes' own words. */
-export function WhatsNewDialog({ notes, onClose }: { notes: ReleaseNotes; onClose(): void }) {
+/**
+ * Shown once after an update (src/app/whatsNew.ts), and again from the "What's new" link (`reopened`): the release's
+ * changes, in its notes' own words.
+ */
+export function WhatsNewDialog({ notes, onClose, reopened = false }: { notes: ReleaseNotes; onClose(): void; reopened?: boolean }) {
   const t = useT();
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()} title={t('whatsNew.title', { version: notes.version })} width="sm"
-      description={t('whatsNew.lede', { app: APP_NAME })}
+      description={t(reopened ? 'whatsNew.ledeAgain' : 'whatsNew.lede', { app: APP_NAME })}
       footer={(
         <>
           {notes.url && <a className={styles.all} href={notes.url} target="_blank" rel="noreferrer">{t('whatsNew.all')}</a>}

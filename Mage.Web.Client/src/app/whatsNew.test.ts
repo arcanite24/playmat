@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { pendingReleaseNotes, type WhatsNewDeps } from './whatsNew';
+import { currentReleaseNotes, pendingReleaseNotes, type WhatsNewDeps } from './whatsNew';
 
 const NOTES = { version: 'v1.3.0', sections: [{ id: 'features', title: 'Features', items: ['Sealed events'] }] };
 
@@ -47,5 +47,15 @@ describe("what's new", () => {
       expect(await pendingReleaseNotes(d)).toBeNull();
       expect(state.seen).toBe('v1.3.0');
     }
+  });
+
+  test('the link shows this build\'s notes again, seen or not (#139)', async () => {
+    const { deps: d } = deps('v1.3.0', 'v1.3.0');
+    expect(await currentReleaseNotes(d)).toEqual(NOTES);
+  });
+
+  test('the link has nothing for notes of another version, or none at all', async () => {
+    expect(await currentReleaseNotes(deps('v1.4.0', 'v1.4.0').deps)).toBeNull();
+    expect(await currentReleaseNotes(deps('v1.3.0', 'v1.3.0', new Error('offline')).deps)).toBeNull();
   });
 });

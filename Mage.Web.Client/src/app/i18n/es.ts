@@ -274,6 +274,8 @@ const es: Catalog = {
   // "What's new"
   'whatsNew.title': 'Novedades de la {version}',
   'whatsNew.lede': '{app} se actualizó desde la última vez que jugaste.',
+  'whatsNew.ledeAgain': 'Los cambios de esta versión de {app}.',
+  'whatsNew.open': 'Novedades',
   'whatsNew.features': 'Nuevo',
   'whatsNew.fixes': 'Corregido',
   'whatsNew.ops': 'Servidor',

@@ -5,6 +5,8 @@
 export default {
   'whatsNew.title': 'What’s new in {version}',
   'whatsNew.lede': '{app} was updated since you last played.',
+  'whatsNew.ledeAgain': 'The changes in this version of {app}.',
+  'whatsNew.open': 'What’s new',
   'whatsNew.features': 'New',
   'whatsNew.fixes': 'Fixed',
   'whatsNew.ops': 'Server',
