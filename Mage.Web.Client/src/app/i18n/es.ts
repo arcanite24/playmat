@@ -378,6 +378,8 @@ const es: Catalog = {
   'settings.hideStarterDecks.detail': 'Oculta los mazos iniciales en tu biblioteca y al elegir mazo. Las copias guardadas siguen visibles. Los oponentes de IA aleatorios aún pueden usarlos.',
   'settings.sortHand': "Ordenar mi mano",
   'settings.sortHand.detail': "Tierras primero, luego por valor de maná y color.",
+  'settings.bigZoom': "Ampliación de carta más grande",
+  'settings.bigZoom.detail': "La carta que señalas se abre más grande, para leer el texto de reglas en una pantalla pequeña.",
   'settings.autoDismissReveals': "Ocultar las cartas reveladas tras un momento",
   'settings.autoDismissReveals.detail': "Las cartas reveladas se desvanecen tras unos segundos, salvo que pases el cursor. El registro las guarda.",
   'settings.compactBoard': "Cartas más pequeñas en el campo de batalla",

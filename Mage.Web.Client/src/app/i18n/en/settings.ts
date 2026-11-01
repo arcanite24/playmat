@@ -88,6 +88,8 @@ export default {
   'settings.hideStarterDecks.detail': 'Hide starter decks in your library and deck pickers. Saved copies stay visible. Random AI opponents can still use starters.',
   'settings.sortHand': "Sort my hand",
   'settings.sortHand.detail': "Lands first, then by mana value and color.",
+  'settings.bigZoom': "Bigger card zoom",
+  'settings.bigZoom.detail': "The card you point at opens larger, for reading rules text on a small screen.",
   'settings.autoDismissReveals': "Hide revealed cards after a moment",
   'settings.autoDismissReveals.detail': "Revealed cards fade after a few seconds, unless you hover them. The log keeps them.",
   'settings.compactBoard': "Smaller cards on the battlefield",

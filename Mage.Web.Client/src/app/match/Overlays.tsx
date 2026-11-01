@@ -16,10 +16,25 @@ import { PromptText } from '../ui/PromptText';
 import { cleanText } from '../ui/text';
 import './matchMessages';
 import { useChoiceKeyboard } from './useChoiceKeyboard';
+import { useMatchUi } from './matchUi';
 import { useKeyboardHints } from './useKeyboardHints';
 import { stampArt } from './touches';
 import { usePaintedArt } from '../career/careerArt';
 import styles from './Overlays.module.css';
+
+/**
+ * Hovering a card in an overlay opens the large card beside it, as on the table (#147): the zoom follows the element
+ * itself, since these cards aren't on the table. A finger long-presses instead (CardDetail finds them by data-card-id).
+ */
+function useHoverZoom(sleeve?: string) {
+  const setZoom = useMatchUi((state) => state.setZoom);
+  return (card: CardView) => ({
+    onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
+      if (event.pointerType !== 'touch') setZoom({ card, x: event.clientX, y: event.clientY, sleeve, anchor: event.currentTarget });
+    },
+    onPointerLeave: () => setZoom(null),
+  });
+}
 
 /** Opening hand, shown large: keep it or mulligan. */
 export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
@@ -31,6 +46,7 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
   const prompt = interaction.prompt;
   const keyboard = useChoiceKeyboard(prompt?.kind === 'ask');
   const hints = useKeyboardHints();
+  const zoom = useHoverZoom(sleeve);
   if (!prompt || prompt.kind !== 'ask') return null;
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-labelledby="mulligan-title">
@@ -39,7 +55,7 @@ export function MulliganOverlay({ hand, interaction, sleeve, onCommand }: {
         <p className={styles.subtitle}>{prompt.text}</p>
         <div className={styles.handRow}>
           {hand.map((card) => (
-            <div key={card.id} className={styles.handCard} data-card-id={card.id}>
+            <div key={card.id} className={styles.handCard} data-card-id={card.id} {...zoom(card)}>
               <CardFace card={card} sleeve={sleeve} size="normal" />
             </div>
           ))}
@@ -71,6 +87,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
   const keyboard = useChoiceKeyboard(!hidden);
   const hints = useKeyboardHints();
   const [showAll, setShowAll] = useState(false);
+  const zoom = useHoverZoom(sleeve);
   const main = interaction.mainButton;
   const choosable = cards.filter((card) => interaction.clickable.has(card.id!) || interaction.selected.has(card.id!));
   const others = cards.length - choosable.length;
@@ -114,6 +131,7 @@ export function CardPicker({ title, cards, interaction, sleeve, footer, onComman
                 data-card-id={id}
                 aria-label={`${name}${selected ? ', chosen' : ''}`}
                 onClick={() => onCommand({ type: 'uuid', id })}
+                {...zoom(card)}
               >
                 {ability ? <AbilityCard ability={ability} sleeve={sleeve} /> : <CardFace card={card} sleeve={sleeve} size="normal" />}
               </button>
@@ -146,6 +164,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
 }) {
   const t = useT();
   const hints = useKeyboardHints();
+  const zoom = useHoverZoom();
   switch (prompt.kind) {
     case 'chooseAbility': {
       const mana = prompt.choices.map((choice) => parseManaAbility(choice.text));
@@ -184,7 +203,7 @@ export function ChoicePanel({ prompt, onCommand, xLimit = null, startAtLimit = f
               <button key={index} data-choice type="button" className={styles.pileChoice} onClick={() => onCommand({ type: 'boolean', value: index === 0 })}>
                 <span className={styles.pileLabel}>Pile {index + 1} · {pile.length} {pile.length === 1 ? 'card' : 'cards'}</span>
                 <div className={styles.pileCards}>
-                  {pile.map((card) => <div key={card.id} className={styles.pileCard}><CardFace card={card} size="small" /></div>)}
+                  {pile.map((card) => <div key={card.id} className={styles.pileCard} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="small" /></div>)}
                 </div>
               </button>
             ))}
@@ -429,6 +448,7 @@ function VictoryStamp({ id }: { id: string }) {
 /** A zone's cards laid out to read (graveyard, exile, revealed). */
 export function ZoneViewer({ title, cards, onClose }: { title: string; cards: CardView[]; onClose(): void }) {
   const keyboard = useChoiceKeyboard();
+  const zoom = useHoverZoom();
   return (
     <div ref={keyboard} tabIndex={-1} className={styles.scrim} role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
       <div className={styles.panel} onClick={(event) => event.stopPropagation()}>
@@ -438,7 +458,7 @@ export function ZoneViewer({ title, cards, onClose }: { title: string; cards: Ca
         </header>
         {cards.length === 0 ? <p className={styles.panelText}>Empty.</p> : (
           <div className={styles.grid}>
-            {cards.map((card) => <div key={card.id} className={styles.pick} data-card-id={card.id}><CardFace card={card} size="normal" /></div>)}
+            {cards.map((card) => <div key={card.id} className={styles.pick} data-card-id={card.id} {...zoom(card)}><CardFace card={card} size="normal" /></div>)}
           </div>
         )}
       </div>

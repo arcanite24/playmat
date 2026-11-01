@@ -100,6 +100,8 @@ export interface PlaySettings {
   hideHands: boolean;
   /** watching and replays: the hovered card shows large at the side of the table, for stream viewers (local only) */
   largeZoom: boolean;
+  /** playing: the hovered card opens bigger beside the pointer, to read rules text on a small screen (#147, local only) */
+  bigZoom: boolean;
   /** Career: the player chose to try it (local only; a server Career profile counts too) */
   careerOptIn: boolean;
   /** Career: the menu music on Career's screens (synthesized, local only) */
@@ -173,6 +175,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   broadcastDelay: 0,
   hideHands: true,
   largeZoom: false,
+  bigZoom: false,
   careerOptIn: false,
   careerMusic: true,
   musicVolume: 0.5,

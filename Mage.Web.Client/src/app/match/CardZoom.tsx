@@ -14,6 +14,8 @@ import { lastPointerType } from './useLongPress';
 import styles from './CardZoom.module.css';
 
 const ZOOM_WIDTH = 340;
+/** Settings: bigger card zoom, for reading on a small screen (#147) */
+const BIG_WIDTH = 440;
 /** broadcast: big enough to read on a stream, at the edge of the table */
 const LARGE_WIDTH = 520;
 const DELAY_MS = 260;
@@ -27,7 +29,7 @@ const PANEL_GAP = 14;
  * The hovered card, large, beside the pointer (after a short delay so sweeping the board stays calm). `large`
  * (watching, for a stream): bigger still, at the edge of the table away from the pointer, where it hides less.
  */
-export function CardZoom({ large = false }: { large?: boolean }) {
+export function CardZoom({ large = false, big = false }: { large?: boolean; big?: boolean }) {
   const zoom = useMatchUi((state) => state.zoom);
   const dragging = useMatchUi((state) => state.dragging);
   const detailOpen = useMatchUi((state) => !!state.detail);
@@ -59,7 +61,7 @@ export function CardZoom({ large = false }: { large?: boolean }) {
   const back = card.secondCardFace;
   const extra = details(card);
   const rules = styled ? (card.rules ?? []).filter((line) => line.trim()) : [];
-  const width = large ? LARGE_WIDTH : ZOOM_WIDTH;
+  const width = large ? LARGE_WIDTH : big ? BIG_WIDTH : ZOOM_WIDTH;
   const height = width * (88 / 63);
   const point = toStagePoint(stage, shown.x, shown.y);
   const pointerRight = point.x > stage.width / 2;
@@ -67,7 +69,7 @@ export function CardZoom({ large = false }: { large?: boolean }) {
   const span = back && card.transformable ? width * 1.62 + 12 : width;
   const left = large
     ? (pointerRight ? EDGE : stage.width - span - EDGE)
-    : pointerRight ? point.x - ZOOM_WIDTH - 60 : point.x + 60;
+    : pointerRight ? point.x - width - 60 : point.x + 60;
   const top = large
     ? Math.max(EDGE, (stage.height - height) / 2 - 40)
     : Math.max(EDGE, Math.min(stage.height - height - EDGE, point.y - height / 2));

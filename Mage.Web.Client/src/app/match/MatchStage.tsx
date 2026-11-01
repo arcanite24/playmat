@@ -167,6 +167,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const broadcastDelay = useSettings((settings) => settings.settings.broadcastDelay);
   const hideHands = useSettings((settings) => settings.settings.hideHands);
   const largeZoom = useSettings((settings) => settings.settings.largeZoom);
+  const bigZoom = useSettings((settings) => settings.settings.bigZoom);
   useEffect(() => {
     // the session only delays a game being watched; turning the delay off catches up at once
     session.setBroadcastDelay(mode === 'watch' && isBroadcastDelay(broadcastDelay) ? broadcastDelay * 1000 : 0);
@@ -728,7 +729,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 <GameReview gameId={state.gameId} me={board.me?.player.name ?? null} onNavigate={() => setReviewing(false)} />
               </Dialog>
             )}
-            <CardZoom large={spectating && largeZoom} />
+            <CardZoom large={spectating && largeZoom} big={bigZoom} />
             <CardDetail view={view} extra={pickerCards ?? viewer?.cards ?? NO_CARDS} sleeveOf={sleeveOf} attacking={attacking} blocking={blocking} />
           </div>
         );
