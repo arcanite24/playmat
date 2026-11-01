@@ -1,10 +1,13 @@
-import { Search, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { memo, useEffect, useMemo, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import type { CardView } from '../../protocol/generated/views';
 import type { DeckCardInfo, DeckCardLists } from '../../core/decks/types';
+import { api } from '../connection';
+import { CardFilterBar } from '../decks/CardFilterBar';
 import { useCardInfo } from '../decks/cardInfo';
 import { entryKey } from '../decks/deckModel';
+import { EMPTY_FILTERS, matchesFilters, type CardFilters } from '../decks/filters';
 import { DeckBuilder, type BinderProps, type BuilderMode } from '../decks/DeckBuilderScreen';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
@@ -59,7 +62,9 @@ export function CareerDeckScreen() {
 function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview }: BinderProps) {
   const t = useT();
   const collection = useCareerCollection(true);
-  const [text, setText] = useState('');
+  // names and types by default, as this binder always searched
+  const [filters, setFilters] = useState<CardFilters>({ ...EMPTY_FILTERS, anyText: true });
+  const sets = useQuery({ queryKey: ['expansionSets'], queryFn: () => api.getExpansionSets(), staleTime: Infinity });
   // one printing per name, as deck entries
   const entries = useMemo<DeckCardInfo[]>(() => {
     const seen = new Map<string, DeckCardInfo>();
@@ -72,20 +77,16 @@ function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview }: BinderProp
   const info = useCardInfo(entries);
   const cards = useMemo<CardView[]>(() => entries.map((entry) => info.get(entryKey(entry))
     ?? { name: entry.cardName, expansionSetCode: entry.setCode ?? undefined, cardNumber: entry.cardNumber ?? undefined }), [entries, info]);
-  const needle = text.trim().toLowerCase();
-  const shown = useMemo(() => (needle
-    ? cards.filter((card) => (card.name ?? '').toLowerCase().includes(needle) || (card.cardTypes ?? []).some((type) => type.toLowerCase().includes(needle)) || (card.subTypes ?? []).some((type) => type.toLowerCase().includes(needle)))
-    : cards), [cards, needle]);
+  const shown = useMemo(() => cards.filter((card) => matchesFilters(card, filters)), [cards, filters]);
+  // only the sets something owned comes from, newest first
+  const setOptions = useMemo(() => {
+    const owned = new Set(cards.map((card) => card.expansionSetCode));
+    return (sets.data ?? []).filter((item) => item.setCode && owned.has(item.setCode)).sort((a, b) => (b.releaseDate ?? 0) - (a.releaseDate ?? 0));
+  }, [cards, sets.data]);
 
   return (
     <section className={builder.collection} aria-label={t('career.nav.collection')}>
-      <div className={builder.filters}>
-        <label className={builder.search}>
-          <Search size={18} aria-hidden="true" />
-          <input value={text} onChange={(event) => setText(event.target.value)} placeholder={t('career.collection.search')} aria-label={t('career.collection.search')} />
-          {text && <button type="button" className={builder.clearText} onClick={() => setText('')} aria-label={t('ui.close')}><X size={16} /></button>}
-        </label>
-      </div>
+      <CardFilterBar filters={filters} onChange={setFilters} sets={setOptions} />
       <div className={builder.results}>
         {collection.isPending ? (
           <p className={builder.note}>{t('career.loading')}</p>
