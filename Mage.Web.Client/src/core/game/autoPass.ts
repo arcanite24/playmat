@@ -36,7 +36,10 @@ export interface AutoPassSettings {
   autoPass: boolean;
   /** answer "no attacks" / "no blocks" when no creature can attack or block */
   autoSkipCombat: boolean;
-  /** on the opponent's turn, permanents' activated abilities count as something to do (instants always do) */
+  /**
+   * on the opponent's turn, permanents' activated abilities count as something to do (instants always do); off, they
+   * still count while creatures attack or something is on the stack
+   */
   abilitiesOnTheirTurn: boolean;
   /** Arena's full control: the client never answers for the player */
   fullControl?: boolean;
@@ -108,6 +111,15 @@ function noCombat(view: GameView): boolean {
     && !(view.combat ?? []).some((group) => Object.keys(group.attackers ?? {}).length > 0);
 }
 
+/**
+ * The moments on the opponent's turn when a permanent's ability is a real answer even with abilitiesOnTheirTurn off:
+ * creatures are attacking, or something is on the stack (Circle of Protection, a regenerator, a sacrifice outlet).
+ */
+function underThreat(view: GameView): boolean {
+  return Object.keys(view.stack ?? {}).length > 0
+    || (AFTER_ATTACKS.has(view.step ?? '') && (view.combat ?? []).some((group) => Object.keys(group.attackers ?? {}).length > 0));
+}
+
 export type AutoAnswer = 'pass' | 'noAttacks' | 'noBlocks';
 
 /** What to answer for the player right now, or null when the decision is theirs. */
@@ -126,7 +138,7 @@ export function autoAnswer(view: GameView | null | undefined, prompt: Prompt | n
       if (combatStopHere(view, settings.combatStops)) return null;
       // like Arena: when no creature attacks, the rest of combat goes by even with instants in hand
       if (settings.autoSkipCombat && noCombat(view)) return 'pass';
-      return meaningfulPlays(view, myTurn || settings.abilitiesOnTheirTurn).length === 0 ? 'pass' : null;
+      return meaningfulPlays(view, myTurn || settings.abilitiesOnTheirTurn || underThreat(view)).length === 0 ? 'pass' : null;
     }
     // the server stops listing creatures once they are declared: with everything chosen the list is empty too, and
     // that declaration is the player's to confirm

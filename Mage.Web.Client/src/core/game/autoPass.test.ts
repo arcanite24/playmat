@@ -41,6 +41,16 @@ describe('autoAnswer', () => {
     expect(autoAnswer(theirTurn, priority, { ...on, abilitiesOnTheirTurn: true })).toBeNull();
     expect(autoAnswer(myTurn, priority, on)).toBeNull();
   });
+  it("on the opponent's turn, permanents' abilities stop you while creatures attack or something is on the stack", () => {
+    const cop = { other: [{ value: '{1}: The next time a red source of your choice would deal...' }] };
+    const theirTurn: GameView = { ...view({ circle: cop }), activePlayerId: 'them' };
+    const attacked: GameView = { ...theirTurn, step: 'DECLARE_BLOCKERS', combat: [{ attackers: { goblin: {} } }] as never };
+    expect(autoAnswer(attacked, priority, on)).toBeNull();
+    expect(autoAnswer({ ...attacked, step: 'COMBAT_DAMAGE' }, priority, on)).toBeNull();
+    expect(autoAnswer({ ...theirTurn, stack: { bolt: {} } as never }, priority, on)).toBeNull();
+    // nobody attacking and nothing to answer: the turn goes by
+    expect(autoAnswer({ ...theirTurn, step: 'PRECOMBAT_MAIN' }, priority, on)).toBe('pass');
+  });
   it("stops on the opponent's turn to turn a face-down creature up (a morph after blocks)", () => {
     const morph = { other: [{ value: '{0}: Turn this face-down permanent face up' }] };
     expect(autoAnswer({ ...view({ proteus: morph }), activePlayerId: 'them' }, priority, on)).toBeNull();
