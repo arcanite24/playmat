@@ -177,6 +177,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           <Row label={t('settings.hideStarterDecks')} detail={t('settings.hideStarterDecks.detail')}>{toggle('hideStarterDecks')}</Row>
           <Row label={t('settings.motion')} detail={t('settings.motion.detail')}>{toggle('animations')}</Row>
           <Row label={t('settings.sortHand')} detail={t('settings.sortHand.detail')}>{toggle('sortHand')}</Row>
+          <Row label={t('settings.bigZoom')} detail={t('settings.bigZoom.detail')}>{toggle('bigZoom')}</Row>
           <Row label={t('settings.autoDismissReveals')} detail={t('settings.autoDismissReveals.detail')}>{toggle('autoDismissReveals')}</Row>
           <Row label={t('settings.compactBoard')} detail={t('settings.compactBoard.detail')}>{toggle('compactBoard')}</Row>
           <Row label={t('settings.muteEmotes')} detail={t('settings.muteEmotes.detail')}>{toggle('muteEmotes')}</Row>
