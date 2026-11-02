@@ -7,6 +7,8 @@ import { decodePayload } from '../../../core/deckImport/payload';
 import { recognize, type Recognized } from '../../../core/deckImport/recognize';
 import { describeFailure, readingFromServer, type ImportFailure } from '../../../core/deckImport/remote';
 import { browserFixStore, importKey, resolveCards, type CardLookup, type PrintingPolicy } from '../../../core/deckImport/resolve';
+import { scryfallRenamedCard } from '../../../core/deckImport/scryfallNames';
+import { configuredImageProxy, proxiedScryfallUrl } from '../../../core/images/imageProxy';
 import { nameFromLink, siteById, type DeckSiteId } from '../../../core/deckImport/sites';
 import type { CardView } from '../../../protocol/generated/views';
 import { APP_NAME } from '../../brand';
@@ -16,6 +18,11 @@ import type { ImportSeed } from '../../stores/importSheet';
 export const cardLookup: CardLookup = {
   lookupCards: (cards) => api.lookupCards(cards),
   searchCards: (criteria) => api.searchCards(criteria),
+  renamedCard: (name) => scryfallRenamedCard(name, async (url) => {
+    const response = await fetch(proxiedScryfallUrl(url, configuredImageProxy()), { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Scryfall answered ${response.status}`);
+    return response.json();
+  }),
 };
 
 export type ImportStep =
