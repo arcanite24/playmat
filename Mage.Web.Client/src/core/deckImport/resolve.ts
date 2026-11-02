@@ -9,6 +9,11 @@ import type { DeckCardInfo } from '../decks/types';
 export interface CardLookup {
   lookupCards(cards: WireCard[]): Promise<(CardView | null)[]>;
   searchCards(criteria: CardCriteria): Promise<CardView[]>;
+  /**
+   * The Oracle card behind another name a printing carries (a Universes Beyond card's in-universe name, like
+   * "Vibranium Dynamo" for Thran Dynamo), with that printing; null when the name is no such thing.
+   */
+  renamedCard?(name: string): Promise<PrintingChoice | null>;
 }
 
 export interface PrintingChoice {
@@ -26,6 +31,8 @@ export interface FixStore {
 export type PrintingPolicy = 'site' | 'preferred';
 
 const BATCH = 200;
+/** Unmatched names asked about one by one (renamedCard); a list full of typos shouldn't send hundreds. */
+const MAX_RENAMED = 40;
 
 /** Identity of an imported line: name plus the printing it asked for. */
 export function importKey(card: Pick<DeckCardInfo, 'cardName' | 'setCode' | 'cardNumber'>): string {
@@ -137,6 +144,41 @@ export async function resolveCards(
       const card = third[index];
       if (card && sameCard(card.name ?? '', unique.get(key)!.cardName)) result.set(key, card);
     });
+  }
+
+  // names the card database doesn't use: Universes Beyond printings under in-universe names
+  if (lookup.renamedCard) {
+    const unmatched = keys.filter((key) => result.get(key) === null).slice(0, MAX_RENAMED);
+    const renames: { key: string; name: string; query: WireCard }[] = [];
+    for (const key of unmatched) {
+      const entry = unique.get(key)!;
+      let renamed: PrintingChoice | null = null;
+      try {
+        renamed = await lookup.renamedCard(frontFace(paperName(entry.cardName)));
+      } catch {
+        renamed = null;
+      }
+      if (!renamed || sameCard(renamed.cardName, entry.cardName)) continue;
+      const printing = options.printings === 'preferred' ? wire(renamed.cardName) : wire(renamed.cardName, renamed.setCode, renamed.cardNumber);
+      renames.push({ key, name: renamed.cardName, query: printing });
+    }
+    if (renames.length > 0) {
+      const fourth = await lookupAll(lookup, renames.map((rename) => rename.query));
+      // a printing the server lacks still finds the card by its Oracle name
+      const byName: typeof renames = [];
+      renames.forEach((rename, index) => {
+        const card = fourth[index];
+        if (card && sameCard(card.name ?? '', rename.name)) result.set(rename.key, card);
+        else if (rename.query.setCode) byName.push(rename);
+      });
+      if (byName.length > 0) {
+        const fifth = await lookupAll(lookup, byName.map((rename) => wire(rename.name)));
+        byName.forEach((rename, index) => {
+          const card = fifth[index];
+          if (card && sameCard(card.name ?? '', rename.name)) result.set(rename.key, card);
+        });
+      }
+    }
   }
   return result;
 }

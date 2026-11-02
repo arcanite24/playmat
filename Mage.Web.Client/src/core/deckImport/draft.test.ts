@@ -13,6 +13,7 @@ const PRINTINGS: CardView[] = [
   { name: "Atraxa, Praetors' Voice", expansionSetCode: '2X2', cardNumber: '190', manaValue: 4 },
   { name: "Alrund's Epiphany", expansionSetCode: 'MID', cardNumber: '42', manaValue: 6 },
   { name: 'Sol Ring', expansionSetCode: 'CMR', cardNumber: '472', manaValue: 1 },
+  { name: 'Thran Dynamo', expansionSetCode: 'MSC', cardNumber: '290', manaValue: 4 },
 ];
 
 function fakeLookup(): CardLookup & { calls: number } {
@@ -41,6 +42,46 @@ function memoryFixes(): FixStore {
 }
 
 describe('resolveCards', () => {
+  const renames: Record<string, { cardName: string; setCode: string; cardNumber: string }> = {
+    'Vibranium Dynamo': { cardName: 'Thran Dynamo', setCode: 'MSC', cardNumber: '290' },
+    'The Hexcore': { cardName: 'Thran Dynamo', setCode: 'SLD', cardNumber: '483' },
+  };
+  function renamingLookup() {
+    const asked: string[] = [];
+    const lookup: CardLookup = {
+      ...fakeLookup(),
+      async renamedCard(name) {
+        asked.push(name);
+        return renames[name] ?? null;
+      },
+    };
+    return { lookup, asked };
+  }
+
+  it('finds a Universes Beyond card under its in-universe name', async () => {
+    const { lookup, asked } = renamingLookup();
+    const entry = { amount: 1, cardName: 'Vibranium Dynamo', setCode: null, cardNumber: null };
+    const cards = await resolveCards([entry, { amount: 4, cardName: 'Lightning Bolt', setCode: null, cardNumber: null }], lookup);
+    expect(cards.get(importKey(entry))).toMatchObject({ name: 'Thran Dynamo', expansionSetCode: 'MSC', cardNumber: '290' });
+    // only the unmatched name is asked about
+    expect(asked).toEqual(['Vibranium Dynamo']);
+  });
+
+  it('takes the Oracle card by name when the renamed printing is not in the database', async () => {
+    const { lookup } = renamingLookup();
+    const entry = { amount: 1, cardName: 'The Hexcore', setCode: 'SLD', cardNumber: '483' };
+    const cards = await resolveCards([entry], lookup);
+    expect(cards.get(importKey(entry))?.name).toBe('Thran Dynamo');
+  });
+
+  it('leaves a name nobody knows unmatched', async () => {
+    const { lookup, asked } = renamingLookup();
+    const entry = { amount: 1, cardName: 'Made Up Card', setCode: null, cardNumber: null };
+    const cards = await resolveCards([entry], lookup);
+    expect(cards.get(importKey(entry))).toBeNull();
+    expect(asked).toEqual(['Made Up Card']);
+  });
+
   it('matches a whole deck in one batch when every card is known', async () => {
     const lookup = fakeLookup();
     const cards = await resolveCards([
