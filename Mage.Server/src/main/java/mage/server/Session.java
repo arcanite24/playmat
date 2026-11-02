@@ -63,6 +63,7 @@ public class Session {
     private volatile String signedOnUserName; // see trustSignedOnLogin
     private final ClientChannel channel;
     private volatile OidcAuth.Token oidcLoginToken; // see markOidcLogin
+    private volatile boolean oidcAdmin; // see markOidcAdmin
     private boolean valid = true;
 
     private final ReentrantLock lock;
@@ -360,6 +361,20 @@ public class Session {
         return oidcLoginToken;
     }
 
+    /**
+     * This sign-in came through the identity provider with its verified ID token carrying the configured
+     * admin group: for the session's life the session is the server's admin console. It dies with the session
+     * (sign-out, disconnect, restart), like oidcLoginToken, and is re-derived from the token at every
+     * provider sign-in - a sign-in the user makes outside the group re-derives without the console.
+     */
+    public void markOidcAdmin(boolean admin) {
+        this.oidcAdmin = admin;
+    }
+
+    public boolean oidcAdmin() {
+        return oidcAdmin;
+    }
+
     public boolean isLocked() {
         return lock.isLocked();
     }
@@ -378,6 +393,8 @@ public class Session {
         signedOnUserName = null;
         // every login starts without a provider: the web bridge marks the ID token only for one that came through it
         this.oidcLoginToken = null;
+        // ... and the group's admin marker only when that token carried the configured admin group
+        this.oidcAdmin = false;
 
         // find auth user
         AuthorizedUser authorizedUser = null;

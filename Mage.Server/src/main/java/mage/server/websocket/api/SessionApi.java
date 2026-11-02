@@ -220,8 +220,10 @@ final class SessionApi {
                         .returns("OidcLogout | null")
                         .doc("End the identity provider session for this sign-in (RP-initiated logout, RFC 7063): the URL to send "
                                 + "the player's browser to, or null when the provider isn't set up, offers no end-session endpoint, "
-                                + "or this sign-in didn't come through the provider (a password, a remembered device, a restored "
-                                + "session). Call it before disconnectSession.")
+                                + "or the account never signed in through it. A provider sign-in hints its own ID token; any other "
+                                + "session of a linked account (a password, a remembered device, a restored session) hints the "
+                                + "account's last verified one, so the sign-out ends the provider's session and the next button "
+                                + "click asks for the passkey again. Call it before disconnectSession.")
                         .handler(call -> oidcLogout(ctx, call)),
 
                 RpcMethod.named("connectSetUserData")
@@ -272,7 +274,10 @@ final class SessionApi {
      * The sign-in's ID token, if the sign-in came through the identity provider: the web client carries a one-use
      * ref from oidcFinish. The token is bound only when its provider user is the one this account is linked to -
      * a spent, expired or foreign ref is ignored, so a sign-in that didn't come through the provider is never
-     * marked (and its sign-out never ends a provider session).
+     * marked (it never holds the group's admin marker). The token is also kept on the account's link, as the
+     * end-session's hint for sign-outs from sessions that hold no token of their own (a reload, a device, a
+     * restored session): without it, such a sign-out would leave the provider's session warm, and the next
+     * "Sign in with the provider" would silently re-create the person the sign-out was meant to send away.
      */
     private static void bindOidcToken(ApiContext ctx, RpcCall call) throws RpcException {
         String ref = call.optString(7, "");
@@ -295,12 +300,22 @@ final class SessionApi {
         }
         if (link != null && link.sub != null && link.sub.equals(token.sub)) {
             ctx.sessions.markOidcLogin(call.sessionId(), token);
+            ctx.sessions.markOidcAdmin(call.sessionId(), token.admin);
+            try {
+                AccessPolicy.get().store().rememberOidcToken(link, token.raw, token.exp);
+            } catch (SQLException e) {
+                // the sign-in stands; sign-outs from this session just don't end the provider's
+            }
         }
     }
 
     /**
      * The URL that ends the provider session for this sign-in, or null when the plain sign-out stands: the
-     * provider isn't set up, it offers no end-session endpoint, or the sign-in didn't come through it.
+     * provider isn't set up, it offers no end-session endpoint, or the account never signed in through it.
+     * A session that signed in through the provider hints its own token; any other session of a linked
+     * account (a password, a remembered device, a restored session) hints the account's last verified one,
+     * so the sign-out ends the provider's session and the next "Sign in with the provider" asks for the
+     * passkey again instead of silently re-creating the person. Call it before disconnectSession.
      */
     private static OidcLogout oidcLogout(ApiContext ctx, RpcCall call) {
         OidcAuth oidc = OidcAuth.get();
@@ -309,7 +324,22 @@ final class SessionApi {
         }
         OidcAuth.Token token = ctx.sessions.oidcIdToken(call.sessionId()).orElse(null);
         if (token == null) {
-            return null; // a password, remembered-device, restored or reconnected sign-in
+            // a sign-in that didn't come through the provider holds no token of its own: the account's
+            // last verified one ends the same provider session (it is refreshed at every provider sign-in)
+            String account = ctx.sessions.userName(call.sessionId()).orElse(null);
+            if (account != null) {
+                try {
+                    OidcLink link = AccessPolicy.get().store().oidcLinkOf(account);
+                    if (link != null && link.lastToken != null) {
+                        token = new OidcAuth.Token(link.lastToken, link.lastTokenExp, link.sub, false);
+                    }
+                } catch (SQLException e) {
+                    // the sign-out stands; the provider session just isn't ended
+                }
+            }
+        }
+        if (token == null) {
+            return null; // the provider is set up, but this account never signed in through it
         }
         String state = oidc.newStateToken();
         String url = oidc.endSessionUrl(token.raw, state);

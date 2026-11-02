@@ -107,6 +107,16 @@ final class ServerRpcSessions implements RpcSessions {
     }
 
     @Override
+    public void markOidcAdmin(String sessionId, boolean admin) {
+        managers.sessionManager().getSession(sessionId).ifPresent(session -> session.markOidcAdmin(admin));
+    }
+
+    @Override
+    public boolean oidcAdmin(String sessionId) {
+        return managers.sessionManager().getSession(sessionId).map(Session::oidcAdmin).orElse(false);
+    }
+
+    @Override
     public void forgetLogin(String userName, String token) {
         if (managers.configSettings().isAuthenticationActivated()) {
             AuthorizedUserRepository.getInstance().forgetLogin(userName, token);

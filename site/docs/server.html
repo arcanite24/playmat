@@ -189,8 +189,14 @@ XMAGE_OIDC_LABEL=Pocket ID</code></pre>
           different address than the players' one. And a player whose provider email isn't confirmed yet is told
           to confirm it in the provider.</p>
         <p>Signing a player out also ends the provider's session where the provider advertises RP-initiated
-          logout in its discovery document, so the next click of the button asks for the passkey again; without
-          it, or for a sign-in that didn't come through the provider, signing out is unchanged.</p>
+          logout in its discovery document, so the next click of the button asks for the passkey again - whether
+          the sign-in came through the provider or is a reload of one. Without it, or for an account that never
+          signed in through the provider, signing out is unchanged.</p>
+        <p><code>XMAGE_OIDC_ADMIN_GROUP</code> names a user group in the provider: a member who signs in opens
+          the admin console on their own session, with no password, for as long as that session lives, and it
+          returns when they sign out. While it lasts the member is a full owner, the same envelope the shared
+          admin password already gives; <code>XMAGE_ADMIN_PASSWORD</code> stays the break-glass. Don't restrict
+          the client to that group in the provider, or everyone outside it is denied sign-in.</p>
         <p>Pocket ID is a selfhosted, passkey-only provider and the one to start from: how to add the client,
           what its passkeys mean for players, key rotation, and its one algorithm it can't use, are in the
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#sign-in-with-an-identity-provider">deployment guide</a>.</p>

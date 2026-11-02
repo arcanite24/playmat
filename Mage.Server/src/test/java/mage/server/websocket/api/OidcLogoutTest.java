@@ -51,9 +51,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * The end of an identity-provider sign-in, part two (RP-initiated logout, RFC 7063): the sign-in's verified ID
- * token is bound onto the session through a one-use ref, and only then can a sign-out end the provider session.
- * A sign-in that didn't come through the provider (a password, a remembered device, a restored session) never
- * holds a token, so its sign-out is the plain one; a spent or foreign ref marks nothing.
+ * token is bound onto the session through a one-use ref, and kept on the account's link as the account's last
+ * verified one. A sign-in through the provider ends the provider's session on sign-out with its own token; so
+ * does any other session of a linked account (a password, a remembered device, a restored session) - with the
+ * account's last verified token, so a sign-out never leaves a warm session that the next button click would
+ * silently re-authenticate. An account the provider never signed in gets the plain sign-out; a spent or
+ * foreign ref marks nothing.
  */
 public class OidcLogoutTest {
 
@@ -148,7 +151,7 @@ public class OidcLogoutTest {
     /** The server's configured provider, with or without an end_session endpoint. */
     private void useProvider(boolean endSession) {
         discoveryJson = endSession ? DISCOVERY_JSON : DISCOVERY_WITHOUT_LOGOUT_JSON;
-        oidc = new OidcAuth(DISCOVERY_URL, CLIENT_ID, "s3cret", LABEL, PUBLIC_URL, false, (method, url, token, form) -> {
+        oidc = new OidcAuth(DISCOVERY_URL, CLIENT_ID, "s3cret", LABEL, PUBLIC_URL, false, "", "", "", (method, url, token, form) -> {
             if (url.endsWith("/.well-known/openid-configuration")) {
                 return discoveryJson;
             }
@@ -306,6 +309,85 @@ public class OidcLogoutTest {
         assertThat(out.expired).isTrue();
     }
 
+    // --- a session that holds no token of its own (a reload, a device) --------------------------------
+
+    @Test
+    void aRememberedDeviceSignInOfALinkedAccountEndsTheProviderSession() throws Exception {
+        useProvider(true);
+        linkAccount("user");
+        FakeConnection first = new FakeConnection();
+        assertThat(connect(first, "", providerSignInRef())).isTrue(); // binds the token, and keeps it on the link
+
+        FakeConnection reloaded = new FakeConnection(); // a reload: the remembered device signs back in, no ref
+        JsonArray params = new JsonArray();
+        params.add("user");
+        params.add("");
+        params.add("x");
+        params.add("");
+        params.add("");
+        params.add("");
+        params.add("a-remember-token");
+        assertThat((Boolean) dispatcher.dispatch("connectUser", params, reloaded)).isTrue();
+
+        SessionApi.OidcLogout out = (SessionApi.OidcLogout) logout(reloaded);
+
+        assertThat(out).as("the account's last verified token is the hint").isNotNull();
+        assertThat(out.url).contains("id_token_hint=" + sessions.oidcIdToken(first.getSessionId()).get().raw);
+    }
+
+    @Test
+    void aPasswordSignInOfALinkedAccountEndsTheProviderSession() throws Exception {
+        useProvider(true);
+        linkAccount("user");
+        FakeConnection providerOne = new FakeConnection();
+        assertThat(connect(providerOne, "", providerSignInRef())).isTrue(); // the account's last token
+
+        FakeConnection passwordOne = new FakeConnection();
+        assertThat(connect(passwordOne, PASSWORD, "")).isTrue(); // a password sign-in, no token of its own
+
+        SessionApi.OidcLogout out = (SessionApi.OidcLogout) logout(passwordOne);
+
+        assertThat(out).as("the sign-out ends the provider's session, so the next button click asks again").isNotNull();
+        assertThat(out.url).contains("id_token_hint=" + sessions.oidcIdToken(providerOne.getSessionId()).get().raw);
+    }
+
+    @Test
+    void anExpiredStoredTokenStillGetsAUrl() throws Exception {
+        useProvider(true);
+        linkAccount("user");
+        FakeConnection first = new FakeConnection();
+        assertThat(connect(first, "", providerSignInRef())).isTrue();
+
+        now += 301_000; // past the ID token's five-minute lifetime
+
+        FakeConnection reloaded = new FakeConnection();
+        JsonArray params = new JsonArray();
+        params.add("user");
+        params.add("");
+        params.add("x");
+        params.add("");
+        params.add("");
+        params.add("");
+        params.add("a-remember-token");
+        assertThat((Boolean) dispatcher.dispatch("connectUser", params, reloaded)).isTrue();
+
+        SessionApi.OidcLogout out = (SessionApi.OidcLogout) logout(reloaded);
+
+        assertThat(out).as("the stored hint is sent anyway; the provider decides whether to accept it").isNotNull();
+        assertThat(out.expired).isTrue();
+    }
+
+    @Test
+    void aSignInOfAnAccountWhoseLinkKeepsNoTokenGetsNoUrl() throws Exception {
+        useProvider(true);
+        accounts.add("user", PASSWORD, "user@example.test");
+        store.linkOidc(sub, "User", "user@example.test", "user", now); // linked, but no token kept (a pre-token link)
+        FakeConnection connection = new FakeConnection();
+        assertThat(connect(connection, PASSWORD, "")).isTrue();
+
+        assertThat(logout(connection)).as("nothing verified to hint: the plain sign-out stands").isNull();
+    }
+
     // --- the binding rules -------------------------------------------------------------------------
 
     @Test
@@ -342,7 +424,8 @@ public class OidcLogoutTest {
 
         assertThat(sessions.oidcIdToken(first.getSessionId())).isPresent();
         assertThat(sessions.oidcIdToken(second.getSessionId())).as("the ref was spent on the first connection").isEmpty();
-        assertThat(logout(second)).isNull();
+        // a session without its own token still ends the provider session: the account's last verified one is the hint
+        assertThat(logout(second)).isNotNull();
         assertThat((SessionApi.OidcLogout) logout(first)).isNotNull();
     }
 
@@ -351,7 +434,7 @@ public class OidcLogoutTest {
         useProvider(true);
         accounts.add("user", PASSWORD, "user@example.test");
         Session session = newSession();
-        OidcAuth.Token token = new OidcAuth.Token("raw", now + 300_000, sub);
+        OidcAuth.Token token = new OidcAuth.Token("raw", now + 300_000, sub, false);
 
         session.markOidcLogin(token);
         assertThat(session.oidcLoginToken()).isSameAs(token);
@@ -424,6 +507,7 @@ public class OidcLogoutTest {
         final Map<String, String> hosts = new HashMap<>();
         final Map<String, String> names = new HashMap<>();
         final Map<String, OidcAuth.Token> oidcTokens = new HashMap<>();
+        final Map<String, Boolean> oidcAdmins = new HashMap<>();
 
         @Override
         public void create(String sessionId, ClientChannel channel, String host) {
@@ -473,6 +557,16 @@ public class OidcLogoutTest {
         @Override
         public Optional<OidcAuth.Token> oidcIdToken(String sessionId) {
             return Optional.ofNullable(oidcTokens.get(sessionId));
+        }
+
+        @Override
+        public void markOidcAdmin(String sessionId, boolean admin) {
+            oidcAdmins.put(sessionId, admin);
+        }
+
+        @Override
+        public boolean oidcAdmin(String sessionId) {
+            return oidcAdmins.getOrDefault(sessionId, false);
         }
 
         @Override

@@ -35,7 +35,10 @@ import java.util.function.LongSupplier;
  * and {@code xmage.publicUrl} are all set (the provider sends the player back to {@code <publicUrl>/auth/oidc}).
  * The server exchanges the one-use code, verifies the ID token against the provider's published keys
  * (see OidcVerifier) and reads its claims. With {@code xmage.oidc.only} the provider is the only sign-in
- * method. The client secret is a secret and is never logged.
+ * method. With {@code xmage.oidc.adminGroup} set, a sign-in whose verified ID token carries that provider
+ * group opens the server's admin console for the session that signed in (see Staff); the authorization
+ * request then asks for the {@code groups} scope (claim name: {@code xmage.oidc.groupsClaim}, scope:
+ * {@code xmage.oidc.scope}). The client secret is a secret and is never logged.
  */
 public final class OidcAuth {
 
@@ -46,6 +49,9 @@ public final class OidcAuth {
     public static final String CLIENT_SECRET_PROP = "xmage.oidc.clientSecret";
     public static final String LABEL_PROP = "xmage.oidc.label";
     public static final String ONLY_PROP = "xmage.oidc.only";
+    public static final String ADMIN_GROUP_PROP = "xmage.oidc.adminGroup";
+    public static final String SCOPE_PROP = "xmage.oidc.scope";
+    public static final String GROUPS_CLAIM_PROP = "xmage.oidc.groupsClaim";
     public static final String PUBLIC_URL_PROP = "xmage.publicUrl";
 
     public static final String CALLBACK_PATH = "/auth/oidc";
@@ -89,32 +95,40 @@ public final class OidcAuth {
 
     /**
      * A verified ID token as the server keeps it: the JWT string (for the end-session's id_token_hint),
-     * its expiry in millis, and the provider's user id it proves.
+     * its expiry in millis, the provider's user id it proves, and whether its groups claim carried the
+     * configured admin group (the server's console for the session that signs in with it).
      */
     public static final class Token {
         public final String raw;
         public final long exp;
         public final String sub;
+        public final boolean admin;
 
-        public Token(String raw, long exp, String sub) {
+        public Token(String raw, long exp, String sub, boolean admin) {
             this.raw = raw;
             this.exp = exp;
             this.sub = sub;
+            this.admin = admin;
         }
     }
 
-    /** Who signed in: the provider's stable user id (sub), the email and whether the provider verified it. */
+    /**
+     * Who signed in: the provider's stable user id (sub), the email and whether the provider verified it,
+     * and the groups its ID token claims (the provider's claim as read, for the admin-group decision).
+     */
     public static final class Identity {
         public final String sub;
         public final String email;
         public final boolean emailVerified;
         public final String displayName;
+        public final List<String> groups;
 
-        public Identity(String sub, String email, boolean emailVerified, String displayName) {
+        public Identity(String sub, String email, boolean emailVerified, String displayName, List<String> groups) {
             this.sub = sub;
             this.email = email;
             this.emailVerified = emailVerified;
             this.displayName = displayName;
+            this.groups = groups;
         }
     }
 
@@ -138,6 +152,9 @@ public final class OidcAuth {
     private final String label;
     private final String publicUrl;
     private final boolean only;
+    private final String adminGroup;
+    private final String scope;
+    private final String groupsClaim;
     private final Http http;
     private final LongSupplier clock;
     private final OidcVerifier verifier;
@@ -154,7 +171,8 @@ public final class OidcAuth {
     private final Map<String, Token> tokenRefs = new ConcurrentHashMap<>();
 
     public OidcAuth(String discoveryUrl, String clientId, String clientSecret, String label, String publicUrl,
-                    boolean oidcOnly, Http http, LongSupplier clock) {
+                    boolean oidcOnly, String adminGroup, String scope, String groupsClaim,
+                    Http http, LongSupplier clock) {
         this.discoveryUrl = trim(discoveryUrl);
         this.clientId = trim(clientId);
         this.clientSecret = trim(clientSecret);
@@ -162,6 +180,11 @@ public final class OidcAuth {
         this.label = name.isEmpty() ? "OIDC" : name;
         this.publicUrl = trim(publicUrl).replaceAll("/+$", "");
         this.only = oidcOnly;
+        this.adminGroup = trim(adminGroup);
+        String requestedScope = trim(scope);
+        this.scope = requestedScope.isEmpty() ? "openid profile email" : requestedScope;
+        String claim = trim(groupsClaim);
+        this.groupsClaim = claim.isEmpty() ? "groups" : claim;
         this.http = http;
         this.clock = clock;
         this.verifier = new OidcVerifier(http, clock, this.clientId);
@@ -176,6 +199,8 @@ public final class OidcAuth {
                     current = new OidcAuth(System.getProperty(DISCOVERY_PROP, ""), System.getProperty(CLIENT_ID_PROP, ""),
                             System.getProperty(CLIENT_SECRET_PROP, ""), System.getProperty(LABEL_PROP, ""),
                             System.getProperty(PUBLIC_URL_PROP, ""), Boolean.parseBoolean(System.getProperty(ONLY_PROP, "false")),
+                            System.getProperty(ADMIN_GROUP_PROP, ""), System.getProperty(SCOPE_PROP, ""),
+                            System.getProperty(GROUPS_CLAIM_PROP, ""),
                             OidcAuth::httpRequest, System::currentTimeMillis);
                     current.startDiscovery();
                     instance = current;
@@ -289,10 +314,30 @@ public final class OidcAuth {
         pending.put(state, new OidcPending(now + STATE_MILLIS, nonce));
         return current.authorizationEndpoint + "?client_id=" + encode(clientId)
                 + "&redirect_uri=" + encode(publicUrl + CALLBACK_PATH)
-                + "&scope=" + encode("openid profile email").replace("+", "%20")
+                + "&scope=" + encode(authorizationScope()).replace("+", "%20")
                 + "&response_type=code"
                 + "&state=" + encode(state)
                 + "&nonce=" + encode(nonce);
+    }
+
+    /**
+     * The scope the authorization request asks for: the configured one (default "openid profile email"),
+     * plus "groups" when the admin group is set and the scope doesn't already ask for it.
+     */
+    private String authorizationScope() {
+        if (adminGroup.isEmpty() || scopeHasWord("groups")) {
+            return scope;
+        }
+        return scope + " groups";
+    }
+
+    private boolean scopeHasWord(String word) {
+        for (String part : scope.split("\\s+")) {
+            if (part.equalsIgnoreCase(word)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -342,12 +387,14 @@ public final class OidcAuth {
                 logger.info(label + " profile not readable for " + sub);
             }
         }
-        Identity identity = new Identity(sub, email, emailVerified, displayOf(claims, email));
+        List<String> groups = groupsOf(claims);
+        Identity identity = new Identity(sub, email, emailVerified, displayOf(claims, email), groups);
         identities.put(state, identity);
         pending.put("identity:" + state, new OidcPending(now + STATE_MILLIS, spot.nonce)); // how long the identity is kept
         Date expiration = claims.getExpirationTime();
         if (expiration != null) {
-            identityTokens.put(state, new Token(exchange.get("id_token").getAsString(), expiration.getTime(), sub));
+            identityTokens.put(state, new Token(exchange.get("id_token").getAsString(), expiration.getTime(), sub,
+                    adminGroupMatches(groups)));
         }
         return identity;
     }
@@ -531,6 +578,39 @@ public final class OidcAuth {
             return local.isEmpty() ? null : local;
         }
         return null;
+    }
+
+    /**
+     * The verified token's groups claim (a configurable claim name, default "groups") as read by the provider,
+     * or empty when the token doesn't carry it. ID token only: v1 has no /userinfo fallback for it.
+     */
+    private List<String> groupsOf(JWTClaimsSet claims) {
+        Object value = claims.getClaim(groupsClaim);
+        List<String> groups = new ArrayList<>();
+        if (value instanceof List) {
+            for (Object element : (List<?>) value) {
+                if (element instanceof String) {
+                    groups.add((String) element);
+                }
+            }
+        }
+        return Collections.unmodifiableList(groups);
+    }
+
+    /**
+     * Whether the token's groups carry the configured admin group (a case-insensitive exact match; an unset
+     * adminGroup never matches). This is the session's admin marker for a sign-in with this token.
+     */
+    private boolean adminGroupMatches(List<String> groups) {
+        if (adminGroup.isEmpty()) {
+            return false;
+        }
+        for (String group : groups) {
+            if (group != null && group.trim().equalsIgnoreCase(adminGroup)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // --- HTTP -------------------------------------------------------------------------------------

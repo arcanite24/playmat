@@ -133,7 +133,7 @@ public class OidcOnlyTest {
     /** The server's configured provider, with the OIDC-only mode on or off. */
     private void useMode(boolean only) {
         oidc = new OidcAuth("https://id.example.test/.well-known/openid-configuration", "playmat", "s3cret",
-                LABEL, "https://play.example.test/", only, (method, url, token, form) -> {
+                LABEL, "https://play.example.test/", only, "", "", "", (method, url, token, form) -> {
                     throw new java.io.IOException("the provider is never reached by the mode's gates");
                 }, () -> 1_000_000L);
         OidcAuth.use(oidc);
@@ -517,6 +517,15 @@ public class OidcOnlyTest {
         @Override
         public Optional<mage.server.admin.OidcAuth.Token> oidcIdToken(String sessionId) {
             return Optional.empty();
+        }
+
+        @Override
+        public void markOidcAdmin(String sessionId, boolean admin) {
+        }
+
+        @Override
+        public boolean oidcAdmin(String sessionId) {
+            return false;
         }
 
         @Override

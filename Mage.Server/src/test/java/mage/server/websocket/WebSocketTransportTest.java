@@ -303,6 +303,15 @@ public class WebSocketTransportTest {
         }
 
         @Override
+        public void markOidcAdmin(String sessionId, boolean admin) {
+        }
+
+        @Override
+        public boolean oidcAdmin(String sessionId) {
+            return false;
+        }
+
+        @Override
         public void forgetLogin(String userName, String token) {
         }
 

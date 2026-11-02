@@ -19,6 +19,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -63,7 +64,10 @@ public class OidcAuthTest {
     private Boolean emailVerified = Boolean.TRUE;
     private String preferredUsername = "OctoCat";
     private String name = null;
+    private Object groupClaimValue = null; // the value to embed under the groups claim name, null for none
+    private String groupClaimName = "groups";
     private KeyPair rsa;
+    private OidcAuth.Http http;
     private OidcAuth oidc;
 
     @BeforeEach
@@ -72,7 +76,7 @@ public class OidcAuthTest {
         generator.initialize(2048);
         rsa = generator.generateKeyPair();
         jwksJson = new JWKSet(new RSAKey.Builder((RSAPublicKey) rsa.getPublic()).keyUse(KeyUse.SIGNATURE).algorithm(JWSAlgorithm.RS256).keyID("k1").build()).toString();
-        oidc = new OidcAuth(DISCOVERY_URL, CLIENT_ID, CLIENT_SECRET, "", PUBLIC_URL, false, (method, url, token, form) -> {
+        http = (method, url, token, form) -> {
             requests.add(method + " " + url);
             if (form != null) {
                 formBodies.add(form);
@@ -99,7 +103,8 @@ public class OidcAuthTest {
                 return userinfoJson;
             }
             throw new IOException("unexpected " + url);
-        }, () -> now);
+        };
+        oidc = new OidcAuth(DISCOVERY_URL, CLIENT_ID, CLIENT_SECRET, "", PUBLIC_URL, false, "", "", "", http, () -> now);
         OidcAuth.use(oidc);
     }
 
@@ -145,6 +150,9 @@ public class OidcAuthTest {
             if (name != null) {
                 builder.claim("name", name);
             }
+            if (groupClaimValue != null) {
+                builder.claim(groupClaimName, groupClaimValue);
+            }
             SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID("k1").build(), builder.build());
             jwt.sign(new RSASSASigner(rsa.getPrivate()));
             JsonObject response = new JsonObject();
@@ -174,7 +182,7 @@ public class OidcAuthTest {
 
     @Test
     void unconfiguredIsRefusedWithoutCallingTheProvider() {
-        OidcAuth off = new OidcAuth("", "", "", "", "", false, (method, url, token, form) -> {
+        OidcAuth off = new OidcAuth("", "", "", "", "", false, "", "", "", (method, url, token, form) -> {
             throw new IOException("the provider should never be called");
         }, () -> now);
 
@@ -360,5 +368,122 @@ public class OidcAuthTest {
 
     private String state() {
         return query(oidc.start(), "state");
+    }
+
+    /** The provider with a given admin-group configuration (its config is read once at construction). */
+    private OidcAuth provider(String adminGroup, String scope, String groupsClaim) {
+        oidc = new OidcAuth(DISCOVERY_URL, CLIENT_ID, CLIENT_SECRET, "", PUBLIC_URL, false, adminGroup, scope, groupsClaim, http, () -> now);
+        OidcAuth.use(oidc);
+        oidc.fetchDiscovery();
+        return oidc;
+    }
+
+    /** The sign-in this provider conversation ends in: the token it hands out under a fresh ref. */
+    private OidcAuth.Token signIn() throws Exception {
+        String url = oidc.start();
+        tokenJson = tokenResponse(query(url, "nonce"));
+        String state = query(url, "state");
+        oidc.identify(state, "the-code");
+        return oidc.takeTokenRef(oidc.done(state));
+    }
+
+    // --- the admin group --------------------------------------------------------------------------
+
+    @Test
+    void theDefaultScopeStaysOpenidProfileEmail() {
+        oidc.fetchDiscovery();
+        assertThat(oidc.start()).contains("scope=openid%20profile%20email")
+                .as("no admin group: the groups scope is not asked for").doesNotContain("groups");
+    }
+
+    @Test
+    void theAdminGroupAsksForTheGroupsScope() {
+        provider("admins", "", "");
+        assertThat(oidc.start()).contains("scope=openid%20profile%20email%20groups");
+    }
+
+    @Test
+    void aConfiguredScopeStandsAndGroupsIsAppendedOnlyOnce() {
+        provider("admins", "openid custom_thing", "");
+        assertThat(oidc.start()).contains("scope=openid%20custom_thing%20groups");
+
+        provider("admins", "openid profile email groups", ""); // the selfhoster already asked for it
+        assertThat(oidc.start()).contains("scope=openid%20profile%20email%20groups").doesNotContain("groups%20");
+
+        provider("admins", "openid profile email GROUPS", ""); // a different case is the same word
+        assertThat(oidc.start()).contains("scope=openid%20profile%20email%20GROUPS");
+    }
+
+    @Test
+    void theGroupsClaimIsReadFromTheVerifiedToken() throws Exception {
+        provider("admins", "", "");
+        groupClaimValue = Arrays.asList("players", "admins");
+
+        OidcAuth.Identity who = identifyWithToken();
+
+        assertThat(who.groups).containsExactly("players", "admins");
+        assertThat(who.email).as("the other claims are untouched").isEqualTo("octo@example.test");
+    }
+
+    @Test
+    void anAbsentOrMalformedGroupsClaimIsEmpty() throws Exception {
+        provider("admins", "", "");
+
+        groupClaimValue = null; // absent
+        assertThat(identifyWithToken().groups).isEmpty();
+
+        groupClaimValue = "admins"; // a string where a list is expected
+        assertThat(identifyWithToken().groups).isEmpty();
+    }
+
+    @Test
+    void theGroupsClaimNameIsConfigurable() throws Exception {
+        provider("admins", "", "idp_groups");
+        groupClaimName = "idp_groups";
+        groupClaimValue = Arrays.asList("admins");
+
+        assertThat(identifyWithToken().groups).containsExactly("admins");
+    }
+
+    @Test
+    void aTokenWithTheAdminGroupMarksTheSignIn() throws Exception {
+        provider("admins", "", "");
+        groupClaimValue = Arrays.asList("players", "admins");
+
+        OidcAuth.Token token = signIn();
+
+        assertThat(token).isNotNull();
+        assertThat(token.admin).as("a case-insensitive exact match on the group name").isTrue();
+        assertThat(token.sub).isEqualTo("sub-octo");
+    }
+
+    @Test
+    void aTokenOutsideTheAdminGroupIsNotAdmin() throws Exception {
+        provider("admins", "", "");
+        groupClaimValue = Arrays.asList("players");
+
+        assertThat(signIn().admin).isFalse();
+    }
+
+    @Test
+    void aCaseDifferenceInTheGroupNameStillMatches() throws Exception {
+        provider("Admins", "", "");
+        groupClaimValue = Arrays.asList("admins");
+
+        assertThat(signIn().admin).isTrue();
+    }
+
+    @Test
+    void anUnsetAdminGroupNeverMarksEvenIfTheTokenCarriesThatName() throws Exception {
+        oidc.fetchDiscovery();
+        groupClaimValue = Arrays.asList("admins"); // the fixture's adminGroup is empty
+
+        assertThat(signIn().admin).isFalse();
+    }
+
+    private OidcAuth.Identity identifyWithToken() throws Exception {
+        String url = oidc.start();
+        tokenJson = tokenResponse(query(url, "nonce"));
+        return oidc.identify(query(url, "state"), "the-code");
     }
 }

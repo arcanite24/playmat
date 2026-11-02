@@ -22,6 +22,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
@@ -61,9 +62,11 @@ public class OidcSignInTest {
     private Boolean emailVerified = Boolean.TRUE;
     private String preferredUsername = "octo-cat-with-a-long-name";
     private String name = null;
+    private Object groupClaimValue = null; // the value to embed under the token's groups claim, null for none
     private KeyPair rsa;
     private AuthorizedUserRepository accounts;
     private AdminStore store;
+    private OidcAuth.Http http;
     private OidcAuth oidc;
 
     @BeforeEach
@@ -74,7 +77,7 @@ public class OidcSignInTest {
         generator.initialize(2048);
         rsa = generator.generateKeyPair();
         jwksJson = new JWKSet(new RSAKey.Builder((RSAPublicKey) rsa.getPublic()).keyUse(KeyUse.SIGNATURE).algorithm(JWSAlgorithm.RS256).keyID("k1").build()).toString();
-        oidc = new OidcAuth(DISCOVERY_URL, CLIENT_ID, "s3cret", "", PUBLIC_URL, false, (method, url, token, form) -> {
+        http = (method, url, token, form) -> {
             requests.add(method + " " + url);
             if (url.endsWith("/.well-known/openid-configuration")) {
                 return DISCOVERY_JSON;
@@ -86,9 +89,18 @@ public class OidcSignInTest {
                 return tokenJson;
             }
             throw new IOException("unexpected " + url);
-        }, () -> now);
+        };
+        oidc = new OidcAuth(DISCOVERY_URL, CLIENT_ID, "s3cret", "", PUBLIC_URL, false, "", "", "", http, () -> now);
         OidcAuth.use(oidc);
         oidc.fetchDiscovery();
+    }
+
+    /** The provider with a given admin-group configuration (its config is read once at construction). */
+    private OidcAuth provider(String adminGroup, String scope, String groupsClaim) {
+        oidc = new OidcAuth(DISCOVERY_URL, CLIENT_ID, "s3cret", "", PUBLIC_URL, false, adminGroup, scope, groupsClaim, http, () -> now);
+        OidcAuth.use(oidc);
+        oidc.fetchDiscovery();
+        return oidc;
     }
 
     @AfterEach
@@ -129,6 +141,9 @@ public class OidcSignInTest {
             }
             if (name != null) {
                 builder.claim("name", name);
+            }
+            if (groupClaimValue != null) {
+                builder.claim("groups", groupClaimValue);
             }
             SignedJWT jwt = new SignedJWT(new JWSHeader.Builder(JWSAlgorithm.RS256).keyID("k1").build(), builder.build());
             jwt.sign(new RSASSASigner(rsa.getPrivate()));
@@ -311,6 +326,44 @@ public class OidcSignInTest {
         assertThatThrownBy(() -> signIn(open).finish(true, query(url2, "state"), "the-code", null, now)).hasMessageContaining("verified email");
 
         assertThatThrownBy(() -> signIn(open).finish(false, ready(), "the-code", null, now)).hasMessageContaining("no accounts");
+    }
+
+    @Test
+    void theMarkerFollowsTheTokenToTheSignInResult() throws Exception {
+        provider("admins", "", "");
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        groupClaimValue = Arrays.asList("players", "admins");
+
+        OidcSignIn.OidcSignInResult result = signIn(open).finish(true, ready(), "the-code", null, now);
+
+        assertThat(result.idTokenRef).isNotBlank();
+        assertThat(oidc.takeTokenRef(result.idTokenRef).admin)
+                .as("the marker rides the one-use ref to connectUser").isTrue();
+    }
+
+    @Test
+    void aSignInOutsideTheAdminGroupCarriesNoMarker() throws Exception {
+        provider("admins", "", "");
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        groupClaimValue = Arrays.asList("players");
+
+        OidcSignIn.OidcSignInResult result = signIn(open).finish(true, ready(), "the-code", null, now);
+
+        assertThat(oidc.takeTokenRef(result.idTokenRef).admin).isFalse();
+    }
+
+    @Test
+    void theMarkerFollowsTheLinkedAccountPathToo() throws Exception {
+        provider("admins", "", "");
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        accounts.add("octavia", "secret1", "old@example.test");
+        store.linkOidc("sub-octo", "octo-cat-with-a-long-name", "old@example.test", "octavia", now);
+        groupClaimValue = Arrays.asList("admins");
+
+        OidcSignIn.OidcSignInResult result = signIn(open).finish(true, ready(), "the-code", null, now);
+
+        assertThat(result.userName).isEqualTo("octavia");
+        assertThat(oidc.takeTokenRef(result.idTokenRef).admin).isTrue();
     }
 
     @Test

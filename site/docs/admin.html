@@ -68,7 +68,9 @@
         <h2 id="console">Console sign-in</h2>
         <p>When no owner can sign in, <strong>Console sign-in</strong> at the bottom of <code>/admin</code> opens the
           console as an owner with <code>XMAGE_ADMIN_PASSWORD</code>. It's a break-glass key: once staff have roles you
-          can leave the password empty, which turns console sign-in off.</p>
+          can leave the password empty, which turns console sign-in off. A third door is the identity provider's
+          <code>XMAGE_OIDC_ADMIN_GROUP</code>: a member of that group who signs in runs the console on their own
+          session, for as long as it lives, with no password.</p>
 
         <h2 id="maintenance">Maintenance</h2>
         <p>Owners announce maintenance from <strong>Settings</strong>, now or up to a day ahead, with a message. From then

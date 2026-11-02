@@ -341,7 +341,7 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
     fi
   done
   # sign in with an identity provider (OpenID Connect); the secret stays out of ps
-  for pair in XMAGE_OIDC_DISCOVERY:discovery XMAGE_OIDC_CLIENT_ID:clientId XMAGE_OIDC_CLIENT_SECRET:clientSecret XMAGE_OIDC_LABEL:label; do
+  for pair in XMAGE_OIDC_DISCOVERY:discovery XMAGE_OIDC_CLIENT_ID:clientId XMAGE_OIDC_CLIENT_SECRET:clientSecret XMAGE_OIDC_LABEL:label XMAGE_OIDC_ADMIN_GROUP:adminGroup XMAGE_OIDC_SCOPE:scope XMAGE_OIDC_GROUPS_CLAIM:groupsClaim; do
     eval "val=\${${pair%%:*}:-}"
     if [ -n "$val" ]; then
       printf '"-Dxmage.oidc.%s=%s"\n' "${pair#*:}" "$(printf '%s' "$val" | sed 's/[\\"]/\\&/g')"

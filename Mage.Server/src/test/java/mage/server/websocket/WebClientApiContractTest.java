@@ -538,6 +538,7 @@ public class WebClientApiContractTest {
         final Map<String, String> hosts = new HashMap<>();
         final Map<String, String> names = new HashMap<>();
         final Map<String, OidcAuth.Token> oidcTokens = new HashMap<>(); // sessionId -> the sign-in's ID token
+        final Map<String, Boolean> oidcAdmins = new HashMap<>(); // sessionId -> the group's admin marker
         final Set<String> chatMembers = new HashSet<>(); // "sessionId:chatId"
         final Map<String, String> rememberedLogins = new HashMap<>(); // token -> user name
         final List<String> trusted = new ArrayList<>(); // "sessionId:userName"
@@ -600,6 +601,16 @@ public class WebClientApiContractTest {
         @Override
         public Optional<OidcAuth.Token> oidcIdToken(String sessionId) {
             return Optional.ofNullable(oidcTokens.get(sessionId));
+        }
+
+        @Override
+        public void markOidcAdmin(String sessionId, boolean admin) {
+            oidcAdmins.put(sessionId, admin);
+        }
+
+        @Override
+        public boolean oidcAdmin(String sessionId) {
+            return oidcAdmins.getOrDefault(sessionId, false);
         }
 
         @Override

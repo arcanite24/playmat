@@ -71,6 +71,18 @@ public interface RpcSessions {
     Optional<OidcAuth.Token> oidcIdToken(String sessionId);
 
     /**
+     * Marks the session as the server's admin console for its life: the sign-in came through the identity
+     * provider and its verified ID token carried the configured admin group.
+     */
+    void markOidcAdmin(String sessionId, boolean admin);
+
+    /**
+     * @return whether the session is an admin console because its sign-in's ID token carried the configured
+     * admin group (a provider sign-in as a group member); false for every other sign-in
+     */
+    boolean oidcAdmin(String sessionId);
+
+    /**
      * Forgets a remembered device (signing out on it).
      */
     void forgetLogin(String userName, String token);
