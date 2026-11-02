@@ -10,7 +10,7 @@ import { useT } from '../i18n';
 import { useSettings } from '../stores/settings';
 import { CardFace } from '../ui/CardFace';
 import { CounterBadges } from './CounterBadges';
-import { cardKey, stackBadge, stackOffsetRatio, type PermanentGroup } from './boardModel';
+import { ATTACHMENT_OFFSET_RATIO, cardKey, groupUnits, stackBadge, stackOffsetRatio, type PermanentGroup } from './boardModel';
 import { useFlip } from './flip';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
@@ -91,18 +91,15 @@ const FX_CLASS: Record<KeywordEffect, string> = {
 export const PermanentStack = memo(function PermanentStack(props: PermanentStackProps) {
   const { group, width } = props;
   // members turn individually; the slot keeps room for a turned card so nothing shifts when one taps
-  const anyTapped = group.members.some((member) => member.tapped);
-  const height = width * CARD_RATIO;
   const stackOffset = width * stackOffsetRatio(group);
-  const attachOffset = width * 0.18;
-  const slotWidth = (anyTapped ? height : width) + (group.members.length - 1) * stackOffset + group.attachments.length * attachOffset;
-  const slotHeight = height + group.attachments.length * attachOffset;
+  const attachOffset = width * ATTACHMENT_OFFSET_RATIO;
+  const units = groupUnits(group);
   const t = useT();
   const badge = stackBadge(group);
   const count = badge && (badge.open === undefined ? t('match.stack.count', badge) : t('match.stack.open', badge));
 
   return (
-    <div className={styles.slot} style={{ width: slotWidth, height: slotHeight }}>
+    <div className={styles.slot} style={{ width: width * units.width, height: width * units.height }}>
       {group.attachments.map((attachment, index) => (
         <PlacedCard
           key={cardKey(attachment)}
@@ -119,7 +116,7 @@ export const PermanentStack = memo(function PermanentStack(props: PermanentStack
           permanent={permanent}
           {...props}
           left={group.attachments.length * attachOffset + (reversed.length - 1 - index) * stackOffset}
-          top={group.attachments.length * attachOffset}
+          top={group.attachments.length > 0 ? attachOffset : 0}
           depth={group.attachments.length + index}
           count={index === reversed.length - 1 ? count : null}
         />

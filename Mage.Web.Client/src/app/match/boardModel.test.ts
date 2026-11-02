@@ -80,12 +80,23 @@ function extent(groups: PermanentGroup[], fit: RowFit): { widths: number[]; heig
       return sum + fit.cardWidth * ((tapped ? 88 / 63 : 1) + (group.members.length - 1) * offset + group.attachments.length * 0.18);
     }, 0);
     widths.push(slots + (members.length - 1) * fit.gap);
-    height += fit.cardWidth * (88 / 63) + (line > 0 ? fit.lineGap : 0);
+    height += fit.cardWidth * (88 / 63 + (members.some((group) => group.attachments.length > 0) ? 0.18 : 0)) + (line > 0 ? fit.lineGap : 0);
   }
   return { widths, height };
 }
 
 describe('fitRow', () => {
+  it.each([1, 6, 12])('keeps a host with %i auras inside the row height', (count) => {
+    const groups = creatures(3);
+    groups[1].attachments = Array.from({ length: count }, (_, i) => permanent(`aura${i}`, { cardTypes: ['ENCHANTMENT'] }));
+    for (const width of [335, 1126]) {
+      const fit = fitRow(groups, width, 202, 150, 58);
+      const drawn = extent(groups, fit);
+      expect(drawn.height).toBeLessThanOrEqual(202.5);
+      for (const line of drawn.widths) expect(line).toBeLessThanOrEqual(width + 0.5);
+    }
+  });
+
   it('uses the ideal width when there is room and shrinks a single line when crowded', () => {
     const groups = creatures(3);
     expect(fitRow(groups, 1000, 200, 120, 50)).toMatchObject({ cardWidth: 120, breaks: [] });
