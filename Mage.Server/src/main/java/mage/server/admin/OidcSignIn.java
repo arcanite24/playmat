@@ -21,6 +21,11 @@ public final class OidcSignIn {
         /** the account to sign in to, with rememberToken */
         public String userName;
         public String rememberToken;
+        /**
+         * a one-use ref for the sign-in's ID token (connectUser's idTokenRef): it lets the session end the
+         * provider session on sign-out (RFC 7063). Null when there is no token to carry.
+         */
+        public String idTokenRef;
         /** set when a new account needs a name first: the provider's display name made to fit the name rules */
         public String suggestedName;
         /** why the suggested or chosen name can't be used */
@@ -69,8 +74,7 @@ public final class OidcSignIn {
             if (!access.allows(account, user.getEmail())) {
                 throw new IllegalArgumentException(AccessPolicy.REFUSED);
             }
-            oidc.done(state);
-            return signedIn(account);
+            return signedIn(account, state);
         }
 
         // a new account: the server must let this provider user in, and it needs a verified email for password resets
@@ -102,8 +106,7 @@ public final class OidcSignIn {
             store.allow(name, "oidc: " + display, "oidc", now);
         }
         store.audit(name, "access.oidc.register", name, "oidc: " + display, null, now);
-        oidc.done(state);
-        return signedIn(name);
+        return signedIn(name, state);
     }
 
     static final String TAKEN = "That name is taken. Choose another.";
@@ -118,10 +121,11 @@ public final class OidcSignIn {
         return null;
     }
 
-    private OidcSignInResult signedIn(String account) {
+    private OidcSignInResult signedIn(String account, String state) {
         OidcSignInResult result = new OidcSignInResult();
         result.userName = account;
         result.rememberToken = accounts.rememberLogin(account);
+        result.idTokenRef = oidc.done(state);
         return result;
     }
 }

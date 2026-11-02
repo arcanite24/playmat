@@ -2,6 +2,7 @@ package mage.server.websocket.rpc;
 
 import mage.server.DisconnectReason;
 import mage.server.ClientChannel;
+import mage.server.admin.OidcAuth;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -56,6 +57,18 @@ public interface RpcSessions {
     default String trustSignedOnLogin(String sessionId, String signedOnUser) {
         throw new IllegalArgumentException("This server has no single sign-on");
     }
+
+    /**
+     * Marks the session as a sign-in through the identity provider with its verified ID token, so a later
+     * sign-out can end the provider session (RP-initiated logout, RFC 7063).
+     */
+    void markOidcLogin(String sessionId, OidcAuth.Token token);
+
+    /**
+     * @return the ID token of a session whose sign-in came through the identity provider, empty for every
+     * other sign-in (a password, a remembered device, a restored session)
+     */
+    Optional<OidcAuth.Token> oidcIdToken(String sessionId);
 
     /**
      * Forgets a remembered device (signing out on it).

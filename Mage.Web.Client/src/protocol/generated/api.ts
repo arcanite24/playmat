@@ -19,8 +19,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('ping', SESSION, pingInfo),
     setCapabilities: (capabilities: string[]) =>
       rpc.call('setCapabilities', capabilities),
-    connectUser: (userName: string, password: string, restoreSessionId?: string | null, clientVersion?: string | null, userIdStr?: string | null, rememberToken?: string | null) =>
-      rpc.call('connectUser', userName, password, SESSION, restoreSessionId, clientVersion, userIdStr, rememberToken),
+    connectUser: (userName: string, password: string, restoreSessionId?: string | null, clientVersion?: string | null, userIdStr?: string | null, rememberToken?: string | null, idTokenRef?: string | null) =>
+      rpc.call('connectUser', userName, password, SESSION, restoreSessionId, clientVersion, userIdStr, rememberToken, idTokenRef),
     connectAdmin: (password: string) =>
       rpc.call('connectAdmin', password, SESSION),
     sessionGetRestoreToken: () =>
@@ -41,6 +41,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('disconnectSession', SESSION, keepGames),
     playerLogout: (keepGames?: boolean | null) =>
       rpc.call('playerLogout', SESSION, keepGames),
+    oidcLogout: () =>
+      rpc.call('oidcLogout', SESSION),
     connectSetUserData: (userName: string | null, userData: UserData, clientVersion?: string | null, userIdStr?: string | null) =>
       rpc.call('connectSetUserData', userName, SESSION, userData, clientVersion, userIdStr),
     sendFeedback: (userName: string, title: string, type: string, message: string, email?: string | null) =>

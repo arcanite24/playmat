@@ -63,7 +63,7 @@ public class OidcVerifierTest {
         stranger = keyPair("RSA", null, 2048);
         jwksJson = publishedJson();
         discovery = new OidcAuth.Discovery(ISSUER, "https://id.example.com/authorize", "https://id.example.com/token",
-                JWKS_URI, null, null);
+                JWKS_URI, null, null, null);
         verifier = new OidcVerifier((method, url, token, form) -> {
             requests.add(method + " " + url);
             return jwksJson;
@@ -237,7 +237,7 @@ public class OidcVerifierTest {
     @Test
     void anAlgorithmTheProviderDoesNotPromiseIsRefused() throws Exception {
         OidcAuth.Discovery promisesRsaOnly = new OidcAuth.Discovery(ISSUER, discovery.authorizationEndpoint, discovery.tokenEndpoint,
-                discovery.jwksUri, null, Arrays.asList("RS256"));
+                discovery.jwksUri, null, null, Arrays.asList("RS256"));
         String es = token(JWSAlgorithm.ES256, "k2", ec, claims("octocat", "n1", 300));
 
         assertThatThrownBy(() -> verifier.verify(es, "n1", promisesRsaOnly)).hasMessageContaining("doesn't promise");

@@ -19,6 +19,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -69,17 +70,36 @@ public final class OidcAuth {
         public final String jwksUri;
         /** null when the provider doesn't offer a userinfo endpoint */
         public final String userinfoEndpoint;
+        /** null when the provider doesn't offer RP-initiated logout (RFC 7063) */
+        public final String endSessionEndpoint;
         /** the ID token algorithms the provider promises (id_token_signing_alg_values_supported) */
         public final List<String> algs;
 
         public Discovery(String issuer, String authorizationEndpoint, String tokenEndpoint, String jwksUri,
-                         String userinfoEndpoint, List<String> algs) {
+                         String userinfoEndpoint, String endSessionEndpoint, List<String> algs) {
             this.issuer = issuer;
             this.authorizationEndpoint = authorizationEndpoint;
             this.tokenEndpoint = tokenEndpoint;
             this.jwksUri = jwksUri;
             this.userinfoEndpoint = userinfoEndpoint;
+            this.endSessionEndpoint = endSessionEndpoint;
             this.algs = algs;
+        }
+    }
+
+    /**
+     * A verified ID token as the server keeps it: the JWT string (for the end-session's id_token_hint),
+     * its expiry in millis, and the provider's user id it proves.
+     */
+    public static final class Token {
+        public final String raw;
+        public final long exp;
+        public final String sub;
+
+        public Token(String raw, long exp, String sub) {
+            this.raw = raw;
+            this.exp = exp;
+            this.sub = sub;
         }
     }
 
@@ -128,6 +148,10 @@ public final class OidcAuth {
     private final Map<String, OidcPending> pending = new ConcurrentHashMap<>();
     /** state → who it signed in, so naming the new account doesn't need the provider's one-use code again */
     private final Map<String, Identity> identities = new ConcurrentHashMap<>();
+    /** state → the verified ID token, so a finished sign-in can end the provider session later (RFC 7063) */
+    private final Map<String, Token> identityTokens = new ConcurrentHashMap<>();
+    /** one-use ref → the token it hands over, until when */
+    private final Map<String, Token> tokenRefs = new ConcurrentHashMap<>();
 
     public OidcAuth(String discoveryUrl, String clientId, String clientSecret, String label, String publicUrl,
                     boolean oidcOnly, Http http, LongSupplier clock) {
@@ -185,6 +209,37 @@ public final class OidcAuth {
         return current == null ? "" : current.issuer;
     }
 
+    /** The URL the client returns to; the app root is the end-session's post_logout_redirect_uri. */
+    public String publicUrl() {
+        return publicUrl;
+    }
+
+    /** Whether an ID token with this expiry (millis) is past its exp. */
+    public boolean tokenExpired(long exp) {
+        return clock.getAsLong() >= exp;
+    }
+
+    /**
+     * Where to send the browser to end the provider session for this ID token (RP-initiated logout, RFC 7063):
+     * the discovery document's end_session_endpoint, the token as id_token_hint, the app root as the
+     * post-logout redirect, and a one-use state. Null when the provider offers no end-session endpoint
+     * (the sign-out degrades to the plain one).
+     */
+    public String endSessionUrl(String rawToken, String state) {
+        Discovery current = discovery;
+        if (current == null || current.endSessionEndpoint == null) {
+            return null;
+        }
+        return current.endSessionEndpoint + "?id_token_hint=" + encode(rawToken)
+                + "&post_logout_redirect_uri=" + encode(publicUrl + "/")
+                + "&state=" + encode(state);
+    }
+
+    /** A fresh one-use value for an end-session hop (the provider returns it in the post-logout redirect). */
+    public String newStateToken() {
+        return randomToken();
+    }
+
     /** true when this server signs in with the provider only (xmage.oidc.only) */
     public boolean isOidcOnly() {
         return only;
@@ -213,11 +268,18 @@ public final class OidcAuth {
         if (!isEnabled()) {
             throw new IllegalStateException("Sign in with " + label + " isn't set up on this server");
         }
+        long now = clock.getAsLong();
         Discovery current = discovery;
-        if (current == null) {
+        // a cached document only proves the provider was alive when it was fetched: once it is older than the
+        // retry window, a button click re-checks before sending the player off. While the provider is down that
+        // is one small GET per click, and the click gets the readable refusal instead of a dead redirect.
+        if (current == null || now - discoveryAt >= DISCOVERY_RETRY) {
+            fetchNow();
+            current = discovery;
+        }
+        if (current == null || now - discoveryAt >= DISCOVERY_RETRY) {
             throw new IllegalStateException(label + " can't be reached right now. Try again in a minute.");
         }
-        long now = clock.getAsLong();
         prune(now);
         if (pending.size() >= MAX_PENDING) {
             throw new IllegalStateException("Too many " + label + " sign-ins at once. Try again in a few minutes.");
@@ -283,15 +345,49 @@ public final class OidcAuth {
         Identity identity = new Identity(sub, email, emailVerified, displayOf(claims, email));
         identities.put(state, identity);
         pending.put("identity:" + state, new OidcPending(now + STATE_MILLIS, spot.nonce)); // how long the identity is kept
+        Date expiration = claims.getExpirationTime();
+        if (expiration != null) {
+            identityTokens.put(state, new Token(exchange.get("id_token").getAsString(), expiration.getTime(), sub));
+        }
         return identity;
     }
 
-    /** The state's sign-in is finished: forget who it was. */
-    public void done(String state) {
-        if (state != null) {
-            identities.remove(state);
-            pending.remove("identity:" + state);
+    /**
+     * The state's sign-in is finished: forget who it was, and hand the verified ID token out under a fresh
+     * one-use ref (the sign-in result carries it to the client; connectUser binds it onto the session so a
+     * later sign-out can end the provider session, RFC 7063). Returns the ref, or null when no token was held.
+     */
+    public String done(String state) {
+        if (state == null) {
+            return null;
         }
+        identities.remove(state);
+        pending.remove("identity:" + state);
+        Token token = identityTokens.remove(state);
+        if (token == null) {
+            return null;
+        }
+        String ref = randomToken();
+        tokenRefs.put(ref, token);
+        pending.put("tokenref:" + ref, new OidcPending(clock.getAsLong() + STATE_MILLIS, ""));
+        return ref;
+    }
+
+    /**
+     * Consumes a one-use token ref (from a sign-in result) and hands over the ID token, or null when the ref
+     * is unknown or spent.
+     */
+    public Token takeTokenRef(String ref) {
+        if (ref == null || ref.trim().isEmpty()) {
+            return null;
+        }
+        long now = clock.getAsLong();
+        prune(now);
+        OidcPending spot = pending.remove("tokenref:" + ref);
+        if (spot == null || spot.until < now) {
+            return null;
+        }
+        return tokenRefs.remove(ref);
     }
 
     private void prune(long now) {
@@ -299,8 +395,13 @@ public final class OidcAuth {
             Map.Entry<String, OidcPending> entry = it.next();
             if (entry.getValue().until < now) {
                 it.remove();
-                if (entry.getKey().startsWith("identity:")) {
-                    identities.remove(entry.getKey().substring("identity:".length()));
+                String key = entry.getKey();
+                if (key.startsWith("identity:")) {
+                    String state = key.substring("identity:".length());
+                    identities.remove(state);
+                    identityTokens.remove(state);
+                } else if (key.startsWith("tokenref:")) {
+                    tokenRefs.remove(key.substring("tokenref:".length()));
                 }
             }
         }
@@ -334,6 +435,11 @@ public final class OidcAuth {
         if (discovery != null && now - discoveryAt < DISCOVERY_TTL) {
             return; // the document is still fresh
         }
+        fetchNow();
+    }
+
+    /** The fetch itself, without the freshness gate: the background refresh and a button click's liveness probe. */
+    private void fetchNow() {
         try {
             String json = http.request("GET", discoveryUrl, null, null);
             discovery = parseDiscovery(json);
@@ -373,6 +479,7 @@ public final class OidcAuth {
         String token = resolve(text(doc, "token_endpoint"));
         String jwks = resolve(text(doc, "jwks_uri"));
         String userinfo = resolve(text(doc, "userinfo_endpoint"));
+        String endSession = resolve(text(doc, "end_session_endpoint"));
         if (isBlank(issuer) || isBlank(authorize) || isBlank(token) || isBlank(jwks)) {
             throw new IOException("the discovery document is missing its endpoints");
         }
@@ -382,7 +489,10 @@ public final class OidcAuth {
                 algs.add(element.getAsString());
             }
         }
-        return new Discovery(issuer, authorize, token, jwks, isBlank(userinfo) ? null : userinfo, Collections.unmodifiableList(algs));
+        // end_session_endpoint is optional in the discovery document: most providers without logout support
+        // simply omit it, and the sign-out degrades to the plain one
+        return new Discovery(issuer, authorize, token, jwks, isBlank(userinfo) ? null : userinfo,
+                isBlank(endSession) ? null : endSession, Collections.unmodifiableList(algs));
     }
 
     /** A relative endpoint in the document is relative to the document's URL. */

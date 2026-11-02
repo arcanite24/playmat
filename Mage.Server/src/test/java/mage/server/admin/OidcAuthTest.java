@@ -198,7 +198,34 @@ public class OidcAuthTest {
         oidc.fetchDiscovery();
         assertThat(oidc.discoveryProblem()).isNull();
         assertThat(oidc.start()).contains("id.example.com/authorize");
-        assertThat(hits("/.well-known/openid-configuration")).isEqualTo(2);
+        assertThat(hits("/.well-known/openid-configuration")).as("the boot fetch, the click's probe, the recovery fetch").isEqualTo(3);
+    }
+
+    @Test
+    void aProviderThatDiesAfterDiscoveryRefusesTheButtonUntilItRecovers() {
+        oidc.fetchDiscovery();
+        assertThat(oidc.start()).contains("id.example.com/authorize"); // healthy: the document is fresh, no probe
+
+        discoveryUp = false;
+        now += OidcAuth.DISCOVERY_RETRY + 1; // the cached document is past the liveness window
+        assertThatThrownBy(oidc::start).hasMessageContaining("can't be reached");
+        int probes = hits("/.well-known/openid-configuration");
+        assertThatThrownBy(oidc::start).hasMessageContaining("can't be reached");
+        assertThat(hits("/.well-known/openid-configuration")).as("one probe per click, at the player's pace").isEqualTo(probes + 1);
+
+        discoveryUp = true;
+        now += 1; // the document is still stale, so the click probes again
+        assertThat(oidc.start()).as("the recovered provider signs in again").contains("id.example.com/authorize");
+    }
+
+    @Test
+    void aFreshCachedDocumentYieldsAUrlWithinTheLivenessWindow() {
+        oidc.fetchDiscovery();
+        discoveryUp = false;
+        now += OidcAuth.DISCOVERY_RETRY - 60_000; // minutes stale, inside the window
+
+        // the provider may have died in the window: the URL stands, and the sign-in is caught at the token exchange
+        assertThat(oidc.start()).contains("id.example.com/authorize");
     }
 
     @Test

@@ -188,6 +188,9 @@ XMAGE_OIDC_LABEL=Pocket ID</code></pre>
           container must be able to reach the discovery URL; when the provider sits behind a proxy, that can be a
           different address than the players' one. And a player whose provider email isn't confirmed yet is told
           to confirm it in the provider.</p>
+        <p>Signing a player out also ends the provider's session where the provider advertises RP-initiated
+          logout in its discovery document, so the next click of the button asks for the passkey again; without
+          it, or for a sign-in that didn't come through the provider, signing out is unchanged.</p>
         <p>Pocket ID is a selfhosted, passkey-only provider and the one to start from: how to add the client,
           what its passkeys mean for players, key rotation, and its one algorithm it can't use, are in the
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#sign-in-with-an-identity-provider">deployment guide</a>.</p>

@@ -53,8 +53,10 @@ export interface SessionState {
   signedInElsewhere: boolean;
   /** this device's saved sign-in stopped working (the password changed, or it signed out elsewhere): sign in again */
   staleLogin: boolean;
+  /** this sign-in came through the identity provider (runtime only, never saved); the sign-out's hop is the server's call */
+  signedInViaOidc: boolean;
   /** with remember, an account stays signed in on this device ("keep me signed in") until it signs out */
-  signIn(serverUrl: string, userName: string, password: string, remember?: boolean): Promise<boolean>;
+  signIn(serverUrl: string, userName: string, password: string, remember?: boolean, idTokenRef?: string | null): Promise<boolean>;
   /** creates an account with the chosen password and signs in with it */
   /** inviteCode: an invite link's code, which lets the account in to a contributors-only server */
   /** turnstileToken: Cloudflare Turnstile's token, for servers that ask for one */
@@ -66,6 +68,8 @@ export interface SessionState {
   signInWithSignOn(serverUrl: string, userName: string, silent?: boolean): Promise<boolean>;
   /** signs in with a remembered-device token the server gave this device (after Sign in with GitHub) */
   signInWithToken(serverUrl: string, userName: string, token: string): Promise<boolean>;
+  /** signs in after an identity-provider sign-in; the session ends the provider session on sign-out (RFC 7063) */
+  signInWithOidc(serverUrl: string, userName: string, token: string, idTokenRef: string | null): Promise<boolean>;
   /** emails a reset code to the account with this address (the server doesn't say whether there is one) */
   requestPasswordReset(serverUrl: string, email: string): Promise<boolean>;
   resetPassword(serverUrl: string, email: string, code: string, password: string): Promise<boolean>;
@@ -123,8 +127,12 @@ async function forgetDevice(serverUrl: string, userName: string): Promise<void> 
   }
 }
 
-/** Logs in; a remembered device's token stands in for an empty password. */
-function connectUser(userName: string, password: string, restore: string, device: string): Promise<boolean> {
+/** Logs in; a remembered device's token stands in for an empty password. The ID-token ref (from an
+ * identity-provider sign-in) lets the server bind the token onto the session for the sign-out's end-session hop. */
+function connectUser(userName: string, password: string, restore: string, device: string, idTokenRef: string | null = null): Promise<boolean> {
+  if (idTokenRef) {
+    return api.connectUser(userName, password, restore, null, null, device, idTokenRef);
+  }
   return device ? api.connectUser(userName, password, restore, null, null, device) : api.connectUser(userName, password, restore);
 }
 
@@ -162,13 +170,14 @@ export const useSession = create<SessionState>((set, get) => ({
   expired: false,
   signedInElsewhere: false,
   staleLogin: false,
+  signedInViaOidc: false,
 
-  async signIn(serverUrl, userName, password, remember = false) {
-    set({ phase: 'signingIn', error: null, expired: false, signedInElsewhere: false, staleLogin: false, serverUrl, userName });
+  async signIn(serverUrl, userName, password, remember = false, idTokenRef: string | null = null) {
+    set({ phase: 'signingIn', error: null, expired: false, signedInElsewhere: false, staleLogin: false, signedInViaOidc: false, serverUrl, userName });
     try {
       await connectTo(serverUrl);
       const device = password ? '' : rememberToken(serverUrl, userName);
-      const ok = await connectUser(userName, password, restoreToken(serverUrl, userName), device);
+      const ok = await connectUser(userName, password, restoreToken(serverUrl, userName), device, idTokenRef);
       if (!ok) {
         // a remembered device the server turned away (signed out elsewhere, password changed): ask for the password
         if (device) writeJson<RememberedDevice | null>(REMEMBER_KEY, null);
@@ -195,10 +204,10 @@ export const useSession = create<SessionState>((set, get) => ({
       // left out unless set, like the stored logins before single sign-on
       const signOn = !password && !!before?.signOn && same ? true : undefined;
       writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl, userName, passwordless: !password && !account, account, signOn });
-      set((state) => ({ phase: 'signedIn', roomId, loginCount: state.loginCount + 1 }));
+      set((state) => ({ phase: 'signedIn', roomId, loginCount: state.loginCount + 1, signedInViaOidc: !!idTokenRef }));
       return true;
     } catch (error) {
-      set({ phase: 'signedOut', error: describeError(error) });
+      set({ phase: 'signedOut', error: describeError(error), signedInViaOidc: false });
       return false;
     }
   },
@@ -241,6 +250,15 @@ export const useSession = create<SessionState>((set, get) => ({
     return get().signIn(serverUrl, userName, '');
   },
 
+  async signInWithOidc(serverUrl, userName, token, idTokenRef) {
+    writeJson<RememberedDevice | null>(REMEMBER_KEY, { serverUrl, userName, token });
+    // an account: a reload signs back in with the token, never as a passwordless guest
+    writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl, userName, passwordless: false, account: true });
+    // the ref marks the session as a provider sign-in (runtime only); the server keeps the verified token, so a
+    // later sign-out can end the provider session
+    return get().signIn(serverUrl, userName, '', false, idTokenRef);
+  },
+
   async register(serverUrl, userName, email, password, remember = false, inviteCode, turnstileToken) {
     set({ phase: 'signingIn', error: null, serverUrl, userName });
     try {
@@ -279,6 +297,20 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   async signOut(keepGames = false) {
+    // every sign-out asks the server for the provider's end-session URL (RFC 7063): it is fetched before the
+    // session is gone (the call needs it), and the server knows whether there is a provider session to end -
+    // the sign-in's own ID token, or, for any other kind of session of a linked account, the account's last
+    // verified one. A null answer, or a failure, only means the provider session isn't ended, never that the
+    // sign-out fails: without the hop, a warm provider session lets the next button click silently re-create
+    // the person the sign-out was meant to send away
+    let logoutUrl: string | null = null;
+    if (get().phase === 'signedIn') {
+      try {
+        logoutUrl = (await api.oidcLogout())?.url ?? null;
+      } catch {
+        // the server is already gone: the plain sign-out stands
+      }
+    }
     try {
       if (get().phase === 'signedIn') await api.disconnectSession(keepGames);
     } catch {
@@ -294,14 +326,17 @@ export const useSession = create<SessionState>((set, get) => ({
     }
     writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl: get().serverUrl, userName: get().userName, passwordless: false, account: false });
     rpc.disconnect();
-    set({ phase: 'signedOut', roomId: null, signedInElsewhere: false, staleLogin: false });
+    set({ phase: 'signedOut', roomId: null, signedInElsewhere: false, staleLogin: false, signedInViaOidc: false });
+    // the provider bounces the browser back to the sign-in screen; when its session is gone, the next
+    // "Sign in with <provider>" asks for the passkey again instead of silently re-creating the person
+    if (logoutUrl) window.location.assign(logoutUrl);
   },
 }));
 
 rpc.onStatus((connection) => {
   useSession.setState({ connection });
   if (connection === 'closed' && useSession.getState().phase === 'signedIn') {
-    useSession.setState({ phase: 'signedOut', roomId: null, error: 'The connection to the server was lost.' });
+    useSession.setState({ phase: 'signedOut', roomId: null, error: 'The connection to the server was lost.', signedInViaOidc: false });
   }
 });
 
@@ -317,7 +352,7 @@ function expire(): void {
   forgetOpenGames(serverUrl, userName);
   const before = readJson<RememberedLogin | null>(LOGIN_KEY, null);
   writeJson<RememberedLogin>(LOGIN_KEY, { serverUrl, userName, passwordless: false, account: !!before?.account, signOn: before?.signOn || undefined });
-  useSession.setState({ phase: 'signedOut', roomId: null, error: null, expired: true });
+  useSession.setState({ phase: 'signedOut', roomId: null, error: null, expired: true, signedInViaOidc: false });
 }
 
 // a reconnect opens a fresh server session: log back in with the restore token to get our tables back
@@ -333,7 +368,10 @@ rpc.onStatus((connection) => {
       const roomId = await api.serverGetMainRoomId();
       // the main room is made when the server starts: a new one means a new server, without our tables
       if (state.roomId && roomId !== state.roomId) return expire();
-      useSession.setState((current) => ({ roomId, loginCount: current.loginCount + 1 }));
+      // the reconnection re-logged in with the restore token or the remembered device, not the provider: the
+      // fresh session holds no ID token of its own (a sign-out from it still ends the provider session
+      // through the account's last verified token)
+      useSession.setState((current) => ({ roomId, loginCount: current.loginCount + 1, signedInViaOidc: false }));
     } catch (error) {
       useSession.setState({ phase: 'signedOut', error: describeError(error) });
     }

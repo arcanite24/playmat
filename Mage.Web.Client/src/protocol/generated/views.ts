@@ -1716,7 +1716,14 @@ export interface ObjectColor extends Serializable, Copyable<ObjectColor>, Compar
     white?: boolean;
 }
 
+export interface OidcLogout {
+    expired?: boolean;
+    state?: string;
+    url?: string;
+}
+
 export interface OidcSignInResult {
+    idTokenRef?: string;
     nameProblem?: string;
     rememberToken?: string;
     suggestedName?: string;

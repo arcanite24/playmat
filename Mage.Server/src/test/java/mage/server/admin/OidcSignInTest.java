@@ -173,6 +173,8 @@ public class OidcSignInTest {
 
         assertThat(result.userName).isEqualTo("octo_cat_with_");
         assertThat(result.rememberToken).isNotEmpty();
+        assertThat(result.idTokenRef).as("the sign-in's ID-token ref rides the result for the sign-out's end-session hop").isNotBlank();
+        assertThat(oidc.takeTokenRef(result.idTokenRef).sub).isEqualTo("sub-octo");
         assertThat(accounts.isRememberedLogin("octo_cat_with_", result.rememberToken)).isTrue();
         assertThat(store.oidcLink("sub-octo").account).isEqualTo("octo_cat_with_");
         assertThat(store.oidcLink("sub-octo").displayName).isEqualTo("octo-cat-with-a-long-name");
@@ -229,8 +231,25 @@ public class OidcSignInTest {
         OidcSignIn.OidcSignInResult result = signIn(open).finish(true, ready(), "the-code", null, now);
 
         assertThat(result.userName).as("the link wins over the email").isEqualTo("octavia");
+        assertThat(result.idTokenRef).isNotBlank();
+        assertThat(oidc.takeTokenRef(result.idTokenRef).sub).isEqualTo("sub-octo");
         assertThat(store.oidcLink("sub-octo").linkedAt).isEqualTo(now);
         assertThat(store.accountEmail("octavia")).as("the new address is not vouched").isNull();
+    }
+
+    @Test
+    void theRefComesWithTheAccountThatFinallySignsIn() throws Exception {
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        accounts.add("octo_cat_with_", "secret1", "someone@example.test"); // the suggested name is taken
+        String state = ready();
+
+        OidcSignIn.OidcSignInResult ask = signIn(open).finish(true, state, "the-code", null, now);
+        assertThat(ask.idTokenRef).as("a naming ask has no signed-in account yet, so nothing to hand over").isNull();
+
+        OidcSignIn.OidcSignInResult named = signIn(open).finish(true, state, "the-code", "octo", now);
+        assertThat(named.userName).isEqualTo("octo");
+        assertThat(named.idTokenRef).isNotBlank();
+        assertThat(oidc.takeTokenRef(named.idTokenRef).sub).isEqualTo("sub-octo");
     }
 
     @Test

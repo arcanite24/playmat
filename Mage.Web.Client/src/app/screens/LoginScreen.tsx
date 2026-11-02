@@ -216,7 +216,8 @@ export function LoginScreen() {
     try {
       const result = await api.oidcFinish(oidc.state, oidc.code, chosen);
       if (result.userName && result.rememberToken) {
-        if (await session.signInWithToken(serverUrl.trim(), result.userName, result.rememberToken)) seated();
+        // the ID-token ref marks the sign-in as a provider one: its sign-out ends the provider session too
+        if (await session.signInWithOidc(serverUrl.trim(), result.userName, result.rememberToken, result.idTokenRef ?? null)) seated();
         return;
       }
       setMode('oidcName');

@@ -62,6 +62,7 @@ public class Session {
     private volatile String rememberedUserName; // see trustRememberedLogin
     private volatile String signedOnUserName; // see trustSignedOnLogin
     private final ClientChannel channel;
+    private volatile OidcAuth.Token oidcLoginToken; // see markOidcLogin
     private boolean valid = true;
 
     private final ReentrantLock lock;
@@ -346,6 +347,19 @@ public class Session {
         this.signedOnUserName = userName;
     }
 
+    /**
+     * This sign-in came through the identity provider: the session keeps the sign-in's verified ID token, so a
+     * later sign-out can end the provider's session (the end-session's id_token_hint, RFC 7063). It dies with
+     * the session, like rememberedUserName.
+     */
+    public void markOidcLogin(OidcAuth.Token token) {
+        this.oidcLoginToken = token;
+    }
+
+    public OidcAuth.Token oidcLoginToken() {
+        return oidcLoginToken;
+    }
+
     public boolean isLocked() {
         return lock.isLocked();
     }
@@ -362,6 +376,8 @@ public class Session {
         // named by the sign-on proxy for this connection (the web bridge sets it before every login on it)
         boolean signedOn = userName != null && userName.equals(signedOnUserName);
         signedOnUserName = null;
+        // every login starts without a provider: the web bridge marks the ID token only for one that came through it
+        this.oidcLoginToken = null;
 
         // find auth user
         AuthorizedUser authorizedUser = null;

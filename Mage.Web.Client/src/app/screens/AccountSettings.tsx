@@ -99,11 +99,27 @@ function DeleteAccountDialog({ open, onOpenChange, userName, github, oidc }: { o
     if (!ready) return;
     setWorking(true);
     setProblem(null);
+    // the deletion kills the session server-side, so the provider's end-session URL is fetched first: without
+    // the hop, a warm provider session lets the same provider user silently re-create the deleted account on
+    // the next button click. The server resolves the hint (this sign-in's token, or the account's last one),
+    // so the sign-in kind doesn't matter here
+    let logoutUrl: string | null = null;
+    if (useSession.getState().phase === 'signedIn') {
+      try {
+        logoutUrl = (await api.oidcLogout())?.url ?? null;
+      } catch {
+        // the sign-out stands anyway
+      }
+    }
     try {
       await api.accountDelete(password, name.trim());
     } catch (error) {
       setProblem(error instanceof Error ? error.message : String(error));
       setWorking(false);
+      return;
+    }
+    if (logoutUrl) {
+      window.location.assign(logoutUrl);
       return;
     }
     // gone: to the sign-in screen, which says so, and this device forgets the account

@@ -6,6 +6,7 @@ import com.google.gson.JsonPrimitive;
 import mage.interfaces.MageServer;
 import mage.interfaces.ServerState;
 import mage.server.DisconnectReason;
+import mage.server.admin.OidcAuth;
 import mage.server.websocket.api.ApiContext;
 import mage.server.websocket.api.WebClientApi;
 import mage.server.websocket.rpc.RpcConnection;
@@ -46,7 +47,7 @@ public class WebClientApiContractTest {
     // RPC methods that are served by the bridge itself instead of a same-named MageServer method
     private static final Map<String, String> SERVER_METHOD_OVERRIDES = new HashMap<>();
     private static final Set<String> NOT_MAPPED_TO_SERVER = new HashSet<>(Arrays.asList(
-            "disconnectSession", "playerLogout", "sessionGetRestoreToken", "sessionUserName", // session manager
+            "disconnectSession", "playerLogout", "oidcLogout", "sessionGetRestoreToken", "sessionUserName", // session manager
             "getExpansionSets", "getBasicLandSets", "searchCards", "lookupCards", "deckValidate", // card database services
             "deckImportFromUrl", "deckImportSources", // deck website import service
             "testEndGame", "testConcedeMatch", // test mode helpers on table manager
@@ -536,6 +537,7 @@ public class WebClientApiContractTest {
         final List<String> disconnected = new ArrayList<>();
         final Map<String, String> hosts = new HashMap<>();
         final Map<String, String> names = new HashMap<>();
+        final Map<String, OidcAuth.Token> oidcTokens = new HashMap<>(); // sessionId -> the sign-in's ID token
         final Set<String> chatMembers = new HashSet<>(); // "sessionId:chatId"
         final Map<String, String> rememberedLogins = new HashMap<>(); // token -> user name
         final List<String> trusted = new ArrayList<>(); // "sessionId:userName"
@@ -586,6 +588,18 @@ public class WebClientApiContractTest {
             if (userName.equals(rememberedLogins.get(token))) {
                 trusted.add(sessionId + ":" + userName);
             }
+        }
+
+        @Override
+        public void markOidcLogin(String sessionId, OidcAuth.Token token) {
+            if (token != null) {
+                oidcTokens.put(sessionId, token);
+            }
+        }
+
+        @Override
+        public Optional<OidcAuth.Token> oidcIdToken(String sessionId) {
+            return Optional.ofNullable(oidcTokens.get(sessionId));
         }
 
         @Override
