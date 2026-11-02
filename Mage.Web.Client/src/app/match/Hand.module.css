@@ -72,6 +72,7 @@
   position: absolute;
   bottom: 0;
   width: 168px;
+  border-radius: var(--card-radius) / calc(var(--card-radius) * 63 / 88);
   transform-origin: 50% 120%;
   transform: translateY(var(--drop, 0)) rotate(var(--rotate, 0deg));
   transition: transform var(--dur-place) var(--ease-place);
@@ -107,8 +108,8 @@
 .playable::after {
   content: '';
   position: absolute;
-  inset: -3px;
-  border-radius: 10px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 2px var(--ink-soft), 0 0 16px 3px rgb(var(--ink-rgb) / 0.35);
   pointer-events: none;
 }
@@ -124,8 +125,8 @@
 .choosable::after {
   content: '';
   position: absolute;
-  inset: -4px;
-  border-radius: 11px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--decision), 0 0 22px 4px var(--decision-glow);
   pointer-events: none;
 }
@@ -149,8 +150,8 @@
 .selected::after {
   content: '';
   position: absolute;
-  inset: -4px;
-  border-radius: 10px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--decision), 0 0 18px 4px var(--decision-glow);
   pointer-events: none;
 }

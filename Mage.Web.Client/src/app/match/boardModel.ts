@@ -171,6 +171,8 @@ export function stackOffsetRatio(group: PermanentGroup): number {
 }
 
 const CARD_RATIO = 88 / 63;
+/** Attachments fan sideways; the host sits only one step below their shared top edge. */
+export const ATTACHMENT_OFFSET_RATIO = 0.18;
 /** space between neighbouring groups, and between wrapped lines, as a share of card width */
 const GAP_RATIO = 0.12;
 const LINE_GAP_RATIO = 0.08;
@@ -180,11 +182,11 @@ export const ROW_FLOOR = 36;
 const MAX_LINES = 4;
 
 /** A group's footprint in card widths: tapped cards take their height in width; stacks and attachments fan out. */
-function groupUnits(group: PermanentGroup): { width: number; height: number } {
+export function groupUnits(group: PermanentGroup): { width: number; height: number } {
   const anyTapped = group.members.some((member) => member.tapped);
   return {
-    width: (anyTapped ? CARD_RATIO : 1) + (group.members.length - 1) * stackOffsetRatio(group) + group.attachments.length * 0.18,
-    height: CARD_RATIO + group.attachments.length * 0.18,
+    width: (anyTapped ? CARD_RATIO : 1) + (group.members.length - 1) * stackOffsetRatio(group) + group.attachments.length * ATTACHMENT_OFFSET_RATIO,
+    height: CARD_RATIO + (group.attachments.length > 0 ? ATTACHMENT_OFFSET_RATIO : 0),
   };
 }
 
@@ -232,14 +234,15 @@ export function fitRow(groups: PermanentGroup[], available: number, height: numb
   const oneLine = (cardWidth: number): RowFit => ({ cardWidth, gap: cardWidth * GAP_RATIO, lineGap: 0, breaks: [] });
   if (groups.length === 0) return oneLine(ideal);
   const units = groups.map(groupUnits);
+  const heightUnits = Math.max(...units.map((unit) => unit.height));
   const widthUnits = units.reduce((sum, unit) => sum + unit.width, 0) + (groups.length - 1) * GAP_RATIO;
-  const single = Math.min(ideal, available / widthUnits, height / CARD_RATIO);
+  const single = Math.min(ideal, available / widthUnits, height / heightUnits);
   if (single >= min) return oneLine(single);
 
   // wrapping: the widest card at which the greedy lines fit the row's height
   let best: { cardWidth: number; breaks: number[] } | null = null;
   let low = ROW_FLOOR;
-  let high = Math.min(ideal, height / CARD_RATIO);
+  let high = Math.min(ideal, height / heightUnits);
   for (let i = 0; i < 24 && high - low > 0.25; i++) {
     const mid = (low + high) / 2;
     const breaks = wrapAt(units, mid, available, height);

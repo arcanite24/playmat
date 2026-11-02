@@ -6,7 +6,7 @@
 
 .card {
   position: absolute;
-  border-radius: 6px;
+  border-radius: var(--card-radius) / calc(var(--card-radius) * 63 / 88);
   transition: transform var(--dur-place) var(--ease-place), box-shadow var(--dur-quick) linear;
   outline: none;
 }
@@ -19,8 +19,8 @@
 .clickable::after {
   content: '';
   position: absolute;
-  inset: -4px;
-  border-radius: 9px;
+  inset: 0;
+  border-radius: inherit;
   /* still ink: on a full board, a dozen breathing halos would drown the one thing that matters */
   box-shadow: 0 0 0 2px var(--ink-soft);
   pointer-events: none;
@@ -45,8 +45,8 @@
 }
 
 .target::after {
-  inset: -6px;
-  border-radius: 11px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--ink-strong), 0 0 0 9px rgb(var(--ink-rgb) / 0.18);
 }
 
@@ -63,8 +63,8 @@
 .pending::after {
   content: '';
   position: absolute;
-  inset: -4px;
-  border-radius: 9px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--ink-strong), 0 0 18px 2px rgb(var(--ink-rgb) / 0.35);
   pointer-events: none;
 }
@@ -72,8 +72,8 @@
 .selected::after {
   content: '';
   position: absolute;
-  inset: -5px;
-  border-radius: 10px;
+  inset: 0;
+  border-radius: inherit;
   box-shadow: 0 0 0 3px var(--decision), 0 0 22px 4px var(--decision-glow);
   animation: none;
   pointer-events: none;
@@ -300,6 +300,7 @@
 .body {
   position: relative;
   isolation: isolate;
+  border-radius: inherit;
   width: 100%;
   height: 100%;
 }
@@ -495,9 +496,9 @@
 
 /* lifelink: a warm light breathing around it */
 .fxLife {
-  inset: -5%;
+  inset: 0;
   z-index: -1;
-  border-radius: 12px;
+  border-radius: inherit;
   box-shadow: 0 0 18px 6px rgb(255 226 160 / 0.5);
   animation: kw-breathe 2.8s ease-in-out infinite;
 }
@@ -510,9 +511,9 @@
 
 /* menace: a red smoulder; haste: embers flickering at its feet */
 .fxMenace {
-  inset: -6%;
+  inset: 0;
   z-index: -1;
-  border-radius: 14px;
+  border-radius: inherit;
   box-shadow: 0 0 20px 6px rgb(150 20 20 / 0.55), inset 0 0 0 1px rgb(200 40 40 / 0.4);
   animation: kw-breathe 1.9s ease-in-out infinite;
 }
@@ -586,7 +587,7 @@
 .fxGold {
   inset: 0;
   z-index: 1;
-  border-radius: 6px;
+  border-radius: inherit;
   box-shadow: inset 0 0 0 2px rgb(222 186 96 / 0.9), inset 0 0 10px rgb(255 214 120 / 0.35), 0 0 8px rgb(222 186 96 / 0.45);
 }
 
