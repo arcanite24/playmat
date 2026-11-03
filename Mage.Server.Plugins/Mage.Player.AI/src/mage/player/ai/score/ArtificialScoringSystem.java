@@ -25,6 +25,8 @@ public final class ArtificialScoringSystem {
     private static final int UNKNOWN_CARD_SCORE = 300;
     private static final int PERMANENT_SCORE = 300;
     private static final int LIFE_ABOVE_MULTIPLIER = 100;
+    // toughness past this blocks nothing more: without a cap a 0/50 Tree of Redemption outscored 50 life (Playmat #142)
+    private static final int MAX_SCORED_TOUGHNESS = 10;
 
     public static int getCardDefinitionScore(final Game game, final Card card) {
         int value = 3; //TODO: add new rating system card value
@@ -75,7 +77,7 @@ public final class ArtificialScoringSystem {
             for (Ability ability : permanent.getAbilities(game)) {
                 abilityScore += MagicAbility.getAbilityScore(ability);
             }
-            score += power * 300 + getPositive(toughness) * 200 + abilityScore * (getPositive(power) + 1) / 2;
+            score += power * 300 + getPositive(Math.min(toughness, MAX_SCORED_TOUGHNESS)) * 200 + abilityScore * (getPositive(power) + 1) / 2;
             int enchantments = 0;
             int equipments = 0;
             for (UUID uuid : permanent.getAttachments()) {
