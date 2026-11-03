@@ -61,7 +61,10 @@ function Builder({ construct }: { construct: ConstructState }) {
   const poolColumns = useMemo(() => curveColumns(inPool, info), [inPool, info]);
   const landCount = Object.values(basics).reduce((sum, value) => sum + value, 0);
   const total = inDeck.length + (construct.limited ? landCount : 0);
-  const minimum = construct.limited ? 40 : 60;
+  // sideboarding a constructed deck: the server took it at its starting size, so it can always go back to that, even
+  // when a format allows fewer than 60 (a 59-card Freeform deck, #168)
+  const [startSize] = useState(() => Object.keys(construct.deck.cards ?? {}).length);
+  const minimum = construct.limited ? 40 : Math.min(60, startSize);
 
   const wire = useMemo(() => toDeckLists(pool, main, construct.limited ? basics : null), [pool, main, basics, construct.limited]);
   const lessons = lessonsFor(useCareerLessons((state) => state.plan), construct.tableId);

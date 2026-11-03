@@ -28,6 +28,7 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
   const exile = Object.values(player.exile ?? {});
   const { waiting, others } = splitCommand(player, commanders);
   const name = isMe ? 'Your' : `${player.name}'s`;
+  const libraryZoom = usePileZoom(player.topCard, sleeve);
 
   return (
     <div className={[styles.piles, isMe ? styles.mine : styles.theirs].join(' ')}>
@@ -37,6 +38,7 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
         className={styles.pile}
         aria-label={t('match.cards', { label: `${name} library`, count: player.libraryCount ?? 0 })}
         onClick={() => player.topCard && openViewer({ title: `${name} library (top card)`, cards: [player.topCard] })}
+        {...libraryZoom}
       >
         <div className={styles.stack} style={{ ['--depth' as string]: Math.min(6, Math.ceil((player.libraryCount ?? 0) / 10)) }}>
           <CardFace card={player.topCard ?? {}} hidden={!player.topCard} sleeve={sleeve} size="small" />
@@ -97,11 +99,23 @@ function CommanderPile({ commander, sleeve, castable, onCast, owner }: {
   );
 }
 
+/** Hovering a pile opens its top card large, as on the table (#165); a finger opens the pile's viewer instead. */
+function usePileZoom(card: CardView | undefined, sleeve: string) {
+  const setZoom = useMatchUi((state) => state.setZoom);
+  return {
+    onPointerEnter: (event: React.PointerEvent<HTMLElement>) => {
+      if (card && event.pointerType !== 'touch') setZoom({ card, x: event.clientX, y: event.clientY, sleeve, anchor: event.currentTarget });
+    },
+    onPointerLeave: () => setZoom(null),
+  };
+}
+
 function PileOfCards({ title, label, cards, sleeve, onOpen }: { title: string; label: string; cards: CardView[]; sleeve: string; onOpen(): void }) {
   const t = useT();
   const top = cards[cards.length - 1];
+  const zoom = usePileZoom(top, sleeve);
   return (
-    <button type="button" className={styles.pile} aria-label={t('match.cards', { label: title, count: cards.length })} onClick={onOpen} disabled={cards.length === 0}>
+    <button type="button" className={styles.pile} aria-label={t('match.cards', { label: title, count: cards.length })} onClick={onOpen} disabled={cards.length === 0} {...zoom}>
       {/* a new top card is a new element: it lands on the pile from wherever that card was */}
       <PileTop key={top ? cardKey(top) : 'empty'} top={top} count={cards.length} sleeve={sleeve} />
       <span className={styles.count}>{cards.length}</span>

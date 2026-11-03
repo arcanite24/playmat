@@ -163,10 +163,15 @@ function Results({ result, back }: { result: CareerGameResult; back: string }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [done, skipAll]);
 
+  // a game against people names them, never "the AI" (#160); older results carry no kind and were AI games
+  const named = opponentName(foe?.name, result.opponent);
+  const againstPeople = result.kind === 'person' || result.kind === 'pod' || result.kind === 'event';
   const headline = result.mode?.trial
     ? t(won ? 'career.rewards.trialWon' : 'career.rewards.trialLost', { trial: foe?.name ?? '' })
-    : result.career && opponentName(foe?.name, result.opponent)
-    ? t(won ? 'career.rewards.won' : 'career.rewards.lost', { opponent: opponentName(foe?.name, result.opponent) ?? '' })
+    : (result.career || againstPeople) && named
+    ? t(won ? 'career.rewards.won' : 'career.rewards.lost', { opponent: named })
+    : againstPeople
+    ? t(won ? 'career.rewards.wonPeople' : 'career.rewards.lostPeople')
     : t(won ? 'career.rewards.wonAi' : 'career.rewards.lostAi');
 
   return (

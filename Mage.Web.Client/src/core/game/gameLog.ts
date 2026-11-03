@@ -327,12 +327,12 @@ export function cardInk(color: string | null): CardInk | null {
 
 /**
  * A player dropping off or coming back, from the server's status lines in the game chat ("Bob has lost
- * connection", "Bob catch connection problems for 40 secs...", "Bob has joined"). Player views carry no
+ * connection", "Bob catch connection problems for 40 secs...", "Bob has joined", "Bob has reconnected"). Player views carry no
  * connection state, so these lines are the only word of it. Null for any other line.
  */
 export function presenceChange(text: string): { name: string; online: boolean } | null {
   const offline = /^(.+?) (?:has lost connection|catch connection problems\b|has left XMage|session expired|was disconnected)/.exec(text);
   if (offline) return { name: offline[1], online: false };
-  const online = /^(.+?) has joined$/.exec(text);
+  const online = /^(.+?) has (?:joined|reconnected)$/.exec(text);
   return online ? { name: online[1], online: true } : null;
 }
