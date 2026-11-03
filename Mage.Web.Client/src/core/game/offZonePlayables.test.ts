@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { GameView } from '../../protocol/generated/views';
-import { offZonePlayables } from './offZonePlayables';
+import { heldOffZone, offZonePlayables } from './offZonePlayables';
 
 const view = {
   myPlayerId: 'me',
@@ -37,5 +37,14 @@ describe('offZonePlayables', () => {
   test('hand, battlefield and unknown ids are not off-zone', () => {
     expect(offZonePlayables(view, ['h1', 'p1', 'nope'])).toEqual([]);
     expect(offZonePlayables(null, ['a1'])).toEqual([]);
+  });
+
+  test('between prompts the last playables stay while they are still in their zone (#170)', () => {
+    const last = offZonePlayables(view, ['a1', 'f1']);
+    expect(heldOffZone(last, view).map((entry) => entry.card.id)).toEqual(['a1', 'f1']);
+    // the adventurer was cast: it left exile, so it leaves the hand too
+    const cast = { ...view, players: [{ ...view.players![0], exile: {} }, view.players![1]] } as GameView;
+    expect(heldOffZone(last, cast).map((entry) => entry.card.id)).toEqual(['f1']);
+    expect(heldOffZone([], view)).toEqual([]);
   });
 });

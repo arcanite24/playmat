@@ -39,3 +39,13 @@ export function offZonePlayables(view: GameView | null | undefined, playable: It
   }
   return found;
 }
+
+/**
+ * Between two priority prompts (a pass on its way, the server sending the state again) the playable list is empty for a
+ * moment. The cards found last time stay in the hand while they're still where they were, so they don't leave and fly
+ * back in, shifting the whole hand (#170). The next priority prompt decides again.
+ */
+export function heldOffZone(previous: readonly OffZonePlayable[], view: GameView | null | undefined): OffZonePlayable[] {
+  if (previous.length === 0) return [];
+  return offZonePlayables(view, previous.map((entry) => entry.card.id!));
+}

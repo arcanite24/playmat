@@ -614,14 +614,20 @@ function Preview({ card, anchor, side }: { card: CardView; anchor: DOMRect; side
   const width = 300;
   const height = width * (88 / 63);
   const gap = 16;
+  // a double-faced card shows its back face beside the front, smaller, as the table's card zoom does (#163)
+  const back = card.transformable ? card.secondCardFace : undefined;
+  const span = back ? width * 1.62 + 12 : width;
   // beside the hovered card, on whichever side has room; never over the deck list on the right
   const deckEdge = window.innerWidth - 400;
-  const fitsRight = side === 'auto' && anchor.right + gap + width <= deckEdge;
-  const left = fitsRight ? anchor.right + gap : Math.max(gap, anchor.left - gap - width);
+  const fitsRight = side === 'auto' && anchor.right + gap + span <= deckEdge;
+  const left = fitsRight ? anchor.right + gap : Math.max(gap, anchor.left - gap - span);
   const top = Math.max(12, Math.min(window.innerHeight - height - 12, anchor.top + anchor.height / 2 - height / 2));
   return (
-    <div className={styles.preview} style={{ left, top, width }} aria-hidden="true">
-      <CardFace card={card} size="large" />
+    <div className={styles.preview} style={{ left, top, width: span }} aria-hidden="true">
+      <div className={styles.previewFaces}>
+        <CardFace card={card} size="large" style={{ width }} />
+        {back && <CardFace card={back} face="back" size="normal" style={{ width: width * 0.62 }} />}
+      </div>
     </div>
   );
 }
