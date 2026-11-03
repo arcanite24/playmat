@@ -1159,6 +1159,8 @@ const es: Catalog = {
   'career.rewards.trialLost': 'Prueba fallida: {trial}',
   'career.rewards.wonAi': 'Victoria contra la IA',
   'career.rewards.lostAi': 'Partida contra la IA',
+  'career.rewards.wonPeople': 'Victoria contra otros jugadores',
+  'career.rewards.lostPeople': 'Partida contra otros jugadores',
   'career.rewards.aiNote': 'Cuenta para misiones y logros.',
   'career.rewards.levelUp': '¡Nivel {level}!',
   'career.rewards.levels': 'Recompensas de nivel',

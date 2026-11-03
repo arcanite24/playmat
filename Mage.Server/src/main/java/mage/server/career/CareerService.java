@@ -799,6 +799,10 @@ public final class CareerService {
                     result.gameKey = key;
                     result.kind = finished.kind;
                     result.won = seat.won;
+                    if (CareerRewards.PERSON.equals(finished.kind) && humans.size() == 2) {
+                        // a duel between two people: the results name the other one
+                        result.opponent = humans.get(humans.get(0) == seat ? 1 : 0).user;
+                    }
                     CareerProfile before = store.profile(seat.user);
                     result.xpBefore = before.xp;
                     String reason = null;

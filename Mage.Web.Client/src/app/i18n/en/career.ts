@@ -313,6 +313,8 @@ export default {
   'career.rewards.trialLost': 'Trial failed: {trial}',
   'career.rewards.wonAi': 'Victory against the AI',
   'career.rewards.lostAi': 'Game against the AI',
+  'career.rewards.wonPeople': 'Victory against other players',
+  'career.rewards.lostPeople': 'Game against other players',
   'career.rewards.aiNote': 'Counted for quests and achievements.',
   'career.rewards.levelUp': 'Level {level}!',
   'career.rewards.levels': 'Level rewards',

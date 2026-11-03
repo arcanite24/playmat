@@ -171,6 +171,8 @@ describe('presenceChange', () => {
     expect(presenceChange('bashbob has left XMage')).toEqual({ name: 'bashbob', online: false });
     expect(presenceChange('bashbob session expired')).toEqual({ name: 'bashbob', online: false });
     expect(presenceChange('bashbob has joined')).toEqual({ name: 'bashbob', online: true });
+    // back from a sleep without leaving the chat: the server says so instead of "has joined" (#171)
+    expect(presenceChange('bashbob has reconnected')).toEqual({ name: 'bashbob', online: true });
   });
 
   it('ignores other lines', () => {

@@ -59,21 +59,23 @@
 
 
 
+/* over the top of the art, under the title bar: the card's name stays readable (#173) */
 .next {
   position: absolute;
   left: 50%;
-  top: -14px;
+  top: 36px;
   translate: -50% 0;
   padding: 2px 10px;
   border-radius: 999px;
   background: var(--ink);
   color: var(--mat-900);
   font-family: var(--font-print);
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: var(--tracking-print);
   text-transform: uppercase;
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgb(var(--shade-rgb) / 0.5);
 }
 
 /* tall: over the left end of the opponent's creatures, its top card just above the seam */
