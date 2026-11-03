@@ -174,6 +174,7 @@ export interface RpcMethods {
   adminSupportLink: { params: [paymentId: number, userName: string]; result: Payment };
   adminSupportRevoke: { params: [paymentId: number, reason: string, removePerks?: boolean | null]; result: Payment };
   adminSupportGrant: { params: [userName: string, reason: string]; result: SupportYou };
+  adminContributorGrant: { params: [userName: string, reason: string]; result: boolean };
   careerState: { params: []; result: CareerState };
   careerStarters: { params: []; result: CareerStarter[] };
   careerStart: { params: [starterId: string]; result: CareerProfile };
@@ -435,6 +436,7 @@ export const RPC_METHODS: { readonly [M in RpcMethodName]: { readonly access: Rp
   adminSupportLink: { access: 'session', sessionParam: -1 },
   adminSupportRevoke: { access: 'session', sessionParam: -1 },
   adminSupportGrant: { access: 'session', sessionParam: -1 },
+  adminContributorGrant: { access: 'session', sessionParam: -1 },
   careerState: { access: 'session', sessionParam: -1 },
   careerStarters: { access: 'session', sessionParam: -1 },
   careerStart: { access: 'session', sessionParam: -1 },

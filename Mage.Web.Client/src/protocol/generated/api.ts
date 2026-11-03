@@ -343,6 +343,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('adminSupportRevoke', paymentId, reason, removePerks),
     adminSupportGrant: (userName: string, reason: string) =>
       rpc.call('adminSupportGrant', userName, reason),
+    adminContributorGrant: (userName: string, reason: string) =>
+      rpc.call('adminContributorGrant', userName, reason),
     careerState: () =>
       rpc.call('careerState'),
     careerStarters: () =>

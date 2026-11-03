@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Gift, Link2, Undo2 } from 'lucide-react';
+import { Bug, Gift, Link2, Undo2 } from 'lucide-react';
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import type { createApi } from '../../protocol/generated/api';
 import type { Payment } from '../../protocol/generated/views';
@@ -23,14 +23,14 @@ function thisMonth(): string {
 
 /**
  * Support for the server (admins and the owner; moderators don't see payments): a month of payments against the goal,
- * the unmatched ones to link to an account by hand, revoking a refunded payment and giving the thank-you by hand. Every
- * action goes in the audit log.
+ * the unmatched ones to link to an account by hand, revoking a refunded payment, giving the thank-you by hand, and the
+ * contributors' pet for people who keep helping on the repository. Every action goes in the audit log.
  */
 export function SupportPage({ api }: { api: AdminApi }) {
   const [month, setMonth] = useState(thisMonth);
   const [unmatched, setUnmatched] = useState(false);
   const [provider, setProvider] = useState('');
-  const [granting, setGranting] = useState(false);
+  const [granting, setGranting] = useState<GrantKind | null>(null);
   const ledger = useQuery({
     queryKey: ['admin', 'support', month, unmatched, provider],
     queryFn: () => api.adminSupportLedger(unmatched ? null : month, unmatched, provider || null),
@@ -57,9 +57,10 @@ export function SupportPage({ api }: { api: AdminApi }) {
           <input type="checkbox" checked={unmatched} onChange={(event) => setUnmatched(event.target.checked)} />
           Unmatched only{data?.unmatched ? ` (${data.unmatched})` : ''}
         </label>
-        <Button size="sm" variant="quiet" icon={<Gift size={14} />} onClick={() => setGranting(true)}>Give the thank-you by hand</Button>
+        <Button size="sm" variant="quiet" icon={<Gift size={14} />} onClick={() => setGranting('thanks')}>Give the thank-you by hand</Button>
+        <Button size="sm" variant="quiet" icon={<Bug size={14} />} onClick={() => setGranting('contributor')}>Give the contributors' pet</Button>
       </div>
-      {granting && <Grant api={api} onDone={() => setGranting(false)} />}
+      {granting && <Grant key={granting} api={api} kind={granting} onDone={() => setGranting(null)} />}
       {ledger.error && <p className={styles.error}>{String(ledger.error)}</p>}
 
       {data && !unmatched && (
@@ -207,8 +208,22 @@ function LinkPayment({ api, payment, onDone }: { api: AdminApi; payment: Payment
   );
 }
 
-/** The thank-you set for support that came some other way (a bank transfer, a payment that can't be linked). */
-function Grant({ api, onDone }: { api: AdminApi; onDone(): void }) {
+type GrantKind = 'thanks' | 'contributor';
+
+const GRANTS: Record<GrantKind, { title: string; done(name: string, added: boolean): string }> = {
+  thanks: { title: 'Give the thank-you by hand', done: (name) => `${name} has the thank-you set; they see it on their next visit.` },
+  contributor: {
+    title: "Give the contributors' pet (the debug duck)",
+    done: (name, added) => added ? `${name} has the debug duck; it's in their locker's Pets.` : `${name} already had the debug duck.`,
+  },
+};
+
+/**
+ * By hand: the thank-you set for support that came some other way (a bank transfer, a payment that can't be linked),
+ * or the contributors' pet for someone who keeps reporting bugs, asking for features or sending pull requests.
+ */
+function Grant({ api, kind, onDone }: { api: AdminApi; kind: GrantKind; onDone(): void }) {
+  const grant = GRANTS[kind];
   const [name, setName] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -220,8 +235,8 @@ function Grant({ api, onDone }: { api: AdminApi; onDone(): void }) {
     setBusy(true);
     setError(null);
     try {
-      await api.adminSupportGrant(name.trim(), reason.trim());
-      setDone(name.trim());
+      const added = kind === 'thanks' ? (await api.adminSupportGrant(name.trim(), reason.trim()), true) : await api.adminContributorGrant(name.trim(), reason.trim());
+      setDone(grant.done(name.trim(), added));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -230,13 +245,13 @@ function Grant({ api, onDone }: { api: AdminApi; onDone(): void }) {
   }
 
   return (
-    <form className={styles.confirm} onSubmit={submit} aria-label="Give the thank-you by hand">
-      <h3>Give the thank-you by hand</h3>
+    <form className={styles.confirm} onSubmit={submit} aria-label={grant.title}>
+      <h3>{grant.title}</h3>
       <div className={styles.inline}>
         <Field label="Account" value={name} required spellCheck={false} onChange={(event) => setName(event.target.value)} />
         <Field label="Reason (kept in the audit log)" value={reason} maxLength={500} required onChange={(event) => setReason(event.target.value)} />
       </div>
-      {done && <p className={styles.quiet} role="status">{done} has the thank-you set; they see it on their next visit.</p>}
+      {done && <p className={styles.quiet} role="status">{done}</p>}
       {error && <p className={styles.error} role="alert">{error}</p>}
       <div className={styles.inline}>
         <Button type="submit" size="sm" busy={busy} disabled={!name.trim() || !reason.trim()}>Give</Button>

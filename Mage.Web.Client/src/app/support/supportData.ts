@@ -7,7 +7,7 @@ import { queryClient, useServerInfo } from '../queries';
 import { readJson, writeJson } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { DEFAULT_WEAR, THANK_YOU, type Wear } from './thankYou';
-import { owns, sameLook } from './supportModel';
+import { owns, sameLook, wornPet } from './supportModel';
 
 /** Supporting the server, as the screens ask for it: the month's goal, the player's thank-you set, and others' looks. */
 
@@ -92,6 +92,8 @@ export interface ThankYou {
   shows(kind: ThankYouKind): boolean;
   /** which owned pieces the player wears */
   wear: Wear;
+  /** the pet perk brought to the table (supportModel wornPet), null for none */
+  pet: string | null;
   choose(patch: Partial<Wear>): void;
 }
 
@@ -113,6 +115,7 @@ export function useThankYou(): ThankYou {
     hasItem: (kind, item) => owns(owned, kind, item),
     shows: (kind) => has(kind) || (support && perks.isSuccess),
     wear: wearOf({ [user.toLowerCase()]: worn }, user),
+    pet: wornPet(owned, wearOf({ [user.toLowerCase()]: worn }, user)),
     choose: (patch) => chooseWear(user, patch),
   };
 }
