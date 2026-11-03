@@ -333,8 +333,8 @@ function PlaymatShelf({ shelf, catalog }: ShelfProps) {
 
 function CompanionShelf({ shelf, catalog, thanks }: ShelfProps & { thanks: ThankYou }) {
   const t = useT();
-  // the party corgi, when worn, wins over an earned companion: picking one here sends the corgi home
-  const corgi = thanks.has('pet') && thanks.wear.pet;
+  // a pet perk (the party corgi, the debug duck), when worn, wins over an earned companion: picking one here sends it home
+  const corgi = thanks.pet !== null;
   const pick = (id: string | null) => {
     choose(shelf, { pet: id });
     if (corgi && id) thanks.choose({ pet: false });

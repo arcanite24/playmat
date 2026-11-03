@@ -299,6 +299,7 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `adminSupportLink` | `paymentId: number`, `userName: string` | `Payment` | session | Staff (admin): link a payment to an account; it unlocks the supporter perks as an automatic link would. |
 | `adminSupportRevoke` | `paymentId: number`, `reason: string`, `removePerks?: boolean` | `Payment` | session | Staff (admin): revoke a refunded or charged-back payment; it stops counting. With removePerks the perks it granted go too, unless another payment of the account still stands for them. |
 | `adminSupportGrant` | `userName: string`, `reason: string` | `SupportYou` | session | Staff (admin): give an account the supporter perks by hand (support that came some other way). |
+| `adminContributorGrant` | `userName: string`, `reason: string` | `boolean` | session | Staff (admin): give an account the contributors' pet, for people who keep reporting bugs, asking for features or sending pull requests. False when the account already had it. |
 | `careerState` | - | `CareerState` | session | Whether this server offers Career, and the signed-in account's Career (profile null before it opens one). |
 | `careerStarters` | - | `CareerStarter[]` | session | The starter decks a Career can open with. |
 | `careerStart` | `starterId: string` | `CareerProfile` | session | Open a Career with a starter deck: its cards become the collection, plus coins for a first pack. |

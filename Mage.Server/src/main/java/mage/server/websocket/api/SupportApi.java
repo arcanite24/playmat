@@ -179,6 +179,25 @@ final class SupportApi {
                             });
                             Staff.audit(actor, "support.grant", name, null, reason);
                             return you;
+                        }),
+
+                RpcMethod.named("adminContributorGrant")
+                        .params(of("userName", STRING), of("reason", STRING))
+                        .returns("boolean")
+                        .doc("Staff (admin): give an account the contributors' pet, for people who keep reporting bugs, asking for features or sending pull requests. False when the account already had it.")
+                        .handler(call -> {
+                            String actor = Staff.require(ctx, call, StaffRole.ADMIN);
+                            String reason = call.string(1).trim();
+                            if (reason.isEmpty()) {
+                                throw RpcException.invalidParams("Say why; it goes in the audit log");
+                            }
+                            String name = call.string(0).trim();
+                            if (name.isEmpty()) {
+                                throw RpcException.invalidParams("Which account?");
+                            }
+                            boolean added = support(() -> Support.get().grantContributor(name, System.currentTimeMillis()));
+                            Staff.audit(actor, "support.contributor", name, added ? null : "already had it", reason);
+                            return added;
                         })
         );
     }

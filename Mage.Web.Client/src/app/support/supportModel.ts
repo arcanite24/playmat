@@ -72,6 +72,14 @@ export function sleeveColorOf(id: string | undefined): string | null {
 }
 
 
+/** The pet perk the player brings, among those they own: the one picked, else the corgi, else any. Null: none worn. */
+export function wornPet(perks: readonly SupportPerk[] | undefined, wear: Wear = DEFAULT_WEAR): string | null {
+  if (!wear.pet) return null;
+  if (wear.petId && owns(perks, 'pet', wear.petId)) return wear.petId;
+  if (owns(perks, 'pet', THANK_YOU.pet)) return THANK_YOU.pet;
+  return perks?.find((perk) => perk.kind === 'pet')?.item ?? null;
+}
+
 export interface LookInputs {
   /** the sleeve colour of the deck being played */
   sleeve?: string;
@@ -95,11 +103,12 @@ export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks
   if (sleeveId) look.sleeve = sleeveId;
   if (cloth) look.cloth = cloth;
   if (careerAvatar) look.avatar = careerAvatar;
-  // the supporter ring and corgi, when worn, come before an earned frame and companion
+  // the supporter ring and a pet perk (corgi, contributors' duck), when worn, come before an earned frame and companion
   if (wear.frame && owns(perks, 'frame', THANK_YOU.frame)) look.frame = THANK_YOU.frame;
   else if (career?.frame) look.frame = career.frame;
   if (wear.flair && owns(perks, 'flair', THANK_YOU.flair)) look.flair = THANK_YOU.flair;
-  if (wear.pet && owns(perks, 'pet', THANK_YOU.pet)) look.pet = THANK_YOU.pet;
+  const pet = wornPet(perks, wear);
+  if (pet) look.pet = pet;
   else if (career?.pet) look.pet = career.pet;
   if (career?.arrow) look.arrow = career.arrow;
   if (career?.spark) look.spark = career.spark;

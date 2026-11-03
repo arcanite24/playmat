@@ -865,6 +865,18 @@ public final class Support {
         granted(account, 0, now, true);
     }
 
+    /**
+     * Staff give the contributors' pet to someone who helps build Playmat (bug reports, feature requests, pull
+     * requests). It is no support perk: no thank-you notice, no supporter status. Returns false when it was owned.
+     */
+    public synchronized boolean grantContributor(String userName, long now) throws SQLException {
+        String account = userName == null ? null : accounts.name(userName.trim());
+        if (account == null) {
+            throw new IllegalArgumentException("There is no account named " + userName);
+        }
+        return store.addPerk(account, "pet", SupportPerks.CONTRIBUTOR_PET, now, 0);
+    }
+
     // ---- the account's data
 
     /** Everything support keeps about the account, for its export: payments without the providers' payloads. */

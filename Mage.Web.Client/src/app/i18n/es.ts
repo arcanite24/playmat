@@ -1865,6 +1865,7 @@ const es: Catalog = {
   'support.settings.wall.detail': 'Desactivado hasta que lo elijas. El nombre de tu cuenta aparece en la página de apoyo en los meses en que apoyas.',
   'support.settings.wear': 'Elige el anillo, el título, el corazón y la mascota que llevas en Ajustes, Cosméticos.',
   'pet.party-corgi': 'Corgi fiestero',
+  'pet.debug-duck': 'Pato depurador',
   'pet.label': '{pet}, la mascota de {name}. Haz clic para celebrar.',
   'pet.mine': '{pet}, tu mascota. Haz clic para celebrar.',
 

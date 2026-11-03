@@ -85,7 +85,7 @@ public class WebClientApiContractTest {
             "accountEmailStatus", "accountEmailVerifyStart", "accountEmailVerify", // email verification (EmailVerificationTest)
             "accountExport", "accountDelete", // the player's own data (api/MyAccountApiTest)
             "supportStatus", "supportPerks", "supportNoticeSeen", "supportSetWall", "profileSetLook", "profileLooks",
-            "adminSupportLedger", "adminSupportLink", "adminSupportRevoke", "adminSupportGrant" // support store (support/*Test)
+            "adminSupportLedger", "adminSupportLink", "adminSupportRevoke", "adminSupportGrant", "adminContributorGrant" // support store (support/*Test)
     ));
 
     static {

@@ -335,6 +335,23 @@ public class SupportTest {
     }
 
     @Test
+    void contributorsPetIsGivenByHandAndWornLikeAPerk() throws Exception {
+        assertThat(support.grantContributor("cy", OCT_13)).isTrue();
+        assertThat(support.grantContributor("Cy", OCT_13 + 1)).as("owned already").isFalse();
+        assertThatThrownBy(() -> support.grantContributor("nobody", OCT_13)).hasMessageContaining("no account");
+        assertThat(store.perks("Cy")).extracting(perk -> perk.kind + ":" + perk.item).containsExactly("pet:debug-duck");
+        Support.SupportYou you = support.you("Cy", OCT_13 + 1);
+        assertThat(you.supporter).as("not a supporter").isFalse();
+        assertThat(you.notice).as("no supporter thank-you").isFalse();
+
+        PlayerLook wanted = new PlayerLook();
+        wanted.pet = "debug-duck";
+        assertThat(support.setLook("Cy", wanted, OCT_13).pet).isEqualTo("debug-duck");
+        wanted.pet = "party-corgi";
+        assertThat(support.setLook("Cy", wanted, OCT_13).pet).as("the supporters' corgi isn't theirs").isNull();
+    }
+
+    @Test
     void revokingKeepsPerksAnotherPaymentStandsFor() throws Exception {
         Payment first = support.recordKofi(donation("tx-v1", "3.00", "ana@example.test", null), OCT_13).payment;
         support.recordKofi(donation("tx-v2", "3.00", "ana@example.test", null), OCT_13 + 1);
