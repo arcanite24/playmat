@@ -16,7 +16,7 @@ import { spectatorHand } from '../../core/game/spectatorHand';
 import { matchProgress } from '../../core/game/matchProgress';
 import { pregameChoice } from '../../core/game/pregame';
 import { offBoardTargets } from '../../core/game/offBoardTargets';
-import { offZonePlayables } from '../../core/game/offZonePlayables';
+import { heldOffZone, offZonePlayables, type OffZonePlayable } from '../../core/game/offZonePlayables';
 import { predict, withPredictedAttack, withPrediction } from '../../core/game/prediction';
 import type { CardView, ChatMessage, GameView, PlayerLook, PlayerView } from '../../protocol/generated/views';
 import { rosterOf, sleeveFor, SLEEVE_COLORS, useDecks } from '../stores/decks';
@@ -208,7 +208,10 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     return sortedHand ? sortHand(cards) : cards;
   }, [view?.myHand, sortedHand]);
   // cards played from exile or a graveyard (an adventurer, flashback) join the hand while they can be played
-  const offZone = useMemo(() => (interaction.mode === 'priority' ? offZonePlayables(view, clickable) : []), [interaction.mode, view, clickable]);
+  const liveOffZone = useMemo(() => (interaction.mode === 'priority' ? offZonePlayables(view, clickable) : null), [interaction.mode, view, clickable]);
+  const [lastOffZone, setLastOffZone] = useState<OffZonePlayable[]>([]);
+  if (liveOffZone && liveOffZone !== lastOffZone) setLastOffZone(liveOffZone);
+  const offZone = useMemo(() => liveOffZone ?? heldOffZone(lastOffZone, view), [liveOffZone, lastOffZone, view]);
   const handAndPlayables = useMemo(() => (offZone.length > 0 ? [...hand, ...offZone.map((entry) => entry.card)] : hand), [hand, offZone]);
   const fromZone = useMemo(() => new Map(offZone.map((entry) => [entry.card.id!, entry.zone])), [offZone]);
   // watching: the seat's hand, if its player lets us see it, and only backs while hands are hidden for the broadcast

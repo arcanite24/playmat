@@ -577,6 +577,12 @@
   animation: lift var(--dur-quick) var(--ease-lift);
 }
 
+.previewFaces {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 @keyframes lift {
   from {
     opacity: 0;
