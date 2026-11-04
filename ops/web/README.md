@@ -238,9 +238,10 @@ and the container restarts the gateway. `off`, the default, leaves things as the
 |---|---|---|
 | `XMAGE_GATEWAY_STATE_DIFFS` | `true` | `false` lets Java make the state patches again. |
 | `XMAGE_GATEWAY_MAX_OUTGOING_BYTES` | `16777216` | Bytes waiting for one slow client before it is disconnected. |
-| `XMAGE_ROUTE_CATALOG` | `java` | Where the card catalog's calls go: `java`, `rust` or `shadow` (both run, Java answers, differences are counted and logged). Rust answers `lookupCards`, `getExpansionSets` and `getBasicLandSets` from the card catalog the server exports ([docs/rust/Catalog.md](../../docs/rust/Catalog.md)); the group's other calls stay with Java. |
+| `XMAGE_ROUTE_CATALOG` | `java` | Where the card catalog's calls go: `java`, `rust` or `shadow` (both run, Java answers, differences are counted and logged). Rust answers `lookupCards`, `searchCards`, `deckValidate` (the constructed formats), `getExpansionSets` and `getBasicLandSets` from the card catalog the server exports ([docs/rust/Catalog.md](../../docs/rust/Catalog.md)); the group's other calls stay with Java, and so do the searches and formats Rust doesn't cover yet (`playmat_gateway_declined_total` counts them). |
 | `XMAGE_ROUTE_ACCOUNT` | `java` | The same for the account calls. Rust answers deck sync (`deckSyncList`, `deckSyncGet`, `deckSyncPut`, `deckSyncDelete`) on the bridge's own `db/web_decks.db`, so either side reads what the other wrote ([docs/rust/Decks.md](../../docs/rust/Decks.md)). In `shadow`, Rust's change is rolled back and Java stores it. |
 | `XMAGE_SHADOW_USERS` | everyone | Comma-separated user names (any case). When set, `shadow` routes run Rust only for these users; everyone else's calls go to Java alone. A way to try a group on a few accounts first. |
+| `XMAGE_ROUTE_DECKIMPORT` | `java` | The same for importing decks by link (`deckImportFromUrl`, `deckImportSources`) from Archidekt, TCGplayer, MTGTop8, Scryfall and ManaBox ([docs/rust/DeckImport.md](../../docs/rust/DeckImport.md)). In `shadow`, both sides fetch the deck. |
 | `XMAGE_ROUTE_DEFAULT`, `XMAGE_ROUTES_FILE` | `java` | The route for every other group, and a file with routes by group, by method and rollout percentages (`rust/crates/playmat-protocol/src/routes.rs`). |
 | `XMAGE_GATEWAY_LOG` | `info` | Log level, e.g. `debug`. |
 

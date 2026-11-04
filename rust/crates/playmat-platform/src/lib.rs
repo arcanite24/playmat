@@ -2,14 +2,20 @@
 //! gateway's process; the routing table decides which of its methods are used (`rust`), compared with Java's answers
 //! (`shadow`) or left to Java.
 //!
-//! Now: the card catalog (`lookupCards`, `getExpansionSets`, `getBasicLandSets`) from the file Java exports, and the
-//! web client's deck sync (`deckSync*`) on Java's own decks database.
+//! Now: the card catalog (`lookupCards`, `searchCards`, `getExpansionSets`, `getBasicLandSets`) from the file Java
+//! exports, and the
+//! web client's deck sync (`deckSync*`) on Java's own decks database, and decks imported by link from deck websites
+//! (`deckImport*`).
 
 pub mod catalog;
+pub mod deckimport;
 pub mod decks;
+pub mod search;
+pub mod validate;
 
 use async_trait::async_trait;
 use catalog::{Catalog, Entry};
+use deckimport::DeckImports;
 use decks::DeckStore;
 use playmat_protocol::handlers::{Caller, Handlers};
 use playmat_protocol::jsonrpc::{Outcome, Request, INTERNAL_ERROR, INVALID_PARAMS};
@@ -19,7 +25,8 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime};
 use tracing::{debug, info, warn};
 
-const CATALOG_METHODS: [&str; 3] = ["lookupCards", "getExpansionSets", "getBasicLandSets"];
+const CATALOG_METHODS: [&str; 5] =
+    ["lookupCards", "getExpansionSets", "getBasicLandSets", "searchCards", "deckValidate"];
 
 pub struct Platform {
     catalog_path: Option<PathBuf>,
@@ -27,12 +34,13 @@ pub struct Platform {
     catalog: RwLock<Option<Arc<Catalog>>>,
     /// db/web_decks.db (`XMAGE_PLATFORM_DECKS`); None leaves deck sync to Java
     decks: Option<DeckStore>,
+    imports: DeckImports,
 }
 
 impl Platform {
     /// `catalog`: the file `-Dxmage.catalog.export` names (`XMAGE_PLATFORM_CATALOG`)
     pub fn new(catalog: Option<PathBuf>, decks: Option<DeckStore>) -> Arc<Platform> {
-        Arc::new(Platform { catalog_path: catalog, catalog: RwLock::new(None), decks })
+        Arc::new(Platform { catalog_path: catalog, catalog: RwLock::new(None), decks, imports: DeckImports::new() })
     }
 
     pub fn catalog(&self) -> Option<Arc<Catalog>> {
@@ -48,7 +56,13 @@ impl Platform {
             if modified.is_some() && modified != loaded {
                 match Catalog::open(&path).await {
                     Ok(catalog) => {
-                        info!("Catalog {}: {} printings ({})", path.display(), catalog.printings, catalog.stamp);
+                        info!(
+                            "Catalog {}: {} printings, {} card rows ({})",
+                            path.display(),
+                            catalog.printings,
+                            catalog.card_rows(),
+                            catalog.stamp
+                        );
                         *self.catalog.write().unwrap() = Some(Arc::new(catalog));
                         loaded = modified;
                     }
@@ -65,11 +79,27 @@ impl Handlers for Platform {
     fn handles(&self, method: &str) -> bool {
         (CATALOG_METHODS.contains(&method) && self.catalog.read().unwrap().is_some())
             || (decks::METHODS.contains(&method) && self.decks.is_some())
+            || deckimport::METHODS.contains(&method)
+    }
+
+    fn slow(&self, method: &str) -> bool {
+        method == "deckImportFromUrl"
     }
 
     async fn call(&self, caller: &Caller, request: &Request) -> Outcome {
         if let (Some(decks), true) = (&self.decks, decks::METHODS.contains(&request.method.as_str())) {
             return decks.call(caller, request, true).await;
+        }
+        match request.method.as_str() {
+            "deckImportSources" => return Outcome::Result(self.imports.sources()),
+            "deckImportFromUrl" => {
+                // a session call: before login, Java says so
+                let (Some(_), Some(Value::String(link))) = (&caller.user, request.params.first()) else {
+                    return Outcome::Declined;
+                };
+                return self.imports.import(link, &caller.connection.to_string()).await;
+            }
+            _ => {}
         }
         let Some(catalog) = self.catalog() else {
             return Outcome::error(INTERNAL_ERROR, "The card catalog isn't loaded");
@@ -86,6 +116,33 @@ impl Handlers for Platform {
                     Some(_) => return Outcome::error(INVALID_PARAMS, "Parameter 1 (cards) must be DeckCardInfo[]"),
                 };
                 catalog.lookup(&entries).await.map(Value::Array)
+            }
+            "deckValidate" => {
+                // `call.string(0)`, `call.object(1, DeckCardLists.class)`: anything unusual is left to Java's messages
+                let (Some(Value::String(deck_type)), Some(deck @ Value::Object(_))) =
+                    (request.params.first(), request.params.get(1))
+                else {
+                    return Outcome::Declined;
+                };
+                match catalog.validate(deck_type, deck).await {
+                    Ok(Ok(Some(result))) => Ok(result),
+                    Ok(Ok(None)) => return Outcome::Declined,
+                    Ok(Err(message)) => return Outcome::error(INVALID_PARAMS, message),
+                    Err(e) => Err(e),
+                }
+            }
+            "searchCards" => {
+                // `call.object(0, CardCriteria.class)`, then the filters when they're there
+                let criteria = match request.params.first() {
+                    None | Some(Value::Null) => {
+                        return Outcome::error(INVALID_PARAMS, "Missing parameter 1 (criteria)");
+                    }
+                    Some(criteria) => criteria,
+                };
+                match catalog.search(criteria, request.params.get(1)).await {
+                    Ok(None) => return Outcome::Declined,
+                    other => other.map(|views| Value::Array(views.unwrap_or_default())),
+                }
             }
             _ => return Outcome::error(playmat_protocol::jsonrpc::METHOD_NOT_FOUND, "Not a platform method"),
         };

@@ -1,7 +1,7 @@
-# Card catalog (format 2)
+# Card catalog (format 3)
 
-The first calls the platform service answers in Rust (docs/RustMigration.md, phase 2) are card lookups:
-`lookupCards`, `getExpansionSets` and `getBasicLandSets`. Rust doesn't build card views. The Java server writes them
+The first calls the platform service answers in Rust (docs/RustMigration.md, phase 2) are card lookups, card search
+and deck validation: `lookupCards`, `searchCards`, `deckValidate`, `getExpansionSets` and `getBasicLandSets`. Rust doesn't build card views. The Java server writes them
 once into a read-only SQLite file, `CatalogExport`, and Rust reads that file the way `CardSearchService` reads the
 card repository, step for step.
 
@@ -27,6 +27,15 @@ card repository, step for step.
 | `names(query, kind, position, printing)` | kind 0: `findCards(query)` in order; kind 1: printings named exactly `query`; kind 2: `findPreferredCoreExpansionCard(query, "")` |
 | `sets(code, standard_legal, release_date)` | every set, for picking a printing when a set is preferred |
 | `results(method, json)` | the whole answers of `getExpansionSets` and `getBasicLandSets` |
+| `cards(ord, printing, name_rank, …)` | every row a search can return (`splitCardHalf` and `nightCard` false), in the database's row order, with the columns `CardCriteria` filters on, the color and color-identity bits, and the lower-case texts `CardTextPredicate` looks in. `name_rank` is the row's place sorted by name |
+| `enums(kind, position, name, text, include_in_search)` | `CardType`, `SuperType`, `SubType` and `Rarity`: the names the JSON uses and the text the database matches (a subtype's description) |
+| `formats(name, plain, title, short_name, deck_min, sideboard_min)`, `format_sets(format, position, set_code)` | the deck types, and the sets each constructed one allows. `plain`: the format validates as `Constructed` does, unchanged (no method of it overridden) |
+| `format_cards(format, list, position, name)` | a plain format's `banned`, `restricted` and `single` cards and allowed `rarity` names |
+| `brackets(list, value)` | Commander brackets: the `gameChangers` and the two-card `combos` (`card1@card2`) |
+
+`printings` also has each printing's rarity, whether it is an extra-deck card, and whether its rules count for mass
+land destruction or extra turns (`CommanderBrackets`). The stamp ends with a digest of every format's rules, so the
+file is written again when a format changes without the card data changing (Standard rotates by date).
 
 Keys (`exact`, `names.query`) are lower case: the H2 card database compares text ignoring case (`IGNORECASE=TRUE`),
 and Rust lowers what it looks up. The queries cover every name a card has: its name, flip, second-side,
@@ -46,6 +55,38 @@ as in Java. Every UUID in a view is replaced by a fresh one per answer (the same
 because Java's views get new ids each time. Shadow comparison treats two UUIDs as equal for the same reason
 (`playmat_protocol::compare`).
 
+## Search, as `CardSearchService.search` does it
+
+Rust keeps the `cards` rows in memory (one string for all their text, about 45 MB with the views left on disk) and
+filters them as the H2 query `CardCriteria.buildQuery` makes would: LIKE and equality ignoring case, `optimize()`,
+the type, supertype, subtype, color and card-number clauses, a format's sets. Then the web refinements (colors,
+excluded colors and rarities, mana value ranges, color identity, unique names) and `CardTextPredicate`, with its own
+unique-name list, in the same order. Paging is the database's when there are no refinements, else after them.
+
+Without an `ORDER BY` H2 returned rows in whatever order the index it picked gave, so a search could page differently
+from one query to the next. `CardSearchService` now asks for `CardCriteria.stableOrder()`: the row order (`_ROWID_`)
+after `sortBy`. Rust sorts the same way: row order, or `name_rank` for `sortBy: "name"`.
+
+What Rust doesn't cover it declines (`Outcome::Declined`), and the gateway sends the call to Java as it is, counted in
+`playmat_gateway_declined_total`: a sort other than by name, `rules`, `modalDoubleFaced`, `nightCard` other than
+false, unknown enum names, fields of the wrong type, a database page of 0, and search tokens with `@`.
+
+## Deck validation, as `DeckValidationService.validate` does it
+
+`Deck.load` first: each copy of an entry is the printing its set and number name (`exact`), else the one preferred for
+its name (kind 2), up to 2,001 cards. The 33 plain formats (Standard, Modern, Pauper, the blocks, Old School…) are
+checked as `Constructed.validate` checks them: deck and sideboard size, copies (`maxCopiesMap`, 4 by default),
+banned and restricted cards, rarities and sets (a card is legal when any printing of its name is), with the same
+messages, sorted the same way (type, group, message, by UTF-16 code unit). The Commander bracket analysis runs for
+every deck, as Java does. The other 19 formats (Commander and its variants, Brawl, Oathbreaker, Momir, Freeform,
+Historical Type 2, Tiny Leaders…) override the validation and are declined, as are decks with a card the catalog
+doesn't have (Java refuses those with its own message).
+
+## Rate limit
+
+Java limits each connection to 40 requests a second, with bursts of 120, and closes it after 200 refusals. Calls Rust
+answers never reach Java, so the gateway keeps the same bucket for every request (`playmat_gateway_rate_limited_total`).
+
 ## Speed
 
 A 400-card lookup of Career deck names takes 15 ms either way, measured at the client (Rust 15.4 ms p50, Java
@@ -55,6 +96,8 @@ lands have hundreds, and the same lookup took 42 ms.
 
 ## Checks
 
+- `platform.live.test.ts` also compares 52 searches: what the deck editor, Career, the practice tools and the
+  printing picker send, every filter, and the declined cases (2,969 cards; Java 3.5 s, Rust 0.8 s in all).
 - `platform.live.test.ts` puts two gateways in front of one Java server, one with these methods on `rust` and one
   on `shadow`. It compares Rust's answers with Java's for every card named in the Career decks and the printings Java
   returned for them (5,046 entries), and for edge cases (case, split, adventure, flip and transform names, unknown sets
@@ -64,5 +107,5 @@ lands have hundreds, and the same lookup took 42 ms.
 
 ## Not yet
 
-`searchCards` (CardCriteria filters and the rules-text search) and `deckValidate` (format rules) stay in Java for now.
-They are next for this group.
+The formats with validation of their own (Commander, Brawl, Oathbreaker and the rest) stay in Java. Commander's EDH
+power level is the next piece for this group.

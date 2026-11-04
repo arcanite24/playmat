@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 /// the export format this reads (`CatalogExport.VERSION`)
-pub const VERSION: &str = "2";
+pub const VERSION: &str = "3";
 /// `CardSearchService.MAX_LOOKUP`
 pub const MAX_LOOKUP: usize = 500;
 
@@ -26,6 +26,10 @@ pub struct Catalog {
     sets: HashMap<String, Set>,
     expansion_sets: Value,
     basic_land_sets: Value,
+    /// the card rows, for `searchCards`
+    cards: crate::search::Cards,
+    /// the formats' rules, for `deckValidate`
+    formats: crate::validate::Formats,
     pub stamp: String,
     pub printings: u64,
 }
@@ -90,7 +94,19 @@ impl Catalog {
         let expansion_sets = result("getExpansionSets").await?;
         let basic_land_sets = result("getBasicLandSets").await?;
         let printings: i64 = sqlx::query_scalar("SELECT count(*) FROM printings").fetch_one(&pool).await?;
-        Ok(Catalog { pool, dictionary, sets, expansion_sets, basic_land_sets, stamp, printings: printings as u64 })
+        let cards = crate::search::Cards::load(&pool).await?;
+        let formats = crate::validate::Formats::load(&pool).await?;
+        Ok(Catalog {
+            pool,
+            dictionary,
+            sets,
+            expansion_sets,
+            basic_land_sets,
+            cards,
+            formats,
+            stamp,
+            printings: printings as u64,
+        })
     }
 
     pub fn expansion_sets(&self) -> Value {
@@ -197,6 +213,151 @@ impl Catalog {
                 Some(id) => views.get(id).map(fresh_ids).ok_or_else(|| anyhow::anyhow!("printing {id} has no view")),
             })
             .collect()
+    }
+
+    /// `CardSearchService.search`: the views of what the criteria find, or None for a case left to Java
+    pub async fn search(&self, criteria: &Value, filters: Option<&Value>) -> anyhow::Result<Option<Vec<Value>>> {
+        let ids = match self.cards.search(criteria, filters) {
+            crate::search::Found::Printings(ids) => ids,
+            crate::search::Found::Declined(why) => {
+                tracing::debug!("searchCards left to Java: {why}");
+                return Ok(None);
+            }
+        };
+        let mut unique = ids.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        let views = self.views(&unique).await?;
+        ids.iter()
+            .map(|id| views.get(id).map(fresh_ids).ok_or_else(|| anyhow::anyhow!("printing {id} has no view")))
+            .collect::<anyhow::Result<Vec<_>>>()
+            .map(Some)
+    }
+
+    /// `DeckValidationService.validate`: Ok(None) for a case left to Java, Err(message) for an unknown format
+    pub async fn validate(&self, deck_type: &str, deck: &Value) -> anyhow::Result<Result<Option<Value>, String>> {
+        use crate::validate::{deck_lists, Card};
+        let Some(format) = self.formats.get(deck_type) else {
+            return Ok(Err(format!("Unknown deck type: {deck_type}")));
+        };
+        if !format.plain {
+            return Ok(Ok(None));
+        }
+        let Some((main, side)) = deck_lists(deck) else { return Ok(Ok(None)) };
+        // `Deck.load`: each copy, the printing a set and number name, else the one preferred for the name
+        let mut total = 0usize;
+        let mut wanted: Vec<(bool, i64)> = Vec::new();
+        let mut keys: Vec<(String, String)> = Vec::new();
+        let mut names: Vec<String> = Vec::new();
+        for (sideboard, list) in [(false, &main), (true, &side)] {
+            'entries: for entry in list.iter() {
+                for _ in 0..entry.amount.max(0) {
+                    if total > crate::validate::MAX_CARDS_PER_DECK {
+                        break 'entries;
+                    }
+                    let set = entry.set_code.as_deref().unwrap_or("");
+                    let number = entry.number.as_deref().unwrap_or("");
+                    if !set.is_empty() && !number.is_empty() {
+                        keys.push((lower(set), lower(number)));
+                        wanted.push((sideboard, -(keys.len() as i64)));
+                    } else {
+                        let Some(name) = entry.name.as_deref() else { return Ok(Ok(None)) };
+                        names.push(lower(name));
+                        wanted.push((sideboard, names.len() as i64));
+                    }
+                    total += 1;
+                }
+            }
+        }
+        let mut unique_keys = keys.clone();
+        unique_keys.sort();
+        unique_keys.dedup();
+        let exact = self.exact(&unique_keys).await?;
+        let mut unique_names = names.clone();
+        unique_names.sort();
+        unique_names.dedup();
+        let preferred = self.names(&unique_names, 2).await?;
+        let mut ids = Vec::with_capacity(wanted.len());
+        for (sideboard, at) in &wanted {
+            let id = if *at < 0 {
+                exact.get(&keys[(-at - 1) as usize]).copied()
+            } else {
+                preferred.get(&names[(*at - 1) as usize]).and_then(|found| found.first()).map(|(id, _)| *id)
+            };
+            // an unknown card: Java's Deck.load refuses the deck, with its own message
+            let Some(id) = id else { return Ok(Ok(None)) };
+            ids.push((*sideboard, id));
+        }
+        let mut unique: Vec<i64> = ids.iter().map(|(_, id)| *id).collect();
+        unique.sort_unstable();
+        unique.dedup();
+        let mut info: HashMap<i64, Card> = HashMap::new();
+        for chunk in unique.chunks(500) {
+            let sql = format!(
+                "SELECT id, name, set_code, rarity, extra_deck, mass_land_destruction, extra_turn FROM printings \
+                 WHERE id IN ({})",
+                vec!["?"; chunk.len()].join(", ")
+            );
+            let mut query = sqlx::query(&sql);
+            for id in chunk {
+                query = query.bind(id);
+            }
+            for row in query.fetch_all(&self.pool).await? {
+                info.insert(
+                    row.get(0),
+                    Card {
+                        name: row.get(1),
+                        set_code: row.get(2),
+                        rarity: row.get(3),
+                        extra_deck: row.get::<i64, _>(4) != 0,
+                        mass_land_destruction: row.get::<i64, _>(5) != 0,
+                        extra_turn: row.get::<i64, _>(6) != 0,
+                    },
+                );
+            }
+        }
+        let (mut cards, mut sideboard) = (Vec::new(), Vec::new());
+        for (side, id) in &ids {
+            let card = info.get(id).ok_or_else(|| anyhow::anyhow!("printing {id} is missing"))?.clone();
+            if *side {
+                sideboard.push(card)
+            } else {
+                cards.push(card)
+            }
+        }
+        // `CardRepository.findCards(name)` for the cards whose rarity or set the format checks
+        let mut printings_of: HashMap<String, Vec<(String, String)>> = HashMap::new();
+        let mut card_names: Vec<String> = cards
+            .iter()
+            .chain(&sideboard)
+            .filter(|c| crate::validate::Formats::needs_printings(format, c))
+            .map(|c| c.name.clone())
+            .collect();
+        card_names.sort();
+        card_names.dedup();
+        for chunk in card_names.chunks(400) {
+            let sql = format!(
+                "SELECT n.query, p.set_code, p.rarity FROM names n JOIN printings p ON p.id = n.printing \
+                 WHERE n.kind = 0 AND n.query IN ({}) ORDER BY n.query, n.position",
+                vec!["?"; chunk.len()].join(", ")
+            );
+            let mut query = sqlx::query(&sql);
+            for name in chunk {
+                query = query.bind(lower(name));
+            }
+            let by_query: HashMap<String, &String> = chunk.iter().map(|n| (lower(n), n)).collect();
+            for row in query.fetch_all(&self.pool).await? {
+                let q: String = row.get(0);
+                if let Some(name) = by_query.get(&q) {
+                    printings_of.entry((*name).clone()).or_default().push((row.get(1), row.get(2)));
+                }
+            }
+        }
+        Ok(Ok(Some(self.formats.validate(deck_type, format, &cards, &sideboard, &printings_of))))
+    }
+
+    pub fn card_rows(&self) -> usize {
+        self.cards.row_count()
     }
 
     /// `CardRepository.findCard(set, number)` for each key

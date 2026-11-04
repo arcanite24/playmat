@@ -15,7 +15,7 @@ use playmat_protocol::handlers::Caller;
 use playmat_protocol::jsonrpc::{Outcome, Request};
 use playmat_protocol::routes::Route;
 use playmat_protocol::Access;
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -61,6 +61,38 @@ struct Shared {
     states: Mutex<GameStates>,
     pending: Mutex<HashMap<String, Pending>>,
     queued_bytes: AtomicUsize,
+    limit: Mutex<RateLimit>,
+}
+
+/// The Java bridge's limit on one connection's requests (`ConnectionState.tryAcquire`): a token bucket of 120,
+/// refilled at 40 a second. The gateway keeps it for every request, so the calls Rust answers count too; Java's own
+/// bucket then never runs out first.
+struct RateLimit {
+    tokens: f64,
+    refilled: std::time::Instant,
+    strikes: u32,
+}
+
+const RATE_PER_SECOND: f64 = 40.0;
+const BURST: f64 = 120.0;
+/// `WebSocketServerImpl.MAX_RATE_LIMIT_STRIKES`: refusals before the connection is closed
+const MAX_RATE_LIMIT_STRIKES: u32 = 200;
+
+impl RateLimit {
+    fn new() -> RateLimit {
+        RateLimit { tokens: BURST, refilled: std::time::Instant::now(), strikes: 0 }
+    }
+
+    fn try_acquire(&mut self) -> bool {
+        let now = std::time::Instant::now();
+        self.tokens = (self.tokens + now.duration_since(self.refilled).as_secs_f64() * RATE_PER_SECOND).min(BURST);
+        self.refilled = now;
+        if self.tokens < 1.0 {
+            return false;
+        }
+        self.tokens -= 1.0;
+        true
+    }
 }
 
 fn id_key(id: &Value) -> String {
@@ -68,6 +100,11 @@ fn id_key(id: &Value) -> String {
 }
 
 const WHOAMI_ID: &str = "gw:whoami";
+
+fn next_connection() -> u64 {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    NEXT.fetch_add(1, Ordering::Relaxed)
+}
 
 /// Runs one connection until either side closes.
 pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: HeaderMap) {
@@ -96,11 +133,12 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
     };
 
     let shared = Arc::new(Shared {
-        caller: Mutex::new(Caller { ip: ip.to_string(), ..Caller::default() }),
+        caller: Mutex::new(Caller { ip: ip.to_string(), connection: next_connection(), ..Caller::default() }),
         identified: tokio::sync::watch::Sender::new(true),
         states: Mutex::new(GameStates::new()),
         pending: Mutex::new(HashMap::new()),
         queued_bytes: AtomicUsize::new(0),
+        limit: Mutex::new(RateLimit::new()),
     });
 
     let (mut client_tx, mut client_rx) = client.split();
@@ -193,7 +231,12 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
             OpCode::Text => {
                 Metrics::add(&app.metrics.frames_from_client, 1);
                 let text = frame.as_str().to_string();
-                on_client_text(&app, &shared, bucket, &to_java, &send_client, text).await;
+                if !on_client_text(&app, &shared, bucket, &to_java, &send_client, text).await {
+                    warn!("Closing {ip}'s connection over the request rate limit");
+                    let _ = to_client.send(Frame::close(CloseCode::Policy, "Request rate limit exceeded"));
+                    let _ = to_java.send(Frame::close(CloseCode::Normal, ""));
+                    break;
+                }
             }
             OpCode::Close => {
                 let code = frame.close_code().unwrap_or(CloseCode::Normal);
@@ -374,24 +417,50 @@ fn on_reply(
     }
 }
 
-async fn on_client_text(
-    app: &App,
-    shared: &Shared,
+async fn on_client_text<S: Fn(String) -> bool + Clone + Send + Sync + 'static>(
+    app: &Arc<App>,
+    shared: &Arc<Shared>,
     bucket: u8,
     to_java: &mpsc::UnboundedSender<Frame>,
-    send_client: &impl Fn(String) -> bool,
+    send_client: &S,
     text: String,
-) {
+) -> bool {
     if text.len() > app.config.max_message_bytes {
         // Java answers it (too large); pass it on so the error is the same
         let _ = to_java.send(Frame::text(Bytes::from(text)));
-        return;
+        return true;
     }
     let Some(request) = Request::parse(&text) else {
         // not JSON, a batch, no method: the Java bridge gives the error
         let _ = to_java.send(Frame::text(Bytes::from(text)));
-        return;
+        return true;
     };
+    {
+        let mut limit = shared.limit.lock().unwrap();
+        if !limit.try_acquire() {
+            limit.strikes += 1;
+            Metrics::add(&app.metrics.rate_limited, 1);
+            let error = json!({"code": -32003, "message": "Too many requests, slow down"});
+            send_client(match &request.id {
+                Some(id) => json!({"jsonrpc": "2.0", "id": id, "error": error}).to_string(),
+                None => json!({"jsonrpc": "2.0", "error": error}).to_string(),
+            });
+            return limit.strikes <= MAX_RATE_LIMIT_STRIKES;
+        }
+    }
+    handle_request(app, shared, bucket, to_java, send_client, text, request).await;
+    true
+}
+
+async fn handle_request<S: Fn(String) -> bool + Clone + Send + Sync + 'static>(
+    app: &Arc<App>,
+    shared: &Arc<Shared>,
+    bucket: u8,
+    to_java: &mpsc::UnboundedSender<Frame>,
+    send_client: &S,
+    text: String,
+    request: Request,
+) {
     let info = playmat_protocol::method(&request.method);
     let gateway_diffs = app.config.state_diffs;
 
@@ -441,8 +510,8 @@ async fn on_client_text(
         "disconnectSession" | "playerLogout" => {
             let caller = {
                 let mut current = shared.caller.lock().unwrap();
-                let ip = current.ip.clone();
-                std::mem::replace(&mut *current, Caller { ip, ..Caller::default() })
+                let (ip, connection) = (current.ip.clone(), current.connection);
+                std::mem::replace(&mut *current, Caller { ip, connection, ..Caller::default() })
             };
             if caller.user.is_some() {
                 app.handlers.session_ended(&caller);
@@ -456,15 +525,42 @@ async fn on_client_text(
         _ if !app.handlers.handles(&request.method) => Route::Java,
         route => route,
     };
+    if route == Route::Java {
+        Metrics::add(&app.metrics.requests_java, 1);
+        let _ = to_java.send(Frame::text(Bytes::from(text)));
+    } else if app.handlers.slow(&request.method) {
+        let (app, shared, to_java, send_client) = (app.clone(), shared.clone(), to_java.clone(), send_client.clone());
+        tokio::spawn(async move { answer(&app, &shared, route, &to_java, &send_client, text, request).await });
+    } else {
+        answer(app, shared, route, to_java, send_client, text, request).await;
+    }
+}
+
+/// a call routed `rust` or `shadow`
+async fn answer(
+    app: &App,
+    shared: &Shared,
+    route: Route,
+    to_java: &mpsc::UnboundedSender<Frame>,
+    send_client: &impl Fn(String) -> bool,
+    text: String,
+    request: Request,
+) {
     match route {
         Route::Java => {
             Metrics::add(&app.metrics.requests_java, 1);
             let _ = to_java.send(Frame::text(Bytes::from(text)));
         }
         Route::Rust => {
-            Metrics::add(&app.metrics.requests_rust, 1);
             let caller = identified_caller(shared).await;
             let outcome = app.handlers.call(&caller, &request).await;
+            if outcome == Outcome::Declined {
+                Metrics::add(&app.metrics.declined, 1);
+                Metrics::add(&app.metrics.requests_java, 1);
+                let _ = to_java.send(Frame::text(Bytes::from(text)));
+                return;
+            }
+            Metrics::add(&app.metrics.requests_rust, 1);
             if let Some(id) = &request.id {
                 send_client(outcome.reply(id));
             }
@@ -476,8 +572,14 @@ async fn on_client_text(
                 let _ = to_java.send(Frame::text(Bytes::from(text)));
                 return;
             }
-            Metrics::add(&app.metrics.requests_shadow, 1);
             let rust = app.handlers.shadow(&caller, &request).await;
+            if rust == Outcome::Declined {
+                Metrics::add(&app.metrics.declined, 1);
+                Metrics::add(&app.metrics.requests_java, 1);
+                let _ = to_java.send(Frame::text(Bytes::from(text)));
+                return;
+            }
+            Metrics::add(&app.metrics.requests_shadow, 1);
             if let Some(id) = &request.id {
                 shared
                     .pending

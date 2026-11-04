@@ -15,6 +15,10 @@ pub struct Metrics {
     pub requests_shadow: AtomicU64,
     pub shadow_same: AtomicU64,
     pub shadow_different: AtomicU64,
+    /// calls Rust declined (left to Java), on a rust or shadow route
+    pub declined: AtomicU64,
+    /// requests refused over the per-connection rate limit
+    pub rate_limited: AtomicU64,
     pub frames_to_client: AtomicU64,
     pub bytes_to_client: AtomicU64,
     pub frames_from_client: AtomicU64,
@@ -59,6 +63,8 @@ impl Metrics {
         line("requests_shadow_total", "counter", &self.requests_shadow);
         line("shadow_same_total", "counter", &self.shadow_same);
         line("shadow_different_total", "counter", &self.shadow_different);
+        line("declined_total", "counter", &self.declined);
+        line("rate_limited_total", "counter", &self.rate_limited);
         line("frames_to_client_total", "counter", &self.frames_to_client);
         line("bytes_to_client_total", "counter", &self.bytes_to_client);
         line("frames_from_client_total", "counter", &self.frames_from_client);

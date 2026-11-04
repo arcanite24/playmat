@@ -113,6 +113,21 @@ public final class CommanderBrackets {
     private CommanderBrackets() {
     }
 
+    /** the Game Changers list (exported for the Rust platform service) */
+    public static Set<String> getGameChangers() {
+        return Collections.unmodifiableSet(GAME_CHANGERS);
+    }
+
+    /** the two-card combos, as "card1@card2" with the names sorted (exported for the Rust platform service) */
+    public static Set<String> getInfiniteCombos() {
+        return loadInfiniteCombos();
+    }
+
+    /** the rule a card's lower case rules text must meet to count in a group (MLD, extra turns) */
+    public static boolean isMassLandDestructionRule(String lowerCaseRule) {
+        return isMassLandDestruction(lowerCaseRule);
+    }
+
     public static List<String> getGroupNames() {
         return new ArrayList<>(GROUP_LIMITS.keySet());
     }
