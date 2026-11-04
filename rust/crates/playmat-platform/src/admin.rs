@@ -125,6 +125,8 @@ pub struct AdminStores {
     career: Option<SqlitePool>,
     /// the Career's content, for the calls that need it
     pub(crate) career_content: Option<crate::career::CareerContent>,
+    /// the content views Java writes
+    pub(crate) career_views: Option<crate::career::CareerViews>,
     /// `XMAGE_OWNER` (`-Dxmage.owner`), trimmed; empty when there is none
     owner: String,
 }
@@ -157,6 +159,7 @@ impl AdminStores {
             support: None,
             career: None,
             career_content: None,
+            career_views: None,
             owner: java_trim(owner).to_string(),
         })
     }
@@ -171,6 +174,10 @@ impl AdminStores {
     }
 
     /// The Career's records too, on Java's db/career.db (its tables are Java's)
+    pub fn add_career_views(&mut self, views: &Path) {
+        self.career_views = Some(crate::career::CareerViews::new(views));
+    }
+
     pub async fn add_career(&mut self, career: &Path, content: Option<&Path>) -> anyhow::Result<()> {
         let options = SqliteConnectOptions::new().filename(career).busy_timeout(Duration::from_secs(10));
         self.career = Some(SqlitePoolOptions::new().max_connections(1).connect_with(options).await?);

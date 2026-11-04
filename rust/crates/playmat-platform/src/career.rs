@@ -9,8 +9,39 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 5] =
-    ["careerCollection", "careerDeck", "careerGameResult", "careerShowProgress", "careerLevels"];
+pub const CAREER_METHODS: [&str; 7] = [
+    "careerCollection",
+    "careerDeck",
+    "careerGameResult",
+    "careerShowProgress",
+    "careerLevels",
+    "careerStarters",
+    "careerCosmetics",
+];
+
+/// The content views Java writes (`CareerViewsExport`, `XMAGE_CAREER_EXPORT`): read again when the file changes,
+/// as it does when staff reload the content packs.
+pub struct CareerViews {
+    path: std::path::PathBuf,
+    loaded: std::sync::Mutex<Option<(std::time::SystemTime, std::sync::Arc<Value>)>>,
+}
+
+impl CareerViews {
+    pub fn new(path: &std::path::Path) -> CareerViews {
+        CareerViews { path: path.to_path_buf(), loaded: std::sync::Mutex::new(None) }
+    }
+
+    /// one view, or None while Java hasn't written the file (Java answers then)
+    fn view(&self, name: &str) -> Option<Value> {
+        let modified = std::fs::metadata(&self.path).and_then(|m| m.modified()).ok()?;
+        let mut loaded = self.loaded.lock().unwrap();
+        if loaded.as_ref().is_none_or(|(at, _)| *at != modified) {
+            let views: Value = serde_json::from_str(&std::fs::read_to_string(&self.path).ok()?).ok()?;
+            *loaded = Some((modified, std::sync::Arc::new(views)));
+        }
+        loaded.as_ref().and_then(|(_, views)| views.get(name).cloned())
+    }
+}
 
 /// `CareerRules.MAX_LEVEL`
 const MAX_LEVEL: i64 = 100;
@@ -191,6 +222,10 @@ impl AdminStores {
                     .await?;
                 Ok(profile(db, &user, content).await?.unwrap_or(Value::Null))
             }
+            "careerStarters" | "careerCosmetics" => {
+                let name = if request.method == "careerStarters" { "starters" } else { "cosmetics" };
+                self.career_views.as_ref().and_then(|views| views.view(name)).ok_or(Stop::Decline)
+            }
             "careerLevels" => {
                 let Some(content) = &self.career_content else { return Err(Stop::Decline) };
                 let Some(view) = profile(db, &user, content).await? else { return Ok(Value::Null) };
@@ -348,6 +383,8 @@ mod tests {
             .await
             .unwrap();
         stores.add_career(&dir.join("career.db"), Some(&content_dir())).await.unwrap();
+        let views = dir.join("career-views.json");
+        stores.add_career_views(&views);
         let neri =
             Caller { user: Some("Neri".into()), admin: false, account: true, ip: "127.0.0.1".into(), connection: 1 };
         let call = async |method: &str, params: Value| match stores.call(&neri, &request(method, params), true).await {
@@ -385,6 +422,15 @@ mod tests {
         );
         assert_eq!(track["unlocks"], json!([{"kind": "avatar", "id": "hare"}]));
         assert!(track["rewards"].as_array().unwrap().len() > 90);
+
+        // content views: Java's file, read again when it changes; Java answers until it's written
+        assert!(matches!(stores.call(&neri, &request("careerStarters", json!([])), true).await, Outcome::Declined));
+        std::fs::write(&views, r#"{"starters":[{"id":"red"}],"cosmetics":[]}"#).unwrap();
+        assert_eq!(call("careerStarters", json!([])).await, json!([{"id": "red"}]));
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(&views, r#"{"starters":[{"id":"blue"}],"cosmetics":[{"kind":"avatar"}]}"#).unwrap();
+        assert_eq!(call("careerStarters", json!([])).await, json!([{"id": "blue"}]));
+        assert_eq!(call("careerCosmetics", json!([])).await, json!([{"kind": "avatar"}]));
 
         // staff switched Career off
         sqlx::query("INSERT INTO admin_setting VALUES ('runtime.career', 'off', 'boss', 1)")

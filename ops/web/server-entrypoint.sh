@@ -10,6 +10,8 @@ APP=${XMAGE_HOME:-/opt/xmage}
 TEMPLATE=$APP/config/config.template.xml
 CONFIG=$APP/config/config.xml
 DB_DIR=$APP/db          # volume: user data only (accounts, stats, table records, feedback)
+# the Career views Java writes at start and on content reloads, which the gateway serves
+export XMAGE_CAREER_EXPORT=${XMAGE_CAREER_EXPORT:-$DB_DIR/career-views.json}
 CARDS_DIR=$APP/cards-db # volume: card database cache, rebuilt when the image changes
 
 die() { echo "xmage-server: $*" >&2; exit 1; }

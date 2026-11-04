@@ -107,6 +107,10 @@ async fn app_admin() -> Option<playmat_platform::admin::AdminStores> {
             // `XMAGE_PLATFORM_CAREER`: db/career.db; `XMAGE_PLATFORM_CAREER_CONTENT`: the copy of Java's resources/career
             if let Some(career) = set("XMAGE_PLATFORM_CAREER") {
                 let content = set("XMAGE_PLATFORM_CAREER_CONTENT");
+                // `XMAGE_CAREER_EXPORT`: the content views Java writes
+                if let Some(views) = set("XMAGE_CAREER_EXPORT") {
+                    stores.add_career_views(&views);
+                }
                 match stores.add_career(&career, content.as_deref()).await {
                     Ok(()) => info!(
                         "Career: {}{}",
