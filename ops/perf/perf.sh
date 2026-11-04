@@ -20,6 +20,21 @@ HEALTH_PORT=${PERF_HEALTH_PORT:-18173}
 ADMIN=${PERF_ADMIN_PASSWORD:-perfharnessadmin}  # letters and digits: the server sanitizes the property
 JVM=${PERF_JVM:--Xmx2g}
 SERVER_OPTS=${PERF_SERVER_OPTS:-}
+# java: clients connect to the Java bridge; gateway: through the Rust gateway (docs/RustMigration.md, phase 1)
+BACKEND=${PERF_BACKEND:-java}
+GATEWAY_PORT=${PERF_GATEWAY_PORT:-18180}
+GATEWAY_BIN=${PERF_GATEWAY_BIN:-$ROOT/rust/target/release/playmat-gateway}
+case "$BACKEND" in
+  java) CLIENT_URL="ws://127.0.0.1:$WS_PORT" ;;
+  gateway) CLIENT_URL="ws://127.0.0.1:$GATEWAY_PORT" ;;
+  *) echo "perf: PERF_BACKEND must be java or gateway" >&2; exit 1 ;;
+esac
+# a fixed set of real decks for the ai scenario: the AI seats rotate through Mage.Server/career-src/<suite>/*.txt
+if [ -n "${PERF_DECK_SUITE:-}" ] && [ -z "${MAGE_PERF_DECKS:-}" ]; then
+  MAGE_PERF_DECKS=$(ls "$ROOT/Mage.Server/career-src/$PERF_DECK_SUITE"/*.txt 2>/dev/null | paste -sd, -)
+  [ -n "$MAGE_PERF_DECKS" ] || { echo "perf: no decks in Mage.Server/career-src/$PERF_DECK_SUITE" >&2; exit 1; }
+  export MAGE_PERF_DECKS
+fi
 
 die() { echo "perf: $*" >&2; exit 1; }
 now() { python3 -c 'import time; print(f"{time.time():.3f}")'; }
@@ -88,8 +103,30 @@ start_server() { # start_server <log> [extra jvm flags...]; sets SERVER_PID and 
     sleep 0.05
   done
   READY_SEC=$(python3 -c "print(round($(now) - $t0, 2))")
+  [ "$BACKEND" = gateway ] && start_gateway "$log.gateway"
+  return 0
+}
+GATEWAY_PID=
+start_gateway() { # start_gateway <log>: the Rust gateway in front of the Java bridge; sets GATEWAY_PID
+  [ -x "$GATEWAY_BIN" ] || die "no gateway at $GATEWAY_BIN; build it: (cd rust && cargo build --release)"
+  if nc -z 127.0.0.1 "$GATEWAY_PORT" 2>/dev/null; then die "port $GATEWAY_PORT is busy; set PERF_GATEWAY_PORT"; fi
+  XMAGE_GATEWAY_LISTEN="127.0.0.1:$GATEWAY_PORT" XMAGE_GATEWAY_JAVA_URL="ws://127.0.0.1:$WS_PORT" "$GATEWAY_BIN" >"$1" 2>&1 &
+  GATEWAY_PID=$!
+  for _ in $(seq 1 200); do
+    nc -z 127.0.0.1 "$GATEWAY_PORT" 2>/dev/null && return 0
+    kill -0 "$GATEWAY_PID" 2>/dev/null || { tail -20 "$1"; die "gateway died while starting"; }
+    sleep 0.05
+  done
+  die "gateway did not open port $GATEWAY_PORT"
+}
+stop_gateway() {
+  [ -n "$GATEWAY_PID" ] || return 0
+  kill "$GATEWAY_PID" 2>/dev/null || true
+  wait "$GATEWAY_PID" 2>/dev/null || true
+  GATEWAY_PID=
 }
 stop_server() {
+  stop_gateway
   [ -n "$SERVER_PID" ] || return 0
   kill "$SERVER_PID" 2>/dev/null || true
   for _ in $(seq 1 200); do kill -0 "$SERVER_PID" 2>/dev/null || { SERVER_PID=; return 0; }; sleep 0.1; done
@@ -133,12 +170,14 @@ new_run() {
     echo "jvm=$JVM $SERVER_OPTS"
     echo "java=$("$JAVA" -version 2>&1 | head -1)"
     echo "host=$(uname -sm) cores=$(getconf _NPROCESSORS_ONLN)"
+    echo "backend=$BACKEND"
+    [ -n "${MAGE_PERF_DECKS:-}" ] && echo "decks=${PERF_DECK_SUITE:-custom} ($(echo "$MAGE_PERF_DECKS" | tr ',' '\n' | wc -l | tr -d ' '))"
   } >"$RUN/facts.txt"
   echo "perf: results in $RUN"
 }
 
 vitest() { # vitest <log> <test filter> with env already exported
-  (cd "$CLIENT" && MAGE_SERVER_URL="ws://127.0.0.1:$WS_PORT" npx vitest run "$2" --silent=false) >"$1" 2>&1 || true
+  (cd "$CLIENT" && MAGE_SERVER_URL="$CLIENT_URL" npx vitest run "$2" --silent=false) >"$1" 2>&1 || true
   grep -E '^\[perf-result\]|^\[load\]' -A6 "$1" || echo "perf: the load produced no result line; see $1"
 }
 
@@ -146,13 +185,20 @@ measure_load() { # measure_load <name> <vitest filter>: run the load with JFR re
   snapshot before
   jfr_start
   start_sampler "$RUN/samples.txt"
-  local c0 c1
+  local c0 c1 g0 g1
   c0=$(cpu_seconds "$SERVER_PID")
+  [ -n "$GATEWAY_PID" ] && g0=$(cpu_seconds "$GATEWAY_PID")
   vitest "$RUN/load.log" "$2"
   c1=$(cpu_seconds "$SERVER_PID")
   stop_sampler
   jfr_stop
   echo "loadCpuSec=$(python3 -c "print(round($c1 - $c0, 2))")" >>"$RUN/facts.txt"
+  if [ -n "$GATEWAY_PID" ]; then
+    g1=$(cpu_seconds "$GATEWAY_PID")
+    echo "gatewayLoadCpuSec=$(python3 -c "print(round($g1 - $g0, 2))")" >>"$RUN/facts.txt"
+    echo "gatewayRssMB=$(rss_mb "$GATEWAY_PID")" >>"$RUN/facts.txt"
+    curl -s "http://127.0.0.1:$GATEWAY_PORT/metrics" | grep -v '^#' >"$RUN/gateway-metrics.txt" || true
+  fi
   snapshot after
 }
 
@@ -235,7 +281,7 @@ case "$cmd" in
     echo "readySec=$READY_SEC" >>"$RUN/facts.txt"
     snapshot before
     start_sampler "$RUN/samples.txt"
-    (cd "$CLIENT" && MAGE_SERVER_URL="ws://127.0.0.1:$WS_PORT" npx vitest run src/core/headless/perf --silent=false) >"$RUN/load.log" 2>&1 &
+    (cd "$CLIENT" && MAGE_SERVER_URL="$CLIENT_URL" npx vitest run src/core/headless/perf --silent=false) >"$RUN/load.log" 2>&1 &
     load=$!
     # measure while every game is parked: past the hold turn, before the hold ends
     sleep $(( MAGE_PERF_HOLD_MS * 7 / 10000 ))

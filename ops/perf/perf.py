@@ -173,6 +173,8 @@ def summarize(run):
     games = (s.get("load") or {}).get("games") if s.get("scenario") != "hold" else None
     if games and isinstance(s.get("loadCpuSec"), float):
         s["cpuSecPerGame"] = round(s["loadCpuSec"] / games, 2)
+        if isinstance(s.get("gatewayLoadCpuSec"), float):
+            s["gatewayCpuSecPerGame"] = round(s["gatewayLoadCpuSec"] / games, 3)
     if s.get("scenario") == "hold" and isinstance(s.get("heldLiveHeapMB"), float) and isinstance(s.get("beforeLiveHeapMB"), float):
         held = (s.get("load") or {}).get("finished") or (s.get("load") or {}).get("games")
         if held:
