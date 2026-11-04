@@ -100,10 +100,10 @@ export class RawConnection {
   }
 
   /** params as the protocol lists them; the session id parameter, which the server ignores, is passed as '' */
-  async call(method: string, params: unknown[] = []): Promise<RawReply> {
+  async call(method: string, params: unknown[] = [], timeoutMs?: number): Promise<RawReply> {
     const id = this.nextId++;
     this.sendText(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
-    return this.reply(id);
+    return this.reply(id, timeoutMs);
   }
 
   /** replies that never came for a notification, or anything else waiting: frames with an id */

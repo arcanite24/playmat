@@ -18,3 +18,9 @@ async-trait = "0.1"
 sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }
 flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
 uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+regex = "1"
+url = "2"
+encoding_rs = "0.8"
+scraper = { version = "0.24", default-features = false }
+ego-tree = "0.10"

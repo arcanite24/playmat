@@ -15,6 +15,8 @@ pub struct Caller {
     pub account: bool,
     /// the client's address
     pub ip: String,
+    /// the gateway's number for the connection, which outlives its logins (Java's per-session limits)
+    pub connection: u64,
 }
 
 #[async_trait]
@@ -23,6 +25,12 @@ pub trait Handlers: Send + Sync {
     fn handles(&self, method: &str) -> bool;
 
     async fn call(&self, caller: &Caller, request: &Request) -> Outcome;
+
+    /// true for a call that can take seconds (it fetches from another site): the gateway answers it on its own task,
+    /// so the connection's other calls don't wait for it
+    fn slow(&self, _method: &str) -> bool {
+        false
+    }
 
     /// The answer Rust would give, for comparing with Java's (`shadow`): Java makes the change, so a call that
     /// writes must leave everything as it was. It runs before the call goes to Java.

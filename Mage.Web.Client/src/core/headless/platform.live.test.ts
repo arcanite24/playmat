@@ -18,6 +18,8 @@ const JAVA_URL = process.env.MAGE_SERVER_URL ?? 'ws://127.0.0.1:17172';
 const RUST_URL = process.env.MAGE_PLATFORM_RUST_URL ?? '';
 const SHADOW_URL = process.env.MAGE_PLATFORM_SHADOW_URL ?? '';
 const DECKS = process.env.MAGE_PLATFORM_DECKS === '1';
+/** reads decks from the real deck sites */
+const DECK_IMPORT = process.env.MAGE_PLATFORM_DECK_IMPORT === '1';
 const live = process.env.MAGE_LIVE_SERVER === '1' && RUST_URL !== '';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -104,7 +106,16 @@ const EDGE_CASES: Entry[] = [
   { cardName: 'Swamp', setCode: 'XYZ', cardNumber: '1' },
 ];
 
+/** the bridge (and the gateway) take 40 requests a second from a connection: long runs keep under it */
+const lastCall = new WeakMap<RawConnection, number>();
+async function paced(connection: RawConnection) {
+  const wait = (lastCall.get(connection) ?? 0) + 26 - performance.now();
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+  lastCall.set(connection, performance.now());
+}
+
 async function call(connection: RawConnection, method: string, params: unknown[]) {
+  await paced(connection);
   const reply = await connection.call(method, params);
   return reply.error ? { error: reply.error.code } : { result: reply.result };
 }
@@ -235,6 +246,109 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     }
   });
 
+  /** the Career decks as deck lists that name their cards (what the deck editor validates), by file */
+  function careerDecks(): { name: string; cards: Entry[]; sideboard: Entry[] }[] {
+    const root = join(__dirname, '../../../../Mage.Server/career-src');
+    const decks: { name: string; cards: Entry[]; sideboard: Entry[] }[] = [];
+    for (const school of readdirSync(root)) {
+      let files: string[];
+      try {
+        files = readdirSync(join(root, school)).filter((file) => file.endsWith('.txt'));
+      } catch {
+        continue;
+      }
+      for (const file of files) {
+        const deck = { name: `${school}/${file}`, cards: [] as Entry[], sideboard: [] as Entry[] };
+        for (const line of readFileSync(join(root, school, file), 'utf8').split('\n')) {
+          const match = /^\s*(SB:\s*)?(\d+)\s+(.+?)\s*$/.exec(line);
+          if (match && !line.trim().startsWith('#')) (match[1] ? deck.sideboard : deck.cards).push({ cardName: match[3], amount: Number(match[2]) });
+        }
+        decks.push(deck);
+      }
+    }
+    return decks;
+  }
+
+  const many = (cardName: string, amount: number, extra: Partial<Entry> = {}): Entry => ({ cardName, amount, ...extra });
+  /** decks each rule must judge the same: banned, restricted, rarity, sets, copies, sizes, brackets */
+  const ODD_DECKS: { cards: Entry[]; sideboard?: Entry[] }[] = [
+    { cards: [many('Lightning Bolt', 4), many('Gush', 4), many('Mountain', 52)] },
+    { cards: [many('Black Lotus', 2), many('Time Walk', 1), many('Ancestral Recall', 4), many('Island', 53)] },
+    { cards: [many('Relentless Rats', 30), many('Swamp', 30), many('Shock', 5)] },
+    { cards: [many('Seven Dwarves', 8), many('Nazgul', 9), many('Mountain', 43)] },
+    { cards: [many('Baneslayer Angel', 4), many('Plains', 56)], sideboard: [many('Shock', 16)] },
+    { cards: [many('Armageddon', 4), many('Ravages of War', 1), many('Time Warp', 4), many('Plains', 51)] },
+    { cards: [many("Thassa's Oracle", 1), many('Demonic Consultation', 1), many('Demonic Tutor', 4), many('Swamp', 54)] },
+    { cards: [many('Lightning Bolt', 4, { setCode: 'M10', cardNumber: '146' }), many('Mountain', 56, { setCode: 'M10', cardNumber: '242' })] },
+    { cards: [many('Fire // Ice', 4), many('Delver of Secrets', 4), many('Brazen Borrower', 4), many('Island', 48)] },
+    { cards: [many('Llanowar Elves', 4), many('Forest', 10)] },
+    { cards: [] },
+    { cards: [many('Shock', 2500)] },
+  ];
+
+  test('deckValidate: every Career deck in every format, and the rule edge cases', { timeout: 1_200_000 }, async () => {
+    const [java, rust] = await Promise.all([RawConnection.open(JAVA_URL), RawConnection.open(RUST_URL)]);
+    try {
+      for (const [connection, name] of [[java, 'validjava'], [rust, 'validrust']] as const) {
+        expect((await connection.call('connectUser', [name, '', '', '', '', '', ''])).result, name).toBe(true);
+      }
+      const formats = (((await call(java, 'getDeckTypes', [])).result as string[]) ?? []).filter((f) => f.includes(process.env.MAGE_VALIDATE_FORMATS ?? ''));
+      expect(formats.length).toBeGreaterThan(process.env.MAGE_VALIDATE_FORMATS ? 0 : 20);
+      const decks = [...careerDecks(), ...ODD_DECKS.map((deck, i) => ({ name: `odd ${i}`, sideboard: [], ...deck }))];
+      let compared = 0;
+      let [javaMs, rustMs] = [0, 0];
+      // the formats Rust answers get every deck; the others (declined: Java answers both) a few
+      // Java expires a session it hears nothing from for 3 minutes: the client's heartbeat, which Rust doesn't answer
+      let pinged = performance.now();
+      for (const format of formats) {
+        for (const deck of format.includes('Constructed') ? decks : decks.slice(0, 3)) {
+          if (performance.now() - pinged > 30_000) {
+            await Promise.all([call(java, 'ping', []), call(rust, 'ping', [])]);
+            pinged = performance.now();
+          }
+          const params = [format, deck];
+          let started = performance.now();
+          const javaReply = await call(java, 'deckValidate', params);
+          javaMs += performance.now() - started;
+          started = performance.now();
+          const rustReply = await call(rust, 'deckValidate', params);
+          rustMs += performance.now() - started;
+          expect(difference(javaReply, rustReply), `${format} / ${deck.name}: ${JSON.stringify(rustReply).slice(0, 200)}`).toBeNull();
+          compared++;
+        }
+      }
+      for (const params of [['No Such Format', decks[0]], ['Constructed - Pauper', { cards: [many('No Such Card', 4)] }], ['Constructed - Pauper'], [], [null, decks[0]], ['Constructed - Pauper', null]]) {
+        expect(difference(await call(java, 'deckValidate', params), await call(rust, 'deckValidate', params)), JSON.stringify(params).slice(0, 80)).toBeNull();
+      }
+      console.log(`[platform] deckValidate: ${compared} deck and format pairs answered the same (Java ${Math.round(javaMs)} ms, Rust ${Math.round(rustMs)} ms)`);
+    } finally {
+      java.close();
+      rust.close();
+    }
+  });
+
+  test('the rate limit: calls Rust answers count as Java\'s do', { timeout: 60_000 }, async () => {
+    // 200 lookups at once: the bucket holds 120, so both refuse some with "Too many requests"
+    const refused = async (url: string) => {
+      const connection = await RawConnection.open(url);
+      try {
+        const ids = Array.from({ length: 200 }, (_, i) => {
+          const id = 10_000 + i;
+          connection.sendText(JSON.stringify({ jsonrpc: '2.0', id, method: 'getBasicLandSets', params: [] }));
+          return id;
+        });
+        let count = 0;
+        for (const id of ids) if ((await connection.reply(id, 30_000)).error?.code === -32003) count++;
+        return count;
+      } finally {
+        connection.close();
+      }
+    };
+    const [java, rust] = [await refused(JAVA_URL), await refused(RUST_URL)];
+    expect(java).toBeGreaterThan(50);
+    expect(Math.abs(java - rust)).toBeLessThan(15);
+  });
+
   /** a test account (registered on its first run: a server takes 3 new accounts an hour from one address), signed in */
   async function signIn(connection: RawConnection, name: string): Promise<string> {
     await connection.call('authRegister', ['', name, 'deckpass1', `${name}@example.test`]);
@@ -344,6 +458,53 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     expect(await differences()).toBe(before);
   });
 
+  const DECK_LINKS = [
+    'https://archidekt.com/decks/3872725/murktide',
+    'https://infinite.tcgplayer.com/magic-the-gathering/deck/Rakdos-Grief/496500',
+    'https://mtgtop8.com/event?e=91675&d=896184&f=MO',
+    'https://scryfall.com/@gorila/decks/e7aceb4c-29d5-49f5-9a49-c24f64da264b',
+    'https://manabox.app/decks/AZ6V4n88fhahOvNRFHbXTQ',
+  ];
+  const ODD_LINKS = [
+    'archidekt.com/decks/7031486/buffs_by_hans',
+    'https://archidekt.com/decks/999999999999',
+    'https://api.scryfall.com/decks/00000000-0000-0000-0000-000000000000/export/json',
+    'https://archidekt.com/search/decks',
+    'https://example.com/decks/1',
+    'https://archidekt.com/d%65cks/1',
+    'not a link',
+    '',
+  ];
+
+  test.skipIf(!DECK_IMPORT)('deck import: real deck sites, and links that aren\'t decks', { timeout: 120_000 }, async () => {
+    const [java, rust] = await Promise.all([RawConnection.open(JAVA_URL), RawConnection.open(RUST_URL)]);
+    const answer = async (connection: RawConnection, method: string, params: unknown[]) => {
+      await paced(connection);
+      const reply = await connection.call(method, params, 30_000);
+      return reply.error ? { error: reply.error } : { result: reply.result };
+    };
+    try {
+      // before login: a session call
+      expect(difference(await answer(java, 'deckImportFromUrl', [DECK_LINKS[0]]), await answer(rust, 'deckImportFromUrl', [DECK_LINKS[0]]))).toBeNull();
+      expect(difference(await answer(java, 'deckImportSources', []), await answer(rust, 'deckImportSources', []))).toBeNull();
+      const name = `import${Date.now() % 100_000}`;
+      expect((await java.call('connectUser', [`${name}j`, '', '', '', '', '', ''])).result).toBe(true);
+      expect((await rust.call('connectUser', [`${name}r`, '', '', '', '', '', ''])).result).toBe(true);
+      let decks = 0;
+      for (const link of [...DECK_LINKS, ...ODD_LINKS]) {
+        const [j, r] = [await answer(java, 'deckImportFromUrl', [link]), await answer(rust, 'deckImportFromUrl', [link])];
+        expect(difference(j, r), link).toBeNull();
+        if (j.result) decks++;
+      }
+      expect(decks).toBe(DECK_LINKS.length + 1);
+      expect(difference(await answer(java, 'deckImportSources', []), await answer(rust, 'deckImportSources', []))).toBeNull();
+      console.log(`[platform] deckImportFromUrl: ${DECK_LINKS.length + ODD_LINKS.length} links answered the same`);
+    } finally {
+      java.close();
+      rust.close();
+    }
+  });
+
   test.skipIf(!SHADOW_URL)('shadow routing counts no differences', { timeout: 120_000 }, async () => {
     const metricsUrl = SHADOW_URL.replace(/^ws/, 'http').replace(/\/?$/, '/metrics');
     const counts = async () => {
@@ -360,6 +521,7 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
       await call(shadow, 'lookupCards', [[...EDGE_CASES, ...deckEntries().slice(0, 300)]]);
       expect((await shadow.call('connectUser', ['searchshadow', '', '', '', '', '', ''])).result).toBe(true);
       for (const params of SEARCHES.slice(0, 10)) await call(shadow, 'searchCards', params);
+      if (DECK_IMPORT) for (const link of DECK_LINKS) await shadow.call('deckImportFromUrl', [link], 30_000);
     } finally {
       shadow.close();
     }
@@ -372,5 +534,9 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     }
     expect(delta('searchCards same')).toBe(10);
     expect(delta('searchCards different')).toBe(0);
+    if (DECK_IMPORT) {
+      expect(delta('deckImportFromUrl same')).toBe(DECK_LINKS.length);
+      expect(delta('deckImportFromUrl different')).toBe(0);
+    }
   });
 });

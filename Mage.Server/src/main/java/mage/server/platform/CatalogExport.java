@@ -1,6 +1,7 @@
 package mage.server.platform;
 
 import mage.cards.Card;
+import mage.cards.decks.CommanderBrackets;
 import mage.cards.decks.Constructed;
 import mage.cards.decks.DeckValidator;
 import mage.cards.decks.DeckValidatorFactory;
@@ -58,7 +59,29 @@ public final class CatalogExport {
     /** the stamp a catalog made from the current card data carries */
     static String stamp() {
         return VERSION + ":" + CardRepository.instance.getContentVersionFromDB() + ":"
-                + CardRepository.instance.getContentVersionConstant() + ":" + ExpansionRepository.instance.getContentVersionFromDB();
+                + CardRepository.instance.getContentVersionConstant() + ":" + ExpansionRepository.instance.getContentVersionFromDB()
+                + ":" + formatsDigest();
+    }
+
+    /** the formats' rules change without the card data changing (Standard rotates by date): they're in the stamp */
+    static String formatsDigest() {
+        StringBuilder all = new StringBuilder();
+        for (String format : DeckValidatorFactory.instance.getDeckTypes()) {
+            DeckValidator validator = DeckValidatorFactory.instance.createDeckValidator(format);
+            all.append(format).append('|').append(validator == null ? "" : validator.getClass().getName());
+            if (validator instanceof Constructed) {
+                Constructed constructed = (Constructed) validator;
+                all.append('|').append(constructed.getSetCodes());
+                for (String list : new String[]{"banned", "restricted", "singleCards", "rarities"}) {
+                    List<String> names = new java.util.ArrayList<>();
+                    field(constructed, list).forEach(name -> names.add(String.valueOf(name)));
+                    java.util.Collections.sort(names);
+                    all.append('|').append(names);
+                }
+            }
+            all.append('\n');
+        }
+        return Integer.toHexString(all.toString().hashCode());
     }
 
     /** Exports when {@link #PROP} is set and the file is out of date; the background thread unless {@code now}. */
@@ -128,8 +151,11 @@ public final class CatalogExport {
                 ddl.execute("PRAGMA journal_mode = OFF");
                 ddl.execute("PRAGMA synchronous = OFF");
                 ddl.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value BLOB NOT NULL)");
+                // rarity, extra deck, and whether its rules count for Commander brackets (mass land destruction,
+                // extra turns): what deck validation needs of a card
                 ddl.execute("CREATE TABLE printings (id INTEGER PRIMARY KEY, set_code TEXT NOT NULL, card_number TEXT NOT NULL,"
-                        + " name TEXT NOT NULL, view BLOB NOT NULL)");
+                        + " name TEXT NOT NULL, view BLOB NOT NULL, rarity TEXT NOT NULL, extra_deck INTEGER NOT NULL,"
+                        + " mass_land_destruction INTEGER NOT NULL, extra_turn INTEGER NOT NULL)");
                 ddl.execute("CREATE TABLE exact (set_code TEXT NOT NULL, card_number TEXT NOT NULL, printing INTEGER NOT NULL,"
                         + " PRIMARY KEY (set_code, card_number))");
                 ddl.execute("CREATE TABLE names (query TEXT NOT NULL, kind INTEGER NOT NULL, position INTEGER NOT NULL,"
@@ -149,7 +175,14 @@ public final class CatalogExport {
                 // the sets a constructed format allows (a search with that format is limited to them)
                 ddl.execute("CREATE TABLE format_sets (format TEXT NOT NULL, position INTEGER NOT NULL, set_code TEXT NOT NULL,"
                         + " PRIMARY KEY (format, position))");
-                ddl.execute("CREATE TABLE formats (name TEXT PRIMARY KEY)");
+                // deckValidate: plain = validates as Constructed does (its rules are these tables); others stay in Java
+                ddl.execute("CREATE TABLE formats (name TEXT PRIMARY KEY, plain INTEGER NOT NULL, title TEXT,"
+                        + " short_name TEXT, deck_min INTEGER, sideboard_min INTEGER)");
+                // banned, restricted and single cards, and the rarities a plain format allows
+                ddl.execute("CREATE TABLE format_cards (format TEXT NOT NULL, list TEXT NOT NULL, position INTEGER NOT NULL,"
+                        + " name TEXT NOT NULL, PRIMARY KEY (format, list, position))");
+                // Commander brackets: the Game Changers and the two-card combos ("card1@card2")
+                ddl.execute("CREATE TABLE brackets (list TEXT NOT NULL, value TEXT NOT NULL, PRIMARY KEY (list, value))");
             }
             db.setAutoCommit(false);
             List<CardInfo> all = CardRepository.instance.findCards(new CardCriteria().stableOrder());
@@ -157,7 +190,7 @@ public final class CatalogExport {
             // by lower case: the database finds the same printings whatever the case
             Map<String, String> queries = new java.util.LinkedHashMap<>();
             Printings printings;
-            try (PreparedStatement insert = db.prepareStatement("INSERT INTO printings VALUES (?, ?, ?, ?, ?)")) {
+            try (PreparedStatement insert = db.prepareStatement("INSERT INTO printings VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
                 printings = new Printings(insert, dictionary);
                 for (CardInfo info : all) {
                     printings.id(info);
@@ -361,25 +394,112 @@ public final class CatalogExport {
     }
 
     private static void formats(Connection db) throws SQLException {
-        try (PreparedStatement formats = db.prepareStatement("INSERT INTO formats VALUES (?)");
-             PreparedStatement sets = db.prepareStatement("INSERT INTO format_sets VALUES (?, ?, ?)")) {
+        try (PreparedStatement formats = db.prepareStatement("INSERT INTO formats VALUES (?, ?, ?, ?, ?, ?)");
+             PreparedStatement sets = db.prepareStatement("INSERT INTO format_sets VALUES (?, ?, ?)");
+             PreparedStatement cards = db.prepareStatement("INSERT INTO format_cards VALUES (?, ?, ?, ?)")) {
             for (String format : DeckValidatorFactory.instance.getDeckTypes()) {
-                formats.setString(1, format);
-                formats.addBatch();
                 DeckValidator validator = DeckValidatorFactory.instance.createDeckValidator(format);
-                if (!(validator instanceof Constructed) || ((Constructed) validator).getSetCodes() == null) {
+                boolean plain = validator instanceof Constructed && isPlainConstructed(validator.getClass());
+                formats.setString(1, format);
+                formats.setInt(2, plain ? 1 : 0);
+                formats.setString(3, validator == null ? null : validator.getName());
+                formats.setString(4, validator == null ? null : validator.getShortName());
+                formats.setObject(5, validator == null ? null : validator.getDeckMinSize());
+                formats.setObject(6, validator == null ? null : validator.getSideboardMinSize());
+                formats.addBatch();
+                if (!(validator instanceof Constructed)) {
                     continue;
                 }
+                Constructed constructed = (Constructed) validator;
                 int position = 0;
-                for (String code : ((Constructed) validator).getSetCodes()) {
+                for (String code : constructed.getSetCodes() == null ? java.util.Collections.<String>emptyList() : constructed.getSetCodes()) {
                     sets.setString(1, format);
                     sets.setInt(2, position++);
                     sets.setString(3, code);
                     sets.addBatch();
                 }
+                if (plain) {
+                    formatCards(cards, format, "banned", field(constructed, "banned"));
+                    formatCards(cards, format, "restricted", field(constructed, "restricted"));
+                    formatCards(cards, format, "single", field(constructed, "singleCards"));
+                    List<String> rarities = new java.util.ArrayList<>();
+                    for (Object rarity : field(constructed, "rarities")) {
+                        rarities.add(((Rarity) rarity).name());
+                    }
+                    formatCards(cards, format, "rarity", rarities);
+                }
             }
             formats.executeBatch();
             sets.executeBatch();
+            cards.executeBatch();
+        }
+        try (PreparedStatement brackets = db.prepareStatement("INSERT INTO brackets VALUES (?, ?)")) {
+            for (String card : CommanderBrackets.getGameChangers()) {
+                brackets.setString(1, "gameChangers");
+                brackets.setString(2, card);
+                brackets.addBatch();
+            }
+            for (String combo : CommanderBrackets.getInfiniteCombos()) {
+                brackets.setString(1, "combos");
+                brackets.setString(2, combo);
+                brackets.addBatch();
+            }
+            brackets.executeBatch();
+        }
+    }
+
+    /** a format whose validation is Constructed's, unchanged: its rules are only its lists */
+    static boolean isPlainConstructed(Class<?> type) {
+        String[][] methods = {{"validate", "mage.cards.decks.Deck"}, {"getDeckMinSize"}, {"getSideboardMinSize"},
+                {"getEdhPowerLevel", "mage.cards.decks.Deck", "java.util.List", "java.util.List"},
+                {"legalRarity", "mage.cards.Card"}, {"isSetAllowed", "java.lang.String"}, {"legalSets", "mage.cards.Card"},
+                {"checkCounts", "int", "java.util.Map"}, {"countCards", "java.util.Map", "java.util.Collection"}};
+        for (String[] method : methods) {
+            Class<?> declaring = declaringClass(type, method);
+            if (declaring != Constructed.class && declaring != DeckValidator.class) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Class<?> declaringClass(Class<?> type, String[] method) {
+        for (Class<?> c = type; c != null; c = c.getSuperclass()) {
+            for (java.lang.reflect.Method m : c.getDeclaredMethods()) {
+                if (!m.getName().equals(method[0]) || m.getParameterCount() != method.length - 1) {
+                    continue;
+                }
+                boolean same = true;
+                for (int i = 1; i < method.length; i++) {
+                    same &= m.getParameterTypes()[i - 1].getName().equals(method[i]);
+                }
+                if (same) {
+                    return c;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static java.util.Collection<?> field(Constructed validator, String name) {
+        try {
+            java.lang.reflect.Field f = Constructed.class.getDeclaredField(name);
+            f.setAccessible(true);
+            return (java.util.Collection<?>) f.get(validator);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static void formatCards(PreparedStatement cards, String format, String list, java.util.Collection<?> names)
+            throws SQLException {
+        int position = 0;
+        for (Object name : names) {
+            cards.setString(1, format);
+            cards.setString(2, list);
+            cards.setInt(3, position++);
+            cards.setString(4, name.toString());
+            cards.addBatch();
         }
     }
 
@@ -433,6 +553,17 @@ public final class CatalogExport {
             insert.setString(3, info.getCardNumber());
             insert.setString(4, info.getName());
             insert.setBytes(5, compress(view(info)));
+            insert.setString(6, info.getRarity() == null ? "" : info.getRarity().name());
+            insert.setInt(7, info.isExtraDeckCard() ? 1 : 0);
+            boolean massLandDestruction = false;
+            boolean extraTurn = false;
+            for (String rule : info.getRules()) {
+                String lower = rule.toLowerCase(Locale.ENGLISH);
+                massLandDestruction |= CommanderBrackets.isMassLandDestructionRule(lower);
+                extraTurn |= lower.contains("extra turn");
+            }
+            insert.setInt(8, massLandDestruction ? 1 : 0);
+            insert.setInt(9, extraTurn ? 1 : 0);
             insert.addBatch();
             if (ids.size() % 2000 == 0) {
                 insert.executeBatch();

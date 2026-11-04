@@ -328,7 +328,7 @@ mod tests {
     use super::*;
 
     fn caller(user: &str) -> Caller {
-        Caller { user: Some(user.into()), admin: false, account: true, ip: "127.0.0.1".into() }
+        Caller { user: Some(user.into()), admin: false, account: true, ip: "127.0.0.1".into(), connection: 1 }
     }
 
     fn request(method: &str, params: Vec<Value>) -> Request {
