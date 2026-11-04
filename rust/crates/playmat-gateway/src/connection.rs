@@ -555,7 +555,7 @@ async fn answer(
             let caller = identified_caller(shared).await;
             let outcome = app.handlers.call(&caller, &request).await;
             if outcome == Outcome::Declined {
-                Metrics::add(&app.metrics.declined, 1);
+                app.metrics.declined(&request.method);
                 Metrics::add(&app.metrics.requests_java, 1);
                 let _ = to_java.send(Frame::text(Bytes::from(text)));
                 return;
@@ -574,7 +574,7 @@ async fn answer(
             }
             let rust = app.handlers.shadow(&caller, &request).await;
             if rust == Outcome::Declined {
-                Metrics::add(&app.metrics.declined, 1);
+                app.metrics.declined(&request.method);
                 Metrics::add(&app.metrics.requests_java, 1);
                 let _ = to_java.send(Frame::text(Bytes::from(text)));
                 return;
