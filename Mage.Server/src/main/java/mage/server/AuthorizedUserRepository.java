@@ -179,15 +179,33 @@ public class AuthorizedUserRepository {
     /** Closes the accounts with every change written (unlike {@link #closeDB}, whose H2 shutdown drops the last second). */
     void close() {
         try {
-            if (!sqlite) {
-                DatabaseConnection conn = usersDao.getConnectionSource().getReadWriteConnection(usersDao.getTableName());
-                conn.executeStatement("SHUTDOWN", DatabaseConnection.DEFAULT_RESULT_FLAGS);
-                usersDao.getConnectionSource().releaseConnection(conn);
+            if (sqlite) {
+                usersDao.getConnectionSource().close();
+                return;
             }
-            usersDao.getConnectionSource().close();
+            DatabaseConnection conn = usersDao.getConnectionSource().getReadWriteConnection(usersDao.getTableName());
+            conn.executeStatement("SHUTDOWN", DatabaseConnection.DEFAULT_RESULT_FLAGS);
         } catch (Exception ex) {
-            LOGGER.error("Error closing authorized_user repository - ", ex);
+            if (!alreadyClosed(ex)) {
+                LOGGER.error("Error closing authorized_user repository - ", ex);
+                return;
+            }
         }
+        // H2's SHUTDOWN closed the database and its connections: closing the source again only says so
+        try {
+            usersDao.getConnectionSource().close();
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** H2's "Database is already closed" (90121): it has shut down already, with its changes written */
+    static boolean alreadyClosed(Throwable error) {
+        for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.sql.SQLException && ((java.sql.SQLException) cause).getErrorCode() == 90121) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static AuthorizedUserRepository getInstance() {

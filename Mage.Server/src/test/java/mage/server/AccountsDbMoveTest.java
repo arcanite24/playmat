@@ -73,4 +73,12 @@ public class AccountsDbMoveTest {
         fresh.close();
         assertThat(new File(dir, "authorized_user.h2.mv.db")).doesNotExist();
     }
+
+    @Test
+    void anH2ThatClosedAlreadyIsNoError() {
+        // ORMLite wraps H2's "Database is already closed"
+        Exception closed = new Exception("wrapped", new java.sql.SQLException("Database is already closed", "90121", 90121));
+        assertThat(AuthorizedUserRepository.alreadyClosed(closed)).isTrue();
+        assertThat(AuthorizedUserRepository.alreadyClosed(new java.sql.SQLException("other", "42000", 42000))).isFalse();
+    }
 }
