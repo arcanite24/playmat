@@ -196,6 +196,10 @@ public class TestPlayer implements Player {
         }
     }
 
+    public List<String> getModeChoices() {
+        return this.modes;
+    }
+
     public void addModeChoice(String mode) {
         if (this.isSkipAllNextChooseCommands) {
             return;
