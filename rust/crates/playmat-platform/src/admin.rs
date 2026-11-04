@@ -16,12 +16,12 @@ use playmat_protocol::jsonrpc::{Outcome, Request, INVALID_PARAMS, NOT_AUTHORIZED
 use serde_json::{json, Map, Value};
 use sqlx::sqlite::{SqliteConnectOptions, SqliteConnection, SqlitePool, SqlitePoolOptions, SqliteRow};
 use sqlx::Row;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tracing::{info, warn};
 
 /// answered from db/web_admin.db
-pub const ADMIN_METHODS: [&str; 9] = [
+pub const ADMIN_METHODS: [&str; 11] = [
     "staffMe",
     "adminStaff",
     "adminAudit",
@@ -31,6 +31,8 @@ pub const ADMIN_METHODS: [&str; 9] = [
     "adminInviteCreate",
     "adminInviteRevoke",
     "inviteCheck",
+    "adminFeedback",
+    "adminFeedbackMark",
 ];
 /// answered from db/web_reports.db (and the audit log in db/web_admin.db)
 pub const REPORT_METHODS: [&str; 2] = ["adminGetReports", "adminCloseReport"];
@@ -68,7 +70,7 @@ const REPORT_TABLES: [&str; 1] = [
 
 /// `StaffRole`, lowest first
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Role {
+pub(crate) enum Role {
     Moderator,
     Admin,
     Owner,
@@ -95,7 +97,7 @@ impl Role {
 }
 
 /// Why a call isn't answered with a result.
-enum Stop {
+pub(crate) enum Stop {
     Error(i64, String),
     /// a case left to Java (a parameter of an unusual type, a database error)
     Decline,
@@ -108,15 +110,17 @@ impl From<sqlx::Error> for Stop {
     }
 }
 
-type Answer = Result<Value, Stop>;
+pub(crate) type Answer = Result<Value, Stop>;
 
-fn invalid(message: impl Into<String>) -> Stop {
+pub(crate) fn invalid(message: impl Into<String>) -> Stop {
     Stop::Error(INVALID_PARAMS, message.into())
 }
 
 pub struct AdminStores {
     admin: SqlitePool,
     reports: Option<SqlitePool>,
+    /// db/support.db and the accounts (db/authorized_user.db), for the support calls
+    support: Option<(SqlitePool, PathBuf)>,
     /// `XMAGE_OWNER` (`-Dxmage.owner`), trimmed; empty when there is none
     owner: String,
 }
@@ -143,11 +147,22 @@ impl AdminStores {
             Some(path) => Some(open(path, &REPORT_TABLES).await?),
             None => None,
         };
-        Ok(AdminStores { admin, reports, owner: java_trim(owner).to_string() })
+        Ok(AdminStores { admin, reports, support: None, owner: java_trim(owner).to_string() })
+    }
+
+    /// The support calls too, on Java's db/support.db (its tables are Java's, made by its migrations) and the
+    /// accounts, which are opened afresh on each call: a rollback to H2 puts the file aside.
+    pub async fn add_support(&mut self, support: &Path, accounts: &Path) -> anyhow::Result<()> {
+        let options = SqliteConnectOptions::new().filename(support).busy_timeout(Duration::from_secs(10));
+        let pool = SqlitePoolOptions::new().max_connections(1).connect_with(options).await?;
+        self.support = Some((pool, accounts.to_path_buf()));
+        Ok(())
     }
 
     pub fn handles(&self, method: &str) -> bool {
-        ADMIN_METHODS.contains(&method) || (self.reports.is_some() && REPORT_METHODS.contains(&method))
+        ADMIN_METHODS.contains(&method)
+            || (self.reports.is_some() && REPORT_METHODS.contains(&method))
+            || (self.support.is_some() && crate::support::SUPPORT_METHODS.contains(&method))
     }
 
     /// `keep`: commit the change (`rust`), or roll it back (`shadow`)
@@ -161,9 +176,21 @@ impl AdminStores {
             Ok(connection) => connection,
             Err(e) => return Stop::from(e).into(),
         };
+        // the second database: reports, or support (with the accounts, read only)
         let mut reports = None;
-        if REPORT_METHODS.contains(&method) {
-            let Some(pool) = &self.reports else { return Outcome::Declined };
+        let mut accounts = None;
+        let support = crate::support::SUPPORT_METHODS.contains(&method);
+        let second = if REPORT_METHODS.contains(&method) {
+            self.reports.as_ref()
+        } else if support {
+            let Some((pool, path)) = &self.support else { return Outcome::Declined };
+            accounts = crate::support::open_accounts(path).await;
+            Some(pool)
+        } else {
+            None
+        };
+        if REPORT_METHODS.contains(&method) || support {
+            let Some(pool) = second else { return Outcome::Declined };
             match pool.acquire().await {
                 Ok(connection) => reports = Some(connection),
                 Err(e) => return Stop::from(e).into(),
@@ -181,7 +208,12 @@ impl AdminStores {
             }
         }
         let mut audits = Vec::new();
-        let answer = self.run(caller, request, &mut admin, reports.as_deref_mut(), &mut audits).await;
+        let answer = if support {
+            let db = reports.as_deref_mut().expect("acquired");
+            self.support(caller, request, &mut admin, db, accounts.as_mut(), &mut audits).await
+        } else {
+            self.run(caller, request, &mut admin, reports.as_deref_mut(), &mut audits).await
+        };
         let end = if keep && answer.is_ok() { "COMMIT" } else { "ROLLBACK" };
         let mut ended = sqlx::query(end).execute(&mut *admin).await.is_ok();
         if let Some(connection) = reports.as_deref_mut() {
@@ -203,7 +235,11 @@ impl AdminStores {
     }
 
     /// the staff member making this call (`Staff.member`): the actor and role, or None for players
-    async fn member(&self, caller: &Caller, db: &mut SqliteConnection) -> Result<Option<(String, Role)>, Stop> {
+    pub(crate) async fn member(
+        &self,
+        caller: &Caller,
+        db: &mut SqliteConnection,
+    ) -> Result<Option<(String, Role)>, Stop> {
         if caller.admin {
             return Ok(Some(("console".into(), Role::Owner)));
         }
@@ -223,7 +259,12 @@ impl AdminStores {
     }
 
     /// `Staff.require`: the actor for the audit log
-    async fn require(&self, caller: &Caller, db: &mut SqliteConnection, least: Role) -> Result<String, Stop> {
+    pub(crate) async fn require(
+        &self,
+        caller: &Caller,
+        db: &mut SqliteConnection,
+        least: Role,
+    ) -> Result<String, Stop> {
         let Some((actor, role)) = self.member(caller, db).await? else {
             return Err(Stop::Error(NOT_AUTHORIZED, "Staff only".into()));
         };
@@ -497,6 +538,62 @@ impl AdminStores {
                     .await?;
                 Ok(json!(true))
             }
+            "adminFeedback" => {
+                self.require(caller, db, Role::Moderator).await?;
+                let status = opt_string(p, 0)?.filter(|s| !is_blank(s));
+                let rows = match status {
+                    Some(status) => {
+                        sqlx::query("SELECT * FROM `admin_feedback` WHERE `status` = ? ORDER BY `id` DESC LIMIT 200 ")
+                            .bind(java_trim(&status))
+                            .fetch_all(&mut *db)
+                            .await?
+                    }
+                    None => {
+                        sqlx::query("SELECT * FROM `admin_feedback` ORDER BY `id` DESC LIMIT 200 ")
+                            .fetch_all(&mut *db)
+                            .await?
+                    }
+                };
+                Ok(Value::Array(rows.iter().map(feedback_json).collect()))
+            }
+            "adminFeedbackMark" => {
+                let actor = self.require(caller, db, Role::Moderator).await?;
+                let id = long(p, 0)?;
+                let status = string(p, 1)?;
+                let note = if has(p, 2) { Some(string(p, 2)?) } else { None };
+                if !["new", "seen", "done"].contains(&status.as_str()) {
+                    return Err(invalid("The status is new, seen or done"));
+                }
+                let Some(row) = sqlx::query("SELECT * FROM `admin_feedback` WHERE `id` = ?")
+                    .bind(id)
+                    .fetch_optional(&mut *db)
+                    .await?
+                else {
+                    return Err(invalid(format!("There is no feedback {id}")));
+                };
+                let mut entry = feedback_json(&row);
+                let note = cut(note.as_deref(), MAX_NOTE);
+                let fields = entry.as_object_mut().expect("an object");
+                fields.insert("status".into(), json!(status));
+                if let Some(note) = &note {
+                    fields.insert("note".into(), json!(note));
+                }
+                fields.insert("handledBy".into(), json!(actor));
+                fields.insert("handledAt".into(), json!(now));
+                let note = note.or_else(|| fields.get("note").and_then(Value::as_str).map(str::to_string));
+                sqlx::query("UPDATE `admin_feedback` SET `status` = ?, `note` = ?, `handledBy` = ?, `handledAt` = ? WHERE `id` = ?")
+                    .bind(&status)
+                    .bind(note.as_deref())
+                    .bind(&actor)
+                    .bind(now)
+                    .bind(id)
+                    .execute(&mut *db)
+                    .await?;
+                let action = format!("feedback.{status}");
+                let target = format!("feedback {id}");
+                audit(db, audits, &actor, &action, Some(&target), note.as_deref(), None, now).await?;
+                Ok(entry)
+            }
             _ => Err(Stop::Decline),
         }
     }
@@ -513,7 +610,7 @@ impl From<Stop> for Outcome {
 
 /// `AdminStore.audit`: the entry, and the log line Java writes for it once the change is kept
 #[allow(clippy::too_many_arguments)]
-async fn audit(
+pub(crate) async fn audit(
     db: &mut SqliteConnection,
     audits: &mut Vec<String>,
     actor: &str,
@@ -561,6 +658,10 @@ pub fn difference(method: &str, java: &Value, rust: &Value) -> Option<String> {
         "adminAllowAdd" => (&["addedAt"], false),
         "adminInviteCreate" => (&["createdAt", "expiresAt"], true),
         "adminClientErrorResolve" => (&["resolvedAt"], false),
+        "adminFeedbackMark" => (&["handledAt"], false),
+        _ if crate::support::SUPPORT_METHODS.contains(&method) => {
+            return crate::support::difference(method, java, rust)
+        }
         _ => (&[], false),
     };
     let (Value::Object(j), Value::Object(r)) = (java, rust) else { return compare::difference(java, rust) };
@@ -581,16 +682,16 @@ pub fn difference(method: &str, java: &Value, rust: &Value) -> Option<String> {
     compare::difference(java, &Value::Object(rust))
 }
 
-fn now_millis() -> i64 {
+pub(crate) fn now_millis() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
 /// Java's `String.trim()`
-fn java_trim(text: &str) -> &str {
+pub(crate) fn java_trim(text: &str) -> &str {
     text.trim_matches(|c: char| c <= ' ')
 }
 
-fn is_blank(text: &str) -> bool {
+pub(crate) fn is_blank(text: &str) -> bool {
     java_trim(text).is_empty()
 }
 
@@ -599,7 +700,7 @@ fn utf16_len(text: &str) -> usize {
 }
 
 /// the first `max` UTF-16 units, as `substring(0, max)` cuts
-fn utf16_prefix(text: &str, max: usize) -> String {
+pub(crate) fn utf16_prefix(text: &str, max: usize) -> String {
     if utf16_len(text) <= max {
         return text.to_string();
     }
@@ -608,7 +709,7 @@ fn utf16_prefix(text: &str, max: usize) -> String {
 }
 
 /// `AdminStore.cut`: trimmed, then cut to `max`
-fn cut(text: Option<&str>, max: usize) -> Option<String> {
+pub(crate) fn cut(text: Option<&str>, max: usize) -> Option<String> {
     text.map(|t| utf16_prefix(java_trim(t), max))
 }
 
@@ -627,18 +728,18 @@ fn base64url(bytes: &[u8]) -> String {
 
 // --- parameters, as `RpcCall` reads them; anything of another type is left to Java's messages ---
 
-fn has(params: &[Value], index: usize) -> bool {
+pub(crate) fn has(params: &[Value], index: usize) -> bool {
     params.get(index).is_some_and(|v| !v.is_null())
 }
 
-fn string(params: &[Value], index: usize) -> Result<String, Stop> {
+pub(crate) fn string(params: &[Value], index: usize) -> Result<String, Stop> {
     match params.get(index) {
         Some(Value::String(text)) => Ok(text.clone()),
         _ => Err(Stop::Decline),
     }
 }
 
-fn opt_string(params: &[Value], index: usize) -> Result<Option<String>, Stop> {
+pub(crate) fn opt_string(params: &[Value], index: usize) -> Result<Option<String>, Stop> {
     if has(params, index) {
         string(params, index).map(Some)
     } else {
@@ -646,7 +747,7 @@ fn opt_string(params: &[Value], index: usize) -> Result<Option<String>, Stop> {
     }
 }
 
-fn long(params: &[Value], index: usize) -> Result<i64, Stop> {
+pub(crate) fn long(params: &[Value], index: usize) -> Result<i64, Stop> {
     params.get(index).and_then(Value::as_i64).ok_or(Stop::Decline)
 }
 
@@ -657,7 +758,7 @@ fn opt_int(params: &[Value], index: usize, default: i64) -> Result<i64, Stop> {
     long(params, index).and_then(|n| i32::try_from(n).map(i64::from).map_err(|_| Stop::Decline))
 }
 
-fn opt_bool(params: &[Value], index: usize, default: bool) -> Result<bool, Stop> {
+pub(crate) fn opt_bool(params: &[Value], index: usize, default: bool) -> Result<bool, Stop> {
     match params.get(index) {
         None | Some(Value::Null) => Ok(default),
         Some(Value::Bool(flag)) => Ok(*flag),
@@ -667,13 +768,13 @@ fn opt_bool(params: &[Value], index: usize, default: bool) -> Result<bool, Stop>
 
 // --- rows as Gson writes the entities: fields in declaration order, null strings left out ---
 
-enum Kind {
+pub(crate) enum Kind {
     Text,
     Number,
     Flag,
 }
 
-fn row_json(row: &SqliteRow, columns: &[(&str, Kind)]) -> Value {
+pub(crate) fn row_json(row: &SqliteRow, columns: &[(&str, Kind)]) -> Value {
     let mut out = Map::new();
     for (column, kind) in columns {
         let value = match kind {
@@ -690,7 +791,7 @@ fn row_json(row: &SqliteRow, columns: &[(&str, Kind)]) -> Value {
     Value::Object(out)
 }
 
-fn object<const N: usize>(fields: [(&str, Value); N]) -> Value {
+pub(crate) fn object<const N: usize>(fields: [(&str, Value); N]) -> Value {
     Value::Object(fields.into_iter().filter(|(_, v)| !v.is_null()).map(|(k, v)| (k.to_string(), v)).collect())
 }
 
@@ -741,6 +842,26 @@ fn audit_json(row: &SqliteRow) -> Value {
             ("target", Text),
             ("detail", Text),
             ("reason", Text),
+        ],
+    )
+}
+
+fn feedback_json(row: &SqliteRow) -> Value {
+    use Kind::*;
+    row_json(
+        row,
+        &[
+            ("id", Number),
+            ("createdAt", Number),
+            ("userName", Text),
+            ("type", Text),
+            ("title", Text),
+            ("message", Text),
+            ("context", Text),
+            ("status", Text),
+            ("note", Text),
+            ("handledBy", Text),
+            ("handledAt", Number),
         ],
     )
 }
