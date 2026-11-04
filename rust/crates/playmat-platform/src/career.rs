@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 7] = [
+pub const CAREER_METHODS: [&str; 8] = [
     "careerCollection",
     "careerDeck",
     "careerGameResult",
@@ -17,7 +17,11 @@ pub const CAREER_METHODS: [&str; 7] = [
     "careerLevels",
     "careerStarters",
     "careerCosmetics",
+    "careerOpponents",
 ];
+
+/// `CareerRules.WINS_TO_UNLOCK_NEXT_TIER`
+const WINS_TO_UNLOCK_NEXT_TIER: i64 = 3;
 
 /// The content views Java writes (`CareerViewsExport`, `XMAGE_CAREER_EXPORT`): read again when the file changes,
 /// as it does when staff reload the content packs.
@@ -226,6 +230,27 @@ impl AdminStores {
                 let name = if request.method == "careerStarters" { "starters" } else { "cosmetics" };
                 self.career_views.as_ref().and_then(|views| views.view(name)).ok_or(Stop::Decline)
             }
+            "careerOpponents" => {
+                let Some(roster) = self.career_views.as_ref().and_then(|views| views.view("opponents")) else {
+                    return Err(Stop::Decline);
+                };
+                let rows = sqlx::query("SELECT opponent, SUM(won) FROM payouts WHERE user = ? GROUP BY opponent")
+                    .bind(&user)
+                    .fetch_all(&mut *db)
+                    .await?;
+                let mut wins = std::collections::HashMap::new();
+                for row in rows {
+                    if let Some(opponent) = row.try_get::<Option<String>, _>(0)? {
+                        wins.insert(opponent, row.try_get::<Option<i64>, _>(1)?.unwrap_or(0));
+                    }
+                }
+                // `CareerLadder.nemesis`: Java's solo.db keeps it under the name as signed in
+                let nemesis = match &self.solo {
+                    Some(solo) => nemesis(solo, caller.user.as_deref().unwrap_or_default()).await?,
+                    None => return Err(Stop::Decline),
+                };
+                opponents(roster, &wins, nemesis.as_deref()).ok_or(Stop::Decline)
+            }
             "careerLevels" => {
                 let Some(content) = &self.career_content else { return Err(Stop::Decline) };
                 let Some(view) = profile(db, &user, content).await? else { return Ok(Value::Null) };
@@ -312,6 +337,48 @@ pub fn difference(java: &Value, rust: &Value) -> Option<String> {
 }
 
 /// `CareerApi.career`: the signed-in account's Career key (`CareerStore.key`), when the server offers Career
+/// the nemesis's opponent id, from solo.db's `career.nemesis` state; no solo.db, no nemesis
+async fn nemesis(solo: &std::path::Path, user: &str) -> Result<Option<String>, Stop> {
+    let Some(mut db) = crate::support::open_read_only(solo).await else { return Ok(None) };
+    let value: Option<String> =
+        sqlx::query_scalar("SELECT value FROM user_state WHERE user = ? AND key = 'career.nemesis'")
+            .bind(user)
+            .fetch_optional(&mut db)
+            .await?;
+    match value {
+        None => Ok(None),
+        Some(text) => {
+            let parsed: Value = serde_json::from_str(&text).map_err(|_| Stop::Decline)?;
+            Ok(parsed.get("opponentId").and_then(Value::as_str).map(str::to_owned))
+        }
+    }
+}
+
+/// `CareerService.opponents`: Java's roster (as a player without wins sees it, and as their nemesis) with this
+/// player's wins, the tiers and rival chapters they opened, and their nemesis
+fn opponents(roster: Value, wins: &std::collections::HashMap<String, i64>, nemesis: Option<&str>) -> Option<Value> {
+    let roster = roster.as_array()?;
+    let won = |id: &str| wins.get(id).copied().unwrap_or(0);
+    let mut by_tier = std::collections::HashMap::<i64, i64>::new();
+    for entry in roster {
+        let view = &entry["view"];
+        *by_tier.entry(view["tier"].as_i64()?).or_default() += won(view["id"].as_str()?);
+    }
+    let mut views = Vec::new();
+    for entry in roster {
+        let id = entry["view"]["id"].as_str()?;
+        let mut view = if nemesis == Some(id) { entry["nemesis"].clone() } else { entry["view"].clone() };
+        let tier = view["tier"].as_i64()?;
+        let tier_open = tier == 1 || by_tier.get(&(tier - 1)).copied().unwrap_or(0) >= WINS_TO_UNLOCK_NEXT_TIER;
+        let rival_open = entry.get("after").and_then(Value::as_str).is_none_or(|before| won(before) > 0);
+        let object = view.as_object_mut()?;
+        object.insert("wins".into(), json!(won(id)));
+        object.insert("unlocked".into(), json!(tier_open && rival_open));
+        views.push(view);
+    }
+    Some(Value::Array(views))
+}
+
 async fn career_user(caller: &Caller, admin: &mut SqliteConnection) -> Result<String, Stop> {
     // without accounts Java says there's no Career; names outside ASCII lower differently in Rust
     let (true, false, Some(user)) = (caller.account, caller.admin, &caller.user) else { return Err(Stop::Decline) };
@@ -369,6 +436,9 @@ mod tests {
              show_progress INTEGER NOT NULL DEFAULT 1, capsule_tokens INTEGER NOT NULL DEFAULT 0)",
             "CREATE TABLE unlocks (user TEXT NOT NULL, kind TEXT NOT NULL, item TEXT NOT NULL, at INTEGER NOT NULL)",
             "CREATE TABLE progress_games (game_key TEXT PRIMARY KEY, user TEXT NOT NULL, at INTEGER NOT NULL, details TEXT)",
+            "CREATE TABLE payouts (match_key TEXT PRIMARY KEY, user TEXT NOT NULL, at INTEGER NOT NULL, opponent TEXT NOT NULL, \
+             won INTEGER NOT NULL, coins INTEGER NOT NULL, xp INTEGER NOT NULL, note TEXT)",
+            "INSERT INTO payouts VALUES ('m1', 'neri', 1, 'a', 1, 25, 10, NULL), ('m2', 'neri', 2, 'a', 0, 5, 5, NULL)",
             "INSERT INTO cards VALUES ('neri', 'M21', '2', 'Zap', 'common', 3), ('neri', 'M21', '1', 'Arrow', 'rare', 1), \
              ('bob', 'M21', '3', 'Bolt', 'common', 4)",
             "INSERT INTO decks VALUES ('neri', '{\"name\":\"Red\",\"cards\":[{\"cardName\":\"Zap\",\"amount\":3}]}', 1)",
@@ -432,6 +502,29 @@ mod tests {
         assert_eq!(call("careerStarters", json!([])).await, json!([{"id": "blue"}]));
         assert_eq!(call("careerCosmetics", json!([])).await, json!([{"kind": "avatar"}]));
 
+        // the roster: Java's views with neri's wins and nemesis (solo.db, under the name as signed in)
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        let view =
+            |id: &str, nemesis: bool| json!({"id": id, "tier": 1, "unlocked": true, "wins": 0, "nemesis": nemesis});
+        let roster = json!({"opponents": [
+            {"view": view("a", false), "nemesis": view("a", true)},
+            {"view": view("b", false), "nemesis": view("b", true)},
+        ]});
+        std::fs::write(&views, roster.to_string()).unwrap();
+        let mut solo =
+            SqliteConnectOptions::new().filename(dir.join("solo.db")).create_if_missing(true).connect().await.unwrap();
+        for sql in [
+            "CREATE TABLE user_state (user TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (user, key))",
+            "INSERT INTO user_state VALUES ('Neri', 'career.nemesis', '{\"opponentId\":\"b\",\"since\":1}', 1)",
+        ] {
+            sqlx::query(sql).execute(&mut solo).await.unwrap();
+        }
+        let opponents = call("careerOpponents", json!([])).await;
+        assert_eq!(
+            (opponents[0]["wins"].clone(), opponents[0]["nemesis"].clone(), opponents[1]["nemesis"].clone()),
+            (json!(1), json!(false), json!(true))
+        );
+
         // staff switched Career off
         sqlx::query("INSERT INTO admin_setting VALUES ('runtime.career', 'off', 'boss', 1)")
             .execute(&mut admin)
@@ -446,6 +539,33 @@ mod tests {
 
     fn content_dir() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../Mage.Server/src/main/resources/career")
+    }
+
+    #[test]
+    fn opponents_open_by_tier_and_rival_chapter() {
+        let entry = |id: &str, tier: i64, after: Option<&str>| {
+            let view = json!({"id": id, "tier": tier, "unlocked": false, "wins": 0, "nemesis": false, "bounty": 0});
+            let mut nemesis = view.clone();
+            nemesis["nemesis"] = json!(true);
+            nemesis["bounty"] = json!(40);
+            let mut entry = json!({"view": view, "nemesis": nemesis});
+            if let Some(after) = after {
+                entry["after"] = json!(after);
+            }
+            entry
+        };
+        let roster = json!([entry("a", 1, None), entry("b", 1, None), entry("c", 2, None), entry("d", 2, Some("c"))]);
+        let wins: std::collections::HashMap<String, i64> = [("a".into(), 2), ("b".into(), 1)].into();
+        let views = opponents(roster.clone(), &wins, Some("b")).unwrap();
+        let open: Vec<bool> = views.as_array().unwrap().iter().map(|v| v["unlocked"].as_bool().unwrap()).collect();
+        assert_eq!(open, [true, true, true, false]);
+        assert_eq!((views[1]["wins"].clone(), views[1]["bounty"].clone()), (json!(1), json!(40)));
+        assert_eq!(views[0]["bounty"], json!(0));
+        // two wins in tier 1 aren't enough for tier 2; a rival chapter opens when the one before is beaten
+        let fewer: std::collections::HashMap<String, i64> = [("a".into(), 2), ("c".into(), 1)].into();
+        let views = opponents(roster, &fewer, None).unwrap();
+        let open: Vec<bool> = views.as_array().unwrap().iter().map(|v| v["unlocked"].as_bool().unwrap()).collect();
+        assert_eq!(open, [true, true, false, false]);
     }
 
     #[test]

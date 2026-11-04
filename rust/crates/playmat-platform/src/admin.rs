@@ -127,6 +127,8 @@ pub struct AdminStores {
     pub(crate) career_content: Option<crate::career::CareerContent>,
     /// the content views Java writes
     pub(crate) career_views: Option<crate::career::CareerViews>,
+    /// Java's db/solo.db, next to career.db: the nemesis
+    pub(crate) solo: Option<PathBuf>,
     /// `XMAGE_OWNER` (`-Dxmage.owner`), trimmed; empty when there is none
     owner: String,
 }
@@ -160,6 +162,7 @@ impl AdminStores {
             career: None,
             career_content: None,
             career_views: None,
+            solo: None,
             owner: java_trim(owner).to_string(),
         })
     }
@@ -181,6 +184,7 @@ impl AdminStores {
     pub async fn add_career(&mut self, career: &Path, content: Option<&Path>) -> anyhow::Result<()> {
         let options = SqliteConnectOptions::new().filename(career).busy_timeout(Duration::from_secs(10));
         self.career = Some(SqlitePoolOptions::new().max_connections(1).connect_with(options).await?);
+        self.solo = Some(career.with_file_name("solo.db"));
         self.career_content = match content {
             Some(dir) => Some(crate::career::CareerContent::load(dir)?),
             None => None,
@@ -217,7 +221,7 @@ impl AdminStores {
             self.career.as_ref()
         } else if support {
             let Some((pool, path)) = &self.support else { return Outcome::Declined };
-            accounts = crate::support::open_accounts(path).await;
+            accounts = crate::support::open_read_only(path).await;
             Some(pool)
         } else {
             None

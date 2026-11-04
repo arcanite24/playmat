@@ -52,7 +52,7 @@ const PAYMENT_COLUMNS: &str = "id, provider, provider_id, kind, amount_cents, cu
      is_public, account, linked_by, received_at, revoked, revoked_reason, sponsor_id";
 
 /// The accounts, read only, or None when the server keeps them in H2 (the file is missing then).
-pub(crate) async fn open_accounts(path: &Path) -> Option<SqliteConnection> {
+pub(crate) async fn open_read_only(path: &Path) -> Option<SqliteConnection> {
     if !path.is_file() {
         return None;
     }

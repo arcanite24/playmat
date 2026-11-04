@@ -29,5 +29,16 @@ public class CareerViewsExportTest {
         assertThat(views.get("cosmetics")).isEqualTo(JsonCodec.GSON.toJsonTree(CareerCosmetics.get().items()));
         assertThat(views.getAsJsonArray("starters").size()).isGreaterThan(3);
         assertThat(new File(dir, "views/career-views.json.part")).doesNotExist();
+
+        // the roster: every opponent, as a player without wins sees it and as their nemesis
+        com.google.gson.JsonArray roster = views.getAsJsonArray("opponents");
+        assertThat(roster.size()).isEqualTo(CareerContent.get().opponents().size());
+        JsonObject first = roster.get(0).getAsJsonObject();
+        assertThat(first.getAsJsonObject("view").get("tier").getAsInt()).isEqualTo(1);
+        assertThat(first.getAsJsonObject("view").get("unlocked").getAsBoolean()).isTrue();
+        assertThat(first.getAsJsonObject("view").get("nemesis").getAsBoolean()).isFalse();
+        assertThat(first.getAsJsonObject("nemesis").get("nemesis").getAsBoolean()).isTrue();
+        assertThat(first.getAsJsonObject("nemesis").get("bounty").getAsInt()).isPositive();
+        assertThat(first.getAsJsonObject("nemesis").getAsJsonObject("twists").get("lifeBonus").getAsInt()).isPositive();
     }
 }
