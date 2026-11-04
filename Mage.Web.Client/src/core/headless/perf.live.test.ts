@@ -10,15 +10,26 @@
  *
  * The human-paced scenario is loadTest.live.test.ts.
  */
+import { readFileSync } from 'node:fs';
 import { describe, test } from 'vitest';
 import { createApi } from '../../protocol/generated/api';
 import { RpcClient } from '../rpc/RpcClient';
-import { playBotGame, RED_AGGRO } from './botGame';
+import { deck, playBotGame, RED_AGGRO } from './botGame';
 
 const SERVER_URL = process.env.MAGE_SERVER_URL ?? 'ws://127.0.0.1:18172';
 const SCENARIO = process.env.MAGE_PERF ?? '';
 const num = (name: string, fallback: number) => Number(process.env[name] ?? fallback);
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** MAGE_PERF_DECKS: comma-separated deck lists ("4 Card Name" lines, # comments), e.g. Mage.Server/career-src files */
+function perfDecks() {
+  const paths = (process.env.MAGE_PERF_DECKS ?? '').split(',').filter(Boolean);
+  if (!paths.length) return [RED_AGGRO];
+  return paths.map((path) => deck(path, readFileSync(path, 'utf8').split('\n')
+    .map((line) => /^(\d+)\s+(.+?)\s*$/.exec(line))
+    .filter((match): match is RegExpExecArray => match !== null)
+    .map((match): [number, string] => [Number(match[1]), match[2]])));
+}
 
 function report(result: Record<string, unknown>) {
   console.log(`[perf-result] ${JSON.stringify(result)}`);
@@ -28,6 +39,7 @@ describe.skipIf(SCENARIO !== 'ai')('perf: AI against AI', () => {
   const conc = num('MAGE_PERF_CONC', 4);
   const duration = num('MAGE_PERF_DURATION_MS', 120_000);
   const skill = num('MAGE_PERF_SKILL', 1);
+  const decks = perfDecks();
 
   test(`${conc} AI-vs-AI tables for ${duration / 1000} s`, async () => {
     const run = Date.now() % 10_000;
@@ -36,7 +48,7 @@ describe.skipIf(SCENARIO !== 'ai')('perf: AI against AI', () => {
     const errors: string[] = [];
     const started = Date.now();
     const slot = async (index: number) => {
-      const rpc = new RpcClient({ heartbeatMs: 0 });
+      const rpc = new RpcClient(); // with heartbeats: games with real decks outlast a silent session
       const api = createApi(rpc);
       await rpc.connect(SERVER_URL);
       const name = `pa${run}_${index}`.slice(0, 14);
@@ -51,8 +63,8 @@ describe.skipIf(SCENARIO !== 'ai')('perf: AI against AI', () => {
           const tableId = table.tableId;
           if (!tableId) throw new Error('no table');
           const joining = Date.now();
-          await api.roomJoinTable(roomId, tableId, `A${index}x${n}`.slice(0, 14), 'COMPUTER_MAD', skill, RED_AGGRO);
-          await api.roomJoinTable(roomId, tableId, `B${index}x${n}`.slice(0, 14), 'COMPUTER_MAD', skill, RED_AGGRO);
+          await api.roomJoinTable(roomId, tableId, `A${index}x${n}`.slice(0, 14), 'COMPUTER_MAD', skill, decks[(index + n) % decks.length]);
+          await api.roomJoinTable(roomId, tableId, `B${index}x${n}`.slice(0, 14), 'COMPUTER_MAD', skill, decks[(index + n + 1) % decks.length]);
           const gameStart = Date.now();
           joinMillis.push(gameStart - joining);
           if (!await api.matchStart(roomId, tableId)) throw new Error('match did not start');
