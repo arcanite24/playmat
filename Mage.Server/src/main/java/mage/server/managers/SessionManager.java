@@ -5,7 +5,7 @@ import mage.players.net.UserData;
 import mage.server.DisconnectReason;
 import mage.server.Session;
 import mage.server.User;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 
 import java.util.Optional;
 
@@ -13,7 +13,7 @@ public interface SessionManager {
 
     Optional<Session> getSession(String sessionId);
 
-    void createSession(String sessionId, InvokerCallbackHandler callbackHandler);
+    void createSession(String sessionId, ClientChannel channel);
 
     boolean registerUser(String sessionId, String userName, String password, String email) throws MageException;
 

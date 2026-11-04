@@ -7,7 +7,6 @@ import mage.interfaces.callback.ClientCallback;
 import mage.interfaces.callback.ClientCallbackMethod;
 import mage.view.GameClientMessage;
 import org.java_websocket.WebSocket;
-import org.jboss.remoting.callback.Callback;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -115,7 +114,7 @@ public class GameStatesTest {
     private JsonObject push(ClientCallbackMethod method, Object data) throws Exception {
         ClientCallback callback = new ClientCallback(method, gameId, data);
         callback.setMessageId(messageId++);
-        handler.handleCallback(new Callback(callback));
+        handler.send(callback);
         return client.receive(sent.get(sent.size() - 1));
     }
 
@@ -248,7 +247,7 @@ public class GameStatesTest {
     void onlyAFewGamesAreRemembered() throws Exception {
         for (int i = 0; i < GameStates.MAX_GAMES + 3; i++) {
             ClientCallback callback = new ClientCallback(ClientCallbackMethod.GAME_UPDATE, UUID.randomUUID(), view(1, 20, "Forest"));
-            handler.handleCallback(new Callback(callback));
+            handler.send(callback);
         }
         assertThat(states.size()).isEqualTo(GameStates.MAX_GAMES);
         states.newSession();
@@ -259,8 +258,8 @@ public class GameStatesTest {
     void clientsWithoutPatchesGetTheSameMessagesAsBefore() throws Exception {
         states.setEnabled(false);
         ClientCallback callback = new ClientCallback(ClientCallbackMethod.GAME_UPDATE, gameId, view(1, 20, "Forest"));
-        handler.handleCallback(new Callback(callback));
-        handler.handleCallback(new Callback(callback));
+        handler.send(callback);
+        handler.send(callback);
         assertThat(sent).hasSize(2);
         assertThat(sent.get(1)).isEqualTo(WebSocketCallbackHandler.serialize(callback)).doesNotContain("\"state\"");
         assertThat(states.size()).isZero();

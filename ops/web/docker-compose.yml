@@ -45,7 +45,8 @@ services:
       XMAGE_SERVER_NAME: ${XMAGE_SERVER_NAME:-}
       XMAGE_SERVER_ADDRESS: ${XMAGE_SERVER_ADDRESS:-}
       XMAGE_PORT: ${XMAGE_PORT:-}
-      XMAGE_DESKTOP: ${XMAGE_DESKTOP:-}
+      # on: the Rust gateway in front of the bridge (17180); the web service's XMAGE_GATEWAY sends /ws to it
+      XMAGE_GATEWAY: ${XMAGE_GATEWAY:-off}
       XMAGE_MONTE_CARLO: ${XMAGE_MONTE_CARLO:-}
       XMAGE_AI_THREADS: ${XMAGE_AI_THREADS:-}
       XMAGE_AI_NODE_SCALE: ${XMAGE_AI_NODE_SCALE:-}
@@ -110,6 +111,8 @@ services:
       # https: Caddy owns 80/443 and the certificates. external: plain HTTP on port 80 for your own reverse proxy
       # (docker-compose.proxy.yml, README "Behind your own reverse proxy")
       TLS_MODE: ${TLS_MODE:-https}
+      # on: /ws goes to the Rust gateway (falls back to the bridge while it doesn't answer)
+      XMAGE_GATEWAY: ${XMAGE_GATEWAY:-off}
       # optional: the host's LAN address, served too (with its own certificate) for devices that can't resolve DOMAIN
       LAN_IP: ${LAN_IP:-}
       TLS_DEFAULT_SNI: ${LAN_IP:-${DOMAIN}}

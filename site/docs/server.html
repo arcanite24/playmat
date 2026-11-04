@@ -96,7 +96,7 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d</code
         <ol>
           <li>Open your domain and register the account named in <code>XMAGE_OWNER</code>. Until you do, the sign-in
             screen says the owner account doesn't exist yet. <code>XMAGE_ADMIN_PASSWORD</code> doesn't sign you in to
-            the site; it only opens the desktop admin console.</li>
+            the site; it only opens the admin console's own password sign-in.</li>
           <li>Find <strong>Admin</strong> in the account menu. Its Overview shows the server's load, and <strong>Updates</strong> says whether it's up to date.</li>
           <li>To update from there with one button later, <a href="updates.html#button">turn on the updater</a>.</li>
         </ol>
@@ -150,6 +150,16 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           too; otherwise card lookups stay on Scryfall, cached for a day. The full list of what the mirror has to serve is
           in <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#your-own-scryfall-mirror">the
           README</a>.</p>
+        <h3 id="gateway">What is <code>XMAGE_GATEWAY</code>?</h3>
+        <p>The game server is being rewritten in Rust a piece at a time. The first piece is a small gateway that sits
+          in front of the Java server and takes the game connections. It sends players the same messages but makes the
+          game-state updates itself, which takes work off Java. <code>XMAGE_GATEWAY=on</code> in <code>.env</code>
+          turns it on, then run <code>up -d</code>. If the gateway stops, Caddy sends players straight to the Java
+          server until it's back. It's <code>off</code> by default while it's new. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
+        <h3 id="desktop">Can the XMage desktop client connect?</h3>
+        <p>No. Playmat servers speak only to the web client (and the Android and desktop apps, which are the web client).
+          The desktop client's protocol was removed to make the move to Rust possible.</p>
         <h3 id="new-cards">A new set is out. How do I get its cards?</h3>
         <p>See <a href="updates.html#new-cards">New cards and sets</a>.</p>
         <h3 id="official">Where do the official images come from?</h3>

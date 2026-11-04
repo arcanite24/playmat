@@ -6,7 +6,7 @@ import mage.server.TrustedHeaderAuth;
 import mage.server.User;
 import mage.server.managers.ManagerFactory;
 import mage.server.websocket.rpc.RpcSessions;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -23,8 +23,8 @@ final class ServerRpcSessions implements RpcSessions {
     }
 
     @Override
-    public void create(String sessionId, InvokerCallbackHandler callbackHandler, String host) {
-        managers.sessionManager().createSession(sessionId, callbackHandler);
+    public void create(String sessionId, ClientChannel channel, String host) {
+        managers.sessionManager().createSession(sessionId, channel);
         // anonymous users are identified by host on reconnect, like desktop clients
         managers.sessionManager().getSession(sessionId).ifPresent(session -> session.setHost(host));
     }

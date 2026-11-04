@@ -182,7 +182,7 @@ public final class Main {
                 webServer.start();
                 webStarted = true;
             }
-            for (int port : new int[]{GameServer.BRIDGE_PORT, GameServer.DESKTOP_PORT}) {
+            for (int port : new int[]{GameServer.BRIDGE_PORT}) {
                 if (!Network.isFree(port)) {
                     ui.failed("Port " + port + " is in use",
                             "Another game server (Playmat or XMage) seems to be running on this computer. "

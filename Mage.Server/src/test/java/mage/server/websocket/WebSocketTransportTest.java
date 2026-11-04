@@ -14,7 +14,7 @@ import org.java_websocket.drafts.Draft;
 import org.java_websocket.drafts.Draft_6455;
 import org.java_websocket.extensions.permessage_deflate.PerMessageDeflateExtension;
 import org.java_websocket.handshake.ServerHandshake;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -248,7 +248,7 @@ public class WebSocketTransportTest {
         }
 
         @Override
-        public void create(String sessionId, InvokerCallbackHandler callbackHandler, String host) {
+        public void create(String sessionId, ClientChannel channel, String host) {
             live.add(sessionId);
         }
 

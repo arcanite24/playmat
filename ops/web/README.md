@@ -169,16 +169,12 @@ Set these in `ops/web/.env` (Compose reads it automatically) or in the environme
 | `XMAGE_MAX_GAME_THREADS` | `4` | `maxGameThreads`: games that run at the same time. |
 | `XMAGE_MAX_AI_OPPONENTS` | `4` | `maxAiOpponents`: AI players in use at once (draft bots don't count). |
 | `XMAGE_MAX_SECONDS_IDLE` | `600` (shipped) | `maxSecondsIdle`: an idle player concedes after this many seconds. |
-| `XMAGE_MAX_POOL_SIZE` | `300` (shipped) | `maxPoolSize`: desktop-protocol worker threads. |
-| `XMAGE_SERVER_NAME` | `mage-server` | `serverName`, shown to desktop clients. |
-| `XMAGE_SERVER_ADDRESS` | `0.0.0.0` | `serverAddress`. Only matters for desktop clients. |
-| `XMAGE_PORT` | `17171` | `port`: the desktop client port. It isn't published by default. |
+| `XMAGE_SERVER_NAME` | `mage-server` | `serverName`. |
 | `XMAGE_MONTE_CARLO` | `true` | `false` takes the Monte Carlo AI off the server (and out of the web client's AI choices). It keeps every core busy for its whole think time. |
 | `XMAGE_AI_THREADS` | `5`, or the CPUs when fewer | AI searches running at once for all AI players (`-Dxmage.ai.threads`). A search waiting for a thread doesn't lose think time. |
 | `XMAGE_AI_NODE_SCALE` | `1` | Scales every AI skill's search budget (`-Dxmage.ai.nodeScale`), e.g. `0.5` on a slow server: faster turns, slightly weaker play. |
 | `XMAGE_DB_CACHE` | an eighth of the heap, 16–150 MB | Card database cache in MB (`-Dxmage.db.cacheSizeKB`). It lives in the heap. |
-| `XMAGE_DESKTOP` | `true` | `false` leaves the desktop protocol off (`-Dxmage.remoting=false`): web clients only, with fewer threads and less memory. |
-| `XMAGE_SECONDARY_PORT` | `-1` (shipped) | `secondaryBindPort` for the desktop protocol. |
+| `XMAGE_GATEWAY` | `off` | `on` runs the Rust gateway in front of the bridge and sends game connections through it. Set it in `.env`: both the server and Caddy read it. See [Rust gateway](#rust-gateway). |
 | `XMAGE_TRUSTED_PROXIES` | `CADDY_IP` | IPs and CIDR ranges, comma separated, whose `X-Forwarded-For` / `X-Real-IP` the bridge believes (`-Dxmage.web.trustedProxies`). The default is Caddy's fixed address on the Compose network, so no other container can claim a client address. Without it, every player appears to come from Caddy's address, and per-address login limits would hit everyone at once. |
 | `XMAGE_SUBNET` | `10.89.17.0/24` | Subnet of the stack's Compose network. Change it if it overlaps another Docker network on the host (`docker network inspect`). |
 | `CADDY_IP` | `10.89.17.10` | Caddy's fixed address inside `XMAGE_SUBNET`. |
@@ -227,6 +223,27 @@ Secrets can also come from files: `XMAGE_ADMIN_PASSWORD_FILE`, `XMAGE_MAIL_PASSW
 Invalid values (for example `XMAGE_AUTH=yes`) stop the server at start with a message that names the variable.
 
 **Why these defaults.** They target a small box, 2 vCPU and 2–4 GB RAM. Every running game and every AI opponent takes CPU, and AI turns can spike it, so 4 games and 4 AI players at once keep the server responsive. The heap follows the machine's memory on its own. Raise the game and AI limits on bigger hardware.
+
+### Rust gateway
+
+The server is moving to Rust a piece at a time ([docs/RustMigration.md](../../docs/RustMigration.md)). The first
+piece is a gateway that takes the browsers' game connections in front of the Java bridge. It makes the game-state
+patches itself, so Java no longer has to, and it can later send each kind of call to Rust or to Java.
+
+`XMAGE_GATEWAY=on` in `.env` turns it on. The server container then also runs `playmat-gateway` on port 17180, and
+Caddy sends `/ws` there. If the gateway stops answering, Caddy sends new connections straight to the bridge for 30 s
+and the container restarts the gateway. `off`, the default, leaves things as they were.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `XMAGE_GATEWAY_STATE_DIFFS` | `true` | `false` lets Java make the state patches again. |
+| `XMAGE_GATEWAY_MAX_OUTGOING_BYTES` | `16777216` | Bytes waiting for one slow client before it is disconnected. |
+| `XMAGE_ROUTES_FILE`, `XMAGE_ROUTE_DEFAULT`, `XMAGE_ROUTE_<GROUP>` | every group `java` | Where each group of calls goes: `java`, `rust` or `shadow` (both, Java answers, differences counted). Nothing is served by Rust yet. |
+| `XMAGE_GATEWAY_LOG` | `info` | Log level, e.g. `debug`. |
+
+The gateway trusts `X-Forwarded-For` from `XMAGE_TRUSTED_PROXIES` only, and passes the bridge nothing else that
+sets who a client is. Its counters (connections, calls by route, patches and the bytes they saved) are at `/metrics` on
+port 17180, which only the Compose network reaches. `docker compose exec xmage playmat-gateway health` checks it.
 
 ### Small VPS (1 vCPU, 1 GB)
 
@@ -314,7 +331,7 @@ Accounts:
 - Existing accounts keep everything when the sign-on names match. Playmat has no rename, so change the name on the sign-on side where they differ. Start with `XMAGE_PASSWORD_SIGNIN=true` (both work), then turn passwords off once everyone has signed in once.
 - Turning single sign-on off later: the accounts it made have no known password. Players add an email in Settings, Account and reset it, or staff make a reset code in the console.
 
-With `XMAGE_PASSWORD_SIGNIN=false`, every account login needs the header: passwords, remembered devices and restore tokens alone are refused, and so are the desktop client's logins (port 17171). The admin password (`XMAGE_ADMIN_PASSWORD`) still opens the console.
+With `XMAGE_PASSWORD_SIGNIN=false`, every account login needs the header: passwords, remembered devices and restore tokens alone are refused. The admin password (`XMAGE_ADMIN_PASSWORD`) still opens the console.
 
 **Check it.** From a machine that reaches Playmat without the proxy, send the header and ask who you are; the answer must have no `signOn`:
 
@@ -835,7 +852,6 @@ Add the page origin to `websocketAllowedOrigins` in `config.xml` on the `<server
 ## Security notes
 
 - Leave port 17172 unpublished. The bridge expects the proxy in front of it, for TLS, the origin check and the client address.
-- Only publish 17171 (the desktop client's port) if desktop players should join the same server.
 - Set `XMAGE_AUTH=true` on a public server, so names need passwords. Configure mail too, so players can reset their passwords.
 - Caddy sends a `Content-Security-Policy`: scripts only from the site itself, styles from the site plus inline
   styles (React), pictures from the site, `data:`/`blob:` and Scryfall (a client built without the image proxy loads

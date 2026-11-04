@@ -52,7 +52,7 @@ install, so no administrator prompt).
 - **Updates**: it asks GitHub for the latest release once per start and shows a link when there's a newer one.
 - `--headless` runs without a window (status on the console, Ctrl+C stops); `--no-browser` doesn't open the browser.
 
-Ports: 17170 (web client), 17171 (desktop client protocol), 17172 (WebSocket bridge), 17173 (health, loopback only).
+Ports: 17170 (web client), 17172 (WebSocket bridge), 17173 (health, loopback only).
 
 ## Building
 

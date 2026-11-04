@@ -18,6 +18,11 @@ fn same_patches_as_the_java_bridge() {
         let expected_written = if expected.is_null() { None } else { Some(serde_json::to_string(expected).unwrap()) };
         assert_eq!(written, expected_written, "patch {i}");
         let applied = playmat_statediff::apply(Some(&views[i]), patch.as_ref()).unwrap();
-        assert_eq!(serde_json::to_string(&applied).unwrap(), serde_json::to_string(&views[i + 1]).unwrap(), "view {}", i + 1);
+        assert_eq!(
+            serde_json::to_string(&applied).unwrap(),
+            serde_json::to_string(&views[i + 1]).unwrap(),
+            "view {}",
+            i + 1
+        );
     }
 }

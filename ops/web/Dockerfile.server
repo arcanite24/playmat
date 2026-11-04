@@ -1,4 +1,4 @@
-# XMage server with the web bridge (WebSocket JSON-RPC on 17172).
+# XMage server with the web bridge (WebSocket JSON-RPC on 17172), and the Rust gateway in front of it (17180).
 # Build context: the repository root.  docker build -f ops/web/Dockerfile.server .
 # The same image runs the nightly backup service (entrypoint xmage-backup).
 # The server is built with JDK 17 (for Java 8 bytecode) and runs on JAVA_RUNTIME, 17 by default. 25 also works
@@ -35,6 +35,15 @@ RUN ref=$(sed -n 's/^ref: //p' .git/HEAD 2>/dev/null); \
       elif [ -n "$ref" ]; then grep " $ref\$" .git/packed-refs | cut -d' ' -f1; \
       else cat .git/HEAD; fi; } > /opt/xmage/.commit 2>/dev/null || true
 
+# The Rust gateway (rust/, docs/RustMigration.md phase 1): off unless XMAGE_GATEWAY=on. Built for the target
+# architecture (emulated for a cross build, a few minutes: it is one small binary).
+FROM rust:1.94-slim-bookworm AS gateway
+WORKDIR /src
+COPY rust/ .
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    cargo build --release --locked -p playmat-gateway \
+ && cp target/release/playmat-gateway /usr/local/bin/playmat-gateway
+
 FROM eclipse-temurin:${JAVA_RUNTIME}-jre
 ARG JAVA_RUNTIME
 ENV XMAGE_JAVA_RUNTIME=${JAVA_RUNTIME}
@@ -44,6 +53,7 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/xmage
 COPY --from=build /opt/xmage /opt/xmage
+COPY --from=gateway /usr/local/bin/playmat-gateway /usr/local/bin/playmat-gateway
 COPY ops/web/server-entrypoint.sh /usr/local/bin/xmage-server
 COPY ops/web/backup.sh /usr/local/bin/xmage-backup
 COPY ops/web/log4j-docker.properties /opt/xmage/config/log4j-docker.properties
@@ -79,8 +89,8 @@ ENV XMAGE_IMAGE_VERSION=${PLAYMAT_VERSION} \
     XMAGE_IMAGE_NAMES=${PLAYMAT_IMAGES} \
     XMAGE_SOURCE_REPO=${PLAYMAT_REPO}
 USER xmage
-# 17172: web clients (behind the proxy). 17171 is the desktop client's port; publish it only if you want desktop players.
-EXPOSE 17172
+# 17172: web clients (behind the proxy). 17180: the same through the Rust gateway, when XMAGE_GATEWAY=on.
+EXPOSE 17172 17180
 # db: user data. cards-db: card database cache. logs: mageserver.log. saved: saved games.
 VOLUME ["/opt/xmage/db", "/opt/xmage/cards-db", "/opt/xmage/logs", "/opt/xmage/saved"]
 ENTRYPOINT ["xmage-server"]

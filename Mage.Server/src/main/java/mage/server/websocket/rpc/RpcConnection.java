@@ -1,6 +1,6 @@
 package mage.server.websocket.rpc;
 
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 
 import java.util.Collections;
 import java.util.List;
@@ -45,7 +45,7 @@ public interface RpcConnection {
     /**
      * @return a callback handler that pushes server events to this connection
      */
-    InvokerCallbackHandler createCallbackHandler();
+    ClientChannel createChannel();
 
     /**
      * The player answered the open question of a game (see {@link #resendPrompt}).

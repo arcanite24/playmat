@@ -276,12 +276,18 @@ mod tests {
 
     #[test]
     fn removed_and_added_keys() {
-        assert_eq!(round_trip(json!({"a": 1, "b": 2}), json!({"a": 1, "c": null})), Some(json!({"b": [], "c": [null]})));
+        assert_eq!(
+            round_trip(json!({"a": 1, "b": 2}), json!({"a": 1, "c": null})),
+            Some(json!({"b": [], "c": [null]}))
+        );
     }
 
     #[test]
     fn reordered_keys() {
-        assert_eq!(round_trip(json!({"a": 1, "b": 2}), json!({"b": 2, "a": 5})), Some(json!(["o", {"b": 0, "a": [5]}])));
+        assert_eq!(
+            round_trip(json!({"a": 1, "b": 2}), json!({"b": 2, "a": 5})),
+            Some(json!(["o", {"b": 0, "a": [5]}]))
+        );
     }
 
     #[test]

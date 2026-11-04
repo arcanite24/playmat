@@ -98,7 +98,7 @@ The parsing and matching live in `src/core/deckImport` (pure, unit tested); the 
 
 ```bash
 npm install
-npm run dev:all   # builds and starts the Mage server (HTTP 17171, WebSocket 17172) and Vite
+npm run dev:all   # builds and starts the Mage server (WebSocket 17172) and Vite
 ```
 
 - New app: http://localhost:5173/

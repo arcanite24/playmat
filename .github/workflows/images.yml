@@ -21,6 +21,8 @@ on:
       - "Mage.Server.Plugins/**"
       - "Mage.Plugins/**"
       - "Mage.Web.Client/**"
+      # the Rust gateway, built into the server image
+      - "rust/**"
       - "ops/web/Dockerfile.*"
       - "ops/web/Caddyfile"
       - "ops/web/*.caddy"

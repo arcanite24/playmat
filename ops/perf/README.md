@@ -28,6 +28,8 @@ The harness uses ports 18171–18173, so it can run next to a dev server on 1717
 |---|---|---|
 | `PERF_JVM` | `-Xmx2g` | JVM flags for the server, e.g. `"-Xmx384m -XX:+UseSerialGC -XX:ActiveProcessorCount=1"` |
 | `PERF_SERVER_OPTS` | | Extra `-D` properties, e.g. `-Dxmage.replays=false` |
+| `PERF_BACKEND` | `java` | `gateway` puts the Rust gateway (`rust/target/release/playmat-gateway`, or `PERF_GATEWAY_BIN`) on port 18180 in front of the bridge, and the bots connect through it. The summary adds `gatewayCpuSecPerGame` and `gatewayRssMB`, and `gateway-metrics.txt` holds its counters |
+| `PERF_DECK_SUITE` | | `ai` scenario: a fixed set of real decks, `Mage.Server/career-src/<suite>/*.txt`, e.g. `pauper` (the Rust engine's first pool). `MAGE_PERF_DECKS` wins when both are set |
 | `PERF_JFR` | `1` | `0` skips the JFR recording (it costs a few percent) |
 | `PERF_RUNS`, `PERF_COLD` | `3`, `0` | `startup`: number of starts; `1` deletes the card database before each start |
 | `PERF_IDLE_SEC` | `60` | `idle`: how long idle CPU is measured |
@@ -89,7 +91,7 @@ PERF_JVM="-Xmx400m -XX:+UseSerialGC -XX:ActiveProcessorCount=1 -XX:SharedArchive
 
 ### M17: the web bridge and replays (12 Oct 2026)
 
-State patches diff the trees the bridge already built (the last state is kept as a tree, so nothing is parsed back), and a patch goes out without writing the complete message unless it's a close call; prompts are written out only if they're sent again. Diffing and writing happen on a per-connection sender instead of the game thread. Replay snapshots are skipped while a cheap change key stays the same and are written straight to text. Decks that only name their cards reuse each name's preferred printing. `-Dxmage.remoting=false` (`XMAGE_DESKTOP=false`) leaves the desktop protocol off.
+State patches diff the trees the bridge already built (the last state is kept as a tree, so nothing is parsed back), and a patch goes out without writing the complete message unless it's a close call; prompts are written out only if they're sent again. Diffing and writing happen on a per-connection sender instead of the game thread. Replay snapshots are skipped while a cheap change key stays the same and are written straight to text. Decks that only name their cards reuse each name's preferred printing. Leaving the desktop protocol off (`-Dxmage.remoting=false`) saved threads and memory; it has since been removed.
 
 | Measure (`-Xmx2g`) | Before | After |
 |---|---|---|
