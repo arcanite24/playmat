@@ -84,6 +84,7 @@ public final class CareerViewsExport {
         views.put("cosmetics", CareerCosmetics.get().items());
         views.put("opponents", opponents(CareerContent.get()));
         views.put("achievements", mage.server.career.CareerProgress.get().achievementExport());
+        views.put("starterCards", CareerService.get().starterCardsExport());
         views.put("styles", mage.server.career.CareerCapsules.get().styleExport());
         views.put("quests", new ArrayList<>(mage.server.career.CareerProgress.get().questTemplates().values()));
         File parent = file.getAbsoluteFile().getParentFile();

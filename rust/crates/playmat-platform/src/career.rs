@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 12] = [
+pub const CAREER_METHODS: [&str; 14] = [
     "careerCollection",
     "careerDeck",
     "careerGameResult",
@@ -22,7 +22,12 @@ pub const CAREER_METHODS: [&str; 12] = [
     "careerQuests",
     "careerEquipStyle",
     "careerCraft",
+    "careerStart",
+    "careerSaveDeck",
 ];
+
+/// `CareerRules.START_COINS`
+const START_COINS: i64 = 100;
 
 /// `CareerRules.PLAYSET`
 const PLAYSET: i64 = 4;
@@ -477,6 +482,108 @@ impl AdminStores {
                 achievements_in(db, &user, content, &templates, roster, crate::admin::now_millis()).await?;
                 Ok(profile(db, &user, content).await?.unwrap_or(Value::Null))
             }
+            "careerStart" => {
+                let (Some(content), Some(Value::String(starter))) = (&self.career_content, request.params.first())
+                else {
+                    return Err(Stop::Decline);
+                };
+                let Some(starters) = self.career_views.as_ref().and_then(|views| views.view("starterCards")) else {
+                    return Err(Stop::Decline);
+                };
+                let known = self.career_views.as_ref().and_then(|views| views.view("starters")).ok_or(Stop::Decline)?;
+                if !known.as_array().into_iter().flatten().any(|s| s["id"] == json!(starter)) {
+                    return Err(crate::admin::invalid(format!("There is no starter deck {starter}.")));
+                }
+                // a deck Java couldn't read isn't in the file: Java says why
+                let Some(cards) = starters[starter.as_str()].as_array() else { return Err(Stop::Decline) };
+                // progression made the profile with the account's first counted game; picking a starter opens the collection
+                let created =
+                    sqlx::query("INSERT OR IGNORE INTO profile (user, created, starter, coins) VALUES (?, ?, ?, ?)")
+                        .bind(&user)
+                        .bind(crate::admin::now_millis())
+                        .bind(starter)
+                        .bind(START_COINS)
+                        .execute(&mut *db)
+                        .await?
+                        .rows_affected()
+                        == 1;
+                let opened = created
+                    || sqlx::query("UPDATE profile SET starter = ?, coins = coins + ? WHERE user = ? AND starter = ''")
+                        .bind(starter)
+                        .bind(START_COINS)
+                        .bind(&user)
+                        .execute(&mut *db)
+                        .await?
+                        .rows_affected()
+                        == 1;
+                if !opened {
+                    return Err(crate::admin::invalid("You already have a Career."));
+                }
+                for card in cards {
+                    let text = |field: &str| card[field].as_str().ok_or(Stop::Decline);
+                    sqlx::query(
+                        "INSERT INTO cards (user, set_code, card_number, name, rarity, count) VALUES (?, ?, ?, ?, ?, ?) \
+                         ON CONFLICT (user, set_code, card_number) DO UPDATE SET count = count + excluded.count",
+                    )
+                    .bind(&user)
+                    .bind(text("setCode")?)
+                    .bind(text("cardNumber")?)
+                    .bind(text("name")?)
+                    .bind(text("rarity")?)
+                    .bind(card["amount"].as_i64().ok_or(Stop::Decline)?)
+                    .execute(&mut *db)
+                    .await?;
+                }
+                Ok(profile(db, &user, content).await?.unwrap_or(Value::Null))
+            }
+            "careerSaveDeck" => {
+                let Some(deck) = request.params.first().and_then(gson_deck) else { return Err(Stop::Decline) };
+                let starter: Option<String> = sqlx::query_scalar("SELECT starter FROM profile WHERE user = ?")
+                    .bind(&user)
+                    .fetch_optional(&mut *db)
+                    .await?;
+                if starter.is_none_or(|starter| starter.is_empty()) {
+                    return Err(crate::admin::invalid("Open your Career collection first."));
+                }
+                // `ownershipProblems`: copies by name, main deck and sideboard together, basics free
+                let mut needed: Vec<(String, i64)> = Vec::new();
+                for info in deck["cards"].as_array().into_iter().chain(deck["sideboard"].as_array()).flatten() {
+                    let name = info["cardName"].as_str().ok_or(Stop::Decline)?;
+                    if BASIC_NAMES.contains(&name) {
+                        continue;
+                    }
+                    let amount = info["amount"].as_i64().unwrap_or(0);
+                    match needed.iter_mut().find(|(n, _)| n == name) {
+                        Some((_, total)) => *total += amount,
+                        None => needed.push((name.to_owned(), amount)),
+                    }
+                }
+                let mut problems = Vec::new();
+                for (name, amount) in &needed {
+                    let owned: i64 =
+                        sqlx::query_scalar("SELECT COALESCE(SUM(count), 0) FROM cards WHERE user = ? AND name = ?")
+                            .bind(&user)
+                            .bind(name)
+                            .fetch_one(&mut *db)
+                            .await?;
+                    if owned < *amount {
+                        problems.push(format!("{name}: {amount} in the deck, {owned} owned"));
+                    }
+                }
+                if !problems.is_empty() {
+                    return Err(crate::admin::invalid(format!(
+                        "The deck has cards you don't own: {}.",
+                        problems.join("; ")
+                    )));
+                }
+                sqlx::query("INSERT OR REPLACE INTO decks (user, deck, updated) VALUES (?, ?, ?)")
+                    .bind(&user)
+                    .bind(deck.to_string())
+                    .bind(crate::admin::now_millis())
+                    .execute(&mut *db)
+                    .await?;
+                Ok(json!(true))
+            }
             "careerLevels" => {
                 let Some(content) = &self.career_content else { return Err(Stop::Decline) };
                 let Some(view) = profile(db, &user, content).await? else { return Ok(Value::Null) };
@@ -589,6 +696,79 @@ fn utc_day_and_week(millis: i64) -> (String, String) {
     let (iso_year, _, _) = crate::support::civil(thursday);
     let week = (thursday - crate::support::days_from_civil(iso_year, 1, 1)) / 7 + 1;
     (format!("{year:04}-{month:02}-{day:02}"), format!("{iso_year}-W{week:02}"))
+}
+
+/// A `DeckCardLists` as Gson reads it and writes it back: its fields in order, unknown ones dropped, nulls left out.
+/// None for anything Gson would read differently (a field of another type, an explicit null list), left to Java.
+fn gson_deck(deck: &Value) -> Option<Value> {
+    let deck = deck.as_object()?;
+    let text =
+        |object: &serde_json::Map<String, Value>, field: &str, out: &mut serde_json::Map<String, Value>| match object
+            .get(field)
+        {
+            None | Some(Value::Null) => Some(()),
+            Some(Value::String(text)) => {
+                out.insert(field.into(), json!(text));
+                Some(())
+            }
+            Some(_) => None,
+        };
+    let info = |value: &Value| -> Option<Value> {
+        let object = value.as_object()?;
+        let mut out = serde_json::Map::new();
+        for field in ["cardName", "setCode", "cardNumber"] {
+            text(object, field, &mut out)?;
+        }
+        let amount = match object.get("amount") {
+            None | Some(Value::Null) => 0,
+            Some(value) => value.as_i64().filter(|a| i32::try_from(*a).is_ok())?,
+        };
+        out.insert("amount".into(), json!(amount));
+        Some(Value::Object(out))
+    };
+    let list = |field: &str| -> Option<Value> {
+        match deck.get(field) {
+            None => Some(json!([])),
+            Some(Value::Array(items)) => items.iter().map(info).collect::<Option<Vec<_>>>().map(Value::Array),
+            Some(_) => None,
+        }
+    };
+    let layout = |field: &str, out: &mut serde_json::Map<String, Value>| -> Option<()> {
+        match deck.get(field) {
+            None | Some(Value::Null) => Some(()),
+            Some(Value::Object(layout)) => {
+                let mut copy = serde_json::Map::new();
+                if let Some(rows) = layout.get("cards").filter(|rows| !rows.is_null()) {
+                    let rows = rows.as_array()?;
+                    let mut grid = Vec::new();
+                    for row in rows {
+                        let mut columns = Vec::new();
+                        for column in row.as_array()? {
+                            columns
+                                .push(Value::Array(column.as_array()?.iter().map(info).collect::<Option<Vec<_>>>()?));
+                        }
+                        grid.push(Value::Array(columns));
+                    }
+                    copy.insert("cards".into(), Value::Array(grid));
+                }
+                text(layout, "settings", &mut copy)?;
+                out.insert(field.into(), Value::Object(copy));
+                Some(())
+            }
+            Some(_) => None,
+        }
+    };
+    let mut out = serde_json::Map::new();
+    text(deck, "name", &mut out)?;
+    text(deck, "author", &mut out)?;
+    out.insert("cards".into(), list("cards")?);
+    out.insert("sideboard".into(), list("sideboard")?);
+    layout("cardLayout", &mut out)?;
+    layout("sideboardLayout", &mut out)?;
+    // a card without a name is counted under null by Java: left to it
+    let named =
+        |field: &str| out[field].as_array().is_some_and(|cards| cards.iter().all(|c| c["cardName"].is_string()));
+    (named("cards") && named("sideboard")).then_some(Value::Object(out))
 }
 
 /// `CareerStore.addStat`
@@ -1209,6 +1389,93 @@ mod tests {
         assert_eq!(refused("m21", "159").await, "Shock costs 25 coins to craft; you have 10.");
         sqlx::query("UPDATE cards SET count = 4 WHERE name = 'Shock'").execute(&mut db).await.unwrap();
         assert_eq!(refused("m21", "159").await, "You already have 4 copies of Shock.");
+    }
+
+    #[tokio::test]
+    async fn start_and_save_a_deck() {
+        let dir = std::env::temp_dir().join(format!("playmat-start-{}", uuid::Uuid::new_v4()));
+        let mut stores = AdminStores::open(&dir.join("web_admin.db"), None, "").await.unwrap();
+        let mut db = SqliteConnectOptions::new()
+            .filename(dir.join("career.db"))
+            .create_if_missing(true)
+            .connect()
+            .await
+            .unwrap();
+        for sql in [
+            "CREATE TABLE cards (user TEXT NOT NULL, set_code TEXT NOT NULL, card_number TEXT NOT NULL, name TEXT NOT NULL, \
+             rarity TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY (user, set_code, card_number))",
+            "CREATE TABLE profile (user TEXT PRIMARY KEY, created INTEGER NOT NULL, starter TEXT NOT NULL, \
+             coins INTEGER NOT NULL DEFAULT 0, xp INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0, \
+             losses INTEGER NOT NULL DEFAULT 0, wc_common INTEGER NOT NULL DEFAULT 0, wc_uncommon INTEGER NOT NULL DEFAULT 0, \
+             wc_rare INTEGER NOT NULL DEFAULT 0, wc_mythic INTEGER NOT NULL DEFAULT 0, pack_tokens INTEGER NOT NULL DEFAULT 0, \
+             show_progress INTEGER NOT NULL DEFAULT 1, capsule_tokens INTEGER NOT NULL DEFAULT 0)",
+            "CREATE TABLE decks (user TEXT PRIMARY KEY, deck TEXT NOT NULL, updated INTEGER NOT NULL)",
+            "CREATE TABLE unlocks (user TEXT NOT NULL, kind TEXT NOT NULL, item TEXT NOT NULL, at INTEGER NOT NULL)",
+            // progression made a profile, without a collection
+            "INSERT INTO profile (user, created, starter, coins) VALUES ('neri', 1, '', 7)",
+        ] {
+            sqlx::query(sql).execute(&mut db).await.unwrap();
+        }
+        let mut admin = SqliteConnectOptions::new().filename(dir.join("web_admin.db")).connect().await.unwrap();
+        sqlx::query("CREATE TABLE IF NOT EXISTS `admin_setting` (`name` VARCHAR , `value` VARCHAR , `changedBy` VARCHAR , `changedAt` BIGINT , PRIMARY KEY (`name`) )")
+            .execute(&mut admin)
+            .await
+            .unwrap();
+        stores.add_career(&dir.join("career.db"), Some(&content_dir())).await.unwrap();
+        let views = dir.join("career-views.json");
+        std::fs::write(
+            &views,
+            json!({
+                "starters": [{"id": "red"}, {"id": "broken"}],
+                "starterCards": {"red": [
+                    {"name": "Shock", "setCode": "M21", "cardNumber": "159", "rarity": "common", "amount": 4},
+                    {"name": "Fire Elemental", "setCode": "M21", "cardNumber": "141", "rarity": "common", "amount": 2},
+                ]},
+            })
+            .to_string(),
+        )
+        .unwrap();
+        stores.add_career_views(&views);
+        let neri =
+            Caller { user: Some("Neri".into()), admin: false, account: true, ip: "127.0.0.1".into(), connection: 1 };
+        let outcome = async |method: &str, params: Value| stores.call(&neri, &request(method, params), true).await;
+        let refused = async |method: &str, params: Value| match outcome(method, params).await {
+            Outcome::Error { message, .. } => message,
+            other => panic!("{other:?}"),
+        };
+        let deck = json!({"name": "Burn", "extra": 1, "cards": [
+            {"cardName": "Shock", "setCode": "M21", "cardNumber": "159", "amount": 3},
+            {"cardName": "Mountain", "amount": 12},
+        ], "sideboard": [{"cardName": "Shock", "amount": 2}]});
+        assert_eq!(refused("careerSaveDeck", json!([deck])).await, "Open your Career collection first.");
+        assert_eq!(refused("careerStart", json!(["blue"])).await, "There is no starter deck blue.");
+        assert!(matches!(outcome("careerStart", json!(["broken"])).await, Outcome::Declined));
+        let Outcome::Result(profile) = outcome("careerStart", json!(["red"])).await else { panic!() };
+        assert_eq!(
+            (profile["starter"].clone(), profile["coins"].clone(), profile["cards"].clone()),
+            (json!("red"), json!(107), json!(6))
+        );
+        assert_eq!(refused("careerStart", json!(["red"])).await, "You already have a Career.");
+        // five Shocks across deck and sideboard, four owned; the Mountains are free
+        assert_eq!(
+            refused("careerSaveDeck", json!([deck])).await,
+            "The deck has cards you don't own: Shock: 5 in the deck, 4 owned."
+        );
+        let mut fits = deck.clone();
+        fits["sideboard"] = json!([{"cardName": "Fire Elemental", "amount": 1}]);
+        let Outcome::Result(saved) = outcome("careerSaveDeck", json!([fits])).await else { panic!() };
+        assert_eq!(saved, json!(true));
+        let stored: String =
+            sqlx::query_scalar("SELECT deck FROM decks WHERE user = 'neri'").fetch_one(&mut db).await.unwrap();
+        // as Gson writes the class back: unknown fields gone, every card with its amount
+        assert_eq!(
+            serde_json::from_str::<Value>(&stored).unwrap(),
+            json!({"name": "Burn", "cards": [
+                {"cardName": "Shock", "setCode": "M21", "cardNumber": "159", "amount": 3},
+                {"cardName": "Mountain", "amount": 12},
+            ], "sideboard": [{"cardName": "Fire Elemental", "amount": 1}]})
+        );
+        assert!(matches!(outcome("careerSaveDeck", json!([{"cards": [{"amount": 1}]}])).await, Outcome::Declined));
     }
 
     fn content_dir() -> std::path::PathBuf {
