@@ -43,6 +43,26 @@ An entry is skipped when its hash equals the previous entry's, so passing priori
 
 The game's own random numbers come from `GameRandom` (seeded by `GameOptions.seed`), and the AI's from the thread's generator (`RandomUtil.withRandom`). `GameTraceTest` plays the same seeded AI game twice and checks the traces match, and that another seed gives another trace. A second engine reproduces a Java trace when it has the same seed, the same shuffle (`GameRandom` is `java.util.Random`'s algorithm) and the same decisions.
 
+## Decision logs
+
+`GameOptions.decisions` keeps every answer a human player gives (`DecisionLog.recording()`), or gives recorded answers
+back instead of waiting for the client (`DecisionLog.replaying(...)`). Together with the decks and the seed, a log is a
+whole game. An answer is what the client sent: an object, a yes or no, a number, a text, or a mana type. Object ids
+change from game to game, so the log names an object by where it is when the answer is given:
+
+| Reference | Object |
+|---|---|
+| `P1` | seat 1's player |
+| `H0.3`, `L0.3`, `G0.3` | the fourth card in seat 0's hand, library or graveyard |
+| `B5`, `S0`, `E2`, `M0` | the sixth permanent, the top of the stack, an exiled card, a command zone object |
+| `X0`, `T1.0` | a special action, a triggered ability waiting for seat 1 to order it |
+| `B5a2`, `H0.3a0m1`, `S0s` | an ability of that object, a mode of that ability, a stack object's ability |
+
+A replay stops, with the reason in `DecisionLog.getFailure()`, when the next answer is another seat's or names an object
+that isn't there. `DecisionLogTest` plays a 14-turn game between two human players answered by a seeded driver
+through the client's own calls (lands, creatures, burn at players and creatures, pump spells, attacks, blocks, mana
+payment), then replays the log twice with no driver: both replays use every answer and give the recorded trace.
+
 ## Changing the format
 
 Change the Java class, this page and the Rust implementation together, and bump `StateFingerprint.VERSION` (the first line of the text), so traces from two versions are never compared.

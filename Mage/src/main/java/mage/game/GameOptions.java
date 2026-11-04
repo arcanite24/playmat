@@ -95,6 +95,12 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
      */
     public transient mage.game.trace.GameTrace trace = null;
 
+    /**
+     * Keeps every human player's answer, or gives recorded answers back instead of waiting for them (see
+     * {@link mage.game.trace.DecisionLog}); null for neither. Not part of a saved game.
+     */
+    public transient mage.game.trace.DecisionLog decisions = null;
+
     // PLANECHASE game mode
     public boolean planeChase = false;
     // xmage uses increased by 1/3 chances (2/2/9) for chaos/planar result, see 1a9f12f5767ce0beeed26a8ff5c8a8f9490c9c47
@@ -122,6 +128,7 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
         this.resumeFrom = options.resumeFrom;
         this.turnSnapshots = options.turnSnapshots;
         this.trace = options.trace;
+        this.decisions = options.decisions;
     }
 
     @Override

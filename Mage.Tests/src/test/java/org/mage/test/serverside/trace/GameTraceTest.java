@@ -126,7 +126,7 @@ public class GameTraceTest {
                 StandardCharsets.UTF_8);
     }
 
-    private static void seat(Game game, Match match, Player player, DeckCardLists list) throws Exception {
+    static void seat(Game game, Match match, Player player, DeckCardLists list) throws Exception {
         Deck deck = Deck.load(list, false, false);
         game.loadCards(deck.getCards(), player.getId());
         game.loadCards(deck.getSideboard(), player.getId());
@@ -134,7 +134,7 @@ public class GameTraceTest {
         match.addPlayer(player, deck);
     }
 
-    private static DeckCardLists deck(String creature, String land) {
+    static DeckCardLists deck(String creature, String land) {
         DeckCardLists list = new DeckCardLists();
         list.getCards().add(info(creature, 24));
         list.getCards().add(info(land, 24));
@@ -142,7 +142,7 @@ public class GameTraceTest {
         return list;
     }
 
-    private static DeckCardInfo info(String name, int amount) {
+    static DeckCardInfo info(String name, int amount) {
         CardInfo card = CardRepository.instance.findPreferredCoreExpansionCard(name);
         Assert.assertNotNull(name, card);
         return new DeckCardInfo(card.getName(), card.getCardNumber(), card.getSetCode(), amount);
