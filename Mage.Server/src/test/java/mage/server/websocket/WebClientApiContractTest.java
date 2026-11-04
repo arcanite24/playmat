@@ -14,7 +14,7 @@ import mage.server.websocket.rpc.RpcException;
 import mage.server.websocket.rpc.RpcMethod;
 import mage.server.websocket.rpc.RpcParam;
 import mage.server.websocket.rpc.RpcSessions;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
@@ -525,7 +525,7 @@ public class WebClientApiContractTest {
         }
 
         @Override
-        public InvokerCallbackHandler createCallbackHandler() {
+        public ClientChannel createChannel() {
             return null;
         }
     }
@@ -541,7 +541,7 @@ public class WebClientApiContractTest {
         boolean everyoneIsInEveryChat = true;
 
         @Override
-        public void create(String sessionId, InvokerCallbackHandler callbackHandler, String host) {
+        public void create(String sessionId, ClientChannel channel, String host) {
             created.add(sessionId);
             hosts.put(sessionId, host);
         }

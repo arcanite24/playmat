@@ -46,8 +46,9 @@ impl Config {
             .unwrap_or_else(|| "ws://127.0.0.1:17172".into())
             .parse()
             .map_err(|e| format!("XMAGE_GATEWAY_JAVA_URL: {e}"))?;
-        let trusted_proxies = parse_list(&var("XMAGE_GATEWAY_TRUSTED_PROXIES").unwrap_or_else(|| "127.0.0.1,::1".into()))
-            .map_err(|e| format!("XMAGE_GATEWAY_TRUSTED_PROXIES: {e}"))?;
+        let trusted_proxies =
+            parse_list(&var("XMAGE_GATEWAY_TRUSTED_PROXIES").unwrap_or_else(|| "127.0.0.1,::1".into()))
+                .map_err(|e| format!("XMAGE_GATEWAY_TRUSTED_PROXIES: {e}"))?;
         let max_outgoing_bytes = match var("XMAGE_GATEWAY_MAX_OUTGOING_BYTES") {
             None => 16 * 1024 * 1024,
             Some(v) => v.parse().map_err(|_| format!("XMAGE_GATEWAY_MAX_OUTGOING_BYTES: not a number: {v}"))?,

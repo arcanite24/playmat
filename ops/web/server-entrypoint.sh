@@ -129,9 +129,19 @@ REPLAY_MAX=${XMAGE_REPLAY_MAX:-300}
 is_uint "$REPLAY_MAX" || die "XMAGE_REPLAY_MAX must be a whole number (got '$REPLAY_MAX')"
 
 # --- desktop clients ---------------------------------------------------------------------------
-# The desktop protocol (JBoss Remoting on XMAGE_PORT) costs threads and memory; a web-only server can leave it off.
-DESKTOP=${XMAGE_DESKTOP:-true}
-is_bool "$DESKTOP" || die "XMAGE_DESKTOP must be true or false (got '$DESKTOP')"
+# The desktop protocol (JBoss Remoting) is gone (docs/RustMigration.md phase 1): web clients only.
+if [ "${XMAGE_DESKTOP:-}" = true ]; then
+  echo "xmage-server: XMAGE_DESKTOP=true is ignored: desktop clients are no longer supported"
+fi
+
+# --- Rust gateway ------------------------------------------------------------------------------
+# XMAGE_GATEWAY=on runs the gateway (rust/, docs/RustMigration.md) on 17180 in front of the bridge; Caddy sends /ws
+# there when its own XMAGE_GATEWAY is on, and straight to 17172 when the gateway doesn't answer.
+GATEWAY=${XMAGE_GATEWAY:-off}
+case "$GATEWAY" in
+  on|off) ;;
+  *) die "XMAGE_GATEWAY must be on or off (got '$GATEWAY')" ;;
+esac
 
 # --- access (contributors server) -------------------------------------------------------------
 # XMAGE_ACCESS=allowlist starts the server closed: only the owner, staff and the people on the
@@ -276,7 +286,7 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Dxmage.testMode=false"
   echo "-Dlog4j.configuration=file:$APP/config/log4j-docker.properties"
   echo "-Dxmage.replays=$REPLAYS"
-  echo "-Dxmage.remoting=$DESKTOP"
+  echo "-Dxmage.remoting=false"
   echo "-Dxmage.ai.threads=$AI_THREADS"
   [ -z "${XMAGE_AI_NODE_SCALE:-}" ] || echo "-Dxmage.ai.nodeScale=$XMAGE_AI_NODE_SCALE"
   echo "-Dxmage.db.cacheSizeKB=$((DB_CACHE_MB * 1024))"
@@ -331,8 +341,11 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
     echo "-Dxmage.auth.passwordSignIn=$PASSWORD_SIGNIN"
     echo "-Dxmage.auth.trustedHeaderStripDomain=$STRIP_DOMAIN"
   fi
-  if [ -n "${XMAGE_TRUSTED_PROXIES:-}" ]; then
-    echo "-Dxmage.web.trustedProxies=$XMAGE_TRUSTED_PROXIES"
+  # the gateway connects from loopback and names the client it believes (it trusts XMAGE_TRUSTED_PROXIES itself)
+  PROXIES=${XMAGE_TRUSTED_PROXIES:-}
+  [ "$GATEWAY" = on ] && PROXIES="${PROXIES:+$PROXIES,}127.0.0.1"
+  if [ -n "$PROXIES" ]; then
+    echo "-Dxmage.web.trustedProxies=$PROXIES"
   fi
 } > "$args"
 umask 022
@@ -340,6 +353,18 @@ umask 022
 [ -n "${XMAGE_ADMIN_PASSWORD:-}" ] || echo "xmage-server: XMAGE_ADMIN_PASSWORD is not set; admin login is disabled"
 
 cd "$APP"
+if [ "$GATEWAY" = on ]; then
+  # restarted if it stops; while it is down Caddy falls back to the bridge
+  (
+    export XMAGE_GATEWAY_LISTEN=0.0.0.0:17180 XMAGE_GATEWAY_JAVA_URL=ws://127.0.0.1:17172
+    export XMAGE_GATEWAY_TRUSTED_PROXIES=${XMAGE_TRUSTED_PROXIES:-127.0.0.1}
+    while true; do
+      playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
+      sleep 2
+    done
+  ) &
+  echo "xmage-server: Rust gateway on 17180"
+fi
 # the JVM reads the argfile at start; remove it soon after so the password isn't left on disk
 ( sleep 20; rm -f "$args" ) &
 # XMAGE_JAVA_OPTS: extra JVM flags, split on spaces

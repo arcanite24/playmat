@@ -36,6 +36,10 @@ pub struct App {
 
 #[tokio::main]
 async fn main() {
+    // `playmat-gateway health`: for container health checks (exit 0 when /healthz says ok)
+    if std::env::args().nth(1).as_deref() == Some("health") {
+        std::process::exit(health_check().await);
+    }
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_env("XMAGE_GATEWAY_LOG").unwrap_or_else(|_| "info".into()),
@@ -48,7 +52,12 @@ async fn main() {
             std::process::exit(2);
         }
     };
-    let app = Arc::new(App { config, metrics: Metrics::default(), handlers: Box::new(NoHandlers), accounts: AtomicBool::new(false) });
+    let app = Arc::new(App {
+        config,
+        metrics: Metrics::default(),
+        handlers: Box::new(NoHandlers),
+        accounts: AtomicBool::new(false),
+    });
     connection::log_start(&app);
     tokio::spawn(watch_server_info(app.clone()));
 
@@ -70,6 +79,23 @@ async fn main() {
         error!("Server stopped: {e}");
     }
     info!("Stopped; {}", app.metrics.render().lines().filter(|l| !l.starts_with('#')).collect::<Vec<_>>().join(", "));
+}
+
+async fn health_check() -> i32 {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listen = std::env::var("XMAGE_GATEWAY_LISTEN").unwrap_or_else(|_| "0.0.0.0:17180".into());
+    let port = listen.rsplit(':').next().unwrap_or("17180");
+    let check = async {
+        let mut stream = tokio::net::TcpStream::connect(format!("127.0.0.1:{port}")).await.ok()?;
+        stream.write_all(b"GET /healthz HTTP/1.0\r\n\r\n").await.ok()?;
+        let mut head = [0u8; 12];
+        stream.read_exact(&mut head).await.ok()?;
+        Some(head.ends_with(b"200"))
+    };
+    match tokio::time::timeout(Duration::from_secs(5), check).await {
+        Ok(Some(true)) => 0,
+        _ => 1,
+    }
 }
 
 async fn shutdown() {
@@ -115,7 +141,10 @@ async fn upgrade(
 async fn health(State(app): State<Arc<App>>) -> Response {
     let java = app.config.java_url.socket_addrs(|| Some(80)).ok().and_then(|a| a.first().copied());
     let reachable = match java {
-        Some(addr) => tokio::time::timeout(Duration::from_secs(2), tokio::net::TcpStream::connect(addr)).await.map(|r| r.is_ok()).unwrap_or(false),
+        Some(addr) => tokio::time::timeout(Duration::from_secs(2), tokio::net::TcpStream::connect(addr))
+            .await
+            .map(|r| r.is_ok())
+            .unwrap_or(false),
         None => false,
     };
     let open = app.metrics.connections_open.load(Ordering::Relaxed);
@@ -135,7 +164,8 @@ async fn watch_server_info(app: Arc<App>) {
     use futures_util::{SinkExt, StreamExt};
     loop {
         let result: anyhow::Result<bool> = async {
-            let mut java = yawc::WebSocket::connect(app.config.java_url.clone()).with_options(Options::default()).await?;
+            let mut java =
+                yawc::WebSocket::connect(app.config.java_url.clone()).with_options(Options::default()).await?;
             java.send(yawc::Frame::text(r#"{"jsonrpc":"2.0","id":1,"method":"serverInfo","params":[]}"#)).await?;
             while let Some(frame) = java.next().await {
                 if frame.opcode() == yawc::OpCode::Text {

@@ -72,8 +72,17 @@
 		}
 	}
 
-	# the game connection: WebSocket upgrade to the server's bridge port
+	# the game connection: WebSocket upgrade to the server's bridge port, or with XMAGE_GATEWAY=on to the Rust gateway
+	# in front of it (docs/RustMigration.md). While the gateway doesn't answer, new connections go to the bridge.
 	handle /ws* {
+		@gateway expression `"{$XMAGE_GATEWAY:off}" == "on"`
+		reverse_proxy @gateway xmage:17180 xmage:17172 {
+			lb_policy first
+			fail_duration 30s
+			# the gateway passes these on to the bridge, which trusts them from the gateway alone
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Real-IP {client_ip}
+		}
 		reverse_proxy xmage:17172 {
 			# The server limits and logs by client address. It trusts these headers only from the
 			# proxy network (XMAGE_TRUSTED_PROXIES). Both are set to the client address alone (the peer, or the

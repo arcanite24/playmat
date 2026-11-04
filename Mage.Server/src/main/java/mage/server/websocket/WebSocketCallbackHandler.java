@@ -4,11 +4,9 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import mage.interfaces.callback.ClientCallback;
 import mage.interfaces.callback.ClientCallbackMethod;
+import mage.server.ClientChannel;
 import mage.server.websocket.rpc.JsonCodec;
 import org.java_websocket.WebSocket;
-import org.jboss.remoting.callback.AsynchInvokerCallbackHandler;
-import org.jboss.remoting.callback.Callback;
-import org.jboss.remoting.callback.HandleCallbackException;
 
 import java.util.EnumSet;
 import java.util.Map;
@@ -23,7 +21,7 @@ import java.util.concurrent.Executor;
  * Message shape: {@code {"method": "GAME_UPDATE", "objectId": "...", "messageId": 12, "data": {...}}}, plus a
  * {@code state} field for clients that take state patches (see {@link GameStates}).
  */
-public class WebSocketCallbackHandler implements AsynchInvokerCallbackHandler {
+public class WebSocketCallbackHandler implements ClientChannel {
 
     private static final Set<ClientCallbackMethod> PROMPTS = EnumSet.of(
             ClientCallbackMethod.GAME_TARGET, ClientCallbackMethod.GAME_CHOOSE_ABILITY, ClientCallbackMethod.GAME_CHOOSE_PILE,
@@ -133,16 +131,12 @@ public class WebSocketCallbackHandler implements AsynchInvokerCallbackHandler {
     }
 
     @Override
-    public void handleCallbackOneway(Callback callback, boolean asynch) throws HandleCallbackException {
-        if (!(callback.getCallbackObject() instanceof ClientCallback)) {
-            return;
-        }
+    public void send(ClientCallback clientCallback) throws Closed {
         if (!conn.isOpen()) {
             // lets the session mark itself invalid and disconnect, instead of silently dropping data
-            throw new HandleCallbackException("WebSocket connection is closed");
+            throw new Closed("WebSocket connection is closed");
         }
-        ClientCallback clientCallback = (ClientCallback) callback.getCallbackObject();
-        clientCallback.decompressData(); // no-op unless the callback was compressed for a desktop client
+        clientCallback.decompressData(); // no-op unless the callback was compressed
         try {
             if (states.isEnabled()) {
                 // the views are read here, on the caller's thread (usually the game's), as they were built; the
@@ -159,7 +153,7 @@ public class WebSocketCallbackHandler implements AsynchInvokerCallbackHandler {
             remember(clientCallback.getMethod(), clientCallback.getObjectId(), new Prompt(null, json));
             WebSocketServerImpl.sendText(conn, json);
         } catch (Exception e) {
-            throw new HandleCallbackException("Error sending WebSocket message", e);
+            throw new Closed("Error sending WebSocket message", e);
         }
     }
 
@@ -228,18 +222,4 @@ public class WebSocketCallbackHandler implements AsynchInvokerCallbackHandler {
         return json;
     }
 
-    @Override
-    public void handleCallbackOneway(Callback callback) throws HandleCallbackException {
-        handleCallbackOneway(callback, true);
-    }
-
-    @Override
-    public void handleCallback(Callback callback) throws HandleCallbackException {
-        handleCallbackOneway(callback, false);
-    }
-
-    @Override
-    public void handleCallback(Callback callback, boolean asynch, boolean oneWay) throws HandleCallbackException {
-        handleCallbackOneway(callback, asynch);
-    }
 }

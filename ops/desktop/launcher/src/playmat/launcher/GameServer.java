@@ -36,8 +36,6 @@ final class GameServer {
 
     /** The WebSocket bridge; the web client connects to this port on the host it was loaded from. */
     static final int BRIDGE_PORT = 17172;
-    /** The desktop client protocol; XMage opens it too. */
-    static final int DESKTOP_PORT = 17171;
     static final int HEALTH_PORT = 17173;
 
     private final Layout layout;

@@ -107,7 +107,7 @@ public final class RpcDispatcher {
         }
 
         String sessionId = UUID.randomUUID().toString();
-        sessions.create(sessionId, connection.createCallbackHandler(), connection.getRemoteHost());
+        sessions.create(sessionId, connection.createChannel(), connection.getRemoteHost());
         connection.bindSession(sessionId);
         setParam(params, method.getSessionParam(), sessionId);
     }

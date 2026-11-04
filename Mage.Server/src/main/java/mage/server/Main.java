@@ -7,9 +7,6 @@ import mage.cards.decks.DeckValidatorFactory;
 import mage.cards.repository.CardScanner;
 import mage.cards.repository.PluginClassloaderRegistery;
 import mage.cards.repository.RepositoryUtil;
-import mage.interfaces.MageServer;
-import mage.remote.Connection;
-import mage.remote.SessionImpl;
 import mage.server.draft.CubeFactory;
 import mage.server.game.GameFactory;
 import mage.server.game.PlayerFactory;
@@ -25,20 +22,9 @@ import mage.util.JavaUtil;
 import mage.utils.MageVersion;
 import mage.utils.SystemUtil;
 import org.apache.log4j.Logger;
-import org.jboss.remoting.*;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
-import org.jboss.remoting.callback.ServerInvokerCallbackHandler;
-import org.jboss.remoting.transport.Connector;
-import org.jboss.remoting.transport.bisocket.BisocketServerInvoker;
-import org.jboss.remoting.transport.socket.SocketWrapper;
-import org.jboss.remoting.transporter.TransporterClient;
-import org.jboss.remoting.transporter.TransporterServer;
-import org.w3c.dom.Element;
 
-import javax.management.MBeanServer;
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
 import java.util.*;
@@ -56,16 +42,6 @@ public final class Main {
     private static final Logger logger = Logger.getLogger(Main.class);
     private static final MageVersion version = new MageVersion(Main.class);
 
-    // Server threads:
-    // - acceptor threads: processing new connection from a client, controlled by numAcceptThreads;
-    // - worker threads (server threads): processing income requests from a client, controlled by maxPoolSize;
-    // - backlog: max size of income queue if maxPoolSize reached, controlled by backlogSize;
-    // Usage hints:
-    // - if maxPoolSize reached then new clients will freeze in connection dialog until backlog queue overflow;
-    // - so for active server must increase maxPoolSize to bigger value like "max online * 20"
-    // - worker idle timeout will free unused worker thread, so new client can connect again;
-    private static final int SERVER_WORKER_THREAD_IDLE_TIMEOUT_SECS = 5 * 60; // no needs to config, must be enabled for all
-
     // arg settings can be setup by run script or IDE's program arguments like -xxx=yyy
     // prop settings can be setup by -Dxxx=yyy in the launcher
     // priority: default setting -> prop setting -> arg setting
@@ -78,13 +54,11 @@ public final class Main {
     private static final String configPathProp = "xmage.config.path";
     // image builds start the server once to build the card database and to record the classes it loads, then stop
     private static final String exitAfterStartupProp = "xmage.exitAfterStartup";
-    // false: web clients only; the desktop protocol (JBoss Remoting on the config's port) isn't started
+    // the desktop protocol (JBoss Remoting) is gone: a server with this set to true says so and runs for web clients
     private static final String remotingProp = "xmage.remoting";
 
     private static final File extensionFolder = new File("extensions");
     private static final String defaultConfigPath = Paths.get("config", "config.xml").toString();
-
-    private static TransporterServer server;
 
     // Special test mode:
     // - fast game buttons;
@@ -144,10 +118,6 @@ public final class Main {
                 detailsMode = Boolean.parseBoolean(arg.replace(detailsModeArg, ""));
             }
         }
-
-        // network
-        logger.info(String.format("Network async messages: %s",
-            Session.isAsyncMessagesEnabled() ? "enabled" : "disabled"));
 
         logger.info(String.format("Reading configuration from path=%s", configPath));
         final ConfigWrapper config = new ConfigWrapper(ConfigFactory.loadFromFile(configPath));
@@ -303,277 +273,55 @@ public final class Main {
             logger.error("ERROR, can't load any game types. Check your config.xml in server's config folder (example: old jar versions after update).");
         }
 
-        Connection connection = new Connection("&maxPoolSize=" + config.getMaxPoolSize());
-        connection.setHost(config.getServerAddress());
-        connection.setPort(config.getPort());
         final ManagerFactory managerFactory = new MainManagerFactory(config);
         try {
-            // Parameter: serializationtype => jboss
-            InvokerLocator serverLocator = new InvokerLocator(connection.getURI());
-            boolean remoting = !"false".equalsIgnoreCase(System.getProperty(remotingProp));
-            // without the desktop protocol, a second server shows itself when the WebSocket port is taken
-            if (!remoting || !isAlreadyRunning(config, serverLocator)) {
-                MageServerImpl mageServerImpl = new MageServerImpl(managerFactory, adminPassword, testMode, detailsMode);
-                if (remoting) {
-                    server = new MageTransporterServer(
-                            managerFactory,
-                            serverLocator,
-                            mageServerImpl,
-                            MageServer.class.getName(),
-                            new MageServerInvocationHandler(managerFactory)
-                    );
-                    server.start();
-                    logger.info("Started MAGE server - listening on " + connection.toString());
-                } else {
-                    logger.info("Desktop clients are off (" + remotingProp + "=false): web clients only");
-                }
+            MageServerImpl mageServerImpl = new MageServerImpl(managerFactory, adminPassword, testMode, detailsMode);
+            if (Boolean.getBoolean(remotingProp)) {
+                logger.warn(remotingProp + "=true is ignored: desktop clients are no longer supported, web clients only");
+            }
 
-                // WebSocket Server
-                int websocketPort = config.getWebsocketPort();
-                mage.server.websocket.WebSocketServerImpl webSocketServer = new mage.server.websocket.WebSocketServerImpl(
-                        new java.net.InetSocketAddress(websocketPort), mageServerImpl, managerFactory, config.getWebsocketAllowedOrigins(),
-                        adminPassword);
-                try {
-                    webSocketServer.start();
-                    webSocketServer.awaitStartup(10, java.util.concurrent.TimeUnit.SECONDS);
-                } catch (Exception ex) {
-                    try {
-                        if (server != null) {
-                            server.stop();
-                        }
-                    } catch (Exception stopEx) {
-                        logger.warn("Failed to stop MAGE remoting server after WebSocket startup failure", stopEx);
-                    }
-                    throw ex;
-                }
+            // WebSocket Server
+            int websocketPort = config.getWebsocketPort();
+            mage.server.websocket.WebSocketServerImpl webSocketServer = new mage.server.websocket.WebSocketServerImpl(
+                    new java.net.InetSocketAddress(websocketPort), mageServerImpl, managerFactory, config.getWebsocketAllowedOrigins(),
+                    adminPassword);
+            webSocketServer.start();
+            webSocketServer.awaitStartup(10, java.util.concurrent.TimeUnit.SECONDS);
 
-                Runtime.getRuntime().addShutdownHook(new Thread(webSocketServer::shutdown, "WebSocket shutdown"));
-                logger.info("Started MAGE WebSocket server - listening on port " + websocketPort);
-                // before Health: the first JDK HTTP server fixes the request time limits for both
-                mage.server.support.SupportHooks.start();
-                Health.start(managerFactory);
-                BackupStatus.startChecks();
-                // AI-against-AI batches carry on from before a restart
-                mage.server.solo.BatchRunner.get().start();
-                // Career tables from before a restart still pay when their saved games resume (B270)
-                if (mage.server.career.CareerService.enabled(config.isAuthenticationActivated())) {
-                    int restored = mage.server.career.CareerService.get().restoreTables();
-                    if (restored > 0) {
-                        logger.info("Career: " + restored + " tables kept from before the restart");
-                    }
-                    // games played before progression counted them (B308), once per server
-                    mage.server.career.CareerHistoryCredit.startOnce();
+            Runtime.getRuntime().addShutdownHook(new Thread(webSocketServer::shutdown, "WebSocket shutdown"));
+            logger.info("Started MAGE WebSocket server - listening on port " + websocketPort);
+            // before Health: the first JDK HTTP server fixes the request time limits for both
+            mage.server.support.SupportHooks.start();
+            Health.start(managerFactory);
+            BackupStatus.startChecks();
+            // AI-against-AI batches carry on from before a restart
+            mage.server.solo.BatchRunner.get().start();
+            // Career tables from before a restart still pay when their saved games resume (B270)
+            if (mage.server.career.CareerService.enabled(config.isAuthenticationActivated())) {
+                int restored = mage.server.career.CareerService.get().restoreTables();
+                if (restored > 0) {
+                    logger.info("Career: " + restored + " tables kept from before the restart");
                 }
-                UpdateRunner.startWatching();
+                // games played before progression counted them (B308), once per server
+                mage.server.career.CareerHistoryCredit.startOnce();
+            }
+            UpdateRunner.startWatching();
 
-                if (testMode) {
-                    logger.info("MAGE server running in test mode");
-                }
-                initStatistics();
-                if (Boolean.getBoolean(exitAfterStartupProp)) {
-                    logger.info("Started; stopping now (" + exitAfterStartupProp + ")");
-                    System.exit(0);
-                }
-            } else {
-                logger.fatal("Unable to start MAGE server - another server is already started");
+            if (testMode) {
+                logger.info("MAGE server running in test mode");
+            }
+            initStatistics();
+            if (Boolean.getBoolean(exitAfterStartupProp)) {
+                logger.info("Started; stopping now (" + exitAfterStartupProp + ")");
+                System.exit(0);
             }
         } catch (Exception ex) {
-            logger.fatal("Failed to start server - " + connection.toString(), ex);
+            logger.fatal("Failed to start server", ex);
         }
     }
 
     static void initStatistics() {
         ServerMessagesUtil.instance.setStartDate(System.currentTimeMillis());
-    }
-
-    static boolean isAlreadyRunning(ConfigSettings config, InvokerLocator serverLocator) {
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put(SocketWrapper.WRITE_TIMEOUT, String.valueOf(config.getSocketWriteTimeout()));
-        metadata.put("generalizeSocketException", "true");
-        try {
-            MageServer testServer = (MageServer) TransporterClient.createTransporterClient(serverLocator.getLocatorURI(), MageServer.class, metadata);
-            if (testServer != null) {
-                testServer.getServerState(); // check connection
-                return true;
-            }
-        } catch (Throwable ignore) {
-            // assume server is not running
-        }
-        return false;
-    }
-
-    /**
-     * Network, server side: connection monitoring and error processing
-     */
-    static class MageServerConnectionListener implements ConnectionListener {
-
-        private final ManagerFactory managerFactory;
-
-        public MageServerConnectionListener(ManagerFactory managerFactory) {
-            this.managerFactory = managerFactory;
-        }
-
-        @Override
-        public void handleConnectionException(Throwable throwable, Client client) {
-            // called on client disconnect or on failed network (depends on server config's leasePeriod)
-
-            String sessionId = client.getSessionId();
-            Session session = managerFactory.sessionManager().getSession(sessionId).orElse(null);
-            if (session == null) {
-                logger.debug("Connection error, session not found : " + sessionId + " - " + throwable);
-                return;
-            }
-
-            // fill by user's info
-            StringBuilder sessionInfo = new StringBuilder();
-            User user = managerFactory.userManager().getUser(session.getUserId()).orElse(null);
-            if (user != null) {
-                sessionInfo.append(user.getName()).append(" [").append(user.getGameInfo()).append(']');
-            } else {
-                sessionInfo.append("[no user]");
-            }
-            sessionInfo.append(" at ").append(session.getHost());
-
-            // check disconnection reason
-            // lease ping is inner jboss feature to check connection status
-            // xmage ping is app's feature to check connection and send additional data like ping statistics
-            if (throwable instanceof ClientDisconnectedException) {
-                // client called a disconnect command (full disconnect without tables keep)
-                // no need to keep session
-                logger.info("CLIENT DISCONNECTED - " + sessionInfo);
-                logger.debug("- cause: client called disconnect command");
-                managerFactory.sessionManager().disconnect(client.getSessionId(), DisconnectReason.LostConnection, true);
-            } else if (throwable == null) {
-                // lease timeout (ping), so server lost connection with a client
-                // must keep tables
-                logger.info("LOST CONNECTION (bad network) - " + sessionInfo);
-                logger.debug("- cause: lease expired");
-                managerFactory.sessionManager().disconnect(client.getSessionId(), DisconnectReason.LostConnection, true);
-            } else {
-                // unknown error
-                // must keep tables
-                logger.info("LOST CONNECTION (unknown) - " + sessionInfo);
-                logger.debug("- cause: unknown error - " + throwable);
-                managerFactory.sessionManager().disconnect(client.getSessionId(), DisconnectReason.LostConnection, true);
-            }
-        }
-    }
-
-    /**
-     * Network, server side: data transport layer
-     */
-    static class MageTransporterServer extends TransporterServer {
-
-        protected Connector connector;
-
-        public MageTransporterServer(ManagerFactory managerFactory, InvokerLocator locator, Object target, String subsystem, MageServerInvocationHandler serverInvocationHandler) throws Exception {
-            super(locator, target, subsystem);
-            connector.addInvocationHandler("callback", serverInvocationHandler); // commands processing
-
-            // connection monitoring and errors processing
-            boolean isTestMode = ((MageServerImpl) target).getServerState().isTestMode();
-            connector.setLeasePeriod(isTestMode ? 3600 * 1000 : managerFactory.configSettings().getLeasePeriod());
-            connector.addConnectionListener(new MageServerConnectionListener(managerFactory));
-        }
-
-        @Override
-        protected Connector getConnector(InvokerLocator locator, Map config, Element xmlConfig) throws Exception {
-            Connector c = super.getConnector(locator, config, xmlConfig);
-            this.connector = c;
-            return c;
-        }
-    }
-
-    /**
-     * Network, server side: commands layer for execute (creates one thread per each client connection)
-     */
-    static class MageServerInvocationHandler implements ServerInvocationHandler {
-
-        private final ManagerFactory managerFactory;
-
-        public MageServerInvocationHandler(ManagerFactory managerFactory) {
-            this.managerFactory = managerFactory;
-        }
-
-        @Override
-        public void setMBeanServer(MBeanServer server) {
-            /**
-             * An MBean is a managed Java object, similar to a JavaBeans
-             * component, that follows the design patterns set forth in the JMX
-             * specification. An MBean can represent a device, an application,
-             * or any resource that needs to be managed. MBeans expose a
-             * management interface that consists of the following:
-             *
-             * A set of readable or writable attributes, or both. A set of
-             * invokable operations. A self-description.
-             *
-             */
-            if (server != null) {
-                logger.info("Default domain: " + server.getDefaultDomain());
-            }
-        }
-
-        @Override
-        public void setInvoker(ServerInvoker invoker) {
-            // connection settings
-            ((BisocketServerInvoker) invoker).setSecondaryBindPort(managerFactory.configSettings().getSecondaryBindPort());
-            ((BisocketServerInvoker) invoker).setBacklog(managerFactory.configSettings().getBacklogSize());
-            ((BisocketServerInvoker) invoker).setNumAcceptThreads(managerFactory.configSettings().getNumAcceptThreads());
-            ((BisocketServerInvoker) invoker).setIdleTimeout(SERVER_WORKER_THREAD_IDLE_TIMEOUT_SECS);
-        }
-
-        @Override
-        public void addListener(InvokerCallbackHandler callbackHandler) {
-            // on client connect: remember client session
-            // TODO: add ban by IP here?
-            // need creates on first call, required by ping
-            // but can be removed and re-creates on reconnection (if server contains another user instance)
-            ServerInvokerCallbackHandler handler = (ServerInvokerCallbackHandler) callbackHandler;
-            try {
-                String sessionId = handler.getClientSessionId();
-                managerFactory.sessionManager().createSession(sessionId, callbackHandler);
-            } catch (Throwable ex) {
-                logger.fatal("", ex);
-            }
-        }
-
-        @Override
-        public Object invoke(final InvocationRequest invocation) throws Throwable {
-            // on command:
-            // called for every client connecting to the server (after add Listener)
-            // TODO: add ban by IP here?
-            // save client ip-address
-            String sessionId = invocation.getSessionId();
-            Map map = invocation.getRequestPayload();
-            String host;
-            if (map != null) {
-                InetAddress clientAddress = (InetAddress) invocation.getRequestPayload().get(Remoting.CLIENT_ADDRESS);
-                host = clientAddress.getHostAddress();
-            } else {
-                host = "localhost";
-            }
-            Optional<Session> session = managerFactory.sessionManager().getSession(sessionId);
-            if (!session.isPresent()) {
-                logger.error("Session not found : " + sessionId);
-            } else {
-                session.get().setHost(host);
-            }
-            return null;
-        }
-
-        @Override
-        public void removeListener(InvokerCallbackHandler callbackHandler) {
-            // on client disconnect: remember client session
-            // if user want to keep session then sessionId will be faked here
-            ServerInvokerCallbackHandler handler = (ServerInvokerCallbackHandler) callbackHandler;
-            String sessionId = handler.getClientSessionId();
-            DisconnectReason reason = DisconnectReason.DisconnectedByUser;
-            if (SessionImpl.KEEP_MY_OLD_SESSION.equals(sessionId)) {
-                // no need in additional code, server will keep original session until inactive timeout
-                reason = DisconnectReason.DisconnectedByUserButKeepTables;
-            }
-            managerFactory.sessionManager().disconnect(sessionId, reason, true);
-        }
     }
 
     private static void deleteSavedGames() {

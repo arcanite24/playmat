@@ -126,12 +126,7 @@ impl RouteTable {
     /// Methods the protocol doesn't know go to Java, which answers them.
     pub fn route(&self, method: &str, bucket: u8) -> Route {
         let Some(info) = crate::method(method) else { return Route::Java };
-        let route = self
-            .methods
-            .get(method)
-            .or_else(|| self.groups.get(&info.group))
-            .copied()
-            .unwrap_or(self.default);
+        let route = self.methods.get(method).or_else(|| self.groups.get(&info.group)).copied().unwrap_or(self.default);
         match self.rollout.get(&info.group) {
             Some(percent) if route != Route::Java && bucket >= *percent => Route::Java,
             _ => route,

@@ -54,8 +54,8 @@ without a header refuses to start too, since nobody could sign in.
 - **Signing out.** Signing out of Playmat stops the automatic sign-in on that device but the IdP session is still
   live, so "Continue as" is one click away. Signing out of the IdP ends Playmat access on the next connection.
   Already-open connections keep their session until they drop (as with any session cookie proxy).
-- **Desktop client and other ports.** The desktop protocol port isn't published by the stack. If someone publishes
-  it, it has no header: with `XMAGE_PASSWORD_SIGNIN=false` it refuses every account login.
+- **Other ports.** Only Caddy reaches the bridge (17172) and the Rust gateway (17180). The gateway passes the header
+  on only from `XMAGE_TRUSTED_PROXIES` (Caddy), and the bridge believes it only from Caddy or the gateway.
 - **Admin console password.** `XMAGE_ADMIN_PASSWORD` (`connectAdmin`) stays as a break-glass login, independent of
   the IdP.
 - **Default flow untouched.** With `AUTH_TRUSTED_HEADER` empty nothing changes: Caddy deletes a header nobody sends,

@@ -1,7 +1,7 @@
 package mage.server.websocket.rpc;
 
 import mage.server.DisconnectReason;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -11,7 +11,7 @@ import java.util.UUID;
  */
 public interface RpcSessions {
 
-    void create(String sessionId, InvokerCallbackHandler callbackHandler, String host);
+    void create(String sessionId, ClientChannel channel, String host);
 
     boolean exists(String sessionId);
 

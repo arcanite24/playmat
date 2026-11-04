@@ -2,7 +2,7 @@ package mage.server.websocket;
 
 import mage.server.websocket.rpc.RpcConnection;
 import org.java_websocket.WebSocket;
-import org.jboss.remoting.callback.InvokerCallbackHandler;
+import mage.server.ClientChannel;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -106,7 +106,7 @@ final class ConnectionState implements RpcConnection {
     }
 
     @Override
-    public InvokerCallbackHandler createCallbackHandler() {
+    public ClientChannel createChannel() {
         synchronized (gameStates) {
             gameStates.newSession();
         }

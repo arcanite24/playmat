@@ -80,7 +80,8 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
     );
     let bucket = bucket_of(&ip, metrics.connections_total.load(Ordering::Relaxed));
 
-    let java = match connect_java(&app, &headers, ip).await {
+    let trusted = app.config.trusted_proxies.iter().any(|proxy| proxy.contains(peer));
+    let java = match connect_java(&app, &headers, ip, trusted).await {
         Ok(java) => java,
         Err(error) => {
             Metrics::add(&metrics.upstream_failures, 1);
@@ -224,16 +225,31 @@ fn bucket_of(ip: &IpAddr, serial: u64) -> u8 {
     (hasher.finish() % 100) as u8
 }
 
-async fn connect_java(app: &App, headers: &HeaderMap, ip: IpAddr) -> anyhow::Result<WebSocket<yawc::MaybeTlsStream<tokio::net::TcpStream>>> {
+/// Java believes the gateway (loopback) about forwarded headers, the sign-on header among them: only a trusted
+/// proxy's are passed on, and from anyone else just the ones a browser sends
+const UNTRUSTED_HEADERS: [&str; 3] = ["origin", "user-agent", "accept-language"];
+
+async fn connect_java(
+    app: &App,
+    headers: &HeaderMap,
+    ip: IpAddr,
+    trusted: bool,
+) -> anyhow::Result<WebSocket<yawc::MaybeTlsStream<tokio::net::TcpStream>>> {
     let mut request = HttpRequestBuilder::new();
     for (name, value) in headers {
-        if !HANDSHAKE_HEADERS.contains(&name.as_str()) {
+        let pass = if trusted {
+            !HANDSHAKE_HEADERS.contains(&name.as_str())
+        } else {
+            UNTRUSTED_HEADERS.contains(&name.as_str())
+        };
+        if pass {
             request = request.header(name, value);
         }
     }
     // Java trusts these from the gateway: they name the client the gateway believes
     request = request.header("X-Forwarded-For", ip.to_string()).header("X-Real-IP", ip.to_string());
-    let options = Options::default().without_compression().with_limits(64 * 1024 * 1024, 64 * 1024 * 1024).with_no_delay();
+    let options =
+        Options::default().without_compression().with_limits(64 * 1024 * 1024, 64 * 1024 * 1024).with_no_delay();
     let java = WebSocket::connect(app.config.java_url.clone()).with_options(options).with_request(request).await?;
     Ok(java)
 }
@@ -319,7 +335,11 @@ fn on_reply(
                 }
                 if method != "connectAdmin" {
                     shared.pending.lock().unwrap().insert(id_key(&Value::from(WHOAMI_ID)), Pending::Whoami);
-                    let whoami = Request { id: Some(Value::from(WHOAMI_ID)), method: "sessionUserName".into(), params: vec![Value::from("")] };
+                    let whoami = Request {
+                        id: Some(Value::from(WHOAMI_ID)),
+                        method: "sessionUserName".into(),
+                        params: vec![Value::from("")],
+                    };
                     let _ = to_java.send(Frame::text(Bytes::from(whoami.to_text())));
                 }
             }
@@ -451,7 +471,11 @@ async fn on_client_text(
             let caller = shared.caller.lock().unwrap().clone();
             let rust = app.handlers.call(&caller, &request).await;
             if let Some(id) = &request.id {
-                shared.pending.lock().unwrap().insert(id_key(id), Pending::Shadow { method: request.method.clone(), rust });
+                shared
+                    .pending
+                    .lock()
+                    .unwrap()
+                    .insert(id_key(id), Pending::Shadow { method: request.method.clone(), rust });
             }
             let _ = to_java.send(Frame::text(Bytes::from(text)));
         }

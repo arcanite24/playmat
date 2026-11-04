@@ -18,9 +18,6 @@ import mage.util.RandomUtil;
 import mage.util.ThreadUtils;
 import mage.utils.SystemUtil;
 import org.apache.log4j.Logger;
-import org.jboss.remoting.callback.*;
-import org.jboss.util.threadpool.BlockingMode;
-import org.jboss.remoting.Client;
 
 import java.sql.SQLException;
 import java.util.*;
@@ -54,28 +51,6 @@ public class Session {
     // - if server can't remove another user intance then restrict to connect (example: anon user connected, but there is another anon with diff IP)
     private static final boolean ANON_IDENTIFY_BY_HOST = true; // for anon mode only: true - kick all other users with same IP; false - keep first connected user
 
-    // TODO: async mode is outdated after network rework in #16434 (before rework it's never really works)
-    //   it's adds 2 secs timeout on each slow client call for client recive signal
-    //   DELETE after few releases
-    //
-    // async data transfer for all callbacks (transfer of game updates from server to client):
-    // - pros:
-    //   * SIGNIFICANT performance boost and pings (yep, that's true);
-    //   * no freeze with disconnected/slow watchers/players;
-    // - cons:
-    //   * data re-sync? TODO: need research, possible problem: outdated battlefield, need click on avatar
-    //   * what about slow connection or big pings? TODO: need research, possible problem: too many re-sync messages in client logs, outdated battlefield, wrong answers
-    //   * what about disconnected players? TODO: need research, possible problem: server can't detect disconnected players too fast
-    //   * what about too many requests to freezed players (too much threads)?
-    //     TODO: need research, possible problem: if something bad with server connection then it can generates
-    //      too many requests to a client and can cause threads overflow/limit (example: watch AI only games?);
-    //      visualvm can help with threads monitor
-    //
-    // TODO: enable after full research
-    // can be enabled by -Dxmage.network.async.messages=true, disabled by default
-    private static final String ASYNC_MESSAGES_PROP = "xmage.network.async.messages";
-    private static final boolean ASYNC_MESSAGES = Boolean.getBoolean(ASYNC_MESSAGES_PROP); // get it from system.property
-
     private final ManagerFactory managerFactory;
     private final String sessionId;
     private UUID userId;
@@ -85,7 +60,7 @@ public class Session {
     private boolean isAdmin = false;
     private volatile String rememberedUserName; // see trustRememberedLogin
     private volatile String signedOnUserName; // see trustSignedOnLogin
-    private final AsynchInvokerCallbackHandler callbackHandler;
+    private final ClientChannel channel;
     private boolean valid = true;
 
     private final ReentrantLock lock;
@@ -95,43 +70,14 @@ public class Session {
     private final ClientCallbacksQueue callbacksQueue = new ClientCallbacksQueue(); // queue with waiting callback to send
     private final AtomicBoolean sending = new AtomicBoolean(); // one of the thread sending the callback
 
-    public Session(ManagerFactory managerFactory, String sessionId, InvokerCallbackHandler callbackHandler) {
+    public Session(ManagerFactory managerFactory, String sessionId, ClientChannel channel) {
         this.managerFactory = managerFactory;
         this.sessionId = sessionId;
-        this.callbackHandler = (AsynchInvokerCallbackHandler) callbackHandler;
+        this.channel = channel;
         this.isAdmin = false;
         this.timeConnected = new Date();
         this.lock = new ReentrantLock();
         this.callBackLock = new ReentrantLock();
-
-        // inject custom thread pool instead buggy jboss's
-        if (ASYNC_MESSAGES) {
-            setupAsyncSendingPool(callbackHandler);
-        }
-    }
-
-    /**
-     * Async mode only, e.g. callbackHandler.handleCallbackOneway(callback, true);
-     *
-     * Inject improved oneway thread for better lifecycle control and memory leaks fixes,
-     * see CustomThreadPool for more details
-     *
-     * Must be called before a first async send
-     */
-    private static void setupAsyncSendingPool(InvokerCallbackHandler handler) {
-        if (!(handler instanceof ServerInvokerCallbackHandler)) {
-            logger.warn("Unknown callback handler, async sending pool is not replaced: " + handler.getClass().getName());
-            return;
-        }
-        Client client = ((ServerInvokerCallbackHandler) handler).getCallbackClient();
-        if (client == null) {
-            logger.warn("Callback client is missing, async sending pool is not replaced");
-            return;
-        }
-        CustomThreadPool pool = new CustomThreadPool("JBossRemoting Client Oneway fixed");
-        pool.setMaximumPoolSize(1); // send one by one, it's help to keep better message order
-        pool.setBlockingMode(BlockingMode.RUN); // if client freeze and wait queue reach the limit in 1024 then parent thread will call it directly without pool (same as default jboss's pool does)
-        client.setOnewayThreadPool(pool);
     }
 
     public String registerUser(String userName, String password, String email) {
@@ -717,10 +663,7 @@ public class Session {
                 // normal send
                 lastCallbackInfo = call.getInfo();
                 lockSet = true;
-                Callback callback = new Callback(call);
-                boolean sendAsync = ASYNC_MESSAGES
-                        && call.getMethod().getType().canComeInAnyOrder();
-                callbackHandler.handleCallbackOneway(callback, sendAsync);
+                channel.send(call);
                 return true;
             }
             if (valid) {
@@ -733,7 +676,7 @@ public class Session {
         } catch (InterruptedException ignore) {
             // nothing to do, app is closing
             return true;
-        } catch (HandleCallbackException ex) {
+        } catch (ClientChannel.Closed ex) {
             // general error
             // can raise on server freeze or normal connection problem from a client side
             // no need to print a full stack log here
@@ -770,14 +713,6 @@ public class Session {
             // no blocking code here, it's safe to call multiple flushes, only one will really work
             managerFactory.threadExecutor().getCallExecutor().execute(() -> fireCallback(null));
         });
-    }
-
-    public static boolean isAsyncMessagesEnabled() {
-        return ASYNC_MESSAGES;
-    }
-
-    public static String getAsyncMessagesProperty() {
-        return ASYNC_MESSAGES_PROP;
     }
 
     public UUID getUserId() {
