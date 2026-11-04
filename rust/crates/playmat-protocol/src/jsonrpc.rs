@@ -48,7 +48,13 @@ impl Request {
 #[derive(Debug, Clone, PartialEq)]
 pub enum Outcome {
     Result(Value),
-    Error { code: i64, message: String, data: Option<Value> },
+    Error {
+        code: i64,
+        message: String,
+        data: Option<Value>,
+    },
+    /// Rust doesn't take this call (a case it doesn't cover yet): the gateway sends it to Java as it is
+    Declined,
 }
 
 impl Outcome {
@@ -67,6 +73,10 @@ impl Outcome {
                     error["data"] = data.clone();
                 }
                 json!({"jsonrpc": "2.0", "id": id, "error": error}).to_string()
+            }
+            // the gateway sends declined calls to Java; a reply is only made for one that slipped through
+            Outcome::Declined => {
+                json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32603, "message": "Internal error"}}).to_string()
             }
         }
     }

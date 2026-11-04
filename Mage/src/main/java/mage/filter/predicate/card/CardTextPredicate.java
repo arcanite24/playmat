@@ -69,50 +69,65 @@ public class CardTextPredicate implements Predicate<Card> {
 
         // name: need all tokens
         if (inNames) {
-            String fullName = input.getName();
-            if (input instanceof MockCard) {
-                fullName = ((MockCard) input).getFullName(true);
-            } else if (input instanceof ModalDoubleFacedCard) {
-                fullName = input.getName() + MockCard.MODAL_DOUBLE_FACES_NAME_SEPARATOR + ((ModalDoubleFacedCard) input).getRightHalfCard().getName();
-            } else if (input instanceof CardWithSpellOption) {
-                fullName = input.getName() + MockCard.CARD_WITH_SPELL_OPTION_NAME_SEPARATOR + ((CardWithSpellOption) input).getSpellCard().getName();
-            }
-            if (textHasTokens(fullName, true)) {
+            if (textHasTokens(namesText(input), true)) {
                 return saveAndReturnUniqueFind(input);
             }
         }
 
         // rules: need all tokens
         if (inRules) {
-            List<String> fullRules = new ArrayList<>(input.getRules(game));
-            if (input instanceof SplitCard) {
-                fullRules.addAll(((SplitCard) input).getLeftHalfCard().getRules(game));
-                fullRules.addAll(((SplitCard) input).getRightHalfCard().getRules(game));
-            }
-            if (input instanceof ModalDoubleFacedCard) {
-                fullRules.addAll(((ModalDoubleFacedCard) input).getLeftHalfCard().getRules(game));
-                fullRules.addAll(((ModalDoubleFacedCard) input).getRightHalfCard().getRules(game));
-            }
-            if (input instanceof CardWithSpellOption) {
-                fullRules.addAll(((CardWithSpellOption) input).getSpellCard().getRules(game));
-            }
-            if (textHasTokens(String.join("@", fullRules), true)) {
+            if (textHasTokens(rulesText(input, game), true)) {
                 return saveAndReturnUniqueFind(input);
             }
         }
 
         // types: need all tokens
         if (inTypes) {
-            List<String> fullTypes = new ArrayList<>();
-            fullTypes.addAll(input.getSubtype(game).stream().map(SubType::toString).collect(Collectors.toList()));
-            fullTypes.addAll(input.getSuperType(game).stream().map(SuperType::toString).collect(Collectors.toList()));
-            if (textHasTokens(String.join("@", fullTypes), true)) {
+            if (textHasTokens(typesText(input, game), true)) {
                 return saveAndReturnUniqueFind(input);
             }
         }
 
         // not found
         return false;
+    }
+
+    /** the names a name search looks in (the card catalog exports it for the Rust platform service) */
+    public static String namesText(Card input) {
+        String fullName = input.getName();
+        if (input instanceof MockCard) {
+            fullName = ((MockCard) input).getFullName(true);
+        } else if (input instanceof ModalDoubleFacedCard) {
+            fullName = input.getName() + MockCard.MODAL_DOUBLE_FACES_NAME_SEPARATOR + ((ModalDoubleFacedCard) input).getRightHalfCard().getName();
+        } else if (input instanceof CardWithSpellOption) {
+            fullName = input.getName() + MockCard.CARD_WITH_SPELL_OPTION_NAME_SEPARATOR + ((CardWithSpellOption) input).getSpellCard().getName();
+        }
+        return fullName;
+    }
+
+    /** the rules text a rules search looks in */
+    public static String rulesText(Card input, Game game) {
+        List<String> fullRules = new ArrayList<>(input.getRules(game));
+        if (input instanceof SplitCard) {
+            fullRules.addAll(((SplitCard) input).getLeftHalfCard().getRules(game));
+            fullRules.addAll(((SplitCard) input).getRightHalfCard().getRules(game));
+        }
+        if (input instanceof ModalDoubleFacedCard) {
+            fullRules.addAll(((ModalDoubleFacedCard) input).getLeftHalfCard().getRules(game));
+            fullRules.addAll(((ModalDoubleFacedCard) input).getRightHalfCard().getRules(game));
+        }
+        if (input instanceof CardWithSpellOption) {
+            fullRules.addAll(((CardWithSpellOption) input).getSpellCard().getRules(game));
+        }
+        return String.join("@", fullRules);
+    }
+
+    /** the subtypes and supertypes a type search looks in */
+    public static String typesText(Card input, Game game) {
+        List<String> fullTypes = new ArrayList<>();
+        fullTypes.addAll(input.getSubtype(game).stream().map(SubType::toString).collect(Collectors.toList()));
+        fullTypes.addAll(input.getSuperType(game).stream().map(SuperType::toString).collect(Collectors.toList()));
+        return String.join("@", fullTypes);
     }
 
     private boolean saveAndReturnUniqueFind(Card card) {

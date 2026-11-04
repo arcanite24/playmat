@@ -2,11 +2,13 @@
 //! gateway's process; the routing table decides which of its methods are used (`rust`), compared with Java's answers
 //! (`shadow`) or left to Java.
 //!
-//! Now: the card catalog (`lookupCards`, `getExpansionSets`, `getBasicLandSets`) from the file Java exports, and the
+//! Now: the card catalog (`lookupCards`, `searchCards`, `getExpansionSets`, `getBasicLandSets`) from the file Java
+//! exports, and the
 //! web client's deck sync (`deckSync*`) on Java's own decks database.
 
 pub mod catalog;
 pub mod decks;
+pub mod search;
 
 use async_trait::async_trait;
 use catalog::{Catalog, Entry};
@@ -19,7 +21,7 @@ use std::sync::{Arc, RwLock};
 use std::time::{Duration, SystemTime};
 use tracing::{debug, info, warn};
 
-const CATALOG_METHODS: [&str; 3] = ["lookupCards", "getExpansionSets", "getBasicLandSets"];
+const CATALOG_METHODS: [&str; 4] = ["lookupCards", "getExpansionSets", "getBasicLandSets", "searchCards"];
 
 pub struct Platform {
     catalog_path: Option<PathBuf>,
@@ -48,7 +50,13 @@ impl Platform {
             if modified.is_some() && modified != loaded {
                 match Catalog::open(&path).await {
                     Ok(catalog) => {
-                        info!("Catalog {}: {} printings ({})", path.display(), catalog.printings, catalog.stamp);
+                        info!(
+                            "Catalog {}: {} printings, {} card rows ({})",
+                            path.display(),
+                            catalog.printings,
+                            catalog.card_rows(),
+                            catalog.stamp
+                        );
                         *self.catalog.write().unwrap() = Some(Arc::new(catalog));
                         loaded = modified;
                     }
@@ -86,6 +94,19 @@ impl Handlers for Platform {
                     Some(_) => return Outcome::error(INVALID_PARAMS, "Parameter 1 (cards) must be DeckCardInfo[]"),
                 };
                 catalog.lookup(&entries).await.map(Value::Array)
+            }
+            "searchCards" => {
+                // `call.object(0, CardCriteria.class)`, then the filters when they're there
+                let criteria = match request.params.first() {
+                    None | Some(Value::Null) => {
+                        return Outcome::error(INVALID_PARAMS, "Missing parameter 1 (criteria)");
+                    }
+                    Some(criteria) => criteria,
+                };
+                match catalog.search(criteria, request.params.get(1)).await {
+                    Ok(None) => return Outcome::Declined,
+                    other => other.map(|views| Value::Array(views.unwrap_or_default())),
+                }
             }
             _ => return Outcome::error(playmat_protocol::jsonrpc::METHOD_NOT_FOUND, "Not a platform method"),
         };

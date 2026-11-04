@@ -35,6 +35,8 @@ public final class CardSearchService {
     }
 
     public List<CardView> search(CardCriteria criteria, WebCardFilters web) {
+        // the same query pages the same way, and Rust's catalog (CatalogExport) gives the same order
+        criteria.stableOrder();
         Set<Character> identity = web == null || web.getColorIdentity() == null ? null : identityOf(web.getColorIdentity());
         long start = criteria.getStart() == null ? 0L : Math.max(0L, criteria.getStart());
         long count = criteria.getCount() == null ? DEFAULT_PAGE_SIZE : Math.max(0L, Math.min(MAX_PAGE_SIZE, criteria.getCount()));

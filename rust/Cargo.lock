@@ -934,6 +934,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "flate2",
+ "futures-util",
  "playmat-protocol",
  "serde",
  "serde_json",

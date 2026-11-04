@@ -462,9 +462,15 @@ async fn on_client_text(
             let _ = to_java.send(Frame::text(Bytes::from(text)));
         }
         Route::Rust => {
-            Metrics::add(&app.metrics.requests_rust, 1);
             let caller = identified_caller(shared).await;
             let outcome = app.handlers.call(&caller, &request).await;
+            if outcome == Outcome::Declined {
+                Metrics::add(&app.metrics.declined, 1);
+                Metrics::add(&app.metrics.requests_java, 1);
+                let _ = to_java.send(Frame::text(Bytes::from(text)));
+                return;
+            }
+            Metrics::add(&app.metrics.requests_rust, 1);
             if let Some(id) = &request.id {
                 send_client(outcome.reply(id));
             }
@@ -476,8 +482,14 @@ async fn on_client_text(
                 let _ = to_java.send(Frame::text(Bytes::from(text)));
                 return;
             }
-            Metrics::add(&app.metrics.requests_shadow, 1);
             let rust = app.handlers.shadow(&caller, &request).await;
+            if rust == Outcome::Declined {
+                Metrics::add(&app.metrics.declined, 1);
+                Metrics::add(&app.metrics.requests_java, 1);
+                let _ = to_java.send(Frame::text(Bytes::from(text)));
+                return;
+            }
+            Metrics::add(&app.metrics.requests_shadow, 1);
             if let Some(id) = &request.id {
                 shared
                     .pending

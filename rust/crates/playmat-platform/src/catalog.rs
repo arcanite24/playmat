@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 /// the export format this reads (`CatalogExport.VERSION`)
-pub const VERSION: &str = "2";
+pub const VERSION: &str = "3";
 /// `CardSearchService.MAX_LOOKUP`
 pub const MAX_LOOKUP: usize = 500;
 
@@ -26,6 +26,8 @@ pub struct Catalog {
     sets: HashMap<String, Set>,
     expansion_sets: Value,
     basic_land_sets: Value,
+    /// the card rows, for `searchCards`
+    cards: crate::search::Cards,
     pub stamp: String,
     pub printings: u64,
 }
@@ -90,7 +92,17 @@ impl Catalog {
         let expansion_sets = result("getExpansionSets").await?;
         let basic_land_sets = result("getBasicLandSets").await?;
         let printings: i64 = sqlx::query_scalar("SELECT count(*) FROM printings").fetch_one(&pool).await?;
-        Ok(Catalog { pool, dictionary, sets, expansion_sets, basic_land_sets, stamp, printings: printings as u64 })
+        let cards = crate::search::Cards::load(&pool).await?;
+        Ok(Catalog {
+            pool,
+            dictionary,
+            sets,
+            expansion_sets,
+            basic_land_sets,
+            cards,
+            stamp,
+            printings: printings as u64,
+        })
     }
 
     pub fn expansion_sets(&self) -> Value {
@@ -197,6 +209,29 @@ impl Catalog {
                 Some(id) => views.get(id).map(fresh_ids).ok_or_else(|| anyhow::anyhow!("printing {id} has no view")),
             })
             .collect()
+    }
+
+    /// `CardSearchService.search`: the views of what the criteria find, or None for a case left to Java
+    pub async fn search(&self, criteria: &Value, filters: Option<&Value>) -> anyhow::Result<Option<Vec<Value>>> {
+        let ids = match self.cards.search(criteria, filters) {
+            crate::search::Found::Printings(ids) => ids,
+            crate::search::Found::Declined(why) => {
+                tracing::debug!("searchCards left to Java: {why}");
+                return Ok(None);
+            }
+        };
+        let mut unique = ids.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        let views = self.views(&unique).await?;
+        ids.iter()
+            .map(|id| views.get(id).map(fresh_ids).ok_or_else(|| anyhow::anyhow!("printing {id} has no view")))
+            .collect::<anyhow::Result<Vec<_>>>()
+            .map(Some)
+    }
+
+    pub fn card_rows(&self) -> usize {
+        self.cards.row_count()
     }
 
     /// `CardRepository.findCard(set, number)` for each key

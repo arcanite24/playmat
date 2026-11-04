@@ -153,6 +153,88 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     }
   });
 
+  /** searchCards criteria: what the client sends (deck editor, Career, practice tools, printing picker), then edges */
+  const SEARCHES: unknown[][] = [
+    [{ name: 'Lightning Bolt' }],
+    [{ nameContains: 'bolt', uniqueNames: true, count: 12, start: 0 }],
+    [{ name: 'lightning bolt', uniqueNames: true, count: 1, start: 0 }],
+    [{ name: 'Island', uniqueNames: false, count: 500, start: 0 }],
+    [{ setCodes: ['M10'], start: 0, count: 1000 }],
+    [{ setCodes: ['m10'], start: 100, count: 50 }],
+    [{ nameContains: 'dragon', searchNames: true, uniqueNames: true, sortBy: 'name', start: 0, count: 48 }],
+    [{ nameContains: 'fire', count: 60 }],
+    // the deck editor's collection: every format, color and type filter, paged
+    ...[0, 60, 120].map((start) => [{ ignoreSetCodes: [], searchNames: true, searchTypes: true, searchRules: true, webColors: [], colorMatch: 'any', types: [], rarities: [], uniqueNames: true, sortBy: 'name', start, count: 60 }]),
+    [{ ignoreSetCodes: [], searchText: 'draw a card', searchNames: true, searchTypes: true, searchRules: true, webColors: ['blue'], colorMatch: 'any', types: ['INSTANT'], rarities: [], uniqueNames: true, sortBy: 'name', start: 0, count: 60 }],
+    [{ searchText: 'goblin "deals 1 damage"', searchNames: true, searchTypes: true, searchRules: true, uniqueNames: true, sortBy: 'name', start: 0, count: 60 }],
+    [{ searchText: 'Kozilek Butcher', searchNames: true, uniqueNames: true, start: 0, count: 60 }],
+    [{ nameContains: 'angel', webColors: ['white', 'blue'], colorMatch: 'exact', uniqueNames: true, sortBy: 'name', start: 0, count: 60 }],
+    [{ nameContains: 'angel', webColors: ['white', 'blue'], colorMatch: 'include', uniqueNames: true, start: 0, count: 60 }],
+    [{ webColors: ['colorless'], types: ['ARTIFACT'], uniqueNames: true, sortBy: 'name', start: 0, count: 60 }],
+    [{ webExcludedColors: ['red', ' Green '], excludedRarities: ['COMMON'], nameContains: 'knight', start: 0, count: 100 }],
+    [{ manaValue: 7, manaValueOperator: 'gte', uniqueNames: true, sortBy: 'name', start: 0, count: 60 }],
+    [{ manaValue: 2, manaValueOperator: 'eq', types: ['CREATURE'], rarities: ['RARE', 'MYTHIC'], start: 0, count: 60 }],
+    [{ manaValue: 1, manaValueOperator: 'lte', nameContains: 'elf', start: 0, count: 60 }],
+    [{ format: 'Constructed - Standard', uniqueNames: true, sortBy: 'name', start: 0, count: 60 }],
+    [{ format: 'Constructed - Pauper', nameContains: 'bolt', start: 0, count: 60 }],
+    [{ format: 'No Such Format', nameContains: 'bolt', start: 0, count: 60 }],
+    [{ nameContains: 'bolt' }, { colorIdentity: 'R' }],
+    [{ nameContains: 'charm', uniqueNames: true, start: 0, count: 100 }, { colorIdentity: 'wu' }],
+    [{ types: ['LAND'], uniqueNames: true, start: 0, count: 100 }, { colorIdentity: '' }],
+    [{ nameContains: 'bolt' }, null],
+    [{ nameContains: 'bolt' }, { colorIdentity: null }],
+    [{ subtypes: ['ELF'], supertypes: ['LEGENDARY'], start: 0, count: 100 }],
+    [{ types: ['CREATURE'], notTypes: ['ARTIFACT'], notSupertypes: ['BASIC'], nameContains: 'golem' }],
+    [{ black: false, blue: true, green: false, red: false, white: false, colorless: false, nameContains: 'sphinx' }],
+    [{ black: false, blue: false, green: false, red: false, white: false, colorless: true, nameContains: 'golem' }],
+    [{ rules: 'flying', nameContains: 'dragon', count: 30 }],
+    [{ nameContains: 'a_c', count: 30 }],
+    [{ nameContains: '100%', count: 30 }],
+    [{ variousArt: true, count: 30 }],
+    [{ doubleFaced: true, nameContains: 'werewolf', count: 30 }],
+    [{ minCardNumber: 10, maxCardNumber: 12, setCodes: ['DOM'] }],
+    [{ setCodes: ['M10', 'M11'], ignoreSetCodes: ['M11'], start: 5, count: 20 }],
+    [{ nameContains: 'shock', start: -5, count: 5000 }],
+    [{ nameContains: 'zzzzzz' }],
+    [{ searchText: '   ', searchNames: true, nameContains: 'bolt', count: 10 }],
+    [{ searchText: 'bolt', nameContains: 'lightning', count: 10 }],
+    [{}],
+    [],
+    [null],
+    // declined by Rust: Java answers these alone, and the answers must still match
+    [{ nameContains: 'bolt', sortBy: 'setCode' }],
+    [{ nameContains: 'bolt', nightCard: null }],
+    [{ nameContains: 'bolt', rarities: ['NOT_A_RARITY'] }],
+    [{ nameContains: 'bolt', count: 'ten' }],
+    [{ nameContains: 'bolt', count: 0 }],
+  ];
+
+  test('searchCards: the client\'s searches and the edge cases', { timeout: 300_000 }, async () => {
+    const [java, rust] = await Promise.all([RawConnection.open(JAVA_URL), RawConnection.open(RUST_URL)]);
+    try {
+      // a session, as the deck editor has (guests: this needs a server without accounts)
+      for (const [connection, name] of [[java, 'searchjava'], [rust, 'searchrust']] as const) {
+        expect((await connection.call('connectUser', [name, '', '', '', '', '', ''])).result, name).toBe(true);
+      }
+      let cards = 0;
+      let [javaMs, rustMs] = [0, 0];
+      for (const params of SEARCHES) {
+        let started = performance.now();
+        const javaReply = await call(java, 'searchCards', params);
+        javaMs += performance.now() - started;
+        started = performance.now();
+        const rustReply = await call(rust, 'searchCards', params);
+        rustMs += performance.now() - started;
+        expect(difference(javaReply, rustReply), JSON.stringify(params)).toBeNull();
+        cards += Array.isArray(javaReply.result) ? javaReply.result.length : 0;
+      }
+      console.log(`[platform] searchCards: ${SEARCHES.length} searches, ${cards} cards answered the same (Java ${Math.round(javaMs)} ms, Rust ${Math.round(rustMs)} ms)`);
+    } finally {
+      java.close();
+      rust.close();
+    }
+  });
+
   /** a test account (registered on its first run: a server takes 3 new accounts an hour from one address), signed in */
   async function signIn(connection: RawConnection, name: string): Promise<string> {
     await connection.call('authRegister', ['', name, 'deckpass1', `${name}@example.test`]);
@@ -276,6 +358,8 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
       await call(shadow, 'getExpansionSets', []);
       await call(shadow, 'getBasicLandSets', []);
       await call(shadow, 'lookupCards', [[...EDGE_CASES, ...deckEntries().slice(0, 300)]]);
+      expect((await shadow.call('connectUser', ['searchshadow', '', '', '', '', '', ''])).result).toBe(true);
+      for (const params of SEARCHES.slice(0, 10)) await call(shadow, 'searchCards', params);
     } finally {
       shadow.close();
     }
@@ -286,5 +370,7 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
       expect(delta(`${method} same`), method).toBe(1);
       expect(delta(`${method} different`), method).toBe(0);
     }
+    expect(delta('searchCards same')).toBe(10);
+    expect(delta('searchCards different')).toBe(0);
   });
 });
