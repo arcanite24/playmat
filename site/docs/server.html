@@ -155,7 +155,10 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           in front of the Java server and takes the game connections. It sends players the same messages but makes the
           game-state updates itself, which takes work off Java. <code>XMAGE_GATEWAY=on</code> in <code>.env</code>
           turns it on, then run <code>up -d</code>. If the gateway stops, Caddy sends players straight to the Java
-          server until it's back. It's <code>off</code> by default while it's new. Details are in
+          server until it's back. It's <code>off</code> by default while it's new. With it on, card lookups and deck sync
+          can be answered in Rust too (<code>XMAGE_ROUTE_CATALOG</code>, <code>XMAGE_ROUTE_ACCOUNT</code>); they stay
+          with Java unless you set them. <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few
+          accounts while you try it. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
         <h3 id="desktop">Can the XMage desktop client connect?</h3>
         <p>No. Playmat servers speak only to the web client (and the Android and desktop apps, which are the web client).

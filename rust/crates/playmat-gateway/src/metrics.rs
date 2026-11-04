@@ -1,7 +1,9 @@
 //! Counters for `/metrics` (Prometheus text format) and the shutdown log.
 
+use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 
 #[derive(Default)]
 pub struct Metrics {
@@ -23,11 +25,24 @@ pub struct Metrics {
     pub state_sent_bytes: AtomicU64,
     pub state_resyncs: AtomicU64,
     pub slow_clients_dropped: AtomicU64,
+    /// shadow comparisons by method: (same, different); a group moves to `rust` after a week with no differences
+    pub shadow_by_method: Mutex<BTreeMap<String, (u64, u64)>>,
 }
 
 impl Metrics {
     pub fn add(counter: &AtomicU64, n: u64) {
         counter.fetch_add(n, Ordering::Relaxed);
+    }
+
+    pub fn shadow(&self, method: &str, same: bool) {
+        Metrics::add(if same { &self.shadow_same } else { &self.shadow_different }, 1);
+        let mut by_method = self.shadow_by_method.lock().unwrap();
+        let counts = by_method.entry(method.to_string()).or_default();
+        if same {
+            counts.0 += 1;
+        } else {
+            counts.1 += 1;
+        }
     }
 
     pub fn render(&self) -> String {
@@ -53,6 +68,18 @@ impl Metrics {
         line("state_sent_bytes_total", "counter", &self.state_sent_bytes);
         line("state_resyncs_total", "counter", &self.state_resyncs);
         line("slow_clients_dropped_total", "counter", &self.slow_clients_dropped);
+        let by_method = self.shadow_by_method.lock().unwrap();
+        if !by_method.is_empty() {
+            let _ = writeln!(out, "# TYPE playmat_gateway_shadow_method_total counter");
+            for (method, (same, different)) in by_method.iter() {
+                let _ =
+                    writeln!(out, "playmat_gateway_shadow_method_total{{method=\"{method}\",result=\"same\"}} {same}");
+                let _ = writeln!(
+                    out,
+                    "playmat_gateway_shadow_method_total{{method=\"{method}\",result=\"different\"}} {different}"
+                );
+            }
+        }
         out
     }
 }

@@ -5,13 +5,13 @@
 //! - The gateway watches logins on the connection, so Rust handlers know who calls.
 //! - Closing either side closes the other, with the same close code (4001 "signed in elsewhere" included).
 
-use crate::handlers::Caller;
 use crate::metrics::Metrics;
 use crate::states::GameStates;
 use crate::App;
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use http::HeaderMap;
+use playmat_protocol::handlers::Caller;
 use playmat_protocol::jsonrpc::{Outcome, Request};
 use playmat_protocol::routes::Route;
 use playmat_protocol::Access;
@@ -56,6 +56,8 @@ enum Pending {
 
 struct Shared {
     caller: Mutex<Caller>,
+    /// false from a login until Java says whose session it is (`sessionUserName`): calls answered here wait for it
+    identified: tokio::sync::watch::Sender<bool>,
     states: Mutex<GameStates>,
     pending: Mutex<HashMap<String, Pending>>,
     queued_bytes: AtomicUsize,
@@ -95,6 +97,7 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
 
     let shared = Arc::new(Shared {
         caller: Mutex::new(Caller { ip: ip.to_string(), ..Caller::default() }),
+        identified: tokio::sync::watch::Sender::new(true),
         states: Mutex::new(GameStates::new()),
         pending: Mutex::new(HashMap::new()),
         queued_bytes: AtomicUsize::new(0),
@@ -307,20 +310,18 @@ fn on_reply(
     match pending {
         Pending::Shadow { method, rust } => {
             let java = Outcome::from_reply(&reply);
-            let same = match (&java, &rust) {
-                (Some(Outcome::Result(a)), Outcome::Result(b)) => a == b,
-                (Some(Outcome::Error { code: a, .. }), Outcome::Error { code: b, .. }) => a == b,
-                _ => false,
+            let difference = match (&java, &rust) {
+                (Some(Outcome::Result(a)), Outcome::Result(b)) => playmat_protocol::compare::difference(a, b),
+                (Some(Outcome::Error { code: a, .. }), Outcome::Error { code: b, .. }) if a == b => None,
+                _ => Some(format!(
+                    "java {}, rust {}",
+                    truncate(&format!("{java:?}"), 300),
+                    truncate(&format!("{rust:?}"), 300)
+                )),
             };
-            if same {
-                Metrics::add(&app.metrics.shadow_same, 1);
-            } else {
-                Metrics::add(&app.metrics.shadow_different, 1);
-                warn!(
-                    "shadow {method}: Rust answered differently\n  java: {}\n  rust: {}",
-                    truncate(&format!("{java:?}"), 600),
-                    truncate(&format!("{rust:?}"), 600)
-                );
+            app.metrics.shadow(&method, difference.is_none());
+            if let Some(difference) = difference {
+                warn!("shadow {method}: Rust answered differently at {difference}");
             }
             send_client(text)
         }
@@ -334,6 +335,7 @@ fn on_reply(
                     caller.account = app.accounts.load(Ordering::Relaxed) && !caller.admin;
                 }
                 if method != "connectAdmin" {
+                    shared.identified.send_replace(false);
                     shared.pending.lock().unwrap().insert(id_key(&Value::from(WHOAMI_ID)), Pending::Whoami);
                     let whoami = Request {
                         id: Some(Value::from(WHOAMI_ID)),
@@ -366,6 +368,7 @@ fn on_reply(
             if let Some(Value::String(user)) = reply.get("result") {
                 shared.caller.lock().unwrap().user = Some(user.clone());
             }
+            shared.identified.send_replace(true);
             true
         }
     }
@@ -460,16 +463,21 @@ async fn on_client_text(
         }
         Route::Rust => {
             Metrics::add(&app.metrics.requests_rust, 1);
-            let caller = shared.caller.lock().unwrap().clone();
+            let caller = identified_caller(shared).await;
             let outcome = app.handlers.call(&caller, &request).await;
             if let Some(id) = &request.id {
                 send_client(outcome.reply(id));
             }
         }
         Route::Shadow => {
+            let caller = identified_caller(shared).await;
+            if !app.config.shadows(caller.user.as_deref()) {
+                Metrics::add(&app.metrics.requests_java, 1);
+                let _ = to_java.send(Frame::text(Bytes::from(text)));
+                return;
+            }
             Metrics::add(&app.metrics.requests_shadow, 1);
-            let caller = shared.caller.lock().unwrap().clone();
-            let rust = app.handlers.call(&caller, &request).await;
+            let rust = app.handlers.shadow(&caller, &request).await;
             if let Some(id) = &request.id {
                 shared
                     .pending
@@ -480,6 +488,17 @@ async fn on_client_text(
             let _ = to_java.send(Frame::text(Bytes::from(text)));
         }
     }
+}
+
+/// The caller once a login's user name is known. A client may call right after the login's answer, before the
+/// gateway's own question about the name is back; Java would know already.
+async fn identified_caller(shared: &Shared) -> Caller {
+    let mut identified = shared.identified.subscribe();
+    let wait = identified.wait_for(|known| *known);
+    if tokio::time::timeout(std::time::Duration::from_secs(10), wait).await.is_err() {
+        warn!("no sessionUserName answer from Java in 10 s");
+    }
+    shared.caller.lock().unwrap().clone()
 }
 
 fn truncate(text: &str, max: usize) -> String {
@@ -495,10 +514,11 @@ fn truncate(text: &str, max: usize) -> String {
 
 pub fn log_start(app: &App) {
     info!(
-        "Gateway on {} for the Java bridge at {}; state patches made {}; routes: {}",
+        "Gateway on {} for the Java bridge at {}; state patches made {}; routes: {}; shadow for {}",
         app.config.listen,
         app.config.java_url,
         if app.config.state_diffs { "here" } else { "by Java" },
-        app.config.routes.describe()
+        app.config.routes.describe(),
+        app.config.shadow_users.as_ref().map(|u| u.join(", ")).unwrap_or_else(|| "everyone".into())
     );
 }

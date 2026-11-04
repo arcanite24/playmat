@@ -17,18 +17,19 @@ RUN --mount=type=cache,target=/root/.m2 \
  && mkdir -p /opt/xmage && cd /opt/xmage && jar xf /src/Mage.Server/target/mage-server.zip \
  && date -u +%Y%m%dT%H%M%S%N > /opt/xmage/.build-id
 # The card database belongs to the image: build it here (a cold start, about half a minute on a fast machine),
-# so a deploy starts warm instead of rebuilding it on the server. The assembly packs whatever Mage.Server/db held
+# so a deploy starts warm instead of rebuilding it on the server. The same start writes the card catalog the Rust
+# gateway answers card lookups from (CatalogExport, about 35 MB). The assembly packs whatever Mage.Server/db held
 # in the build context, so start from nothing; only the card database is kept.
 # A fresh build leaves H2 with eight times the pages it needs (about 280 MB), so it is defragmented (to about 33 MB)
 # before it ships; SHUTDOWN COMPACT leaves a database fresh from the server as it is, DEFRAG doesn't.
 RUN cd /opt/xmage && rm -rf db saved \
  && java -Dxmage.exitAfterStartup=true -Dxmage.testMode=false -Dxmage.healthPort=0 -Dxmage.replays=false \
-      -jar lib/mage-server-*.jar \
+      -Dxmage.catalog.export=catalog.sqlite -jar lib/mage-server-*.jar \
  && java -cp "$(ls lib/h2-*.jar | head -n1)" org.h2.tools.Shell -url "jdbc:h2:file:./db/cards.h2" -user "" -password "" \
       -sql "SHUTDOWN DEFRAG" >/dev/null 2>&1 \
  && size=$(stat -c %s db/cards.h2.mv.db) && echo "card database: $size bytes" \
  && if [ "$size" -gt 150000000 ]; then echo "the card database was not compacted"; exit 1; fi \
- && mkdir -p cards-prebuilt && mv db/cards.h2.mv.db cards-prebuilt/ && rm -rf db saved extensions mageserver.log
+ && mkdir -p cards-prebuilt && mv db/cards.h2.mv.db catalog.sqlite cards-prebuilt/ && rm -rf db saved extensions mageserver.log
 # the commit the admin console and /healthz report; git itself isn't in this image, so read the ref files
 RUN ref=$(sed -n 's/^ref: //p' .git/HEAD 2>/dev/null); \
     { if [ -n "$ref" ] && [ -f ".git/$ref" ]; then cat ".git/$ref"; \

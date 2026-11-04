@@ -6,7 +6,6 @@
 
 mod config;
 mod connection;
-mod handlers;
 mod metrics;
 mod net;
 mod states;
@@ -17,8 +16,8 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use config::Config;
-use handlers::{Handlers, NoHandlers};
 use metrics::Metrics;
+use playmat_protocol::handlers::Handlers;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -29,7 +28,7 @@ use yawc::{IncomingUpgrade, Options};
 pub struct App {
     pub config: Config,
     pub metrics: Metrics,
-    pub handlers: Box<dyn Handlers>,
+    pub handlers: Arc<dyn Handlers>,
     /// the server has accounts on (serverInfo.accounts), so a logged in user is signed in to one
     pub accounts: AtomicBool,
 }
@@ -52,10 +51,13 @@ async fn main() {
             std::process::exit(2);
         }
     };
+    // the platform service's calls (phase 2); which of them Rust answers is the routing table's choice
+    let platform = playmat_platform::Platform::new(app_catalog(), app_decks().await);
+    tokio::spawn(platform.clone().watch());
     let app = Arc::new(App {
         config,
         metrics: Metrics::default(),
-        handlers: Box::new(NoHandlers),
+        handlers: platform.clone(),
         accounts: AtomicBool::new(false),
     });
     connection::log_start(&app);
@@ -79,6 +81,26 @@ async fn main() {
         error!("Server stopped: {e}");
     }
     info!("Stopped; {}", app.metrics.render().lines().filter(|l| !l.starts_with('#')).collect::<Vec<_>>().join(", "));
+}
+
+/// `XMAGE_PLATFORM_DECKS`: the server's db/web_decks.db, for deck sync in Rust
+async fn app_decks() -> Option<playmat_platform::decks::DeckStore> {
+    let path: std::path::PathBuf = std::env::var("XMAGE_PLATFORM_DECKS").ok().filter(|v| !v.trim().is_empty())?.into();
+    match playmat_platform::decks::DeckStore::open(&path).await {
+        Ok(store) => {
+            info!("Decks: {}", path.display());
+            Some(store)
+        }
+        Err(e) => {
+            warn!("Decks {} can't be opened, deck sync stays with Java: {e}", path.display());
+            None
+        }
+    }
+}
+
+/// `XMAGE_PLATFORM_CATALOG`: the card catalog the server exports (`-Dxmage.catalog.export`)
+fn app_catalog() -> Option<std::path::PathBuf> {
+    std::env::var("XMAGE_PLATFORM_CATALOG").ok().filter(|v| !v.trim().is_empty()).map(Into::into)
 }
 
 async fn health_check() -> i32 {

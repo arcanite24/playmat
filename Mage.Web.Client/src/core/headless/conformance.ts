@@ -83,7 +83,8 @@ export class RawConnection {
   async reply(id: number | string | undefined, timeoutMs = 10_000): Promise<RawReply> {
     const deadline = Date.now() + timeoutMs;
     for (;;) {
-      const index = this.frames.findIndex((frame) => (frame as RawReply).id === id && ('result' in (frame as object) || 'error' in (frame as object)));
+      // a reply has jsonrpc (Java leaves a null result out); events don't
+      const index = this.frames.findIndex((frame) => (frame as RawReply).id === id && 'jsonrpc' in (frame as object));
       if (index >= 0) return this.frames.splice(index, 1)[0] as RawReply;
       if (this.closeCode !== null) throw new Error(`closed with ${this.closeCode} before the reply to ${id}`);
       const left = deadline - Date.now();

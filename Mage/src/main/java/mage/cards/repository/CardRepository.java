@@ -486,6 +486,21 @@ public enum CardRepository {
         return null;
     }
 
+    /**
+     * Printings whose name is exactly this (ignoring case, like every comparison here), in database order: the
+     * query {@link #findCards(String, long, boolean, boolean)} makes first. For the Rust card catalog's export.
+     */
+    public List<CardInfo> findCardsNamed(String name) {
+        try {
+            QueryBuilder<CardInfo, Object> queryBuilder = cardsDao.queryBuilder();
+            queryBuilder.where().eq("name", new SelectArg(name));
+            return cardsDao.query(queryBuilder.prepare());
+        } catch (SQLException e) {
+            Logger.getLogger(CardRepository.class).error("Error finding cards from DB: " + e, e);
+            return Collections.emptyList();
+        }
+    }
+
     public CardInfo findPreferredCoreExpansionCard(String name) {
         return findPreferredCoreExpansionCard(name, "");
     }

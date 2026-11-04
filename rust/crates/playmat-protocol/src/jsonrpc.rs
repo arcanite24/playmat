@@ -56,9 +56,10 @@ impl Outcome {
         Outcome::Error { code, message: message.into(), data: None }
     }
 
-    /// the reply to the request with this id
+    /// the reply to the request with this id. A null result is left out, as the Java bridge's Gson leaves it out
     pub fn reply(&self, id: &Value) -> String {
         match self {
+            Outcome::Result(Value::Null) => json!({"jsonrpc": "2.0", "id": id}).to_string(),
             Outcome::Result(result) => json!({"jsonrpc": "2.0", "id": id, "result": result}).to_string(),
             Outcome::Error { code, message, data } => {
                 let mut error = json!({"code": code, "message": message});
@@ -72,10 +73,10 @@ impl Outcome {
 
     /// a reply from the Java bridge, read back
     pub fn from_reply(reply: &Value) -> Option<Outcome> {
-        if let Some(result) = reply.get("result") {
-            return Some(Outcome::Result(result.clone()));
-        }
-        let error = reply.get("error")?;
+        let Some(error) = reply.get("error") else {
+            // no result: a null one (Gson leaves nulls out)
+            return Some(Outcome::Result(reply.get("result").cloned().unwrap_or(Value::Null)));
+        };
         Some(Outcome::Error {
             code: error.get("code")?.as_i64()?,
             message: error.get("message").and_then(Value::as_str).unwrap_or_default().to_string(),
@@ -84,9 +85,9 @@ impl Outcome {
     }
 }
 
-/// A frame from the server: a reply (has an id and a result or error) or an event (`{"method": ..., "data": ...}`).
+/// A frame from the server: a reply (`jsonrpc`, with a result, an error, or neither for a null result) or an event.
 pub fn is_reply(frame: &Value) -> bool {
-    frame.get("jsonrpc").is_some() && (frame.get("result").is_some() || frame.get("error").is_some())
+    frame.get("jsonrpc").is_some()
 }
 
 #[cfg(test)]
@@ -108,6 +109,8 @@ mod tests {
     #[test]
     fn replies() {
         assert_eq!(Outcome::Result(json!(true)).reply(&json!(1)), r#"{"jsonrpc":"2.0","id":1,"result":true}"#);
+        assert_eq!(Outcome::Result(Value::Null).reply(&json!(1)), r#"{"jsonrpc":"2.0","id":1}"#);
+        assert_eq!(Outcome::from_reply(&json!({"jsonrpc": "2.0", "id": 1})), Some(Outcome::Result(Value::Null)));
         assert_eq!(
             Outcome::error(NOT_AUTHORIZED, "no").reply(&json!("a")),
             r#"{"jsonrpc":"2.0","id":"a","error":{"code":-32001,"message":"no"}}"#

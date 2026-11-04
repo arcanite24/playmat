@@ -1,6 +1,8 @@
 //! The web protocol as the gateway sees it: every method the Java bridge registers, the group it belongs to (one
 //! `*Api` class, from `methods.json`, which `WebClientApiDocsTest` generates), and where each group is routed.
 
+pub mod compare;
+pub mod handlers;
 pub mod jsonrpc;
 pub mod routes;
 
