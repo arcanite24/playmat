@@ -19,6 +19,23 @@ pub struct Config {
     /// largest message a client may send (4 MB, as the Java bridge)
     pub max_message_bytes: usize,
     pub routes: RouteTable,
+    /// when set, `shadow` routes run Rust only for these users, lower case; everyone else goes to Java
+    /// (`XMAGE_SHADOW_USERS`, comma separated)
+    pub shadow_users: Option<Vec<String>>,
+}
+
+impl Config {
+    /// whether a `shadow` call by this user runs Rust as well as Java
+    pub fn shadows(&self, user: Option<&str>) -> bool {
+        match &self.shadow_users {
+            None => true,
+            Some(users) => user.map(|u| users.contains(&u.to_lowercase())).unwrap_or(false),
+        }
+    }
+}
+
+fn names(list: &str) -> Vec<String> {
+    list.split(',').map(|n| n.trim().to_lowercase()).filter(|n| !n.is_empty()).collect()
 }
 
 fn var(name: &str) -> Option<String> {
@@ -69,6 +86,37 @@ impl Config {
             max_outgoing_bytes,
             max_message_bytes: 4 * 1024 * 1024,
             routes,
+            shadow_users: var("XMAGE_SHADOW_USERS").map(|v| names(&v)),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config(shadow_users: Option<&str>) -> Config {
+        Config {
+            listen: "127.0.0.1:1".parse().unwrap(),
+            java_url: "ws://127.0.0.1:2".parse().unwrap(),
+            trusted_proxies: vec![],
+            state_diffs: true,
+            max_outgoing_bytes: 1,
+            max_message_bytes: 1,
+            routes: RouteTable::default(),
+            shadow_users: shadow_users.map(names),
+        }
+    }
+
+    #[test]
+    fn shadow_users() {
+        assert!(config(None).shadows(Some("anyone")));
+        assert!(config(None).shadows(None));
+        let listed = config(Some(" Neri, other ,"));
+        assert!(listed.shadows(Some("neri")));
+        assert!(listed.shadows(Some("NERI")));
+        assert!(listed.shadows(Some("other")));
+        assert!(!listed.shadows(Some("someone")));
+        assert!(!listed.shadows(None));
     }
 }

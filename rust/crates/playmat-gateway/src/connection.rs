@@ -470,8 +470,13 @@ async fn on_client_text(
             }
         }
         Route::Shadow => {
-            Metrics::add(&app.metrics.requests_shadow, 1);
             let caller = identified_caller(shared).await;
+            if !app.config.shadows(caller.user.as_deref()) {
+                Metrics::add(&app.metrics.requests_java, 1);
+                let _ = to_java.send(Frame::text(Bytes::from(text)));
+                return;
+            }
+            Metrics::add(&app.metrics.requests_shadow, 1);
             let rust = app.handlers.shadow(&caller, &request).await;
             if let Some(id) = &request.id {
                 shared
@@ -509,10 +514,11 @@ fn truncate(text: &str, max: usize) -> String {
 
 pub fn log_start(app: &App) {
     info!(
-        "Gateway on {} for the Java bridge at {}; state patches made {}; routes: {}",
+        "Gateway on {} for the Java bridge at {}; state patches made {}; routes: {}; shadow for {}",
         app.config.listen,
         app.config.java_url,
         if app.config.state_diffs { "here" } else { "by Java" },
-        app.config.routes.describe()
+        app.config.routes.describe(),
+        app.config.shadow_users.as_ref().map(|u| u.join(", ")).unwrap_or_else(|| "everyone".into())
     );
 }
