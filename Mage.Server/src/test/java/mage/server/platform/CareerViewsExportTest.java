@@ -32,6 +32,7 @@ public class CareerViewsExportTest {
 
         assertThat(views.getAsJsonArray("quests").size()).isEqualTo(mage.server.career.CareerProgress.get().questTemplates().size());
         assertThat(views.getAsJsonArray("achievements").size()).isEqualTo(mage.server.career.CareerProgress.get().achievementTemplates().size());
+        assertThat(views.getAsJsonObject("styles").size()).isPositive();
         // the roster: every opponent, as a player without wins sees it and as their nemesis
         com.google.gson.JsonArray roster = views.getAsJsonArray("opponents");
         assertThat(roster.size()).isEqualTo(CareerContent.get().opponents().size());

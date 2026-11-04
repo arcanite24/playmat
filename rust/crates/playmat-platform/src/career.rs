@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 10] = [
+pub const CAREER_METHODS: [&str; 11] = [
     "careerCollection",
     "careerDeck",
     "careerGameResult",
@@ -20,6 +20,7 @@ pub const CAREER_METHODS: [&str; 10] = [
     "careerOpponents",
     "careerAchievements",
     "careerQuests",
+    "careerEquipStyle",
 ];
 
 /// `CareerRules.WINS_TO_UNLOCK_NEXT_TIER`
@@ -328,6 +329,62 @@ impl AdminStores {
                 Ok(
                     json!({"quests": quests, "canReroll": reroll_day.as_deref() != Some(today.as_str()), "today": today}),
                 )
+            }
+            "careerEquipStyle" => {
+                let Some(styles) = self.career_views.as_ref().and_then(|views| views.view("styles")) else {
+                    return Err(Stop::Decline);
+                };
+                let Some(Value::String(card)) = request.params.first() else { return Err(Stop::Decline) };
+                let item = match request.params.get(1) {
+                    None | Some(Value::Null) => None,
+                    Some(Value::String(item)) => Some(item.as_str()).filter(|item| !item.is_empty()),
+                    Some(_) => return Err(Stop::Decline),
+                };
+                if card.is_empty() {
+                    return Err(crate::admin::invalid("Which card?"));
+                }
+                if let Some(item) = item {
+                    let style = &styles[item];
+                    // an item without a card isn't a style: Java fails on it, so it answers
+                    if style.is_object() && !style["card"].is_string() {
+                        return Err(Stop::Decline);
+                    }
+                    if style["card"].as_str() != Some(card.as_str()) {
+                        return Err(crate::admin::invalid(format!("That style isn't for {card}.")));
+                    }
+                    let owned: Option<i64> =
+                        sqlx::query_scalar("SELECT 1 FROM unlocks WHERE user = ? AND kind = ? AND item = ?")
+                            .bind(&user)
+                            .bind(style["kind"].as_str().unwrap_or_default())
+                            .bind(item)
+                            .fetch_optional(&mut *db)
+                            .await?;
+                    if owned.is_none() {
+                        return Err(crate::admin::invalid("Pull that style from its machine first."));
+                    }
+                    sqlx::query("INSERT OR REPLACE INTO card_styles (user, card, item) VALUES (?, ?, ?)")
+                        .bind(&user)
+                        .bind(card)
+                        .bind(item)
+                        .execute(&mut *db)
+                        .await?;
+                } else {
+                    sqlx::query("DELETE FROM card_styles WHERE user = ? AND card = ?")
+                        .bind(&user)
+                        .bind(card)
+                        .execute(&mut *db)
+                        .await?;
+                }
+                // a TreeMap: card names in order
+                let rows = sqlx::query("SELECT card, item FROM card_styles WHERE user = ?")
+                    .bind(&user)
+                    .fetch_all(&mut *db)
+                    .await?;
+                let mut worn = std::collections::BTreeMap::new();
+                for row in rows {
+                    worn.insert(row.try_get::<String, _>(0)?, json!(row.try_get::<String, _>(1)?));
+                }
+                Ok(Value::Object(worn.into_iter().collect()))
             }
             "careerLevels" => {
                 let Some(content) = &self.career_content else { return Err(Stop::Decline) };
@@ -656,6 +713,7 @@ mod tests {
              quest_week TEXT)",
             "CREATE TABLE quests (user TEXT NOT NULL, slot INTEGER NOT NULL, quest TEXT NOT NULL, \
              progress INTEGER NOT NULL DEFAULT 0, assigned TEXT NOT NULL, PRIMARY KEY (user, slot))",
+            "CREATE TABLE card_styles (user TEXT NOT NULL, card TEXT NOT NULL, item TEXT NOT NULL, PRIMARY KEY (user, card))",
             "INSERT INTO quests VALUES ('neri', 0, 'win3', 2, 'x'), ('neri', 1, 'gone', 0, 'x'), ('neri', 3, 'week', 5, 'x')",
             "CREATE TABLE unlocks (user TEXT NOT NULL, kind TEXT NOT NULL, item TEXT NOT NULL, at INTEGER NOT NULL)",
             "CREATE TABLE progress_games (game_key TEXT PRIMARY KEY, user TEXT NOT NULL, at INTEGER NOT NULL, details TEXT)",
@@ -745,6 +803,11 @@ mod tests {
         // quests: Java picks a new day's at random, Rust answers once they're picked
         let roster_file = std::fs::read_to_string(&views).unwrap();
         let mut with_quests: Value = serde_json::from_str(&roster_file).unwrap();
+        with_quests["styles"] = json!({
+            "m21-zap": {"card": "Zap", "kind": "cardstyle"},
+            "m21-arrow": {"card": "Arrow", "kind": "cardstyle"},
+            "m21-sleeve": {"kind": "sleeve"},
+        });
         with_quests["quests"] = json!([
             {"id": "win3", "text": "Win 3 games", "counter": "wins", "target": 3, "coins": 20, "xp": 30, "weekly": false},
             {"id": "week", "text": "Win 10", "counter": "wins", "target": 10, "coins": 50, "xp": 90, "weekly": true,
@@ -769,6 +832,32 @@ mod tests {
                  "target": 10, "coins": 50, "xp": 90},
             ], "canReroll": false, "today": today})
         );
+        // card styles: only one owned, on its own card
+        sqlx::query(
+            "INSERT INTO unlocks VALUES ('neri', 'cardstyle', 'm21-zap', 6), ('neri', 'cardstyle', 'm21-arrow', 7)",
+        )
+        .execute(&mut db)
+        .await
+        .unwrap();
+        let refused = async |params: Value| match stores.call(&neri, &request("careerEquipStyle", params), true).await {
+            Outcome::Error { message, .. } => message,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(refused(json!(["", "m21-zap"])).await, "Which card?");
+        assert_eq!(refused(json!(["Arrow", "m21-zap"])).await, "That style isn't for Arrow.");
+        assert_eq!(refused(json!(["Zap", "nope"])).await, "That style isn't for Zap.");
+        assert!(matches!(
+            stores.call(&neri, &request("careerEquipStyle", json!(["Zap", "m21-sleeve"])), true).await,
+            Outcome::Declined
+        ));
+        assert_eq!(call("careerEquipStyle", json!(["Zap", "m21-zap"])).await, json!({"Zap": "m21-zap"}));
+        assert_eq!(
+            call("careerEquipStyle", json!(["Arrow", "m21-arrow"])).await,
+            json!({"Arrow": "m21-arrow", "Zap": "m21-zap"})
+        );
+        assert_eq!(call("careerEquipStyle", json!(["Zap", ""])).await, json!({"Arrow": "m21-arrow"}));
+        sqlx::query("DELETE FROM unlocks WHERE item = 'm21-zap'").execute(&mut db).await.unwrap();
+        assert_eq!(refused(json!(["Zap", "m21-zap"])).await, "Pull that style from its machine first.");
         let opponents = call("careerOpponents", json!([])).await;
         assert_eq!(
             (opponents[0]["wins"].clone(), opponents[0]["nemesis"].clone(), opponents[1]["nemesis"].clone()),

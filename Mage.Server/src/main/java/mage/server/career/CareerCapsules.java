@@ -215,6 +215,18 @@ public final class CareerCapsules {
         return id == null ? null : byId.get(id);
     }
 
+    /** every card style: its id to the card it styles and its machine's kind, for the Rust platform service (CareerViewsExport) */
+    public Map<String, Map<String, String>> styleExport() {
+        Map<String, Map<String, String>> styles = new LinkedHashMap<>();
+        for (CareerMachineItem item : items.values()) {
+            Map<String, String> style = new LinkedHashMap<>();
+            style.put("card", item.card);
+            style.put("kind", kindOf(item.id));
+            styles.put(item.id, style);
+        }
+        return styles;
+    }
+
     public CareerMachineItem item(String id) {
         return id == null ? null : items.get(id);
     }
