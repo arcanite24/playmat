@@ -55,6 +55,8 @@ RUN apt-get update \
 WORKDIR /opt/xmage
 COPY --from=build /opt/xmage /opt/xmage
 COPY --from=gateway /usr/local/bin/playmat-gateway /usr/local/bin/playmat-gateway
+# the Career's content as Java ships it, for the Rust gateway's Career calls
+COPY Mage.Server/src/main/resources/career /opt/xmage/career-content
 COPY ops/web/server-entrypoint.sh /usr/local/bin/xmage-server
 COPY ops/web/backup.sh /usr/local/bin/xmage-backup
 COPY ops/web/log4j-docker.properties /opt/xmage/config/log4j-docker.properties

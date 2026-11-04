@@ -104,10 +104,15 @@ async fn app_admin() -> Option<playmat_platform::admin::AdminStores> {
                     Err(e) => warn!("Support {} can't be opened, support stays with Java: {e}", support.display()),
                 }
             }
-            // `XMAGE_PLATFORM_CAREER`: db/career.db
+            // `XMAGE_PLATFORM_CAREER`: db/career.db; `XMAGE_PLATFORM_CAREER_CONTENT`: the copy of Java's resources/career
             if let Some(career) = set("XMAGE_PLATFORM_CAREER") {
-                match stores.add_career(&career).await {
-                    Ok(()) => info!("Career: {}", career.display()),
+                let content = set("XMAGE_PLATFORM_CAREER_CONTENT");
+                match stores.add_career(&career, content.as_deref()).await {
+                    Ok(()) => info!(
+                        "Career: {}{}",
+                        career.display(),
+                        content.map(|c| format!(", content {}", c.display())).unwrap_or_default()
+                    ),
                     Err(e) => warn!("Career {} can't be opened, Career stays with Java: {e}", career.display()),
                 }
             }

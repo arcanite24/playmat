@@ -123,6 +123,8 @@ pub struct AdminStores {
     support: Option<(SqlitePool, PathBuf)>,
     /// db/career.db, for the Career's records
     career: Option<SqlitePool>,
+    /// the Career's content, for the calls that need it
+    pub(crate) career_content: Option<crate::career::CareerContent>,
     /// `XMAGE_OWNER` (`-Dxmage.owner`), trimmed; empty when there is none
     owner: String,
 }
@@ -149,7 +151,14 @@ impl AdminStores {
             Some(path) => Some(open(path, &REPORT_TABLES).await?),
             None => None,
         };
-        Ok(AdminStores { admin, reports, support: None, career: None, owner: java_trim(owner).to_string() })
+        Ok(AdminStores {
+            admin,
+            reports,
+            support: None,
+            career: None,
+            career_content: None,
+            owner: java_trim(owner).to_string(),
+        })
     }
 
     /// The support calls too, on Java's db/support.db (its tables are Java's, made by its migrations) and the
@@ -162,9 +171,13 @@ impl AdminStores {
     }
 
     /// The Career's records too, on Java's db/career.db (its tables are Java's)
-    pub async fn add_career(&mut self, career: &Path) -> anyhow::Result<()> {
+    pub async fn add_career(&mut self, career: &Path, content: Option<&Path>) -> anyhow::Result<()> {
         let options = SqliteConnectOptions::new().filename(career).busy_timeout(Duration::from_secs(10));
         self.career = Some(SqlitePoolOptions::new().max_connections(1).connect_with(options).await?);
+        self.career_content = match content {
+            Some(dir) => Some(crate::career::CareerContent::load(dir)?),
+            None => None,
+        };
         Ok(())
     }
 
@@ -675,6 +688,7 @@ pub fn difference(method: &str, java: &Value, rust: &Value) -> Option<String> {
         "adminInviteCreate" => (&["createdAt", "expiresAt"], true),
         "adminClientErrorResolve" => (&["resolvedAt"], false),
         "adminFeedbackMark" => (&["handledAt"], false),
+        "careerShowProgress" => return crate::career::difference(java, rust),
         _ if crate::support::SUPPORT_METHODS.contains(&method) => {
             return crate::support::difference(method, java, rust)
         }
