@@ -31,8 +31,8 @@ wildcards with Java's messages, spends a common or uncommon wildcard before coin
 (an achievement, a token) are checked by the profile's coins, XP and tokens, not one by one.
 
 `careerStart` and `careerSaveDeck` are the last two. For each starter deck, the file holds the cards `start` adds
-(basics left out), resolved by Java against its card database when it writes the file; a deck Java couldn't read is
-left out, and Java answers for it. Rust opens the collection as Java does: it makes the profile, or gives the one
+(basics left out), resolved by Java against its card database when it writes the file; a deck Java couldn't read, or with a card the
+card database doesn't know, is left out, and Java answers for it. Rust opens the collection as Java does: it makes the profile, or gives the one
 progression made its starter and 100 coins, then adds the cards. Saving a deck checks the copies by name across the
 main deck and the sideboard, with basics free, and stores the deck as Gson writes `DeckCardLists` back: its fields in
 order, unknown ones dropped. A deck Gson would read differently (a card without a name, a field of another type)

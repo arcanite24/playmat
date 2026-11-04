@@ -218,8 +218,8 @@ public final class CareerService {
 
     /**
      * What {@link #start} adds for each starter deck, for the Rust platform service (CareerViewsExport): the cards
-     * other than basic lands, resolved as start resolves them, with their amounts. A deck that can't be read is left
-     * out, and Java answers for it.
+     * other than basic lands, resolved as start resolves them, with their amounts. A deck that can't be read, or has
+     * a card the card database doesn't know (not loaded yet, say), is left out, and Java answers for it.
      */
     public Map<String, List<Map<String, Object>>> starterCardsExport() {
         CareerContent content = CareerContent.get();
@@ -232,8 +232,10 @@ public final class CareerService {
                 continue;
             }
             List<Map<String, Object>> cards = new ArrayList<>();
+            boolean whole = true;
             for (DeckCardInfo info : CareerContent.allCards(deck)) {
                 CareerCard card = resolve(info);
+                whole &= card != null;
                 if (card != null && !CareerRules.LAND.equals(card.rarity)) {
                     Map<String, Object> entry = new LinkedHashMap<>();
                     entry.put("name", card.name);
@@ -244,7 +246,9 @@ public final class CareerService {
                     cards.add(entry);
                 }
             }
-            starters.put(starter.id, cards);
+            if (whole && !cards.isEmpty()) {
+                starters.put(starter.id, cards);
+            }
         }
         return starters;
     }
