@@ -1205,6 +1205,46 @@ public final class CareerProgress {
         return weekly;
     }
 
+    /**
+     * The achievements as the Rust platform service needs them to build {@link #achievements} (CareerViewsExport):
+     * in this order, with the texts for each target and the points written out.
+     */
+    public List<Map<String, Object>> achievementExport() {
+        List<Map<String, Object>> templates = new ArrayList<>();
+        for (AchievementTemplate template : achievements.values()) {
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", template.id);
+            entry.put("name", template.name);
+            entry.put("text", text(template, template.target));
+            entry.put("secret", template.secret);
+            entry.put("scope", template.scope);
+            entry.put("counter", template.counter);
+            entry.put("family", template.family);
+            entry.put("target", template.target);
+            entry.put("coins", template.coins);
+            entry.put("xp", template.xp);
+            entry.put("cosmetic", template.cosmetic);
+            entry.put("points", template.pointsOf());
+            List<Map<String, Object>> tiers = new ArrayList<>();
+            if (template.tiered()) {
+                for (AchievementTier step : template.tiers) {
+                    Map<String, Object> tier = new LinkedHashMap<>();
+                    tier.put("target", step.target);
+                    tier.put("coins", step.coins);
+                    tier.put("xp", step.xp);
+                    tier.put("points", step.points);
+                    tier.put("cosmetic", step.cosmetic);
+                    tier.put("tokens", step.tokens);
+                    tier.put("text", text(template, step.target));
+                    tiers.add(tier);
+                }
+            }
+            entry.put("tiers", tiers);
+            templates.add(entry);
+        }
+        return templates;
+    }
+
     public List<CareerAchievement> achievements(String user) throws SQLException {
         CareerStore store = CareerStore.get();
         Map<String, Long> earned = store.achievements(user);

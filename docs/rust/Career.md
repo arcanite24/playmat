@@ -3,7 +3,7 @@
 Phase 3 (docs/RustMigration.md) moves the Career economy to the platform service. The first part answers the
 Career's records that need nothing but Java's `db/career.db` and the content: `careerCollection`, `careerDeck`,
 `careerStarters` and `careerOpponents` (the `Career` group, `XMAGE_ROUTE_CAREER`), `careerGameResult`, `careerShowProgress`,
-`careerLevels` and `careerCosmetics` (`CareerProgress`, `XMAGE_ROUTE_CAREERPROGRESS`). The code is
+`careerLevels`, `careerCosmetics` and `careerAchievements` (`CareerProgress`, `XMAGE_ROUTE_CAREERPROGRESS`). The code is
 `rust/crates/playmat-platform/src/career.rs`.
 
 ## The content
@@ -25,6 +25,12 @@ it, the same opponent as their nemesis, and which opponent opens a rival chapter
 `CareerService.opponents` does, and takes the nemesis view for the player's nemesis, which Java keeps in
 `db/solo.db` (`career.nemesis`, under the name as signed in).
 
+The achievements are in the file as Java's templates, in Java's order, with each target's text and the points
+written out (`CareerProgress.achievementExport`). Rust builds each view as `CareerProgress.view` does, from the
+achievements earned and the lifetime totals (the stats, the level, opponents beaten and the highest tier open). For
+all 124 achievements, earned, not earned and with every tier earned, Rust's JSON was Java's byte for byte (4 Nov
+2026).
+
 ## Same rules
 
 - Only for accounts (`XMAGE_AUTH`), and refused with Java's -32001 "This server doesn't offer Career" when staff turned
@@ -38,7 +44,7 @@ it, the same opponent as their nemesis, and which opponent opens a rival chapter
 
 ## Left to Java
 
-The rest of the Career: the rest of its content (rewards, quests, achievements, campaigns, puzzles), the shop
+The rest of the Career: the rest of its content (rewards, quests, campaigns, puzzles), the shop
 and packs (`createBooster` is the engine's), capsule pulls, quests and rerolls (unseeded `Random`), the gauntlet and
 limited runs, every call that starts a game, the live quest tracker, and the payouts at the end of a game. They move
 in this order: the content and its read calls, the deterministic writes, then payouts from a `matchEnded` event Java
@@ -47,6 +53,6 @@ sends with the game's counters.
 ## Checks
 
 Unit tests in `career.rs` read a collection, a deck, game results, a new profile, the level track, the views
-file as it changes and the roster with wins and a nemesis, check the
+file as it changes and the roster with wins and a nemesis, and achievements with tiers and secrets, check the
 level and renown math against `CareerRules`, and the Career turned off. On a server with
 accounts, `shadow` compares the answers for the listed accounts (`XMAGE_SHADOW_USERS`).

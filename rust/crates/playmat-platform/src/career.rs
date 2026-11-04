@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 8] = [
+pub const CAREER_METHODS: [&str; 9] = [
     "careerCollection",
     "careerDeck",
     "careerGameResult",
@@ -18,6 +18,7 @@ pub const CAREER_METHODS: [&str; 8] = [
     "careerStarters",
     "careerCosmetics",
     "careerOpponents",
+    "careerAchievements",
 ];
 
 /// `CareerRules.WINS_TO_UNLOCK_NEXT_TIER`
@@ -234,22 +235,64 @@ impl AdminStores {
                 let Some(roster) = self.career_views.as_ref().and_then(|views| views.view("opponents")) else {
                     return Err(Stop::Decline);
                 };
-                let rows = sqlx::query("SELECT opponent, SUM(won) FROM payouts WHERE user = ? GROUP BY opponent")
-                    .bind(&user)
-                    .fetch_all(&mut *db)
-                    .await?;
-                let mut wins = std::collections::HashMap::new();
-                for row in rows {
-                    if let Some(opponent) = row.try_get::<Option<String>, _>(0)? {
-                        wins.insert(opponent, row.try_get::<Option<i64>, _>(1)?.unwrap_or(0));
-                    }
-                }
+                let wins = wins_by_opponent(db, &user).await?;
                 // `CareerLadder.nemesis`: Java's solo.db keeps it under the name as signed in
                 let nemesis = match &self.solo {
                     Some(solo) => nemesis(solo, caller.user.as_deref().unwrap_or_default()).await?,
                     None => return Err(Stop::Decline),
                 };
                 opponents(roster, &wins, nemesis.as_deref()).ok_or(Stop::Decline)
+            }
+            "careerAchievements" => {
+                let views = self.career_views.as_ref();
+                let (Some(content), Some(templates), Some(roster)) = (
+                    &self.career_content,
+                    views.and_then(|views| views.view("achievements")),
+                    views.and_then(|views| views.view("opponents")),
+                ) else {
+                    return Err(Stop::Decline);
+                };
+                let rows = sqlx::query("SELECT id, at FROM achievements WHERE user = ? ORDER BY at")
+                    .bind(&user)
+                    .fetch_all(&mut *db)
+                    .await?;
+                let mut earned = std::collections::HashMap::new();
+                for row in rows {
+                    earned.insert(row.try_get::<String, _>(0)?, row.try_get::<i64, _>(1)?);
+                }
+                // `CareerProgress.totals`: the stats, the level, opponents beaten and the highest tier open
+                let mut totals = std::collections::HashMap::new();
+                for row in sqlx::query("SELECT counter, value FROM stats WHERE user = ?")
+                    .bind(&user)
+                    .fetch_all(&mut *db)
+                    .await?
+                {
+                    totals.insert(row.try_get::<String, _>(0)?, row.try_get::<i64, _>(1)?);
+                }
+                let level = profile(db, &user, content).await?.and_then(|view| view["level"].as_i64()).unwrap_or(1);
+                totals.insert("level".into(), level);
+                let wins = wins_by_opponent(db, &user).await?;
+                let beaten = roster.as_array().ok_or(Stop::Decline)?.iter().filter(|entry| {
+                    entry["view"]["id"].as_str().and_then(|id| wins.get(id)).is_some_and(|won| *won > 0)
+                });
+                totals.insert("opponents_beaten".into(), beaten.count() as i64);
+                let opened = opponents(roster, &wins, None).ok_or(Stop::Decline)?;
+                let tiers_open = opened
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter(|view| view["unlocked"] == json!(true))
+                    .filter_map(|view| view["tier"].as_i64())
+                    .fold(1, i64::max);
+                totals.insert("tiers_open".into(), tiers_open);
+                let mut views = Vec::new();
+                for template in templates.as_array().ok_or(Stop::Decline)? {
+                    let total = template["scope"] == json!("total");
+                    let counter = template["counter"].as_str().and_then(|counter| totals.get(counter));
+                    let progress = if total { counter.copied().unwrap_or(0) } else { 0 };
+                    views.push(achievement(template, &earned, progress).ok_or(Stop::Decline)?);
+                }
+                Ok(Value::Array(views))
             }
             "careerLevels" => {
                 let Some(content) = &self.career_content else { return Err(Stop::Decline) };
@@ -337,6 +380,119 @@ pub fn difference(java: &Value, rust: &Value) -> Option<String> {
 }
 
 /// `CareerApi.career`: the signed-in account's Career key (`CareerStore.key`), when the server offers Career
+/// `CareerStore.winsByOpponent`
+async fn wins_by_opponent(
+    db: &mut SqliteConnection,
+    user: &str,
+) -> Result<std::collections::HashMap<String, i64>, Stop> {
+    let rows = sqlx::query("SELECT opponent, SUM(won) FROM payouts WHERE user = ? GROUP BY opponent")
+        .bind(user)
+        .fetch_all(&mut *db)
+        .await?;
+    let mut wins = std::collections::HashMap::new();
+    for row in rows {
+        if let Some(opponent) = row.try_get::<Option<String>, _>(0)? {
+            wins.insert(opponent, row.try_get::<Option<i64>, _>(1)?.unwrap_or(0));
+        }
+    }
+    Ok(wins)
+}
+
+/// `CareerProgress.view`: an achievement as the player sees it, from Java's template (`achievementTemplates`). With
+/// tiers, the target, pay and text are the next tier's (the top one's once all are earned); names and texts of a
+/// secret one show once it's earned. Fields in `CareerAchievement`'s order, nulls left out as Gson does.
+fn achievement(template: &Value, earned: &std::collections::HashMap<String, i64>, value: i64) -> Option<Value> {
+    let id = template["id"].as_str()?;
+    let secret = template["secret"].as_bool().unwrap_or(false);
+    let int = |value: &Value, field: &str| value[field].as_i64().unwrap_or(0);
+    let tiers = template["tiers"].as_array().map(Vec::as_slice).unwrap_or_default();
+    let (achieved, at, tier, target, progress, shown, points, points_total, tier_views);
+    if tiers.is_empty() {
+        let earned_at = earned.get(id).copied();
+        achieved = earned_at.is_some();
+        at = earned_at.unwrap_or(0);
+        tier = i64::from(achieved);
+        target = int(template, "target");
+        progress = if achieved { target } else { target.min(value) };
+        shown = template;
+        points_total = int(template, "points");
+        points = if achieved { points_total } else { 0 };
+        tier_views = Vec::new();
+    } else {
+        let (mut reached, mut latest, mut sum, mut total, mut next) = (0, 0, 0, 0, None);
+        let mut views = Vec::new();
+        for (index, step) in tiers.iter().enumerate() {
+            let step_at = earned.get(&format!("{id}:{}", index + 1)).copied();
+            let mut view = serde_json::Map::new();
+            for field in ["target", "coins", "xp", "points"] {
+                view.insert(field.into(), json!(int(step, field)));
+            }
+            if !step["cosmetic"].is_null() {
+                view.insert("cosmetic".into(), step["cosmetic"].clone());
+            }
+            view.insert("tokens".into(), json!(int(step, "tokens")));
+            if (step_at.is_some() || !secret) && !step["text"].is_null() {
+                view.insert("text".into(), step["text"].clone());
+            }
+            view.insert("at".into(), json!(step_at.unwrap_or(0)));
+            view.insert("holders".into(), json!(0));
+            views.push(Value::Object(view));
+            total += int(step, "points");
+            match step_at {
+                Some(step_at) => {
+                    reached = index as i64 + 1;
+                    sum += int(step, "points");
+                    latest = latest.max(step_at);
+                }
+                None if next.is_none() => next = Some(step),
+                None => {}
+            }
+        }
+        shown = next.unwrap_or_else(|| tiers.last().unwrap());
+        achieved = reached > 0;
+        at = latest;
+        tier = reached;
+        target = int(shown, "target");
+        progress = target.min(value);
+        points = sum;
+        points_total = total;
+        tier_views = views;
+    }
+    let mut view = serde_json::Map::new();
+    view.insert("id".into(), json!(id));
+    if achieved || !secret {
+        for field in ["name", "text"] {
+            let source = if field == "text" { shown } else { template };
+            if !source[field].is_null() {
+                view.insert(field.into(), source[field].clone());
+            }
+        }
+    }
+    view.insert("secret".into(), json!(secret));
+    view.insert("achieved".into(), json!(achieved));
+    view.insert("at".into(), json!(at));
+    if !template["scope"].is_null() {
+        view.insert("scope".into(), template["scope"].clone());
+    }
+    view.insert("progress".into(), json!(progress));
+    view.insert("target".into(), json!(target));
+    view.insert("coins".into(), json!(int(shown, "coins")));
+    view.insert("xp".into(), json!(int(shown, "xp")));
+    if !shown["cosmetic"].is_null() {
+        view.insert("cosmetic".into(), shown["cosmetic"].clone());
+    }
+    view.insert("tokens".into(), json!(0));
+    if !template["family"].is_null() {
+        view.insert("family".into(), template["family"].clone());
+    }
+    view.insert("tier".into(), json!(tier));
+    view.insert("tiers".into(), Value::Array(tier_views));
+    view.insert("points".into(), json!(points));
+    view.insert("pointsTotal".into(), json!(points_total));
+    view.insert("holders".into(), json!(0));
+    Some(Value::Object(view))
+}
+
 /// the nemesis's opponent id, from solo.db's `career.nemesis` state; no solo.db, no nemesis
 async fn nemesis(solo: &std::path::Path, user: &str) -> Result<Option<String>, Stop> {
     let Some(mut db) = crate::support::open_read_only(solo).await else { return Ok(None) };
@@ -539,6 +695,72 @@ mod tests {
 
     fn content_dir() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../Mage.Server/src/main/resources/career")
+    }
+
+    #[test]
+    fn achievements_as_java_shows_them() {
+        let earned: std::collections::HashMap<String, i64> =
+            [("win:1".into(), 5), ("win:2".into(), 9), ("hidden".into(), 7)].into();
+        // tiered: the next tier's target, pay and text; the earned tiers' points and latest time
+        let tiered = json!({"id": "win", "name": "Winner", "text": "Win 1 game.", "secret": false, "scope": "total",
+        "counter": "wins", "family": "play", "target": 1, "coins": 0, "xp": 0, "points": 10, "tiers": [
+            {"target": 1, "coins": 5, "xp": 1, "points": 5, "tokens": 0, "text": "Win 1 game."},
+            {"target": 10, "coins": 10, "xp": 2, "points": 10, "tokens": 1, "text": "Win 10 games."},
+            {"target": 100, "coins": 20, "xp": 3, "points": 20, "cosmetic": {"kind": "title", "id": "champ"}, "tokens": 2,
+             "text": "Win 100 games."},
+        ]});
+        let view = achievement(&tiered, &earned, 42).unwrap();
+        assert_eq!(
+            view.as_object().unwrap().keys().map(String::as_str).collect::<Vec<_>>(),
+            [
+                "id",
+                "name",
+                "text",
+                "secret",
+                "achieved",
+                "at",
+                "scope",
+                "progress",
+                "target",
+                "coins",
+                "xp",
+                "cosmetic",
+                "tokens",
+                "family",
+                "tier",
+                "tiers",
+                "points",
+                "pointsTotal",
+                "holders"
+            ]
+        );
+        assert_eq!(
+            (
+                view["text"].clone(),
+                view["tier"].clone(),
+                view["at"].clone(),
+                view["progress"].clone(),
+                view["target"].clone()
+            ),
+            (json!("Win 100 games."), json!(2), json!(9), json!(42), json!(100))
+        );
+        assert_eq!((view["points"].clone(), view["pointsTotal"].clone()), (json!(15), json!(35)));
+        assert_eq!(
+            view["tiers"][1],
+            json!({"target": 10, "coins": 10, "xp": 2, "points": 10, "tokens": 1,
+            "text": "Win 10 games.", "at": 9, "holders": 0})
+        );
+        // a secret one shows its name and text once earned
+        let secret = json!({"id": "hidden", "name": "Hidden", "text": "Do it.", "secret": true, "scope": "game",
+            "target": 1, "coins": 3, "xp": 0, "points": 15, "tiers": []});
+        let shown = achievement(&secret, &earned, 0).unwrap();
+        assert_eq!(
+            (shown["name"].clone(), shown["progress"].clone(), shown["points"].clone()),
+            (json!("Hidden"), json!(1), json!(15))
+        );
+        let hidden = achievement(&secret, &Default::default(), 0).unwrap();
+        assert!(hidden.get("name").is_none() && hidden.get("text").is_none());
+        assert_eq!((hidden["achieved"].clone(), hidden["points"].clone()), (json!(false), json!(0)));
     }
 
     #[test]
