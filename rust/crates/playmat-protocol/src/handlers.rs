@@ -24,6 +24,12 @@ pub trait Handlers: Send + Sync {
 
     async fn call(&self, caller: &Caller, request: &Request) -> Outcome;
 
+    /// The answer Rust would give, for comparing with Java's (`shadow`): Java makes the change, so a call that
+    /// writes must leave everything as it was. It runs before the call goes to Java.
+    async fn shadow(&self, caller: &Caller, request: &Request) -> Outcome {
+        self.call(caller, request).await
+    }
+
     /// a session ended on the Java side (logout, expiry, signed in elsewhere): drop what is kept for it
     fn session_ended(&self, _caller: &Caller) {}
 }

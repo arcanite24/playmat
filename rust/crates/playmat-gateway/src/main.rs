@@ -52,7 +52,7 @@ async fn main() {
         }
     };
     // the platform service's calls (phase 2); which of them Rust answers is the routing table's choice
-    let platform = playmat_platform::Platform::new(app_catalog());
+    let platform = playmat_platform::Platform::new(app_catalog(), app_decks().await);
     tokio::spawn(platform.clone().watch());
     let app = Arc::new(App {
         config,
@@ -81,6 +81,21 @@ async fn main() {
         error!("Server stopped: {e}");
     }
     info!("Stopped; {}", app.metrics.render().lines().filter(|l| !l.starts_with('#')).collect::<Vec<_>>().join(", "));
+}
+
+/// `XMAGE_PLATFORM_DECKS`: the server's db/web_decks.db, for deck sync in Rust
+async fn app_decks() -> Option<playmat_platform::decks::DeckStore> {
+    let path: std::path::PathBuf = std::env::var("XMAGE_PLATFORM_DECKS").ok().filter(|v| !v.trim().is_empty())?.into();
+    match playmat_platform::decks::DeckStore::open(&path).await {
+        Ok(store) => {
+            info!("Decks: {}", path.display());
+            Some(store)
+        }
+        Err(e) => {
+            warn!("Decks {} can't be opened, deck sync stays with Java: {e}", path.display());
+            None
+        }
+    }
 }
 
 /// `XMAGE_PLATFORM_CATALOG`: the card catalog the server exports (`-Dxmage.catalog.export`)

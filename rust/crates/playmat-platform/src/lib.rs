@@ -2,12 +2,15 @@
 //! gateway's process; the routing table decides which of its methods are used (`rust`), compared with Java's answers
 //! (`shadow`) or left to Java.
 //!
-//! Now: the card catalog (`lookupCards`, `getExpansionSets`, `getBasicLandSets`) from the file Java exports.
+//! Now: the card catalog (`lookupCards`, `getExpansionSets`, `getBasicLandSets`) from the file Java exports, and the
+//! web client's deck sync (`deckSync*`) on Java's own decks database.
 
 pub mod catalog;
+pub mod decks;
 
 use async_trait::async_trait;
 use catalog::{Catalog, Entry};
+use decks::DeckStore;
 use playmat_protocol::handlers::{Caller, Handlers};
 use playmat_protocol::jsonrpc::{Outcome, Request, INTERNAL_ERROR, INVALID_PARAMS};
 use serde_json::Value;
@@ -22,12 +25,14 @@ pub struct Platform {
     catalog_path: Option<PathBuf>,
     /// None until the file exists (the server writes it after its first start): the methods stay with Java
     catalog: RwLock<Option<Arc<Catalog>>>,
+    /// db/web_decks.db (`XMAGE_PLATFORM_DECKS`); None leaves deck sync to Java
+    decks: Option<DeckStore>,
 }
 
 impl Platform {
     /// `catalog`: the file `-Dxmage.catalog.export` names (`XMAGE_PLATFORM_CATALOG`)
-    pub fn new(catalog: Option<PathBuf>) -> Arc<Platform> {
-        Arc::new(Platform { catalog_path: catalog, catalog: RwLock::new(None) })
+    pub fn new(catalog: Option<PathBuf>, decks: Option<DeckStore>) -> Arc<Platform> {
+        Arc::new(Platform { catalog_path: catalog, catalog: RwLock::new(None), decks })
     }
 
     pub fn catalog(&self) -> Option<Arc<Catalog>> {
@@ -58,10 +63,14 @@ impl Platform {
 #[async_trait]
 impl Handlers for Platform {
     fn handles(&self, method: &str) -> bool {
-        CATALOG_METHODS.contains(&method) && self.catalog.read().unwrap().is_some()
+        (CATALOG_METHODS.contains(&method) && self.catalog.read().unwrap().is_some())
+            || (decks::METHODS.contains(&method) && self.decks.is_some())
     }
 
-    async fn call(&self, _caller: &Caller, request: &Request) -> Outcome {
+    async fn call(&self, caller: &Caller, request: &Request) -> Outcome {
+        if let (Some(decks), true) = (&self.decks, decks::METHODS.contains(&request.method.as_str())) {
+            return decks.call(caller, request, true).await;
+        }
         let Some(catalog) = self.catalog() else {
             return Outcome::error(INTERNAL_ERROR, "The card catalog isn't loaded");
         };
@@ -87,6 +96,16 @@ impl Handlers for Platform {
                 warn!("{}: {e}", request.method);
                 Outcome::error(INTERNAL_ERROR, "Internal error")
             }
+        }
+    }
+
+    async fn shadow(&self, caller: &Caller, request: &Request) -> Outcome {
+        match &self.decks {
+            // Java stores the change: Rust's is rolled back
+            Some(decks) if decks::METHODS.contains(&request.method.as_str()) => {
+                decks.call(caller, request, false).await
+            }
+            _ => self.call(caller, request).await,
         }
     }
 }

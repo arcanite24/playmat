@@ -367,6 +367,8 @@ if [ "$GATEWAY" = on ]; then
     export XMAGE_GATEWAY_LISTEN=0.0.0.0:17180 XMAGE_GATEWAY_JAVA_URL=ws://127.0.0.1:17172
     export XMAGE_GATEWAY_TRUSTED_PROXIES=${XMAGE_TRUSTED_PROXIES:-127.0.0.1}
     export XMAGE_PLATFORM_CATALOG=$CARDS_DIR/catalog.sqlite
+    # the bridge's own decks database (./db/web_decks.db), for XMAGE_ROUTE_ACCOUNT
+    export XMAGE_PLATFORM_DECKS=$DB_DIR/web_decks.db
     while true; do
       playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
       sleep 2

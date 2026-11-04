@@ -5,6 +5,9 @@
  *
  *   MAGE_LIVE_SERVER=1 MAGE_SERVER_URL=ws://127.0.0.1:17172 MAGE_PLATFORM_RUST_URL=ws://127.0.0.1:17181 \
  *     MAGE_PLATFORM_SHADOW_URL=ws://127.0.0.1:17180 npx vitest run src/core/headless/platform
+ *
+ * MAGE_PLATFORM_DECKS=1 adds deck sync: the server must have accounts on, and both gateways must open its
+ * db/web_decks.db (XMAGE_PLATFORM_DECKS) with the Account group on `rust` and `shadow`.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,6 +17,7 @@ import { RawConnection } from './conformance';
 const JAVA_URL = process.env.MAGE_SERVER_URL ?? 'ws://127.0.0.1:17172';
 const RUST_URL = process.env.MAGE_PLATFORM_RUST_URL ?? '';
 const SHADOW_URL = process.env.MAGE_PLATFORM_SHADOW_URL ?? '';
+const DECKS = process.env.MAGE_PLATFORM_DECKS === '1';
 const live = process.env.MAGE_LIVE_SERVER === '1' && RUST_URL !== '';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -147,6 +151,115 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
       java.close();
       rust.close();
     }
+  });
+
+  /** a test account (registered on its first run: a server takes 3 new accounts an hour from one address), signed in */
+  async function signIn(connection: RawConnection, name: string): Promise<string> {
+    await connection.call('authRegister', ['', name, 'deckpass1', `${name}@example.test`]);
+    const login = await connection.call('connectUser', [name, 'deckpass1', '', '', '', '', '']);
+    expect(login.result, `login ${name}`).toBe(true);
+    return name;
+  }
+
+  /**
+   * The same deck changes, in order, for one account; what each call answered. Deck ids are new each run (the accounts
+   * keep their decks), and lists keep only this run's.
+   */
+  async function deckScript(connection: RawConnection, now: number): Promise<unknown[]> {
+    const run = `r${now.toString(36)}-`;
+    const deck = JSON.stringify({ name: 'Burn', cards: [{ name: 'Lightning Bolt', amount: 4 }] });
+    const calls: [string, unknown[]][] = [
+      ['deckSyncList', []],
+      ['deckSyncPut', [`${run}d1`, 'Burn', now, deck]],
+      ['deckSyncPut', [`${run}d1`, 'Burn older', now - 5, deck]],
+      ['deckSyncPut', [`${run}d2`, 'x'.repeat(250), String(now + 1), deck]],
+      ['deckSyncPut', [`${run}d3`, 'Ünïcødé 😀', now + 2, deck]],
+      ['deckSyncGet', [`${run}d1`]],
+      ['deckSyncGet', [`${run}d3`]],
+      ['deckSyncGet', [`${run}missing`]],
+      ['deckSyncDelete', [`${run}d1`, now - 10]],
+      ['deckSyncDelete', [`${run}d1`, now + 10]],
+      ['deckSyncGet', [`${run}d1`]],
+      ['deckSyncDelete', [`${run}never`, now + 11]],
+      ['deckSyncPut', [`${run}d1`, 'Burn again', now + 20, deck]],
+      ['deckSyncDelete', [`${run}ancient`, 1]],
+      ['deckSyncList', []],
+      // refused: bad ids, missing or wrong parameters, empty and oversized decks
+      ['deckSyncGet', ['bad id']],
+      ['deckSyncGet', ['x'.repeat(65)]],
+      ['deckSyncGet', []],
+      ['deckSyncGet', [null]],
+      ['deckSyncGet', [{}]],
+      ['deckSyncPut', [`${run}d4`, 'n', 'soon', deck]],
+      ['deckSyncPut', [`${run}d4`, 'n', now, '']],
+      ['deckSyncPut', [`${run}d4`, 'n', now]],
+      ['deckSyncPut', [`${run}d4`, 'n', now, 'x'.repeat(256 * 1024 + 1)]],
+      // Gson reads a one-element array as its element
+      ['deckSyncDelete', [`${run}d4`, [now + 30]]],
+      ['deckSyncDelete', [`${run}d5`, [1, 2]]],
+      ['deckSyncDelete', [`${run}d5`, true]],
+      ['deckSyncList', []],
+    ];
+    const out: unknown[] = [];
+    for (const [method, params] of calls) {
+      const answer = await call(connection, method, params);
+      if (method === 'deckSyncList' && Array.isArray(answer.result)) {
+        answer.result = answer.result.filter((deck: { id: string }) => deck.id.startsWith(run));
+      }
+      out.push({ method, ...answer });
+    }
+    return out;
+  }
+
+  test.skipIf(!DECKS)('deck sync: the same changes give the same answers', { timeout: 60_000 }, async () => {
+    const [java, rust] = await Promise.all([RawConnection.open(JAVA_URL), RawConnection.open(RUST_URL)]);
+    try {
+      // before signing in, both refuse
+      expect(difference(await call(java, 'deckSyncList', []), await call(rust, 'deckSyncList', []))).toBeNull();
+      await signIn(java, 'deckjava');
+      const rustUser = await signIn(rust, 'deckrust');
+      const now = Date.now();
+      const [javaAnswers, rustAnswers] = [await deckScript(java, now), await deckScript(rust, now)];
+      expect(difference(javaAnswers, rustAnswers)).toBeNull();
+      // Java reads what Rust wrote: the Rust account, signed in straight to Java, lists the same decks
+      rust.close();
+      const again = await RawConnection.open(JAVA_URL);
+      try {
+        expect((await again.call('connectUser', [rustUser, 'deckpass1', '', '', '', '', ''])).result).toBe(true);
+        const mine = (rustAnswers.at(-1) as { result: { id: string }[] }).result;
+        expect(mine.length).toBe(5);
+        const listed = ((await call(again, 'deckSyncList', [])).result as { id: string }[]).filter((deck) => mine.some((m) => m.id === deck.id));
+        expect(difference(listed, mine)).toBeNull();
+      } finally {
+        again.close();
+      }
+    } finally {
+      java.close();
+      rust.close();
+    }
+  });
+
+  test.skipIf(!DECKS || !SHADOW_URL)('deck sync in shadow: Java stores, Rust compares', { timeout: 60_000 }, async () => {
+    const metricsUrl = SHADOW_URL.replace(/^ws/, 'http').replace(/\/?$/, '/metrics');
+    const differences = async () => {
+      const text = await (await fetch(metricsUrl)).text();
+      let total = 0;
+      for (const m of text.matchAll(/^playmat_gateway_shadow_method_total\{method="deckSync\w+",result="different"\} (\d+)$/gm)) total += Number(m[1]);
+      return total;
+    };
+    const before = await differences();
+    const [java, shadow] = await Promise.all([RawConnection.open(JAVA_URL), RawConnection.open(SHADOW_URL)]);
+    try {
+      await signIn(java, 'deckjava');
+      await signIn(shadow, 'deckshadow');
+      // the answers Rust gave in shadow, before Java stored each change, are what Java answered
+      const now = Date.now();
+      expect(difference(await deckScript(java, now), await deckScript(shadow, now))).toBeNull();
+    } finally {
+      java.close();
+      shadow.close();
+    }
+    expect(await differences()).toBe(before);
   });
 
   test.skipIf(!SHADOW_URL)('shadow routing counts no differences', { timeout: 120_000 }, async () => {

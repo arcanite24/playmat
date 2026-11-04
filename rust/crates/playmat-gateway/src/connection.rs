@@ -56,6 +56,8 @@ enum Pending {
 
 struct Shared {
     caller: Mutex<Caller>,
+    /// false from a login until Java says whose session it is (`sessionUserName`): calls answered here wait for it
+    identified: tokio::sync::watch::Sender<bool>,
     states: Mutex<GameStates>,
     pending: Mutex<HashMap<String, Pending>>,
     queued_bytes: AtomicUsize,
@@ -95,6 +97,7 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
 
     let shared = Arc::new(Shared {
         caller: Mutex::new(Caller { ip: ip.to_string(), ..Caller::default() }),
+        identified: tokio::sync::watch::Sender::new(true),
         states: Mutex::new(GameStates::new()),
         pending: Mutex::new(HashMap::new()),
         queued_bytes: AtomicUsize::new(0),
@@ -332,6 +335,7 @@ fn on_reply(
                     caller.account = app.accounts.load(Ordering::Relaxed) && !caller.admin;
                 }
                 if method != "connectAdmin" {
+                    shared.identified.send_replace(false);
                     shared.pending.lock().unwrap().insert(id_key(&Value::from(WHOAMI_ID)), Pending::Whoami);
                     let whoami = Request {
                         id: Some(Value::from(WHOAMI_ID)),
@@ -364,6 +368,7 @@ fn on_reply(
             if let Some(Value::String(user)) = reply.get("result") {
                 shared.caller.lock().unwrap().user = Some(user.clone());
             }
+            shared.identified.send_replace(true);
             true
         }
     }
@@ -458,7 +463,7 @@ async fn on_client_text(
         }
         Route::Rust => {
             Metrics::add(&app.metrics.requests_rust, 1);
-            let caller = shared.caller.lock().unwrap().clone();
+            let caller = identified_caller(shared).await;
             let outcome = app.handlers.call(&caller, &request).await;
             if let Some(id) = &request.id {
                 send_client(outcome.reply(id));
@@ -466,8 +471,8 @@ async fn on_client_text(
         }
         Route::Shadow => {
             Metrics::add(&app.metrics.requests_shadow, 1);
-            let caller = shared.caller.lock().unwrap().clone();
-            let rust = app.handlers.call(&caller, &request).await;
+            let caller = identified_caller(shared).await;
+            let rust = app.handlers.shadow(&caller, &request).await;
             if let Some(id) = &request.id {
                 shared
                     .pending
@@ -478,6 +483,17 @@ async fn on_client_text(
             let _ = to_java.send(Frame::text(Bytes::from(text)));
         }
     }
+}
+
+/// The caller once a login's user name is known. A client may call right after the login's answer, before the
+/// gateway's own question about the name is back; Java would know already.
+async fn identified_caller(shared: &Shared) -> Caller {
+    let mut identified = shared.identified.subscribe();
+    let wait = identified.wait_for(|known| *known);
+    if tokio::time::timeout(std::time::Duration::from_secs(10), wait).await.is_err() {
+        warn!("no sessionUserName answer from Java in 10 s");
+    }
+    shared.caller.lock().unwrap().clone()
 }
 
 fn truncate(text: &str, max: usize) -> String {

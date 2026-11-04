@@ -116,6 +116,14 @@ browser ── wss /ws ──► Caddy ──► gateway (Rust)  ─── routi
 
 Sizes are rough calendar estimates for one developer with agents, measured against the harness at each gate.
 
+### Where it stands (4 Nov 2026)
+
+| Phase | Built | Gate |
+|---|---|---|
+| 0 | State traces and fingerprints (`mage.game.trace`, a seeded game replays to the same trace), the card-test export (`-Dxmage.exportTests`), the wire conformance suite, `playmat-statediff` byte-compatible with Java's patches, the perf harness's `PERF_BACKEND` and Pauper deck suite | Conformance green against Java. Replaying decision logs across engines waits for the Rust engine (phase 4); traces replay identically on Java. The Java copy-on-write work isn't started. |
+| 1 | JBoss Remoting gone; `playmat-gateway` behind `XMAGE_GATEWAY`, with routes, state patches and Caddy fallback | Conformance green through the gateway; JVM CPU per human game down 12% (1.60 → 1.41 s) for 0.31 s in the gateway; the week on Multivac and Hetzner is still to run. |
+| 2 | `playmat-platform`: the card catalog ([rust/Catalog.md](rust/Catalog.md)) and deck sync ([rust/Decks.md](rust/Decks.md)), each with `shadow` | Both answer as Java does in the live tests, with no shadow differences; the week in `shadow` per group is still to run. Not started: card search and deck validation, deck import, admin and staff, accounts, support hooks. |
+
 ### Phase 0: Contracts and measurement (2–3 weeks)
 
 Nothing in Rust yet; this is what makes every later swap safe.
