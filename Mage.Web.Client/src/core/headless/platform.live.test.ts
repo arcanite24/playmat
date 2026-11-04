@@ -20,6 +20,9 @@ const SHADOW_URL = process.env.MAGE_PLATFORM_SHADOW_URL ?? '';
 const DECKS = process.env.MAGE_PLATFORM_DECKS === '1';
 /** reads decks from the real deck sites */
 const DECK_IMPORT = process.env.MAGE_PLATFORM_DECK_IMPORT === '1';
+/** the staff console's calls (the gateways with XMAGE_PLATFORM_ADMIN), through the admin password's console */
+const ADMIN_PASSWORD = process.env.MAGE_ADMIN_PASSWORD ?? '';
+const ADMIN = process.env.MAGE_PLATFORM_ADMIN === '1' && ADMIN_PASSWORD !== '';
 const live = process.env.MAGE_LIVE_SERVER === '1' && RUST_URL !== '';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -478,7 +481,9 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
 
   test.skipIf(!DECK_IMPORT)('deck import: real deck sites, and links that aren\'t decks', { timeout: 120_000 }, async () => {
     const [java, rust] = await Promise.all([RawConnection.open(JAVA_URL), RawConnection.open(RUST_URL)]);
-    const answer = async (connection: RawConnection, method: string, params: unknown[]) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- answers are read field by field
+  type Json = any;
+  const answer = async (connection: RawConnection, method: string, params: unknown[]): Promise<{ result?: Json; error?: unknown }> => {
       await paced(connection);
       const reply = await connection.call(method, params, 30_000);
       return reply.error ? { error: reply.error } : { result: reply.result };
@@ -505,6 +510,88 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     }
   });
 
+  /** a report and a client error to look at, filed through Java as players do */
+  async function fileReportAndError(tag: string) {
+    const player = await RawConnection.open(JAVA_URL);
+    try {
+      expect((await player.call('connectUser', [`rep${tag}`, '', '', '', '', '', ''])).result).toBe(true);
+      expect((await player.call('reportPlayer', [`bad${tag}`, 'spam', `details ${tag}`])).error).toBeUndefined();
+      await player.call('clientReportError', [{ message: `boom ${tag}`, source: 'live test', path: '/x', stack: 'at x' }]);
+    } finally {
+      player.close();
+    }
+  }
+
+  const answer = async (connection: RawConnection, method: string, params: unknown[]) => {
+    await paced(connection);
+    const reply = await connection.call(method, params);
+    return reply.error ? { error: reply.error } : { result: reply.result };
+  };
+
+  test.skipIf(!ADMIN)('staff console: the same answers, and each side reads the other\'s writes', { timeout: 120_000 }, async () => {
+    const tag = `${Date.now() % 1_000_000}`;
+    await fileReportAndError(tag);
+    const [java, rust] = await Promise.all([RawConnection.open(JAVA_URL), RawConnection.open(RUST_URL)]);
+    const same = async (method: string, params: unknown[] = []) => {
+      const [j, r] = [await answer(java, method, params), await answer(rust, method, params)];
+      expect(difference(j, r), `${method} ${JSON.stringify(params)}`).toBeNull();
+      return j.result;
+    };
+    try {
+      // before login: a session call
+      await same('staffMe');
+      await same('inviteCheck', ['nope']);
+      expect((await java.call('connectAdmin', [ADMIN_PASSWORD, ''])).result).toBe(true);
+      expect((await rust.call('connectAdmin', [ADMIN_PASSWORD, ''])).result).toBe(true);
+      await same('staffMe');
+      await same('adminStaff');
+      for (const params of [[], [null, 'access'], ['console'], [null, null, 'nobody'], [' ', '  ', ''], ['console', 'report', null, 999_999_999]]) {
+        await same('adminAudit', params);
+      }
+      for (const params of [[], [true], [false], [1], ['x']]) await same('adminClientErrors', params);
+      for (const params of [[], [false], [true]]) await same('adminGetReports', params);
+
+      // invites: made in Rust, checked and revoked in Java
+      const invite = (await answer(rust, 'adminInviteCreate', [` live ${tag} `, 3, 2])).result;
+      expect(invite.code).toHaveLength(16);
+      expect((await answer(java, 'inviteCheck', [invite.code])).result).toEqual({ valid: true, expiresAt: invite.expiresAt });
+      await same('inviteCheck', [` ${invite.code} `]);
+      expect((await answer(java, 'adminInviteRevoke', [invite.code])).result).toBe(true);
+      expect((await answer(rust, 'adminInviteRevoke', [invite.code])).result).toBe(false);
+      await same('inviteCheck', [invite.code]);
+
+      // the allowlist: added in Rust, found by Java
+      const allowed = (await answer(rust, 'adminAllowAdd', [` Live${tag} `, 'a note'])).result;
+      expect(allowed.name).toBe(`live${tag}`);
+      expect((await answer(java, 'adminAllowAdd', [`live${tag}`])).result).toEqual(allowed);
+      await same('adminAllowAdd', [`LIVE${tag}`]);
+      await same('adminAllowAdd', ['   ']);
+
+      // client errors: resolved in Rust, reopened in Java
+      const errors = (await answer(java, 'adminClientErrors', [true])).result as Json[];
+      const error = errors.find((e) => e.message === `boom ${tag}`);
+      expect(error).toBeTruthy();
+      const resolved = (await answer(rust, 'adminClientErrorResolve', [error.id])).result;
+      expect(resolved).toMatchObject({ resolved: true, resolvedBy: 'console', regressed: false });
+      expect((await answer(java, 'adminClientErrors', [true])).result.find((e: Json) => e.id === error.id)).toEqual(resolved);
+      await answer(java, 'adminClientErrorResolve', [error.id, false]);
+      await same('adminClientErrors', [true]);
+      await same('adminClientErrorResolve', [999_999_999]);
+
+      // reports: closed in Rust, already closed for Java
+      const reports = (await answer(java, 'adminGetReports', [])).result as Json[];
+      const report = reports.find((r) => r.details === `details ${tag}`);
+      expect((await answer(rust, 'adminCloseReport', [report.id, ` handled ${tag} `])).result).toBe(true);
+      expect((await answer(java, 'adminCloseReport', [report.id, 'again'])).result).toBe(false);
+      await same('adminGetReports', [false]);
+      await same('adminAudit');
+      console.log('[platform] staff console: reads the same, and each side read the other\'s writes');
+    } finally {
+      java.close();
+      rust.close();
+    }
+  });
+
   test.skipIf(!SHADOW_URL)('shadow routing counts no differences', { timeout: 120_000 }, async () => {
     const metricsUrl = SHADOW_URL.replace(/^ws/, 'http').replace(/\/?$/, '/metrics');
     const counts = async () => {
@@ -522,6 +609,26 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
       expect((await shadow.call('connectUser', ['searchshadow', '', '', '', '', '', ''])).result).toBe(true);
       for (const params of SEARCHES.slice(0, 10)) await call(shadow, 'searchCards', params);
       if (DECK_IMPORT) for (const link of DECK_LINKS) await shadow.call('deckImportFromUrl', [link], 30_000);
+      if (ADMIN) {
+        const tag = `${Date.now() % 1_000_000}`;
+        await fileReportAndError(`s${tag}`);
+        const console_ = await RawConnection.open(SHADOW_URL);
+        try {
+          expect((await console_.call('connectAdmin', [ADMIN_PASSWORD, ''])).result).toBe(true);
+          await answer(console_, 'staffMe', []);
+          await answer(console_, 'adminAudit', []);
+          const errors = (await answer(console_, 'adminClientErrors', [true])).result as Json[];
+          await answer(console_, 'adminClientErrorResolve', [errors.find((e) => e.message === `boom s${tag}`).id]);
+          const reports = (await answer(console_, 'adminGetReports', [])).result as Json[];
+          await answer(console_, 'adminCloseReport', [reports.find((r) => r.details === `details s${tag}`).id, 'done']);
+          const invite = (await answer(console_, 'adminInviteCreate', ['shadow', 2, 3])).result;
+          await answer(console_, 'inviteCheck', [invite.code]);
+          await answer(console_, 'adminInviteRevoke', [invite.code]);
+          await answer(console_, 'adminAllowAdd', [`shadow${tag}`]);
+        } finally {
+          console_.close();
+        }
+      }
     } finally {
       shadow.close();
     }
@@ -534,6 +641,12 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     }
     expect(delta('searchCards same')).toBe(10);
     expect(delta('searchCards different')).toBe(0);
+    if (ADMIN) {
+      for (const method of ['staffMe', 'adminAudit', 'adminClientErrors', 'adminClientErrorResolve', 'adminGetReports', 'adminCloseReport', 'adminInviteCreate', 'inviteCheck', 'adminInviteRevoke', 'adminAllowAdd']) {
+        expect(delta(`${method} same`), method).toBeGreaterThan(0);
+        expect(delta(`${method} different`), method).toBe(0);
+      }
+    }
     if (DECK_IMPORT) {
       expect(delta('deckImportFromUrl same')).toBe(DECK_LINKS.length);
       expect(delta('deckImportFromUrl different')).toBe(0);

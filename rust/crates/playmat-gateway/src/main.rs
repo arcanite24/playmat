@@ -52,7 +52,7 @@ async fn main() {
         }
     };
     // the platform service's calls (phase 2); which of them Rust answers is the routing table's choice
-    let platform = playmat_platform::Platform::new(app_catalog(), app_decks().await);
+    let platform = playmat_platform::Platform::new(app_catalog(), app_decks().await, app_admin().await);
     tokio::spawn(platform.clone().watch());
     let app = Arc::new(App {
         config,
@@ -81,6 +81,29 @@ async fn main() {
         error!("Server stopped: {e}");
     }
     info!("Stopped; {}", app.metrics.render().lines().filter(|l| !l.starts_with('#')).collect::<Vec<_>>().join(", "));
+}
+
+/// `XMAGE_PLATFORM_ADMIN` and `XMAGE_PLATFORM_REPORTS`: the server's db/web_admin.db and db/web_reports.db, for the
+/// staff console's calls in Rust, with `XMAGE_OWNER`
+async fn app_admin() -> Option<playmat_platform::admin::AdminStores> {
+    let set = |name: &str| std::env::var(name).ok().filter(|v| !v.trim().is_empty()).map(std::path::PathBuf::from);
+    let admin = set("XMAGE_PLATFORM_ADMIN")?;
+    let reports = set("XMAGE_PLATFORM_REPORTS");
+    let owner = std::env::var("XMAGE_OWNER").unwrap_or_default();
+    match playmat_platform::admin::AdminStores::open(&admin, reports.as_deref(), &owner).await {
+        Ok(stores) => {
+            info!(
+                "Staff console: {}{}",
+                admin.display(),
+                reports.map(|r| format!(", {}", r.display())).unwrap_or_default()
+            );
+            Some(stores)
+        }
+        Err(e) => {
+            warn!("Admin database {} can't be opened, the staff console stays with Java: {e}", admin.display());
+            None
+        }
+    }
 }
 
 /// `XMAGE_PLATFORM_DECKS`: the server's db/web_decks.db, for deck sync in Rust

@@ -369,6 +369,8 @@ if [ "$GATEWAY" = on ]; then
     export XMAGE_PLATFORM_CATALOG=$CARDS_DIR/catalog.sqlite
     # the bridge's own decks database (./db/web_decks.db), for XMAGE_ROUTE_ACCOUNT
     export XMAGE_PLATFORM_DECKS=$DB_DIR/web_decks.db
+    # the bridge's admin and reports databases, for XMAGE_ROUTE_ACCESS, XMAGE_ROUTE_STAFF and XMAGE_ROUTE_ADMIN
+    export XMAGE_PLATFORM_ADMIN=$DB_DIR/web_admin.db XMAGE_PLATFORM_REPORTS=$DB_DIR/web_reports.db
     while true; do
       playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
       sleep 2

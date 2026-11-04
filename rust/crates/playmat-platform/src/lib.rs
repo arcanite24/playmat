@@ -7,12 +7,14 @@
 //! web client's deck sync (`deckSync*`) on Java's own decks database, and decks imported by link from deck websites
 //! (`deckImport*`).
 
+pub mod admin;
 pub mod catalog;
 pub mod deckimport;
 pub mod decks;
 pub mod search;
 pub mod validate;
 
+use admin::AdminStores;
 use async_trait::async_trait;
 use catalog::{Catalog, Entry};
 use deckimport::DeckImports;
@@ -35,12 +37,21 @@ pub struct Platform {
     /// db/web_decks.db (`XMAGE_PLATFORM_DECKS`); None leaves deck sync to Java
     decks: Option<DeckStore>,
     imports: DeckImports,
+    /// db/web_admin.db and db/web_reports.db (`XMAGE_PLATFORM_ADMIN`, `XMAGE_PLATFORM_REPORTS`); None leaves the staff
+    /// console to Java
+    admin: Option<AdminStores>,
 }
 
 impl Platform {
     /// `catalog`: the file `-Dxmage.catalog.export` names (`XMAGE_PLATFORM_CATALOG`)
-    pub fn new(catalog: Option<PathBuf>, decks: Option<DeckStore>) -> Arc<Platform> {
-        Arc::new(Platform { catalog_path: catalog, catalog: RwLock::new(None), decks, imports: DeckImports::new() })
+    pub fn new(catalog: Option<PathBuf>, decks: Option<DeckStore>, admin: Option<AdminStores>) -> Arc<Platform> {
+        Arc::new(Platform {
+            catalog_path: catalog,
+            catalog: RwLock::new(None),
+            decks,
+            imports: DeckImports::new(),
+            admin,
+        })
     }
 
     pub fn catalog(&self) -> Option<Arc<Catalog>> {
@@ -80,6 +91,11 @@ impl Handlers for Platform {
         (CATALOG_METHODS.contains(&method) && self.catalog.read().unwrap().is_some())
             || (decks::METHODS.contains(&method) && self.decks.is_some())
             || deckimport::METHODS.contains(&method)
+            || self.admin.as_ref().is_some_and(|admin| admin.handles(method))
+    }
+
+    fn difference(&self, method: &str, java: &Value, rust: &Value) -> Option<String> {
+        admin::difference(method, java, rust)
     }
 
     fn slow(&self, method: &str) -> bool {
@@ -89,6 +105,9 @@ impl Handlers for Platform {
     async fn call(&self, caller: &Caller, request: &Request) -> Outcome {
         if let (Some(decks), true) = (&self.decks, decks::METHODS.contains(&request.method.as_str())) {
             return decks.call(caller, request, true).await;
+        }
+        if let Some(admin) = self.admin.as_ref().filter(|admin| admin.handles(&request.method)) {
+            return admin.call(caller, request, true).await;
         }
         match request.method.as_str() {
             "deckImportSources" => return Outcome::Result(self.imports.sources()),
@@ -161,6 +180,9 @@ impl Handlers for Platform {
             // Java stores the change: Rust's is rolled back
             Some(decks) if decks::METHODS.contains(&request.method.as_str()) => {
                 decks.call(caller, request, false).await
+            }
+            _ if self.admin.as_ref().is_some_and(|admin| admin.handles(&request.method)) => {
+                self.admin.as_ref().expect("checked").call(caller, request, false).await
             }
             _ => self.call(caller, request).await,
         }

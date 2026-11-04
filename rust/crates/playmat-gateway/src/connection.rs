@@ -354,7 +354,7 @@ fn on_reply(
         Pending::Shadow { method, rust } => {
             let java = Outcome::from_reply(&reply);
             let difference = match (&java, &rust) {
-                (Some(Outcome::Result(a)), Outcome::Result(b)) => playmat_protocol::compare::difference(a, b),
+                (Some(Outcome::Result(a)), Outcome::Result(b)) => app.handlers.difference(&method, a, b),
                 (Some(Outcome::Error { code: a, .. }), Outcome::Error { code: b, .. }) if a == b => None,
                 _ => Some(format!(
                     "java {}, rust {}",
