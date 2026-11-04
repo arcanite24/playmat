@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 9] = [
+pub const CAREER_METHODS: [&str; 10] = [
     "careerCollection",
     "careerDeck",
     "careerGameResult",
@@ -19,6 +19,7 @@ pub const CAREER_METHODS: [&str; 9] = [
     "careerCosmetics",
     "careerOpponents",
     "careerAchievements",
+    "careerQuests",
 ];
 
 /// `CareerRules.WINS_TO_UNLOCK_NEXT_TIER`
@@ -294,6 +295,40 @@ impl AdminStores {
                 }
                 Ok(Value::Array(views))
             }
+            "careerQuests" => {
+                let Some(templates) = self.career_views.as_ref().and_then(|views| views.view("quests")) else {
+                    return Err(Stop::Decline);
+                };
+                let row = sqlx::query("SELECT quest_day, quest_week, reroll_day FROM profile WHERE user = ?")
+                    .bind(&user)
+                    .fetch_optional(&mut *db)
+                    .await?;
+                let Some(row) = row else { return Ok(Value::Null) };
+                let (today, week) = utc_day_and_week(crate::admin::now_millis());
+                let (quest_day, quest_week, reroll_day): (Option<String>, Option<String>, Option<String>) =
+                    (row.try_get(0)?, row.try_get(1)?, row.try_get(2)?);
+                // a new day or week picks quests at random: Java does that, Rust answers once they're picked
+                if quest_day.as_deref() != Some(today.as_str()) || quest_week.as_deref() != Some(week.as_str()) {
+                    return Err(Stop::Decline);
+                }
+                let mut quests = Vec::new();
+                for row in sqlx::query("SELECT slot, quest, progress FROM quests WHERE user = ? ORDER BY slot")
+                    .bind(&user)
+                    .fetch_all(&mut *db)
+                    .await?
+                {
+                    let id: String = row.try_get(1)?;
+                    // a quest removed from the catalogue waits silently until rerolled
+                    let Some(template) = templates.as_array().into_iter().flatten().find(|t| t["id"] == json!(id))
+                    else {
+                        continue;
+                    };
+                    quests.push(quest(template, row.try_get(0)?, row.try_get(2)?));
+                }
+                Ok(
+                    json!({"quests": quests, "canReroll": reroll_day.as_deref() != Some(today.as_str()), "today": today}),
+                )
+            }
             "careerLevels" => {
                 let Some(content) = &self.career_content else { return Err(Stop::Decline) };
                 let Some(view) = profile(db, &user, content).await? else { return Ok(Value::Null) };
@@ -380,6 +415,34 @@ pub fn difference(java: &Value, rust: &Value) -> Option<String> {
 }
 
 /// `CareerApi.career`: the signed-in account's Career key (`CareerStore.key`), when the server offers Career
+/// `CareerQuest`, in its fields' order, nulls left out
+fn quest(template: &Value, slot: i64, progress: i64) -> Value {
+    let mut view = serde_json::Map::new();
+    view.insert("slot".into(), json!(slot));
+    for field in ["id", "text", "counts"] {
+        if !template[field].is_null() {
+            view.insert(field.into(), template[field].clone());
+        }
+    }
+    view.insert("weekly".into(), json!(template["weekly"].as_bool().unwrap_or(false)));
+    view.insert("progress".into(), json!(progress));
+    for field in ["target", "coins", "xp"] {
+        view.insert(field.into(), json!(template[field].as_i64().unwrap_or(0)));
+    }
+    Value::Object(view)
+}
+
+/// `CareerProgress.day` and `week` (UTC): "2026-11-04" and the ISO week, "2026-W45"
+fn utc_day_and_week(millis: i64) -> (String, String) {
+    let days = millis.div_euclid(86_400_000);
+    let (year, month, day) = crate::support::civil(days);
+    // ISO weeks start on Monday and belong to the year of their Thursday
+    let thursday = days - (days + 3).rem_euclid(7) + 3;
+    let (iso_year, _, _) = crate::support::civil(thursday);
+    let week = (thursday - crate::support::days_from_civil(iso_year, 1, 1)) / 7 + 1;
+    (format!("{year:04}-{month:02}-{day:02}"), format!("{iso_year}-W{week:02}"))
+}
+
 /// `CareerStore.winsByOpponent`
 async fn wins_by_opponent(
     db: &mut SqliteConnection,
@@ -589,7 +652,11 @@ mod tests {
              coins INTEGER NOT NULL DEFAULT 0, xp INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0, \
              losses INTEGER NOT NULL DEFAULT 0, wc_common INTEGER NOT NULL DEFAULT 0, wc_uncommon INTEGER NOT NULL DEFAULT 0, \
              wc_rare INTEGER NOT NULL DEFAULT 0, wc_mythic INTEGER NOT NULL DEFAULT 0, pack_tokens INTEGER NOT NULL DEFAULT 0, \
-             show_progress INTEGER NOT NULL DEFAULT 1, capsule_tokens INTEGER NOT NULL DEFAULT 0)",
+             show_progress INTEGER NOT NULL DEFAULT 1, capsule_tokens INTEGER NOT NULL DEFAULT 0, quest_day TEXT, reroll_day TEXT, \
+             quest_week TEXT)",
+            "CREATE TABLE quests (user TEXT NOT NULL, slot INTEGER NOT NULL, quest TEXT NOT NULL, \
+             progress INTEGER NOT NULL DEFAULT 0, assigned TEXT NOT NULL, PRIMARY KEY (user, slot))",
+            "INSERT INTO quests VALUES ('neri', 0, 'win3', 2, 'x'), ('neri', 1, 'gone', 0, 'x'), ('neri', 3, 'week', 5, 'x')",
             "CREATE TABLE unlocks (user TEXT NOT NULL, kind TEXT NOT NULL, item TEXT NOT NULL, at INTEGER NOT NULL)",
             "CREATE TABLE progress_games (game_key TEXT PRIMARY KEY, user TEXT NOT NULL, at INTEGER NOT NULL, details TEXT)",
             "CREATE TABLE payouts (match_key TEXT PRIMARY KEY, user TEXT NOT NULL, at INTEGER NOT NULL, opponent TEXT NOT NULL, \
@@ -675,6 +742,33 @@ mod tests {
         ] {
             sqlx::query(sql).execute(&mut solo).await.unwrap();
         }
+        // quests: Java picks a new day's at random, Rust answers once they're picked
+        let roster_file = std::fs::read_to_string(&views).unwrap();
+        let mut with_quests: Value = serde_json::from_str(&roster_file).unwrap();
+        with_quests["quests"] = json!([
+            {"id": "win3", "text": "Win 3 games", "counter": "wins", "target": 3, "coins": 20, "xp": 30, "weekly": false},
+            {"id": "week", "text": "Win 10", "counter": "wins", "target": 10, "coins": 50, "xp": 90, "weekly": true,
+             "counts": "Games against people"},
+        ]);
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(&views, with_quests.to_string()).unwrap();
+        assert!(matches!(stores.call(&neri, &request("careerQuests", json!([])), true).await, Outcome::Declined));
+        let (today, week) = utc_day_and_week(crate::admin::now_millis());
+        sqlx::query("UPDATE profile SET quest_day = ?, quest_week = ?, reroll_day = ? WHERE user = 'neri'")
+            .bind(&today)
+            .bind(&week)
+            .bind(&today)
+            .execute(&mut db)
+            .await
+            .unwrap();
+        assert_eq!(
+            call("careerQuests", json!([])).await,
+            json!({"quests": [
+                {"slot": 0, "id": "win3", "text": "Win 3 games", "weekly": false, "progress": 2, "target": 3, "coins": 20, "xp": 30},
+                {"slot": 3, "id": "week", "text": "Win 10", "counts": "Games against people", "weekly": true, "progress": 5,
+                 "target": 10, "coins": 50, "xp": 90},
+            ], "canReroll": false, "today": today})
+        );
         let opponents = call("careerOpponents", json!([])).await;
         assert_eq!(
             (opponents[0]["wins"].clone(), opponents[0]["nemesis"].clone(), opponents[1]["nemesis"].clone()),
@@ -761,6 +855,16 @@ mod tests {
         let hidden = achievement(&secret, &Default::default(), 0).unwrap();
         assert!(hidden.get("name").is_none() && hidden.get("text").is_none());
         assert_eq!((hidden["achieved"].clone(), hidden["points"].clone()), (json!(false), json!(0)));
+    }
+
+    #[test]
+    fn days_and_iso_weeks_in_utc() {
+        let at = |y, m, d| crate::support::days_from_civil(y, m, d) * 86_400_000 + 3_600_000;
+        assert_eq!(utc_day_and_week(at(2026, 11, 4)), ("2026-11-04".into(), "2026-W45".into()));
+        // the first days of January can belong to the year before's last week, and the end of December to the next
+        assert_eq!(utc_day_and_week(at(2027, 1, 1)).1, "2026-W53");
+        assert_eq!(utc_day_and_week(at(2025, 12, 29)).1, "2026-W01");
+        assert_eq!(utc_day_and_week(at(2024, 12, 30)).1, "2025-W01");
     }
 
     #[test]

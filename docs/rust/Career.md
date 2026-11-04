@@ -3,7 +3,7 @@
 Phase 3 (docs/RustMigration.md) moves the Career economy to the platform service. The first part answers the
 Career's records that need nothing but Java's `db/career.db` and the content: `careerCollection`, `careerDeck`,
 `careerStarters` and `careerOpponents` (the `Career` group, `XMAGE_ROUTE_CAREER`), `careerGameResult`, `careerShowProgress`,
-`careerLevels`, `careerCosmetics` and `careerAchievements` (`CareerProgress`, `XMAGE_ROUTE_CAREERPROGRESS`). The code is
+`careerLevels`, `careerCosmetics`, `careerAchievements` and `careerQuests` (`CareerProgress`, `XMAGE_ROUTE_CAREERPROGRESS`). The code is
 `rust/crates/playmat-platform/src/career.rs`.
 
 ## The content
@@ -12,7 +12,11 @@ Java reads the Career's content from its jar (`Mage.Server/src/main/resources/ca
 same folder to `/opt/xmage/career-content` (`XMAGE_PLATFORM_CAREER_CONTENT`), so Rust reads the files of the same
 commit. From it Rust takes the level track (`levels.json`, with a capsule token every `levelTokensEvery` levels as
 `rewards.json` says) and the renown step (`renownXp`). The level track Rust builds is byte for byte the JSON Gson
-writes for Java's (checked 4 Nov 2026). Without the folder, the calls that need it go to Java.
+writes for Java's (checked 4 Nov 2026).
+
+The quests are in the file as Java's templates. A player's first `careerQuests` of a UTC day or ISO week picks new
+quests at random, so Rust leaves that call to Java and answers the rest of the day from the `quests` rows, as
+`questsView` builds them; a reroll stays with Java too. Without the folder, the calls that need it go to Java.
 
 The starter decks and the cosmetics catalog are built in Java from many files, packs and the card database, so Java
 writes them as Gson writes its answers to `XMAGE_CAREER_EXPORT` (`db/career-views.json` in the image), at start and
@@ -44,7 +48,7 @@ all 124 achievements, earned, not earned and with every tier earned, Rust's JSON
 
 ## Left to Java
 
-The rest of the Career: the rest of its content (rewards, quests, campaigns, puzzles), the shop
+The rest of the Career: the rest of its content (rewards, campaigns, puzzles), the shop
 and packs (`createBooster` is the engine's), capsule pulls, quests and rerolls (unseeded `Random`), the gauntlet and
 limited runs, every call that starts a game, the live quest tracker, and the payouts at the end of a game. They move
 in this order: the content and its read calls, the deterministic writes, then payouts from a `matchEnded` event Java
@@ -53,6 +57,7 @@ sends with the game's counters.
 ## Checks
 
 Unit tests in `career.rs` read a collection, a deck, game results, a new profile, the level track, the views
-file as it changes and the roster with wins and a nemesis, and achievements with tiers and secrets, check the
+file as it changes and the roster with wins and a nemesis, achievements with tiers and secrets, quests and the
+UTC day and ISO week, check the
 level and renown math against `CareerRules`, and the Career turned off. On a server with
 accounts, `shadow` compares the answers for the listed accounts (`XMAGE_SHADOW_USERS`).

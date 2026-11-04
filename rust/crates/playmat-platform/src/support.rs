@@ -448,7 +448,7 @@ impl Month {
 }
 
 /// days since 1970-01-01 to (year, month, day), proleptic Gregorian
-fn civil(days: i64) -> (i64, i64, i64) {
+pub(crate) fn civil(days: i64) -> (i64, i64, i64) {
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z.rem_euclid(146_097);
@@ -461,7 +461,7 @@ fn civil(days: i64) -> (i64, i64, i64) {
     (year, month, day)
 }
 
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+pub(crate) fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     let year = if month <= 2 { year - 1 } else { year };
     let era = year.div_euclid(400);
     let yoe = year.rem_euclid(400);
