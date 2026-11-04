@@ -25,6 +25,7 @@ import mage.filter.common.FilterCreatureForCombat;
 import mage.filter.common.FilterCreatureForCombatBlock;
 import mage.filter.predicate.permanent.ControllerIdPredicate;
 import mage.game.Game;
+import mage.game.trace.DecisionLog;
 import mage.game.GameImpl;
 import mage.game.combat.CombatGroup;
 import mage.game.draft.Draft;
@@ -319,7 +320,12 @@ public class HumanPlayer extends PlayerImpl {
      */
     protected void waitForResponse(Game game) {
         ThreadUtils.ensureRunInGameThread();
-        ;
+
+        DecisionLog decisions = game.getOptions() == null ? null : game.getOptions().decisions;
+        if (decisions != null && decisions.isReplay()) {
+            replayResponse(game, decisions);
+            return;
+        }
 
         if (isExecutingMacro()) {
             pullResponseFromQueue(game);
@@ -422,6 +428,31 @@ public class HumanPlayer extends PlayerImpl {
         if (recordingMacro && !macroTriggeredSelectionFlag) {
             actionQueueSaved.add(new PlayerResponse(response));
         }
+
+        if (decisions != null && !game.hasEnded()) {
+            decisions.record(game, getId(), response.getUUID(), response.getBoolean(), response.getInteger(),
+                    response.getString(), response.getManaType(), response.getManaPlayerId());
+        }
+    }
+
+    /**
+     * A recorded answer instead of the client's (a decision log replay). When the log runs out or no longer fits the
+     * game, the player leaves it, so the game ends and the replay shows where it parted.
+     */
+    private void replayResponse(Game game, DecisionLog decisions) {
+        response.resetAnswers();
+        DecisionLog.Answer answer = decisions.next(game, getId());
+        if (answer == null) {
+            logger.warn("Decision replay stops: " + decisions.getFailure());
+            quit(game);
+            return;
+        }
+        response.setUUID(answer.target);
+        response.setBoolean(answer.bool);
+        response.setInteger(answer.integer);
+        response.setString(answer.string);
+        response.setManaType(answer.manaType);
+        response.setResponseManaPlayerId(answer.manaPlayer);
     }
 
     private void resetAllWantConcedeCommands(Game game) {
