@@ -12,6 +12,7 @@ pub mod catalog;
 pub mod deckimport;
 pub mod decks;
 pub mod search;
+pub mod support;
 pub mod validate;
 
 use admin::AdminStores;

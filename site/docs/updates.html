@@ -111,6 +111,16 @@ docker compose -f ops/web/docker-compose.yml --env-file ops/web/.env up -d --no-
           <code>XMAGE_WEB_IMAGE=ghcr.io/arcanite24/playmat-web:master</code>; the Update button does that by itself on its
           first update.</p>
 
+        <h2 id="accounts-db">Accounts moved to SQLite (Nov 2026)</h2>
+        <p>Accounts used to live in <code>db/authorized_user.h2</code>. The first start of a server from November 2026
+          or later copies them to <code>db/authorized_user.db</code>, with every password and remembered device, and the
+          log says <code>Accounts: N accounts copied from H2</code>. The old file is left as it was, and backups now
+          include the new one.</p>
+        <p>To go back, add <code>XMAGE_ACCOUNTS_DB=h2</code> to <code>.env</code> and run <code>up -d</code>. The
+          accounts made or changed since are copied back into the H2 file first, so nobody loses theirs. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#accounts-and-moderation">the
+          README</a>.</p>
+
         <h2 id="new-cards">New cards and sets</h2>
         <p>Cards are part of the server: each one is rules code in XMage, the engine Playmat is built on. New sets
           arrive with Playmat updates, which bring in XMage's latest cards, so updating the server is the only way to

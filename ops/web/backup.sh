@@ -8,6 +8,7 @@
 #
 # Each backup is a directory /backups/<UTC timestamp>/ holding:
 #   authorized_user.h2.sql.gz, feedback.h2.sql.gz   H2 SQL dumps (accounts, feedback)
+#   authorized_user.db                              SQLite copy (accounts since Nov 2026; the H2 dump is the copy from before)
 #   user_stats.db, table_record.db                  SQLite copies (player stats, finished tables)
 #   web_decks.db, web_reports.db, career.db         SQLite copies (synced decks, player reports, Career progress)
 #   web_admin.db                                    SQLite copy (/admin: access, staff, audit log, settings)
@@ -24,7 +25,7 @@ BACKUP_DIR=${BACKUP_DIR:-/backups}
 BACKUP_AT=${BACKUP_AT:-03:30}
 BACKUP_KEEP=${BACKUP_KEEP:-14}
 H2_DBS=(authorized_user.h2 feedback.h2)
-SQLITE_DBS=(user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db support.db solo.db)
+SQLITE_DBS=(authorized_user.db user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db support.db solo.db)
 PACKS=content-packs
 STATUS=$DB_DIR/backup-status.json
 
@@ -116,6 +117,11 @@ restore() {
     rm -f "/tmp/$db.sql"
     log "restored $db"
   done
+  # a backup from before the accounts moved to SQLite: the server copies them again from the H2 just restored
+  if [[ -f $src/authorized_user.h2.sql.gz && ! -f $src/authorized_user.db && -e $DB_DIR/authorized_user.db ]]; then
+    mv "$DB_DIR/authorized_user.db" "$DB_DIR/authorized_user.db.before-restore-$(date +%s)"
+    log "set the SQLite accounts aside: the server copies the restored H2 ones at start"
+  fi
   for db in "${SQLITE_DBS[@]}"; do
     [[ -f $src/$db ]] || continue
     rm -f "$DB_DIR/$db" "$DB_DIR/$db-journal" "$DB_DIR/$db-wal" "$DB_DIR/$db-shm"

@@ -91,12 +91,19 @@ async fn app_admin() -> Option<playmat_platform::admin::AdminStores> {
     let reports = set("XMAGE_PLATFORM_REPORTS");
     let owner = std::env::var("XMAGE_OWNER").unwrap_or_default();
     match playmat_platform::admin::AdminStores::open(&admin, reports.as_deref(), &owner).await {
-        Ok(stores) => {
+        Ok(mut stores) => {
             info!(
                 "Staff console: {}{}",
                 admin.display(),
                 reports.map(|r| format!(", {}", r.display())).unwrap_or_default()
             );
+            // `XMAGE_PLATFORM_SUPPORT` and `XMAGE_PLATFORM_ACCOUNTS`: db/support.db and db/authorized_user.db
+            if let (Some(support), Some(accounts)) = (set("XMAGE_PLATFORM_SUPPORT"), set("XMAGE_PLATFORM_ACCOUNTS")) {
+                match stores.add_support(&support, &accounts).await {
+                    Ok(()) => info!("Support: {}, accounts {}", support.display(), accounts.display()),
+                    Err(e) => warn!("Support {} can't be opened, support stays with Java: {e}", support.display()),
+                }
+            }
             Some(stores)
         }
         Err(e) => {

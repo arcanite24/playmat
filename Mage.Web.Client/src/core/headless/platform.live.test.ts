@@ -515,6 +515,7 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
       expect((await player.call('connectUser', [`rep${tag}`, '', '', '', '', '', ''])).result).toBe(true);
       expect((await player.call('reportPlayer', [`bad${tag}`, 'spam', `details ${tag}`])).error).toBeUndefined();
       await player.call('clientReportError', [{ message: `boom ${tag}`, source: 'live test', path: '/x', stack: 'at x' }]);
+      expect((await player.call('sendFeedback', ['', `rep${tag}`, `title ${tag}`, 'bug', `feedback ${tag}`, ''])).result).toBe(true);
     } finally {
       player.close();
     }
@@ -584,6 +585,25 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
       expect((await answer(rust, 'adminCloseReport', [report.id, ` handled ${tag} `])).result).toBe(true);
       expect((await answer(java, 'adminCloseReport', [report.id, 'again'])).result).toBe(false);
       await same('adminGetReports', [false]);
+
+      // feedback: marked in Rust, read in Java
+      for (const params of [[], ['new'], [' new '], ['done'], ['']]) await same('adminFeedback', params);
+      const feedback = ((await answer(java, 'adminFeedback', [])).result as Json[]).find((f) => f.message === `feedback ${tag}`);
+      expect(feedback).toMatchObject({ userName: `rep${tag}`, type: 'bug', title: `title ${tag}`, status: 'new' });
+      const marked = (await answer(rust, 'adminFeedbackMark', [feedback.id, 'seen', ` issue ${tag} `])).result;
+      expect(marked).toMatchObject({ status: 'seen', note: `issue ${tag}`, handledBy: 'console' });
+      expect(((await answer(java, 'adminFeedback', ['seen'])).result as Json[]).find((f) => f.id === feedback.id)).toEqual(marked);
+      await same('adminFeedbackMark', [feedback.id, 'nope']);
+      await same('adminFeedbackMark', [999_999_999, 'done']);
+
+      // support: the ledger and staff's refusals
+      for (const params of [[], ['2026-10'], [' 2026-11 '], ['November'], [null, true], [null, null, ' KOFI ']]) await same('adminSupportLedger', params);
+      await same('adminSupportRevoke', [999_999_999, 'refund']);
+      await same('adminSupportRevoke', [1, ' ']);
+      await same('adminSupportLink', [999_999_999, 'nobody']);
+      await same('adminSupportGrant', ['nobody', ' ']);
+      await same('adminSupportGrant', [' ', 'why']);
+      await same('adminContributorGrant', ['nobody', '']);
       await same('adminAudit');
       console.log('[platform] staff console: reads the same, and each side read the other\'s writes');
     } finally {
@@ -625,6 +645,10 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
           await answer(console_, 'inviteCheck', [invite.code]);
           await answer(console_, 'adminInviteRevoke', [invite.code]);
           await answer(console_, 'adminAllowAdd', [`shadow${tag}`]);
+          const feedback = ((await answer(console_, 'adminFeedback', [])).result as Json[]).find((f) => f.message === `feedback s${tag}`);
+          await answer(console_, 'adminFeedbackMark', [feedback.id, 'done', 'shadow']);
+          await answer(console_, 'adminSupportLedger', []);
+          await answer(console_, 'adminSupportRevoke', [999_999_999, 'refund']);
         } finally {
           console_.close();
         }
@@ -642,7 +666,7 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     expect(delta('searchCards same')).toBe(10);
     expect(delta('searchCards different')).toBe(0);
     if (ADMIN) {
-      for (const method of ['staffMe', 'adminAudit', 'adminClientErrors', 'adminClientErrorResolve', 'adminGetReports', 'adminCloseReport', 'adminInviteCreate', 'inviteCheck', 'adminInviteRevoke', 'adminAllowAdd']) {
+      for (const method of ['staffMe', 'adminAudit', 'adminClientErrors', 'adminClientErrorResolve', 'adminGetReports', 'adminCloseReport', 'adminInviteCreate', 'inviteCheck', 'adminInviteRevoke', 'adminAllowAdd', 'adminFeedback', 'adminFeedbackMark', 'adminSupportLedger', 'adminSupportRevoke']) {
         expect(delta(`${method} same`), method).toBeGreaterThan(0);
         expect(delta(`${method} different`), method).toBe(0);
       }
