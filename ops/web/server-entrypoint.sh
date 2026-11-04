@@ -10,6 +10,8 @@ APP=${XMAGE_HOME:-/opt/xmage}
 TEMPLATE=$APP/config/config.template.xml
 CONFIG=$APP/config/config.xml
 DB_DIR=$APP/db          # volume: user data only (accounts, stats, table records, feedback)
+# the Career views Java writes at start and on content reloads, which the gateway serves
+export XMAGE_CAREER_EXPORT=${XMAGE_CAREER_EXPORT:-$DB_DIR/career-views.json}
 CARDS_DIR=$APP/cards-db # volume: card database cache, rebuilt when the image changes
 
 die() { echo "xmage-server: $*" >&2; exit 1; }
@@ -373,6 +375,8 @@ if [ "$GATEWAY" = on ]; then
     export XMAGE_PLATFORM_ADMIN=$DB_DIR/web_admin.db XMAGE_PLATFORM_REPORTS=$DB_DIR/web_reports.db
     # support's records and the accounts, for XMAGE_ROUTE_SUPPORT
     export XMAGE_PLATFORM_SUPPORT=$DB_DIR/support.db XMAGE_PLATFORM_ACCOUNTS=$DB_DIR/authorized_user.db
+    # the Career's records, for XMAGE_ROUTE_CAREER and XMAGE_ROUTE_CAREERPROGRESS
+    export XMAGE_PLATFORM_CAREER=$DB_DIR/career.db XMAGE_PLATFORM_CAREER_CONTENT=/opt/xmage/career-content
     while true; do
       playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
       sleep 2

@@ -52,7 +52,7 @@ const PAYMENT_COLUMNS: &str = "id, provider, provider_id, kind, amount_cents, cu
      is_public, account, linked_by, received_at, revoked, revoked_reason, sponsor_id";
 
 /// The accounts, read only, or None when the server keeps them in H2 (the file is missing then).
-pub(crate) async fn open_accounts(path: &Path) -> Option<SqliteConnection> {
+pub(crate) async fn open_read_only(path: &Path) -> Option<SqliteConnection> {
     if !path.is_file() {
         return None;
     }
@@ -448,7 +448,7 @@ impl Month {
 }
 
 /// days since 1970-01-01 to (year, month, day), proleptic Gregorian
-fn civil(days: i64) -> (i64, i64, i64) {
+pub(crate) fn civil(days: i64) -> (i64, i64, i64) {
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
     let doe = z.rem_euclid(146_097);
@@ -461,7 +461,7 @@ fn civil(days: i64) -> (i64, i64, i64) {
     (year, month, day)
 }
 
-fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
+pub(crate) fn days_from_civil(year: i64, month: i64, day: i64) -> i64 {
     let year = if month <= 2 { year - 1 } else { year };
     let era = year.div_euclid(400);
     let yoe = year.rem_euclid(400);

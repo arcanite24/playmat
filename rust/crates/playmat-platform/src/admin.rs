@@ -121,6 +121,14 @@ pub struct AdminStores {
     reports: Option<SqlitePool>,
     /// db/support.db and the accounts (db/authorized_user.db), for the support calls
     support: Option<(SqlitePool, PathBuf)>,
+    /// db/career.db, for the Career's records
+    career: Option<SqlitePool>,
+    /// the Career's content, for the calls that need it
+    pub(crate) career_content: Option<crate::career::CareerContent>,
+    /// the content views Java writes
+    pub(crate) career_views: Option<crate::career::CareerViews>,
+    /// Java's db/solo.db, next to career.db: the nemesis
+    pub(crate) solo: Option<PathBuf>,
     /// `XMAGE_OWNER` (`-Dxmage.owner`), trimmed; empty when there is none
     owner: String,
 }
@@ -147,7 +155,16 @@ impl AdminStores {
             Some(path) => Some(open(path, &REPORT_TABLES).await?),
             None => None,
         };
-        Ok(AdminStores { admin, reports, support: None, owner: java_trim(owner).to_string() })
+        Ok(AdminStores {
+            admin,
+            reports,
+            support: None,
+            career: None,
+            career_content: None,
+            career_views: None,
+            solo: None,
+            owner: java_trim(owner).to_string(),
+        })
     }
 
     /// The support calls too, on Java's db/support.db (its tables are Java's, made by its migrations) and the
@@ -159,10 +176,27 @@ impl AdminStores {
         Ok(())
     }
 
+    /// The Career's records too, on Java's db/career.db (its tables are Java's)
+    pub fn add_career_views(&mut self, views: &Path) {
+        self.career_views = Some(crate::career::CareerViews::new(views));
+    }
+
+    pub async fn add_career(&mut self, career: &Path, content: Option<&Path>) -> anyhow::Result<()> {
+        let options = SqliteConnectOptions::new().filename(career).busy_timeout(Duration::from_secs(10));
+        self.career = Some(SqlitePoolOptions::new().max_connections(1).connect_with(options).await?);
+        self.solo = Some(career.with_file_name("solo.db"));
+        self.career_content = match content {
+            Some(dir) => Some(crate::career::CareerContent::load(dir)?),
+            None => None,
+        };
+        Ok(())
+    }
+
     pub fn handles(&self, method: &str) -> bool {
         ADMIN_METHODS.contains(&method)
             || (self.reports.is_some() && REPORT_METHODS.contains(&method))
             || (self.support.is_some() && crate::support::SUPPORT_METHODS.contains(&method))
+            || (self.career.is_some() && crate::career::CAREER_METHODS.contains(&method))
     }
 
     /// `keep`: commit the change (`rust`), or roll it back (`shadow`)
@@ -180,16 +214,19 @@ impl AdminStores {
         let mut reports = None;
         let mut accounts = None;
         let support = crate::support::SUPPORT_METHODS.contains(&method);
+        let career = crate::career::CAREER_METHODS.contains(&method);
         let second = if REPORT_METHODS.contains(&method) {
             self.reports.as_ref()
+        } else if career {
+            self.career.as_ref()
         } else if support {
             let Some((pool, path)) = &self.support else { return Outcome::Declined };
-            accounts = crate::support::open_accounts(path).await;
+            accounts = crate::support::open_read_only(path).await;
             Some(pool)
         } else {
             None
         };
-        if REPORT_METHODS.contains(&method) || support {
+        if REPORT_METHODS.contains(&method) || support || career {
             let Some(pool) = second else { return Outcome::Declined };
             match pool.acquire().await {
                 Ok(connection) => reports = Some(connection),
@@ -208,7 +245,10 @@ impl AdminStores {
             }
         }
         let mut audits = Vec::new();
-        let answer = if support {
+        let answer = if career {
+            let db = reports.as_deref_mut().expect("acquired");
+            self.career(caller, request, &mut admin, db).await
+        } else if support {
             let db = reports.as_deref_mut().expect("acquired");
             self.support(caller, request, &mut admin, db, accounts.as_mut(), &mut audits).await
         } else {
@@ -659,6 +699,7 @@ pub fn difference(method: &str, java: &Value, rust: &Value) -> Option<String> {
         "adminInviteCreate" => (&["createdAt", "expiresAt"], true),
         "adminClientErrorResolve" => (&["resolvedAt"], false),
         "adminFeedbackMark" => (&["handledAt"], false),
+        "careerShowProgress" => return crate::career::difference(java, rust),
         _ if crate::support::SUPPORT_METHODS.contains(&method) => {
             return crate::support::difference(method, java, rust)
         }

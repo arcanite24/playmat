@@ -314,6 +314,8 @@ public final class Main {
             // the card catalog the Rust platform service reads (xmage.catalog.export): an image build writes it before
             // stopping, a server rewrites it in the background when its card data changed
             mage.server.platform.CatalogExport.startIfAsked(Boolean.getBoolean(exitAfterStartupProp));
+            // and the Career's content views (XMAGE_CAREER_EXPORT)
+            mage.server.platform.CareerViewsExport.writeIfAsked();
             if (Boolean.getBoolean(exitAfterStartupProp)) {
                 logger.info("Started; stopping now (" + exitAfterStartupProp + ")");
                 System.exit(0);

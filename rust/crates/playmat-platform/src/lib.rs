@@ -8,6 +8,7 @@
 //! (`deckImport*`).
 
 pub mod admin;
+pub mod career;
 pub mod catalog;
 pub mod deckimport;
 pub mod decks;

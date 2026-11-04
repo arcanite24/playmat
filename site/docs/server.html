@@ -156,10 +156,11 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           game-state updates itself, which takes work off Java. <code>XMAGE_GATEWAY=on</code> in <code>.env</code>
           turns it on, then run <code>up -d</code>. If the gateway stops, Caddy sends players straight to the Java
           server until it's back. It's <code>off</code> by default while it's new. With it on, card lookups, card
-          search, deck checks, deck sync, deck imports by link, parts of the staff console and support's records can be answered in Rust too
+          search, deck checks, deck sync, deck imports by link, parts of the staff console, support's records and the Career's collection and catalogs can be answered in Rust too
           (<code>XMAGE_ROUTE_CATALOG</code>, <code>XMAGE_ROUTE_ACCOUNT</code>, <code>XMAGE_ROUTE_DECKIMPORT</code>,
           <code>XMAGE_ROUTE_ACCESS</code>, <code>XMAGE_ROUTE_STAFF</code>, <code>XMAGE_ROUTE_ADMIN</code>,
-          <code>XMAGE_ROUTE_ACCOUNTS</code>, <code>XMAGE_ROUTE_SUPPORT</code>); they stay
+          <code>XMAGE_ROUTE_ACCOUNTS</code>, <code>XMAGE_ROUTE_SUPPORT</code>, <code>XMAGE_ROUTE_CAREER</code>,
+          <code>XMAGE_ROUTE_CAREERPROGRESS</code>); they stay
           with Java unless you set them. <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few
           accounts while you try it. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
