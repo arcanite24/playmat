@@ -217,6 +217,43 @@ public final class CareerService {
     }
 
     /**
+     * What {@link #start} adds for each starter deck, for the Rust platform service (CareerViewsExport): the cards
+     * other than basic lands, resolved as start resolves them, with their amounts. A deck that can't be read, or has
+     * a card the card database doesn't know (not loaded yet, say), is left out, and Java answers for it.
+     */
+    public Map<String, List<Map<String, Object>>> starterCardsExport() {
+        CareerContent content = CareerContent.get();
+        Map<String, List<Map<String, Object>>> starters = new LinkedHashMap<>();
+        for (CareerContent.CareerStarter starter : content.starters()) {
+            DeckCardLists deck;
+            try {
+                deck = content.starterDeck(starter.id);
+            } catch (java.io.IOException e) {
+                continue;
+            }
+            List<Map<String, Object>> cards = new ArrayList<>();
+            boolean whole = true;
+            for (DeckCardInfo info : CareerContent.allCards(deck)) {
+                CareerCard card = resolve(info);
+                whole &= card != null;
+                if (card != null && !CareerRules.LAND.equals(card.rarity)) {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("name", card.name);
+                    entry.put("setCode", card.setCode);
+                    entry.put("cardNumber", card.cardNumber);
+                    entry.put("rarity", card.rarity);
+                    entry.put("amount", info.getAmount());
+                    cards.add(entry);
+                }
+            }
+            if (whole && !cards.isEmpty()) {
+                starters.put(starter.id, cards);
+            }
+        }
+        return starters;
+    }
+
+    /**
      * The account's progression profile, made on its first counted game (B264): levels, quests and achievements need
      * no starter deck. Runs inside the caller's transaction.
      */

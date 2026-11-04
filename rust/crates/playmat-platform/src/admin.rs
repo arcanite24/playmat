@@ -129,6 +129,8 @@ pub struct AdminStores {
     pub(crate) career_views: Option<crate::career::CareerViews>,
     /// Java's db/solo.db, next to career.db: the nemesis
     pub(crate) solo: Option<PathBuf>,
+    /// the card catalog, as the platform service has it loaded (`Platform::watch` sets it)
+    pub(crate) catalog: std::sync::RwLock<Option<std::sync::Arc<crate::catalog::Catalog>>>,
     /// `XMAGE_OWNER` (`-Dxmage.owner`), trimmed; empty when there is none
     owner: String,
 }
@@ -163,6 +165,7 @@ impl AdminStores {
             career_content: None,
             career_views: None,
             solo: None,
+            catalog: std::sync::RwLock::new(None),
             owner: java_trim(owner).to_string(),
         })
     }
@@ -177,6 +180,10 @@ impl AdminStores {
     }
 
     /// The Career's records too, on Java's db/career.db (its tables are Java's)
+    pub fn set_catalog(&self, catalog: std::sync::Arc<crate::catalog::Catalog>) {
+        *self.catalog.write().unwrap() = Some(catalog);
+    }
+
     pub fn add_career_views(&mut self, views: &Path) {
         self.career_views = Some(crate::career::CareerViews::new(views));
     }

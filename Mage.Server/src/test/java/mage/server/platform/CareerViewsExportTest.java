@@ -33,6 +33,13 @@ public class CareerViewsExportTest {
         assertThat(views.getAsJsonArray("quests").size()).isEqualTo(mage.server.career.CareerProgress.get().questTemplates().size());
         assertThat(views.getAsJsonArray("achievements").size()).isEqualTo(mage.server.career.CareerProgress.get().achievementTemplates().size());
         assertThat(views.getAsJsonObject("styles").size()).isPositive();
+        // the starters whose every card the card database knows (none without one, as in CI), without basics
+        com.google.gson.JsonObject starterCards = views.getAsJsonObject("starterCards");
+        assertThat(starterCards.size()).isLessThanOrEqualTo(CareerContent.get().starters().size());
+        starterCards.entrySet().forEach(starter -> {
+            assertThat(starter.getValue().getAsJsonArray().size()).isPositive();
+            starter.getValue().getAsJsonArray().forEach(card -> assertThat(card.getAsJsonObject().get("rarity").getAsString()).isNotEqualTo("land"));
+        });
         // the roster: every opponent, as a player without wins sees it and as their nemesis
         com.google.gson.JsonArray roster = views.getAsJsonArray("opponents");
         assertThat(roster.size()).isEqualTo(CareerContent.get().opponents().size());
