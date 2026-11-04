@@ -481,9 +481,7 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
 
   test.skipIf(!DECK_IMPORT)('deck import: real deck sites, and links that aren\'t decks', { timeout: 120_000 }, async () => {
     const [java, rust] = await Promise.all([RawConnection.open(JAVA_URL), RawConnection.open(RUST_URL)]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- answers are read field by field
-  type Json = any;
-  const answer = async (connection: RawConnection, method: string, params: unknown[]): Promise<{ result?: Json; error?: unknown }> => {
+    const answer = async (connection: RawConnection, method: string, params: unknown[]) => {
       await paced(connection);
       const reply = await connection.call(method, params, 30_000);
       return reply.error ? { error: reply.error } : { result: reply.result };
@@ -522,7 +520,9 @@ describe.skipIf(!live)('platform service answers as Java does', () => {
     }
   }
 
-  const answer = async (connection: RawConnection, method: string, params: unknown[]) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- answers are read field by field
+  type Json = any;
+  const answer = async (connection: RawConnection, method: string, params: unknown[]): Promise<{ result?: Json; error?: unknown }> => {
     await paced(connection);
     const reply = await connection.call(method, params);
     return reply.error ? { error: reply.error } : { result: reply.result };
