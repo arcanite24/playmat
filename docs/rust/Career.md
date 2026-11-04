@@ -20,7 +20,15 @@ quests at random, so Rust leaves that call to Java and answers the rest of the d
 
 The first write is `careerEquipStyle`, which has no chance in it: the file lists every card style with its card and
 its machine's kind, and Rust checks the card, the style and that the player pulled it, with Java's messages, then
-saves or clears the card's style and answers every style worn, by card name. Without the folder, the calls that need it go to Java.
+saves or clears the card's style and answers every style worn, by card name.
+
+`careerCraft` is the second. Rust finds the printing in the card catalog (the `exact` and `printings` tables, with
+the `BASIC` supertype from `cards`), refuses basics, unknown cards, a fifth copy and a player short of coins or
+wildcards with Java's messages, spends a common or uncommon wildcard before coins, adds the card and counts it
+(`cards_crafted`). Then it records and pays each lifetime achievement and tier the totals now reach, as
+`CareerProgress.achievementsIn` does outside a game: coins, XP, the cosmetic, and capsule tokens with their
+`token_log` row. It answers the profile. In `shadow` only the answers are compared, so the rows a craft writes
+(an achievement, a token) are checked by the profile's coins, XP and tokens, not one by one. Without the folder, the calls that need it go to Java.
 
 The starter decks and the cosmetics catalog are built in Java from many files, packs and the card database, so Java
 writes them as Gson writes its answers to `XMAGE_CAREER_EXPORT` (`db/career-views.json` in the image), at start and
@@ -62,6 +70,7 @@ sends with the game's counters.
 
 Unit tests in `career.rs` read a collection, a deck, game results, a new profile, the level track, the views
 file as it changes and the roster with wins and a nemesis, achievements with tiers and secrets, quests and the
-UTC day and ISO week, card styles with their refusals, check the
+UTC day and ISO week, card styles with their refusals, and (with `PLAYMAT_TEST_CATALOG` naming
+a catalog export) crafting with its refusals, wildcards, coins and the achievements it pays, check the
 level and renown math against `CareerRules`, and the Career turned off. On a server with
 accounts, `shadow` compares the answers for the listed accounts (`XMAGE_SHADOW_USERS`).

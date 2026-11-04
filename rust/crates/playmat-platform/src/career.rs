@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 11] = [
+pub const CAREER_METHODS: [&str; 12] = [
     "careerCollection",
     "careerDeck",
     "careerGameResult",
@@ -21,7 +21,40 @@ pub const CAREER_METHODS: [&str; 11] = [
     "careerAchievements",
     "careerQuests",
     "careerEquipStyle",
+    "careerCraft",
 ];
+
+/// `CareerRules.PLAYSET`
+const PLAYSET: i64 = 4;
+/// `CareerService.BASIC_NAMES`
+const BASIC_NAMES: [&str; 12] = [
+    "Plains",
+    "Island",
+    "Swamp",
+    "Mountain",
+    "Forest",
+    "Wastes",
+    "Snow-Covered Plains",
+    "Snow-Covered Island",
+    "Snow-Covered Swamp",
+    "Snow-Covered Mountain",
+    "Snow-Covered Forest",
+    "Snow-Covered Wastes",
+];
+
+/// `CareerRules.rarityOf`, with basics as lands (`CareerService.toCareerCard`)
+fn career_rarity(rarity: &str, name: &str, basic: bool) -> &'static str {
+    if basic || BASIC_NAMES.contains(&name) {
+        return "land";
+    }
+    match rarity {
+        "LAND" => "land",
+        "UNCOMMON" => "uncommon",
+        "RARE" | "SPECIAL" | "BONUS" => "rare",
+        "MYTHIC" => "mythic",
+        _ => "common",
+    }
+}
 
 /// `CareerRules.WINS_TO_UNLOCK_NEXT_TIER`
 const WINS_TO_UNLOCK_NEXT_TIER: i64 = 3;
@@ -262,31 +295,7 @@ impl AdminStores {
                 for row in rows {
                     earned.insert(row.try_get::<String, _>(0)?, row.try_get::<i64, _>(1)?);
                 }
-                // `CareerProgress.totals`: the stats, the level, opponents beaten and the highest tier open
-                let mut totals = std::collections::HashMap::new();
-                for row in sqlx::query("SELECT counter, value FROM stats WHERE user = ?")
-                    .bind(&user)
-                    .fetch_all(&mut *db)
-                    .await?
-                {
-                    totals.insert(row.try_get::<String, _>(0)?, row.try_get::<i64, _>(1)?);
-                }
-                let level = profile(db, &user, content).await?.and_then(|view| view["level"].as_i64()).unwrap_or(1);
-                totals.insert("level".into(), level);
-                let wins = wins_by_opponent(db, &user).await?;
-                let beaten = roster.as_array().ok_or(Stop::Decline)?.iter().filter(|entry| {
-                    entry["view"]["id"].as_str().and_then(|id| wins.get(id)).is_some_and(|won| *won > 0)
-                });
-                totals.insert("opponents_beaten".into(), beaten.count() as i64);
-                let opened = opponents(roster, &wins, None).ok_or(Stop::Decline)?;
-                let tiers_open = opened
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter(|view| view["unlocked"] == json!(true))
-                    .filter_map(|view| view["tier"].as_i64())
-                    .fold(1, i64::max);
-                totals.insert("tiers_open".into(), tiers_open);
+                let totals = totals(db, &user, content, roster).await?;
                 let mut views = Vec::new();
                 for template in templates.as_array().ok_or(Stop::Decline)? {
                     let total = template["scope"] == json!("total");
@@ -385,6 +394,88 @@ impl AdminStores {
                     worn.insert(row.try_get::<String, _>(0)?, json!(row.try_get::<String, _>(1)?));
                 }
                 Ok(Value::Object(worn.into_iter().collect()))
+            }
+            "careerCraft" => {
+                let (Some(Value::String(set)), Some(Value::String(number))) =
+                    (request.params.first(), request.params.get(1))
+                else {
+                    return Err(Stop::Decline);
+                };
+                let (Some(content), Some(templates), Some(roster), Some(catalog)) = (
+                    &self.career_content,
+                    self.career_views.as_ref().and_then(|views| views.view("achievements")),
+                    self.career_views.as_ref().and_then(|views| views.view("opponents")),
+                    self.catalog.read().unwrap().clone(),
+                ) else {
+                    return Err(Stop::Decline);
+                };
+                let Some((name, set_code, card_number, rarity, basic)) =
+                    catalog.printing(set, number).await.map_err(|_| Stop::Decline)?
+                else {
+                    return Err(crate::admin::invalid(format!("There is no card {set} {number}.")));
+                };
+                let rarity = career_rarity(&rarity, &name, basic);
+                if rarity == "land" {
+                    return Err(crate::admin::invalid("Basic lands are free; there's nothing to craft."));
+                }
+                let wildcard = format!("wc_{rarity}");
+                let row = sqlx::query(&format!("SELECT coins, {wildcard} FROM profile WHERE user = ?"))
+                    .bind(&user)
+                    .fetch_optional(&mut *db)
+                    .await?;
+                let Some(row) = row else { return Err(crate::admin::invalid("Open a Career first.")) };
+                let (coins, wildcards): (i64, i64) = (row.try_get(0)?, row.try_get(1)?);
+                let owned: i64 =
+                    sqlx::query_scalar("SELECT COALESCE(SUM(count), 0) FROM cards WHERE user = ? AND name = ?")
+                        .bind(&user)
+                        .bind(&name)
+                        .fetch_one(&mut *db)
+                        .await?;
+                if owned >= PLAYSET {
+                    return Err(crate::admin::invalid(format!("You already have {PLAYSET} copies of {name}.")));
+                }
+                let price = match rarity {
+                    "common" => 25,
+                    "uncommon" => 50,
+                    _ => 0,
+                };
+                // a common or uncommon wildcard (levels and campaign choices pay them) is spent before coins
+                if price > 0 && wildcards <= 0 {
+                    if coins < price {
+                        return Err(crate::admin::invalid(format!(
+                            "{name} costs {price} coins to craft; you have {coins}."
+                        )));
+                    }
+                    sqlx::query("UPDATE profile SET coins = coins + ? WHERE user = ?")
+                        .bind(-price)
+                        .bind(&user)
+                        .execute(&mut *db)
+                        .await?;
+                } else {
+                    if price == 0 && wildcards < 1 {
+                        return Err(crate::admin::invalid(format!("{name} takes a {rarity} wildcard; you have none.")));
+                    }
+                    sqlx::query(&format!("UPDATE profile SET {wildcard} = {wildcard} + ? WHERE user = ?"))
+                        .bind(-1)
+                        .bind(&user)
+                        .execute(&mut *db)
+                        .await?;
+                }
+                sqlx::query(
+                    "INSERT INTO cards (user, set_code, card_number, name, rarity, count) VALUES (?, ?, ?, ?, ?, ?) \
+                     ON CONFLICT (user, set_code, card_number) DO UPDATE SET count = count + excluded.count",
+                )
+                .bind(&user)
+                .bind(&set_code)
+                .bind(&card_number)
+                .bind(&name)
+                .bind(rarity)
+                .bind(1)
+                .execute(&mut *db)
+                .await?;
+                add_stat(db, &user, "cards_crafted", 1).await?;
+                achievements_in(db, &user, content, &templates, roster, crate::admin::now_millis()).await?;
+                Ok(profile(db, &user, content).await?.unwrap_or(Value::Null))
             }
             "careerLevels" => {
                 let Some(content) = &self.career_content else { return Err(Stop::Decline) };
@@ -498,6 +589,154 @@ fn utc_day_and_week(millis: i64) -> (String, String) {
     let (iso_year, _, _) = crate::support::civil(thursday);
     let week = (thursday - crate::support::days_from_civil(iso_year, 1, 1)) / 7 + 1;
     (format!("{year:04}-{month:02}-{day:02}"), format!("{iso_year}-W{week:02}"))
+}
+
+/// `CareerStore.addStat`
+async fn add_stat(db: &mut SqliteConnection, user: &str, counter: &str, amount: i64) -> Result<(), Stop> {
+    sqlx::query(
+        "INSERT INTO stats (user, counter, value) VALUES (?, ?, ?) \
+         ON CONFLICT (user, counter) DO UPDATE SET value = value + excluded.value",
+    )
+    .bind(user)
+    .bind(counter)
+    .bind(amount)
+    .execute(&mut *db)
+    .await?;
+    Ok(())
+}
+
+/// `CareerProgress.totals`: the stats, the level, opponents beaten and the highest tier open
+async fn totals(
+    db: &mut SqliteConnection,
+    user: &str,
+    content: &CareerContent,
+    roster: Value,
+) -> Result<std::collections::HashMap<String, i64>, Stop> {
+    let mut totals = std::collections::HashMap::new();
+    for row in sqlx::query("SELECT counter, value FROM stats WHERE user = ?").bind(user).fetch_all(&mut *db).await? {
+        totals.insert(row.try_get::<String, _>(0)?, row.try_get::<i64, _>(1)?);
+    }
+    let level = profile(db, user, content).await?.and_then(|view| view["level"].as_i64()).unwrap_or(1);
+    totals.insert("level".into(), level);
+    let wins = wins_by_opponent(db, user).await?;
+    let beaten = roster
+        .as_array()
+        .ok_or(Stop::Decline)?
+        .iter()
+        .filter(|entry| entry["view"]["id"].as_str().and_then(|id| wins.get(id)).is_some_and(|won| *won > 0));
+    totals.insert("opponents_beaten".into(), beaten.count() as i64);
+    let opened = opponents(roster, &wins, None).ok_or(Stop::Decline)?;
+    let tiers_open = opened
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|view| view["unlocked"] == json!(true))
+        .filter_map(|view| view["tier"].as_i64())
+        .fold(1, i64::max);
+    totals.insert("tiers_open".into(), tiers_open);
+    Ok(totals)
+}
+
+/// `CareerProgress.achievementsIn` outside a game (no game counters, no result to fill): every lifetime achievement
+/// and tier the totals now reach is recorded and paid, its coins, XP, cosmetic and capsule tokens
+async fn achievements_in(
+    db: &mut SqliteConnection,
+    user: &str,
+    content: &CareerContent,
+    templates: &Value,
+    roster: Value,
+    now: i64,
+) -> Result<(), Stop> {
+    let mut earned = std::collections::HashSet::new();
+    for id in sqlx::query_scalar::<_, String>("SELECT id FROM achievements WHERE user = ?")
+        .bind(user)
+        .fetch_all(&mut *db)
+        .await?
+    {
+        earned.insert(id);
+    }
+    let totals = totals(db, user, content, roster).await?;
+    for template in templates.as_array().ok_or(Stop::Decline)? {
+        let id = template["id"].as_str().ok_or(Stop::Decline)?;
+        let value = if template["scope"] == json!("game") {
+            0
+        } else {
+            template["counter"].as_str().and_then(|counter| totals.get(counter)).copied().unwrap_or(0)
+        };
+        let tiers = template["tiers"].as_array().map(Vec::as_slice).unwrap_or_default();
+        if tiers.is_empty() {
+            let target = template["target"].as_i64().unwrap_or(0);
+            if earned.contains(id) || value < target || !add_achievement(db, user, id, now).await? {
+                continue;
+            }
+            pay(db, user, template, now).await?;
+            continue;
+        }
+        for (index, step) in tiers.iter().enumerate() {
+            let key = format!("{id}:{}", index + 1);
+            if earned.contains(&key) {
+                continue;
+            }
+            if value < step["target"].as_i64().unwrap_or(0) || !add_achievement(db, user, &key, now).await? {
+                break;
+            }
+            earned.insert(key.clone());
+            pay(db, user, step, now).await?;
+            let tokens = step["tokens"].as_i64().unwrap_or(0);
+            if tokens > 0 {
+                // `CareerCapsules.addTokens`
+                sqlx::query("UPDATE profile SET capsule_tokens = capsule_tokens + ? WHERE user = ?")
+                    .bind(tokens)
+                    .bind(user)
+                    .execute(&mut *db)
+                    .await?;
+                sqlx::query("INSERT INTO token_log (user, at, amount, reason) VALUES (?, ?, ?, ?)")
+                    .bind(user)
+                    .bind(now)
+                    .bind(tokens)
+                    .bind(format!("achievement {key}"))
+                    .execute(&mut *db)
+                    .await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// `CareerStore.addAchievement`: true when it's new
+async fn add_achievement(db: &mut SqliteConnection, user: &str, id: &str, now: i64) -> Result<bool, Stop> {
+    let done = sqlx::query("INSERT OR IGNORE INTO achievements (user, id, at) VALUES (?, ?, ?)")
+        .bind(user)
+        .bind(id)
+        .bind(now)
+        .execute(&mut *db)
+        .await?;
+    Ok(done.rows_affected() == 1)
+}
+
+/// `CareerProgress.pay`: an achievement's (or tier's) coins, XP and cosmetic
+async fn pay(db: &mut SqliteConnection, user: &str, reward: &Value, now: i64) -> Result<(), Stop> {
+    let (coins, xp) = (reward["coins"].as_i64().unwrap_or(0), reward["xp"].as_i64().unwrap_or(0));
+    if coins > 0 {
+        sqlx::query("UPDATE profile SET coins = coins + ? WHERE user = ?")
+            .bind(coins)
+            .bind(user)
+            .execute(&mut *db)
+            .await?;
+    }
+    if xp > 0 {
+        sqlx::query("UPDATE profile SET xp = xp + ? WHERE user = ?").bind(xp).bind(user).execute(&mut *db).await?;
+    }
+    if let (Some(kind), Some(item)) = (reward["cosmetic"]["kind"].as_str(), reward["cosmetic"]["id"].as_str()) {
+        sqlx::query("INSERT OR IGNORE INTO unlocks (user, kind, item, at) VALUES (?, ?, ?, ?)")
+            .bind(user)
+            .bind(kind)
+            .bind(item)
+            .bind(now)
+            .execute(&mut *db)
+            .await?;
+    }
+    Ok(())
 }
 
 /// `CareerStore.winsByOpponent`
@@ -874,6 +1113,102 @@ mod tests {
             Outcome::Error { message, .. } if message == "This server doesn't offer Career"
         ));
         std::fs::remove_dir_all(dir).ok();
+    }
+
+    /// crafting against a real catalog export (`PLAYMAT_TEST_CATALOG`, the file `-Dxmage.catalog.export` writes)
+    #[tokio::test]
+    async fn craft_pays_wildcards_coins_and_achievements() {
+        let Ok(catalog) = std::env::var("PLAYMAT_TEST_CATALOG") else { return };
+        let dir = std::env::temp_dir().join(format!("playmat-craft-{}", uuid::Uuid::new_v4()));
+        let mut stores = AdminStores::open(&dir.join("web_admin.db"), None, "").await.unwrap();
+        let mut db = SqliteConnectOptions::new()
+            .filename(dir.join("career.db"))
+            .create_if_missing(true)
+            .connect()
+            .await
+            .unwrap();
+        for sql in [
+            "CREATE TABLE cards (user TEXT NOT NULL, set_code TEXT NOT NULL, card_number TEXT NOT NULL, name TEXT NOT NULL, \
+             rarity TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY (user, set_code, card_number))",
+            "CREATE TABLE profile (user TEXT PRIMARY KEY, created INTEGER NOT NULL, starter TEXT NOT NULL, \
+             coins INTEGER NOT NULL DEFAULT 0, xp INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0, \
+             losses INTEGER NOT NULL DEFAULT 0, wc_common INTEGER NOT NULL DEFAULT 0, wc_uncommon INTEGER NOT NULL DEFAULT 0, \
+             wc_rare INTEGER NOT NULL DEFAULT 0, wc_mythic INTEGER NOT NULL DEFAULT 0, pack_tokens INTEGER NOT NULL DEFAULT 0, \
+             show_progress INTEGER NOT NULL DEFAULT 1, capsule_tokens INTEGER NOT NULL DEFAULT 0)",
+            "CREATE TABLE stats (user TEXT NOT NULL, counter TEXT NOT NULL, value INTEGER NOT NULL, PRIMARY KEY (user, counter))",
+            "CREATE TABLE achievements (user TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (user, id))",
+            "CREATE TABLE unlocks (user TEXT NOT NULL, kind TEXT NOT NULL, item TEXT NOT NULL, at INTEGER NOT NULL)",
+            "CREATE TABLE payouts (match_key TEXT PRIMARY KEY, user TEXT NOT NULL, at INTEGER NOT NULL, opponent TEXT NOT NULL, \
+             won INTEGER NOT NULL, coins INTEGER NOT NULL, xp INTEGER NOT NULL, note TEXT)",
+            "CREATE TABLE token_log (user TEXT NOT NULL, at INTEGER NOT NULL, amount INTEGER NOT NULL, reason TEXT NOT NULL)",
+            "INSERT INTO profile (user, created, starter, coins, wc_uncommon) VALUES ('neri', 1, 'red', 30, 1)",
+            "INSERT INTO stats VALUES ('neri', 'cards_crafted', 8)",
+        ] {
+            sqlx::query(sql).execute(&mut db).await.unwrap();
+        }
+        let mut admin = SqliteConnectOptions::new().filename(dir.join("web_admin.db")).connect().await.unwrap();
+        sqlx::query("CREATE TABLE IF NOT EXISTS `admin_setting` (`name` VARCHAR , `value` VARCHAR , `changedBy` VARCHAR , `changedAt` BIGINT , PRIMARY KEY (`name`) )")
+            .execute(&mut admin)
+            .await
+            .unwrap();
+        stores.add_career(&dir.join("career.db"), Some(&content_dir())).await.unwrap();
+        let views = dir.join("career-views.json");
+        std::fs::write(
+            &views,
+            json!({"opponents": [], "achievements": [
+                {"id": "craft-10", "scope": "total", "counter": "cards_crafted", "target": 10, "coins": 0, "xp": 100, "tiers": []},
+                {"id": "t-crafted", "scope": "total", "counter": "cards_crafted", "target": 0, "tiers": [
+                    {"target": 10, "coins": 25, "xp": 50, "points": 5, "tokens": 2},
+                    {"target": 50, "coins": 50, "xp": 100, "points": 10, "tokens": 0},
+                ]},
+            ]})
+            .to_string(),
+        )
+        .unwrap();
+        stores.add_career_views(&views);
+        stores.set_catalog(std::sync::Arc::new(
+            crate::catalog::Catalog::open(std::path::Path::new(&catalog)).await.unwrap(),
+        ));
+        let neri =
+            Caller { user: Some("Neri".into()), admin: false, account: true, ip: "127.0.0.1".into(), connection: 1 };
+        let craft = async |set: &str, number: &str| {
+            stores.call(&neri, &request("careerCraft", json!([set, number])), true).await
+        };
+        let refused = async |set: &str, number: &str| match craft(set, number).await {
+            Outcome::Error { message, .. } => message,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(refused("M21", "9999").await, "There is no card M21 9999.");
+        assert_eq!(refused("M21", "272").await, "Basic lands are free; there's nothing to craft.");
+        assert_eq!(refused("M21", "7").await, "Basri Ket takes a mythic wildcard; you have none.");
+        // an uncommon spends its wildcard first, a common its coins; the tenth card crafted pays both achievements
+        let Outcome::Result(_) = craft("m21", "159").await else { panic!() };
+        let one: (i64, i64, i64) =
+            sqlx::query_as("SELECT coins, wc_uncommon, xp FROM profile").fetch_one(&mut db).await.unwrap();
+        assert_eq!(one, (5, 1, 0));
+        let uncommon: (String, String) = sqlx::query_as(
+            "SELECT set_code, card_number FROM printings WHERE rarity = 'UNCOMMON' AND set_code = 'M21' LIMIT 1",
+        )
+        .fetch_one(&mut SqliteConnectOptions::new().filename(&catalog).read_only(true).connect().await.unwrap())
+        .await
+        .unwrap();
+        let Outcome::Result(profile) = craft(&uncommon.0, &uncommon.1).await else { panic!() };
+        let two: (i64, i64, i64, i64) = sqlx::query_as("SELECT coins, wc_uncommon, xp, capsule_tokens FROM profile")
+            .fetch_one(&mut db)
+            .await
+            .unwrap();
+        assert_eq!(two, (30, 0, 150, 2));
+        assert_eq!(profile["coins"], json!(30));
+        let earned: Vec<String> =
+            sqlx::query_scalar("SELECT id FROM achievements ORDER BY id").fetch_all(&mut db).await.unwrap();
+        assert_eq!(earned, ["craft-10", "t-crafted:1"]);
+        let log: (i64, String) =
+            sqlx::query_as("SELECT amount, reason FROM token_log").fetch_one(&mut db).await.unwrap();
+        assert_eq!(log, (2, "achievement t-crafted:1".into()));
+        sqlx::query("UPDATE profile SET coins = 10").execute(&mut db).await.unwrap();
+        assert_eq!(refused("m21", "159").await, "Shock costs 25 coins to craft; you have 10.");
+        sqlx::query("UPDATE cards SET count = 4 WHERE name = 'Shock'").execute(&mut db).await.unwrap();
+        assert_eq!(refused("m21", "159").await, "You already have 4 copies of Shock.");
     }
 
     fn content_dir() -> std::path::PathBuf {

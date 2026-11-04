@@ -76,7 +76,11 @@ impl Platform {
                             catalog.card_rows(),
                             catalog.stamp
                         );
-                        *self.catalog.write().unwrap() = Some(Arc::new(catalog));
+                        let catalog = Arc::new(catalog);
+                        if let Some(admin) = &self.admin {
+                            admin.set_catalog(catalog.clone());
+                        }
+                        *self.catalog.write().unwrap() = Some(catalog);
                         loaded = modified;
                     }
                     Err(e) => warn!("Catalog {} can't be read: {e}", path.display()),
