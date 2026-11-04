@@ -120,6 +120,11 @@ public abstract class GameImpl implements Game {
     protected transient PlayerQueryEventSource playerQueryEventSource = new PlayerQueryEventSource();
 
     protected Map<UUID, Card> gameCards = new HashMap<>();
+    // AI simulations share their card objects with the game they were copied from (and with the copies made from
+    // them) instead of copying every card of every library each time: a card is copied the first time this game
+    // hands it out, so neither game ever changes the other's. Cards not in ownCards are still shared.
+    private boolean sharesCards;
+    private Set<UUID> ownCards;
     protected Map<UUID, MeldCard> meldCards = new HashMap<>(0);
 
     protected Map<Zone, Map<UUID, MageObject>> lki = new EnumMap<>(Zone.class);
@@ -206,7 +211,16 @@ public abstract class GameImpl implements Game {
         //this.tableEventSource = game.tableEventSource; // client-server part, not need on copy/simulations
         //this.playerQueryEventSource = game.playerQueryEventSource; // client-server part, not need on copy/simulations
 
-        this.gameCards = CardUtil.deepCopyObject(game.gameCards);
+        if (game.aiGame) {
+            // most cards sit in a library or hand and are never looked at in a simulation, so only a game's own cards
+            // get copied, when it asks for them
+            this.gameCards = new HashMap<>(game.gameCards);
+            this.sharesCards = true;
+            this.ownCards = new HashSet<>();
+            game.shareCards();
+        } else {
+            this.gameCards = CardUtil.deepCopyObject(game.gameCards);
+        }
         this.meldCards = CardUtil.deepCopyObject(game.meldCards);
 
         this.lki = CardUtil.deepCopyObject(game.lki);
@@ -376,13 +390,44 @@ public abstract class GameImpl implements Game {
         }
     }
 
+    private void shareCards() {
+        if (sharesCards) {
+            ownCards.clear();
+        } else {
+            sharesCards = true;
+            ownCards = new HashSet<>();
+        }
+    }
+
+    /**
+     * The game's card, copied first if it's still shared with another game (see sharesCards).
+     */
+    private Card ownCard(UUID cardId, Card card) {
+        if (!sharesCards || !ownCards.add(cardId)) {
+            return card;
+        }
+        Card copy = card.copy();
+        gameCards.put(cardId, copy);
+        return copy;
+    }
+
     private void addCardToState(Card card) {
         gameCards.put(card.getId(), card);
+        if (sharesCards) {
+            ownCards.add(card.getId());
+        }
         state.addCard(card);
     }
 
     @Override
     public Collection<Card> getCards() {
+        if (sharesCards && ownCards.size() < gameCards.size()) {
+            for (Map.Entry<UUID, Card> entry : gameCards.entrySet()) {
+                if (ownCards.add(entry.getKey())) {
+                    entry.setValue(entry.getValue().copy());
+                }
+            }
+        }
         return gameCards.values();
     }
 
@@ -818,6 +863,9 @@ public abstract class GameImpl implements Game {
             return null;
         }
         Card card = gameCards.get(cardId);
+        if (card != null) {
+            card = ownCard(cardId, card);
+        }
         if (card == null) {
             card = state.getCopiedCard(cardId);
         }

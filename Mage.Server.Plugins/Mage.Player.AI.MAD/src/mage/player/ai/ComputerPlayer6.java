@@ -59,6 +59,9 @@ public class ComputerPlayer6 extends ComputerPlayer {
     // a search waits this long for a free search thread before the AI gives up on it; the wait doesn't count as
     // think time, so AI players on a busy server don't lose their search to each other's
     private static final int MAX_SECONDS_WAITING_FOR_A_SEARCH_THREAD = 60;
+    // the search stops itself at the think time and plays its best line; past it by this much it gets interrupted (a
+    // single action that never finishes, such as an endless loop)
+    private static final int EXTRA_SECONDS_BEFORE_INTERRUPT = 3;
 
     // same params as Executors.newFixedThreadPool
     // no needs errors check in afterExecute here cause that pool used for FutureTask with result check already
@@ -74,6 +77,11 @@ public class ComputerPlayer6 extends ComputerPlayer {
     protected int maxNodes;
     protected int maxThinkTimeSecs;
     protected int rootScoreNoise; // see rootScoreNoiseForSkill
+    // the running search's limits: the whole budget, and the share of it the current first action may use (see
+    // simulatePriority); deadlines are System.nanoTime values, 0 for none
+    private transient int searchNodeLimit;
+    private transient long searchDeadline;
+    private transient long searchEndsAt;
     protected LinkedList<Ability> actions = new LinkedList<>();
     protected Combat combat;
     protected int currentScore;
@@ -92,6 +100,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
         optimizers.add(new EquipOptimizer());
         optimizers.add(new DiscardCardOptimizer());
         optimizers.add(new OutcomeOptimizer());
+        optimizers.add(new SameCardInHandOptimizer());
     }
 
     public ComputerPlayer6(String name, RangeOfInfluence range, int skill) {
@@ -108,10 +117,18 @@ public class ComputerPlayer6 extends ComputerPlayer {
         } else {
             maxDepth = skill;
         }
-        maxThinkTimeSecs = skill * 3;
+        maxThinkTimeSecs = maxThinkTimeSecsForSkill(skill);
         maxNodes = maxNodesForSkill(skill);
         rootScoreNoise = rootScoreNoiseForSkill(skill);
         this.actionCache = new HashSet<>();
+    }
+
+    /**
+     * It was skill * 3, up to 30 seconds a decision for Expert, several times a turn. The search now splits its time
+     * between its options and stops in time with its best line (see simulatePriority), so a few seconds are enough.
+     */
+    static int maxThinkTimeSecsForSkill(int skill) {
+        return Math.max(1, Math.min(skill * 3, 3 + skill / 2));
     }
 
     /**
@@ -268,12 +285,12 @@ public class ComputerPlayer6 extends ComputerPlayer {
             return GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
         }
         // Condition to stop deeper simulation
-        if (node.getSearchNodes() > maxNodes + MAX_SIMULATED_NODES_OVER_BUDGET) {
+        if (node.getSearchNodes() > searchNodeLimit + MAX_SIMULATED_NODES_OVER_BUDGET) {
             // how-to fix: make sure you are disabled debug mode by COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS = false
             throw new IllegalStateException("AI ERROR: too much nodes (possible actions)");
         }
         if (depth <= 0
-                || node.getSearchNodes() > maxNodes
+                || outOfBudget(node)
                 || game.checkIfGameIsOver()) {
             val = GameStateEvaluator2.evaluate(playerId, game).getTotalScore();
             if (logger.isTraceEnabled()) {
@@ -391,10 +408,10 @@ public class ComputerPlayer6 extends ComputerPlayer {
             if (alpha >= beta) {
                 break;
             }
-            if (node.getSearchNodes() > maxNodes + MAX_SIMULATED_NODES_OVER_BUDGET) {
+            if (node.getSearchNodes() > searchNodeLimit + MAX_SIMULATED_NODES_OVER_BUDGET) {
                 throw new IllegalStateException("AI ERROR: too much nodes (possible actions)");
             }
-            if (node.getSearchNodes() > maxNodes) {
+            if (outOfBudget(node)) {
                 break;
             }
             int val = addActions(child, depth - 1, alpha, beta);
@@ -499,11 +516,14 @@ public class ComputerPlayer6 extends ComputerPlayer {
         java.util.Random searchRandom = RandomUtil.childForOtherThread();
         FutureTask<Integer> task = new FutureTask<>(() -> {
             started.countDown();
+            searchNodeLimit = maxNodes;
+            searchEndsAt = COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS ? 0 : deadlineIn(System.nanoTime(), maxThinkTimeSecs * 1_000_000_000L);
+            searchDeadline = searchEndsAt;
             return RandomUtil.withRandom(searchRandom, () -> addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE));
         });
         threadPoolSimulations.execute(task);
         try {
-            int maxSeconds = maxThinkTimeSecs;
+            int maxSeconds = maxThinkTimeSecs + EXTRA_SECONDS_BEFORE_INTERRUPT;
             if (COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS) {
                 maxSeconds = 3600;
             }
@@ -544,6 +564,19 @@ public class ComputerPlayer6 extends ComputerPlayer {
         }
         //TODO: timeout handling
         return 0;
+    }
+
+    private static long deadlineIn(long now, long nanos) {
+        long deadline = now + nanos;
+        return deadline == 0 ? 1 : deadline; // 0 means no deadline
+    }
+
+    /**
+     * Whether the search must stop going deeper: it has used its share of nodes or of the think time.
+     */
+    private boolean outOfBudget(SimulationNode2 node) {
+        return node.getSearchNodes() > searchNodeLimit
+                || (searchDeadline != 0 && System.nanoTime() - searchDeadline > 0);
     }
 
     private void printFreezeNode(SimulationNode2 root) {
@@ -598,11 +631,20 @@ public class ComputerPlayer6 extends ComputerPlayer {
         }
         int actionNumber = 0;
         int bestValSubNodes = Integer.MIN_VALUE;
+        // the first actions split the budget: each gets an even share of the nodes and time left, and what one leaves
+        // unused goes to those after it. The whole budget went to the first few once, and the rest were never looked at
+        boolean shareBudget = depth == maxDepth && node.getParent() == null;
         for (Ability action : allActions) {
             actionNumber++;
             if (!COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS && Thread.currentThread().isInterrupted()) {
                 logger.info("Sim Prio [" + depth + "] -- interrupted");
                 break;
+            }
+            if (shareBudget) {
+                int actionsLeft = allActions.size() - actionNumber + 1;
+                searchNodeLimit = node.getSearchNodes() + Math.max(1, (maxNodes - node.getSearchNodes()) / actionsLeft);
+                long now = System.nanoTime();
+                searchDeadline = searchEndsAt == 0 ? 0 : deadlineIn(now, Math.max(0, searchEndsAt - now) / actionsLeft);
             }
             Game sim = game.createSimulationForAI();
             if (!(action instanceof StaticAbility) //for MorphAbility, etc
@@ -789,15 +831,19 @@ public class ComputerPlayer6 extends ComputerPlayer {
                 if (alpha >= beta) {
                     break;
                 }
-                if (node.getSearchNodes() > maxNodes + MAX_SIMULATED_NODES_OVER_BUDGET) {
+                if (node.getSearchNodes() > searchNodeLimit + MAX_SIMULATED_NODES_OVER_BUDGET) {
                     throw new IllegalStateException("AI ERROR: too many nodes (possible actions)");
                 }
-                if (node.getSearchNodes() > maxNodes) {
+                if (shareBudget ? node.getSearchNodes() > maxNodes : outOfBudget(node)) {
                     logger.debug("Sim Prio -- reached end-state");
                     break;
                 }
             }
         } // end of for (allActions)
+        if (shareBudget) {
+            searchNodeLimit = maxNodes;
+            searchDeadline = searchEndsAt;
+        }
 
         if (depth == maxDepth) {
             // TODO: buggy? Why it ended with depth limit 6 on one Pass action?!

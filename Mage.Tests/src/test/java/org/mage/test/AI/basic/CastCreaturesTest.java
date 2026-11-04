@@ -46,6 +46,23 @@ public class CastCreaturesTest extends CardTestPlayerBaseAI {
         assertPermanentCount(playerA, "Silvercoat Lion", 2);
     }
 
+    /**
+     * The search keeps one option for copies of the same card in hand, so the second copy is still found one level
+     * deeper
+     */
+    @Test
+    public void testTwoCopiesInHandAreBothCast() {
+        addCard(Zone.HAND, playerA, "Silvercoat Lion", 2);
+        addCard(Zone.HAND, playerA, "Plains", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Plains", 3);
+
+        setStopAt(1, PhaseStep.BEGIN_COMBAT);
+        execute();
+
+        assertPermanentCount(playerA, "Silvercoat Lion", 2);
+        assertPermanentCount(playerA, "Plains", 4);
+    }
+
     @Test
     public void testSimpleCast3() {
         // Affinity for artifacts (This spell costs less to cast for each artifact you control.)

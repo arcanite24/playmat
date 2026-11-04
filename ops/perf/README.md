@@ -32,6 +32,7 @@ The harness uses ports 18171–18173, so it can run next to a dev server on 1717
 | `PERF_RUNS`, `PERF_COLD` | `3`, `0` | `startup`: number of starts; `1` deletes the card database before each start |
 | `PERF_IDLE_SEC` | `60` | `idle`: how long idle CPU is measured |
 | `MAGE_PERF_CONC`, `MAGE_PERF_DURATION_MS`, `MAGE_PERF_SKILL` | `8`, `120000`, `1` | `ai` scenario |
+| `MAGE_PERF_DECKS` | Headless Red mirror | `ai` scenario: comma-separated deck lists ("4 Card Name" lines) the AI seats rotate through, e.g. `Mage.Server/career-src/pioneer/*.txt`. The red mirror rarely gets past 10 permanents; real decks show the slow searches |
 | `MAGE_LOAD_GAMES`, `MAGE_LOAD_WAVES` | `12`, `3` | `human` scenario |
 | `MAGE_PERF_N`, `MAGE_PERF_HOLD_TURN`, `MAGE_PERF_HOLD_MS` | `16`, `6`, `90000` | `hold` scenario |
 
@@ -42,7 +43,7 @@ To act like a small VPS on a big machine, cap the JVM's view of the hardware: `P
 - `cpuSecPerGame` in `summary.json` is the main CPU number. It's the server's CPU time during the load divided by the games finished. Wall-clock times are noisy on a busy laptop, but CPU seconds and profile shares hold steady.
 - `profile.cpu` holds category shares from JFR. The first match wins, in this order: bridge state diffs, replay recording, AI search, playable highlighting, game views, message serialization, deck loading, card database, desktop transport, rules engine. `report.txt` lists the methods behind each one.
 - `liveHeapMBPerHeldGame` (`hold`) is the memory a game holds while it waits for a player.
-- `thinkTooLong` counts the AI's "thinks too long" warnings. When it climbs, the AI is running out of time rather than finishing its search.
+- `thinkTooLong` counts the AI's "thinks too long" warnings. The search stops itself at its think time, so a warning now means one action ran 3 s past it (an endless loop or a very slow card), not a big board.
 
 ## Baseline, 12 Oct 2026
 
@@ -102,7 +103,7 @@ Playable highlighting (two game copies per view) is now the largest cost after t
 
 ### M18: the card database, playable highlighting, the AI's budgets, views and engine trims (12 Oct 2026)
 
-Startup checks the card classes against one query of every set and number instead of a lookup per card, and the card database's cache follows the heap (`XMAGE_DB_CACHE`, else an eighth of the heap, 16–150 MB). The image was meant to ship its card database compacted, but `SHUTDOWN COMPACT` leaves a database fresh from the server as it is (M19 switches to `SHUTDOWN DEFRAG`). Playable highlighting is computed once per game change and priority player, and mana checks reuse the copy the check already made. Each AI search counts its own nodes, and the budget follows the skill (2,000 nodes at skills 1–2, 3,500 at 3, 5,000 above; `XMAGE_AI_NODE_SCALE`). A search no longer starts when the player has nothing but mana abilities to play. The search threads follow the machine (`XMAGE_AI_THREADS`). The Monte Carlo AI shares one pool and can be left off (`XMAGE_MONTE_CARLO=false`), and the client then offers only the standard AI. Card views no longer copy the card, and computer sideboards are no longer sent to every viewer. A finished game drops its rollback states and last-known information. Watcher copies look up their class once, mana costs share their payment options until one changes, and card states aren't built just to be thrown away.
+Startup checks the card classes against one query of every set and number instead of a lookup per card, and the card database's cache follows the heap (`XMAGE_DB_CACHE`, else an eighth of the heap, 16–150 MB). The image was meant to ship its card database compacted, but `SHUTDOWN COMPACT` leaves a database fresh from the server as it is (M19 switches to `SHUTDOWN DEFRAG`). Playable highlighting is computed once per game change and priority player, and mana checks reuse the copy the check already made. Each AI search counts its own nodes, and the budget follows the skill (2,000 nodes at skills 1–2, 3,500 at 3, 5,000 above; `XMAGE_AI_NODE_SCALE`). The first actions of a search split its nodes and think time evenly (what one leaves goes to the next), and the think time is 3 s at Easy up to 8 s at Expert (it was 3 s per skill level, up to 30 s). AI simulations share card objects with the game they were copied from and copy a card only when they use it, instead of copying every library card each time. Two copies of the same card in hand count as one option. A search no longer starts when the player has nothing but mana abilities to play. The search threads follow the machine (`XMAGE_AI_THREADS`). The Monte Carlo AI shares one pool and can be left off (`XMAGE_MONTE_CARLO=false`), and the client then offers only the standard AI. Card views no longer copy the card, and computer sideboards are no longer sent to every viewer. A finished game drops its rollback states and last-known information. Watcher copies look up their class once, mana costs share their payment options until one changes, and card states aren't built just to be thrown away.
 
 | Measure (`-Xmx2g`) | Before | After |
 |---|---|---|
