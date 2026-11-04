@@ -27,6 +27,7 @@ import mage.game.command.Emblem;
 import mage.game.match.MatchOptions;
 import mage.game.permanent.Permanent;
 import mage.game.permanent.PermanentToken;
+import mage.game.trace.GameTrace;
 import mage.player.ai.ComputerPlayer7;
 import mage.player.ai.ComputerPlayerMCTS;
 import mage.players.ManaPool;
@@ -44,6 +45,7 @@ import org.mage.test.player.TestPlayer;
 import org.mage.test.serverside.base.CardTestAPI;
 import org.mage.test.serverside.base.CardTestCodePayload;
 import org.mage.test.serverside.base.MageTestPlayerBase;
+import org.mage.test.serverside.base.TestExport;
 
 import java.io.FileNotFoundException;
 import java.util.*;
@@ -314,6 +316,18 @@ public abstract class CardTestPlayerAPIImpl extends MageTestPlayerBase implement
 
         long t1 = System.nanoTime();
 
+        TestExport.Export export = null;
+        if (TestExport.enabled()) {
+            List<TestPlayer> testPlayers = new ArrayList<>();
+            for (Player player : currentGame.getPlayers().values()) {
+                testPlayers.add((TestPlayer) player);
+            }
+            export = TestExport.before(this, currentGame, testPlayers, stopOnTurn, stopAtStep, activePlayer);
+            if (gameOptions.trace == null) {
+                gameOptions.trace = new GameTrace();
+            }
+        }
+
         gameOptions.testMode = true;
         gameOptions.stopOnTurn = stopOnTurn;
         gameOptions.stopAtStep = stopAtStep;
@@ -323,6 +337,9 @@ public abstract class CardTestPlayerAPIImpl extends MageTestPlayerBase implement
         }
         currentGame.start(activePlayer.getId());
         currentGame.setGameStopped(true); // used for rollback handling
+        if (export != null) {
+            TestExport.after(export, currentGame, gameOptions.trace);
+        }
         long t2 = System.nanoTime();
         logger.debug("Winner: " + currentGame.getWinner());
         if (SHOW_EXECUTE_TIME_PER_TEST) {

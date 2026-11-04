@@ -1820,6 +1820,7 @@ public abstract class GameImpl implements Game {
         // it's real game end, do not use any game dialogs/rules/events here
         if (!state.isGameOver()) {
             logger.debug("END of gameId: " + this.getId());
+            trace(mage.game.trace.GameTrace.END);
             endTime = new Date();
             state.endGame();
 
@@ -2020,6 +2021,14 @@ public abstract class GameImpl implements Game {
         }
     }
 
+    /** records a state fingerprint when the game is traced ({@link GameOptions#trace}); never in simulations */
+    protected void trace(String point) {
+        if (simulation || gameOptions == null || gameOptions.trace == null) {
+            return;
+        }
+        gameOptions.trace.record(this, point);
+    }
+
     @Override
     public void playPriority(UUID activePlayerId, boolean resuming) {
         if (!this.isSimulation() && this.inCheckPlayableState()) {
@@ -2060,6 +2069,7 @@ public abstract class GameImpl implements Game {
                                 if (isPaused() || checkIfGameIsOver()) {
                                     return;
                                 }
+                                trace(mage.game.trace.GameTrace.PRIORITY);
                                 // resetPassed should be called if player performs any action
                                 if (player.priority(this)) {
                                     if (executingRollback()) {
@@ -2085,6 +2095,7 @@ public abstract class GameImpl implements Game {
                                 resolve();
                                 checkConcede();
                                 applyEffects();
+                                trace(mage.game.trace.GameTrace.RESOLVED);
                                 state.getPlayers().resetPassed();
                                 fireUpdatePlayersEvent();
                                 resetShortLivingLKI();

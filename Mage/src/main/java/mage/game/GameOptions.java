@@ -89,6 +89,12 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
      */
     public transient Consumer<GameSnapshot> turnSnapshots = null;
 
+    /**
+     * Records state fingerprints as the game goes (see {@link mage.game.trace.GameTrace}); null for none. Not part of a
+     * saved game.
+     */
+    public transient mage.game.trace.GameTrace trace = null;
+
     // PLANECHASE game mode
     public boolean planeChase = false;
     // xmage uses increased by 1/3 chances (2/2/9) for chaos/planar result, see 1a9f12f5767ce0beeed26a8ff5c8a8f9490c9c47
@@ -115,6 +121,7 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
         this.seed = options.seed;
         this.resumeFrom = options.resumeFrom;
         this.turnSnapshots = options.turnSnapshots;
+        this.trace = options.trace;
     }
 
     @Override
