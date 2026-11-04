@@ -373,6 +373,8 @@ if [ "$GATEWAY" = on ]; then
     export XMAGE_PLATFORM_ADMIN=$DB_DIR/web_admin.db XMAGE_PLATFORM_REPORTS=$DB_DIR/web_reports.db
     # support's records and the accounts, for XMAGE_ROUTE_SUPPORT
     export XMAGE_PLATFORM_SUPPORT=$DB_DIR/support.db XMAGE_PLATFORM_ACCOUNTS=$DB_DIR/authorized_user.db
+    # the Career's records, for XMAGE_ROUTE_CAREER and XMAGE_ROUTE_CAREERPROGRESS
+    export XMAGE_PLATFORM_CAREER=$DB_DIR/career.db
     while true; do
       playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
       sleep 2

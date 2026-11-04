@@ -104,6 +104,13 @@ async fn app_admin() -> Option<playmat_platform::admin::AdminStores> {
                     Err(e) => warn!("Support {} can't be opened, support stays with Java: {e}", support.display()),
                 }
             }
+            // `XMAGE_PLATFORM_CAREER`: db/career.db
+            if let Some(career) = set("XMAGE_PLATFORM_CAREER") {
+                match stores.add_career(&career).await {
+                    Ok(()) => info!("Career: {}", career.display()),
+                    Err(e) => warn!("Career {} can't be opened, Career stays with Java: {e}", career.display()),
+                }
+            }
             Some(stores)
         }
         Err(e) => {
