@@ -47,6 +47,9 @@ services:
       XMAGE_PORT: ${XMAGE_PORT:-}
       # on: the Rust gateway in front of the bridge (17180); the web service's XMAGE_GATEWAY sends /ws to it
       XMAGE_GATEWAY: ${XMAGE_GATEWAY:-off}
+      # where the gateway sends each group of calls: java (default), shadow or rust (ops/web/README.md "Rust gateway")
+      XMAGE_ROUTE_DEFAULT: ${XMAGE_ROUTE_DEFAULT:-}
+      XMAGE_ROUTE_CATALOG: ${XMAGE_ROUTE_CATALOG:-}
       XMAGE_MONTE_CARLO: ${XMAGE_MONTE_CARLO:-}
       XMAGE_AI_THREADS: ${XMAGE_AI_THREADS:-}
       XMAGE_AI_NODE_SCALE: ${XMAGE_AI_NODE_SCALE:-}

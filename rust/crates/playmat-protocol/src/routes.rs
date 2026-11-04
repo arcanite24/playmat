@@ -108,6 +108,10 @@ impl RouteTable {
         let groups = crate::groups();
         for (key, value) in vars {
             let Some(name) = key.strip_prefix("XMAGE_ROUTE_") else { continue };
+            // compose passes every setting, empty when unset
+            if value.trim().is_empty() {
+                continue;
+            }
             let route: Route = value.parse()?;
             if name == "DEFAULT" {
                 self.default = route;

@@ -97,7 +97,11 @@ fi
 # changes, so an old card DB never outlives an upgrade and a new one is never built on the server.
 build_id=$(cat "$APP/.build-id")
 if [ "$(cat "$CARDS_DIR/.build-id" 2>/dev/null || true)" != "$build_id" ]; then
-  rm -f "$CARDS_DIR"/cards.h2.*
+  rm -f "$CARDS_DIR"/cards.h2.* "$CARDS_DIR/catalog.sqlite"
+  # the card catalog the Rust gateway answers card lookups from, made from the same cards
+  if [ -f "$APP/cards-prebuilt/catalog.sqlite" ]; then
+    cp "$APP/cards-prebuilt/catalog.sqlite" "$CARDS_DIR/catalog.sqlite"
+  fi
   if [ -f "$APP/cards-prebuilt/cards.h2.mv.db" ]; then
     echo "xmage-server: new image build, installing its card database"
     cp "$APP/cards-prebuilt/cards.h2.mv.db" "$CARDS_DIR/cards.h2.mv.db"
@@ -287,6 +291,10 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   echo "-Dlog4j.configuration=file:$APP/config/log4j-docker.properties"
   echo "-Dxmage.replays=$REPLAYS"
   echo "-Dxmage.remoting=false"
+  # with the gateway on, the server keeps its card catalog current (it rewrites it when its cards change)
+  if [ "$GATEWAY" = on ]; then
+    echo "-Dxmage.catalog.export=$CARDS_DIR/catalog.sqlite"
+  fi
   echo "-Dxmage.ai.threads=$AI_THREADS"
   [ -z "${XMAGE_AI_NODE_SCALE:-}" ] || echo "-Dxmage.ai.nodeScale=$XMAGE_AI_NODE_SCALE"
   echo "-Dxmage.db.cacheSizeKB=$((DB_CACHE_MB * 1024))"
@@ -358,6 +366,7 @@ if [ "$GATEWAY" = on ]; then
   (
     export XMAGE_GATEWAY_LISTEN=0.0.0.0:17180 XMAGE_GATEWAY_JAVA_URL=ws://127.0.0.1:17172
     export XMAGE_GATEWAY_TRUSTED_PROXIES=${XMAGE_TRUSTED_PROXIES:-127.0.0.1}
+    export XMAGE_PLATFORM_CATALOG=$CARDS_DIR/catalog.sqlite
     while true; do
       playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
       sleep 2

@@ -5,13 +5,13 @@
 //! - The gateway watches logins on the connection, so Rust handlers know who calls.
 //! - Closing either side closes the other, with the same close code (4001 "signed in elsewhere" included).
 
-use crate::handlers::Caller;
 use crate::metrics::Metrics;
 use crate::states::GameStates;
 use crate::App;
 use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use http::HeaderMap;
+use playmat_protocol::handlers::Caller;
 use playmat_protocol::jsonrpc::{Outcome, Request};
 use playmat_protocol::routes::Route;
 use playmat_protocol::Access;
@@ -307,20 +307,18 @@ fn on_reply(
     match pending {
         Pending::Shadow { method, rust } => {
             let java = Outcome::from_reply(&reply);
-            let same = match (&java, &rust) {
-                (Some(Outcome::Result(a)), Outcome::Result(b)) => a == b,
-                (Some(Outcome::Error { code: a, .. }), Outcome::Error { code: b, .. }) => a == b,
-                _ => false,
+            let difference = match (&java, &rust) {
+                (Some(Outcome::Result(a)), Outcome::Result(b)) => playmat_protocol::compare::difference(a, b),
+                (Some(Outcome::Error { code: a, .. }), Outcome::Error { code: b, .. }) if a == b => None,
+                _ => Some(format!(
+                    "java {}, rust {}",
+                    truncate(&format!("{java:?}"), 300),
+                    truncate(&format!("{rust:?}"), 300)
+                )),
             };
-            if same {
-                Metrics::add(&app.metrics.shadow_same, 1);
-            } else {
-                Metrics::add(&app.metrics.shadow_different, 1);
-                warn!(
-                    "shadow {method}: Rust answered differently\n  java: {}\n  rust: {}",
-                    truncate(&format!("{java:?}"), 600),
-                    truncate(&format!("{rust:?}"), 600)
-                );
+            app.metrics.shadow(&method, difference.is_none());
+            if let Some(difference) = difference {
+                warn!("shadow {method}: Rust answered differently at {difference}");
             }
             send_client(text)
         }

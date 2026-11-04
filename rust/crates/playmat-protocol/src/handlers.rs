@@ -1,8 +1,8 @@
 //! Calls the gateway answers in Rust instead of passing them to Java (routes `rust` and `shadow`). The platform
 //! service (migration phase 2) provides them; the gateway itself provides none.
 
+use crate::jsonrpc::{Outcome, Request};
 use async_trait::async_trait;
-use playmat_protocol::jsonrpc::{Outcome, Request};
 
 /// Who is calling, as the gateway knows it from the logins it saw on the connection.
 #[derive(Debug, Clone, Default)]
@@ -38,6 +38,6 @@ impl Handlers for NoHandlers {
     }
 
     async fn call(&self, _caller: &Caller, _request: &Request) -> Outcome {
-        Outcome::error(playmat_protocol::jsonrpc::METHOD_NOT_FOUND, "Not handled by the gateway")
+        Outcome::error(crate::jsonrpc::METHOD_NOT_FOUND, "Not handled by the gateway")
     }
 }
