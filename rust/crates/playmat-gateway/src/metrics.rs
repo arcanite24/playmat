@@ -1,0 +1,58 @@
+//! Counters for `/metrics` (Prometheus text format) and the shutdown log.
+
+use std::fmt::Write;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+#[derive(Default)]
+pub struct Metrics {
+    pub connections_open: AtomicU64,
+    pub connections_total: AtomicU64,
+    pub upstream_failures: AtomicU64,
+    pub requests_java: AtomicU64,
+    pub requests_rust: AtomicU64,
+    pub requests_shadow: AtomicU64,
+    pub shadow_same: AtomicU64,
+    pub shadow_different: AtomicU64,
+    pub frames_to_client: AtomicU64,
+    pub bytes_to_client: AtomicU64,
+    pub frames_from_client: AtomicU64,
+    pub state_patches: AtomicU64,
+    pub state_complete: AtomicU64,
+    /// what clients would have received without patches
+    pub state_full_bytes: AtomicU64,
+    pub state_sent_bytes: AtomicU64,
+    pub state_resyncs: AtomicU64,
+    pub slow_clients_dropped: AtomicU64,
+}
+
+impl Metrics {
+    pub fn add(counter: &AtomicU64, n: u64) {
+        counter.fetch_add(n, Ordering::Relaxed);
+    }
+
+    pub fn render(&self) -> String {
+        let mut out = String::new();
+        let mut line = |name: &str, kind: &str, value: &AtomicU64| {
+            let _ = writeln!(out, "# TYPE playmat_gateway_{name} {kind}");
+            let _ = writeln!(out, "playmat_gateway_{name} {}", value.load(Ordering::Relaxed));
+        };
+        line("connections_open", "gauge", &self.connections_open);
+        line("connections_total", "counter", &self.connections_total);
+        line("upstream_failures_total", "counter", &self.upstream_failures);
+        line("requests_java_total", "counter", &self.requests_java);
+        line("requests_rust_total", "counter", &self.requests_rust);
+        line("requests_shadow_total", "counter", &self.requests_shadow);
+        line("shadow_same_total", "counter", &self.shadow_same);
+        line("shadow_different_total", "counter", &self.shadow_different);
+        line("frames_to_client_total", "counter", &self.frames_to_client);
+        line("bytes_to_client_total", "counter", &self.bytes_to_client);
+        line("frames_from_client_total", "counter", &self.frames_from_client);
+        line("state_patches_total", "counter", &self.state_patches);
+        line("state_complete_total", "counter", &self.state_complete);
+        line("state_full_bytes_total", "counter", &self.state_full_bytes);
+        line("state_sent_bytes_total", "counter", &self.state_sent_bytes);
+        line("state_resyncs_total", "counter", &self.state_resyncs);
+        line("slow_clients_dropped_total", "counter", &self.slow_clients_dropped);
+        out
+    }
+}
