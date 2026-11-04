@@ -131,7 +131,8 @@ Nothing in Rust yet; this is what makes every later swap safe.
 ### Phase 1: Rust gateway (4–6 weeks)
 
 - New Cargo workspace `rust/` (`playmat-gateway`, `playmat-protocol`, later `playmat-platform`, `playmat-engine`), Tokio + axum/tokio-tungstenite, built into its own image, multi-arch like the others.
-- Pass-through first: the gateway terminates the browser socket, handles origins, per-IP limits, deflate and heartbeats, and forwards to Java's bridge unchanged. Caddy points `/ws*` at it with Java as an instant fallback route.
+- Drop the desktop protocol first (decided 3 Nov): JBoss Remoting (17171) and its classes leave the server, so `Session` and `WebSocketCallbackHandler` stop implementing JBoss interfaces.
+- Pass-through: the gateway terminates the browser socket, handles origins, per-IP limits, deflate and heartbeats, and forwards to Java's bridge unchanged. Caddy points `/ws*` at it with Java as an instant fallback route.
 - Then move the state pipeline: Java sends each view once per game event; the gateway keeps the last tree per connection, diffs, encodes and sends. That takes `serializeTree`, `GameStates` and `StateDiff` off the JVM, and the patches must stay byte-compatible (`gameStatePatches.json`).
 - Toggles: `XMAGE_GATEWAY=on|off` in compose, the routing table in place with every group set to `java`.
 
@@ -141,10 +142,10 @@ Nothing in Rust yet; this is what makes every later swap safe.
 
 Move the pure CRUD groups, one routing entry at a time, each through `shadow` before `rust`:
 
-1. `catalog*` and card search: the card DB in Rust (SQLite or an in-memory index built from `cards.h2` export), deck validation by format legality data.
+1. `catalog*` and card search: the card DB in Rust (SQLite, exported from `cards.h2` at build time, with an in-memory name index), deck validation by format legality data.
 2. `deckSync*`, deck import.
 3. `admin*`, staff, invites, audit, settings, moderation reports, client errors.
-4. Accounts, sign-in, mail, password reset (H2 `authorized_user.h2` migrated to SQLite or Postgres once, with a backfill and rollback script).
+4. Accounts, sign-in, mail, password reset (H2 `authorized_user.h2` migrated to SQLite once, with a backfill and rollback script).
 5. Support hooks (`/hooks/*`, `/public/*` move in Caddy by path).
 
 Each move transfers the single writer of its database file; Java gets a thin client for anything it still reads (staff checks, user lookups).
@@ -171,13 +172,13 @@ Design for cheap state from day one:
 Card pipeline:
 
 1. **Transpiler** (Java parser over `Mage.Sets`): constructor composition → DSL. Covers the ~24k pure-composition files as framework classes land.
-2. **Custom logic** (~7,800 effect classes): LLM-assisted translation into Rust effect functions, each accepted only with its exported tests passing and decision-log games matching.
-3. **Upstream intake**: after every monthly merge, the transpiler runs on new and changed cards; anything it can't translate stays Java-only until ported. The coverage list is generated, never hand-edited.
+2. **Custom logic** (~7,800 effect classes): LLM-assisted translation into Rust effect functions (no budget cap, decided 3 Nov), each accepted only with its exported tests passing and decision-log games matching.
+3. **Upstream intake**: after every monthly merge, the transpiler runs on new and changed cards; anything it can't translate stays Java-only until ported. The coverage list is generated, never hand-edited. Once Java is retired, intake keeps going through the upstream ledger (below).
 
 Running it:
 
 - **Shadow games**: decision logs from real Java games replay in Rust; any fingerprint mismatch is a bug report with the exact action.
-- **Coverage-gated routing**: `auto` tables use Rust only when every card is verified. Start with the career school decks, starter decks and the red mirror, then Pauper/Pioneer staples, then limited sets.
+- **Coverage-gated routing**: `auto` tables use Rust only when every card is verified. First pool (decided 3 Nov): the **Pauper Career school decks** (23 decks, 218 distinct cards, all commons) in two-player duel, plus the red mirror the harness uses. Pauper first because the cards are simpler, the pool is small and fixed, and most of those games are against the AI, where the CPU goes. Then the Pioneer school decks (about 210 more cards), then Standard, then limited sets.
 - Game types: two-player duel first; commander and multiplayer later.
 
 **Gate (first):** all exported tests for the verified card pool pass; 10,000 shadow games of the pool with zero mismatches; CPU-s per AI game on real decks at least 5× better than the Phase 0 Java baseline. Then `auto` for staff, then a share of tables, then default.
@@ -193,8 +194,19 @@ Running it:
 ### Phase 6: Retire Java (open-ended)
 
 - Tables, tournaments, drafts and solo move to the Rust engine host once coverage covers the formats people play; Java becomes a fallback pool for unported cards and rare game types.
-- Decide then: keep a small Java pool indefinitely for the long tail, or drop the remaining cards. Also decide whether upstream sync continues (transpiler intake) or the fork goes its own way.
+- Decide then: keep a small Java pool for the long tail for a while, or drop the remaining cards.
+- Upstream merges end with Java (decided 3 Nov). Upstream's card and engine changes keep arriving through the ledger instead.
 - When nothing routes to Java for a month, remove it from the image.
+
+## Upstream ledger
+
+Decided 3 Nov: the fork may stop merging upstream Java, but it keeps following upstream's card work. Nobody reads upstream by hand; a job does.
+
+- `rust/upstream/ledger.toml` records the last upstream commit synced and one entry per upstream change that touches `Mage.Sets` or `Mage/src`: commit, file, card or engine class, kind (new card, changed card, engine fix), and status (`pending`, `ported`, `not-needed`, `blocked`), with the PR that ported it.
+- A scheduled GitHub Actions job (weekly) fetches `magefree/mage`, lists the changes since the last synced commit, and for each card file runs the transpiler. A pure-composition card becomes a ported entry in a PR; anything else becomes a `pending` entry.
+- The same job keeps a pinned tracking issue with the checklist of `pending` entries (new cards, changed cards, engine fixes), so porting work is a list to burn down, not a diff to read. Engine fixes link the upstream commit and the Mage.Tests changes that came with it, since those tests become Rust tests.
+- Upstream test changes are exported with the Phase 0 converter, so each upstream fix arrives with its check.
+- The coverage list the router reads is rebuilt from the ledger: a card upstream changed and we haven't re-ported drops back to Java while Java exists, and is flagged afterwards.
 
 ## Toggles at a glance
 
@@ -209,16 +221,15 @@ Running it:
 ## Risks
 
 - **Rules fidelity.** XMage's behaviour is the product of years of bug reports. Mitigation: decision-log differential testing, exported tests, coverage-gated routing, and Java as the fallback per game.
-- **Upstream pace.** About 250 cards a month. Mitigation: the transpiler intake; unported cards stay on Java, so a monthly merge never blocks.
+- **Upstream pace.** About 250 cards a month. Mitigation: the transpiler intake and the upstream ledger; unported cards stay on Java, so a monthly merge never blocks.
 - **Two systems for a long time.** Every engine fix may need to land twice. Mitigation: keep fork-only engine changes small, and port areas in big batches, not card by card.
 - **The engine never reaches enough coverage.** Phases 1–3 still pay off (lighter server layer, faster serialization, cleaner services), and Phase 0's Java copy-on-write work keeps its gains.
-- **Desktop client (JBoss Remoting).** The gateway doesn't speak it. Rust-engine games are web-only; desktop users keep Java games until the desktop path is dropped.
 - **Data migrations.** Accounts and Career move to new owners. Every migration ships with a backfill, a shadow period and a rollback script, and runs after a backup.
 
-## Open questions
+## Decisions (3 Nov 2026)
 
-1. Is the desktop client (JBoss, 17171) still needed, or can Phase 1 drop it?
-2. Which first card pool for Rust games: the career school decks, Pauper, or one limited set?
-3. SQLite stays for the platform service, or move to Postgres now that a new process owns the data?
-4. Is ending upstream sync acceptable at some point, or is the Java fallback pool permanent?
-5. Budget for LLM-assisted translation of the ~7,800 custom effect classes.
+1. **Desktop client:** not needed. JBoss Remoting is dropped in Phase 1.
+2. **First card pool:** the Pauper Career school decks in two-player duel, then Pioneer, then Standard, then limited sets.
+3. **Database:** SQLite for every Rust service (`sqlx`, WAL mode, one file per owning service, as today). It needs no extra process on a 1 GB box, backups stay file copies (`ops/web/backup.sh`), and there is one server per deployment. Revisit only if Playmat ever runs more than one server process against the same data.
+4. **Upstream:** merging upstream Java may end, but upstream's card and engine changes are tracked automatically in the upstream ledger and ported to Rust.
+5. **Translation budget:** no cap on LLM-assisted porting.
