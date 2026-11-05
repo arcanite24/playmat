@@ -12,4 +12,5 @@
 3 Tragic Banshee
 4 Kitesail Corsair
 2 Sheoldred, the Apocalypse
-4 Ledger Shredder
+2 Ledger Shredder
+2 Wan Shi Tong, Librarian

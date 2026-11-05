@@ -11,5 +11,6 @@
 4 Overgrown Tomb
 4 Woodland Cemetery
 4 Blooming Marsh
-6 Forest
+4 Forest
+2 Evolving Wilds
 6 Swamp
