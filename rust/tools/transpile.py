@@ -1102,6 +1102,12 @@ class Translator:
                     r = re.search(r',\s*("(?:[^"\\]|\\.)*")\s*\)\s*$', self.strip_setters(text))
                     if r:
                         a['rule'] = json.loads(r.group(1))
+                    elif a.get('class') == 'WardAbility' and a['effects'][0]['cost'][0]['class'] == 'ManaCost' \
+                            and len(split_args(arg[len('new WardAbility('):-1])) == 1:
+                        # `WardAbility.getRule` with its hint
+                        c = a['effects'][0]['cost'][0]['cost']
+                        a['rule'] = ('ward ' + c + ' <i>(Whenever this creature becomes the target of a spell or ability'
+                                     ' an opponent controls, counter it unless that player pays ' + c + '.)</i>')
                     elif a.get('class') not in KEYWORDS:
                         raise Unsupported('creature token ability without a text ' + arg[:60])
                 a.pop('java', None)
@@ -1158,6 +1164,9 @@ class Translator:
                 return out({'e': 'sacrificed', 'filter': self.filter(args[1]),
                             'who': self.value('target_controller', args[2]) if n == 3 else 'you'}, args[0])
             raise Unsupported(cls + ' overload')
+        if cls == 'WardAbility' and n in (1, 2) and (n == 1 or args[1] in ('true', 'false')):
+            return {'class': 'WardAbility', 'java': cls,
+                    'effects': [{'class': 'CounterUnlessPaysEffect', 'cost': [self.cost(args[0])]}]}
         if cls == 'ChannelAbility' and n == 2 and re.fullmatch(r'"(\{[^"]*\})"', args[0]):
             return {'class': 'ChannelAbility', 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': args[0][1:-1]},
                                                                      {'class': 'DiscardSourceCost'}],

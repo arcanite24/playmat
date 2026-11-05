@@ -217,6 +217,8 @@ pub struct StackItem {
     pub modes: Vec<usize>,
     /// the X announced as it was cast or activated
     pub x: i32,
+    /// a ward trigger: the ability it counters (its source and its `ability`); a spell is its target instead
+    pub ward_of: Option<(ObjId, (usize, u32))>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -249,6 +251,7 @@ impl StackItem {
             delayed: None,
             modes: Vec::new(),
             x: 0,
+            ward_of: None,
         }
     }
 }

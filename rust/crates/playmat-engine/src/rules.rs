@@ -864,6 +864,7 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         }
     }
     game.pending.extend(fired);
+    ward(game);
     true
 }
 
@@ -933,7 +934,39 @@ fn choose_targets(
         top.targets = targets;
         top.target_zcc = target_zcc;
     }
+    // TARGETED for an ability (a spell's, after SPELL_CAST, in `cast`)
+    if game.stack.last().is_some_and(|t| t.ability.is_some()) {
+        ward(game);
+    }
     true
+}
+
+/// `WardAbility`: the permanents the top of the stack targets whose controller is that object's opponent, each with
+/// a ward trigger countering it
+fn ward(game: &mut Game) {
+    let Some(top) = game.stack.last().cloned() else { return };
+    let mut fired = Vec::new();
+    for t in top.targets.iter().flatten() {
+        let Target::Obj(o) = *t else { continue };
+        let obj = game.obj(o);
+        if obj.zone != Zone::Battlefield || obj.controller == top.controller {
+            continue;
+        }
+        for (i, a) in obj.def.abilities.iter().enumerate() {
+            if let AbilityDef::WardAbility { .. } = a {
+                let mut item = StackItem { ability: Some((i, obj.zcc)), ..StackItem::spell(o, obj.controller) };
+                match top.ability {
+                    Some(ability) => item.ward_of = Some((top.card, ability)),
+                    None => {
+                        item.targets = vec![vec![Target::Obj(top.card)]];
+                        item.target_zcc = vec![vec![game.obj(top.card).zcc]];
+                    }
+                }
+                fired.push(item);
+            }
+        }
+    }
+    game.pending.extend(fired);
 }
 /// `PlayerImpl.playAbility`: the ability goes on the stack, then its targets, then mana, then other costs.
 /// False: cancelled.
@@ -957,6 +990,36 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
         }
     }
     true
+}
+
+/// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
+/// the payment; anything short of paying counters. None: stopped.
+fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef]) -> Option<bool> {
+    let life: i32 = cost.iter().map(|c| if let CostDef::PayLifeCost { amount } = c { *amount } else { 0 }).sum();
+    let mana = ability_mana_cost(cost);
+    if game.player(payer).life < life {
+        return Some(false);
+    }
+    let message = if life > 0 { format!("Pay {} life?", life) } else { format!("Pay {}?", mana.text) };
+    let q = Query::YesNo { message };
+    let yes = loop {
+        match ask(game, d, payer, &q) {
+            Answer::Bool(b) => break b,
+            Answer::Stop => return None,
+            _ => {}
+        }
+    };
+    let paid = yes
+        && if life > 0 {
+            lose_life(game, payer, life);
+            true
+        } else {
+            pay_mana(game, d, payer, &mana)
+        };
+    if d.stopped() {
+        return None;
+    }
+    Some(paid)
 }
 
 /// An activated ability's mana cost, after its cost adjuster (Channel's legendary discount)
@@ -2528,6 +2591,18 @@ fn apply_effects(
                     game.move_to(c, Zone::Graveyard);
                 }
             }
+            // ward against an ability: counter (remove) it unless its controller pays
+            EffectDef::CounterUnlessPaysEffect { cost, .. } if item.ward_of.is_some() => {
+                let (card, ability) = item.ward_of.unwrap();
+                let Some(at) = game.stack.iter().rposition(|i| i.card == card && i.ability == Some(ability)) else {
+                    continue;
+                };
+                let payer = game.stack[at].controller;
+                let Some(paid) = pay_unless(game, d, payer, cost) else { return };
+                if !paid {
+                    Arc::make_mut(&mut game.stack).remove(at);
+                }
+            }
             EffectDef::CounterUnlessPaysEffect { cost, exile } => {
                 let Some(Target::Obj(spell)) = target else { continue };
                 if game.obj(spell).zone != Zone::Stack {
@@ -2535,23 +2610,7 @@ fn apply_effects(
                 }
                 let payer = game.stack.iter().find(|i| i.card == spell && i.ability.is_none()).map(|i| i.controller);
                 let Some(payer) = payer else { continue };
-                let mana = ability_mana_cost(cost);
-                // `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then the payment; anything short of
-                // paying counters it
-                let paid = {
-                    let q = Query::YesNo { message: format!("Pay {}?", mana.text) };
-                    let yes = loop {
-                        match ask(game, d, payer, &q) {
-                            Answer::Bool(b) => break b,
-                            Answer::Stop => return,
-                            _ => {}
-                        }
-                    };
-                    yes && pay_mana(game, d, payer, &mana)
-                };
-                if d.stopped() {
-                    return;
-                }
+                let Some(paid) = pay_unless(game, d, payer, cost) else { return };
                 if !paid && !cant_be_countered(game, spell) {
                     Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
                     game.move_to(spell, if *exile { Zone::Exile } else { Zone::Graveyard });

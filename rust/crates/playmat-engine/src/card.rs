@@ -1069,6 +1069,9 @@ pub enum AbilityDef {
     CanBlockOnlyFlyingAbility,
     /// an Aura: what it can enchant is its spell's target
     EnchantAbility,
+    /// when this becomes the target of a spell or ability an opponent controls, counter it unless that player pays
+    /// (its effect, a `CounterUnlessPaysEffect`)
+    WardAbility { effects: Vec<EffectDef>, rule: String },
     /// this can't block
     CantBlockAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
@@ -1132,6 +1135,7 @@ impl AbilityDef {
             AbilityDef::TriggeredAbility { effects, targets, optional, rule, .. } => {
                 Some((rule, effects, targets, *optional))
             }
+            AbilityDef::WardAbility { effects, rule } => Some((rule, effects, &[], false)),
             _ => None,
         }
     }
