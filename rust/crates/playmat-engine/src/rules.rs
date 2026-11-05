@@ -3972,6 +3972,11 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 }
                 game.pending.push(t);
             }
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |g, src, you, t| {
+                matches!(t, Trigger::CombatDamageToPlayerAll { filter } if g.filter_matches(filter, you, Some(src), source))
+            });
+            game.pending.extend(fired);
         }
     }
     lifelink

@@ -356,6 +356,8 @@ pub enum Trigger {
     },
     /// this deals combat damage to a player
     CombatDamageToPlayer,
+    /// a permanent of the filter deals combat damage to a player
+    CombatDamageToPlayerAll { filter: Filter },
     /// one or more opponents are dealt noncombat damage (Master of Barbs)
     OpponentsDealtNoncombatDamage,
     /// another permanent you control enters or dies, if its power is greater than this one's (Pelt Collector)
