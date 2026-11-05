@@ -293,6 +293,11 @@ public abstract class GameImpl implements Game {
     }
 
     @Override
+    public boolean isAiSimulation() {
+        return aiGame;
+    }
+
+    @Override
     public Game createSimulationForAI() {
         Game res = this.copy();
         ((GameImpl) res).simulation = true;
@@ -482,6 +487,15 @@ public abstract class GameImpl implements Game {
 
     @Override
     public MageObject getObject(UUID objectId) {
+        return getObject(objectId, true);
+    }
+
+    @Override
+    public MageObject getObjectReadOnly(UUID objectId) {
+        return getObject(objectId, false);
+    }
+
+    private MageObject getObject(UUID objectId, boolean own) {
         if (objectId == null) {
             return null;
         }
@@ -508,7 +522,7 @@ public abstract class GameImpl implements Game {
             }
         }
 
-        object = getCard(objectId);
+        object = getCard(objectId, own);
 
         if (object == null) {
             for (Designation designation : state.getDesignations()) {
@@ -859,11 +873,15 @@ public abstract class GameImpl implements Game {
 
     @Override
     public Card getCard(UUID cardId) {
+        return getCard(cardId, true);
+    }
+
+    private Card getCard(UUID cardId, boolean own) {
         if (cardId == null) {
             return null;
         }
         Card card = gameCards.get(cardId);
-        if (card != null) {
+        if (card != null && own) {
             card = ownCard(cardId, card);
         }
         if (card == null) {
@@ -2319,6 +2337,17 @@ public abstract class GameImpl implements Game {
         state.handleSimultaneousEvent(this);
         resetShortLivingLKI();
         applyEffects();
+        state.getTriggers().checkStateTriggers(this);
+    }
+
+    @Override
+    public void processManaAction() {
+        if (!aiGame) {
+            processAction();
+            return;
+        }
+        state.handleSimultaneousEvent(this);
+        resetShortLivingLKI();
         state.getTriggers().checkStateTriggers(this);
     }
 

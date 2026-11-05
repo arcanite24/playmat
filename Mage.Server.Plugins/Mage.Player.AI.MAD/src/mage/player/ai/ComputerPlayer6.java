@@ -514,14 +514,24 @@ public class ComputerPlayer6 extends ComputerPlayer {
         // the search draws its random numbers (the low skills' misjudgement) from the game's generator, so a seeded
         // game's AI thinks the same way every time
         java.util.Random searchRandom = RandomUtil.childForOtherThread();
+        long[] searchCpu = {-1};
+        long searchStart = System.nanoTime();
         FutureTask<Integer> task = new FutureTask<>(() -> {
             started.countDown();
+            long cpuStart = SearchStats.ENABLED ? THREAD_MX.getCurrentThreadCpuTime() : 0;
+            try {
             searchNodeLimit = maxNodes;
             searchEndsAt = COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS ? 0 : deadlineIn(System.nanoTime(), maxThinkTimeSecs * 1_000_000_000L);
             searchDeadline = searchEndsAt;
-            return RandomUtil.withRandom(searchRandom, () -> addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE));
+                return RandomUtil.withRandom(searchRandom, () -> addActions(root, maxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE));
+            } finally {
+                if (SearchStats.ENABLED) {
+                    searchCpu[0] = THREAD_MX.getCurrentThreadCpuTime() - cpuStart;
+                }
+            }
         });
         threadPoolSimulations.execute(task);
+        boolean interrupted = false;
         try {
             int maxSeconds = maxThinkTimeSecs + EXTRA_SECONDS_BEFORE_INTERRUPT;
             if (COMPUTER_DISABLE_TIMEOUT_IN_GAME_SIMULATIONS) {
@@ -537,6 +547,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                 return res;
             }
         } catch (TimeoutException | InterruptedException e) {
+            interrupted = true;
             // AI thinks too long
             // how-to fix: look at stack info - it can contain bad ability with infinite choose dialog
             logger.warn("");
@@ -561,9 +572,28 @@ public class ComputerPlayer6 extends ComputerPlayer {
             // ?
             logger.error("AI simulation catch unknown error: " + e, e);
             task.cancel(true);
+        } finally {
+            if (SearchStats.ENABLED) {
+                recordSearch(System.nanoTime() - searchStart, searchCpu[0], interrupted);
+            }
         }
         //TODO: timeout handling
         return 0;
+    }
+
+    private static final java.lang.management.ThreadMXBean THREAD_MX = java.lang.management.ManagementFactory.getThreadMXBean();
+
+    /** the last search, recorded by priority once the whole decision is timed */
+    protected SearchStats.Search lastSearch;
+
+    private void recordSearch(long wallNanos, long cpuNanos, boolean interrupted) {
+        Game game = root.game;
+        boolean deadline = searchEndsAt != 0 && System.nanoTime() - searchEndsAt > 0;
+        lastSearch = new SearchStats.Search(
+                String.valueOf(game.getOptions().seed), getName(), game.getTurnNum(),
+                game.getTurnStepType() == null ? "" : game.getTurnStepType().toString(),
+                wallNanos, wallNanos, cpuNanos, root.getSearchNodes(), root.children.size(),
+                game.getBattlefield().getAllPermanents().size(), getHand().size(), deadline, interrupted);
     }
 
     private static long deadlineIn(long now, long nanos) {

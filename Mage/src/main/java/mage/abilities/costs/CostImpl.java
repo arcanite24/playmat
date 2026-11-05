@@ -1,5 +1,7 @@
 package mage.abilities.costs;
 
+import mage.util.RandomUtil;
+
 import mage.abilities.Ability;
 import mage.game.Game;
 import mage.target.Target;
@@ -15,7 +17,7 @@ public abstract class CostImpl implements Cost {
     private Targets targets;
 
     public CostImpl() {
-        id = UUID.randomUUID();
+        id = RandomUtil.newId();
         paid = false;
         targets = null; // rare usage, must be null by default for performance optimization
     }

@@ -1,5 +1,7 @@
 package mage.abilities.effects;
 
+import mage.util.RandomUtil;
+
 import mage.abilities.MageSingleton;
 import mage.abilities.Mode;
 import mage.constants.EffectType;
@@ -29,7 +31,7 @@ public abstract class EffectImpl implements Effect {
     protected String concatPrefix = ""; // combines multiple effects in text rule
 
     public EffectImpl(Outcome outcome) {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         this.outcome = outcome;
 
         initNewTargetPointer();
@@ -113,7 +115,7 @@ public abstract class EffectImpl implements Effect {
     @Override
     public void newId() {
         if (!(this instanceof MageSingleton)) {
-            this.id = UUID.randomUUID();
+            this.id = RandomUtil.newId();
         }
     }
 

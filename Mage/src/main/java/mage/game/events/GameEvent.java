@@ -1,5 +1,7 @@
 package mage.game.events;
 
+import mage.util.RandomUtil;
+
 import mage.ApprovingObject;
 import mage.MageIdentifier;
 import mage.abilities.Ability;
@@ -808,7 +810,7 @@ public class GameEvent implements Serializable {
         this.playerId = playerId;
         this.flag = flag;
         this.approvingObject = approvingObject;
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
     }
 
     public EventType getType() {
