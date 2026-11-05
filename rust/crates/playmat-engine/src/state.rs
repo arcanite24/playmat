@@ -113,6 +113,10 @@ pub struct Obj {
     pub attached_to: Option<(ObjId, u32)>,
     /// cast as its adventure: the whole card, while `def` is the adventure's
     pub adventurer: Option<Arc<CardDef>>,
+    /// a modal double-faced card played as its back face: the whole card, back when it leaves the battlefield
+    pub front: Option<Arc<CardDef>>,
+    /// a spell cast with flashback: exiled instead of going anywhere else from the stack
+    pub flashback: bool,
     /// exiled "on an adventure": its owner may cast the creature from exile
     pub on_adventure: bool,
     /// the attackers it blocks
@@ -367,6 +371,8 @@ impl Game {
             until_end_of_turn_def: None,
             attached_to: None,
             adventurer: None,
+            front: None,
+            flashback: false,
             on_adventure: false,
             blocking: Vec::new(),
             blocked: false,
@@ -395,6 +401,7 @@ impl Game {
             Pred::Controller { who } => (o.controller == you) == (who == "you"),
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
+            Pred::Adventure => self.obj(id).def.adventure.is_some() || self.obj(id).adventurer.is_some(),
             Pred::Mv { cmp, n } => cmp.holds(o.def.cost.mana_value() as i32, *n),
             Pred::Power { cmp, n } => cmp.holds(self.power_toughness(id).0, *n),
             Pred::TotalPowerToughness { n } => {
@@ -764,6 +771,8 @@ impl Game {
     /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
         let from = self.obj(id).zone;
+        let zone = if from == Zone::Stack && self.obj(id).flashback { Zone::Exile } else { zone };
+        self.obj_mut(id).flashback = false;
         // "if it would die this turn, exile it instead"
         let zone = if from == Zone::Battlefield
             && zone == Zone::Graveyard
@@ -809,6 +818,11 @@ impl Game {
             let o = self.obj_mut(id);
             if from == Zone::Stack {
                 if let Some(def) = o.adventurer.take() {
+                    o.def = def;
+                }
+            }
+            if from == Zone::Battlefield {
+                if let Some(def) = o.front.take() {
                     o.def = def;
                 }
             }

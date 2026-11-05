@@ -150,6 +150,12 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
             return Some(Answer::Mode(k));
         }
     }
+    // a double-faced card's face: `<object>f<index>`, the card itself
+    if let Some((obj, face)) = r.rsplit_once('f') {
+        if face.parse::<usize>().is_ok() {
+            return resolve(game, obj);
+        }
+    }
     // an object's ability: `<object>a<index>`
     if let Some((obj, ability)) = r.rsplit_once('a') {
         if let (Some(Answer::Obj(o)), Ok(i)) = (resolve(game, obj), ability.parse::<usize>()) {

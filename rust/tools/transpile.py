@@ -109,6 +109,7 @@ EFFECTS = {
     'SacrificeEffect': [('filter', 'filter'), ('amount', 'int'), (None, 'string')],
     'SacrificeOpponentsEffect': [('filter', 'filter')],
     'MillCardsControllerEffect': [('amount', 'int')],
+    'DiscardHandControllerEffect': [],
     'CantBeCounteredSourceEffect': [],
     'DamageControllerEffect': [('amount', 'int'), (None, 'string')],
     'DrawCardTargetEffect': [('amount', 'int')],
@@ -159,6 +160,7 @@ ABILITIES = {
     'AsEntersBattlefieldAbility': [('effect', 'effect'), (None, 'string')],
     'EntersBattlefieldTappedAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
+    'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
     # enters with an effect applied, if the condition holds (a replacement effect, not a trigger)
     'EntersBattlefieldAbility': [('effect', 'effect'), ('condition', 'condition'), (None, 'string'), (None, 'string')],
     'EntersBattlefieldAllTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('optional', 'bool')],
@@ -309,6 +311,8 @@ def predicate(text, subtypes):
         return {'p': m.group(2).lower(), 'who': 'you' if m.group(1) == 'YOU' else 'opponent'}
     if text == 'AnotherPredicate.instance':
         return {'p': 'another'}
+    if text == 'AdventurePredicate.instance':
+        return {'p': 'adventure'}
     # an outlaw: an Assassin, Mercenary, Pirate, Rogue or Warlock
     if text == 'CutDownPredicate.instance':
         return {'p': 'total_power_toughness', 'n': 5}
@@ -711,6 +715,13 @@ class Translator:
         elif kind == 'subtype':
             if re.fullmatch(r'SubType\.\w+', arg):
                 return None
+        elif kind == 'this':
+            if arg == 'this':
+                return None
+        elif kind == 'mana_costs':
+            m = re.fullmatch(r'new ManaCostsImpl<>\("(\{[^"]*\})"\)', arg)
+            if m:
+                return m.group(1)
         elif kind == 'cost_text':
             if re.fullmatch(r'"(\{[^"]*\})"', arg):
                 return arg[1:-1]
@@ -786,6 +797,11 @@ class Translator:
             return {'class': 'DamageTargetSourcePowerEffect'}
         if cls.startswith('SearchLibraryPutIn'):
             return self.search_library(cls, [a.strip() for a in args])
+        if cls == 'SpellCostReductionForEachSourceEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'per': int(args[0]), 'amount': self.amount(args[1])}
+        if cls == 'MillThenPutInHandEffect' and len(args) in (2, 3) and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]),
+                    'optional': len(args) == 2 or args[2].strip() == 'true'}
         if cls == 'SpellCostReductionSourceEffect' and len(args) in (1, 2) and re.fullmatch(r'\d+', args[0].strip()):
             out = {'class': cls, 'amount': int(args[0])}
             if len(args) == 2:
@@ -1136,6 +1152,10 @@ class Translator:
                 return out({'e': 'sacrificed', 'filter': self.filter(args[1]),
                             'who': self.value('target_controller', args[2]) if n == 3 else 'you'}, args[0])
             raise Unsupported(cls + ' overload')
+        if cls == 'CyclingAbility' and n == 1 and (m := re.fullmatch(r'new ManaCostsImpl<>\("(\{[^"]*\})"\)', args[0])):
+            return {'class': 'CyclingAbility', 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': m.group(1)},
+                                                                     {'class': 'DiscardSourceCost'}],
+                    'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]}
         if cls == 'BecomesTargetSourceTriggeredAbility' and n == 4 and args[2] in ('SetTargetPointer.PLAYER', 'SetTargetPointer.NONE'):
             return out({'e': 'becomes_target_of_spell', 'filter': self.filter(args[1])}, args[0], flag(args[3]),
                        args[2] == 'SetTargetPointer.PLAYER')
@@ -1204,6 +1224,8 @@ def translate(card_name, subtypes, facts):
     if not os.path.exists(path):
         raise Unsupported('no card class ' + cls)
     source = open(path).read()
+    if 'extends ModalDoubleFacedCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
+        return modal_double_faced(card_name, subtypes, facts, cls, source)
     if re.search(r'extends (?!CardImpl\b|AdventureCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
@@ -1260,6 +1282,38 @@ def translate(card_name, subtypes, facts):
     elif 'AdventureCardSpellAbility' in [f['class'] for f in java_abilities]:
         raise Unsupported('adventure without its spell')
     return card
+
+
+def modal_double_faced(card_name, subtypes, facts, cls, source):
+    """A modal double-faced card whose faces are both lands (the pathways): each face is a card of its own, and the
+    card's abilities are the front's, then the back's"""
+    java_abilities = facts[card_name]
+    t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    faces = [{'name': card_name}, {}]
+    added = [[], []]
+    for st in statements(constructor_body(source, cls)):
+        m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},new SubType\[\]\{\},"","(.*?)",'
+                         r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{\},""\)', st)
+        if m:
+            for face, types in ((faces[0], m.group(1)), (faces[1], m.group(3))):
+                face['types'] = [x.strip().split('.')[-1] for x in types.split(',') if x.strip()]
+                if face['types'] != ['LAND']:
+                    raise Unsupported('modal double-faced card with a face that is not a land')
+                face['cost'] = ''
+            faces[1]['name'] = m.group(2)
+            continue
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(addAbility\(.*\))', st)
+        if not m or not ability_statement(t, 'this.' + m.group(2), added[m.group(1) == 'Right']):
+            raise Unsupported('modal double-faced card statement ' + st)
+    if 'types' not in faces[0]:
+        raise Unsupported('modal double-faced card without its faces')
+    split = [i for i, f in enumerate(java_abilities) if f['class'] == 'PlayLandAbility']
+    if len(split) != 2:
+        raise Unsupported('modal double-faced card abilities')
+    faces[0]['abilities'] = in_java_order(java_abilities[:split[1]], added[0])
+    faces[1]['abilities'] = in_java_order(java_abilities[split[1]:], added[1])
+    faces[0]['back'] = faces[1]
+    return faces[0]
 
 
 def card_statement(t, st, card, added, spell, modes, subtypes):

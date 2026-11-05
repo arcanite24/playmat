@@ -5,6 +5,7 @@ import mage.abilities.Ability;
 import mage.abilities.Mode;
 import mage.abilities.Modes;
 import mage.cards.Card;
+import mage.cards.DoubleFacedCard;
 import mage.constants.ManaType;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
@@ -299,6 +300,12 @@ public final class DecisionLog {
             if (ability(ability, ref + "a" + j++, visitor)) {
                 return true;
             }
+        }
+        // a double-faced card's faces, which a client can click instead of the card
+        if (object instanceof DoubleFacedCard) {
+            DoubleFacedCard card = (DoubleFacedCard) object;
+            return visitor.test(ref + "f0", card.getLeftHalfCard().getId())
+                    || visitor.test(ref + "f1", card.getRightHalfCard().getId());
         }
         return false;
     }

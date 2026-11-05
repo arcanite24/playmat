@@ -343,7 +343,14 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             }
         } else if castable(game, seat, *id, &o.def)
             || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
+            || !activatable(game, seat, *id).is_empty()
         {
+            out.push(*id);
+        }
+    }
+    // flashback, from the graveyard
+    for id in &p.graveyard {
+        if game.obj(*id).def.flashback().is_some_and(|f| castable(game, seat, *id, &f)) {
             out.push(*id);
         }
     }
@@ -371,6 +378,10 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     let mut out = Vec::new();
     for (i, a) in o.def.abilities.iter().enumerate() {
         let Some((_, _, targets, costs, sorcery)) = a.activated() else { continue };
+        // cycling works from hand, everything else on the battlefield
+        if matches!(a, AbilityDef::CyclingAbility { .. }) != (o.zone == Zone::Hand) {
+            continue;
+        }
         if sorcery && !sorcery_speed(game, seat) {
             continue;
         }
@@ -402,6 +413,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             game.player(seat).hand.iter().any(|c| game.filter_matches(filter, seat, Some(id), *c))
         }
         CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
+        CostDef::DiscardSourceCost => o.zone == Zone::Hand,
         // either one (`OrCost`)
         CostDef::OrCost { costs } => costs.iter().any(|c| or_cost_payable(game, seat, id, c)),
     }
@@ -627,11 +639,64 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         return;
     }
     if game.obj(id).is(CardType::Land) {
+        // a modal double-faced land: the picker, with its front's and its back's play abilities (the back's come
+        // after the front's)
+        if let Some(back) = game.obj(id).def.back.clone() {
+            let b = game.obj(id).def.abilities.len();
+            match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![0, b] }) {
+                Answer::Ability(o, 0) if o == id => {}
+                Answer::Ability(o, i) if o == id && i == b => {
+                    let full = game.obj(id).def.clone();
+                    let o = game.obj_mut(id);
+                    o.front = Some(full);
+                    o.def = back;
+                }
+                _ => return,
+            }
+        }
         enter_battlefield(game, d, id, seat, false);
         game.player_mut(seat).lands_played += 1;
         return;
     }
+    // a card in hand with an ability (cycling): the picker, with its spell (a0) and the abilities, if there is a choice
+    if game.obj(id).zone == Zone::Hand && game.obj(id).def.adventure.is_none() {
+        let mut options = activatable(game, seat, id);
+        if !options.is_empty() {
+            if castable(game, seat, id, &game.obj(id).def.clone()) {
+                options.insert(0, 0);
+            }
+            let index = if options.len() == 1 {
+                options[0]
+            } else {
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                    Answer::Ability(o, i) if o == id && options.contains(&i) => i,
+                    _ => return,
+                }
+            };
+            if index != 0 {
+                let before = game.clone();
+                if !activate(game, d, seat, id, index) {
+                    *game = before;
+                }
+                return;
+            }
+        }
+    }
     let before = game.clone();
+    // flashback: cast with its flashback cost (the whole card comes back as it leaves the stack)
+    if game.obj(id).zone == Zone::Graveyard {
+        let Some(f) = game.obj(id).def.flashback() else { return };
+        let full = game.obj(id).def.clone();
+        let o = game.obj_mut(id);
+        o.adventurer = Some(full);
+        o.def = Arc::new(f);
+        if !cast(game, d, seat, id) {
+            *game = before;
+            return;
+        }
+        game.obj_mut(id).flashback = true;
+        return;
+    }
     // an adventurer card: the picker, with the adventure (a0) and the creature (a1) that can be cast
     if let Some(adventure) = game.obj(id).def.adventure.clone() {
         let o = game.obj(id);
@@ -832,6 +897,10 @@ fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> Mana
                         cost.generic = cost.generic.saturating_sub(*amount as u32);
                     }
                 }
+                if let EffectDef::SpellCostReductionForEachSourceEffect { per, amount } = e {
+                    let n = game.value(amount, seat, id, 0) * per;
+                    cost.generic = cost.generic.saturating_sub(n.max(0) as u32);
+                }
             }
         }
     }
@@ -933,6 +1002,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
         }
         CostDef::PayLifeCost { amount } => lose_life(game, seat, *amount),
+        CostDef::DiscardSourceCost => game.move_to(id, Zone::Graveyard),
         CostDef::ManaCost { cost } => {
             let Ok(m) = ManaCost::parse(cost) else { return false };
             return pay_mana(game, d, seat, &m);
@@ -1441,7 +1511,7 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     }
     if game.obj(id).zone == Zone::Stack {
         // an adventure goes on an adventure: exiled, its creature castable from there
-        if game.obj(id).adventurer.is_some() {
+        if game.obj(id).adventurer.is_some() && !game.obj(id).flashback {
             game.move_to(id, Zone::Exile);
             game.obj_mut(id).on_adventure = true;
         } else {
@@ -2012,6 +2082,7 @@ fn apply_effects(
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
             | EffectDef::LovestruckBeastEffect
+            | EffectDef::SpellCostReductionForEachSourceEffect { .. }
             | EffectDef::CantBeCounteredControlledEffect { .. }
             | EffectDef::DontCauseTriggerEffect
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
@@ -2370,6 +2441,35 @@ fn apply_effects(
                 let mut library = game.player(searcher).library.clone();
                 game.rng.shuffle(&mut library);
                 game.player_mut(searcher).library = library;
+            }
+            EffectDef::DiscardHandControllerEffect => {
+                for c in game.player(controller).hand.clone() {
+                    game.move_to(c, Zone::Graveyard);
+                }
+            }
+            EffectDef::MillThenPutInHandEffect { amount, filter, optional } => {
+                let amount = &v!(amount);
+                let n = (*amount).max(0) as usize;
+                let milled: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
+                for c in &milled {
+                    game.move_to(*c, Zone::Graveyard);
+                }
+                let possible: Vec<ObjId> = milled
+                    .iter()
+                    .copied()
+                    .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
+                    .collect();
+                if !possible.is_empty() {
+                    let min = if *optional { 0 } else { 1 };
+                    match choose_cards(game, d, controller, &milled, &possible, min, 1, "choose") {
+                        Some(chosen) => {
+                            for c in chosen {
+                                game.move_to(c, Zone::Hand);
+                            }
+                        }
+                        None => return,
+                    }
+                }
             }
             EffectDef::MillCardsControllerEffect { amount } => {
                 let amount = &v!(amount);

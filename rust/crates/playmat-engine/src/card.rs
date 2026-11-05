@@ -224,6 +224,8 @@ pub enum Pred {
     },
     /// `AnotherPredicate`: not the source
     Another,
+    /// `AdventurePredicate`: a card with an Adventure
+    Adventure,
     /// `ManaValuePredicate`
     Mv {
         cmp: Cmp,
@@ -454,6 +456,7 @@ impl TokenDef {
             loyalty: None,
             all_creature_types: self.all_creature_types,
             adventure: None,
+            back: None,
         }
     }
 }
@@ -479,6 +482,8 @@ pub enum CostDef {
         filter: Filter,
     },
     PayLifeCost { amount: i32 },
+    /// discard this card (cycling)
+    DiscardSourceCost,
 }
 
 /// Where cards go (Java's `PutCards`).
@@ -740,6 +745,12 @@ pub enum EffectDef {
     ExtinctionEventEffect,
     /// destroy all creatures; gain 1 life for each destroyed (Fumigate)
     FumigateEffect,
+    /// the controller discards their hand
+    DiscardHandControllerEffect,
+    /// mill `amount`, then put a milled card of the filter into your hand (up to one if optional)
+    MillThenPutInHandEffect { amount: Amount, filter: Filter, optional: bool },
+    /// a spell costs `per` less for each of `amount` (`SpellCostReductionForEachSourceEffect`)
+    SpellCostReductionForEachSourceEffect { per: i32, amount: Amount },
     /// Lovestruck Beast: this can't attack unless you control a 1/1 creature
     LovestruckBeastEffect,
     /// the target opponent exiles a creature they control and their graveyard (Strategic Betrayal)
@@ -979,6 +990,11 @@ pub enum AbilityDef {
         effects: Vec<EffectDef>,
         rule: String,
     },
+    /// cast from the graveyard for this cost, then exiled
+    FlashbackAbility {
+        cost: String,
+        rule: String,
+    },
     /// an optional additional cost asked for as the spell is cast
     KickerAbility {
         cost: String,
@@ -1001,6 +1017,14 @@ pub enum AbilityDef {
     /// a planeswalker's `+N:`/`-N:` ability: sorcery speed, one loyalty ability per permanent each turn; its cost
     /// is a `PayLoyaltyCost`
     LoyaltyAbility {
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        rule: String,
+    },
+    /// an activated ability from hand: pay, discard this, draw (`CyclingAbility`)
+    CyclingAbility {
         effects: Vec<EffectDef>,
         cost: Vec<CostDef>,
         #[serde(default)]
@@ -1123,6 +1147,7 @@ impl AbilityDef {
                 Some((rule, effects, targets, cost, false))
             }
             AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),
+            AbilityDef::CyclingAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, false)),
             _ => None,
         }
     }
@@ -1223,6 +1248,9 @@ pub struct CardJson {
     /// an adventurer card's adventure: its own name, types, cost and spell
     #[serde(default)]
     pub adventure: Option<Box<CardJson>>,
+    /// a modal double-faced card's back face
+    #[serde(default)]
+    pub back: Option<Box<CardJson>>,
 }
 
 /// Subtypes that aren't creature types, for "every creature type"
@@ -1248,6 +1276,8 @@ pub struct CardDef {
     pub all_creature_types: bool,
     /// an adventurer card's adventure, cast instead of the card from hand (`AdventureCard`)
     pub adventure: Option<Arc<CardDef>>,
+    /// a modal double-faced card's back face, played instead of the front (`ModalDoubleFacedCard`)
+    pub back: Option<Arc<CardDef>>,
 }
 
 impl CardDef {
@@ -1271,6 +1301,10 @@ impl CardDef {
                 Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
                 None => None,
             },
+            back: match json.back {
+                Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
+                None => None,
+            },
         })
     }
 
@@ -1284,6 +1318,16 @@ impl CardDef {
 
     pub fn has_subtype(&self, s: &str) -> bool {
         self.subtypes.iter().any(|x| x == s)
+    }
+
+    /// The card cast with its flashback cost, if it has flashback
+    pub fn flashback(&self) -> Option<CardDef> {
+        self.abilities.iter().find_map(|a| match a {
+            AbilityDef::FlashbackAbility { cost, .. } => {
+                Some(CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() })
+            }
+            _ => None,
+        })
     }
 
     pub fn is_permanent_card(&self) -> bool {
