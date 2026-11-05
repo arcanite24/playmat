@@ -92,6 +92,10 @@ EFFECTS = {
     'BoostEnchantedEffect': [('power', 'int'), ('toughness', 'int'), (None, 'while_on_battlefield')],
     'CantAttackBlockAttachedEffect': [(None, 'aura')],
     'FightTargetsEffect': [],
+    'CantCastMoreThanOneSpellEffect': [('who', 'target_controller')],
+    'PermanentsEnterBattlefieldTappedEffect': [('filter', 'filter')],
+    'CantGainLifeAllEffect': [],
+    'ReturnSourceFromGraveyardToBattlefieldEffect': [(None, 'false')],
     'CantBeCounteredControlledEffect': [('filter', 'filter'), ('duration', 'duration')],
     'DontCauseTriggerEffect': [],
     'SpellsCostIncreasingAllEffect': [('amount', 'int'), ('filter', 'filter'), ('who', 'target_controller')],
@@ -574,6 +578,8 @@ class Translator:
             return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2))}
         if (m := re.fullmatch(r'new SourceTargetsPermanentCondition\((.*)\)', arg)):
             return {'c': 'source_targets', 'filter': self.filter(m.group(1))}
+        if arg == 'ArclightPhoenixCondition.instance':
+            return {'c': 'instants_sorceries_cast', 'n': 3}
         if arg == 'MysticalDisputeCondition.instance':
             return {'c': 'source_targets', 'filter': [{'p': 'color', 'c': 'U'}]}
         if (m := re.fullmatch(r'new InvertCondition\((.*)\)', arg)):
@@ -978,6 +984,18 @@ class Translator:
                  'condition': self.condition(args[0])}]}
         if cls in STEP_TRIGGERS and len(args) == 4 and args[0].strip() == 'Zone.BATTLEFIELD':
             args = args[1:]
+        # a step trigger of a card in its owner's graveyard (Arclight Phoenix)
+        if cls in STEP_TRIGGERS and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD':
+            a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
+            a['on']['graveyard'] = True
+            return a
+        if cls == 'EntersBattlefieldAllTriggeredAbility' and len(args) == 5 and args[0].strip() == 'Zone.BATTLEFIELD' \
+                and args[4].strip() in ('SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER', 'SetTargetPointer.NONE') \
+                and args[3].strip() in ('true', 'false'):
+            return triggered({'class': cls, 'effects': [self.effect(args[1])], 'filter': self.filter(args[2]),
+                              'optional': args[3].strip() == 'true',
+                              'set_target_pointer': args[4].strip() == 'SetTargetPointer.PERMANENT',
+                              'set_target_pointer_player': args[4].strip() == 'SetTargetPointer.PLAYER'})
         if cls in STEP_TRIGGERS and args and not args[0].strip().startswith('TargetController.'):
             args = ['TargetController.YOU'] + args
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 2:

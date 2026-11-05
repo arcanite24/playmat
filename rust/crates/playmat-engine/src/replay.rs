@@ -269,6 +269,9 @@ impl<'a> Decider for ReplayDecider<'a> {
             ));
             return Answer::Stop;
         }
+        if std::env::var_os("PLAYMAT_SHADOW_DEBUG").is_some() {
+            eprintln!("answer {} seat {} {:?} -> {:?} ({})", self.next, seat, query, answer, asked);
+        }
         self.next += 1;
         answer
     }

@@ -174,6 +174,9 @@ pub struct Player {
     pub life_lost: i32,
     /// times they gained life this turn
     pub life_gains: u32,
+    /// spells they cast this turn, and how many of them were instants or sorceries
+    pub spells_cast: u32,
+    pub instants_sorceries_cast: u32,
     /// a permanent they controlled left the battlefield this turn (`RevoltWatcher`)
     pub permanent_left: bool,
 }
@@ -474,6 +477,16 @@ impl Game {
         (o.zone == Zone::Battlefield && o.zcc == zcc).then_some(to)
     }
 
+    /// Whether a static ability's effect on the battlefield matches (for effects that apply to the whole game).
+    pub fn any_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
+        self.battlefield.iter().any(|src| {
+            self.obj(*src).def.abilities.iter().any(|a| match a {
+                AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| f(self, *src, e)),
+                _ => false,
+            })
+        })
+    }
+
     /// Whether a static ability of an attached Aura says `id` can't attack or block.
     pub fn cant_attack_or_block(&self, id: ObjId) -> bool {
         self.battlefield.iter().any(|src| {
@@ -553,6 +566,7 @@ impl Game {
             Condition::Kicked => self.obj(source).kicked,
             Condition::Raid => self.player(you).attacked,
             Condition::Revolt => self.player(you).permanent_left,
+            Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
             Condition::SourceTargets { filter } => self.stack.iter().any(|i| {
                 i.card == source
                     && i.ability.is_none()

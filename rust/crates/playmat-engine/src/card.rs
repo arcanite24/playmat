@@ -325,6 +325,9 @@ pub enum Trigger {
     StepBegins {
         step: String,
         who: String,
+        /// it triggers from its owner's graveyard instead of the battlefield
+        #[serde(default)]
+        graveyard: bool,
     },
     /// you gain life (`GainLifeControllerTriggeredAbility`)
     YouGainLife,
@@ -360,6 +363,8 @@ pub enum Condition {
     Raid,
     /// a permanent you controlled left the battlefield this turn
     Revolt,
+    /// you cast `n` or more instant and sorcery spells this turn
+    InstantsSorceriesCast { n: u32 },
     /// the source, a spell being cast, targets something of the filter (`SourceTargetsPermanentCondition`)
     SourceTargets { filter: Filter },
     /// `MyTurnCondition`
@@ -744,6 +749,14 @@ pub enum EffectDef {
     CantBeCounteredControlledEffect { filter: Filter, duration: Duration },
     /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb)
     DontCauseTriggerEffect,
+    /// a static ability's effect: each player of `who` can't cast more than one spell each turn
+    CantCastMoreThanOneSpellEffect { who: String },
+    /// a static ability's effect: permanents of the filter enter tapped
+    PermanentsEnterBattlefieldTappedEffect { filter: Filter },
+    /// a static ability's effect: players can't gain life
+    CantGainLifeAllEffect,
+    /// return the source from its graveyard to the battlefield
+    ReturnSourceFromGraveyardToBattlefieldEffect,
     /// damage can't be prevented (the engine has no prevention yet, so nothing to do)
     DamageCantBePreventedEffect { duration: Duration },
     /// exiles the targets
@@ -945,6 +958,9 @@ pub enum AbilityDef {
         /// the effects act on the object or player the event was about (`SetTargetPointer`)
         #[serde(default)]
         set_target_pointer: bool,
+        /// the effects act on the controller of the object the event was about (`SetTargetPointer.PLAYER`)
+        #[serde(default)]
+        set_target_pointer_player: bool,
         rule: String,
     },
     EntersBattlefieldTappedAbility {

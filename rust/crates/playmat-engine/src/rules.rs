@@ -87,6 +87,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.life_lost = 0;
                 p.permanent_left = false;
                 p.life_gains = 0;
+                p.spells_cast = 0;
+                p.instants_sorceries_cast = 0;
             }
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {
@@ -149,9 +151,14 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 Step::PostcombatMain => "main2",
                 _ => "end",
             };
-            let sources: Vec<ObjId> = game.trigger_sources();
-            let fired = game.triggers(sources, |_, _, you, t| {
-                matches!(t, Trigger::StepBegins { step, who } if step == name && Game::whose(who, you, active))
+            let mut sources: Vec<ObjId> = game.trigger_sources();
+            for p in game.players.iter() {
+                sources.extend(p.graveyard.iter().copied());
+            }
+            let fired = game.triggers(sources, |g, src, you, t| {
+                matches!(t, Trigger::StepBegins { step, who, graveyard }
+                    if step == name && Game::whose(who, you, active)
+                        && *graveyard == (g.obj(src).zone == Zone::Graveyard))
             });
             game.pending.extend(fired);
         }
@@ -335,6 +342,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
                 out.push(*id);
             }
         } else if can_cast_timing(game, seat, *id)
+            && !cant_cast_more(game, seat)
             && can_pay(game, seat, &modified_cost(game, seat, *id, o.def.cost.clone()))
             && o.def.spell.costs.iter().all(|c| can_pay_cost(game, seat, *id, c))
             && has_targets(game, seat, *id)
@@ -391,8 +399,13 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         }
         CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
         // either one (`OrCost`)
-        CostDef::OrCost { costs } => costs.iter().any(|c| can_pay_cost(game, seat, id, c)),
+        CostDef::OrCost { costs } => costs.iter().any(|c| or_cost_payable(game, seat, id, c)),
     }
+}
+
+/// An `OrCost` part's `canPay`: a mana cost's is always true.
+fn or_cost_payable(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
+    matches!(c, CostDef::ManaCost { .. }) || can_pay_cost(game, seat, id, c)
 }
 
 fn ability_mana_cost(costs: &[CostDef]) -> ManaCost {
@@ -568,12 +581,20 @@ fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost
 
 fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     if game.obj(id).zone == Zone::Battlefield {
-        let abilities = activatable(game, seat, id);
-        // `HumanPlayer.activateAbility`: one ability with mana in its cost activates directly; otherwise the picker
-        let direct = abilities.len() == 1 && {
-            let (_, _, _, costs, _) = game.obj(id).def.abilities[abilities[0]].activated().unwrap();
-            ability_mana_cost(costs).mana_value() > 0
-        };
+        let activatable = activatable(game, seat, id);
+        // `getPlayableActivatedAbilities` offers its mana abilities too
+        let mana: Vec<(usize, Mana, ManaKind)> =
+            mana_sources_with_kinds(game, seat).into_iter().find(|(s, _)| *s == id).map(|(_, a)| a).unwrap_or_default();
+        let mut abilities = activatable.clone();
+        abilities.extend(mana.iter().map(|(i, _, _)| *i));
+        abilities.sort();
+        // `HumanPlayer.activateAbility`: one ability with mana in its cost, or a mana ability, activates directly;
+        // otherwise the picker
+        let direct = abilities.len() == 1
+            && (mana.iter().any(|(i, _, _)| *i == abilities[0]) || {
+                let (_, _, _, costs, _) = game.obj(id).def.abilities[abilities[0]].activated().unwrap();
+                ability_mana_cost(costs).mana_value() > 0
+            });
         let index = if direct {
             abilities[0]
         } else {
@@ -582,6 +603,15 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 _ => return,
             }
         };
+        if let Some((i, m, k)) = mana.iter().find(|(i, _, _)| *i == index).copied() {
+            // `PlayerImpl.activateAbility`: an action taken resets everyone's passed flag
+            if activate_mana(game, d, seat, id, i, m, k, &ManaCost::default()) {
+                for s in 0..game.seats() {
+                    game.player_mut(s).passed = false;
+                }
+            }
+            return;
+        }
         let before = game.clone();
         if !activate(game, d, seat, id, index) {
             *game = before;
@@ -703,6 +733,14 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     }
     // SPELL_CAST
     let spell = id;
+    {
+        let instant_or_sorcery = def.is(CardType::Instant) || def.is(CardType::Sorcery);
+        let p = game.player_mut(seat);
+        p.spells_cast += 1;
+        if instant_or_sorcery {
+            p.instants_sorceries_cast += 1;
+        }
+    }
     let sources: Vec<ObjId> = game.trigger_sources();
     let targeted: Vec<ObjId> = game
         .stack
@@ -716,6 +754,15 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     });
     game.pending.extend(fired);
     true
+}
+
+/// `CantCastMoreThanOneSpellEffect`: the player already cast a spell this turn.
+fn cant_cast_more(game: &Game, seat: Seat) -> bool {
+    game.player(seat).spells_cast >= 1
+        && game.any_static(|g, src, e| match e {
+            EffectDef::CantCastMoreThanOneSpellEffect { who } => Game::whose(who, g.obj(src).controller, seat),
+            _ => false,
+        })
 }
 
 /// `ContinuousEffects.costModification`: a spell's cost with the increases, then the reductions, applied.
@@ -850,7 +897,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         }
         // `OrCost.pay`: one payable cost is paid; with two, ASK (yes: the first)
         CostDef::OrCost { costs } => {
-            let usable: Vec<&CostDef> = costs.iter().filter(|c| can_pay_cost(game, seat, id, c)).collect();
+            let usable: Vec<&CostDef> = costs.iter().filter(|c| or_cost_payable(game, seat, id, c)).collect();
             let chosen = match usable.len() {
                 0 => return false,
                 1 => usable[0],
@@ -1148,25 +1195,9 @@ fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -
                             _ => None,
                         }
                     };
-                    if let Some((i, mut m, k)) = chosen {
-                        if k == ManaKind::AnyColor {
-                            let Some(c) = any_color(game, d, seat, &unpaid) else { return false };
-                            m = Mana::of(c, 1);
-                        }
-                        game.obj_mut(id).tapped = true;
-                        if game.obj(id).def.abilities[i].mana_costs().contains(&CostDef::SacrificeSourceCost) {
-                            sacrifice(game, id);
-                        }
-                        let pool = &mut game.player_mut(seat).mana_pool;
-                        for c in Color::ALL {
-                            pool.colored[c.index()] += m.colored[c.index()];
-                        }
-                        pool.colorless += m.colorless;
-                        // a mana ability's other effects happen at once (a pain land's damage)
-                        let effects = game.obj(id).def.abilities[i].mana_effects().to_vec();
-                        if !effects.is_empty() {
-                            let zcc = game.obj(id).zcc;
-                            apply_effects(game, d, &StackItem::spell(id, seat), &effects, &[], (id, zcc));
+                    if let Some((i, m, k)) = chosen {
+                        if !activate_mana(game, d, seat, id, i, m, k, &unpaid) {
+                            return false;
                         }
                     }
                 }
@@ -1189,6 +1220,41 @@ fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -
 }
 
 /// One kind of mana: 0–4 are WUBRG, 5 colorless.
+/// Activates a mana ability: taps (and sacrifices) the source, adds the mana, and does the ability's other effects at
+/// once. False: stopped while choosing a color.
+#[allow(clippy::too_many_arguments)]
+fn activate_mana(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    id: ObjId,
+    i: usize,
+    mut m: Mana,
+    k: ManaKind,
+    unpaid: &ManaCost,
+) -> bool {
+    if k == ManaKind::AnyColor {
+        let Some(c) = any_color(game, d, seat, unpaid) else { return false };
+        m = Mana::of(c, 1);
+    }
+    game.obj_mut(id).tapped = true;
+    if game.obj(id).def.abilities[i].mana_costs().contains(&CostDef::SacrificeSourceCost) {
+        sacrifice(game, id);
+    }
+    let pool = &mut game.player_mut(seat).mana_pool;
+    for c in Color::ALL {
+        pool.colored[c.index()] += m.colored[c.index()];
+    }
+    pool.colorless += m.colorless;
+    // a mana ability's other effects happen at once (a pain land's damage)
+    let effects = game.obj(id).def.abilities[i].mana_effects().to_vec();
+    if !effects.is_empty() {
+        let zcc = game.obj(id).zcc;
+        apply_effects(game, d, &StackItem::spell(id, seat), &effects, &[], (id, zcc));
+    }
+    true
+}
+
 fn kind(m: &mut Mana, k: usize) -> &mut u32 {
     if k < 5 {
         &mut m.colored[k]
@@ -1881,7 +1947,16 @@ fn apply_effects(
                     }
                 }
             }
+            EffectDef::ReturnSourceFromGraveyardToBattlefieldEffect => {
+                let (o, zcc) = source;
+                if game.obj(o).zone == Zone::Graveyard && game.obj(o).zcc == zcc {
+                    enter_battlefield(game, d, o, controller, false);
+                }
+            }
             EffectDef::DamageCantBePreventedEffect { .. }
+            | EffectDef::CantCastMoreThanOneSpellEffect { .. }
+            | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
+            | EffectDef::CantGainLifeAllEffect
             | EffectDef::CantBeCounteredControlledEffect { .. }
             | EffectDef::DontCauseTriggerEffect
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
@@ -2558,10 +2633,17 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
     game.move_to(id, Zone::Battlefield);
     let def = game.obj(id).def.clone();
+    game.obj_mut(id).controller = controller;
+    let tapped_by_static = game.any_static(|g, src, e| match e {
+        EffectDef::PermanentsEnterBattlefieldTappedEffect { filter } => {
+            g.filter_matches(filter, g.obj(src).controller, Some(src), id)
+        }
+        _ => false,
+    });
     let zcc = {
         let o = game.obj_mut(id);
         o.controller = controller;
-        if def.abilities.iter().any(|a| a.is_enters_tapped()) {
+        if tapped_by_static || def.abilities.iter().any(|a| a.is_enters_tapped()) {
             o.tapped = true;
         }
         if let Some(n) = def.loyalty.filter(|n| *n > 0) {
@@ -2631,6 +2713,10 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
             t.targets = vec![vec![Target::Obj(id)]];
             t.target_zcc = vec![vec![zcc]];
+        }
+        if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
+            t.targets = vec![vec![Target::Player(controller)]];
+            t.target_zcc = vec![vec![0]];
         }
     }
     game.pending.extend(fired);
@@ -2799,7 +2885,7 @@ pub fn lose_life(game: &mut Game, seat: Seat, amount: i32) {
 }
 
 pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
-    if amount <= 0 {
+    if amount <= 0 || game.any_static(|_, _, e| matches!(e, EffectDef::CantGainLifeAllEffect)) {
         return;
     }
     game.player_mut(seat).life += amount;
