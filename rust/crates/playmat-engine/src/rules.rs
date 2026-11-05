@@ -49,7 +49,7 @@ pub fn play_from_priority(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u3
         }
     }
     if game.over {
-        d.traced(game);
+        traced(game, d);
     }
 }
 
@@ -187,7 +187,6 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         }
         Step::CombatDamage => combat_damage(game, d, false),
         Step::Cleanup => cleanup(game, d, active),
-        _ => {}
     }
 }
 
@@ -279,7 +278,7 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider) {
                 if game.over || d.stopped() {
                     return;
                 }
-                d.traced(game);
+                traced(game, d);
                 if d.stopped() {
                     return;
                 }
@@ -297,7 +296,7 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider) {
             return;
         }
         resolve_top(game, d);
-        d.traced(game);
+        traced(game, d);
         if d.stopped() {
             return;
         }
@@ -306,8 +305,24 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider) {
 
 /// Asks a seat a question. Like `HumanPlayer.prepareForResponse`, asking makes that seat the priority player.
 fn ask(game: &mut Game, d: &mut dyn Decider, seat: Seat, q: &Query) -> Answer {
+    settle_owed(game, d);
     game.priority = Some(seat);
     d.answer(game, seat, q)
+}
+
+/// Asks the questions `move_to` owes (`Game::owed_choices`); the answers change nothing.
+fn settle_owed(game: &mut Game, d: &mut dyn Decider) {
+    for seat in std::mem::take(&mut game.owed_choices) {
+        let q = Query::Choice { message: "Choose a replacement effect to apply first".into(), choices: Vec::new() };
+        game.priority = Some(seat);
+        d.answer(game, seat, &q);
+    }
+}
+
+/// `Decider::traced`, after the questions owed so far.
+fn traced(game: &mut Game, d: &mut dyn Decider) {
+    settle_owed(game, d);
+    d.traced(game);
 }
 
 fn pass(game: &mut Game, seat: Seat) {

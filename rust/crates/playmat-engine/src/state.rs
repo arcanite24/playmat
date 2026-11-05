@@ -319,6 +319,9 @@ pub struct Game {
     pub exile_by_creation: bool,
     /// a creature died this turn (`MorbidWatcher`)
     pub creature_died: bool,
+    /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
+    /// applies, when they all do the same; asked before the next question or trace
+    pub owed_choices: Vec<Seat>,
     pub grants: Arc<Vec<Grant>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
@@ -360,6 +363,7 @@ impl Game {
             at_next_end_step: Vec::new(),
             exile_by_creation: false,
             creature_died: false,
+            owed_choices: Vec::new(),
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
@@ -880,10 +884,24 @@ impl Game {
         let from = self.obj(id).zone;
         let zone = if from == Zone::Stack && self.obj(id).flashback { Zone::Exile } else { zone };
         self.obj_mut(id).flashback = false;
-        // Rest in Peace
-        let zone = if zone == Zone::Graveyard
-            && self.any_static(|_, _, e| matches!(e, EffectDef::GraveyardFromAnywhereExileReplacementEffect))
-        {
+        // Rest in Peace (two of them: the player chooses which applies)
+        let rest_in_peace = self
+            .battlefield
+            .iter()
+            .filter(|src| {
+                self.obj(**src).def.abilities.iter().any(|a| match a {
+                    AbilityDef::SimpleStaticAbility { effects, .. } => {
+                        effects.iter().any(|e| matches!(e, EffectDef::GraveyardFromAnywhereExileReplacementEffect))
+                    }
+                    _ => false,
+                })
+            })
+            .count();
+        let zone = if zone == Zone::Graveyard && rest_in_peace > 0 {
+            if rest_in_peace > 1 {
+                let o = self.obj(id);
+                self.owed_choices.push(if from == Zone::Battlefield { o.controller } else { o.owner });
+            }
             Zone::Exile
         } else {
             zone
