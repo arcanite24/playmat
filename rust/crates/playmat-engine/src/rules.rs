@@ -171,6 +171,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 game.pending.extend(delayed);
             }
         }
+        // after the draw step, a lore counter on each of the active player's Sagas
+        Step::PrecombatMain => {
+            for id in game.battlefield.to_vec() {
+                let o = game.obj(id);
+                if o.controller == active && o.def.abilities.iter().any(|a| matches!(a, AbilityDef::SagaAbility { .. })) {
+                    add_lore(game, id, 1);
+                }
+            }
+        }
         Step::FirstCombatDamage => {
             game.first_strike_step = true;
             combat_damage(game, d, true)
@@ -1981,7 +1990,11 @@ fn apply_each_effect(
                 };
                 let (o, zcc) = source;
                 if n > 0 && game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
-                    game.obj_mut(o).add_counters(&counter.name, n);
+                    if counter.name == "lore" {
+                        add_lore(game, o, n);
+                    } else {
+                        game.obj_mut(o).add_counters(&counter.name, n);
+                    }
                 }
             }
             EffectDef::AddCountersTargetEffect { counter } => {
@@ -3629,6 +3642,17 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     game.pending.extend(fired);
 }
 
+/// Lore counters on a Saga: its chapter abilities whose chapter they reach trigger
+fn add_lore(game: &mut Game, id: ObjId, n: i32) {
+    let before = game.obj(id).counter("lore");
+    game.obj_mut(id).add_counters("lore", n);
+    let after = before + n;
+    let fired = game.triggers([id], |_, _, _, t| {
+        matches!(t, Trigger::Chapter { n } if before < *n as i32 && *n as i32 <= after)
+    });
+    game.pending.extend(fired);
+}
+
 /// The creatures that can crew `vehicle`: its controller's other untapped creatures
 fn crew_candidates(game: &Game, seat: Seat, vehicle: ObjId) -> Vec<ObjId> {
     game.battlefield
@@ -4430,6 +4454,28 @@ pub fn state_based_actions(game: &mut Game) {
                 p.drew_from_empty = false;
                 any = true;
             }
+        }
+        // 704.5s: a Saga with its last chapter reached, and none of its chapter abilities waiting or on the stack
+        let chapter_of = |g: &Game, t: &StackItem, id: ObjId| {
+            t.card == id
+                && t.ability.is_some_and(|(i, _)| {
+                    matches!(g.obj(id).def.abilities.get(i).and_then(|a| a.trigger()), Some(Trigger::Chapter { .. }))
+                })
+        };
+        let done: Vec<ObjId> = game
+            .battlefield
+            .iter()
+            .copied()
+            .filter(|id| {
+                let o = game.obj(*id);
+                o.def.abilities.iter().any(|a| matches!(a, AbilityDef::SagaAbility { max, .. } if o.counter("lore") >= *max as i32))
+                    && !game.stack.iter().any(|t| chapter_of(game, t, *id))
+                    && !game.pending.iter().any(|t| chapter_of(game, t, *id))
+            })
+            .collect();
+        for id in done {
+            sacrifice(game, id);
+            any = true;
         }
         // 704.5q: +1/+1 and -1/-1 counters on a permanent cancel out in pairs
         for id in game.battlefield.to_vec() {

@@ -1596,8 +1596,39 @@ def mode_expr(t, arg):
     return {'effects': mode.get('effects', []) + more, 'targets': mode.get('targets', []) + chained}
 
 
+CHAPTERS = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6}
+
+
 def ability_statement(t, st, added):
     """A constructor statement that builds or adds an ability (cards and tokens alike); False if it isn't one"""
+    # a Saga: its lore counter as it enters (added to the card first), then a chapter ability per chapter
+    m = re.fullmatch(r'SagaAbility (\w+)=new SagaAbility\(this(?:\.getLeftHalfCard\(\))?\)', st)
+    if m:
+        t.vars[m.group(1)] = {'class': 'SagaAbility', 'java': 'SagaAbility', 'max': 0}
+        added.append({'class': 'EntersBattlefieldAbility', 'java': 'EntersBattlefieldAbility',
+                      'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': 'lore', 'amount': 1}}]})
+        return True
+    m = re.fullmatch(r'(\w+)\.addChapterEffect\(this(?:\.getLeftHalfCard\(\))?,(.*)\)', st)
+    if m and t.vars.get(m.group(1), {}).get('class') == 'SagaAbility':
+        args = split_args(m.group(2))
+        chapters = []
+        while args and (c := re.fullmatch(r'SagaChapter\.CHAPTER_(\w+)', args[0].strip())):
+            chapters.append(CHAPTERS[c.group(1)])
+            args = args[1:]
+        if len(chapters) == 1:
+            chapters.append(chapters[0])
+        if len(chapters) != 2 or not args:
+            raise Unsupported('statement ' + st)
+        targets = []
+        if args[-1].strip().startswith('new Target'):
+            targets = [t.target(args[-1])]
+            args = args[:-1]
+        effects = [t.effect(a) for a in args]
+        for n in range(chapters[0], chapters[1] + 1):
+            added.append({'class': 'TriggeredAbility', 'java': 'ChapterTriggeredAbility', 'on': {'e': 'chapter', 'n': n},
+                          'effects': effects, 'targets': targets})
+        t.vars[m.group(1)]['max'] = max(t.vars[m.group(1)]['max'], chapters[1])
+        return True
     m = re.fullmatch(r'(?:final )?\w+ (\w+)=(.*)', st) or re.fullmatch(r'(\w+)=(new .*)', st)
     if m:
         t.assign(m.group(1), m.group(2))

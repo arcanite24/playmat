@@ -356,6 +356,8 @@ pub enum Trigger {
     OpponentsDealtNoncombatDamage,
     /// another permanent you control enters or dies, if its power is greater than this one's (Pelt Collector)
     PeltCollector,
+    /// a Saga's chapter ability: lore counters were added that reached chapter `n`
+    Chapter { n: u32 },
 }
 
 /// Mana abilities as `ManaUtil.tryToAutoPay` tells them apart: a basic one (`{T}: Add {G}`, pain lands too), one of
@@ -1119,6 +1121,11 @@ pub enum AbilityDef {
         rule: String,
     },
     EntersBattlefieldTappedAbility {
+        rule: String,
+    },
+    /// a Saga: a lore counter as it enters and after your draw step; sacrificed after chapter `max`
+    SagaAbility {
+        max: u32,
         rule: String,
     },
     /// a replacement effect applied as it enters (shock lands)
