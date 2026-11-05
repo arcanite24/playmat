@@ -120,6 +120,8 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
   const navigate = useNavigate();
   const [deck, setDeck] = useState(initial);
   const [zone, setZone] = useState<DeckZone>('cards');
+  // a phone shows one pane at a time: the binder to pick from, or the deck list (the page's CSS decides)
+  const [pane, setPane] = useState<'binder' | 'deck'>('binder');
   const [preview, setPreview] = useState<{ card: CardView; anchor: DOMRect; side: 'auto' | 'left' } | null>(null);
   const [view, setViewState] = useState<DeckView>(() => readJson<DeckView>(DECK_VIEW_KEY, 'list'));
   const setView = useCallback((next: DeckView) => {
@@ -211,46 +213,54 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
   const onRowPreview = useCallback((card: CardView | null, anchor?: DOMRect) => setPreview(card && anchor ? { card, anchor, side: 'left' } : null), []);
 
   return (
-    <div className={styles.page}>
-      {view === 'mana' ? (
-        <section className={styles.collection} aria-label="Deck by mana value">
-          <div className={styles.filters}>
-            <span className={styles.toggle}>{zone === 'cards' ? 'Deck' : rules.commandZone ? 'Command zone' : 'Sideboard'} by mana value. Click a card for one more, right-click for one less.</span>
-            <button type="button" className={styles.reset} onClick={() => setView('list')}>Back to the cards</button>
-          </div>
-          <div className={styles.results}>
-            {deck[zone].length === 0
-              ? <p className={styles.note}>No cards here yet.</p>
-              : <ManaColumns entries={deck[zone]} info={info} onAdd={addRow} onRemove={removeRow} onPreview={onPreview} />}
-          </div>
-        </section>
-      ) : mode ? (
-        <mode.Binder format={format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} />
-      ) : (
-        <Collection format={format === 'Limited' ? '' : format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} />
-      )}
-      <DeckPanel
-        deck={deck}
-        zone={zone}
-        view={view}
-        onView={setView}
-        info={info}
-        formats={formats}
-        rules={rules}
-        identity={identity}
-        saving={saving}
-        limitFor={limitFor}
-        fixedFormat={!!mode}
-        doneLabel={mode?.doneLabel ?? 'Decks'}
-        onZone={setZone}
-        onChange={setDeck}
-        onPreview={onRowPreview}
-        onDone={mode ? mode.onDone : () => navigate('/decks')}
-        onPlay={mode ? mode.onPlay : () => {
-          useDecks.getState().select(deck.id!);
-          navigate('/');
-        }}
-      />
+    <div className={styles.page} data-pane={pane}>
+      <div className={styles.paneSwitch} role="group" aria-label="Show">
+        <button type="button" aria-pressed={pane === 'binder'} className={pane === 'binder' ? styles.paneOn : styles.paneOff} onClick={() => setPane('binder')}>Card binder</button>
+        <button type="button" aria-pressed={pane === 'deck'} className={pane === 'deck' ? styles.paneOn : styles.paneOff} onClick={() => setPane('deck')}>Deck list · {countZone(deck, 'cards')}</button>
+      </div>
+      <div className={styles.binderPane}>
+        {view === 'mana' ? (
+          <section className={styles.collection} aria-label="Deck by mana value">
+            <div className={styles.filters}>
+              <span className={styles.toggle}>{zone === 'cards' ? 'Deck' : rules.commandZone ? 'Command zone' : 'Sideboard'} by mana value. Click a card for one more, right-click for one less.</span>
+              <button type="button" className={styles.reset} onClick={() => setView('list')}>Back to the cards</button>
+            </div>
+            <div className={styles.results}>
+              {deck[zone].length === 0
+                ? <p className={styles.note}>No cards here yet.</p>
+                : <ManaColumns entries={deck[zone]} info={info} onAdd={addRow} onRemove={removeRow} onPreview={onPreview} />}
+            </div>
+          </section>
+        ) : mode ? (
+          <mode.Binder format={format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} />
+        ) : (
+          <Collection format={format === 'Limited' ? '' : format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} />
+        )}
+      </div>
+      <div className={styles.deckPane}>
+        <DeckPanel
+          deck={deck}
+          zone={zone}
+          view={view}
+          onView={setView}
+          info={info}
+          formats={formats}
+          rules={rules}
+          identity={identity}
+          saving={saving}
+          limitFor={limitFor}
+          fixedFormat={!!mode}
+          doneLabel={mode?.doneLabel ?? 'Decks'}
+          onZone={setZone}
+          onChange={setDeck}
+          onPreview={onRowPreview}
+          onDone={mode ? mode.onDone : () => navigate('/decks')}
+          onPlay={mode ? mode.onPlay : () => {
+            useDecks.getState().select(deck.id!);
+            navigate('/');
+          }}
+        />
+      </div>
       {preview && <Preview {...preview} />}
     </div>
   );
