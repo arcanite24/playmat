@@ -949,6 +949,10 @@ pub enum EffectDef {
     ExileGraveyardAllTargetPlayerEffect,
     /// exile all cards from all graveyards
     ExileGraveyardAllPlayersEffect,
+    /// exile the target into this permanent's exile zone (Skyclave Apparition)
+    ExileTargetForSourceEffect,
+    /// the owner of the cards this exiled creates an X/X `token`, X their total mana value
+    CreateXXTokenExiledEffect { token: TokenDef },
     /// look at the target opponent's hand; you may exile a nonland card from it, which its owner may play for {2} more
     EliteSpellbinderEffect,
     /// the target opponent reveals their hand; you choose a card of the filter from it, exiled until this leaves

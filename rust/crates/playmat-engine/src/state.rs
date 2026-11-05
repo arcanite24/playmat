@@ -343,6 +343,8 @@ pub struct Game {
     pub lookback: Vec<ObjId>,
     /// cards exiled until a permanent (and its zone change count) leaves the battlefield
     pub exiled_until_leaves: Vec<(ObjId, u32, ObjId)>,
+    /// cards exiled into a permanent's own exile zone (its id and zone change count), that stay there
+    pub exiled_for_source: Vec<(ObjId, u32, ObjId)>,
     /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack)
     pub returning: Vec<ObjId>,
     /// this combat has a first-strike damage step
@@ -381,6 +383,7 @@ impl Game {
             activated_this_turn: Vec::new(),
             lookback: Vec::new(),
             exiled_until_leaves: Vec::new(),
+            exiled_for_source: Vec::new(),
             returning: Vec::new(),
             first_strike_step: false,
             over: false,

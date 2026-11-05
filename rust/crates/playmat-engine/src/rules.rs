@@ -3244,6 +3244,36 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::ExileTargetForSourceEffect => {
+                let (src, zcc) = source;
+                for o in objs.iter().copied() {
+                    if game.obj(o).zone == Zone::Battlefield {
+                        game.move_to(o, Zone::Exile);
+                        game.exiled_for_source.push((src, zcc, o));
+                    }
+                }
+            }
+            EffectDef::CreateXXTokenExiledEffect { token } => {
+                let (src, zcc) = source;
+                let exiled: Vec<ObjId> = game
+                    .exiled_for_source
+                    .iter()
+                    .filter(|(s, z, c)| *s == src && *z == zcc && game.obj(*c).zone == Zone::Exile)
+                    .map(|(_, _, c)| *c)
+                    .collect();
+                let total: i32 = exiled.iter().map(|c| game.obj(*c).def.cost.mana_value() as i32).sum();
+                let mut owners: Vec<Seat> = exiled.iter().map(|c| game.obj(*c).owner).collect();
+                owners.dedup();
+                for owner in owners {
+                    let def = Arc::new(CardDef { power: total, toughness: total, ..token.card() });
+                    token_image(game, token, src);
+                    let id = game.create_obj(def, owner, Zone::Library);
+                    let o = game.obj_mut(id);
+                    o.token = true;
+                    o.trigger_order = (1 << 32) + id.0 as u64;
+                    enter_battlefield(game, d, id, owner, false);
+                }
+            }
             EffectDef::EliteSpellbinderEffect => {
                 let Some(Target::Player(p)) = target else { continue };
                 let hand = game.player(p).hand.clone();

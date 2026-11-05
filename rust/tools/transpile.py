@@ -206,6 +206,7 @@ CUSTOM = {
     'EnduringGlimmerTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'EnduringGlimmerTriggeredAbility', 'on': {'e': 'dies_if_creature'},
         'effects': [{'class': 'EnduringGlimmerReturnEffect'}]},
+    'ExileTargetForSourceEffect': lambda: {'class': 'ExileTargetForSourceEffect'},
     'EliteSpellbinderEffect': lambda: {'class': 'EliteSpellbinderEffect'},
     'KitesailFreebooterExileEffect': lambda: {'class': 'KitesailFreebooterExileEffect', 'filter': [
         {'p': 'not', 'x': {'p': 'type', 't': 'LAND'}}, {'p': 'not', 'x': {'p': 'type', 't': 'CREATURE'}}]},
@@ -915,6 +916,14 @@ class Translator:
         if isinstance(obj, dict):
             return obj
         cls, args = obj
+        # Skyclave Apparition: an X/X token for the cards its source exiled
+        if cls == 'CreateXXTokenExiledEffectManaValueEffect' and len(args) == 2 \
+                and args[0].strip() == 'CustomIllusionToken::new':
+            illusion = {'name': 'Illusion Token', 'types': ['CREATURE'], 'colors': ['U'], 'subtypes': ['Illusion'],
+                        'abilities': []}
+            if EXTRA.get('token:CustomIllusionToken', {}).get('images'):
+                illusion['images'] = EXTRA['token:CustomIllusionToken']['images']
+            return {'class': 'CreateXXTokenExiledEffect', 'token': illusion}
         # a one-shot wrapper that starts a continuous effect: the effect itself
         if cls == 'AddContinuousEffectToGame' and len(args) == 1:
             return self.effect(args[0])
@@ -1910,10 +1919,15 @@ def token_classes(names):
             source = open(card_path(name)).read()
         except (Unsupported, OSError):
             continue
-        out.update(m.group(1) for m in re.finditer(r'new (\w+Token)\(\)', source)
-                   if os.path.exists(os.path.join(TOKENS, m.group(1) + '.java')))
+        for m in re.finditer(r'new (\w+Token)\(\)|(\w+Token)::new', source):
+            cls = m.group(1) or m.group(2)
+            if os.path.exists(os.path.join(TOKENS, cls + '.java')):
+                out.add(cls)
         if 'InvestigateEffect' in source:
             out.add('ClueArtifactToken')
+        # tokens a keyword makes
+        if 'MobilizeAbility' in source:
+            out.add('RedWarriorToken')
     return sorted(out)
 
 
