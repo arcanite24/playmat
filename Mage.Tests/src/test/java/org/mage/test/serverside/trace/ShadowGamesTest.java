@@ -118,20 +118,34 @@ public class ShadowGamesTest {
                 Game game = gameRef.get();
                 start.put("decision", log.getDecisions().size());
                 start.put("random", game.getState().getRandom().getState());
+                // the order cards' triggered abilities were registered in (`TriggeredAbilities` is a LinkedHashMap):
+                // abilities that trigger on one event wait in this order
+                List<UUID> triggerSources = new ArrayList<>();
+                for (mage.abilities.TriggeredAbility ability : game.getState().getTriggers().values()) {
+                    if (!triggerSources.contains(ability.getSourceId())) {
+                        triggerSources.add(ability.getSourceId());
+                    }
+                }
                 List<Map<String, Object>> seats = new ArrayList<>();
                 for (UUID playerId : mage.game.trace.StateFingerprint.seats(game)) {
                     Player player = game.getPlayer(playerId);
                     Map<String, Object> seat = new LinkedHashMap<>();
                     List<String> library = new ArrayList<>();
+                    List<Integer> libraryOrder = new ArrayList<>();
                     for (Card card : player.getLibrary().getCards(game)) {
                         library.add(card.getName());
+                        libraryOrder.add(triggerSources.indexOf(card.getId()));
                     }
                     List<String> hand = new ArrayList<>();
+                    List<Integer> handOrder = new ArrayList<>();
                     for (UUID id : player.getHand()) {
                         hand.add(game.getCard(id).getName());
+                        handOrder.add(triggerSources.indexOf(id));
                     }
                     seat.put("library", library);
                     seat.put("hand", hand);
+                    seat.put("libraryTriggerOrder", libraryOrder);
+                    seat.put("handTriggerOrder", handOrder);
                     seats.add(seat);
                 }
                 start.put("seats", seats);

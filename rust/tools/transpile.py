@@ -48,10 +48,16 @@ EFFECTS = {
     'BoostSourceEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), (None, 'string')],
     'BoostControlledEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), ('filter', 'filter'),
                               ('exclude_source', 'bool')],
+    'AddCountersSourceEffect': [('counter', 'counter')],
+    'AddCountersTargetEffect': [('counter', 'counter')],
+    'CreateTokenEffect': [('token', 'token'), ('amount', 'int')],
+    'DamageWithPowerFromOneToAnotherTargetEffect': [],
+    'GainAbilityAllEffect': [('ability', 'ability'), ('duration', 'duration'), ('filter', 'filter')],
 }
 
 # targets with no arguments
-TARGETS = {'TargetAnyTarget', 'TargetCreaturePermanent', 'TargetPlayer', 'TargetOpponent', 'TargetSpell'}
+TARGETS = {'TargetAnyTarget', 'TargetCreaturePermanent', 'TargetPlayer', 'TargetOpponent', 'TargetSpell',
+           'TargetControlledCreaturePermanent'}
 
 # abilities with arguments: class -> (field name, kind) per argument; optional trailing arguments may be left out
 ABILITIES = {
@@ -59,10 +65,30 @@ ABILITIES = {
     'AttacksTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'SimpleStaticAbility': [('effect', 'effect')],
     'EntersBattlefieldTappedAbility': [],
+    'KickerAbility': [('cost', 'cost_text')],
+    # enters with an effect applied, if the condition holds (a replacement effect, not a trigger)
+    'EntersBattlefieldAbility': [('effect', 'effect'), ('condition', 'condition'), (None, 'string'), (None, 'string')],
+    'EntersBattlefieldAllTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('optional', 'bool')],
+    'LandfallAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'DiesSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'ActivateAsSorceryActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
+    'SimpleActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
 }
 
+# arguments a constructor overload leaves out, and what Java uses then
+DEFAULTS = {'amount': 1}
+
+COUNTERS = {'CounterType.P1P1': '+1/+1'}
+CONDITIONS = {'KickedCondition.ONCE': 'kicked'}
+TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
+
 DURATIONS = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.WhileOnBattlefield': 'WhileOnBattlefield'}
-FILTERS = {'StaticFilters.FILTER_PERMANENT_CREATURES': 'creatures', 'StaticFilters.FILTER_PERMANENT_CREATURE': 'creatures'}
+FILTERS = {
+    'StaticFilters.FILTER_PERMANENT_CREATURES': 'creatures',
+    'StaticFilters.FILTER_PERMANENT_CREATURE': 'creatures',
+    'StaticFilters.FILTER_EACH_CONTROLLED_CREATURE_P1P1': 'controlled_creatures_with_p1p1',
+    'StaticFilters.FILTER_ANOTHER_CREATURE_YOU_CONTROL': 'another_creature_you_control',
+}
 
 # abilities every card has, which the constructor doesn't add
 IMPLICIT = {'SpellAbility', 'PlayLandAbility'}
@@ -149,8 +175,10 @@ def split_args(text):
 class Translator:
     """Reads one constructor. Local variables (`Effect effect = new X(…)`) hold what they were given."""
 
-    def __init__(self):
+    def __init__(self, filters=None):
         self.vars = {}
+        # the card class's own filter fields, by name
+        self.filters = filters or {}
 
     def new_expr(self, expr):
         """`new X(args)`, `X.getInstance()` or a local variable -> (X, [args]) or the variable's object"""
@@ -160,7 +188,7 @@ class Translator:
         m = re.fullmatch(r'(\w+)\.getInstance\(\)', expr)
         if m:
             return m.group(1), []
-        m = re.fullmatch(r'new (\w+)\((.*)\)', expr)
+        m = re.fullmatch(r'new (\w+)(?:<>)?\((.*)\)', expr)
         if not m:
             raise Unsupported('expression ' + expr)
         return m.group(1), split_args(m.group(2))
@@ -183,12 +211,42 @@ class Translator:
                 return None
         elif kind == 'effect':
             return self.effect(arg)
+        elif kind == 'ability':
+            return self.ability(arg)
+        elif kind == 'condition':
+            if arg in CONDITIONS:
+                return CONDITIONS[arg]
+        elif kind == 'cost_text':
+            if re.fullmatch(r'"(\{[^"]*\})"', arg):
+                return arg[1:-1]
+        elif kind == 'cost':
+            return [self.cost(arg)]
+        elif kind == 'counter':
+            m = re.fullmatch(r'(CounterType\.\w+)\.createInstance\((\d*)\)', arg)
+            if m and m.group(1) in COUNTERS:
+                return {'name': COUNTERS[m.group(1)], 'amount': int(m.group(2) or 1)}
+        elif kind == 'token':
+            m = re.fullmatch(r'new (\w+Token)\(\)', arg)
+            if m:
+                return token(m.group(1))
         raise Unsupported('argument ' + arg)
 
+    def cost(self, expr):
+        cls, args = self.new_expr(expr)
+        if cls == 'ManaCostsImpl' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0]):
+            return {'class': 'ManaCost', 'cost': args[0][1:-1]}
+        if cls in ('TapSourceCost', 'SacrificeSourceCost') and not args:
+            return {'class': cls}
+        raise Unsupported('cost ' + expr)
+
     def build(self, cls, args, spec, what):
-        if len(args) > len(spec) or any(k not in ('bool', 'string') for _, k in spec[len(args):]):
+        if len(args) > len(spec) or any(k not in ('bool', 'string') and n not in DEFAULTS
+                                        for n, k in spec[len(args):]):
             raise Unsupported(what + ' ' + cls + '(' + ','.join(args) + ')')
         out = {'class': cls}
+        for name, _ in spec[len(args):]:
+            if name in DEFAULTS:
+                out[name] = DEFAULTS[name]
         for (name, kind), arg in zip(spec, args):
             v = self.value(kind, arg)
             if name:
@@ -209,6 +267,8 @@ class Translator:
         if isinstance(obj, dict):
             return obj
         cls, args = obj
+        if cls == 'TargetPermanent' and len(args) == 1 and args[0] in self.filters:
+            return {'class': 'TargetPermanent', 'filter': self.filters[args[0]]}
         if cls not in TARGETS or args:
             raise Unsupported('target ' + expr)
         return {'class': cls}
@@ -252,7 +312,7 @@ def translate(card_name, subtypes, facts):
     source = open(path).read()
     if re.search(r'extends (?!CardImpl\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
-    t = Translator()
+    t = Translator(card_filters(source))
     card = {'name': card_name}
     added, spell = [], {'effects': [], 'targets': []}
     for st in statements(constructor_body(source, cls)):
@@ -284,13 +344,15 @@ def translate(card_name, subtypes, facts):
         m = re.fullmatch(r'(\w+)\.set(?:Outcome|Text|TargetPointer)\(.*\)', st)
         if m and m.group(1) in t.vars:
             continue
-        m = re.fullmatch(r'(\w+)\.add(Effect|Target)\((.*)\)', st)
+        m = re.fullmatch(r'(\w+)\.add(Effect|Target|Cost)\((.*)\)', st)
         if m and m.group(1) in t.vars and 'class' in t.vars[m.group(1)]:
             holder = t.vars[m.group(1)]
             if m.group(2) == 'Effect':
                 holder.setdefault('effects', []).append(t.effect(m.group(3)))
-            else:
+            elif m.group(2) == 'Target':
                 holder.setdefault('targets', []).append(t.target(m.group(3)))
+            else:
+                holder.setdefault('cost', []).append(t.cost(m.group(3)))
             continue
         m = re.fullmatch(r'this\.addAbility\((.*)\)', st)
         if m:
@@ -314,6 +376,8 @@ def translate(card_name, subtypes, facts):
             abilities.append({'class': fact['class']})
             continue
         match = next((a for a in added if a['class'] == fact['class']), None)
+        if match is None and fact['class'] == 'MenaceAbility':
+            match = next((a for a in added if a['class'] == 'MenaceAbility'), None)
         if match is None:
             raise Unsupported('ability ' + fact['class'] + ' (added by another ability)')
         added.remove(match)
@@ -326,6 +390,54 @@ def translate(card_name, subtypes, facts):
     if spell['effects'] or spell['targets']:
         card['spell'] = spell
     return card
+
+
+# filter fields cards declare (`private static final FilterPermanent filter = new …; static { filter.add(…); }`),
+# by what they're built from
+CARD_FILTERS = {
+    ('FilterCreatureOrPlaneswalkerPermanent', ('TargetController.NOT_YOU.getControllerPredicate()',)):
+        'opponents_creature_or_planeswalker',
+}
+
+
+def card_filters(source):
+    out = {}
+    for m in re.finditer(r'static final \w+ (\w+)\s*=\s*new (\w+)\((?:"[^"]*")?\);', source):
+        name, cls = m.group(1), m.group(2)
+        preds = tuple(canonical(p) for p in re.findall(name + r'\.add\((.*?)\);', source))
+        if (cls, preds) in CARD_FILTERS:
+            out[name] = CARD_FILTERS[(cls, preds)]
+    return out
+
+
+def token(cls):
+    """A token class from Mage/…/permanent/token: name, types, colors, subtypes, power/toughness, keyword abilities"""
+    path = os.path.join(TOKENS, cls + '.java')
+    if not os.path.exists(path):
+        raise Unsupported('no token class ' + cls)
+    source = open(path).read()
+    m = re.search(r'public ' + cls + r'\(\)\s*\{(.*?)\n    \}', source, re.S)
+    if not m:
+        raise Unsupported('token constructor ' + cls)
+    out = {'types': [], 'colors': [], 'subtypes': [], 'abilities': []}
+    subtypes = subtype_names()
+    colors = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}
+    for st in statements(m.group(1)):
+        if (n := re.fullmatch(r'super\("([^"]+)",".*"\)', st)):
+            out['name'] = n.group(1)
+        elif (n := re.fullmatch(r'cardType\.add\(CardType\.(\w+)\)', st)):
+            out['types'].append(n.group(1))
+        elif (n := re.fullmatch(r'color\.set(\w+)\(true\)', st)):
+            out['colors'].append(colors[n.group(1)])
+        elif (n := re.fullmatch(r'subtype\.add\(SubType\.(\w+)\)', st)):
+            out['subtypes'].append(subtypes[n.group(1)])
+        elif (n := re.fullmatch(r'(power|toughness)=new MageInt\((\d+)\)', st)):
+            out[n.group(1)] = int(n.group(2))
+        elif (n := re.fullmatch(r'addAbility\((\w+)\.getInstance\(\)\)', st)) and n.group(1) in KEYWORDS:
+            out['abilities'].append({'class': n.group(1)})
+        else:
+            raise Unsupported('token statement ' + st)
+    return out
 
 
 def school_pool():

@@ -109,6 +109,11 @@ pub struct Obj {
     pub sick: bool,
     /// dealt damage by a source with deathtouch since the last check
     pub deathtouched: bool,
+    /// a token: it exists only on the battlefield
+    pub token: bool,
+    /// where its triggered abilities sit in Java's `TriggeredAbilities` map (registered as cards are loaded, tokens as
+    /// they're created): abilities that trigger on the same event wait in this order
+    pub trigger_order: u64,
 }
 
 impl Obj {
@@ -122,6 +127,17 @@ impl Obj {
 
     pub fn has(&self, ability: &AbilityDef) -> bool {
         self.def.has(ability)
+    }
+
+    pub fn counter(&self, name: &str) -> i32 {
+        self.counters.iter().filter(|(n, _)| n == name).map(|(_, k)| *k).sum()
+    }
+
+    pub fn add_counters(&mut self, name: &str, amount: i32) {
+        match self.counters.iter_mut().find(|(n, _)| n == name) {
+            Some(c) => c.1 += amount,
+            None => self.counters.push((name.to_string(), amount)),
+        }
     }
 }
 
@@ -159,11 +175,13 @@ pub struct StackItem {
     pub target_zcc: Vec<u32>,
     /// for an ability: its index in the source's abilities, and the source's zone-change count when it triggered
     pub ability: Option<(usize, u32)>,
+    /// a spell cast with its kicker paid
+    pub kicked: bool,
 }
 
 impl StackItem {
     pub fn spell(card: ObjId, controller: Seat) -> StackItem {
-        StackItem { card, controller, targets: Vec::new(), target_zcc: Vec::new(), ability: None }
+        StackItem { card, controller, targets: Vec::new(), target_zcc: Vec::new(), ability: None, kicked: false }
     }
 }
 
@@ -267,8 +285,49 @@ impl Game {
             blocked_by: Vec::new(),
             sick: false,
             deathtouched: false,
+            token: false,
+            trigger_order: id.0 as u64,
         }));
         id
+    }
+
+    /// Whether `id` is one of `filter`'s permanents, as seen from `source` (whose controller is "you"; for targets,
+    /// the chooser is passed as `you`).
+    pub fn filter_matches(&self, filter: Filter, you: Seat, source: Option<ObjId>, id: ObjId) -> bool {
+        let o = self.obj(id);
+        match filter {
+            Filter::Creatures => o.is(CardType::Creature),
+            Filter::ControlledCreaturesWithP1p1 => {
+                o.is(CardType::Creature) && o.controller == you && o.counter("+1/+1") > 0
+            }
+            Filter::AnotherCreatureYouControl => o.is(CardType::Creature) && o.controller == you && Some(id) != source,
+            Filter::OpponentsCreatureOrPlaneswalker => {
+                (o.is(CardType::Creature) || o.is(CardType::Planeswalker)) && o.controller != you
+            }
+        }
+    }
+
+    /// Whether a permanent has an ability, printed or given by a static ability (`GainAbilityAllEffect`).
+    pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
+        let o = self.obj(id);
+        if o.has(ability) {
+            return true;
+        }
+        if o.zone != Zone::Battlefield {
+            return false;
+        }
+        self.battlefield.iter().any(|src| {
+            let s = self.obj(*src);
+            s.def.abilities.iter().any(|a| match a {
+                AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
+                    EffectDef::GainAbilityAllEffect { ability: given, filter, .. } => {
+                        **given == *ability && self.filter_matches(*filter, s.controller, Some(*src), id)
+                    }
+                    _ => false,
+                }),
+                _ => false,
+            })
+        })
     }
 
     /// Power and toughness with continuous effects applied: static abilities of permanents, then resolved boosts
@@ -279,15 +338,16 @@ impl Game {
         if o.zone != Zone::Battlefield {
             return (p, t);
         }
+        let counters = o.counter("+1/+1");
+        p += counters;
+        t += counters;
         for src in self.battlefield.iter() {
             let s = self.obj(*src);
             for a in &s.def.abilities {
                 if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                     for e in effects {
                         if let EffectDef::BoostControlledEffect { power, toughness, filter, exclude_source, .. } = e {
-                            let applies = match filter {
-                                Filter::Creatures => o.is(CardType::Creature),
-                            };
+                            let applies = self.filter_matches(*filter, s.controller, Some(*src), id);
                             if applies && o.controller == s.controller && !(*exclude_source && *src == id) {
                                 p += power;
                                 t += toughness;
@@ -311,7 +371,7 @@ impl Game {
         let card = self.obj(item.card);
         match item.ability {
             Some((i, _)) => {
-                let rule = card.def.abilities.get(i).and_then(|a| a.triggered()).map(|(r, _, _)| r).unwrap_or("");
+                let rule = card.def.abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
                 format!("stack ability ({})", rule)
             }
             None => card.name().to_string(),
@@ -336,7 +396,11 @@ impl Game {
 
     /// Moves an object to a zone (its owner's, for hands, libraries and graveyards), at the end of that zone's list
     /// (a library's bottom). A permanent leaving the battlefield forgets its state.
+    ///
+    /// A creature going from the battlefield to a graveyard dies: its "when this dies" triggers wait. A token that
+    /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
+        let (from, controller) = (self.obj(id).zone, self.obj(id).controller);
         self.remove_from_zone(id);
         let owner = self.obj(id).owner;
         {
@@ -354,6 +418,17 @@ impl Game {
             }
             o.zone = zone;
             o.zcc += 1;
+        }
+        if from == Zone::Battlefield && zone == Zone::Graveyard {
+            let (def, zcc) = (self.obj(id).def.clone(), self.obj(id).zcc);
+            for (i, a) in def.abilities.iter().enumerate() {
+                if matches!(a, AbilityDef::DiesSourceTriggeredAbility { .. }) {
+                    self.pending.push(StackItem { ability: Some((i, zcc)), ..StackItem::spell(id, controller) });
+                }
+            }
+        }
+        if self.obj(id).token && zone != Zone::Battlefield {
+            return;
         }
         match zone {
             Zone::Library => self.player_mut(owner).library.push(id),
