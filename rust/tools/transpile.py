@@ -18,6 +18,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SETS = os.path.join(ROOT, 'Mage.Sets', 'src', 'mage', 'cards')
 SUBTYPES = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'constants', 'SubType.java')
 DEFAULT_OUT = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'cards.json')
+DEFAULT_FACTS = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'facts.json')
 
 BASIC_LANDS = {
     'Plains': 'WhiteManaAbility',
@@ -35,15 +36,36 @@ KEYWORDS = {
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility',
 }
 
-# effects: class -> names of its constructor's arguments (int constants only, for now)
+# effects: class -> its constructor arguments, each (field name, kind); a kind of None means the argument is ignored
+# (a text override: rule texts come from the card facts)
 EFFECTS = {
-    'DamageTargetEffect': ['amount'],
-    'DrawCardSourceControllerEffect': ['amount'],
-    'GainLifeEffect': ['amount'],
+    'DamageTargetEffect': [('amount', 'int')],
+    'DrawCardSourceControllerEffect': [('amount', 'int')],
+    'GainLifeEffect': [('amount', 'int')],
+    'DestroyTargetEffect': [],
+    'CounterTargetEffect': [],
+    'BoostTargetEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration')],
+    'BoostSourceEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), (None, 'string')],
+    'BoostControlledEffect': [('power', 'int'), ('toughness', 'int'), ('duration', 'duration'), ('filter', 'filter'),
+                              ('exclude_source', 'bool')],
 }
 
 # targets with no arguments
-TARGETS = {'TargetAnyTarget', 'TargetCreaturePermanent', 'TargetPlayer', 'TargetOpponent'}
+TARGETS = {'TargetAnyTarget', 'TargetCreaturePermanent', 'TargetPlayer', 'TargetOpponent', 'TargetSpell'}
+
+# abilities with arguments: class -> (field name, kind) per argument; optional trailing arguments may be left out
+ABILITIES = {
+    'EntersBattlefieldTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'AttacksTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'SimpleStaticAbility': [('effect', 'effect')],
+    'EntersBattlefieldTappedAbility': [],
+}
+
+DURATIONS = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.WhileOnBattlefield': 'WhileOnBattlefield'}
+FILTERS = {'StaticFilters.FILTER_PERMANENT_CREATURES': 'creatures', 'StaticFilters.FILTER_PERMANENT_CREATURE': 'creatures'}
+
+# abilities every card has, which the constructor doesn't add
+IMPLICIT = {'SpellAbility', 'PlayLandAbility'}
 
 
 class Unsupported(Exception):
@@ -106,23 +128,14 @@ def canonical(text):
     return re.sub(r'\s*([(),{}\[\]=])\s*', r'\1', text)
 
 
-def new_expr(expr):
-    """`new X(args)` or `X.getInstance()` -> (X, [args])"""
-    expr = expr.strip()
-    m = re.fullmatch(r'(\w+)\.getInstance\(\)', expr)
-    if m:
-        return m.group(1), []
-    m = re.fullmatch(r'new (\w+)\((.*)\)', expr)
-    if not m:
-        raise Unsupported('expression ' + expr)
-    args = [a.strip() for a in split_args(m.group(2))] if m.group(2).strip() else []
-    return m.group(1), args
-
-
 def split_args(text):
-    out, depth, start = [], 0, 0
+    out, depth, start, quote = [], 0, 0, False
     for i, c in enumerate(text):
-        if c in '({[':
+        if c == '"':
+            quote = not quote
+        elif quote:
+            continue
+        elif c in '({[':
             depth += 1
         elif c in ')}]':
             depth -= 1
@@ -130,39 +143,108 @@ def split_args(text):
             out.append(text[start:i])
             start = i + 1
     out.append(text[start:])
-    return out
+    return [a.strip() for a in out] if text.strip() else []
 
 
-def int_arg(arg):
-    if re.fullmatch(r'-?\d+', arg):
-        return int(arg)
-    raise Unsupported('argument ' + arg)
+class Translator:
+    """Reads one constructor. Local variables (`Effect effect = new X(…)`) hold what they were given."""
+
+    def __init__(self):
+        self.vars = {}
+
+    def new_expr(self, expr):
+        """`new X(args)`, `X.getInstance()` or a local variable -> (X, [args]) or the variable's object"""
+        expr = expr.strip()
+        if expr in self.vars:
+            return self.vars[expr]
+        m = re.fullmatch(r'(\w+)\.getInstance\(\)', expr)
+        if m:
+            return m.group(1), []
+        m = re.fullmatch(r'new (\w+)\((.*)\)', expr)
+        if not m:
+            raise Unsupported('expression ' + expr)
+        return m.group(1), split_args(m.group(2))
+
+    def value(self, kind, arg):
+        if kind == 'int':
+            if re.fullmatch(r'-?\d+', arg):
+                return int(arg)
+        elif kind == 'bool':
+            if arg in ('true', 'false'):
+                return arg == 'true'
+        elif kind == 'duration':
+            if arg in DURATIONS:
+                return DURATIONS[arg]
+        elif kind == 'filter':
+            if arg in FILTERS:
+                return FILTERS[arg]
+        elif kind == 'string':
+            if re.fullmatch(r'"[^"]*"', arg):
+                return None
+        elif kind == 'effect':
+            return self.effect(arg)
+        raise Unsupported('argument ' + arg)
+
+    def build(self, cls, args, spec, what):
+        if len(args) > len(spec) or any(k not in ('bool', 'string') for _, k in spec[len(args):]):
+            raise Unsupported(what + ' ' + cls + '(' + ','.join(args) + ')')
+        out = {'class': cls}
+        for (name, kind), arg in zip(spec, args):
+            v = self.value(kind, arg)
+            if name:
+                out[name] = v
+        return out
+
+    def effect(self, expr):
+        obj = self.new_expr(expr)
+        if isinstance(obj, dict):
+            return obj
+        cls, args = obj
+        if cls not in EFFECTS:
+            raise Unsupported('effect ' + cls)
+        return self.build(cls, args, EFFECTS[cls], 'effect')
+
+    def target(self, expr):
+        obj = self.new_expr(expr)
+        if isinstance(obj, dict):
+            return obj
+        cls, args = obj
+        if cls not in TARGETS or args:
+            raise Unsupported('target ' + expr)
+        return {'class': cls}
+
+    def ability(self, expr):
+        obj = self.new_expr(expr)
+        if isinstance(obj, dict):
+            return obj
+        cls, args = obj
+        if cls in KEYWORDS and not args:
+            return {'class': cls}
+        if cls not in ABILITIES:
+            raise Unsupported('ability ' + cls)
+        a = self.build(cls, args, ABILITIES[cls], 'ability')
+        if 'effect' in a:
+            a['effects'] = [a.pop('effect')]
+        return a
+
+    def assign(self, var, expr):
+        """`Effect effect = new X(…)`: what kind of thing the right side is decides how it's read"""
+        cls = self.new_expr(expr)[0]
+        if cls in EFFECTS:
+            self.vars[var] = self.effect(expr)
+        elif cls in TARGETS:
+            self.vars[var] = self.target(expr)
+        else:
+            self.vars[var] = self.ability(expr)
 
 
-def effect(expr):
-    cls, args = new_expr(expr)
-    if cls not in EFFECTS:
-        raise Unsupported('effect ' + cls)
-    names = EFFECTS[cls]
-    if len(args) != len(names):
-        raise Unsupported('effect ' + expr)
-    out = {'class': cls}
-    for name, arg in zip(names, args):
-        out[name] = int_arg(arg)
-    return out
-
-
-def target(expr):
-    cls, args = new_expr(expr)
-    if cls not in TARGETS or args:
-        raise Unsupported('target ' + expr)
-    return {'class': cls}
-
-
-def translate(card_name, subtypes):
+def translate(card_name, subtypes, facts):
+    if card_name not in facts:
+        raise Unsupported('no card facts')
+    java_abilities = facts[card_name]
     if card_name in BASIC_LANDS:
         return {'name': card_name, 'types': ['LAND'], 'supertypes': ['BASIC'], 'subtypes': [card_name],
-                'colors': [], 'abilities': [{'class': BASIC_LANDS[card_name]}]}
+                'colors': [], 'abilities': [{'class': 'PlayLandAbility'}, {'class': BASIC_LANDS[card_name]}]}
     cls = class_name(card_name)
     path = os.path.join(SETS, cls[0].lower(), cls + '.java')
     if not os.path.exists(path):
@@ -170,50 +252,77 @@ def translate(card_name, subtypes):
     source = open(path).read()
     if re.search(r'extends (?!CardImpl\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
+    t = Translator()
     card = {'name': card_name}
-    abilities, spell = [], {'effects': [], 'targets': []}
+    added, spell = [], {'effects': [], 'targets': []}
     for st in statements(constructor_body(source, cls)):
         m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},(".*?"|null)\)', st)
         if m:
-            card['types'] = [t.strip().split('.')[-1] for t in m.group(1).split(',') if t.strip()]
+            card['types'] = [x.strip().split('.')[-1] for x in m.group(1).split(',') if x.strip()]
             card['cost'] = '' if m.group(2) == 'null' else m.group(2)[1:-1]
             continue
         m = re.fullmatch(r'this\.subtype\.add\((.*)\)', st)
         if m:
-            for s in split_args(m.group(1)):
-                key = s.strip().split('.')[-1]
+            for x in split_args(m.group(1)):
+                key = x.split('.')[-1]
                 if key not in subtypes:
-                    raise Unsupported('subtype ' + s)
+                    raise Unsupported('subtype ' + x)
                 card.setdefault('subtypes', []).append(subtypes[key])
             continue
         m = re.fullmatch(r'this\.supertype\.add\((.*)\)', st)
         if m:
-            card.setdefault('supertypes', []).extend(s.strip().split('.')[-1] for s in split_args(m.group(1)))
+            card.setdefault('supertypes', []).extend(x.split('.')[-1] for x in split_args(m.group(1)))
             continue
         m = re.fullmatch(r'this\.(power|toughness)=new MageInt\((-?\d+)\)', st)
         if m:
             card[m.group(1)] = int(m.group(2))
             continue
+        m = re.fullmatch(r'(?:final )?\w+ (\w+)=(.*)', st)
+        if m:
+            t.assign(m.group(1), m.group(2))
+            continue
+        m = re.fullmatch(r'(\w+)\.set(?:Outcome|Text|TargetPointer)\(.*\)', st)
+        if m and m.group(1) in t.vars:
+            continue
+        m = re.fullmatch(r'(\w+)\.add(Effect|Target)\((.*)\)', st)
+        if m and m.group(1) in t.vars and 'class' in t.vars[m.group(1)]:
+            holder = t.vars[m.group(1)]
+            if m.group(2) == 'Effect':
+                holder.setdefault('effects', []).append(t.effect(m.group(3)))
+            else:
+                holder.setdefault('targets', []).append(t.target(m.group(3)))
+            continue
         m = re.fullmatch(r'this\.addAbility\((.*)\)', st)
         if m:
-            cls_, args = new_expr(m.group(1))
-            if cls_ not in KEYWORDS or args:
-                raise Unsupported('ability ' + m.group(1))
-            abilities.append({'class': cls_})
+            added.append(t.ability(m.group(1)))
             continue
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addEffect\((.*)\)', st)
         if m:
-            spell['effects'].append(effect(m.group(1)))
+            spell['effects'].append(t.effect(m.group(1)))
             continue
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addTarget\((.*)\)', st)
         if m:
-            spell['targets'].append(target(m.group(1)))
+            spell['targets'].append(t.target(m.group(1)))
             continue
         raise Unsupported('statement ' + st)
     if 'types' not in card:
         raise Unsupported('no card types')
-    if abilities:
-        card['abilities'] = abilities
+    # the abilities in Java's order (decision logs number them so), each matched to one the constructor added
+    abilities = []
+    for fact in java_abilities:
+        if fact['class'] in IMPLICIT:
+            abilities.append({'class': fact['class']})
+            continue
+        match = next((a for a in added if a['class'] == fact['class']), None)
+        if match is None:
+            raise Unsupported('ability ' + fact['class'] + ' (added by another ability)')
+        added.remove(match)
+        if match['class'] in ABILITIES:
+            match['rule'] = fact['rule']
+        abilities.append(match)
+    if added:
+        raise Unsupported('abilities Java does not list: ' + ', '.join(a['class'] for a in added))
+    card['abilities'] = abilities
     if spell['effects'] or spell['targets']:
         card['spell'] = spell
     return card
@@ -235,17 +344,19 @@ def school_pool():
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pool')
+    parser.add_argument('--facts', default=DEFAULT_FACTS)
     parser.add_argument('--out', default=DEFAULT_OUT)
     parser.add_argument('--report')
     args = parser.parse_args()
     pool = [l.strip() for l in open(args.pool)] if args.pool else school_pool()
     subtypes = subtype_names()
+    facts = {c['name']: c['abilities'] for c in json.load(open(args.facts))}
     cards, report = [], []
     for name in pool:
         if not name:
             continue
         try:
-            cards.append(translate(name, subtypes))
+            cards.append(translate(name, subtypes, facts))
         except Unsupported as e:
             report.append('%s: %s' % (name, e))
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

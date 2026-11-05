@@ -115,6 +115,22 @@ pub enum TargetDef {
     TargetCreaturePermanent,
     TargetPlayer,
     TargetOpponent,
+    /// a spell on the stack
+    TargetSpell,
+}
+
+/// How long a continuous effect lasts (Java's `Duration`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+pub enum Duration {
+    EndOfTurn,
+    WhileOnBattlefield,
+}
+
+/// Which permanents a filter takes (Java's `StaticFilters`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Filter {
+    Creatures,
 }
 
 /// One-shot effects, named after the Java effect classes.
@@ -127,6 +143,16 @@ pub enum EffectDef {
     DrawCardSourceControllerEffect { amount: i32 },
     /// the controller gains `amount` life
     GainLifeEffect { amount: i32 },
+    /// destroys the target permanent
+    DestroyTargetEffect,
+    /// counters the target spell
+    CounterTargetEffect,
+    /// the target creature gets +power/+toughness
+    BoostTargetEffect { power: i32, toughness: i32, duration: Duration },
+    /// the source gets +power/+toughness
+    BoostSourceEffect { power: i32, toughness: i32, duration: Duration },
+    /// a static ability's effect: the permanents of `filter` its controller controls get +power/+toughness
+    BoostControlledEffect { power: i32, toughness: i32, duration: Duration, filter: Filter, exclude_source: bool },
 }
 
 /// The spell ability of an instant or sorcery: what it does when it resolves.
@@ -138,10 +164,34 @@ pub struct SpellDef {
     pub targets: Vec<TargetDef>,
 }
 
-/// Abilities of a card, named after the Java ability classes.
+/// Abilities of a card, named after the Java ability classes, in the order Java lists them (decision logs name an
+/// ability by its place in that list). `rule` is the rule text as Java prints it, `{this}` and all.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "class")]
 pub enum AbilityDef {
+    /// casting the card (every nonland card has one)
+    SpellAbility,
+    /// playing the card (every land has one)
+    PlayLandAbility,
+    EntersBattlefieldTriggeredAbility {
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        optional: bool,
+        rule: String,
+    },
+    AttacksTriggeredAbility {
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        optional: bool,
+        rule: String,
+    },
+    SimpleStaticAbility {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
+    EntersBattlefieldTappedAbility {
+        rule: String,
+    },
     FlyingAbility,
     ReachAbility,
     HasteAbility,
@@ -166,6 +216,19 @@ pub enum AbilityDef {
 }
 
 impl AbilityDef {
+    /// a triggered ability's rule text, effects and whether it's a "may" ability
+    pub fn triggered(&self) -> Option<(&str, &[EffectDef], bool)> {
+        match self {
+            AbilityDef::EntersBattlefieldTriggeredAbility { effects, optional, rule }
+            | AbilityDef::AttacksTriggeredAbility { effects, optional, rule } => Some((rule, effects, *optional)),
+            _ => None,
+        }
+    }
+
+    pub fn is_enters_tapped(&self) -> bool {
+        matches!(self, AbilityDef::EntersBattlefieldTappedAbility { .. })
+    }
+
     /// the mana a `{T}: Add …` ability makes
     pub fn mana(&self) -> Option<Mana> {
         match self {

@@ -34,16 +34,11 @@ to keep them small; a recording keeps them, which is what the difference report 
 
 | Tier | Decks | Shadow games |
 |---|---|---|
-| 1 | `shadow-decks/tier1`: basic lands, vanilla and keyword creatures (flying, reach, vigilance, trample, lifelink), mana elves, burn | 29 of 29 finished games match (12 checked in) |
+| 1 | `shadow-decks/tier1`: basic lands, vanilla and keyword creatures (flying, reach, vigilance, trample, lifelink), mana elves, burn | 69 of 69 finished games match (15 checked in, 3 with combat damage splits) |
+| 2 | `shadow-decks/tier2`: enters and attack triggers, until-end-of-turn and static boosts, destroy, counterspells, enters-tapped and dual lands, first and double strike | 30 of 30 match (11 checked in) |
 
-A full tier-1 game replays in about 2.5 ms (release build). Known gaps: combat damage among several blockers or with
-trample overflow asks a MULTI_AMOUNT that `RandomDriver` can't answer (those games time out in Java), first strike
-is untested, and cleanup never gives priority.
-
-Answers come at the human player's questions, so the engine asks what `HumanPlayer` asks, in the same order, with the
-client's default settings (`UserData.getDefaultUserDataView()`): priority stops in both main phases, at declare
-attackers, and at declare blockers when the player has permanents; elsewhere a human seat passes without being asked.
-The web client needs those same questions when it plays against this engine.
+A full game replays in about 2.5 ms (release build). Known gaps: cleanup never gives priority, and a player's
+triggers are ordered by a question only when they differ (not yet seen in a shadow game).
 
 ## State
 
@@ -54,7 +49,11 @@ are numbered (`ObjId`) in the order they're created, which also fixes the order 
 Card definitions (`CardDef`) are shared and never change. A card's abilities are data: each ability and effect is
 tagged with the name of the Java framework class it mirrors (`DamageTargetEffect`, `EntersBattlefieldTriggeredAbility`,
 `TargetCreaturePermanent`…), with that class's constructor arguments as fields. Cards come from `cards/*.json`,
-generated from `Mage.Sets` by `rust/tools/transpile.py`; a card the transpiler can't express isn't in the engine, and
+generated from `Mage.Sets` by `rust/tools/transpile.py`. The transpiler takes each card's abilities in Java's order,
+with Java's rule texts, from `cards/facts.json`: decision logs name abilities by that order, and abilities on the stack
+show those texts. `CardFactsTest` (Mage.Tests) writes the facts for a pool of names, one per line
+(`-Dxmage.cardFacts=<out> -Dxmage.cardFacts.pool=<names>`); the pool is every card in the school decks and the
+shadow decks (`transpile.school_pool()`). a card the transpiler can't express isn't in the engine, and
 a game with it isn't routed to Rust.
 
 ## Rules, in order of work

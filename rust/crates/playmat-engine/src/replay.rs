@@ -124,6 +124,12 @@ impl ReplayReport {
 
 /// Finds the object a recorded answer names, in the order Java's `DecisionLog.visit` enumerates objects.
 pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
+    // an object's ability: `<object>a<index>`
+    if let Some((obj, ability)) = r.rsplit_once('a') {
+        if let (Some(Answer::Obj(o)), Ok(i)) = (resolve(game, obj), ability.parse::<usize>()) {
+            return Some(Answer::Ability(o, i));
+        }
+    }
     let (kind, rest) = r.split_at(1);
     match kind {
         "P" => rest.parse::<Seat>().ok().filter(|s| *s < game.seats()).map(Answer::Player),
@@ -149,6 +155,8 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
             Some(Answer::Obj(game.stack[n - 1 - index].card))
         }
         "E" => game.exile.get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
+        // a waiting trigger: its seat, then its place among that seat's
+        "T" => rest.split_once('.').and_then(|(_, i)| i.parse().ok()).map(Answer::Trigger),
         _ => None,
     }
 }

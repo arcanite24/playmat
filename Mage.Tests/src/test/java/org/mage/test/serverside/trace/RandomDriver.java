@@ -140,9 +140,14 @@ public final class RandomDriver {
             case AMOUNT:
                 answer(human, null, null, event.getMin() + random.nextInt(Math.max(1, Math.min(20, event.getMax() - event.getMin() + 1))), null);
                 break;
+            case MULTI_AMOUNT: {
+                // the dialog's own defaults (combat damage: lethal to each blocker in order), as a client sends them
+                List<Integer> values = mage.constants.MultiAmountType.prepareDefaultValues(event.getMessages(), event.getMin(), event.getMax());
+                answer(human, null, null, null, values.stream().map(String::valueOf).collect(Collectors.joining(" ")));
+                break;
+            }
             case PLAY_X_MANA:
             case CHOOSE_PILE:
-            case MULTI_AMOUNT:
                 answer(human, null, true, null, null);
                 break;
             default:

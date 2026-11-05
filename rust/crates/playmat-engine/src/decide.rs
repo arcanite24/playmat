@@ -20,6 +20,13 @@ pub enum Query {
     BlockTarget { attackers: Vec<ObjId> },
     /// PICK_TARGET for a discard to hand size, or another choice of cards
     Cards { objs: Vec<ObjId>, required: bool },
+    /// MULTI_AMOUNT: one amount per item (combat damage among blockers), each within its range, summing to between
+    /// `min` and `max`; answered as a string of space-separated numbers
+    MultiAmount { defaults: Vec<i32>, ranges: Vec<(i32, i32)>, min: i32, max: i32 },
+    /// CHOOSE_ABILITY: which of a permanent's abilities (by index) to activate
+    ChooseAbility { source: ObjId, abilities: Vec<usize> },
+    /// PICK_ABILITY: which of the player's `count` waiting triggers goes on the stack next
+    PickTrigger { count: usize },
     /// ASK: yes or no
     YesNo { message: String },
 }
@@ -32,6 +39,10 @@ pub enum Answer {
     ManaType(String),
     Player(Seat),
     Obj(ObjId),
+    /// an object's ability, by its index in the card's abilities (`B3a2`)
+    Ability(ObjId, usize),
+    /// a waiting trigger of the asked player, by its place in their list (`T0.1`)
+    Trigger(usize),
     /// no answer: the decider gave up (a replay that left Java's game); the engine stops
     Stop,
 }
