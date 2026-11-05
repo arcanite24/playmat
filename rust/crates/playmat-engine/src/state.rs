@@ -125,6 +125,8 @@ pub struct Obj {
     pub flashback: bool,
     /// cast with its escape cost (until it enters, or leaves the stack another way)
     pub escaped: bool,
+    /// the player the attacker this ninja's ninjutsu returned was attacking
+    pub ninjutsu_defender: Option<Seat>,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
     pub exile_instead_of_dying: bool,
     /// in exile: this player may play it through the end of this turn number
@@ -434,6 +436,7 @@ impl Game {
             front: None,
             flashback: false,
             escaped: false,
+            ninjutsu_defender: None,
             exile_instead_of_dying: false,
             may_play: None,
             warped: false,

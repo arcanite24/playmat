@@ -471,6 +471,24 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     out
 }
 
+/// `UnblockedPredicate`: your attacking creatures that weren't blocked, once blockers are declared.
+fn unblocked_attackers(game: &Game, seat: Seat) -> Vec<ObjId> {
+    if !matches!(
+        game.step,
+        Some(Step::DeclareBlockers | Step::FirstCombatDamage | Step::CombatDamage | Step::EndCombat)
+    ) {
+        return Vec::new();
+    }
+    game.battlefield
+        .iter()
+        .copied()
+        .filter(|c| {
+            let o = game.obj(*c);
+            o.controller == seat && o.attacking.is_some() && !o.blocked && game.has_type(*c, CardType::Creature)
+        })
+        .collect()
+}
+
 /// Whether a cost of `id`'s ability (or spell) can be paid now (`Cost.canPay`).
 fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
     let o = game.obj(id);
@@ -484,6 +502,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::ExileFromGraveCost { amount } => {
             game.player(seat).graveyard.iter().filter(|c| **c != id).count() >= *amount
         }
+        CostDef::ReturnAttackerToHandTargetCost => !unblocked_attackers(game, seat).is_empty(),
         CostDef::PayLoyaltyCost { amount } => !o.loyalty_used && o.counter("loyalty") + amount >= 0,
         // you can only sacrifice your own permanents
         CostDef::SacrificeTargetCost { filter } => {
@@ -1353,6 +1372,20 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
         }
         CostDef::PayLifeCost { amount } => lose_life(game, seat, *amount),
+        CostDef::ReturnAttackerToHandTargetCost => {
+            let possible = unblocked_attackers(game, seat);
+            let rule = game.obj(id).def.abilities.iter().find_map(|a| match a {
+                AbilityDef::NinjutsuAbility { rule, .. } => Some(rule.clone()),
+                _ => None,
+            });
+            let Some(chosen) = choose_cards(game, d, seat, &possible, &possible, 1, 1, &rule.unwrap_or_default()) else {
+                return false;
+            };
+            let Some(&attacker) = chosen.first() else { return false };
+            let defender = game.obj(attacker).attacking;
+            game.obj_mut(id).ninjutsu_defender = defender;
+            game.move_to(attacker, Zone::Hand);
+        }
         CostDef::ExileFromGraveCost { amount } => {
             let possible: Vec<ObjId> = game.player(seat).graveyard.iter().copied().filter(|c| *c != id).collect();
             let rule = game.obj(id).def.abilities.iter().find_map(|a| match a {
@@ -3157,6 +3190,17 @@ fn apply_each_effect(
                 if game.obj(source.0).zone == Zone::Stack {
                     game.obj_mut(source.0).flashback = true;
                 }
+            }
+            EffectDef::NinjutsuEffect => {
+                let card = source.0;
+                let defender = game.obj_mut(card).ninjutsu_defender.take();
+                if game.obj(card).zone != Zone::Hand {
+                    continue;
+                }
+                enter_battlefield(game, d, card, controller, false);
+                let o = game.obj_mut(card);
+                o.tapped = true;
+                o.attacking = defender;
             }
             EffectDef::ExileGraveyardAllPlayersEffect => {
                 for p in 0..game.seats() {

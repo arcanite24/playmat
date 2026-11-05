@@ -528,6 +528,8 @@ pub enum CostDef {
     TapTargetCost { filter: Filter, amount: usize },
     /// crew: tap any number of other untapped creatures you control with total power `value` or more
     CrewCost { value: i32 },
+    /// return an unblocked attacker you control to its owner's hand (ninjutsu)
+    ReturnAttackerToHandTargetCost,
     /// exile this many other cards from your graveyard (escape)
     ExileFromGraveCost { amount: usize },
     /// one of these, the player's choice when both can be paid
@@ -947,6 +949,8 @@ pub enum EffectDef {
     ExileGraveyardAllTargetPlayerEffect,
     /// exile all cards from all graveyards
     ExileGraveyardAllPlayersEffect,
+    /// put this card from your hand onto the battlefield tapped and attacking (ninjutsu)
+    NinjutsuEffect,
     /// the controller takes an extra turn after this one
     AddExtraTurnControllerEffect,
     /// the spell is exiled as it resolves, instead of going to the graveyard
@@ -1250,6 +1254,12 @@ pub enum AbilityDef {
     },
     /// an activated ability from hand with a discard-this cost (`ChannelAbility`); with the legendary discount, {1}
     /// less for each legendary creature you control (`LegendaryCreatureCostAdjuster`)
+    /// Ninjutsu: from hand, `cost` and return an unblocked attacker you control: this enters tapped and attacking
+    NinjutsuAbility {
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        rule: String,
+    },
     ChannelAbility {
         effects: Vec<EffectDef>,
         cost: Vec<CostDef>,
@@ -1411,6 +1421,7 @@ impl AbilityDef {
                 Some((rule, effects, targets, cost, false))
             }
             AbilityDef::ChannelAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, false)),
+            AbilityDef::NinjutsuAbility { effects, cost, rule } => Some((rule, effects, &[], cost, false)),
             _ => None,
         }
     }
@@ -1425,7 +1436,10 @@ impl AbilityDef {
 
     /// activated from hand, not the battlefield
     pub fn from_hand(&self) -> bool {
-        matches!(self, AbilityDef::CyclingAbility { .. } | AbilityDef::ChannelAbility { .. })
+        matches!(
+            self,
+            AbilityDef::CyclingAbility { .. } | AbilityDef::ChannelAbility { .. } | AbilityDef::NinjutsuAbility { .. }
+        )
     }
 
     pub fn is_enters_tapped(&self) -> bool {

@@ -1187,6 +1187,10 @@ class Translator:
             a['java'] = cls
             a['effects'][0]['sacrifice_at_next_end_step'] = True
             return a
+        if cls == 'NinjutsuAbility' and len(args) == 1 and re.fullmatch(r'"\{[^"]*\}"', args[0].strip()):
+            return {'class': cls, 'java': cls, 'effects': [{'class': 'NinjutsuEffect'}],
+                    'cost': [{'class': 'ManaCost', 'cost': args[0].strip()[1:-1]},
+                             {'class': 'ReturnAttackerToHandTargetCost'}]}
         # `new DelveAbility(false)`: the flag only keeps the exiled cards linked to the source
         if cls == 'DelveAbility' and args in ([], ['false']):
             return {'class': cls}

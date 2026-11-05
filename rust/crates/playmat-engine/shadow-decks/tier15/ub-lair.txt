@@ -5,7 +5,8 @@
 6 Swamp
 4 Enduring Curiosity
 4 Spectral Sailor
-4 Faerie Miscreant
+2 Faerie Miscreant
+2 Moon-Circuit Hacker
 4 Consider
 4 Cut Down
 4 Hero's Downfall
