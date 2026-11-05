@@ -328,6 +328,8 @@ pub enum Trigger {
         only_combat: bool,
     },
     /// a permanent of the filter dies; with `include_self`, this too, whatever the filter
+    /// a permanent of the filter leaves the battlefield; the trigger's X is the +1/+1 counters it had (The Ooze)
+    LeavesAll { filter: Filter },
     DiesAll {
         filter: Filter,
         #[serde(default)]

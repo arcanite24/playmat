@@ -609,9 +609,9 @@ class Translator:
             return {'v': 'greatest_mana_value', 'filter': self.filter(m.group(1))}
         if arg in self.values:
             return self.amount(self.values[arg])
-        # the life a "whenever you gain life" trigger saw is its X
+        # the life a "whenever you gain life" trigger saw is its X (The Ooze: the +1/+1 counters on what left)
         if arg in ('GetXValue.instance', 'ManacostVariableValue.REGULAR', 'ManacostVariableValue.ETB',
-                   'SavedGainedLifeValue.MUCH'):
+                   'SavedGainedLifeValue.MUCH', 'TheOozeValue.instance'):
             return {'v': 'x'}
         if arg in ('SourcePermanentPowerValue.NOT_NEGATIVE', 'SourcePermanentPowerValue.ALLOW_NEGATIVE'):
             return {'v': 'source_power'}
@@ -1313,6 +1313,9 @@ class Translator:
                 return out({'e': 'dies_all', 'filter': [CREATURE] + ([{'p': 'another'}] if another else []),
                             'include_self': not another}, args[0], flag(args[1]))
             raise Unsupported(cls + ' overload')
+        # whenever a permanent of the filter leaves the battlefield
+        if cls == 'LeavesBattlefieldAllTriggeredAbility' and n == 3 and args[2] in ('true', 'false'):
+            return out({'e': 'leaves_all', 'filter': self.filter(args[1])}, args[0], flag(args[2]))
         if cls == 'AttacksWithCreaturesTriggeredAbility':
             if n == 2:
                 return out({'e': 'attacks_with', 'min': int(args[1]), 'filter': [CREATURE]}, args[0])

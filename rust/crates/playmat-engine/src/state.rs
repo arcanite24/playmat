@@ -905,14 +905,27 @@ impl Game {
                     }
                 }
                 Trigger::PeltCollector => src != id && died_controller == you,
+                Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 _ => false,
             });
             self.pelt_collector(fired, id)
         } else if from == Zone::Battlefield && zone != Zone::Battlefield {
-            self.triggers([id], |_, src, _, t| matches!(t, Trigger::LeavesBattlefield) && src == id)
+            let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
+            self.triggers(sources, |g, src, you, t| match t {
+                Trigger::LeavesBattlefield => src == id,
+                Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
+                _ => false,
+            })
         } else {
             Vec::new()
         };
+        let p1p1 = self.obj(id).counters.iter().find(|(c, _)| c == "+1/+1").map_or(0, |c| c.1);
+        let mut dies = dies;
+        for t in dies.iter_mut() {
+            if matches!(self.trigger_of(t), Some(Trigger::LeavesAll { .. })) {
+                t.x = p1p1;
+            }
+        }
         if from == Zone::Battlefield && zone != Zone::Battlefield {
             let zcc = self.obj(id).zcc;
             let (back, kept): (Vec<_>, Vec<_>) =
