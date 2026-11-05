@@ -611,6 +611,8 @@ pub enum EffectDef {
         tapped_and_attacking: bool,
         #[serde(default)]
         sacrifice_at_end_of_combat: bool,
+        #[serde(default)]
+        haste_until_end_of_turn: bool,
     },
     /// deals damage equal to the source's power (as it last was on the battlefield) to the target
     DamageTargetSourcePowerEffect,
@@ -745,6 +747,8 @@ pub enum EffectDef {
     ExtinctionEventEffect,
     /// destroy all creatures; gain 1 life for each destroyed (Fumigate)
     FumigateEffect,
+    /// choose a card of the filter in your graveyard (if there is one) and return it to your hand
+    ReturnCardChosenFromGraveyardEffect { filter: Filter, optional: bool },
     /// the controller discards their hand
     DiscardHandControllerEffect,
     /// mill `amount`, then put a milled card of the filter into your hand (up to one if optional)
@@ -1031,6 +1035,17 @@ pub enum AbilityDef {
         targets: Vec<TargetDef>,
         rule: String,
     },
+    /// an activated ability from hand with a discard-this cost (`ChannelAbility`); with the legendary discount, {1}
+    /// less for each legendary creature you control (`LegendaryCreatureCostAdjuster`)
+    ChannelAbility {
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        rule: String,
+        #[serde(default)]
+        legendary_discount: bool,
+    },
     SimpleActivatedAbility {
         effects: Vec<EffectDef>,
         cost: Vec<CostDef>,
@@ -1148,6 +1163,7 @@ impl AbilityDef {
             }
             AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),
             AbilityDef::CyclingAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, false)),
+            AbilityDef::ChannelAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, false)),
             _ => None,
         }
     }
@@ -1158,6 +1174,11 @@ impl AbilityDef {
             return Some((rule, effects, targets, optional));
         }
         self.activated().map(|(rule, effects, targets, _, _)| (rule, effects, targets, false))
+    }
+
+    /// activated from hand, not the battlefield
+    pub fn from_hand(&self) -> bool {
+        matches!(self, AbilityDef::CyclingAbility { .. } | AbilityDef::ChannelAbility { .. })
     }
 
     pub fn is_enters_tapped(&self) -> bool {

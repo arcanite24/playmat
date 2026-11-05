@@ -129,6 +129,9 @@ CUSTOM = {
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
     'LovestruckBeastEffect': lambda: {'class': 'LovestruckBeastEffect'},
+    # two 1/1 Spirits that gain haste until end of turn
+    'SokenzanCrucibleOfDefianceEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('SpiritToken'), 'amount': 2,
+                                                 'haste_until_end_of_turn': True},
     'StrategicBetrayalEffect': lambda: {'class': 'StrategicBetrayalEffect'},
     'InvokeDespairEffect': lambda: {'class': 'InvokeDespairEffect'},
     'ChartACourseEffect': lambda: {'class': 'ChartACourseEffect'},
@@ -799,6 +802,9 @@ class Translator:
             return self.search_library(cls, [a.strip() for a in args])
         if cls == 'SpellCostReductionForEachSourceEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'per': int(args[0]), 'amount': self.amount(args[1])}
+        if cls == 'ReturnCardChosenFromGraveyardEffect' and len(args) == 3 and args[2].strip() == 'PutCards.HAND' \
+                and args[0].strip() in ('true', 'false'):
+            return {'class': cls, 'filter': self.filter(args[1]), 'optional': args[0].strip() == 'true'}
         if cls == 'MillThenPutInHandEffect' and len(args) in (2, 3) and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]),
                     'optional': len(args) == 2 or args[2].strip() == 'true'}
@@ -1152,6 +1158,10 @@ class Translator:
                 return out({'e': 'sacrificed', 'filter': self.filter(args[1]),
                             'who': self.value('target_controller', args[2]) if n == 3 else 'you'}, args[0])
             raise Unsupported(cls + ' overload')
+        if cls == 'ChannelAbility' and n == 2 and re.fullmatch(r'"(\{[^"]*\})"', args[0]):
+            return {'class': 'ChannelAbility', 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': args[0][1:-1]},
+                                                                     {'class': 'DiscardSourceCost'}],
+                    'effects': [self.effect(args[1])]}
         if cls == 'CyclingAbility' and n == 1 and (m := re.fullmatch(r'new ManaCostsImpl<>\("(\{[^"]*\})"\)', args[0])):
             return {'class': 'CyclingAbility', 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': m.group(1)},
                                                                      {'class': 'DiscardSourceCost'}],
@@ -1399,6 +1409,15 @@ def ability_statement(t, st, added):
         return True
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop)|addHint)\(.*\)', st)
     if m and m.group(1) in t.vars:
+        return True
+    m = re.fullmatch(r'(\w+)\.setCostAdjuster\(LegendaryCreatureCostAdjuster\.instance\)', st)
+    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'ChannelAbility':
+        t.vars[m.group(1)]['legendary_discount'] = True
+        return True
+    # a rules text the ability's cost adjuster does
+    m = re.fullmatch(r'(\w+)\.addEffect\(new InfoEffect\("This ability costs \{1\} less to activate for each '
+                     r'legendary creature you control"\)\)', st)
+    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'ChannelAbility':
         return True
     m = re.fullmatch(r'(\w+)\.add(Effect|Target|Cost)\((.*)\)', st)
     if m and m.group(1) in t.vars and 'class' in t.vars[m.group(1)]:

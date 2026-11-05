@@ -338,7 +338,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
     for id in &p.hand {
         let o = game.obj(*id);
         if o.is(CardType::Land) {
-            if can_play_land(game, seat) {
+            if can_play_land(game, seat) || !activatable(game, seat, *id).is_empty() {
                 out.push(*id);
             }
         } else if castable(game, seat, *id, &o.def)
@@ -379,13 +379,16 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     for (i, a) in o.def.abilities.iter().enumerate() {
         let Some((_, _, targets, costs, sorcery)) = a.activated() else { continue };
         // cycling works from hand, everything else on the battlefield
-        if matches!(a, AbilityDef::CyclingAbility { .. }) != (o.zone == Zone::Hand) {
+        if a.from_hand() != (o.zone == Zone::Hand) {
             continue;
         }
         if sorcery && !sorcery_speed(game, seat) {
             continue;
         }
-        let payable = costs.iter().all(|c| can_pay_cost(game, seat, id, c));
+        let payable = costs.iter().all(|c| match c {
+            CostDef::ManaCost { .. } => can_pay(game, seat, &adjusted_mana_cost(game, seat, a, costs)),
+            _ => can_pay_cost(game, seat, id, c),
+        });
         let targeted = targets.iter().all(|t| target_possible(game, seat, t));
         if payable && targeted {
             out.push(i);
@@ -638,6 +641,31 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
         return;
     }
+    // a card in hand with an ability (cycling, channel): the picker, with its spell or land play (a0) and the abilities, if there is a choice
+    if game.obj(id).zone == Zone::Hand && game.obj(id).def.adventure.is_none() {
+        let mut options = activatable(game, seat, id);
+        if !options.is_empty() {
+            let def = game.obj(id).def.clone();
+            if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
+                options.insert(0, 0);
+            }
+            let index = if options.len() == 1 {
+                options[0]
+            } else {
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                    Answer::Ability(o, i) if o == id && options.contains(&i) => i,
+                    _ => return,
+                }
+            };
+            if index != 0 {
+                let before = game.clone();
+                if !activate(game, d, seat, id, index) {
+                    *game = before;
+                }
+                return;
+            }
+        }
+    }
     if game.obj(id).is(CardType::Land) {
         // a modal double-faced land: the picker, with its front's and its back's play abilities (the back's come
         // after the front's)
@@ -657,30 +685,6 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         enter_battlefield(game, d, id, seat, false);
         game.player_mut(seat).lands_played += 1;
         return;
-    }
-    // a card in hand with an ability (cycling): the picker, with its spell (a0) and the abilities, if there is a choice
-    if game.obj(id).zone == Zone::Hand && game.obj(id).def.adventure.is_none() {
-        let mut options = activatable(game, seat, id);
-        if !options.is_empty() {
-            if castable(game, seat, id, &game.obj(id).def.clone()) {
-                options.insert(0, 0);
-            }
-            let index = if options.len() == 1 {
-                options[0]
-            } else {
-                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
-                    Answer::Ability(o, i) if o == id && options.contains(&i) => i,
-                    _ => return,
-                }
-            };
-            if index != 0 {
-                let before = game.clone();
-                if !activate(game, d, seat, id, index) {
-                    *game = before;
-                }
-                return;
-            }
-        }
     }
     let before = game.clone();
     // flashback: cast with its flashback cost (the whole card comes back as it leaves the stack)
@@ -944,7 +948,7 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
     for s in 0..game.seats() {
         game.player_mut(s).passed = false;
     }
-    if !pay_mana(game, d, seat, &ability_mana_cost(costs)) {
+    if !pay_mana(game, d, seat, &adjusted_mana_cost(game, seat, &def.abilities[index], costs)) {
         return false;
     }
     for c in costs {
@@ -953,6 +957,23 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
         }
     }
     true
+}
+
+/// An activated ability's mana cost, after its cost adjuster (Channel's legendary discount)
+fn adjusted_mana_cost(game: &Game, seat: Seat, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
+    let mut cost = ability_mana_cost(costs);
+    if let AbilityDef::ChannelAbility { legendary_discount: true, .. } = a {
+        let legends = game
+            .battlefield
+            .iter()
+            .filter(|b| {
+                let o = game.obj(**b);
+                o.controller == seat && o.is(CardType::Creature) && o.def.supertypes.iter().any(|s| s == "LEGENDARY")
+            })
+            .count();
+        cost.generic = cost.generic.saturating_sub(legends as u32);
+    }
+    cost
 }
 
 /// Pays one non-mana cost of `id`'s ability or spell (an `OrCost`'s mana cost too). False: cancelled or stopped.
@@ -1655,7 +1676,13 @@ fn apply_effects(
                     game.obj_mut(*o).add_counters(&counter.name, counter.amount);
                 }
             }
-            EffectDef::CreateTokenEffect { token, amount, tapped_and_attacking, sacrifice_at_end_of_combat } => {
+            EffectDef::CreateTokenEffect {
+                token,
+                amount,
+                tapped_and_attacking,
+                sacrifice_at_end_of_combat,
+                haste_until_end_of_turn,
+            } => {
                 let amount = &v!(amount);
                 let def = Arc::new(token.card());
                 let mut created = Vec::new();
@@ -1671,6 +1698,9 @@ fn apply_effects(
                         let o = game.obj_mut(id);
                         o.tapped = true;
                         o.attacking = Some(defender);
+                    }
+                    if *haste_until_end_of_turn {
+                        grant(game, id, &AbilityDef::HasteAbility);
                     }
                     created.push((id, game.obj(id).zcc));
                 }
@@ -2441,6 +2471,25 @@ fn apply_effects(
                 let mut library = game.player(searcher).library.clone();
                 game.rng.shuffle(&mut library);
                 game.player_mut(searcher).library = library;
+            }
+            EffectDef::ReturnCardChosenFromGraveyardEffect { filter, optional } => {
+                let graveyard = game.player(controller).graveyard.clone();
+                let possible: Vec<ObjId> = graveyard
+                    .iter()
+                    .copied()
+                    .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
+                    .collect();
+                if !possible.is_empty() {
+                    let min = if *optional { 0 } else { 1 };
+                    match choose_cards(game, d, controller, &graveyard, &possible, min, 1, "choose") {
+                        Some(chosen) => {
+                            for c in chosen {
+                                game.move_to(c, Zone::Hand);
+                            }
+                        }
+                        None => return,
+                    }
+                }
             }
             EffectDef::DiscardHandControllerEffect => {
                 for c in game.player(controller).hand.clone() {
