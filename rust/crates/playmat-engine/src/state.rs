@@ -109,6 +109,8 @@ pub struct Obj {
     pub kicked: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
+    /// the permanent (and its zone change count) this Aura is attached to
+    pub attached_to: Option<(ObjId, u32)>,
     /// the attackers it blocks
     pub blocking: Vec<ObjId>,
     /// blocked this combat (stays blocked if its blockers leave)
@@ -170,6 +172,10 @@ pub struct Player {
     pub attacked: bool,
     /// life lost this turn
     pub life_lost: i32,
+    /// times they gained life this turn
+    pub life_gains: u32,
+    /// a permanent they controlled left the battlefield this turn (`RevoltWatcher`)
+    pub permanent_left: bool,
 }
 
 /// What a target is.
@@ -352,6 +358,7 @@ impl Game {
             loyalty_used: false,
             kicked: false,
             until_end_of_turn_def: None,
+            attached_to: None,
             blocking: Vec::new(),
             blocked: false,
             blocked_by: Vec::new(),
@@ -381,6 +388,10 @@ impl Game {
             Pred::Another => Some(id) != source,
             Pred::Mv { cmp, n } => cmp.holds(o.def.cost.mana_value() as i32, *n),
             Pred::Power { cmp, n } => cmp.holds(self.power_toughness(id).0, *n),
+            Pred::TotalPowerToughness { n } => {
+                let (p, t) = self.power_toughness(id);
+                p + t <= *n
+            }
             Pred::Toughness { cmp, n } => cmp.holds(self.power_toughness(id).1, *n),
             Pred::Tapped { v } => o.tapped == *v,
             Pred::Attacking => o.attacking.is_some(),
@@ -456,6 +467,26 @@ impl Game {
     }
 
     /// `who` ("you", "opponent", "any") of a trigger, for its controller `you` and the player `seat` it's about.
+    /// The permanent an Aura is attached to, while it's still that object on the battlefield.
+    pub fn attached(&self, aura: ObjId) -> Option<ObjId> {
+        let (to, zcc) = self.obj(aura).attached_to?;
+        let o = self.obj(to);
+        (o.zone == Zone::Battlefield && o.zcc == zcc).then_some(to)
+    }
+
+    /// Whether a static ability of an attached Aura says `id` can't attack or block.
+    pub fn cant_attack_or_block(&self, id: ObjId) -> bool {
+        self.battlefield.iter().any(|src| {
+            self.attached(*src) == Some(id)
+                && self.obj(*src).def.abilities.iter().any(|a| match a {
+                    AbilityDef::SimpleStaticAbility { effects, .. } => {
+                        effects.iter().any(|e| matches!(e, EffectDef::CantAttackBlockAttachedEffect))
+                    }
+                    _ => false,
+                })
+        })
+    }
+
     /// What triggered abilities can come from: permanents, then emblems.
     pub fn trigger_sources(&self) -> Vec<ObjId> {
         self.battlefield.iter().chain(self.command.iter()).copied().collect()
@@ -491,6 +522,26 @@ impl Game {
                 Value::Negative { of } => -self.value(of, you, source, x),
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
                 Value::Half { of } => self.value(of, you, source, x) / 2,
+                Value::Plus { of, n } => self.value(of, you, source, x) + n,
+                Value::CardTypesInGraveyards => {
+                    let mut types: Vec<CardType> = Vec::new();
+                    for p in self.players.iter() {
+                        for c in p.graveyard.iter() {
+                            for t in &self.obj(*c).def.types {
+                                if !types.contains(t) {
+                                    types.push(*t);
+                                }
+                            }
+                        }
+                    }
+                    types.len() as i32
+                }
+                Value::Devotion { c } => self
+                    .battlefield
+                    .iter()
+                    .filter(|b| self.obj(**b).controller == you)
+                    .map(|b| self.obj(*b).def.cost.colored[c.index()] as i32)
+                    .sum(),
             },
         }
     }
@@ -501,6 +552,15 @@ impl Game {
             // a permanent that was cast kicked ("when this enters, if it was kicked")
             Condition::Kicked => self.obj(source).kicked,
             Condition::Raid => self.player(you).attacked,
+            Condition::Revolt => self.player(you).permanent_left,
+            Condition::SourceTargets { filter } => self.stack.iter().any(|i| {
+                i.card == source
+                    && i.ability.is_none()
+                    && i.targets.iter().flatten().any(|t| match t {
+                        Target::Obj(o) => self.filter_matches(filter, you, Some(source), *o),
+                        _ => false,
+                    })
+            }),
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
             Condition::CardsInGraveyard { filter, n } => {
                 let g = &self.player(you).graveyard;
@@ -560,6 +620,10 @@ impl Game {
         for a in &o.def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 for e in effects {
+                    if let EffectDef::SetBasePowerToughnessPlusOneSourceEffect { amount } = e {
+                        p = self.value(amount, o.controller, id, 0);
+                        t = p + 1;
+                    }
                     if let EffectDef::SetBasePowerToughnessSourceEffect { count } = e {
                         if count == "creatures_you_control" {
                             let n = self
@@ -620,6 +684,9 @@ impl Game {
                 if self.condition_holds(Some(condition), you, src) =>
             {
                 self.static_boost(effect, src, you, id)
+            }
+            EffectDef::BoostEnchantedEffect { power, toughness } if self.attached(src) == Some(id) => {
+                (self.value(power, you, src, 0), self.value(toughness, you, src, 0))
             }
             _ => (0, 0),
         }
@@ -700,6 +767,10 @@ impl Game {
             self.exiled_until_leaves = kept;
             self.returning.extend(back.into_iter().map(|(_, _, c)| c));
         }
+        if from == Zone::Battlefield && zone != Zone::Battlefield {
+            let c = self.obj(id).controller;
+            self.player_mut(c).permanent_left = true;
+        }
         self.remove_from_zone(id);
         let owner = self.obj(id).owner;
         {
@@ -712,6 +783,7 @@ impl Game {
                 o.attacking_pw = None;
                 o.loyalty_used = false;
                 o.kicked = false;
+                o.attached_to = None;
                 if let Some(def) = o.until_end_of_turn_def.take() {
                     o.def = def;
                 }

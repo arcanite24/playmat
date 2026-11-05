@@ -88,6 +88,18 @@ EFFECTS = {
     'ExploreTargetEffect': [(None, 'bool')],
     'MillCardsTargetEffect': [('amount', 'int')],
     'CantBeBlockedTargetEffect': [('duration', 'duration')],
+    'AttachEffect': [(None, 'outcome'), (None, 'string')],
+    'BoostEnchantedEffect': [('power', 'int'), ('toughness', 'int'), (None, 'while_on_battlefield')],
+    'CantAttackBlockAttachedEffect': [(None, 'aura')],
+    'FightTargetsEffect': [],
+    'CantBeCounteredControlledEffect': [('filter', 'filter'), ('duration', 'duration')],
+    'DontCauseTriggerEffect': [],
+    'SpellsCostIncreasingAllEffect': [('amount', 'int'), ('filter', 'filter'), ('who', 'target_controller')],
+    'SetBasePowerToughnessPlusOneSourceEffect': [('amount', 'amount')],
+    'LoseLifeOpponentsYouGainLifeLostEffect': [('amount', 'amount'), (None, 'string')],
+    'DestroyAllNamedPermanentsEffect': [],
+    'DoubleCountersSourceEffect': [('name', 'counter_type')],
+    'DamageCantBePreventedEffect': [('duration', 'duration')],
     'ReturnFromGraveyardToBattlefieldTargetEffect': [('tapped', 'bool')],
     'DiscardTargetEffect': [('amount', 'int'), (None, 'false')],
     'SacrificeEffect': [('filter', 'filter'), ('amount', 'int'), (None, 'string')],
@@ -109,6 +121,19 @@ PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED',
 
 # classes a card file declares for itself, written by hand as the engine classes that do the same
 CUSTOM = {
+    'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
+    'FumigateEffect': lambda: {'class': 'FumigateEffect'},
+    'StrategicBetrayalEffect': lambda: {'class': 'StrategicBetrayalEffect'},
+    'InvokeDespairEffect': lambda: {'class': 'InvokeDespairEffect'},
+    'ChartACourseEffect': lambda: {'class': 'ChartACourseEffect'},
+    'TemporaryLockdownEffect': lambda: {'class': 'TemporaryLockdownEffect'},
+    'FeedTheSwarmEffect': lambda: {'class': 'FeedTheSwarmEffect'},
+    'RedcapMeleeEffect': lambda: {'class': 'RedcapMeleeEffect'},
+    'RamThroughEffect': lambda: {'class': 'RamThroughEffect'},
+    'CullingRitualEffect': lambda: {'class': 'CullingRitualEffect'},
+    'PlayWithFireEffect': lambda: {'class': 'PlayWithFireEffect'},
+    # destroy target creature with mana value 2 or less (4 or less with revolt)
+    'FatalPushEffect': lambda: {'class': 'DestroyTargetIfManaValueEffect', 'n': 2, 'revolt_n': 4},
     # create a 2/2 Robot token tapped and attacking; sacrifice it at end of combat
     'KavaronHarrierEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('RobotToken'), 'amount': 1,
                                      'tapped_and_attacking': True, 'sacrifice_at_end_of_combat': True},
@@ -149,6 +174,7 @@ ABILITIES = {
     'BeginningOfSecondMainTriggeredAbility': [('controller', 'target_controller'), ('effect', 'effect'), ('optional', 'bool')],
     'GainLifeControllerTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), (None, 'bool'),
                                            (None, 'false')],
+    'GainLifeFirstTimeTriggeredAbility': [('effect', 'effect')],
     'DealsCombatDamageToAPlayerTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'),
                                                    ('set_target_pointer', 'bool')],
     'EntersBattlefieldOrDiesSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), (None, 'bool')],
@@ -197,6 +223,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'AttacksTrigge
                    'DiesSourceTriggeredAbility': 'dies', 'EntersBattlefieldOrDiesSourceTriggeredAbility':
                    'enters_or_dies', 'EntersBattlefieldOrAttacksSourceTriggeredAbility': 'enters_or_attacks',
                    'GainLifeControllerTriggeredAbility': 'you_gain_life',
+                   'GainLifeFirstTimeTriggeredAbility': 'you_gain_life_first_time',
                    'DealsCombatDamageToAPlayerTriggeredAbility': 'combat_damage_to_player',
                    'DamagedOpponentsNoncombatTriggeredAbility': 'opponents_dealt_noncombat_damage'}
 
@@ -205,6 +232,7 @@ TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'a
 
 COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty'}
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
+              'RevoltCondition.instance': {'c': 'revolt'},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
               'OpponentsLostLifeCondition.instance': {'c': 'opponents_lost_life'},
               # spell mastery: two or more instant and/or sorcery cards in your graveyard
@@ -277,6 +305,8 @@ def predicate(text, subtypes):
     if text == 'AnotherPredicate.instance':
         return {'p': 'another'}
     # an outlaw: an Assassin, Mercenary, Pirate, Rogue or Warlock
+    if text == 'CutDownPredicate.instance':
+        return {'p': 'total_power_toughness', 'n': 5}
     if text == 'OutlawPredicate.instance':
         return {'p': 'or', 'xs': [{'p': 'subtype', 's': t} for t in ('Assassin', 'Mercenary', 'Pirate', 'Rogue', 'Warlock')]}
     if (m := re.fullmatch(r'new (ManaValue|Power|Toughness)Predicate\(ComparisonType\.(\w+),(-?\d+)\)', text)) \
@@ -492,6 +522,10 @@ class Translator:
             return {'v': 'source_power'}
         if arg in COUNT_FILTERS:
             return {'v': 'permanents', 'filter': [dict(p) for p in COUNT_FILTERS[arg]]}
+        if arg == 'CardTypesInGraveyardCount.ALL':
+            return {'v': 'card_types_in_graveyards'}
+        if (m := re.fullmatch(r'DevotionCount\.([WUBRG])', arg)):
+            return {'v': 'devotion', 'c': m.group(1)}
         if arg == 'CardsInControllerHandCount.ANY':
             return {'v': 'cards_in_hand'}
         obj = self.new_expr(arg)
@@ -538,6 +572,10 @@ class Translator:
             return {'c': 'cards_in_graveyard', 'n': int(m.group(1)), 'filter': self.filter(m.group(2)) if m.group(2) else []}
         if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+),(\d+)\)', arg)) and m.group(1) in COUNTERS:
             return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2))}
+        if (m := re.fullmatch(r'new SourceTargetsPermanentCondition\((.*)\)', arg)):
+            return {'c': 'source_targets', 'filter': self.filter(m.group(1))}
+        if arg == 'MysticalDisputeCondition.instance':
+            return {'c': 'source_targets', 'filter': [{'p': 'color', 'c': 'U'}]}
         if (m := re.fullmatch(r'new InvertCondition\((.*)\)', arg)):
             return {'c': 'not', 'x': self.condition(m.group(1))}
         raise Unsupported('condition ' + arg)
@@ -651,6 +689,18 @@ class Translator:
         elif kind == 'zone':
             if arg in ('Zone.BATTLEFIELD',):
                 return None
+        elif kind == 'counter_type':
+            if arg in COUNTERS:
+                return COUNTERS[arg]
+        elif kind == 'outcome':
+            if re.fullmatch(r'Outcome\.\w+', arg):
+                return None
+        elif kind == 'aura':
+            if arg == 'AttachmentType.AURA':
+                return None
+        elif kind == 'while_on_battlefield':
+            if arg == 'Duration.WhileOnBattlefield':
+                return None
         elif kind == 'subtype':
             if re.fullmatch(r'SubType\.\w+', arg):
                 return None
@@ -697,7 +747,7 @@ class Translator:
         raise Unsupported('cost ' + expr)
 
     def build(self, cls, args, spec, what):
-        if len(args) > len(spec) or any(k not in ('bool', 'string', 'false', 'no_pointer') and n not in DEFAULTS
+        if len(args) > len(spec) or any(k not in ('bool', 'string', 'false', 'no_pointer', 'outcome', 'while_on_battlefield') and n not in DEFAULTS
                                         for n, k in spec[len(args):]):
             raise Unsupported(what + ' ' + cls + '(' + ','.join(args) + ')')
         out = {'class': cls}
@@ -714,6 +764,13 @@ class Translator:
         return out
 
     def effect(self, expr):
+        # a cost reduction that only counts while the spell is cast
+        if (m := re.fullmatch(r'(.*)\.setCanWorksOnStackOnly\(true\)', expr.strip(), re.S)):
+            e = self.effect(m.group(1))
+            if e.get('class') != 'SpellCostReductionSourceEffect':
+                raise Unsupported('setCanWorksOnStackOnly on ' + e.get('class'))
+            e['stack_only'] = True
+            return e
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             return obj
@@ -722,6 +779,19 @@ class Translator:
             return {'class': 'DamageTargetSourcePowerEffect'}
         if cls.startswith('SearchLibraryPutIn'):
             return self.search_library(cls, [a.strip() for a in args])
+        if cls == 'SpellCostReductionSourceEffect' and len(args) in (1, 2) and re.fullmatch(r'\d+', args[0].strip()):
+            out = {'class': cls, 'amount': int(args[0])}
+            if len(args) == 2:
+                out['condition'] = self.condition(args[1])
+            return out
+        # the "additional" flag only changes the text
+        if cls == 'ReturnFromGraveyardToBattlefieldWithCounterTargetEffect' and len(args) in (1, 2) \
+                and (len(args) == 1 or args[0].strip() in ('true', 'false')):
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False,
+                    'counters': self.value('counter', args[-1].strip())}
+        if cls == 'AddCountersAllEffect' and len(args) == 3:
+            return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'amount': self.amount(args[1]),
+                    'filter': self.filter(args[2].strip())}
         if cls == 'AddCountersSourceEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'amount': self.amount(args[1])}
         # investigate: create a Clue
@@ -856,6 +926,8 @@ class Translator:
         cls, args = obj
         if cls in PLAYER_TARGETS and not args:
             return {'class': cls}
+        if cls == 'TargetAnyTarget' and len(args) == 2 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
+            return {'class': cls, 'min': int(args[0]), 'max': int(args[1])}
         if cls not in TARGET_CLASSES:
             raise Unsupported('target ' + expr)
         kind, preds = TARGET_CLASSES[cls]
@@ -891,6 +963,9 @@ class Translator:
             return obj
         cls, args = obj
         if cls in KEYWORDS and not args:
+            return {'class': cls}
+        # `new EnchantAbility(auraTarget)`: what it can enchant is the spell's target
+        if cls == 'EnchantAbility' and len(args) == 1:
             return {'class': cls}
         # `new MenaceAbility(false)`: the flag only changes the reminder text
         if cls == 'MenaceAbility' and args in (['false'], ['true']):

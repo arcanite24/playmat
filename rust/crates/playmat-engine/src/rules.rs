@@ -3,7 +3,8 @@
 //! `HumanPlayer` with the client's default settings, so a shadow game replays answer for answer.
 
 use crate::card::{
-    AbilityDef, CardType, Color, Condition, CostDef, Duration, EffectDef, Mana, ManaCost, ManaKind, TargetDef, Trigger,
+    AbilityDef, Amount, CardType, Cmp, Color, Condition, CostDef, Duration, EffectDef, Mana, ManaCost, ManaKind, Pred, TargetDef,
+    Trigger,
 };
 use crate::decide::{Answer, Decider, Query};
 use crate::state::{Boost, Delayed, Game, Grant, ObjId, Seat, StackItem, Step, Target, Zone};
@@ -84,6 +85,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.lands_played = 0;
                 p.attacked = false;
                 p.life_lost = 0;
+                p.permanent_left = false;
+                p.life_gains = 0;
             }
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {
@@ -332,7 +335,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
                 out.push(*id);
             }
         } else if can_cast_timing(game, seat, *id)
-            && can_pay(game, seat, &o.def.cost)
+            && can_pay(game, seat, &modified_cost(game, seat, *id, o.def.cost.clone()))
             && o.def.spell.costs.iter().all(|c| can_pay_cost(game, seat, *id, c))
             && has_targets(game, seat, *id)
         {
@@ -688,6 +691,7 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     for s in 0..game.seats() {
         game.player_mut(s).passed = false;
     }
+    let cost = modified_cost(game, seat, id, cost);
     if !pay_mana(game, d, seat, &cost) {
         return false;
     }
@@ -712,6 +716,37 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     });
     game.pending.extend(fired);
     true
+}
+
+/// `ContinuousEffects.costModification`: a spell's cost with the increases, then the reductions, applied.
+fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> ManaCost {
+    for src in game.battlefield.iter() {
+        let s = game.obj(*src);
+        for a in &s.def.abilities {
+            if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                for e in effects {
+                    if let EffectDef::SpellsCostIncreasingAllEffect { amount, filter, who } = e {
+                        if Game::whose(who, s.controller, seat) && game.filter_matches(filter, s.controller, Some(*src), id) {
+                            cost.generic += *amount as u32;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let o = game.obj(id);
+    for a in &o.def.abilities {
+        if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+            for e in effects {
+                if let EffectDef::SpellCostReductionSourceEffect { amount, condition, stack_only } = e {
+                    if (!*stack_only || o.zone == Zone::Stack) && game.condition_holds(condition.as_ref(), seat, id) {
+                        cost.generic = cost.generic.saturating_sub(*amount as u32);
+                    }
+                }
+            }
+        }
+    }
+    cost
 }
 
 /// Chooses the top stack object's targets, in order. False: cancelled (or, for a trigger, no legal targets).
@@ -899,7 +934,21 @@ fn search_library(
 
 /// Whether a spell on the stack can't be countered.
 fn cant_be_countered(game: &Game, spell: ObjId) -> bool {
-    game.obj(spell).def.abilities.iter().any(|a| match a {
+    let controller = game.stack.iter().find(|i| i.card == spell && i.ability.is_none()).map(|i| i.controller);
+    let by_static = game.battlefield.iter().any(|src| {
+        let s = game.obj(*src);
+        Some(s.controller) == controller
+            && s.def.abilities.iter().any(|a| match a {
+                AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
+                    EffectDef::CantBeCounteredControlledEffect { filter, .. } => {
+                        game.filter_matches(filter, s.controller, Some(*src), spell)
+                    }
+                    _ => false,
+                }),
+                _ => false,
+            })
+    });
+    by_static || game.obj(spell).def.abilities.iter().any(|a| match a {
         AbilityDef::CantBeCounteredSourceAbility => true,
         AbilityDef::SimpleStaticAbility { effects, .. } => {
             effects.iter().any(|e| matches!(e, EffectDef::CantBeCounteredSourceEffect))
@@ -990,7 +1039,7 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef) -> (Vec<Seat>,
         game.battlefield.iter().copied().filter(|id| f(*id) && targetable(game, seat, *id)).collect()
     };
     match def {
-        TargetDef::TargetAnyTarget => (
+        TargetDef::TargetAnyTarget { .. } => (
             players,
             permanents(&|id| {
                 [CardType::Creature, CardType::Planeswalker, CardType::Battle].iter().any(|t| game.has_type(id, *t))
@@ -1031,7 +1080,9 @@ fn targetable(game: &Game, seat: Seat, id: ObjId) -> bool {
 /// How many objects a target takes: at least, at most.
 fn target_counts(def: &TargetDef) -> (usize, usize) {
     match def {
-        TargetDef::TargetPermanent { min, max, .. } | TargetDef::TargetCardInGraveyard { min, max, .. } => (*min, *max),
+        TargetDef::TargetPermanent { min, max, .. }
+        | TargetDef::TargetCardInGraveyard { min, max, .. }
+        | TargetDef::TargetAnyTarget { min, max } => (*min, *max),
         _ => (1, 1),
     }
 }
@@ -1230,6 +1281,22 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         return;
     }
     if def.is_permanent_card() {
+        // `Spell.resolve`: an Aura whose target is gone is countered (608.2b); else it enters, then its spell
+        // ability's AttachEffect attaches it
+        if def.has_subtype("Aura") && !def.spell.targets.is_empty() {
+            let Some(legal) = legal_targets(game, &item, &def.spell.targets) else {
+                game.move_to(id, Zone::Graveyard);
+                return;
+            };
+            enter_battlefield(game, d, id, item.controller, item.kicked);
+            if let Some(Target::Obj(to)) = legal.first().and_then(|t| t.first()).copied() {
+                if game.obj(id).zone == Zone::Battlefield && game.obj(to).zone == Zone::Battlefield {
+                    let zcc = game.obj(to).zcc;
+                    game.obj_mut(id).attached_to = Some((to, zcc));
+                }
+            }
+            return;
+        }
         enter_battlefield(game, d, id, item.controller, item.kicked);
         return;
     }
@@ -1348,7 +1415,7 @@ fn apply_effects(
         match e {
             EffectDef::DamageTargetEffect { amount } => {
                 let amount = &v!(amount);
-                if let Some(t) = target {
+                for t in legal.first().cloned().unwrap_or_default() {
                     deal_damage(game, source.0, t, *amount, false);
                 }
             }
@@ -1575,9 +1642,271 @@ fn apply_effects(
                     }
                 }
             }
-            EffectDef::AddCountersAllEffect { counter, filter } => {
+            EffectDef::AddCountersAllEffect { counter, filter, amount } => {
+                let n = match amount {
+                    Some(a) => v!(a).max(0),
+                    None => counter.amount,
+                };
                 for o in matching(game, filter, controller, source.0) {
-                    game.obj_mut(o).add_counters(&counter.name, counter.amount);
+                    if n > 0 {
+                        game.obj_mut(o).add_counters(&counter.name, n);
+                    }
+                }
+            }
+            // `FightTargetsEffect`: only with both targets legal; each is dealt the other's power, the first first
+            EffectDef::FightTargetsEffect => {
+                if let (Some(Target::Obj(a)), Some(Target::Obj(b))) = (target, legal_target(1)) {
+                    let creature = |g: &Game, o: ObjId| g.obj(o).zone == Zone::Battlefield && g.has_type(o, CardType::Creature);
+                    if creature(game, a) && creature(game, b) {
+                        let pb = game.power_toughness(b).0;
+                        deal_damage(game, b, Target::Obj(a), pb, false);
+                        let pa = game.power_toughness(a).0;
+                        deal_damage(game, a, Target::Obj(b), pa, false);
+                    }
+                }
+            }
+            EffectDef::DestroyAllNamedPermanentsEffect => {
+                if let Some(Target::Obj(t)) = target {
+                    if game.obj(t).zone == Zone::Battlefield {
+                        let name = game.obj(t).name().to_string();
+                        let named: Vec<ObjId> =
+                            game.battlefield.iter().copied().filter(|b| game.obj(*b).name() == name).collect();
+                        for o in named {
+                            destroy(game, o);
+                        }
+                    }
+                }
+            }
+            EffectDef::DoubleCountersSourceEffect { name } => {
+                let (o, zcc) = source;
+                if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                    let n = game.obj(o).counter(name);
+                    if n > 0 {
+                        game.obj_mut(o).add_counters(name, n);
+                    }
+                }
+            }
+            EffectDef::FeedTheSwarmEffect => {
+                if let Some(Target::Obj(o)) = target {
+                    if game.obj(o).zone == Zone::Battlefield {
+                        let mv = game.obj(o).def.cost.mana_value() as i32;
+                        lose_life(game, controller, mv);
+                        destroy(game, o);
+                    }
+                }
+            }
+            EffectDef::RedcapMeleeEffect => {
+                if let Some(Target::Obj(o)) = target {
+                    if game.obj(o).zone == Zone::Battlefield {
+                        let red = game.obj(o).def.colors.contains(&Color::R);
+                        if deal_damage(game, source.0, Target::Obj(o), 4, false) > 0 && !red {
+                            let sac = EffectDef::SacrificeEffect {
+                                filter: crate::card::Filter(vec![Pred::Type { t: CardType::Land }]),
+                                amount: Amount::Fixed(1),
+                            };
+                            apply_effects(game, d, item, &[sac], &[vec![Target::Player(controller)]], source);
+                        }
+                    }
+                }
+            }
+            EffectDef::RamThroughEffect => {
+                if let (Some(Target::Obj(a)), Some(Target::Obj(b))) = (target, legal_target(1)) {
+                    let on = |g: &Game, o: ObjId| g.obj(o).zone == Zone::Battlefield;
+                    if on(game, a) && on(game, b) {
+                        let power = game.power_toughness(a).0;
+                        if power >= 1 {
+                            if game.has_ability(a, &AbilityDef::TrampleAbility) {
+                                // `damageWithExcess`: what's beyond lethal (1 with deathtouch) goes to the controller
+                                let lethal = if game.has_ability(a, &AbilityDef::DeathtouchAbility) {
+                                    1
+                                } else {
+                                    (game.power_toughness(b).1 - game.obj(b).damage).max(0)
+                                };
+                                let excess = (power - lethal).max(0);
+                                deal_damage(game, a, Target::Obj(b), power - excess, false);
+                                if excess > 0 {
+                                    let p = game.obj(b).controller;
+                                    deal_damage(game, a, Target::Player(p), excess, false);
+                                }
+                            } else {
+                                deal_damage(game, a, Target::Obj(b), power, false);
+                            }
+                        }
+                    }
+                }
+            }
+            EffectDef::CullingRitualEffect => {
+                let filter = crate::card::Filter(vec![
+                    Pred::Not { x: Box::new(Pred::Type { t: CardType::Land }) },
+                    Pred::Mv { cmp: Cmp::FewerThan, n: 3 },
+                ]);
+                let mut n = 0;
+                for o in matching(game, &filter, controller, source.0) {
+                    if !game.has_ability(o, &AbilityDef::IndestructibleAbility) {
+                        destroy(game, o);
+                        n += 1;
+                    }
+                }
+                if n > 0 {
+                    let q = Query::Amount { min: 0, max: n };
+                    let black = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Int(b) if (0..=n).contains(&b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    let pool = &mut game.player_mut(controller).mana_pool;
+                    pool.colored[Color::B.index()] += black as u32;
+                    pool.colored[Color::G.index()] += (n - black) as u32;
+                }
+            }
+            EffectDef::PlayWithFireEffect => {
+                match target {
+                    Some(Target::Obj(o)) => {
+                        if game.obj(o).zone == Zone::Battlefield {
+                            deal_damage(game, source.0, Target::Obj(o), 2, false);
+                        }
+                    }
+                    Some(Target::Player(p)) => {
+                        if deal_damage(game, source.0, Target::Player(p), 2, false) >= 1 {
+                            let scry = EffectDef::ScryEffect { amount: Amount::Fixed(1) };
+                            apply_effects(game, d, item, &[scry], legal, source);
+                        }
+                    }
+                    None => {}
+                }
+            }
+            EffectDef::ExtinctionEventEffect => {
+                let q = Query::YesNo { message: "Odd or even?".to_string() };
+                let odd = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                let exiled: Vec<ObjId> = game
+                    .battlefield
+                    .iter()
+                    .copied()
+                    .filter(|o| {
+                        game.has_type(*o, CardType::Creature)
+                            && (game.obj(*o).def.cost.mana_value() % 2 == 1) == odd
+                    })
+                    .collect();
+                for o in exiled {
+                    game.move_to(o, Zone::Exile);
+                }
+            }
+            EffectDef::FumigateEffect => {
+                let mut n = 0;
+                let creatures: Vec<ObjId> =
+                    game.battlefield.iter().copied().filter(|o| game.has_type(*o, CardType::Creature)).collect();
+                for o in creatures {
+                    if !game.has_ability(o, &AbilityDef::IndestructibleAbility) {
+                        destroy(game, o);
+                        n += 1;
+                    }
+                }
+                if n > 0 {
+                    gain_life(game, controller, n);
+                }
+            }
+            EffectDef::StrategicBetrayalEffect => {
+                if let Some(Target::Player(p)) = target {
+                    let mut cards = game.player(p).graveyard.clone();
+                    let creatures: Vec<ObjId> = game
+                        .battlefield
+                        .iter()
+                        .copied()
+                        .filter(|o| game.obj(*o).controller == p && game.has_type(*o, CardType::Creature))
+                        .collect();
+                    if !creatures.is_empty() {
+                        match choose_cards(game, d, p, &creatures, &creatures, 1, 1, "exile") {
+                            Some(c) => cards.extend(c),
+                            None => return,
+                        }
+                    }
+                    for c in cards {
+                        game.move_to(c, Zone::Exile);
+                    }
+                }
+            }
+            EffectDef::InvokeDespairEffect => {
+                if let Some(Target::Player(p)) = target {
+                    for t in [CardType::Creature, CardType::Enchantment, CardType::Planeswalker] {
+                        let possible: Vec<ObjId> = game
+                            .battlefield
+                            .iter()
+                            .copied()
+                            .filter(|o| game.obj(*o).controller == p && game.has_type(*o, t))
+                            .collect();
+                        let mut sacrificed = false;
+                        if !possible.is_empty() {
+                            match choose_cards(game, d, p, &possible, &possible, 1, 1, "sacrifice") {
+                                Some(c) => {
+                                    for o in c {
+                                        if game.obj(o).zone == Zone::Battlefield {
+                                            sacrifice(game, o);
+                                            sacrificed = true;
+                                        }
+                                    }
+                                }
+                                None => return,
+                            }
+                        }
+                        if !sacrificed {
+                            lose_life(game, p, 2);
+                            draw(game, controller, 1);
+                        }
+                    }
+                }
+            }
+            EffectDef::ChartACourseEffect => {
+                if !game.player(controller).attacked {
+                    discard(game, d, controller, 1);
+                }
+            }
+            EffectDef::TemporaryLockdownEffect => {
+                let (src, zcc) = source;
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    let filter = crate::card::Filter(vec![
+                        Pred::Not { x: Box::new(Pred::Type { t: CardType::Land }) },
+                        Pred::Mv { cmp: Cmp::FewerThan, n: 3 },
+                    ]);
+                    for o in matching(game, &filter, controller, src) {
+                        game.move_to(o, Zone::Exile);
+                        game.exiled_until_leaves.push((src, zcc, o));
+                    }
+                }
+            }
+            EffectDef::DamageCantBePreventedEffect { .. }
+            | EffectDef::CantBeCounteredControlledEffect { .. }
+            | EffectDef::DontCauseTriggerEffect
+            | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
+            | EffectDef::SpellsCostIncreasingAllEffect { .. }
+            | EffectDef::SpellCostReductionSourceEffect { .. } => {}
+            EffectDef::LoseLifeOpponentsYouGainLifeLostEffect { amount } => {
+                let n = v!(amount);
+                let mut lost = 0;
+                for p in 0..game.seats() {
+                    if p != controller && !game.player(p).lost {
+                        lose_life(game, p, n);
+                        lost += n.max(0);
+                    }
+                }
+                if lost > 0 {
+                    gain_life(game, controller, lost);
+                }
+            }
+            EffectDef::DestroyTargetIfManaValueEffect { n, revolt_n } => {
+                if let Some(Target::Obj(o)) = target {
+                    let mv = game.obj(o).def.cost.mana_value() as i32;
+                    let revolt = game.condition_holds(Some(&Condition::Revolt), controller, source.0);
+                    if mv <= *n || (revolt && mv <= *revolt_n) {
+                        destroy(game, o);
+                    }
                 }
             }
             EffectDef::ExileTargetEffect => {
@@ -1753,10 +2082,13 @@ fn apply_effects(
                 game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
                 game.move_to(id, Zone::Command);
             }
-            EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped } => {
+            EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters } => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Graveyard {
                         enter_battlefield(game, d, *o, controller, false);
+                        if let Some(c) = counters {
+                            game.obj_mut(*o).add_counters(&c.name, c.amount);
+                        }
                         if *tapped {
                             game.obj_mut(*o).tapped = true;
                         }
@@ -1971,7 +2303,10 @@ fn apply_effects(
             | EffectDef::CantBeCounteredSourceEffect
             | EffectDef::AddCardSubTypeSourceEffect
             | EffectDef::BoostAllEffect { .. }
-            | EffectDef::TapSourceUnlessPaysEffect { .. } => {}
+            | EffectDef::TapSourceUnlessPaysEffect { .. }
+            | EffectDef::AttachEffect
+            | EffectDef::BoostEnchantedEffect { .. }
+            | EffectDef::CantAttackBlockAttachedEffect => {}
         }
     }
 }
@@ -2272,6 +2607,18 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     // everything that triggers on this event, in Java's registration order
     let mut sources: Vec<ObjId> = game.battlefield.iter().copied().filter(|s| *s != id).collect();
     sources.insert(0, id);
+    // Torpor Orb: a creature entering triggers nothing
+    let orb = game.battlefield.iter().any(|s| {
+        game.obj(*s).def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                effects.iter().any(|e| matches!(e, EffectDef::DontCauseTriggerEffect))
+            }
+            _ => false,
+        })
+    });
+    if orb && game.has_type(id, CardType::Creature) {
+        sources.clear();
+    }
     let mut fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::Enters | Trigger::EntersOrDies | Trigger::EntersOrAttacks => src == id,
         Trigger::EntersAll { filter, include_self } => {
@@ -2456,8 +2803,12 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
         return;
     }
     game.player_mut(seat).life += amount;
+    game.player_mut(seat).life_gains += 1;
+    let first = game.player(seat).life_gains == 1;
     let sources: Vec<ObjId> = game.trigger_sources();
-    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::YouGainLife) && you == seat);
+    let fired = game.triggers(sources, |_, _, you, t| {
+        you == seat && (matches!(t, Trigger::YouGainLife) || (first && matches!(t, Trigger::YouGainLifeFirstTime)))
+    });
     // the life gained is the trigger's "that much" (`SavedGainedLifeValue`), read as its X
     game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
 }
@@ -2485,6 +2836,7 @@ fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
         && o.attacking.is_none()
         && (!o.sick || o.has(&AbilityDef::HasteAbility))
         && !o.has(&AbilityDef::DefenderAbility)
+        && !game.cant_attack_or_block(id)
 }
 
 /// `Combat.selectAttackers` and `HumanPlayer.selectAttackers`: asked only when something can attack; "special" is
@@ -2563,7 +2915,7 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
 }
 
 fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
-    if game.has_ability(attacker, &AbilityDef::CantBeBlockedSourceAbility) {
+    if game.has_ability(attacker, &AbilityDef::CantBeBlockedSourceAbility) || game.cant_attack_or_block(blocker) {
         return false;
     }
     if game.has_ability(blocker, &AbilityDef::CanBlockOnlyFlyingAbility)
@@ -2978,6 +3330,15 @@ pub fn state_based_actions(game: &mut Game) {
                 let o = game.obj(*id);
                 if game.has_type(*id, CardType::Planeswalker) && o.counter("loyalty") <= 0 {
                     return true;
+                }
+                // 704.5m: an Aura attached to nothing, or to what it can't enchant
+                if o.def.has_subtype("Aura") && !o.is(CardType::Creature) {
+                    let Some(to) = game.attached(*id) else { return true };
+                    if let Some(TargetDef::TargetPermanent { filter, .. }) = o.def.spell.targets.first() {
+                        if !game.filter_matches(filter, o.controller, Some(*id), to) {
+                            return true;
+                        }
+                    }
                 }
                 if !o.is(CardType::Creature) {
                     return false;

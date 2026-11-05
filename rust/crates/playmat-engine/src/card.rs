@@ -125,7 +125,12 @@ pub enum CardType {
 #[serde(tag = "class")]
 pub enum TargetDef {
     /// any target: a creature, player, planeswalker or battle
-    TargetAnyTarget,
+    TargetAnyTarget {
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
     TargetPlayer,
     TargetOpponent,
     /// a spell on the stack, of the filter
@@ -256,6 +261,10 @@ pub enum Pred {
     Name {
         n: String,
     },
+    /// `CutDownPredicate`: total power and toughness `n` or less
+    TotalPowerToughness {
+        n: i32,
+    },
     /// `PermanentPredicate`: a permanent card (not an instant or sorcery)
     PermanentCard,
     Not {
@@ -319,6 +328,8 @@ pub enum Trigger {
     },
     /// you gain life (`GainLifeControllerTriggeredAbility`)
     YouGainLife,
+    /// you gain life for the first time each turn (`GainLifeFirstTimeTriggeredAbility`)
+    YouGainLifeFirstTime,
     /// `who` ("you", "opponent", "any") casts a spell of the filter (`SpellCastControllerTriggeredAbility`, prowess)
     SpellCast {
         filter: Filter,
@@ -347,6 +358,10 @@ pub enum Condition {
     Kicked,
     /// `RaidCondition`: you attacked this turn
     Raid,
+    /// a permanent you controlled left the battlefield this turn
+    Revolt,
+    /// the source, a spell being cast, targets something of the filter (`SourceTargetsPermanentCondition`)
+    SourceTargets { filter: Filter },
     /// `MyTurnCondition`
     MyTurn,
     /// `PermanentsOnTheBattlefieldCondition` / `YouControlPermanentCondition`: the number of permanents of the filter
@@ -514,6 +529,12 @@ pub enum Value {
     Times { of: Box<Amount>, n: i32 },
     /// a value halved, rounded down
     Half { of: Box<Amount> },
+    /// a value plus a number
+    Plus { of: Box<Amount>, n: i32 },
+    /// card types among cards in all graveyards (`CardTypesInGraveyardCount.ALL`)
+    CardTypesInGraveyards,
+    /// the controller's devotion to a color: its mana symbols among the mana costs of permanents they control
+    Devotion { c: Color },
 }
 
 /// One-shot effects, named after the Java effect classes.
@@ -669,7 +690,62 @@ pub enum EffectDef {
     AddCountersAllEffect {
         counter: CounterDef,
         filter: Filter,
+        /// how many, if not the counter's own number
+        #[serde(default)]
+        amount: Option<Amount>,
     },
+    /// the first target creature fights the second (each deals damage equal to its power to the other)
+    FightTargetsEffect,
+    /// destroy the target and every other permanent with its name
+    DestroyAllNamedPermanentsEffect,
+    /// double the source's counters of a kind
+    DoubleCountersSourceEffect { name: String },
+    /// a static ability's effect in layer 7a: the source's base power is `amount`, its toughness that plus 1
+    SetBasePowerToughnessPlusOneSourceEffect { amount: Amount },
+    /// each opponent loses `amount` life; you gain the life lost this way
+    LoseLifeOpponentsYouGainLifeLostEffect { amount: Amount },
+    /// destroy the target creature if its mana value is `n` or less (`revolt_n` or less with revolt: Fatal Push)
+    DestroyTargetIfManaValueEffect { n: i32, revolt_n: i32 },
+    /// a static ability's effect: spells of the filter (cast by `who`, relative to its controller) cost {amount} more
+    SpellsCostIncreasingAllEffect { amount: i32, filter: Filter, who: String },
+    /// a static ability's effect: this spell costs {amount} less (if the condition holds; `stack_only`: only while
+    /// it's being cast, not for the playable check)
+    SpellCostReductionSourceEffect {
+        amount: i32,
+        #[serde(default)]
+        condition: Option<Condition>,
+        #[serde(default)]
+        stack_only: bool,
+    },
+    /// you lose life equal to the target's mana value, then destroy it (Feed the Swarm)
+    FeedTheSwarmEffect,
+    /// 4 damage to the target; if a nonred permanent was dealt damage, you sacrifice a land (Redcap Melee)
+    RedcapMeleeEffect,
+    /// the first target deals damage equal to its power to the second; with trample, the excess to its controller
+    RamThroughEffect,
+    /// destroy each nonland permanent with mana value 2 or less; add {B} or {G} for each (Culling Ritual)
+    CullingRitualEffect,
+    /// 2 damage to any target; if a player was dealt damage, scry 1 (Play with Fire)
+    PlayWithFireEffect,
+    /// choose odd or even; exile each creature whose mana value is (Extinction Event)
+    ExtinctionEventEffect,
+    /// destroy all creatures; gain 1 life for each destroyed (Fumigate)
+    FumigateEffect,
+    /// the target opponent exiles a creature they control and their graveyard (Strategic Betrayal)
+    StrategicBetrayalEffect,
+    /// the target opponent sacrifices a creature, an enchantment and a planeswalker; for each they can't, they lose
+    /// 2 life and you draw (Invoke Despair)
+    InvokeDespairEffect,
+    /// discard a card unless you attacked this turn (Chart a Course)
+    ChartACourseEffect,
+    /// exile each other nonland permanent with mana value 2 or less until this leaves (Temporary Lockdown)
+    TemporaryLockdownEffect,
+    /// a static ability's effect: spells of the filter you control can't be countered
+    CantBeCounteredControlledEffect { filter: Filter, duration: Duration },
+    /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb)
+    DontCauseTriggerEffect,
+    /// damage can't be prevented (the engine has no prevention yet, so nothing to do)
+    DamageCantBePreventedEffect { duration: Duration },
     /// exiles the targets
     ExileTargetEffect,
     /// returns the targets to their owners' hands
@@ -704,6 +780,12 @@ pub enum EffectDef {
     ExploreTargetEffect,
     /// the target creature can't be blocked this turn
     CantBeBlockedTargetEffect { duration: Duration },
+    /// an Aura spell's effect: it's attached to its target as it enters
+    AttachEffect,
+    /// a static ability's effect: the permanent this is attached to gets +power/+toughness
+    BoostEnchantedEffect { power: Amount, toughness: Amount },
+    /// a static ability's effect: the permanent this is attached to can't attack or block
+    CantAttackBlockAttachedEffect,
     /// each player (of `who`) discards `amount` cards they choose, all at once
     DiscardEachPlayerEffect { amount: Amount, who: String },
     /// exile the target player's graveyard
@@ -721,6 +803,9 @@ pub enum EffectDef {
     ReturnFromGraveyardToBattlefieldTargetEffect {
         #[serde(default)]
         tapped: bool,
+        /// it enters with these counters (`…WithCounterTargetEffect`)
+        #[serde(default)]
+        counters: Option<CounterDef>,
     },
     /// the target player discards `amount` cards of their choice
     DiscardTargetEffect { amount: Amount },
@@ -919,6 +1004,8 @@ pub enum AbilityDef {
     DefenderAbility,
     /// this can block only creatures with flying
     CanBlockOnlyFlyingAbility,
+    /// an Aura: what it can enchant is its spell's target
+    EnchantAbility,
     /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)
     CantBeBlockedSourceAbility,
     MenaceAbility,
@@ -1156,6 +1243,10 @@ impl CardDef {
 
     pub fn has(&self, ability: &AbilityDef) -> bool {
         self.abilities.contains(ability)
+    }
+
+    pub fn has_subtype(&self, s: &str) -> bool {
+        self.subtypes.iter().any(|x| x == s)
     }
 
     pub fn is_permanent_card(&self) -> bool {
