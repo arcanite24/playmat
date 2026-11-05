@@ -449,6 +449,9 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::TapTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
+        CostDef::CrewCost { value } => {
+            crew_candidates(game, seat, id).iter().map(|c| game.power_toughness(*c).0.max(0)).sum::<i32>() >= *value
+        }
         CostDef::DiscardCardCost { filter } => {
             game.player(seat).hand.iter().any(|c| game.filter_matches(filter, seat, Some(id), *c))
         }
@@ -1210,6 +1213,22 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 game.obj_mut(o).tapped = true;
             }
         }
+        CostDef::CrewCost { value } => {
+            let possible = crew_candidates(game, seat, id);
+            let Some(chosen) = choose_cards(game, d, seat, &possible, &possible, 0, usize::MAX, "tap") else {
+                return false;
+            };
+            let mut power = 0;
+            for o in chosen {
+                if !game.obj(o).tapped {
+                    game.obj_mut(o).tapped = true;
+                    power += game.power_toughness(o).0;
+                }
+            }
+            if power < *value {
+                return false;
+            }
+        }
         CostDef::SacrificeTargetCost { filter } => {
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
@@ -1958,6 +1977,7 @@ fn apply_each_effect(
                 token,
                 amount,
                 tapped_and_attacking,
+                attacking,
                 sacrifice_at_end_of_combat,
                 haste_until_end_of_turn,
             } => {
@@ -1977,6 +1997,10 @@ fn apply_each_effect(
                         let o = game.obj_mut(id);
                         o.tapped = true;
                         o.attacking = Some(defender);
+                    }
+                    if *attacking {
+                        let defender = game.opponent(controller);
+                        game.obj_mut(id).attacking = Some(defender);
                     }
                     if *haste_until_end_of_turn {
                         grant(game, id, &AbilityDef::HasteAbility);
@@ -2884,6 +2908,23 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::AddCardTypeSourceEffect { types, duration } => {
+                let (src, zcc) = source;
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    let old = game.obj(src).def.clone();
+                    let mut def = (*old).clone();
+                    for t in types {
+                        if !def.types.contains(t) {
+                            def.types.push(*t);
+                        }
+                    }
+                    let o = game.obj_mut(src);
+                    if *duration == Duration::EndOfTurn && o.until_end_of_turn_def.is_none() {
+                        o.until_end_of_turn_def = Some(old);
+                    }
+                    o.def = Arc::new(def);
+                }
+            }
             EffectDef::LoseGainEffect => {
                 gain_life(game, controller, 2);
                 for s in &players {
@@ -3171,7 +3212,8 @@ fn apply_each_effect(
             | EffectDef::AttachEffect
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
-            | EffectDef::GraveyardFromAnywhereExileReplacementEffect => {}
+            | EffectDef::GraveyardFromAnywhereExileReplacementEffect
+            | EffectDef::SetBasePowerSourceEffect { .. } => {}
         }
     }
 }
@@ -3556,6 +3598,20 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         }
     }
     game.pending.extend(fired);
+}
+
+/// The creatures that can crew `vehicle`: its controller's other untapped creatures
+fn crew_candidates(game: &Game, seat: Seat, vehicle: ObjId) -> Vec<ObjId> {
+    game.battlefield
+        .iter()
+        .copied()
+        .filter(|c| {
+            *c != vehicle
+                && game.obj(*c).controller == seat
+                && !game.obj(*c).tapped
+                && game.has_type(*c, CardType::Creature)
+        })
+        .collect()
 }
 
 /// Untaps a permanent, unless it has a stun counter: then one comes off instead

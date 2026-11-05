@@ -740,6 +740,9 @@ impl Game {
         for a in &o.def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 for e in effects {
+                    if let EffectDef::SetBasePowerSourceEffect { amount } = e {
+                        p = self.value(amount, o.controller, id, 0);
+                    }
                     if let EffectDef::SetBasePowerToughnessPlusOneSourceEffect { amount } = e {
                         p = self.value(amount, o.controller, id, 0);
                         t = p + 1;

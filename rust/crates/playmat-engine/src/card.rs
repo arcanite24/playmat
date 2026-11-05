@@ -506,6 +506,8 @@ pub enum CostDef {
     SacrificeTargetCost { filter: Filter },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
     TapTargetCost { filter: Filter, amount: usize },
+    /// crew: tap any number of other untapped creatures you control with total power `value` or more
+    CrewCost { value: i32 },
     /// one of these, the player's choice when both can be paid
     OrCost { costs: Vec<CostDef> },
     /// discard a card of the filter
@@ -643,6 +645,9 @@ pub enum EffectDef {
         amount: Amount,
         #[serde(default)]
         tapped_and_attacking: bool,
+        /// attacking, untapped
+        #[serde(default)]
+        attacking: bool,
         #[serde(default)]
         sacrifice_at_end_of_combat: bool,
         #[serde(default)]
@@ -927,6 +932,10 @@ pub enum EffectDef {
     FloodpitsDrownerEffect,
     /// `first` damage to the first target, then `second` damage to the second
     DamageTargetAndTargetEffect { first: i32, second: i32 },
+    /// the source gains card types (until end of turn): a crewed Vehicle becomes an artifact creature
+    AddCardTypeSourceEffect { types: Vec<CardType>, duration: Duration },
+    /// a characteristic-defining ability: the source's base power is a number (Lumbering Worldwagon)
+    SetBasePowerSourceEffect { amount: Amount },
     /// a static ability's effect: a card or token that would be put into a graveyard from anywhere is exiled
     /// instead (Rest in Peace)
     GraveyardFromAnywhereExileReplacementEffect,

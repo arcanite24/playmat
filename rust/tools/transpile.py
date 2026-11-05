@@ -949,6 +949,11 @@ class Translator:
         if cls == 'InvestigateEffect' and len(args) <= 1 and args != ['true'] and args != ['false']:
             return {'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'),
                     'amount': self.value('amount', args[0]) if args else 1}
+        if cls == 'CreateTokenEffect' and len(args) == 4 and [a.strip() for a in args[2:]] == ['false', 'true']:
+            return {'class': cls, 'token': self.value('token', args[0].strip()),
+                    'amount': self.value('amount', args[1].strip()), 'attacking': True}
+        if cls == 'SetBasePowerSourceEffect' and len(args) == 1:
+            return {'class': cls, 'amount': self.amount(args[0])}
         # created tapped and attacking
         if cls == 'CreateTokenEffect' and len(args) == 4 and [a.strip() for a in args[2:]] == ['true', 'true']:
             return {'class': cls, 'token': self.value('token', args[0].strip()),
@@ -1170,6 +1175,12 @@ class Translator:
                     'cost': [{'class': 'ManaCost', 'cost': '{2}'}, {'class': 'SacrificeSourceCost'}]}
         if cls == 'TreasureAbility' and args in (['true'], ['false']):
             return {'class': 'AnyColorManaAbility', 'java': cls, 'cost': [{'class': 'SacrificeSourceCost'}]}
+        # crew N: tap creatures with total power N: this becomes an artifact creature until end of turn
+        if cls == 'CrewAbility' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': 'SimpleActivatedAbility', 'java': cls,
+                    'effects': [{'class': 'AddCardTypeSourceEffect', 'types': ['ARTIFACT', 'CREATURE'],
+                                 'duration': 'EndOfTurn'}],
+                    'cost': [{'class': 'CrewCost', 'value': int(args[0])}]}
         if cls == 'AnyColorManaAbility' and not args:
             return {'class': cls, 'java': cls}
         # "{T}: Add {R}. Activate only if …"
