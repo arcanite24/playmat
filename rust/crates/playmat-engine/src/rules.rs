@@ -511,8 +511,14 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::TapTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
+        // `CrewCost.canPay` looks without a source, so "another" doesn't leave out the vehicle itself (crewed, it
+        // counts its own power)
         CostDef::CrewCost { value } => {
-            crew_candidates(game, seat, id).iter().map(|c| game.power_toughness(*c).0.max(0)).sum::<i32>() >= *value
+            let mut sum: i32 = crew_candidates(game, seat, id).iter().map(|c| game.power_toughness(*c).0.max(0)).sum();
+            if !o.tapped && game.has_type(id, CardType::Creature) {
+                sum += game.power_toughness(id).0.max(0);
+            }
+            sum >= *value
         }
         CostDef::DiscardCardCost { filter } => {
             game.player(seat).hand.iter().any(|c| game.filter_matches(filter, seat, Some(id), *c))
@@ -3535,7 +3541,13 @@ fn choose_cards(
         let required = chosen.len() < min && !left.is_empty();
         match ask(game, d, seat, &Query::Cards { objs: left.clone(), required }) {
             Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
-            Answer::Obj(o) if left.contains(&o) => chosen.push(o),
+            Answer::Obj(o) if left.contains(&o) => {
+                chosen.push(o);
+                // `TargetImpl.isChoiceCompleted`: nothing more to choose
+                if chosen.len() >= min && possible.iter().all(|c| chosen.contains(c)) {
+                    return Some(chosen);
+                }
+            }
             Answer::Stop => return None,
             Answer::Obj(_) | Answer::Player(_) | Answer::Unknown => {}
             _ if chosen.len() >= min || !required => return Some(chosen),
