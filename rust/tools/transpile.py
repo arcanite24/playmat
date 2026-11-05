@@ -199,6 +199,10 @@ CUSTOM = {
     'PeltCollectorTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'PeltCollectorTriggeredAbility', 'on': {'e': 'pelt_collector'},
         'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}]},
+    # when this dies, if it was a creature, return it to the battlefield; it's an enchantment
+    'EnduringGlimmerTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'EnduringGlimmerTriggeredAbility', 'on': {'e': 'dies_if_creature'},
+        'effects': [{'class': 'EnduringGlimmerReturnEffect'}]},
     'SurrakElusiveHunterTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'SurrakElusiveHunterTriggeredAbility', 'on': {'e': 'surrak_targeted'},
         'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},

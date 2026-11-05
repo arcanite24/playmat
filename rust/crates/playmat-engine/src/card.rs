@@ -290,6 +290,8 @@ pub enum Trigger {
     Attacks,
     /// this dies (`DiesSourceTriggeredAbility`)
     Dies,
+    /// dies, if it was a creature (the Enduring cycle's `EnduringGlimmerTriggeredAbility`)
+    DiesIfCreature,
     EntersOrDies,
     EntersOrAttacks,
     /// a permanent of the filter enters (`EntersBattlefieldAllTriggeredAbility`, `…ControlledTriggeredAbility`,
@@ -936,6 +938,8 @@ pub enum EffectDef {
     ExileGraveyardAllTargetPlayerEffect,
     /// exile all cards from all graveyards
     ExileGraveyardAllPlayersEffect,
+    /// return the source to the battlefield; it's an enchantment, not a creature, from then on
+    EnduringGlimmerReturnEffect,
     /// remove up to `amount` counters, of any kinds, from the target (Glissa Sunslayer)
     RemoveUpToAmountCountersEffect { amount: i32 },
     /// Fabled Passage: search your library for a card of the filter, shuffle, put it onto the battlefield tapped,

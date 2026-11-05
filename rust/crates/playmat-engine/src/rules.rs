@@ -3041,6 +3041,20 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::EnduringGlimmerReturnEffect => {
+                let card = source.0;
+                if matches!(game.obj(card).zone, Zone::Battlefield | Zone::Stack) {
+                    continue;
+                }
+                let old = game.obj(card).def.clone();
+                let mut def = (*old).clone();
+                def.types = vec![CardType::Enchantment];
+                def.subtypes.clear();
+                let o = game.obj_mut(card);
+                o.def = Arc::new(def);
+                o.printed_def = Some(old);
+                enter_battlefield(game, d, card, controller, false);
+            }
             EffectDef::ExileGraveyardAllPlayersEffect => {
                 for p in 0..game.seats() {
                     for c in game.player(p).graveyard.clone() {

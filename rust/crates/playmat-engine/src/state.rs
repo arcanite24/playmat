@@ -111,6 +111,8 @@ pub struct Obj {
     pub cast: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
+    /// what it was before an effect changed its characteristics (`def`) for as long as it stays on the battlefield
+    pub printed_def: Option<Arc<CardDef>>,
     /// the permanent (and its zone change count) this Aura is attached to
     pub attached_to: Option<(ObjId, u32)>,
     /// cast as its adventure: the whole card, while `def` is the adventure's
@@ -414,6 +416,7 @@ impl Game {
             kicked: false,
             cast: false,
             until_end_of_turn_def: None,
+            printed_def: None,
             attached_to: None,
             adventurer: None,
             front: None,
@@ -905,6 +908,7 @@ impl Game {
             sources.extend(self.battlefield.iter().copied());
             fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Dies | Trigger::EntersOrDies | Trigger::LeavesBattlefield => src == id,
+                Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source itself always counts ("this or another"); others must match
                 Trigger::DiesAll { filter, include_self } => {
                     if src == id {
@@ -981,6 +985,9 @@ impl Game {
                 o.cast = false;
                 o.attached_to = None;
                 if let Some(def) = o.until_end_of_turn_def.take() {
+                    o.def = def;
+                }
+                if let Some(def) = o.printed_def.take() {
                     o.def = def;
                 }
                 o.blocking.clear();
