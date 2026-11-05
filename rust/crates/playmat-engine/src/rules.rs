@@ -541,11 +541,9 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
                 })
             })
             .collect();
-        mode = loop {
-            match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
-                Answer::Mode(k) if available.contains(&k) => break k,
-                _ => return false,
-            }
+        mode = match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
+            Answer::Mode(k) if available.contains(&k) => k,
+            _ => return false,
         };
         if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
             top.mode = mode;
