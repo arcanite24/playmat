@@ -314,6 +314,8 @@ pub enum Trigger {
     /// this becomes the target of a spell of the filter (`BecomesTargetSourceTriggeredAbility`); with a target
     /// pointer, at that spell's controller
     BecomesTargetOfSpell { filter: Filter },
+    /// valiant: this becomes the target of a spell or ability you control for the first time each turn
+    Valiant,
     /// a player (`who`) sacrifices a permanent of the filter (`SacrificePermanentTriggeredAbility`)
     Sacrificed { filter: Filter, who: String },
     /// `who` ("you", "opponent") draws a card; with a target pointer, at that player
@@ -756,6 +758,16 @@ pub enum EffectDef {
     ExtinctionEventEffect,
     /// destroy all creatures; gain 1 life for each destroyed (Fumigate)
     FumigateEffect,
+    /// exile the top `amount` cards (choosing one of them with `choose_one`); you may play them until the end of
+    /// this turn (`EndOfTurn`) or of your next one (`UntilEndOfYourNextTurn`)
+    ExileTopXMayPlayUntilEffect {
+        amount: Amount,
+        #[serde(default)]
+        choose_one: bool,
+        duration: String,
+    },
+    /// each opponent can't draw more than one card each turn
+    NarsetParterOfVeilsEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card
     ProphesiedEndEffect,
     /// exile each opponent's graveyard
@@ -1039,6 +1051,11 @@ pub enum AbilityDef {
     },
     /// cast from the graveyard for this cost, then exiled
     FlashbackAbility {
+        cost: String,
+        rule: String,
+    },
+    /// cast from hand for `cost` instead if an opponent lost life this turn (a second spell ability)
+    SpectacleAbility {
         cost: String,
         rule: String,
     },
@@ -1428,6 +1445,16 @@ impl CardDef {
         self.abilities.iter().find_map(|a| match a {
             AbilityDef::FlashbackAbility { cost, .. } => {
                 Some(CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() })
+            }
+            _ => None,
+        })
+    }
+
+    /// The spectacle ability's index and the card with its spectacle cost.
+    pub fn spectacle(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::SpectacleAbility { cost, .. } => {
+                Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() }))
             }
             _ => None,
         })

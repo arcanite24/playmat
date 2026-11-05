@@ -85,6 +85,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.lands_played = 0;
                 p.attacked = false;
                 p.life_lost = 0;
+                p.drawn = 0;
                 p.permanent_left = false;
                 p.life_gains = 0;
                 p.spells_cast = 0;
@@ -197,8 +198,17 @@ fn end_step(game: &mut Game, step: Step) {
 /// Draws `n` cards, one at a time: each card drawn is a `DREW_CARD` event for "whenever … draws" triggers.
 pub fn draw(game: &mut Game, seat: Seat, n: usize) {
     for _ in 0..n {
+        // Narset, Parter of Veils: each opponent can't draw more than one card each turn
+        if game.player(seat).drawn >= 1
+            && game.any_static(|g, src, e| {
+                matches!(e, EffectDef::NarsetParterOfVeilsEffect) && g.obj(src).controller != seat
+            })
+        {
+            continue;
+        }
         match game.player(seat).library.first().copied() {
             Some(id) => {
+                game.player_mut(seat).drawn += 1;
                 game.move_to(id, Zone::Hand);
                 let sources: Vec<ObjId> = game.trigger_sources();
                 let fired = game
@@ -345,6 +355,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             }
         } else if castable(game, seat, *id, &o.def)
             || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
+            || spectacle(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
         {
             out.push(*id);
@@ -356,10 +367,14 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             out.push(*id);
         }
     }
-    // a card on an adventure: its creature, from exile
+    // a card on an adventure: its creature, from exile; a card you may play from exile
     for id in game.exile.iter() {
         let o = game.obj(*id);
         if o.on_adventure && o.owner == seat && castable(game, seat, *id, &o.def) {
+            out.push(*id);
+        } else if o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
+            && if o.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, *id, &o.def) }
+        {
             out.push(*id);
         }
     }
@@ -466,6 +481,14 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         && can_pay(game, seat, &modified_cost(game, seat, id, def.cost.clone()))
         && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
         && has_targets(game, seat, def)
+}
+
+/// Spectacle: the card's ability index and the card with its spectacle cost, if an opponent lost life this turn and
+/// it can be cast that way.
+fn spectacle(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    let (k, def) = game.obj(id).def.spectacle()?;
+    (game.condition_holds(Some(&Condition::OpponentsLostLife), seat, id) && castable(game, seat, id, &def))
+        .then_some((k, def))
 }
 
 /// Whether the spell has its targets: for a modal spell, whether some mode does.
@@ -675,6 +698,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // a card in hand with an ability (cycling, channel): the picker, with its spell or land play (a0) and the abilities, if there is a choice
     if game.obj(id).zone == Zone::Hand && game.obj(id).def.adventure.is_none() {
         let mut options = activatable(game, seat, id);
+        let spectacle = spectacle(game, seat, id);
+        if let Some((k, _)) = &spectacle {
+            options.push(*k);
+        }
         if !options.is_empty() {
             let def = game.obj(id).def.clone();
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
@@ -688,6 +715,19 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     _ => return,
                 }
             };
+            if let Some((k, def)) = spectacle.filter(|(k, _)| *k == index) {
+                // cast for its spectacle cost (the whole card comes back as it leaves the stack)
+                let _ = k;
+                let before = game.clone();
+                let full = game.obj(id).def.clone();
+                let o = game.obj_mut(id);
+                o.adventurer = Some(full);
+                o.def = Arc::new(def);
+                if !cast(game, d, seat, id) {
+                    *game = before;
+                }
+                return;
+            }
             if index != 0 {
                 let before = game.clone();
                 if !activate(game, d, seat, id, index) {
@@ -986,6 +1026,22 @@ fn choose_targets(
 /// a ward trigger countering it
 fn ward(game: &mut Game) {
     let Some(top) = game.stack.last().cloned() else { return };
+    // valiant: the first time each turn a permanent becomes a target (`NumberOfTimesPermanentTargetedATurnWatcher`)
+    let mut first = Vec::new();
+    for t in top.targets.iter().flatten() {
+        let Target::Obj(o) = *t else { continue };
+        if game.obj(o).zone != Zone::Battlefield {
+            continue;
+        }
+        let turn = game.turn;
+        let o_ = game.obj_mut(o);
+        o_.targeted = if o_.targeted.0 == turn { (turn, o_.targeted.1 + 1) } else { (turn, 1) };
+        if o_.targeted.1 == 1 && o_.controller == top.controller {
+            first.push(o);
+        }
+    }
+    let fired = game.triggers(first.clone(), |_, src, _, t| matches!(t, Trigger::Valiant) && first.contains(&src));
+    game.pending.extend(fired);
     let mut fired = Vec::new();
     for t in top.targets.iter().flatten() {
         let Target::Obj(o) = *t else { continue };
@@ -1691,7 +1747,7 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     }
     if game.obj(id).zone == Zone::Stack {
         // an adventure goes on an adventure: exiled, its creature castable from there
-        if game.obj(id).adventurer.is_some() && !game.obj(id).flashback {
+        if game.obj(id).adventurer.as_ref().is_some_and(|f| f.adventure.is_some()) && !game.obj(id).flashback {
             game.move_to(id, Zone::Exile);
             game.obj_mut(id).on_adventure = true;
         } else {
@@ -2219,6 +2275,31 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::ExileTopXMayPlayUntilEffect { amount, choose_one, duration } => {
+                let n = v!(amount).max(0) as usize;
+                let cards: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
+                for c in &cards {
+                    game.move_to(*c, Zone::Exile);
+                }
+                let mut cards: Vec<ObjId> = cards.into_iter().filter(|c| game.obj(*c).zone == Zone::Exile).collect();
+                if *choose_one && cards.len() > 1 {
+                    let Some(chosen) = choose_cards(game, d, controller, &cards, &cards, 1, 1, "choose") else {
+                        return;
+                    };
+                    cards = chosen;
+                }
+                // through the end of this turn, or of the controller's next turn
+                let until = if duration == "EndOfTurn" {
+                    game.turn
+                } else if game.active == Some(controller) {
+                    game.turn + game.seats() as u32
+                } else {
+                    game.turn + 1
+                };
+                for c in cards {
+                    game.obj_mut(c).may_play = Some((controller, until));
+                }
+            }
             EffectDef::BoomerangBasicsEffect => {
                 if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
                     let yours = game.obj(o).controller == controller;
@@ -2350,6 +2431,7 @@ fn apply_each_effect(
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
             | EffectDef::ClarionConquerorEffect
+            | EffectDef::NarsetParterOfVeilsEffect
             | EffectDef::GevScaledScorchEntersEffect
             | EffectDef::LovestruckBeastEffect
             | EffectDef::GainPlusOneLifeReplacementEffect

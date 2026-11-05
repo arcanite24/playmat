@@ -131,6 +131,10 @@ CUSTOM = {
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
+    'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
+    # a 2/2 Cadet that gains haste until end of turn
+    'StingerquillCharmEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('CadetToken'), 'amount': 1,
+                                        'haste_until_end_of_turn': True},
     'ProphesiedEndEffect': lambda: {'class': 'ProphesiedEndEffect'},
     'SoulGuideLanternEffect': lambda: {'class': 'SoulGuideLanternEffect'},
     'IngrisStingerquillEffect': lambda: {'class': 'IngrisStingerquillEffect'},
@@ -184,6 +188,7 @@ ABILITIES = {
     'EntersBattlefieldTappedAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
     'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
+    'SpectacleAbility': [(None, 'this'), ('cost', 'mana_costs')],
     # enters with an effect applied, if the condition holds (a replacement effect, not a trigger)
     'EntersBattlefieldAbility': [('effect', 'effect'), ('condition', 'condition'), (None, 'string'), (None, 'string')],
     'EntersBattlefieldAllTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('optional', 'bool')],
@@ -439,7 +444,8 @@ PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPl
 
 # chained calls that only change texts, hints or the AI's view
 TEXT_SETTERS = {'setText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
-                'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription'}
+                'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
+                'withTextOptions'}
 
 # abilities every card has, which the constructor doesn't add
 IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility'}
@@ -843,6 +849,11 @@ class Translator:
             return {'class': cls, 'draw': int(args[0]), 'discard': int(args[1])}
         if cls == 'CreateTokenTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())):
             return {'class': cls, 'token': token(m.group(1))}
+        if cls == 'ExileTopXMayPlayUntilEffect' and len(args) in (2, 3) \
+                and args[-1].strip() in ('Duration.EndOfTurn', 'Duration.UntilEndOfYourNextTurn'):
+            return {'class': cls, 'amount': self.value('amount', args[0]),
+                    'choose_one': len(args) == 3 and args[1].strip() == 'true',
+                    'duration': args[-1].strip().split('.')[1]}
         if cls == 'BasicManaEffect' and len(args) == 1:
             a = args[0].strip()
             n = re.fullmatch(r'newMana\((\d+),(\d+),(\d+),(\d+),(\d+),0,0,(\d+)\)', a.replace(' ', ''))
@@ -1267,6 +1278,8 @@ class Translator:
             return {'class': 'CyclingAbility', 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': m.group(1)},
                                                                      {'class': 'DiscardSourceCost'}],
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]}
+        if cls == 'ValiantTriggeredAbility' and n == 1:
+            return out({'e': 'valiant'}, args[0])
         if cls == 'BecomesTargetSourceTriggeredAbility' and n == 4 and args[2] in ('SetTargetPointer.PLAYER', 'SetTargetPointer.NONE'):
             return out({'e': 'becomes_target_of_spell', 'filter': self.filter(args[1])}, args[0], flag(args[3]),
                        args[2] == 'SetTargetPointer.PLAYER')

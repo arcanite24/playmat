@@ -121,6 +121,10 @@ pub struct Obj {
     pub flashback: bool,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
     pub exile_instead_of_dying: bool,
+    /// in exile: this player may play it through the end of this turn number
+    pub may_play: Option<(Seat, u32)>,
+    /// the turn and how many times this permanent became a target in it
+    pub targeted: (u32, u32),
     /// exiled "on an adventure": its owner may cast the creature from exile
     pub on_adventure: bool,
     /// the attackers it blocks
@@ -184,6 +188,8 @@ pub struct Player {
     pub attacked: bool,
     /// life lost this turn
     pub life_lost: i32,
+    /// cards drawn this turn
+    pub drawn: u32,
     /// times they gained life this turn
     pub life_gains: u32,
     /// spells they cast this turn, and how many of them were instants or sorceries
@@ -391,6 +397,8 @@ impl Game {
             front: None,
             flashback: false,
             exile_instead_of_dying: false,
+            may_play: None,
+            targeted: (0, 0),
             on_adventure: false,
             blocking: Vec::new(),
             blocked: false,
@@ -860,6 +868,7 @@ impl Game {
             }
             o.on_adventure = false;
             o.exile_instead_of_dying = false;
+            o.may_play = None;
         }
         let owner = self.obj(id).owner;
         {
