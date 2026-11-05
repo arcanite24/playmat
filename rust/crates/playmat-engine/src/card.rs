@@ -695,6 +695,9 @@ pub enum EffectDef {
     DoIfCostPaid {
         effect: Box<EffectDef>,
         cost: Vec<CostDef>,
+        /// more effects done if it's paid (`.addEffect(…)`)
+        #[serde(default)]
+        also: Vec<EffectDef>,
     },
     /// the permanents of `filter` you control have `ability` (static), or gain it (resolving, until end of turn)
     GainAbilityControlledEffect {

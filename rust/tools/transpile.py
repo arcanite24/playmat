@@ -893,6 +893,12 @@ class Translator:
                 raise Unsupported('setCanWorksOnStackOnly on ' + e.get('class'))
             e['stack_only'] = True
             return e
+        # `new DoIfCostPaid(…).addEffect(…)`: more effects if it's paid
+        m = re.fullmatch(r'(new DoIfCostPaid\(.*\))\.addEffect\((new .*)\)', self.strip_setters(expr), re.S)
+        if m and balanced(m.group(1)):
+            e = self.effect(m.group(1))
+            e.setdefault('also', []).append(self.effect(m.group(2)))
+            return e
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             return obj
@@ -1751,6 +1757,22 @@ def card_conditions(source):
     """condition fields (`private static final Condition condition = new …;`) -> their texts, by name"""
     return {m.group(1): canonical(m.group(2))
             for m in re.finditer(r'static final \w*Condition (\w+)\s*=\s*(.*?);', source, re.S)}
+
+
+def balanced(call):
+    """whether `new X(…)`'s first parenthesis closes at its end (the text is one call, not a chain)"""
+    depth, quoted = 0, False
+    start = call.index('(')
+    for i, ch in enumerate(call[start:], start):
+        if ch == '"':
+            quoted = not quoted
+        elif not quoted and ch == '(':
+            depth += 1
+        elif not quoted and ch == ')':
+            depth -= 1
+            if depth == 0:
+                return i == len(call) - 1
+    return False
 
 
 def token(cls):

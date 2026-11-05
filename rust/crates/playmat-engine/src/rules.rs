@@ -2112,7 +2112,12 @@ fn apply_each_effect(
                     sacrifice(game, o);
                 }
             }
-            EffectDef::DoIfCostPaid { effect, cost } => {
+            EffectDef::DoIfCostPaid { effect, cost, also } => {
+                // a cost that can't be paid isn't asked about (mana always counts as payable)
+                let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
+                if !others.iter().all(|c| can_pay_cost(game, controller, source.0, c)) {
+                    continue;
+                }
                 let q = Query::YesNo { message: format!("Pay {}?", ability_mana_cost(cost).text) };
                 let pay = loop {
                     match ask(game, d, controller, &q) {
@@ -2123,8 +2128,11 @@ fn apply_each_effect(
                 };
                 if pay {
                     let before = game.clone();
-                    if pay_mana(game, d, controller, &ability_mana_cost(cost)) {
+                    if others.iter().all(|c| pay_cost(game, d, controller, source.0, c))
+                        && pay_mana(game, d, controller, &ability_mana_cost(cost))
+                    {
                         apply_effects(game, d, item, std::slice::from_ref(&**effect), legal, source);
+                        apply_effects(game, d, item, also, legal, source);
                     } else if !d.stopped() {
                         // `DoIfCostPaid` undoes a payment that was cancelled
                         *game = before;
