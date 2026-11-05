@@ -3509,8 +3509,13 @@ fn apply_each_effect(
                     Arc::make_mut(&mut game.stack).remove(at);
                 }
             }
-            EffectDef::CounterUnlessPaysEffect { cost, exile } => {
+            EffectDef::CounterUnlessPaysEffect { cost, generic, exile } => {
                 let Some(Target::Obj(spell)) = target else { continue };
+                let cost = match generic {
+                    Some(a) => vec![CostDef::ManaCost { cost: format!("{{{}}}", v!(a).max(0)) }],
+                    None => cost.clone(),
+                };
+                let cost = &cost;
                 if game.obj(spell).zone != Zone::Stack {
                     continue;
                 }

@@ -1017,6 +1017,8 @@ class Translator:
         if cls == 'EntersBattlefieldWithXCountersEffect' and len(args) == 1:
             return {'class': 'AddCountersSourceEffect', 'counter': self.value('counter', args[0].strip()),
                     'amount': {'v': 'x'}}
+        if cls == 'CounterUnlessPaysEffect' and len(args) == 1 and not args[0].strip().startswith('new '):
+            return {'class': cls, 'generic': self.value('amount', args[0].strip())}
         if cls == 'SetBasePowerSourceEffect' and len(args) == 1:
             return {'class': cls, 'amount': self.amount(args[0])}
         # created tapped and attacking

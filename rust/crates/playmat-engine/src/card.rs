@@ -915,7 +915,11 @@ pub enum EffectDef {
     TapSourceEffect,
     /// counters the target spell unless its controller pays `cost`
     CounterUnlessPaysEffect {
+        #[serde(default)]
         cost: Vec<CostDef>,
+        /// `{X}`, worked out as it resolves, instead of a fixed cost
+        #[serde(default)]
+        generic: Option<Amount>,
         /// exiled instead of put into the graveyard
         #[serde(default)]
         exile: bool,
