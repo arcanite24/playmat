@@ -86,6 +86,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.attacked = false;
                 p.life_lost = 0;
                 p.drawn = 0;
+                p.noncreature_cast = 0;
                 p.permanent_left = false;
                 p.life_gains = 0;
                 p.spells_cast = 0;
@@ -476,7 +477,14 @@ fn can_play_land(game: &Game, seat: Seat) -> bool {
 
 /// Whether the card (or its adventure, `def`) can be cast now: timing, the one-spell limit, its costs, its targets.
 fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
-    (def.is(CardType::Instant) || def.has(&AbilityDef::FlashAbility) || sorcery_speed(game, seat))
+    (def.is(CardType::Instant) || def.has(&AbilityDef::FlashAbility) || sorcery_speed(game, seat) || {
+        game.any_static(|g, src, e| match e {
+            EffectDef::CastAsThoughItHadFlashAllEffect { filter } => {
+                g.obj(src).controller == seat && g.filter_matches(filter, seat, Some(src), id)
+            }
+            _ => false,
+        })
+    })
         && !cant_cast_more(game, seat)
         && can_pay(game, seat, &modified_cost(game, seat, id, def.cost.clone()))
         && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
@@ -907,6 +915,9 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         let instant_or_sorcery = def.is(CardType::Instant) || def.is(CardType::Sorcery);
         let p = game.player_mut(seat);
         p.spells_cast += 1;
+        if !def.is(CardType::Creature) {
+            p.noncreature_cast += 1;
+        }
         if instant_or_sorcery {
             p.instants_sorceries_cast += 1;
         }
@@ -920,6 +931,7 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
         Trigger::SpellCast { filter, who } => Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell),
         Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
+        Trigger::CastSecondSpell { who } => Game::whose(who, you, seat) && g.player(seat).spells_cast == 2,
         _ => false,
     });
     let mut fired = fired;
@@ -1218,7 +1230,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
 
 /// `PlayerImpl.discard`: with no more cards than asked for, all of them; else the player chooses, and they're
 /// discarded in the order chosen.
-fn discard(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32) {
+fn discard(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32) -> Vec<ObjId> {
     let hand = game.player(seat).hand.clone();
     let amount = amount.max(0) as usize;
     let chosen = if hand.len() <= amount {
@@ -1226,12 +1238,13 @@ fn discard(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32) {
     } else {
         match choose_cards(game, d, seat, &hand, &hand, amount, amount, "discard") {
             Some(c) => c,
-            None => return,
+            None => return Vec::new(),
         }
     };
-    for c in chosen {
-        game.move_to(c, Zone::Graveyard);
+    for c in &chosen {
+        game.move_to(*c, Zone::Graveyard);
     }
+    chosen
 }
 
 /// `PlayerImpl.searchLibrary` with `TargetCardInLibrary.choose`: the whole library is shown and the player picks
@@ -2300,6 +2313,24 @@ fn apply_each_effect(
                     game.obj_mut(c).may_play = Some((controller, until));
                 }
             }
+            EffectDef::MagebaneLizardEffect => {
+                for p in players.clone() {
+                    let n = game.player(p).noncreature_cast as i32;
+                    if n > 0 {
+                        deal_damage(game, source.0, Target::Player(p), n, false);
+                    }
+                }
+            }
+            EffectDef::ConniveSourceEffect => {
+                let (o, zcc) = source;
+                let p = game.obj(o).controller;
+                let there = game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc;
+                draw(game, p, 1);
+                let n = discard(game, d, p, 1).iter().filter(|c| !game.obj(**c).is(CardType::Land)).count();
+                if there && n > 0 {
+                    game.obj_mut(o).add_counters("+1/+1", n as i32);
+                }
+            }
             EffectDef::BoomerangBasicsEffect => {
                 if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
                     let yours = game.obj(o).controller == controller;
@@ -2431,6 +2462,7 @@ fn apply_each_effect(
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
             | EffectDef::ClarionConquerorEffect
+            | EffectDef::CastAsThoughItHadFlashAllEffect { .. }
             | EffectDef::NarsetParterOfVeilsEffect
             | EffectDef::GevScaledScorchEntersEffect
             | EffectDef::LovestruckBeastEffect

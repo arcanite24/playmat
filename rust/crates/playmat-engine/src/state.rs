@@ -190,6 +190,8 @@ pub struct Player {
     pub life_lost: i32,
     /// cards drawn this turn
     pub drawn: u32,
+    /// noncreature spells cast this turn
+    pub noncreature_cast: u32,
     /// times they gained life this turn
     pub life_gains: u32,
     /// spells they cast this turn, and how many of them were instants or sorceries

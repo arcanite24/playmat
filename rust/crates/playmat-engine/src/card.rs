@@ -314,6 +314,8 @@ pub enum Trigger {
     /// this becomes the target of a spell of the filter (`BecomesTargetSourceTriggeredAbility`); with a target
     /// pointer, at that spell's controller
     BecomesTargetOfSpell { filter: Filter },
+    /// `who` casts their second spell this turn
+    CastSecondSpell { who: String },
     /// valiant: this becomes the target of a spell or ability you control for the first time each turn
     Valiant,
     /// a player (`who`) sacrifices a permanent of the filter (`SacrificePermanentTriggeredAbility`)
@@ -758,6 +760,13 @@ pub enum EffectDef {
     ExtinctionEventEffect,
     /// destroy all creatures; gain 1 life for each destroyed (Fumigate)
     FumigateEffect,
+    /// this connives: its controller draws a card, then discards one; a nonland card discarded puts a +1/+1 counter
+    /// on it
+    ConniveSourceEffect,
+    /// deals damage to the target player equal to the noncreature spells they cast this turn
+    MagebaneLizardEffect,
+    /// you may cast spells of the filter as though they had flash
+    CastAsThoughItHadFlashAllEffect { filter: Filter },
     /// exile the top `amount` cards (choosing one of them with `choose_one`); you may play them until the end of
     /// this turn (`EndOfTurn`) or of your next one (`UntilEndOfYourNextTurn`)
     ExileTopXMayPlayUntilEffect {

@@ -131,6 +131,7 @@ CUSTOM = {
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
+    'MagebaneLizardEffect': lambda: {'class': 'MagebaneLizardEffect'},
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
     # a 2/2 Cadet that gains haste until end of turn
     'StingerquillCharmEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('CadetToken'), 'amount': 1,
@@ -345,6 +346,9 @@ def predicate(text, subtypes):
         return {'p': 'another'}
     if text == 'AdventurePredicate.instance':
         return {'p': 'adventure'}
+    # two players: the defending player is the opponent
+    if text == 'DefendingPlayerOwnsCardPredicate.instance':
+        return {'p': 'owner', 'who': 'opponent'}
     # an outlaw: an Assassin, Mercenary, Pirate, Rogue or Warlock
     if text == 'CutDownPredicate.instance':
         return {'p': 'total_power_toughness', 'n': 5}
@@ -854,6 +858,11 @@ class Translator:
             return {'class': cls, 'amount': self.value('amount', args[0]),
                     'choose_one': len(args) == 3 and args[1].strip() == 'true',
                     'duration': args[-1].strip().split('.')[1]}
+        if cls == 'CastAsThoughItHadFlashAllEffect' and len(args) == 3 and args[0].strip() == 'Duration.WhileOnBattlefield' \
+                and args[2].strip() == 'false':
+            return {'class': cls, 'filter': self.filter(args[1])}
+        if cls == 'ConniveSourceEffect' and args in (['"{this}"'], []):
+            return {'class': cls}
         if cls == 'BasicManaEffect' and len(args) == 1:
             a = args[0].strip()
             n = re.fullmatch(r'newMana\((\d+),(\d+),(\d+),(\d+),(\d+),0,0,(\d+)\)', a.replace(' ', ''))
@@ -1278,6 +1287,8 @@ class Translator:
             return {'class': 'CyclingAbility', 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': m.group(1)},
                                                                      {'class': 'DiscardSourceCost'}],
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]}
+        if cls == 'CastSecondSpellTriggeredAbility' and n == 2:
+            return out({'e': 'cast_second_spell', 'who': self.value('target_controller', args[1])}, args[0])
         if cls == 'ValiantTriggeredAbility' and n == 1:
             return out({'e': 'valiant'}, args[0])
         if cls == 'BecomesTargetSourceTriggeredAbility' and n == 4 and args[2] in ('SetTargetPointer.PLAYER', 'SetTargetPointer.NONE'):
@@ -1305,6 +1316,10 @@ class Translator:
                 return out({'e': 'spell_cast', 'filter': [], 'who': 'any'}, args[0], flag(args[1]))
             if n == 3 or (n == 4 and args[3] == 'SetTargetPointer.NONE'):
                 return out({'e': 'spell_cast', 'filter': self.filter(args[1]), 'who': 'any'}, args[0], flag(args[2]))
+            if n == 4 and args[3] == 'SetTargetPointer.PLAYER':
+                a = out({'e': 'spell_cast', 'filter': self.filter(args[1]), 'who': 'any'}, args[0], flag(args[2]))
+                a['set_target_pointer_player'] = True
+                return a
             raise Unsupported(cls + ' overload')
         if cls == 'EntersBattlefieldThisOrAnotherTriggeredAbility' and n == 4:
             filt = self.filter(args[1]) + ([YOU] if flag(args[3]) else [])
