@@ -356,6 +356,9 @@ pub enum Trigger {
     OpponentsDealtNoncombatDamage,
     /// another permanent you control enters or dies, if its power is greater than this one's (Pelt Collector)
     PeltCollector,
+    /// a creature or creature spell you control becomes the target of a spell or ability an opponent controls
+    /// (Surrak, Elusive Hunter)
+    SurrakTargeted,
     /// a Saga's chapter ability: lore counters were added that reached chapter `n`
     Chapter { n: u32 },
 }
@@ -491,6 +494,7 @@ impl TokenDef {
             all_creature_types: self.all_creature_types,
             adventure: None,
             back: None,
+            omen: false,
         }
     }
 }
@@ -1239,6 +1243,7 @@ pub enum AbilityDef {
     DauntAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
     AdventureCardSpellAbility,
+    OmenCardSpellAbility,
     /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)
     CantBeBlockedSourceAbility,
     MenaceAbility,
@@ -1473,6 +1478,9 @@ pub struct CardJson {
     /// a modal double-faced card's back face
     #[serde(default)]
     pub back: Option<Box<CardJson>>,
+    /// an omen card's spell (its `adventure`)
+    #[serde(default)]
+    pub omen: bool,
     /// the set of the printing a deck gets by name
     #[serde(default)]
     pub set: String,
@@ -1505,6 +1513,8 @@ pub struct CardDef {
     pub adventure: Option<Arc<CardDef>>,
     /// a modal double-faced card's back face, played instead of the front (`ModalDoubleFacedCard`)
     pub back: Option<Arc<CardDef>>,
+    /// an omen card's spell: once it resolves, the card is shuffled into its owner's library (`OmenCard`)
+    pub omen: bool,
 }
 
 impl CardDef {
@@ -1533,6 +1543,7 @@ impl CardDef {
                 Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
                 None => None,
             },
+            omen: json.omen,
         })
     }
 

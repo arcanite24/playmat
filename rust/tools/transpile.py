@@ -195,6 +195,12 @@ CUSTOM = {
     'PeltCollectorTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'PeltCollectorTriggeredAbility', 'on': {'e': 'pelt_collector'},
         'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}]},
+    'SurrakElusiveHunterTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'SurrakElusiveHunterTriggeredAbility', 'on': {'e': 'surrak_targeted'},
+        'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
+    # for each opponent, a 1/1 Human tapped and attacking them
+    'AdelineResplendentCatharEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('HumanToken'), 'amount': 1,
+                                               'tapped_and_attacking': True},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -483,7 +489,7 @@ TEXT_SETTERS = {'setText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'conca
                 'withTextOptions', 'setTargetTag'}
 
 # abilities every card has, which the constructor doesn't add
-IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility'}
+IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'OmenCardSpellAbility'}
 
 
 class Unsupported(Exception):
@@ -1415,7 +1421,7 @@ def translate(card_name, subtypes, facts):
     source = open(path).read()
     if 'extends ModalDoubleFacedCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
         return modal_double_faced(card_name, subtypes, facts, cls, source)
-    if re.search(r'extends (?!CardImpl\b|AdventureCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
+    if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
     card = {'name': card_name}
@@ -1435,6 +1441,9 @@ def translate(card_name, subtypes, facts):
                              'types': [x.strip().split('.')[-1] for x in m.group(2).split(',') if x.strip()]}
                 return
             if st == 'this.finalizeAdventure()':
+                return
+            if st == 'this.finalizeOmen()':
+                adventure['omen'] = True
                 return
             if st.startswith('this.getSpellCard().getSpellAbility()'):
                 card_statement(t, st.replace('this.getSpellCard().getSpellAbility()', 'this.getSpellAbility()', 1),
@@ -1465,7 +1474,8 @@ def translate(card_name, subtypes, facts):
     if adventure is not None:
         if amodes:
             raise Unsupported('modal adventure')
-        arule = next((f['rule'] for f in java_abilities if f['class'] == 'AdventureCardSpellAbility'), '')
+        arule = next((f['rule'] for f in java_abilities
+                      if f['class'] in ('AdventureCardSpellAbility', 'OmenCardSpellAbility')), '')
         adventure['spell'] = dict(aspell, rule=arule)
         card['adventure'] = adventure
     elif 'AdventureCardSpellAbility' in [f['class'] for f in java_abilities]:

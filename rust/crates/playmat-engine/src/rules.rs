@@ -1107,6 +1107,16 @@ fn ward(game: &mut Game) {
     for t in top.targets.iter().flatten() {
         let Target::Obj(o) = *t else { continue };
         let obj = game.obj(o);
+        // Surrak: a creature or creature spell of yours becomes the target of an opponent's spell or ability
+        let creature = (obj.zone == Zone::Battlefield && game.has_type(o, CardType::Creature))
+            || (obj.zone == Zone::Stack && obj.is(CardType::Creature));
+        if creature && obj.controller != top.controller {
+            let you = obj.controller;
+            let sources: Vec<ObjId> =
+                game.battlefield.iter().copied().filter(|s| game.obj(*s).controller == you).collect();
+            fired.extend(game.triggers(sources, |_, _, _, t| matches!(t, Trigger::SurrakTargeted)));
+        }
+        let obj = game.obj(o);
         if obj.zone != Zone::Battlefield || obj.controller == top.controller {
             continue;
         }
@@ -1124,6 +1134,8 @@ fn ward(game: &mut Game) {
             }
         }
     }
+    // one event's triggers wait in registration order
+    fired.sort_by_key(|t| game.obj(t.card).trigger_order);
     game.pending.extend(fired);
 }
 /// `PlayerImpl.playAbility`: the ability goes on the stack, then its targets, then mana, then other costs.
@@ -1835,6 +1847,14 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         let (effects, targets) = def.spell.mode(item.modes.first().copied().unwrap_or(0));
         if let Some(legal) = legal_targets(game, &item, targets) {
             apply_effects(game, d, &item, effects, &legal, (id, zcc));
+            // an omen: then shuffle this card into its owner's library (`ShuffleIntoLibrarySourceEffect`)
+            if def.omen && game.obj(id).zone == Zone::Stack {
+                let owner = game.obj(id).owner;
+                to_library(game, id, true);
+                let mut library = game.player(owner).library.clone();
+                game.rng.shuffle(&mut library);
+                game.player_mut(owner).library = library;
+            }
         }
     }
     if game.obj(id).zone == Zone::Stack {
