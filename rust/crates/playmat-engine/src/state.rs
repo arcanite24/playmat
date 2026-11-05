@@ -131,6 +131,8 @@ pub struct Obj {
     pub exile_instead_of_dying: bool,
     /// in exile: this player may play it through the end of this turn number
     pub may_play: Option<(Seat, u32)>,
+    /// cast from exile, it costs this much more (Elite Spellbinder)
+    pub play_tax: u32,
     /// cast for its warp cost (on the stack, then on the battlefield)
     pub warped: bool,
     /// in exile after warp: its owner may cast it from this turn number on
@@ -439,6 +441,7 @@ impl Game {
             ninjutsu_defender: None,
             exile_instead_of_dying: false,
             may_play: None,
+            play_tax: 0,
             warped: false,
             warp_from: None,
             mana_spent: 0,
@@ -1000,6 +1003,7 @@ impl Game {
             o.on_adventure = false;
             o.exile_instead_of_dying = false;
             o.may_play = None;
+            o.play_tax = 0;
             o.warp_from = None;
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;

@@ -206,6 +206,7 @@ CUSTOM = {
     'EnduringGlimmerTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'EnduringGlimmerTriggeredAbility', 'on': {'e': 'dies_if_creature'},
         'effects': [{'class': 'EnduringGlimmerReturnEffect'}]},
+    'EliteSpellbinderEffect': lambda: {'class': 'EliteSpellbinderEffect'},
     'KitesailFreebooterExileEffect': lambda: {'class': 'KitesailFreebooterExileEffect', 'filter': [
         {'p': 'not', 'x': {'p': 'type', 't': 'LAND'}}, {'p': 'not', 'x': {'p': 'type', 't': 'CREATURE'}}]},
     'WanShiTongLibrarianTriggeredAbility': lambda: {

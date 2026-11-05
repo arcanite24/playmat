@@ -949,6 +949,8 @@ pub enum EffectDef {
     ExileGraveyardAllTargetPlayerEffect,
     /// exile all cards from all graveyards
     ExileGraveyardAllPlayersEffect,
+    /// look at the target opponent's hand; you may exile a nonland card from it, which its owner may play for {2} more
+    EliteSpellbinderEffect,
     /// the target opponent reveals their hand; you choose a card of the filter from it, exiled until this leaves
     KitesailFreebooterExileEffect { filter: Filter },
     /// put this card from your hand onto the battlefield tapped and attacking (ninjutsu)

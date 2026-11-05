@@ -1115,6 +1115,7 @@ fn cant_cast_more(game: &Game, seat: Seat) -> bool {
 
 /// `ContinuousEffects.costModification`: a spell's cost with the increases, then the reductions, applied.
 fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> ManaCost {
+    cost.generic += game.obj(id).play_tax;
     for src in game.battlefield.iter() {
         let s = game.obj(*src);
         for a in &s.def.abilities {
@@ -3241,6 +3242,22 @@ fn apply_each_effect(
                         game.move_to(o, Zone::Exile);
                         game.exiled_until_leaves.push((src, zcc, o));
                     }
+                }
+            }
+            EffectDef::EliteSpellbinderEffect => {
+                let Some(Target::Player(p)) = target else { continue };
+                let hand = game.player(p).hand.clone();
+                if hand.is_empty() {
+                    continue;
+                }
+                let possible: Vec<ObjId> = hand.iter().copied().filter(|c| !game.obj(*c).is(CardType::Land)).collect();
+                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 0, 1, "choose") else { return };
+                for c in chosen {
+                    game.move_to(c, Zone::Exile);
+                    let owner = game.obj(c).owner;
+                    let o = game.obj_mut(c);
+                    o.may_play = Some((owner, u32::MAX));
+                    o.play_tax = 2;
                 }
             }
             EffectDef::KitesailFreebooterExileEffect { filter } => {
