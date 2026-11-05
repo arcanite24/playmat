@@ -345,6 +345,7 @@ impl Game {
             }
             Filter::AnotherCreatureYouControl => o.is(CardType::Creature) && o.controller == you && Some(id) != source,
             Filter::Permanents => true,
+            Filter::CreatureToughness4OrMore => o.is(CardType::Creature) && self.power_toughness(id).1 >= 4,
             Filter::CreaturesOrPlaneswalkers => o.is(CardType::Creature) || o.is(CardType::Planeswalker),
             Filter::OpponentsCreatureOrPlaneswalker => {
                 (o.is(CardType::Creature) || o.is(CardType::Planeswalker)) && o.controller != you
@@ -375,6 +376,28 @@ impl Game {
         })
     }
 
+    /// Whether a condition holds for `you`, the controller of `source`.
+    pub fn condition_holds(&self, condition: Option<&str>, you: Seat, source: ObjId) -> bool {
+        let Some(c) = condition else { return true };
+        if let Some(n) = c.strip_prefix("controls_creatures_gt_").and_then(|n| n.parse::<usize>().ok()) {
+            let count = self
+                .battlefield
+                .iter()
+                .filter(|b| self.obj(**b).controller == you && self.obj(**b).is(CardType::Creature))
+                .count();
+            return count > n;
+        }
+        if let Some(n) = c.strip_prefix("source_p1p1_ge_").and_then(|n| n.parse::<i32>().ok()) {
+            let o = self.obj(source);
+            return o.zone == Zone::Battlefield && o.counter("+1/+1") >= n;
+        }
+        match c {
+            "my_turn" => self.active == Some(you),
+            "raid" => self.player(you).attacked,
+            _ => false,
+        }
+    }
+
     /// Whether a static ability's effect, from `src`, gives `id` the ability.
     fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
         match e {
@@ -388,7 +411,7 @@ impl Game {
             }
             EffectDef::GainAbilitySourceEffect { ability: given, .. } => **given == *ability && id == src,
             EffectDef::ConditionalContinuousEffect { effect, condition } => {
-                condition == "my_turn" && self.active == Some(you) && self.static_gives(effect, src, you, id, ability)
+                self.condition_holds(Some(condition), you, src) && self.static_gives(effect, src, you, id, ability)
             }
             _ => false,
         }

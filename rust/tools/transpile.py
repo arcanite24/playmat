@@ -65,6 +65,8 @@ EFFECTS = {
     'SetBasePowerToughnessSourceEffect': [('count', 'count')],
     'ExileTargetIfDiesEffect': [],
     'TapSourceUnlessPaysEffect': [('life', 'life_cost')],
+    # subtypes aren't in the fingerprint and no rule here reads them yet
+    'AddCardSubTypeSourceEffect': [(None, 'duration'), (None, 'bool'), (None, 'subtype')],
 }
 
 COUNTS = {'CreaturesYouControlCount.PLURAL': 'creatures_you_control',
@@ -75,6 +77,8 @@ CUSTOM = {
     # create a 2/2 Robot token tapped and attacking; sacrifice it at end of combat
     'KavaronHarrierEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('RobotToken'), 'amount': 1,
                                      'tapped_and_attacking': True, 'sacrifice_at_end_of_combat': True},
+    # whenever another creature you control enters (the "controlled" filter adds "you control")
+    'EntersBattlefieldControlledTriggeredAbility': None,
     # whenever one or more opponents are dealt noncombat damage, creatures you control get +1/+0 until end of turn
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
@@ -102,6 +106,7 @@ ABILITIES = {
     'ActivateAsSorceryActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
     'SimpleActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
     'ProwessAbility': [],
+    'BeginningOfCombatTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'BeginningOfEndStepTriggeredAbility': [('controller', 'target_controller'), ('effect', 'effect'),
                                            ('optional', 'bool'), ('condition', 'condition')],
 }
@@ -210,22 +215,33 @@ def split_args(text):
 class Translator:
     """Reads one constructor. Local variables (`Effect effect = new X(…)`) hold what they were given."""
 
-    def __init__(self, filters=None):
+    def __init__(self, filters=None, conditions=None):
         self.vars = {}
-        # the card class's own filter fields, by name
+        # the card class's own filter and condition fields, by name
         self.filters = filters or {}
+        self.conditions = conditions or {}
 
     def new_expr(self, expr):
         """`new X(args)`, `X.getInstance()` or a local variable -> (X, [args]) or the variable's object"""
         expr = expr.strip()
         # chained setters that only change texts
-        while (m := re.fullmatch(r'(.*\))\s*\.(?:setText|setAbilityWord|withFlavorWord|addHint)\((?:"[^"]*"|AbilityWord\.\w+|\w+Hint\.instance)\)', expr, re.S)):
+        while (m := re.fullmatch(r'(.*\))\s*\.(?:setText|setAbilityWord|withFlavorWord|addHint|concatBy)\((?:"[^"]*"|AbilityWord\.\w+|\w+Hint\.instance)\)', expr, re.S)):
             expr = m.group(1).strip()
         if expr in self.vars:
             return self.vars[expr]
         m = re.fullmatch(r'new (\w+)\(\)', expr)
-        if m and m.group(1) in CUSTOM:
+        if m and m.group(1) in CUSTOM and CUSTOM[m.group(1)]:
             return CUSTOM[m.group(1)]()
+        m = re.fullmatch(r'new EntersBattlefieldControlledTriggeredAbility\((.*)\)', expr, re.S)
+        if m:
+            args = split_args(m.group(1))
+            if args[0].strip() == 'Zone.BATTLEFIELD':
+                args = args[1:]
+            if len(args) in (2, 3) and args[1].strip() == 'StaticFilters.FILTER_ANOTHER_CREATURE':
+                return {'class': 'EntersBattlefieldAllTriggeredAbility', 'java': 'EntersBattlefieldControlledTriggeredAbility',
+                        'effects': [self.effect(args[0])], 'filter': 'another_creature_you_control',
+                        'optional': len(args) == 3 and args[2].strip() == 'true'}
+            raise Unsupported('EntersBattlefieldControlledTriggeredAbility(' + m.group(1) + ')')
         m = re.fullmatch(r'(\w+)\.getInstance\(\)', expr)
         if m:
             return m.group(1), []
@@ -250,7 +266,7 @@ class Translator:
             if arg in self.filters:
                 return self.filters[arg]
         elif kind == 'string':
-            if re.fullmatch(r'"[^"]*"', arg):
+            if re.fullmatch(r'"[^"]*"(?:\s*\+\s*"[^"]*")*', arg):
                 return None
         elif kind == 'effect':
             return self.effect(arg)
@@ -269,6 +285,14 @@ class Translator:
         elif kind == 'condition':
             if arg in CONDITIONS:
                 return CONDITIONS[arg]
+            if arg in self.conditions:
+                return self.conditions[arg]
+        elif kind == 'zone':
+            if arg in ('Zone.BATTLEFIELD',):
+                return None
+        elif kind == 'subtype':
+            if re.fullmatch(r'SubType\.\w+', arg):
+                return None
         elif kind == 'cost_text':
             if re.fullmatch(r'"(\{[^"]*\})"', arg):
                 return arg[1:-1]
@@ -331,6 +355,12 @@ class Translator:
         return {'class': cls}
 
     def ability(self, expr):
+        # `….withInterveningIf(condition)`: the "if" of a triggered ability
+        m = re.fullmatch(r'(.*\))\s*\.withInterveningIf\((\w+(?:\.instance)?)\)', expr.strip(), re.S)
+        if m:
+            a = self.ability(m.group(1))
+            a['condition'] = self.value('condition', m.group(2))
+            return a
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             return obj
@@ -351,6 +381,9 @@ class Translator:
 
     def assign(self, var, expr):
         """`Effect effect = new X(…)`: what kind of thing the right side is decides how it's read"""
+        if re.search(r'\.withInterveningIf\(\w+(?:\.instance)?\)\s*$', expr):
+            self.vars[var] = self.ability(expr)
+            return
         cls = self.new_expr(expr)[0]
         if cls == 'Mode':
             args = self.new_expr(expr)[1]
@@ -377,7 +410,7 @@ def translate(card_name, subtypes, facts):
     source = open(path).read()
     if re.search(r'extends (?!CardImpl\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
-    t = Translator(card_filters(source))
+    t = Translator(card_filters(source), card_conditions(source))
     card = {'name': card_name}
     added, spell, modes = [], {'effects': [], 'targets': []}, []
     for st in statements(constructor_body(source, cls)):
@@ -447,6 +480,9 @@ def translate(card_name, subtypes, facts):
         if m:
             spell['targets'].append(t.target(m.group(1)))
             continue
+        # an effect's outcome only steers the Java AI
+        if re.fullmatch(r'\w+\.setOutcome\(Outcome\.\w+\)', st):
+            continue
         raise Unsupported('statement ' + st)
     if 'types' not in card:
         raise Unsupported('no card types')
@@ -480,7 +516,25 @@ CARD_FILTERS = {
     ('FilterCreatureOrPlaneswalkerPermanent', ('TargetController.NOT_YOU.getControllerPredicate()',)):
         'opponents_creature_or_planeswalker',
     ('FilterControlledCreaturePermanent', ('CounterType.P1P1.getPredicate()',)): 'controlled_creatures_with_p1p1',
+    ('FilterCreaturePermanent', ('new ToughnessPredicate(ComparisonType.MORE_THAN,3)',)): 'creature_toughness_4_or_more',
 }
+
+# condition fields (`private static final Condition condition = new …;`), by canonical text
+CARD_CONDITIONS = [
+    (r'new PermanentsOnTheBattlefieldCondition\(new FilterControlledCreaturePermanent\("[^"]*"\),'
+     r'ComparisonType\.MORE_THAN,(\d+)\)', 'controls_creatures_gt_{}'),
+    (r'new SourceHasCounterCondition\(CounterType\.P1P1,(\d+)\)', 'source_p1p1_ge_{}'),
+]
+
+
+def card_conditions(source):
+    out = {}
+    for m in re.finditer(r'static final Condition (\w+)\s*=\s*(.*?);', source, re.S):
+        text = canonical(m.group(2))
+        for pattern, name in CARD_CONDITIONS:
+            if (c := re.fullmatch(pattern, text)):
+                out[m.group(1)] = name.format(*c.groups())
+    return out
 
 
 def card_filters(source):

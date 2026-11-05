@@ -162,6 +162,9 @@ pub enum Filter {
     CreaturesOrPlaneswalkers,
     /// `FILTER_PERMANENTS`
     Permanents,
+    /// a creature with toughness 4 or greater
+    #[serde(rename = "creature_toughness_4_or_more")]
+    CreatureToughness4OrMore,
 }
 
 /// Counters an effect puts on a permanent: `CounterType.P1P1.createInstance(2)`.
@@ -270,6 +273,8 @@ pub enum EffectDef {
     SetBasePowerToughnessSourceEffect { count: String },
     /// if the target would die this turn, it's exiled instead
     ExileTargetIfDiesEffect,
+    /// adds a subtype to the source (subtypes aren't in the fingerprint, and no rule reads them yet)
+    AddCardSubTypeSourceEffect,
     /// as it enters, its controller may pay `life`; if they don't, it enters tapped
     TapSourceUnlessPaysEffect { life: i32 },
     /// the first target deals damage equal to its power to the second (Bite Down)
@@ -389,6 +394,15 @@ pub enum AbilityDef {
         condition: Option<String>,
         rule: String,
     },
+    /// at the beginning of combat on your turn, if the condition holds
+    BeginningOfCombatTriggeredAbility {
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        optional: bool,
+        #[serde(default)]
+        condition: Option<String>,
+        rule: String,
+    },
     /// whenever one or more opponents are dealt noncombat damage (Master of Barbs)
     DamagedOpponentsNoncombatTriggeredAbility {
         effects: Vec<EffectDef>,
@@ -445,11 +459,21 @@ impl AbilityDef {
             | AbilityDef::EntersBattlefieldAllTriggeredAbility { effects, optional, rule, .. }
             | AbilityDef::LandfallAbility { effects, optional, rule }
             | AbilityDef::DiesSourceTriggeredAbility { effects, optional, rule } => Some((rule, effects, *optional)),
-            AbilityDef::BeginningOfEndStepTriggeredAbility { effects, optional, rule, .. } => {
+            AbilityDef::BeginningOfEndStepTriggeredAbility { effects, optional, rule, .. }
+            | AbilityDef::BeginningOfCombatTriggeredAbility { effects, optional, rule, .. } => {
                 Some((rule, effects, *optional))
             }
             AbilityDef::DamagedOpponentsNoncombatTriggeredAbility { effects, rule } => Some((rule, effects, false)),
             AbilityDef::ProwessAbility { rule } => Some((rule, PROWESS, false)),
+            _ => None,
+        }
+    }
+
+    /// a triggered ability's intervening "if", checked when it triggers and again when it resolves
+    pub fn intervening_if(&self) -> Option<&str> {
+        match self {
+            AbilityDef::BeginningOfEndStepTriggeredAbility { condition, .. }
+            | AbilityDef::BeginningOfCombatTriggeredAbility { condition, .. } => condition.as_deref(),
             _ => None,
         }
     }
