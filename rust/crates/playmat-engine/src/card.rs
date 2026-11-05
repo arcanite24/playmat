@@ -669,6 +669,8 @@ pub enum EffectDef {
         amount: Amount,
         #[serde(default)]
         tapped_and_attacking: bool,
+        #[serde(default)]
+        tapped: bool,
         /// attacking, untapped
         #[serde(default)]
         attacking: bool,

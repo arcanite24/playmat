@@ -1010,6 +1010,13 @@ class Translator:
         if cls == 'CreateTokenEffect' and len(args) == 4 and [a.strip() for a in args[2:]] == ['false', 'true']:
             return {'class': cls, 'token': self.value('token', args[0].strip()),
                     'amount': self.value('amount', args[1].strip()), 'attacking': True}
+        # created tapped
+        if cls == 'CreateTokenEffect' and len(args) == 4 and [a.strip() for a in args[2:]] == ['true', 'false']:
+            return {'class': cls, 'token': self.value('token', args[0].strip()),
+                    'amount': self.value('amount', args[1].strip()), 'tapped': True}
+        if cls == 'EntersBattlefieldWithXCountersEffect' and len(args) == 1:
+            return {'class': 'AddCountersSourceEffect', 'counter': self.value('counter', args[0].strip()),
+                    'amount': {'v': 'x'}}
         if cls == 'SetBasePowerSourceEffect' and len(args) == 1:
             return {'class': cls, 'amount': self.amount(args[0])}
         # created tapped and attacking

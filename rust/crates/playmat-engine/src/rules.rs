@@ -2081,7 +2081,10 @@ fn apply_each_effect(
     // an effect's number, worked out now
     macro_rules! v {
         ($a:expr) => {
-            game.value($a, item.controller, source.0, item.x)
+            match ($a, item.lki_power) {
+                (Amount::Of(crate::card::Value::SourcePower), Some(p)) => p,
+                (a, _) => game.value(a, item.controller, source.0, item.x),
+            }
         };
     }
     // the first target's objects (an effect acts on every one, as Java's first target pointer)
@@ -2163,6 +2166,7 @@ fn apply_each_effect(
                 token,
                 amount,
                 tapped_and_attacking,
+                tapped,
                 attacking,
                 sacrifice_at_end_of_combat,
                 sacrifice_at_next_end_step,
@@ -2184,6 +2188,9 @@ fn apply_each_effect(
                         let o = game.obj_mut(id);
                         o.tapped = true;
                         o.attacking = Some(defender);
+                    }
+                    if *tapped {
+                        game.obj_mut(id).tapped = true;
                     }
                     if *attacking {
                         let defender = game.opponent(controller);
@@ -3902,7 +3909,8 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     for a in &def.abilities {
         if let AbilityDef::EntersBattlefieldAbility { effects, condition, .. } = a {
             if condition.as_ref().is_none_or(|c| condition_with_kicker(game, c, controller, id, kicked)) {
-                let item = StackItem::spell(id, controller);
+                let mut item = StackItem::spell(id, controller);
+                item.x = game.obj(id).cast_x;
                 apply_effects(game, d, &item, effects, &[], (id, zcc));
             }
         }

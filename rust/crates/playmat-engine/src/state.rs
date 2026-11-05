@@ -973,10 +973,15 @@ impl Game {
             Vec::new()
         };
         let p1p1 = self.obj(id).counters.iter().find(|(c, _)| c == "+1/+1").map_or(0, |c| c.1);
+        let power = self.power_toughness(id).0;
         let mut dies = dies;
         for t in dies.iter_mut() {
             if matches!(self.trigger_of(t), Some(Trigger::LeavesAll { .. })) {
                 t.x = p1p1;
+            }
+            // its own leave triggers remember its power as it last was (`SourcePermanentPowerValue`)
+            if t.card == id && t.lki_power.is_none() {
+                t.lki_power = Some(power);
             }
         }
         if from == Zone::Battlefield && zone != Zone::Battlefield {
