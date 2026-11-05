@@ -2635,6 +2635,27 @@ fn apply_each_effect(
                     game.move_to(*c, Zone::Graveyard);
                 }
             }
+            EffectDef::DrawDiscardTargetEffect { draw: n, discard: k } => {
+                for p in players.clone() {
+                    draw(game, p, *n as usize);
+                    discard(game, d, p, *k);
+                }
+            }
+            EffectDef::CreateTokenTargetEffect { token } => {
+                let def = Arc::new(token.card());
+                for p in players.clone() {
+                    let id = game.create_obj(def.clone(), p, Zone::Library);
+                    let o = game.obj_mut(id);
+                    o.token = true;
+                    o.trigger_order = (1 << 32) + id.0 as u64;
+                    enter_battlefield(game, d, id, p, false);
+                }
+            }
+            EffectDef::ReturnToHandFromBattlefieldAllEffect { filter } => {
+                for o in matching(game, filter, controller, source.0) {
+                    game.move_to(o, Zone::Hand);
+                }
+            }
             EffectDef::DiscardHandControllerEffect => {
                 for c in game.player(controller).hand.clone() {
                     game.move_to(c, Zone::Graveyard);
@@ -2975,6 +2996,8 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
 /// A permanent enters: under `controller`, tapped if it says so, with what its "enters with" abilities give it; then
 /// its own enters triggers and other permanents' "whenever … enters" triggers wait to go on the stack.
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
+    // a permanent spell resolving was cast (`CastFromEverywhereSourceCondition`)
+    let cast = game.obj(id).zone == Zone::Stack;
     game.move_to(id, Zone::Battlefield);
     let def = game.obj(id).def.clone();
     game.obj_mut(id).controller = controller;
@@ -2994,6 +3017,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             o.add_counters("loyalty", n);
         }
         o.kicked = kicked;
+        o.cast = cast;
         o.zcc
     };
     // shock lands: `TapSourceUnlessPaysEffect` asks only when the life can be paid

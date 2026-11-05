@@ -107,6 +107,8 @@ pub struct Obj {
     pub loyalty_used: bool,
     /// it entered the battlefield as a kicked spell
     pub kicked: bool,
+    /// it entered the battlefield by resolving as a spell
+    pub cast: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
     /// the permanent (and its zone change count) this Aura is attached to
@@ -380,6 +382,7 @@ impl Game {
             attacking_pw: None,
             loyalty_used: false,
             kicked: false,
+            cast: false,
             until_end_of_turn_def: None,
             attached_to: None,
             adventurer: None,
@@ -587,6 +590,13 @@ impl Game {
                     }
                     types.len() as i32
                 }
+                Value::GreatestManaValue { filter } => self
+                    .battlefield
+                    .iter()
+                    .filter(|b| self.filter_matches(filter, you, Some(source), **b))
+                    .map(|b| self.obj(*b).def.cost.mana_value() as i32)
+                    .max()
+                    .unwrap_or(0),
                 Value::Devotion { c } => self
                     .battlefield
                     .iter()
@@ -602,6 +612,7 @@ impl Game {
         match c {
             // a permanent that was cast kicked ("when this enters, if it was kicked")
             Condition::Kicked => self.obj(source).kicked,
+            Condition::CastFromEverywhere => self.obj(source).cast,
             Condition::Raid => self.player(you).attacked,
             Condition::Revolt => self.player(you).permanent_left,
             Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
@@ -799,6 +810,7 @@ impl Game {
         };
         // dies triggers look back at the battlefield as it was (this one included), and at what left it in the same
         // action (Java's short-living LKI: a sweeper's creatures see each other die)
+        let died_controller = self.obj(id).controller;
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
             let mut sources: Vec<ObjId> = self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
             sources.extend(self.battlefield.iter().copied());
@@ -856,6 +868,7 @@ impl Game {
                 o.attacking_pw = None;
                 o.loyalty_used = false;
                 o.kicked = false;
+                o.cast = false;
                 o.attached_to = None;
                 if let Some(def) = o.until_end_of_turn_def.take() {
                     o.def = def;
@@ -873,6 +886,12 @@ impl Game {
             // a dead permanent's own trigger is its graveyard card's
             if t.card == id {
                 t.ability = t.ability.map(|(i, _)| (i, self.obj(id).zcc));
+            }
+            // "that player": the dead permanent's controller
+            let a = t.ability.and_then(|(i, _)| self.obj(t.card).def.abilities.get(i));
+            if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
+                t.targets = vec![vec![Target::Player(died_controller)]];
+                t.target_zcc = vec![vec![0]];
             }
             self.pending.push(t);
         }

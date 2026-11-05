@@ -377,6 +377,8 @@ pub enum Condition {
     SourceTargets { filter: Filter },
     /// `MyTurnCondition`
     MyTurn,
+    /// `CastFromEverywhereSourceCondition`: this permanent was cast
+    CastFromEverywhere,
     /// `LifeCompareCondition`: your life (or an opponent's) compared with `n`
     LifeCompare { who: String, cmp: Cmp, n: i32 },
     /// `PermanentsOnTheBattlefieldCondition` / `YouControlPermanentCondition`: the number of permanents of the filter
@@ -552,6 +554,8 @@ pub enum Value {
     Plus { of: Box<Amount>, n: i32 },
     /// card types among cards in all graveyards (`CardTypesInGraveyardCount.ALL`)
     CardTypesInGraveyards,
+    /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
+    GreatestManaValue { filter: Filter },
     /// the controller's devotion to a color: its mana symbols among the mana costs of permanents they control
     Devotion { c: Color },
 }
@@ -759,6 +763,12 @@ pub enum EffectDef {
     RevealLibraryPickControllerEffect { amount: Amount, pick: usize, filter: Filter, optional: bool },
     /// if you would gain life, you gain that much plus 1 instead
     GainPlusOneLifeReplacementEffect,
+    /// the target player draws `draw` cards, then discards `discard`
+    DrawDiscardTargetEffect { draw: i32, discard: i32 },
+    /// the target player creates a token
+    CreateTokenTargetEffect { token: TokenDef },
+    /// returns every permanent of the filter to its owner's hand
+    ReturnToHandFromBattlefieldAllEffect { filter: Filter },
     /// the controller discards their hand
     DiscardHandControllerEffect,
     /// mill `amount`, then put a milled card of the filter into your hand (up to one if optional)

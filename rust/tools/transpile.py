@@ -97,6 +97,7 @@ EFFECTS = {
     'CantGainLifeAllEffect': [],
     'ReturnSourceFromGraveyardToBattlefieldEffect': [(None, 'false'), (None, 'false')],
     'GainPlusOneLifeReplacementEffect': [],
+    'ReturnToHandFromBattlefieldAllEffect': [('filter', 'filter')],
     'CantBeCounteredControlledEffect': [('filter', 'filter'), ('duration', 'duration')],
     'DontCauseTriggerEffect': [],
     'SpellsCostIncreasingAllEffect': [('amount', 'int'), ('filter', 'filter'), ('who', 'target_controller')],
@@ -155,6 +156,11 @@ CUSTOM = {
         'class': 'TriggeredAbility', 'java': 'EidolonOfTheGreatRevelTriggeredAbility',
         'on': {'e': 'spell_cast', 'filter': [{'p': 'mv', 'cmp': 'OR_LESS', 'n': 3}], 'who': 'any'},
         'effects': [{'class': 'DamageTargetEffect', 'amount': 2}], 'set_target_pointer_player': True},
+    # "whenever a creature an opponent controls dies, that player loses 2 life"
+    'MassacreWurmTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'MassacreWurmTriggeredAbility',
+        'on': {'e': 'dies_all', 'filter': [CREATURE, {'p': 'controller', 'who': 'opponent'}]},
+        'effects': [{'class': 'LoseLifeTargetEffect', 'amount': 2}], 'set_target_pointer_player': True},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -255,6 +261,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
               'SpellMasteryCondition.instance': {'c': 'cards_in_graveyard', 'n': 2, 'filter': [
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
               'MyTurnCondition.instance': {'c': 'my_turn'},
+              'CastFromEverywhereSourceCondition.instance': {'c': 'cast_from_everywhere'},
               'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}}}
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
 
@@ -537,6 +544,8 @@ class Translator:
             return int(arg)
         if (m := re.fullmatch(r'StaticValue\.get\((-?\d+)\)', arg)):
             return int(m.group(1))
+        if (m := re.fullmatch(r'new GreatestAmongPermanentsValue\(Quality\.ManaValue,(.*)\)', arg)):
+            return {'v': 'greatest_mana_value', 'filter': self.filter(m.group(1))}
         if arg in self.values:
             return self.amount(self.values[arg])
         # the life a "whenever you gain life" trigger saw is its X
@@ -820,6 +829,15 @@ class Translator:
         if cls == 'ConditionalOneShotEffect' and len(args) in (2, 3) \
                 and (re.fullmatch(r'\w+Condition\.\w+', args[1].strip()) or args[1].strip() in self.conditions):
             return {'class': cls, 'effect': self.effect(args[0]), 'condition': self.condition(args[1])}
+        if cls == 'DrawDiscardTargetEffect' and len(args) == 2 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
+            return {'class': cls, 'draw': int(args[0]), 'discard': int(args[1])}
+        if cls == 'CreateTokenTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())):
+            return {'class': cls, 'token': token(m.group(1))}
+        if cls == 'BoostOpponentsEffect' and len(args) == 3 and re.fullmatch(r'-?\d+', args[0].strip()) \
+                and re.fullmatch(r'-?\d+', args[1].strip()):
+            return {'class': 'BoostAllEffect', 'power': int(args[0]), 'toughness': int(args[1]),
+                    'duration': self.value('duration', args[2].strip()),
+                    'filter': [CREATURE, {'p': 'controller', 'who': 'opponent'}], 'exclude_source': False}
         if cls == 'SpellCostReductionForEachSourceEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'per': int(args[0]), 'amount': self.amount(args[1])}
         if cls == 'ReturnCardChosenFromGraveyardEffect' and len(args) == 3 and args[2].strip() == 'PutCards.HAND' \
@@ -833,6 +851,8 @@ class Translator:
         if cls == 'MillThenPutInHandEffect' and len(args) in (2, 3) and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]),
                     'optional': len(args) == 2 or args[2].strip() == 'true'}
+        if cls == 'SpellCostReductionSourceEffect' and len(args) == 1 and not re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': 'SpellCostReductionForEachSourceEffect', 'per': 1, 'amount': self.amount(args[0])}
         if cls == 'SpellCostReductionSourceEffect' and len(args) in (1, 2) and re.fullmatch(r'\d+', args[0].strip()):
             out = {'class': cls, 'amount': int(args[0])}
             if len(args) == 2:
