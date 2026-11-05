@@ -295,6 +295,10 @@ pub enum Trigger {
     AttacksWith { min: usize, filter: Filter },
     /// this leaves the battlefield
     LeavesBattlefield,
+    /// heroic: you cast a spell that targets this (`HeroicAbility`)
+    SpellCastTargetingThis,
+    /// a player (`who`) sacrifices a permanent of the filter (`SacrificePermanentTriggeredAbility`)
+    Sacrificed { filter: Filter, who: String },
     /// `who` ("you", "opponent") draws a card; with a target pointer, at that player
     Draws { who: String },
     /// this deals damage to an opponent (`only_combat`: combat damage)
@@ -362,6 +366,12 @@ pub enum Condition {
     Not {
         x: Box<Condition>,
     },
+    /// `SourceAttackingCondition`
+    SourceAttacking,
+    /// `CardsInControllerGraveyardCondition`, spell mastery: at least `n` cards of the filter in your graveyard
+    CardsInGraveyard { filter: Filter, n: i32 },
+    /// `OpponentsLostLifeCondition`: an opponent lost life this turn
+    OpponentsLostLife,
 }
 
 /// Which objects a filter takes: those every predicate holds for. An empty filter takes everything.
@@ -401,6 +411,8 @@ pub struct TokenDef {
     pub toughness: i32,
     #[serde(default)]
     pub abilities: Vec<AbilityDef>,
+    #[serde(default)]
+    pub all_creature_types: bool,
 }
 
 impl TokenDef {
@@ -416,6 +428,8 @@ impl TokenDef {
             toughness: self.toughness,
             abilities: self.abilities.clone(),
             spell: SpellDef::default(),
+            loyalty: None,
+            all_creature_types: self.all_creature_types,
         }
     }
 }
@@ -427,8 +441,14 @@ pub enum CostDef {
     ManaCost { cost: String },
     TapSourceCost,
     SacrificeSourceCost,
+    /// put (or remove) loyalty counters on the source
+    PayLoyaltyCost { amount: i32 },
     /// sacrifice a permanent of the filter you control (chosen as the cost is paid)
     SacrificeTargetCost { filter: Filter },
+    /// tap `amount` permanents of the filter you control (chosen, not targeted)
+    TapTargetCost { filter: Filter, amount: usize },
+    /// one of these, the player's choice when both can be paid
+    OrCost { costs: Vec<CostDef> },
     /// discard a card of the filter
     DiscardCardCost {
         #[serde(default)]
@@ -674,6 +694,42 @@ pub enum EffectDef {
     },
     /// the controller discards `amount` cards
     DiscardControllerEffect { amount: Amount },
+    /// the target player reveals their hand and you choose a card of the filter; they discard it (Duress)
+    DiscardCardYouChooseTargetEffect { filter: Filter },
+    /// exile the target until the source leaves the battlefield (Banishing Light)
+    ExileUntilSourceLeavesEffect,
+    /// the source explores `amount` times (`ExploreSourceEffect`)
+    ExploreSourceEffect { amount: Amount },
+    /// the target creature explores
+    ExploreTargetEffect,
+    /// the target creature can't be blocked this turn
+    CantBeBlockedTargetEffect { duration: Duration },
+    /// each player (of `who`) discards `amount` cards they choose, all at once
+    DiscardEachPlayerEffect { amount: Amount, who: String },
+    /// exile the target player's graveyard
+    ExileGraveyardAllTargetPlayerEffect,
+    /// the target player mills `amount` cards
+    MillCardsTargetEffect { amount: Amount },
+    /// the source becomes the token's kind of creature (still its old types with `retain`), with its abilities too
+    BecomesCreatureSourceEffect {
+        token: TokenDef,
+        #[serde(default)]
+        retain: bool,
+        duration: Duration,
+    },
+    /// put the target card from a graveyard onto the battlefield under your control
+    ReturnFromGraveyardToBattlefieldTargetEffect {
+        #[serde(default)]
+        tapped: bool,
+    },
+    /// the target player discards `amount` cards of their choice
+    DiscardTargetEffect { amount: Amount },
+    /// you get an emblem (abilities in the command zone), read like a token class
+    GetEmblemEffect { emblem: TokenDef },
+    /// the target player sacrifices `amount` permanents of the filter
+    SacrificeEffect { filter: Filter, amount: Amount },
+    /// each opponent sacrifices `amount` permanents of the filter (all chosen, then sacrificed together)
+    SacrificeOpponentsEffect { filter: Filter, amount: Amount },
     /// the controller mills `amount` cards
     MillCardsControllerEffect { amount: Amount },
     /// a static effect on a spell: it can't be countered
@@ -753,6 +809,9 @@ pub struct SpellDef {
     pub min_modes: usize,
     #[serde(default = "one")]
     pub max_modes: usize,
+    /// costs on top of the mana cost ("as an additional cost to cast this spell"), paid after the mana
+    #[serde(default)]
+    pub costs: Vec<CostDef>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -830,6 +889,15 @@ pub enum AbilityDef {
         targets: Vec<TargetDef>,
         rule: String,
     },
+    /// a planeswalker's `+N:`/`-N:` ability: sorcery speed, one loyalty ability per permanent each turn; its cost
+    /// is a `PayLoyaltyCost`
+    LoyaltyAbility {
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        rule: String,
+    },
     SimpleActivatedAbility {
         effects: Vec<EffectDef>,
         cost: Vec<CostDef>,
@@ -849,6 +917,10 @@ pub enum AbilityDef {
     LifelinkAbility,
     DeathtouchAbility,
     DefenderAbility,
+    /// this can block only creatures with flying
+    CanBlockOnlyFlyingAbility,
+    /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)
+    CantBeBlockedSourceAbility,
     MenaceAbility,
     FlashAbility,
     HexproofAbility,
@@ -935,6 +1007,7 @@ impl AbilityDef {
             AbilityDef::SimpleActivatedAbility { effects, cost, targets, rule } => {
                 Some((rule, effects, targets, cost, false))
             }
+            AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),
             _ => None,
         }
     }
@@ -1029,7 +1102,15 @@ pub struct CardJson {
     pub abilities: Vec<AbilityDef>,
     #[serde(default)]
     pub spell: Option<SpellDef>,
+    /// a planeswalker's starting loyalty
+    #[serde(default)]
+    pub loyalty: Option<i32>,
 }
+
+/// Subtypes that aren't creature types, for "every creature type"
+pub const LAND_TYPES: &[&str] = &["Plains", "Island", "Swamp", "Mountain", "Forest", "Desert", "Gate", "Cave", "Town",
+    "Sphere", "Lair", "Locus", "Mine", "Power-Plant", "Tower", "Urza's", "Equipment", "Aura", "Vehicle", "Food",
+    "Clue", "Treasure", "Saga", "Class", "Role"];
 
 /// A card's printed characteristics and abilities, shared by every copy of it and never changed.
 #[derive(Clone, Debug, PartialEq)]
@@ -1044,6 +1125,9 @@ pub struct CardDef {
     pub toughness: i32,
     pub abilities: Vec<AbilityDef>,
     pub spell: SpellDef,
+    pub loyalty: Option<i32>,
+    /// every creature type (changeling, Mutavault)
+    pub all_creature_types: bool,
 }
 
 impl CardDef {
@@ -1059,6 +1143,8 @@ impl CardDef {
             supertypes: json.supertypes,
             power: json.power.unwrap_or(0),
             toughness: json.toughness.unwrap_or(0),
+            loyalty: json.loyalty,
+            all_creature_types: false,
             abilities: json.abilities,
             spell: json.spell.unwrap_or_default(),
         })

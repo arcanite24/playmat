@@ -9457,5 +9457,55 @@
   {
     "name": "token:WhiteDogToken",
     "abilities": []
+  },
+  {
+    "name": "emblem:AjaniResoluteEmblem",
+    "abilities": [
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "creatures you control get +2/+2."
+      }
+    ]
+  },
+  {
+    "name": "emblem:ChandraTorchOfDefianceEmblem",
+    "abilities": [
+      {
+        "class": "SpellCastControllerTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever you cast a spell, this emblem deals 5 damage to any target."
+      }
+    ]
+  },
+  {
+    "name": "emblem:KaitoBaneOfNightmaresEmblem",
+    "abilities": [
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "Ninjas you control get +1/+1."
+      }
+    ]
+  },
+  {
+    "name": "emblem:ProfessorDellianFelEmblem",
+    "abilities": [
+      {
+        "class": "GainLifeControllerTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever you gain life, target opponent loses that much life."
+      }
+    ]
+  },
+  {
+    "name": "emblem:TeferiHeroOfDominariaEmblem",
+    "abilities": [
+      {
+        "class": "DrawCardControllerTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever you draw a card, exile target permanent an opponent controls."
+      }
+    ]
   }
 ]

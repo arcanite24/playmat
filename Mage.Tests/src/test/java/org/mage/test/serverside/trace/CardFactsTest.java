@@ -8,6 +8,7 @@ import mage.cards.Card;
 import mage.cards.repository.CardInfo;
 import mage.cards.repository.CardRepository;
 import mage.cards.repository.CardScanner;
+import mage.game.command.Emblem;
 import mage.game.permanent.token.Token;
 import org.junit.Assume;
 import org.junit.Test;
@@ -25,7 +26,8 @@ import java.util.Map;
  * order {@code card.getAbilities()} lists them (the order decision logs number them in), with each one's class and
  * rule text as Java prints it ({@code getRule()}, the text a stack ability's name carries).
  * <p>
- * A pool line {@code token:<class>} names a token class from {@code mage.game.permanent.token} instead.
+ * A pool line {@code token:<class>} names a token class from {@code mage.game.permanent.token} instead, and
+ * {@code emblem:<class>} an emblem class from {@code mage.game.command.emblems}.
  * <p>
  * Opt-in: {@code -Dxmage.cardFacts=<out.json> -Dxmage.cardFacts.pool=<file, one card name per line>}.
  */
@@ -48,6 +50,10 @@ public class CardFactsTest {
                 // a token class from mage.game.permanent.token, by its simple name
                 Class<?> cls = Class.forName("mage.game.permanent.token." + name.substring("token:".length()));
                 cardAbilities = ((Token) cls.getConstructor().newInstance()).getAbilities();
+            } else if (name.startsWith("emblem:")) {
+                // an emblem class from mage.game.command.emblems
+                Class<?> cls = Class.forName("mage.game.command.emblems." + name.substring("emblem:".length()));
+                cardAbilities = ((Emblem) cls.getConstructor().newInstance()).getAbilities();
             } else {
                 CardInfo info = CardRepository.instance.findPreferredCoreExpansionCard(name);
                 if (info == null) {

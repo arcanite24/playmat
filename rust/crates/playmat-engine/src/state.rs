@@ -19,6 +19,8 @@ pub enum Zone {
     Graveyard,
     Stack,
     Exile,
+    /// emblems
+    Command,
 }
 
 /// The steps of a turn, named as Java's `PhaseStep`.
@@ -99,6 +101,14 @@ pub struct Obj {
     pub face_down: bool,
     /// the player it attacks
     pub attacking: Option<Seat>,
+    /// the planeswalker it attacks (and its zone change count), if it attacks one
+    pub attacking_pw: Option<(ObjId, u32)>,
+    /// a loyalty ability of it was activated this turn
+    pub loyalty_used: bool,
+    /// it entered the battlefield as a kicked spell
+    pub kicked: bool,
+    /// what it was before an effect changed its characteristics (`def`) until end of turn
+    pub until_end_of_turn_def: Option<Arc<CardDef>>,
     /// the attackers it blocks
     pub blocking: Vec<ObjId>,
     /// blocked this combat (stays blocked if its blockers leave)
@@ -158,6 +168,8 @@ pub struct Player {
     pub drew_from_empty: bool,
     /// declared an attacker this turn (`PlayerAttackedWatcher`)
     pub attacked: bool,
+    /// life lost this turn
+    pub life_lost: i32,
 }
 
 /// What a target is.
@@ -247,6 +259,8 @@ pub struct Game {
     pub objs: Arc<Vec<Arc<Obj>>>,
     pub battlefield: Arc<Vec<ObjId>>,
     pub exile: Arc<Vec<ObjId>>,
+    /// emblems, in the order they were made
+    pub command: Arc<Vec<ObjId>>,
     /// bottom first: the top is the last
     pub stack: Arc<Vec<StackItem>>,
     pub boosts: Arc<Vec<Boost>>,
@@ -257,6 +271,10 @@ pub struct Game {
     pub grants: Arc<Vec<Grant>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
+    /// cards exiled until a permanent (and its zone change count) leaves the battlefield
+    pub exiled_until_leaves: Vec<(ObjId, u32, ObjId)>,
+    /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack)
+    pub returning: Vec<ObjId>,
     /// this combat has a first-strike damage step
     pub first_strike_step: bool,
     /// the game is over (a player lost, or it reached its last turn)
@@ -276,6 +294,7 @@ impl Game {
             players: Arc::new((0..seats).map(|_| Player { life: 20, ..Player::default() }).collect()),
             objs: Arc::new(Vec::new()),
             battlefield: Arc::new(Vec::new()),
+            command: Arc::new(Vec::new()),
             exile: Arc::new(Vec::new()),
             stack: Arc::new(Vec::new()),
             boosts: Arc::new(Vec::new()),
@@ -283,6 +302,8 @@ impl Game {
             at_end_of_combat: Vec::new(),
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
+            exiled_until_leaves: Vec::new(),
+            returning: Vec::new(),
             first_strike_step: false,
             over: false,
         }
@@ -327,6 +348,10 @@ impl Game {
             counters: Vec::new(),
             face_down: false,
             attacking: None,
+            attacking_pw: None,
+            loyalty_used: false,
+            kicked: false,
+            until_end_of_turn_def: None,
             blocking: Vec::new(),
             blocked: false,
             blocked_by: Vec::new(),
@@ -378,7 +403,8 @@ impl Game {
 
     /// Whether an object has a subtype now.
     pub fn has_subtype(&self, id: ObjId, s: &str) -> bool {
-        self.obj(id).def.subtypes.iter().any(|x| x == s)
+        let def = &self.obj(id).def;
+        def.subtypes.iter().any(|x| x == s) || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
     }
 
     /// Whether a permanent has an ability: printed, given by a resolved effect, or given by a static ability.
@@ -393,7 +419,7 @@ impl Game {
         if self.grants.iter().any(|g| g.target == id && g.zcc == o.zcc && g.ability == *ability) {
             return true;
         }
-        self.battlefield.iter().any(|src| {
+        self.battlefield.iter().chain(self.command.iter()).any(|src| {
             let s = self.obj(*src);
             s.def.abilities.iter().any(|a| match a {
                 AbilityDef::SimpleStaticAbility { effects, .. } => {
@@ -430,6 +456,11 @@ impl Game {
     }
 
     /// `who` ("you", "opponent", "any") of a trigger, for its controller `you` and the player `seat` it's about.
+    /// What triggered abilities can come from: permanents, then emblems.
+    pub fn trigger_sources(&self) -> Vec<ObjId> {
+        self.battlefield.iter().chain(self.command.iter()).copied().collect()
+    }
+
     pub fn whose(who: &str, you: Seat, seat: Seat) -> bool {
         match who {
             "you" => you == seat,
@@ -467,8 +498,15 @@ impl Game {
     pub fn condition_holds(&self, condition: Option<&Condition>, you: Seat, source: ObjId) -> bool {
         let Some(c) = condition else { return true };
         match c {
-            Condition::Kicked => false,
+            // a permanent that was cast kicked ("when this enters, if it was kicked")
+            Condition::Kicked => self.obj(source).kicked,
             Condition::Raid => self.player(you).attacked,
+            Condition::SourceAttacking => self.obj(source).attacking.is_some(),
+            Condition::CardsInGraveyard { filter, n } => {
+                let g = &self.player(you).graveyard;
+                g.iter().filter(|c| self.filter_matches(filter, you, Some(source), **c)).count() as i32 >= *n
+            }
+            Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
             Condition::Permanents { filter, cmp, n, all } => {
                 let count = self
@@ -542,7 +580,7 @@ impl Game {
         let counters = o.counter("+1/+1");
         p += counters;
         t += counters;
-        for src in self.battlefield.iter() {
+        for src in self.battlefield.iter().chain(self.command.iter()) {
             let s = self.obj(*src);
             for a in &s.def.abilities {
                 if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
@@ -614,6 +652,7 @@ impl Game {
             Zone::Graveyard => self.player_mut(owner).graveyard.retain(|x| *x != id),
             Zone::Battlefield => Arc::make_mut(&mut self.battlefield).retain(|x| *x != id),
             Zone::Exile => Arc::make_mut(&mut self.exile).retain(|x| *x != id),
+            Zone::Command => Arc::make_mut(&mut self.command).retain(|x| *x != id),
             Zone::Stack => Arc::make_mut(&mut self.stack).retain(|x| x.card != id || x.ability.is_some()),
         }
     }
@@ -654,6 +693,13 @@ impl Game {
         } else {
             Vec::new()
         };
+        if from == Zone::Battlefield && zone != Zone::Battlefield {
+            let zcc = self.obj(id).zcc;
+            let (back, kept): (Vec<_>, Vec<_>) =
+                self.exiled_until_leaves.iter().copied().partition(|(s, z, _)| *s == id && *z == zcc);
+            self.exiled_until_leaves = kept;
+            self.returning.extend(back.into_iter().map(|(_, _, c)| c));
+        }
         self.remove_from_zone(id);
         let owner = self.obj(id).owner;
         {
@@ -663,6 +709,12 @@ impl Game {
                 o.damage = 0;
                 o.counters.clear();
                 o.attacking = None;
+                o.attacking_pw = None;
+                o.loyalty_used = false;
+                o.kicked = false;
+                if let Some(def) = o.until_end_of_turn_def.take() {
+                    o.def = def;
+                }
                 o.blocking.clear();
                 o.blocked = false;
                 o.blocked_by.clear();
@@ -691,6 +743,7 @@ impl Game {
                 Arc::make_mut(&mut self.battlefield).push(id)
             }
             Zone::Exile => Arc::make_mut(&mut self.exile).push(id),
+            Zone::Command => Arc::make_mut(&mut self.command).push(id),
             Zone::Stack => {}
         }
     }
