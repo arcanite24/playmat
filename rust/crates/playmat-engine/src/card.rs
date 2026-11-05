@@ -1104,6 +1104,9 @@ pub enum AbilityDef {
         /// it triggers at most this many times each turn (`setTriggersLimitEachTurn`)
         #[serde(default)]
         limit_per_turn: Option<u32>,
+        /// a modal ability ("choose one"): its other modes, mode 0 being its own effects and targets
+        #[serde(default)]
+        modes: Vec<ModeDef>,
         rule: String,
     },
     EntersBattlefieldTappedAbility {
@@ -1347,6 +1350,18 @@ impl AbilityDef {
 
     pub fn is_enters_tapped(&self) -> bool {
         matches!(self, AbilityDef::EntersBattlefieldTappedAbility { .. })
+    }
+
+    /// a modal triggered ability's modes (mode 0 is its own effects and targets); empty if it isn't modal
+    pub fn trigger_modes(&self) -> Vec<(&[EffectDef], &[TargetDef])> {
+        match self {
+            AbilityDef::TriggeredAbility { effects, targets, modes, .. } if !modes.is_empty() => {
+                let mut all: Vec<(&[EffectDef], &[TargetDef])> = vec![(effects, targets)];
+                all.extend(modes.iter().map(|m| (&m.effects[..], &m.targets[..])));
+                all
+            }
+            _ => Vec::new(),
+        }
     }
 
     /// the mana a `{T}: Add …` ability makes

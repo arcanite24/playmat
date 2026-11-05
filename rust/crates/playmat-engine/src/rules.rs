@@ -1744,6 +1744,12 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         let Some((rule, effects, targets, optional)) = def.abilities.get(index).and_then(|a| a.on_stack()) else {
             return;
         };
+        // a modal triggered ability does its chosen mode
+        let modes = def.abilities[index].trigger_modes();
+        let (effects, targets) = match item.modes.first() {
+            Some(k) if *k < modes.len() => modes[*k],
+            _ => (effects, targets),
+        };
         // "may" abilities ask at resolution (`TriggeredAbilityImpl.resolve`)
         if optional {
             let q = Query::YesNo { message: rule.to_string() };
@@ -3684,11 +3690,34 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                 } else {
                     0
                 };
-                let t = mine.remove(pick);
+                let mut t = mine.remove(pick);
                 let ability = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i).cloned());
+                // a modal one: `HumanPlayer.chooseMode` among the modes whose targets can be chosen
+                let modes = ability.as_ref().map(|a| a.trigger_modes()).unwrap_or_default();
+                let mut mode_targets = None;
+                if !modes.is_empty() {
+                    let available: Vec<usize> = (0..modes.len())
+                        .filter(|k| modes[*k].1.iter().all(|x| target_possible(game, seat, x)))
+                        .collect();
+                    let k = loop {
+                        // asked even with one mode left; cancelling removes the ability
+                        if available.is_empty() {
+                            break None;
+                        }
+                        match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
+                            Answer::Mode(k) if available.contains(&k) => break Some(k),
+                            Answer::Stop => return,
+                            _ => break None,
+                        }
+                    };
+                    let Some(k) = k else { continue };
+                    t.modes = vec![k];
+                    mode_targets = Some(modes[k].1.to_vec());
+                }
                 Arc::make_mut(&mut game.stack).push(t);
                 // its targets, which can't be cancelled; with no legal ones it's removed (rule 603.3d)
                 if let Some((rule, _, targets, _)) = ability.as_ref().and_then(|a| a.triggered()) {
+                    let targets = mode_targets.as_deref().unwrap_or(targets);
                     if !targets.is_empty() && !choose_targets(game, d, seat, targets, None, rule, false) {
                         if d.stopped() {
                             return;

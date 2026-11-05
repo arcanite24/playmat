@@ -1536,26 +1536,7 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
             return
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addMode\((.*)\)', st)
         if m:
-            arg = m.group(1).strip()
-            # `new Mode(effect).addEffect(effect).addTarget(target)`
-            chained, more = [], []
-            while True:
-                n = re.fullmatch(r'(new Mode\(.*\))\s*\.add(Target|Effect)\((.*)\)', arg, re.S)
-                if not n or split_args(n.group(3)) != [n.group(3).strip()]:
-                    break
-                arg = n.group(1)
-                if n.group(2) == 'Target':
-                    chained = [t.target(n.group(3))] + chained
-                else:
-                    more = [t.effect(n.group(3))] + more
-            if arg in t.vars:
-                mode = t.vars[arg]
-            else:
-                cls, args = t.new_expr(arg)
-                if cls != 'Mode':
-                    raise Unsupported('mode ' + arg)
-                mode = {'class': 'Mode', 'effects': [t.effect(a) for a in args], 'targets': []}
-            modes.append({'effects': mode.get('effects', []) + more, 'targets': mode.get('targets', []) + chained})
+            modes.append(mode_expr(t, m.group(1)))
             return
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.getModes\(\)\.set(Min|Max)Modes\((\d+)\)', st)
         if m:
@@ -1583,6 +1564,30 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         raise Unsupported('statement ' + st)
 
 
+
+def mode_expr(t, arg):
+    """`new Mode(effect).addEffect(effect).addTarget(target)` or a `Mode` variable -> {effects, targets}"""
+    arg = arg.strip()
+    chained, more = [], []
+    while True:
+        n = re.fullmatch(r'(new Mode\(.*\))\s*\.add(Target|Effect)\((.*)\)', arg, re.S)
+        if not n or split_args(n.group(3)) != [n.group(3).strip()]:
+            break
+        arg = n.group(1)
+        if n.group(2) == 'Target':
+            chained = [t.target(n.group(3))] + chained
+        else:
+            more = [t.effect(n.group(3))] + more
+    if arg in t.vars:
+        mode = t.vars[arg]
+    else:
+        cls, args = t.new_expr(arg)
+        if cls != 'Mode':
+            raise Unsupported('mode ' + arg)
+        mode = {'class': 'Mode', 'effects': [t.effect(a) for a in args], 'targets': []}
+    return {'effects': mode.get('effects', []) + more, 'targets': mode.get('targets', []) + chained}
+
+
 def ability_statement(t, st, added):
     """A constructor statement that builds or adds an ability (cards and tokens alike); False if it isn't one"""
     m = re.fullmatch(r'(?:final )?\w+ (\w+)=(.*)', st) or re.fullmatch(r'(\w+)=(new .*)', st)
@@ -1600,6 +1605,11 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.addEffect\(new InfoEffect\("This ability costs \{1\} less to activate for each '
                      r'legendary creature you control"\)\)', st)
     if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'ChannelAbility':
+        return True
+    # a modal triggered ability: "choose one" of its effects and targets, or a mode's
+    m = re.fullmatch(r'(\w+)\.addMode\((.*)\)', st)
+    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
+        t.vars[m.group(1)].setdefault('modes', []).append(mode_expr(t, m.group(2)))
         return True
     m = re.fullmatch(r'(\w+)\.add(Effect|Target|Cost)\((.*)\)', st)
     if m and m.group(1) in t.vars and 'class' in t.vars[m.group(1)]:
