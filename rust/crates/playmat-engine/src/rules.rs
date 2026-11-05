@@ -93,6 +93,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.instants_sorceries_cast = 0;
             }
             game.triggered_this_turn.clear();
+            game.creature_died = false;
             game.activated_this_turn.clear();
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {

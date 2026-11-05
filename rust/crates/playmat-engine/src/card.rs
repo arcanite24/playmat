@@ -415,6 +415,12 @@ pub enum Condition {
     And {
         xs: Vec<Condition>,
     },
+    Or {
+        xs: Vec<Condition>,
+    },
+    /// a creature died this turn
+    Morbid,
+    SourceEnteredThisTurn,
     /// `SourceAttackingCondition`
     SourceAttacking,
     /// `CardsInControllerGraveyardCondition`, spell mastery: at least `n` cards of the filter in your graveyard

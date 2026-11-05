@@ -315,6 +315,8 @@ pub struct Game {
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
     /// order they were exiled
     pub exile_by_creation: bool,
+    /// a creature died this turn (`MorbidWatcher`)
+    pub creature_died: bool,
     pub grants: Arc<Vec<Grant>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
@@ -355,6 +357,7 @@ impl Game {
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
             exile_by_creation: false,
+            creature_died: false,
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
@@ -693,6 +696,8 @@ impl Game {
             }
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
+            Condition::Morbid => self.creature_died,
+            Condition::SourceEnteredThisTurn => self.obj(source).entered_turn == self.turn,
             Condition::StartingTown => self.active == Some(you) && self.turn.div_ceil(self.seats() as u32) <= 3,
             Condition::LifeCompare { who, cmp, n } => (0..self.seats())
                 .filter(|s| if who == "you" { *s == you } else { *s != you })
@@ -713,6 +718,7 @@ impl Game {
             }
             Condition::Not { x } => !self.condition_holds(Some(x), you, source),
             Condition::And { xs } => xs.iter().all(|x| self.condition_holds(Some(x), you, source)),
+            Condition::Or { xs } => xs.iter().any(|x| self.condition_holds(Some(x), you, source)),
         }
     }
 
@@ -890,6 +896,9 @@ impl Game {
         // dies triggers look back at the battlefield as it was (this one included), and at what left it in the same
         // action (Java's short-living LKI: a sweeper's creatures see each other die)
         let died_controller = self.obj(id).controller;
+        if from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) {
+            self.creature_died = true;
+        }
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
             let fired;
             let mut sources: Vec<ObjId> = self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();

@@ -311,6 +311,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
               'SpellMasteryCondition.instance': {'c': 'cards_in_graveyard', 'n': 2, 'filter': [
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
               'MyTurnCondition.instance': {'c': 'my_turn'},
+              'MorbidCondition.instance': {'c': 'morbid'},
+              'SourceEnteredThisTurnCondition.TRUE': {'c': 'source_entered_this_turn'},
               'CastFromEverywhereSourceCondition.instance': {'c': 'cast_from_everywhere'},
               'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}},
               'StartingTownCondition.instance': {'c': 'starting_town'},
@@ -649,6 +651,8 @@ class Translator:
             return CONDITIONS[arg]
         if arg in self.conditions:
             return self.condition(self.conditions[arg])
+        if arg == 'SourceEnteredOrControlsBasicLandCondition.instance':
+            return {'c': 'or', 'xs': [{'c': 'source_entered_this_turn'}, self.condition('YouControlABasicLandCondition.instance')]}
         if arg == 'YouControlABasicLandCondition.instance':
             return {'c': 'permanents', 'filter': [LAND, {'p': 'supertype', 's': 'BASIC'}], 'cmp': 'OR_GREATER', 'n': 1}
         if (m := re.fullmatch(r'new (YouControlPermanentCondition|PermanentsOnTheBattlefieldCondition)\((.*)\)', arg)):
@@ -887,6 +891,9 @@ class Translator:
         if isinstance(obj, dict):
             return obj
         cls, args = obj
+        # a one-shot wrapper that starts a continuous effect: the effect itself
+        if cls == 'AddContinuousEffectToGame' and len(args) == 1:
+            return self.effect(args[0])
         if cls == 'DamageTargetEffect' and args == ['SourcePermanentPowerValue.NOT_NEGATIVE']:
             return {'class': 'DamageTargetSourcePowerEffect'}
         if cls.startswith('SearchLibraryPutIn'):
