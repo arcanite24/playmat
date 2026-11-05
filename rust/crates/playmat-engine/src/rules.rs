@@ -501,6 +501,14 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, M
             .iter()
             .enumerate()
             .filter(|(_, a)| a.mana_condition().is_none_or(|c| game.condition_holds(Some(c), seat, *id)))
+            .filter(|(_, a)| a.mana_costs().iter().all(|c| match c {
+                // `canPay` counts the source itself, still untapped
+                CostDef::TapTargetCost { filter, amount } => {
+                    mana_tap_targets(game, seat, *id, filter).len() + usize::from(game.filter_matches(filter, seat, Some(*id), *id))
+                        >= *amount
+                }
+                _ => true,
+            }))
             .filter_map(|(i, a)| a.mana().map(|m| (i, m, a.mana_kind())))
             .collect();
         if !abilities.is_empty() {
@@ -917,7 +925,9 @@ fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> Mana
         if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
             for e in effects {
                 if let EffectDef::SpellCostReductionSourceEffect { amount, condition, stack_only } = e {
-                    if (!*stack_only || o.zone == Zone::Stack) && game.condition_holds(condition.as_ref(), seat, id) {
+                    // a condition that only works on the stack is skipped while checking what's playable
+                    // (`canWorksOnStackOnly`): the card can go on the stack anyway
+                    if (*stack_only && o.zone != Zone::Stack) || game.condition_holds(condition.as_ref(), seat, id) {
                         cost.generic = cost.generic.saturating_sub(*amount as u32);
                     }
                 }
@@ -1458,11 +1468,28 @@ fn activate_mana(
     k: ManaKind,
     unpaid: &ManaCost,
 ) -> bool {
+    game.obj_mut(id).tapped = true;
+    // "tap an untapped permanent you control": asked, unless only enough are left
+    for c in game.obj(id).def.abilities[i].mana_costs().to_vec() {
+        if let CostDef::TapTargetCost { filter, amount } = c {
+            let possible = mana_tap_targets(game, seat, id, &filter);
+            let Some(chosen) = choose_cards(game, d, seat, &possible, &possible, amount, amount, "tap") else {
+                return false;
+            };
+            if chosen.len() < amount {
+                // the cost wasn't paid: the ability isn't activated
+                game.obj_mut(id).tapped = false;
+                return true;
+            }
+            for o in chosen {
+                game.obj_mut(o).tapped = true;
+            }
+        }
+    }
     if k == ManaKind::AnyColor {
         let Some(c) = any_color(game, d, seat, unpaid) else { return false };
         m = Mana::of(c, 1);
     }
-    game.obj_mut(id).tapped = true;
     if game.obj(id).def.abilities[i].mana_costs().contains(&CostDef::SacrificeSourceCost) {
         sacrifice(game, id);
     }
@@ -1478,6 +1505,30 @@ fn activate_mana(
         apply_effects(game, d, &StackItem::spell(id, seat), &effects, &[], (id, zcc));
     }
     true
+}
+
+/// `PermanentImpl.getLethalDamage`: what's left of a creature's toughness (1 from a deathtouch source), a
+/// planeswalker's loyalty
+fn fight_lethal(game: &Game, id: ObjId, from: ObjId) -> i32 {
+    let mut lethal = i32::MAX;
+    if game.has_type(id, CardType::Creature) {
+        lethal = (game.power_toughness(id).1 - game.obj(id).damage).max(0);
+        if game.has_ability(from, &AbilityDef::DeathtouchAbility) {
+            lethal = lethal.min(1);
+        }
+    }
+    if game.has_type(id, CardType::Planeswalker) {
+        lethal = lethal.min(game.obj(id).counter("loyalty"));
+    }
+    lethal
+}
+
+/// The other untapped permanents of the filter a mana ability's tap cost can tap, in battlefield order.
+fn mana_tap_targets(game: &Game, seat: Seat, source: ObjId, filter: &crate::card::Filter) -> Vec<ObjId> {
+    matching(game, filter, seat, source)
+        .into_iter()
+        .filter(|o| *o != source && game.obj(*o).controller == seat && !game.obj(*o).tapped)
+        .collect()
 }
 
 fn kind(m: &mut Mana, k: usize) -> &mut u32 {
@@ -1981,7 +2032,8 @@ fn apply_each_effect(
                     if creature(game, a) && creature(game, b) {
                         let pb = game.power_toughness(b).0;
                         deal_damage(game, b, Target::Obj(a), pb, false);
-                        let pa = game.power_toughness(a).0;
+                        // `fightWithExcess`: the second creature is dealt only lethal damage (`damageWithExcess`)
+                        let pa = game.power_toughness(a).0.min(fight_lethal(game, b, a));
                         deal_damage(game, a, Target::Obj(b), pa, false);
                     }
                 }
@@ -3020,6 +3072,18 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         o.cast = cast;
         o.zcc
     };
+    // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f)
+    if !cast && def.has_subtype("Aura") {
+        if let Some(t) = def.spell.targets.first() {
+            let rule = format!("attach {} to", def.name);
+            if let Some(chosen) = choose_target(game, d, controller, t, Some(id), &rule, false) {
+                if let Some(Target::Obj(to)) = chosen.first().copied() {
+                    let zcc = game.obj(to).zcc;
+                    game.obj_mut(id).attached_to = Some((to, zcc));
+                }
+            }
+        }
+    }
     // shock lands: `TapSourceUnlessPaysEffect` asks only when the life can be paid
     for a in &def.abilities {
         if let AbilityDef::AsEntersBattlefieldAbility { effects, .. } = a {
@@ -3108,7 +3172,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
             continue;
         }
         if !game.returning.is_empty() {
-            for c in std::mem::take(&mut game.returning) {
+            let mut back = std::mem::take(&mut game.returning);
+            // `AuraReplacementEffect` puts an Aura onto the battlefield as its move is replaced, before the rest
+            back.sort_by_key(|c| !game.obj(*c).def.has_subtype("Aura"));
+            for c in back {
                 if game.obj(c).zone == Zone::Exile {
                     let owner = game.obj(c).owner;
                     enter_battlefield(game, d, c, owner, false);
@@ -3801,16 +3868,7 @@ pub fn state_based_actions(game: &mut Game) {
         }
         let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
         if alive.len() <= 1 && !game.over && alive.len() < game.seats() {
-            // as Java's trace sees the end: the loser's cards are gone from hand, library and graveyard (their
-            // permanents stay), and nobody is marked as the winner yet
-            for s in 0..game.seats() {
-                if game.player(s).lost {
-                    let p = game.player_mut(s);
-                    p.hand.clear();
-                    p.library.clear();
-                    p.graveyard.clear();
-                }
-            }
+            // nobody is marked as the winner yet; the fingerprint hides the loser's cards
             game.over = true;
             return;
         }

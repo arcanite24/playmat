@@ -4,6 +4,7 @@ import mage.MageObject;
 import mage.abilities.Ability;
 import mage.abilities.Mode;
 import mage.abilities.Modes;
+import mage.cards.AdventureCard;
 import mage.cards.Card;
 import mage.cards.DoubleFacedCard;
 import mage.constants.ManaType;
@@ -301,11 +302,14 @@ public final class DecisionLog {
                 return true;
             }
         }
-        // a double-faced card's faces, which a client can click instead of the card
+        // a double-faced card's faces, or an adventurer card's adventure, which a client can click instead of the card
         if (object instanceof DoubleFacedCard) {
             DoubleFacedCard card = (DoubleFacedCard) object;
             return visitor.test(ref + "f0", card.getLeftHalfCard().getId())
                     || visitor.test(ref + "f1", card.getRightHalfCard().getId());
+        }
+        if (object instanceof AdventureCard) {
+            return visitor.test(ref + "f1", ((AdventureCard) object).getSpellCard().getId());
         }
         return false;
     }
