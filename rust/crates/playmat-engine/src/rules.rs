@@ -113,6 +113,25 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             let delayed = std::mem::take(&mut game.at_end_of_combat);
             game.pending.extend(delayed);
         }
+        // "at the beginning of combat on your turn" triggers
+        Step::BeginCombat => {
+            let mut fired = Vec::new();
+            for src in game.battlefield.iter().copied() {
+                let o = game.obj(src);
+                if o.controller != active {
+                    continue;
+                }
+                for (i, a) in o.def.abilities.iter().enumerate() {
+                    if matches!(a, AbilityDef::BeginningOfCombatTriggeredAbility { .. })
+                        && game.condition_holds(a.intervening_if(), active, src)
+                    {
+                        fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, active) });
+                    }
+                }
+            }
+            fired.sort_by_key(|t| game.obj(t.card).trigger_order);
+            game.pending.extend(fired);
+        }
         // "at the beginning of the end step" triggers; an intervening "if" is checked now and on resolution
         Step::EndTurn => {
             let mut fired = Vec::new();
@@ -121,7 +140,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 for (i, a) in o.def.abilities.iter().enumerate() {
                     if let AbilityDef::BeginningOfEndStepTriggeredAbility { controller, condition, .. } = a {
                         if (controller == "any" || o.controller == active)
-                            && condition_holds(game, condition.as_deref(), o.controller)
+                            && game.condition_holds(condition.as_deref(), o.controller, src)
                         {
                             fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, o.controller) });
                         }
@@ -138,15 +157,6 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         Step::CombatDamage => combat_damage(game, d, false),
         Step::Cleanup => cleanup(game, d, active),
         _ => {}
-    }
-}
-
-/// An intervening "if" of a triggered ability.
-fn condition_holds(game: &Game, condition: Option<&str>, controller: Seat) -> bool {
-    match condition {
-        None => true,
-        Some("raid") => game.player(controller).attacked,
-        Some(_) => false,
     }
 }
 
@@ -850,8 +860,8 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         return;
     }
     if let Some((index, zcc)) = item.ability {
-        if let Some(AbilityDef::BeginningOfEndStepTriggeredAbility { condition, .. }) = def.abilities.get(index) {
-            if !condition_holds(game, condition.as_deref(), item.controller) {
+        if let Some(a) = def.abilities.get(index) {
+            if !game.condition_holds(a.intervening_if(), item.controller, id) {
                 return;
             }
         }
@@ -1080,6 +1090,7 @@ fn apply_effects(
             | EffectDef::GainAbilitySourceEffect { .. }
             | EffectDef::ConditionalContinuousEffect { .. }
             | EffectDef::SetBasePowerToughnessSourceEffect { .. }
+            | EffectDef::AddCardSubTypeSourceEffect
             | EffectDef::TapSourceUnlessPaysEffect { .. } => {}
         }
     }
@@ -1335,9 +1346,10 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat) {
 }
 
 fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
-    let b = game.obj(blocker);
-    let a = game.obj(attacker);
-    if a.has(&AbilityDef::FlyingAbility) && !b.has(&AbilityDef::FlyingAbility) && !b.has(&AbilityDef::ReachAbility) {
+    if game.has_ability(attacker, &AbilityDef::FlyingAbility)
+        && !game.has_ability(blocker, &AbilityDef::FlyingAbility)
+        && !game.has_ability(blocker, &AbilityDef::ReachAbility)
+    {
         return false;
     }
     true
