@@ -9,6 +9,8 @@ Short version:
 - **So the plan is a strangler, in this order:** a Rust gateway in front of the Java server, the non-game services, then a new engine that runs games only when every card in both decks is verified in Rust, with Java as the fallback. AI moves with the engine, because the AI is the engine plus a search loop.
 - Every phase ships on its own and has a go/no-go gate. If the engine port stalls, phases 1–3 still pay for themselves and Java keeps running games.
 
+**Retargeted 5 Nov 2026:** the main goal is AI speed in one-on-one games against the AI with decks up to Pioneer (Pioneer and Standard), speed before strength. The engine (Phase 4) and the Rust AI (Phase 5) come next and are built together for two-player duels; the first card pool is the Pioneer and Standard school decks; the Career's phase 3 is parked; the bar is the current Java, measured with `AiSpeedBenchTest` (see [Decisions (5 Nov 2026)](#decisions-5-nov-2026)).
+
 ## What we measured
 
 Numbers come from `ops/perf/README.md` (harness: `npm run perf`) and the latest runs in `ops/perf/results/` (3–4 Nov 2026, skill 4, 4 slots).
@@ -120,10 +122,10 @@ Sizes are rough calendar estimates for one developer with agents, measured again
 
 | Phase | Built | Gate |
 |---|---|---|
-| 0 | State traces and fingerprints (`mage.game.trace`, a seeded game replays to the same trace), decision logs (`DecisionLog`), the card-test export (`-Dxmage.exportTests`), the wire conformance suite, `playmat-statediff` byte-compatible with Java's patches, the perf harness's `PERF_BACKEND` and Pauper deck suite | Conformance green against Java. A recorded decision log replays to the identical trace on Java twice in a row (`DecisionLogTest`). The Java copy-on-write work isn't started. |
+| 0 | State traces and fingerprints (`mage.game.trace`, a seeded game replays to the same trace), decision logs (`DecisionLog`), the card-test export (`-Dxmage.exportTests`), the wire conformance suite, `playmat-statediff` byte-compatible with Java's patches, the perf harness's `PERF_BACKEND` and Pauper deck suite; for the new target, `AiSpeedBenchTest` (seeded duels with the 42 Pioneer and Standard school decks, decision times and CPU per search node, [ops/perf/README.md](../ops/perf/README.md)) | Conformance green against Java. A recorded decision log replays to the identical trace on Java twice in a row (`DecisionLogTest`). Java copy-on-write started: simulations share cards copy-on-write, and #217 cut CPU per AI search node by a third (823 → 547 µs on the heaviest boards). |
 | 1 | JBoss Remoting gone; `playmat-gateway` behind `XMAGE_GATEWAY`, with routes, state patches and Caddy fallback | Conformance green through the gateway; JVM CPU per human game down 12% (1.60 → 1.41 s) for 0.31 s in the gateway; the week on Multivac and Hetzner is still to run. |
 | 2 | `playmat-platform`: the card catalog with card search and constructed deck validation ([rust/Catalog.md](rust/Catalog.md)) deck sync ([rust/Decks.md](rust/Decks.md)) and deck import by link ([rust/DeckImport.md](rust/DeckImport.md)) the staff console's stored records ([rust/Admin.md](rust/Admin.md)) and support's records with staff's feedback inbox ([rust/Support.md](rust/Support.md)), each with `shadow`; the accounts moved from H2 to SQLite (`authorized_user.db`, copied once, `XMAGE_ACCOUNTS_DB=h2` copies back); Rust can decline a call it doesn't cover and Java answers it | Both answer as Java does in the live tests, with no shadow differences. Since 4 Nov both groups run in `shadow` on Hetzner for one account (`XMAGE_SHADOW_USERS`). Left with Java: the admin calls that need its memory (live users and tables, the access mode, runtime settings, mail, Discord). Left with Java too: sign-in, registration, mail codes and account deletion (live sessions, in-memory codes and limits), the support status, looks and the Ko-fi and GitHub hooks; the Commander formats' validation stays in Java. |
-| 3 | Started: the Career's records that need only `career.db` and the level track (`careerCollection`, `careerDeck`, `careerGameResult`, `careerShowProgress`, `careerLevels`, [rust/Career.md](rust/Career.md)), with `shadow`; Rust reads the Career content from the image's copy of `resources/career`, and serves the starters, cosmetics, opponents, achievements and quests (`careerStarters`, `careerCosmetics`, `careerOpponents`, `careerAchievements`, `careerQuests` once the day's are picked) from the views Java exports; the first writes without chance, `careerEquipStyle`, `careerCraft` (with the achievements a craft pays), `careerStart` and `careerSaveDeck` | Not met. Next: `matchEnded` from Java for payouts, as proposed in [rust/Payouts.md](rust/Payouts.md). Packs, capsule pulls, limited drafts and every call that starts a game stay with Java until then. |
+| 3 | Started: the Career's records that need only `career.db` and the level track (`careerCollection`, `careerDeck`, `careerGameResult`, `careerShowProgress`, `careerLevels`, [rust/Career.md](rust/Career.md)), with `shadow`; Rust reads the Career content from the image's copy of `resources/career`, and serves the starters, cosmetics, opponents, achievements and quests (`careerStarters`, `careerCosmetics`, `careerOpponents`, `careerAchievements`, `careerQuests` once the day's are picked) from the views Java exports; the first writes without chance, `careerEquipStyle`, `careerCraft` (with the achievements a craft pays), `careerStart` and `careerSaveDeck` | Not met, and parked since 5 Nov: what's built stays in `shadow`. Next, when it resumes: `matchEnded` from Java for payouts, as proposed in [rust/Payouts.md](rust/Payouts.md). Packs, capsule pulls, limited drafts and every call that starts a game stay with Java until then. |
 
 ### Phase 0: Contracts and measurement (2–3 weeks)
 
@@ -187,10 +189,10 @@ Card pipeline:
 Running it:
 
 - **Shadow games**: decision logs from real Java games replay in Rust; any fingerprint mismatch is a bug report with the exact action.
-- **Coverage-gated routing**: `auto` tables use Rust only when every card is verified. First pool (decided 3 Nov): the **Pauper Career school decks** (23 decks, 218 distinct cards, all commons) in two-player duel, plus the red mirror the harness uses. Pauper first because the cards are simpler, the pool is small and fixed, and most of those games are against the AI, where the CPU goes. Then the Pioneer school decks (about 210 more cards), then Standard, then limited sets.
+- **Coverage-gated routing**: `auto` tables use Rust only when every card is verified. First pool (changed 5 Nov): the **Pioneer and Standard Career school decks** (42 decks, 410 distinct cards, `Mage.Server/career-src/pioneer` and `standard`) in two-player duel. Those are the games the target is about: one on one against the AI, where the CPU goes. Then every Pioneer-legal card, newest sets first; Pauper, limited, commander and multiplayer after that. (Decided 3 Nov and replaced: the Pauper school decks first, for their simpler cards.)
 - Game types: two-player duel first; commander and multiplayer later.
 
-**Gate (first):** all exported tests for the verified card pool pass; 10,000 shadow games of the pool with zero mismatches; CPU-s per AI game on real decks at least 5× better than the Phase 0 Java baseline. Then `auto` for staff, then a share of tables, then default.
+**Gate (first):** all exported tests for the verified card pool pass; 10,000 shadow games of the pool with zero mismatches; CPU-s per AI game on the 42 decks at least 5× better than Java at the time (re-measured, since Java keeps getting faster), with AI decisions at least as fast at p99 and worst case (`AiSpeedBenchTest`). Then `auto` for staff, then a share of tables, then default.
 
 ### Phase 5: Rust AI (2–3 months, overlaps Phase 4)
 
@@ -198,7 +200,9 @@ Running it:
 - Rust AI plays only in Rust-engine games. Archbench (the planned AI benchmark) runs on it first, since AI-vs-AI batches need speed most and need no humans.
 - One-decision policies (Jev, LLMs, learned nets via ONNX in `ort`) plug in at the same decision interface.
 
-**Gate:** Rust MAD at least matches Java MAD's results on the bench at equal node budgets, at a fraction of the CPU.
+- Built alongside Phase 4 for two-player duels, measured with the same seeded duels as `AiSpeedBenchTest`: decision p50/p95/p99/worst, CPU per node and per game.
+
+**Gate:** Rust MAD at least matches Java MAD's results on the bench at equal node budgets on the 42 decks, at a fraction of the CPU, with no decision over 1 s at skill 4 on the bench's heaviest games (Java after #217: worst 1.9 s, p99 1.6 s).
 
 ### Phase 6: Retire Java (open-ended)
 
@@ -238,7 +242,14 @@ Decided 3 Nov: the fork may stop merging upstream Java, but it keeps following u
 ## Decisions (3 Nov 2026)
 
 1. **Desktop client:** not needed. JBoss Remoting is dropped in Phase 1.
-2. **First card pool:** the Pauper Career school decks in two-player duel, then Pioneer, then Standard, then limited sets.
+2. **First card pool:** the Pauper Career school decks in two-player duel, then Pioneer, then Standard, then limited sets. Replaced on 5 Nov (below).
 3. **Database:** SQLite for every Rust service (`sqlx`, WAL mode, one file per owning service, as today). It needs no extra process on a 1 GB box, backups stay file copies (`ops/web/backup.sh`), and there is one server per deployment. Revisit only if Playmat ever runs more than one server process against the same data.
 4. **Upstream:** merging upstream Java may end, but upstream's card and engine changes are tracked automatically in the upstream ledger and ported to Rust.
 5. **Translation budget:** no cap on LLM-assisted porting.
+
+## Decisions (5 Nov 2026)
+
+1. **Target:** AI performance in one-on-one games against the AI with decks up to Pioneer (Pioneer and Standard). Speed first: CPU per game and the time a player waits on a decision, then AI strength.
+2. **Order:** the rules engine (Phase 4) and the Rust AI (Phase 5) are next, built together for two-player duels. Phases 1 and 2 keep their shadow weeks; Phase 3 (the Career) is parked with what's built in `shadow`, and payouts wait.
+3. **First card pool:** the Pioneer and Standard Career school decks (42 decks, 410 distinct cards), then every Pioneer-legal card. The upstream ledger ports Pioneer-legal cards first.
+4. **The bar:** Java keeps improving (#217), so each gate compares against Java at the time, measured with `AiSpeedBenchTest` and `npm run perf -- ai` on the 42 decks.
