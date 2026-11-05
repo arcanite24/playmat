@@ -56,6 +56,17 @@ function mockServer(ws) {
       serverGetMainRoomId: '00000000-0000-4000-8000-0000000000aa',
       searchCards: cards,
       getServerState: { serverVersion: 'test', maxGameRuns: 0, cardInfo: [] },
+      serverInfo: { career: true, accounts: false, serverName: 'Test' },
+      careerState: {
+        enabled: true,
+        profile: { collection: true, level: 7, xp: 1200, coins: 340, packTokens: 3, capsuleTokens: 2, cards: 180, wins: 12, losses: 5, renown: 40, showProgress: true, starter: 'ajani' },
+        rank: { tier: 2, tierName: 'Adept', badge: 'adept' },
+        recent: [],
+      },
+      careerLevels: { level: 7, xp: 1200, xpForNext: 1500, xpIntoLevel: 200, rewards: [], unlocks: [] },
+      careerQuests: { canReroll: true, today: '2026-11-05', quests: [] },
+      careerWeekly: { goals: [3, 6, 10], nextGoal: 6, week: '2026-W45', wins: 4 },
+      careerOpponents: [1, 2, 3, 4, 5, 6].map((i) => ({ id: `o${i}`, name: `Opponent ${i}`, tagline: 'Plays red and burns you out.', tier: Math.ceil(i / 2), tierName: 'Adept', unlocked: i < 5, colors: 'R', pips: 3, bounty: 20, winCoins: 15, lists: 1, style: ['aggro'] })),
       roomGetAllTables: [],
       getExpansionSets: [],
       tournamentFindById: tournament,
@@ -116,10 +127,15 @@ const screens = {
     await page.goto(`${base}/events`);
     await page.getByRole('button', { name: /host an event/i }).tap();
   },
+  career: async (page) => page.goto(`${base}/career`),
+  'career-opponents': async (page) => page.goto(`${base}/career/opponents`),
+  'career-shop': async (page) => page.goto(`${base}/career/shop`),
+  'career-progress': async (page) => page.goto(`${base}/career/progress`),
+  'career-collection': async (page) => page.goto(`${base}/career/collection`),
+  'career-capsules': async (page) => page.goto(`${base}/career/capsules`),
   event: async (page) => page.goto(`${base}/event/abc`),
   tables: async (page) => page.goto(`${base}/tables`),
   history: async (page) => page.goto(`${base}/history`),
-  career: async (page) => page.goto(`${base}/career`),
   import: async (page) => page.goto(`${base}/import`),
 };
 const wanted = (process.env.SCREENS ?? Object.keys(screens).join(',')).split(',');
@@ -144,6 +160,9 @@ for (const [width, height] of sizes) {
   for (const name of wanted) {
     try {
       await screens[name](page);
+      // Career greets a first visit with a welcome dialog: close it so the screen behind it shows
+      const welcome = page.getByRole('button', { name: /let.s play/i });
+      if (await welcome.waitFor({ timeout: 3000 }).then(() => true).catch(() => false)) await welcome.tap();
       await page.waitForTimeout(900);
       await page.screenshot({ path: `${out}${prefix}${name}-${width}x${height}.png` });
       console.log('shot', name, width, height);

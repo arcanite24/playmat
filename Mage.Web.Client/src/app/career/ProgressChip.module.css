@@ -95,6 +95,17 @@
   }
 }
 
+/* a phone: just the level ring, which opens the panel with the rest; the Career's own header shows the counts */
+@media (max-width: 640px) {
+  .packs {
+    display: none;
+  }
+
+  .chip {
+    padding-right: 2px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fill {
     transition: none;
