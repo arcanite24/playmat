@@ -47,6 +47,43 @@ To act like a small VPS on a big machine, cap the JVM's view of the hardware: `P
 - `liveHeapMBPerHeldGame` (`hold`) is the memory a game holds while it waits for a player.
 - `thinkTooLong` counts the AI's "thinks too long" warnings. The search stops itself at its think time, so a warning now means one action ran 3 s past it (an endless loop or a very slow card), not a big board.
 
+## AI decision times (AiSpeedBenchTest)
+
+`npm run perf -- ai` measures CPU per game. What a player waits on is each AI decision, and
+`Mage.Server/src/test/java/mage/server/career/AiSpeedBenchTest.java` measures that: seeded one-on-one games with the
+Pioneer and Standard school decks at skill 4, printing decision times (median, 95th and 99th percentile, worst), CPU per
+search node, and the slowest decisions with their board. It's skipped unless asked for:
+
+```bash
+mvn -o -q -pl Mage.Server.Plugins/Mage.Player.AI.MAD,Mage.Server test -Dtest=AiSpeedBenchTest \
+    -Dsurefire.failIfNoSpecifiedTests=false -Dxmage.aiSpeedBench=true -Dxmage.ai.searchStats=true \
+    -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:$PWD/.travis/log4j.properties
+```
+
+The report is in the BENCH lines of `Mage.Server/target/surefire-reports/TEST-mage.server.career.AiSpeedBenchTest.xml`.
+`-Dxmage.aiSpeedBench.games=84` plays every deck four times; `.only=13,54,73,75,40,9,61,35` plays the heaviest boards.
+Games don't replay exactly (object ids are random and hash order follows them), so compare runs by CPU per node, which
+varies about 3% between runs of the same code, and by percentiles over many games.
+
+### Faster AI decisions on big boards (4 Nov 2026)
+
+The eight heaviest games, skill 4, M-series Mac:
+
+| | before | after |
+|---|---|---|
+| CPU per search node | 823 us | 547 us |
+| worst decision | 4.6 s | 1.9 s |
+| 99th percentile | 2.2 s | 1.6 s |
+| decisions over 3 s | 3 | 0 |
+
+- Events, abilities, effects, costs and modes take their ids from `RandomUtil.newId()` instead of `UUID.randomUUID()`,
+  whose SecureRandom every search thread shared (10% of the search)
+- Checking whether an effect has ended reads its source with `getObjectReadOnly`, so a simulation doesn't copy a shared
+  card just to look at it, and only for the durations that look at the source
+- The AI works out each mana source's mana once when ordering them, not once per cost
+- In AI simulations, a mana ability doesn't apply the effects before it's activated or after it resolves: the spell
+  being paid for applies them. Real games keep the full rules
+
 ## Baseline, 12 Oct 2026
 
 Master 64ae4193 on a 12-core Mac with JDK 17, `-Xmx2g`, run by hand before this harness existed. Replays were off for these runs (`-Dxmage.replays=false`), so new runs with replays on will show somewhat more CPU per human game.

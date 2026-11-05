@@ -1,5 +1,7 @@
 package mage.abilities.costs.mana;
 
+import mage.util.RandomUtil;
+
 import mage.Mana;
 import mage.abilities.Ability;
 import mage.abilities.AbilityImpl;
@@ -41,11 +43,11 @@ public class ManaCostsImpl<T extends ManaCost> extends ArrayList<T> implements M
     private static final Map<String, ManaCosts> costsCache = new ConcurrentHashMap<>(); // must be thread safe, can't use nulls
 
     public ManaCostsImpl() {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
     }
 
     public ManaCostsImpl(String mana) {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         load(mana);
     }
 

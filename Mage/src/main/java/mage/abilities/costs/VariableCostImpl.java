@@ -1,5 +1,7 @@
 package mage.abilities.costs;
 
+import mage.util.RandomUtil;
+
 import mage.abilities.Ability;
 import mage.abilities.mana.ManaAbility;
 import mage.game.Game;
@@ -34,7 +36,7 @@ public abstract class VariableCostImpl implements Cost, VariableCost {
      *                   from your graveyard")
      */
     public VariableCostImpl(VariableCostType costType, String xText, String actionText) {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         this.costType = costType;
         this.paid = false;
         this.targets = null; // rare usage, must be null by default for performance optimization

@@ -722,12 +722,18 @@ public class ComputerPlayer extends PlayerImpl {
         unsorted.addAll(this.getAvailableManaProducersWithCost(game));
         Map<MageObject, Integer> scored = new HashMap<>();
         for (MageObject mageObject : unsorted) {
+            // what the producer can make, worked out once rather than once per cost (each check fires events)
+            Abilities<ActivatedManaAbilityImpl> available = mageObject.getAbilities().getAvailableActivatedManaAbilities(Zone.BATTLEFIELD, playerId, game);
+            List<List<Mana>> netManas = new ArrayList<>(available.size());
+            for (ActivatedManaAbilityImpl ability : available) {
+                netManas.add(ability.getNetMana(game));
+            }
             int score = 0;
             for (ManaCost cost : unpaid) {
                 Abilities:
-                for (ActivatedManaAbilityImpl ability : mageObject.getAbilities().getAvailableActivatedManaAbilities(Zone.BATTLEFIELD, playerId, game)) {
-                    for (Mana netMana : ability.getNetMana(game)) {
-                        if (cost.testPay(netMana)) {
+                for (List<Mana> netMana : netManas) {
+                    for (Mana mana : netMana) {
+                        if (cost.testPay(mana)) {
                             score++;
                             break Abilities;
                         }
@@ -735,7 +741,7 @@ public class ComputerPlayer extends PlayerImpl {
                 }
             }
             if (score > 0) { // score mana producers that produce other mana types and have other uses higher
-                score += mageObject.getAbilities().getAvailableActivatedManaAbilities(Zone.BATTLEFIELD, playerId, game).size();
+                score += available.size();
                 score += mageObject.getAbilities().getActivatedAbilities(Zone.BATTLEFIELD).size();
                 if (!mageObject.getCardType(game).contains(CardType.LAND)) {
                     score += 2;
