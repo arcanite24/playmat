@@ -656,6 +656,9 @@ pub enum EffectDef {
         attacking: bool,
         #[serde(default)]
         sacrifice_at_end_of_combat: bool,
+        /// Mobilize: sacrificed at the beginning of the next end step
+        #[serde(default)]
+        sacrifice_at_next_end_step: bool,
         #[serde(default)]
         haste_until_end_of_turn: bool,
     },
@@ -865,6 +868,10 @@ pub enum EffectDef {
     DontCauseTriggerEffect,
     /// a static ability's effect: each player of `who` can't cast more than one spell each turn
     CantCastMoreThanOneSpellEffect { who: String },
+    /// your opponents can't cast spells during your turn (Voice of Victory)
+    CantCastDuringYourTurnEffect,
+    /// equip abilities that target this cost less; the engine has no equipment, so it never applies
+    ReduceCostEquipTargetSourceEffect,
     /// a static ability's effect: permanents of the filter enter tapped
     PermanentsEnterBattlefieldTappedEffect { filter: Filter },
     /// a static ability's effect: players can't gain life
@@ -921,6 +928,8 @@ pub enum EffectDef {
     ExileGraveyardAllTargetPlayerEffect,
     /// exile all cards from all graveyards
     ExileGraveyardAllPlayersEffect,
+    /// remove up to `amount` counters, of any kinds, from the target (Glissa Sunslayer)
+    RemoveUpToAmountCountersEffect { amount: i32 },
     /// Fabled Passage: search your library for a card of the filter, shuffle, put it onto the battlefield tapped,
     /// then untap it if you control four or more lands
     FabledPassageSearchForLandEffect { filter: Filter },

@@ -1015,6 +1015,11 @@ fn cant_cast_more(game: &Game, seat: Seat) -> bool {
             EffectDef::CantCastMoreThanOneSpellEffect { who } => Game::whose(who, g.obj(src).controller, seat),
             _ => false,
         })
+        || game.any_static(|g, src, e| {
+            matches!(e, EffectDef::CantCastDuringYourTurnEffect)
+                && Some(g.obj(src).controller) == g.active
+                && g.obj(src).controller != seat
+        })
 }
 
 /// `ContinuousEffects.costModification`: a spell's cost with the increases, then the reductions, applied.
@@ -2028,6 +2033,7 @@ fn apply_each_effect(
                 tapped_and_attacking,
                 attacking,
                 sacrifice_at_end_of_combat,
+                sacrifice_at_next_end_step,
                 haste_until_end_of_turn,
             } => {
                 let amount = &v!(amount);
@@ -2060,10 +2066,19 @@ fn apply_each_effect(
                     let delayed =
                         Delayed {
                             rule: "At end of combat, sacrifice that token.".into(),
-                            sacrifice: created,
+                            sacrifice: created.clone(),
                             warp_exile: Vec::new(),
                         };
                     game.at_end_of_combat
+                        .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+                }
+                if *sacrifice_at_next_end_step {
+                    let delayed = Delayed {
+                        rule: "At the beginning of the next end step, sacrifice those tokens.".into(),
+                        sacrifice: created,
+                        warp_exile: Vec::new(),
+                    };
+                    game.at_next_end_step
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
                 }
             }
@@ -2573,6 +2588,8 @@ fn apply_each_effect(
             }
             EffectDef::DamageCantBePreventedEffect { .. }
             | EffectDef::CantCastMoreThanOneSpellEffect { .. }
+            | EffectDef::CantCastDuringYourTurnEffect
+            | EffectDef::ReduceCostEquipTargetSourceEffect
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
             | EffectDef::ClarionConquerorEffect
@@ -2997,6 +3014,29 @@ fn apply_each_effect(
                             game.obj_mut(s).add_counters("+1/+1", 1);
                         }
                         gain_life(game, controller, 1);
+                    }
+                }
+            }
+            EffectDef::RemoveUpToAmountCountersEffect { amount } => {
+                let Some(Target::Obj(t)) = target else { continue };
+                if game.obj(t).zone != Zone::Battlefield || *amount < 1 {
+                    continue;
+                }
+                let names = java_hash_order(
+                    game.obj(t).counters.iter().filter(|(_, n)| *n > 0).map(|(c, _)| c.clone()).collect(),
+                );
+                let n = names.len();
+                if n == 0 {
+                    continue;
+                }
+                let Some(values) = multi_amount(game, d, controller, vec![0; n], vec![(0, *amount); n], 0, *amount)
+                else {
+                    continue;
+                };
+                for (name, v) in names.iter().zip(values) {
+                    let o = game.obj_mut(t);
+                    if let Some(c) = o.counters.iter_mut().find(|(c, _)| c == name) {
+                        c.1 -= v.min(c.1).max(0);
                     }
                 }
             }
@@ -4238,6 +4278,22 @@ fn lethal_damage(game: &Game, blocker: ObjId, attacker: ObjId) -> i32 {
     } else {
         lethal
     }
+}
+
+/// The order a Java `HashMap<String, _>` (`Counters`) lists keys inserted in this order: by bucket of the spread
+/// `String.hashCode`, then insertion order within a bucket.
+fn java_hash_order(keys: Vec<String>) -> Vec<String> {
+    let mut cap = 16usize;
+    while keys.len() * 4 > cap * 3 {
+        cap *= 2;
+    }
+    let bucket = |k: &String| {
+        let h = k.encode_utf16().fold(0i32, |h, c| h.wrapping_mul(31).wrapping_add(c as i32));
+        ((h ^ ((h as u32) >> 16) as i32) as u32 as usize) & (cap - 1)
+    };
+    let mut keyed: Vec<(usize, usize, String)> = keys.into_iter().enumerate().map(|(i, k)| (bucket(&k), i, k)).collect();
+    keyed.sort();
+    keyed.into_iter().map(|(_, _, k)| k).collect()
 }
 
 /// `HumanPlayer.getMultiAmountWithIndividualConstraints`: asked unless there's nothing to choose; only a string of

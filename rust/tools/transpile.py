@@ -78,6 +78,7 @@ EFFECTS = {
     'ExileTargetEffect': [],
     'ReturnToHandTargetEffect': [],
     'ExileGraveyardAllPlayersEffect': [],
+    'RemoveUpToAmountCountersEffect': [('amount', 'int')],
     # (first, second): damage to the targets tagged 1 and 2, the ability's first and second targets
     'DamageTargetAndTargetEffect': [('first', 'int'), ('second', 'int')],
     'TapTargetEffect': [],
@@ -96,6 +97,9 @@ EFFECTS = {
     'CantAttackBlockAttachedEffect': [(None, 'aura')],
     'FightTargetsEffect': [],
     'CantCastMoreThanOneSpellEffect': [('who', 'target_controller')],
+    'CantCastDuringYourTurnEffect': [],
+    # cheaper equip abilities: the engine has no equipment, so it never applies
+    'ReduceCostEquipTargetSourceEffect': [(None, 'int')],
     'PermanentsEnterBattlefieldTappedEffect': [('filter', 'filter')],
     'CantGainLifeAllEffect': [],
     'ReturnSourceFromGraveyardToBattlefieldEffect': [(None, 'false'), (None, 'false')],
@@ -1142,6 +1146,13 @@ class Translator:
         cls, args = obj
         if cls in KEYWORDS and not args:
             return {'class': cls}
+        # Mobilize N: whenever this attacks, N 1/1 red Warriors tapped and attacking, sacrificed at the next end step
+        if cls == 'MobilizeAbility' and len(args) == 1 and args[0].strip().isdigit():
+            a = self.ability('new AttacksTriggeredAbility(new CreateTokenEffect(new RedWarriorToken(),'
+                             + args[0].strip() + ',true,true),false)')
+            a['java'] = cls
+            a['effects'][0]['sacrifice_at_next_end_step'] = True
+            return a
         # `new EnchantAbility(auraTarget)`: what it can enchant is the spell's target
         if cls == 'EnchantAbility' and len(args) == 1:
             return {'class': cls}
