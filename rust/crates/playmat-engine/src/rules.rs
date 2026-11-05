@@ -3243,6 +3243,24 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::KitesailFreebooterExileEffect { filter } => {
+                let (src, zcc) = source;
+                let Some(Target::Player(p)) = target else { continue };
+                let hand = game.player(p).hand.clone();
+                let possible: Vec<ObjId> =
+                    hand.iter().copied().filter(|c| game.filter_matches(filter, controller, Some(src), *c)).collect();
+                if possible.is_empty() {
+                    continue;
+                }
+                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, "choose") else { return };
+                // the card isn't exiled if this left the battlefield first
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    for c in chosen {
+                        game.move_to(c, Zone::Exile);
+                        game.exiled_until_leaves.push((src, zcc, c));
+                    }
+                }
+            }
             EffectDef::DiscardCardYouChooseTargetEffect { filter } => {
                 if let Some(Target::Player(p)) = target {
                     let hand = game.player(p).hand.clone();
