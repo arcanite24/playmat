@@ -756,6 +756,12 @@ pub enum EffectDef {
     ExtinctionEventEffect,
     /// destroy all creatures; gain 1 life for each destroyed (Fumigate)
     FumigateEffect,
+    /// activated abilities of artifacts, creatures and planeswalkers can't be activated
+    ClarionConquerorEffect,
+    /// return the target nonland permanent to its owner's hand; draw a card if you controlled it
+    BoomerangBasicsEffect,
+    /// deals damage to each player (you first) equal to the nonbasic lands they control
+    SunspineLynxEffect,
     /// choose a card of the filter in your graveyard (if there is one) and return it to your hand
     ReturnCardChosenFromGraveyardEffect { filter: Filter, optional: bool },
     /// reveal the top `amount`, put `pick` of the filter into your hand (asked first if optional), the rest into
@@ -767,6 +773,10 @@ pub enum EffectDef {
     DrawDiscardTargetEffect { draw: i32, discard: i32 },
     /// the target player creates a token
     CreateTokenTargetEffect { token: TokenDef },
+    /// adds mana to the controller's pool (WUBRG, then colorless)
+    BasicManaEffect { colored: [u32; 5], colorless: u32 },
+    /// the target permanent's controller (as it last was) creates `amount` tokens
+    CreateTokenControllerTargetEffect { token: TokenDef, amount: u32, tapped: bool },
     /// returns every permanent of the filter to its owner's hand
     ReturnToHandFromBattlefieldAllEffect { filter: Filter },
     /// the controller discards their hand
@@ -1123,26 +1133,39 @@ pub enum AbilityDef {
         /// what else activating it does (a pain land's damage)
         #[serde(default)]
         effects: Vec<EffectDef>,
+        /// costs besides {T} (Ramunap Ruins' life)
+        #[serde(default)]
+        cost: Vec<CostDef>,
     },
     BlueManaAbility {
         #[serde(default)]
         effects: Vec<EffectDef>,
+        #[serde(default)]
+        cost: Vec<CostDef>,
     },
     BlackManaAbility {
         #[serde(default)]
         effects: Vec<EffectDef>,
+        #[serde(default)]
+        cost: Vec<CostDef>,
     },
     RedManaAbility {
         #[serde(default)]
         effects: Vec<EffectDef>,
+        #[serde(default)]
+        cost: Vec<CostDef>,
     },
     GreenManaAbility {
         #[serde(default)]
         effects: Vec<EffectDef>,
+        #[serde(default)]
+        cost: Vec<CostDef>,
     },
     ColorlessManaAbility {
         #[serde(default)]
         effects: Vec<EffectDef>,
+        #[serde(default)]
+        cost: Vec<CostDef>,
     },
     /// `{T}[, other costs]: Add one mana of any color` (a Treasure's, with a sacrifice)
     AnyColorManaAbility {
@@ -1256,7 +1279,13 @@ impl AbilityDef {
     /// a mana ability's costs besides tapping it
     pub fn mana_costs(&self) -> &[CostDef] {
         match self {
-            AbilityDef::AnyColorManaAbility { cost, .. } => cost,
+            AbilityDef::AnyColorManaAbility { cost, .. }
+            | AbilityDef::WhiteManaAbility { cost, .. }
+            | AbilityDef::BlueManaAbility { cost, .. }
+            | AbilityDef::BlackManaAbility { cost, .. }
+            | AbilityDef::RedManaAbility { cost, .. }
+            | AbilityDef::GreenManaAbility { cost, .. }
+            | AbilityDef::ColorlessManaAbility { cost, .. } => cost,
             _ => &[],
         }
     }
@@ -1272,12 +1301,12 @@ impl AbilityDef {
     /// what a mana ability does besides making mana
     pub fn mana_effects(&self) -> &[EffectDef] {
         match self {
-            AbilityDef::WhiteManaAbility { effects }
-            | AbilityDef::BlueManaAbility { effects }
-            | AbilityDef::BlackManaAbility { effects }
-            | AbilityDef::RedManaAbility { effects }
-            | AbilityDef::GreenManaAbility { effects }
-            | AbilityDef::ColorlessManaAbility { effects }
+            AbilityDef::WhiteManaAbility { effects, .. }
+            | AbilityDef::BlueManaAbility { effects, .. }
+            | AbilityDef::BlackManaAbility { effects, .. }
+            | AbilityDef::RedManaAbility { effects, .. }
+            | AbilityDef::GreenManaAbility { effects, .. }
+            | AbilityDef::ColorlessManaAbility { effects, .. }
             | AbilityDef::AnyColorManaAbility { effects, .. } => effects,
             _ => &[],
         }

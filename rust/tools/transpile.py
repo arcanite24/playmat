@@ -130,6 +130,9 @@ PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED',
 CUSTOM = {
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
+    'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
+    'ClarionConquerorEffect': lambda: {'class': 'ClarionConquerorEffect'},
+    'SunspineLynxEffect': lambda: {'class': 'SunspineLynxEffect'},
     'LovestruckBeastEffect': lambda: {'class': 'LovestruckBeastEffect'},
     # two 1/1 Spirits that gain haste until end of turn
     'SokenzanCrucibleOfDefianceEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('SpiritToken'), 'amount': 2,
@@ -262,7 +265,9 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
               'MyTurnCondition.instance': {'c': 'my_turn'},
               'CastFromEverywhereSourceCondition.instance': {'c': 'cast_from_everywhere'},
-              'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}}}
+              'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}},
+              'LessonsInGraveCondition.THREE': {'c': 'cards_in_graveyard', 'n': 3,
+                                                 'filter': [{'p': 'subtype', 's': 'Lesson'}]}}
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
 
 # an emblem's static effect lasts the game: as long as its source is there, like a permanent's
@@ -833,6 +838,22 @@ class Translator:
             return {'class': cls, 'draw': int(args[0]), 'discard': int(args[1])}
         if cls == 'CreateTokenTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())):
             return {'class': cls, 'token': token(m.group(1))}
+        if cls == 'BasicManaEffect' and len(args) == 1:
+            a = args[0].strip()
+            n = re.fullmatch(r'newMana\((\d+),(\d+),(\d+),(\d+),(\d+),0,0,(\d+)\)', a.replace(' ', ''))
+            if n:
+                v = [int(x) for x in n.groups()]
+                return {'class': cls, 'colored': v[:5], 'colorless': v[5]}
+            n = re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green|Colorless)Mana\((\d+)\)', a)
+            if n:
+                colored = [0] * 5
+                if n.group(1) == 'Colorless':
+                    return {'class': cls, 'colored': colored, 'colorless': int(n.group(2))}
+                colored[['White', 'Blue', 'Black', 'Red', 'Green'].index(n.group(1))] = int(n.group(2))
+                return {'class': cls, 'colored': colored, 'colorless': 0}
+        if cls == 'CreateTokenControllerTargetEffect' and len(args) == 3 \
+                and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())) and re.fullmatch(r'\d+', args[1].strip()):
+            return {'class': cls, 'token': token(m.group(1)), 'amount': int(args[1]), 'tapped': args[2].strip() == 'true'}
         if cls == 'BoostOpponentsEffect' and len(args) == 3 and re.fullmatch(r'-?\d+', args[0].strip()) \
                 and re.fullmatch(r'-?\d+', args[1].strip()):
             return {'class': 'BoostAllEffect', 'power': int(args[0]), 'toughness': int(args[1]),
@@ -1498,7 +1519,9 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.add(Effect|Target|Cost)\((.*)\)', st)
     if m and m.group(1) in t.vars and 'class' in t.vars[m.group(1)]:
         holder = t.vars[m.group(1)]
-        if holder['class'] in KEYWORDS and m.group(2) != 'Effect':
+        mana = holder['class'] in ('WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility', 'RedManaAbility',
+                                   'GreenManaAbility', 'ColorlessManaAbility')
+        if holder['class'] in KEYWORDS and m.group(2) != 'Effect' and not (mana and m.group(2) == 'Cost'):
             raise Unsupported(holder['class'] + ' with another ' + m.group(2).lower())
         if m.group(2) == 'Effect':
             holder.setdefault('effects', []).append(t.effect(m.group(3)))

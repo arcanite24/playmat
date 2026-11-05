@@ -377,6 +377,9 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     if o.controller != seat {
         return Vec::new();
     }
+    if activations_forbidden(game, id) {
+        return Vec::new();
+    }
     let mut out = Vec::new();
     for (i, a) in o.def.abilities.iter().enumerate() {
         let Some((_, _, targets, costs, sorcery)) = a.activated() else { continue };
@@ -484,12 +487,20 @@ fn mana_sources(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, Mana)>)> {
         .collect()
 }
 
+/// Clarion Conqueror: the activated abilities (mana abilities too) of artifacts, creatures and planeswalkers on the
+/// battlefield can't be activated.
+fn activations_forbidden(game: &Game, id: ObjId) -> bool {
+    game.obj(id).zone == Zone::Battlefield
+        && [CardType::Artifact, CardType::Creature, CardType::Planeswalker].iter().any(|t| game.has_type(id, *t))
+        && game.any_static(|_, _, e| matches!(e, EffectDef::ClarionConquerorEffect))
+}
+
 /// Untapped permanents with a mana ability their controller can activate, and those abilities.
 fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, Mana, ManaKind)>)> {
     let mut out = Vec::new();
     for id in game.battlefield.iter() {
         let o = game.obj(*id);
-        if o.controller != seat || o.tapped {
+        if o.controller != seat || o.tapped || activations_forbidden(game, *id) {
             continue;
         }
         if o.is(CardType::Creature) && o.sick && !o.has(&AbilityDef::HasteAbility) {
@@ -507,6 +518,7 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, M
                     mana_tap_targets(game, seat, *id, filter).len() + usize::from(game.filter_matches(filter, seat, Some(*id), *id))
                         >= *amount
                 }
+                CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
                 _ => true,
             }))
             .filter_map(|(i, a)| a.mana().map(|m| (i, m, a.mana_kind())))
@@ -1490,8 +1502,12 @@ fn activate_mana(
         let Some(c) = any_color(game, d, seat, unpaid) else { return false };
         m = Mana::of(c, 1);
     }
-    if game.obj(id).def.abilities[i].mana_costs().contains(&CostDef::SacrificeSourceCost) {
-        sacrifice(game, id);
+    for c in game.obj(id).def.abilities[i].mana_costs().to_vec() {
+        match c {
+            CostDef::SacrificeSourceCost => sacrifice(game, id),
+            CostDef::PayLifeCost { amount } => lose_life(game, seat, amount),
+            _ => {}
+        }
     }
     let pool = &mut game.player_mut(seat).mana_pool;
     for c in Color::ALL {
@@ -2172,6 +2188,38 @@ fn apply_each_effect(
                     game.move_to(o, Zone::Exile);
                 }
             }
+            EffectDef::BoomerangBasicsEffect => {
+                if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
+                    let yours = game.obj(o).controller == controller;
+                    game.move_to(o, Zone::Hand);
+                    if yours {
+                        draw(game, controller, 1);
+                    }
+                }
+            }
+            EffectDef::SunspineLynxEffect => {
+                let order: Vec<Seat> = (0..game.seats()).map(|k| (controller + k) % game.seats()).collect();
+                let counts: Vec<(Seat, i32)> = order
+                    .iter()
+                    .map(|p| {
+                        let n = game
+                            .battlefield
+                            .iter()
+                            .filter(|o| {
+                                game.obj(**o).controller == *p
+                                    && game.has_type(**o, CardType::Land)
+                                    && !game.obj(**o).def.supertypes.iter().any(|t| t == "BASIC")
+                            })
+                            .count();
+                        (*p, n as i32)
+                    })
+                    .collect();
+                for (p, n) in counts {
+                    if n > 0 && !game.player(p).lost {
+                        deal_damage(game, source.0, Target::Player(p), n, false);
+                    }
+                }
+            }
             EffectDef::FumigateEffect => {
                 let mut n = 0;
                 let creatures: Vec<ObjId> =
@@ -2270,6 +2318,7 @@ fn apply_each_effect(
             | EffectDef::CantCastMoreThanOneSpellEffect { .. }
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
+            | EffectDef::ClarionConquerorEffect
             | EffectDef::LovestruckBeastEffect
             | EffectDef::GainPlusOneLifeReplacementEffect
             | EffectDef::SpellCostReductionForEachSourceEffect { .. }
@@ -2701,6 +2750,27 @@ fn apply_each_effect(
                     o.token = true;
                     o.trigger_order = (1 << 32) + id.0 as u64;
                     enter_battlefield(game, d, id, p, false);
+                }
+            }
+            EffectDef::BasicManaEffect { colored, colorless } => {
+                let pool = &mut game.player_mut(controller).mana_pool;
+                for (k, n) in colored.iter().enumerate() {
+                    pool.colored[k] += n;
+                }
+                pool.colorless += colorless;
+            }
+            EffectDef::CreateTokenControllerTargetEffect { token, amount, tapped } => {
+                let def = Arc::new(token.card());
+                let to = objs.first().map(|o| game.obj(*o).controller);
+                for p in to.into_iter().flat_map(|p| std::iter::repeat_n(p, *amount as usize)) {
+                    let id = game.create_obj(def.clone(), p, Zone::Library);
+                    let o = game.obj_mut(id);
+                    o.token = true;
+                    o.trigger_order = (1 << 32) + id.0 as u64;
+                    enter_battlefield(game, d, id, p, false);
+                    if *tapped {
+                        game.obj_mut(id).tapped = true;
+                    }
                 }
             }
             EffectDef::ReturnToHandFromBattlefieldAllEffect { filter } => {
