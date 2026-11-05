@@ -48,12 +48,12 @@ are numbered (`ObjId`) in the order they're created, which also fixes the order 
 
 Card definitions (`CardDef`) are shared and never change. A card's abilities are data: each ability and effect is
 tagged with the name of the Java framework class it mirrors (`DamageTargetEffect`, `EntersBattlefieldTriggeredAbility`,
-`TargetCreaturePermanent`…), with that class's constructor arguments as fields. Cards come from `cards/*.json`,
+`TargetCreaturePermanent`…), with that class's constructor arguments as fields. Cards come from `cards/cards.json`,
 generated from `Mage.Sets` by `rust/tools/transpile.py`. The transpiler takes each card's abilities in Java's order,
 with Java's rule texts, from `cards/facts.json`: decision logs name abilities by that order, and abilities on the stack
 show those texts. `CardFactsTest` (Mage.Tests) writes the facts for a pool of names, one per line
 (`-Dxmage.cardFacts=<out> -Dxmage.cardFacts.pool=<names>`); the pool is every card in the school decks and the
-shadow decks (`transpile.school_pool()`). a card the transpiler can't express isn't in the engine, and
+shadow decks (`transpile.school_pool()`). A card the transpiler can't express isn't in the engine, and
 a game with it isn't routed to Rust.
 
 ## Rules, in order of work
