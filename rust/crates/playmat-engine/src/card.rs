@@ -137,6 +137,7 @@ pub enum TargetDef {
         filter: Filter,
     },
     TargetCreatureOrPlaneswalker,
+    TargetPlayerOrPlaneswalker,
 }
 
 /// How long a continuous effect lasts (Java's `Duration`).
@@ -159,6 +160,8 @@ pub enum Filter {
     /// a creature or planeswalker you don't control
     OpponentsCreatureOrPlaneswalker,
     CreaturesOrPlaneswalkers,
+    /// `FILTER_PERMANENTS`
+    Permanents,
 }
 
 /// Counters an effect puts on a permanent: `CounterType.P1P1.createInstance(2)`.
@@ -255,19 +258,54 @@ pub enum EffectDef {
     SacrificeSourceEffect,
     /// the controller may pay `cost`; if they do, `effect`
     DoIfCostPaid { effect: Box<EffectDef>, cost: Vec<CostDef> },
+    /// the permanents of `filter` you control have `ability` (static), or gain it (resolving, until end of turn)
+    GainAbilityControlledEffect { ability: Box<AbilityDef>, duration: Duration, filter: Filter },
+    /// the target gains `ability`
+    GainAbilityTargetEffect { ability: Box<AbilityDef>, duration: Duration },
+    /// the source has `ability` (static)
+    GainAbilitySourceEffect { ability: Box<AbilityDef>, duration: Duration },
+    /// a static effect that applies only while the condition holds ("my_turn")
+    ConditionalContinuousEffect { effect: Box<EffectDef>, condition: String },
+    /// the source's base power and toughness are each a count (layer 7a; "creatures_you_control")
+    SetBasePowerToughnessSourceEffect { count: String },
+    /// if the target would die this turn, it's exiled instead
+    ExileTargetIfDiesEffect,
+    /// as it enters, its controller may pay `life`; if they don't, it enters tapped
+    TapSourceUnlessPaysEffect { life: i32 },
     /// the first target deals damage equal to its power to the second (Bite Down)
     DamageWithPowerFromOneToAnotherTargetEffect,
     /// a static ability's effect: the permanents of `filter` have `ability`
     GainAbilityAllEffect { ability: Box<AbilityDef>, duration: Duration, filter: Filter },
 }
 
-/// The spell ability of an instant or sorcery: what it does when it resolves.
+/// The spell ability of an instant or sorcery: what it does when it resolves. A modal spell ("choose one") has
+/// `modes` instead, the first being the spell ability's own effects and targets.
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 pub struct SpellDef {
     #[serde(default)]
     pub effects: Vec<EffectDef>,
     #[serde(default)]
     pub targets: Vec<TargetDef>,
+    #[serde(default)]
+    pub modes: Vec<ModeDef>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+pub struct ModeDef {
+    #[serde(default)]
+    pub effects: Vec<EffectDef>,
+    #[serde(default)]
+    pub targets: Vec<TargetDef>,
+}
+
+impl SpellDef {
+    /// the effects and targets of mode `i` (of the spell itself when it has no modes)
+    pub fn mode(&self, i: usize) -> (&[EffectDef], &[TargetDef]) {
+        match self.modes.get(i) {
+            Some(m) => (&m.effects, &m.targets),
+            None => (&self.effects, &self.targets),
+        }
+    }
 }
 
 /// Abilities of a card, named after the Java ability classes, in the order Java lists them (decision logs name an
@@ -296,6 +334,11 @@ pub enum AbilityDef {
         rule: String,
     },
     EntersBattlefieldTappedAbility {
+        rule: String,
+    },
+    /// a replacement effect applied as it enters (shock lands)
+    AsEntersBattlefieldAbility {
+        effects: Vec<EffectDef>,
         rule: String,
     },
     /// an optional additional cost asked for as the spell is cast
