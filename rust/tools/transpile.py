@@ -95,7 +95,8 @@ EFFECTS = {
     'CantCastMoreThanOneSpellEffect': [('who', 'target_controller')],
     'PermanentsEnterBattlefieldTappedEffect': [('filter', 'filter')],
     'CantGainLifeAllEffect': [],
-    'ReturnSourceFromGraveyardToBattlefieldEffect': [(None, 'false')],
+    'ReturnSourceFromGraveyardToBattlefieldEffect': [(None, 'false'), (None, 'false')],
+    'GainPlusOneLifeReplacementEffect': [],
     'CantBeCounteredControlledEffect': [('filter', 'filter'), ('duration', 'duration')],
     'DontCauseTriggerEffect': [],
     'SpellsCostIncreasingAllEffect': [('amount', 'int'), ('filter', 'filter'), ('who', 'target_controller')],
@@ -149,6 +150,11 @@ CUSTOM = {
     # whenever another creature you control enters (the "controlled" filter adds "you control")
     'EntersBattlefieldControlledTriggeredAbility': None,
     # whenever one or more opponents are dealt noncombat damage, creatures you control get +1/+0 until end of turn
+    # "whenever a player casts a spell with mana value 3 or less, this deals 2 damage to that player"
+    'EidolonOfTheGreatRevelTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'EidolonOfTheGreatRevelTriggeredAbility',
+        'on': {'e': 'spell_cast', 'filter': [{'p': 'mv', 'cmp': 'OR_LESS', 'n': 3}], 'who': 'any'},
+        'effects': [{'class': 'DamageTargetEffect', 'amount': 2}], 'set_target_pointer_player': True},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -587,6 +593,9 @@ class Translator:
             if m.group(1) == 'PermanentsOnTheBattlefieldCondition' and args[-1] == 'false' and len(args) in (2, 4):
                 out['all'] = True
             return out
+        if (m := re.fullmatch(r'new LifeCompareCondition\(TargetController\.(YOU|OPPONENT),ComparisonType\.(\w+),(\d+)\)', arg)) \
+                and m.group(2) in COMPARISONS:
+            return {'c': 'life_compare', 'who': m.group(1).lower(), 'cmp': m.group(2), 'n': int(m.group(3))}
         if (m := re.fullmatch(r'new CardsInControllerGraveyardCondition\((\d+)(?:,(.*))?\)', arg)):
             return {'c': 'cards_in_graveyard', 'n': int(m.group(1)), 'filter': self.filter(m.group(2)) if m.group(2) else []}
         if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+),(\d+)\)', arg)) and m.group(1) in COUNTERS:
@@ -1034,6 +1043,10 @@ class Translator:
         if cls in STEP_TRIGGERS and len(args) == 4 and args[0].strip() == 'Zone.BATTLEFIELD':
             args = args[1:]
         # a step trigger of a card in its owner's graveyard (Arclight Phoenix)
+        if cls == 'LandfallAbility' and len(args) in (2, 3) and args[0].strip() == 'Zone.GRAVEYARD':
+            a = self.ability('new LandfallAbility(' + ','.join(args[1:]) + ')')
+            a['on']['graveyard'] = True
+            return a
         if cls in STEP_TRIGGERS and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD':
             a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
             a['on']['graveyard'] = True
@@ -1190,6 +1203,13 @@ class Translator:
                 return out({'e': 'sacrificed', 'filter': self.filter(args[1]),
                             'who': self.value('target_controller', args[2]) if n == 3 else 'you'}, args[0])
             raise Unsupported(cls + ' overload')
+        if cls == 'LimitedTimesPerTurnActivatedAbility' and n in (3, 4, 5) and args[0] == 'Zone.BATTLEFIELD' \
+                and (n == 3 or re.fullmatch(r'\d+', args[3])):
+            a = {'class': cls, 'java': cls, 'effects': [self.effect(args[1])], 'cost': [self.cost(args[2])],
+                 'limit': int(args[3]) if n > 3 else 1}
+            if n == 5:
+                a['condition'] = self.condition(args[4])
+            return a
         if cls == 'WardAbility' and n in (1, 2) and (n == 1 or args[1] in ('true', 'false')):
             return {'class': 'WardAbility', 'java': cls,
                     'effects': [{'class': 'CounterUnlessPaysEffect', 'cost': [self.cost(args[0])]}]}

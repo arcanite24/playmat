@@ -293,6 +293,8 @@ pub struct Game {
     pub exile_if_dies: Vec<(ObjId, u32)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, ability index
     pub triggered_this_turn: Vec<(ObjId, usize)>,
+    /// activated abilities with a limit each turn activated this turn: source, ability index
+    pub activated_this_turn: Vec<(ObjId, usize)>,
     /// the battlefield as the current action began, for the dies triggers of what it moves all at once
     pub lookback: Vec<ObjId>,
     /// cards exiled until a permanent (and its zone change count) leaves the battlefield
@@ -327,6 +329,7 @@ impl Game {
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
+            activated_this_turn: Vec::new(),
             lookback: Vec::new(),
             exiled_until_leaves: Vec::new(),
             returning: Vec::new(),
@@ -617,6 +620,9 @@ impl Game {
             }
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
+            Condition::LifeCompare { who, cmp, n } => (0..self.seats())
+                .filter(|s| if who == "you" { *s == you } else { *s != you })
+                .any(|s| cmp.holds(self.player(s).life, *n)),
             Condition::Permanents { filter, cmp, n, all } => {
                 let count = self
                     .battlefield

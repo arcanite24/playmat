@@ -299,6 +299,9 @@ pub enum Trigger {
         /// this too, whatever the filter ("this or another")
         #[serde(default)]
         include_self: bool,
+        /// it triggers from its owner's graveyard instead of the battlefield (Bloodghast)
+        #[serde(default)]
+        graveyard: bool,
     },
     /// a creature of the filter attacks (`AttacksCreatureYouControlTriggeredAbility`); with a target pointer, at it
     AttacksAll { filter: Filter },
@@ -374,6 +377,8 @@ pub enum Condition {
     SourceTargets { filter: Filter },
     /// `MyTurnCondition`
     MyTurn,
+    /// `LifeCompareCondition`: your life (or an opponent's) compared with `n`
+    LifeCompare { who: String, cmp: Cmp, n: i32 },
     /// `PermanentsOnTheBattlefieldCondition` / `YouControlPermanentCondition`: the number of permanents of the filter
     /// (you control, unless `all`) compared with `n`
     Permanents {
@@ -752,6 +757,8 @@ pub enum EffectDef {
     /// reveal the top `amount`, put `pick` of the filter into your hand (asked first if optional), the rest into
     /// your graveyard
     RevealLibraryPickControllerEffect { amount: Amount, pick: usize, filter: Filter, optional: bool },
+    /// if you would gain life, you gain that much plus 1 instead
+    GainPlusOneLifeReplacementEffect,
     /// the controller discards their hand
     DiscardHandControllerEffect,
     /// mill `amount`, then put a milled card of the filter into your hand (up to one if optional)
@@ -1033,6 +1040,17 @@ pub enum AbilityDef {
         targets: Vec<TargetDef>,
         rule: String,
     },
+    /// an activated ability that works at most `limit` times each turn, and only while the condition holds
+    LimitedTimesPerTurnActivatedAbility {
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        rule: String,
+        limit: u32,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
     /// an activated ability from hand: pay, discard this, draw (`CyclingAbility`)
     CyclingAbility {
         effects: Vec<EffectDef>,
@@ -1175,6 +1193,9 @@ impl AbilityDef {
             }
             AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),
             AbilityDef::CyclingAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, false)),
+            AbilityDef::LimitedTimesPerTurnActivatedAbility { effects, cost, targets, rule, .. } => {
+                Some((rule, effects, targets, cost, false))
+            }
             AbilityDef::ChannelAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, false)),
             _ => None,
         }

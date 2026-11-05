@@ -91,6 +91,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.instants_sorceries_cast = 0;
             }
             game.triggered_this_turn.clear();
+            game.activated_this_turn.clear();
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {
                     let o = game.obj_mut(id);
@@ -385,6 +386,12 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
         }
         if sorcery && !sorcery_speed(game, seat) {
             continue;
+        }
+        if let AbilityDef::LimitedTimesPerTurnActivatedAbility { limit, condition, .. } = a {
+            let used = game.activated_this_turn.iter().filter(|x| **x == (id, i)).count() as u32;
+            if used >= *limit || !game.condition_holds(condition.as_ref(), seat, id) {
+                continue;
+            }
         }
         let payable = costs.iter().all(|c| match c {
             CostDef::ManaCost { .. } => can_pay(game, seat, &adjusted_mana_cost(game, seat, a, costs)),
@@ -855,6 +862,14 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
         _ => false,
     });
+    let mut fired = fired;
+    for t in fired.iter_mut() {
+        let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
+        if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
+            t.targets = vec![vec![Target::Player(seat)]];
+            t.target_zcc = vec![vec![0]];
+        }
+    }
     game.pending.extend(fired);
     // TARGETED, a simultaneous event: handled after SPELL_CAST
     let mut fired = game.triggers(sources, |g, src, you, t| match t {
@@ -978,6 +993,9 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
     let def = game.obj(id).def.clone();
     let Some((rule, _, targets, costs, _)) = def.abilities[index].activated() else { return false };
     let zcc = game.obj(id).zcc;
+    if let AbilityDef::LimitedTimesPerTurnActivatedAbility { .. } = def.abilities[index] {
+        game.activated_this_turn.push((id, index));
+    }
     Arc::make_mut(&mut game.stack).push(StackItem { ability: Some((index, zcc)), ..StackItem::spell(id, seat) });
     if !choose_targets(game, d, seat, targets, None, rule, true) {
         return false;
@@ -2201,6 +2219,7 @@ fn apply_each_effect(
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
             | EffectDef::LovestruckBeastEffect
+            | EffectDef::GainPlusOneLifeReplacementEffect
             | EffectDef::SpellCostReductionForEachSourceEffect { .. }
             | EffectDef::CantBeCounteredControlledEffect { .. }
             | EffectDef::DontCauseTriggerEffect
@@ -3026,10 +3045,16 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     if orb && game.has_type(id, CardType::Creature) {
         sources.clear();
     }
+    for p in game.players.iter() {
+        sources.extend(p.graveyard.iter().copied());
+    }
     let mut fired = game.triggers(sources, |g, src, you, t| match t {
-        Trigger::Enters | Trigger::EntersOrDies | Trigger::EntersOrAttacks => src == id,
-        Trigger::EntersAll { filter, include_self } => {
-            (src == id && *include_self) || g.filter_matches(filter, you, Some(src), id)
+        Trigger::Enters | Trigger::EntersOrDies | Trigger::EntersOrAttacks => {
+            src == id && g.obj(src).zone == Zone::Battlefield
+        }
+        Trigger::EntersAll { filter, include_self, graveyard } => {
+            *graveyard == (g.obj(src).zone == Zone::Graveyard)
+                && ((src == id && *include_self) || g.filter_matches(filter, you, Some(src), id))
         }
         _ => false,
     });
@@ -3227,6 +3252,19 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
     if amount <= 0 || game.any_static(|_, _, e| matches!(e, EffectDef::CantGainLifeAllEffect)) {
         return;
     }
+    let plus = game
+        .battlefield
+        .iter()
+        .filter(|b| game.obj(**b).controller == seat)
+        .flat_map(|b| game.obj(*b).def.abilities.iter())
+        .filter(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                effects.iter().any(|e| matches!(e, EffectDef::GainPlusOneLifeReplacementEffect))
+            }
+            _ => false,
+        })
+        .count() as i32;
+    let amount = amount + plus;
     game.player_mut(seat).life += amount;
     game.player_mut(seat).life_gains += 1;
     let first = game.player(seat).life_gains == 1;
