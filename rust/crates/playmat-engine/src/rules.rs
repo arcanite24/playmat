@@ -933,6 +933,7 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     if !pay_mana(game, d, seat, &cost) {
         return false;
     }
+    game.obj_mut(id).mana_spent = cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless;
     // 601.2g: then the other costs
     for c in &def.spell.costs {
         if !pay_cost(game, d, seat, id, c) {
@@ -2649,6 +2650,7 @@ fn apply_each_effect(
                 optional,
             } => {
                 let n = match look_count {
+                    Some(c) if c == "mana_spent" => game.obj(source.0).mana_spent as i32,
                     Some(c) => count(game, c, controller),
                     None => *look,
                 };
@@ -3219,7 +3221,9 @@ fn apply_each_effect(
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
             | EffectDef::GraveyardFromAnywhereExileReplacementEffect
-            | EffectDef::SetBasePowerSourceEffect { .. } => {}
+            | EffectDef::SetBasePowerSourceEffect { .. }
+            | EffectDef::ValleyFlamecallerEffect
+            | EffectDef::SoulScarMageDamageReplacementEffect => {}
         }
     }
 }
@@ -3748,6 +3752,46 @@ fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
 fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
     if amount <= 0 {
         return 0;
+    }
+    let you = game.obj(source).controller;
+    let permanent = game.obj(source).zone == Zone::Battlefield || game.lookback.contains(&source);
+    // Valley Flamecaller: a Lizard, Mouse, Otter or Raccoon of yours deals that much damage plus 1
+    let mut amount = amount;
+    if permanent && ["Lizard", "Mouse", "Otter", "Raccoon"].iter().any(|t| game.obj(source).def.has_subtype(t)) {
+        let n = game
+            .battlefield
+            .iter()
+            .filter(|b| {
+                game.obj(**b).controller == you
+                    && game.obj(**b).def.abilities.iter().any(|a| match a {
+                        AbilityDef::SimpleStaticAbility { effects, .. } => {
+                            effects.iter().any(|e| matches!(e, EffectDef::ValleyFlamecallerEffect))
+                        }
+                        _ => false,
+                    })
+            })
+            .count();
+        amount += n as i32;
+    }
+    // Soul-Scar Mage: noncombat damage from your source to an opponent's creature is -1/-1 counters instead
+    if let Target::Obj(o) = to {
+        if !combat
+            && game.obj(o).zone == Zone::Battlefield
+            && game.has_type(o, CardType::Creature)
+            && game.obj(o).controller != you
+            && game.battlefield.iter().any(|b| {
+                game.obj(*b).controller == you
+                    && game.obj(*b).def.abilities.iter().any(|a| match a {
+                        AbilityDef::SimpleStaticAbility { effects, .. } => {
+                            effects.iter().any(|e| matches!(e, EffectDef::SoulScarMageDamageReplacementEffect))
+                        }
+                        _ => false,
+                    })
+            })
+        {
+            game.obj_mut(o).add_counters("-1/-1", amount);
+            return 0;
+        }
     }
     let mut lifelink = 0;
     let src = game.obj(source).clone();
@@ -4365,6 +4409,15 @@ pub fn state_based_actions(game: &mut Game) {
                 p.lost = true;
                 p.drew_from_empty = false;
                 any = true;
+            }
+        }
+        // 704.5q: +1/+1 and -1/-1 counters on a permanent cancel out in pairs
+        for id in game.battlefield.to_vec() {
+            let n = game.obj(id).counter("+1/+1").min(game.obj(id).counter("-1/-1"));
+            if n > 0 {
+                let o = game.obj_mut(id);
+                o.add_counters("+1/+1", -n);
+                o.add_counters("-1/-1", -n);
             }
         }
         let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();

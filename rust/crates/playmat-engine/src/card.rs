@@ -923,6 +923,11 @@ pub enum EffectDef {
     /// Scavenging Ooze: exile the target card from a graveyard; if it was a creature card, put a +1/+1 counter on
     /// this and you gain 1 life
     ScavengingOozeEffect,
+    /// a static ability's effect: your Lizards, Mice, Otters and Raccoons deal 1 more damage
+    ValleyFlamecallerEffect,
+    /// a static ability's effect: noncombat damage your sources would deal to an opponent's creature is that many
+    /// -1/-1 counters instead
+    SoulScarMageDamageReplacementEffect,
     /// Kalastria Highborn: you gain 2 life, then the target player loses 2 life
     LoseGainEffect,
     /// Magmatic Hellkite: destroy the target land; its controller searches their library for a basic land card, puts

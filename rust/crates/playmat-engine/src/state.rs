@@ -127,6 +127,8 @@ pub struct Obj {
     pub warped: bool,
     /// in exile after warp: its owner may cast it from this turn number on
     pub warp_from: Option<u32>,
+    /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
+    pub mana_spent: u32,
     /// the turn and how many times this permanent became a target in it
     pub targeted: (u32, u32),
     /// exiled "on an adventure": its owner may cast the creature from exile
@@ -415,6 +417,7 @@ impl Game {
             may_play: None,
             warped: false,
             warp_from: None,
+            mana_spent: 0,
             targeted: (0, 0),
             on_adventure: false,
             blocking: Vec::new(),
@@ -768,7 +771,7 @@ impl Game {
                 }
             }
         }
-        let counters = o.counter("+1/+1");
+        let counters = o.counter("+1/+1") - o.counter("-1/-1");
         p += counters;
         t += counters;
         for src in self.battlefield.iter().chain(self.command.iter()) {

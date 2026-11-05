@@ -126,7 +126,7 @@ EFFECTS = {
 
 COUNTS = {'CreaturesYouControlCount.PLURAL': 'creatures_you_control',
           'CreaturesYouControlCount.SINGULAR': 'creatures_you_control',
-          'LandsYouControlCount.instance': 'lands_you_control'}
+          'LandsYouControlCount.instance': 'lands_you_control', 'ManaSpentToCastCount.instance': 'mana_spent'}
 PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED', 'TOP_ANY', 'BOTTOM_ANY', 'BOTTOM_RANDOM'}
 
 # classes a card file declares for itself, written by hand as the engine classes that do the same
@@ -166,6 +166,8 @@ CUSTOM = {
     'FabledPassageUntapLandEffect': lambda: {'class': 'FabledPassageUntapLandEffect'},
     'FloodpitsDrownerEffect': lambda: {'class': 'FloodpitsDrownerEffect'},
     'MagmaticHellkiteEffect': lambda: {'class': 'MagmaticHellkiteEffect'},
+    'ValleyFlamecallerEffect': lambda: {'class': 'ValleyFlamecallerEffect'},
+    'SoulScarMageDamageReplacementEffect': lambda: {'class': 'SoulScarMageDamageReplacementEffect'},
     'LoseGainEffect': lambda: {'class': 'LoseGainEffect'},
     'ScavengingOozeEffect': lambda: {'class': 'ScavengingOozeEffect'},
     'ReturnFromGraveyardToHandTargetEffect': lambda: {'class': 'ReturnToHandTargetEffect'},
@@ -284,7 +286,8 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'AttacksTrigge
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
 
-COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun'}
+COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun',
+            'CounterType.M1M1': '-1/-1'}
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
