@@ -119,6 +119,8 @@ pub struct Obj {
     pub front: Option<Arc<CardDef>>,
     /// a spell cast with flashback: exiled instead of going anywhere else from the stack
     pub flashback: bool,
+    /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
+    pub exile_instead_of_dying: bool,
     /// exiled "on an adventure": its owner may cast the creature from exile
     pub on_adventure: bool,
     /// the attackers it blocks
@@ -388,6 +390,7 @@ impl Game {
             adventurer: None,
             front: None,
             flashback: false,
+            exile_instead_of_dying: false,
             on_adventure: false,
             blocking: Vec::new(),
             blocked: false,
@@ -802,7 +805,7 @@ impl Game {
         // "if it would die this turn, exile it instead"
         let zone = if from == Zone::Battlefield
             && zone == Zone::Graveyard
-            && self.exile_if_dies.contains(&(id, self.obj(id).zcc))
+            && (self.exile_if_dies.contains(&(id, self.obj(id).zcc)) || self.obj(id).exile_instead_of_dying)
         {
             Zone::Exile
         } else {
@@ -856,6 +859,7 @@ impl Game {
                 }
             }
             o.on_adventure = false;
+            o.exile_instead_of_dying = false;
         }
         let owner = self.obj(id).owner;
         {

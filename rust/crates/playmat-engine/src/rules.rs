@@ -2188,6 +2188,37 @@ fn apply_each_effect(
                     game.move_to(o, Zone::Exile);
                 }
             }
+            EffectDef::ProphesiedEndEffect => {
+                if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
+                    let (p, attacking) = (game.obj(o).controller, game.obj(o).attacking.is_some());
+                    destroy(game, o);
+                    if !attacking {
+                        draw(game, p, 1);
+                    }
+                }
+            }
+            EffectDef::SoulGuideLanternEffect => {
+                for p in (0..game.seats()).filter(|p| *p != controller) {
+                    for c in game.player(p).graveyard.clone() {
+                        game.move_to(c, Zone::Exile);
+                    }
+                }
+            }
+            EffectDef::IngrisStingerquillEffect => {
+                if let Some(a) = objs.first().copied() {
+                    for p in (0..game.seats()).filter(|p| *p != controller) {
+                        deal_damage(game, a, Target::Player(p), 1, false);
+                    }
+                }
+            }
+            EffectDef::CantStayAwayEffect => {
+                if let Some(c) = objs.first().copied().filter(|c| game.obj(*c).zone == Zone::Graveyard) {
+                    enter_battlefield(game, d, c, controller, false);
+                    if game.obj(c).zone == Zone::Battlefield {
+                        game.obj_mut(c).exile_instead_of_dying = true;
+                    }
+                }
+            }
             EffectDef::BoomerangBasicsEffect => {
                 if let Some(o) = objs.first().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield) {
                     let yours = game.obj(o).controller == controller;
@@ -2319,6 +2350,7 @@ fn apply_each_effect(
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
             | EffectDef::ClarionConquerorEffect
+            | EffectDef::GevScaledScorchEntersEffect
             | EffectDef::LovestruckBeastEffect
             | EffectDef::GainPlusOneLifeReplacementEffect
             | EffectDef::SpellCostReductionForEachSourceEffect { .. }
@@ -3142,6 +3174,20 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         o.cast = cast;
         o.zcc
     };
+    // Gev, Scaled Scorch: other creatures you control enter with counters
+    if game.has_type(id, CardType::Creature) {
+        let mut n = 0;
+        let lost = (0..game.seats()).filter(|p| *p != controller && game.player(*p).life_lost > 0).count() as i32;
+        game.any_static(|g, src, e| {
+            if matches!(e, EffectDef::GevScaledScorchEntersEffect) && src != id && g.obj(src).controller == controller {
+                n += lost;
+            }
+            false
+        });
+        if n > 0 {
+            game.obj_mut(id).add_counters("+1/+1", n);
+        }
+    }
     // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f)
     if !cast && def.has_subtype("Aura") {
         if let Some(t) = def.spell.targets.first() {

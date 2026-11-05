@@ -756,6 +756,16 @@ pub enum EffectDef {
     ExtinctionEventEffect,
     /// destroy all creatures; gain 1 life for each destroyed (Fumigate)
     FumigateEffect,
+    /// destroy the target creature; if it wasn't attacking, its controller draws a card
+    ProphesiedEndEffect,
+    /// exile each opponent's graveyard
+    SoulGuideLanternEffect,
+    /// the attacking creature (the trigger's pointer) deals 1 damage to each opponent
+    IngrisStingerquillEffect,
+    /// other creatures you control enter with a +1/+1 counter for each opponent who lost life this turn
+    GevScaledScorchEntersEffect,
+    /// return the target creature card from your graveyard to the battlefield; it's exiled if it would die
+    CantStayAwayEffect,
     /// activated abilities of artifacts, creatures and planeswalkers can't be activated
     ClarionConquerorEffect,
     /// return the target nonland permanent to its owner's hand; draw a card if you controlled it
