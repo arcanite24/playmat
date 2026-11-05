@@ -4,12 +4,12 @@ A state fingerprint is the game written as plain text that two engines can agree
 
 Java: `Mage/src/main/java/mage/game/trace/StateFingerprint.java` and `GameTrace.java`. Set `GameOptions.trace` to trace a game. AI search copies (simulations) are never traced.
 
-## Text, version 1
+## Text, version 2
 
-Lines end with `\n`. Players are named by **seat**: their place in the turn order (`GameState.getPlayerList()`), 0 first. Objects are named by card name. Object ids never appear, since they are random.
+Lines end with `\n`. Players are named by **seat**: their place in the seating order (`StateFingerprint.seats`, the order players joined: `GameState.getPlayers()`), 0 first. Version 1 used `GameState.getPlayerList()`, which is circular and starts at the current player, so its seat numbers turned with the game. Objects are named by card name. Object ids never appear, since they are random.
 
 ```
-v1
+v2
 turn <n> step <PhaseStep enum name> active <seat> priority <seat>
 player <seat> life <n> counters <counters>[ lost][ won]
  hand <names sorted, | separated>

@@ -1,0 +1,7 @@
+# Tier 1: mana creatures and vanilla or keyword creatures
+24 Forest
+4 Llanowar Elves
+4 Elvish Mystic
+12 Bear Cub
+8 Magnigoth Sentry
+8 Tajuru Pathwarden

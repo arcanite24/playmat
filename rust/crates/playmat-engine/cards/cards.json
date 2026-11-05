@@ -1,0 +1,20 @@
+[
+{"cost": "{1}{G}", "name": "Bear Cub", "power": 2, "subtypes": ["Bear"], "toughness": 2, "types": ["CREATURE"]},
+{"abilities": [{"class": "GreenManaAbility"}], "cost": "{G}", "name": "Elvish Mystic", "power": 1, "subtypes": ["Elf", "Druid"], "toughness": 1, "types": ["CREATURE"]},
+{"abilities": [{"class": "GreenManaAbility"}], "colors": [], "name": "Forest", "subtypes": ["Forest"], "supertypes": ["BASIC"], "types": ["LAND"]},
+{"abilities": [{"class": "FlyingAbility"}, {"class": "LifelinkAbility"}], "cost": "{W}", "name": "Healer's Hawk", "power": 1, "subtypes": ["Bird"], "toughness": 1, "types": ["CREATURE"]},
+{"cost": "{3}{B}", "name": "Highborn Vampire", "power": 4, "subtypes": ["Vampire", "Warrior"], "toughness": 3, "types": ["CREATURE"]},
+{"abilities": [{"class": "BlueManaAbility"}], "colors": [], "name": "Island", "subtypes": ["Island"], "supertypes": ["BASIC"], "types": ["LAND"]},
+{"cost": "{1}{R}", "name": "Lightning Strike", "spell": {"effects": [{"amount": 3, "class": "DamageTargetEffect"}], "targets": [{"class": "TargetAnyTarget"}]}, "types": ["INSTANT"]},
+{"abilities": [{"class": "GreenManaAbility"}], "cost": "{G}", "name": "Llanowar Elves", "power": 1, "subtypes": ["Elf", "Druid"], "toughness": 1, "types": ["CREATURE"]},
+{"abilities": [{"class": "ReachAbility"}], "cost": "{3}{G}", "name": "Magnigoth Sentry", "power": 4, "subtypes": ["Treefolk"], "toughness": 4, "types": ["CREATURE"]},
+{"abilities": [{"class": "RedManaAbility"}], "colors": [], "name": "Mountain", "subtypes": ["Mountain"], "supertypes": ["BASIC"], "types": ["LAND"]},
+{"abilities": [{"class": "WhiteManaAbility"}], "colors": [], "name": "Plains", "subtypes": ["Plains"], "supertypes": ["BASIC"], "types": ["LAND"]},
+{"cost": "{W}", "name": "Savannah Lions", "power": 2, "subtypes": ["Cat"], "toughness": 1, "types": ["CREATURE"]},
+{"cost": "{R}{R}", "name": "Scorching Shot", "spell": {"effects": [{"amount": 5, "class": "DamageTargetEffect"}], "targets": [{"class": "TargetCreaturePermanent"}]}, "types": ["SORCERY"]},
+{"abilities": [{"class": "FlyingAbility"}, {"class": "VigilanceAbility"}], "cost": "{3}{W}{W}", "name": "Serra Angel", "power": 4, "subtypes": ["Angel"], "toughness": 4, "types": ["CREATURE"]},
+{"cost": "{R}", "name": "Shock", "spell": {"effects": [{"amount": 2, "class": "DamageTargetEffect"}], "targets": [{"class": "TargetAnyTarget"}]}, "types": ["INSTANT"]},
+{"abilities": [{"class": "BlackManaAbility"}], "colors": [], "name": "Swamp", "subtypes": ["Swamp"], "supertypes": ["BASIC"], "types": ["LAND"]},
+{"abilities": [{"class": "VigilanceAbility"}, {"class": "TrampleAbility"}], "cost": "{4}{G}", "name": "Tajuru Pathwarden", "power": 5, "subtypes": ["Elf", "Warrior", "Ally"], "toughness": 4, "types": ["CREATURE"]},
+{"abilities": [{"class": "FlyingAbility"}, {"class": "DeathtouchAbility"}, {"class": "LifelinkAbility"}], "cost": "{1}{B}{B}", "name": "Vampire Nighthawk", "power": 2, "subtypes": ["Vampire", "Shaman"], "toughness": 3, "types": ["CREATURE"]}
+]

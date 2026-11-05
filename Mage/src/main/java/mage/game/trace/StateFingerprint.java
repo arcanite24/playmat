@@ -23,13 +23,21 @@ import java.util.stream.Collectors;
  */
 public final class StateFingerprint {
 
-    public static final int VERSION = 1;
+    public static final int VERSION = 2;
 
     private StateFingerprint() {
     }
 
+    /**
+     * The players in seating order, seat 0 first. Not {@code getPlayerList()}: that list is circular and starts its
+     * iteration at the current player, so its order turns with the game.
+     */
+    public static List<UUID> seats(Game game) {
+        return new ArrayList<>(game.getState().getPlayers().keySet());
+    }
+
     public static String text(Game game) {
-        List<UUID> seats = new ArrayList<>(game.getState().getPlayerList());
+        List<UUID> seats = seats(game);
         StringBuilder out = new StringBuilder();
         out.append("v").append(VERSION).append('\n');
         out.append("turn ").append(game.getTurnNum())
