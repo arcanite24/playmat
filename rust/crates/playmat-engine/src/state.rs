@@ -527,6 +527,7 @@ impl Game {
             for (i, a) in o.def.abilities.iter().enumerate() {
                 if let Some(t) = a.trigger() {
                     if fires(self, src, o.controller, t) && self.condition_holds(a.intervening_if(), o.controller, src)
+                        && self.condition_holds(a.trigger_condition(), o.controller, src)
                     {
                         fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, o.controller) });
                     }

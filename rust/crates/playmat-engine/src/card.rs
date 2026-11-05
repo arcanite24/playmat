@@ -1133,6 +1133,9 @@ pub enum AbilityDef {
         /// an intervening "if", checked as it triggers and as it resolves
         #[serde(default)]
         condition: Option<Condition>,
+        /// a condition checked only as it triggers (`withTriggerCondition`)
+        #[serde(default)]
+        trigger_condition: Option<Condition>,
         /// the effects act on the object or player the event was about (`SetTargetPointer`)
         #[serde(default)]
         set_target_pointer: bool,
@@ -1353,6 +1356,13 @@ impl AbilityDef {
     }
 
     /// a triggered ability's intervening "if", checked when it triggers and again when it resolves
+    pub fn trigger_condition(&self) -> Option<&Condition> {
+        match self {
+            AbilityDef::TriggeredAbility { trigger_condition, .. } => trigger_condition.as_ref(),
+            _ => None,
+        }
+    }
+
     pub fn intervening_if(&self) -> Option<&Condition> {
         match self {
             AbilityDef::TriggeredAbility { condition, .. } => condition.as_ref(),
