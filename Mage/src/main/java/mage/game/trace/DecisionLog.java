@@ -3,6 +3,7 @@ package mage.game.trace;
 import mage.MageObject;
 import mage.abilities.Ability;
 import mage.abilities.Mode;
+import mage.abilities.Modes;
 import mage.cards.Card;
 import mage.constants.ManaType;
 import mage.game.Game;
@@ -159,6 +160,13 @@ public final class DecisionLog {
         if (id == null) {
             return null;
         }
+        // CHOOSE_MODE's Done and Cancel
+        if (id.equals(Modes.CHOOSE_OPTION_DONE_ID)) {
+            return "MD";
+        }
+        if (id.equals(Modes.CHOOSE_OPTION_CANCEL_ID)) {
+            return "MC";
+        }
         String[] found = {null};
         visit(game, (ref, objectId) -> {
             if (id.equals(objectId)) {
@@ -173,6 +181,12 @@ public final class DecisionLog {
     public static UUID resolve(Game game, String ref) {
         if (ref == null) {
             return null;
+        }
+        if (ref.equals("MD")) {
+            return Modes.CHOOSE_OPTION_DONE_ID;
+        }
+        if (ref.equals("MC")) {
+            return Modes.CHOOSE_OPTION_CANCEL_ID;
         }
         UUID[] found = {null};
         visit(game, (candidate, objectId) -> {

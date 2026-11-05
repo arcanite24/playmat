@@ -2,11 +2,13 @@ package org.mage.test.serverside.trace;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import mage.abilities.Abilities;
 import mage.abilities.Ability;
 import mage.cards.Card;
 import mage.cards.repository.CardInfo;
 import mage.cards.repository.CardRepository;
 import mage.cards.repository.CardScanner;
+import mage.game.permanent.token.Token;
 import org.junit.Assume;
 import org.junit.Test;
 
@@ -22,6 +24,8 @@ import java.util.Map;
  * Card facts for the Rust engine's transpiler (docs/rust/Engine.md): for each card in a pool, its abilities in the
  * order {@code card.getAbilities()} lists them (the order decision logs number them in), with each one's class and
  * rule text as Java prints it ({@code getRule()}, the text a stack ability's name carries).
+ * <p>
+ * A pool line {@code token:<class>} names a token class from {@code mage.game.permanent.token} instead.
  * <p>
  * Opt-in: {@code -Dxmage.cardFacts=<out.json> -Dxmage.cardFacts.pool=<file, one card name per line>}.
  */
@@ -39,15 +43,24 @@ public class CardFactsTest {
             if (name.isEmpty()) {
                 continue;
             }
-            CardInfo info = CardRepository.instance.findPreferredCoreExpansionCard(name);
-            if (info == null) {
-                continue;
+            Abilities<Ability> cardAbilities;
+            if (name.startsWith("token:")) {
+                // a token class from mage.game.permanent.token, by its simple name
+                Class<?> cls = Class.forName("mage.game.permanent.token." + name.substring("token:".length()));
+                cardAbilities = ((Token) cls.getConstructor().newInstance()).getAbilities();
+            } else {
+                CardInfo info = CardRepository.instance.findPreferredCoreExpansionCard(name);
+                if (info == null) {
+                    continue;
+                }
+                Card card = info.createCard();
+                name = card.getName();
+                cardAbilities = card.getAbilities();
             }
-            Card card = info.createCard();
             Map<String, Object> facts = new LinkedHashMap<>();
-            facts.put("name", card.getName());
+            facts.put("name", name);
             List<Map<String, Object>> abilities = new ArrayList<>();
-            for (Ability ability : card.getAbilities()) {
+            for (Ability ability : cardAbilities) {
                 Map<String, Object> a = new LinkedHashMap<>();
                 a.put("class", ability.getClass().getSimpleName());
                 a.put("type", ability.getAbilityType().name());

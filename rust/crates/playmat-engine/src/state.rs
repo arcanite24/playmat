@@ -1,7 +1,7 @@
 //! The game state. Each part sits behind an `Arc` and is copied only when changed (`Arc::make_mut`), so copying a
 //! `Game` for an AI search node bumps a few reference counts.
 
-use crate::card::{AbilityDef, CardDef, CardType, Condition, EffectDef, Filter, Mana, Pred, Trigger};
+use crate::card::{AbilityDef, Amount, CardDef, CardType, Condition, EffectDef, Filter, Mana, Pred, Trigger, Value};
 use crate::rng::JavaRandom;
 use std::sync::Arc;
 
@@ -184,8 +184,10 @@ pub struct StackItem {
     pub lki_power: Option<i32>,
     /// a delayed triggered ability (it has no ability index)
     pub delayed: Option<Arc<Delayed>>,
-    /// a modal spell's chosen mode
-    pub mode: usize,
+    /// a modal spell's chosen modes, in printed order (empty: the first)
+    pub modes: Vec<usize>,
+    /// the X announced as it was cast or activated
+    pub x: i32,
 }
 
 /// An ability a resolved effect gave one object.
@@ -216,7 +218,8 @@ impl StackItem {
             kicked: false,
             lki_power: None,
             delayed: None,
-            mode: 0,
+            modes: Vec::new(),
+            x: 0,
         }
     }
 }
@@ -435,6 +438,32 @@ impl Game {
         }
     }
 
+    /// An effect's number for `you`, the controller of `source`, with `x` announced.
+    pub fn value(&self, a: &Amount, you: Seat, source: ObjId, x: i32) -> i32 {
+        match a {
+            Amount::Fixed(n) => *n,
+            Amount::Of(v) => match v {
+                Value::X => x,
+                Value::Permanents { filter } => self
+                    .battlefield
+                    .iter()
+                    .filter(|id| self.filter_matches(filter, you, Some(source), **id))
+                    .count() as i32,
+                Value::CardsInHand => self.player(you).hand.len() as i32,
+                Value::CardsInGraveyard { filter } => self
+                    .player(you)
+                    .graveyard
+                    .iter()
+                    .filter(|id| self.filter_matches(filter, you, Some(source), **id))
+                    .count() as i32,
+                Value::SourcePower => self.power_toughness(source).0,
+                Value::Negative { of } => -self.value(of, you, source, x),
+                Value::Times { of, n } => self.value(of, you, source, x) * n,
+                Value::Half { of } => self.value(of, you, source, x) / 2,
+            },
+        }
+    }
+
     pub fn condition_holds(&self, condition: Option<&Condition>, you: Seat, source: ObjId) -> bool {
         let Some(c) = condition else { return true };
         match c {
@@ -542,12 +571,12 @@ impl Game {
                     && !(*exclude_source && src == id)
                     && self.filter_matches(filter, you, Some(src), id) =>
             {
-                (*power, *toughness)
+                (self.value(power, you, src, 0), self.value(toughness, you, src, 0))
             }
             EffectDef::BoostAllEffect { power, toughness, filter, exclude_source, .. }
                 if !(*exclude_source && src == id) && self.filter_matches(filter, you, Some(src), id) =>
             {
-                (*power, *toughness)
+                (self.value(power, you, src, 0), self.value(toughness, you, src, 0))
             }
             EffectDef::ConditionalContinuousEffect { effect, condition }
                 if self.condition_holds(Some(condition), you, src) =>
@@ -609,7 +638,7 @@ impl Game {
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
             self.triggers(sources, |g, src, you, t| match t {
-                Trigger::Dies | Trigger::EntersOrDies => src == id,
+                Trigger::Dies | Trigger::EntersOrDies | Trigger::LeavesBattlefield => src == id,
                 // the source itself always counts ("this or another"); others must match
                 Trigger::DiesAll { filter, include_self } => {
                     if src == id {
@@ -620,6 +649,8 @@ impl Game {
                 }
                 _ => false,
             })
+        } else if from == Zone::Battlefield && zone != Zone::Battlefield {
+            self.triggers([id], |_, src, _, t| matches!(t, Trigger::LeavesBattlefield) && src == id)
         } else {
             Vec::new()
         };

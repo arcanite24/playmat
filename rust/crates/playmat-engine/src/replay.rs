@@ -138,6 +138,12 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
     if r.starts_with('?') {
         return Some(Answer::Unknown);
     }
+    // CHOOSE_MODE's Done and Cancel
+    match r {
+        "MD" => return Some(Answer::ModeDone),
+        "MC" => return Some(Answer::Unknown),
+        _ => {}
+    }
     // a spell's mode: `<stack object>sm<index>`
     if let Some((_, mode)) = r.rsplit_once("sm") {
         if let Ok(k) = mode.parse::<usize>() {

@@ -285,6 +285,22 @@ pub enum Trigger {
     /// landfall)
     EntersAll {
         filter: Filter,
+        /// this too, whatever the filter ("this or another")
+        #[serde(default)]
+        include_self: bool,
+    },
+    /// a creature of the filter attacks (`AttacksCreatureYouControlTriggeredAbility`); with a target pointer, at it
+    AttacksAll { filter: Filter },
+    /// you attack with `min` or more creatures of the filter (`AttacksWithCreaturesTriggeredAbility`)
+    AttacksWith { min: usize, filter: Filter },
+    /// this leaves the battlefield
+    LeavesBattlefield,
+    /// `who` ("you", "opponent") draws a card; with a target pointer, at that player
+    Draws { who: String },
+    /// this deals damage to an opponent (`only_combat`: combat damage)
+    DealsDamageToOpponent {
+        #[serde(default)]
+        only_combat: bool,
     },
     /// a permanent of the filter dies; with `include_self`, this too, whatever the filter
     DiesAll {
@@ -308,6 +324,15 @@ pub enum Trigger {
     CombatDamageToPlayer,
     /// one or more opponents are dealt noncombat damage (Master of Barbs)
     OpponentsDealtNoncombatDamage,
+}
+
+/// Mana abilities as `ManaUtil.tryToAutoPay` tells them apart: a basic one (`{T}: Add {G}`, pain lands too), one of
+/// any color, or another kind (which turns auto-pay off for that permanent).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ManaKind {
+    Basic,
+    AnyColor,
+    Other,
 }
 
 /// Conditions (Java's `Condition`s), checked for the controller of a source.
@@ -402,6 +427,14 @@ pub enum CostDef {
     ManaCost { cost: String },
     TapSourceCost,
     SacrificeSourceCost,
+    /// sacrifice a permanent of the filter you control (chosen as the cost is paid)
+    SacrificeTargetCost { filter: Filter },
+    /// discard a card of the filter
+    DiscardCardCost {
+        #[serde(default)]
+        filter: Filter,
+    },
+    PayLifeCost { amount: i32 },
 }
 
 /// Where cards go (Java's `PutCards`).
@@ -418,21 +451,66 @@ pub enum PutCards {
     BottomRandom,
 }
 
+/// A number an effect uses: fixed, or Java's `DynamicValue` worked out as the effect happens.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum Amount {
+    Fixed(i32),
+    Of(Value),
+}
+
+impl Amount {
+    pub fn fixed(&self) -> Option<i32> {
+        match self {
+            Amount::Fixed(n) => Some(*n),
+            Amount::Of(_) => None,
+        }
+    }
+}
+
+impl From<i32> for Amount {
+    fn from(n: i32) -> Self {
+        Amount::Fixed(n)
+    }
+}
+
+/// Java's `DynamicValue`s, for the controller of the effect's source.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "v", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Value {
+    /// the X paid (`GetXValue`, `ManacostVariableValue`)
+    X,
+    /// permanents of the filter (`PermanentsOnBattlefieldCount`, `CreaturesYouControlCount`…)
+    Permanents { filter: Filter },
+    /// cards in the controller's hand
+    CardsInHand,
+    /// cards of the filter in the controller's graveyard
+    CardsInGraveyard { filter: Filter },
+    /// the source's power (`SourcePermanentPowerValue`)
+    SourcePower,
+    /// minus a value (`-X`)
+    Negative { of: Box<Amount> },
+    /// a value times a number
+    Times { of: Box<Amount>, n: i32 },
+    /// a value halved, rounded down
+    Half { of: Box<Amount> },
+}
+
 /// One-shot effects, named after the Java effect classes.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "class", deny_unknown_fields)]
 pub enum EffectDef {
     /// deals `amount` damage to the ability's target
     DamageTargetEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// the controller draws `amount` cards
     DrawCardSourceControllerEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// the controller gains `amount` life
     GainLifeEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// destroys the target permanent
     DestroyTargetEffect,
@@ -440,20 +518,20 @@ pub enum EffectDef {
     CounterTargetEffect,
     /// the target creature gets +power/+toughness
     BoostTargetEffect {
-        power: i32,
-        toughness: i32,
+        power: Amount,
+        toughness: Amount,
         duration: Duration,
     },
     /// the source gets +power/+toughness
     BoostSourceEffect {
-        power: i32,
-        toughness: i32,
+        power: Amount,
+        toughness: Amount,
         duration: Duration,
     },
     /// a static ability's effect: the permanents of `filter` its controller controls get +power/+toughness
     BoostControlledEffect {
-        power: i32,
-        toughness: i32,
+        power: Amount,
+        toughness: Amount,
         duration: Duration,
         filter: Filter,
         exclude_source: bool,
@@ -461,6 +539,9 @@ pub enum EffectDef {
     /// puts counters on the source
     AddCountersSourceEffect {
         counter: CounterDef,
+        /// a number of counters worked out as it happens (the counter's own count when it's one); none when it's 0
+        #[serde(default)]
+        amount: Option<Amount>,
     },
     /// puts counters on the target permanent
     AddCountersTargetEffect {
@@ -470,7 +551,7 @@ pub enum EffectDef {
     /// of combat
     CreateTokenEffect {
         token: TokenDef,
-        amount: i32,
+        amount: Amount,
         #[serde(default)]
         tapped_and_attacking: bool,
         #[serde(default)]
@@ -488,7 +569,7 @@ pub enum EffectDef {
     },
     /// deals `amount` damage to each player of `controller` ("opponent")
     DamagePlayersEffect {
-        amount: i32,
+        amount: Amount,
         controller: String,
     },
     /// sacrifices the source
@@ -537,15 +618,15 @@ pub enum EffectDef {
     DamageWithPowerFromOneToAnotherTargetEffect,
     /// each opponent loses `amount` life
     LoseLifeOpponentsEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// the controller loses `amount` life
     LoseLifeSourceControllerEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// the target players lose `amount` life
     LoseLifeTargetEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// destroys every permanent of `filter`
     DestroyAllEffect {
@@ -553,13 +634,13 @@ pub enum EffectDef {
     },
     /// deals `amount` damage to every permanent of `filter`
     DamageAllEffect {
-        amount: i32,
+        amount: Amount,
         filter: Filter,
     },
     /// the permanents of `filter` get +power/+toughness (static: while on the battlefield; resolving: those there now)
     BoostAllEffect {
-        power: i32,
-        toughness: i32,
+        power: Amount,
+        toughness: Amount,
         duration: Duration,
         filter: Filter,
         exclude_source: bool,
@@ -580,22 +661,52 @@ pub enum EffectDef {
     /// counters the target spell unless its controller pays `cost`
     CounterUnlessPaysEffect {
         cost: Vec<CostDef>,
+        /// exiled instead of put into the graveyard
+        #[serde(default)]
+        exile: bool,
+    },
+    /// the controller draws `draw` cards, then discards `discard` (asked first when optional)
+    DrawDiscardControllerEffect {
+        draw: i32,
+        discard: i32,
+        #[serde(default)]
+        optional: bool,
+    },
+    /// the controller discards `amount` cards
+    DiscardControllerEffect { amount: Amount },
+    /// the controller mills `amount` cards
+    MillCardsControllerEffect { amount: Amount },
+    /// a static effect on a spell: it can't be countered
+    CantBeCounteredSourceEffect,
+    /// `SearchLibraryPutIn…Effect`: the controller (or the target's controller) searches their library for cards of
+    /// the filter, puts them `to`, then shuffles; asked first when optional (always, for the target's controller)
+    SearchLibraryEffect {
+        filter: Filter,
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+        to: PutCards,
+        #[serde(default)]
+        optional: bool,
+        #[serde(default)]
+        target_controller: bool,
     },
     /// the source deals `amount` damage to its controller
     DamageControllerEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// the target players draw `amount` cards
     DrawCardTargetEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// the controller scries `amount`
     ScryEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// the controller surveils `amount`
     SurveilEffect {
-        amount: i32,
+        amount: Amount,
     },
     /// looks at the top `look` cards (or `look_count` of them), puts up to (or exactly) `pick` of `filter` where
     /// `picked` says and the rest where `looked` says; `optional` asks first
@@ -637,6 +748,11 @@ pub struct SpellDef {
     pub targets: Vec<TargetDef>,
     #[serde(default)]
     pub modes: Vec<ModeDef>,
+    /// how many modes are chosen ("choose two": 2 and 2)
+    #[serde(default = "one")]
+    pub min_modes: usize,
+    #[serde(default = "one")]
+    pub max_modes: usize,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -721,6 +837,8 @@ pub enum AbilityDef {
         targets: Vec<TargetDef>,
         rule: String,
     },
+    /// this spell can't be countered
+    CantBeCounteredSourceAbility,
     FlyingAbility,
     ReachAbility,
     HasteAbility,
@@ -760,6 +878,21 @@ pub enum AbilityDef {
     ColorlessManaAbility {
         #[serde(default)]
         effects: Vec<EffectDef>,
+    },
+    /// `{T}[, other costs]: Add one mana of any color` (a Treasure's, with a sacrifice)
+    AnyColorManaAbility {
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        rule: String,
+    },
+    /// `{T}: Add {color}. Activate only if …` (the Verges)
+    ActivateIfConditionManaAbility {
+        color: Color,
+        condition: Condition,
+        rule: String,
     },
 }
 
@@ -827,6 +960,34 @@ impl AbilityDef {
             AbilityDef::RedManaAbility { .. } => Some(Mana::of(Color::R, 1)),
             AbilityDef::GreenManaAbility { .. } => Some(Mana::of(Color::G, 1)),
             AbilityDef::ColorlessManaAbility { .. } => Some(Mana { colorless: 1, ..Mana::default() }),
+            // one of each: whichever is needed
+            AbilityDef::AnyColorManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            AbilityDef::ActivateIfConditionManaAbility { color, .. } => Some(Mana::of(*color, 1)),
+            _ => None,
+        }
+    }
+
+    /// what `ManaUtil.tryToAutoPay` sees in a mana ability
+    pub fn mana_kind(&self) -> ManaKind {
+        match self {
+            AbilityDef::AnyColorManaAbility { .. } => ManaKind::AnyColor,
+            AbilityDef::ActivateIfConditionManaAbility { .. } => ManaKind::Other,
+            _ => ManaKind::Basic,
+        }
+    }
+
+    /// a mana ability's costs besides tapping it
+    pub fn mana_costs(&self) -> &[CostDef] {
+        match self {
+            AbilityDef::AnyColorManaAbility { cost, .. } => cost,
+            _ => &[],
+        }
+    }
+
+    /// a mana ability's "activate only if"
+    pub fn mana_condition(&self) -> Option<&Condition> {
+        match self {
+            AbilityDef::ActivateIfConditionManaAbility { condition, .. } => Some(condition),
             _ => None,
         }
     }
@@ -839,7 +1000,8 @@ impl AbilityDef {
             | AbilityDef::BlackManaAbility { effects }
             | AbilityDef::RedManaAbility { effects }
             | AbilityDef::GreenManaAbility { effects }
-            | AbilityDef::ColorlessManaAbility { effects } => effects,
+            | AbilityDef::ColorlessManaAbility { effects }
+            | AbilityDef::AnyColorManaAbility { effects, .. } => effects,
             _ => &[],
         }
     }
