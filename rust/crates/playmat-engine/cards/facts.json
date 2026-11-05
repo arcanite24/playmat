@@ -1,6 +1,7 @@
 [
   {
     "name": "Abandoned Air Temple",
+    "set": "TLA",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -26,6 +27,7 @@
   },
   {
     "name": "Abrade",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -36,6 +38,7 @@
   },
   {
     "name": "Abrupt Decay",
+    "set": "RTR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -51,6 +54,7 @@
   },
   {
     "name": "Academic Dispute",
+    "set": "STX",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -61,6 +65,7 @@
   },
   {
     "name": "Accumulate Wisdom",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -71,6 +76,7 @@
   },
   {
     "name": "Adeline, Resplendent Cathar",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -96,6 +102,7 @@
   },
   {
     "name": "Aerid Konstrari",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -121,6 +128,7 @@
   },
   {
     "name": "Ajani Resolute",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -151,6 +159,7 @@
   },
   {
     "name": "Ajani's Pridemate",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -166,6 +175,7 @@
   },
   {
     "name": "Ambush Wolf",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -186,6 +196,7 @@
   },
   {
     "name": "Angel of Vitality",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -211,6 +222,7 @@
   },
   {
     "name": "Annul",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -221,6 +233,7 @@
   },
   {
     "name": "Archon of Emeria",
+    "set": "ZNR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -246,6 +259,7 @@
   },
   {
     "name": "Arclight Phoenix",
+    "set": "GRN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -271,6 +285,7 @@
   },
   {
     "name": "Artist's Talent",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -311,6 +326,7 @@
   },
   {
     "name": "Aven Interrupter",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -341,6 +357,7 @@
   },
   {
     "name": "Avengers Disassembled",
+    "set": "MSH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -351,6 +368,7 @@
   },
   {
     "name": "Ayara, First of Locthwain",
+    "set": "ELD",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -371,6 +389,7 @@
   },
   {
     "name": "Ba Sing Se",
+    "set": "TLA",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -396,6 +415,7 @@
   },
   {
     "name": "Badgermole Cub",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -416,6 +436,7 @@
   },
   {
     "name": "Bake into a Pie",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -426,6 +447,7 @@
   },
   {
     "name": "Ball Lightning",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -451,6 +473,7 @@
   },
   {
     "name": "Banishing Light",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -466,6 +489,7 @@
   },
   {
     "name": "Bear Cub",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -476,6 +500,7 @@
   },
   {
     "name": "Beast-Kin Ranger",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -496,6 +521,7 @@
   },
   {
     "name": "Bejeweled Warg",
+    "set": "HOB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -516,6 +542,7 @@
   },
   {
     "name": "Beza, the Bounding Spring",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -531,6 +558,7 @@
   },
   {
     "name": "Binding the Old Gods",
+    "set": "KHM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -566,6 +594,7 @@
   },
   {
     "name": "Biotech Specialist",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -586,6 +615,7 @@
   },
   {
     "name": "Bite Down",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -596,6 +626,7 @@
   },
   {
     "name": "Bitter Triumph",
+    "set": "LCI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -606,6 +637,7 @@
   },
   {
     "name": "Blackcleave Cliffs",
+    "set": "ONE",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -631,6 +663,7 @@
   },
   {
     "name": "Blazemire Verge",
+    "set": "DSK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -651,6 +684,7 @@
   },
   {
     "name": "Blood Crypt",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -676,6 +710,7 @@
   },
   {
     "name": "Bloodghast",
+    "set": "DFT",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -701,6 +736,7 @@
   },
   {
     "name": "Bloodthirsty Adversary",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -721,6 +757,7 @@
   },
   {
     "name": "Bloodtithe Collector",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -741,6 +778,7 @@
   },
   {
     "name": "Bloodtithe Harvester",
+    "set": "VOW",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -761,6 +799,7 @@
   },
   {
     "name": "Bloombrute",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -781,6 +820,7 @@
   },
   {
     "name": "Blooming Marsh",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -806,6 +846,7 @@
   },
   {
     "name": "Boltwave",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -816,6 +857,7 @@
   },
   {
     "name": "Bonecrusher Giant",
+    "set": "ELD",
     "abilities": [
       {
         "class": "AdventureCardSpellAbility",
@@ -836,6 +878,7 @@
   },
   {
     "name": "Boomerang Basics",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -846,6 +889,7 @@
   },
   {
     "name": "Borderland Marauder",
+    "set": "W16",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -861,6 +905,7 @@
   },
   {
     "name": "Boros Charm",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -871,6 +916,7 @@
   },
   {
     "name": "Boseiju, Who Endures",
+    "set": "NEO",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -891,6 +937,7 @@
   },
   {
     "name": "Brazen Borrower",
+    "set": "ELD",
     "abilities": [
       {
         "class": "AdventureCardSpellAbility",
@@ -921,6 +968,7 @@
   },
   {
     "name": "Brightclimb Pathway",
+    "set": "ZNR",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -946,6 +994,7 @@
   },
   {
     "name": "Broadside Barrage",
+    "set": "DFT",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -956,6 +1005,7 @@
   },
   {
     "name": "Brushland",
+    "set": "BRO",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -981,6 +1031,7 @@
   },
   {
     "name": "Brutal Cathar",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1016,6 +1067,7 @@
   },
   {
     "name": "Burst Lightning",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1031,6 +1083,7 @@
   },
   {
     "name": "Callous Inspector",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1051,6 +1104,7 @@
   },
   {
     "name": "Can't Stay Away",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1066,6 +1120,7 @@
   },
   {
     "name": "Cancel",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1076,6 +1131,7 @@
   },
   {
     "name": "Captain America, Super-Soldier",
+    "set": "MSH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1101,6 +1157,7 @@
   },
   {
     "name": "Captain Marvel, Earth's Protector",
+    "set": "MSH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1131,6 +1188,7 @@
   },
   {
     "name": "Castle Locthwain",
+    "set": "ELD",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1156,6 +1214,7 @@
   },
   {
     "name": "Cavern of Souls",
+    "set": "LCI",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1186,6 +1245,7 @@
   },
   {
     "name": "Censor",
+    "set": "AKH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1201,6 +1261,7 @@
   },
   {
     "name": "Chandra, Torch of Defiance",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1231,6 +1292,7 @@
   },
   {
     "name": "Change the Equation",
+    "set": "MOM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1241,6 +1303,7 @@
   },
   {
     "name": "Charging Monstrosaur",
+    "set": "XLN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1261,6 +1324,7 @@
   },
   {
     "name": "Chart a Course",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1271,6 +1335,7 @@
   },
   {
     "name": "Clarion Conqueror",
+    "set": "TDM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1291,6 +1356,7 @@
   },
   {
     "name": "Clearwater Pathway",
+    "set": "ZNR",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1316,6 +1382,7 @@
   },
   {
     "name": "Clifftop Retreat",
+    "set": "DOM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1341,6 +1408,7 @@
   },
   {
     "name": "Cloudblazer",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1361,6 +1429,7 @@
   },
   {
     "name": "Codecracker Hound",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1381,6 +1450,7 @@
   },
   {
     "name": "Collected Company",
+    "set": "DTK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1391,6 +1461,7 @@
   },
   {
     "name": "Colorstorm Stallion",
+    "set": "SOS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1416,6 +1487,7 @@
   },
   {
     "name": "Concealed Courtyard",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1441,6 +1513,7 @@
   },
   {
     "name": "Consider",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1451,6 +1524,7 @@
   },
   {
     "name": "Consult the Star Charts",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1466,6 +1540,7 @@
   },
   {
     "name": "Copperline Gorge",
+    "set": "ONE",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1491,6 +1566,7 @@
   },
   {
     "name": "Countersculpt",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1501,6 +1577,7 @@
   },
   {
     "name": "Courageous Goblin",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1516,6 +1593,7 @@
   },
   {
     "name": "Cragcrown Pathway",
+    "set": "ZNR",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1541,6 +1619,7 @@
   },
   {
     "name": "Cruelclaw's Heist",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1556,6 +1635,7 @@
   },
   {
     "name": "Crusader of Odric",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1571,6 +1651,7 @@
   },
   {
     "name": "Culling Ritual",
+    "set": "STX",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1581,6 +1662,7 @@
   },
   {
     "name": "Cut Down",
+    "set": "DMU",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1591,6 +1673,7 @@
   },
   {
     "name": "Darkbore Pathway",
+    "set": "KHM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1616,6 +1699,7 @@
   },
   {
     "name": "Darkslick Shores",
+    "set": "ONE",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1641,6 +1725,7 @@
   },
   {
     "name": "Dauntless Bodyguard",
+    "set": "DOM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1661,6 +1746,7 @@
   },
   {
     "name": "Dauntless Veteran",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1676,6 +1762,7 @@
   },
   {
     "name": "Dawnwing Marshal",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1696,6 +1783,7 @@
   },
   {
     "name": "Day of Judgment",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1706,6 +1794,7 @@
   },
   {
     "name": "Dazzling Angel",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1726,6 +1815,7 @@
   },
   {
     "name": "Demolition Field",
+    "set": "FDN",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1746,6 +1836,7 @@
   },
   {
     "name": "Den of the Bugbear",
+    "set": "AFR",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1771,6 +1862,7 @@
   },
   {
     "name": "Deserted Beach",
+    "set": "FRA",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1796,6 +1888,7 @@
   },
   {
     "name": "Disdainful Stroke",
+    "set": "WOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1806,6 +1899,7 @@
   },
   {
     "name": "Dismal Backwater",
+    "set": "TDM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1836,6 +1930,7 @@
   },
   {
     "name": "Dovin's Veto",
+    "set": "WAR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1851,6 +1946,7 @@
   },
   {
     "name": "Dragonskull Summit",
+    "set": "XLN",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1876,6 +1972,7 @@
   },
   {
     "name": "Dream Beavers",
+    "set": "TMT",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1896,6 +1993,7 @@
   },
   {
     "name": "Drowned Catacomb",
+    "set": "XLN",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -1921,6 +2019,7 @@
   },
   {
     "name": "Duress",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1931,6 +2030,7 @@
   },
   {
     "name": "Earthbender Ascension",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1951,6 +2051,7 @@
   },
   {
     "name": "Eat to Extinction",
+    "set": "THB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1961,6 +2062,7 @@
   },
   {
     "name": "Eddymurk Crab",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -1991,6 +2093,7 @@
   },
   {
     "name": "Eidolon of the Great Revel",
+    "set": "JOU",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2006,6 +2109,7 @@
   },
   {
     "name": "Eiganjo, Seat of the Empire",
+    "set": "NEO",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -2026,6 +2130,7 @@
   },
   {
     "name": "Elfsworn Giant",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2046,6 +2151,7 @@
   },
   {
     "name": "Elite Spellbinder",
+    "set": "STX",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2066,6 +2172,7 @@
   },
   {
     "name": "Elspeth's Smite",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2076,6 +2183,7 @@
   },
   {
     "name": "Elspeth, Storm Slayer",
+    "set": "TDM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2106,6 +2214,7 @@
   },
   {
     "name": "Elvish Mystic",
+    "set": "M15",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2121,6 +2230,7 @@
   },
   {
     "name": "Emberheart Challenger",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2146,6 +2256,7 @@
   },
   {
     "name": "Emeritus of Ideation",
+    "set": "SOS",
     "abilities": [
       {
         "class": "PrepareCardSpellAbility",
@@ -2181,6 +2292,7 @@
   },
   {
     "name": "Empyrean Eagle",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2201,6 +2313,7 @@
   },
   {
     "name": "Enduring Curiosity",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2226,6 +2339,7 @@
   },
   {
     "name": "Enduring Innocence",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2251,6 +2365,7 @@
   },
   {
     "name": "Enlightened Confidant",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2271,6 +2386,7 @@
   },
   {
     "name": "Erode",
+    "set": "SOS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2281,6 +2397,7 @@
   },
   {
     "name": "Escape Tunnel",
+    "set": "TMT",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -2301,6 +2418,7 @@
   },
   {
     "name": "Esika's Chariot",
+    "set": "KHM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2326,6 +2444,7 @@
   },
   {
     "name": "Esper Origins",
+    "set": "FIN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2366,6 +2485,7 @@
   },
   {
     "name": "Essence Scatter",
+    "set": "SOS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2376,6 +2496,7 @@
   },
   {
     "name": "Evil Reawakened",
+    "set": "FIN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2386,6 +2507,7 @@
   },
   {
     "name": "Evolved Sleeper",
+    "set": "DMU",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2411,6 +2533,7 @@
   },
   {
     "name": "Evolving Wilds",
+    "set": "ECL",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -2426,6 +2549,7 @@
   },
   {
     "name": "Experiment One",
+    "set": "GTC",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2446,6 +2570,7 @@
   },
   {
     "name": "Extinction Event",
+    "set": "IKO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2456,6 +2581,7 @@
   },
   {
     "name": "Fable of the Mirror-Breaker",
+    "set": "NEO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2496,6 +2622,7 @@
   },
   {
     "name": "Fabled Passage",
+    "set": "BLB",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -2511,6 +2638,7 @@
   },
   {
     "name": "Faerie Miscreant",
+    "set": "M20",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2531,6 +2659,7 @@
   },
   {
     "name": "Fanatical Firebrand",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2551,6 +2680,7 @@
   },
   {
     "name": "Fatal Push",
+    "set": "AER",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2561,6 +2691,7 @@
   },
   {
     "name": "Fatehold Charm",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2571,6 +2702,7 @@
   },
   {
     "name": "Feed the Swarm",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2581,6 +2713,7 @@
   },
   {
     "name": "Fencing Ace",
+    "set": "M20",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2596,6 +2729,7 @@
   },
   {
     "name": "Fervent Champion",
+    "set": "ELD",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2626,6 +2760,7 @@
   },
   {
     "name": "Fiery Impulse",
+    "set": "ORI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2636,6 +2771,7 @@
   },
   {
     "name": "Fire Magic",
+    "set": "FIN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2651,6 +2787,7 @@
   },
   {
     "name": "Firebending Lesson",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2666,6 +2803,7 @@
   },
   {
     "name": "Fireglass Mentor",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2681,6 +2819,7 @@
   },
   {
     "name": "Flamecache Gecko",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2701,6 +2840,7 @@
   },
   {
     "name": "Flashfreeze",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2711,6 +2851,7 @@
   },
   {
     "name": "Floodfarm Verge",
+    "set": "DSK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -2731,6 +2872,7 @@
   },
   {
     "name": "Floodpits Drowner",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2761,6 +2903,7 @@
   },
   {
     "name": "Flow State",
+    "set": "SOS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2771,6 +2914,7 @@
   },
   {
     "name": "Flowstone Infusion",
+    "set": "DMU",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2781,6 +2925,7 @@
   },
   {
     "name": "Forest",
+    "set": "MDD",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -2796,6 +2941,7 @@
   },
   {
     "name": "Fountainport",
+    "set": "BLB",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -2826,6 +2972,7 @@
   },
   {
     "name": "Fulminous Forte",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2836,6 +2983,7 @@
   },
   {
     "name": "Fumigate",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2846,6 +2994,7 @@
   },
   {
     "name": "Galvanic Iteration",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2861,6 +3010,7 @@
   },
   {
     "name": "Garruk, Curse Breaker",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2891,6 +3041,7 @@
   },
   {
     "name": "Gatekeeper of Malakir",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2911,6 +3062,7 @@
   },
   {
     "name": "Gene Pollinator",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2926,6 +3078,7 @@
   },
   {
     "name": "Get Lost",
+    "set": "LCI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2936,6 +3089,7 @@
   },
   {
     "name": "Get Out",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2946,6 +3100,7 @@
   },
   {
     "name": "Gev, Scaled Scorch",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2971,6 +3126,7 @@
   },
   {
     "name": "Ghitu Lavarunner",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -2986,6 +3142,7 @@
   },
   {
     "name": "Ghost Vacuum",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3006,6 +3163,7 @@
   },
   {
     "name": "Giada, Font of Hope",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3036,6 +3194,7 @@
   },
   {
     "name": "Giant Growth",
+    "set": "MSH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3046,6 +3205,7 @@
   },
   {
     "name": "Glacial Fortress",
+    "set": "XLN",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3071,6 +3231,7 @@
   },
   {
     "name": "Glissa Sunslayer",
+    "set": "ONE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3096,6 +3257,7 @@
   },
   {
     "name": "Gloomlake Verge",
+    "set": "DSK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3116,6 +3278,7 @@
   },
   {
     "name": "Glorious Anthem",
+    "set": "M21",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3131,6 +3294,7 @@
   },
   {
     "name": "Glorybringer",
+    "set": "AKH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3161,6 +3325,7 @@
   },
   {
     "name": "Gnarlback Rhino",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3181,6 +3346,7 @@
   },
   {
     "name": "Gnarlid Colony",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3206,6 +3372,7 @@
   },
   {
     "name": "Go Blank",
+    "set": "STX",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3216,6 +3383,7 @@
   },
   {
     "name": "Go for the Throat",
+    "set": "BRO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3226,6 +3394,7 @@
   },
   {
     "name": "Godless Shrine",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3251,6 +3420,7 @@
   },
   {
     "name": "Goldvein Hydra",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3286,6 +3456,7 @@
   },
   {
     "name": "Graveyard Trespasser",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3326,6 +3497,7 @@
   },
   {
     "name": "Gray Merchant of Asphodel",
+    "set": "THB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3341,6 +3513,7 @@
   },
   {
     "name": "Greasefang, Okiba Boss",
+    "set": "NEO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3356,6 +3529,7 @@
   },
   {
     "name": "Greedy Freebooter",
+    "set": "LCI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3371,6 +3545,7 @@
   },
   {
     "name": "Grisly Salvage",
+    "set": "RTR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3381,6 +3556,7 @@
   },
   {
     "name": "Hall of Storm Giants",
+    "set": "AFR",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3406,6 +3582,7 @@
   },
   {
     "name": "Hallowed Fountain",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3431,6 +3608,7 @@
   },
   {
     "name": "Haunted Ridge",
+    "set": "FRA",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3456,6 +3634,7 @@
   },
   {
     "name": "Healer's Hawk",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3476,6 +3655,7 @@
   },
   {
     "name": "Heartfire Immolator",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3496,6 +3676,7 @@
   },
   {
     "name": "Hearth Elemental",
+    "set": "WOE",
     "abilities": [
       {
         "class": "AdventureCardSpellAbility",
@@ -3516,6 +3697,7 @@
   },
   {
     "name": "Hengegate Pathway",
+    "set": "KHM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3541,6 +3723,7 @@
   },
   {
     "name": "Hero's Downfall",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3551,6 +3734,7 @@
   },
   {
     "name": "Hidden Lair",
+    "set": "MSH",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3576,6 +3760,7 @@
   },
   {
     "name": "High Noon",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3596,6 +3781,7 @@
   },
   {
     "name": "Highborn Vampire",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3606,6 +3792,7 @@
   },
   {
     "name": "Hired Claw",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3626,6 +3813,7 @@
   },
   {
     "name": "Hive of the Eye Tyrant",
+    "set": "AFR",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3651,6 +3839,7 @@
   },
   {
     "name": "Hungering Puppetbeast",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3671,6 +3860,7 @@
   },
   {
     "name": "Hushwood Verge",
+    "set": "DSK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3691,6 +3881,7 @@
   },
   {
     "name": "Icetill Explorer",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3716,6 +3907,7 @@
   },
   {
     "name": "Impractical Joke",
+    "set": "SOS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3726,6 +3918,7 @@
   },
   {
     "name": "Ingris Stingerquill",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3751,6 +3944,7 @@
   },
   {
     "name": "Inspiring Overseer",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3771,6 +3965,7 @@
   },
   {
     "name": "Inspiring Paladin",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3791,6 +3986,7 @@
   },
   {
     "name": "Inspiring Vantage",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3816,6 +4012,7 @@
   },
   {
     "name": "Into the Flood Maw",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3831,6 +4028,7 @@
   },
   {
     "name": "Intrepid Adversary",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3856,6 +4054,7 @@
   },
   {
     "name": "Invoke Despair",
+    "set": "NEO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3866,6 +4065,7 @@
   },
   {
     "name": "Iridescent Vinelasher",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3891,6 +4091,7 @@
   },
   {
     "name": "Iroh's Demonstration",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3901,6 +4102,7 @@
   },
   {
     "name": "Island",
+    "set": "MDD",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3916,6 +4118,7 @@
   },
   {
     "name": "It'll Quench Ya!",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3926,6 +4129,7 @@
   },
   {
     "name": "Jadelight Ranger",
+    "set": "RIX",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -3941,6 +4145,7 @@
   },
   {
     "name": "Jungle Hollow",
+    "set": "TDM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -3971,6 +4176,7 @@
   },
   {
     "name": "Kaito, Bane of Nightmares",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4006,6 +4212,7 @@
   },
   {
     "name": "Kalastria Highborn",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4021,6 +4228,7 @@
   },
   {
     "name": "Kavaron Harrier",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4036,6 +4244,7 @@
   },
   {
     "name": "Keen-Eyed Curator",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4056,6 +4265,7 @@
   },
   {
     "name": "Kitesail Corsair",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4071,6 +4281,7 @@
   },
   {
     "name": "Kitesail Freebooter",
+    "set": "M21",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4091,6 +4302,7 @@
   },
   {
     "name": "Knockout Blow",
+    "set": "SNC",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4106,6 +4318,7 @@
   },
   {
     "name": "Kolaghan's Command",
+    "set": "DTK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4116,6 +4329,7 @@
   },
   {
     "name": "Konstrari Charm",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4126,6 +4340,7 @@
   },
   {
     "name": "Koth of the Homestead",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4146,6 +4361,7 @@
   },
   {
     "name": "Koth, the Geomancer",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4166,6 +4382,7 @@
   },
   {
     "name": "Kraul Harpooner",
+    "set": "GRN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4186,6 +4403,7 @@
   },
   {
     "name": "Kumano Faces Kakkazan",
+    "set": "NEO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4231,6 +4449,7 @@
   },
   {
     "name": "Kwia Vigorbloom",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4266,6 +4485,7 @@
   },
   {
     "name": "Languish",
+    "set": "ORI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4276,6 +4496,7 @@
   },
   {
     "name": "Laughing Jasper Flint",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4296,6 +4517,7 @@
   },
   {
     "name": "Ledger Shredder",
+    "set": "SNC",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4316,6 +4538,7 @@
   },
   {
     "name": "Leonin Vanguard",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4331,6 +4554,7 @@
   },
   {
     "name": "Leyline of the Void",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4351,6 +4575,7 @@
   },
   {
     "name": "Light Up the Stage",
+    "set": "RNA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4366,6 +4591,7 @@
   },
   {
     "name": "Lightning Axe",
+    "set": "SOI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4376,6 +4602,7 @@
   },
   {
     "name": "Lightning Strike",
+    "set": "MSH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4386,6 +4613,7 @@
   },
   {
     "name": "Liliana the Faultless",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4406,6 +4634,7 @@
   },
   {
     "name": "Lively Dirge",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4421,6 +4650,7 @@
   },
   {
     "name": "Llanowar Elves",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4436,6 +4666,7 @@
   },
   {
     "name": "Llanowar Wastes",
+    "set": "BRO",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -4461,6 +4692,7 @@
   },
   {
     "name": "Lovestruck Beast",
+    "set": "ELD",
     "abilities": [
       {
         "class": "AdventureCardSpellAbility",
@@ -4481,6 +4713,7 @@
   },
   {
     "name": "Lumbering Worldwagon",
+    "set": "DFT",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4506,6 +4739,7 @@
   },
   {
     "name": "Luminarch Aspirant",
+    "set": "ZNR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4521,6 +4755,7 @@
   },
   {
     "name": "Lyra Dawnbringer",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4551,6 +4786,7 @@
   },
   {
     "name": "Lyra, Archangel of Dawn",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4571,6 +4807,7 @@
   },
   {
     "name": "Maelstrom Pulse",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4581,6 +4818,7 @@
   },
   {
     "name": "Maelstrom of the Spirit Dragon",
+    "set": "TDM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -4606,6 +4844,7 @@
   },
   {
     "name": "Magda, the Hoardmaster",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4626,6 +4865,7 @@
   },
   {
     "name": "Magebane Lizard",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4641,6 +4881,7 @@
   },
   {
     "name": "Magmatic Hellkite",
+    "set": "TDM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4661,6 +4902,7 @@
   },
   {
     "name": "Magnigoth Sentry",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4676,6 +4918,7 @@
   },
   {
     "name": "Make Disappear",
+    "set": "SNC",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4691,6 +4934,7 @@
   },
   {
     "name": "Make a Stand",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4701,6 +4945,7 @@
   },
   {
     "name": "March of Otherworldly Light",
+    "set": "NEO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4716,6 +4961,7 @@
   },
   {
     "name": "Massacre Wurm",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4736,6 +4982,7 @@
   },
   {
     "name": "Master of Barbs",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4756,6 +5003,7 @@
   },
   {
     "name": "Mausoleum Wanderer",
+    "set": "EMN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4781,6 +5029,7 @@
   },
   {
     "name": "Meltstrider's Resolve",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4806,6 +5055,7 @@
   },
   {
     "name": "Memory Deluge",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4821,6 +5071,7 @@
   },
   {
     "name": "Meticulous Archive",
+    "set": "MKM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -4851,6 +5102,7 @@
   },
   {
     "name": "Midnight Reaper",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4866,6 +5118,7 @@
   },
   {
     "name": "Mightform Harmonizer",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4886,6 +5139,7 @@
   },
   {
     "name": "Mockingbird",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4906,6 +5160,7 @@
   },
   {
     "name": "Moment of Craving",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4916,6 +5171,7 @@
   },
   {
     "name": "Momo, Friendly Flier",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4941,6 +5197,7 @@
   },
   {
     "name": "Monastery Swiftspear",
+    "set": "BRO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4961,6 +5218,7 @@
   },
   {
     "name": "Monstrous Rage",
+    "set": "WOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4971,6 +5229,7 @@
   },
   {
     "name": "Moon-Circuit Hacker",
+    "set": "NEO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -4991,6 +5250,7 @@
   },
   {
     "name": "Mossborn Hydra",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5016,6 +5276,7 @@
   },
   {
     "name": "Mountain",
+    "set": "MDD",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5031,6 +5292,7 @@
   },
   {
     "name": "Multiversal Passage",
+    "set": "SPM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5051,6 +5313,7 @@
   },
   {
     "name": "Murder",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5061,6 +5324,7 @@
   },
   {
     "name": "Murderous Rider",
+    "set": "ELD",
     "abilities": [
       {
         "class": "AdventureCardSpellAbility",
@@ -5086,6 +5350,7 @@
   },
   {
     "name": "Mutavault",
+    "set": "M14",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5106,6 +5371,7 @@
   },
   {
     "name": "Mystical Dispute",
+    "set": "ELD",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5121,6 +5387,7 @@
   },
   {
     "name": "Narset, Parter of Veils",
+    "set": "WAR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5141,6 +5408,7 @@
   },
   {
     "name": "Needleverge Pathway",
+    "set": "ZNR",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5166,6 +5434,7 @@
   },
   {
     "name": "Negate",
+    "set": "TMT",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5176,6 +5445,7 @@
   },
   {
     "name": "No More Lies",
+    "set": "MKM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5186,6 +5456,7 @@
   },
   {
     "name": "Nova Hellkite",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5216,6 +5487,7 @@
   },
   {
     "name": "Nowhere to Run",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5241,6 +5513,7 @@
   },
   {
     "name": "Obsessive Pursuit",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5261,6 +5534,7 @@
   },
   {
     "name": "Octopus Form",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5271,6 +5545,7 @@
   },
   {
     "name": "Old-Growth Troll",
+    "set": "KHM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5291,6 +5566,7 @@
   },
   {
     "name": "Opt",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5301,6 +5577,7 @@
   },
   {
     "name": "Ossification",
+    "set": "ONE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5321,6 +5598,7 @@
   },
   {
     "name": "Otawara, Soaring City",
+    "set": "NEO",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5341,6 +5619,7 @@
   },
   {
     "name": "Ouroboroid",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5356,6 +5635,7 @@
   },
   {
     "name": "Overgrown Farmland",
+    "set": "FRA",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5381,6 +5661,7 @@
   },
   {
     "name": "Overgrown Tomb",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5406,6 +5687,7 @@
   },
   {
     "name": "Pacifism",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5426,6 +5708,7 @@
   },
   {
     "name": "Parhelion II",
+    "set": "WAR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5461,6 +5744,7 @@
   },
   {
     "name": "Path of Peril",
+    "set": "VOW",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5476,6 +5760,7 @@
   },
   {
     "name": "Pelakka Wurm",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5501,6 +5786,7 @@
   },
   {
     "name": "Pelt Collector",
+    "set": "GRN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5521,6 +5807,7 @@
   },
   {
     "name": "Petrified Hamlet",
+    "set": "SOS",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5551,6 +5838,7 @@
   },
   {
     "name": "Phoenix of Ash",
+    "set": "THB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5586,6 +5874,7 @@
   },
   {
     "name": "Phyrexian Arena",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5601,6 +5890,7 @@
   },
   {
     "name": "Picklock Prankster",
+    "set": "WOE",
     "abilities": [
       {
         "class": "AdventureCardSpellAbility",
@@ -5626,6 +5916,7 @@
   },
   {
     "name": "Pinnacle Starcage",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5646,6 +5937,7 @@
   },
   {
     "name": "Plains",
+    "set": "MDD",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5661,6 +5953,7 @@
   },
   {
     "name": "Play with Fire",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5671,6 +5964,7 @@
   },
   {
     "name": "Polukranos Reborn",
+    "set": "MOM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5706,6 +6000,7 @@
   },
   {
     "name": "Pompous Battlemage",
+    "set": "FRA",
     "abilities": [
       {
         "class": "PrepareCardSpellAbility",
@@ -5731,6 +6026,7 @@
   },
   {
     "name": "Portable Hole",
+    "set": "AFR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5746,6 +6042,7 @@
   },
   {
     "name": "Primal Might",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5756,6 +6053,7 @@
   },
   {
     "name": "Prismari Charm",
+    "set": "SOS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5766,6 +6064,7 @@
   },
   {
     "name": "Prismari Command",
+    "set": "STX",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5776,6 +6075,7 @@
   },
   {
     "name": "Professor Dellian Fel",
+    "set": "SOS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5806,6 +6106,7 @@
   },
   {
     "name": "Proft's Eidetic Memory",
+    "set": "MKM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5831,6 +6132,7 @@
   },
   {
     "name": "Prophesied End",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5841,6 +6143,7 @@
   },
   {
     "name": "Pyroclasm",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5851,6 +6154,7 @@
   },
   {
     "name": "Quantum Riddler",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5881,6 +6185,7 @@
   },
   {
     "name": "Questing Beast",
+    "set": "ELD",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5921,6 +6226,7 @@
   },
   {
     "name": "Ram Through",
+    "set": "IKO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5931,6 +6237,7 @@
   },
   {
     "name": "Rampaging Ferocidon",
+    "set": "XLN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -5956,6 +6263,7 @@
   },
   {
     "name": "Ramunap Ruins",
+    "set": "HOU",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -5981,6 +6289,7 @@
   },
   {
     "name": "Rattlechains",
+    "set": "SOI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6011,6 +6320,7 @@
   },
   {
     "name": "Raven Eagle",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6036,6 +6346,7 @@
   },
   {
     "name": "Ravenous Chupacabra",
+    "set": "RIX",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6051,6 +6362,7 @@
   },
   {
     "name": "Razorverge Thicket",
+    "set": "ONE",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6076,6 +6388,7 @@
   },
   {
     "name": "Reckless Rage",
+    "set": "RIX",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6086,6 +6399,7 @@
   },
   {
     "name": "Reckless Stormseeker",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6116,6 +6430,7 @@
   },
   {
     "name": "Recruitment Officer",
+    "set": "BRO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6131,6 +6446,7 @@
   },
   {
     "name": "Redcap Melee",
+    "set": "ELD",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6141,6 +6457,7 @@
   },
   {
     "name": "Refute",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6151,6 +6468,7 @@
   },
   {
     "name": "Release the Dogs",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6161,6 +6479,7 @@
   },
   {
     "name": "Remorseful Cleric",
+    "set": "M19",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6181,6 +6500,7 @@
   },
   {
     "name": "Requiting Hex",
+    "set": "ECL",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6196,6 +6516,7 @@
   },
   {
     "name": "Resolute Reinforcements",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6216,6 +6537,7 @@
   },
   {
     "name": "Rest in Peace",
+    "set": "BIG",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6236,6 +6558,7 @@
   },
   {
     "name": "Restless Anchorage",
+    "set": "LCI",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6271,6 +6594,7 @@
   },
   {
     "name": "Restless Cottage",
+    "set": "WOE",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6306,6 +6630,7 @@
   },
   {
     "name": "Restless Reef",
+    "set": "LCI",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6341,6 +6666,7 @@
   },
   {
     "name": "Rimrock Knight",
+    "set": "ELD",
     "abilities": [
       {
         "class": "AdventureCardSpellAbility",
@@ -6361,6 +6687,7 @@
   },
   {
     "name": "Riverglide Pathway",
+    "set": "ZNR",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6386,6 +6713,7 @@
   },
   {
     "name": "Riverpyre Verge",
+    "set": "DFT",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6406,6 +6734,7 @@
   },
   {
     "name": "Rockface Village",
+    "set": "BLB",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6431,6 +6760,7 @@
   },
   {
     "name": "Rockfall Vale",
+    "set": "FRA",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6456,6 +6786,7 @@
   },
   {
     "name": "Rootbound Crag",
+    "set": "XLN",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6481,6 +6812,7 @@
   },
   {
     "name": "Rottenmouth Viper",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6501,6 +6833,7 @@
   },
   {
     "name": "Rugged Highlands",
+    "set": "TDM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6531,6 +6864,7 @@
   },
   {
     "name": "Rune-Scarred Demon",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6551,6 +6885,7 @@
   },
   {
     "name": "Sacred Foundry",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6576,6 +6911,7 @@
   },
   {
     "name": "Sanguine Syphoner",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6591,6 +6927,7 @@
   },
   {
     "name": "Sapling Nursery",
+    "set": "ECL",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6616,6 +6953,7 @@
   },
   {
     "name": "Sarkhan, Dragon Ascendant",
+    "set": "TDM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6636,6 +6974,7 @@
   },
   {
     "name": "Satyr Wayfinder",
+    "set": "M15",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6651,6 +6990,7 @@
   },
   {
     "name": "Savannah Lions",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6661,6 +7001,7 @@
   },
   {
     "name": "Saw It Coming",
+    "set": "KHM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6681,6 +7022,7 @@
   },
   {
     "name": "Sazh's Chocobo",
+    "set": "FIN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6696,6 +7038,7 @@
   },
   {
     "name": "Scavenging Ooze",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6711,6 +7054,7 @@
   },
   {
     "name": "Scorching Dragonfire",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6721,6 +7065,7 @@
   },
   {
     "name": "Scorching Shot",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6731,6 +7076,7 @@
   },
   {
     "name": "Scoured Barrens",
+    "set": "TDM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -6761,6 +7107,7 @@
   },
   {
     "name": "Screaming Nemesis",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6781,6 +7128,7 @@
   },
   {
     "name": "Seam Rip",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6796,6 +7144,7 @@
   },
   {
     "name": "Sear",
+    "set": "ECL",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6806,6 +7155,7 @@
   },
   {
     "name": "Searslicer Goblin",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6821,6 +7171,7 @@
   },
   {
     "name": "Seasoned Hallowblade",
+    "set": "M21",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6836,6 +7187,7 @@
   },
   {
     "name": "Selfless Spirit",
+    "set": "EMN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6856,6 +7208,7 @@
   },
   {
     "name": "Serra Angel",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6876,6 +7229,7 @@
   },
   {
     "name": "Shacklegeist",
+    "set": "M21",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6901,6 +7255,7 @@
   },
   {
     "name": "Shared Roots",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6911,6 +7266,7 @@
   },
   {
     "name": "Shark Typhoon",
+    "set": "IKO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6936,6 +7292,7 @@
   },
   {
     "name": "Sheoldred's Edict",
+    "set": "ONE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6946,6 +7303,7 @@
   },
   {
     "name": "Sheoldred, the Apocalypse",
+    "set": "DMU",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6971,6 +7329,7 @@
   },
   {
     "name": "Shivan Dragon",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -6991,6 +7350,7 @@
   },
   {
     "name": "Shivan Reef",
+    "set": "DMU",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7016,6 +7376,7 @@
   },
   {
     "name": "Shock",
+    "set": "SPM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7026,6 +7387,7 @@
   },
   {
     "name": "Shoot the Sheriff",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7036,6 +7398,7 @@
   },
   {
     "name": "Sire of Seven Deaths",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7081,6 +7444,7 @@
   },
   {
     "name": "Skewer the Critics",
+    "set": "RNA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7096,6 +7460,7 @@
   },
   {
     "name": "Skyclave Apparition",
+    "set": "ZNR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7116,6 +7481,7 @@
   },
   {
     "name": "Skyknight Squire",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7136,6 +7502,7 @@
   },
   {
     "name": "Skyship Buccaneer",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7156,6 +7523,7 @@
   },
   {
     "name": "Sleight of Hand",
+    "set": "WOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7166,6 +7534,7 @@
   },
   {
     "name": "Smaug the Magnificent",
+    "set": "HOB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7196,6 +7565,7 @@
   },
   {
     "name": "Sokenzan, Crucible of Defiance",
+    "set": "NEO",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7216,6 +7586,7 @@
   },
   {
     "name": "Soul-Guide Lantern",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7241,6 +7612,7 @@
   },
   {
     "name": "Soul-Scar Mage",
+    "set": "AKH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7261,6 +7633,7 @@
   },
   {
     "name": "Soulstone Sanctuary",
+    "set": "FDN",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7281,6 +7654,7 @@
   },
   {
     "name": "Spectral Sailor",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7306,6 +7680,7 @@
   },
   {
     "name": "Spell Pierce",
+    "set": "DFT",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7316,6 +7691,7 @@
   },
   {
     "name": "Spell Queller",
+    "set": "EMN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7346,6 +7722,7 @@
   },
   {
     "name": "Spell Snare",
+    "set": "ECL",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7356,6 +7733,7 @@
   },
   {
     "name": "Sphinx of the Final Word",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7386,6 +7764,7 @@
   },
   {
     "name": "Spirebluff Canal",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7411,6 +7790,7 @@
   },
   {
     "name": "Split Up",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7421,6 +7801,7 @@
   },
   {
     "name": "Spyglass Siren",
+    "set": "LCI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7441,6 +7822,7 @@
   },
   {
     "name": "Stab",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7451,6 +7833,7 @@
   },
   {
     "name": "Starting Town",
+    "set": "FIN",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7476,6 +7859,7 @@
   },
   {
     "name": "Stasis Snare",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7496,6 +7880,7 @@
   },
   {
     "name": "Steam Vents",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7521,6 +7906,7 @@
   },
   {
     "name": "Steel Leaf Champion",
+    "set": "DOM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7536,6 +7922,7 @@
   },
   {
     "name": "Stingerquill Charm",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7546,6 +7933,7 @@
   },
   {
     "name": "Stir Up Trouble",
+    "set": "HOB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7556,6 +7944,7 @@
   },
   {
     "name": "Stitcher's Supplier",
+    "set": "M19",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7571,6 +7960,7 @@
   },
   {
     "name": "Stock Up",
+    "set": "DFT",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7581,6 +7971,7 @@
   },
   {
     "name": "Stoke the Flames",
+    "set": "MOM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7596,6 +7987,7 @@
   },
   {
     "name": "Stomping Ground",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7621,6 +8013,7 @@
   },
   {
     "name": "Stormcarved Coast",
+    "set": "SOS",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7646,6 +8039,7 @@
   },
   {
     "name": "Stormchaser's Talent",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7686,6 +8080,7 @@
   },
   {
     "name": "Strategic Betrayal",
+    "set": "TDM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7696,6 +8091,7 @@
   },
   {
     "name": "Strix Lookout",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7721,6 +8117,7 @@
   },
   {
     "name": "Stromkirk Bloodthief",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7736,6 +8133,7 @@
   },
   {
     "name": "Sulfurous Springs",
+    "set": "DMU",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7761,6 +8159,7 @@
   },
   {
     "name": "Sunbillow Verge",
+    "set": "DFT",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7781,6 +8180,7 @@
   },
   {
     "name": "Sunderflock",
+    "set": "ECL",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7806,6 +8206,7 @@
   },
   {
     "name": "Sunspine Lynx",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7831,6 +8232,7 @@
   },
   {
     "name": "Supreme Phantom",
+    "set": "M19",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7851,6 +8253,7 @@
   },
   {
     "name": "Supreme Verdict",
+    "set": "RTR",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7866,6 +8269,7 @@
   },
   {
     "name": "Surrak, Elusive Hunter",
+    "set": "TDM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7891,6 +8295,7 @@
   },
   {
     "name": "Swamp",
+    "set": "MDD",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7906,6 +8311,7 @@
   },
   {
     "name": "Tajuru Pathwarden",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7926,6 +8332,7 @@
   },
   {
     "name": "Takenuma, Abandoned Mire",
+    "set": "NEO",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -7946,6 +8353,7 @@
   },
   {
     "name": "Tamiyo's Safekeeping",
+    "set": "NEO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7956,6 +8364,7 @@
   },
   {
     "name": "Tarmogoyf",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7971,6 +8380,7 @@
   },
   {
     "name": "Tear Asunder",
+    "set": "DMU",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -7986,6 +8396,7 @@
   },
   {
     "name": "Teferi, Hero of Dominaria",
+    "set": "DOM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8011,6 +8422,7 @@
   },
   {
     "name": "Temple Garden",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -8036,6 +8448,7 @@
   },
   {
     "name": "Temple of Enlightenment",
+    "set": "FDN",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -8066,6 +8479,7 @@
   },
   {
     "name": "Temporal Trespass",
+    "set": "FRF",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8081,6 +8495,7 @@
   },
   {
     "name": "Temporary Lockdown",
+    "set": "DMU",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8096,6 +8511,7 @@
   },
   {
     "name": "Tenacious Underdog",
+    "set": "SNC",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8121,6 +8537,7 @@
   },
   {
     "name": "Thalia's Lieutenant",
+    "set": "SOI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8141,6 +8558,7 @@
   },
   {
     "name": "Thalia, Guardian of Thraben",
+    "set": "VOW",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8161,6 +8579,7 @@
   },
   {
     "name": "The Legend of Roku",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8206,6 +8625,7 @@
   },
   {
     "name": "The Meathook Massacre",
+    "set": "MID",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8231,6 +8651,7 @@
   },
   {
     "name": "The Ooze",
+    "set": "TMT",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8251,6 +8672,7 @@
   },
   {
     "name": "The Sackville-Bagginses",
+    "set": "HOB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8271,6 +8693,7 @@
   },
   {
     "name": "The Scarab God",
+    "set": "HOU",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8296,6 +8719,7 @@
   },
   {
     "name": "The Theorist, Jace Beleren",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8326,6 +8750,7 @@
   },
   {
     "name": "The Wandering Emperor",
+    "set": "NEO",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8361,6 +8786,7 @@
   },
   {
     "name": "The Wondrous Wasp",
+    "set": "MSH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8386,6 +8812,7 @@
   },
   {
     "name": "Theorist's Sanctum",
+    "set": "FRA",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -8411,6 +8838,7 @@
   },
   {
     "name": "Theorix Charm",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8421,6 +8849,7 @@
   },
   {
     "name": "Think Twice",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8436,6 +8865,7 @@
   },
   {
     "name": "Thoughtseize",
+    "set": "THS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8446,6 +8876,7 @@
   },
   {
     "name": "Thraben Inspector",
+    "set": "SOI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8461,6 +8892,7 @@
   },
   {
     "name": "Thrashing Brontodon",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8476,6 +8908,7 @@
   },
   {
     "name": "Three Steps Ahead",
+    "set": "OTJ",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8491,6 +8924,7 @@
   },
   {
     "name": "Tireless Tracker",
+    "set": "SOI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8511,6 +8945,7 @@
   },
   {
     "name": "Tishana's Tidebinder",
+    "set": "LCI",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8531,6 +8966,7 @@
   },
   {
     "name": "Torpor Orb",
+    "set": "BIG",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8546,6 +8982,7 @@
   },
   {
     "name": "Tragic Banshee",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8561,6 +8998,7 @@
   },
   {
     "name": "Tranquil Cove",
+    "set": "TDM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -8591,6 +9029,7 @@
   },
   {
     "name": "Traumatic Critique",
+    "set": "SOS",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8601,6 +9040,7 @@
   },
   {
     "name": "Treasure Cruise",
+    "set": "KTK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8616,6 +9056,7 @@
   },
   {
     "name": "Treetop Snarespinner",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8641,6 +9082,7 @@
   },
   {
     "name": "Twinmaw Stormbrood",
+    "set": "TDM",
     "abilities": [
       {
         "class": "OmenCardSpellAbility",
@@ -8666,6 +9108,7 @@
   },
   {
     "name": "Umbral Collar Zealot",
+    "set": "EOE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8681,6 +9124,7 @@
   },
   {
     "name": "Unholy Annex // Ritual Chamber",
+    "set": "DSK",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8701,6 +9145,7 @@
   },
   {
     "name": "Unlicensed Hearse",
+    "set": "SNC",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8726,6 +9171,7 @@
   },
   {
     "name": "Urborg, Tomb of Yawgmoth",
+    "set": "M15",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -8741,6 +9187,7 @@
   },
   {
     "name": "Valley Flamecaller",
+    "set": "BLB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8756,6 +9203,7 @@
   },
   {
     "name": "Valorous Stance",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8766,6 +9214,7 @@
   },
   {
     "name": "Vampire Nighthawk",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8791,6 +9240,7 @@
   },
   {
     "name": "Vampire Spawn",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8806,6 +9256,7 @@
   },
   {
     "name": "Vanguard Seraph",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8826,6 +9277,7 @@
   },
   {
     "name": "Vengeful Bloodwitch",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8841,6 +9293,7 @@
   },
   {
     "name": "Vengeful Tracker",
+    "set": "MKM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8856,6 +9309,7 @@
   },
   {
     "name": "Vigorbloom Charm",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8866,6 +9320,7 @@
   },
   {
     "name": "Vile Entomber",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8886,6 +9341,7 @@
   },
   {
     "name": "Voice of Victory",
+    "set": "TDM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8906,6 +9362,7 @@
   },
   {
     "name": "Wall of Omens",
+    "set": "ROE",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8926,6 +9383,7 @@
   },
   {
     "name": "Wan Shi Tong, Librarian",
+    "set": "TLA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8961,6 +9419,7 @@
   },
   {
     "name": "Warg Tactics",
+    "set": "HOB",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -8971,6 +9430,7 @@
   },
   {
     "name": "Wastewood Verge",
+    "set": "DFT",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -8991,6 +9451,7 @@
   },
   {
     "name": "Watery Grave",
+    "set": "TRK",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -9016,6 +9477,7 @@
   },
   {
     "name": "We Say Thee Nay!",
+    "set": "MSH",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -9031,6 +9493,7 @@
   },
   {
     "name": "Weathered Runestone",
+    "set": "KHM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -9051,6 +9514,7 @@
   },
   {
     "name": "Wind-Scarred Crag",
+    "set": "TDM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -9081,6 +9545,7 @@
   },
   {
     "name": "Winternight Stories",
+    "set": "TDM",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -9096,6 +9561,7 @@
   },
   {
     "name": "Woodland Cemetery",
+    "set": "DOM",
     "abilities": [
       {
         "class": "PlayLandAbility",
@@ -9121,6 +9587,7 @@
   },
   {
     "name": "Youthful Knight",
+    "set": "ELD",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -9136,6 +9603,7 @@
   },
   {
     "name": "Youthful Valkyrie",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -9156,6 +9624,7 @@
   },
   {
     "name": "Yuriko, Hope from the Shadows",
+    "set": "FRA",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -9176,6 +9645,7 @@
   },
   {
     "name": "Zombify",
+    "set": "FDN",
     "abilities": [
       {
         "class": "SpellAbility",
@@ -9186,6 +9656,10 @@
   },
   {
     "name": "token:AjanisPridemateToken",
+    "images": {
+      "FRA": 1,
+      "M20": 1
+    },
     "abilities": [
       {
         "class": "GainLifeControllerTriggeredAbility",
@@ -9196,6 +9670,20 @@
   },
   {
     "name": "token:AngelVigilanceToken",
+    "images": {
+      "2X2": 1,
+      "DMC": 1,
+      "GRN": 1,
+      "LCI": 1,
+      "M19": 1,
+      "MH1": 1,
+      "MSC": 2,
+      "NEC": 1,
+      "ONC": 1,
+      "RVR": 1,
+      "TDC": 1,
+      "WAR": 1
+    },
     "abilities": [
       {
         "class": "FlyingAbility",
@@ -9211,6 +9699,9 @@
   },
   {
     "name": "token:Beast44TrampleToken",
+    "images": {
+      "FRA": 1
+    },
     "abilities": [
       {
         "class": "TrampleAbility",
@@ -9221,6 +9712,17 @@
   },
   {
     "name": "token:BloodToken",
+    "images": {
+      "BIG": 1,
+      "BLC": 1,
+      "INR": 1,
+      "LCC": 1,
+      "MH3": 1,
+      "MOC": 1,
+      "OTC": 1,
+      "SLD": 1,
+      "VOW": 1
+    },
     "abilities": [
       {
         "class": "SimpleActivatedAbility",
@@ -9231,10 +9733,44 @@
   },
   {
     "name": "token:CadetToken",
+    "images": {
+      "FRA": 1
+    },
     "abilities": []
   },
   {
     "name": "token:ClueArtifactToken",
+    "images": {
+      "2XM": 1,
+      "30A": 2,
+      "40K": 1,
+      "AFC": 1,
+      "BLC": 1,
+      "C18": 1,
+      "CLB": 1,
+      "CMM": 1,
+      "EOC": 1,
+      "FDC": 1,
+      "FIC": 1,
+      "INR": 1,
+      "MH2": 2,
+      "MH3": 1,
+      "MID": 1,
+      "MKC": 1,
+      "MKM": 5,
+      "MOC": 1,
+      "MSH": 1,
+      "NCC": 1,
+      "OTJ": 1,
+      "PIP": 1,
+      "SLD": 1,
+      "SOI": 6,
+      "TLA": 5,
+      "TMC": 1,
+      "UST": 1,
+      "VOC": 1,
+      "WHO": 3
+    },
     "abilities": [
       {
         "class": "ClueAbility",
@@ -9245,6 +9781,9 @@
   },
   {
     "name": "token:DragonFirebendingToken",
+    "images": {
+      "TLA": 1
+    },
     "abilities": [
       {
         "class": "FlyingAbility",
@@ -9260,10 +9799,38 @@
   },
   {
     "name": "token:ElfWarriorToken",
+    "images": {
+      "A25": 1,
+      "C14": 1,
+      "C16": 1,
+      "CMA": 1,
+      "CMM": 1,
+      "CMR": 1,
+      "DD1": 1,
+      "DDS": 1,
+      "DDU": 1,
+      "ECC": 1,
+      "EMA": 1,
+      "EVG": 1,
+      "FDN": 1,
+      "GN3": 1,
+      "KHM": 1,
+      "LRW": 1,
+      "LTC": 1,
+      "M19": 1,
+      "MDD": 1,
+      "NCC": 1,
+      "ORI": 1,
+      "SCD": 1,
+      "SHM": 1
+    },
     "abilities": []
   },
   {
     "name": "token:FableOfTheMirrorBreakerToken",
+    "images": {
+      "NEO": 1
+    },
     "abilities": [
       {
         "class": "AttacksTriggeredAbility",
@@ -9274,10 +9841,41 @@
   },
   {
     "name": "token:FishNoAbilityToken",
+    "images": {
+      "BLB": 1,
+      "FDN": 1,
+      "WHO": 1
+    },
     "abilities": []
   },
   {
     "name": "token:FoodToken",
+    "images": {
+      "BIG": 1,
+      "BLB": 1,
+      "C21": 1,
+      "ELD": 4,
+      "FDN": 1,
+      "FIN": 1,
+      "LTR": 3,
+      "MH2": 2,
+      "MH3": 1,
+      "MKC": 1,
+      "MOC": 1,
+      "MSH": 1,
+      "NCC": 1,
+      "OTC": 1,
+      "OTP": 1,
+      "PIP": 3,
+      "PL23": 1,
+      "SLD": 6,
+      "SOC": 1,
+      "SPM": 1,
+      "TLA": 3,
+      "TMT": 1,
+      "WHO": 3,
+      "WOE": 4
+    },
     "abilities": [
       {
         "class": "FoodAbility",
@@ -9288,14 +9886,80 @@
   },
   {
     "name": "token:GoblinToken",
+    "images": {
+      "10E": 1,
+      "A25": 1,
+      "AFR": 1,
+      "ALA": 1,
+      "BLC": 1,
+      "C14": 1,
+      "CM2": 1,
+      "CMM": 1,
+      "DD1": 1,
+      "DDG": 1,
+      "DDN": 1,
+      "DDS": 1,
+      "DDT": 1,
+      "DFT": 1,
+      "DMR": 1,
+      "DMU": 1,
+      "DOM": 1,
+      "DTK": 1,
+      "EMA": 1,
+      "EVG": 1,
+      "FDN": 1,
+      "FRC": 1,
+      "GK1": 1,
+      "GRN": 1,
+      "KTK": 1,
+      "LTC": 1,
+      "M10": 1,
+      "M13": 1,
+      "M15": 1,
+      "M19": 1,
+      "M3C": 1,
+      "MH1": 1,
+      "MH2": 1,
+      "MKM": 1,
+      "MM3": 1,
+      "MMA": 1,
+      "MOC": 1,
+      "NEC": 1,
+      "ONC": 1,
+      "ORI": 1,
+      "P03": 1,
+      "PCA": 1,
+      "RNA": 1,
+      "RTR": 1,
+      "RVR": 1,
+      "SLD": 2,
+      "SOM": 1,
+      "TDM": 1,
+      "TSR": 1,
+      "UGL": 1,
+      "UND": 1,
+      "UST": 1,
+      "WAR": 1
+    },
     "abilities": []
   },
   {
     "name": "token:GreenCat2Token",
+    "images": {
+      "BLC": 1,
+      "CMM": 1,
+      "DMR": 1,
+      "KHM": 1,
+      "M21": 1,
+      "MKC": 1
+    },
     "abilities": []
   },
   {
     "name": "token:HeartwoodToken",
+    "images": {
+      "FRA": 1
+    },
     "abilities": [
       {
         "class": "RedManaAbility",
@@ -9311,14 +9975,45 @@
   },
   {
     "name": "token:HumanToken",
+    "images": {
+      "30A": 1,
+      "AVR": 1,
+      "BLC": 1,
+      "C19": 1,
+      "C20": 1,
+      "CLB": 1,
+      "DDQ": 1,
+      "DKA": 1,
+      "DMC": 1,
+      "ELD": 1,
+      "F12": 1,
+      "FDN": 1,
+      "INR": 1,
+      "LTC": 1,
+      "MID": 1,
+      "MKM": 1,
+      "MOC": 1,
+      "NCC": 1,
+      "ONC": 1,
+      "RNA": 1,
+      "TDC": 1,
+      "VOW": 1,
+      "WOE": 1
+    },
     "abilities": []
   },
   {
     "name": "token:Illusion11Token",
+    "images": {
+      "FRA": 1
+    },
     "abilities": []
   },
   {
     "name": "token:LanderToken",
+    "images": {
+      "EOE": 5
+    },
     "abilities": [
       {
         "class": "SimpleActivatedAbility",
@@ -9329,6 +10024,9 @@
   },
   {
     "name": "token:LotusToken",
+    "images": {
+      "FRA": 1
+    },
     "abilities": [
       {
         "class": "SimpleManaAbility",
@@ -9339,6 +10037,11 @@
   },
   {
     "name": "token:MapToken",
+    "images": {
+      "BIG": 1,
+      "FRC": 1,
+      "LCI": 1
+    },
     "abilities": [
       {
         "class": "ActivateAsSorceryActivatedAbility",
@@ -9349,6 +10052,9 @@
   },
   {
     "name": "token:MutagenToken",
+    "images": {
+      "TMT": 1
+    },
     "abilities": [
       {
         "class": "ActivateAsSorceryActivatedAbility",
@@ -9359,6 +10065,9 @@
   },
   {
     "name": "token:OtterProwessToken",
+    "images": {
+      "BLB": 1
+    },
     "abilities": [
       {
         "class": "ProwessAbility",
@@ -9369,6 +10078,9 @@
   },
   {
     "name": "token:PhyrexianHydraWithLifelinkToken",
+    "images": {
+      "MOM": 1
+    },
     "abilities": [
       {
         "class": "LifelinkAbility",
@@ -9379,6 +10091,9 @@
   },
   {
     "name": "token:PhyrexianHydraWithReachToken",
+    "images": {
+      "MOM": 1
+    },
     "abilities": [
       {
         "class": "ReachAbility",
@@ -9389,10 +10104,16 @@
   },
   {
     "name": "token:RobotToken",
+    "images": {
+      "EOE": 1
+    },
     "abilities": []
   },
   {
     "name": "token:SamuraiToken",
+    "images": {
+      "NEO": 1
+    },
     "abilities": [
       {
         "class": "VigilanceAbility",
@@ -9403,6 +10124,9 @@
   },
   {
     "name": "token:ScorpionDragonToken",
+    "images": {
+      "OTJ": 1
+    },
     "abilities": [
       {
         "class": "FlyingAbility",
@@ -9418,14 +10142,134 @@
   },
   {
     "name": "token:SoldierToken",
+    "images": {
+      "10E": 1,
+      "2X2": 1,
+      "2XM": 1,
+      "30A": 1,
+      "40K": 3,
+      "A25": 1,
+      "ALA": 1,
+      "BLC": 1,
+      "C14": 1,
+      "C16": 1,
+      "C18": 1,
+      "C20": 1,
+      "CLB": 1,
+      "CMM": 1,
+      "CMR": 2,
+      "CN2": 1,
+      "DDF": 1,
+      "DDO": 1,
+      "DMU": 1,
+      "DOM": 1,
+      "E01": 1,
+      "EMA": 1,
+      "FDN": 1,
+      "FIC": 1,
+      "FRC": 1,
+      "GN3": 1,
+      "KHC": 1,
+      "M10": 1,
+      "M12": 1,
+      "M13": 1,
+      "M15": 1,
+      "M19": 1,
+      "M20": 1,
+      "M21": 1,
+      "MD1": 1,
+      "MED": 1,
+      "MH1": 1,
+      "MH3": 1,
+      "MKC": 1,
+      "MM2": 1,
+      "MM3": 1,
+      "MMA": 1,
+      "MOC": 1,
+      "MSH": 3,
+      "ONC": 1,
+      "ORI": 1,
+      "PIP": 1,
+      "RTR": 1,
+      "SOM": 1,
+      "TDM": 1,
+      "THS": 2,
+      "TSR": 1,
+      "UGL": 1,
+      "WHO": 1
+    },
     "abilities": []
   },
   {
     "name": "token:SpiritToken",
+    "images": {
+      "2X2": 1,
+      "A25": 1,
+      "C16": 1,
+      "EMA": 1,
+      "NEO": 1,
+      "P04": 1,
+      "SLD": 1,
+      "VOC": 1
+    },
     "abilities": []
   },
   {
     "name": "token:TreasureToken",
+    "images": {
+      "2X2": 1,
+      "2XM": 1,
+      "30A": 3,
+      "ACR": 1,
+      "AFR": 1,
+      "BLB": 1,
+      "C19": 1,
+      "C20": 1,
+      "CLB": 1,
+      "CMM": 1,
+      "CMR": 1,
+      "DFT": 1,
+      "DMC": 1,
+      "DSK": 1,
+      "ECL": 1,
+      "F17": 3,
+      "FDC": 1,
+      "FDN": 1,
+      "FIN": 2,
+      "FRA": 1,
+      "GN3": 1,
+      "HHO": 1,
+      "HOB": 2,
+      "KHM": 1,
+      "LCI": 1,
+      "LTR": 1,
+      "M20": 1,
+      "M21": 1,
+      "MH2": 2,
+      "MH3": 1,
+      "MKC": 1,
+      "MOM": 2,
+      "MSH": 2,
+      "NEO": 1,
+      "OTJ": 1,
+      "PIP": 2,
+      "PL26": 1,
+      "REX": 1,
+      "RNA": 1,
+      "SCD": 1,
+      "SLD": 6,
+      "SNC": 5,
+      "SOS": 1,
+      "SPM": 1,
+      "STX": 1,
+      "TDM": 1,
+      "TLA": 1,
+      "TMC": 1,
+      "VOW": 1,
+      "WHO": 4,
+      "WOE": 1,
+      "XLN": 4
+    },
     "abilities": [
       {
         "class": "TreasureAbility",
@@ -9436,6 +10280,9 @@
   },
   {
     "name": "token:TreefolkReachToken",
+    "images": {
+      "ECL": 1
+    },
     "abilities": [
       {
         "class": "ReachAbility",
@@ -9446,6 +10293,9 @@
   },
   {
     "name": "token:TrollWarriorToken",
+    "images": {
+      "KHM": 1
+    },
     "abilities": [
       {
         "class": "TrampleAbility",
@@ -9456,10 +10306,20 @@
   },
   {
     "name": "token:WhiteDogToken",
+    "images": {
+      "FDN": 1,
+      "M21": 1,
+      "MKM": 1,
+      "SLD": 1,
+      "TDC": 1
+    },
     "abilities": []
   },
   {
     "name": "emblem:AjaniResoluteEmblem",
+    "images": {
+      "FRA": 1
+    },
     "abilities": [
       {
         "class": "SimpleStaticAbility",
@@ -9470,6 +10330,11 @@
   },
   {
     "name": "emblem:ChandraTorchOfDefianceEmblem",
+    "images": {
+      "CMM": 1,
+      "FRA": 1,
+      "KLD": 1
+    },
     "abilities": [
       {
         "class": "SpellCastControllerTriggeredAbility",
@@ -9480,6 +10345,9 @@
   },
   {
     "name": "emblem:KaitoBaneOfNightmaresEmblem",
+    "images": {
+      "DSK": 1
+    },
     "abilities": [
       {
         "class": "SimpleStaticAbility",
@@ -9490,6 +10358,9 @@
   },
   {
     "name": "emblem:ProfessorDellianFelEmblem",
+    "images": {
+      "SOS": 1
+    },
     "abilities": [
       {
         "class": "GainLifeControllerTriggeredAbility",
@@ -9500,6 +10371,10 @@
   },
   {
     "name": "emblem:TeferiHeroOfDominariaEmblem",
+    "images": {
+      "DOM": 1,
+      "MED": 1
+    },
     "abilities": [
       {
         "class": "DrawCardControllerTriggeredAbility",
