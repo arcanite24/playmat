@@ -36,9 +36,14 @@ to keep them small; a recording keeps them, which is what the difference report 
 |---|---|---|
 | 1 | `shadow-decks/tier1`: basic lands, vanilla and keyword creatures (flying, reach, vigilance, trample, lifelink), mana elves, burn | 69 of 69 finished games match (15 checked in, 3 with combat damage splits) |
 | 2 | `shadow-decks/tier2`: enters and attack triggers, until-end-of-turn and static boosts, destroy, counterspells, enters-tapped and dual lands, first and double strike | 30 of 30 match (11 checked in) |
+| 3 | `shadow-decks/tier3`: the Standard school deck act1-stompy against two tier-2 decks: kicker, +1/+1 counters, granted trample, landfall, tokens, dies triggers, "another creature enters" triggers, sorcery-speed activated abilities, two-target fight spells | 30 of 30 match (11 checked in; no dies trigger resolved yet) |
 
-A full game replays in about 2.5 ms (release build). Known gaps: cleanup never gives priority, and a player's
-triggers are ordered by a question only when they differ (not yet seen in a shadow game).
+A full game replays in about 2.5 ms (release build). Known gap: cleanup never gives priority.
+
+Triggers that fire on the same event wait in Java's `TriggeredAbilities` order, which is the order cards were loaded
+into the game (tokens after every card), not the order they entered. Shadow games record each card's place in it
+(`libraryTriggerOrder`, `handTriggerOrder`); a player orders their own waiting triggers with PICK_ABILITY by their
+place in that list.
 
 ## State
 

@@ -40,6 +40,11 @@ pub struct ShadowStart {
 pub struct ShadowSeat {
     pub library: Vec<String>,
     pub hand: Vec<String>,
+    /// each card's place in Java's triggered-ability registration order (-1: no triggers); older games lack it
+    #[serde(default, rename = "libraryTriggerOrder")]
+    pub library_trigger_order: Vec<i64>,
+    #[serde(default, rename = "handTriggerOrder")]
+    pub hand_trigger_order: Vec<i64>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -83,15 +88,21 @@ impl ShadowGame {
     pub fn start_game(&self, db: &CardDb) -> Result<Game, String> {
         let mut game = Game::new(self.start.seats.len(), self.start.random);
         for (seat, s) in self.start.seats.iter().enumerate() {
-            for name in &s.library {
+            for (i, name) in s.library.iter().enumerate() {
                 let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
                 let id = game.create_obj(def, seat, Zone::Library);
                 game.player_mut(seat).library.push(id);
+                if let Some(o) = s.library_trigger_order.get(i).filter(|o| **o >= 0) {
+                    game.obj_mut(id).trigger_order = *o as u64;
+                }
             }
-            for name in &s.hand {
+            for (i, name) in s.hand.iter().enumerate() {
                 let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
                 let id = game.create_obj(def, seat, Zone::Hand);
                 game.player_mut(seat).hand.push(id);
+                if let Some(o) = s.hand_trigger_order.get(i).filter(|o| **o >= 0) {
+                    game.obj_mut(id).trigger_order = *o as u64;
+                }
             }
         }
         let header = self.start.fingerprint.lines().nth(1).ok_or("no fingerprint")?;
