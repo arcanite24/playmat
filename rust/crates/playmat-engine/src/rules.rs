@@ -165,6 +165,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         && *graveyard == (g.obj(src).zone == Zone::Graveyard))
             });
             game.pending.extend(fired);
+            // "at the beginning of the next end step" delayed triggers, after the others
+            if step == Step::EndTurn {
+                let delayed = std::mem::take(&mut game.at_next_end_step);
+                game.pending.extend(delayed);
+            }
         }
         Step::FirstCombatDamage => {
             game.first_strike_step = true;
@@ -357,6 +362,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         } else if castable(game, seat, *id, &o.def)
             || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
             || spectacle(game, seat, *id).is_some()
+            || warp(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
         {
             out.push(*id);
@@ -373,7 +379,8 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         let o = game.obj(*id);
         if o.on_adventure && o.owner == seat && castable(game, seat, *id, &o.def) {
             out.push(*id);
-        } else if o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
+        } else if (o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
+            || o.warp_from.is_some_and(|t| o.owner == seat && game.turn >= t))
             && if o.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, *id, &o.def) }
         {
             out.push(*id);
@@ -430,7 +437,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
     match c {
         CostDef::ManaCost { cost } => ManaCost::parse(cost).map(|m| can_pay(game, seat, &m)).unwrap_or(false),
         CostDef::TapSourceCost => {
-            let sick = o.is(CardType::Creature) && o.sick && !o.has(&AbilityDef::HasteAbility);
+            let sick = game.has_type(id, CardType::Creature) && o.sick && !game.has_ability(id, &AbilityDef::HasteAbility);
             !(o.tapped || sick)
         }
         CostDef::SacrificeSourceCost => true,
@@ -491,6 +498,16 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         && has_targets(game, seat, def)
 }
 
+/// Warp: the card's ability index and the card with its warp cost, if it can be cast that way from hand (at sorcery
+/// speed only).
+fn warp(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    if game.obj(id).zone != Zone::Hand || !sorcery_speed(game, seat) {
+        return None;
+    }
+    let (k, def) = game.obj(id).def.warp()?;
+    castable(game, seat, id, &def).then_some((k, def))
+}
+
 /// Spectacle: the card's ability index and the card with its spectacle cost, if an opponent lost life this turn and
 /// it can be cast that way.
 fn spectacle(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
@@ -534,7 +551,7 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, M
         if o.controller != seat || o.tapped || activations_forbidden(game, *id) {
             continue;
         }
-        if o.is(CardType::Creature) && o.sick && !o.has(&AbilityDef::HasteAbility) {
+        if game.has_type(*id, CardType::Creature) && o.sick && !game.has_ability(*id, &AbilityDef::HasteAbility) {
             continue;
         }
         let abilities: Vec<(usize, Mana, ManaKind)> = o
@@ -710,6 +727,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &spectacle {
             options.push(*k);
         }
+        let warp = warp(game, seat, id);
+        if let Some((k, _)) = &warp {
+            options.push(*k);
+        }
         if !options.is_empty() {
             let def = game.obj(id).def.clone();
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
@@ -723,9 +744,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     _ => return,
                 }
             };
-            if let Some((k, def)) = spectacle.filter(|(k, _)| *k == index) {
-                // cast for its spectacle cost (the whole card comes back as it leaves the stack)
-                let _ = k;
+            // cast for its spectacle or warp cost (the whole card comes back as it leaves the stack)
+            let alternative = spectacle.filter(|(k, _)| *k == index).map(|(_, def)| (def, false));
+            if let Some((def, warped)) = alternative.or(warp.filter(|(k, _)| *k == index).map(|(_, def)| (def, true))) {
                 let before = game.clone();
                 let full = game.obj(id).def.clone();
                 let o = game.obj_mut(id);
@@ -733,7 +754,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 o.def = Arc::new(def);
                 if !cast(game, d, seat, id) {
                     *game = before;
+                    return;
                 }
+                game.obj_mut(id).warped = warped;
                 return;
             }
             if index != 0 {
@@ -1683,6 +1706,14 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
                 sacrifice(game, *o);
             }
         }
+        // `WarpExileEffect`: exiled, and its owner may cast it from exile on a later turn
+        for (o, zcc) in &delayed.warp_exile {
+            if game.obj(*o).zone == Zone::Battlefield && game.obj(*o).zcc == *zcc {
+                game.move_to(*o, Zone::Exile);
+                let turn = game.turn;
+                game.obj_mut(*o).warp_from = Some(turn + 1);
+            }
+        }
         return;
     }
     if let Some((index, zcc)) = item.ability {
@@ -1932,6 +1963,7 @@ fn apply_each_effect(
             } => {
                 let amount = &v!(amount);
                 let def = Arc::new(token.card());
+                token_image(game, token, source.0);
                 let mut created = Vec::new();
                 for _ in 0..*amount {
                     let id = game.create_obj(def.clone(), controller, Zone::Library);
@@ -1953,7 +1985,11 @@ fn apply_each_effect(
                 }
                 if *sacrifice_at_end_of_combat {
                     let delayed =
-                        Delayed { rule: "At end of combat, sacrifice that token.".into(), sacrifice: created };
+                        Delayed {
+                            rule: "At end of combat, sacrifice that token.".into(),
+                            sacrifice: created,
+                            warp_exile: Vec::new(),
+                        };
                     game.at_end_of_combat
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
                 }
@@ -2161,7 +2197,8 @@ fn apply_each_effect(
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Battlefield {
                         let red = game.obj(o).def.colors.contains(&Color::R);
-                        if deal_damage(game, source.0, Target::Obj(o), 4, false) > 0 && !red {
+                        deal_damage(game, source.0, Target::Obj(o), 4, false);
+                        if !red {
                             let sac = EffectDef::SacrificeEffect {
                                 filter: crate::card::Filter(vec![Pred::Type { t: CardType::Land }]),
                                 amount: Amount::Fixed(1),
@@ -2231,10 +2268,10 @@ fn apply_each_effect(
                         }
                     }
                     Some(Target::Player(p)) => {
-                        if deal_damage(game, source.0, Target::Player(p), 2, false) >= 1 {
-                            let scry = EffectDef::ScryEffect { amount: Amount::Fixed(1) };
-                            apply_effects(game, d, item, &[scry], legal, source);
-                        }
+                        // two damage (nothing prevents it), then scry 1
+                        deal_damage(game, source.0, Target::Player(p), 2, false);
+                        let scry = EffectDef::ScryEffect { amount: Amount::Fixed(1) };
+                        apply_effects(game, d, item, &[scry], legal, source);
                     }
                     None => {}
                 }
@@ -2668,6 +2705,7 @@ fn apply_each_effect(
             }
             // exiled until the source leaves; nothing if it already has
             EffectDef::GetEmblemEffect { emblem } => {
+                token_image(game, emblem, source.0);
                 let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
                 game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
                 game.move_to(id, Zone::Command);
@@ -2894,6 +2932,7 @@ fn apply_each_effect(
             }
             EffectDef::CreateTokenTargetEffect { token } => {
                 let def = Arc::new(token.card());
+                token_image(game, token, source.0);
                 for p in players.clone() {
                     let id = game.create_obj(def.clone(), p, Zone::Library);
                     let o = game.obj_mut(id);
@@ -2911,6 +2950,7 @@ fn apply_each_effect(
             }
             EffectDef::CreateTokenControllerTargetEffect { token, amount, tapped } => {
                 let def = Arc::new(token.card());
+                token_image(game, token, source.0);
                 let to = objs.first().map(|o| game.obj(*o).controller);
                 for p in to.into_iter().flat_map(|p| std::iter::repeat_n(p, *amount as usize)) {
                     let id = game.create_obj(def.clone(), p, Zone::Library);
@@ -3292,6 +3332,15 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         o.cast = cast;
         o.zcc
     };
+    // `WarpAbilityWatcher`: a warped permanent is exiled at the beginning of the next end step
+    if game.obj(id).warped {
+        let delayed = Delayed {
+            rule: "At the beginning of the next end step, exile this creature if it was cast for its warp cost.".into(),
+            sacrifice: Vec::new(),
+            warp_exile: vec![(id, zcc)],
+        };
+        game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, controller) });
+    }
     // Gev, Scaled Scorch: other creatures you control enter with counters
     if game.has_type(id, CardType::Creature) {
         let mut n = 0;
@@ -3476,6 +3525,15 @@ fn same_trigger(game: &Game, a: &StackItem, b: &StackItem) -> bool {
     game.stack_name(a) == game.stack_name(b) && a.targets == b.targets
 }
 
+/// `TokenImpl.generateTokenInfo`: creating tokens (or an emblem) picks an image with the game's random when there are
+/// two or more to pick from.
+fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
+    let n = token.image_choices(&game.obj(source).def.set);
+    if n >= 2 {
+        game.rng.next_int_bound(n as i32);
+    }
+}
+
 /// Damage from `source`: to a player it's life lost, to a creature it's marked. Lifelink gains its controller life.
 /// Returns combat lifelink's life, which `combat_damage` gains once per source.
 fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
@@ -3622,7 +3680,7 @@ fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
         && o.is(CardType::Creature)
         && !o.tapped
         && o.attacking.is_none()
-        && (!o.sick || o.has(&AbilityDef::HasteAbility))
+        && (!o.sick || game.has_ability(id, &AbilityDef::HasteAbility))
         && !o.has(&AbilityDef::DefenderAbility)
         && !game.cant_attack_or_block(id)
         && !game.cant_attack_alone(id)

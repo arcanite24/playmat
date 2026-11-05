@@ -451,11 +451,24 @@ pub struct TokenDef {
     pub abilities: Vec<AbilityDef>,
     #[serde(default)]
     pub all_creature_types: bool,
+    /// its images per set (`TokenRepository`): making one picks an image at random from its source's set's, or
+    /// else from all of them, when there are two or more
+    #[serde(default)]
+    pub images: std::collections::BTreeMap<String, u32>,
 }
 
 impl TokenDef {
+    /// How many images creating this token from a card of `set` picks among.
+    pub fn image_choices(&self, set: &str) -> u32 {
+        match self.images.get(set) {
+            Some(n) => *n,
+            None => self.images.values().sum(),
+        }
+    }
+
     pub fn card(&self) -> CardDef {
         CardDef {
+            set: String::new(),
             name: self.name.clone(),
             cost: ManaCost::default(),
             types: self.types.clone(),
@@ -1074,6 +1087,12 @@ pub enum AbilityDef {
         cost: String,
         rule: String,
     },
+    /// cast from hand for `cost` instead, at sorcery speed; exiled at the next end step, castable from exile on a
+    /// later turn
+    WarpAbility {
+        cost: String,
+        rule: String,
+    },
     /// an optional additional cost asked for as the spell is cast
     KickerAbility {
         cost: String,
@@ -1386,6 +1405,9 @@ pub struct CardJson {
     /// a modal double-faced card's back face
     #[serde(default)]
     pub back: Option<Box<CardJson>>,
+    /// the set of the printing a deck gets by name
+    #[serde(default)]
+    pub set: String,
 }
 
 /// Subtypes that aren't creature types, for "every creature type"
@@ -1397,6 +1419,8 @@ pub const LAND_TYPES: &[&str] = &["Plains", "Island", "Swamp", "Mountain", "Fore
 #[derive(Clone, Debug, PartialEq)]
 pub struct CardDef {
     pub name: String,
+    /// the set of the printing a deck gets by name (the tokens it makes look for images there)
+    pub set: String,
     pub cost: ManaCost,
     pub types: Vec<CardType>,
     pub subtypes: Vec<String>,
@@ -1420,6 +1444,7 @@ impl CardDef {
         let cost = ManaCost::parse(&json.cost)?;
         let colors = json.colors.unwrap_or_else(|| cost.colors());
         Ok(CardDef {
+            set: json.set,
             name: json.name,
             colors,
             cost,
@@ -1471,6 +1496,14 @@ impl CardDef {
             AbilityDef::SpectacleAbility { cost, .. } => {
                 Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() }))
             }
+            _ => None,
+        })
+    }
+
+    /// The warp ability's index and the card with its warp cost.
+    pub fn warp(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::WarpAbility { cost, .. } => Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() })),
             _ => None,
         })
     }

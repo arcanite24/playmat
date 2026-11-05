@@ -7,6 +7,8 @@ import mage.abilities.Ability;
 import mage.cards.Card;
 import mage.cards.repository.CardInfo;
 import mage.cards.repository.CardRepository;
+import mage.cards.repository.TokenInfo;
+import mage.cards.repository.TokenRepository;
 import mage.cards.repository.CardScanner;
 import mage.game.command.Emblem;
 import mage.game.permanent.token.Token;
@@ -20,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  * Card facts for the Rust engine's transpiler (docs/rust/Engine.md): for each card in a pool, its abilities in the
@@ -46,14 +49,20 @@ public class CardFactsTest {
                 continue;
             }
             Abilities<Ability> cardAbilities;
+            // a token's or emblem's images per set: creating one picks an image at random (`TokenRepository`'s
+            // `findPreferredTokenInfo`, the game's random) when its source's set, or else all sets, has two or more
+            Map<String, Integer> images = null;
+            String set = null;
             if (name.startsWith("token:")) {
                 // a token class from mage.game.permanent.token, by its simple name
                 Class<?> cls = Class.forName("mage.game.permanent.token." + name.substring("token:".length()));
                 cardAbilities = ((Token) cls.getConstructor().newInstance()).getAbilities();
+                images = images(cls);
             } else if (name.startsWith("emblem:")) {
                 // an emblem class from mage.game.command.emblems
                 Class<?> cls = Class.forName("mage.game.command.emblems." + name.substring("emblem:".length()));
                 cardAbilities = ((Emblem) cls.getConstructor().newInstance()).getAbilities();
+                images = images(cls);
             } else {
                 CardInfo info = CardRepository.instance.findPreferredCoreExpansionCard(name);
                 if (info == null) {
@@ -62,9 +71,17 @@ public class CardFactsTest {
                 Card card = info.createCard();
                 name = card.getName();
                 cardAbilities = card.getAbilities();
+                // the printing a deck by name gets (`TxtDeckImporter`), whose set the tokens it makes look for
+                set = card.getExpansionSetCode();
             }
             Map<String, Object> facts = new LinkedHashMap<>();
             facts.put("name", name);
+            if (set != null) {
+                facts.put("set", set);
+            }
+            if (images != null) {
+                facts.put("images", images);
+            }
             List<Map<String, Object>> abilities = new ArrayList<>();
             for (Ability ability : cardAbilities) {
                 Map<String, Object> a = new LinkedHashMap<>();
@@ -78,5 +95,13 @@ public class CardFactsTest {
         }
         Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
         Files.write(new File(out).toPath(), gson.toJson(cards).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static Map<String, Integer> images(Class<?> cls) {
+        Map<String, Integer> images = new TreeMap<>();
+        for (TokenInfo info : TokenRepository.instance.getByClassName(cls.getName())) {
+            images.merge(info.getSetCode(), 1, Integer::sum);
+        }
+        return images;
     }
 }

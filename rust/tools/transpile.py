@@ -190,6 +190,7 @@ ABILITIES = {
     'KickerAbility': [('cost', 'cost_text')],
     'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
     'SpectacleAbility': [(None, 'this'), ('cost', 'mana_costs')],
+    'WarpAbility': [(None, 'this'), ('cost', 'cost_text')],
     # enters with an effect applied, if the condition holds (a replacement effect, not a trigger)
     'EntersBattlefieldAbility': [('effect', 'effect'), ('condition', 'condition'), (None, 'string'), (None, 'string')],
     'EntersBattlefieldAllTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('optional', 'bool')],
@@ -1643,6 +1644,8 @@ def token(cls):
         if 'token:' + cls not in FACTS:
             raise Unsupported('no token facts ' + cls)
         out['abilities'] = in_java_order(FACTS['token:' + cls], added)
+    if EXTRA.get('token:' + cls, {}).get('images'):
+        out['images'] = EXTRA['token:' + cls]['images']
     return out
 
 
@@ -1664,6 +1667,8 @@ ALL_ERRORS = os.environ.get('PLAYMAT_ALL_ERRORS') == '1'
 
 # every card's and token's facts, by name (tokens as `token:<class>`)
 FACTS = {}
+# the rest of each fact (a card's set, a token's images)
+EXTRA = {}
 
 
 def card_path(card_name):
@@ -1697,6 +1702,8 @@ def emblem(cls):
     if 'emblem:' + cls not in FACTS:
         raise Unsupported('no emblem facts ' + cls)
     out['abilities'] = in_java_order(FACTS['emblem:' + cls], added)
+    if EXTRA.get('emblem:' + cls, {}).get('images'):
+        out['images'] = EXTRA['emblem:' + cls]['images']
     return out
 
 
@@ -1745,12 +1752,16 @@ def main():
     subtypes = subtype_names()
     facts = {c['name']: c['abilities'] for c in json.load(open(args.facts))}
     FACTS.update(facts)
+    EXTRA.update({c['name']: c for c in json.load(open(args.facts))})
     cards, report = [], []
     for name in pool:
         if not name:
             continue
         try:
-            cards.append(translate(name, subtypes, facts))
+            card = translate(name, subtypes, facts)
+            if EXTRA.get(card['name'], {}).get('set'):
+                card['set'] = EXTRA[card['name']]['set']
+            cards.append(card)
         except Unsupported as e:
             report.append('%s: %s' % (name, e))
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

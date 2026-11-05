@@ -123,6 +123,10 @@ pub struct Obj {
     pub exile_instead_of_dying: bool,
     /// in exile: this player may play it through the end of this turn number
     pub may_play: Option<(Seat, u32)>,
+    /// cast for its warp cost (on the stack, then on the battlefield)
+    pub warped: bool,
+    /// in exile after warp: its owner may cast it from this turn number on
+    pub warp_from: Option<u32>,
     /// the turn and how many times this permanent became a target in it
     pub targeted: (u32, u32),
     /// exiled "on an adventure": its owner may cast the creature from exile
@@ -248,6 +252,8 @@ pub struct Delayed {
     pub rule: String,
     /// the permanents it sacrifices, with their zone-change counts
     pub sacrifice: Vec<(ObjId, u32)>,
+    /// warp: the permanent it exiles (castable by its owner from exile on a later turn)
+    pub warp_exile: Vec<(ObjId, u32)>,
 }
 
 impl StackItem {
@@ -300,6 +306,8 @@ pub struct Game {
     pub pending: Vec<StackItem>,
     /// delayed triggers waiting for the end of combat
     pub at_end_of_combat: Vec<StackItem>,
+    /// "at the beginning of the next end step" delayed triggers
+    pub at_next_end_step: Vec<StackItem>,
     pub grants: Arc<Vec<Grant>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
@@ -338,6 +346,7 @@ impl Game {
             boosts: Arc::new(Vec::new()),
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
+            at_next_end_step: Vec::new(),
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
@@ -400,6 +409,8 @@ impl Game {
             flashback: false,
             exile_instead_of_dying: false,
             may_play: None,
+            warped: false,
+            warp_from: None,
             targeted: (0, 0),
             on_adventure: false,
             blocking: Vec::new(),
@@ -765,6 +776,10 @@ impl Game {
             {
                 self.static_boost(effect, src, you, id)
             }
+            // a static "this gets +N/+N" (inside a conditional one)
+            EffectDef::BoostSourceEffect { power, toughness, .. } if src == id => {
+                (self.value(power, you, src, 0), self.value(toughness, you, src, 0))
+            }
             EffectDef::BoostEnchantedEffect { power, toughness } if self.attached(src) == Some(id) => {
                 (self.value(power, you, src, 0), self.value(toughness, you, src, 0))
             }
@@ -872,6 +887,10 @@ impl Game {
             o.on_adventure = false;
             o.exile_instead_of_dying = false;
             o.may_play = None;
+            o.warp_from = None;
+            if !(from == Zone::Stack && zone == Zone::Battlefield) {
+                o.warped = false;
+            }
         }
         let owner = self.obj(id).owner;
         {
