@@ -33,7 +33,7 @@ KEYWORDS = {
     'FlyingAbility', 'ReachAbility', 'HasteAbility', 'VigilanceAbility', 'TrampleAbility', 'FirstStrikeAbility',
     'CantBeCounteredSourceAbility', 'DoubleStrikeAbility', 'LifelinkAbility', 'DeathtouchAbility', 'DefenderAbility', 'MenaceAbility', 'FlashAbility',
     'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
-    'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility',
+    'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility',
 }
 
 # effects: class -> its constructor arguments, each (field name, kind); a kind of None means the argument is ignored
@@ -127,6 +127,7 @@ PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED',
 CUSTOM = {
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
+    'LovestruckBeastEffect': lambda: {'class': 'LovestruckBeastEffect'},
     'StrategicBetrayalEffect': lambda: {'class': 'StrategicBetrayalEffect'},
     'InvokeDespairEffect': lambda: {'class': 'InvokeDespairEffect'},
     'ChartACourseEffect': lambda: {'class': 'ChartACourseEffect'},
@@ -407,10 +408,10 @@ PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPl
 
 # chained calls that only change texts, hints or the AI's view
 TEXT_SETTERS = {'setText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
-                'setOutcome', 'setRuleAtTheTop', 'withDurationRuleAtStart', 'withTargetDescription'}
+                'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription'}
 
 # abilities every card has, which the constructor doesn't add
-IMPLICIT = {'SpellAbility', 'PlayLandAbility'}
+IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility'}
 
 
 class Unsupported(Exception):
@@ -1135,6 +1136,15 @@ class Translator:
                 return out({'e': 'sacrificed', 'filter': self.filter(args[1]),
                             'who': self.value('target_controller', args[2]) if n == 3 else 'you'}, args[0])
             raise Unsupported(cls + ' overload')
+        if cls == 'BecomesTargetSourceTriggeredAbility' and n == 4 and args[2] in ('SetTargetPointer.PLAYER', 'SetTargetPointer.NONE'):
+            return out({'e': 'becomes_target_of_spell', 'filter': self.filter(args[1])}, args[0], flag(args[3]),
+                       args[2] == 'SetTargetPointer.PLAYER')
+        # "when this dies, put it on the bottom of its owner's library"
+        if cls == 'DiesSourceTriggeredAbility' and n == 3 and args[2] == 'SetTargetPointer.CARD' \
+                and (m := re.fullmatch(r'new PutOnLibraryTargetEffect\((true|false)\)', self.strip_setters(args[0]))):
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'dies'},
+                    'effects': [{'class': 'PutOnLibrarySourceEffect', 'top': m.group(1) == 'true'}],
+                    'optional': flag(args[1]), 'set_target_pointer': False}
         if cls == 'HeroicAbility' and n in (1, 2, 3):
             return out({'e': 'spell_cast_targeting_this'}, args[0], n == 2 and flag(args[1]))
         if cls == 'DrawCardControllerTriggeredAbility' and n == 2:
@@ -1194,20 +1204,39 @@ def translate(card_name, subtypes, facts):
     if not os.path.exists(path):
         raise Unsupported('no card class ' + cls)
     source = open(path).read()
-    if re.search(r'extends (?!CardImpl\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
+    if re.search(r'extends (?!CardImpl\b|AdventureCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
     card = {'name': card_name}
     added, spell, modes = [], {'effects': [], 'targets': []}, []
+    # an adventurer card's adventure: its spell is `getSpellCard().getSpellAbility()`
+    adventure, aspell, amodes = None, {'effects': [], 'targets': []}, []
     errors = []
     for st in statements(constructor_body(source, cls)):
+        def one(st):
+            nonlocal adventure
+            m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},new CardType\[\]\{([^}]*)\},'
+                             r'"(.*?)","(.*?)","(.*?)"\)', st)
+            if m:
+                card['types'] = [x.strip().split('.')[-1] for x in m.group(1).split(',') if x.strip()]
+                card['cost'] = m.group(3)
+                adventure = {'name': m.group(4), 'cost': m.group(5),
+                             'types': [x.strip().split('.')[-1] for x in m.group(2).split(',') if x.strip()]}
+                return
+            if st == 'this.finalizeAdventure()':
+                return
+            if st.startswith('this.getSpellCard().getSpellAbility()'):
+                card_statement(t, st.replace('this.getSpellCard().getSpellAbility()', 'this.getSpellAbility()', 1),
+                               {}, [], aspell, amodes, subtypes)
+                return
+            card_statement(t, st, card, added, spell, modes, subtypes)
         if ALL_ERRORS:
             try:
-                card_statement(t, st, card, added, spell, modes, subtypes)
+                one(st)
             except Unsupported as e:
                 errors.append(str(e))
             continue
-        card_statement(t, st, card, added, spell, modes, subtypes)
+        one(st)
     if errors:
         raise Unsupported(' ;; '.join(errors))
     if 'types' not in card:
@@ -1222,6 +1251,14 @@ def translate(card_name, subtypes, facts):
                 card['spell'][k] = spell[k]
     elif spell['effects'] or spell['targets']:
         card['spell'] = dict(spell, rule=rule)
+    if adventure is not None:
+        if amodes:
+            raise Unsupported('modal adventure')
+        arule = next((f['rule'] for f in java_abilities if f['class'] == 'AdventureCardSpellAbility'), '')
+        adventure['spell'] = dict(aspell, rule=arule)
+        card['adventure'] = adventure
+    elif 'AdventureCardSpellAbility' in [f['class'] for f in java_abilities]:
+        raise Unsupported('adventure without its spell')
     return card
 
 

@@ -111,6 +111,10 @@ pub struct Obj {
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
     /// the permanent (and its zone change count) this Aura is attached to
     pub attached_to: Option<(ObjId, u32)>,
+    /// cast as its adventure: the whole card, while `def` is the adventure's
+    pub adventurer: Option<Arc<CardDef>>,
+    /// exiled "on an adventure": its owner may cast the creature from exile
+    pub on_adventure: bool,
     /// the attackers it blocks
     pub blocking: Vec<ObjId>,
     /// blocked this combat (stays blocked if its blockers leave)
@@ -362,6 +366,8 @@ impl Game {
             kicked: false,
             until_end_of_turn_def: None,
             attached_to: None,
+            adventurer: None,
+            on_adventure: false,
             blocking: Vec::new(),
             blocked: false,
             blocked_by: Vec::new(),
@@ -488,6 +494,19 @@ impl Game {
     }
 
     /// Whether a static ability of an attached Aura says `id` can't attack or block.
+    /// Lovestruck Beast's restriction: it can't attack while its controller has no 1/1 creature
+    pub fn cant_attack_alone(&self, id: ObjId) -> bool {
+        let you = self.obj(id).controller;
+        self.any_static(|g, src, e| {
+            src == id
+                && matches!(e, EffectDef::LovestruckBeastEffect)
+                && !g.battlefield.iter().any(|c| {
+                    let o = g.obj(*c);
+                    o.controller == you && o.is(CardType::Creature) && g.power_toughness(*c) == (1, 1)
+                })
+        })
+    }
+
     pub fn cant_attack_or_block(&self, id: ObjId) -> bool {
         self.battlefield.iter().any(|src| {
             self.attached(*src) == Some(id)
@@ -786,6 +805,15 @@ impl Game {
             self.player_mut(c).permanent_left = true;
         }
         self.remove_from_zone(id);
+        {
+            let o = self.obj_mut(id);
+            if from == Zone::Stack {
+                if let Some(def) = o.adventurer.take() {
+                    o.def = def;
+                }
+            }
+            o.on_adventure = false;
+        }
         let owner = self.obj(id).owner;
         {
             let o = self.obj_mut(id);

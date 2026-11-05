@@ -4,7 +4,7 @@
 
 use crate::card::{
     AbilityDef, Amount, CardType, Cmp, Color, Condition, CostDef, Duration, EffectDef, Mana, ManaCost, ManaKind, Pred, TargetDef,
-    Trigger,
+    Trigger, CardDef,
 };
 use crate::decide::{Answer, Decider, Query};
 use crate::state::{Boost, Delayed, Game, Grant, ObjId, Seat, StackItem, Step, Target, Zone};
@@ -341,12 +341,16 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             if can_play_land(game, seat) {
                 out.push(*id);
             }
-        } else if can_cast_timing(game, seat, *id)
-            && !cant_cast_more(game, seat)
-            && can_pay(game, seat, &modified_cost(game, seat, *id, o.def.cost.clone()))
-            && o.def.spell.costs.iter().all(|c| can_pay_cost(game, seat, *id, c))
-            && has_targets(game, seat, *id)
+        } else if castable(game, seat, *id, &o.def)
+            || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
         {
+            out.push(*id);
+        }
+    }
+    // a card on an adventure: its creature, from exile
+    for id in game.exile.iter() {
+        let o = game.obj(*id);
+        if o.on_adventure && o.owner == seat && castable(game, seat, *id, &o.def) {
             out.push(*id);
         }
     }
@@ -426,14 +430,18 @@ fn can_play_land(game: &Game, seat: Seat) -> bool {
     sorcery_speed(game, seat) && game.player(seat).lands_played < 1
 }
 
-fn can_cast_timing(game: &Game, seat: Seat, id: ObjId) -> bool {
-    let o = game.obj(id);
-    o.is(CardType::Instant) || o.has(&AbilityDef::FlashAbility) || sorcery_speed(game, seat)
+/// Whether the card (or its adventure, `def`) can be cast now: timing, the one-spell limit, its costs, its targets.
+fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
+    (def.is(CardType::Instant) || def.has(&AbilityDef::FlashAbility) || sorcery_speed(game, seat))
+        && !cant_cast_more(game, seat)
+        && can_pay(game, seat, &modified_cost(game, seat, id, def.cost.clone()))
+        && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
+        && has_targets(game, seat, def)
 }
 
 /// Whether the spell has its targets: for a modal spell, whether some mode does.
-fn has_targets(game: &Game, seat: Seat, id: ObjId) -> bool {
-    let spell = &game.obj(id).def.spell;
+fn has_targets(game: &Game, seat: Seat, def: &CardDef) -> bool {
+    let spell = &def.spell;
     let all = |targets: &[TargetDef]| targets.iter().all(|t| target_possible(game, seat, t));
     if spell.modes.is_empty() {
         all(&spell.targets)
@@ -624,6 +632,27 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         return;
     }
     let before = game.clone();
+    // an adventurer card: the picker, with the adventure (a0) and the creature (a1) that can be cast
+    if let Some(adventure) = game.obj(id).def.adventure.clone() {
+        let o = game.obj(id);
+        let mut options = Vec::new();
+        if o.zone == Zone::Hand && castable(game, seat, id, &adventure) {
+            options.push(0);
+        }
+        if castable(game, seat, id, &o.def.clone()) {
+            options.push(1);
+        }
+        match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+            Answer::Ability(o, 0) if o == id && options.contains(&0) => {
+                let full = game.obj(id).def.clone();
+                let o = game.obj_mut(id);
+                o.adventurer = Some(full);
+                o.def = adventure;
+            }
+            Answer::Ability(o, 1) if o == id && options.contains(&1) => {}
+            _ => return,
+        }
+    }
     if !cast(game, d, seat, id) {
         // `PlayerImpl.cast` restores the game as it was before the cast
         *game = before;
@@ -637,6 +666,7 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         let o = game.obj_mut(id);
         o.zone = Zone::Stack;
         o.zcc += 1;
+        o.on_adventure = false;
     }
     Arc::make_mut(&mut game.stack).push(StackItem::spell(id, seat));
     let def = game.obj(id).def.clone();
@@ -747,11 +777,23 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         .last()
         .map(|t| t.targets.iter().flatten().filter_map(|x| if let Target::Obj(o) = x { Some(*o) } else { None }).collect())
         .unwrap_or_default();
-    let fired = game.triggers(sources, |g, src, you, t| match t {
+    let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
         Trigger::SpellCast { filter, who } => Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell),
         Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
         _ => false,
     });
+    game.pending.extend(fired);
+    // TARGETED, a simultaneous event: handled after SPELL_CAST
+    let mut fired = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::BecomesTargetOfSpell { filter } => targeted.contains(&src) && g.filter_matches(filter, you, Some(src), spell),
+        _ => false,
+    });
+    for t in fired.iter_mut() {
+        if set_target_pointer(game, t) {
+            t.targets = vec![vec![Target::Player(seat)]];
+            t.target_zcc = vec![vec![0]];
+        }
+    }
     game.pending.extend(fired);
     true
 }
@@ -1398,7 +1440,13 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         }
     }
     if game.obj(id).zone == Zone::Stack {
-        game.move_to(id, Zone::Graveyard);
+        // an adventure goes on an adventure: exiled, its creature castable from there
+        if game.obj(id).adventurer.is_some() {
+            game.move_to(id, Zone::Exile);
+            game.obj_mut(id).on_adventure = true;
+        } else {
+            game.move_to(id, Zone::Graveyard);
+        }
     }
 }
 
@@ -1947,6 +1995,12 @@ fn apply_effects(
                     }
                 }
             }
+            EffectDef::PutOnLibrarySourceEffect { top } => {
+                let (o, zcc) = source;
+                if game.obj(o).zone == Zone::Graveyard && game.obj(o).zcc == zcc {
+                    to_library(game, o, *top);
+                }
+            }
             EffectDef::ReturnSourceFromGraveyardToBattlefieldEffect => {
                 let (o, zcc) = source;
                 if game.obj(o).zone == Zone::Graveyard && game.obj(o).zcc == zcc {
@@ -1957,6 +2011,7 @@ fn apply_effects(
             | EffectDef::CantCastMoreThanOneSpellEffect { .. }
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
+            | EffectDef::LovestruckBeastEffect
             | EffectDef::CantBeCounteredControlledEffect { .. }
             | EffectDef::DontCauseTriggerEffect
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
@@ -2923,6 +2978,7 @@ fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
         && (!o.sick || o.has(&AbilityDef::HasteAbility))
         && !o.has(&AbilityDef::DefenderAbility)
         && !game.cant_attack_or_block(id)
+        && !game.cant_attack_alone(id)
 }
 
 /// `Combat.selectAttackers` and `HumanPlayer.selectAttackers`: asked only when something can attack; "special" is
@@ -3001,7 +3057,10 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
 }
 
 fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
-    if game.has_ability(attacker, &AbilityDef::CantBeBlockedSourceAbility) || game.cant_attack_or_block(blocker) {
+    if game.has_ability(attacker, &AbilityDef::CantBeBlockedSourceAbility)
+        || game.cant_attack_or_block(blocker)
+        || game.has_ability(blocker, &AbilityDef::CantBlockAbility)
+    {
         return false;
     }
     if game.has_ability(blocker, &AbilityDef::CanBlockOnlyFlyingAbility)

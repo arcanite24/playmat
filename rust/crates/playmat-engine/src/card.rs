@@ -306,6 +306,9 @@ pub enum Trigger {
     LeavesBattlefield,
     /// heroic: you cast a spell that targets this (`HeroicAbility`)
     SpellCastTargetingThis,
+    /// this becomes the target of a spell of the filter (`BecomesTargetSourceTriggeredAbility`); with a target
+    /// pointer, at that spell's controller
+    BecomesTargetOfSpell { filter: Filter },
     /// a player (`who`) sacrifices a permanent of the filter (`SacrificePermanentTriggeredAbility`)
     Sacrificed { filter: Filter, who: String },
     /// `who` ("you", "opponent") draws a card; with a target pointer, at that player
@@ -450,6 +453,7 @@ impl TokenDef {
             spell: SpellDef::default(),
             loyalty: None,
             all_creature_types: self.all_creature_types,
+            adventure: None,
         }
     }
 }
@@ -736,6 +740,8 @@ pub enum EffectDef {
     ExtinctionEventEffect,
     /// destroy all creatures; gain 1 life for each destroyed (Fumigate)
     FumigateEffect,
+    /// Lovestruck Beast: this can't attack unless you control a 1/1 creature
+    LovestruckBeastEffect,
     /// the target opponent exiles a creature they control and their graveyard (Strategic Betrayal)
     StrategicBetrayalEffect,
     /// the target opponent sacrifices a creature, an enchantment and a planeswalker; for each they can't, they lose
@@ -757,6 +763,8 @@ pub enum EffectDef {
     CantGainLifeAllEffect,
     /// return the source from its graveyard to the battlefield
     ReturnSourceFromGraveyardToBattlefieldEffect,
+    /// put the source card (a dies trigger's graveyard card) on top of or under its owner's library
+    PutOnLibrarySourceEffect { top: bool },
     /// damage can't be prevented (the engine has no prevention yet, so nothing to do)
     DamageCantBePreventedEffect { duration: Duration },
     /// exiles the targets
@@ -1022,6 +1030,10 @@ pub enum AbilityDef {
     CanBlockOnlyFlyingAbility,
     /// an Aura: what it can enchant is its spell's target
     EnchantAbility,
+    /// this can't block
+    CantBlockAbility,
+    /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
+    AdventureCardSpellAbility,
     /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)
     CantBeBlockedSourceAbility,
     MenaceAbility,
@@ -1208,6 +1220,9 @@ pub struct CardJson {
     /// a planeswalker's starting loyalty
     #[serde(default)]
     pub loyalty: Option<i32>,
+    /// an adventurer card's adventure: its own name, types, cost and spell
+    #[serde(default)]
+    pub adventure: Option<Box<CardJson>>,
 }
 
 /// Subtypes that aren't creature types, for "every creature type"
@@ -1231,6 +1246,8 @@ pub struct CardDef {
     pub loyalty: Option<i32>,
     /// every creature type (changeling, Mutavault)
     pub all_creature_types: bool,
+    /// an adventurer card's adventure, cast instead of the card from hand (`AdventureCard`)
+    pub adventure: Option<Arc<CardDef>>,
 }
 
 impl CardDef {
@@ -1250,6 +1267,10 @@ impl CardDef {
             all_creature_types: false,
             abilities: json.abilities,
             spell: json.spell.unwrap_or_default(),
+            adventure: match json.adventure {
+                Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
+                None => None,
+            },
         })
     }
 
