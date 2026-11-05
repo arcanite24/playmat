@@ -191,3 +191,46 @@
 .note {
   color: var(--ink-dim);
 }
+
+/* a phone: the page scrolls as one, the standings, rounds and chat stack, and the standings table scrolls sideways
+   rather than losing its last columns */
+@media (max-width: 640px) {
+  .page {
+    overflow-y: auto;
+  }
+
+  .head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .title {
+    font-size: var(--text-3xl);
+  }
+
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    flex: none;
+  }
+
+  .standings,
+  .rounds {
+    overflow-y: visible;
+  }
+
+  .standings {
+    overflow-x: auto;
+  }
+
+  .chat {
+    grid-column: 1;
+    height: 320px;
+  }
+
+  .table th,
+  .table td {
+    padding-right: 6px;
+    padding-left: 6px;
+    white-space: nowrap;
+  }
+}

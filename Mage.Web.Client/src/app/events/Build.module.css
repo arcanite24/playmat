@@ -308,3 +308,73 @@
 .planNote {
   color: var(--ink-dim);
 }
+
+/* a phone: less padding (the screen is fixed over the notch and gesture strip, so it pads for them), a header that
+   wraps, and the pool and deck each scrolling in their own half */
+@media (max-width: 640px) {
+  .screen {
+    gap: var(--space-2);
+    padding: calc(var(--space-3) + env(safe-area-inset-top)) calc(var(--space-3) + env(safe-area-inset-right)) calc(var(--space-3) + env(safe-area-inset-bottom)) calc(var(--space-3) + env(safe-area-inset-left));
+  }
+
+  .top,
+  .topRight {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .title {
+    font-size: var(--text-2xl);
+  }
+
+  .count b {
+    font-size: var(--text-2xl);
+  }
+
+  .zone {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .zoneHead {
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .tip {
+    display: none;
+  }
+}
+
+/* a phone on its side: the header shrinks to a single row so the pool and the deck keep their height */
+@media (max-height: 480px) {
+  .screen {
+    gap: var(--space-1);
+    padding-top: var(--space-2);
+    padding-bottom: var(--space-2);
+  }
+
+  .title {
+    font-size: var(--text-xl);
+    white-space: nowrap;
+  }
+
+  .count b {
+    font-size: var(--text-xl);
+  }
+
+  .countdown {
+    font-size: var(--text-xl);
+  }
+
+  .tip {
+    display: none;
+  }
+
+  .zone {
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+  }
+
+  .zoneHead {
+    margin-bottom: 0;
+  }
+}
