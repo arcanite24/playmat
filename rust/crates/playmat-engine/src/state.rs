@@ -1,7 +1,7 @@
 //! The game state. Each part sits behind an `Arc` and is copied only when changed (`Arc::make_mut`), so copying a
 //! `Game` for an AI search node bumps a few reference counts.
 
-use crate::card::{AbilityDef, CardDef, CardType, Mana};
+use crate::card::{AbilityDef, CardDef, CardType, EffectDef, Filter, Mana};
 use crate::rng::JavaRandom;
 use std::sync::Arc;
 
@@ -86,6 +86,9 @@ impl Step {
 #[derive(Clone, Debug)]
 pub struct Obj {
     pub id: ObjId,
+    /// zone changes so far: an object that changes zones is a new object (rule 400.7), which targets and effects
+    /// pointing at the old one don't follow
+    pub zcc: u32,
     pub def: Arc<CardDef>,
     pub owner: Seat,
     pub controller: Seat,
@@ -100,6 +103,8 @@ pub struct Obj {
     pub blocking: Vec<ObjId>,
     /// blocked this combat (stays blocked if its blockers leave)
     pub blocked: bool,
+    /// an attacker's blockers, in the order they were declared (Java's `CombatGroup.blockers`)
+    pub blocked_by: Vec<ObjId>,
     /// came under its controller's control since their most recent turn began (summoning sickness)
     pub sick: bool,
     /// dealt damage by a source with deathtouch since the last check
@@ -146,10 +151,31 @@ pub enum Target {
 
 #[derive(Clone, Debug)]
 pub struct StackItem {
-    /// the spell's card
+    /// the spell's card, or the source of an ability
     pub card: ObjId,
     pub controller: Seat,
     pub targets: Vec<Target>,
+    /// each object target's zone-change count when it was chosen (0 for players)
+    pub target_zcc: Vec<u32>,
+    /// for an ability: its index in the source's abilities, and the source's zone-change count when it triggered
+    pub ability: Option<(usize, u32)>,
+}
+
+impl StackItem {
+    pub fn spell(card: ObjId, controller: Seat) -> StackItem {
+        StackItem { card, controller, targets: Vec::new(), target_zcc: Vec::new(), ability: None }
+    }
+}
+
+/// A continuous effect from a resolved spell or ability: +power/+toughness for one object.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Boost {
+    pub target: ObjId,
+    pub zcc: u32,
+    pub power: i32,
+    pub toughness: i32,
+    /// ends in the cleanup step (otherwise, when the object leaves the battlefield)
+    pub until_end_of_turn: bool,
 }
 
 /// A game: everything the rules look at. Cloning one is cheap (see the module docs).
@@ -166,6 +192,11 @@ pub struct Game {
     pub exile: Arc<Vec<ObjId>>,
     /// bottom first: the top is the last
     pub stack: Arc<Vec<StackItem>>,
+    pub boosts: Arc<Vec<Boost>>,
+    /// triggered abilities waiting to be put on the stack, in the order they triggered
+    pub pending: Vec<StackItem>,
+    /// this combat has a first-strike damage step
+    pub first_strike_step: bool,
     /// the game is over (a player lost, or it reached its last turn)
     pub over: bool,
 }
@@ -185,6 +216,9 @@ impl Game {
             battlefield: Arc::new(Vec::new()),
             exile: Arc::new(Vec::new()),
             stack: Arc::new(Vec::new()),
+            boosts: Arc::new(Vec::new()),
+            pending: Vec::new(),
+            first_strike_step: false,
             over: false,
         }
     }
@@ -218,6 +252,7 @@ impl Game {
         let id = ObjId(self.objs.len() as u32);
         Arc::make_mut(&mut self.objs).push(Arc::new(Obj {
             id,
+            zcc: 0,
             def,
             owner,
             controller: owner,
@@ -229,20 +264,58 @@ impl Game {
             attacking: None,
             blocking: Vec::new(),
             blocked: false,
+            blocked_by: Vec::new(),
             sick: false,
             deathtouched: false,
         }));
         id
     }
 
-    /// Power and toughness with continuous effects applied.
+    /// Power and toughness with continuous effects applied: static abilities of permanents, then resolved boosts
+    /// (layer 7c; everything here only adds, so the order doesn't matter yet).
     pub fn power_toughness(&self, id: ObjId) -> (i32, i32) {
         let o = self.obj(id);
-        (o.def.power, o.def.toughness)
+        let (mut p, mut t) = (o.def.power, o.def.toughness);
+        if o.zone != Zone::Battlefield {
+            return (p, t);
+        }
+        for src in self.battlefield.iter() {
+            let s = self.obj(*src);
+            for a in &s.def.abilities {
+                if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                    for e in effects {
+                        if let EffectDef::BoostControlledEffect { power, toughness, filter, exclude_source, .. } = e {
+                            let applies = match filter {
+                                Filter::Creatures => o.is(CardType::Creature),
+                            };
+                            if applies && o.controller == s.controller && !(*exclude_source && *src == id) {
+                                p += power;
+                                t += toughness;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for b in self.boosts.iter() {
+            if b.target == id && b.zcc == o.zcc {
+                p += b.power;
+                t += b.toughness;
+            }
+        }
+        (p, t)
     }
 
-    pub fn stack_name(&self, item: &StackItem) -> &str {
-        self.obj(item.card).name()
+    /// A stack object's name as Java gives it: the card's, or `stack ability (<rule text>)`.
+    pub fn stack_name(&self, item: &StackItem) -> String {
+        let card = self.obj(item.card);
+        match item.ability {
+            Some((i, _)) => {
+                let rule = card.def.abilities.get(i).and_then(|a| a.triggered()).map(|(r, _, _)| r).unwrap_or("");
+                format!("stack ability ({})", rule)
+            }
+            None => card.name().to_string(),
+        }
     }
 
     /// Takes an object out of whatever zone list holds it.
@@ -257,7 +330,7 @@ impl Game {
             Zone::Graveyard => self.player_mut(owner).graveyard.retain(|x| *x != id),
             Zone::Battlefield => Arc::make_mut(&mut self.battlefield).retain(|x| *x != id),
             Zone::Exile => Arc::make_mut(&mut self.exile).retain(|x| *x != id),
-            Zone::Stack => Arc::make_mut(&mut self.stack).retain(|x| x.card != id),
+            Zone::Stack => Arc::make_mut(&mut self.stack).retain(|x| x.card != id || x.ability.is_some()),
         }
     }
 
@@ -275,10 +348,12 @@ impl Game {
                 o.attacking = None;
                 o.blocking.clear();
                 o.blocked = false;
+                o.blocked_by.clear();
                 o.controller = o.owner;
                 o.deathtouched = false;
             }
             o.zone = zone;
+            o.zcc += 1;
         }
         match zone {
             Zone::Library => self.player_mut(owner).library.push(id),

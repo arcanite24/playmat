@@ -1,0 +1,6 @@
+14 Island
+10 Plains
+8 Cancel
+8 Wall of Omens
+8 Serra Angel
+12 Healer's Hawk
