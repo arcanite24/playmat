@@ -34,6 +34,7 @@ KEYWORDS = {
     'CantBeCounteredSourceAbility', 'DoubleStrikeAbility', 'LifelinkAbility', 'DeathtouchAbility', 'DefenderAbility', 'MenaceAbility', 'FlashAbility',
     'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
+    'ConvokeAbility',
 }
 
 # effects: class -> its constructor arguments, each (field name, kind); a kind of None means the argument is ignored
@@ -78,6 +79,8 @@ EFFECTS = {
     'ExileTargetEffect': [],
     'ReturnToHandTargetEffect': [],
     'ExileGraveyardAllPlayersEffect': [],
+    'AddExtraTurnControllerEffect': [],
+    'ExileSpellEffect': [],
     'RemoveUpToAmountCountersEffect': [('amount', 'int')],
     # (first, second): damage to the targets tagged 1 and 2, the ability's first and second targets
     'DamageTargetAndTargetEffect': [('first', 'int'), ('second', 'int')],
@@ -1184,6 +1187,9 @@ class Translator:
             a['java'] = cls
             a['effects'][0]['sacrifice_at_next_end_step'] = True
             return a
+        # `new DelveAbility(false)`: the flag only keeps the exiled cards linked to the source
+        if cls == 'DelveAbility' and args in ([], ['false']):
+            return {'class': cls}
         # `new EnchantAbility(auraTarget)`: what it can enchant is the spell's target
         if cls == 'EnchantAbility' and len(args) == 1:
             return {'class': cls}

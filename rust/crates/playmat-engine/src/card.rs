@@ -947,6 +947,10 @@ pub enum EffectDef {
     ExileGraveyardAllTargetPlayerEffect,
     /// exile all cards from all graveyards
     ExileGraveyardAllPlayersEffect,
+    /// the controller takes an extra turn after this one
+    AddExtraTurnControllerEffect,
+    /// the spell is exiled as it resolves, instead of going to the graveyard
+    ExileSpellEffect,
     /// return the source to the battlefield; it's an enchantment, not a creature, from then on
     EnduringGlimmerReturnEffect,
     /// remove up to `amount` counters, of any kinds, from the target (Glissa Sunslayer)
@@ -1288,6 +1292,10 @@ pub enum AbilityDef {
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
     AdventureCardSpellAbility,
     OmenCardSpellAbility,
+    /// Delve and Convoke: Java counts the graveyard's cards, or the untapped creatures, as mana when it works out
+    /// whether the spell can be cast; paying with them is a special action the shadow games' players never take
+    DelveAbility,
+    ConvokeAbility,
     /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)
     CantBeBlockedSourceAbility,
     MenaceAbility,

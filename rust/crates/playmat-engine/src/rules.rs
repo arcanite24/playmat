@@ -43,7 +43,10 @@ pub fn play_from_priority(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u3
                     return;
                 }
                 game.turn += 1;
-                game.active = Some(game.opponent(game.active.unwrap_or(0)));
+                game.active = Some(match game.extra_turns.pop() {
+                    Some(s) => s,
+                    None => game.opponent(game.active.unwrap_or(0)),
+                });
                 game.step = Some(Step::Untap);
             }
         }
@@ -536,7 +539,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         })
     })
         && !cant_cast_more(game, seat)
-        && can_pay(game, seat, &modified_cost(game, seat, id, def.cost.clone()))
+        && can_pay_extra(game, seat, &modified_cost(game, seat, id, def.cost.clone()), alternate_mana(game, seat, id, def))
         && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
         && has_targets(game, seat, def)
 }
@@ -621,10 +624,38 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, M
     out
 }
 
+/// `AlternateManaPaymentAbility.getManaOptions`, as `PlayerImpl.findActivatedAbilityFromPlayable` adds it to the
+/// mana a spell could be paid with: Delve, {1} per other card in your graveyard; Convoke, {1} or one of its colors
+/// per untapped creature you control (mana creatures count twice, as in Java).
+fn alternate_mana(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> Vec<Vec<Mana>> {
+    let mut out = Vec::new();
+    if def.has(&AbilityDef::DelveAbility) {
+        let n = game.player(seat).graveyard.iter().filter(|c| **c != id).count();
+        out.extend(std::iter::repeat_n(vec![Mana::default()], n));
+    }
+    if def.has(&AbilityDef::ConvokeAbility) {
+        for c in game.battlefield.iter() {
+            let o = game.obj(*c);
+            if o.controller == seat && !o.tapped && game.has_type(*c, CardType::Creature) {
+                let mut m = vec![Mana::default()];
+                m.extend(o.def.colors.iter().map(|col| Mana::of(*col, 1)));
+                out.push(m);
+            }
+        }
+    }
+    out
+}
+
 /// Whether the pool and untapped sources (one mana each, any of its abilities) can pay a cost.
 fn can_pay(game: &Game, seat: Seat, cost: &ManaCost) -> bool {
+    can_pay_extra(game, seat, cost, Vec::new())
+}
+
+/// `can_pay`, with more sources (each a list of the mana it could make; none: generic only).
+fn can_pay_extra(game: &Game, seat: Seat, cost: &ManaCost, extra: Vec<Vec<Mana>>) -> bool {
     let mut options: Vec<Vec<Mana>> =
         mana_sources(game, seat).into_iter().map(|(_, a)| a.into_iter().map(|(_, m)| m).collect()).collect();
+    options.extend(extra);
     let pool = game.player(seat).mana_pool;
     for c in Color::ALL {
         for _ in 0..pool.colored[c.index()] {
@@ -3120,6 +3151,12 @@ fn apply_each_effect(
                 o.def = Arc::new(def);
                 o.printed_def = Some(old);
                 enter_battlefield(game, d, card, controller, false);
+            }
+            EffectDef::AddExtraTurnControllerEffect => game.extra_turns.push(controller),
+            EffectDef::ExileSpellEffect => {
+                if game.obj(source.0).zone == Zone::Stack {
+                    game.obj_mut(source.0).flashback = true;
+                }
             }
             EffectDef::ExileGraveyardAllPlayersEffect => {
                 for p in 0..game.seats() {

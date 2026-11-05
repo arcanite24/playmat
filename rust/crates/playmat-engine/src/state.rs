@@ -326,6 +326,8 @@ pub struct Game {
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
+    /// extra turns to take, the last added first (`TurnMod`)
+    pub extra_turns: Vec<Seat>,
     pub grants: Arc<Vec<Grant>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
@@ -368,6 +370,7 @@ impl Game {
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
+            extra_turns: Vec::new(),
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
