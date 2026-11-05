@@ -463,7 +463,7 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
             CostDef::ManaCost { .. } => can_pay(game, seat, &adjusted_mana_cost(game, seat, a, costs)),
             _ => can_pay_cost(game, seat, id, c),
         });
-        let targeted = targets.iter().all(|t| target_possible(game, seat, t));
+        let targeted = targets.iter().all(|t| target_possible(game, seat, t, Some(id)));
         if payable && targeted {
             out.push(i);
         }
@@ -566,7 +566,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         && !cant_cast_more(game, seat)
         && can_pay_extra(game, seat, &modified_cost(game, seat, id, def.cost.clone()), alternate_mana(game, seat, id, def))
         && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
-        && has_targets(game, seat, def)
+        && has_targets(game, seat, id, def)
 }
 
 /// Warp: the card's ability index and the card with its warp cost, if it can be cast that way from hand (at sorcery
@@ -588,9 +588,9 @@ fn spectacle(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
 }
 
 /// Whether the spell has its targets: for a modal spell, whether some mode does.
-fn has_targets(game: &Game, seat: Seat, def: &CardDef) -> bool {
+fn has_targets(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
     let spell = &def.spell;
-    let all = |targets: &[TargetDef]| targets.iter().all(|t| target_possible(game, seat, t));
+    let all = |targets: &[TargetDef]| targets.iter().all(|t| target_possible(game, seat, t, Some(id)));
     if spell.modes.is_empty() {
         all(&spell.targets)
     } else {
@@ -996,7 +996,7 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     let n = def.spell.modes.len();
     if n > 1 {
         let (min, max) = (def.spell.min_modes, def.spell.max_modes);
-        let possible = |game: &Game, k: usize| def.spell.modes[k].targets.iter().all(|t| target_possible(game, seat, t));
+        let possible = |game: &Game, k: usize| def.spell.modes[k].targets.iter().all(|t| target_possible(game, seat, t, Some(id)));
         if n == min {
             modes = (0..n).filter(|k| possible(game, *k)).collect();
         } else {
@@ -1550,7 +1550,8 @@ fn choose_target(
     let mut chosen: Vec<Target> = Vec::new();
     let mut selected = false;
     loop {
-        let (mut players, mut objs) = possible_targets(game, seat, def);
+        let src = source.or_else(|| game.stack.last().map(|t| t.card));
+        let (mut players, mut objs) = possible_targets(game, seat, def, src);
         // a spell can't target itself (rule 115.5)
         objs.retain(|o| Some(*o) != source);
         if chosen.is_empty() && min > 0 && players.is_empty() && objs.is_empty() {
@@ -1606,7 +1607,8 @@ fn owns_target(game: &Game, seat: Seat, id: ObjId) -> bool {
     }
 }
 
-pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef) -> (Vec<Seat>, Vec<ObjId>) {
+/// `src`: the spell or ability's source, for its filters ("another")
+pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
     let players: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
     let permanents = |f: &dyn Fn(ObjId) -> bool| -> Vec<ObjId> {
         game.battlefield.iter().copied().filter(|id| f(*id) && targetable(game, seat, *id)).collect()
@@ -1622,7 +1624,7 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef) -> (Vec<Seat>,
         TargetDef::TargetOpponent => (players.into_iter().filter(|s| *s != seat).collect(), Vec::new()),
         TargetDef::TargetPlayerOrPlaneswalker => (players, permanents(&|id| game.has_type(id, CardType::Planeswalker))),
         TargetDef::TargetPermanent { filter, .. } => {
-            (Vec::new(), permanents(&|id| game.filter_matches(filter, seat, None, id)))
+            (Vec::new(), permanents(&|id| game.filter_matches(filter, seat, src, id)))
         }
         TargetDef::TargetSpell { filter } => (
             Vec::new(),
@@ -1631,7 +1633,7 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef) -> (Vec<Seat>,
                 .rev()
                 .filter(|i| i.ability.is_none() && i.delayed.is_none())
                 .map(|i| i.card)
-                .filter(|c| game.filter_matches(filter, seat, None, *c))
+                .filter(|c| game.filter_matches(filter, seat, src, *c))
                 .collect(),
         ),
         TargetDef::TargetCardInGraveyard { filter, .. } => (
@@ -1639,7 +1641,7 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef) -> (Vec<Seat>,
             game.players
                 .iter()
                 .flat_map(|p| p.graveyard.iter().copied())
-                .filter(|c| game.filter_matches(filter, seat, None, *c))
+                .filter(|c| game.filter_matches(filter, seat, src, *c))
                 .collect(),
         ),
     }
@@ -1661,8 +1663,8 @@ fn target_counts(def: &TargetDef) -> (usize, usize) {
 }
 
 /// Whether a target can be chosen at all (an "up to" target always can).
-fn target_possible(game: &Game, seat: Seat, def: &TargetDef) -> bool {
-    let (players, objs) = possible_targets(game, seat, def);
+fn target_possible(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> bool {
+    let (players, objs) = possible_targets(game, seat, def, src);
     target_counts(def).0 == 0 || !players.is_empty() || !objs.is_empty()
 }
 
@@ -1673,8 +1675,8 @@ fn target_zcc(game: &Game, t: Target) -> u32 {
     }
 }
 
-fn target_legal(game: &Game, seat: Seat, def: &TargetDef, t: Target, zcc: u32) -> bool {
-    let (players, objs) = possible_targets(game, seat, def);
+fn target_legal(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>, t: Target, zcc: u32) -> bool {
+    let (players, objs) = possible_targets(game, seat, def, src);
     match t {
         Target::Player(s) => players.contains(&s),
         Target::Obj(o) => objs.contains(&o) && game.obj(o).zcc == zcc,
@@ -2037,7 +2039,7 @@ fn legal_targets(game: &Game, item: &StackItem, defs: &[TargetDef]) -> Option<Ve
             let ok: Vec<Target> = chosen
                 .into_iter()
                 .zip(zccs)
-                .filter(|(t, z)| target_legal(game, item.controller, def, *t, *z))
+                .filter(|(t, z)| target_legal(game, item.controller, def, Some(item.card), *t, *z))
                 .map(|(t, _)| t)
                 .collect();
             any_legal |= !ok.is_empty();
@@ -4056,7 +4058,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                 let mut mode_targets = None;
                 if !modes.is_empty() {
                     let available: Vec<usize> = (0..modes.len())
-                        .filter(|k| modes[*k].1.iter().all(|x| target_possible(game, seat, x)))
+                        .filter(|k| modes[*k].1.iter().all(|x| target_possible(game, seat, x, Some(t.card))))
                         .collect();
                     let k = loop {
                         // asked even with one mode left; cancelling removes the ability
