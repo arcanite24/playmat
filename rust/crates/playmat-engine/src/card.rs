@@ -528,6 +528,8 @@ pub enum CostDef {
     TapTargetCost { filter: Filter, amount: usize },
     /// crew: tap any number of other untapped creatures you control with total power `value` or more
     CrewCost { value: i32 },
+    /// exile this many other cards from your graveyard (escape)
+    ExileFromGraveCost { amount: usize },
     /// one of these, the player's choice when both can be paid
     OrCost { costs: Vec<CostDef> },
     /// discard a card of the filter
@@ -1173,6 +1175,17 @@ pub enum AbilityDef {
         cost: String,
         rule: String,
     },
+    /// cast from the graveyard for `cost` and exiling `exile` other cards from it
+    EscapeAbility {
+        cost: String,
+        exile: usize,
+        rule: String,
+    },
+    /// it enters with this many +1/+1 counters if it escaped
+    EscapesWithAbility {
+        counters: i32,
+        rule: String,
+    },
     /// cast from hand for `cost` instead if an opponent lost life this turn (a second spell ability)
     SpectacleAbility {
         cost: String,
@@ -1602,6 +1615,18 @@ impl CardDef {
         self.abilities.iter().find_map(|a| match a {
             AbilityDef::FlashbackAbility { cost, .. } => {
                 Some(CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() })
+            }
+            _ => None,
+        })
+    }
+
+    /// The card cast with its escape cost, if it has escape
+    pub fn escape(&self) -> Option<CardDef> {
+        self.abilities.iter().find_map(|a| match a {
+            AbilityDef::EscapeAbility { cost, exile, .. } => {
+                let mut spell = self.spell.clone();
+                spell.costs.push(CostDef::ExileFromGraveCost { amount: *exile });
+                Some(CardDef { cost: ManaCost::parse(cost).ok()?, spell, ..self.clone() })
             }
             _ => None,
         })

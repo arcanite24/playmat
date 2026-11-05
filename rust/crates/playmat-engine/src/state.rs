@@ -123,6 +123,8 @@ pub struct Obj {
     pub front: Option<Arc<CardDef>>,
     /// a spell cast with flashback: exiled instead of going anywhere else from the stack
     pub flashback: bool,
+    /// cast with its escape cost (until it enters, or leaves the stack another way)
+    pub escaped: bool,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
     pub exile_instead_of_dying: bool,
     /// in exile: this player may play it through the end of this turn number
@@ -428,6 +430,7 @@ impl Game {
             adventurer: None,
             front: None,
             flashback: false,
+            escaped: false,
             exile_instead_of_dying: false,
             may_play: None,
             warped: false,
@@ -887,6 +890,9 @@ impl Game {
         let from = self.obj(id).zone;
         let zone = if from == Zone::Stack && self.obj(id).flashback { Zone::Exile } else { zone };
         self.obj_mut(id).flashback = false;
+        if !(from == Zone::Stack && zone == Zone::Battlefield) {
+            self.obj_mut(id).escaped = false;
+        }
         // Rest in Peace (two of them: the player chooses which applies)
         let rest_in_peace = self
             .battlefield

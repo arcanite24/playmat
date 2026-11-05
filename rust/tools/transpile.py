@@ -228,6 +228,8 @@ ABILITIES = {
     'EntersBattlefieldTappedAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
     'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
+    'EscapeAbility': [(None, 'this'), ('cost', 'cost_text'), ('exile', 'int')],
+    'EscapesWithAbility': [('counters', 'int')],
     'SpectacleAbility': [(None, 'this'), ('cost', 'mana_costs')],
     'WarpAbility': [(None, 'this'), ('cost', 'cost_text')],
     # enters with an effect applied, if the condition holds (a replacement effect, not a trigger)

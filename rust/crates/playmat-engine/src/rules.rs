@@ -395,7 +395,10 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
     }
     // flashback, from the graveyard
     for id in &p.graveyard {
-        if game.obj(*id).def.flashback().is_some_and(|f| castable(game, seat, *id, &f)) {
+        let def = &game.obj(*id).def;
+        if def.flashback().is_some_and(|f| castable(game, seat, *id, &f))
+            || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
+        {
             out.push(*id);
         }
     }
@@ -475,6 +478,9 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             !(o.tapped || sick)
         }
         CostDef::SacrificeSourceCost => true,
+        CostDef::ExileFromGraveCost { amount } => {
+            game.player(seat).graveyard.iter().filter(|c| **c != id).count() >= *amount
+        }
         CostDef::PayLoyaltyCost { amount } => !o.loyalty_used && o.counter("loyalty") + amount >= 0,
         // you can only sacrifice your own permanents
         CostDef::SacrificeTargetCost { filter } => {
@@ -828,7 +834,20 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     let before = game.clone();
     // flashback: cast with its flashback cost (the whole card comes back as it leaves the stack)
     if game.obj(id).zone == Zone::Graveyard {
-        let Some(f) = game.obj(id).def.flashback() else { return };
+        if let Some(f) = game.obj(id).def.flashback() {
+            let full = game.obj(id).def.clone();
+            let o = game.obj_mut(id);
+            o.adventurer = Some(full);
+            o.def = Arc::new(f);
+            if !cast(game, d, seat, id) {
+                *game = before;
+                return;
+            }
+            game.obj_mut(id).flashback = true;
+            return;
+        }
+        // escape: the card cast with its escape cost and exile cost
+        let Some(f) = game.obj(id).def.escape() else { return };
         let full = game.obj(id).def.clone();
         let o = game.obj_mut(id);
         o.adventurer = Some(full);
@@ -837,7 +856,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             *game = before;
             return;
         }
-        game.obj_mut(id).flashback = true;
+        game.obj_mut(id).escaped = true;
         return;
     }
     // an adventurer card: the picker, with the adventure (a0) and the creature (a1) that can be cast
@@ -1303,6 +1322,24 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
         }
         CostDef::PayLifeCost { amount } => lose_life(game, seat, *amount),
+        CostDef::ExileFromGraveCost { amount } => {
+            let possible: Vec<ObjId> = game.player(seat).graveyard.iter().copied().filter(|c| *c != id).collect();
+            let rule = game.obj(id).def.abilities.iter().find_map(|a| match a {
+                AbilityDef::EscapeAbility { rule, .. } => Some(rule.clone()),
+                _ => None,
+            });
+            let Some(chosen) =
+                choose_cards(game, d, seat, &possible, &possible, *amount, *amount, &rule.unwrap_or_default())
+            else {
+                return false;
+            };
+            if chosen.len() < *amount {
+                return false;
+            }
+            for c in chosen {
+                game.move_to(c, Zone::Exile);
+            }
+        }
         CostDef::DiscardSourceCost => game.move_to(id, Zone::Graveyard),
         CostDef::ManaCost { cost } => {
             let Ok(m) = ManaCost::parse(cost) else { return false };
@@ -3631,6 +3668,14 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         o.kicked = kicked;
         o.cast = cast;
         o.entered_turn = turn;
+        // `EscapesWithAbility`
+        if std::mem::take(&mut o.escaped) {
+            for a in &def.abilities {
+                if let AbilityDef::EscapesWithAbility { counters, .. } = a {
+                    o.add_counters("+1/+1", *counters);
+                }
+            }
+        }
         o.zcc
     };
     // `WarpAbilityWatcher`: a warped permanent is exiled at the beginning of the next end step
