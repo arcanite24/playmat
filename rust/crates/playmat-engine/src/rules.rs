@@ -3649,7 +3649,8 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
             // `AuraReplacementEffect` puts an Aura onto the battlefield as its move is replaced, before the rest
             back.sort_by_key(|c| !game.obj(*c).def.has_subtype("Aura"));
             for c in back {
-                if game.obj(c).zone == Zone::Exile {
+                // a token that left the battlefield has ceased to exist
+                if game.obj(c).zone == Zone::Exile && !game.obj(c).token {
                     let owner = game.obj(c).owner;
                     enter_battlefield(game, d, c, owner, false);
                 }
