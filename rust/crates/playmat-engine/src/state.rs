@@ -183,6 +183,17 @@ pub struct StackItem {
     pub lki_power: Option<i32>,
     /// a delayed triggered ability (it has no ability index)
     pub delayed: Option<Arc<Delayed>>,
+    /// a modal spell's chosen mode
+    pub mode: usize,
+}
+
+/// An ability a resolved effect gave one object.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Grant {
+    pub target: ObjId,
+    pub zcc: u32,
+    pub ability: AbilityDef,
+    pub until_end_of_turn: bool,
 }
 
 /// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
@@ -204,6 +215,7 @@ impl StackItem {
             kicked: false,
             lki_power: None,
             delayed: None,
+            mode: 0,
         }
     }
 }
@@ -238,6 +250,9 @@ pub struct Game {
     pub pending: Vec<StackItem>,
     /// delayed triggers waiting for the end of combat
     pub at_end_of_combat: Vec<StackItem>,
+    pub grants: Arc<Vec<Grant>>,
+    /// permanents exiled instead if they would die this turn
+    pub exile_if_dies: Vec<(ObjId, u32)>,
     /// this combat has a first-strike damage step
     pub first_strike_step: bool,
     /// the game is over (a player lost, or it reached its last turn)
@@ -262,6 +277,8 @@ impl Game {
             boosts: Arc::new(Vec::new()),
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
+            grants: Arc::new(Vec::new()),
+            exile_if_dies: Vec::new(),
             first_strike_step: false,
             over: false,
         }
@@ -327,6 +344,7 @@ impl Game {
                 o.is(CardType::Creature) && o.controller == you && o.counter("+1/+1") > 0
             }
             Filter::AnotherCreatureYouControl => o.is(CardType::Creature) && o.controller == you && Some(id) != source,
+            Filter::Permanents => true,
             Filter::CreaturesOrPlaneswalkers => o.is(CardType::Creature) || o.is(CardType::Planeswalker),
             Filter::OpponentsCreatureOrPlaneswalker => {
                 (o.is(CardType::Creature) || o.is(CardType::Planeswalker)) && o.controller != you
@@ -334,7 +352,7 @@ impl Game {
         }
     }
 
-    /// Whether a permanent has an ability, printed or given by a static ability (`GainAbilityAllEffect`).
+    /// Whether a permanent has an ability: printed, given by a resolved effect, or given by a static ability.
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
         let o = self.obj(id);
         if o.has(ability) {
@@ -343,18 +361,37 @@ impl Game {
         if o.zone != Zone::Battlefield {
             return false;
         }
+        if self.grants.iter().any(|g| g.target == id && g.zcc == o.zcc && g.ability == *ability) {
+            return true;
+        }
         self.battlefield.iter().any(|src| {
             let s = self.obj(*src);
             s.def.abilities.iter().any(|a| match a {
-                AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
-                    EffectDef::GainAbilityAllEffect { ability: given, filter, .. } => {
-                        **given == *ability && self.filter_matches(*filter, s.controller, Some(*src), id)
-                    }
-                    _ => false,
-                }),
+                AbilityDef::SimpleStaticAbility { effects, .. } => {
+                    effects.iter().any(|e| self.static_gives(e, *src, s.controller, id, ability))
+                }
                 _ => false,
             })
         })
+    }
+
+    /// Whether a static ability's effect, from `src`, gives `id` the ability.
+    fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
+        match e {
+            EffectDef::GainAbilityAllEffect { ability: given, filter, .. } => {
+                **given == *ability && self.filter_matches(*filter, you, Some(src), id)
+            }
+            EffectDef::GainAbilityControlledEffect { ability: given, filter, .. } => {
+                **given == *ability
+                    && self.obj(id).controller == you
+                    && self.filter_matches(*filter, you, Some(src), id)
+            }
+            EffectDef::GainAbilitySourceEffect { ability: given, .. } => **given == *ability && id == src,
+            EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                condition == "my_turn" && self.active == Some(you) && self.static_gives(effect, src, you, id, ability)
+            }
+            _ => false,
+        }
     }
 
     /// Power and toughness with continuous effects applied: static abilities of permanents, then resolved boosts
@@ -364,6 +401,27 @@ impl Game {
         let (mut p, mut t) = (o.def.power, o.def.toughness);
         if o.zone != Zone::Battlefield {
             return (p, t);
+        }
+        // layer 7a: characteristic-defining abilities
+        for a in &o.def.abilities {
+            if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                for e in effects {
+                    if let EffectDef::SetBasePowerToughnessSourceEffect { count } = e {
+                        if count == "creatures_you_control" {
+                            let n = self
+                                .battlefield
+                                .iter()
+                                .filter(|b| {
+                                    let x = self.obj(**b);
+                                    x.controller == o.controller && x.is(CardType::Creature)
+                                })
+                                .count() as i32;
+                            p = n;
+                            t = n;
+                        }
+                    }
+                }
+            }
         }
         let counters = o.counter("+1/+1");
         p += counters;
@@ -431,6 +489,15 @@ impl Game {
     /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
         let (from, controller) = (self.obj(id).zone, self.obj(id).controller);
+        // "if it would die this turn, exile it instead"
+        let zone = if from == Zone::Battlefield
+            && zone == Zone::Graveyard
+            && self.exile_if_dies.contains(&(id, self.obj(id).zcc))
+        {
+            Zone::Exile
+        } else {
+            zone
+        };
         self.remove_from_zone(id);
         let owner = self.obj(id).owner;
         {

@@ -58,7 +58,17 @@ EFFECTS = {
     'DamagePlayersEffect': [('amount', 'int'), ('controller', 'target_controller')],
     'SacrificeSourceEffect': [],
     'DoIfCostPaid': [('effect', 'effect'), ('cost', 'cost')],
+    'GainAbilityControlledEffect': [('ability', 'ability'), ('duration', 'duration'), ('filter', 'filter')],
+    'GainAbilityTargetEffect': [('ability', 'ability'), ('duration', 'duration')],
+    'GainAbilitySourceEffect': [('ability', 'ability'), ('duration', 'duration')],
+    'ConditionalContinuousEffect': [('effect', 'effect'), ('condition', 'condition'), (None, 'string')],
+    'SetBasePowerToughnessSourceEffect': [('count', 'count')],
+    'ExileTargetIfDiesEffect': [],
+    'TapSourceUnlessPaysEffect': [('life', 'life_cost')],
 }
+
+COUNTS = {'CreaturesYouControlCount.PLURAL': 'creatures_you_control',
+          'CreaturesYouControlCount.SINGULAR': 'creatures_you_control'}
 
 # classes a card file declares for itself, written by hand as the engine classes that do the same
 CUSTOM = {
@@ -74,13 +84,14 @@ CUSTOM = {
 
 # targets with no arguments
 TARGETS = {'TargetAnyTarget', 'TargetCreaturePermanent', 'TargetPlayer', 'TargetOpponent', 'TargetSpell',
-           'TargetControlledCreaturePermanent', 'TargetCreatureOrPlaneswalker'}
+           'TargetControlledCreaturePermanent', 'TargetCreatureOrPlaneswalker', 'TargetPlayerOrPlaneswalker'}
 
 # abilities with arguments: class -> (field name, kind) per argument; optional trailing arguments may be left out
 ABILITIES = {
     'EntersBattlefieldTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'AttacksTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'SimpleStaticAbility': [('effect', 'effect')],
+    'AsEntersBattlefieldAbility': [('effect', 'effect'), (None, 'string')],
     'EntersBattlefieldTappedAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
     # enters with an effect applied, if the condition holds (a replacement effect, not a trigger)
@@ -102,7 +113,7 @@ TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'a
 DEFAULTS = {'amount': 1, 'filter': 'creatures', 'exclude_source': False, 'condition': None}
 
 COUNTERS = {'CounterType.P1P1': '+1/+1'}
-CONDITIONS = {'KickedCondition.ONCE': 'kicked', 'RaidCondition.instance': 'raid'}
+CONDITIONS = {'KickedCondition.ONCE': 'kicked', 'RaidCondition.instance': 'raid', 'MyTurnCondition.instance': 'my_turn'}
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
 
 DURATIONS = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.WhileOnBattlefield': 'WhileOnBattlefield'}
@@ -111,6 +122,7 @@ FILTERS = {
     'StaticFilters.FILTER_PERMANENT_CREATURE': 'creatures',
     'StaticFilters.FILTER_EACH_CONTROLLED_CREATURE_P1P1': 'controlled_creatures_with_p1p1',
     'StaticFilters.FILTER_ANOTHER_CREATURE_YOU_CONTROL': 'another_creature_you_control',
+    'StaticFilters.FILTER_PERMANENTS': 'permanents',
 }
 
 # abilities every card has, which the constructor doesn't add
@@ -207,7 +219,7 @@ class Translator:
         """`new X(args)`, `X.getInstance()` or a local variable -> (X, [args]) or the variable's object"""
         expr = expr.strip()
         # chained setters that only change texts
-        while (m := re.fullmatch(r'(.*\))\s*\.(?:setText|setAbilityWord|withFlavorWord)\((?:"[^"]*"|AbilityWord\.\w+)\)', expr, re.S)):
+        while (m := re.fullmatch(r'(.*\))\s*\.(?:setText|setAbilityWord|withFlavorWord|addHint)\((?:"[^"]*"|AbilityWord\.\w+|\w+Hint\.instance)\)', expr, re.S)):
             expr = m.group(1).strip()
         if expr in self.vars:
             return self.vars[expr]
@@ -235,6 +247,8 @@ class Translator:
         elif kind == 'filter':
             if arg in FILTERS:
                 return FILTERS[arg]
+            if arg in self.filters:
+                return self.filters[arg]
         elif kind == 'string':
             if re.fullmatch(r'"[^"]*"', arg):
                 return None
@@ -242,6 +256,13 @@ class Translator:
             return self.effect(arg)
         elif kind == 'ability':
             return self.ability(arg)
+        elif kind == 'count':
+            if arg in COUNTS:
+                return COUNTS[arg]
+        elif kind == 'life_cost':
+            m = re.fullmatch(r'new PayLifeCost\((\d+)\)', arg)
+            if m:
+                return int(m.group(1))
         elif kind == 'target_controller':
             if arg in TARGET_CONTROLLERS:
                 return TARGET_CONTROLLERS[arg]
@@ -319,6 +340,8 @@ class Translator:
         # `new MenaceAbility(false)`: the flag only changes the reminder text
         if cls == 'MenaceAbility' and args in (['false'], ['true']):
             return {'class': cls}
+        if cls == 'SimpleStaticAbility' and len(args) == 2 and args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD'):
+            args = args[1:]
         if cls not in ABILITIES:
             raise Unsupported('ability ' + cls)
         a = self.build(cls, args, ABILITIES[cls], 'ability')
@@ -329,7 +352,10 @@ class Translator:
     def assign(self, var, expr):
         """`Effect effect = new X(…)`: what kind of thing the right side is decides how it's read"""
         cls = self.new_expr(expr)[0]
-        if cls in EFFECTS:
+        if cls == 'Mode':
+            args = self.new_expr(expr)[1]
+            self.vars[var] = {'class': 'Mode', 'effects': [self.effect(a) for a in args], 'targets': []}
+        elif cls in EFFECTS:
             self.vars[var] = self.effect(expr)
         elif cls in TARGETS:
             self.vars[var] = self.target(expr)
@@ -353,7 +379,7 @@ def translate(card_name, subtypes, facts):
         raise Unsupported('card class is not a CardImpl')
     t = Translator(card_filters(source))
     card = {'name': card_name}
-    added, spell = [], {'effects': [], 'targets': []}
+    added, spell, modes = [], {'effects': [], 'targets': []}, []
     for st in statements(constructor_body(source, cls)):
         m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},(".*?"|null)\)', st)
         if m:
@@ -405,6 +431,18 @@ def translate(card_name, subtypes, facts):
         if m:
             spell['effects'].append(t.effect(m.group(1)))
             continue
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.addMode\((.*)\)', st)
+        if m:
+            arg = m.group(1).strip()
+            if arg in t.vars:
+                mode = t.vars[arg]
+            else:
+                cls, args = t.new_expr(arg)
+                if cls != 'Mode':
+                    raise Unsupported('mode ' + arg)
+                mode = {'class': 'Mode', 'effects': [t.effect(a) for a in args], 'targets': []}
+            modes.append({'effects': mode.get('effects', []), 'targets': mode.get('targets', [])})
+            continue
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addTarget\((.*)\)', st)
         if m:
             spell['targets'].append(t.target(m.group(1)))
@@ -428,7 +466,10 @@ def translate(card_name, subtypes, facts):
     if added:
         raise Unsupported('abilities Java does not list: ' + ', '.join(a['class'] for a in added))
     card['abilities'] = abilities
-    if spell['effects'] or spell['targets']:
+    if modes:
+        # "choose one": the spell ability's own effects and targets are its first mode
+        card['spell'] = {'modes': [spell] + modes}
+    elif spell['effects'] or spell['targets']:
         card['spell'] = spell
     return card
 
@@ -438,6 +479,7 @@ def translate(card_name, subtypes, facts):
 CARD_FILTERS = {
     ('FilterCreatureOrPlaneswalkerPermanent', ('TargetController.NOT_YOU.getControllerPredicate()',)):
         'opponents_creature_or_planeswalker',
+    ('FilterControlledCreaturePermanent', ('CounterType.P1P1.getPredicate()',)): 'controlled_creatures_with_p1p1',
 }
 
 

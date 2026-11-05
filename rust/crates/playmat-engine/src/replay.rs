@@ -135,6 +135,15 @@ impl ReplayReport {
 
 /// Finds the object a recorded answer names, in the order Java's `DecisionLog.visit` enumerates objects.
 pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
+    if r.starts_with('?') {
+        return Some(Answer::Unknown);
+    }
+    // a spell's mode: `<stack object>sm<index>`
+    if let Some((_, mode)) = r.rsplit_once("sm") {
+        if let Ok(k) = mode.parse::<usize>() {
+            return Some(Answer::Mode(k));
+        }
+    }
     // an object's ability: `<object>a<index>`
     if let Some((obj, ability)) = r.rsplit_once('a') {
         if let (Some(Answer::Obj(o)), Ok(i)) = (resolve(game, obj), ability.parse::<usize>()) {

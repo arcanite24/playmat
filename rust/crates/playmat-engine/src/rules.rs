@@ -4,7 +4,7 @@
 
 use crate::card::{AbilityDef, CardType, Color, CostDef, Duration, EffectDef, Filter, Mana, ManaCost, TargetDef};
 use crate::decide::{Answer, Decider, Query};
-use crate::state::{Boost, Delayed, Game, ObjId, Seat, StackItem, Step, Target, Zone};
+use crate::state::{Boost, Delayed, Game, Grant, ObjId, Seat, StackItem, Step, Target, Zone};
 use std::sync::Arc;
 
 const MAX_HAND: usize = 7;
@@ -365,11 +365,20 @@ fn can_cast_timing(game: &Game, seat: Seat, id: ObjId) -> bool {
     o.is(CardType::Instant) || o.has(&AbilityDef::FlashAbility) || sorcery_speed(game, seat)
 }
 
+/// Whether the spell has its targets: for a modal spell, whether some mode does.
 fn has_targets(game: &Game, seat: Seat, id: ObjId) -> bool {
-    game.obj(id).def.spell.targets.iter().all(|t| {
-        let (players, objs) = possible_targets(game, seat, t);
-        !players.is_empty() || !objs.is_empty()
-    })
+    let spell = &game.obj(id).def.spell;
+    let all = |targets: &[TargetDef]| {
+        targets.iter().all(|t| {
+            let (players, objs) = possible_targets(game, seat, t);
+            !players.is_empty() || !objs.is_empty()
+        })
+    };
+    if spell.modes.is_empty() {
+        all(&spell.targets)
+    } else {
+        spell.modes.iter().any(|m| all(&m.targets))
+    }
 }
 
 /// Untapped permanents that can make mana now, each with its mana abilities (index, mana), in ability order.
@@ -521,7 +530,28 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             }
         }
     }
-    if !choose_targets(game, d, seat, &def.spell.targets, Some(id)) {
+    // `HumanPlayer.chooseMode`: one question for "choose one"; any answer but a mode (Cancel too) cancels the cast
+    let mut mode = 0;
+    if def.spell.modes.len() > 1 {
+        let available: Vec<usize> = (0..def.spell.modes.len())
+            .filter(|k| {
+                def.spell.modes[*k].targets.iter().all(|t| {
+                    let (players, objs) = possible_targets(game, seat, t);
+                    !players.is_empty() || !objs.is_empty()
+                })
+            })
+            .collect();
+        mode = loop {
+            match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
+                Answer::Mode(k) if available.contains(&k) => break k,
+                _ => return false,
+            }
+        };
+        if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+            top.mode = mode;
+        }
+    }
+    if !choose_targets(game, d, seat, def.spell.mode(mode).1, Some(id)) {
         return false;
     }
     for s in 0..game.seats() {
@@ -653,6 +683,7 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef) -> (Vec<Seat>,
             .collect()
     };
     match def {
+        TargetDef::TargetPlayerOrPlaneswalker => (players, permanents(&|id| game.obj(id).is(CardType::Planeswalker))),
         TargetDef::TargetCreatureOrPlaneswalker => {
             (Vec::new(), permanents(&|id| game.filter_matches(Filter::CreaturesOrPlaneswalkers, seat, None, id)))
         }
@@ -855,17 +886,16 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         enter_battlefield(game, d, id, item.controller, item.kicked);
         return;
     }
-    let legal: Vec<bool> = def
-        .spell
-        .targets
+    let (effects, targets) = def.spell.mode(item.mode);
+    let legal: Vec<bool> = targets
         .iter()
         .zip(item.targets.iter().zip(item.target_zcc.iter()))
         .map(|(t, (x, z))| target_legal(game, item.controller, t, *x, *z))
         .collect();
     // a spell whose targets are all illegal doesn't resolve (rule 608.2b)
-    if def.spell.targets.is_empty() || legal.iter().any(|l| *l) {
+    if targets.is_empty() || legal.iter().any(|l| *l) {
         let zcc = game.obj(id).zcc;
-        apply_effects(game, d, &item, &def.spell.effects, &legal, (id, zcc));
+        apply_effects(game, d, &item, effects, &legal, (id, zcc));
     }
     game.move_to(id, Zone::Graveyard);
 }
@@ -896,7 +926,7 @@ fn apply_effects(
             EffectDef::GainLifeEffect { amount } => game.player_mut(controller).life += amount,
             EffectDef::DestroyTargetEffect => {
                 if let Some(Target::Obj(o)) = target {
-                    if !game.obj(o).has(&AbilityDef::IndestructibleAbility) {
+                    if !game.has_ability(o, &AbilityDef::IndestructibleAbility) {
                         game.move_to(o, Zone::Graveyard);
                     }
                 }
@@ -1026,10 +1056,41 @@ fn apply_effects(
                     }
                 }
             }
-            // static abilities (`Game::power_toughness`, `Game::has_ability`)
-            EffectDef::BoostControlledEffect { .. } | EffectDef::GainAbilityAllEffect { .. } => {}
+            EffectDef::GainAbilityControlledEffect { ability, duration: Duration::EndOfTurn, filter } => {
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == controller && game.filter_matches(*filter, controller, None, id) {
+                        grant(game, id, ability);
+                    }
+                }
+            }
+            EffectDef::GainAbilityTargetEffect { ability, .. } => {
+                if let Some(Target::Obj(o)) = target {
+                    grant(game, o, ability);
+                }
+            }
+            EffectDef::ExileTargetIfDiesEffect => {
+                if let Some(Target::Obj(o)) = target {
+                    let zcc = game.obj(o).zcc;
+                    game.exile_if_dies.push((o, zcc));
+                }
+            }
+            // static abilities (`Game::power_toughness`, `Game::has_ability`) and as-enters effects
+            // (`enter_battlefield`)
+            EffectDef::BoostControlledEffect { .. }
+            | EffectDef::GainAbilityAllEffect { .. }
+            | EffectDef::GainAbilityControlledEffect { .. }
+            | EffectDef::GainAbilitySourceEffect { .. }
+            | EffectDef::ConditionalContinuousEffect { .. }
+            | EffectDef::SetBasePowerToughnessSourceEffect { .. }
+            | EffectDef::TapSourceUnlessPaysEffect { .. } => {}
         }
     }
+}
+
+/// An ability until end of turn (the only duration resolving grants have yet).
+fn grant(game: &mut Game, target: ObjId, ability: &AbilityDef) {
+    let zcc = game.obj(target).zcc;
+    Arc::make_mut(&mut game.grants).push(Grant { target, zcc, ability: ability.clone(), until_end_of_turn: true });
 }
 
 fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: Duration) {
@@ -1056,6 +1117,32 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         }
         o.zcc
     };
+    // shock lands: `TapSourceUnlessPaysEffect` asks only when the life can be paid
+    for a in &def.abilities {
+        if let AbilityDef::AsEntersBattlefieldAbility { effects, .. } = a {
+            for e in effects {
+                if let EffectDef::TapSourceUnlessPaysEffect { life } = e {
+                    let paid = game.player(controller).life >= *life && {
+                        let q = Query::YesNo {
+                            message: format!("Pay {} life? (otherwise {} becomes tapped)", life, def.name),
+                        };
+                        loop {
+                            match ask(game, d, controller, &q) {
+                                Answer::Bool(b) => break b,
+                                Answer::Stop => return,
+                                _ => {}
+                            }
+                        }
+                    };
+                    if paid {
+                        game.player_mut(controller).life -= life;
+                    } else {
+                        game.obj_mut(id).tapped = true;
+                    }
+                }
+            }
+        }
+    }
     for a in &def.abilities {
         if let AbilityDef::EntersBattlefieldAbility { effects, condition, .. } = a {
             if condition.as_deref().is_none_or(|c| c == "kicked" && kicked) {
@@ -1188,7 +1275,8 @@ fn first_strike_in_combat(game: &Game) -> bool {
     game.battlefield.iter().any(|id| {
         let o = game.obj(*id);
         (o.attacking.is_some() || !o.blocking.is_empty())
-            && (o.has(&AbilityDef::FirstStrikeAbility) || o.has(&AbilityDef::DoubleStrikeAbility))
+            && (game.has_ability(*id, &AbilityDef::FirstStrikeAbility)
+                || game.has_ability(*id, &AbilityDef::DoubleStrikeAbility))
     })
 }
 
@@ -1367,9 +1455,8 @@ fn refresh_blocked(game: &mut Game) {
 }
 
 fn deals_damage_in(game: &Game, id: ObjId, first: bool, has_first_step: bool) -> bool {
-    let o = game.obj(id);
-    let fs = o.has(&AbilityDef::FirstStrikeAbility);
-    let ds = o.has(&AbilityDef::DoubleStrikeAbility);
+    let fs = game.has_ability(id, &AbilityDef::FirstStrikeAbility);
+    let ds = game.has_ability(id, &AbilityDef::DoubleStrikeAbility);
     if first {
         fs || ds
     } else {
@@ -1538,6 +1625,10 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     if game.boosts.iter().any(|b| b.until_end_of_turn) {
         Arc::make_mut(&mut game.boosts).retain(|b| !b.until_end_of_turn);
     }
+    if game.grants.iter().any(|g| g.until_end_of_turn) {
+        Arc::make_mut(&mut game.grants).retain(|g| !g.until_end_of_turn);
+    }
+    game.exile_if_dies.clear();
     for id in Arc::clone(&game.battlefield).iter().copied() {
         if game.obj(id).damage != 0 || game.obj(id).deathtouched {
             let o = game.obj_mut(id);
@@ -1587,7 +1678,7 @@ pub fn state_based_actions(game: &mut Game) {
                 }
                 let (_, t) = game.power_toughness(*id);
                 t <= 0
-                    || (!o.has(&AbilityDef::IndestructibleAbility)
+                    || (!game.has_ability(*id, &AbilityDef::IndestructibleAbility)
                         && (o.damage >= t || (o.deathtouched && o.damage > 0)))
             })
             .collect();

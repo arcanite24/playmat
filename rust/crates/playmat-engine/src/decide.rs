@@ -29,6 +29,8 @@ pub enum Query {
     PickTrigger { count: usize },
     /// ASK: yes or no
     YesNo { message: String },
+    /// CHOOSE_MODE: one of a modal spell's modes (by index)
+    ChooseMode { modes: Vec<usize> },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -43,6 +45,10 @@ pub enum Answer {
     Ability(ObjId, usize),
     /// a waiting trigger of the asked player, by its place in their list (`T0.1`)
     Trigger(usize),
+    /// a modal spell's mode, by index (`S0sm2`)
+    Mode(usize),
+    /// an id the decision log couldn't name (a dialog's Done or Cancel option)
+    Unknown,
     /// no answer: the decider gave up (a replay that left Java's game); the engine stops
     Stop,
 }
