@@ -4060,15 +4060,18 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                     let available: Vec<usize> = (0..modes.len())
                         .filter(|k| modes[*k].1.iter().all(|x| target_possible(game, seat, x, Some(t.card))))
                         .collect();
+                    let mut asked = 0;
                     let k = loop {
-                        // asked even with one mode left; cancelling removes the ability
-                        if available.is_empty() {
+                        // asked even with one mode left, and again after Cancel or any other answer: a triggered
+                        // ability can't be skipped (a decider that never picks one gives up after a while)
+                        asked += 1;
+                        if available.is_empty() || asked > 100 {
                             break None;
                         }
                         match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
                             Answer::Mode(k) if available.contains(&k) => break Some(k),
                             Answer::Stop => return,
-                            _ => break None,
+                            _ => {}
                         }
                     };
                     let Some(k) = k else { continue };
@@ -4202,19 +4205,23 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     if combat {
         if let Target::Player(p) = to {
             let fired = game.triggers([source], |_, _, _, t| matches!(t, Trigger::CombatDamageToPlayer));
+            let mut own = Vec::new();
             for mut t in fired {
                 let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
                 if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
                     t.targets = vec![vec![Target::Player(p)]];
                     t.target_zcc = vec![vec![0]];
                 }
-                game.pending.push(t);
+                own.push(t);
             }
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| {
                 matches!(t, Trigger::CombatDamageToPlayerAll { filter } if g.filter_matches(filter, you, Some(src), source))
             });
-            game.pending.extend(fired);
+            // one damage event: Java checks every trigger in its load order
+            own.extend(fired);
+            own.sort_by_key(|t| game.obj(t.card).trigger_order);
+            game.pending.extend(own);
         }
     }
     lifelink

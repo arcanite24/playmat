@@ -49,8 +49,10 @@ pub enum Answer {
     Ability(ObjId, usize),
     /// a waiting trigger of the asked player, by its place in their list (`T0.1`)
     Trigger(usize),
-    /// CHOOSE_MODE's Done (`MD`); its Cancel (`MC`) is any other answer
+    /// CHOOSE_MODE's Done (`MD`)
     ModeDone,
+    /// CHOOSE_MODE's Cancel (`MC`)
+    ModeCancel,
     /// a modal spell's mode, by index (`S0sm2`)
     Mode(usize),
     /// an id the decision log couldn't name (a dialog's Done or Cancel option)

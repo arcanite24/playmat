@@ -145,8 +145,16 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
     // CHOOSE_MODE's Done and Cancel
     match r {
         "MD" => return Some(Answer::ModeDone),
-        "MC" => return Some(Answer::Unknown),
+        "MC" => return Some(Answer::ModeCancel),
         _ => {}
+    }
+    // an ability's mode: `<object>a<ability>m<index>`
+    if let Some((obj, mode)) = r.rsplit_once('m') {
+        if let (Some((_, a)), Ok(k)) = (obj.rsplit_once('a'), mode.parse::<usize>()) {
+            if a.parse::<usize>().is_ok() {
+                return Some(Answer::Mode(k));
+            }
+        }
     }
     // a spell's mode: `<stack object>sm<index>`
     if let Some((_, mode)) = r.rsplit_once("sm") {
