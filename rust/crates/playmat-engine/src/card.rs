@@ -923,6 +923,10 @@ pub enum EffectDef {
     /// Scavenging Ooze: exile the target card from a graveyard; if it was a creature card, put a +1/+1 counter on
     /// this and you gain 1 life
     ScavengingOozeEffect,
+    /// Koth, the Geomancer: 1 damage to each opponent; if the land that entered is a Mountain, add {R}
+    KothTheGeomancerEffect,
+    /// a static ability's effect: the turn this entered, its loyalty abilities can be activated at instant speed
+    TheWanderingEmperorEffect,
     /// a static ability's effect: your Lizards, Mice, Otters and Raccoons deal 1 more damage
     ValleyFlamecallerEffect,
     /// a static ability's effect: noncombat damage your sources would deal to an opponent's creature is that many

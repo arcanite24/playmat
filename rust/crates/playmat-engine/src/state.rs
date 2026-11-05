@@ -129,6 +129,8 @@ pub struct Obj {
     pub warp_from: Option<u32>,
     /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
     pub mana_spent: u32,
+    /// the turn it last entered the battlefield
+    pub entered_turn: u32,
     /// the turn and how many times this permanent became a target in it
     pub targeted: (u32, u32),
     /// exiled "on an adventure": its owner may cast the creature from exile
@@ -418,6 +420,7 @@ impl Game {
             warped: false,
             warp_from: None,
             mana_spent: 0,
+            entered_turn: 0,
             targeted: (0, 0),
             on_adventure: false,
             blocking: Vec::new(),

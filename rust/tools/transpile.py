@@ -166,6 +166,8 @@ CUSTOM = {
     'FabledPassageUntapLandEffect': lambda: {'class': 'FabledPassageUntapLandEffect'},
     'FloodpitsDrownerEffect': lambda: {'class': 'FloodpitsDrownerEffect'},
     'MagmaticHellkiteEffect': lambda: {'class': 'MagmaticHellkiteEffect'},
+    'KothTheGeomancerEffect': lambda: {'class': 'KothTheGeomancerEffect'},
+    'TheWanderingEmperorEffect': lambda: {'class': 'TheWanderingEmperorEffect'},
     'ValleyFlamecallerEffect': lambda: {'class': 'ValleyFlamecallerEffect'},
     'SoulScarMageDamageReplacementEffect': lambda: {'class': 'SoulScarMageDamageReplacementEffect'},
     'LoseGainEffect': lambda: {'class': 'LoseGainEffect'},
@@ -260,6 +262,9 @@ def triggered(a):
         a['effects'] = [{'class': 'BoostSourceEffect', 'power': 1, 'toughness': 1, 'duration': 'EndOfTurn'}]
     elif cls == 'LandfallAbility':
         on = {'e': 'enters_all', 'filter': [LAND, YOU]}
+        # Koth's effect looks at the land that entered
+        if any(e.get('class') == 'KothTheGeomancerEffect' for e in a.get('effects', [])):
+            a['set_target_pointer'] = True
     elif cls == 'EntersBattlefieldAllTriggeredAbility':
         on = {'e': 'enters_all', 'filter': a.pop('filter')}
     elif cls == 'DiesThisOrAnotherTriggeredAbility':

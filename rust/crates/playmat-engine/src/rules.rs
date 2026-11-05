@@ -410,7 +410,16 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
         if a.from_hand() != (o.zone == Zone::Hand) {
             continue;
         }
-        if sorcery && !sorcery_speed(game, seat) {
+        // The Wandering Emperor: her loyalty abilities at instant speed the turn she entered
+        let flash = matches!(a, AbilityDef::LoyaltyAbility { .. })
+            && o.entered_turn == game.turn
+            && o.def.abilities.iter().any(|b| match b {
+                AbilityDef::SimpleStaticAbility { effects, .. } => {
+                    effects.iter().any(|e| matches!(e, EffectDef::TheWanderingEmperorEffect))
+                }
+                _ => false,
+            });
+        if sorcery && !flash && !sorcery_speed(game, seat) {
             continue;
         }
         if let AbilityDef::LimitedTimesPerTurnActivatedAbility { limit, condition, .. } = a {
@@ -2933,6 +2942,13 @@ fn apply_each_effect(
                     o.def = Arc::new(def);
                 }
             }
+            EffectDef::KothTheGeomancerEffect => {
+                let opponent = game.opponent(controller);
+                deal_damage(game, source.0, Target::Player(opponent), 1, false);
+                if objs.first().is_some_and(|l| game.obj(*l).def.has_subtype("Mountain")) {
+                    game.player_mut(controller).mana_pool.colored[Color::R.index()] += 1;
+                }
+            }
             EffectDef::LoseGainEffect => {
                 gain_life(game, controller, 2);
                 for s in &players {
@@ -3223,6 +3239,7 @@ fn apply_each_effect(
             | EffectDef::GraveyardFromAnywhereExileReplacementEffect
             | EffectDef::SetBasePowerSourceEffect { .. }
             | EffectDef::ValleyFlamecallerEffect
+            | EffectDef::TheWanderingEmperorEffect
             | EffectDef::SoulScarMageDamageReplacementEffect => {}
         }
     }
@@ -3475,6 +3492,7 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
     // a permanent spell resolving was cast (`CastFromEverywhereSourceCondition`)
     let cast = game.obj(id).zone == Zone::Stack;
+    let turn = game.turn;
     game.move_to(id, Zone::Battlefield);
     let def = game.obj(id).def.clone();
     game.obj_mut(id).controller = controller;
@@ -3495,6 +3513,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         }
         o.kicked = kicked;
         o.cast = cast;
+        o.entered_turn = turn;
         o.zcc
     };
     // `WarpAbilityWatcher`: a warped permanent is exiled at the beginning of the next end step
