@@ -2,9 +2,9 @@
 //! state-based actions. The order of everything a player sees follows Java's `GameImpl.playPriority` and
 //! `HumanPlayer` with the client's default settings, so a shadow game replays answer for answer.
 
-use crate::card::{AbilityDef, CardType, Color, CostDef, Duration, EffectDef, Mana, ManaCost, TargetDef};
+use crate::card::{AbilityDef, CardType, Color, CostDef, Duration, EffectDef, Filter, Mana, ManaCost, TargetDef};
 use crate::decide::{Answer, Decider, Query};
-use crate::state::{Boost, Game, ObjId, Seat, StackItem, Step, Target, Zone};
+use crate::state::{Boost, Delayed, Game, ObjId, Seat, StackItem, Step, Target, Zone};
 use std::sync::Arc;
 
 const MAX_HAND: usize = 7;
@@ -78,7 +78,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
     match step {
         Step::Untap => {
             for s in 0..game.seats() {
-                game.player_mut(s).lands_played = 0;
+                let p = game.player_mut(s);
+                p.lands_played = 0;
+                p.attacked = false;
             }
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {
@@ -91,6 +93,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         Step::Draw => draw(game, active, 1),
         Step::DeclareAttackers => {
             declare_attackers(game, d, active);
+            if !attackers(game).is_empty() {
+                game.player_mut(active).attacked = true;
+            }
             // "whenever this attacks" triggers, in the order the attackers are listed
             for a in attackers(game) {
                 let o = game.obj(a);
@@ -103,6 +108,29 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             }
         }
         Step::DeclareBlockers => declare_blockers(game, d, game.opponent(active)),
+        // "at end of combat" delayed triggers
+        Step::EndCombat => {
+            let delayed = std::mem::take(&mut game.at_end_of_combat);
+            game.pending.extend(delayed);
+        }
+        // "at the beginning of the end step" triggers; an intervening "if" is checked now and on resolution
+        Step::EndTurn => {
+            let mut fired = Vec::new();
+            for src in game.battlefield.iter().copied() {
+                let o = game.obj(src);
+                for (i, a) in o.def.abilities.iter().enumerate() {
+                    if let AbilityDef::BeginningOfEndStepTriggeredAbility { controller, condition, .. } = a {
+                        if (controller == "any" || o.controller == active)
+                            && condition_holds(game, condition.as_deref(), o.controller)
+                        {
+                            fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, o.controller) });
+                        }
+                    }
+                }
+            }
+            fired.sort_by_key(|t| game.obj(t.card).trigger_order);
+            game.pending.extend(fired);
+        }
         Step::FirstCombatDamage => {
             game.first_strike_step = true;
             combat_damage(game, d, true)
@@ -110,6 +138,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         Step::CombatDamage => combat_damage(game, d, false),
         Step::Cleanup => cleanup(game, d, active),
         _ => {}
+    }
+}
+
+/// An intervening "if" of a triggered ability.
+fn condition_holds(game: &Game, condition: Option<&str>, controller: Seat) -> bool {
+    match condition {
+        None => true,
+        Some("raid") => game.player(controller).attacked,
+        Some(_) => false,
     }
 }
 
@@ -442,7 +479,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         return;
     }
     if game.obj(id).is(CardType::Land) {
-        enter_battlefield(game, id, seat, false);
+        enter_battlefield(game, d, id, seat, false);
         game.player_mut(seat).lands_played += 1;
         return;
     }
@@ -490,7 +527,27 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     for s in 0..game.seats() {
         game.player_mut(s).passed = false;
     }
-    pay_mana(game, d, seat, &cost)
+    if !pay_mana(game, d, seat, &cost) {
+        return false;
+    }
+    // SPELL_CAST: prowess
+    if !def.is(CardType::Creature) {
+        let mut fired = Vec::new();
+        for src in game.battlefield.iter().copied() {
+            let o = game.obj(src);
+            if o.controller != seat {
+                continue;
+            }
+            for (i, a) in o.def.abilities.iter().enumerate() {
+                if matches!(a, AbilityDef::ProwessAbility { .. }) {
+                    fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, seat) });
+                }
+            }
+        }
+        fired.sort_by_key(|t| game.obj(t.card).trigger_order);
+        game.pending.extend(fired);
+    }
+    true
 }
 
 /// Chooses the top stack object's targets, in order. False: cancelled.
@@ -529,7 +586,13 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
     for c in costs {
         match c {
             CostDef::TapSourceCost => game.obj_mut(id).tapped = true,
-            CostDef::SacrificeSourceCost => game.move_to(id, Zone::Graveyard),
+            CostDef::SacrificeSourceCost => {
+                let power = game.power_toughness(id).0;
+                if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                    top.lki_power = Some(power);
+                }
+                game.move_to(id, Zone::Graveyard)
+            }
             CostDef::ManaCost { .. } => {}
         }
     }
@@ -590,6 +653,9 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef) -> (Vec<Seat>,
             .collect()
     };
     match def {
+        TargetDef::TargetCreatureOrPlaneswalker => {
+            (Vec::new(), permanents(&|id| game.filter_matches(Filter::CreaturesOrPlaneswalkers, seat, None, id)))
+        }
         TargetDef::TargetControlledCreaturePermanent => {
             (Vec::new(), permanents(&|id| game.obj(id).is(CardType::Creature) && game.obj(id).controller == seat))
         }
@@ -745,7 +811,21 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     };
     let id = item.card;
     let def = game.obj(id).def.clone();
+    if let Some(delayed) = &item.delayed {
+        for (o, zcc) in &delayed.sacrifice {
+            let p = game.obj(*o);
+            if p.zone == Zone::Battlefield && p.zcc == *zcc && p.controller == item.controller {
+                game.move_to(*o, Zone::Graveyard);
+            }
+        }
+        return;
+    }
     if let Some((index, zcc)) = item.ability {
+        if let Some(AbilityDef::BeginningOfEndStepTriggeredAbility { condition, .. }) = def.abilities.get(index) {
+            if !condition_holds(game, condition.as_deref(), item.controller) {
+                return;
+            }
+        }
         let Some((rule, effects, targets, optional)) = def.abilities.get(index).and_then(|a| a.on_stack()) else {
             return;
         };
@@ -767,12 +847,12 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             .collect();
         if targets.is_empty() || legal.iter().any(|l| *l) {
             let effects = effects.to_vec();
-            apply_effects(game, &item, &effects, &legal, (id, zcc));
+            apply_effects(game, d, &item, &effects, &legal, (id, zcc));
         }
         return;
     }
     if def.is_permanent_card() {
-        enter_battlefield(game, id, item.controller, item.kicked);
+        enter_battlefield(game, d, id, item.controller, item.kicked);
         return;
     }
     let legal: Vec<bool> = def
@@ -785,13 +865,20 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     // a spell whose targets are all illegal doesn't resolve (rule 608.2b)
     if def.spell.targets.is_empty() || legal.iter().any(|l| *l) {
         let zcc = game.obj(id).zcc;
-        apply_effects(game, &item, &def.spell.effects, &legal, (id, zcc));
+        apply_effects(game, d, &item, &def.spell.effects, &legal, (id, zcc));
     }
     game.move_to(id, Zone::Graveyard);
 }
 
 /// A resolving spell's or ability's effects, in order. Target effects act on the first target, if it's still legal.
-fn apply_effects(game: &mut Game, item: &StackItem, effects: &[EffectDef], legal: &[bool], source: (ObjId, u32)) {
+fn apply_effects(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    item: &StackItem,
+    effects: &[EffectDef],
+    legal: &[bool],
+    source: (ObjId, u32),
+) {
     let legal_target = |i: usize| match (item.targets.get(i), legal.get(i)) {
         (Some(t), Some(true)) => Some(*t),
         _ => None,
@@ -844,15 +931,75 @@ fn apply_effects(game: &mut Game, item: &StackItem, effects: &[EffectDef], legal
                     game.obj_mut(o).add_counters(&counter.name, counter.amount);
                 }
             }
-            EffectDef::CreateTokenEffect { token, amount } => {
+            EffectDef::CreateTokenEffect { token, amount, tapped_and_attacking, sacrifice_at_end_of_combat } => {
                 let def = Arc::new(token.card());
+                let mut created = Vec::new();
                 for _ in 0..*amount {
                     let id = game.create_obj(def.clone(), controller, Zone::Library);
                     let o = game.obj_mut(id);
                     o.token = true;
                     // registered after every card
                     o.trigger_order = (1 << 32) + id.0 as u64;
-                    enter_battlefield(game, id, controller, false);
+                    enter_battlefield(game, d, id, controller, false);
+                    if *tapped_and_attacking {
+                        let defender = game.opponent(controller);
+                        let o = game.obj_mut(id);
+                        o.tapped = true;
+                        o.attacking = Some(defender);
+                    }
+                    created.push((id, game.obj(id).zcc));
+                }
+                if *sacrifice_at_end_of_combat {
+                    let delayed =
+                        Delayed { rule: "At end of combat, sacrifice that token.".into(), sacrifice: created };
+                    game.at_end_of_combat
+                        .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+                }
+            }
+            EffectDef::DamageTargetSourcePowerEffect => {
+                if let Some(t) = target {
+                    let power = item.lki_power.unwrap_or_else(|| game.power_toughness(source.0).0).max(0);
+                    deal_damage(game, source.0, t, power, false);
+                }
+            }
+            EffectDef::ConditionalOneShotEffect { effect, otherwise, condition } => {
+                let holds = condition == "kicked" && item.kicked;
+                let e = if holds { effect } else { otherwise };
+                apply_effects(game, d, item, std::slice::from_ref(&**e), legal, source);
+            }
+            EffectDef::DamagePlayersEffect { amount, controller: who } => {
+                for s in 0..game.seats() {
+                    if (who == "opponent" && s != controller) || who == "any" {
+                        deal_damage(game, source.0, Target::Player(s), *amount, false);
+                    }
+                }
+            }
+            EffectDef::SacrificeSourceEffect => {
+                let (o, zcc) = source;
+                if game.obj(o).zone == Zone::Battlefield
+                    && game.obj(o).zcc == zcc
+                    && game.obj(o).controller == controller
+                {
+                    game.move_to(o, Zone::Graveyard);
+                }
+            }
+            EffectDef::DoIfCostPaid { effect, cost } => {
+                let q = Query::YesNo { message: format!("Pay {}?", ability_mana_cost(cost).text) };
+                let pay = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if pay {
+                    let before = game.clone();
+                    if pay_mana(game, d, controller, &ability_mana_cost(cost)) {
+                        apply_effects(game, d, item, std::slice::from_ref(&**effect), legal, source);
+                    } else if !d.stopped() {
+                        // `DoIfCostPaid` undoes a payment that was cancelled
+                        *game = before;
+                    }
                 }
             }
             EffectDef::DamageWithPowerFromOneToAnotherTargetEffect => {
@@ -861,8 +1008,25 @@ fn apply_effects(game: &mut Game, item: &StackItem, effects: &[EffectDef], legal
                     deal_damage(game, from, to, power, false);
                 }
             }
-            // static abilities apply while their source is on the battlefield (`Game::power_toughness`,
-            // `Game::has_ability`)
+            // a resolving one boosts the creatures it applies to now; a static one applies while its source is on the
+            // battlefield (`Game::power_toughness`)
+            EffectDef::BoostControlledEffect {
+                power,
+                toughness,
+                duration: Duration::EndOfTurn,
+                filter,
+                exclude_source,
+            } => {
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == controller
+                        && game.filter_matches(*filter, controller, Some(source.0), id)
+                        && !(*exclude_source && id == source.0)
+                    {
+                        boost(game, id, *power, *toughness, Duration::EndOfTurn);
+                    }
+                }
+            }
+            // static abilities (`Game::power_toughness`, `Game::has_ability`)
             EffectDef::BoostControlledEffect { .. } | EffectDef::GainAbilityAllEffect { .. } => {}
         }
     }
@@ -881,7 +1045,7 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
 
 /// A permanent enters: under `controller`, tapped if it says so, with what its "enters with" abilities give it; then
 /// its own enters triggers and other permanents' "whenever … enters" triggers wait to go on the stack.
-fn enter_battlefield(game: &mut Game, id: ObjId, controller: Seat, kicked: bool) {
+fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
     game.move_to(id, Zone::Battlefield);
     let def = game.obj(id).def.clone();
     let zcc = {
@@ -896,7 +1060,7 @@ fn enter_battlefield(game: &mut Game, id: ObjId, controller: Seat, kicked: bool)
         if let AbilityDef::EntersBattlefieldAbility { effects, condition, .. } = a {
             if condition.as_deref().is_none_or(|c| c == "kicked" && kicked) {
                 let item = StackItem::spell(id, controller);
-                apply_effects(game, &item, effects, &[], (id, zcc));
+                apply_effects(game, d, &item, effects, &[], (id, zcc));
             }
         }
     }
@@ -968,10 +1132,14 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     if amount <= 0 {
         return;
     }
-    let _ = combat;
     let src = game.obj(source).clone();
     match to {
-        Target::Player(s) => game.player_mut(s).life -= amount,
+        Target::Player(s) => {
+            game.player_mut(s).life -= amount;
+            if !combat {
+                damaged_opponent_triggers(game, s);
+            }
+        }
         Target::Obj(o) => {
             if game.obj(o).zone != Zone::Battlefield {
                 return;
@@ -987,6 +1155,27 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     if src.has(&AbilityDef::LifelinkAbility) {
         game.player_mut(src.controller).life += amount;
     }
+}
+
+/// Noncombat damage to `seat`: "whenever one or more opponents are dealt noncombat damage" triggers, once per batch
+/// (a resolution's damage is one batch: a trigger already waiting isn't added again).
+fn damaged_opponent_triggers(game: &mut Game, seat: Seat) {
+    let mut fired = Vec::new();
+    for src in game.battlefield.iter().copied() {
+        let o = game.obj(src);
+        if o.controller == seat {
+            continue;
+        }
+        for (i, a) in o.def.abilities.iter().enumerate() {
+            if matches!(a, AbilityDef::DamagedOpponentsNoncombatTriggeredAbility { .. })
+                && !game.pending.iter().any(|t| t.card == src && t.ability.map(|x| x.0) == Some(i))
+            {
+                fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, o.controller) });
+            }
+        }
+    }
+    fired.sort_by_key(|t| game.obj(t.card).trigger_order);
+    game.pending.extend(fired);
 }
 
 // ------------------------------------------------------------------------------------------------------------ combat
@@ -1069,7 +1258,46 @@ fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
 }
 
 /// `HumanPlayer.selectBlockers`: a creature, then the attacker it blocks (picked for you when there's one); done ends.
+/// `Combat.selectBlockers`: the defender declares, then the block restrictions are checked. A creature with menace
+/// blocked by one loses its blocker; if the defender could have blocked it with two, they declare again.
 fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
+    loop {
+        select_blockers(game, d, seat);
+        if d.stopped() {
+            return;
+        }
+        let mut legal = true;
+        for a in attackers(game) {
+            if !game.has_ability(a, &AbilityDef::MenaceAbility) {
+                continue;
+            }
+            let blockers = live_blockers(game, a);
+            if blockers.len() != 1 {
+                continue;
+            }
+            game.obj_mut(blockers[0]).blocking.clear();
+            let o = game.obj_mut(a);
+            o.blocked_by.clear();
+            o.blocked = false;
+            let possible = game
+                .battlefield
+                .iter()
+                .filter(|b| {
+                    let o = game.obj(**b);
+                    o.controller == seat && o.is(CardType::Creature) && !o.tapped && can_block(game, **b, a)
+                })
+                .count();
+            if possible >= 2 {
+                legal = false;
+            }
+        }
+        if legal {
+            return;
+        }
+    }
+}
+
+fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let free = |g: &Game| -> Vec<ObjId> {
         g.battlefield
             .iter()

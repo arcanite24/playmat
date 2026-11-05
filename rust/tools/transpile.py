@@ -39,7 +39,7 @@ KEYWORDS = {
 # effects: class -> its constructor arguments, each (field name, kind); a kind of None means the argument is ignored
 # (a text override: rule texts come from the card facts)
 EFFECTS = {
-    'DamageTargetEffect': [('amount', 'int')],
+    'DamageTargetEffect': [('amount', 'int'), (None, 'string')],
     'DrawCardSourceControllerEffect': [('amount', 'int')],
     'GainLifeEffect': [('amount', 'int')],
     'DestroyTargetEffect': [],
@@ -53,11 +53,28 @@ EFFECTS = {
     'CreateTokenEffect': [('token', 'token'), ('amount', 'int')],
     'DamageWithPowerFromOneToAnotherTargetEffect': [],
     'GainAbilityAllEffect': [('ability', 'ability'), ('duration', 'duration'), ('filter', 'filter')],
+    'ConditionalOneShotEffect': [('effect', 'effect'), ('otherwise', 'effect'), ('condition', 'condition'),
+                                 (None, 'string')],
+    'DamagePlayersEffect': [('amount', 'int'), ('controller', 'target_controller')],
+    'SacrificeSourceEffect': [],
+    'DoIfCostPaid': [('effect', 'effect'), ('cost', 'cost')],
+}
+
+# classes a card file declares for itself, written by hand as the engine classes that do the same
+CUSTOM = {
+    # create a 2/2 Robot token tapped and attacking; sacrifice it at end of combat
+    'KavaronHarrierEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('RobotToken'), 'amount': 1,
+                                     'tapped_and_attacking': True, 'sacrifice_at_end_of_combat': True},
+    # whenever one or more opponents are dealt noncombat damage, creatures you control get +1/+0 until end of turn
+    'MasterOfBarbsTriggeredAbility': lambda: {
+        'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
+        'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
+                     'filter': 'creatures', 'exclude_source': False}]},
 }
 
 # targets with no arguments
 TARGETS = {'TargetAnyTarget', 'TargetCreaturePermanent', 'TargetPlayer', 'TargetOpponent', 'TargetSpell',
-           'TargetControlledCreaturePermanent'}
+           'TargetControlledCreaturePermanent', 'TargetCreatureOrPlaneswalker'}
 
 # abilities with arguments: class -> (field name, kind) per argument; optional trailing arguments may be left out
 ABILITIES = {
@@ -73,13 +90,19 @@ ABILITIES = {
     'DiesSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'ActivateAsSorceryActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
     'SimpleActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
+    'ProwessAbility': [],
+    'BeginningOfEndStepTriggeredAbility': [('controller', 'target_controller'), ('effect', 'effect'),
+                                           ('optional', 'bool'), ('condition', 'condition')],
 }
 
+TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
+                      'TargetController.OPPONENT': 'opponent'}
+
 # arguments a constructor overload leaves out, and what Java uses then
-DEFAULTS = {'amount': 1}
+DEFAULTS = {'amount': 1, 'filter': 'creatures', 'exclude_source': False, 'condition': None}
 
 COUNTERS = {'CounterType.P1P1': '+1/+1'}
-CONDITIONS = {'KickedCondition.ONCE': 'kicked'}
+CONDITIONS = {'KickedCondition.ONCE': 'kicked', 'RaidCondition.instance': 'raid'}
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
 
 DURATIONS = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.WhileOnBattlefield': 'WhileOnBattlefield'}
@@ -183,8 +206,14 @@ class Translator:
     def new_expr(self, expr):
         """`new X(args)`, `X.getInstance()` or a local variable -> (X, [args]) or the variable's object"""
         expr = expr.strip()
+        # chained setters that only change texts
+        while (m := re.fullmatch(r'(.*\))\s*\.(?:setText|setAbilityWord|withFlavorWord)\((?:"[^"]*"|AbilityWord\.\w+)\)', expr, re.S)):
+            expr = m.group(1).strip()
         if expr in self.vars:
             return self.vars[expr]
+        m = re.fullmatch(r'new (\w+)\(\)', expr)
+        if m and m.group(1) in CUSTOM:
+            return CUSTOM[m.group(1)]()
         m = re.fullmatch(r'(\w+)\.getInstance\(\)', expr)
         if m:
             return m.group(1), []
@@ -213,6 +242,9 @@ class Translator:
             return self.effect(arg)
         elif kind == 'ability':
             return self.ability(arg)
+        elif kind == 'target_controller':
+            if arg in TARGET_CONTROLLERS:
+                return TARGET_CONTROLLERS[arg]
         elif kind == 'condition':
             if arg in CONDITIONS:
                 return CONDITIONS[arg]
@@ -235,6 +267,8 @@ class Translator:
         cls, args = self.new_expr(expr)
         if cls == 'ManaCostsImpl' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0]):
             return {'class': 'ManaCost', 'cost': args[0][1:-1]}
+        if cls == 'GenericManaCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
+            return {'class': 'ManaCost', 'cost': '{' + args[0] + '}'}
         if cls in ('TapSourceCost', 'SacrificeSourceCost') and not args:
             return {'class': cls}
         raise Unsupported('cost ' + expr)
@@ -258,6 +292,8 @@ class Translator:
         if isinstance(obj, dict):
             return obj
         cls, args = obj
+        if cls == 'DamageTargetEffect' and args == ['SourcePermanentPowerValue.NOT_NEGATIVE']:
+            return {'class': 'DamageTargetSourcePowerEffect'}
         if cls not in EFFECTS:
             raise Unsupported('effect ' + cls)
         return self.build(cls, args, EFFECTS[cls], 'effect')
@@ -279,6 +315,9 @@ class Translator:
             return obj
         cls, args = obj
         if cls in KEYWORDS and not args:
+            return {'class': cls}
+        # `new MenaceAbility(false)`: the flag only changes the reminder text
+        if cls == 'MenaceAbility' and args in (['false'], ['true']):
             return {'class': cls}
         if cls not in ABILITIES:
             raise Unsupported('ability ' + cls)
@@ -356,7 +395,11 @@ def translate(card_name, subtypes, facts):
             continue
         m = re.fullmatch(r'this\.addAbility\((.*)\)', st)
         if m:
-            added.append(t.ability(m.group(1)))
+            args = split_args(m.group(1))
+            # `addAbility(ability, new SomeWatcher())`: the watcher is the engine's own bookkeeping
+            if len(args) == 2 and re.fullmatch(r'new \w+Watcher\(\)', args[1].strip()):
+                args = args[:1]
+            added.append(t.ability(','.join(args)))
             continue
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addEffect\((.*)\)', st)
         if m:
@@ -375,13 +418,11 @@ def translate(card_name, subtypes, facts):
         if fact['class'] in IMPLICIT:
             abilities.append({'class': fact['class']})
             continue
-        match = next((a for a in added if a['class'] == fact['class']), None)
-        if match is None and fact['class'] == 'MenaceAbility':
-            match = next((a for a in added if a['class'] == 'MenaceAbility'), None)
+        match = next((a for a in added if a.get('java', a['class']) == fact['class']), None)
         if match is None:
             raise Unsupported('ability ' + fact['class'] + ' (added by another ability)')
         added.remove(match)
-        if match['class'] in ABILITIES:
+        if match.pop('java', None) or match['class'] in ABILITIES:
             match['rule'] = fact['rule']
         abilities.append(match)
     if added:

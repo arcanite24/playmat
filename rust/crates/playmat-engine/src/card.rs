@@ -136,6 +136,7 @@ pub enum TargetDef {
     TargetPermanent {
         filter: Filter,
     },
+    TargetCreatureOrPlaneswalker,
 }
 
 /// How long a continuous effect lasts (Java's `Duration`).
@@ -157,6 +158,7 @@ pub enum Filter {
     AnotherCreatureYouControl,
     /// a creature or planeswalker you don't control
     OpponentsCreatureOrPlaneswalker,
+    CreaturesOrPlaneswalkers,
 }
 
 /// Counters an effect puts on a permanent: `CounterType.P1P1.createInstance(2)`.
@@ -233,8 +235,26 @@ pub enum EffectDef {
     AddCountersSourceEffect { counter: CounterDef },
     /// puts counters on the target permanent
     AddCountersTargetEffect { counter: CounterDef },
-    /// the controller creates `amount` tokens
-    CreateTokenEffect { token: TokenDef, amount: i32 },
+    /// the controller creates `amount` tokens; Kavaron Harrier's enter tapped and attacking and are sacrificed at end
+    /// of combat
+    CreateTokenEffect {
+        token: TokenDef,
+        amount: i32,
+        #[serde(default)]
+        tapped_and_attacking: bool,
+        #[serde(default)]
+        sacrifice_at_end_of_combat: bool,
+    },
+    /// deals damage equal to the source's power (as it last was on the battlefield) to the target
+    DamageTargetSourcePowerEffect,
+    /// `effect` if the condition holds, otherwise `otherwise`
+    ConditionalOneShotEffect { effect: Box<EffectDef>, otherwise: Box<EffectDef>, condition: String },
+    /// deals `amount` damage to each player of `controller` ("opponent")
+    DamagePlayersEffect { amount: i32, controller: String },
+    /// sacrifices the source
+    SacrificeSourceEffect,
+    /// the controller may pay `cost`; if they do, `effect`
+    DoIfCostPaid { effect: Box<EffectDef>, cost: Vec<CostDef> },
     /// the first target deals damage equal to its power to the second (Bite Down)
     DamageWithPowerFromOneToAnotherTargetEffect,
     /// a static ability's effect: the permanents of `filter` have `ability`
@@ -312,6 +332,25 @@ pub enum AbilityDef {
         optional: bool,
         rule: String,
     },
+    /// whenever you cast a noncreature spell, this gets +1/+1 until end of turn
+    ProwessAbility {
+        rule: String,
+    },
+    /// at the beginning of the end step of `controller` ("you", or "any" player's), if the condition holds
+    BeginningOfEndStepTriggeredAbility {
+        controller: String,
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        optional: bool,
+        #[serde(default)]
+        condition: Option<String>,
+        rule: String,
+    },
+    /// whenever one or more opponents are dealt noncombat damage (Master of Barbs)
+    DamagedOpponentsNoncombatTriggeredAbility {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
     ActivateAsSorceryActivatedAbility {
         effects: Vec<EffectDef>,
         cost: Vec<CostDef>,
@@ -349,6 +388,8 @@ pub enum AbilityDef {
     ColorlessManaAbility,
 }
 
+const PROWESS: &[EffectDef] = &[EffectDef::BoostSourceEffect { power: 1, toughness: 1, duration: Duration::EndOfTurn }];
+
 /// An activated ability's parts: rule text, effects, targets, costs, sorcery speed.
 pub type Activated<'a> = (&'a str, &'a [EffectDef], &'a [TargetDef], &'a [CostDef], bool);
 
@@ -361,6 +402,11 @@ impl AbilityDef {
             | AbilityDef::EntersBattlefieldAllTriggeredAbility { effects, optional, rule, .. }
             | AbilityDef::LandfallAbility { effects, optional, rule }
             | AbilityDef::DiesSourceTriggeredAbility { effects, optional, rule } => Some((rule, effects, *optional)),
+            AbilityDef::BeginningOfEndStepTriggeredAbility { effects, optional, rule, .. } => {
+                Some((rule, effects, *optional))
+            }
+            AbilityDef::DamagedOpponentsNoncombatTriggeredAbility { effects, rule } => Some((rule, effects, false)),
+            AbilityDef::ProwessAbility { rule } => Some((rule, PROWESS, false)),
             _ => None,
         }
     }

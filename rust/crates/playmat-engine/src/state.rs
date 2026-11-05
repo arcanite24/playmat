@@ -156,6 +156,8 @@ pub struct Player {
     pub passed: bool,
     /// drew from an empty library since the last state-based check
     pub drew_from_empty: bool,
+    /// declared an attacker this turn (`PlayerAttackedWatcher`)
+    pub attacked: bool,
 }
 
 /// What a target is.
@@ -177,11 +179,32 @@ pub struct StackItem {
     pub ability: Option<(usize, u32)>,
     /// a spell cast with its kicker paid
     pub kicked: bool,
+    /// the source's power as it last was on the battlefield, for an ability whose cost sacrificed it
+    pub lki_power: Option<i32>,
+    /// a delayed triggered ability (it has no ability index)
+    pub delayed: Option<Arc<Delayed>>,
+}
+
+/// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
+#[derive(Clone, Debug, PartialEq)]
+pub struct Delayed {
+    pub rule: String,
+    /// the permanents it sacrifices, with their zone-change counts
+    pub sacrifice: Vec<(ObjId, u32)>,
 }
 
 impl StackItem {
     pub fn spell(card: ObjId, controller: Seat) -> StackItem {
-        StackItem { card, controller, targets: Vec::new(), target_zcc: Vec::new(), ability: None, kicked: false }
+        StackItem {
+            card,
+            controller,
+            targets: Vec::new(),
+            target_zcc: Vec::new(),
+            ability: None,
+            kicked: false,
+            lki_power: None,
+            delayed: None,
+        }
     }
 }
 
@@ -213,6 +236,8 @@ pub struct Game {
     pub boosts: Arc<Vec<Boost>>,
     /// triggered abilities waiting to be put on the stack, in the order they triggered
     pub pending: Vec<StackItem>,
+    /// delayed triggers waiting for the end of combat
+    pub at_end_of_combat: Vec<StackItem>,
     /// this combat has a first-strike damage step
     pub first_strike_step: bool,
     /// the game is over (a player lost, or it reached its last turn)
@@ -236,6 +261,7 @@ impl Game {
             stack: Arc::new(Vec::new()),
             boosts: Arc::new(Vec::new()),
             pending: Vec::new(),
+            at_end_of_combat: Vec::new(),
             first_strike_step: false,
             over: false,
         }
@@ -301,6 +327,7 @@ impl Game {
                 o.is(CardType::Creature) && o.controller == you && o.counter("+1/+1") > 0
             }
             Filter::AnotherCreatureYouControl => o.is(CardType::Creature) && o.controller == you && Some(id) != source,
+            Filter::CreaturesOrPlaneswalkers => o.is(CardType::Creature) || o.is(CardType::Planeswalker),
             Filter::OpponentsCreatureOrPlaneswalker => {
                 (o.is(CardType::Creature) || o.is(CardType::Planeswalker)) && o.controller != you
             }
@@ -369,6 +396,9 @@ impl Game {
     /// A stack object's name as Java gives it: the card's, or `stack ability (<rule text>)`.
     pub fn stack_name(&self, item: &StackItem) -> String {
         let card = self.obj(item.card);
+        if let Some(d) = &item.delayed {
+            return format!("stack ability ({})", d.rule);
+        }
         match item.ability {
             Some((i, _)) => {
                 let rule = card.def.abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
