@@ -143,7 +143,7 @@
   grid-template-columns: repeat(8, minmax(0, 1fr));
   align-content: start;
   gap: 18px;
-  max-width: min(1500px, calc((100vh - 480px) / 2.8 * 8 + 126px));
+  max-width: min(1500px, calc((100dvh - 480px) / 2.8 * 8 + 126px));
   width: 100%;
   margin: 0 auto;
   padding: 8px 4px 12px;
@@ -189,7 +189,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-4);
-  max-width: min(1500px, calc((100vh - 480px) / 2.8 * 8 + 126px));
+  max-width: min(1500px, calc((100dvh - 480px) / 2.8 * 8 + 126px));
   width: 100%;
   margin: 0 auto;
   padding: var(--space-3) 4px;
@@ -244,7 +244,7 @@
   display: flex;
   gap: 14px;
   min-height: 170px;
-  max-height: 26vh;
+  max-height: 26dvh;
   overflow: auto hidden;
 }
 
@@ -388,7 +388,7 @@
   .booster {
     grid-auto-flow: column;
     grid-template-columns: none;
-    grid-auto-columns: min(120px, 22vh);
+    grid-auto-columns: min(120px, 22dvh);
     gap: 10px;
     padding: 6px 4px;
     overflow: auto hidden;

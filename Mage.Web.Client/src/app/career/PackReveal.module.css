@@ -71,7 +71,7 @@
 }
 
 .tear > span {
-  width: min(300px, 46vh);
+  width: min(300px, 46dvh);
 }
 
 .tear:disabled {
@@ -306,7 +306,7 @@
 
 .showcaseCard {
   position: relative;
-  width: min(380px, calc(62vh * 63 / 88), 80vw);
+  width: min(380px, calc(62dvh * 63 / 88), 80vw);
   border-radius: var(--card-radius);
   box-shadow: 0 0 0 3px var(--copper), 0 0 70px 10px rgb(var(--copper-rgb) / 0.7), 0 30px 60px rgb(0 0 0 / 0.6);
   animation: showcase-fly 620ms cubic-bezier(0.2, 0.8, 0.25, 1.1) both;
@@ -431,7 +431,7 @@
 }
 
 .zoomCard {
-  width: min(460px, calc(84vh * 63 / 88), 92vw);
+  width: min(460px, calc(84dvh * 63 / 88), 92vw);
   border-radius: var(--card-radius);
   box-shadow: 0 24px 70px rgb(0 0 0 / 0.7);
   animation: peek-in 180ms ease-out both;

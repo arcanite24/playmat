@@ -333,3 +333,18 @@
   }
 }
 
+
+/* a phone on its side keeps the top rail (a bottom bar would eat the little height there): the labels get a little
+   smaller and closer so more of them fit (the rest scroll sideways) */
+@media (max-height: 480px) and (min-width: 641px) and (max-width: 1000px) {
+  .navItem {
+    padding: 8px 7px;
+    font-size: var(--text-md);
+    letter-spacing: var(--tracking-print);
+  }
+
+  .navItem::after {
+    left: 7px;
+    right: 7px;
+  }
+}

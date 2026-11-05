@@ -2,7 +2,7 @@
 // No game server needed: a stand-in answers the WebSocket calls (sign-in, an empty lobby, a few dozen cards for the
 // binder), so the layout screens render. SCREENS picks screens (comma list), SIZES picks sizes (WxH comma list),
 // PREFIX names the files (e.g. PREFIX=before-). Shots land in .impeccable/review/mobile/ (git-ignored).
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { chromium } from '@playwright/test';
 
 const base = process.env.BASE ?? 'http://127.0.0.1:5173';
@@ -45,8 +45,13 @@ const tournament = {
   })),
 };
 
+let socket = null;
+const fixture = JSON.parse(await readFile(new URL('../src/core/rpc/__fixtures__/gameStatePatches.json', import.meta.url), 'utf8'));
+const replayInfo = { gameId: 'g1', tableName: 'Sample', turns: 4, events: 4, players: [{ name: 'Phone' }, { name: 'AI' }], result: 'Won' };
+
 /** Answers every call: sign-in works, searches return the cards, anything else is empty. */
 function mockServer(ws) {
+  socket = ws;
   ws.onMessage((raw) => {
     const message = JSON.parse(String(raw));
     if (message.id === undefined) return;
@@ -68,6 +73,8 @@ function mockServer(ws) {
       careerWeekly: { goals: [3, 6, 10], nextGoal: 6, week: '2026-W45', wins: 4 },
       careerOpponents: [1, 2, 3, 4, 5, 6].map((i) => ({ id: `o${i}`, name: `Opponent ${i}`, tagline: 'Plays red and burns you out.', tier: Math.ceil(i / 2), tierName: 'Adept', unlocked: i < 5, colors: 'R', pips: 3, bounty: 20, winCoins: 15, lists: 1, style: ['aggro'] })),
       roomGetAllTables: [],
+      replayList: [replayInfo],
+      replayPage: { info: replayInfo, total: 4, events: fixture.views.map((view, i) => ({ t: i * 1500, view, log: { message: `Event ${i + 1}` } })) },
       getExpansionSets: [],
       tournamentFindById: tournament,
     };
@@ -102,7 +109,31 @@ async function seeded(page, path, state) {
   }, [path, state]);
 }
 
+/** A game in progress, from the state the client's own tests use (src/core/rpc/__fixtures__): opens the session, has the
+ *  stand-in server push the state, then goes to the match through the router. */
+async function inGame(page, mode = 'play') {
+  const view = fixture.views[0];
+  await page.evaluate(async ([playerId, kind]) => {
+    const { useGames } = await import('/src/app/stores/games.ts');
+    useGames.getState().open('g1', playerId, kind, { tableId: 't1', parentTableId: null });
+  }, [view.myPlayerId, mode]);
+  socket.send(JSON.stringify({ method: 'GAME_INIT', objectId: 'g1', messageId: 1, data: view }));
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/game/g1');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await page.waitForTimeout(2500);
+}
+
 const screens = {
+  match: async (page) => inGame(page),
+  replay: async (page) => {
+    await page.evaluate(() => {
+      window.history.pushState({}, '', '/replay/g1');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    await page.waitForTimeout(2500);
+  },
   draft: async (page) => seeded(page, '/draft/d1', 'draft'),
   build: async (page) => seeded(page, '/build/t1', 'build'),
   home: async () => {},
@@ -133,6 +164,19 @@ const screens = {
   'career-progress': async (page) => page.goto(`${base}/career/progress`),
   'career-collection': async (page) => page.goto(`${base}/career/collection`),
   'career-capsules': async (page) => page.goto(`${base}/career/capsules`),
+  lobby: async (page) => {
+    await page.getByRole('button', { name: /^Lobby/ }).tap();
+  },
+  inbox: async (page) => {
+    await page.getByRole('button', { name: /inbox|results/i }).first().tap();
+  },
+  train: async (page) => page.goto(`${base}/train`),
+  'builder-numbers': async (page) => {
+    await screens.builder(page);
+    await page.getByRole('button', { name: /Click to add/ }).first().tap();
+    await page.getByRole('button', { name: /^Deck list/ }).tap();
+    await page.getByRole('button', { name: /^Numbers/ }).tap();
+  },
   event: async (page) => page.goto(`${base}/event/abc`),
   tables: async (page) => page.goto(`${base}/tables`),
   history: async (page) => page.goto(`${base}/history`),
@@ -167,7 +211,7 @@ for (const [width, height] of sizes) {
       await page.screenshot({ path: `${out}${prefix}${name}-${width}x${height}.png` });
       console.log('shot', name, width, height);
     } catch (error) {
-      console.log('failed', name, width, height, String(error).split('\n')[0]);
+      console.log('failed', name, width, height, String(error).split('\n').slice(0, 30).join(' | '));
     }
   }
   await context.close();
