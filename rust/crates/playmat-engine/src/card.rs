@@ -749,6 +749,9 @@ pub enum EffectDef {
     FumigateEffect,
     /// choose a card of the filter in your graveyard (if there is one) and return it to your hand
     ReturnCardChosenFromGraveyardEffect { filter: Filter, optional: bool },
+    /// reveal the top `amount`, put `pick` of the filter into your hand (asked first if optional), the rest into
+    /// your graveyard
+    RevealLibraryPickControllerEffect { amount: Amount, pick: usize, filter: Filter, optional: bool },
     /// the controller discards their hand
     DiscardHandControllerEffect,
     /// mill `amount`, then put a milled card of the filter into your hand (up to one if optional)
@@ -984,6 +987,9 @@ pub enum AbilityDef {
         /// the effects act on the controller of the object the event was about (`SetTargetPointer.PLAYER`)
         #[serde(default)]
         set_target_pointer_player: bool,
+        /// it triggers at most this many times each turn (`setTriggersLimitEachTurn`)
+        #[serde(default)]
+        limit_per_turn: Option<u32>,
         rule: String,
     },
     EntersBattlefieldTappedAbility {
@@ -1074,6 +1080,8 @@ pub enum AbilityDef {
     WardAbility { effects: Vec<EffectDef>, rule: String },
     /// this can't block
     CantBlockAbility,
+    /// this can't be blocked by creatures with power 2 or less
+    DauntAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
     AdventureCardSpellAbility,
     /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)

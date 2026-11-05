@@ -33,7 +33,7 @@ KEYWORDS = {
     'FlyingAbility', 'ReachAbility', 'HasteAbility', 'VigilanceAbility', 'TrampleAbility', 'FirstStrikeAbility',
     'CantBeCounteredSourceAbility', 'DoubleStrikeAbility', 'LifelinkAbility', 'DeathtouchAbility', 'DefenderAbility', 'MenaceAbility', 'FlashAbility',
     'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
-    'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility',
+    'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
 }
 
 # effects: class -> its constructor arguments, each (field name, kind); a kind of None means the argument is ignored
@@ -248,7 +248,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
               # spell mastery: two or more instant and/or sorcery cards in your graveyard
               'SpellMasteryCondition.instance': {'c': 'cards_in_graveyard', 'n': 2, 'filter': [
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
-              'MyTurnCondition.instance': {'c': 'my_turn'}}
+              'MyTurnCondition.instance': {'c': 'my_turn'},
+              'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}}}
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
 
 # an emblem's static effect lasts the game: as long as its source is there, like a permanent's
@@ -439,9 +440,10 @@ def subtype_names():
 
 
 def constructor_body(source, cls):
-    m = re.search(r'public\s+' + cls + r'\s*\(\s*UUID\s+ownerId\s*,\s*CardSetInfo\s+setInfo\s*\)\s*\{', source)
+    m = re.search(r'public\s+' + cls + r'\s*\(\s*UUID\s+(\w+)\s*,\s*CardSetInfo\s+(\w+)\s*\)\s*\{', source)
     if not m:
         raise Unsupported('no card constructor')
+    owner, info = m.group(1), m.group(2)
     depth, i = 1, m.end()
     while depth:
         c = source[i]
@@ -450,7 +452,10 @@ def constructor_body(source, cls):
         elif c == '}':
             depth -= 1
         i += 1
-    return source[m.end():i - 1]
+    body = source[m.end():i - 1]
+    if (owner, info) != ('ownerId', 'setInfo'):
+        body = re.sub(r'\b' + owner + r'\b', 'ownerId', re.sub(r'\b' + info + r'\b', 'setInfo', body))
+    return body
 
 
 def statements(body):
@@ -524,6 +529,8 @@ class Translator:
         arg = self.strip_setters(arg.strip())
         if re.fullmatch(r'-?\d+', arg):
             return int(arg)
+        if (m := re.fullmatch(r'StaticValue\.get\((-?\d+)\)', arg)):
+            return int(m.group(1))
         if arg in self.values:
             return self.amount(self.values[arg])
         # the life a "whenever you gain life" trigger saw is its X
@@ -800,11 +807,20 @@ class Translator:
             return {'class': 'DamageTargetSourcePowerEffect'}
         if cls.startswith('SearchLibraryPutIn'):
             return self.search_library(cls, [a.strip() for a in args])
+        # (effect, condition[, text])
+        if cls == 'ConditionalOneShotEffect' and len(args) in (2, 3) \
+                and (re.fullmatch(r'\w+Condition\.\w+', args[1].strip()) or args[1].strip() in self.conditions):
+            return {'class': cls, 'effect': self.effect(args[0]), 'condition': self.condition(args[1])}
         if cls == 'SpellCostReductionForEachSourceEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'per': int(args[0]), 'amount': self.amount(args[1])}
         if cls == 'ReturnCardChosenFromGraveyardEffect' and len(args) == 3 and args[2].strip() == 'PutCards.HAND' \
                 and args[0].strip() in ('true', 'false'):
             return {'class': cls, 'filter': self.filter(args[1]), 'optional': args[0].strip() == 'true'}
+        if cls == 'RevealLibraryPickControllerEffect' and len(args) in (5, 6) and re.fullmatch(r'\d+', args[0].strip()) \
+                and re.fullmatch(r'\d+', args[1].strip()) and [a.strip() for a in args[3:5]] == ['PutCards.HAND', 'PutCards.GRAVEYARD'] \
+                and (len(args) == 5 or args[5].strip() in ('true', 'false')):
+            return {'class': cls, 'amount': int(args[0]), 'pick': int(args[1]), 'filter': self.filter(args[2]),
+                    'optional': len(args) == 5 or args[5].strip() == 'true'}
         if cls == 'MillThenPutInHandEffect' and len(args) in (2, 3) and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]),
                     'optional': len(args) == 2 or args[2].strip() == 'true'}
@@ -987,6 +1003,14 @@ class Translator:
             a = self.ability(m.group(1))
             a['condition'] = self.value('condition', m.group(2))
             return a
+        # `….setTriggersLimitEachTurn(1)`
+        m = re.fullmatch(r'(.*\))\s*\.setTriggersLimitEachTurn\((\d+)\)', self.strip_setters(expr), re.S)
+        if m:
+            a = self.ability(m.group(1))
+            if a.get('class') != 'TriggeredAbility':
+                raise Unsupported('a trigger limit on ' + a.get('class', '?'))
+            a['limit_per_turn'] = int(m.group(2))
+            return a
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             return obj
@@ -1001,6 +1025,8 @@ class Translator:
             return {'class': cls}
         if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and 'CantBeCounteredSourceEffect' in args[1])):
             args = args[1:]
+        if cls == 'EntersBattlefieldAbility' and len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1].strip()):
+            return {'class': cls, 'effects': [self.effect(args[0])]}
         if cls == 'EntersBattlefieldTappedUnlessAbility' and len(args) in (1, 2):
             return {'class': 'EntersBattlefieldAbility', 'java': cls, 'effects': [
                 {'class': 'ConditionalOneShotEffect', 'otherwise': {'class': 'TapSourceEffect'},
@@ -1337,6 +1363,7 @@ def modal_double_faced(card_name, subtypes, facts, cls, source):
 
 def card_statement(t, st, card, added, spell, modes, subtypes):
     """One statement of a card's constructor"""
+    st = re.sub(r'^(subtype|supertype|power|toughness)\b', r'this.\1', st)
     if True:
         m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},(".*?"|null)\)', st)
         if m:

@@ -291,6 +291,10 @@ pub struct Game {
     pub grants: Arc<Vec<Grant>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
+    /// triggered abilities with a limit each turn that triggered this turn: source, ability index
+    pub triggered_this_turn: Vec<(ObjId, usize)>,
+    /// the battlefield as the current action began, for the dies triggers of what it moves all at once
+    pub lookback: Vec<ObjId>,
     /// cards exiled until a permanent (and its zone change count) leaves the battlefield
     pub exiled_until_leaves: Vec<(ObjId, u32, ObjId)>,
     /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack)
@@ -322,6 +326,8 @@ impl Game {
             at_end_of_combat: Vec::new(),
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
+            triggered_this_turn: Vec::new(),
+            lookback: Vec::new(),
             exiled_until_leaves: Vec::new(),
             returning: Vec::new(),
             first_strike_step: false,
@@ -785,9 +791,11 @@ impl Game {
         } else {
             zone
         };
-        // dies triggers look back at the battlefield as it was (this one included)
+        // dies triggers look back at the battlefield as it was (this one included), and at what left it in the same
+        // action (Java's short-living LKI: a sweeper's creatures see each other die)
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
-            let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
+            let mut sources: Vec<ObjId> = self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
+            sources.extend(self.battlefield.iter().copied());
             self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Dies | Trigger::EntersOrDies | Trigger::LeavesBattlefield => src == id,
                 // the source itself always counts ("this or another"); others must match
