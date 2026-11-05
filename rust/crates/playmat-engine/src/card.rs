@@ -119,25 +119,43 @@ pub enum CardType {
     Sorcery,
 }
 
-/// Targets, named after the Java target classes.
+/// Targets, named after the Java target classes. Every target of permanents is a `TargetPermanent` with a filter
+/// (the Java classes for creatures, lands, "you control"… only fix the filter); `min` below `max` is "up to".
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "class")]
 pub enum TargetDef {
     /// any target: a creature, player, planeswalker or battle
     TargetAnyTarget,
-    TargetCreaturePermanent,
     TargetPlayer,
     TargetOpponent,
-    /// a spell on the stack
-    TargetSpell,
-    /// a creature you control
-    TargetControlledCreaturePermanent,
-    /// a permanent of the card's own filter
-    TargetPermanent {
+    /// a spell on the stack, of the filter
+    TargetSpell {
+        #[serde(default)]
         filter: Filter,
     },
-    TargetCreatureOrPlaneswalker,
+    /// a permanent of the filter
+    TargetPermanent {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
     TargetPlayerOrPlaneswalker,
+    /// a card in a graveyard (`TargetCardInGraveyard`, or `…InYourGraveyard` with the "you" owner predicate)
+    TargetCardInGraveyard {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
+}
+
+fn one() -> usize {
+    1
 }
 
 /// How long a continuous effect lasts (Java's `Duration`).
@@ -147,24 +165,193 @@ pub enum Duration {
     WhileOnBattlefield,
 }
 
-/// Which permanents a filter takes (Java's `StaticFilters`, or a card's own filter field). "You" is the filter's
-/// source's controller (or the player choosing targets).
+/// `ComparisonType`
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum Filter {
-    Creatures,
-    /// `FILTER_EACH_CONTROLLED_CREATURE_P1P1`: each creature you control with a +1/+1 counter on it
-    ControlledCreaturesWithP1p1,
-    /// `FILTER_ANOTHER_CREATURE_YOU_CONTROL`
-    AnotherCreatureYouControl,
-    /// a creature or planeswalker you don't control
-    OpponentsCreatureOrPlaneswalker,
-    CreaturesOrPlaneswalkers,
-    /// `FILTER_PERMANENTS`
-    Permanents,
-    /// a creature with toughness 4 or greater
-    #[serde(rename = "creature_toughness_4_or_more")]
-    CreatureToughness4OrMore,
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Cmp {
+    FewerThan,
+    MoreThan,
+    EqualTo,
+    OrLess,
+    OrGreater,
+}
+
+impl Cmp {
+    pub fn holds(self, a: i32, b: i32) -> bool {
+        match self {
+            Cmp::FewerThan => a < b,
+            Cmp::MoreThan => a > b,
+            Cmp::EqualTo => a == b,
+            Cmp::OrLess => a <= b,
+            Cmp::OrGreater => a >= b,
+        }
+    }
+}
+
+/// One of a filter's predicates (Java's `Predicate`s). "You" is the filter's source's controller, or the player
+/// choosing targets.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "p", rename_all = "snake_case")]
+pub enum Pred {
+    /// `CardType.X.getPredicate()`
+    Type {
+        t: CardType,
+    },
+    /// `SubType.X.getPredicate()` (the subtype's printed name)
+    Subtype {
+        s: String,
+    },
+    /// `SuperType.X.getPredicate()`: "BASIC", "LEGENDARY"
+    Supertype {
+        s: String,
+    },
+    /// `ColorPredicate`
+    Color {
+        c: Color,
+    },
+    /// `TargetController.X.getControllerPredicate()`: "you" or "opponent"
+    Controller {
+        who: String,
+    },
+    /// `TargetController.X.getOwnerPredicate()`
+    Owner {
+        who: String,
+    },
+    /// `AnotherPredicate`: not the source
+    Another,
+    /// `ManaValuePredicate`
+    Mv {
+        cmp: Cmp,
+        n: i32,
+    },
+    Power {
+        cmp: Cmp,
+        n: i32,
+    },
+    Toughness {
+        cmp: Cmp,
+        n: i32,
+    },
+    /// `TappedPredicate.TAPPED` (true) or `.UNTAPPED`
+    Tapped {
+        v: bool,
+    },
+    /// `AttackingPredicate`
+    Attacking,
+    /// attacking or blocking
+    InCombat,
+    /// `TokenPredicate.TRUE` (true) or `.FALSE`
+    Token {
+        v: bool,
+    },
+    /// `CounterType.X.getPredicate()`: has at least one counter of the kind
+    Counter {
+        name: String,
+    },
+    /// `AbilityPredicate(X.class)`: has the keyword
+    Ability {
+        a: Box<AbilityDef>,
+    },
+    /// `NamePredicate`
+    Name {
+        n: String,
+    },
+    /// `PermanentPredicate`: a permanent card (not an instant or sorcery)
+    PermanentCard,
+    Not {
+        x: Box<Pred>,
+    },
+    Or {
+        xs: Vec<Pred>,
+    },
+    And {
+        xs: Vec<Pred>,
+    },
+}
+
+/// What a triggered ability triggers on. "This" is the ability's source; "you", its controller.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "e", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Trigger {
+    /// this enters (`EntersBattlefieldTriggeredAbility`)
+    Enters,
+    /// this attacks (`AttacksTriggeredAbility`)
+    Attacks,
+    /// this dies (`DiesSourceTriggeredAbility`)
+    Dies,
+    EntersOrDies,
+    EntersOrAttacks,
+    /// a permanent of the filter enters (`EntersBattlefieldAllTriggeredAbility`, `…ControlledTriggeredAbility`,
+    /// landfall)
+    EntersAll {
+        filter: Filter,
+    },
+    /// a permanent of the filter dies; with `include_self`, this too, whatever the filter
+    DiesAll {
+        filter: Filter,
+        #[serde(default)]
+        include_self: bool,
+    },
+    /// at the beginning of `step` ("upkeep", "combat", "end") of `who`'s turn: "you", "opponent" or "any"
+    StepBegins {
+        step: String,
+        who: String,
+    },
+    /// you gain life (`GainLifeControllerTriggeredAbility`)
+    YouGainLife,
+    /// `who` ("you", "opponent", "any") casts a spell of the filter (`SpellCastControllerTriggeredAbility`, prowess)
+    SpellCast {
+        filter: Filter,
+        who: String,
+    },
+    /// this deals combat damage to a player
+    CombatDamageToPlayer,
+    /// one or more opponents are dealt noncombat damage (Master of Barbs)
+    OpponentsDealtNoncombatDamage,
+}
+
+/// Conditions (Java's `Condition`s), checked for the controller of a source.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "c", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Condition {
+    /// `KickedCondition`: the spell was kicked (only a spell or what it put on the battlefield knows)
+    Kicked,
+    /// `RaidCondition`: you attacked this turn
+    Raid,
+    /// `MyTurnCondition`
+    MyTurn,
+    /// `PermanentsOnTheBattlefieldCondition` / `YouControlPermanentCondition`: the number of permanents of the filter
+    /// (you control, unless `all`) compared with `n`
+    Permanents {
+        filter: Filter,
+        cmp: Cmp,
+        n: i32,
+        #[serde(default)]
+        all: bool,
+    },
+    /// `SourceHasCounterCondition`: the source has at least `n` counters of the kind
+    SourceCounter {
+        name: String,
+        n: i32,
+    },
+    Not {
+        x: Box<Condition>,
+    },
+}
+
+/// Which objects a filter takes: those every predicate holds for. An empty filter takes everything.
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+#[serde(transparent)]
+pub struct Filter(pub Vec<Pred>);
+
+impl Filter {
+    pub fn of(preds: Vec<Pred>) -> Filter {
+        Filter(preds)
+    }
+
+    pub fn creatures() -> Filter {
+        Filter(vec![Pred::Type { t: CardType::Creature }])
+    }
 }
 
 /// Counters an effect puts on a permanent: `CounterType.P1P1.createInstance(2)`.
@@ -217,30 +404,68 @@ pub enum CostDef {
     SacrificeSourceCost,
 }
 
+/// Where cards go (Java's `PutCards`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PutCards {
+    Hand,
+    Graveyard,
+    Battlefield,
+    BattlefieldTapped,
+    Exiled,
+    TopAny,
+    BottomAny,
+    BottomRandom,
+}
+
 /// One-shot effects, named after the Java effect classes.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(tag = "class")]
+#[serde(tag = "class", deny_unknown_fields)]
 pub enum EffectDef {
     /// deals `amount` damage to the ability's target
-    DamageTargetEffect { amount: i32 },
+    DamageTargetEffect {
+        amount: i32,
+    },
     /// the controller draws `amount` cards
-    DrawCardSourceControllerEffect { amount: i32 },
+    DrawCardSourceControllerEffect {
+        amount: i32,
+    },
     /// the controller gains `amount` life
-    GainLifeEffect { amount: i32 },
+    GainLifeEffect {
+        amount: i32,
+    },
     /// destroys the target permanent
     DestroyTargetEffect,
     /// counters the target spell
     CounterTargetEffect,
     /// the target creature gets +power/+toughness
-    BoostTargetEffect { power: i32, toughness: i32, duration: Duration },
+    BoostTargetEffect {
+        power: i32,
+        toughness: i32,
+        duration: Duration,
+    },
     /// the source gets +power/+toughness
-    BoostSourceEffect { power: i32, toughness: i32, duration: Duration },
+    BoostSourceEffect {
+        power: i32,
+        toughness: i32,
+        duration: Duration,
+    },
     /// a static ability's effect: the permanents of `filter` its controller controls get +power/+toughness
-    BoostControlledEffect { power: i32, toughness: i32, duration: Duration, filter: Filter, exclude_source: bool },
+    BoostControlledEffect {
+        power: i32,
+        toughness: i32,
+        duration: Duration,
+        filter: Filter,
+        exclude_source: bool,
+    },
     /// puts counters on the source
-    AddCountersSourceEffect { counter: CounterDef },
+    AddCountersSourceEffect {
+        counter: CounterDef,
+    },
     /// puts counters on the target permanent
-    AddCountersTargetEffect { counter: CounterDef },
+    AddCountersTargetEffect {
+        counter: CounterDef,
+    },
     /// the controller creates `amount` tokens; Kavaron Harrier's enter tapped and attacking and are sacrificed at end
     /// of combat
     CreateTokenEffect {
@@ -254,39 +479,158 @@ pub enum EffectDef {
     /// deals damage equal to the source's power (as it last was on the battlefield) to the target
     DamageTargetSourcePowerEffect,
     /// `effect` if the condition holds, otherwise `otherwise`
-    ConditionalOneShotEffect { effect: Box<EffectDef>, otherwise: Box<EffectDef>, condition: String },
+    ConditionalOneShotEffect {
+        #[serde(default)]
+        effect: Option<Box<EffectDef>>,
+        #[serde(default)]
+        otherwise: Option<Box<EffectDef>>,
+        condition: Condition,
+    },
     /// deals `amount` damage to each player of `controller` ("opponent")
-    DamagePlayersEffect { amount: i32, controller: String },
+    DamagePlayersEffect {
+        amount: i32,
+        controller: String,
+    },
     /// sacrifices the source
     SacrificeSourceEffect,
     /// the controller may pay `cost`; if they do, `effect`
-    DoIfCostPaid { effect: Box<EffectDef>, cost: Vec<CostDef> },
+    DoIfCostPaid {
+        effect: Box<EffectDef>,
+        cost: Vec<CostDef>,
+    },
     /// the permanents of `filter` you control have `ability` (static), or gain it (resolving, until end of turn)
-    GainAbilityControlledEffect { ability: Box<AbilityDef>, duration: Duration, filter: Filter },
+    GainAbilityControlledEffect {
+        ability: Box<AbilityDef>,
+        duration: Duration,
+        filter: Filter,
+        #[serde(default)]
+        exclude_source: bool,
+    },
     /// the target gains `ability`
-    GainAbilityTargetEffect { ability: Box<AbilityDef>, duration: Duration },
+    GainAbilityTargetEffect {
+        ability: Box<AbilityDef>,
+        duration: Duration,
+    },
     /// the source has `ability` (static)
-    GainAbilitySourceEffect { ability: Box<AbilityDef>, duration: Duration },
+    GainAbilitySourceEffect {
+        ability: Box<AbilityDef>,
+        duration: Duration,
+    },
     /// a static effect that applies only while the condition holds ("my_turn")
-    ConditionalContinuousEffect { effect: Box<EffectDef>, condition: String },
+    ConditionalContinuousEffect {
+        effect: Box<EffectDef>,
+        condition: Condition,
+    },
     /// the source's base power and toughness are each a count (layer 7a; "creatures_you_control")
-    SetBasePowerToughnessSourceEffect { count: String },
+    SetBasePowerToughnessSourceEffect {
+        count: String,
+    },
     /// if the target would die this turn, it's exiled instead
     ExileTargetIfDiesEffect,
     /// adds a subtype to the source (subtypes aren't in the fingerprint, and no rule reads them yet)
     AddCardSubTypeSourceEffect,
     /// as it enters, its controller may pay `life`; if they don't, it enters tapped
-    TapSourceUnlessPaysEffect { life: i32 },
+    TapSourceUnlessPaysEffect {
+        life: i32,
+    },
     /// the first target deals damage equal to its power to the second (Bite Down)
     DamageWithPowerFromOneToAnotherTargetEffect,
+    /// each opponent loses `amount` life
+    LoseLifeOpponentsEffect {
+        amount: i32,
+    },
+    /// the controller loses `amount` life
+    LoseLifeSourceControllerEffect {
+        amount: i32,
+    },
+    /// the target players lose `amount` life
+    LoseLifeTargetEffect {
+        amount: i32,
+    },
+    /// destroys every permanent of `filter`
+    DestroyAllEffect {
+        filter: Filter,
+    },
+    /// deals `amount` damage to every permanent of `filter`
+    DamageAllEffect {
+        amount: i32,
+        filter: Filter,
+    },
+    /// the permanents of `filter` get +power/+toughness (static: while on the battlefield; resolving: those there now)
+    BoostAllEffect {
+        power: i32,
+        toughness: i32,
+        duration: Duration,
+        filter: Filter,
+        exclude_source: bool,
+    },
+    /// puts counters on every permanent of `filter`
+    AddCountersAllEffect {
+        counter: CounterDef,
+        filter: Filter,
+    },
+    /// exiles the targets
+    ExileTargetEffect,
+    /// returns the targets to their owners' hands
+    ReturnToHandTargetEffect,
+    TapTargetEffect,
+    UntapTargetEffect,
+    /// taps the source
+    TapSourceEffect,
+    /// counters the target spell unless its controller pays `cost`
+    CounterUnlessPaysEffect {
+        cost: Vec<CostDef>,
+    },
+    /// the source deals `amount` damage to its controller
+    DamageControllerEffect {
+        amount: i32,
+    },
+    /// the target players draw `amount` cards
+    DrawCardTargetEffect {
+        amount: i32,
+    },
+    /// the controller scries `amount`
+    ScryEffect {
+        amount: i32,
+    },
+    /// the controller surveils `amount`
+    SurveilEffect {
+        amount: i32,
+    },
+    /// looks at the top `look` cards (or `look_count` of them), puts up to (or exactly) `pick` of `filter` where
+    /// `picked` says and the rest where `looked` says; `optional` asks first
+    LookLibraryAndPickControllerEffect {
+        #[serde(default)]
+        look: i32,
+        #[serde(default)]
+        look_count: Option<String>,
+        pick: i32,
+        #[serde(default)]
+        filter: Filter,
+        picked: PutCards,
+        looked: PutCards,
+        #[serde(default)]
+        up_to: bool,
+        #[serde(default)]
+        optional: bool,
+    },
     /// a static ability's effect: the permanents of `filter` have `ability`
-    GainAbilityAllEffect { ability: Box<AbilityDef>, duration: Duration, filter: Filter },
+    GainAbilityAllEffect {
+        ability: Box<AbilityDef>,
+        duration: Duration,
+        filter: Filter,
+        #[serde(default)]
+        exclude_source: bool,
+    },
 }
 
 /// The spell ability of an instant or sorcery: what it does when it resolves. A modal spell ("choose one") has
 /// `modes` instead, the first being the spell ability's own effects and targets.
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 pub struct SpellDef {
+    /// the spell ability's rule text, as Java prints it (lower case: auto-targeting reads it)
+    #[serde(default)]
+    pub rule: String,
     #[serde(default)]
     pub effects: Vec<EffectDef>,
     #[serde(default)]
@@ -316,26 +660,31 @@ impl SpellDef {
 /// Abilities of a card, named after the Java ability classes, in the order Java lists them (decision logs name an
 /// ability by its place in that list). `rule` is the rule text as Java prints it, `{this}` and all.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
-#[serde(tag = "class")]
+#[serde(tag = "class", deny_unknown_fields)]
 pub enum AbilityDef {
     /// casting the card (every nonland card has one)
     SpellAbility,
     /// playing the card (every land has one)
     PlayLandAbility,
-    EntersBattlefieldTriggeredAbility {
-        effects: Vec<EffectDef>,
-        #[serde(default)]
-        optional: bool,
-        rule: String,
-    },
-    AttacksTriggeredAbility {
-        effects: Vec<EffectDef>,
-        #[serde(default)]
-        optional: bool,
-        rule: String,
-    },
     SimpleStaticAbility {
         effects: Vec<EffectDef>,
+        rule: String,
+    },
+    /// a triggered ability: what it triggers on, then what it does (Java's many `…TriggeredAbility` classes, each
+    /// one `Trigger`)
+    TriggeredAbility {
+        on: Trigger,
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        #[serde(default)]
+        optional: bool,
+        /// an intervening "if", checked as it triggers and as it resolves
+        #[serde(default)]
+        condition: Option<Condition>,
+        /// the effects act on the object or player the event was about (`SetTargetPointer`)
+        #[serde(default)]
+        set_target_pointer: bool,
         rule: String,
     },
     EntersBattlefieldTappedAbility {
@@ -355,57 +704,7 @@ pub enum AbilityDef {
     EntersBattlefieldAbility {
         effects: Vec<EffectDef>,
         #[serde(default)]
-        condition: Option<String>,
-        rule: String,
-    },
-    /// whenever a permanent of `filter` enters
-    EntersBattlefieldAllTriggeredAbility {
-        effects: Vec<EffectDef>,
-        filter: Filter,
-        #[serde(default)]
-        optional: bool,
-        rule: String,
-    },
-    /// whenever a land you control enters
-    LandfallAbility {
-        effects: Vec<EffectDef>,
-        #[serde(default)]
-        optional: bool,
-        rule: String,
-    },
-    /// when this dies
-    DiesSourceTriggeredAbility {
-        effects: Vec<EffectDef>,
-        #[serde(default)]
-        optional: bool,
-        rule: String,
-    },
-    /// whenever you cast a noncreature spell, this gets +1/+1 until end of turn
-    ProwessAbility {
-        rule: String,
-    },
-    /// at the beginning of the end step of `controller` ("you", or "any" player's), if the condition holds
-    BeginningOfEndStepTriggeredAbility {
-        controller: String,
-        effects: Vec<EffectDef>,
-        #[serde(default)]
-        optional: bool,
-        #[serde(default)]
-        condition: Option<String>,
-        rule: String,
-    },
-    /// at the beginning of combat on your turn, if the condition holds
-    BeginningOfCombatTriggeredAbility {
-        effects: Vec<EffectDef>,
-        #[serde(default)]
-        optional: bool,
-        #[serde(default)]
-        condition: Option<String>,
-        rule: String,
-    },
-    /// whenever one or more opponents are dealt noncombat damage (Master of Barbs)
-    DamagedOpponentsNoncombatTriggeredAbility {
-        effects: Vec<EffectDef>,
+        condition: Option<Condition>,
         rule: String,
     },
     ActivateAsSorceryActivatedAbility {
@@ -437,43 +736,59 @@ pub enum AbilityDef {
     HexproofAbility,
     IndestructibleAbility,
     /// {T}: Add {W}. The basic land types' mana abilities are these too.
-    WhiteManaAbility,
-    BlueManaAbility,
-    BlackManaAbility,
-    RedManaAbility,
-    GreenManaAbility,
-    ColorlessManaAbility,
+    WhiteManaAbility {
+        /// what else activating it does (a pain land's damage)
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+    },
+    BlueManaAbility {
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+    },
+    BlackManaAbility {
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+    },
+    RedManaAbility {
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+    },
+    GreenManaAbility {
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+    },
+    ColorlessManaAbility {
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+    },
 }
-
-const PROWESS: &[EffectDef] = &[EffectDef::BoostSourceEffect { power: 1, toughness: 1, duration: Duration::EndOfTurn }];
 
 /// An activated ability's parts: rule text, effects, targets, costs, sorcery speed.
 pub type Activated<'a> = (&'a str, &'a [EffectDef], &'a [TargetDef], &'a [CostDef], bool);
 
 impl AbilityDef {
-    /// a triggered ability's rule text, effects and whether it's a "may" ability
-    pub fn triggered(&self) -> Option<(&str, &[EffectDef], bool)> {
+    /// a triggered ability's rule text, effects, targets and whether it's a "may" ability
+    pub fn triggered(&self) -> Option<(&str, &[EffectDef], &[TargetDef], bool)> {
         match self {
-            AbilityDef::EntersBattlefieldTriggeredAbility { effects, optional, rule }
-            | AbilityDef::AttacksTriggeredAbility { effects, optional, rule }
-            | AbilityDef::EntersBattlefieldAllTriggeredAbility { effects, optional, rule, .. }
-            | AbilityDef::LandfallAbility { effects, optional, rule }
-            | AbilityDef::DiesSourceTriggeredAbility { effects, optional, rule } => Some((rule, effects, *optional)),
-            AbilityDef::BeginningOfEndStepTriggeredAbility { effects, optional, rule, .. }
-            | AbilityDef::BeginningOfCombatTriggeredAbility { effects, optional, rule, .. } => {
-                Some((rule, effects, *optional))
+            AbilityDef::TriggeredAbility { effects, targets, optional, rule, .. } => {
+                Some((rule, effects, targets, *optional))
             }
-            AbilityDef::DamagedOpponentsNoncombatTriggeredAbility { effects, rule } => Some((rule, effects, false)),
-            AbilityDef::ProwessAbility { rule } => Some((rule, PROWESS, false)),
+            _ => None,
+        }
+    }
+
+    /// what a triggered ability triggers on
+    pub fn trigger(&self) -> Option<&Trigger> {
+        match self {
+            AbilityDef::TriggeredAbility { on, .. } => Some(on),
             _ => None,
         }
     }
 
     /// a triggered ability's intervening "if", checked when it triggers and again when it resolves
-    pub fn intervening_if(&self) -> Option<&str> {
+    pub fn intervening_if(&self) -> Option<&Condition> {
         match self {
-            AbilityDef::BeginningOfEndStepTriggeredAbility { condition, .. }
-            | AbilityDef::BeginningOfCombatTriggeredAbility { condition, .. } => condition.as_deref(),
+            AbilityDef::TriggeredAbility { condition, .. } => condition.as_ref(),
             _ => None,
         }
     }
@@ -493,8 +808,8 @@ impl AbilityDef {
 
     /// what a stack object of this ability resolves: rule text, effects, targets, whether it asks first
     pub fn on_stack(&self) -> Option<(&str, &[EffectDef], &[TargetDef], bool)> {
-        if let Some((rule, effects, optional)) = self.triggered() {
-            return Some((rule, effects, &[], optional));
+        if let Some((rule, effects, targets, optional)) = self.triggered() {
+            return Some((rule, effects, targets, optional));
         }
         self.activated().map(|(rule, effects, targets, _, _)| (rule, effects, targets, false))
     }
@@ -506,13 +821,26 @@ impl AbilityDef {
     /// the mana a `{T}: Add …` ability makes
     pub fn mana(&self) -> Option<Mana> {
         match self {
-            AbilityDef::WhiteManaAbility => Some(Mana::of(Color::W, 1)),
-            AbilityDef::BlueManaAbility => Some(Mana::of(Color::U, 1)),
-            AbilityDef::BlackManaAbility => Some(Mana::of(Color::B, 1)),
-            AbilityDef::RedManaAbility => Some(Mana::of(Color::R, 1)),
-            AbilityDef::GreenManaAbility => Some(Mana::of(Color::G, 1)),
-            AbilityDef::ColorlessManaAbility => Some(Mana { colorless: 1, ..Mana::default() }),
+            AbilityDef::WhiteManaAbility { .. } => Some(Mana::of(Color::W, 1)),
+            AbilityDef::BlueManaAbility { .. } => Some(Mana::of(Color::U, 1)),
+            AbilityDef::BlackManaAbility { .. } => Some(Mana::of(Color::B, 1)),
+            AbilityDef::RedManaAbility { .. } => Some(Mana::of(Color::R, 1)),
+            AbilityDef::GreenManaAbility { .. } => Some(Mana::of(Color::G, 1)),
+            AbilityDef::ColorlessManaAbility { .. } => Some(Mana { colorless: 1, ..Mana::default() }),
             _ => None,
+        }
+    }
+
+    /// what a mana ability does besides making mana
+    pub fn mana_effects(&self) -> &[EffectDef] {
+        match self {
+            AbilityDef::WhiteManaAbility { effects }
+            | AbilityDef::BlueManaAbility { effects }
+            | AbilityDef::BlackManaAbility { effects }
+            | AbilityDef::RedManaAbility { effects }
+            | AbilityDef::GreenManaAbility { effects }
+            | AbilityDef::ColorlessManaAbility { effects } => effects,
+            _ => &[],
         }
     }
 }
