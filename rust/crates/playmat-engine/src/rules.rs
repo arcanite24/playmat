@@ -97,7 +97,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {
                     let o = game.obj_mut(id);
-                    o.tapped = false;
+                    untap(o);
                     o.sick = false;
                 }
             }
@@ -1718,7 +1718,7 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     }
     if let Some((index, zcc)) = item.ability {
         if let Some(a) = def.abilities.get(index) {
-            if !game.condition_holds(a.intervening_if(), item.controller, id) {
+            if !game.condition_holds(a.intervening_if(), item.controller, id) || !game.pelt_holds(&item) {
                 return;
             }
         }
@@ -2559,7 +2559,7 @@ fn apply_each_effect(
             }
             EffectDef::UntapTargetEffect => {
                 for o in &objs {
-                    game.obj_mut(*o).tapped = false;
+                    untap(game.obj_mut(*o));
                 }
             }
             EffectDef::TapSourceEffect => {
@@ -2795,6 +2795,118 @@ fn apply_each_effect(
                 }
                 for c in chosen_all {
                     game.move_to(c, Zone::Graveyard);
+                }
+            }
+            EffectDef::FabledPassageSearchForLandEffect { filter } => {
+                let Some(found) = search_library(game, d, controller, filter, 1, 1, source.0) else { return };
+                // it shuffles with the land still in the library
+                let mut library = game.player(controller).library.clone();
+                game.rng.shuffle(&mut library);
+                game.player_mut(controller).library = library;
+                if let Some(&c) = found.first() {
+                    if !put_cards(game, d, controller, &[c], crate::card::PutCards::BattlefieldTapped) {
+                        return;
+                    }
+                    let lands = game
+                        .battlefield
+                        .iter()
+                        .filter(|p| game.obj(**p).controller == controller && game.has_type(**p, CardType::Land))
+                        .count();
+                    if lands >= 4 && game.obj(c).zone == Zone::Battlefield {
+                        game.obj_mut(c).tapped = false;
+                    }
+                }
+            }
+            EffectDef::FabledPassageUntapLandEffect => {}
+            EffectDef::MagmaticHellkiteEffect => {
+                if let Some(&o) = objs.first() {
+                    let player = game.obj(o).controller;
+                    destroy(game, o);
+                    let basic = crate::card::Filter(vec![
+                        crate::card::Pred::Type { t: CardType::Land },
+                        crate::card::Pred::Supertype { s: "BASIC".into() },
+                    ]);
+                    let Some(found) = search_library(game, d, player, &basic, 1, 1, source.0) else { return };
+                    if let Some(&c) = found.first() {
+                        if !put_cards(game, d, player, &[c], crate::card::PutCards::BattlefieldTapped) {
+                            return;
+                        }
+                        if game.obj(c).zone == Zone::Battlefield {
+                            game.obj_mut(c).add_counters("stun", 1);
+                        }
+                    }
+                    let mut library = game.player(player).library.clone();
+                    game.rng.shuffle(&mut library);
+                    game.player_mut(player).library = library;
+                }
+            }
+            EffectDef::FloodpitsDrownerEffect => {
+                let mut perms: Vec<ObjId> = Vec::new();
+                let (s, zcc) = source;
+                if game.obj(s).zone == Zone::Battlefield && game.obj(s).zcc == zcc {
+                    perms.push(s);
+                }
+                if let Some(&o) = objs.first() {
+                    if game.obj(o).zone == Zone::Battlefield {
+                        perms.push(o);
+                    }
+                }
+                let same_owner = perms.len() == 2 && game.obj(perms[0]).owner == game.obj(perms[1]).owner;
+                let groups: Vec<Vec<ObjId>> =
+                    if same_owner { vec![perms.clone()] } else { perms.iter().map(|p| vec![*p]).collect() };
+                for mut cards in groups {
+                    let owner = game.obj(cards[0]).owner;
+                    // `ZonesHandler.chooseOrder`: the owner picks the order to put them on the bottom
+                    let mut order = Vec::new();
+                    while cards.len() > 1 {
+                        match ask(game, d, owner, &Query::Cards { objs: cards.clone(), required: true }) {
+                            Answer::Obj(o) if cards.contains(&o) => {
+                                cards.retain(|c| *c != o);
+                                order.push(o);
+                            }
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    }
+                    order.extend(cards);
+                    for c in order {
+                        to_library(game, c, false);
+                    }
+                    let mut library = game.player(owner).library.clone();
+                    game.rng.shuffle(&mut library);
+                    game.player_mut(owner).library = library;
+                }
+            }
+            EffectDef::DamageTargetAndTargetEffect { first, second } => {
+                for (i, n) in [(0, *first), (1, *second)] {
+                    for t in legal.get(i).cloned().unwrap_or_default() {
+                        deal_damage(game, source.0, t, n, false);
+                    }
+                }
+            }
+            EffectDef::LoseGainEffect => {
+                gain_life(game, controller, 2);
+                for s in &players {
+                    lose_life(game, *s, 2);
+                }
+            }
+            EffectDef::ScavengingOozeEffect => {
+                if let Some(&o) = objs.first() {
+                    game.move_to(o, Zone::Exile);
+                    if game.obj(o).is(CardType::Creature) {
+                        let (s, zcc) = source;
+                        if game.obj(s).zone == Zone::Battlefield && game.obj(s).zcc == zcc {
+                            game.obj_mut(s).add_counters("+1/+1", 1);
+                        }
+                        gain_life(game, controller, 1);
+                    }
+                }
+            }
+            EffectDef::ExileGraveyardAllPlayersEffect => {
+                for p in 0..game.seats() {
+                    for c in game.player(p).graveyard.clone() {
+                        game.move_to(c, Zone::Exile);
+                    }
                 }
             }
             EffectDef::ExileGraveyardAllTargetPlayerEffect => {
@@ -3058,7 +3170,8 @@ fn apply_each_effect(
             | EffectDef::TapSourceUnlessPaysEffect { .. }
             | EffectDef::AttachEffect
             | EffectDef::BoostEnchantedEffect { .. }
-            | EffectDef::CantAttackBlockAttachedEffect => {}
+            | EffectDef::CantAttackBlockAttachedEffect
+            | EffectDef::GraveyardFromAnywhereExileReplacementEffect => {}
         }
     }
 }
@@ -3419,7 +3532,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     for p in game.players.iter() {
         sources.extend(p.graveyard.iter().copied());
     }
-    let mut fired = game.triggers(sources, |g, src, you, t| match t {
+    let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::Enters | Trigger::EntersOrDies | Trigger::EntersOrAttacks => {
             src == id && g.obj(src).zone == Zone::Battlefield
         }
@@ -3427,8 +3540,10 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             *graveyard == (g.obj(src).zone == Zone::Graveyard)
                 && ((src == id && *include_self) || g.filter_matches(filter, you, Some(src), id))
         }
+        Trigger::PeltCollector => src != id && g.obj(src).zone == Zone::Battlefield && controller == you,
         _ => false,
     });
+    let mut fired = game.pelt_collector(fired, id);
     for t in fired.iter_mut() {
         let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i).cloned());
         if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
@@ -3441,6 +3556,15 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         }
     }
     game.pending.extend(fired);
+}
+
+/// Untaps a permanent, unless it has a stun counter: then one comes off instead
+fn untap(o: &mut crate::state::Obj) {
+    if o.tapped && o.counter("stun") > 0 {
+        o.add_counters("stun", -1);
+    } else {
+        o.tapped = false;
+    }
 }
 
 /// `GameImpl.checkStateAndTriggered`: state-based actions until none apply, then waiting triggers go on the stack,
@@ -3473,7 +3597,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
         // an intervening "if" is checked as it triggers (and again as it resolves)
         pending.retain(|t| {
             let ability = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
-            game.condition_holds(ability.and_then(|a| a.intervening_if()), t.controller, t.card)
+            game.condition_holds(ability.and_then(|a| a.intervening_if()), t.controller, t.card) && game.pelt_holds(t)
         });
         // a trigger limit each turn
         pending.retain(|t| {

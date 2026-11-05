@@ -77,6 +77,9 @@ EFFECTS = {
     'AddCountersAllEffect': [('counter', 'counter'), ('filter', 'filter')],
     'ExileTargetEffect': [],
     'ReturnToHandTargetEffect': [],
+    'ExileGraveyardAllPlayersEffect': [],
+    # (first, second): damage to the targets tagged 1 and 2, the ability's first and second targets
+    'DamageTargetAndTargetEffect': [('first', 'int'), ('second', 'int')],
     'TapTargetEffect': [],
     'UntapTargetEffect': [(None, 'string')],
     'TapSourceEffect': [(None, 'bool')],
@@ -157,6 +160,15 @@ CUSTOM = {
     'CullingRitualEffect': lambda: {'class': 'CullingRitualEffect'},
     'PlayWithFireEffect': lambda: {'class': 'PlayWithFireEffect'},
     # destroy target creature with mana value 2 or less (4 or less with revolt)
+    # the target card in a graveyard goes to its owner's hand
+    'FabledPassageSearchForLandEffect': lambda: {'class': 'FabledPassageSearchForLandEffect',
+                                                 'filter': [LAND, {'p': 'supertype', 's': 'BASIC'}]},
+    'FabledPassageUntapLandEffect': lambda: {'class': 'FabledPassageUntapLandEffect'},
+    'FloodpitsDrownerEffect': lambda: {'class': 'FloodpitsDrownerEffect'},
+    'MagmaticHellkiteEffect': lambda: {'class': 'MagmaticHellkiteEffect'},
+    'LoseGainEffect': lambda: {'class': 'LoseGainEffect'},
+    'ScavengingOozeEffect': lambda: {'class': 'ScavengingOozeEffect'},
+    'ReturnFromGraveyardToHandTargetEffect': lambda: {'class': 'ReturnToHandTargetEffect'},
     'FatalPushEffect': lambda: {'class': 'DestroyTargetIfManaValueEffect', 'n': 2, 'revolt_n': 4},
     # create a 2/2 Robot token tapped and attacking; sacrifice it at end of combat
     'KavaronHarrierEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('RobotToken'), 'amount': 1,
@@ -174,6 +186,11 @@ CUSTOM = {
         'class': 'TriggeredAbility', 'java': 'MassacreWurmTriggeredAbility',
         'on': {'e': 'dies_all', 'filter': [CREATURE, {'p': 'controller', 'who': 'opponent'}]},
         'effects': [{'class': 'LoseLifeTargetEffect', 'amount': 2}], 'set_target_pointer_player': True},
+    # whenever another creature you control enters or dies, if its power is greater than this one's, put a +1/+1
+    # counter on this
+    'PeltCollectorTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'PeltCollectorTriggeredAbility', 'on': {'e': 'pelt_collector'},
+        'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}]},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -267,7 +284,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'AttacksTrigge
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
 
-COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty'}
+COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun'}
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
@@ -404,9 +421,13 @@ def declared_filters(source, subtypes):
     """filter fields (`static final FilterX name = new FilterX(…); static { name.add(…); }`) -> filters by name; one
     that can't be read is left out (the card fails only if it uses it)"""
     out = {}
+    # predicate fields (`static final Predicate<…> predicate = Predicates.or(…);`), by name
+    preds = {m.group(1): canonical(m.group(2))
+             for m in re.finditer(r'static final Predicate<[\w<>, ]*> (\w+)\s*=\s*(.*?);', source, re.S)}
     for m in re.finditer(r'static final (?:\w+) (\w+)\s*=\s*new (Filter\w+)\((.*?)\);', source, re.S):
         name, cls, args = m.group(1), m.group(2), split_args(canonical(m.group(3)))
         adds = [canonical(p) for p in re.findall(r'\b' + name + r'\.add\((.*?)\);', source, re.S)]
+        adds = [preds.get(a, a) for a in adds]
         try:
             out[name] = filter_object(cls, args, adds, subtypes)
         except Unsupported as e:
@@ -451,7 +472,7 @@ PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPl
 # chained calls that only change texts, hints or the AI's view
 TEXT_SETTERS = {'setText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
-                'withTextOptions'}
+                'withTextOptions', 'setTargetTag'}
 
 # abilities every card has, which the constructor doesn't add
 IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility'}
@@ -637,6 +658,11 @@ class Translator:
             return {'c': 'instants_sorceries_cast', 'n': 3}
         if arg == 'MysticalDisputeCondition.instance':
             return {'c': 'source_targets', 'filter': [{'p': 'color', 'c': 'U'}]}
+        if (m := re.fullmatch(r'new CompoundCondition\((.*)\)', arg)):
+            args = split_args(m.group(1))
+            if args and args[0].strip().startswith('"'):
+                args = args[1:]
+            return {'c': 'and', 'xs': [self.condition(a) for a in args]}
         if (m := re.fullmatch(r'new InvertCondition\((.*)\)', arg)):
             return {'c': 'not', 'x': self.condition(m.group(1))}
         raise Unsupported('condition ' + arg)
@@ -907,6 +933,9 @@ class Translator:
                 out['condition'] = self.condition(args[1])
             return out
         # the "additional" flag only changes the text
+        # Rest in Peace's: any player's cards, and tokens
+        if cls == 'GraveyardFromAnywhereExileReplacementEffect' and [a.strip() for a in args] == ['false', 'true']:
+            return {'class': cls}
         if cls == 'ReturnFromGraveyardToBattlefieldWithCounterTargetEffect' and len(args) in (1, 2) \
                 and (len(args) == 1 or args[0].strip() in ('true', 'false')):
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False,
@@ -1489,6 +1518,7 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if ability_statement(t, st, added):
             return
         st = re.sub(r'^getSpellAbility\(\)', 'this.getSpellAbility()', st)
+        st = re.sub(r'^this\.getSpellAbility\(\)\.get(Effect|Target)s\(\)\.add\(', r'this.getSpellAbility().add\1(', st)
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addEffect\((.*)\)', st)
         if m:
             spell['effects'].append(t.effect(m.group(1)))
@@ -1496,13 +1526,17 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addMode\((.*)\)', st)
         if m:
             arg = m.group(1).strip()
-            # `new Mode(effect).addTarget(target)`
-            chained = []
+            # `new Mode(effect).addEffect(effect).addTarget(target)`
+            chained, more = [], []
             while True:
-                n = re.fullmatch(r'(new Mode\(.*\))\s*\.addTarget\((.*)\)', arg, re.S)
-                if not n or split_args(n.group(2)) != [n.group(2).strip()]:
+                n = re.fullmatch(r'(new Mode\(.*\))\s*\.add(Target|Effect)\((.*)\)', arg, re.S)
+                if not n or split_args(n.group(3)) != [n.group(3).strip()]:
                     break
-                arg, chained = n.group(1), [t.target(n.group(2))] + chained
+                arg = n.group(1)
+                if n.group(2) == 'Target':
+                    chained = [t.target(n.group(3))] + chained
+                else:
+                    more = [t.effect(n.group(3))] + more
             if arg in t.vars:
                 mode = t.vars[arg]
             else:
@@ -1510,7 +1544,7 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
                 if cls != 'Mode':
                     raise Unsupported('mode ' + arg)
                 mode = {'class': 'Mode', 'effects': [t.effect(a) for a in args], 'targets': []}
-            modes.append({'effects': mode.get('effects', []), 'targets': mode.get('targets', []) + chained})
+            modes.append({'effects': mode.get('effects', []) + more, 'targets': mode.get('targets', []) + chained})
             return
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.getModes\(\)\.set(Min|Max)Modes\((\d+)\)', st)
         if m:

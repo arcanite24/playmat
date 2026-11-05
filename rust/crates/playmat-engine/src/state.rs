@@ -521,6 +521,34 @@ impl Game {
         fired
     }
 
+    /// Pelt Collector's triggers on `id` entering or dying: each remembers `id`'s power, and fires only if it's
+    /// greater than its source's
+    pub fn pelt_collector(&self, mut fired: Vec<StackItem>, id: ObjId) -> Vec<StackItem> {
+        let power = self.power_toughness(id).0;
+        for t in fired.iter_mut() {
+            if self.trigger_of(t) == Some(&Trigger::PeltCollector) {
+                t.lki_power = Some(power);
+            }
+        }
+        fired.retain(|t| self.pelt_holds(t));
+        fired
+    }
+
+    fn trigger_of(&self, t: &StackItem) -> Option<&Trigger> {
+        t.ability.and_then(|(i, _)| self.obj(t.card).def.abilities.get(i)).and_then(|a| a.trigger())
+    }
+
+    /// Pelt Collector's intervening "if": the creature's power is greater than its source's (still on the
+    /// battlefield)
+    pub fn pelt_holds(&self, t: &StackItem) -> bool {
+        if self.trigger_of(t) != Some(&Trigger::PeltCollector) {
+            return true;
+        }
+        let o = self.obj(t.card);
+        let here = o.zone == Zone::Battlefield && t.ability.is_some_and(|(_, zcc)| zcc == o.zcc);
+        here && t.lki_power.unwrap_or(0) > self.power_toughness(t.card).0
+    }
+
     /// `who` ("you", "opponent", "any") of a trigger, for its controller `you` and the player `seat` it's about.
     /// The permanent an Aura is attached to, while it's still that object on the battlefield.
     pub fn attached(&self, aura: ObjId) -> Option<ObjId> {
@@ -674,6 +702,7 @@ impl Game {
                 o.zone == Zone::Battlefield && o.counter(name) >= *n
             }
             Condition::Not { x } => !self.condition_holds(Some(x), you, source),
+            Condition::And { xs } => xs.iter().all(|x| self.condition_holds(Some(x), you, source)),
         }
     }
 
@@ -828,6 +857,14 @@ impl Game {
         let from = self.obj(id).zone;
         let zone = if from == Zone::Stack && self.obj(id).flashback { Zone::Exile } else { zone };
         self.obj_mut(id).flashback = false;
+        // Rest in Peace
+        let zone = if zone == Zone::Graveyard
+            && self.any_static(|_, _, e| matches!(e, EffectDef::GraveyardFromAnywhereExileReplacementEffect))
+        {
+            Zone::Exile
+        } else {
+            zone
+        };
         // "if it would die this turn, exile it instead"
         let zone = if from == Zone::Battlefield
             && zone == Zone::Graveyard
@@ -841,9 +878,10 @@ impl Game {
         // action (Java's short-living LKI: a sweeper's creatures see each other die)
         let died_controller = self.obj(id).controller;
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
+            let fired;
             let mut sources: Vec<ObjId> = self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
             sources.extend(self.battlefield.iter().copied());
-            self.triggers(sources, |g, src, you, t| match t {
+            fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Dies | Trigger::EntersOrDies | Trigger::LeavesBattlefield => src == id,
                 // the source itself always counts ("this or another"); others must match
                 Trigger::DiesAll { filter, include_self } => {
@@ -853,8 +891,10 @@ impl Game {
                         g.filter_matches(filter, you, Some(src), id)
                     }
                 }
+                Trigger::PeltCollector => src != id && died_controller == you,
                 _ => false,
-            })
+            });
+            self.pelt_collector(fired, id)
         } else if from == Zone::Battlefield && zone != Zone::Battlefield {
             self.triggers([id], |_, src, _, t| matches!(t, Trigger::LeavesBattlefield) && src == id)
         } else {

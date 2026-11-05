@@ -354,6 +354,8 @@ pub enum Trigger {
     CombatDamageToPlayer,
     /// one or more opponents are dealt noncombat damage (Master of Barbs)
     OpponentsDealtNoncombatDamage,
+    /// another permanent you control enters or dies, if its power is greater than this one's (Pelt Collector)
+    PeltCollector,
 }
 
 /// Mana abilities as `ManaUtil.tryToAutoPay` tells them apart: a basic one (`{T}: Add {G}`, pain lands too), one of
@@ -401,6 +403,10 @@ pub enum Condition {
     },
     Not {
         x: Box<Condition>,
+    },
+    /// `CompoundCondition`: all of them
+    And {
+        xs: Vec<Condition>,
     },
     /// `SourceAttackingCondition`
     SourceAttacking,
@@ -902,6 +908,28 @@ pub enum EffectDef {
     DiscardEachPlayerEffect { amount: Amount, who: String },
     /// exile the target player's graveyard
     ExileGraveyardAllTargetPlayerEffect,
+    /// exile all cards from all graveyards
+    ExileGraveyardAllPlayersEffect,
+    /// Fabled Passage: search your library for a card of the filter, shuffle, put it onto the battlefield tapped,
+    /// then untap it if you control four or more lands
+    FabledPassageSearchForLandEffect { filter: Filter },
+    /// its second half, done by the first
+    FabledPassageUntapLandEffect,
+    /// Scavenging Ooze: exile the target card from a graveyard; if it was a creature card, put a +1/+1 counter on
+    /// this and you gain 1 life
+    ScavengingOozeEffect,
+    /// Kalastria Highborn: you gain 2 life, then the target player loses 2 life
+    LoseGainEffect,
+    /// Magmatic Hellkite: destroy the target land; its controller searches their library for a basic land card, puts
+    /// it onto the battlefield tapped with a stun counter, then shuffles
+    MagmaticHellkiteEffect,
+    /// Floodpits Drowner: shuffle this and the target creature into their owners' libraries
+    FloodpitsDrownerEffect,
+    /// `first` damage to the first target, then `second` damage to the second
+    DamageTargetAndTargetEffect { first: i32, second: i32 },
+    /// a static ability's effect: a card or token that would be put into a graveyard from anywhere is exiled
+    /// instead (Rest in Peace)
+    GraveyardFromAnywhereExileReplacementEffect,
     /// the target player mills `amount` cards
     MillCardsTargetEffect { amount: Amount },
     /// the source becomes the token's kind of creature (still its old types with `retain`), with its abilities too
