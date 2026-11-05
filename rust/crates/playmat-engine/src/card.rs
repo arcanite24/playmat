@@ -365,6 +365,8 @@ pub enum Trigger {
     /// a creature or creature spell you control becomes the target of a spell or ability an opponent controls
     /// (Surrak, Elusive Hunter)
     SurrakTargeted,
+    /// an opponent searches their library (Wan Shi Tong)
+    OpponentSearchesLibrary,
     /// a Saga's chapter ability: lore counters were added that reached chapter `n`
     Chapter { n: u32 },
 }

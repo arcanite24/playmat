@@ -111,6 +111,8 @@ pub struct Obj {
     pub cast: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
+    /// the X it was cast with, while it's on the battlefield
+    pub cast_x: i32,
     /// what it was before an effect changed its characteristics (`def`) for as long as it stays on the battlefield
     pub printed_def: Option<Arc<CardDef>>,
     /// the permanent (and its zone change count) this Aura is attached to
@@ -421,6 +423,7 @@ impl Game {
             cast: false,
             until_end_of_turn_def: None,
             printed_def: None,
+            cast_x: 0,
             attached_to: None,
             adventurer: None,
             front: None,
@@ -1009,6 +1012,7 @@ impl Game {
                 if let Some(def) = o.printed_def.take() {
                     o.def = def;
                 }
+                o.cast_x = 0;
                 o.blocking.clear();
                 o.blocked = false;
                 o.blocked_by.clear();

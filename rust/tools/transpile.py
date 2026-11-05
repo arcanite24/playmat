@@ -203,6 +203,10 @@ CUSTOM = {
     'EnduringGlimmerTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'EnduringGlimmerTriggeredAbility', 'on': {'e': 'dies_if_creature'},
         'effects': [{'class': 'EnduringGlimmerReturnEffect'}]},
+    'WanShiTongLibrarianTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'WanShiTongLibrarianTriggeredAbility', 'on': {'e': 'opponent_searches_library'},
+        'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}},
+                    {'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
     'SurrakElusiveHunterTriggeredAbility': lambda: {
         'class': 'TriggeredAbility', 'java': 'SurrakElusiveHunterTriggeredAbility', 'on': {'e': 'surrak_targeted'},
         'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},

@@ -1388,6 +1388,10 @@ fn search_library(
             }
         }
         if complete || chosen.is_empty() || chosen.len() < min || chosen.len() == before {
+            // `LibrarySearchedEvent`
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::OpponentSearchesLibrary) && you != seat);
+            game.pending.extend(fired);
             return Some(chosen);
         }
     }
@@ -1836,6 +1840,8 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             }
             return;
         }
+        // the X it was cast with, for its enters triggers (`GetXValue`)
+        game.obj_mut(id).cast_x = item.x;
         enter_battlefield(game, d, id, item.controller, item.kicked);
         return;
     }
@@ -3726,7 +3732,11 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         _ => false,
     });
     let mut fired = game.pelt_collector(fired, id);
+    let cast_x = game.obj(id).cast_x;
     for t in fired.iter_mut() {
+        if t.card == id {
+            t.x = cast_x;
+        }
         let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i).cloned());
         if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
             t.targets = vec![vec![Target::Obj(id)]];
