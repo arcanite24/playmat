@@ -151,7 +151,7 @@ public final class DecisionLog {
     }
 
     private static int seat(Game game, UUID playerId) {
-        return new ArrayList<>(game.getState().getPlayerList()).indexOf(playerId);
+        return StateFingerprint.seats(game).indexOf(playerId);
     }
 
     /** where the object is now, or {@code ?<id>} when it can't be placed */
@@ -189,7 +189,7 @@ public final class DecisionLog {
      * Every object an answer can name, with its reference, in a fixed order; stops when {@code visitor} says so.
      */
     private static boolean visit(Game game, BiPredicate<String, UUID> visitor) {
-        List<UUID> seats = new ArrayList<>(game.getState().getPlayerList());
+        List<UUID> seats = StateFingerprint.seats(game);
         for (int s = 0; s < seats.size(); s++) {
             if (visitor.test("P" + s, seats.get(s))) {
                 return true;
