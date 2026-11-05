@@ -644,6 +644,7 @@ impl Game {
             }
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
+            Condition::StartingTown => self.active == Some(you) && self.turn.div_ceil(self.seats() as u32) <= 3,
             Condition::LifeCompare { who, cmp, n } => (0..self.seats())
                 .filter(|s| if who == "you" { *s == you } else { *s != you })
                 .any(|s| cmp.holds(self.player(s).life, *n)),

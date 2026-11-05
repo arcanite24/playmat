@@ -893,6 +893,10 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     for k in if modes.is_empty() { vec![0] } else { modes.clone() } {
         defs.extend(def.spell.mode(k).1.iter().cloned());
     }
+    if let Some((unkicked, kicked)) = &def.spell.kicked_targets {
+        let k = game.stack.last().is_some_and(|t| t.kicked);
+        defs = if k { kicked.clone() } else { unkicked.clone() };
+    }
     if !choose_targets(game, d, seat, &defs, Some(id), &def.spell.rule, true) {
         return false;
     }

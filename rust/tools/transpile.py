@@ -277,6 +277,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
               'MyTurnCondition.instance': {'c': 'my_turn'},
               'CastFromEverywhereSourceCondition.instance': {'c': 'cast_from_everywhere'},
               'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}},
+              'StartingTownCondition.instance': {'c': 'starting_town'},
               'LessonsInGraveCondition.THREE': {'c': 'cards_in_graveyard', 'n': 3,
                                                  'filter': [{'p': 'subtype', 's': 'Lesson'}]}}
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
@@ -1524,6 +1525,11 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addTarget\((.*)\)', st)
         if m:
             spell['targets'].append(t.target(m.group(1)))
+            return
+        # kicked, the spell's target is another (`ConditionalTargetAdjuster(KickedCondition.ONCE, blueprint, kicked)`)
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new ConditionalTargetAdjuster\(KickedCondition\.ONCE,(.*)\)\)', st)
+        if m and len(a := split_args(m.group(1))) == 2:
+            spell['kicked_targets'] = ([t.target(a[0])], [t.target(a[1])])
             return
         # an effect's outcome only steers the Java AI
         if re.fullmatch(r'\w+\.setOutcome\(Outcome\.\w+\)', st):

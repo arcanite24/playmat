@@ -408,6 +408,8 @@ pub enum Condition {
     CardsInGraveyard { filter: Filter, n: i32 },
     /// `OpponentsLostLifeCondition`: an opponent lost life this turn
     OpponentsLostLife,
+    /// it's your first, second or third turn of the game (two players: your turns alternate)
+    StartingTown,
 }
 
 /// Which objects a filter takes: those every predicate holds for. An empty filter takes everything.
@@ -994,6 +996,10 @@ pub struct SpellDef {
     /// costs on top of the mana cost ("as an additional cost to cast this spell"), paid after the mana
     #[serde(default)]
     pub costs: Vec<CostDef>,
+    /// the targets chosen instead when cast unkicked and kicked (`ConditionalTargetAdjuster`); `targets` is then
+    /// what either could target
+    #[serde(default)]
+    pub kicked_targets: Option<(Vec<TargetDef>, Vec<TargetDef>)>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
