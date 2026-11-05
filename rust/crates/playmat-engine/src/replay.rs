@@ -34,6 +34,9 @@ pub struct ShadowStart {
     pub random: i64,
     pub seats: Vec<ShadowSeat>,
     pub fingerprint: String,
+    /// "start": exile is named in the cards' order at the first priority; older games name it as it was exiled
+    #[serde(default, rename = "exileOrder")]
+    pub exile_order: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -87,6 +90,7 @@ impl ShadowGame {
     /// The game at its first priority: the recorded libraries and hands, the turn and step of the first trace entry.
     pub fn start_game(&self, db: &CardDb) -> Result<Game, String> {
         let mut game = Game::new(self.start.seats.len(), self.start.random);
+        game.exile_by_creation = self.start.exile_order.as_deref() == Some("start");
         for (seat, s) in self.start.seats.iter().enumerate() {
             for (i, name) in s.library.iter().enumerate() {
                 let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
@@ -186,11 +190,20 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
             }
             Some(Answer::Obj(game.stack[n - 1 - index].card))
         }
-        "E" => game.exile.get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
+        "E" => exile_order(game).get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
         // a waiting trigger: its seat, then its place among that seat's
         "T" => rest.split_once('.').and_then(|(_, i)| i.parse().ok()).map(Answer::Trigger),
         _ => None,
     }
+}
+
+/// Exiled cards in the order decision logs name them
+fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
+    let mut exile = game.exile.to_vec();
+    if game.exile_by_creation {
+        exile.sort_by_key(|o| o.0);
+    }
+    exile
 }
 
 /// Where an object is, as `DecisionLog.ref` writes it.
@@ -208,7 +221,7 @@ pub fn reference(game: &Game, id: ObjId) -> String {
     if let Some(i) = game.stack.iter().rev().position(|x| x.card == id) {
         return format!("S{}", i);
     }
-    if let Some(i) = game.exile.iter().position(|x| *x == id) {
+    if let Some(i) = exile_order(game).iter().position(|x| *x == id) {
         return format!("E{}", i);
     }
     format!("?{}", id.0)

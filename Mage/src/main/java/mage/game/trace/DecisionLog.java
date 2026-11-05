@@ -15,7 +15,9 @@ import mage.players.Player;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 
@@ -80,6 +82,11 @@ public final class DecisionLog {
     private int next = 0;
     /** set when a replay can't go on: what went wrong */
     private String failure;
+    /**
+     * each card's place at the first priority (seat 0's library top first and hand, then seat 1's): exile is named in
+     * this order, since Java's own (a hash map of exile zones) can't be reproduced
+     */
+    private Map<UUID, Integer> startOrder;
 
     private DecisionLog(boolean replay, List<Decision> decisions) {
         this.replay = replay;
@@ -92,6 +99,10 @@ public final class DecisionLog {
 
     public static DecisionLog replaying(List<Decision> decisions) {
         return new DecisionLog(true, new ArrayList<>(decisions));
+    }
+
+    public void setStartOrder(Map<UUID, Integer> startOrder) {
+        this.startOrder = startOrder;
     }
 
     public boolean isReplay() {
@@ -235,7 +246,13 @@ public final class DecisionLog {
             }
         }
         i = 0;
-        for (Card card : game.getState().getExile().getAllCards(game)) {
+        List<Card> exiled = new ArrayList<>(game.getState().getExile().getAllCards(game));
+        DecisionLog log = game.getOptions() == null ? null : game.getOptions().decisions;
+        if (log != null && log.startOrder != null) {
+            Map<UUID, Integer> order = log.startOrder;
+            exiled.sort(Comparator.comparingInt(c -> order.getOrDefault(c.getId(), Integer.MAX_VALUE)));
+        }
+        for (Card card : exiled) {
             if (object(game, "E" + i++, card, visitor)) {
                 return true;
             }

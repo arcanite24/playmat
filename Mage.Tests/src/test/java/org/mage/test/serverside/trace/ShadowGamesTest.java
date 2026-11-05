@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +127,19 @@ public class ShadowGamesTest {
                         triggerSources.add(ability.getSourceId());
                     }
                 }
+                // exile is named in the cards' order here (`DecisionLog.setStartOrder`)
+                Map<UUID, Integer> startOrder = new HashMap<>();
+                for (UUID playerId : mage.game.trace.StateFingerprint.seats(game)) {
+                    Player player = game.getPlayer(playerId);
+                    for (Card card : player.getLibrary().getCards(game)) {
+                        startOrder.put(card.getId(), startOrder.size());
+                    }
+                    for (UUID id : player.getHand()) {
+                        startOrder.put(id, startOrder.size());
+                    }
+                }
+                log.setStartOrder(startOrder);
+                start.put("exileOrder", "start");
                 List<Map<String, Object>> seats = new ArrayList<>();
                 for (UUID playerId : mage.game.trace.StateFingerprint.seats(game)) {
                     Player player = game.getPlayer(playerId);

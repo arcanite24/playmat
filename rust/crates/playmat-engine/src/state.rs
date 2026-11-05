@@ -308,6 +308,9 @@ pub struct Game {
     pub at_end_of_combat: Vec<StackItem>,
     /// "at the beginning of the next end step" delayed triggers
     pub at_next_end_step: Vec<StackItem>,
+    /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
+    /// order they were exiled
+    pub exile_by_creation: bool,
     pub grants: Arc<Vec<Grant>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
@@ -347,6 +350,7 @@ impl Game {
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
+            exile_by_creation: false,
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
