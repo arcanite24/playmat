@@ -299,6 +299,8 @@ pub struct Delayed {
     pub source_zcc: u32,
     /// the permanents its effects act on, while they're still those objects (`FixedTarget`)
     pub fixed: Vec<(ObjId, u32)>,
+    /// earthbend: the card it returns to the battlefield tapped, while it's still that card in a graveyard or exile
+    pub return_tapped: Vec<(ObjId, u32)>,
 }
 
 impl StackItem {
@@ -378,6 +380,8 @@ pub struct Game {
     pub lookback: Vec<ObjId>,
     /// cards exiled until a permanent (and its zone change count) leaves the battlefield
     pub exiled_until_leaves: Vec<(ObjId, u32, ObjId)>,
+    /// earthbent lands (with their zone change counts): when one dies or is exiled, it returns tapped
+    pub earthbent: Vec<(ObjId, u32)>,
     /// cards exiled into a permanent's own exile zone (its id and zone change count), that stay there
     pub exiled_for_source: Vec<(ObjId, u32, ObjId)>,
     /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack), with
@@ -424,6 +428,7 @@ impl Game {
             activated_this_turn: Vec::new(),
             lookback: Vec::new(),
             exiled_until_leaves: Vec::new(),
+            earthbent: Vec::new(),
             exiled_for_source: Vec::new(),
             returning: Vec::new(),
             day: None,
@@ -1084,6 +1089,7 @@ impl Game {
                     effects: vec![EffectDef::DrawCardSourceControllerEffect { amount: crate::card::Amount::Fixed(1) }],
                     source_zcc: self.obj(id).zcc,
                     fixed: Vec::new(),
+                    return_tapped: Vec::new(),
                 };
                 fired.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, died_controller) });
             }
@@ -1108,6 +1114,24 @@ impl Game {
             // its own leave triggers remember its power as it last was (`SourcePermanentPowerValue`)
             if t.card == id && t.lki_power.is_none() {
                 t.lki_power = Some(power);
+            }
+        }
+        // earthbend's delayed trigger (delayed triggers are checked before the others)
+        if from == Zone::Battlefield && matches!(zone, Zone::Graveyard | Zone::Exile) {
+            let zcc = self.obj(id).zcc;
+            if let Some(k) = self.earthbent.iter().position(|e| *e == (id, zcc)) {
+                self.earthbent.remove(k);
+                let delayed = Delayed {
+                    rule: "When it dies or is exiled, return it to the battlefield tapped.".into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: Vec::new(),
+                    source_zcc: 0,
+                    fixed: Vec::new(),
+                    return_tapped: vec![(id, zcc + 1)],
+                };
+                let owner = self.obj(id).owner;
+                dies.insert(0, StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, owner) });
             }
         }
         if from == Zone::Battlefield && zone != Zone::Battlefield {

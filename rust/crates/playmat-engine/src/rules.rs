@@ -2170,6 +2170,24 @@ fn activate_mana(
         pool.colored[c.index()] += m.colored[c.index()];
     }
     pool.colorless += m.colorless;
+    // "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub)
+    let mut extra = Vec::new();
+    for b in game.battlefield.iter() {
+        let s = game.obj(*b);
+        if s.controller != seat {
+            continue;
+        }
+        for a in &s.def.abilities {
+            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, .. } = a {
+                if game.filter_matches(filter, seat, Some(*b), id) {
+                    extra.push("WUBRG".find(color.as_str()).unwrap_or(4));
+                }
+            }
+        }
+    }
+    for k in extra {
+        game.player_mut(seat).mana_pool.colored[k] += 1;
+    }
     // a mana ability's other effects happen at once (a pain land's damage)
     let effects = game.obj(id).def.abilities[i].mana_effects().to_vec();
     if !effects.is_empty() {
@@ -2264,6 +2282,15 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             let p = game.obj(*o);
             if p.zone == Zone::Battlefield && p.zcc == *zcc && p.controller == item.controller {
                 sacrifice(game, *o);
+            }
+        }
+        // earthbend: `ReturnToBattlefieldUnderOwnerControlTargetEffect`, tapped
+        for (o, zcc) in &delayed.return_tapped {
+            let c = game.obj(*o);
+            if matches!(c.zone, Zone::Graveyard | Zone::Exile) && c.zcc == *zcc {
+                let owner = c.owner;
+                enter_battlefield(game, d, *o, owner, false);
+                game.obj_mut(*o).tapped = true;
             }
         }
         // `WarpExileEffect`: exiled, and its owner may cast it from exile on a later turn
@@ -2605,6 +2632,7 @@ fn apply_each_effect(
                             effects: Vec::new(),
                             source_zcc: 0,
                             fixed: Vec::new(),
+                            return_tapped: Vec::new(),
                         };
                     game.at_end_of_combat
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
@@ -2617,6 +2645,7 @@ fn apply_each_effect(
                         effects: Vec::new(),
                         source_zcc: 0,
                         fixed: Vec::new(),
+                        return_tapped: Vec::new(),
                     };
                     game.at_next_end_step
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
@@ -2635,6 +2664,32 @@ fn apply_each_effect(
                     };
                     apply_effects(game, d, item, std::slice::from_ref(&e), legal, source);
                 }
+            }
+            EffectDef::EarthbendTargetEffect { amount } => {
+                let n = v!(amount);
+                let Some(Target::Obj(o)) = target else { continue };
+                if game.obj(o).zone != Zone::Battlefield {
+                    continue;
+                }
+                // a 0/0 creature with haste that's still a land, until it leaves (`BecomesCreatureTargetEffect`)
+                let old = game.obj(o).def.clone();
+                let mut def = (*old).clone();
+                if !def.types.contains(&CardType::Creature) {
+                    def.types.push(CardType::Creature);
+                }
+                def.power = 0;
+                def.toughness = 0;
+                def.abilities.push(AbilityDef::HasteAbility);
+                let zcc = game.obj(o).zcc;
+                let p = game.obj_mut(o);
+                if p.printed_def.is_none() {
+                    p.printed_def = Some(old);
+                }
+                p.def = Arc::new(def);
+                if n > 0 {
+                    p.add_counters("+1/+1", n);
+                }
+                game.earthbent.push((o, zcc));
             }
             EffectDef::MightformHarmonizerEffect => {
                 for o in &objs {
@@ -3326,6 +3381,7 @@ fn apply_each_effect(
                                 effects: effects.clone(),
                                 source_zcc: source.1,
                                 fixed: Vec::new(),
+                                return_tapped: Vec::new(),
                             };
                             game.pending.push(StackItem {
                                 delayed: Some(Arc::new(delayed)),
@@ -3385,6 +3441,7 @@ fn apply_each_effect(
                         effects: vec![EffectDef::ReturnToHandTargetEffect],
                         source_zcc: source.1,
                         fixed: vec![(c, zcc)],
+                        return_tapped: Vec::new(),
                     };
                     game.at_next_end_step
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
@@ -3958,6 +4015,7 @@ fn apply_each_effect(
                     effects: effects.clone(),
                     source_zcc: source.1,
                     fixed: Vec::new(),
+                    return_tapped: Vec::new(),
                 };
                 game.at_next_end_step
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
@@ -4735,6 +4793,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             effects: Vec::new(),
             source_zcc: 0,
             fixed: Vec::new(),
+            return_tapped: Vec::new(),
         };
         game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, controller) });
     }
@@ -4747,6 +4806,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             effects: Vec::new(),
             source_zcc: 0,
             fixed: Vec::new(),
+            return_tapped: Vec::new(),
         };
         game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, controller) });
     }

@@ -1004,6 +1004,8 @@ class Translator:
         if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 3 and args[2].strip() == 'Duration.Custom' \
                 and all(re.fullmatch(r'\d+', a.strip()) for a in args[:2]):
             return {'class': 'SetBasePowerToughnessUntilLeavesEffect', 'power': int(args[0]), 'toughness': int(args[1])}
+        if cls == 'EarthbendTargetEffect' and len(args) == 1:
+            return {'class': cls, 'amount': self.value('amount', args[0].strip())}
         if cls == 'TransformSourceEffect' and not args:
             return {'class': cls}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
@@ -1555,6 +1557,12 @@ class Translator:
             if n == 5:
                 a['condition'] = self.condition(args[4])
             return a
+        # "whenever you tap a creature for mana, add an additional {G}"
+        if cls == 'TapForManaAllTriggeredManaAbility' and n == 3 and args[2] == 'SetTargetPointer.NONE' \
+                and (m := re.fullmatch(r'new BasicManaEffect\(Mana\.(White|Blue|Black|Red|Green)Mana\(1\)\)',
+                                       self.strip_setters(args[0]))):
+            return {'class': cls, 'java': cls, 'filter': self.filter(args[1]),
+                    'color': {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}[m.group(1)]}
         if cls == 'BlitzAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
             return {'class': cls, 'java': cls, 'mana': args[1][1:-1], 'cost': []}
         if cls == 'WardAbility' and n in (1, 2) and (n == 1 or args[1] in ('true', 'false')):

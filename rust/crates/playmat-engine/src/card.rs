@@ -929,6 +929,9 @@ pub enum EffectDef {
     TransformSourceEffect,
     /// the target gets +X/+0 until end of turn, X its power (Mightform Harmonizer: "double the power")
     MightformHarmonizerEffect,
+    /// earthbend N: the target land you control becomes a 0/0 creature with haste that's still a land, with N +1/+1
+    /// counters; when it dies or is exiled, it returns to the battlefield tapped
+    EarthbendTargetEffect { amount: Amount },
     /// static: you may cast this card from your graveyard using its blitz ability
     TenaciousUnderdogEffect,
     /// static: creatures your opponents control can be targeted as though they didn't have hexproof
@@ -1362,6 +1365,9 @@ pub enum AbilityDef {
         cost: Vec<CostDef>,
         rule: String,
     },
+    /// whenever you tap a permanent of the filter for mana, add one more mana of `color` (a mana ability that
+    /// triggers, resolved at once)
+    TapForManaAllTriggeredManaAbility { filter: Filter, color: String, rule: String },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
     BlitzEntersAbility { rule: String },
     /// cast from hand for `cost` instead if an opponent lost life this turn (a second spell ability)
