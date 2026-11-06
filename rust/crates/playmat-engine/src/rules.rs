@@ -597,6 +597,9 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
         if matches!(a, AbilityDef::PowerUpAbility { .. }) && o.powered_up {
             continue;
         }
+        if matches!(a, AbilityDef::ClassLevelAbility { level, .. } if o.class_level + 1 != *level) {
+            continue;
+        }
         let payable = costs.iter().all(|c| match c {
             CostDef::ManaCost { .. } => can_pay(game, seat, &adjusted_mana_cost(game, seat, id, a, costs)),
             _ => can_pay_cost(game, seat, id, c),
@@ -2642,8 +2645,11 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             let fixed: Vec<Target> = delayed
                 .fixed
                 .iter()
-                // a permanent, or the spell that set it off (Kumano's "your next creature spell")
-                .filter(|(o, z)| matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Stack) && game.obj(*o).zcc == *z)
+                // a permanent, the spell that set it off (Kumano's "your next creature spell"), or a card that died
+                .filter(|(o, z)| {
+                    matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Stack | Zone::Graveyard)
+                        && game.obj(*o).zcc == *z
+                })
                 .map(|(o, _)| Target::Obj(*o))
                 .collect();
             if delayed.fixed.is_empty() || !fixed.is_empty() {
@@ -3332,6 +3338,50 @@ fn apply_each_effect(
                 };
                 game.at_next_end_step
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+            }
+            EffectDef::TheScarabGodExileEffect => {
+                let Some(card) = objs.first().copied() else { return };
+                game.move_to(card, Zone::Exile);
+                let mut def = (*game.obj(card).copiable()).clone();
+                def.power = 4;
+                def.toughness = 4;
+                def.subtypes = vec!["Zombie".into()];
+                def.colors = vec![Color::B];
+                let def = Arc::new(def);
+                for _ in 0..token_copies(game, controller) {
+                    let id = game.create_obj(def.clone(), controller, Zone::Library);
+                    let o = game.obj_mut(id);
+                    o.token = true;
+                    o.trigger_order = (1 << 32) + id.0 as u64;
+                    enter_battlefield(game, d, id, controller, false);
+                }
+            }
+            EffectDef::ReturnSourceToHandNextEndStepEffect => {
+                let card = source.0;
+                let delayed = Delayed {
+                    rule: "At the beginning of the next end step, return that creature to its owner's hand.".into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::ReturnToHandTargetEffect],
+                    source_zcc: source.1,
+                    fixed: vec![(card, game.obj(card).zcc)],
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.at_next_end_step
+                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(card, controller) });
+            }
+            EffectDef::SetClassLevelEffect { level } => {
+                let (me, zcc) = source;
+                if game.obj(me).zone != Zone::Battlefield || game.obj(me).zcc != zcc || game.obj(me).class_level + 1 != *level
+                {
+                    continue;
+                }
+                game.obj_mut(me).class_level = *level;
+                let sources = game.trigger_sources();
+                let fired = game.triggers(sources, |_, src, _, t| matches!(t, Trigger::ClassLevel { n } if src == me && n == level));
+                game.pending.extend(fired);
             }
             EffectDef::DiscardAndDrawThatManyEffect { amount } => {
                 // `PlayerImpl.getToDiscard(0, amount)`: chosen from a hand that isn't empty

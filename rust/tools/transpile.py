@@ -168,6 +168,8 @@ CUSTOM = {
     'GhostVacuumEffect': lambda: {'class': 'GhostVacuumEffect'},
     'ReflectionOfKikiJikiEffect': lambda: {'class': 'ReflectionOfKikiJikiEffect'},
     'QuantumRiddlerReplacementEffect': lambda: {'class': 'QuantumRiddlerReplacementEffect'},
+    'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
+    'ReturnSourceToHandNextEndStepEffect': lambda: {'class': 'ReturnSourceToHandNextEndStepEffect'},
     'MultiversalPassagePassageEffect': lambda: {'class': 'MultiversalPassagePassageEffect'},
     'LivelyDirgeEffect': lambda: {'class': 'LivelyDirgeEffect'},
     'EtchingOfKumanoReplacementEffect': lambda: {'class': 'EtchingOfKumanoReplacementEffect'},
@@ -1367,7 +1369,9 @@ class Translator:
         if len(rest) > 1:
             raise Unsupported('target ' + expr)
         if rest:
-            out['filter'] = self.filter(rest[0])
+            # a card in your (an opponent's) graveyard stays one, whatever the filter
+            keep = preds if cls in ('TargetCardInYourGraveyard', 'TargetCardInOpponentsGraveyard') else []
+            out['filter'] = [dict(p) for p in keep] + self.filter(rest[0])
         if kind == 'TargetSpell':
             if ints:
                 raise Unsupported('target ' + expr)
@@ -1436,6 +1440,26 @@ class Translator:
             return {'class': cls}
         if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and 'CantBeCounteredSourceEffect' in args[1])):
             args = args[1:]
+        # a Class: its levels, gained as a sorcery one after another, and the abilities each level adds
+        if cls == 'ClassReminderAbility' and not args:
+            return {'class': cls, 'java': cls}
+        if cls == 'ClassLevelAbility' and len(args) == 2 and args[0].strip().isdigit() \
+                and re.fullmatch(r'"(\{[^"]*\})+"', args[1].strip()):
+            n = int(args[0].strip())
+            return {'class': cls, 'java': cls, 'level': n, 'effects': [{'class': 'SetClassLevelEffect', 'level': n}],
+                    'cost': [{'class': 'ManaCost', 'cost': args[1].strip()[1:-1]}]}
+        if cls == 'BecomesClassLevelTriggeredAbility' and len(args) == 2 and args[1].strip().isdigit():
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'class_level', 'n': int(args[1].strip())},
+                    'effects': [self.effect(args[0])], 'optional': False}
+        if cls == 'SimpleStaticAbility' and len(args) == 1 \
+                and (g := re.fullmatch(r'new GainClassAbilitySourceEffect\((.*)\)', args[0].strip(), re.S)):
+            inner, level = split_args(g.group(1))
+            a = self.ability(inner)
+            if a.get('class') != 'TriggeredAbility' or a.get('trigger_condition'):
+                raise Unsupported('class level ability ' + inner)
+            a['trigger_condition'] = {'c': 'class_level', 'n': int(level.strip())}
+            a['java'] = cls
+            return a
         if cls == 'EntersBattlefieldAbility' and args == ['new MockingbirdEffect()', 'true']:
             return {'class': cls, 'effects': [{'class': 'MockingbirdEffect'}]}
         if cls == 'EntersBattlefieldAbility' and len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1].strip()):
@@ -1597,6 +1621,11 @@ class Translator:
                     'optional': optional, 'set_target_pointer': pointer}
 
         n = len(args)
+        # "when this dies, return it to its owner's hand at the beginning of the next end step"
+        if cls == 'DiesSourceTriggeredAbility' and n == 3 and args[1] == 'false' and args[2] == 'SetTargetPointer.CARD' \
+                and re.fullmatch(r'new CreateDelayedTriggeredAbilityEffect\(new AtTheBeginOfNextEndStepDelayedTriggeredAbility\('
+                                 r'new ReturnToHandTargetEffect\(\)\)\)(\.setText\(.*\))?', args[0], re.S):
+            return self.ability('new DiesSourceTriggeredAbility(new ReturnSourceToHandNextEndStepEffect(),false)')
         # "when this enters and at the beginning of your upkeep"
         if cls == 'OrTriggeredAbility' and n == 4 and args[0].strip() == 'Zone.BATTLEFIELD' \
                 and args[2].strip() == 'new EntersBattlefieldTriggeredAbility(null)' \

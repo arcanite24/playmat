@@ -133,6 +133,8 @@ pub struct Obj {
     pub ninjutsu_defender: Option<Seat>,
     /// the permanent chosen as it entered (`ChooseCreatureEffect`), kept after it leaves
     pub chosen: Option<(ObjId, u32)>,
+    /// a Class's level (1 until it gains another)
+    pub class_level: u32,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
     /// its power-up ability was activated (once each game, for this object)
@@ -540,6 +542,7 @@ impl Game {
             escaped: false,
             ninjutsu_defender: None,
             chosen: None,
+            class_level: 1,
             exerted: false,
             powered_up: false,
             creature_types: None,
@@ -855,6 +858,7 @@ impl Game {
             }),
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
             Condition::SacrificedThisTurn { n } => self.player(you).sacrificed as i32 >= *n,
+            Condition::ClassLevel { n } => self.obj(source).class_level >= *n,
             Condition::CardsInGraveyard { filter, n } => {
                 let g = &self.player(you).graveyard;
                 g.iter().filter(|c| self.filter_matches(filter, you, Some(source), **c)).count() as i32 >= *n
@@ -1296,6 +1300,7 @@ impl Game {
                     o.def = def;
                 }
                 o.cast_x = 0;
+                o.class_level = 1;
                 o.blocking.clear();
                 o.blocks = 0;
                 o.blocked = false;

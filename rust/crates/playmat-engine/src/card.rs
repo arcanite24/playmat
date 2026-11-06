@@ -345,6 +345,8 @@ pub enum Trigger {
     CastSecondSpell { who: String },
     /// this enters, and at the beginning of your upkeep (`OrTriggeredAbility`)
     EntersOrUpkeep,
+    /// this Class becomes level `n`
+    ClassLevel { n: u32 },
     /// you commit a crime: a spell or ability of yours targets an opponent, something of theirs or a card in their
     /// graveyard (`CommittedCrimeTriggeredAbility`)
     CommittedCrime,
@@ -485,6 +487,8 @@ pub enum Condition {
     SacrificedThisTurn { n: i32 },
     /// `OpusCondition`: five or more mana was spent to cast the spell that set off the trigger
     Opus,
+    /// the source Class is at least level `n`
+    ClassLevel { n: u32 },
     /// `OpponentsLostLifeCondition`: an opponent lost life this turn
     OpponentsLostLife,
     /// `OpponentControlsMoreCondition`: an opponent controls more permanents of the filter than you
@@ -986,6 +990,12 @@ pub enum EffectDef {
     ReflectionOfKikiJikiEffect,
     /// with one or fewer cards in your hand, each card you'd draw is two instead
     QuantumRiddlerReplacementEffect,
+    /// a Class gains level `level`
+    SetClassLevelEffect { level: u32 },
+    /// exile the target card from a graveyard; a token copy of it, except a 4/4 black Zombie
+    TheScarabGodExileEffect,
+    /// "return it to its owner's hand at the beginning of the next end step", for the card that died
+    ReturnSourceToHandNextEndStepEffect,
     /// as it enters: choose a basic land type (a land with `MultiversalPassagePassageEffect` becomes it)
     ChooseBasicLandTypeEffect,
     /// "This land is the chosen type." (applied as the type is chosen)
@@ -1525,6 +1535,17 @@ pub enum AbilityDef {
         condition: Option<Condition>,
         rule: String,
     },
+    /// "(Gain the next level as a sorcery to add its ability.)"
+    ClassReminderAbility,
+    /// a Class's next level: activated as a sorcery when the Class is the level below
+    ClassLevelAbility {
+        level: u32,
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        rule: String,
+    },
     ActivateAsSorceryActivatedAbility {
         effects: Vec<EffectDef>,
         cost: Vec<CostDef>,
@@ -1734,9 +1755,8 @@ impl AbilityDef {
     /// an activated ability's rule text, effects, targets, costs and whether it's sorcery speed
     pub fn activated(&self) -> Option<Activated<'_>> {
         match self {
-            AbilityDef::ActivateAsSorceryActivatedAbility { effects, cost, targets, rule } => {
-                Some((rule, effects, targets, cost, true))
-            }
+            AbilityDef::ActivateAsSorceryActivatedAbility { effects, cost, targets, rule }
+            | AbilityDef::ClassLevelAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, true)),
             AbilityDef::SimpleActivatedAbility { effects, cost, targets, rule }
             | AbilityDef::PowerUpAbility { effects, cost, targets, rule } => {
                 Some((rule, effects, targets, cost, false))
