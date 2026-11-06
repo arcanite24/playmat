@@ -1140,8 +1140,11 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     if game.obj(id).zone == Zone::Battlefield {
         let activatable = activatable(game, seat, id);
         // `getPlayableActivatedAbilities` offers its mana abilities too
+        // (conditional ones too: their mana waits in the pool for a spell it can pay for)
+        game.paying_for.set(Some(ANY_SPELL));
         let mana: Vec<(usize, Mana, ManaKind)> =
             mana_sources_with_kinds(game, seat).into_iter().find(|(s, _)| *s == id).map(|(_, a)| a).unwrap_or_default();
+        game.paying_for.set(None);
         let mut abilities = activatable.clone();
         abilities.extend(mana.iter().map(|(i, _, _)| *i));
         abilities.sort();
@@ -1162,7 +1165,20 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         };
         if let Some((i, m, k)) = mana.iter().find(|(i, _, _)| *i == index).copied() {
             // `PlayerImpl.activateAbility`: an action taken resets everyone's passed flag
-            if activate_mana(game, d, seat, id, i, m, k, &ManaCost::default()) {
+            let before = game.player(seat).mana_pool;
+            let conditional = matches!(game.obj(id).def.abilities[i], AbilityDef::ConditionalManaAbility { .. });
+            // conditional mana of any color: the color is asked, nothing being owed
+            let owed = if conditional { ManaCost { colored: [1; 5], ..ManaCost::default() } } else { ManaCost::default() };
+            if activate_mana(game, d, seat, id, i, m, k, &owed) {
+                if conditional {
+                    let p = game.player_mut(seat);
+                    let mut made = Mana::default();
+                    for c in 0..5 {
+                        made.colored[c] = p.mana_pool.colored[c] - before.colored[c];
+                    }
+                    p.mana_pool = before;
+                    p.conditional_pool.push((made, id, i));
+                }
                 for s in 0..game.seats() {
                     game.player_mut(s).passed = false;
                 }
@@ -2793,8 +2809,9 @@ fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -
     }
     let mut stock = game.player(seat).mana_pool;
     let mut unlocked = Mana::default();
+    let mut fresh_conditional = 0;
     loop {
-        pay_from_pool(game, seat, &mut unpaid, &mut stock, &mut unlocked);
+        pay_from_pool(game, seat, &mut unpaid, &mut stock, &mut unlocked, fresh_conditional);
         if unpaid.mana_value() == 0 {
             return true;
         }
@@ -2837,33 +2854,11 @@ fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -
                             // tapped for mana this payment can't use: it stays in the pool for one that can
                             game.obj_mut(id).tapped = true;
                             game.player_mut(seat).conditional_pool.push((m, id, i));
+                            fresh_conditional += 1;
                             continue;
                         }
                         if !activate_mana(game, d, seat, id, i, m, k, &unpaid) {
                             return false;
-                        }
-                        // the pool's conditional mana this spell can spend, paid along with the new mana
-                        let pool = std::mem::take(&mut game.player_mut(seat).conditional_pool);
-                        for (m, src, j) in pool {
-                            let usable = game.obj(src).def.abilities.get(j).is_some_and(|a| match a {
-                                AbilityDef::ConditionalManaAbility { filter, chosen_type, .. } => {
-                                    game.paying_for.get().is_some_and(|s| {
-                                        s != ANY_SPELL
-                                            && game.filter_matches(filter, seat, Some(src), s)
-                                            && (!*chosen_type
-                                                || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.obj(s).def.subtypes.contains(t)))
-                                    })
-                                }
-                                _ => false,
-                            });
-                            if usable && m.colored.iter().filter(|n| **n > 0).count() == 1 {
-                                let p = game.player_mut(seat);
-                                for k in 0..5 {
-                                    p.mana_pool.colored[k] += m.colored[k];
-                                }
-                            } else {
-                                game.player_mut(seat).conditional_pool.push((m, src, j));
-                            }
                         }
                     }
                 }
@@ -2989,17 +2984,32 @@ fn kind(m: &mut Mana, k: usize) -> &mut u32 {
 
 /// Spends what the pool can, but not stock mana that wasn't unlocked: colored costs from matching mana first, then
 /// colorless, then generic from what's left (colorless before colors, in WUBRG order). Fresh mana goes before
-/// unlocked stock.
-fn pay_from_pool(game: &mut Game, seat: Seat, unpaid: &mut ManaCost, stock: &mut Mana, unlocked: &mut Mana) {
+/// unlocked stock. `ManaPool.pay`: conditional mana the spell can spend goes first, but (stock or not) only while some
+/// mana is fresh, so it can leave fresh mana unspent; `fresh_conditional` counts conditional mana made this payment.
+fn pay_from_pool(game: &mut Game, seat: Seat, unpaid: &mut ManaCost, stock: &mut Mana, unlocked: &mut Mana, fresh_conditional: u32) {
     let mut pool = game.player(seat).mana_pool;
-    let spend = |pool: &mut Mana, stock: &mut Mana, unlocked: &mut Mana, k: usize, want: u32| -> u32 {
-        let fresh = kind(pool, k).saturating_sub(*kind(stock, k));
-        let from_fresh = want.min(fresh);
-        let from_unlocked = (want - from_fresh).min(*kind(unlocked, k));
-        *kind(unlocked, k) -= from_unlocked;
-        *kind(stock, k) -= from_unlocked;
-        *kind(pool, k) -= from_fresh + from_unlocked;
-        from_fresh + from_unlocked
+    let mut conditional = std::mem::take(&mut game.player_mut(seat).conditional_pool);
+    let mut spend = |pool: &mut Mana, stock: &mut Mana, unlocked: &mut Mana, k: usize, want: u32| -> u32 {
+        let mut paid = 0;
+        while paid < want {
+            let fresh = (0..6).any(|k| *kind(pool, k) > *kind(stock, k)) || fresh_conditional > 0;
+            let usable = (k < 5 && fresh)
+                .then(|| conditional.iter().position(|(m, src, j)| m.colored[k] > 0 && conditional_usable(game, seat, *src, *j)))
+                .flatten();
+            if let Some(c) = usable {
+                conditional.remove(c);
+            } else if fresh && *kind(pool, k) > *kind(stock, k) {
+                *kind(pool, k) -= 1;
+            } else if *kind(unlocked, k) > 0 {
+                *kind(unlocked, k) -= 1;
+                *kind(stock, k) -= 1;
+                *kind(pool, k) -= 1;
+            } else {
+                break;
+            }
+            paid += 1;
+        }
+        paid
     };
     for k in 0..5 {
         unpaid.colored[k] -= spend(&mut pool, stock, unlocked, k, unpaid.colored[k]);
@@ -3008,7 +3018,21 @@ fn pay_from_pool(game: &mut Game, seat: Seat, unpaid: &mut ManaCost, stock: &mut
     for k in [5, 0, 1, 2, 3, 4] {
         unpaid.generic -= spend(&mut pool, stock, unlocked, k, unpaid.generic);
     }
-    game.player_mut(seat).mana_pool = pool;
+    let p = game.player_mut(seat);
+    p.mana_pool = pool;
+    p.conditional_pool = conditional;
+}
+
+/// Whether conditional mana made by `src`'s ability `j` can be spent on the spell being paid for.
+fn conditional_usable(game: &Game, seat: Seat, src: ObjId, j: usize) -> bool {
+    game.obj(src).def.abilities.get(j).is_some_and(|a| match a {
+        AbilityDef::ConditionalManaAbility { filter, chosen_type, .. } => game.paying_for.get().is_some_and(|s| {
+            s != ANY_SPELL
+                && game.filter_matches(filter, seat, Some(src), s)
+                && (!*chosen_type || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.obj(s).def.subtypes.contains(t)))
+        }),
+        _ => false,
+    })
 }
 
 /// The unpaid part of a cost as Java prints it: `{1}{G}`.

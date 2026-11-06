@@ -2137,7 +2137,8 @@ impl CardDef {
             colors,
             cost,
             types: json.types,
-            subtypes: json.subtypes,
+            // an omen card's spell is an Omen (`OmenCard`'s spell subtype)
+            subtypes: if json.omen { json.subtypes.into_iter().chain(["Omen".to_string()]).collect() } else { json.subtypes },
             supertypes: json.supertypes,
             power: json.power.unwrap_or(0),
             toughness: json.toughness.unwrap_or(0),
