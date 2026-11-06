@@ -5521,50 +5521,55 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
 /// `MockingbirdEffect` (an optional `EntersBattlefieldAbility`): it may enter as a copy of a creature with mana value
 /// up to the mana spent to cast it, a Bird with flying besides
 fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, cast: bool) {
-    let def = game.obj(id).def.clone();
-    let Some(rule) = def.abilities.iter().find_map(|a| match a {
-        AbilityDef::EntersBattlefieldAbility { effects, rule, .. }
-            if matches!(effects.as_slice(), [EffectDef::MockingbirdEffect]) =>
-        {
-            Some(rule.clone())
+    // a copy of a Mockingbird has the replacement again, a new one Java hasn't applied yet: it asks again
+    loop {
+        let def = game.obj(id).def.clone();
+        let Some(rule) = def.abilities.iter().find_map(|a| match a {
+            AbilityDef::EntersBattlefieldAbility { effects, rule, .. }
+                if matches!(effects.as_slice(), [EffectDef::MockingbirdEffect]) =>
+            {
+                Some(rule.clone())
+            }
+            _ => None,
+        }) else {
+            return;
+        };
+        let q = Query::YesNo { message: format!("Use effect of {}?", def.name) };
+        if ask(game, d, controller, &q) != Answer::Bool(true) {
+            return;
         }
-        _ => None,
-    }) else {
-        return;
-    };
-    let q = Query::YesNo { message: format!("Use effect of {}?", def.name) };
-    if ask(game, d, controller, &q) != Answer::Bool(true) {
-        return;
+        let spent = if cast { game.obj(id).mana_spent } else { 0 };
+        let possible: Vec<ObjId> = game
+            .battlefield
+            .iter()
+            .copied()
+            .filter(|o| *o != id && game.has_type(*o, CardType::Creature) && game.obj(*o).def.mana_value() <= spent)
+            .collect();
+        if possible.is_empty() {
+            return;
+        }
+        let Some(chosen) = choose_cards(game, d, controller, &possible, &possible, 1, 1, &rule) else {
+            return;
+        };
+        let Some(of) = chosen.first().copied() else {
+            return;
+        };
+        let o = game.obj(of);
+        let mut copy = (*o.copiable()).clone();
+        if !copy.subtypes.iter().any(|t| t == "Bird") {
+            copy.subtypes.push("Bird".into());
+        }
+        if !copy.abilities.contains(&AbilityDef::FlyingAbility) {
+            copy.abilities.push(AbilityDef::FlyingAbility);
+        }
+        let copy = Arc::new(copy);
+        let o = game.obj_mut(id);
+        if o.printed_def.is_none() {
+            o.printed_def = Some(def);
+        }
+        o.copied_def = Some(copy.clone());
+        o.def = copy;
     }
-    let spent = if cast { game.obj(id).mana_spent } else { 0 };
-    let possible: Vec<ObjId> = game
-        .battlefield
-        .iter()
-        .copied()
-        .filter(|o| *o != id && game.has_type(*o, CardType::Creature) && game.obj(*o).def.mana_value() <= spent)
-        .collect();
-    if possible.is_empty() {
-        return;
-    }
-    let Some(chosen) = choose_cards(game, d, controller, &possible, &possible, 1, 1, &rule) else {
-        return;
-    };
-    let Some(of) = chosen.first().copied() else {
-        return;
-    };
-    let o = game.obj(of);
-    let mut copy = (*o.copiable()).clone();
-    if !copy.subtypes.iter().any(|t| t == "Bird") {
-        copy.subtypes.push("Bird".into());
-    }
-    if !copy.abilities.contains(&AbilityDef::FlyingAbility) {
-        copy.abilities.push(AbilityDef::FlyingAbility);
-    }
-    let copy = Arc::new(copy);
-    let o = game.obj_mut(id);
-    o.printed_def = Some(def);
-    o.copied_def = Some(copy.clone());
-    o.def = copy;
 }
 
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
