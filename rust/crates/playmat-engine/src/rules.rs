@@ -248,11 +248,12 @@ fn end_step(game: &mut Game, step: Step) {
         game.first_strike_step = false;
         for id in Arc::clone(&game.battlefield).iter().copied() {
             let o = game.obj(id);
-            if o.attacking.is_some() || !o.blocking.is_empty() || o.blocked {
+            if o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0 || o.blocked {
                 let o = game.obj_mut(id);
                 o.attacking = None;
                 o.attacking_pw = None;
                 o.blocking.clear();
+                o.blocks = 0;
                 o.blocked = false;
                 o.blocked_by.clear();
             }
@@ -1144,6 +1145,24 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             }
         }
     }
+    // offspring: `OffspringAbility.addOptionalAdditionalCosts`
+    for a in &def.abilities {
+        if let AbilityDef::OffspringAbility { cost: more, .. } = a {
+            let q = Query::YesNo { message: format!("Pay {} for offspring?", more) };
+            let pay = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if pay {
+                let Ok(k) = ManaCost::parse(more) else { return false };
+                cost = cost.plus(&k);
+                game.obj_mut(id).offspring = true;
+            }
+        }
+    }
     // X: `announceX` (AMOUNT) asks until an answer is in range; X's mana is then generic
     if cost.x > 0 {
         let q = Query::Amount { min: 0, max: i32::MAX };
@@ -1965,6 +1984,17 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
                 .filter(|c| game.filter_matches(filter, seat, src, *c))
                 .collect(),
         ),
+        TargetDef::TargetSpellOrPermanent { filter } => {
+            let mut objs: Vec<ObjId> = game
+                .stack
+                .iter()
+                .rev()
+                .filter(|i| i.ability.is_none() && i.delayed.is_none() && Some(i.card) != src)
+                .map(|i| i.card)
+                .collect();
+            objs.extend(permanents(&|id| game.filter_matches(filter, seat, src, id)));
+            (Vec::new(), objs)
+        }
         TargetDef::TargetCardInGraveyard { filter, .. } => (
             Vec::new(),
             game.players
@@ -2690,6 +2720,80 @@ fn apply_each_effect(
                     p.add_counters("+1/+1", n);
                 }
                 game.earthbent.push((o, zcc));
+            }
+            EffectDef::EmpowerJaceEffect { amount, token } => {
+                let jaces = |game: &Game| -> Vec<ObjId> {
+                    game.battlefield
+                        .iter()
+                        .copied()
+                        .filter(|o| {
+                            let ob = game.obj(*o);
+                            ob.controller == controller
+                                && ob.token
+                                && game.has_type(*o, CardType::Planeswalker)
+                                && ob.def.subtypes.iter().any(|s| s == "Jace")
+                        })
+                        .collect()
+                };
+                let mut found = jaces(game);
+                if found.is_empty() {
+                    let e = EffectDef::CreateTokenEffect {
+                        token: token.clone(),
+                        amount: Amount::Fixed(1),
+                        tapped_and_attacking: false,
+                        tapped: false,
+                        attacking: false,
+                        sacrifice_at_end_of_combat: false,
+                        sacrifice_at_next_end_step: false,
+                        haste_until_end_of_turn: false,
+                        also: None,
+                    };
+                    apply_effects(game, d, item, std::slice::from_ref(&e), legal, source);
+                    found = jaces(game);
+                }
+                let chosen = match found.len() {
+                    0 => None,
+                    1 => Some(found[0]),
+                    _ => match choose_cards(game, d, controller, &found, &found, 1, 1, "empower") {
+                        Some(c) => c.first().copied(),
+                        None => return,
+                    },
+                };
+                let n = v!(amount);
+                if let Some(j) = chosen {
+                    game.obj_mut(j).add_counters("loyalty", n);
+                }
+            }
+            EffectDef::CreateRoleAttachedTargetEffect { token } => {
+                let def = Arc::new(token.card());
+                for o in &objs {
+                    if game.obj(*o).zone != Zone::Battlefield {
+                        continue;
+                    }
+                    token_image(game, token, source.0);
+                    let id = game.create_obj(def.clone(), controller, Zone::Library);
+                    let t = game.obj_mut(id);
+                    t.token = true;
+                    t.trigger_order = (1 << 32) + id.0 as u64;
+                    let zcc = game.obj(*o).zcc;
+                    game.obj_mut(id).attached_to = Some((*o, zcc));
+                    enter_battlefield(game, d, id, controller, false);
+                    game.obj_mut(id).attached_to = Some((*o, zcc));
+                }
+            }
+            EffectDef::OffspringEffect => {
+                // `CreateTokenCopyTargetEffect` of the permanent (or as it last was), 1/1
+                let mut def = (*game.obj(source.0).def).clone();
+                def.power = 1;
+                def.toughness = 1;
+                let def = Arc::new(def);
+                for _ in 0..token_copies(game, controller) {
+                    let id = game.create_obj(def.clone(), controller, Zone::Library);
+                    let o = game.obj_mut(id);
+                    o.token = true;
+                    o.trigger_order = (1 << 32) + id.0 as u64;
+                    enter_battlefield(game, d, id, controller, false);
+                }
             }
             EffectDef::GhostVacuumEffect => {
                 let (src, zcc) = source;
@@ -4436,6 +4540,8 @@ fn apply_each_effect(
             | EffectDef::TenaciousUnderdogEffect
             | EffectDef::BoostAllEffect { .. }
             | EffectDef::TapSourceUnlessPaysEffect { .. }
+            | EffectDef::TapSourceUnlessBeholdEffect { .. }
+            | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::AttachEffect
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
@@ -4697,6 +4803,7 @@ fn regenerate(game: &mut Game, id: ObjId) -> bool {
         let a = o.attacking.take().is_some();
         o.attacking_pw = None;
         o.blocked = false;
+        o.blocks = 0;
         (a, std::mem::take(&mut o.blocking))
     };
     let blockers = std::mem::take(&mut game.obj_mut(id).blocked_by);
@@ -4882,6 +4989,29 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                         Some(Target::Obj(o)) => Some((*o, game.obj(*o).zcc)),
                         _ => None,
                     };
+                }
+                if let EffectDef::TapSourceUnlessBeholdEffect { subtype } = e {
+                    let (perms, cards) = beholdable(game, controller, subtype);
+                    let paid = !(perms.is_empty() && cards.is_empty()) && {
+                        let article = if "AEIOU".contains(&subtype[..1]) { "an" } else { "a" };
+                        let q = Query::YesNo {
+                            message: format!("behold {} {}? (otherwise {} becomes tapped)", article, subtype, def.name),
+                        };
+                        loop {
+                            match ask(game, d, controller, &q) {
+                                Answer::Bool(b) => break b,
+                                Answer::Stop => return,
+                                _ => {}
+                            }
+                        }
+                    };
+                    let cost = CostDef::BeholdCost { subtype: subtype.clone() };
+                    if !(paid && pay_cost(game, d, controller, id, &cost)) {
+                        if d.stopped() {
+                            return;
+                        }
+                        game.obj_mut(id).tapped = true;
+                    }
                 }
                 if let EffectDef::TapSourceUnlessPaysEffect { life } = e {
                     let paid = game.player(controller).life >= *life && {
@@ -5530,6 +5660,7 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 continue;
             }
             game.obj_mut(blockers[0]).blocking.clear();
+            game.obj_mut(blockers[0]).blocks = 0;
             let o = game.obj_mut(a);
             o.blocked_by.clear();
             o.blocked = false;
@@ -5584,6 +5715,7 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         if !o.blocking.is_empty() {
             if game.stack.is_empty() {
                 game.obj_mut(blocker).blocking.clear();
+                game.obj_mut(blocker).blocks = 0;
                 refresh_blocked(game);
             }
             continue;
@@ -5602,6 +5734,7 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         };
         if let Some(a) = chosen {
             game.obj_mut(blocker).blocking.push(a);
+            game.obj_mut(blocker).blocks += 1;
             let by = &mut game.obj_mut(a).blocked_by;
             by.retain(|x| *x != blocker);
             by.push(blocker);
@@ -6023,6 +6156,16 @@ pub fn state_based_actions(game: &mut Game) {
                         && (o.damage >= t || (o.deathtouched && o.damage > 0)))
             })
             .collect();
+        // 704.5y: of the Roles one player controls on one permanent, only the newest stays
+        let mut dying = dying;
+        let roles: Vec<ObjId> =
+            game.battlefield.iter().copied().filter(|id| game.obj(*id).def.has_subtype("Role") && !dying.contains(id)).collect();
+        for r in &roles {
+            let (o, c) = (game.obj(*r).attached_to, game.obj(*r).controller);
+            if roles.iter().any(|x| *x > *r && game.obj(*x).attached_to == o && game.obj(*x).controller == c) {
+                dying.push(*r);
+            }
+        }
         game.lookback = game.battlefield.to_vec();
         for id in dying {
             // lethal damage destroys (a regeneration shield replaces that); 0 toughness doesn't

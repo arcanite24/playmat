@@ -149,6 +149,8 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its blitz cost (until it leaves the battlefield)
     pub blitzed: bool,
+    /// cast with its offspring cost paid
+    pub offspring: bool,
     /// in exile after warp: its owner may cast it from this turn number on
     pub warp_from: Option<u32>,
     /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
@@ -161,6 +163,9 @@ pub struct Obj {
     pub on_adventure: bool,
     /// the attackers it blocks
     pub blocking: Vec<ObjId>,
+    /// how many attackers it was declared to block (Java's `blocking` count: an attacker leaving combat doesn't
+    /// lower it)
+    pub blocks: u32,
     /// blocked this combat (stays blocked if its blockers leave)
     pub blocked: bool,
     /// an attacker's blockers, in the order they were declared (Java's `CombatGroup.blockers`)
@@ -502,12 +507,14 @@ impl Game {
             play_tax: 0,
             warped: false,
             blitzed: false,
+            offspring: false,
             warp_from: None,
             mana_spent: 0,
             entered_turn: 0,
             targeted: (0, 0),
             on_adventure: false,
             blocking: Vec::new(),
+            blocks: 0,
             blocked: false,
             blocked_by: Vec::new(),
             sick: false,
@@ -782,6 +789,7 @@ impl Game {
         match c {
             // a permanent that was cast kicked ("when this enters, if it was kicked")
             Condition::Kicked => self.obj(source).kicked,
+            Condition::Offspring => self.obj(source).offspring,
             Condition::CastFromEverywhere => self.obj(source).cast,
             Condition::Raid => self.player(you).attacked,
             Condition::Revolt => self.player(you).permanent_left,
@@ -872,6 +880,7 @@ impl Game {
                     && self.filter_matches(filter, you, Some(src), id)
             }
             EffectDef::GainAbilitySourceEffect { ability: given, .. } => **given == *ability && id == src,
+            EffectDef::GainAbilityAttachedEffect { ability: given } => **given == *ability && self.attached(src) == Some(id),
             EffectDef::ConditionalContinuousEffect { effect, condition } => {
                 self.condition_holds(Some(condition), you, src) && self.static_gives(effect, src, you, id, ability)
             }
@@ -1175,6 +1184,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.blitzed = false;
+                o.offspring = false;
             }
         }
         let owner = self.obj(id).owner;
@@ -1198,6 +1208,7 @@ impl Game {
                 }
                 o.cast_x = 0;
                 o.blocking.clear();
+                o.blocks = 0;
                 o.blocked = false;
                 o.blocked_by.clear();
                 o.controller = o.owner;

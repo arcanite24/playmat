@@ -97,6 +97,7 @@ EFFECTS = {
     'CantBeBlockedTargetEffect': [('duration', 'duration')],
     'AttachEffect': [(None, 'outcome'), (None, 'string')],
     'BoostEnchantedEffect': [('power', 'int'), ('toughness', 'int'), (None, 'while_on_battlefield')],
+    'GainAbilityAttachedEffect': [('ability', 'ability'), (None, 'aura')],
     'CantAttackBlockAttachedEffect': [(None, 'aura')],
     'FightTargetsEffect': [],
     'CantCastMoreThanOneSpellEffect': [('who', 'target_controller')],
@@ -510,6 +511,11 @@ def declared_filters(source, subtypes):
             continue
         adds = [canonical(p) for p in re.findall(r'\b' + name + r'\.add\((.*?)\);', source, re.S)]
         adds = [preds.get(a, a) for a in adds]
+        # "spell or creature" (Fatehold Charm): any spell, or a creature
+        if cls == 'FilterSpellOrPermanent' and not adds \
+                and re.search(r'\b' + name + r'\.setPermanentFilter\(new FilterCreaturePermanent\(\)\);', source):
+            out[name] = SPELL_OR_CREATURE
+            continue
         try:
             out[name] = filter_object(cls, args, adds, subtypes)
         except Unsupported as e:
@@ -518,6 +524,9 @@ def declared_filters(source, subtypes):
 
 
 _static_filters = None
+
+# a `FilterSpellOrPermanent` of any spell or a creature
+SPELL_OR_CREATURE = ('spell or creature',)
 
 
 def static_filters(subtypes):
@@ -955,6 +964,8 @@ class Translator:
         return out
 
     def effect(self, expr):
+        # every target (the one target a duel's "for each opponent" adjuster leaves)
+        expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
         # exiled "with" the source (Ghost Vacuum)
         if self.strip_setters(expr) == 'new ExileTargetEffect().setToSourceExileZone(true)':
             return {'class': 'ExileTargetForSourceEffect'}
@@ -1010,6 +1021,14 @@ class Translator:
             return {'class': 'SetBasePowerToughnessUntilLeavesEffect', 'power': int(args[0]), 'toughness': int(args[1])}
         if cls == 'EarthbendTargetEffect' and len(args) == 1:
             return {'class': cls, 'amount': self.value('amount', args[0].strip())}
+        if cls == 'EmpowerJaceEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'amount': self.amount(args[0].strip()), 'token': token('JacePlaneswalkerToken')}
+        # a Role token attached to each target
+        if cls == 'CreateRoleAttachedTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'RoleType\.(\w+)', args[0].strip())):
+            return {'class': cls, 'token': token(m.group(1).title().replace('_', '') + 'RoleToken')}
+        if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (
+                m := re.fullmatch(r'new BeholdCost\(SubType\.(\w+)\)', args[0].strip())):
+            return {'class': 'TapSourceUnlessBeholdEffect', 'subtype': subtype_names()[m.group(1)]}
         if cls == 'TransformSourceEffect' and not args:
             return {'class': cls}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
@@ -1278,6 +1297,9 @@ class Translator:
             return {'class': cls}
         if cls == 'TargetPermanentOrPlayer' and len(args) == 1 and self.filters.get(args[0].strip()) == ANY_OTHER_TARGET:
             return {'class': 'TargetAnyTarget', 'another': True}
+        if cls == 'TargetSpellOrPermanent' and [a.strip() for a in args[:2] + args[3:]] == ['1', '1', 'false'] \
+                and self.filters.get(args[2].strip()) is SPELL_OR_CREATURE:
+            return {'class': cls, 'filter': [dict(CREATURE)]}
         if cls == 'TargetAnyTarget' and len(args) == 2 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
             return {'class': cls, 'min': int(args[0]), 'max': int(args[1])}
         if cls not in TARGET_CLASSES:
@@ -1567,6 +1589,8 @@ class Translator:
                                        self.strip_setters(args[0]))):
             return {'class': cls, 'java': cls, 'filter': self.filter(args[1]),
                     'color': {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}[m.group(1)]}
+        if cls == 'OffspringAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
+            return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
         if cls == 'BlitzAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
             return {'class': cls, 'java': cls, 'mana': args[1][1:-1], 'cost': []}
         if cls == 'WardAbility' and n in (1, 2) and (n == 1 or args[1] in ('true', 'false')):
@@ -1939,6 +1963,13 @@ def ability_statement(t, st, added):
     if m:
         t.assign(m.group(1), m.group(2))
         return True
+    # "for each opponent, up to one target … that player controls": in a duel, one target an opponent controls
+    m = re.fullmatch(r'(\w+)\.setTargetAdjuster\(new ForEachPlayerTargetsAdjuster\(false,true\)\)', st)
+    if m and m.group(1) in t.vars and len(t.vars[m.group(1)].get('targets', [])) == 1 \
+            and t.vars[m.group(1)]['targets'][0]['class'] == 'TargetPermanent':
+        target = t.vars[m.group(1)]['targets'][0]
+        target['filter'] = [dict(p) for p in target['filter']] + [dict(OPPONENT)]
+        return True
     m = re.fullmatch(r'(\w+)\.withInterveningIf\((.*)\)', st)
     if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
         t.vars[m.group(1)]['condition'] = t.value('condition', m.group(2).strip())
@@ -1994,6 +2025,10 @@ def ability_statement(t, st, added):
         # blitz: its "as it enters" part, listed on its own
         if added[-1].get('class') == 'BlitzAbility':
             added.append({'class': 'BlitzEntersAbility', 'java': 'EntersBattlefieldAbility'})
+        # offspring: its "when this enters, if its offspring cost was paid" trigger, listed on its own
+        if added[-1].get('class') == 'OffspringAbility':
+            added.append({'class': 'TriggeredAbility', 'java': 'EntersBattlefieldTriggeredAbility', 'on': {'e': 'enters'},
+                          'condition': {'c': 'offspring'}, 'effects': [{'class': 'OffspringEffect'}]})
         return True
     return False
 
@@ -2067,9 +2102,10 @@ def token(cls):
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes)
     added = []
     for st in statements(m.group(1)):
+        st = re.sub(r'^this\.(?=(?:cardType|color|subtype|power|toughness|startingLoyalty)\b)', '', st)
         if (n := re.fullmatch(r'super\("([^"]+)",".*"\)', st)):
             out['name'] = n.group(1)
-        elif (n := re.fullmatch(r'cardType\.add\(CardType\.(\w+)\)', st)):
+        elif (n := re.fullmatch(r'(?:this\.)?cardType\.add\(CardType\.(\w+)\)', st)):
             out['types'].append(n.group(1))
         elif (n := re.fullmatch(r'color\.set(\w+)\(true\)', st)):
             out['colors'].append(colors[n.group(1)])
@@ -2077,6 +2113,8 @@ def token(cls):
             out['subtypes'].append(subtypes[n.group(1)])
         elif (n := re.fullmatch(r'(power|toughness)=new MageInt\((\d+)\)', st)):
             out[n.group(1)] = int(n.group(2))
+        elif (n := re.fullmatch(r'(?:this\.)?startingLoyalty=(\d+)', st)):
+            out['loyalty'] = int(n.group(1))
         elif not ability_statement(t, st, added):
             raise Unsupported('token statement ' + st)
     if added:
@@ -2185,6 +2223,10 @@ def token_classes(names):
         # tokens a keyword makes
         if 'MobilizeAbility' in source:
             out.add('RedWarriorToken')
+        if 'EmpowerJaceEffect' in source:
+            out.add('JacePlaneswalkerToken')
+        for role in re.findall(r'RoleType\.(\w+)', source):
+            out.add(role.title().replace('_', '') + 'RoleToken')
     return sorted(out)
 
 

@@ -81,7 +81,7 @@ pub fn text(game: &Game) -> String {
                 t,
                 o.damage,
                 if o.attacking.is_some() { " attacking" } else { "" },
-                if !o.blocking.is_empty() { " blocking" } else { "" },
+                if o.blocks > 0 { " blocking" } else { "" },
                 counters(&o.counters)
             )
         })

@@ -148,6 +148,11 @@ pub enum TargetDef {
         #[serde(default)]
         filter: Filter,
     },
+    /// any other spell, or a permanent of the filter
+    TargetSpellOrPermanent {
+        #[serde(default)]
+        filter: Filter,
+    },
     /// a permanent of the filter
     TargetPermanent {
         #[serde(default)]
@@ -416,6 +421,8 @@ pub enum ManaKind {
 pub enum Condition {
     /// `KickedCondition`: the spell was kicked (only a spell or what it put on the battlefield knows)
     Kicked,
+    /// `OffspringCondition`: the permanent's offspring cost was paid
+    Offspring,
     /// `RaidCondition`: you attacked this turn
     Raid,
     /// a permanent you controlled left the battlefield this turn
@@ -520,6 +527,9 @@ pub struct TokenDef {
     pub abilities: Vec<AbilityDef>,
     #[serde(default)]
     pub all_creature_types: bool,
+    /// a planeswalker token's starting loyalty
+    #[serde(default)]
+    pub loyalty: Option<i32>,
     /// its images per set (`TokenRepository`): making one picks an image at random from its source's set's, or
     /// else from all of them, when there are two or more
     #[serde(default)]
@@ -548,7 +558,7 @@ impl TokenDef {
             toughness: self.toughness,
             abilities: self.abilities.clone(),
             spell: SpellDef::default(),
-            loyalty: None,
+            loyalty: self.loyalty,
             all_creature_types: self.all_creature_types,
             adventure: None,
             back: None,
@@ -804,6 +814,10 @@ pub enum EffectDef {
     TapSourceUnlessPaysEffect {
         life: i32,
     },
+    /// as it enters, its controller may behold a `subtype`; if they don't, it enters tapped
+    TapSourceUnlessBeholdEffect {
+        subtype: String,
+    },
     /// the first target deals damage equal to its power to the second (Bite Down)
     DamageWithPowerFromOneToAnotherTargetEffect,
     /// each opponent loses `amount` life
@@ -932,6 +946,10 @@ pub enum EffectDef {
     /// each creature card exiled with the source enters under your control with a flying counter, a 1/1 Spirit in
     /// addition to its other types
     GhostVacuumEffect,
+    /// a 1/1 token copy of the source (offspring)
+    OffspringEffect,
+    /// `EmpowerJaceEffect`: loyalty counters on a Jace token you control, first creating one if you control none
+    EmpowerJaceEffect { amount: Amount, token: TokenDef },
     /// earthbend N: the target land you control becomes a 0/0 creature with haste that's still a land, with N +1/+1
     /// counters; when it dies or is exiled, it returns to the battlefield tapped
     EarthbendTargetEffect { amount: Amount },
@@ -1229,6 +1247,10 @@ pub enum EffectDef {
         optional: bool,
     },
     /// a static ability's effect: the permanents of `filter` have `ability`
+    /// a static ability's effect: the permanent this Aura enchants has the ability
+    GainAbilityAttachedEffect { ability: Box<AbilityDef> },
+    /// a Role token attached to each target (`CreateRoleAttachedTargetEffect`)
+    CreateRoleAttachedTargetEffect { token: TokenDef },
     GainAbilityAllEffect {
         ability: Box<AbilityDef>,
         duration: Duration,
@@ -1362,6 +1384,8 @@ pub enum AbilityDef {
     },
     /// cast for `mana` and `cost` instead: it gains haste and "when this creature dies, draw a card", and it's
     /// sacrificed at the beginning of the next end step (a second spell ability)
+    /// you may pay `cost` more as you cast it; if you do, when it enters, create a 1/1 token copy of it
+    OffspringAbility { cost: String, rule: String },
     BlitzAbility {
         mana: String,
         #[serde(default)]
