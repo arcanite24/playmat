@@ -159,6 +159,10 @@ pub enum TargetDef {
     },
 }
 
+fn one_u32() -> u32 {
+    1
+}
+
 fn one() -> usize {
     1
 }
@@ -1423,6 +1427,9 @@ pub enum AbilityDef {
     },
     /// `{T}[, other costs]: Add one mana of any color` (a Treasure's, with a sacrifice)
     AnyColorManaAbility {
+        /// how much of the chosen color (a Lotus's three)
+        #[serde(default = "one_u32")]
+        amount: u32,
         #[serde(default)]
         effects: Vec<EffectDef>,
         #[serde(default)]
@@ -1538,7 +1545,7 @@ impl AbilityDef {
             AbilityDef::GreenManaAbility { .. } => Some(Mana::of(Color::G, 1)),
             AbilityDef::ColorlessManaAbility { .. } => Some(Mana { colorless: 1, ..Mana::default() }),
             // one of each: whichever is needed
-            AbilityDef::AnyColorManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            AbilityDef::AnyColorManaAbility { amount, .. } => Some(Mana { colored: [*amount; 5], ..Mana::default() }),
             AbilityDef::ActivateIfConditionManaAbility { color, .. } => Some(Mana::of(*color, 1)),
             _ => None,
         }

@@ -1321,6 +1321,10 @@ class Translator:
                     'cost': [{'class': 'CrewCost', 'value': int(args[0])}]}
         if cls == 'AnyColorManaAbility' and not args:
             return {'class': cls, 'java': cls}
+        # "{T}: Add N mana of any one color"
+        if cls == 'SimpleManaAbility' and len(args) == 2 and args[1].strip() == 'new TapSourceCost()' \
+                and (n := re.fullmatch(r'new AddManaOfAnyColorEffect\((\d+)\)', args[0].strip())):
+            return {'class': 'AnyColorManaAbility', 'java': cls, 'amount': int(n.group(1))}
         # "{T}: Add {R}. Activate only if …"
         if cls == 'ActivateIfConditionManaAbility' and len(args) == 4 and args[0] == 'Zone.BATTLEFIELD' \
                 and args[2] == 'new TapSourceCost()':

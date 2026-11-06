@@ -785,7 +785,7 @@ fn auto_pay_abilities(abilities: &[(usize, Mana, ManaKind)], unpaid: &ManaCost) 
 
 /// `ManaUtil.tryToAutoSelectAManaColor`: the one color still owed; with none owed, white; else the player chooses
 /// (CHOOSE_CHOICE). None: stopped.
-fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost) -> Option<Color> {
+fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost, n: u32) -> Option<Color> {
     let owed: Vec<Color> = Color::ALL.iter().copied().filter(|c| unpaid.colored[c.index()] > 0).collect();
     match owed.len() {
         0 => return Some(Color::W),
@@ -794,7 +794,7 @@ fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost
     }
     let names = ["White", "Blue", "Black", "Red", "Green"];
     let choices: Vec<String> = names.iter().map(|n| n.to_string()).collect();
-    let q = Query::Choice { message: "Select a color of mana to add 1 of it".into(), choices };
+    let q = Query::Choice { message: format!("Select a color of mana to add {n} of it"), choices };
     loop {
         match ask(game, d, seat, &q) {
             Answer::Text(t) => {
@@ -1873,8 +1873,12 @@ fn activate_mana(
         }
     }
     if k == ManaKind::AnyColor {
-        let Some(c) = any_color(game, d, seat, unpaid) else { return false };
-        m = Mana::of(c, 1);
+        let n = match &game.obj(id).def.abilities[i] {
+            AbilityDef::AnyColorManaAbility { amount, .. } => *amount,
+            _ => 1,
+        };
+        let Some(c) = any_color(game, d, seat, unpaid, n) else { return false };
+        m = Mana::of(c, n);
     }
     for c in game.obj(id).def.abilities[i].mana_costs().to_vec() {
         match c {
