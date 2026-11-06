@@ -133,8 +133,9 @@ pub struct Obj {
     pub exerted: bool,
     /// its power-up ability was activated (once each game, for this object)
     pub powered_up: bool,
-    /// subtypes and base power and toughness it has until it leaves the battlefield (Evolved Sleeper)
-    pub added_subtypes: Vec<String>,
+    /// creature types and base power and toughness it has until it leaves the battlefield (Evolved Sleeper: each
+    /// "becomes" replaces its creature types)
+    pub creature_types: Option<Vec<String>>,
     pub base_pt: Option<(i32, i32)>,
     /// regeneration shields until end of turn
     pub regen_shields: u32,
@@ -249,6 +250,8 @@ pub enum Target {
 pub struct StackItem {
     /// the spell's card, or the source of an ability
     pub card: ObjId,
+    /// an ability's face, when its source has transformed since it triggered or was activated
+    pub def: Option<Arc<CardDef>>,
     pub controller: Seat,
     /// the chosen targets, per target of the spell or ability (a target can take several, "up to two")
     pub targets: Vec<Vec<Target>>,
@@ -313,6 +316,7 @@ impl StackItem {
             x: 0,
             ward_of: None,
             entering: None,
+            def: None,
         }
     }
 }
@@ -485,7 +489,7 @@ impl Game {
             chosen: None,
             exerted: false,
             powered_up: false,
-            added_subtypes: Vec::new(),
+            creature_types: None,
             base_pt: None,
             regen_shields: 0,
             exile_instead_of_dying: false,
@@ -526,7 +530,7 @@ impl Game {
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
             Pred::Adventure => self.obj(id).def.adventure.is_some() || self.obj(id).adventurer.is_some(),
-            Pred::Mv { cmp, n } => cmp.holds(o.def.cost.mana_value() as i32, *n),
+            Pred::Mv { cmp, n } => cmp.holds(o.def.mana_value() as i32, *n),
             Pred::Power { cmp, n } => cmp.holds(self.power_toughness(id).0, *n),
             Pred::TotalPowerToughness { n } => {
                 let (p, t) = self.power_toughness(id);
@@ -556,8 +560,10 @@ impl Game {
     pub fn has_subtype(&self, id: ObjId, s: &str) -> bool {
         let o = self.obj(id);
         let def = &o.def;
-        (o.zone == Zone::Battlefield && o.added_subtypes.iter().any(|x| x == s))
-            || def.subtypes.iter().any(|x| x == s) || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
+        if let Some(types) = o.creature_types.as_ref().filter(|_| o.zone == Zone::Battlefield) {
+            return types.iter().any(|x| x == s) || (crate::card::LAND_TYPES.contains(&s) && def.subtypes.iter().any(|x| x == s));
+        }
+        def.subtypes.iter().any(|x| x == s) || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
     }
 
     /// Whether a permanent has an ability: printed, given by a resolved effect, or given by a static ability.
@@ -629,8 +635,13 @@ impl Game {
         fired
     }
 
-    pub fn trigger_of(&self, t: &StackItem) -> Option<&Trigger> {
-        t.ability.and_then(|(i, _)| self.obj(t.card).def.abilities.get(i)).and_then(|a| a.trigger())
+    pub fn trigger_of<'a>(&'a self, t: &'a StackItem) -> Option<&'a Trigger> {
+        t.ability.and_then(|(i, _)| self.item_def(t).abilities.get(i)).and_then(|a| a.trigger())
+    }
+
+    /// The card face a spell or ability comes from (an ability keeps the face it came from)
+    pub fn item_def<'a>(&'a self, t: &'a StackItem) -> &'a Arc<CardDef> {
+        t.def.as_ref().unwrap_or(&self.obj(t.card).def)
     }
 
     /// Pelt Collector's intervening "if": the creature's power is greater than its source's (still on the
@@ -742,7 +753,7 @@ impl Game {
                     .battlefield
                     .iter()
                     .filter(|b| self.filter_matches(filter, you, Some(source), **b))
-                    .map(|b| self.obj(*b).def.cost.mana_value() as i32)
+                    .map(|b| self.obj(*b).def.mana_value() as i32)
                     .max()
                     .unwrap_or(0),
                 Value::SourceCounters { counter } => {
@@ -971,7 +982,7 @@ impl Game {
         }
         match item.ability {
             Some((i, _)) => {
-                let rule = card.def.abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
+                let rule = self.item_def(item).abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
                 format!("stack ability ({})", rule)
             }
             None => card.name().to_string(),
@@ -1130,7 +1141,7 @@ impl Game {
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;
-            o.added_subtypes.clear();
+            o.creature_types = None;
             o.base_pt = None;
             o.regen_shields = 0;
             o.warp_from = None;
@@ -1174,7 +1185,7 @@ impl Game {
                 t.ability = t.ability.map(|(i, _)| (i, self.obj(id).zcc));
             }
             // "that player": the dead permanent's controller
-            let a = t.ability.and_then(|(i, _)| self.obj(t.card).def.abilities.get(i));
+            let a = t.ability.and_then(|(i, _)| self.item_def(&t).abilities.get(i));
             if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
                 t.targets = vec![vec![Target::Player(died_controller)]];
                 t.target_zcc = vec![vec![0]];

@@ -554,6 +554,7 @@ impl TokenDef {
             back: None,
             transform_back: None,
             omen: false,
+            printed_cost: None,
         }
     }
 }
@@ -934,7 +935,8 @@ pub enum EffectDef {
     NowhereToRunHexproofEffect,
     /// static: ward abilities of creatures your opponents control don't trigger
     NowhereToRunWardEffect,
-    /// the source gains these subtypes until it leaves the battlefield (`AddCardSubTypeSourceEffect`, `Duration.Custom`)
+    /// the source's creature types become these until it leaves the battlefield (`AddCardSubTypeSourceEffect`,
+    /// `Duration.Custom`, not in addition)
     BecomesSubtypesSourceEffect { subtypes: Vec<String> },
     /// the source has this base power and toughness until it leaves (layer 7b, `Duration.Custom`)
     SetBasePowerToughnessUntilLeavesEffect { power: i32, toughness: i32 },
@@ -1780,9 +1782,21 @@ pub struct CardDef {
     pub transform_back: Option<Arc<CardDef>>,
     /// an omen card's spell: once it resolves, the card is shuffled into its owner's library (`OmenCard`)
     pub omen: bool,
+    /// cast for an alternative cost (cleave, blitz, flashback…): the printed cost, which still gives the mana value
+    pub printed_cost: Option<ManaCost>,
 }
 
 impl CardDef {
+    /// The printed mana cost (not an alternative cost it's being cast for)
+    pub fn printed(&self) -> &ManaCost {
+        self.printed_cost.as_ref().unwrap_or(&self.cost)
+    }
+
+    /// The mana value, from the printed cost
+    pub fn mana_value(&self) -> u32 {
+        self.printed().mana_value()
+    }
+
     pub fn from_json(json: CardJson) -> Result<CardDef, String> {
         let cost = ManaCost::parse(&json.cost)?;
         let colors = json.colors.unwrap_or_else(|| cost.colors());
@@ -1813,6 +1827,7 @@ impl CardDef {
                 None => None,
             },
             omen: json.omen,
+            printed_cost: None,
         })
     }
 
@@ -1832,7 +1847,7 @@ impl CardDef {
     pub fn flashback(&self) -> Option<CardDef> {
         self.abilities.iter().find_map(|a| match a {
             AbilityDef::FlashbackAbility { cost, .. } => {
-                Some(CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() })
+                Some(CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() })
             }
             _ => None,
         })
@@ -1844,7 +1859,7 @@ impl CardDef {
             AbilityDef::EscapeAbility { cost, exile, .. } => {
                 let mut spell = self.spell.clone();
                 spell.costs.push(CostDef::ExileFromGraveCost { amount: *exile });
-                Some(CardDef { cost: ManaCost::parse(cost).ok()?, spell, ..self.clone() })
+                Some(CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() })
             }
             _ => None,
         })
@@ -1854,7 +1869,7 @@ impl CardDef {
     pub fn spectacle(&self) -> Option<(usize, CardDef)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
             AbilityDef::SpectacleAbility { cost, .. } => {
-                Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() }))
+                Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() }))
             }
             _ => None,
         })
@@ -1866,7 +1881,7 @@ impl CardDef {
             AbilityDef::BlitzAbility { mana, cost, .. } => {
                 let mut spell = self.spell.clone();
                 spell.costs.extend(cost.iter().cloned());
-                Some((k, CardDef { cost: ManaCost::parse(mana).ok()?, spell, ..self.clone() }))
+                Some((k, CardDef { cost: ManaCost::parse(mana).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() }))
             }
             _ => None,
         })
@@ -1878,7 +1893,7 @@ impl CardDef {
             AbilityDef::CleaveAbility { cost, effects, .. } => {
                 let mut spell = self.spell.clone();
                 spell.effects = effects.clone();
-                Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, spell, ..self.clone() }))
+                Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() }))
             }
             _ => None,
         })
@@ -1887,7 +1902,7 @@ impl CardDef {
     /// The warp ability's index and the card with its warp cost.
     pub fn warp(&self) -> Option<(usize, CardDef)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
-            AbilityDef::WarpAbility { cost, .. } => Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() })),
+            AbilityDef::WarpAbility { cost, .. } => Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() })),
             _ => None,
         })
     }

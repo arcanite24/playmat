@@ -163,7 +163,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     _ => false,
                 });
                 for mut t in fired {
-                    let all = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities[i].trigger().cloned());
+                    let all = t.ability.and_then(|(i, _)| game.item_def(&t).abilities[i].trigger().cloned());
                     if matches!(all, Some(Trigger::AttacksAll { .. })) && set_target_pointer(game, &t) {
                         t.targets = vec![vec![Target::Obj(a)]];
                         t.target_zcc = vec![vec![game.obj(a).zcc]];
@@ -297,7 +297,7 @@ pub fn draw(game: &mut Game, seat: Seat, n: usize) {
 
 /// Whether a waiting trigger's ability points its effects at what the event was about.
 fn set_target_pointer(game: &Game, t: &StackItem) -> bool {
-    let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
+    let a = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
     matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. }))
 }
 
@@ -1265,12 +1265,12 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     let mut fired = fired;
     // the spell's mana value, X included (Shark Typhoon's "that spell's mana value")
     let spell_mv = {
-        let c = &game.obj(spell).def.cost;
+        let c = game.obj(spell).def.printed();
         c.mana_value() as i32 + game.stack.last().map_or(0, |t| t.x) * c.x as i32
     };
     for t in fired.iter_mut() {
         t.x = spell_mv;
-        let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
+        let a = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
         if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
             t.targets = vec![vec![Target::Player(seat)]];
             t.target_zcc = vec![vec![0]];
@@ -2258,7 +2258,7 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         None => return,
     };
     let id = item.card;
-    let def = game.obj(id).def.clone();
+    let def = game.item_def(&item).clone();
     if let Some(delayed) = &item.delayed {
         for (o, zcc) in &delayed.sacrifice {
             let p = game.obj(*o);
@@ -2876,7 +2876,7 @@ fn apply_each_effect(
             EffectDef::FeedTheSwarmEffect => {
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Battlefield {
-                        let mv = game.obj(o).def.cost.mana_value() as i32;
+                        let mv = game.obj(o).def.mana_value() as i32;
                         lose_life(game, controller, mv);
                         destroy(game, o);
                     }
@@ -2980,7 +2980,7 @@ fn apply_each_effect(
                     .copied()
                     .filter(|o| {
                         game.has_type(*o, CardType::Creature)
-                            && (game.obj(*o).def.cost.mana_value() % 2 == 1) == odd
+                            && (game.obj(*o).def.mana_value() % 2 == 1) == odd
                     })
                     .collect();
                 for o in exiled {
@@ -3228,7 +3228,7 @@ fn apply_each_effect(
             }
             EffectDef::DestroyTargetIfManaValueEffect { n, revolt_n } => {
                 if let Some(Target::Obj(o)) = target {
-                    let mv = game.obj(o).def.cost.mana_value() as i32;
+                    let mv = game.obj(o).def.mana_value() as i32;
                     let revolt = game.condition_holds(Some(&Condition::Revolt), controller, source.0);
                     if mv <= *n || (revolt && mv <= *revolt_n) {
                         destroy(game, o);
@@ -3469,7 +3469,7 @@ fn apply_each_effect(
                         return;
                     }
                     for c in yard {
-                        if game.obj(c).zone == Zone::Graveyard && game.obj(c).def.cost.mana_value() as i32 <= gained {
+                        if game.obj(c).zone == Zone::Graveyard && game.obj(c).def.mana_value() as i32 <= gained {
                             game.move_to(c, Zone::Hand);
                         }
                     }
@@ -3919,7 +3919,7 @@ fn apply_each_effect(
                     .filter(|(s, z, c)| *s == src && (*z == zcc || *z + 1 == zcc) && game.obj(*c).zone == Zone::Exile)
                     .map(|(_, _, c)| *c)
                     .collect();
-                let total: i32 = exiled.iter().map(|c| game.obj(*c).def.cost.mana_value() as i32).sum();
+                let total: i32 = exiled.iter().map(|c| game.obj(*c).def.mana_value() as i32).sum();
                 let mut owners: Vec<Seat> = exiled.iter().map(|c| game.obj(*c).owner).collect();
                 owners.dedup();
                 let owners: Vec<Seat> =
@@ -4037,12 +4037,7 @@ fn apply_each_effect(
             EffectDef::BecomesSubtypesSourceEffect { subtypes } => {
                 let (src, zcc) = source;
                 if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
-                    let o = game.obj_mut(src);
-                    for s in subtypes {
-                        if !o.added_subtypes.contains(s) {
-                            o.added_subtypes.push(s.clone());
-                        }
-                    }
+                    game.obj_mut(src).creature_types = Some(subtypes.clone());
                 }
             }
             EffectDef::SetBasePowerToughnessUntilLeavesEffect { power, toughness } => {
@@ -4058,11 +4053,7 @@ fn apply_each_effect(
                 }
                 game.obj_mut(src).add_counters("deathtouch", 1);
                 let o = game.obj_mut(src);
-                for s in ["Phyrexian", "Human", "Cleric"] {
-                    if !o.added_subtypes.iter().any(|x| x == s) {
-                        o.added_subtypes.push(s.into());
-                    }
-                }
+                o.creature_types = Some(["Phyrexian", "Human", "Cleric"].map(String::from).to_vec());
                 o.base_pt = Some((3, 3));
             }
             EffectDef::EvolvedSleeperPhyrexianEffect => {
@@ -4381,7 +4372,7 @@ fn apply_each_effect(
 
 /// A spell's or ability's rule text (auto-targeting reads it).
 fn item_rule(game: &Game, item: &StackItem) -> String {
-    let def = &game.obj(item.card).def;
+    let def = game.item_def(item);
     match item.ability {
         Some((i, _)) => {
             def.abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r.to_string()).unwrap_or_default()
@@ -4696,14 +4687,8 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     let cast = game.obj(id).zone == Zone::Stack;
     let turn = game.turn;
     game.move_to(id, Zone::Battlefield);
-    // at night, a daybound card enters transformed (`NightboundAbility.checkCard`)
-    if game.day == Some(false) {
-        if let Some(back) = game.obj(id).def.transform_back.clone().filter(|b| b.has(&AbilityDef::NightboundAbility)) {
-            let o = game.obj_mut(id);
-            o.front = Some(o.def.clone());
-            o.def = back;
-        }
-    }
+    // at night a daybound card still enters as its front (Java never calls `NightboundAbility.checkCard`); the
+    // state-based check transforms it
     let def = game.obj(id).def.clone();
     game.obj_mut(id).controller = controller;
     let tapped_by_static = game.any_static(|g, src, e| match e {
@@ -4892,7 +4877,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         if t.card == id {
             t.x = cast_x;
         }
-        let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i).cloned());
+        let a = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i).cloned());
         if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
             t.targets = vec![vec![Target::Obj(id)]];
             t.target_zcc = vec![vec![zcc]];
@@ -5042,7 +5027,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                 };
                 let mut t = mine.remove(pick);
                 picked += 1;
-                let ability = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i).cloned());
+                let ability = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i).cloned());
                 // a modal one: `HumanPlayer.chooseMode` among the modes whose targets can be chosen
                 let modes = ability.as_ref().map(|a| a.trigger_modes()).unwrap_or_default();
                 let mut mode_targets = None;
@@ -5096,12 +5081,12 @@ fn take_seat(game: &mut Game, seat: Seat) -> Vec<StackItem> {
 /// a trigger limit each turn
 fn waiting(game: &mut Game, mut pending: Vec<StackItem>) -> Vec<StackItem> {
     pending.retain(|t| {
-        let ability = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
+        let ability = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
         game.condition_holds(ability.and_then(|a| a.intervening_if()), t.controller, t.card) && game.pelt_holds(t)
     });
     pending.retain(|t| {
         let Some((i, _)) = t.ability else { return true };
-        let Some(AbilityDef::TriggeredAbility { limit_per_turn: Some(n), .. }) = game.obj(t.card).def.abilities.get(i)
+        let Some(AbilityDef::TriggeredAbility { limit_per_turn: Some(n), .. }) = game.item_def(&t).abilities.get(i)
         else {
             return true;
         };
@@ -5234,7 +5219,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             let fired = game.triggers([source], |_, _, _, t| matches!(t, Trigger::CombatDamageToPlayer));
             let mut own = Vec::new();
             for mut t in fired {
-                let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
+                let a = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
                 if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
                     t.targets = vec![vec![Target::Player(p)]];
                     t.target_zcc = vec![vec![0]];
@@ -5267,7 +5252,7 @@ fn damaged_opponent_triggers(game: &mut Game, seat: Seat) {
 }
 
 fn same_ability(game: &Game, p: &StackItem, t: &Trigger) -> bool {
-    p.ability.and_then(|(i, _)| game.obj(p.card).def.abilities.get(i)).and_then(|a| a.trigger()) == Some(t)
+    p.ability.and_then(|(i, _)| game.item_def(p).abilities.get(i)).and_then(|a| a.trigger()) == Some(t)
 }
 
 /// `seat` gains life: "whenever you gain life" triggers (`GAINED_LIFE`).
@@ -5824,6 +5809,13 @@ fn legend_rule(game: &mut Game, d: &mut dyn Decider) -> bool {
 /// Transforms a permanent into its other face; transforming into its front fires "enters or transforms into"
 /// triggers (`PermanentImpl.transform`)
 fn transform(game: &mut Game, id: ObjId) {
+    // its abilities waiting or on the stack keep the face they came from
+    let old = game.obj(id).def.clone();
+    for t in Arc::make_mut(&mut game.stack).iter_mut().chain(game.pending.iter_mut()) {
+        if t.card == id && t.ability.is_some() && t.def.is_none() {
+            t.def = Some(old.clone());
+        }
+    }
     let o = game.obj_mut(id);
     let into_front = match o.front.take() {
         Some(front) => {
