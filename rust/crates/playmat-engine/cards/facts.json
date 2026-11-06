@@ -9141,6 +9141,38 @@
         "type": "STATIC",
         "rule": "<i>(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)</i>"
       }
+    ],
+    "halves": [
+      {
+        "name": "Unholy Annex",
+        "abilities": [
+          {
+            "class": "SpellAbility",
+            "type": "SPELL",
+            "rule": ""
+          },
+          {
+            "class": "BeginningOfEndStepTriggeredAbility",
+            "type": "TRIGGERED_NONMANA",
+            "rule": "At the beginning of your end step, draw a card. If you control a Demon, each opponent loses 2 life and you gain 2 life. Otherwise, you lose 2 life."
+          }
+        ]
+      },
+      {
+        "name": "Ritual Chamber",
+        "abilities": [
+          {
+            "class": "SpellAbility",
+            "type": "SPELL",
+            "rule": ""
+          },
+          {
+            "class": "UnlockThisDoorTriggeredAbility",
+            "type": "TRIGGERED_NONMANA",
+            "rule": "When you unlock this door, create a 6/6 black Demon creature token with flying."
+          }
+        ]
+      }
     ]
   },
   {
@@ -9788,6 +9820,19 @@
       "ZNR": 1
     },
     "abilities": []
+  },
+  {
+    "name": "token:Demon66Token",
+    "images": {
+      "DSK": 1
+    },
+    "abilities": [
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      }
+    ]
   },
   {
     "name": "token:DragonFirebendingToken",
