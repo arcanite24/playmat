@@ -525,6 +525,9 @@ def declared_filters(source, subtypes):
 
 _static_filters = None
 
+# gifts: what's promised, and the token the opponent gets
+GIFTS = {'GiftType.TAPPED_FISH': ('a tapped Fish', 'FishNoAbilityToken'), 'GiftType.CARD': ('a card', None)}
+
 # a `FilterSpellOrPermanent` of any spell or a creature
 SPELL_OR_CREATURE = ('spell or creature',)
 
@@ -1589,6 +1592,13 @@ class Translator:
                                        self.strip_setters(args[0]))):
             return {'class': cls, 'java': cls, 'filter': self.filter(args[1]),
                     'color': {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}[m.group(1)]}
+        # gift (an instant's or sorcery's: the gift is given as it resolves, before its effects)
+        if cls == 'GiftAbility' and n == 2 and args[0] == 'this' and args[1] in GIFTS:
+            name, tok = GIFTS[args[1]]
+            out = {'class': cls, 'java': cls, 'name': name}
+            if tok:
+                out['token'] = token(tok)
+            return out
         if cls == 'OffspringAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
             return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
         if cls == 'BlitzAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
@@ -1895,6 +1905,10 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new ConditionalTargetAdjuster\(KickedCondition\.ONCE,(.*)\)\)', st)
         if m and len(a := split_args(m.group(1))) == 2:
             spell['kicked_targets'] = ([t.target(a[0])], [t.target(a[1])])
+            return
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new ConditionalTargetAdjuster\(GiftWasPromisedCondition\.TRUE,(.*)\)\)', st)
+        if m and len(a := split_args(m.group(1))) == 2:
+            spell['gift_targets'] = ([t.target(a[0])], [t.target(a[1])])
             return
         # an effect's outcome only steers the Java AI
         if re.fullmatch(r'\w+\.setOutcome\(Outcome\.\w+\)', st):

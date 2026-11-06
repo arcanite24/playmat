@@ -1285,6 +1285,9 @@ pub struct SpellDef {
     /// what either could target
     #[serde(default)]
     pub kicked_targets: Option<(Vec<TargetDef>, Vec<TargetDef>)>,
+    /// the same, without and with the gift promised
+    #[serde(default)]
+    pub gift_targets: Option<(Vec<TargetDef>, Vec<TargetDef>)>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -1384,6 +1387,14 @@ pub enum AbilityDef {
     },
     /// cast for `mana` and `cost` instead: it gains haste and "when this creature dies, draw a card", and it's
     /// sacrificed at the beginning of the next end step (a second spell ability)
+    /// gift: you may promise an opponent `name` as you cast it (an instant or sorcery: they get it as it resolves,
+    /// `token` or else a card drawn)
+    GiftAbility {
+        name: String,
+        #[serde(default)]
+        token: Option<TokenDef>,
+        rule: String,
+    },
     /// you may pay `cost` more as you cast it; if you do, when it enters, create a 1/1 token copy of it
     OffspringAbility { cost: String, rule: String },
     BlitzAbility {

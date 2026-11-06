@@ -1145,6 +1145,24 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             }
         }
     }
+    // gift: `GiftAbility.addOptionalAdditionalCosts`
+    for a in &def.abilities {
+        if let AbilityDef::GiftAbility { name, .. } = a {
+            let q = Query::YesNo { message: format!("Promise an opponent {}?", name) };
+            let promise = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if promise {
+                if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                    top.gift_promised = true;
+                }
+            }
+        }
+    }
     // offspring: `OffspringAbility.addOptionalAdditionalCosts`
     for a in &def.abilities {
         if let AbilityDef::OffspringAbility { cost: more, .. } = a {
@@ -1221,6 +1239,10 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         let k = game.stack.last().is_some_and(|t| t.kicked);
         defs = if k { kicked.clone() } else { unkicked.clone() };
     }
+    if let Some((plain, promised)) = &def.spell.gift_targets {
+        let g = game.stack.last().is_some_and(|t| t.gift_promised);
+        defs = if g { promised.clone() } else { plain.clone() };
+    }
     if !choose_targets(game, d, seat, &defs, Some(id), &def.spell.rule, true) {
         return false;
     }
@@ -1236,6 +1258,19 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     for c in &def.spell.costs {
         if !pay_cost(game, d, seat, id, c) {
             return false;
+        }
+    }
+    // `PromiseGiftCost.pay`: the opponent it's promised to (a player is never auto-chosen)
+    if game.stack.last().is_some_and(|t| t.gift_promised) {
+        let Some(chosen) = choose_target(game, d, seat, &TargetDef::TargetOpponent, Some(id), "", false) else {
+            return false;
+        };
+        let to = match chosen.first() {
+            Some(Target::Player(p)) => Some(*p),
+            _ => None,
+        };
+        if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+            top.gift_to = to;
         }
     }
     // SPELL_CAST
@@ -2428,6 +2463,10 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     } else {
         let (effects, targets) = def.spell.mode(item.modes.first().copied().unwrap_or(0));
         if let Some(legal) = legal_targets(game, &item, targets) {
+            // `PromiseGiftEffect`, the spell's first effect
+            if let Some(to) = item.gift_to {
+                give_gift(game, d, &def, to, id);
+            }
             apply_effects(game, d, &item, effects, &legal, (id, zcc));
             // an omen: then shuffle this card into its owner's library (`ShuffleIntoLibrarySourceEffect`)
             if def.omen && game.obj(id).zone == Zone::Stack {
@@ -2446,6 +2485,29 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             game.obj_mut(id).on_adventure = true;
         } else {
             game.move_to(id, Zone::Graveyard);
+        }
+    }
+}
+
+/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish), or draws a card
+fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, source: ObjId) {
+    for a in &def.abilities {
+        if let AbilityDef::GiftAbility { token, .. } = a {
+            match token {
+                Some(token) => {
+                    let tdef = Arc::new(token.card());
+                    token_image(game, token, source);
+                    for _ in 0..token_copies(game, to) {
+                        let id = game.create_obj(tdef.clone(), to, Zone::Library);
+                        let o = game.obj_mut(id);
+                        o.token = true;
+                        o.trigger_order = (1 << 32) + id.0 as u64;
+                        enter_battlefield(game, d, id, to, false);
+                        game.obj_mut(id).tapped = true;
+                    }
+                }
+                None => draw(game, to, 1),
+            }
         }
     }
 }

@@ -278,6 +278,9 @@ pub struct StackItem {
     pub ward_of: Option<(ObjId, (usize, u32))>,
     /// an evolve trigger: the creature that entered
     pub entering: Option<ObjId>,
+    /// gift: promised as it was cast, and the opponent it was promised to
+    pub gift_promised: bool,
+    pub gift_to: Option<Seat>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -323,6 +326,8 @@ impl StackItem {
             x: 0,
             ward_of: None,
             entering: None,
+            gift_promised: false,
+            gift_to: None,
             def: None,
         }
     }
