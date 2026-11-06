@@ -6,6 +6,7 @@ import mage.abilities.Mode;
 import mage.abilities.Modes;
 import mage.cards.Card;
 import mage.cards.CardWithSpellOption;
+import mage.cards.SplitCard;
 import mage.cards.DoubleFacedCard;
 import mage.constants.ManaType;
 import mage.game.Game;
@@ -327,6 +328,17 @@ public final class DecisionLog {
         }
         if (object instanceof CardWithSpellOption) {
             return visitor.test(ref + "f1", ((CardWithSpellOption) object).getSpellCard().getId());
+        }
+        // a split card's (a Room's) halves, each the half and its spell, which a cast chooses between
+        if (object instanceof SplitCard) {
+            SplitCard card = (SplitCard) object;
+            Card[] halves = {card.getLeftHalfCard(), card.getRightHalfCard()};
+            for (int h = 0; h < 2; h++) {
+                if (halves[h] != null && (visitor.test(ref + "h" + h, halves[h].getId())
+                        || visitor.test(ref + "h" + h, halves[h].getSpellAbility().getId()))) {
+                    return true;
+                }
+            }
         }
         return false;
     }

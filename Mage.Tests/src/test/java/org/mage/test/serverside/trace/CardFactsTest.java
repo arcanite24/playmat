@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import mage.abilities.Abilities;
 import mage.abilities.Ability;
+import mage.cards.SplitCard;
 import mage.cards.Card;
 import mage.cards.repository.CardInfo;
 import mage.cards.repository.CardRepository;
@@ -49,6 +50,7 @@ public class CardFactsTest {
                 continue;
             }
             Abilities<Ability> cardAbilities;
+            List<Map<String, Object>> halves = null;
             // a token's or emblem's images per set: creating one picks an image at random (`TokenRepository`'s
             // `findPreferredTokenInfo`, the game's random) when its source's set, or else all sets, has two or more
             Map<String, Integer> images = null;
@@ -71,6 +73,16 @@ public class CardFactsTest {
                 Card card = info.createCard();
                 name = card.getName();
                 cardAbilities = card.getAbilities();
+                // a split card's (a Room's) halves, each with its own abilities
+                if (card instanceof SplitCard) {
+                    halves = new ArrayList<>();
+                    for (Card half : new Card[]{((SplitCard) card).getLeftHalfCard(), ((SplitCard) card).getRightHalfCard()}) {
+                        Map<String, Object> h = new LinkedHashMap<>();
+                        h.put("name", half.getName());
+                        h.put("abilities", abilityFacts(half.getAbilities()));
+                        halves.add(h);
+                    }
+                }
                 // the printing a deck by name gets (`TxtDeckImporter`), whose set the tokens it makes look for
                 set = card.getExpansionSetCode();
             }
@@ -82,19 +94,26 @@ public class CardFactsTest {
             if (images != null) {
                 facts.put("images", images);
             }
-            List<Map<String, Object>> abilities = new ArrayList<>();
-            for (Ability ability : cardAbilities) {
-                Map<String, Object> a = new LinkedHashMap<>();
-                a.put("class", ability.getClass().getSimpleName());
-                a.put("type", ability.getAbilityType().name());
-                a.put("rule", ability.getRule());
-                abilities.add(a);
+            facts.put("abilities", abilityFacts(cardAbilities));
+            if (halves != null) {
+                facts.put("halves", halves);
             }
-            facts.put("abilities", abilities);
             cards.add(facts);
         }
         Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
         Files.write(new File(out).toPath(), gson.toJson(cards).getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static List<Map<String, Object>> abilityFacts(Iterable<Ability> cardAbilities) {
+        List<Map<String, Object>> abilities = new ArrayList<>();
+        for (Ability ability : cardAbilities) {
+            Map<String, Object> a = new LinkedHashMap<>();
+            a.put("class", ability.getClass().getSimpleName());
+            a.put("type", ability.getAbilityType().name());
+            a.put("rule", ability.getRule());
+            abilities.add(a);
+        }
+        return abilities;
     }
 
     private static Map<String, Integer> images(Class<?> cls) {

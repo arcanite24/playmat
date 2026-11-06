@@ -381,6 +381,8 @@ pub enum Trigger {
     EntersOrUpkeep,
     /// this Class becomes level `n`
     ClassLevel { n: u32 },
+    /// you unlock this door, the left or the right (`UnlockThisDoorTriggeredAbility`)
+    DoorUnlocked { left: bool },
     /// you commit a crime: a spell or ability of yours targets an opponent, something of theirs or a card in their
     /// graveyard (`CommittedCrimeTriggeredAbility`)
     CommittedCrime,
@@ -612,6 +614,7 @@ impl TokenDef {
             transform_back: None,
             omen: false,
             prepare: None,
+            room: Vec::new(),
             printed_cost: None,
         }
     }
@@ -1315,6 +1318,8 @@ pub enum EffectDef {
     /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
     /// among them this turn, spending mana as though it were any type
     LaughingJasperFlintEffect,
+    /// Unholy Annex: each opponent loses 2 life and you gain 2 life
+    UnholyAnnexDrainEffect,
     /// the source becomes prepared: a copy of its prepare spell in exile, which its controller may cast
     BecomePreparedSourceEffect,
     /// if this spell was cast from a graveyard: exiled, then onto the battlefield transformed with a finality counter
@@ -1511,6 +1516,12 @@ impl SpellDef {
 pub enum AbilityDef {
     /// casting the card (every nonland card has one)
     SpellAbility,
+    /// a Room entering unlocks the door of the half cast (`RoomCard`'s `EntersBattlefieldAbility`)
+    RoomEnterUnlockAbility,
+    /// a Room's shared type line: only its unlocked doors' names, costs and abilities (`RoomAbility`)
+    RoomAbility { rule: String },
+    /// the special action to unlock a locked door, paying its cost, as a sorcery (`RoomUnlockAbility`)
+    RoomUnlockAbility { left: bool, cost: String },
     /// playing the card (every land has one)
     PlayLandAbility,
     SimpleStaticAbility {
@@ -2068,6 +2079,9 @@ pub struct CardJson {
     /// a preparation card's prepare spell (`PrepareCard`)
     #[serde(default)]
     pub prepare: Option<Box<CardJson>>,
+    /// a Room's halves, left then right (`RoomCard`)
+    #[serde(default)]
+    pub room: Vec<CardJson>,
     /// the set of the printing a deck gets by name
     #[serde(default)]
     pub set: String,
@@ -2107,6 +2121,8 @@ pub struct CardDef {
     pub omen: bool,
     /// a preparation card's prepare spell: what a prepared copy of it is (`PrepareCard`)
     pub prepare: Option<Arc<CardDef>>,
+    /// a Room's halves, left then right: each cast as a spell, and unlocked as a door on the battlefield (`RoomCard`)
+    pub room: Vec<Arc<CardDef>>,
     /// cast for an alternative cost (cleave, blitz, flashback…): the printed cost, which still gives the mana value
     pub printed_cost: Option<ManaCost>,
 }
@@ -2163,6 +2179,7 @@ impl CardDef {
                 Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
                 None => None,
             },
+            room: json.room.into_iter().map(|h| CardDef::from_json(h).map(Arc::new)).collect::<Result<_, _>>()?,
             printed_cost: None,
         })
     }

@@ -194,6 +194,12 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
             return card;
         }
     }
+    // a split card's (a Room's) half, or its spell: `<object>h<index>`
+    if let Some((obj, half)) = r.rsplit_once('h') {
+        if let (Some(Answer::Obj(o)), Ok(k)) = (resolve(game, obj), half.parse::<usize>()) {
+            return Some(Answer::Ability(o, k));
+        }
+    }
     // an object's ability: `<object>a<index>`
     if let Some((obj, ability)) = r.rsplit_once('a') {
         if let (Some(Answer::Obj(o)), Ok(i)) = (resolve(game, obj), ability.parse::<usize>()) {

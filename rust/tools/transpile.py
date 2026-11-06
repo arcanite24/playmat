@@ -175,6 +175,7 @@ CUSTOM = {
     'TishanasTidebinderEffect': lambda: {'class': 'TishanasTidebinderEffect'},
     'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
     'LaughingJasperFlintEffect': lambda: {'class': 'LaughingJasperFlintEffect'},
+    'UnholyAnnexDrainEffect': lambda: {'class': 'UnholyAnnexDrainEffect'},
     'BecomePreparedSourceEffect': lambda: {'class': 'BecomePreparedSourceEffect'},
     'EsperOriginsEffect': lambda: {'class': 'EsperOriginsEffect'},
     'SummonEsperMaduinEffect': lambda: {'class': 'SummonEsperMaduinEffect'},
@@ -344,6 +345,7 @@ ABILITIES = {
     'DiesThisOrAnotherTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), ('filter', 'filter')],
     'SpellCastControllerTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('optional', 'bool'),
                                             (None, 'no_pointer')],
+    'UnlockThisDoorTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), ('left', 'bool')],
 }
 
 COLOR_LETTERS = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}
@@ -361,6 +363,8 @@ def triggered(a):
     cls = a['class']
     if cls in STEP_TRIGGERS:
         on = {'e': 'step_begins', 'step': STEP_TRIGGERS[cls], 'who': a.pop('controller')}
+    elif cls == 'UnlockThisDoorTriggeredAbility':
+        on = {'e': 'door_unlocked', 'left': a.pop('left')}
     elif cls == 'ProwessAbility':
         on = {'e': 'spell_cast', 'filter': [{'p': 'not', 'x': CREATURE}], 'who': 'you'}
         a['effects'] = [{'class': 'BoostSourceEffect', 'power': 1, 'toughness': 1, 'duration': 'EndOfTurn'}]
@@ -1918,6 +1922,10 @@ def translate(card_name, subtypes, facts):
                 'colors': [], 'abilities': [{'class': 'PlayLandAbility'}, {'class': BASIC_LANDS[card_name]}]}
     cls = class_name(card_name)
     path = os.path.join(SETS, cls[0].lower(), cls + '.java')
+    if not os.path.exists(path) and ' // ' in card_name:
+        # a split card (a Room) is named after both halves
+        cls = ''.join(class_name(n) for n in card_name.split(' // '))
+        path = os.path.join(SETS, cls[0].lower(), cls + '.java')
     if not os.path.exists(path):
         raise Unsupported('no card class ' + cls)
     source = open(path).read()
@@ -1925,6 +1933,8 @@ def translate(card_name, subtypes, facts):
         return modal_double_faced(card_name, subtypes, facts, cls, source)
     if 'extends TransformingDoubleFacedCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
         return transforming_double_faced(card_name, subtypes, facts, cls, source)
+    if 'extends RoomCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
+        return room_card(card_name, subtypes, facts, cls, source)
     if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b|PrepareCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
@@ -2010,6 +2020,43 @@ def translate(card_name, subtypes, facts):
             card['adventure'] = adventure
     elif 'AdventureCardSpellAbility' in [f['class'] for f in java_abilities]:
         raise Unsupported('adventure without its spell')
+    return card
+
+
+def room_card(card_name, subtypes, facts, cls, source):
+    """A Room (`RoomCard`): an enchantment whose halves are each cast as a spell (its `room`, left then right) and
+    unlock as doors on the battlefield; the card's own abilities are its spell, the door unlocked on entering and the
+    Room's static ability"""
+    java_abilities = facts[card_name]
+    halves = EXTRA.get(card_name, {}).get('halves')
+    if not halves or len(halves) != 2:
+        raise Unsupported('room without its halves\' facts')
+    t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    card = {'name': card_name, 'types': ['ENCHANTMENT'], 'subtypes': ['Room']}
+    added = [[], []]
+    costs = None
+    for st in statements(constructor_body(source, cls)):
+        m = re.fullmatch(r'super\(ownerId,setInfo,"(.*?)","(.*?)"\)', st)
+        if m:
+            costs = m.group(1, 2)
+            continue
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(addAbility\(.*\))', st)
+        if m:
+            if not ability_statement(t, 'this.' + m.group(2), added[m.group(1) == 'Right']):
+                raise Unsupported('room statement ' + st)
+            continue
+        if not ability_statement(t, st, []):
+            raise Unsupported('room statement ' + st)
+    if costs is None or [f['class'] for f in java_abilities] != ['SpellAbility', 'EntersBattlefieldAbility', 'RoomAbility']:
+        raise Unsupported('room without its costs')
+    # the card's mana cost is both halves' (`SplitCard`)
+    card['cost'] = costs[0] + costs[1]
+    card['abilities'] = [{'class': 'SpellAbility'}, {'class': 'RoomEnterUnlockAbility'},
+                         {'class': 'RoomAbility', 'rule': java_abilities[2]['rule']}]
+    card['room'] = []
+    for half, cost, side in zip(halves, costs, added):
+        card['room'].append({'name': half['name'], 'cost': cost, 'types': ['ENCHANTMENT'], 'subtypes': ['Room'],
+                             'abilities': in_java_order(half['abilities'], side)})
     return card
 
 
@@ -2473,7 +2520,12 @@ EXTRA = {}
 
 def card_path(card_name):
     cls = class_name(card_name)
-    return os.path.join(SETS, cls[0].lower(), cls + '.java')
+    path = os.path.join(SETS, cls[0].lower(), cls + '.java')
+    if not os.path.exists(path) and ' // ' in card_name:
+        # a split card (a Room) is named after both halves
+        cls = ''.join(class_name(n) for n in card_name.split(' // '))
+        path = os.path.join(SETS, cls[0].lower(), cls + '.java')
+    return path
 
 
 EMBLEMS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'command', 'emblems')

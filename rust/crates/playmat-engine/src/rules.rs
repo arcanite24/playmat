@@ -522,7 +522,8 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             if can_play_land(game, seat) || !activatable(game, seat, *id).is_empty() {
                 out.push(*id);
             }
-        } else if castable(game, seat, *id, &o.def)
+        } else if (o.def.room.is_empty() && castable(game, seat, *id, &o.def))
+            || o.def.room.iter().any(|h| castable(game, seat, *id, h))
             || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
             || spectacle(game, seat, *id).is_some()
             || warp(game, seat, *id).is_some()
@@ -605,6 +606,19 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     }
     let mut out = Vec::new();
     for (i, a) in o.def.abilities.iter().enumerate() {
+        // a Room's locked door: unlocked as a sorcery, paying its cost (the playable check counts conditional mana)
+        if let AbilityDef::RoomUnlockAbility { cost, .. } = a {
+            if o.zone == Zone::Battlefield && sorcery_speed(game, seat) && ManaCost::parse(cost).is_ok_and(|c| {
+                let paying = game.paying_for.get();
+                game.paying_for.set(Some(ANY_SPELL));
+                let ok = can_pay(game, seat, &c);
+                game.paying_for.set(paying);
+                ok
+            }) {
+                out.push(i);
+            }
+            continue;
+        }
         let Some((_, _, targets, costs, sorcery)) = a.activated() else { continue };
         // cycling works from hand, everything else on the battlefield
         if a.from_hand() != (o.zone == Zone::Hand) {
@@ -1174,10 +1188,12 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         // `HumanPlayer.activateAbility`: one ability with mana in its cost, or a mana ability, activates directly;
         // otherwise the picker
         let direct = abilities.len() == 1
-            && (mana.iter().any(|(i, _, _)| *i == abilities[0]) || {
-                let (_, _, _, costs, _) = game.obj(id).def.abilities[abilities[0]].activated().unwrap();
-                ability_mana_cost(costs).mana_value() > 0
-            });
+            && (mana.iter().any(|(i, _, _)| *i == abilities[0])
+                || matches!(game.obj(id).def.abilities[abilities[0]], AbilityDef::RoomUnlockAbility { .. })
+                || {
+                    let (_, _, _, costs, _) = game.obj(id).def.abilities[abilities[0]].activated().unwrap();
+                    ability_mana_cost(costs).mana_value() > 0
+                });
         let index = if direct {
             abilities[0]
         } else {
@@ -1209,6 +1225,24 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             return;
         }
         let before = game.clone();
+        // `RoomUnlockAbility`, a special action: its cost paid, the door unlocks (no stack)
+        if let AbilityDef::RoomUnlockAbility { left, cost } = game.obj(id).def.abilities[index].clone() {
+            let paid = ManaCost::parse(&cost).is_ok_and(|c| {
+                game.paying_for.set(Some(id));
+                let paid = pay_mana(game, d, seat, &c);
+                game.paying_for.set(None);
+                paid
+            });
+            if !paid {
+                *game = before;
+                return;
+            }
+            unlock_door(game, id, if left { 0 } else { 1 });
+            for s in 0..game.seats() {
+                game.player_mut(s).passed = false;
+            }
+            return;
+        }
         if !activate(game, d, seat, id, index) {
             *game = before;
         }
@@ -1379,6 +1413,27 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             return;
         }
         game.obj_mut(id).escaped = true;
+        return;
+    }
+    // a Room: the half to cast, asked (h0, h1) when both can be
+    if !game.obj(id).def.room.is_empty() {
+        let full = game.obj(id).def.clone();
+        let options: Vec<usize> = (0..full.room.len()).filter(|k| castable(game, seat, id, &full.room[*k])).collect();
+        let k = match options.len() {
+            0 => return,
+            1 => options[0],
+            _ => match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                Answer::Ability(o, k) if o == id && options.contains(&k) => k,
+                _ => return,
+            },
+        };
+        let o = game.obj_mut(id);
+        o.adventurer = Some(full.clone());
+        o.def = full.room[k].clone();
+        o.room_cast = Some(k);
+        if !cast(game, d, seat, id) {
+            *game = before;
+        }
         return;
     }
     // an adventurer card: the picker, with the adventure (a0) and the creature (a1) that can be cast
@@ -2373,12 +2428,20 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         CostDef::SacrificeTargetCost { filter, amount } => {
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
-            let Some(chosen) = choose_cards(game, d, seat, &possible, &possible, *amount, *amount, "sacrifice") else {
+            // `SacrificeTargetCost`: its target can be cancelled
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, "sacrifice", true)
+            else {
                 return false;
             };
+            if chosen.len() < *amount {
+                return false;
+            }
+            // sacrificed together: their dies triggers see each other die
+            let outer = std::mem::replace(&mut game.lookback, game.battlefield.to_vec());
             for o in chosen {
                 sacrifice(game, o);
             }
+            game.lookback = outer;
         }
         // announced and paid as a `SacrificeTargetCost` in `cast_with`
         CostDef::SacrificeXTargetCost { .. } => {}
@@ -3276,6 +3339,41 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             game.move_to(id, Zone::Graveyard);
         }
     }
+}
+
+/// A Room permanent as its doors make it (`RoomCharacteristicsEffect`): the unlocked halves' names, costs and
+/// abilities, after the card's own, then the special action to unlock each locked door
+fn room_face(full: &CardDef, doors: [bool; 2]) -> CardDef {
+    let mut def = full.clone();
+    let unlocked: Vec<&Arc<CardDef>> = full.room.iter().zip(doors).filter(|(_, u)| *u).map(|(h, _)| h).collect();
+    def.name = unlocked.iter().map(|h| h.name.as_str()).collect::<Vec<_>>().join(" // ");
+    def.cost = unlocked.iter().fold(ManaCost::default(), |c, h| c.plus(&h.cost));
+    for h in &unlocked {
+        def.abilities.extend(h.abilities.iter().filter(|a| !matches!(a, AbilityDef::SpellAbility)).cloned());
+    }
+    for (k, h) in full.room.iter().enumerate() {
+        if !doors[k] {
+            def.abilities.push(AbilityDef::RoomUnlockAbility { left: k == 0, cost: unpaid_text(&h.cost) });
+        }
+    }
+    def
+}
+
+fn set_room_face(game: &mut Game, id: ObjId) {
+    let Some(full) = game.obj(id).printed_def.clone().filter(|f| !f.room.is_empty()) else { return };
+    let doors = game.obj(id).doors;
+    game.obj_mut(id).def = Arc::new(room_face(&full, doors));
+}
+
+/// `PermanentImpl.unlockDoor`: the door unlocks, and "when you unlock this door" triggers
+fn unlock_door(game: &mut Game, id: ObjId, k: usize) {
+    if game.obj(id).doors[k] {
+        return;
+    }
+    game.obj_mut(id).doors[k] = true;
+    set_room_face(game, id);
+    let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::DoorUnlocked { left } if *left == (k == 0)));
+    game.pending.extend(fired);
 }
 
 /// `BecomesCreatureSourceEffect`: the card as the token's kind of creature (its other types gone unless `retain`)
@@ -4343,10 +4441,8 @@ fn apply_each_effect(
                     if let Some(back) = game.obj(id).def.transform_back.clone() {
                         let o = game.obj_mut(id);
                         o.front = Some(std::mem::replace(&mut o.def, back));
+                        // (no finality counter: Java sets it for the front's id, and the back face enters)
                         enter_battlefield(game, d, id, game.obj(id).owner, false);
-                        if game.obj(id).zone == Zone::Battlefield {
-                            game.obj_mut(id).add_counters("finality", 1);
-                        }
                     }
                 }
             }
@@ -4362,6 +4458,14 @@ fn apply_each_effect(
                 if game.obj(source.0).zcc == source.1 {
                     become_prepared(game, source.0);
                 }
+            }
+            EffectDef::UnholyAnnexDrainEffect => {
+                for p in 0..game.seats() {
+                    if p != controller {
+                        lose_life(game, p, 2);
+                    }
+                }
+                gain_life(game, controller, 2);
             }
             EffectDef::LaughingJasperFlintEffect => {
                 if let Some(Target::Player(p)) = target {
@@ -6521,6 +6625,23 @@ fn choose_cards(
     max: usize,
     rule: &str,
 ) -> Option<Vec<ObjId>> {
+    choose_cards_with(game, d, seat, shown, possible, min, max, rule, false)
+}
+
+/// `choose_cards`, `cancellable` for a target that isn't required (a cost's, `setRequired(false)`): a boolean ends
+/// the choice with fewer than `min` chosen
+#[allow(clippy::too_many_arguments)]
+fn choose_cards_with(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    shown: &[ObjId],
+    possible: &[ObjId],
+    min: usize,
+    max: usize,
+    rule: &str,
+    cancellable: bool,
+) -> Option<Vec<ObjId>> {
     let _ = shown;
     let rule = rule.to_lowercase();
     let feel_bad = ["discard", "sacrifice", "destroy", "exile"].iter().any(|w| rule.contains(w));
@@ -6548,7 +6669,7 @@ fn choose_cards(
             }
             Answer::Stop => return None,
             Answer::Obj(_) | Answer::Player(_) | Answer::Unknown => {}
-            _ if chosen.len() >= min || !required => return Some(chosen),
+            _ if chosen.len() >= min || !required || cancellable => return Some(chosen),
             _ => {}
         }
         if d.stopped() {
@@ -6892,12 +7013,54 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         });
         more_counters += giadas.count() as i32 * angels;
     }
+    // replacement effects on its entering, more than one: the player picks the order (`chooseReplacementEffect`):
+    // Gev's counters for another creature, and the creature's own "enters" abilities
+    if game.obj(id).def.is(CardType::Creature) {
+        let gevs = game
+            .battlefield
+            .iter()
+            .filter(|src| {
+                **src != id
+                    && game.obj(**src).controller == controller
+                    && game.obj(**src).def.abilities.iter().any(|a| {
+                        matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                            if effects.contains(&EffectDef::GevScaledScorchEntersEffect))
+                    })
+            })
+            .count();
+        let own = game
+            .obj(id)
+            .def
+            .abilities
+            .iter()
+            .filter(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. }))
+            .count();
+        if gevs > 0 {
+            for _ in 1..gevs + own {
+                game.owed_choices.push(controller);
+            }
+        }
+    }
     let turn = game.turn;
     game.move_to(id, Zone::Battlefield);
     enter_as_copy(game, d, id, controller, cast);
     // `EntersPreparedAbility`
     if game.obj(id).def.abilities.iter().any(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. })) {
         become_prepared(game, id);
+    }
+    // a Room: its doors locked, then the cast half's unlocked (`RoomEnterUnlockEffect`)
+    if !game.obj(id).def.room.is_empty() {
+        let full = game.obj(id).def.clone();
+        let o = game.obj_mut(id);
+        o.doors = [false; 2];
+        if o.printed_def.is_none() {
+            o.printed_def = Some(full);
+        }
+        let half = o.room_cast.take();
+        set_room_face(game, id);
+        if let Some(k) = half {
+            unlock_door(game, id, k);
+        }
     }
     // at night a daybound card still enters as its front (Java never calls `NightboundAbility.checkCard`); the
     // state-based check transforms it

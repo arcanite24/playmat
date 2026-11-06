@@ -123,6 +123,10 @@ pub struct Obj {
     pub prepared_copy: Option<ObjId>,
     /// a prepared copy: the permanent (and its zone change count) whose copy it is
     pub prepared_for: Option<(ObjId, u32)>,
+    /// a Room permanent's doors, left and right: unlocked or not
+    pub doors: [bool; 2],
+    /// the half of a Room cast (0 left, 1 right): its door unlocks as the Room enters
+    pub room_cast: Option<usize>,
     /// the turn it was foretold (exiled face down from hand), while it stays in exile
     pub foretold_turn: Option<u32>,
     /// the turn it became plotted, while it stays in exile
@@ -582,6 +586,8 @@ impl Game {
             chosen_name: None,
             prepared_copy: None,
             prepared_for: None,
+            doors: [false; 2],
+            room_cast: None,
             foretold_turn: None,
             plotted_turn: None,
             cast_from: None,
@@ -1394,6 +1400,16 @@ impl Game {
             let o = self.obj_mut(id);
             if let Some((_, _, def)) = o.lost_abilities.take() {
                 o.def = def;
+            }
+        }
+        // its abilities waiting or on the stack keep the face they came from (a transformed card's leaving shows its
+        // front again)
+        if from == Zone::Battlefield && self.obj(id).front.is_some() {
+            let face = self.obj(id).def.clone();
+            for t in Arc::make_mut(&mut self.stack).iter_mut().chain(self.pending.iter_mut()) {
+                if t.card == id && t.ability.is_some() && t.def.is_none() {
+                    t.def = Some(face.clone());
+                }
             }
         }
         self.remove_from_zone(id);
