@@ -1275,6 +1275,8 @@ pub enum EffectDef {
     GraveyardFromAnywhereExileReplacementEffect,
     /// an opponent's card that would be put into a graveyard from anywhere is exiled instead
     LeylineOfTheVoidEffect,
+    /// the target opponent reveals their hand; you exile a nonland card from it, yours to cast if the gift was promised
+    CruelclawsHeistEffect,
     /// you may have the target creature gain reach until end of turn
     AcademicDisputeEffect,
     /// learn, with no cards outside the game: you may "wish" (for nothing), or else discard a card to draw one

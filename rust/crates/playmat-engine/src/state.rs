@@ -168,6 +168,8 @@ pub struct Obj {
     pub lost_abilities: Option<(ObjId, u32, Arc<CardDef>)>,
     /// in exile: this player may play it through the end of this turn number
     pub may_play: Option<(Seat, u32)>,
+    /// mana of any type can be spent to cast it (while it may be played from exile)
+    pub any_mana: bool,
     /// cast from exile, it costs this much more (Elite Spellbinder)
     pub play_tax: u32,
     /// cast for its warp cost (on the stack, then on the battlefield)
@@ -585,6 +587,7 @@ impl Game {
             damaged_by: (0, 0),
             lost_abilities: None,
             may_play: None,
+            any_mana: false,
             play_tax: 0,
             warped: false,
             blitzed: false,
@@ -1345,6 +1348,7 @@ impl Game {
             o.on_adventure = false;
             o.exile_instead_of_dying = false;
             o.may_play = None;
+            o.any_mana = false;
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;

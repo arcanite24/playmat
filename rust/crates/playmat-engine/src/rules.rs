@@ -1836,6 +1836,12 @@ fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> Mana
             }
         }
     }
+    // "mana of any type can be spent to cast it" (Cruelclaw's Heist): its colored symbols take any mana
+    if o.any_mana {
+        cost.generic += cost.colored.iter().sum::<u32>() + cost.colorless;
+        cost.colored = [0; 5];
+        cost.colorless = 0;
+    }
     cost
 }
 
@@ -3928,6 +3934,28 @@ fn apply_each_effect(
                     )
                     .unwrap();
                     apply_effects(game, d, item, std::slice::from_ref(&rummage), legal, source);
+                }
+            }
+            EffectDef::CruelclawsHeistEffect => {
+                // the opponent reveals their hand; you choose a nonland card, exiled (and yours to cast, with mana of
+                // any type, if the gift was promised)
+                if let Some(Target::Player(p)) = target {
+                    let hand = game.player(p).hand.clone();
+                    let possible: Vec<ObjId> =
+                        hand.iter().copied().filter(|c| !game.obj(*c).is(CardType::Land)).collect();
+                    if !possible.is_empty() {
+                        let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, "choose") else {
+                            return;
+                        };
+                        for c in chosen {
+                            game.move_to(c, Zone::Exile);
+                            if item.gift_promised && game.obj(c).zone == Zone::Exile {
+                                let o = game.obj_mut(c);
+                                o.may_play = Some((controller, u32::MAX));
+                                o.any_mana = true;
+                            }
+                        }
+                    }
                 }
             }
             EffectDef::AvenInterrupterEffect => {

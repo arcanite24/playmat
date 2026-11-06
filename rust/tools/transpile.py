@@ -172,6 +172,7 @@ CUSTOM = {
     'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
     'ArtistsTalentEffect': lambda: {'class': 'ArtistsTalentEffect'},
     'LeylineOfTheVoidEffect': lambda: {'class': 'LeylineOfTheVoidEffect'},
+    'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
     'AcademicDisputeEffect': lambda: {'class': 'AcademicDisputeEffect'},
     'LearnEffect': lambda: {'class': 'LearnEffect'},
     'AvenInterrupterEffect': lambda: {'class': 'AvenInterrupterEffect'},
