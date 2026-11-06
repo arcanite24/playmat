@@ -948,6 +948,8 @@ pub enum EffectDef {
     GhostVacuumEffect,
     /// a 1/1 token copy of the source (offspring)
     OffspringEffect,
+    /// a token that's a copy of the target permanent
+    CreateTokenCopyTargetEffect,
     /// `EmpowerJaceEffect`: loyalty counters on a Jace token you control, first creating one if you control none
     EmpowerJaceEffect { amount: Amount, token: TokenDef },
     /// earthbend N: the target land you control becomes a 0/0 creature with haste that's still a land, with N +1/+1
@@ -1296,6 +1298,9 @@ pub struct ModeDef {
     pub effects: Vec<EffectDef>,
     #[serde(default)]
     pub targets: Vec<TargetDef>,
+    /// a spree mode's additional mana cost
+    #[serde(default)]
+    pub cost: Option<String>,
 }
 
 impl SpellDef {
@@ -1395,6 +1400,8 @@ pub enum AbilityDef {
         token: Option<TokenDef>,
         rule: String,
     },
+    /// spree: the spell's modes each cost more, and one or more are chosen (the modes carry the costs)
+    SpreeAbility { rule: String },
     /// you may pay `cost` more as you cast it; if you do, when it enters, create a 1/1 token copy of it
     OffspringAbility { cost: String, rule: String },
     BlitzAbility {

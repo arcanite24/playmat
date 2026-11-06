@@ -1029,6 +1029,8 @@ class Translator:
         # a Role token attached to each target
         if cls == 'CreateRoleAttachedTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'RoleType\.(\w+)', args[0].strip())):
             return {'class': cls, 'token': token(m.group(1).title().replace('_', '') + 'RoleToken')}
+        if cls == 'CreateTokenCopyTargetEffect' and not args:
+            return {'class': cls}
         if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (
                 m := re.fullmatch(r'new BeholdCost\(SubType\.(\w+)\)', args[0].strip())):
             return {'class': 'TapSourceUnlessBeholdEffect', 'subtype': subtype_names()[m.group(1)]}
@@ -1599,6 +1601,8 @@ class Translator:
             if tok:
                 out['token'] = token(tok)
             return out
+        if cls == 'SpreeAbility' and args == ['this']:
+            return {'class': cls, 'java': cls}
         if cls == 'OffspringAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
             return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
         if cls == 'BlitzAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
@@ -1747,9 +1751,19 @@ def translate(card_name, subtypes, facts):
         raise Unsupported('no card types')
     card['abilities'] = in_java_order(java_abilities, added)
     rule = next((f['rule'] for f in java_abilities if f['class'] == 'SpellAbility'), '')
+    # spree: one or more modes, each with its own cost
+    if any(a['class'] == 'SpreeAbility' for a in card['abilities']):
+        if not modes or 'first_mode_cost' not in spell or not all('cost' in m for m in modes):
+            raise Unsupported('spree without mode costs')
+        spell['min_modes'], spell['max_modes'] = 1, len(modes) + 1
+    elif 'first_mode_cost' in spell or any('cost' in m for m in modes):
+        raise Unsupported('mode costs without spree')
     if modes:
         # "choose one": the spell ability's own effects and targets are its first mode
-        card['spell'] = {'modes': [{'effects': spell['effects'], 'targets': spell['targets']}] + modes, 'rule': rule}
+        first = {'effects': spell['effects'], 'targets': spell['targets']}
+        if 'first_mode_cost' in spell:
+            first['cost'] = spell['first_mode_cost']
+        card['spell'] = {'modes': [first] + modes, 'rule': rule}
         for k in ('min_modes', 'max_modes'):
             if k in spell:
                 card['spell'][k] = spell[k]
@@ -1882,6 +1896,10 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if m:
             spell['effects'].append(t.effect(m.group(1)))
             return
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.withFirstModeCost\((.*)\)', st)
+        if m:
+            spell['first_mode_cost'] = mode_cost(m.group(1))
+            return
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addMode\((.*)\)', st)
         if m:
             modes.append(mode_expr(t, m.group(1)))
@@ -1921,6 +1939,10 @@ def mode_expr(t, arg):
     """`new Mode(effect).addEffect(effect).addTarget(target)` or a `Mode` variable -> {effects, targets}"""
     arg = arg.strip()
     chained, more = [], []
+    # spree: the mode's additional cost
+    cost = None
+    if (n := re.fullmatch(r'(.*)\.withCost\((.*)\)', arg, re.S)) and split_args(n.group(2)) == [n.group(2).strip()]:
+        arg, cost = n.group(1).strip(), mode_cost(n.group(2))
     while True:
         n = re.fullmatch(r'(new Mode\(.*\))\s*\.add(Target|Effect)\((.*)\)', arg, re.S)
         if not n or split_args(n.group(3)) != [n.group(3).strip()]:
@@ -1937,7 +1959,20 @@ def mode_expr(t, arg):
         if cls != 'Mode':
             raise Unsupported('mode ' + arg)
         mode = {'class': 'Mode', 'effects': [t.effect(a) for a in args], 'targets': []}
-    return {'effects': mode.get('effects', []) + more, 'targets': mode.get('targets', []) + chained}
+    out = {'effects': mode.get('effects', []) + more, 'targets': mode.get('targets', []) + chained}
+    if cost:
+        out['cost'] = cost
+    return out
+
+
+def mode_cost(arg):
+    """a spree mode's mana cost: `new GenericManaCost(n)` or `new ManaCostsImpl<>("{…}")`"""
+    arg = arg.strip()
+    if (m := re.fullmatch(r'new GenericManaCost\((\d+)\)', arg)):
+        return '{' + m.group(1) + '}'
+    if (m := re.fullmatch(r'new ManaCostsImpl<>\("((?:\{[^"]*\})+)"\)', arg)):
+        return m.group(1)
+    raise Unsupported('mode cost ' + arg)
 
 
 CHAPTERS = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6}

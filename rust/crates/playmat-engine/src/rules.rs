@@ -1231,6 +1231,13 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             top.modes = modes.clone();
         }
     }
+    // spree: each chosen mode's cost
+    for k in &modes {
+        if let Some(more) = def.spell.modes.get(*k).and_then(|m| m.cost.as_ref()) {
+            let Ok(more) = ManaCost::parse(more) else { return false };
+            cost = cost.plus(&more);
+        }
+    }
     let mut defs: Vec<TargetDef> = Vec::new();
     for k in if modes.is_empty() { vec![0] } else { modes.clone() } {
         defs.extend(def.spell.mode(k).1.iter().cloned());
@@ -2489,6 +2496,25 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     }
 }
 
+/// `CreateTokenCopyTargetEffect`: a token copy of `of`'s copiable values (its printed card), with a set power and
+/// toughness
+fn token_copy(game: &mut Game, d: &mut dyn Decider, of: ObjId, controller: Seat, pt: Option<(i32, i32)>) {
+    let o = game.obj(of);
+    let mut def = (**o.printed_def.as_ref().unwrap_or(&o.def)).clone();
+    if let Some((p, t)) = pt {
+        def.power = p;
+        def.toughness = t;
+    }
+    let def = Arc::new(def);
+    for _ in 0..token_copies(game, controller) {
+        let id = game.create_obj(def.clone(), controller, Zone::Library);
+        let o = game.obj_mut(id);
+        o.token = true;
+        o.trigger_order = (1 << 32) + id.0 as u64;
+        enter_battlefield(game, d, id, controller, false);
+    }
+}
+
 /// `GiftType.applyGift`: the opponent gets the token (a tapped Fish), or draws a card
 fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, source: ObjId) {
     for a in &def.abilities {
@@ -2844,17 +2870,14 @@ fn apply_each_effect(
                 }
             }
             EffectDef::OffspringEffect => {
-                // `CreateTokenCopyTargetEffect` of the permanent (or as it last was), 1/1
-                let mut def = (*game.obj(source.0).def).clone();
-                def.power = 1;
-                def.toughness = 1;
-                let def = Arc::new(def);
-                for _ in 0..token_copies(game, controller) {
-                    let id = game.create_obj(def.clone(), controller, Zone::Library);
-                    let o = game.obj_mut(id);
-                    o.token = true;
-                    o.trigger_order = (1 << 32) + id.0 as u64;
-                    enter_battlefield(game, d, id, controller, false);
+                // of the permanent (or as it last was), 1/1
+                token_copy(game, d, source.0, controller, Some((1, 1)));
+            }
+            EffectDef::CreateTokenCopyTargetEffect => {
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        token_copy(game, d, *o, controller, None);
+                    }
                 }
             }
             EffectDef::GhostVacuumEffect => {
