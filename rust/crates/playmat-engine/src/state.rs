@@ -786,6 +786,9 @@ impl Game {
                 Value::CardsInHand => self.player(you).hand.len() as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
                 Value::SacrificedThisTurn => self.player(you).sacrificed as i32,
+                Value::OpponentsLostLife => {
+                    (0..self.seats()).filter(|p| *p != you && self.player(*p).life_lost > 0).count() as i32
+                }
                 Value::CardsInGraveyard { filter } => self
                     .player(you)
                     .graveyard
@@ -835,6 +838,8 @@ impl Game {
         match c {
             // a permanent that was cast kicked ("when this enters, if it was kicked")
             Condition::Kicked => self.obj(source).kicked,
+            // only known on a cast trigger (`condition_with_kicker`)
+            Condition::Opus => false,
             Condition::Offspring => self.obj(source).offspring,
             Condition::CastFromEverywhere => self.obj(source).cast,
             Condition::Raid => self.player(you).attacked,

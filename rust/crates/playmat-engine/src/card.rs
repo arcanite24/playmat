@@ -483,6 +483,8 @@ pub enum Condition {
     CardsInGraveyard { filter: Filter, n: i32 },
     /// you sacrificed at least `n` permanents this turn
     SacrificedThisTurn { n: i32 },
+    /// `OpusCondition`: five or more mana was spent to cast the spell that set off the trigger
+    Opus,
     /// `OpponentsLostLifeCondition`: an opponent lost life this turn
     OpponentsLostLife,
     /// `OpponentControlsMoreCondition`: an opponent controls more permanents of the filter than you
@@ -688,6 +690,8 @@ pub enum Value {
     CardsDrawn,
     /// permanents the controller sacrificed this turn (`PermanentsSacrificedThisTurnCount.YOU`)
     SacrificedThisTurn,
+    /// opponents who lost life this turn (`PlayerLostLifeWatcher`)
+    OpponentsLostLife,
     /// the controller's devotion to a color: its mana symbols among the mana costs of permanents they control
     Devotion { c: Color },
 }
@@ -978,6 +982,10 @@ pub enum EffectDef {
     /// each creature card exiled with the source enters under your control with a flying counter, a 1/1 Spirit in
     /// addition to its other types
     GhostVacuumEffect,
+    /// a token copy of the target, with haste, sacrificed at the beginning of the next end step
+    ReflectionOfKikiJikiEffect,
+    /// "you may discard up to `amount` cards. If you do, draw that many cards"
+    DiscardAndDrawThatManyEffect { amount: i32 },
     /// a static ability's effect: a creature dealt damage this turn by a source you controlled that would die is
     /// exiled instead
     EtchingOfKumanoReplacementEffect,
@@ -995,6 +1003,8 @@ pub enum EffectDef {
     AddManaOfAnyColorEffect { amount: u32 },
     /// a token that's a copy of the target permanent
     CreateTokenCopyTargetEffect,
+    /// a token that's a copy of this permanent (or of it as it last was)
+    CreateTokenCopySourceEffect,
     /// `EmpowerJaceEffect`: loyalty counters on a Jace token you control, first creating one if you control none
     EmpowerJaceEffect { amount: Amount, token: TokenDef },
     /// earthbend N: the target land you control becomes a 0/0 creature with haste that's still a land, with N +1/+1

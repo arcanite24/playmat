@@ -130,6 +130,7 @@ EFFECTS = {
     'DrawCardTargetEffect': [('amount', 'int')],
     'ScryEffect': [('amount', 'int'), (None, 'bool')],
     'SurveilEffect': [('amount', 'int'), (None, 'bool')],
+    'DiscardAndDrawThatManyEffect': [('amount', 'int')],
     # subtypes aren't in the fingerprint and no rule here reads them yet
     'AddCardSubTypeSourceEffect': [(None, 'duration'), (None, 'bool'), (None, 'subtype')],
 }
@@ -165,6 +166,7 @@ CUSTOM = {
     'GraveyardTrespasserEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
     'MightformHarmonizerEffect': lambda: {'class': 'MightformHarmonizerEffect'},
     'GhostVacuumEffect': lambda: {'class': 'GhostVacuumEffect'},
+    'ReflectionOfKikiJikiEffect': lambda: {'class': 'ReflectionOfKikiJikiEffect'},
     'LivelyDirgeEffect': lambda: {'class': 'LivelyDirgeEffect'},
     'EtchingOfKumanoReplacementEffect': lambda: {'class': 'EtchingOfKumanoReplacementEffect'},
     'ExileSagaAndReturnTransformedEffect': lambda: {'class': 'ExileSagaAndReturnTransformedEffect'},
@@ -373,6 +375,8 @@ COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'Coun
             'CounterType.M1M1': '-1/-1', 'CounterType.INDESTRUCTIBLE': 'indestructible'}
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'ObsessivePursuitCondition.instance': {'c': 'sacrificed_this_turn', 'n': 3},
+              'KaitoBaneOfNightmaresCondition.instance': {'c': 'and', 'xs': [
+                  {'c': 'my_turn'}, {'c': 'source_counter', 'name': 'loyalty', 'n': 1}]},
               # blight is an optional additional cost the engine keeps as the spell's kicked flag
               'BlightedCondition.instance': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
@@ -726,6 +730,8 @@ class Translator:
             return {'v': 'devotion', 'c': m.group(1)}
         if arg == 'CardsDrawnThisTurnDynamicValue.instance':
             return {'v': 'cards_drawn'}
+        if arg == 'KaitoBaneOfNightmaresCount.instance':
+            return {'v': 'opponents_lost_life'}
         if arg == 'PermanentsSacrificedThisTurnCount.YOU':
             return {'v': 'sacrificed_this_turn'}
         if arg == 'CardsInControllerHandCount.ANY':
@@ -1064,7 +1070,7 @@ class Translator:
             return {'class': 'LoseAllAbilitiesUntilSourceLeavesEffect'}
         if cls == 'AddManaOfAnyColorEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
-        if cls == 'CreateTokenCopyTargetEffect' and not args:
+        if cls in ('CreateTokenCopyTargetEffect', 'CreateTokenCopySourceEffect') and not args:
             return {'class': cls}
         if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (
                 m := re.fullmatch(r'new BeholdCost\(SubType\.(\w+)\)', args[0].strip())):
@@ -1456,6 +1462,14 @@ class Translator:
             args = ['TargetController.YOU'] + args
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 2:
             args = [args[0], 'StaticFilters.FILTER_SPELL_A', args[1]]
+        # opus: a cast trigger for instants and sorceries, its extra effect if five or more mana was spent on the spell
+        if cls == 'OpusAbility' and len(args) == 4 and args[2].strip() == 'null' and args[3].strip() == 'false':
+            a = self.ability('new SpellCastControllerTriggeredAbility(' + args[0]
+                             + ', StaticFilters.FILTER_SPELL_AN_INSTANT_OR_SORCERY, false)')
+            a['effects'].append({'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[1]),
+                                 'condition': {'c': 'opus'}})
+            a['java'] = cls
+            return a
         # the predefined token abilities
         if cls == 'FoodAbility' and not args:
             return {'class': 'SimpleActivatedAbility', 'java': cls, 'effects': [{'class': 'GainLifeEffect', 'amount': 3}],

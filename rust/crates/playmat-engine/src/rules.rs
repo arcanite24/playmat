@@ -1478,8 +1478,10 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         let c = game.obj(spell).def.printed();
         c.mana_value() as i32 + game.stack.last().map_or(0, |t| t.x) * c.x as i32
     };
+    let opus = game.obj(spell).mana_spent >= 5;
     for t in fired.iter_mut() {
         t.x = spell_mv;
+        t.kicked = opus;
         let a = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
         if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
             t.targets = vec![vec![Target::Player(seat)]];
@@ -2734,20 +2736,38 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
 /// `CreateTokenCopyTargetEffect`: a token copy of `of`'s copiable values (its printed card), with a set power and
 /// toughness
 fn token_copy(game: &mut Game, d: &mut dyn Decider, of: ObjId, controller: Seat, pt: Option<(i32, i32)>) {
+    token_copy_with(game, d, of, controller, pt, false);
+}
+
+/// `token_copy`, the tokens gaining haste if asked; the tokens made
+fn token_copy_with(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    of: ObjId,
+    controller: Seat,
+    pt: Option<(i32, i32)>,
+    haste: bool,
+) -> Vec<ObjId> {
     let o = game.obj(of);
     let mut def = (*o.copiable()).clone();
     if let Some((p, t)) = pt {
         def.power = p;
         def.toughness = t;
     }
+    if haste {
+        def.abilities.push(AbilityDef::HasteAbility);
+    }
     let def = Arc::new(def);
+    let mut made = Vec::new();
     for _ in 0..token_copies(game, controller) {
         let id = game.create_obj(def.clone(), controller, Zone::Library);
         let o = game.obj_mut(id);
         o.token = true;
         o.trigger_order = (1 << 32) + id.0 as u64;
         enter_battlefield(game, d, id, controller, false);
+        made.push(id);
     }
+    made
 }
 
 /// `GiftType.applyGift`: the opponent gets the token (a tapped Fish), or draws a card
@@ -3267,6 +3287,41 @@ fn apply_each_effect(
             EffectDef::OffspringEffect => {
                 // of the permanent (or as it last was), 1/1
                 token_copy(game, d, source.0, controller, Some((1, 1)));
+            }
+            EffectDef::ReflectionOfKikiJikiEffect => {
+                let Some(of) = objs.first().copied() else { return };
+                let made = token_copy_with(game, d, of, controller, None, true);
+                let delayed = Delayed {
+                    rule: "At the beginning of the next end step, sacrifice the token copies.".into(),
+                    sacrifice: made.iter().map(|t| (*t, game.obj(*t).zcc)).collect(),
+                    warp_exile: Vec::new(),
+                    effects: Vec::new(),
+                    source_zcc: 0,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.at_next_end_step
+                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+            }
+            EffectDef::DiscardAndDrawThatManyEffect { amount } => {
+                // `PlayerImpl.getToDiscard(0, amount)`: chosen from a hand that isn't empty
+                let hand = game.player(controller).hand.clone();
+                if hand.is_empty() || *amount < 1 {
+                    return;
+                }
+                let Some(chosen) = choose_cards(game, d, controller, &hand, &hand, 0, *amount as usize, "discard")
+                else {
+                    return;
+                };
+                for c in &chosen {
+                    game.move_to(*c, Zone::Graveyard);
+                }
+                draw(game, controller, chosen.len());
+            }
+            EffectDef::CreateTokenCopySourceEffect => {
+                token_copy(game, d, source.0, controller, None);
             }
             EffectDef::CreateTokenCopyTargetEffect => {
                 for o in &objs {
@@ -5291,7 +5346,8 @@ fn put_cards(game: &mut Game, d: &mut dyn Decider, seat: Seat, cards: &[ObjId], 
 /// A condition where it's known whether the spell was kicked.
 fn condition_with_kicker(game: &Game, c: &Condition, you: Seat, source: ObjId, kicked: bool) -> bool {
     match c {
-        Condition::Kicked => kicked,
+        // a cast trigger's item carries "five or more mana was spent" as its kicked flag
+        Condition::Kicked | Condition::Opus => kicked,
         _ => game.condition_holds(Some(c), you, source),
     }
 }
