@@ -1616,7 +1616,7 @@ class Translator:
         if cls == 'FirebendingAbility' and n == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacks'}, 'optional': False,
                     'effects': [{'class': 'FirebendingEffect', 'amount': int(args[0])}]}
-        if cls == 'SpreeAbility' and args == ['this']:
+        if cls in ('SpreeAbility', 'TieredAbility') and args == ['this']:
             return {'class': cls, 'java': cls}
         if cls == 'OffspringAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
             return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
@@ -1771,6 +1771,10 @@ def translate(card_name, subtypes, facts):
         if not modes or 'first_mode_cost' not in spell or not all('cost' in m for m in modes):
             raise Unsupported('spree without mode costs')
         spell['min_modes'], spell['max_modes'] = 1, len(modes) + 1
+    elif any(a['class'] == 'TieredAbility' for a in card['abilities']):
+        # tiered: choose one, with its cost
+        if not modes or 'first_mode_cost' not in spell or not all('cost' in m for m in modes):
+            raise Unsupported('tiered without mode costs')
     elif 'first_mode_cost' in spell or any('cost' in m for m in modes):
         raise Unsupported('mode costs without spree')
     if modes:
@@ -1959,7 +1963,8 @@ def mode_expr(t, arg):
     """`new Mode(effect).addEffect(effect).addTarget(target)` or a `Mode` variable -> {effects, targets}"""
     arg = arg.strip()
     chained, more = [], []
-    # spree: the mode's additional cost
+    # spree and tiered: the mode's additional cost (a flavor word is only text)
+    arg = re.sub(r'\.withFlavorWord\("[^"]*"\)$', '', arg)
     cost = None
     if (n := re.fullmatch(r'(.*)\.withCost\((.*)\)', arg, re.S)) and split_args(n.group(2)) == [n.group(2).strip()]:
         arg, cost = n.group(1).strip(), mode_cost(n.group(2))

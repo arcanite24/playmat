@@ -1420,6 +1420,8 @@ pub enum AbilityDef {
     },
     /// spree: the spell's modes each cost more, and one or more are chosen (the modes carry the costs)
     SpreeAbility { rule: String },
+    /// tiered: choose one of the spell's modes, each with its additional cost
+    TieredAbility { rule: String },
     /// you may pay `cost` more as you cast it; if you do, when it enters, create a 1/1 token copy of it
     OffspringAbility { cost: String, rule: String },
     BlitzAbility {
