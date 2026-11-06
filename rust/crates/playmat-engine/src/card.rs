@@ -1035,6 +1035,10 @@ pub enum EffectDef {
     ReturnSourceToHandNextEndStepEffect,
     /// as it enters: choose a basic land type (a land with `MultiversalPassagePassageEffect` becomes it)
     ChooseBasicLandTypeEffect,
+    /// as it enters: choose a creature type (Cavern of Souls)
+    ChooseCreatureTypeEffect,
+    /// a spell its conditional mana was spent on can't be countered (Cavern of Souls; the mana marks the spell)
+    CavernOfSoulsCantCounterEffect,
     /// "This land is the chosen type." (applied as the type is chosen)
     MultiversalPassagePassageEffect,
     /// "you may discard up to `amount` cards. If you do, draw that many cards"
@@ -1767,6 +1771,9 @@ pub enum AbilityDef {
         #[serde(default = "one_u32")]
         amount: u32,
         filter: Filter,
+        /// and of the source's chosen creature type, which then can't be countered (Cavern of Souls)
+        #[serde(default)]
+        chosen_type: bool,
         #[serde(default)]
         rule: String,
     },

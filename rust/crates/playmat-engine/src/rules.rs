@@ -854,9 +854,11 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, M
             .enumerate()
             .filter(|(_, a)| a.mana_condition().is_none_or(|c| game.condition_holds(Some(c), seat, *id)))
             .filter(|(_, a)| match a {
-                AbilityDef::ConditionalManaAbility { filter, .. } => {
-                    game.paying_for.get().is_some_and(|s| game.filter_matches(filter, seat, Some(*id), s))
-                }
+                AbilityDef::ConditionalManaAbility { filter, chosen_type, .. } => game.paying_for.get().is_some_and(|s| {
+                    game.filter_matches(filter, seat, Some(*id), s)
+                        && (!*chosen_type
+                            || o.chosen_type.as_ref().is_some_and(|t| game.obj(s).def.subtypes.contains(t)))
+                }),
                 _ => true,
             })
             .filter(|(_, a)| a.mana_costs().iter().all(|c| match c {
@@ -2267,7 +2269,7 @@ fn cant_be_countered(game: &Game, spell: ObjId) -> bool {
                 _ => false,
             })
     });
-    by_static || game.obj(spell).def.abilities.iter().any(|a| match a {
+    by_static || game.obj(spell).uncounterable || game.obj(spell).def.abilities.iter().any(|a| match a {
         AbilityDef::CantBeCounteredSourceAbility => true,
         AbilityDef::SimpleStaticAbility { effects, .. } => {
             effects.iter().any(|e| matches!(e, EffectDef::CantBeCounteredSourceEffect))
@@ -2596,6 +2598,11 @@ fn activate_mana(
             for o in chosen {
                 game.obj_mut(o).tapped = true;
             }
+        }
+    }
+    if let AbilityDef::ConditionalManaAbility { chosen_type: true, .. } = game.obj(id).def.abilities[i] {
+        if let Some(s) = game.paying_for.get() {
+            game.obj_mut(s).uncounterable = true;
         }
     }
     let conditional_any = matches!(game.obj(id).def.abilities[i], AbilityDef::ConditionalManaAbility { color: None, .. });
@@ -5669,6 +5676,8 @@ fn apply_each_effect(
             | EffectDef::BoostAllEffect { .. }
             | EffectDef::TapSourceUnlessPaysEffect { .. }
             | EffectDef::ChooseBasicLandTypeEffect
+            | EffectDef::ChooseCreatureTypeEffect
+            | EffectDef::CavernOfSoulsCantCounterEffect
             | EffectDef::MultiversalPassagePassageEffect
             | EffectDef::QuantumRiddlerReplacementEffect
             | EffectDef::ArtistsTalentEffect { .. }
@@ -6228,6 +6237,17 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                         Some(Target::Obj(o)) => Some((*o, game.obj(*o).zcc)),
                         _ => None,
                     };
+                }
+                if let EffectDef::ChooseCreatureTypeEffect = e {
+                    let q = Query::Choice { message: "Choose a creature type".into(), choices: Vec::new() };
+                    let chosen = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Text(t) => break t,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    game.obj_mut(id).chosen_type = Some(chosen);
                 }
                 if let EffectDef::ChooseBasicLandTypeEffect = e {
                     let choices: Vec<String> =

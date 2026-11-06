@@ -172,6 +172,7 @@ CUSTOM = {
     'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
     'ArtistsTalentEffect': lambda: {'class': 'ArtistsTalentEffect'},
     'LeylineOfTheVoidEffect': lambda: {'class': 'LeylineOfTheVoidEffect'},
+    'CavernOfSoulsCantCounterEffect': lambda: {'class': 'CavernOfSoulsCantCounterEffect'},
     'GiadaFontOfHopeEntersBattlefieldEffect': lambda: {'class': 'GiadaFontOfHopeEntersBattlefieldEffect'},
     'SpellQuellerEntersEffect': lambda: {'class': 'SpellQuellerEntersEffect'},
     'ChandraTorchOfDefianceEffect': lambda: {'class': 'ChandraTorchOfDefianceEffect'},
@@ -607,7 +608,7 @@ PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPl
 # chained calls that only change texts, hints or the AI's view
 TEXT_SETTERS = {'setText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
-                'withTextOptions', 'setTargetTag'}
+                'withTextOptions', 'setTargetTag', 'setRuleVisible'}
 
 # abilities every card has, which the constructor doesn't add
 IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'OmenCardSpellAbility'}
@@ -1086,6 +1087,8 @@ class Translator:
             return {'class': 'LoseAllAbilitiesUntilSourceLeavesEffect'}
         if cls == 'AddManaOfAnyColorEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
+        if cls == 'ChooseCreatureTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
+            return {'class': cls}
         if cls == 'ChooseBasicLandTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
         if cls in ('CreateTokenCopyTargetEffect', 'CreateTokenCopySourceEffect') and not args:
@@ -1548,6 +1551,11 @@ class Translator:
         if cls == 'SimpleManaAbility' and len(args) == 2 and args[1].strip() == 'new TapSourceCost()' \
                 and (n := re.fullmatch(r'new AddManaOfAnyColorEffect\((\d+)\)', args[0].strip())):
             return {'class': 'AnyColorManaAbility', 'java': cls, 'amount': int(n.group(1))}
+        # Cavern of Souls: any color, for a creature spell of the chosen type, which then can't be countered
+        if cls == 'ConditionalAnyColorManaAbility' and [a.strip() for a in args] == \
+                ['new TapSourceCost()', '1', 'new CavernOfSoulsManaBuilder()', 'true']:
+            return {'class': 'ConditionalManaAbility', 'java': cls, 'filter': [{'p': 'type', 't': 'CREATURE'}],
+                    'chosen_type': True}
         # "{T}: Add {R}. Spend this mana only to cast a creature spell."
         if cls in ('ConditionalColoredManaAbility', 'ConditionalAnyColorManaAbility') and len(args) == 2 \
                 and (b := re.fullmatch(r'new ConditionalSpellManaBuilder\((.*)\)', args[1].strip(), re.S)):
@@ -2216,7 +2224,7 @@ def ability_statement(t, st, added):
     if m:
         args = split_args(m.group(1))
         # `addAbility(ability, new SomeWatcher())`: the watcher is the engine's own bookkeeping
-        if len(args) == 2 and re.fullmatch(r'new \w+Watcher\(\)', args[1].strip()):
+        if len(args) == 2 and re.fullmatch(r'new \w+Watcher\((ability\.getOriginalId\(\))?\)', args[1].strip()):
             args = args[:1]
         # evolve: a trigger on a creature of yours entering with greater power or toughness
         if ','.join(args).strip() == 'new EvolveAbility()':

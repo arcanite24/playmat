@@ -115,6 +115,10 @@ pub struct Obj {
     pub becomes_base: Option<Arc<CardDef>>,
     /// lands given basic land types by a static (Urborg): the land without them, and the types given
     pub land_type_base: Option<(Arc<CardDef>, Vec<String>)>,
+    /// the creature type chosen as it entered (Cavern of Souls)
+    pub chosen_type: Option<String>,
+    /// a spell Cavern of Souls' mana was spent on: it can't be countered
+    pub uncounterable: bool,
     /// the X it was cast with, while it's on the battlefield
     pub cast_x: i32,
     /// what it was before an effect changed its characteristics (`def`) for as long as it stays on the battlefield
@@ -544,6 +548,8 @@ impl Game {
             until_end_of_turn_def: None,
             becomes_base: None,
             land_type_base: None,
+            chosen_type: None,
+            uncounterable: false,
             printed_def: None,
             copied_def: None,
             cast_x: 0,
@@ -1335,6 +1341,7 @@ impl Game {
                 o.kicked = false;
                 o.cast = false;
                 o.attached_to = None;
+                o.uncounterable = false;
                 if let Some((def, _)) = o.land_type_base.take() {
                     o.def = def;
                 }
