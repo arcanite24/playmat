@@ -955,6 +955,11 @@ class Translator:
                 raise Unsupported('setCanWorksOnStackOnly on ' + e.get('class'))
             e['stack_only'] = True
             return e
+        m = re.fullmatch(r'(new CreateTokenEffect\(.*\))\.withAdditionalTokens\((new \w+Token\(\))\)', self.strip_setters(expr), re.S)
+        if m and balanced(m.group(1)):
+            e = self.effect(m.group(1))
+            e['also'] = self.value('token', m.group(2))
+            return e
         # `new DoIfCostPaid(…).addEffect(…)`: more effects if it's paid
         m = re.fullmatch(r'(new DoIfCostPaid\(.*\))\.addEffect\((new .*)\)', self.strip_setters(expr), re.S)
         if m and balanced(m.group(1)):
@@ -993,6 +998,8 @@ class Translator:
         if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 3 and args[2].strip() == 'Duration.Custom' \
                 and all(re.fullmatch(r'\d+', a.strip()) for a in args[:2]):
             return {'class': 'SetBasePowerToughnessUntilLeavesEffect', 'power': int(args[0]), 'toughness': int(args[1])}
+        if cls == 'TransformSourceEffect' and not args:
+            return {'class': cls}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
             return {'class': cls}
         if cls == 'MaximumHandSizeControllerEffect' and [a.strip() for a in args] == [

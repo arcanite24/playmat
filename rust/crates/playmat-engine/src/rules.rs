@@ -765,6 +765,15 @@ fn alternate_mana(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> Vec<Vec<
 
 /// Whether the pool and untapped sources (one mana each, any of its abilities) can pay a cost.
 fn can_pay(game: &Game, seat: Seat, cost: &ManaCost) -> bool {
+    // a phyrexian symbol can be paid with 2 life
+    if game.player(seat).life >= 2 && cost.phyrexian.iter().any(|n| *n > 0) {
+        let mut c = cost.clone();
+        for k in 0..5 {
+            c.colored[k] -= c.phyrexian[k];
+        }
+        c.phyrexian = [0; 5];
+        return can_pay_extra(game, seat, &c, Vec::new());
+    }
     can_pay_extra(game, seat, cost, Vec::new())
 }
 
@@ -1916,6 +1925,31 @@ fn target_legal(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>, t:
 /// only one mana at a time, when the player answers with its type. Mana made during the payment is spent by itself.
 fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -> bool {
     let mut unpaid = cost.clone();
+    // `handlePhyrexianManaCosts`: each phyrexian symbol, 2 life instead if the player wants (paid after asking)
+    let mut life = 0;
+    for (k, l) in ["W", "U", "B", "R", "G"].iter().enumerate() {
+        for _ in 0..cost.phyrexian[k] {
+            if game.player(seat).life < 2 {
+                continue;
+            }
+            let q = Query::YesNo { message: format!("Pay 2 life instead of {{{}}}?", l) };
+            let yes = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if yes {
+                unpaid.colored[k] -= 1;
+                unpaid.phyrexian[k] -= 1;
+                life += 2;
+            }
+        }
+    }
+    if life > 0 {
+        lose_life(game, seat, life);
+    }
     let mut stock = game.player(seat).mana_pool;
     let mut unlocked = Mana::default();
     loop {
@@ -2420,6 +2454,7 @@ fn apply_each_effect(
                 sacrifice_at_end_of_combat,
                 sacrifice_at_next_end_step,
                 haste_until_end_of_turn,
+                also,
             } => {
                 let amount = &(v!(amount) * token_copies(game, controller) as i32);
                 let def = Arc::new(token.card());
@@ -2474,6 +2509,26 @@ fn apply_each_effect(
                     };
                     game.at_next_end_step
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+                }
+                if let Some(t) = also {
+                    let e = EffectDef::CreateTokenEffect {
+                        token: t.clone(),
+                        amount: Amount::Fixed(1),
+                        tapped_and_attacking: false,
+                        tapped: false,
+                        attacking: false,
+                        sacrifice_at_end_of_combat: false,
+                        sacrifice_at_next_end_step: false,
+                        haste_until_end_of_turn: false,
+                        also: None,
+                    };
+                    apply_effects(game, d, item, std::slice::from_ref(&e), legal, source);
+                }
+            }
+            EffectDef::TransformSourceEffect => {
+                let (src, zcc) = source;
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    transform(game, src);
                 }
             }
             EffectDef::DamageTargetSourcePowerEffect => {

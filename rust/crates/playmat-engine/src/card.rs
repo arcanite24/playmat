@@ -49,6 +49,8 @@ pub struct ManaCost {
     pub colored: [u32; 5],
     pub colorless: u32,
     pub x: u32,
+    /// of `colored`, the phyrexian symbols (`{W/P}`): each payable with 2 life instead
+    pub phyrexian: [u32; 5],
     pub text: String,
 }
 
@@ -70,6 +72,11 @@ impl ManaCost {
                 "G" => cost.colored[4] += 1,
                 "C" => cost.colorless += 1,
                 "X" => cost.x += 1,
+                p if p.len() == 3 && p.ends_with("/P") => {
+                    let k = "WUBRG".find(&p[..1]).ok_or_else(|| format!("mana symbol {{{}}} not supported", p))?;
+                    cost.colored[k] += 1;
+                    cost.phyrexian[k] += 1;
+                }
                 n => {
                     cost.generic += n.parse::<u32>().map_err(|_| format!("mana symbol {{{}}} not supported", n))?;
                 }
@@ -730,6 +737,9 @@ pub enum EffectDef {
         sacrifice_at_next_end_step: bool,
         #[serde(default)]
         haste_until_end_of_turn: bool,
+        /// another token created with these (`withAdditionalTokens`)
+        #[serde(default)]
+        also: Option<TokenDef>,
     },
     /// deals damage equal to the source's power (as it last was on the battlefield) to the target
     DamageTargetSourcePowerEffect,
@@ -912,6 +922,8 @@ pub enum EffectDef {
     /// exiles the target cards from graveyards; for each creature card, you gain 1 life and each opponent loses 1
     /// (Graveyard Trespasser and its back face)
     GraveyardTrespasserEffect,
+    /// transforms the source, if it's still that permanent
+    TransformSourceEffect,
     /// the source gains these subtypes until it leaves the battlefield (`AddCardSubTypeSourceEffect`, `Duration.Custom`)
     BecomesSubtypesSourceEffect { subtypes: Vec<String> },
     /// the source has this base power and toughness until it leaves (layer 7b, `Duration.Custom`)
