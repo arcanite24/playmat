@@ -1938,7 +1938,7 @@ fn ward(game: &mut Game) {
         }
     }
     // one event's triggers wait in registration order
-    fired.sort_by_key(|t| game.obj(t.card).trigger_order);
+    fired.sort_by_key(|t| game.trigger_key(t));
     game.pending.extend(fired);
 }
 /// `PlayerImpl.playAbility`: the ability goes on the stack, then its targets, then mana, then other costs.
@@ -4011,6 +4011,10 @@ fn apply_each_effect(
                     continue;
                 }
                 game.obj_mut(me).class_level = *level;
+                // `GainClassAbilitySourceEffect` adds the ability again each time continuous effects apply: it's
+                // registered after every object's own
+                let key = (1 << 40) + game.objs.len() as u64;
+                game.obj_mut(me).class_gained.push((*level, key));
                 let sources = game.trigger_sources();
                 let fired = game.triggers(sources, |_, src, _, t| matches!(t, Trigger::ClassLevel { n } if src == me && n == level));
                 game.pending.extend(fired);
@@ -6984,7 +6988,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             });
             // one damage event: Java checks every trigger in its load order
             own.extend(fired);
-            own.sort_by_key(|t| game.obj(t.card).trigger_order);
+            own.sort_by_key(|t| game.trigger_key(t));
             game.pending.extend(own);
         }
     }

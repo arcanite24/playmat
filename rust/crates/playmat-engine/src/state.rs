@@ -209,6 +209,8 @@ pub struct Obj {
     /// where its triggered abilities sit in Java's `TriggeredAbilities` map (registered as cards are loaded, tokens as
     /// they're created): abilities that trigger on the same event wait in this order
     pub trigger_order: u64,
+    /// a Class's levels gained (on the battlefield), with where the abilities they add are in trigger order
+    pub class_gained: Vec<(u32, u64)>,
 }
 
 impl Obj {
@@ -605,6 +607,7 @@ impl Game {
             deathtouched: false,
             token: false,
             trigger_order: id.0 as u64,
+            class_gained: Vec::new(),
         }));
         id
     }
@@ -725,7 +728,7 @@ impl Game {
                 }
             }
         }
-        fired.sort_by_key(|t| self.obj(t.card).trigger_order);
+        fired.sort_by_key(|t| self.trigger_key(t));
         fired
     }
 
@@ -768,6 +771,20 @@ impl Game {
         let (to, zcc) = self.obj(aura).attached_to?;
         let o = self.obj(to);
         (o.zone == Zone::Battlefield && o.zcc == zcc).then_some(to)
+    }
+
+    /// Where a waiting trigger is in Java's trigger order: its source's, or for an ability a Class level added, after
+    /// every object's own (in the order the levels were gained)
+    pub fn trigger_key(&self, t: &StackItem) -> u64 {
+        let o = self.obj(t.card);
+        if let Some((i, _)) = t.ability {
+            if let Some(crate::card::Condition::ClassLevel { n }) = o.def.abilities.get(i).and_then(|a| a.trigger_condition()) {
+                if let Some((_, k)) = o.class_gained.iter().find(|(l, _)| l == n) {
+                    return *k;
+                }
+            }
+        }
+        o.trigger_order
     }
 
     /// Whether a static ability's effect on the battlefield matches (for effects that apply to the whole game).
@@ -1393,6 +1410,7 @@ impl Game {
                 }
                 o.cast_x = 0;
                 o.class_level = 1;
+                o.class_gained.clear();
                 o.blocking.clear();
                 o.blocks = 0;
                 o.blocked = false;
