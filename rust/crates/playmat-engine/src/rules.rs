@@ -276,6 +276,7 @@ fn end_step(game: &mut Game, step: Step) {
             p.mana_pool = Mana::default();
         }
         p.combat_red = keep;
+        p.conditional_pool.clear();
     }
     if step == Step::EndCombat {
         game.first_strike_step = false;
@@ -737,6 +738,9 @@ fn harmonized(game: &Game, seat: Seat, def: &CardDef, mut cost: ManaCost) -> Man
 }
 
 /// Whether the card (or its adventure, `def`) can be cast now: timing, the one-spell limit, its costs, its targets.
+/// `paying_for` while checking what's playable: conditional mana counts for any spell
+const ANY_SPELL: ObjId = ObjId(u32::MAX);
+
 fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
     (def.is(CardType::Instant) || def.has(&AbilityDef::FlashAbility) || sorcery_speed(game, seat) || {
         game.any_static(|g, src, e| match e {
@@ -748,7 +752,8 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
     })
         && !cant_cast_more(game, seat)
         && {
-            game.paying_for.set(Some(id));
+            // Java's playable check counts conditional mana for any spell (the payment then enforces it)
+            game.paying_for.set(Some(ANY_SPELL));
             let ok = can_pay_extra(
                 game,
                 seat,
@@ -926,7 +931,8 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, M
             .filter(|(_, a)| a.mana_condition().is_none_or(|c| game.condition_holds(Some(c), seat, *id)))
             .filter(|(_, a)| match a {
                 AbilityDef::ConditionalManaAbility { filter, chosen_type, .. } => game.paying_for.get().is_some_and(|s| {
-                    game.filter_matches(filter, seat, Some(*id), s)
+                    s == ANY_SPELL
+                        || game.filter_matches(filter, seat, Some(*id), s)
                         && (!*chosen_type
                             || o.chosen_type.as_ref().is_some_and(|t| game.obj(s).def.subtypes.contains(t)))
                 }),
@@ -1025,6 +1031,12 @@ fn can_pay_extra(game: &Game, seat: Seat, cost: &ManaCost, extra: Vec<Vec<Mana>>
         }
     }
     options.extend(extra);
+    // conditional mana left in the pool (counted for any spell, as Java's playable check does)
+    if game.paying_for.get() == Some(ANY_SPELL) {
+        for (m, _, _) in &game.player(seat).conditional_pool {
+            options.push(vec![*m]);
+        }
+    }
     let pool = game.player(seat).mana_pool;
     for c in Color::ALL {
         for _ in 0..pool.colored[c.index()] {
@@ -2798,7 +2810,12 @@ fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -
         let q = Query::PlayMana { cost: unpaid_text(&unpaid), sources };
         match ask(game, d, seat, &q) {
             Answer::Obj(id) => {
-                if let Some((_, abilities)) = mana_sources_with_kinds(game, seat).into_iter().find(|(s, _)| *s == id) {
+                // a payment offers a source's conditional mana too, even what it can't spend
+                let paying = game.paying_for.get();
+                game.paying_for.set(Some(ANY_SPELL));
+                let offered = mana_sources_with_kinds(game, seat).into_iter().find(|(s, _)| *s == id);
+                game.paying_for.set(paying);
+                if let Some((_, abilities)) = offered {
                     let choices = auto_pay_abilities(&abilities, &unpaid);
                     let chosen = if choices.len() == 1 {
                         Some(choices[0])
@@ -2813,8 +2830,40 @@ fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -
                         }
                     };
                     if let Some((i, m, k)) = chosen {
+                        let spendable = mana_sources_with_kinds(game, seat)
+                            .iter()
+                            .any(|(s, a)| *s == id && a.iter().any(|(j, _, _)| *j == i));
+                        if !spendable {
+                            // tapped for mana this payment can't use: it stays in the pool for one that can
+                            game.obj_mut(id).tapped = true;
+                            game.player_mut(seat).conditional_pool.push((m, id, i));
+                            continue;
+                        }
                         if !activate_mana(game, d, seat, id, i, m, k, &unpaid) {
                             return false;
+                        }
+                        // the pool's conditional mana this spell can spend, paid along with the new mana
+                        let pool = std::mem::take(&mut game.player_mut(seat).conditional_pool);
+                        for (m, src, j) in pool {
+                            let usable = game.obj(src).def.abilities.get(j).is_some_and(|a| match a {
+                                AbilityDef::ConditionalManaAbility { filter, chosen_type, .. } => {
+                                    game.paying_for.get().is_some_and(|s| {
+                                        s != ANY_SPELL
+                                            && game.filter_matches(filter, seat, Some(src), s)
+                                            && (!*chosen_type
+                                                || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.obj(s).def.subtypes.contains(t)))
+                                    })
+                                }
+                                _ => false,
+                            });
+                            if usable && m.colored.iter().filter(|n| **n > 0).count() == 1 {
+                                let p = game.player_mut(seat);
+                                for k in 0..5 {
+                                    p.mana_pool.colored[k] += m.colored[k];
+                                }
+                            } else {
+                                game.player_mut(seat).conditional_pool.push((m, src, j));
+                            }
                         }
                     }
                 }
@@ -4191,7 +4240,9 @@ fn apply_each_effect(
                     let possible: Vec<ObjId> =
                         hand.iter().copied().filter(|c| !game.obj(*c).is(CardType::Land)).collect();
                     if !possible.is_empty() {
-                        let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, "choose") else {
+                        // Java's `TargetCardInHand` takes only cards in the chooser's own hand: none of these, so
+                        // nothing is chosen (asked until the player gives up)
+                        let Some(chosen) = choose_cards(game, d, controller, &hand, &[], 1, 1, "choose") else {
                             return;
                         };
                         for c in chosen {
@@ -4371,12 +4422,11 @@ fn apply_each_effect(
                     if !pay {
                         break;
                     }
-                    let before = game.clone();
+                    // (a cancelled payment isn't undone: its sources stay tapped, unlike `DoIfCostPaid`)
                     if !pay_mana(game, d, controller, &mana) {
                         if d.stopped() {
                             return;
                         }
-                        *game = before;
                         break;
                     }
                     times += 1;

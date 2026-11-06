@@ -265,6 +265,9 @@ pub struct Player {
     pub mana_pool: Mana,
     /// how much of the pool's {R} lasts until end of combat (firebending)
     pub combat_red: u32,
+    /// conditional mana made for a payment that couldn't spend it: (the mana, its source, the ability's index); a
+    /// later spell it can pay for spends it (`ConditionalMana` in Java's pool)
+    pub conditional_pool: Vec<(Mana, ObjId, usize)>,
     pub passed: bool,
     /// drew from an empty library since the last state-based check
     pub drew_from_empty: bool,
