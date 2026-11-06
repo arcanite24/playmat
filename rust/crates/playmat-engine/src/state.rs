@@ -321,6 +321,10 @@ pub struct Delayed {
     pub fixed: Vec<(ObjId, u32)>,
     /// earthbend: the card it returns to the battlefield tapped, while it's still that card in a graveyard or exile
     pub return_tapped: Vec<(ObjId, u32)>,
+    /// a reflexive trigger's targets, chosen as it goes on the stack
+    pub targets: Vec<crate::card::TargetDef>,
+    /// its intervening "if", checked as it triggers and as it resolves
+    pub condition: Option<crate::card::Condition>,
 }
 
 impl StackItem {
@@ -1148,6 +1152,8 @@ impl Game {
                     source_zcc: self.obj(id).zcc,
                     fixed: Vec::new(),
                     return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
                 };
                 fired.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, died_controller) });
             }
@@ -1187,6 +1193,8 @@ impl Game {
                     source_zcc: 0,
                     fixed: Vec::new(),
                     return_tapped: vec![(id, zcc + 1)],
+                    targets: Vec::new(),
+                    condition: None,
                 };
                 let owner = self.obj(id).owner;
                 dies.insert(0, StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, owner) });

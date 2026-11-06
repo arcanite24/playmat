@@ -146,6 +146,15 @@ CUSTOM = {
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
     'GarrukCurseBreakerEffect': lambda: {'class': 'GarrukCurseBreakerEffect'},
     'PinnacleStarcageExileEffect': lambda: {'class': 'PinnacleStarcageExileEffect'},
+    # a quest counter on it, then a reflexive trigger
+    'EarthbenderAscensionEffect': lambda: {
+        'class': 'AddCounterSourceReflexiveEffect', 'counter': {'name': 'quest', 'amount': 1},
+        'rule': 'When you do, if it has four or more quest counters on it, put a +1/+1 counter on target creature '
+                'you control. It gains trample until end of turn.',
+        'condition': {'c': 'source_counter', 'name': 'quest', 'n': 4},
+        'targets': [{'class': 'TargetPermanent', 'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'controller', 'who': 'you'}]}],
+        'effects': [{'class': 'AddCountersTargetEffect', 'counter': {'name': '+1/+1', 'amount': 1}},
+                    {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'TrampleAbility'}, 'duration': 'EndOfTurn'}]},
     'PinnacleStarcageTokenEffect': lambda: {'class': 'PinnacleStarcageTokenEffect', 'token': token('RobotToken')},
     # combat damage can't be prevented: the engine prevents no damage
     'QuestingBeastPreventionEffect': lambda: {'class': 'DamageCantBePreventedEffect', 'duration': 'WhileOnBattlefield'},

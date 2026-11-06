@@ -1056,6 +1056,16 @@ pub enum EffectDef {
     TemporaryLockdownEffect,
     /// exile all artifacts and creatures with mana value 2 or less until this leaves
     PinnacleStarcageExileEffect,
+    /// a counter on the source (while it's still there), then a reflexive trigger: "when you do, if …"
+    AddCounterSourceReflexiveEffect {
+        counter: CounterDef,
+        rule: String,
+        #[serde(default)]
+        condition: Option<Condition>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        effects: Vec<EffectDef>,
+    },
     /// the cards it exiled go to their owners' graveyards, then a `token` for each one that did
     PinnacleStarcageTokenEffect { token: TokenDef },
     /// a static ability's effect: spells of the filter you control can't be countered
