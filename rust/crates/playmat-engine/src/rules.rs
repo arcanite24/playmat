@@ -1758,10 +1758,11 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
         game.battlefield.iter().copied().filter(|id| f(*id) && targetable(game, seat, *id)).collect()
     };
     match def {
-        TargetDef::TargetAnyTarget { .. } => (
+        TargetDef::TargetAnyTarget { another, .. } => (
             players,
             permanents(&|id| {
                 [CardType::Creature, CardType::Planeswalker, CardType::Battle].iter().any(|t| game.has_type(id, *t))
+                    && !(*another && Some(id) == src)
             }),
         ),
         TargetDef::TargetPlayer => (players, Vec::new()),
@@ -1801,7 +1802,7 @@ fn target_counts(def: &TargetDef) -> (usize, usize) {
     match def {
         TargetDef::TargetPermanent { min, max, .. }
         | TargetDef::TargetCardInGraveyard { min, max, .. }
-        | TargetDef::TargetAnyTarget { min, max } => (*min, *max),
+        | TargetDef::TargetAnyTarget { min, max, .. } => (*min, *max),
         _ => (1, 1),
     }
 }
@@ -3766,6 +3767,15 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::ScreamingNemesisEffect => {
+                let Some(t) = target else { continue };
+                let dealt = deal_damage(game, source.0, t, item.x, false);
+                if let Target::Player(p) = t {
+                    if dealt > 0 {
+                        game.player_mut(p).cant_gain_life = true;
+                    }
+                }
+            }
             EffectDef::RavenEagleEffect { then } => {
                 let Some(Target::Obj(o)) = target else { continue };
                 if game.obj(o).zone != Zone::Graveyard {
@@ -4575,8 +4585,32 @@ fn untap(o: &mut crate::state::Obj) {
 
 /// `GameImpl.checkStateAndTriggered`: state-based actions until none apply, then waiting triggers go on the stack,
 /// active player's first (APNAP), and again until nothing changes.
+/// `DAMAGED_BATCH_FOR_ONE_PERMANENT`: each permanent dealt damage since the last check, with the total
+fn damaged_batch_triggers(game: &mut Game) {
+    let batch = std::mem::take(&mut game.damaged_batch);
+    let mut totals: Vec<(ObjId, i32)> = Vec::new();
+    for (o, n) in batch {
+        match totals.iter_mut().find(|(x, _)| *x == o) {
+            Some(t) => t.1 += n,
+            None => totals.push((o, n)),
+        }
+    }
+    for (o, n) in totals {
+        if game.obj(o).zone != Zone::Battlefield {
+            continue;
+        }
+        for mut t in game.triggers([o], |_, _, _, t| matches!(t, Trigger::DealtDamage)) {
+            t.x = n;
+            game.pending.push(t);
+        }
+    }
+}
+
 fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
     loop {
+        if !game.damaged_batch.is_empty() {
+            damaged_batch_triggers(game);
+        }
         state_based_actions(game);
         if game.over || d.stopped() {
             return;
@@ -4791,6 +4825,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
             let deathtouch = src.has(&AbilityDef::DeathtouchAbility);
             let creature = game.has_type(o, CardType::Creature);
+            if game.obj(o).def.abilities.iter().any(|a| a.trigger() == Some(&Trigger::DealtDamage)) {
+                game.damaged_batch.push((o, amount));
+            }
             let planeswalker = game.has_type(o, CardType::Planeswalker);
             let t = game.obj_mut(o);
             if creature {
@@ -4877,7 +4914,10 @@ pub fn lose_life(game: &mut Game, seat: Seat, amount: i32) {
 }
 
 pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
-    if amount <= 0 || game.any_static(|_, _, e| matches!(e, EffectDef::CantGainLifeAllEffect)) {
+    if amount <= 0
+        || game.player(seat).cant_gain_life
+        || game.any_static(|_, _, e| matches!(e, EffectDef::CantGainLifeAllEffect))
+    {
         return;
     }
     let plus = game

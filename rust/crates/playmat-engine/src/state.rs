@@ -210,6 +210,8 @@ pub struct Player {
     pub passed: bool,
     /// drew from an empty library since the last state-based check
     pub drew_from_empty: bool,
+    /// can't gain life for the rest of the game (Screaming Nemesis)
+    pub cant_gain_life: bool,
     /// declared an attacker this turn (`PlayerAttackedWatcher`)
     pub attacked: bool,
     /// life lost this turn
@@ -370,6 +372,8 @@ pub struct Game {
     /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack), with
     /// the seat whose trigger that is
     pub returning: Vec<(Seat, ObjId)>,
+    /// damage permanents were dealt since triggers were last checked, in order (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
+    pub damaged_batch: Vec<(ObjId, i32)>,
     /// cards exiled until something leaves that go back to their owner's hand, not the battlefield (Kitesail
     /// Freebooter's)
     pub return_to_hand: Vec<ObjId>,
@@ -411,6 +415,7 @@ impl Game {
             exiled_until_leaves: Vec::new(),
             exiled_for_source: Vec::new(),
             returning: Vec::new(),
+            damaged_batch: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,
             over: false,

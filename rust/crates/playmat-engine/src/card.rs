@@ -130,6 +130,9 @@ pub enum TargetDef {
         min: usize,
         #[serde(default = "one")]
         max: usize,
+        /// "any other target": not the source
+        #[serde(default)]
+        another: bool,
     },
     TargetPlayer,
     TargetOpponent,
@@ -332,6 +335,8 @@ pub enum Trigger {
     Sacrificed { filter: Filter, who: String },
     /// `who` ("you", "opponent") draws a card; with a target pointer, at that player
     Draws { who: String },
+    /// this is dealt damage (`DealtDamageToSourceTriggeredAbility`: once for each batch, with the damage as X)
+    DealtDamage,
     /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`)
     DrawsNth { n: u32 },
     /// this deals damage to an opponent (`only_combat`: combat damage)
@@ -898,6 +903,9 @@ pub enum EffectDef {
     PutIntoLibraryNFromTopTargetEffect { n: usize },
     /// if one or more tokens would be created under your control, twice that many are created instead
     CreateTwiceThatManyTokensEffect,
+    /// deals X (the damage this was dealt) to the target; a player dealt damage this way can't gain life for the
+    /// rest of the game
+    ScreamingNemesisEffect,
     /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
     NoMaximumHandSizeEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card

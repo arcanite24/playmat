@@ -144,6 +144,7 @@ CUSTOM = {
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
     'MagebaneLizardEffect': lambda: {'class': 'MagebaneLizardEffect'},
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
+    'ScreamingNemesisEffect': lambda: {'class': 'ScreamingNemesisEffect'},
     # exile up to one target card from a graveyard; a creature card: create a Clue
     'RavenEagleEffect': lambda: {'class': 'RavenEagleEffect', 'then': {
         'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'), 'amount': 1}},
@@ -477,6 +478,9 @@ def filter_object(cls, args, adds, subtypes):
     return preds
 
 
+ANY_OTHER_TARGET = [{'p': 'any_other_target'}]
+
+
 def declared_filters(source, subtypes):
     """filter fields (`static final FilterX name = new FilterX(…); static { name.add(…); }`) -> filters by name; one
     that can't be read is left out (the card fails only if it uses it)"""
@@ -486,6 +490,11 @@ def declared_filters(source, subtypes):
              for m in re.finditer(r'static final Predicate<[\w<>, ]*> (\w+)\s*=\s*(.*?);', source, re.S)}
     for m in re.finditer(r'static final (?:\w+) (\w+)\s*=\s*new (Filter\w+)\((.*?)\);', source, re.S):
         name, cls, args = m.group(1), m.group(2), split_args(canonical(m.group(3)))
+        # "any other target": a creature, planeswalker, battle or player, not the source
+        if cls == 'FilterAnyTarget' and re.search(r'\b' + name + r'\.getPermanentFilter\(\)\.add\(AnotherPredicate\.instance\);', source) \
+                and not re.search(r'\b' + name + r'\.(add|getPlayerFilter)', source):
+            out[name] = ANY_OTHER_TARGET
+            continue
         adds = [canonical(p) for p in re.findall(r'\b' + name + r'\.add\((.*?)\);', source, re.S)]
         adds = [preds.get(a, a) for a in adds]
         try:
@@ -1232,6 +1241,8 @@ class Translator:
         cls, args = obj
         if cls in PLAYER_TARGETS and not args:
             return {'class': cls}
+        if cls == 'TargetPermanentOrPlayer' and len(args) == 1 and self.filters.get(args[0].strip()) == ANY_OTHER_TARGET:
+            return {'class': 'TargetAnyTarget', 'another': True}
         if cls == 'TargetAnyTarget' and len(args) == 2 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
             return {'class': cls, 'min': int(args[0]), 'max': int(args[1])}
         if cls not in TARGET_CLASSES:
@@ -1545,6 +1556,8 @@ class Translator:
                     'optional': flag(args[1]), 'set_target_pointer': False}
         if cls == 'HeroicAbility' and n in (1, 2, 3):
             return out({'e': 'spell_cast_targeting_this'}, args[0], n == 2 and flag(args[1]))
+        if cls == 'DealtDamageToSourceTriggeredAbility' and n == 2:
+            return out({'e': 'dealt_damage'}, args[0], flag(args[1]))
         # whenever you draw your second card each turn
         if cls == 'DrawNthCardTriggeredAbility' and n == 1:
             return out({'e': 'draws_nth', 'n': 2}, args[0])
