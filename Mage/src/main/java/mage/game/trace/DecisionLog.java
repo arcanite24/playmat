@@ -3,7 +3,11 @@ package mage.game.trace;
 import mage.MageObject;
 import mage.abilities.Ability;
 import mage.abilities.Mode;
+import mage.abilities.Modes;
 import mage.cards.Card;
+import mage.cards.CardWithSpellOption;
+import mage.cards.SplitCard;
+import mage.cards.DoubleFacedCard;
 import mage.constants.ManaType;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
@@ -12,7 +16,9 @@ import mage.players.Player;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiPredicate;
 
@@ -77,6 +83,11 @@ public final class DecisionLog {
     private int next = 0;
     /** set when a replay can't go on: what went wrong */
     private String failure;
+    /**
+     * each card's place at the first priority (seat 0's library top first and hand, then seat 1's): exile is named in
+     * this order, since Java's own (a hash map of exile zones) can't be reproduced
+     */
+    private Map<UUID, Integer> startOrder;
 
     private DecisionLog(boolean replay, List<Decision> decisions) {
         this.replay = replay;
@@ -89,6 +100,10 @@ public final class DecisionLog {
 
     public static DecisionLog replaying(List<Decision> decisions) {
         return new DecisionLog(true, new ArrayList<>(decisions));
+    }
+
+    public void setStartOrder(Map<UUID, Integer> startOrder) {
+        this.startOrder = startOrder;
     }
 
     public boolean isReplay() {
@@ -159,6 +174,13 @@ public final class DecisionLog {
         if (id == null) {
             return null;
         }
+        // CHOOSE_MODE's Done and Cancel
+        if (id.equals(Modes.CHOOSE_OPTION_DONE_ID)) {
+            return "MD";
+        }
+        if (id.equals(Modes.CHOOSE_OPTION_CANCEL_ID)) {
+            return "MC";
+        }
         String[] found = {null};
         visit(game, (ref, objectId) -> {
             if (id.equals(objectId)) {
@@ -173,6 +195,12 @@ public final class DecisionLog {
     public static UUID resolve(Game game, String ref) {
         if (ref == null) {
             return null;
+        }
+        if (ref.equals("MD")) {
+            return Modes.CHOOSE_OPTION_DONE_ID;
+        }
+        if (ref.equals("MC")) {
+            return Modes.CHOOSE_OPTION_CANCEL_ID;
         }
         UUID[] found = {null};
         visit(game, (candidate, objectId) -> {
@@ -219,7 +247,13 @@ public final class DecisionLog {
             }
         }
         i = 0;
-        for (Card card : game.getState().getExile().getAllCards(game)) {
+        List<Card> exiled = new ArrayList<>(game.getState().getExile().getAllCards(game));
+        DecisionLog log = game.getOptions() == null ? null : game.getOptions().decisions;
+        if (log != null && log.startOrder != null) {
+            Map<UUID, Integer> order = log.startOrder;
+            exiled.sort(Comparator.comparingInt(c -> order.getOrDefault(c.getId(), Integer.MAX_VALUE)));
+        }
+        for (Card card : exiled) {
             if (object(game, "E" + i++, card, visitor)) {
                 return true;
             }
@@ -284,6 +318,26 @@ public final class DecisionLog {
         for (Ability ability : abilities) {
             if (ability(ability, ref + "a" + j++, visitor)) {
                 return true;
+            }
+        }
+        // a double-faced card's faces, or the spell of a card with one (an adventure, an omen), which a client can click instead of the card
+        if (object instanceof DoubleFacedCard) {
+            DoubleFacedCard card = (DoubleFacedCard) object;
+            return visitor.test(ref + "f0", card.getLeftHalfCard().getId())
+                    || visitor.test(ref + "f1", card.getRightHalfCard().getId());
+        }
+        if (object instanceof CardWithSpellOption) {
+            return visitor.test(ref + "f1", ((CardWithSpellOption) object).getSpellCard().getId());
+        }
+        // a split card's (a Room's) halves, each the half and its spell, which a cast chooses between
+        if (object instanceof SplitCard) {
+            SplitCard card = (SplitCard) object;
+            Card[] halves = {card.getLeftHalfCard(), card.getRightHalfCard()};
+            for (int h = 0; h < 2; h++) {
+                if (halves[h] != null && (visitor.test(ref + "h" + h, halves[h].getId())
+                        || visitor.test(ref + "h" + h, halves[h].getSpellAbility().getId()))) {
+                    return true;
+                }
             }
         }
         return false;

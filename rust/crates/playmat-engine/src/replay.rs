@@ -5,6 +5,7 @@ use crate::decide::{Answer, Decider, Query};
 use crate::fingerprint;
 use crate::state::{Game, ObjId, Seat, Step, Zone};
 use serde::Deserialize;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ShadowGame {
@@ -34,6 +35,9 @@ pub struct ShadowStart {
     pub random: i64,
     pub seats: Vec<ShadowSeat>,
     pub fingerprint: String,
+    /// "start": exile is named in the cards' order at the first priority; older games name it as it was exiled
+    #[serde(default, rename = "exileOrder")]
+    pub exile_order: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -87,6 +91,7 @@ impl ShadowGame {
     /// The game at its first priority: the recorded libraries and hands, the turn and step of the first trace entry.
     pub fn start_game(&self, db: &CardDb) -> Result<Game, String> {
         let mut game = Game::new(self.start.seats.len(), self.start.random);
+        game.exile_by_creation = self.start.exile_order.as_deref() == Some("start");
         for (seat, s) in self.start.seats.iter().enumerate() {
             for (i, name) in s.library.iter().enumerate() {
                 let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
@@ -104,6 +109,22 @@ impl ShadowGame {
                     game.obj_mut(id).trigger_order = *o as u64;
                 }
             }
+        }
+        // permanents put onto the battlefield from opening hands (Leyline of the Void): `bf <seat> <name> U|T p/t dmg …`
+        for line in self.start.fingerprint.lines().filter_map(|l| l.strip_prefix("bf ")) {
+            let words: Vec<&str> = line.split(' ').collect();
+            let Some(dmg) = words.iter().position(|w| *w == "dmg") else { continue };
+            let mut end = dmg - 1;
+            if words.get(end - 1) == Some(&"facedown") {
+                end -= 1;
+            }
+            let tapped = words.get(end - 1) == Some(&"T");
+            let seat: Seat = words[0].parse().map_err(|_| format!("bad battlefield line: {}", line))?;
+            let name = words[1..end - 1].join(" ");
+            let def = db.get(&name).ok_or_else(|| format!("card not in the engine: {}", name))?;
+            let id = game.create_obj(def, seat, Zone::Battlefield);
+            Arc::make_mut(&mut game.battlefield).push(id);
+            game.obj_mut(id).tapped = tapped;
         }
         let header = self.start.fingerprint.lines().nth(1).ok_or("no fingerprint")?;
         // turn <n> step <STEP> active <seat> priority <seat>
@@ -138,10 +159,45 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
     if r.starts_with('?') {
         return Some(Answer::Unknown);
     }
+    // CHOOSE_MODE's Done and Cancel
+    match r {
+        "MD" => return Some(Answer::ModeDone),
+        "MC" => return Some(Answer::ModeCancel),
+        _ => {}
+    }
+    // an ability's mode: `<object>a<ability>m<index>`
+    if let Some((obj, mode)) = r.rsplit_once('m') {
+        if let (Some((_, a)), Ok(k)) = (obj.rsplit_once('a'), mode.parse::<usize>()) {
+            if a.parse::<usize>().is_ok() {
+                return Some(Answer::Mode(k));
+            }
+        }
+    }
     // a spell's mode: `<stack object>sm<index>`
     if let Some((_, mode)) = r.rsplit_once("sm") {
         if let Ok(k) = mode.parse::<usize>() {
             return Some(Answer::Mode(k));
+        }
+    }
+    // a double-faced card's face: `<object>f<index>`, the card itself
+    if let Some((obj, face)) = r.rsplit_once('f') {
+        if let Ok(face) = face.parse::<usize>() {
+            let card = resolve(game, obj);
+            // an adventure part whose zone Java left behind (the card was bounced from the battlefield): Java finds
+            // nothing to play for it, and the click does nothing
+            if let Some(Answer::Obj(o)) = card {
+                let o = game.obj(o);
+                if face == 1 && o.def.adventure.is_some() && o.adventure_zone != o.zone {
+                    return Some(Answer::Unknown);
+                }
+            }
+            return card;
+        }
+    }
+    // a split card's (a Room's) half, or its spell: `<object>h<index>`
+    if let Some((obj, half)) = r.rsplit_once('h') {
+        if let (Some(Answer::Obj(o)), Ok(k)) = (resolve(game, obj), half.parse::<usize>()) {
+            return Some(Answer::Ability(o, k));
         }
     }
     // an object's ability: `<object>a<index>`
@@ -167,18 +223,32 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
         }
         "B" => game.battlefield.get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
         "S" => {
+            // Java's stack, with what's resolving still on it
             let index: usize = rest.parse().ok()?;
-            let n = game.stack.len();
+            let mut stack: Vec<ObjId> = game.stack.iter().map(|i| i.card).collect();
+            if let Some((at, card)) = game.resolving {
+                stack.insert(at.min(stack.len()), card);
+            }
+            let n = stack.len();
             if index >= n {
                 return None;
             }
-            Some(Answer::Obj(game.stack[n - 1 - index].card))
+            Some(Answer::Obj(stack[n - 1 - index]))
         }
-        "E" => game.exile.get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
+        "E" => exile_order(game).get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
         // a waiting trigger: its seat, then its place among that seat's
         "T" => rest.split_once('.').and_then(|(_, i)| i.parse().ok()).map(Answer::Trigger),
         _ => None,
     }
+}
+
+/// Exiled cards in the order decision logs name them
+fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
+    let mut exile = game.exile.to_vec();
+    if game.exile_by_creation {
+        exile.sort_by_key(|o| o.0);
+    }
+    exile
 }
 
 /// Where an object is, as `DecisionLog.ref` writes it.
@@ -196,7 +266,7 @@ pub fn reference(game: &Game, id: ObjId) -> String {
     if let Some(i) = game.stack.iter().rev().position(|x| x.card == id) {
         return format!("S{}", i);
     }
-    if let Some(i) = game.exile.iter().position(|x| *x == id) {
+    if let Some(i) = exile_order(game).iter().position(|x| *x == id) {
         return format!("E{}", i);
     }
     format!("?{}", id.0)
@@ -262,6 +332,18 @@ impl<'a> Decider for ReplayDecider<'a> {
                 self.next, answer, asked, query
             ));
             return Answer::Stop;
+        }
+        if std::env::var_os("PLAYMAT_SHADOW_DEBUG").is_some() {
+            eprintln!("answer {} seat {} {:?} -> {:?} ({})", self.next, seat, query, answer, asked);
+            if std::env::var_os("PLAYMAT_SHADOW_BF").is_some() {
+                let bf: Vec<String> = game
+                    .battlefield
+                    .iter()
+                    .enumerate()
+                    .map(|(i, o)| format!("B{}={}:{}", i, o.0, game.obj(*o).name()))
+                    .collect();
+                eprintln!("  {}", bf.join(" "));
+            }
         }
         self.next += 1;
         answer

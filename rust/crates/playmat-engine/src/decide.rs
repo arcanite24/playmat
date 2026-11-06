@@ -31,6 +31,10 @@ pub enum Query {
     YesNo { message: String },
     /// CHOOSE_MODE: one of a modal spell's modes (by index)
     ChooseMode { modes: Vec<usize> },
+    /// AMOUNT: a number between `min` and `max` (announcing X)
+    Amount { min: i32, max: i32 },
+    /// CHOOSE_CHOICE: one of some texts (a color of mana), answered as a string
+    Choice { message: String, choices: Vec<String> },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -45,6 +49,10 @@ pub enum Answer {
     Ability(ObjId, usize),
     /// a waiting trigger of the asked player, by its place in their list (`T0.1`)
     Trigger(usize),
+    /// CHOOSE_MODE's Done (`MD`)
+    ModeDone,
+    /// CHOOSE_MODE's Cancel (`MC`)
+    ModeCancel,
     /// a modal spell's mode, by index (`S0sm2`)
     Mode(usize),
     /// an id the decision log couldn't name (a dialog's Done or Cancel option)

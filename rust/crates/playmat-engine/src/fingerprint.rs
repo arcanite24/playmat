@@ -1,7 +1,7 @@
 //! State fingerprints, text version 2 (docs/rust/StateFingerprint.md): the game as plain text two engines agree on,
 //! and its FNV-1a 64 hash. Java: `mage.game.trace.StateFingerprint`.
 
-use crate::state::Game;
+use crate::state::{Game, ObjId};
 
 pub const VERSION: u32 = 2;
 
@@ -50,12 +50,22 @@ pub fn text(game: &Game) -> String {
             if player.lost { " lost" } else { "" },
             if player.won { " won" } else { "" }
         ));
-        let mut hand: Vec<&str> = player.hand.iter().map(|id| game.obj(*id).name()).collect();
+        // as Java's trace sees the end: the loser's cards are gone from hand, library and graveyard (their
+        // permanents stay), though continuous effects still counted them
+        let gone = |ids: &[ObjId]| -> Vec<ObjId> {
+            if game.over && player.lost {
+                Vec::new()
+            } else {
+                ids.to_vec()
+            }
+        };
+        let (h, l, g) = (gone(&player.hand), gone(&player.library), gone(&player.graveyard));
+        let mut hand: Vec<&str> = h.iter().map(|id| game.obj(*id).name()).collect();
         hand.sort();
         out.push_str(&format!(" hand {}\n", hand.join("|")));
-        let library: Vec<&str> = player.library.iter().map(|id| game.obj(*id).name()).collect();
+        let library: Vec<&str> = l.iter().map(|id| game.obj(*id).name()).collect();
         out.push_str(&format!(" library {}\n", library.join("|")));
-        let graveyard: Vec<&str> = player.graveyard.iter().map(|id| game.obj(*id).name()).collect();
+        let graveyard: Vec<&str> = g.iter().map(|id| game.obj(*id).name()).collect();
         out.push_str(&format!(" graveyard {}\n", graveyard.join("|")));
     }
     let mut exile: Vec<&str> = game.exile.iter().map(|id| game.obj(*id).name()).collect();
@@ -77,7 +87,7 @@ pub fn text(game: &Game) -> String {
                 t,
                 o.damage,
                 if o.attacking.is_some() { " attacking" } else { "" },
-                if !o.blocking.is_empty() { " blocking" } else { "" },
+                if o.blocks > 0 { " blocking" } else { "" },
                 counters(&o.counters)
             )
         })
