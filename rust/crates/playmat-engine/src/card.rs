@@ -629,6 +629,8 @@ pub enum CostDef {
         #[serde(default = "one")]
         amount: usize,
     },
+    /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
+    SacrificeXTargetCost { filter: Filter },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
     TapTargetCost { filter: Filter, amount: usize },
     /// crew: tap any number of other untapped creatures you control with total power `value` or more
@@ -1310,6 +1312,11 @@ pub enum EffectDef {
     /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
     /// among them this turn, spending mana as though it were any type
     LaughingJasperFlintEffect,
+    /// a static ability's effect: the spell costs {1} less for each permanent sacrificed for its `SacrificeXTargetCost`
+    RottenmouthViperCostReductionEffect,
+    /// for each blight counter on the source, each opponent loses 4 life unless they sacrifice a nonland permanent
+    /// or discard a card
+    RottenmouthViperEffect,
     /// Old-Growth Troll: it returns as an Aura enchanting a Forest you control, which has "{T}: Add {G}{G}" and
     /// "{1}, {T}, sacrifice this land: create a tapped `token`"
     OldGrowthTrollReturnEffect { token: serde_json::Value },

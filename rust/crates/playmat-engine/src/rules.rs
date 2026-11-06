@@ -664,6 +664,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::TapTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
+        CostDef::SacrificeXTargetCost { .. } => true,
         // `CrewCost.canPay` looks without a source, so "another" doesn't leave out the vehicle itself (crewed, it
         // counts its own power)
         CostDef::CrewCost { value } => {
@@ -763,7 +764,25 @@ fn exile_from_hand_reduced(game: &Game, seat: Seat, id: ObjId, def: &CardDef, mu
             cost.generic = cost.generic.saturating_sub(4 * n as u32);
         }
     }
+    // Rottenmouth Viper, while checking what's playable: {1} less for each permanent it could sacrifice
+    if let Some(n) = sacrifice_x_reduction(game, seat, id, def) {
+        cost.generic = cost.generic.saturating_sub(n as u32);
+    }
     cost
+}
+
+/// A `SacrificeXTargetCost` that reduces the spell's cost (Rottenmouth Viper): how many permanents it can sacrifice
+fn sacrifice_x_reduction(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> Option<usize> {
+    let reduces = def.abilities.iter().any(|a| {
+        matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+            if effects.contains(&EffectDef::RottenmouthViperCostReductionEffect))
+    });
+    def.spell.costs.iter().find_map(|c| match c {
+        CostDef::SacrificeXTargetCost { filter } if reduces => {
+            Some(matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count())
+        }
+        _ => None,
+    })
 }
 
 /// Warp: the card's ability index and the card with its warp cost, if it can be cast that way from hand (at sorcery
@@ -1564,6 +1583,26 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
         let g = game.stack.last().is_some_and(|t| t.gift_promised);
         defs = if g { promised.clone() } else { plain.clone() };
     }
+    // `handleOtherXCosts`: a `SacrificeXTargetCost`'s X is announced before targets (asked only with a choice)
+    let mut sacrifice_x = None;
+    for c in &def.spell.costs {
+        if let CostDef::SacrificeXTargetCost { filter } = c {
+            let max = matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count();
+            let n = if max == 0 {
+                0
+            } else {
+                let q = Query::Amount { min: 0, max: max as i32 };
+                loop {
+                    match ask(game, d, seat, &q) {
+                        Answer::Int(n) if (0..=max as i32).contains(&n) => break n as usize,
+                        Answer::Stop => return false,
+                        _ => {}
+                    }
+                }
+            };
+            sacrifice_x = Some((filter.clone(), n));
+        }
+    }
     if !choose_targets(game, d, seat, &defs, Some(id), &def.spell.rule, true) {
         return false;
     }
@@ -1571,6 +1610,11 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
         game.player_mut(s).passed = false;
     }
     let mut cost = modified_cost(game, seat, id, cost);
+    if let Some((_, n)) = &sacrifice_x {
+        if sacrifice_x_reduction(game, seat, id, &def).is_some() {
+            cost.generic = cost.generic.saturating_sub(*n as u32);
+        }
+    }
     // `ExileCardsFromHandAdjuster`: how many to exile (AMOUNT), each taking {4} off; exiled with the other costs
     let mut exile_from_hand = None;
     for a in &def.abilities {
@@ -1633,6 +1677,12 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
     game.obj_mut(id).mana_spent = cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless;
     // 601.2g: then the other costs
     for c in &def.spell.costs {
+        if let (CostDef::SacrificeXTargetCost { .. }, Some((filter, n))) = (c, &sacrifice_x) {
+            if *n > 0 && !pay_cost(game, d, seat, id, &CostDef::SacrificeTargetCost { filter: filter.clone(), amount: *n }) {
+                return false;
+            }
+            continue;
+        }
         if !pay_cost(game, d, seat, id, c) {
             return false;
         }
@@ -2227,6 +2277,8 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 sacrifice(game, o);
             }
         }
+        // announced and paid as a `SacrificeTargetCost` in `cast_with`
+        CostDef::SacrificeXTargetCost { .. } => {}
         CostDef::DiscardCardCost { filter } => {
             let hand = game.player(seat).hand.clone();
             let possible: Vec<ObjId> =
@@ -4120,6 +4172,53 @@ fn apply_each_effect(
                         game.obj_mut(o).printed_def = Some(original);
                     } else {
                         game.obj_mut(o).def = original;
+                    }
+                }
+            }
+            EffectDef::RottenmouthViperEffect => {
+                let repeat = game.obj(source.0).counter("blight");
+                for i in 1..=repeat {
+                    for p in (0..game.seats()).filter(|p| *p != controller) {
+                        let nonland: Vec<ObjId> = game
+                            .battlefield
+                            .iter()
+                            .copied()
+                            .filter(|b| game.obj(*b).controller == p && !game.has_type(*b, CardType::Land))
+                            .collect();
+                        if !nonland.is_empty() {
+                            let q = Query::YesNo { message: format!("Sacrifices a nonland permanent? (Iteration {} of {})", i, repeat) };
+                            let yes = loop {
+                                match ask(game, d, p, &q) {
+                                    Answer::Bool(b) => break b,
+                                    Answer::Stop => return,
+                                    _ => {}
+                                }
+                            };
+                            if yes {
+                                let Some(chosen) = choose_cards(game, d, p, &nonland, &nonland, 1, 1, "sacrifice") else {
+                                    return;
+                                };
+                                if let Some(c) = chosen.first().copied() {
+                                    sacrifice(game, c);
+                                    continue;
+                                }
+                            }
+                        }
+                        if !game.player(p).hand.is_empty() {
+                            let q = Query::YesNo { message: format!("Discard a card? (Iteration {} of {})", i, repeat) };
+                            let yes = loop {
+                                match ask(game, d, p, &q) {
+                                    Answer::Bool(b) => break b,
+                                    Answer::Stop => return,
+                                    _ => {}
+                                }
+                            };
+                            if yes {
+                                discard(game, d, p, 1);
+                                continue;
+                            }
+                        }
+                        lose_life(game, p, 4);
                     }
                 }
             }
@@ -6117,6 +6216,7 @@ fn apply_each_effect(
             | EffectDef::GiadaFontOfHopeEntersBattlefieldEffect
             | EffectDef::AddBasicLandTypeAllLandsEffect { .. }
             | EffectDef::AddCardSubtypeAllEffect { .. }
+            | EffectDef::RottenmouthViperCostReductionEffect
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect

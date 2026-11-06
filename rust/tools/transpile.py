@@ -175,6 +175,7 @@ CUSTOM = {
     'TishanasTidebinderEffect': lambda: {'class': 'TishanasTidebinderEffect'},
     'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
     'LaughingJasperFlintEffect': lambda: {'class': 'LaughingJasperFlintEffect'},
+    'RottenmouthViperCostReductionEffect': lambda: {'class': 'RottenmouthViperCostReductionEffect'},
     'OldGrowthTrollReturnEffect': lambda: {'class': 'OldGrowthTrollReturnEffect', 'token': token('TrollWarriorToken')},
     'AcademicDisputeEffect': lambda: {'class': 'AcademicDisputeEffect'},
     'LearnEffect': lambda: {'class': 'LearnEffect'},
@@ -390,7 +391,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'AttacksTrigge
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
 
-COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun',
+COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.BLIGHT': 'blight', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun',
             'CounterType.SHIELD': 'shield',
             'CounterType.M1M1': '-1/-1', 'CounterType.INDESTRUCTIBLE': 'indestructible'}
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
@@ -984,6 +985,8 @@ class Translator:
         raise Unsupported('argument ' + arg)
 
     def cost(self, expr):
+        if isinstance(self.vars.get(expr.strip()), dict) and self.vars[expr.strip()].get('class', '').endswith('Cost'):
+            return self.vars[expr.strip()]
         cls, args = self.new_expr(expr)
         if cls == 'ManaCostsImpl' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0]):
             return {'class': 'ManaCost', 'cost': args[0][1:-1]}
@@ -1004,6 +1007,9 @@ class Translator:
             return {'class': cls, 'filter': self.filter(args[0]), 'amount': 1}
         if cls == 'TapTargetCost' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'filter': self.filter(args[1]), 'amount': int(args[0])}
+        # "As an additional cost to cast this spell, you may sacrifice any number of …"
+        if cls == 'SacrificeXTargetCost' and len(args) == 2 and args[1].strip() == 'true':
+            return {'class': cls, 'filter': self.filter(args[0])}
         if cls == 'SacrificeTargetCost' and len(args) == 1:
             return {'class': cls, 'filter': self.filter(args[0])}
         if cls == 'SacrificeTargetCost' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
@@ -1088,6 +1094,8 @@ class Translator:
         if cls == 'AddBasicLandTypeAllLandsEffect' and len(args) == 1 \
                 and args[0].strip() in ('SubType.PLAINS', 'SubType.ISLAND', 'SubType.SWAMP', 'SubType.MOUNTAIN', 'SubType.FOREST'):
             return {'class': cls, 'subtype': subtype_names()[args[0].strip()[8:]]}
+        if cls == 'RottenmouthViperEffect' and [a.strip() for a in args] == ['new CountersSourceCount(CounterType.BLIGHT)']:
+            return {'class': cls}
         # Laughing Jasper Flint: "creatures you control but don't own are Mercenaries in addition to their other types"
         if cls == 'AddCardSubtypeAllEffect' and len(args) == 3 and re.fullmatch(r'SubType\.\w+', args[1].strip()) \
                 and args[2].strip() == 'DependencyType.AddingCreatureType':
@@ -1874,6 +1882,8 @@ class Translator:
             self.vars[var] = {'class': 'Mode', 'effects': [self.effect(a) for a in args], 'targets': []}
         elif cls in EFFECTS or cls.endswith('Effect'):
             self.vars[var] = self.effect(expr)
+        elif cls.endswith('Cost'):
+            self.vars[var] = self.cost(expr)
         elif cls == 'TargetCardInLibrary':
             self.vars[var] = {'library_target': self.library_target(expr)}
         elif cls in TARGET_CLASSES or cls in PLAYER_TARGETS:
@@ -1960,7 +1970,7 @@ def translate(card_name, subtypes, facts):
         for k in ('min_modes', 'max_modes'):
             if k in spell:
                 card['spell'][k] = spell[k]
-    elif spell['effects'] or spell['targets']:
+    elif spell['effects'] or spell['targets'] or spell.get('costs'):
         card['spell'] = dict(spell, rule=rule)
     if adventure is not None:
         if amodes:
@@ -2073,6 +2083,10 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
                 if key not in subtypes:
                     raise Unsupported('subtype ' + x)
                 card.setdefault('subtypes', []).append(subtypes[key])
+            return
+        # a cost's rule text (`cost.setText(…)`) is display
+        m = re.fullmatch(r'(\w+)\.setText\(.*\)', st, re.S)
+        if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class', '').endswith('Cost'):
             return
         m = re.fullmatch(r'this\.supertype\.add\((.*)\)', st)
         if m:
