@@ -1359,6 +1359,9 @@ fn ward(game: &mut Game) {
         if obj.zone != Zone::Battlefield || obj.controller == top.controller {
             continue;
         }
+        if game.has_type(o, CardType::Creature) && nowhere_to_run(game, obj.controller) {
+            continue;
+        }
         for (i, a) in obj.def.abilities.iter().enumerate() {
             if let AbilityDef::WardAbility { .. } = a {
                 let mut item = StackItem { ability: Some((i, obj.zcc)), ..StackItem::spell(o, obj.controller) };
@@ -1884,7 +1887,24 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
 
 /// Whether `seat` may target a permanent: not an opponent's with hexproof.
 fn targetable(game: &Game, seat: Seat, id: ObjId) -> bool {
-    game.obj(id).controller == seat || !game.has_ability(id, &AbilityDef::HexproofAbility)
+    game.obj(id).controller == seat
+        || !game.has_ability(id, &AbilityDef::HexproofAbility)
+        || (game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
+}
+
+/// Nowhere to Run: an opponent of `seat` controls one, so `seat`'s creatures can be targeted as though they didn't
+/// have hexproof, and their ward abilities don't trigger
+fn nowhere_to_run(game: &Game, seat: Seat) -> bool {
+    game.battlefield.iter().any(|b| {
+        let o = game.obj(*b);
+        o.controller != seat
+            && o.def.abilities.iter().any(|a| match a {
+                AbilityDef::SimpleStaticAbility { effects, .. } => {
+                    effects.iter().any(|e| matches!(e, EffectDef::NowhereToRunHexproofEffect))
+                }
+                _ => false,
+            })
+    })
 }
 
 /// How many objects a target takes: at least, at most.
@@ -2523,6 +2543,14 @@ fn apply_each_effect(
                         also: None,
                     };
                     apply_effects(game, d, item, std::slice::from_ref(&e), legal, source);
+                }
+            }
+            EffectDef::MightformHarmonizerEffect => {
+                for o in &objs {
+                    let p = game.power_toughness(*o).0;
+                    if p != 0 {
+                        boost(game, *o, p, 0, Duration::EndOfTurn);
+                    }
                 }
             }
             EffectDef::TransformSourceEffect => {
@@ -4243,6 +4271,8 @@ fn apply_each_effect(
             | EffectDef::SetBasePowerToughnessSourceEffect { .. }
             | EffectDef::CantBeCounteredSourceEffect
             | EffectDef::AddCardSubTypeSourceEffect
+            | EffectDef::NowhereToRunHexproofEffect
+            | EffectDef::NowhereToRunWardEffect
             | EffectDef::BoostAllEffect { .. }
             | EffectDef::TapSourceUnlessPaysEffect { .. }
             | EffectDef::AttachEffect

@@ -924,6 +924,12 @@ pub enum EffectDef {
     GraveyardTrespasserEffect,
     /// transforms the source, if it's still that permanent
     TransformSourceEffect,
+    /// the target gets +X/+0 until end of turn, X its power (Mightform Harmonizer: "double the power")
+    MightformHarmonizerEffect,
+    /// static: creatures your opponents control can be targeted as though they didn't have hexproof
+    NowhereToRunHexproofEffect,
+    /// static: ward abilities of creatures your opponents control don't trigger
+    NowhereToRunWardEffect,
     /// the source gains these subtypes until it leaves the battlefield (`AddCardSubTypeSourceEffect`, `Duration.Custom`)
     BecomesSubtypesSourceEffect { subtypes: Vec<String> },
     /// the source has this base power and toughness until it leaves (layer 7b, `Duration.Custom`)
