@@ -255,6 +255,8 @@ ABILITIES = {
     'DiesSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'ActivateAsSorceryActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
     'SimpleActivatedAbility': [('effect', 'effect'), ('cost', 'cost')],
+    # once each game, for its mana cost less the turn this entered
+    'PowerUpAbility': [('effect', 'effect'), ('cost', 'cost')],
     'ProwessAbility': [],
     # the step triggers take a TargetController first; the shorter overloads mean "your" (filled in by `ability`)
     'BeginningOfUpkeepTriggeredAbility': [('controller', 'target_controller'), ('effect', 'effect'),
@@ -328,7 +330,7 @@ TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'a
                       'TargetController.OPPONENT': 'opponent'}
 
 COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun',
-            'CounterType.M1M1': '-1/-1'}
+            'CounterType.M1M1': '-1/-1', 'CounterType.INDESTRUCTIBLE': 'indestructible'}
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},

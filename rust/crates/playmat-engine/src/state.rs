@@ -131,6 +131,8 @@ pub struct Obj {
     pub chosen: Option<(ObjId, u32)>,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
+    /// its power-up ability was activated (once each game, for this object)
+    pub powered_up: bool,
     /// regeneration shields until end of turn
     pub regen_shields: u32,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
@@ -463,6 +465,7 @@ impl Game {
             ninjutsu_defender: None,
             chosen: None,
             exerted: false,
+            powered_up: false,
             regen_shields: 0,
             exile_instead_of_dying: false,
             may_play: None,
@@ -537,6 +540,10 @@ impl Game {
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
         let o = self.obj(id);
         if o.has(ability) {
+            return true;
+        }
+        // an indestructible counter
+        if *ability == AbilityDef::IndestructibleAbility && o.counter("indestructible") > 0 {
             return true;
         }
         if o.zone != Zone::Battlefield {
@@ -1068,6 +1075,7 @@ impl Game {
             o.may_play = None;
             o.play_tax = 0;
             o.exerted = false;
+            o.powered_up = false;
             o.regen_shields = 0;
             o.warp_from = None;
             if !(from == Zone::Stack && zone == Zone::Battlefield) {

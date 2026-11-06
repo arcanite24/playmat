@@ -490,8 +490,11 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
                 continue;
             }
         }
+        if matches!(a, AbilityDef::PowerUpAbility { .. }) && o.powered_up {
+            continue;
+        }
         let payable = costs.iter().all(|c| match c {
-            CostDef::ManaCost { .. } => can_pay(game, seat, &adjusted_mana_cost(game, seat, a, costs)),
+            CostDef::ManaCost { .. } => can_pay(game, seat, &adjusted_mana_cost(game, seat, id, a, costs)),
             _ => can_pay_cost(game, seat, id, c),
         });
         let targeted = targets.iter().all(|t| target_possible(game, seat, t, Some(id)));
@@ -1300,9 +1303,12 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
     if let AbilityDef::LimitedTimesPerTurnActivatedAbility { .. } = def.abilities[index] {
         game.activated_this_turn.push((id, index));
     }
+    if let AbilityDef::PowerUpAbility { .. } = def.abilities[index] {
+        game.obj_mut(id).powered_up = true;
+    }
     Arc::make_mut(&mut game.stack).push(StackItem { ability: Some((index, zcc)), ..StackItem::spell(id, seat) });
     // X: announced before the targets (`AbilityImpl.handleManaXCosts`)
-    let mut mana = adjusted_mana_cost(game, seat, &def.abilities[index], costs);
+    let mut mana = adjusted_mana_cost(game, seat, id, &def.abilities[index], costs);
     if mana.x > 0 {
         let q = Query::Amount { min: 0, max: i32::MAX };
         let x = loop {
@@ -1372,8 +1378,16 @@ fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef
 }
 
 /// An activated ability's mana cost, after its cost adjuster (Channel's legendary discount)
-fn adjusted_mana_cost(game: &Game, seat: Seat, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
+fn adjusted_mana_cost(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
     let mut cost = ability_mana_cost(costs);
+    // power-up the turn it entered: less its own mana cost
+    if matches!(a, AbilityDef::PowerUpAbility { .. }) && game.obj(id).entered_turn == game.turn {
+        let own = &game.obj(id).def.cost;
+        for k in 0..5 {
+            cost.colored[k] = cost.colored[k].saturating_sub(own.colored[k]);
+        }
+        cost.generic = cost.generic.saturating_sub(own.generic);
+    }
     if let AbilityDef::ChannelAbility { legendary_discount: true, .. } = a {
         let legends = game
             .battlefield

@@ -1354,6 +1354,14 @@ pub enum AbilityDef {
         targets: Vec<TargetDef>,
         rule: String,
     },
+    /// power-up: once each game, and for its mana cost less the turn this entered
+    PowerUpAbility {
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        rule: String,
+    },
     /// this spell can't be countered
     CantBeCounteredSourceAbility,
     FlyingAbility,
@@ -1495,7 +1503,8 @@ impl AbilityDef {
             AbilityDef::ActivateAsSorceryActivatedAbility { effects, cost, targets, rule } => {
                 Some((rule, effects, targets, cost, true))
             }
-            AbilityDef::SimpleActivatedAbility { effects, cost, targets, rule } => {
+            AbilityDef::SimpleActivatedAbility { effects, cost, targets, rule }
+            | AbilityDef::PowerUpAbility { effects, cost, targets, rule } => {
                 Some((rule, effects, targets, cost, false))
             }
             AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),
