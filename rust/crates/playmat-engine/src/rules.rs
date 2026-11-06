@@ -734,7 +734,17 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         })
     })
         && !cant_cast_more(game, seat)
-        && can_pay_extra(game, seat, &harmonized(game, seat, def, modified_cost(game, seat, id, def.cost.clone())), alternate_mana(game, seat, id, def))
+        && {
+            game.paying_for.set(Some(id));
+            let ok = can_pay_extra(
+                game,
+                seat,
+                &harmonized(game, seat, def, modified_cost(game, seat, id, def.cost.clone())),
+                alternate_mana(game, seat, id, def),
+            );
+            game.paying_for.set(None);
+            ok
+        }
         && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
         && has_targets(game, seat, id, def)
 }
@@ -843,6 +853,12 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, M
             .iter()
             .enumerate()
             .filter(|(_, a)| a.mana_condition().is_none_or(|c| game.condition_holds(Some(c), seat, *id)))
+            .filter(|(_, a)| match a {
+                AbilityDef::ConditionalManaAbility { filter, .. } => {
+                    game.paying_for.get().is_some_and(|s| game.filter_matches(filter, seat, Some(*id), s))
+                }
+                _ => true,
+            })
             .filter(|(_, a)| a.mana_costs().iter().all(|c| match c {
                 // `canPay` counts the source itself, still untapped
                 CostDef::TapTargetCost { filter, amount } => {
@@ -1471,7 +1487,10 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
             }
         }
     }
-    if !pay_mana(game, d, seat, &cost) {
+    game.paying_for.set(Some(id));
+    let paid = pay_mana(game, d, seat, &cost);
+    game.paying_for.set(None);
+    if !paid {
         return false;
     }
     game.obj_mut(id).mana_spent = cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless;
@@ -2579,9 +2598,10 @@ fn activate_mana(
             }
         }
     }
-    if k == ManaKind::AnyColor {
+    let conditional_any = matches!(game.obj(id).def.abilities[i], AbilityDef::ConditionalManaAbility { color: None, .. });
+    if k == ManaKind::AnyColor || conditional_any {
         let n = match &game.obj(id).def.abilities[i] {
-            AbilityDef::AnyColorManaAbility { amount, .. } => *amount,
+            AbilityDef::AnyColorManaAbility { amount, .. } | AbilityDef::ConditionalManaAbility { amount, .. } => *amount,
             _ => 1,
         };
         let Some(c) = any_color(game, d, seat, unpaid, n) else { return false };
@@ -5654,6 +5674,7 @@ fn apply_each_effect(
             | EffectDef::ArtistsTalentEffect { .. }
             | EffectDef::GainAbilityControllerEffect { .. }
             | EffectDef::LeylineOfTheVoidEffect
+            | EffectDef::GiadaFontOfHopeEntersBattlefieldEffect
             | EffectDef::AddBasicLandTypeAllLandsEffect { .. }
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
@@ -6062,6 +6083,24 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     } else {
         0
     };
+    // Giada: each other Angel you control enters with a +1/+1 counter for each Angel you already control
+    let mut more_counters = more_counters;
+    if game.obj(id).def.subtypes.iter().any(|t| t == "Angel") {
+        let angels = game
+            .battlefield
+            .iter()
+            .filter(|o| game.obj(**o).controller == controller && game.has_subtype(**o, "Angel"))
+            .count() as i32;
+        let giadas = game.battlefield.iter().filter(|src| {
+            **src != id
+                && game.obj(**src).controller == controller
+                && game.obj(**src).def.abilities.iter().any(|a| {
+                    matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                        if effects.contains(&EffectDef::GiadaFontOfHopeEntersBattlefieldEffect))
+                })
+        });
+        more_counters += giadas.count() as i32 * angels;
+    }
     let turn = game.turn;
     game.move_to(id, Zone::Battlefield);
     enter_as_copy(game, d, id, controller, cast);

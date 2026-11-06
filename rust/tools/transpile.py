@@ -172,6 +172,7 @@ CUSTOM = {
     'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
     'ArtistsTalentEffect': lambda: {'class': 'ArtistsTalentEffect'},
     'LeylineOfTheVoidEffect': lambda: {'class': 'LeylineOfTheVoidEffect'},
+    'GiadaFontOfHopeEntersBattlefieldEffect': lambda: {'class': 'GiadaFontOfHopeEntersBattlefieldEffect'},
     'SpellQuellerEntersEffect': lambda: {'class': 'SpellQuellerEntersEffect'},
     'ChandraTorchOfDefianceEffect': lambda: {'class': 'ChandraTorchOfDefianceEffect'},
     'SpellQuellerLeavesEffect': lambda: {'class': 'SpellQuellerLeavesEffect'},
@@ -1547,6 +1548,17 @@ class Translator:
         if cls == 'SimpleManaAbility' and len(args) == 2 and args[1].strip() == 'new TapSourceCost()' \
                 and (n := re.fullmatch(r'new AddManaOfAnyColorEffect\((\d+)\)', args[0].strip())):
             return {'class': 'AnyColorManaAbility', 'java': cls, 'amount': int(n.group(1))}
+        # "{T}: Add {R}. Spend this mana only to cast a creature spell."
+        if cls in ('ConditionalColoredManaAbility', 'ConditionalAnyColorManaAbility') and len(args) == 2 \
+                and (b := re.fullmatch(r'new ConditionalSpellManaBuilder\((.*)\)', args[1].strip(), re.S)):
+            if cls == 'ConditionalColoredManaAbility':
+                n = re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green)Mana\(1\)', args[0].strip())
+                if n:
+                    return {'class': 'ConditionalManaAbility', 'java': cls, 'color': COLOR_LETTERS[n.group(1)],
+                            'filter': self.filter(b.group(1))}
+            elif re.fullmatch(r'\d+', args[0].strip()):
+                return {'class': 'ConditionalManaAbility', 'java': cls, 'amount': int(args[0]),
+                        'filter': self.filter(b.group(1))}
         # "{T}: Add {R}. Activate only if …"
         if cls == 'ActivateIfConditionManaAbility' and len(args) == 4 and args[0] == 'Zone.BATTLEFIELD' \
                 and args[2] == 'new TapSourceCost()':

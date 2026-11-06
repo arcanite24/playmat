@@ -409,6 +409,8 @@ pub struct Game {
     pub attacks_opponent: Vec<(Seat, StackItem)>,
     /// spells that enter with more +1/+1 counters: the card as it was on the stack, and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
+    /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
+    pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
     /// order they were exiled
     pub exile_by_creation: bool,
@@ -472,6 +474,7 @@ impl Game {
             next_creature_spell: Vec::new(),
             next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
+            paying_for: std::cell::Cell::new(None),
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
