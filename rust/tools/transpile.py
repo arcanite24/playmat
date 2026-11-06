@@ -329,6 +329,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
               'MyTurnCondition.instance': {'c': 'my_turn'},
               'MorbidCondition.instance': {'c': 'morbid'},
+              'KeenEyedCuratorCondition.instance': {'c': 'exiled_card_types', 'n': 4},
               'FerociousCondition.instance': {'c': 'permanents', 'cmp': 'OR_GREATER', 'n': 1, 'filter': [
                   {'p': 'type', 't': 'CREATURE'}, {'p': 'power', 'cmp': 'OR_GREATER', 'n': 4}]},
               'SourceEnteredThisTurnCondition.TRUE': {'c': 'source_entered_this_turn'},

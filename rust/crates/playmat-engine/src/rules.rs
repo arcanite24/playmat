@@ -3256,7 +3256,7 @@ fn apply_each_effect(
             EffectDef::ExileTargetForSourceEffect => {
                 let (src, zcc) = source;
                 for o in objs.iter().copied() {
-                    if game.obj(o).zone == Zone::Battlefield {
+                    if matches!(game.obj(o).zone, Zone::Battlefield | Zone::Graveyard) {
                         game.move_to(o, Zone::Exile);
                         game.exiled_for_source.push((src, zcc, o));
                     }

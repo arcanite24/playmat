@@ -723,6 +723,18 @@ impl Game {
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
             Condition::Morbid => self.creature_died,
+            Condition::ExiledCardTypes { n } => {
+                let zcc = self.obj(source).zcc;
+                let mut types: Vec<CardType> = Vec::new();
+                for (_, _, c) in self.exiled_for_source.iter().filter(|(s, z, c)| *s == source && *z == zcc && self.obj(*c).zone == Zone::Exile) {
+                    for t in &self.obj(*c).def.types {
+                        if !types.contains(t) {
+                            types.push(*t);
+                        }
+                    }
+                }
+                types.len() >= *n
+            }
             Condition::SourceEnteredThisTurn => self.obj(source).entered_turn == self.turn,
             Condition::StartingTown => self.active == Some(you) && self.turn.div_ceil(self.seats() as u32) <= 3,
             Condition::LifeCompare { who, cmp, n } => (0..self.seats())

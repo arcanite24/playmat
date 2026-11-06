@@ -426,6 +426,8 @@ pub enum Condition {
     },
     /// a creature died this turn
     Morbid,
+    /// four or more card types among cards exiled with the source (Keen-Eyed Curator)
+    ExiledCardTypes { n: usize },
     SourceEnteredThisTurn,
     /// `SourceAttackingCondition`
     SourceAttacking,
