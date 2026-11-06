@@ -113,6 +113,8 @@ pub struct Obj {
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
     /// a static "as long as …, it's a creature" applied: the card as it is without it
     pub becomes_base: Option<Arc<CardDef>>,
+    /// lands given basic land types by a static (Urborg): the land without them, and the types given
+    pub land_type_base: Option<(Arc<CardDef>, Vec<String>)>,
     /// the X it was cast with, while it's on the battlefield
     pub cast_x: i32,
     /// what it was before an effect changed its characteristics (`def`) for as long as it stays on the battlefield
@@ -538,6 +540,7 @@ impl Game {
             cast: false,
             until_end_of_turn_def: None,
             becomes_base: None,
+            land_type_base: None,
             printed_def: None,
             copied_def: None,
             cast_x: 0,
@@ -1329,6 +1332,9 @@ impl Game {
                 o.kicked = false;
                 o.cast = false;
                 o.attached_to = None;
+                if let Some((def, _)) = o.land_type_base.take() {
+                    o.def = def;
+                }
                 if let Some(def) = o.becomes_base.take() {
                     o.def = def;
                 }

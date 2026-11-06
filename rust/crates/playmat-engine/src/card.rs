@@ -1267,6 +1267,8 @@ pub enum EffectDef {
     GraveyardFromAnywhereExileReplacementEffect,
     /// an opponent's card that would be put into a graveyard from anywhere is exiled instead
     LeylineOfTheVoidEffect,
+    /// a static ability's effect: each land is also the basic land type, with its mana ability (Urborg)
+    AddBasicLandTypeAllLandsEffect { subtype: String },
     /// the target player mills `amount` cards
     MillCardsTargetEffect { amount: Amount },
     /// the source becomes the token's kind of creature (still its old types with `retain`), with its abilities too

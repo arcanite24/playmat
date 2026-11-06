@@ -2801,7 +2801,7 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     }
     let zcc = game.obj(id).zcc;
     // countered on resolution (608.2b): an adventure then goes to the graveyard, not on its adventure
-    let mut fizzled = false;
+    let fizzled;
     if item.modes.len() > 1 {
         // `Spell.resolve`: each chosen mode with its own targets; a targeted mode whose targets are all illegal is
         // dropped, and with every targeted mode dropped the spell doesn't resolve (608.2b)
@@ -2913,6 +2913,61 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
             let o = game.obj_mut(id);
             o.def = o.becomes_base.take().unwrap();
         }
+    }
+    refresh_land_types(game);
+}
+
+/// `AddBasicLandTypeAllLandsEffect` (Urborg): each land is also the basic land types the statics give, with their
+/// mana abilities (not a second one it already has)
+fn refresh_land_types(game: &mut Game) {
+    let mut types: Vec<String> = Vec::new();
+    for id in game.battlefield.iter() {
+        for a in &game.obj(*id).def.abilities {
+            if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                for e in effects {
+                    if let EffectDef::AddBasicLandTypeAllLandsEffect { subtype } = e {
+                        if !types.contains(subtype) {
+                            types.push(subtype.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
+    for id in ids {
+        let o = game.obj(id);
+        let base = o.land_type_base.as_ref().map(|(b, _)| b.clone()).unwrap_or_else(|| o.def.clone());
+        let given: Vec<String> = if base.types.contains(&CardType::Land) { types.clone() } else { Vec::new() };
+        let applied = o.land_type_base.as_ref().map(|(_, t)| t.clone()).unwrap_or_default();
+        if given == applied {
+            continue;
+        }
+        if given.is_empty() {
+            let o = game.obj_mut(id);
+            o.def = o.land_type_base.take().unwrap().0;
+            continue;
+        }
+        let mut land = (*base).clone();
+        for t in &given {
+            if !land.subtypes.contains(t) {
+                land.subtypes.push(t.clone());
+            }
+            let (effects, cost) = (Vec::new(), Vec::new());
+            let ability = match t.as_str() {
+                "Plains" => AbilityDef::WhiteManaAbility { effects, cost },
+                "Island" => AbilityDef::BlueManaAbility { effects, cost },
+                "Swamp" => AbilityDef::BlackManaAbility { effects, cost },
+                "Mountain" => AbilityDef::RedManaAbility { effects, cost },
+                _ => AbilityDef::GreenManaAbility { effects, cost },
+            };
+            if !land.abilities.contains(&ability) {
+                land.abilities.push(ability);
+            }
+        }
+        let o = game.obj_mut(id);
+        o.land_type_base = Some((base, given));
+        o.def = Arc::new(land);
     }
 }
 
@@ -5599,6 +5654,7 @@ fn apply_each_effect(
             | EffectDef::ArtistsTalentEffect { .. }
             | EffectDef::GainAbilityControllerEffect { .. }
             | EffectDef::LeylineOfTheVoidEffect
+            | EffectDef::AddBasicLandTypeAllLandsEffect { .. }
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect

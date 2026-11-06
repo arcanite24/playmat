@@ -1062,6 +1062,10 @@ class Translator:
         if cls == 'PlayAdditionalLandsControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
+        # Urborg: "Each land is a Swamp in addition to its other land types"
+        if cls == 'AddBasicLandTypeAllLandsEffect' and len(args) == 1 \
+                and args[0].strip() in ('SubType.PLAINS', 'SubType.ISLAND', 'SubType.SWAMP', 'SubType.MOUNTAIN', 'SubType.FOREST'):
+            return {'class': cls, 'subtype': subtype_names()[args[0].strip()[8:]]}
         # Evolved Sleeper: "becomes a Human Cleric with base power and toughness 2/2" until it leaves
         if cls == 'AddCardSubTypeSourceEffect' and len(args) > 1 and args[0].strip() == 'Duration.Custom' \
                 and all(re.fullmatch(r'SubType\.\w+', a.strip()) for a in args[1:]):
