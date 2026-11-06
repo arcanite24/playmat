@@ -1324,6 +1324,10 @@ class Translator:
                     'cost': [{'class': 'PayLoyaltyCost', 'amount': int(args[1].strip())}]}
         if cls == 'GainLifeControllerTriggeredAbility' and len(args) == 5 and args[0].strip() in ('Zone.BATTLEFIELD', 'Zone.COMMAND'):
             args = args[1:]
+        # the spell a cast trigger points at only gives Shark Typhoon its X (the engine's X for cast triggers)
+        if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 \
+                and args[0].strip() == 'new SharkTyphoonCastEffect()' and args[3].strip() == 'SetTargetPointer.SPELL':
+            args = args[:3] + ['SetTargetPointer.NONE']
         t = self.more_triggers(cls, [x.strip() for x in args])
         if t is not None:
             return t

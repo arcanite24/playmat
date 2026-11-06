@@ -9780,6 +9780,16 @@
     ]
   },
   {
+    "name": "token:CustomIllusionToken",
+    "images": {
+      "BLC": 1,
+      "M3C": 1,
+      "SOC": 1,
+      "ZNR": 1
+    },
+    "abilities": []
+  },
+  {
     "name": "token:DragonFirebendingToken",
     "images": {
       "TLA": 1
@@ -10103,6 +10113,13 @@
     ]
   },
   {
+    "name": "token:RedWarriorToken",
+    "images": {
+      "TDM": 1
+    },
+    "abilities": []
+  },
+  {
     "name": "token:RobotToken",
     "images": {
       "EOE": 1
@@ -10137,6 +10154,22 @@
         "class": "HasteAbility",
         "type": "STATIC",
         "rule": "haste"
+      }
+    ]
+  },
+  {
+    "name": "token:SharkToken",
+    "images": {
+      "DSC": 1,
+      "FRC": 1,
+      "IKO": 1,
+      "OTC": 1
+    },
+    "abilities": [
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
       }
     ]
   },
