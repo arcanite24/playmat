@@ -212,6 +212,8 @@ pub struct Player {
     pub drawn: u32,
     /// noncreature spells cast this turn
     pub noncreature_cast: u32,
+    /// cast a non-Lemur creature spell with flying this turn
+    pub flier_cast: bool,
     /// times they gained life this turn
     pub life_gains: u32,
     /// life they gained this turn
@@ -728,6 +730,7 @@ impl Game {
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
             Condition::Morbid => self.creature_died,
+            Condition::FlierCast => self.player(you).flier_cast,
             Condition::YouGainedLife => self.player(you).life_gained > 0,
             Condition::ExiledCardTypes { n } => {
                 let zcc = self.obj(source).zcc;

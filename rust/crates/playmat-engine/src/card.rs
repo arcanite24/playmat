@@ -430,6 +430,8 @@ pub enum Condition {
     },
     /// a creature died this turn
     Morbid,
+    /// you cast a non-Lemur creature spell with flying this turn (Momo's watcher)
+    FlierCast,
     /// you gained life this turn
     YouGainedLife,
     /// four or more card types among cards exiled with the source (Keen-Eyed Curator)
@@ -803,6 +805,13 @@ pub enum EffectDef {
     DestroyTargetIfManaValueEffect { n: i32, revolt_n: i32 },
     /// a static ability's effect: spells of the filter (cast by `who`, relative to its controller) cost {amount} more
     SpellsCostIncreasingAllEffect { amount: i32, filter: Filter, who: String },
+    /// spells of the filter you cast cost {amount} less (while the condition holds)
+    SpellsCostReductionControllerEffect {
+        filter: Filter,
+        amount: i32,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
     /// a static ability's effect: this spell costs {amount} less (if the condition holds; `stack_only`: only while
     /// it's being cast, not for the playable check)
     SpellCostReductionSourceEffect {

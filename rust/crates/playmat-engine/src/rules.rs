@@ -90,6 +90,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.life_lost = 0;
                 p.drawn = 0;
                 p.noncreature_cast = 0;
+                p.flier_cast = false;
                 p.permanent_left = false;
                 p.life_gains = 0;
                 p.life_gained = 0;
@@ -1078,7 +1079,11 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     let spell = id;
     {
         let instant_or_sorcery = def.is(CardType::Instant) || def.is(CardType::Sorcery);
+        let flier = def.is(CardType::Creature)
+            && !def.subtypes.iter().any(|s| s == "Lemur")
+            && game.has_ability(spell, &AbilityDef::FlyingAbility);
         let p = game.player_mut(seat);
+        p.flier_cast |= flier;
         p.spells_cast += 1;
         if !def.is(CardType::Creature) {
             p.noncreature_cast += 1;
@@ -1147,6 +1152,8 @@ fn cant_cast_more(game: &Game, seat: Seat) -> bool {
 /// `ContinuousEffects.costModification`: a spell's cost with the increases, then the reductions, applied.
 fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> ManaCost {
     cost.generic += game.obj(id).play_tax;
+    // reductions after increases (`CostModificationType`)
+    let mut reduce = 0;
     for src in game.battlefield.iter() {
         let s = game.obj(*src);
         for a in &s.def.abilities {
@@ -1157,10 +1164,19 @@ fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> Mana
                             cost.generic += *amount as u32;
                         }
                     }
+                    if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition } = e {
+                        if s.controller == seat
+                            && game.filter_matches(filter, seat, Some(*src), id)
+                            && game.condition_holds(condition.as_ref(), seat, *src)
+                        {
+                            reduce += *amount as u32;
+                        }
+                    }
                 }
             }
         }
     }
+    cost.generic = cost.generic.saturating_sub(reduce);
     let o = game.obj(id);
     for a in &o.def.abilities {
         if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
@@ -2804,6 +2820,7 @@ fn apply_each_effect(
             | EffectDef::DontCauseTriggerEffect
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
             | EffectDef::SpellsCostIncreasingAllEffect { .. }
+            | EffectDef::SpellsCostReductionControllerEffect { .. }
             | EffectDef::SpellCostReductionSourceEffect { .. } => {}
             EffectDef::LoseLifeOpponentsYouGainLifeLostEffect { amount } => {
                 let n = v!(amount);

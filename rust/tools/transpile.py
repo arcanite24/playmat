@@ -333,6 +333,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
               'MyTurnCondition.instance': {'c': 'my_turn'},
               'MorbidCondition.instance': {'c': 'morbid'},
+              'MomoFriendlyFlierCondition.instance': {'c': 'and', 'xs': [{'c': 'my_turn'}, {'c': 'not', 'x': {'c': 'flier_cast'}}]},
               'YouGainedLifeCondition.getZero()': {'c': 'you_gained_life'},
               'KeenEyedCuratorCondition.instance': {'c': 'exiled_card_types', 'n': 4},
               'FerociousCondition.instance': {'c': 'permanents', 'cmp': 'OR_GREATER', 'n': 1, 'filter': [
@@ -1023,6 +1024,15 @@ class Translator:
         if cls == 'EntersBattlefieldWithXCountersEffect' and len(args) == 1:
             return {'class': 'AddCountersSourceEffect', 'counter': self.value('counter', args[0].strip()),
                     'amount': {'v': 'x'}}
+        # a cost reduction that applies while a condition holds
+        if cls == 'ConditionalCostModificationEffect' and len(args) == 3:
+            e = self.effect(args[0].strip())
+            if e.get('class') != 'SpellsCostReductionControllerEffect':
+                raise Unsupported('conditional cost modification ' + e.get('class', ''))
+            e['condition'] = self.value('condition', args[1].strip())
+            return e
+        if cls == 'SpellsCostReductionControllerEffect' and len(args) == 2 and re.fullmatch(r'\d+', args[1].strip()):
+            return {'class': cls, 'filter': self.filter(args[0].strip()), 'amount': int(args[1])}
         # "it gains your choice of …": the choice is each ability's rule text
         if cls == 'GainsChoiceOfAbilitiesEffect' and len(args) >= 3 and args[0].strip() == 'GainsChoiceOfAbilitiesEffect.TargetType.Source':
             abilities = [self.ability(a.strip()) for a in args[1:]]
