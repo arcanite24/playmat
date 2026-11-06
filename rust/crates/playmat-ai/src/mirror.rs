@@ -33,6 +33,12 @@ enum Message {
         /// the seat auto-chooses at level 2, as Java's AI players do (a human's default is 1)
         #[serde(default, rename = "autoTargetAll")]
         auto_target_all: bool,
+        /// the other seat is asked at every priority (Java logs the passes its settings make)
+        #[serde(default, rename = "everyPriority")]
+        every_priority: bool,
+        /// the other seat's `confirmEmptyManaPool`
+        #[serde(default, rename = "poolCheck")]
+        pool_check: Option<bool>,
     },
     Decision {
         #[serde(flatten)]
@@ -67,9 +73,9 @@ struct ConfigJson {
 pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), String> {
     let mut lines = input.lines();
     let first = lines.next().ok_or("no start message")?.map_err(|e| e.to_string())?;
-    let (seat, start, cfg, auto_all) = match serde_json::from_str::<Message>(&first) {
-        Ok(Message::Start { seat, start, config, auto_target_all }) => {
-            (seat, start, config.unwrap_or_default(), auto_target_all)
+    let (seat, start, cfg, auto_all, every, pool_check) = match serde_json::from_str::<Message>(&first) {
+        Ok(Message::Start { seat, start, config, auto_target_all, every_priority, pool_check }) => {
+            (seat, start, config.unwrap_or_default(), auto_target_all, every_priority, pool_check)
         }
         Ok(_) => return Err("the first message must be start".into()),
         Err(e) => return Err(format!("bad start message: {e}")),
@@ -93,6 +99,9 @@ pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), 
         }
     };
     game.player_mut(seat).auto_target_all = auto_all;
+    let other = game.player_mut(game.opponent(seat));
+    other.every_priority = every;
+    other.no_pool_check = pool_check == Some(false);
     send(&mut out, json!({"type": "ready"}));
     let d = Config::default();
     let config = Config {
@@ -120,6 +129,8 @@ pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), 
     };
     rules::play_from_priority(&mut game, &mut mirror, 0);
     if let Some(why) = mirror.diverged.clone() {
+        // where, for the server's log
+        let why = format!("turn {}, {:?}: {why}", game.turn, game.step);
         // the question Java is waiting on, if any, gets the news
         if !mirror.waiting {
             mirror.drain_to_ask();

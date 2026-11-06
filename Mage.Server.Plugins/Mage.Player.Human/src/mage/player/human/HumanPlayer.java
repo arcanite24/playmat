@@ -1313,12 +1313,14 @@ public class HumanPlayer extends PlayerImpl {
                 if (controllingUserData.isPassPriorityCast()
                         && getJustActivatedType() == AbilityType.SPELL) {
                     setJustActivatedType(null);
+                    logAutoPass(game);
                     pass(game);
                     return false;
                 }
                 if (controllingUserData.isPassPriorityActivation()
                         && getJustActivatedType().isNonManaActivatedAbility()) {
                     setJustActivatedType(null);
+                    logAutoPass(game);
                     pass(game);
                     return false;
                 }
@@ -1344,7 +1346,7 @@ public class HumanPlayer extends PlayerImpl {
             if (!quickStop && isGameUnderControl()) { // TODO: remove to enable skips for controlling player
 
                 if (passedAllTurns || passedTurnSkipStack) {
-                    if (passWithManaPoolCheck(game)) {
+                    if (autoPassWithManaPoolCheck(game)) {
                         return false;
                     }
                 }
@@ -1352,14 +1354,14 @@ public class HumanPlayer extends PlayerImpl {
                 if (passedUntilEndStepBeforeMyTurn) {
                     if (game.getTurnStepType() != PhaseStep.END_TURN) {
                         // other step
-                        if (passWithManaPoolCheck(game)) {
+                        if (autoPassWithManaPoolCheck(game)) {
                             return false;
                         }
                     } else {
                         // end step - search yourself
                         PlayerList playerList = game.getState().getPlayerList(playerId);
                         if (!playerList.getPrevious().equals(game.getActivePlayerId())) {
-                            if (passWithManaPoolCheck(game)) {
+                            if (autoPassWithManaPoolCheck(game)) {
                                 return false;
                             }
                         } else {
@@ -1380,7 +1382,7 @@ public class HumanPlayer extends PlayerImpl {
 
                     if (passedTurn
                             || passedTurnSkipStack) {
-                        if (passWithManaPoolCheck(game)) {
+                        if (autoPassWithManaPoolCheck(game)) {
                             return false;
                         }
                     }
@@ -1393,7 +1395,7 @@ public class HumanPlayer extends PlayerImpl {
                                     || (!playerId.equals(game.getActivePlayerId())
                                     && !controllingUserData.getUserSkipPrioritySteps().isStopOnAllMainPhases())) {
                                 skippedAtLeastOnce = true;
-                                if (passWithManaPoolCheck(game)) {
+                                if (autoPassWithManaPoolCheck(game)) {
                                     return false;
                                 }
                             } else {
@@ -1402,7 +1404,7 @@ public class HumanPlayer extends PlayerImpl {
                             }
                         } else {
                             skippedAtLeastOnce = true;
-                            if (passWithManaPoolCheck(game)) {
+                            if (autoPassWithManaPoolCheck(game)) {
                                 return false;
                             }
                         }
@@ -1417,7 +1419,7 @@ public class HumanPlayer extends PlayerImpl {
                                     .getUserSkipPrioritySteps()
                                     .isStopOnAllEndPhases())) {
                                 skippedAtLeastOnce = true;
-                                if (passWithManaPoolCheck(game)) {
+                                if (autoPassWithManaPoolCheck(game)) {
                                     return false;
                                 }
                             } else {
@@ -1426,7 +1428,7 @@ public class HumanPlayer extends PlayerImpl {
                             }
                         } else {
                             skippedAtLeastOnce = true;
-                            if (passWithManaPoolCheck(game)) {
+                            if (autoPassWithManaPoolCheck(game)) {
                                 return false;
                             }
                         }
@@ -1434,7 +1436,7 @@ public class HumanPlayer extends PlayerImpl {
 
                     if (!dontCheckPassStep
                             && checkPassStep(game, controllingUserData)) {
-                        if (passWithManaPoolCheck(game)) {
+                        if (autoPassWithManaPoolCheck(game)) {
                             return false;
                         }
                     }
@@ -1456,7 +1458,7 @@ public class HumanPlayer extends PlayerImpl {
                         }
                     }
                     if (passedUntilStackResolved) {
-                        if (passWithManaPoolCheck(game)) {
+                        if (autoPassWithManaPoolCheck(game)) {
                             return false;
                         }
                     }
@@ -3029,6 +3031,19 @@ public class HumanPlayer extends PlayerImpl {
                     triggerAutoOrderNameLast.add(abilityName);
                     break;
             }
+        }
+    }
+
+    /** a pass without asking (skip settings, pass-until actions) */
+    private boolean autoPassWithManaPoolCheck(Game game) {
+        logAutoPass(game);
+        return passWithManaPoolCheck(game);
+    }
+
+    private void logAutoPass(Game game) {
+        DecisionLog decisions = game.getOptions() == null ? null : game.getOptions().decisions;
+        if (decisions != null && !game.hasEnded()) {
+            decisions.autoPass(game, getId());
         }
     }
 

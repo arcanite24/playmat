@@ -175,6 +175,15 @@ public final class RustAiBridge {
         message.put("start", start);
         // Java's AI players auto-choose targets at level 2 (TargetImpl.tryToAutoChoose)
         message.put("autoTargetAll", true);
+        // the other seat's skip settings and pass-until actions aren't the copy's: it logs every pass, and the copy
+        // asks it at every priority
+        log.recordAutoPasses();
+        message.put("everyPriority", true);
+        for (UUID id : StateFingerprint.seats(game)) {
+            if (!id.equals(seatId) && game.getPlayer(id).getUserData() != null) {
+                message.put("poolCheck", game.getPlayer(id).getUserData().confirmEmptyManaPool());
+            }
+        }
         try {
             process = new ProcessBuilder(binary()).start();
         } catch (IOException e) {

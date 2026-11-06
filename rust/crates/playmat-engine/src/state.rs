@@ -259,6 +259,10 @@ impl Obj {
 pub struct Player {
     /// `UserData.autoTargetLevel` 2 (Java's AI players): auto-choice picks any target, feel-bad or not
     pub auto_target_all: bool,
+    /// asked at every priority, in every step: a seat whose skip settings aren't the default ones (Java logs its passes)
+    pub every_priority: bool,
+    /// `UserData.confirmEmptyManaPool` off: passes with mana in the pool without being asked
+    pub no_pool_check: bool,
     pub life: i32,
     pub counters: Vec<(String, i32)>,
     pub hand: Vec<ObjId>,

@@ -79,6 +79,7 @@ public final class DecisionLog {
     }
 
     private final boolean replay;
+    private boolean autoPasses;
     private final List<Decision> decisions;
     private int next = 0;
     /** set when a replay can't go on: what went wrong */
@@ -121,6 +122,21 @@ public final class DecisionLog {
 
     public synchronized String getFailure() {
         return failure;
+    }
+
+    /**
+     * From now on, log the passes a human player makes without being asked (its skip settings and pass-until actions)
+     * too, so a copy of the game that asks at every priority stays in step (the Rust AI's, docs/rust/Ai.md).
+     */
+    public synchronized void recordAutoPasses() {
+        autoPasses = true;
+    }
+
+    /** a pass the player made without being asked: logged as a pass when {@link #recordAutoPasses()} is on */
+    public synchronized void autoPass(Game game, UUID playerId) {
+        if (autoPasses) {
+            record(game, playerId, null, false, null, null, null, null);
+        }
     }
 
     public synchronized void record(Game game, UUID playerId, UUID target, Boolean bool, Integer integer, String string,
