@@ -1019,6 +1019,12 @@ pub enum EffectDef {
     CreateCopyNextSpellDelayedEffect,
     /// copy the spell the delayed trigger points at (new targets may be chosen)
     CopyTargetSpellEffect,
+    /// exile your top card; you may cast it, and if you don't, 2 damage to each opponent
+    ChandraTorchOfDefianceEffect,
+    /// exile the target spell (into the source's exile zone)
+    SpellQuellerEntersEffect,
+    /// the card the source exiled: its owner may cast it without paying its mana cost
+    SpellQuellerLeavesEffect,
     /// copy the spell that's this ability's source (casualty's "when you do"); its controller may choose new targets
     CopySourceSpellEffect,
     /// a Class gains level `level`

@@ -1216,6 +1216,31 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
 
 /// Casts a spell from hand: onto the stack, targets, then mana. False: cancelled.
 fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
+    cast_with(game, d, seat, id, false)
+}
+
+/// `cast`, `free` without paying its mana cost (X is 0; additional costs are still paid). The game is as it was
+/// before when it's cancelled.
+fn cast_free(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
+    let before = game.clone();
+    if cast_with(game, d, seat, id, true) {
+        return true;
+    }
+    *game = before;
+    false
+}
+
+/// A cast an effect allows (paying its costs): the game is as it was before when it's cancelled
+fn cast_allowed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
+    let before = game.clone();
+    if cast_with(game, d, seat, id, false) {
+        return true;
+    }
+    *game = before;
+    false
+}
+
+fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
     game.remove_from_zone(id);
     {
         let o = game.obj_mut(id);
@@ -1225,7 +1250,7 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     }
     Arc::make_mut(&mut game.stack).push(StackItem::spell(id, seat));
     let def = game.obj(id).def.clone();
-    let mut cost = def.cost.clone();
+    let mut cost = if free { ManaCost::default() } else { def.cost.clone() };
     // kicker: `KickerAbility.addOptionalAdditionalCosts` asks before targets (its `canPay` holds for any mana cost)
     for a in &def.abilities {
         if let AbilityDef::KickerAbility { cost: kicker, .. } = a {
@@ -3571,6 +3596,83 @@ fn apply_each_effect(
                     continue;
                 }
                 copy_spell(game, d, &original, controller);
+            }
+            EffectDef::ChandraTorchOfDefianceEffect => {
+                // exile the top card; you may cast it (a nonland card), and if you don't, 2 damage to each opponent
+                let Some(card) = game.player(controller).library.first().copied() else { continue };
+                game.move_to(card, Zone::Exile);
+                let mut cast = false;
+                if !game.obj(card).is(CardType::Land) {
+                    let q = Query::YesNo {
+                        message: format!("Cast {}? (You still pay the costs)", game.obj(card).def.name),
+                    };
+                    let yes = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if yes && game.obj(card).zone == Zone::Exile {
+                        cast = cast_allowed(game, d, controller, card);
+                        if d.stopped() {
+                            return;
+                        }
+                    }
+                }
+                if !cast {
+                    for p in 0..game.seats() {
+                        if p != controller {
+                            deal_damage(game, source.0, Target::Player(p), 2, false);
+                        }
+                    }
+                }
+            }
+            EffectDef::SpellQuellerEntersEffect => {
+                // the spell leaves the stack into this permanent's exile zone
+                let (src, zcc) = source;
+                for o in &objs {
+                    let Some(k) = game.stack.iter().position(|i| i.card == *o && i.ability.is_none() && i.delayed.is_none())
+                    else {
+                        continue;
+                    };
+                    Arc::make_mut(&mut game.stack).remove(k);
+                    game.move_to(*o, Zone::Exile);
+                    if !game.obj(*o).token {
+                        game.exiled_for_source.push((src, zcc, *o));
+                    }
+                }
+            }
+            EffectDef::SpellQuellerLeavesEffect => {
+                // the card exiled while it was on the battlefield (the zone change count before it left)
+                let (src, zcc) = source;
+                let Some(z) = game.exiled_for_source.iter().filter(|(s, z, _)| *s == src && *z < zcc).map(|(_, z, _)| *z).max()
+                else {
+                    continue;
+                };
+                let Some(card) = game
+                    .exiled_for_source
+                    .iter()
+                    .find(|(s, x, c)| *s == src && *x == z && game.obj(*c).zone == Zone::Exile)
+                    .map(|(_, _, c)| *c)
+                else {
+                    continue;
+                };
+                let owner = game.obj(card).owner;
+                let q = Query::YesNo { message: format!("Cast {} without paying cost?", game.obj(card).def.name) };
+                let yes = loop {
+                    match ask(game, d, owner, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if yes {
+                    cast_free(game, d, owner, card);
+                    if d.stopped() {
+                        return;
+                    }
+                }
             }
             EffectDef::SetClassLevelEffect { level } => {
                 let (me, zcc) = source;

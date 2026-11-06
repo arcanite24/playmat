@@ -172,6 +172,9 @@ CUSTOM = {
     'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
     'ArtistsTalentEffect': lambda: {'class': 'ArtistsTalentEffect'},
     'LeylineOfTheVoidEffect': lambda: {'class': 'LeylineOfTheVoidEffect'},
+    'SpellQuellerEntersEffect': lambda: {'class': 'SpellQuellerEntersEffect'},
+    'ChandraTorchOfDefianceEffect': lambda: {'class': 'ChandraTorchOfDefianceEffect'},
+    'SpellQuellerLeavesEffect': lambda: {'class': 'SpellQuellerLeavesEffect'},
     'ReturnSourceToHandNextEndStepEffect': lambda: {'class': 'ReturnSourceToHandNextEndStepEffect'},
     'MultiversalPassagePassageEffect': lambda: {'class': 'MultiversalPassagePassageEffect'},
     'LivelyDirgeEffect': lambda: {'class': 'LivelyDirgeEffect'},
@@ -1559,6 +1562,9 @@ class Translator:
             return {'class': cls, 'java': cls, 'effects': [self.effect(args[0])],
                     'cost': [{'class': 'PayLoyaltyCost', 'amount': int(args[1].strip())}]}
         if cls == 'GainLifeControllerTriggeredAbility' and len(args) == 5 and args[0].strip() in ('Zone.BATTLEFIELD', 'Zone.COMMAND'):
+            args = args[1:]
+        # an emblem's cast trigger (the command zone is where emblems are)
+        if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 5 and args[0].strip() == 'Zone.COMMAND':
             args = args[1:]
         # the spell a cast trigger points at only gives Shark Typhoon its X (the engine's X for cast triggers)
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 \
