@@ -80,6 +80,11 @@ Java's AI players auto-choose targets at level 2 (`TargetImpl.tryToAutoChoose`),
 plays the AI's seat at level 2 (`Player::auto_target_all`). A replacement-effect order Java keys by its own ids is
 answered with Java's first key.
 
+The engine passes for a human seat the way the client's default settings do (it isn't asked in upkeep, say), but a
+player's own skip settings and pass-until actions (F-keys) pass elsewhere, unasked and unlogged. So while the bridge
+runs, the log records those passes too (`DecisionLog.recordAutoPasses`), and the copy asks the other seat at every
+priority (`Player::every_priority`) and follows its `confirmEmptyManaPool` setting.
+
 The copy can only follow seats that answer like a human player (their answers are logged), so a game of the Rust AI
 against the Java AI isn't possible this way; both are measured against the same opponent instead.
 
@@ -105,7 +110,7 @@ engine doesn't have.
 - `cargo test -p playmat-ai --test mirror`: every checked-in shadow game through the copy, the second seat's answers
   sent as asks with Java's own answer to follow, so each answer is checked to go to Java and come back the same.
 - `RustAiGameTest` (Mage.Tests): a human seat answered by `RandomDriver` against the Java AI with the bridge attached.
-  It fails if a game leaves the Rust AI. `-Dxmage.rustAiGames.java=true` plays the same games with the Java AI alone.
+  Half the games give the human seat skip settings other than the defaults. It fails if a game leaves the Rust AI. `-Dxmage.rustAiGames.java=true` plays the same games with the Java AI alone.
 
       cd rust && cargo build --release -p playmat-ai && cd ..
       mvn -o -q install -DskipTests -pl Mage

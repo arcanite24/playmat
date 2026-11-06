@@ -101,7 +101,16 @@ public class RustAiGameTest {
                 MulliganType.GAME_DEFAULT.getMulligan(0), 60, 20, 7);
         Match match = new TwoPlayerMatch(new MatchOptions("rust ai", "Two Player Duel", false));
         HumanPlayer human = new HumanPlayer("A", RangeOfInfluence.ALL, 1);
-        human.setUserData(UserData.getDefaultUserDataView());
+        UserData settings = UserData.getDefaultUserDataView();
+        if (seed % 4 >= 2) {
+            // a player's own settings, not the defaults: the Rust copy follows them through the passes they make
+            settings.getUserSkipPrioritySteps().getYourTurn().setUpkeep(true);
+            settings.getUserSkipPrioritySteps().getYourTurn().setMain2(false);
+            settings.getUserSkipPrioritySteps().getOpponentTurn().setEndOfTurn(true);
+            settings.setConfirmEmptyManaPool(false);
+            settings.setPassPriorityCast(true);
+        }
+        human.setUserData(settings);
         ComputerPlayerControllableProxy ai = new ComputerPlayerControllableProxy("B", RangeOfInfluence.ALL, 4);
         GameTraceTest.seat(game, match, human, deckA);
         GameTraceTest.seat(game, match, ai, deckB);

@@ -475,7 +475,7 @@ fn pass(game: &mut Game, seat: Seat) {
 
 /// `HumanPlayer.passWithManaPoolCheck`: passing with mana in the pool asks first. False: the player didn't pass.
 fn pass_with_mana_pool_check(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
-    if game.stack.is_empty() && game.player(seat).mana_pool.total() > 0 {
+    if game.stack.is_empty() && game.player(seat).mana_pool.total() > 0 && !game.player(seat).no_pool_check {
         let q =
             Query::YesNo { message: "You still have mana in your mana pool and it will be lost. Pass anyway?".into() };
         loop {
@@ -493,7 +493,11 @@ fn pass_with_mana_pool_check(game: &mut Game, d: &mut dyn Decider, seat: Seat) -
 /// `HumanPlayer.priority`: one call; the player passes, plays something (and keeps priority), or is asked again.
 fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let step = game.step.unwrap_or(Step::Upkeep);
-    if game.stack.is_empty() && !stops_in(step) && pass_with_mana_pool_check(game, d, seat) {
+    if game.stack.is_empty()
+        && !stops_in(step)
+        && !game.player(seat).every_priority
+        && pass_with_mana_pool_check(game, d, seat)
+    {
         return;
     }
     loop {
