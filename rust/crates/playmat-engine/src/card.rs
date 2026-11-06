@@ -880,6 +880,10 @@ pub enum EffectDef {
     },
     /// each opponent can't draw more than one card each turn
     NarsetParterOfVeilsEffect,
+    /// you may play `amount` additional lands on each of your turns
+    PlayAdditionalLandsControllerEffect { amount: u32 },
+    /// you may play lands from your graveyard
+    PlayLandsFromGraveyardControllerEffect,
     /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
     NoMaximumHandSizeEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card

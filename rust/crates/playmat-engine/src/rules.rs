@@ -424,8 +424,20 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
     }
     // flashback, from the graveyard (Weathered Runestone: players can't cast spells from graveyards)
     let runestone = game.any_static(|_, _, e| matches!(e, EffectDef::WeatheredRunestoneEffect2));
-    for id in p.graveyard.iter().filter(|_| !runestone) {
+    let lands = game.any_static(|g, src, e| {
+        matches!(e, EffectDef::PlayLandsFromGraveyardControllerEffect) && g.obj(src).controller == seat
+    }) && can_play_land(game, seat);
+    for id in p.graveyard.iter() {
         let def = &game.obj(*id).def;
+        if def.is(CardType::Land) {
+            if lands {
+                out.push(*id);
+            }
+            continue;
+        }
+        if runestone {
+            continue;
+        }
         if def.flashback().is_some_and(|f| castable(game, seat, *id, &f))
             || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
         {
@@ -585,7 +597,16 @@ fn sorcery_speed(game: &Game, seat: Seat) -> bool {
 }
 
 fn can_play_land(game: &Game, seat: Seat) -> bool {
-    sorcery_speed(game, seat) && game.player(seat).lands_played < 1
+    let mut extra = 0;
+    game.any_static(|g, src, e| {
+        if let EffectDef::PlayAdditionalLandsControllerEffect { amount } = e {
+            if g.obj(src).controller == seat {
+                extra += amount;
+            }
+        }
+        false
+    });
+    sorcery_speed(game, seat) && game.player(seat).lands_played < 1 + extra
 }
 
 /// Whether the card (or its adventure, `def`) can be cast now: timing, the one-spell limit, its costs, its targets.
@@ -2883,6 +2904,8 @@ fn apply_each_effect(
             | EffectDef::CastAsThoughItHadFlashAllEffect { .. }
             | EffectDef::NarsetParterOfVeilsEffect
             | EffectDef::NoMaximumHandSizeEffect
+            | EffectDef::PlayAdditionalLandsControllerEffect { .. }
+            | EffectDef::PlayLandsFromGraveyardControllerEffect
             | EffectDef::GevScaledScorchEntersEffect
             | EffectDef::LovestruckBeastEffect
             | EffectDef::GainPlusOneLifeReplacementEffect

@@ -941,6 +941,8 @@ class Translator:
             e = self.effect(m.group(1))
             e.setdefault('also', []).append(self.effect(m.group(2)))
             return e
+        if expr.strip() == 'PlayFromGraveyardControllerEffect.playLands()':
+            return {'class': 'PlayLandsFromGraveyardControllerEffect'}
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             return obj
@@ -960,6 +962,9 @@ class Translator:
             return {'class': 'DamageTargetSourcePowerEffect'}
         if cls.startswith('SearchLibraryPutIn'):
             return self.search_library(cls, [a.strip() for a in args])
+        if cls == 'PlayAdditionalLandsControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileOnBattlefield' \
+                and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'amount': int(args[0])}
         if cls == 'MaximumHandSizeControllerEffect' and [a.strip() for a in args] == [
                 'Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'MaximumHandSizeControllerEffect.HandSizeModification.SET']:
             return {'class': 'NoMaximumHandSizeEffect'}
