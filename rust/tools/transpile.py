@@ -1023,6 +1023,16 @@ class Translator:
         if cls == 'EntersBattlefieldWithXCountersEffect' and len(args) == 1:
             return {'class': 'AddCountersSourceEffect', 'counter': self.value('counter', args[0].strip()),
                     'amount': {'v': 'x'}}
+        # "it gains your choice of …": the choice is each ability's rule text
+        if cls == 'GainsChoiceOfAbilitiesEffect' and len(args) >= 3 and args[0].strip() == 'GainsChoiceOfAbilitiesEffect.TargetType.Source':
+            abilities = [self.ability(a.strip()) for a in args[1:]]
+            names = []
+            for a in args[1:]:
+                n = re.fullmatch(r'(\w+)Ability\.getInstance\(\)', a.strip())
+                if not n:
+                    raise Unsupported('choice of ' + a)
+                names.append(re.sub(r'(?<!^)([A-Z])', r' \1', n.group(1)).lower())
+            return {'class': cls, 'abilities': abilities, 'names': names}
         if cls == 'CounterUnlessPaysEffect' and len(args) == 1 and not args[0].strip().startswith('new '):
             return {'class': cls, 'generic': self.value('amount', args[0].strip())}
         if cls == 'SetBasePowerSourceEffect' and len(args) == 1:

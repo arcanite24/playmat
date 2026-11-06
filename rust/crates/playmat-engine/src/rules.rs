@@ -2881,6 +2881,25 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::GainsChoiceOfAbilitiesEffect { abilities, names } => {
+                let (me, zcc) = source;
+                if game.obj(me).zone != Zone::Battlefield || game.obj(me).zcc != zcc {
+                    continue;
+                }
+                let q = Query::Choice { message: "Choose an ability to gain".into(), choices: names.clone() };
+                let k = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Text(t) => {
+                            if let Some(k) = names.iter().position(|n| *n == t) {
+                                break k;
+                            }
+                        }
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                grant(game, me, &abilities[k]);
+            }
             EffectDef::CreateXXTokenEffect { token, amount } => {
                 let n = v!(amount).max(0);
                 let def = Arc::new(CardDef { power: n, toughness: n, ..token.card() });

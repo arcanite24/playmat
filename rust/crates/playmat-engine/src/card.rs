@@ -1070,6 +1070,8 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// the source gains the chosen one of `abilities` (named by `names`, their rule texts) until end of turn
+    GainsChoiceOfAbilitiesEffect { abilities: Vec<AbilityDef>, names: Vec<String> },
     /// creates one token with power and toughness `amount` (`new SharkToken(xValue)`)
     CreateXXTokenEffect { token: TokenDef, amount: Amount },
     /// the source gets +X/+0 until end of turn (X: creature cards in your graveyard), then may fight the target
