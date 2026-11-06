@@ -853,6 +853,11 @@ impl Game {
                         t = p + 1;
                     }
                     if let EffectDef::SetBasePowerToughnessSourceEffect { count } = e {
+                        if count == "exiled_with_source" {
+                            let n = self.exiled_for_source.iter().filter(|(s, z, _)| *s == id && *z == o.zcc).count() as i32;
+                            p = n;
+                            t = n;
+                        }
                         if count == "creatures_you_control" {
                             let n = self
                                 .battlefield

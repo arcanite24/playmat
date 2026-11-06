@@ -156,6 +156,9 @@ pub enum TargetDef {
         min: usize,
         #[serde(default = "one")]
         max: usize,
+        /// all from one graveyard: the first card's (`TargetCardInASingleGraveyard`)
+        #[serde(default)]
+        single: bool,
     },
 }
 

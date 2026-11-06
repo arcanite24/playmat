@@ -1661,6 +1661,10 @@ fn choose_target(
         let (mut players, mut objs) = possible_targets(game, seat, def, src);
         // a spell can't target itself (rule 115.5)
         objs.retain(|o| Some(*o) != source);
+        if let (TargetDef::TargetCardInGraveyard { single: true, .. }, Some(Target::Obj(first))) = (def, chosen.first()) {
+            let owner = game.obj(*first).owner;
+            objs.retain(|o| game.obj(*o).owner == owner);
+        }
         if chosen.is_empty() && min > 0 && players.is_empty() && objs.is_empty() {
             return None;
         }

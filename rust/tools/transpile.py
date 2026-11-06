@@ -133,7 +133,8 @@ EFFECTS = {
 
 COUNTS = {'CreaturesYouControlCount.PLURAL': 'creatures_you_control',
           'CreaturesYouControlCount.SINGULAR': 'creatures_you_control',
-          'LandsYouControlCount.instance': 'lands_you_control', 'ManaSpentToCastCount.instance': 'mana_spent'}
+          'LandsYouControlCount.instance': 'lands_you_control', 'ManaSpentToCastCount.instance': 'mana_spent',
+          'UnlicensedHearseValue.instance': 'exiled_with_source'}
 PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED', 'TOP_ANY', 'BOTTOM_ANY', 'BOTTOM_RANDOM'}
 
 # classes a card file declares for itself, written by hand as the engine classes that do the same
@@ -521,6 +522,7 @@ TARGET_CLASSES = {
     'TargetCardInGraveyard': ('TargetCardInGraveyard', []),
     'TargetCardInYourGraveyard': ('TargetCardInGraveyard', [{'p': 'owner', 'who': 'you'}]),
     'TargetCardInOpponentsGraveyard': ('TargetCardInGraveyard', [{'p': 'owner', 'who': 'opponent'}]),
+    'TargetCardInASingleGraveyard': ('TargetCardInGraveyard', []),
 }
 # targets of players (no arguments)
 PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPlayerOrPlaneswalker'}
@@ -1233,6 +1235,8 @@ class Translator:
             out['min'], out['max'] = ints
         elif ints:
             raise Unsupported('target ' + expr)
+        if cls == 'TargetCardInASingleGraveyard':
+            out['single'] = True
         return out
 
     def ability(self, expr):
