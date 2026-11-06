@@ -1310,6 +1310,9 @@ pub enum EffectDef {
     /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
     /// among them this turn, spending mana as though it were any type
     LaughingJasperFlintEffect,
+    /// Old-Growth Troll: it returns as an Aura enchanting a Forest you control, which has "{T}: Add {G}{G}" and
+    /// "{1}, {T}, sacrifice this land: create a tapped `token`"
+    OldGrowthTrollReturnEffect { token: serde_json::Value },
     /// the target player mills `amount` cards
     MillCardsTargetEffect { amount: Amount },
     /// the source becomes the token's kind of creature (still its old types with `retain`), with its abilities too
@@ -1799,6 +1802,13 @@ pub enum AbilityDef {
         #[serde(default)]
         cost: Vec<CostDef>,
     },
+    /// `{T}: Add` `amount` mana of one color (`SimpleManaAbility` with `Mana.GreenMana(2)`)
+    ColoredManaAbility {
+        color: Color,
+        amount: u32,
+        #[serde(default)]
+        rule: String,
+    },
     /// `{T}[, other costs]: Add one mana of any color` (a Treasure's, with a sacrifice)
     AnyColorManaAbility {
         /// how much of the chosen color (a Lotus's three)
@@ -1932,6 +1942,7 @@ impl AbilityDef {
             AbilityDef::RedManaAbility { .. } => Some(Mana::of(Color::R, 1)),
             AbilityDef::GreenManaAbility { .. } => Some(Mana::of(Color::G, 1)),
             AbilityDef::ColorlessManaAbility { .. } => Some(Mana { colorless: 1, ..Mana::default() }),
+            AbilityDef::ColoredManaAbility { color, amount, .. } => Some(Mana::of(*color, *amount)),
             // one of each: whichever is needed
             AbilityDef::AnyColorManaAbility { amount, .. } => Some(Mana { colored: [*amount; 5], ..Mana::default() }),
             AbilityDef::ActivateIfConditionManaAbility { color, .. } => Some(Mana::of(*color, 1)),

@@ -3116,17 +3116,29 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
 }
 
 /// `AddBasicLandTypeAllLandsEffect` (Urborg): each land is also the basic land types the statics give, with their
-/// mana abilities (not a second one it already has)
+/// mana abilities (not a second one it already has). And an Aura's `GainAbilityAttachedEffect` of a mana or activated
+/// ability (Old-Growth Troll) adds that ability to what it enchants.
 fn refresh_land_types(game: &mut Game) {
     let mut types: Vec<String> = Vec::new();
+    let mut granted: Vec<(ObjId, AbilityDef)> = Vec::new();
     for id in game.battlefield.iter() {
         for a in &game.obj(*id).def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 for e in effects {
-                    if let EffectDef::AddBasicLandTypeAllLandsEffect { subtype } = e {
-                        if !types.contains(subtype) {
-                            types.push(subtype.clone());
+                    match e {
+                        EffectDef::AddBasicLandTypeAllLandsEffect { subtype } => {
+                            if !types.contains(subtype) {
+                                types.push(subtype.clone());
+                            }
                         }
+                        EffectDef::GainAbilityAttachedEffect { ability }
+                            if ability.mana().is_some() || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }) =>
+                        {
+                            if let Some(to) = game.attached(*id) {
+                                granted.push((to, (**ability).clone()));
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -3135,13 +3147,15 @@ fn refresh_land_types(game: &mut Game) {
     let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
     for id in ids {
         let o = game.obj(id);
-        let base = o.land_type_base.as_ref().map(|(b, _)| b.clone()).unwrap_or_else(|| o.def.clone());
+        let base = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
         let given: Vec<String> = if base.types.contains(&CardType::Land) { types.clone() } else { Vec::new() };
-        let applied = o.land_type_base.as_ref().map(|(_, t)| t.clone()).unwrap_or_default();
-        if given == applied {
+        let gained: Vec<AbilityDef> = granted.iter().filter(|(to, _)| *to == id).map(|(_, a)| a.clone()).collect();
+        let (applied, applied_gained) =
+            o.land_type_base.as_ref().map(|(_, t, g)| (t.clone(), g.clone())).unwrap_or_default();
+        if given == applied && gained == applied_gained {
             continue;
         }
-        if given.is_empty() {
+        if given.is_empty() && gained.is_empty() {
             let o = game.obj_mut(id);
             o.def = o.land_type_base.take().unwrap().0;
             continue;
@@ -3163,8 +3177,9 @@ fn refresh_land_types(game: &mut Game) {
                 land.abilities.push(ability);
             }
         }
+        land.abilities.extend(gained.iter().cloned());
         let o = game.obj_mut(id);
-        o.land_type_base = Some((base, given));
+        o.land_type_base = Some((base, given, gained));
         o.def = Arc::new(land);
     }
 }
@@ -4065,6 +4080,46 @@ fn apply_each_effect(
                             o.any_mana = true;
                             o.cast_only = true;
                         }
+                    }
+                }
+            }
+            EffectDef::OldGrowthTrollReturnEffect { token } => {
+                // it returns as an Aura enchantment (its other abilities stay) with enchant Forest you control
+                let (o, zcc) = source;
+                if game.obj(o).zone == Zone::Graveyard && game.obj(o).zcc == zcc {
+                    let original = game.obj(o).def.clone();
+                    let mut aura = (*original).clone();
+                    aura.types = vec![CardType::Enchantment];
+                    aura.subtypes = vec!["Aura".to_string()];
+                    aura.spell.targets = vec![serde_json::from_value(serde_json::json!({
+                        "class": "TargetPermanent",
+                        "filter": [{"p": "subtype", "s": "Forest"}, {"p": "controller", "who": "you"}],
+                    }))
+                    .unwrap()];
+                    aura.abilities.push(
+                        serde_json::from_value(serde_json::json!({
+                            "class": "SimpleStaticAbility",
+                            "effects": [
+                                {"class": "GainAbilityAttachedEffect",
+                                 "ability": {"class": "ColoredManaAbility", "color": "G", "amount": 2,
+                                             "rule": "{T}: Add {G}{G}."}},
+                                {"class": "GainAbilityAttachedEffect",
+                                 "ability": {"class": "SimpleActivatedAbility",
+                                             "cost": [{"class": "ManaCost", "cost": "{1}"}, {"class": "TapSourceCost"},
+                                                      {"class": "SacrificeSourceCost"}],
+                                             "effects": [{"class": "CreateTokenEffect", "token": token, "amount": 1,
+                                                          "tapped": true}],
+                                             "rule": "{1}, {T}, Sacrifice this land: Create a tapped 4/4 green Troll Warrior creature token with trample."}},
+                            ],
+                        }))
+                        .unwrap(),
+                    );
+                    game.obj_mut(o).def = Arc::new(aura);
+                    enter_battlefield(game, d, o, controller, false);
+                    if game.obj(o).zone == Zone::Battlefield {
+                        game.obj_mut(o).printed_def = Some(original);
+                    } else {
+                        game.obj_mut(o).def = original;
                     }
                 }
             }

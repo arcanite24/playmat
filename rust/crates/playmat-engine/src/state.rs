@@ -114,7 +114,7 @@ pub struct Obj {
     /// a static "as long as …, it's a creature" applied: the card as it is without it
     pub becomes_base: Option<Arc<CardDef>>,
     /// lands given basic land types by a static (Urborg): the land without them, and the types given
-    pub land_type_base: Option<(Arc<CardDef>, Vec<String>)>,
+    pub land_type_base: Option<(Arc<CardDef>, Vec<String>, Vec<AbilityDef>)>,
     /// the creature type chosen as it entered (Cavern of Souls)
     pub chosen_type: Option<String>,
     /// the turn it was foretold (exiled face down from hand), while it stays in exile
@@ -1414,7 +1414,7 @@ impl Game {
                 o.uncounterable = false;
                 o.foretold_turn = None;
                 o.plotted_turn = None;
-                if let Some((def, _)) = o.land_type_base.take() {
+                if let Some((def, _, _)) = o.land_type_base.take() {
                     o.def = def;
                 }
                 if let Some(def) = o.becomes_base.take() {

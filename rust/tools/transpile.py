@@ -175,6 +175,7 @@ CUSTOM = {
     'TishanasTidebinderEffect': lambda: {'class': 'TishanasTidebinderEffect'},
     'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
     'LaughingJasperFlintEffect': lambda: {'class': 'LaughingJasperFlintEffect'},
+    'OldGrowthTrollReturnEffect': lambda: {'class': 'OldGrowthTrollReturnEffect', 'token': token('TrollWarriorToken')},
     'AcademicDisputeEffect': lambda: {'class': 'AcademicDisputeEffect'},
     'LearnEffect': lambda: {'class': 'LearnEffect'},
     'AvenInterrupterEffect': lambda: {'class': 'AvenInterrupterEffect'},
@@ -793,6 +794,9 @@ class Translator:
             return CONDITIONS[arg]
         if arg in self.conditions:
             return self.condition(self.conditions[arg])
+        # Old-Growth Troll "if it was a creature": it dies only as one (it's an Aura otherwise)
+        if arg == 'OldGrowthTrollCondition.instance':
+            return {'c': 'and', 'xs': []}
         if arg == 'SourceEnteredOrControlsBasicLandCondition.instance':
             return {'c': 'or', 'xs': [{'c': 'source_entered_this_turn'}, self.condition('YouControlABasicLandCondition.instance')]}
         if arg == 'YouControlABasicLandCondition.instance':
