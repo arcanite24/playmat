@@ -295,7 +295,10 @@ pub(crate) fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, wid
             for o in objs {
                 add(Answer::Obj(*o));
             }
-            if !required {
+            // done only with nothing to pick: Java's dialogs re-ask (or cancel the cast) where this engine
+            // would take a done, so with options the AI always picks
+            let _ = required;
+            if players.is_empty() && objs.is_empty() {
                 add(Answer::Bool(false));
             }
         }

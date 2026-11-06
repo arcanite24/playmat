@@ -2,5 +2,6 @@
 
 pub mod duel;
 pub mod eval;
+pub mod mirror;
 pub mod policy;
 pub mod search;

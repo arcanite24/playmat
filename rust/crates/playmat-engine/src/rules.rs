@@ -2763,10 +2763,14 @@ fn choose_target(
             return Some(chosen);
         }
         if min == max && players.len() + objs.len() == min - chosen.len() && !rule.contains("search") {
-            let own_player = players.iter().find(|p| **p == seat).map(|p| Target::Player(*p));
-            let auto = own_player
-                .filter(|_| !feel_bad)
-                .or_else(|| objs.iter().copied().find(|o| !(feel_bad && owns_target(game, seat, *o))).map(Target::Obj));
+            let auto = if game.player(seat).auto_target_all {
+                players.first().map(|p| Target::Player(*p)).or_else(|| objs.first().map(|o| Target::Obj(*o)))
+            } else {
+                let own_player = players.iter().find(|p| **p == seat).map(|p| Target::Player(*p));
+                own_player.filter(|_| !feel_bad).or_else(|| {
+                    objs.iter().copied().find(|o| !(feel_bad && owns_target(game, seat, *o))).map(Target::Obj)
+                })
+            };
             if let Some(t) = auto {
                 chosen.push(t);
                 selected = true;
@@ -6791,7 +6795,8 @@ fn choose_cards_with(
         }
         let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
         if min == max && left.len() == min - chosen.len() && !rule.contains("search") {
-            if let Some(c) = left.iter().copied().find(|c| !(feel_bad && owns_target(game, seat, *c))) {
+            let all = game.player(seat).auto_target_all;
+            if let Some(c) = left.iter().copied().find(|c| all || !(feel_bad && owns_target(game, seat, *c))) {
                 chosen.push(c);
                 continue;
             }
@@ -7128,10 +7133,13 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     // a permanent spell resolving was cast (`CastFromEverywhereSourceCondition`)
     let cast = game.obj(id).zone == Zone::Stack;
     let stack_zcc = game.obj(id).zcc;
+    // each its own replacement effect (Kumano's "enters with an additional +1/+1 counter")
+    let mut counter_effects = 0;
     let more_counters: i32 = if cast {
         let (mine, rest): (Vec<_>, Vec<_>) =
             std::mem::take(&mut game.enter_counters).into_iter().partition(|(o, z, _)| *o == id && *z == stack_zcc);
         game.enter_counters = rest;
+        counter_effects = mine.len();
         mine.iter().map(|(_, _, n)| n).sum()
     } else {
         0
@@ -7155,7 +7163,8 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         more_counters += giadas.count() as i32 * angels;
     }
     // replacement effects on its entering, more than one: the player picks the order (`chooseReplacementEffect`):
-    // Gev's counters for another creature, and the creature's own "enters" abilities
+    // Gev's counters for another creature, the next creature spell's counters, and the creature's own "enters"
+    // abilities (an `EscapesWithAbility` is one whether it escaped or not)
     if game.obj(id).def.is(CardType::Creature) {
         let gevs = game
             .battlefield
@@ -7169,10 +7178,16 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                     })
             })
             .count();
-        let own =
-            game.obj(id).def.abilities.iter().filter(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. })).count();
-        if gevs > 0 {
-            for _ in 1..gevs + own {
+        let own = game
+            .obj(id)
+            .def
+            .abilities
+            .iter()
+            .filter(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. } | AbilityDef::EscapesWithAbility { .. }))
+            .count();
+        let others = gevs + counter_effects;
+        if others > 0 {
+            for _ in 1..others + own {
                 game.owed_choices.push(controller);
             }
         }

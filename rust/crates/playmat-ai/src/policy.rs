@@ -151,6 +151,10 @@ impl Policy {
     }
 
     fn target(&mut self, game: &Game, seat: Seat, players: &[Seat], objs: &[ObjId], required: bool) -> Answer {
+        // nothing left to choose ("up to one" with no legal target): done
+        if players.is_empty() && objs.is_empty() {
+            return Answer::Bool(false);
+        }
         let opp = game.opponent(seat);
         let harmful = self.harmful(game);
         let value = |id: &ObjId| {
@@ -177,10 +181,8 @@ impl Policy {
                 return Answer::Player(seat);
             }
         }
-        if !required {
-            return Answer::Bool(false);
-        }
-        // only the wrong side: the least the choice costs
+        let _ = required;
+        // only the wrong side (the AI picks whenever it can: a done means different things to Java's dialogs): the least the choice costs
         if harmful {
             objs.iter().min_by_key(|o| value(o)).map(|o| Answer::Obj(*o))
         } else {
@@ -425,14 +427,14 @@ impl Repeats {
         let a = std::iter::once(proposed)
             .chain(options.iter().cloned())
             .find(|a| !given.contains(a))
-            .unwrap_or_else(|| finish(q, given.len()));
+            .unwrap_or_else(|| finish(q, given.len(), options));
         given.push(a.clone());
         a
     }
 }
 
 /// An answer that ends a question: done, cancel, or (asked too often) stop.
-fn finish(q: &Query, tries: usize) -> Answer {
+fn finish(q: &Query, tries: usize, options: &[Answer]) -> Answer {
     if tries > 40 {
         return Answer::Stop;
     }
@@ -441,7 +443,10 @@ fn finish(q: &Query, tries: usize) -> Answer {
         Query::ChooseMode { .. } => Answer::ModeDone,
         Query::Amount { min, .. } => Answer::Int(*min),
         Query::Choice { choices, .. } => choices.first().map(|c| Answer::Text(c.clone())).unwrap_or(Answer::Stop),
-        Query::Target { required: true, .. } | Query::Cards { required: true, .. } => Answer::Stop,
+        // a required choice can't be left: pick again (Java asks until the choice is made)
+        Query::Target { required: true, .. } | Query::Cards { required: true, .. } => {
+            options.get(tries % options.len().max(1)).cloned().unwrap_or(Answer::Stop)
+        }
         _ => Answer::Bool(false),
     }
 }
