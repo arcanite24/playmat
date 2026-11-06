@@ -929,6 +929,9 @@ pub enum EffectDef {
     TransformSourceEffect,
     /// the target gets +X/+0 until end of turn, X its power (Mightform Harmonizer: "double the power")
     MightformHarmonizerEffect,
+    /// each creature card exiled with the source enters under your control with a flying counter, a 1/1 Spirit in
+    /// addition to its other types
+    GhostVacuumEffect,
     /// earthbend N: the target land you control becomes a 0/0 creature with haste that's still a land, with N +1/+1
     /// counters; when it dies or is exiled, it returns to the battlefield tapped
     EarthbendTargetEffect { amount: Amount },

@@ -2691,6 +2691,26 @@ fn apply_each_effect(
                 }
                 game.earthbent.push((o, zcc));
             }
+            EffectDef::GhostVacuumEffect => {
+                let (src, zcc) = source;
+                let cards: Vec<ObjId> = game
+                    .exiled_for_source
+                    .iter()
+                    .filter(|(s, z, c)| *s == src && *z == zcc && game.obj(*c).zone == Zone::Exile && game.obj(*c).is(CardType::Creature))
+                    .map(|(_, _, c)| *c)
+                    .collect();
+                for c in cards {
+                    enter_battlefield(game, d, c, controller, false);
+                    if game.obj(c).zone == Zone::Battlefield {
+                        let o = game.obj_mut(c);
+                        o.add_counters("flying", 1);
+                        o.base_pt = Some((1, 1));
+                        let mut types = o.def.subtypes.clone();
+                        types.push("Spirit".into());
+                        o.creature_types = Some(types);
+                    }
+                }
+            }
             EffectDef::MightformHarmonizerEffect => {
                 for o in &objs {
                     let p = game.power_toughness(*o).0;

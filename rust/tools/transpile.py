@@ -147,6 +147,7 @@ CUSTOM = {
     'ScreamingNemesisEffect': lambda: {'class': 'ScreamingNemesisEffect'},
     'GraveyardTrespasserEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
     'MightformHarmonizerEffect': lambda: {'class': 'MightformHarmonizerEffect'},
+    'GhostVacuumEffect': lambda: {'class': 'GhostVacuumEffect'},
     'TenaciousUnderdogEffect': lambda: {'class': 'TenaciousUnderdogEffect'},
     'NowhereToRunHexproofEffect': lambda: {'class': 'NowhereToRunHexproofEffect'},
     'NowhereToRunWardEffect': lambda: {'class': 'NowhereToRunWardEffect'},
@@ -954,6 +955,9 @@ class Translator:
         return out
 
     def effect(self, expr):
+        # exiled "with" the source (Ghost Vacuum)
+        if self.strip_setters(expr) == 'new ExileTargetEffect().setToSourceExileZone(true)':
+            return {'class': 'ExileTargetForSourceEffect'}
         # a cost reduction that only counts while the spell is cast
         if (m := re.fullmatch(r'(.*)\.setCanWorksOnStackOnly\(true\)', expr.strip(), re.S)):
             e = self.effect(m.group(1))

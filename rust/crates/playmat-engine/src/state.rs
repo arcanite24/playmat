@@ -584,6 +584,9 @@ impl Game {
         if *ability == AbilityDef::DeathtouchAbility && o.counter("deathtouch") > 0 {
             return true;
         }
+        if *ability == AbilityDef::FlyingAbility && o.counter("flying") > 0 {
+            return true;
+        }
         if o.zone != Zone::Battlefield {
             return false;
         }
