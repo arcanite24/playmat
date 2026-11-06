@@ -1235,6 +1235,8 @@ pub enum EffectDef {
     /// a static ability's effect: a card or token that would be put into a graveyard from anywhere is exiled
     /// instead (Rest in Peace)
     GraveyardFromAnywhereExileReplacementEffect,
+    /// an opponent's card that would be put into a graveyard from anywhere is exiled instead
+    LeylineOfTheVoidEffect,
     /// the target player mills `amount` cards
     MillCardsTargetEffect { amount: Amount },
     /// the source becomes the token's kind of creature (still its old types with `retain`), with its abilities too
@@ -1544,6 +1546,8 @@ pub enum AbilityDef {
     },
     /// "(Gain the next level as a sorcery to add its ability.)"
     ClassReminderAbility,
+    /// "If this card is in your opening hand, you may begin the game with it on the battlefield." (before the game)
+    LeylineAbility,
     /// a Class's next level: activated as a sorcery when the Class is the level below
     ClassLevelAbility {
         level: u32,

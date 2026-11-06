@@ -171,6 +171,7 @@ CUSTOM = {
     'QuantumRiddlerReplacementEffect': lambda: {'class': 'QuantumRiddlerReplacementEffect'},
     'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
     'ArtistsTalentEffect': lambda: {'class': 'ArtistsTalentEffect'},
+    'LeylineOfTheVoidEffect': lambda: {'class': 'LeylineOfTheVoidEffect'},
     'ReturnSourceToHandNextEndStepEffect': lambda: {'class': 'ReturnSourceToHandNextEndStepEffect'},
     'MultiversalPassagePassageEffect': lambda: {'class': 'MultiversalPassagePassageEffect'},
     'LivelyDirgeEffect': lambda: {'class': 'LivelyDirgeEffect'},
@@ -1444,6 +1445,8 @@ class Translator:
         if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and 'CantBeCounteredSourceEffect' in args[1])):
             args = args[1:]
         # a Class: its levels, gained as a sorcery one after another, and the abilities each level adds
+        if cls == 'LeylineAbility' and not args:
+            return {'class': cls, 'java': cls}
         if cls == 'ClassReminderAbility' and not args:
             return {'class': cls, 'java': cls}
         if cls == 'ClassLevelAbility' and len(args) == 2 and args[0].strip().isdigit() \

@@ -5248,6 +5248,7 @@ fn apply_each_effect(
             | EffectDef::QuantumRiddlerReplacementEffect
             | EffectDef::ArtistsTalentEffect { .. }
             | EffectDef::GainAbilityControllerEffect { .. }
+            | EffectDef::LeylineOfTheVoidEffect
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect

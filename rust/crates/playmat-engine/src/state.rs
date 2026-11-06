@@ -1118,6 +1118,23 @@ impl Game {
                 })
             })
             .count();
+        // Leyline of the Void: an opponent's card (not a token)
+        let leylines = self
+            .battlefield
+            .iter()
+            .filter(|src| {
+                let s = self.obj(**src);
+                s.controller != self.obj(id).owner
+                    && !self.obj(id).token
+                    && s.def.abilities.iter().any(|a| match a {
+                        AbilityDef::SimpleStaticAbility { effects, .. } => {
+                            effects.iter().any(|e| matches!(e, EffectDef::LeylineOfTheVoidEffect))
+                        }
+                        _ => false,
+                    })
+            })
+            .count();
+        let rest_in_peace = rest_in_peace + leylines;
         let zone = if zone == Zone::Graveyard && rest_in_peace > 0 {
             if rest_in_peace > 1 {
                 let o = self.obj(id);
