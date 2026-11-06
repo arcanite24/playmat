@@ -10020,6 +10020,24 @@
     "abilities": []
   },
   {
+    "name": "token:JacePlaneswalkerToken",
+    "images": {
+      "FRA": 1
+    },
+    "abilities": [
+      {
+        "class": "LoyaltyAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "-1: Surveil 1. <i>(Look at the top card of your library. You may put that card into your graveyard.)</i>"
+      },
+      {
+        "class": "LoyaltyAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "-3: Draw a card."
+      }
+    ]
+  },
+  {
     "name": "token:LanderToken",
     "images": {
       "EOE": 5
@@ -10057,6 +10075,25 @@
         "class": "ActivateAsSorceryActivatedAbility",
         "type": "ACTIVATED_NONMANA",
         "rule": "{1}, {T}, Sacrifice this artifact: Target creature you control explores. Activate only as a sorcery."
+      }
+    ]
+  },
+  {
+    "name": "token:MonsterRoleToken",
+    "images": {
+      "WOC": 1,
+      "WOE": 1
+    },
+    "abilities": [
+      {
+        "class": "EnchantAbility",
+        "type": "STATIC",
+        "rule": "Enchant creature. "
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "enchanted creature gets +1/+1 and has trample."
       }
     ]
   },
