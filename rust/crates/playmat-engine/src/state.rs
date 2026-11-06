@@ -111,6 +111,8 @@ pub struct Obj {
     pub cast: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
+    /// a static "as long as …, it's a creature" applied: the card as it is without it
+    pub becomes_base: Option<Arc<CardDef>>,
     /// the X it was cast with, while it's on the battlefield
     pub cast_x: i32,
     /// what it was before an effect changed its characteristics (`def`) for as long as it stays on the battlefield
@@ -535,6 +537,7 @@ impl Game {
             kicked: false,
             cast: false,
             until_end_of_turn_def: None,
+            becomes_base: None,
             printed_def: None,
             copied_def: None,
             cast_x: 0,
@@ -1326,6 +1329,9 @@ impl Game {
                 o.kicked = false;
                 o.cast = false;
                 o.attached_to = None;
+                if let Some(def) = o.becomes_base.take() {
+                    o.def = def;
+                }
                 if let Some(def) = o.until_end_of_turn_def.take() {
                     o.def = def;
                 }

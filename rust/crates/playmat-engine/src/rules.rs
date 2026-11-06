@@ -314,18 +314,21 @@ fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
         }
         // Quantum Riddler: with one or fewer cards in hand, two cards instead
         if game.player(seat).hand.len() <= 1 {
-            let mut riddler = None;
+            let mut riddlers = Vec::new();
             game.any_static(|g, src, e| {
-                if riddler.is_none()
-                    && matches!(e, EffectDef::QuantumRiddlerReplacementEffect)
+                if matches!(e, EffectDef::QuantumRiddlerReplacementEffect)
                     && g.obj(src).controller == seat
                     && !applied.contains(&src)
                 {
-                    riddler = Some(src);
+                    riddlers.push(src);
                 }
                 false
             });
-            if let Some(r) = riddler {
+            // two or more: the player chooses which applies first (they all do the same)
+            if riddlers.len() > 1 {
+                game.owed_choices.push(seat);
+            }
+            if let Some(r) = riddlers.first().copied() {
                 let mut applied = applied.to_vec();
                 applied.push(r);
                 draw_one(game, seat, &applied);
@@ -422,6 +425,7 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider) {
 /// Asks a seat a question. Like `HumanPlayer.prepareForResponse`, asking makes that seat the priority player.
 fn ask(game: &mut Game, d: &mut dyn Decider, seat: Seat, q: &Query) -> Answer {
     settle_owed(game, d);
+    refresh_becomes(game);
     game.priority = Some(seat);
     d.answer(game, seat, q)
 }
@@ -438,6 +442,7 @@ fn settle_owed(game: &mut Game, d: &mut dyn Decider) {
 /// `Decider::traced`, after the questions owed so far.
 fn traced(game: &mut Game, d: &mut dyn Decider) {
     settle_owed(game, d);
+    refresh_becomes(game);
     d.traced(game);
 }
 
@@ -2795,6 +2800,8 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         return;
     }
     let zcc = game.obj(id).zcc;
+    // countered on resolution (608.2b): an adventure then goes to the graveyard, not on its adventure
+    let mut fizzled = false;
     if item.modes.len() > 1 {
         // `Spell.resolve`: each chosen mode with its own targets; a targeted mode whose targets are all illegal is
         // dropped, and with every targeted mode dropped the spell doesn't resolve (608.2b)
@@ -2812,6 +2819,7 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             parts.iter().map(|(_, targets, part)| legal_targets(game, part, targets)).collect();
         let targeted = parts.iter().any(|(_, t, _)| !t.is_empty());
         let fizzles = targeted && parts.iter().zip(&legal).all(|((_, t, _), l)| t.is_empty() || l.is_none());
+        fizzled = fizzles;
         if !fizzles {
             for ((effects, _, part), l) in parts.iter().zip(legal) {
                 if let Some(l) = l {
@@ -2821,7 +2829,9 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         }
     } else {
         let (effects, targets) = def.spell.mode(item.modes.first().copied().unwrap_or(0));
-        if let Some(legal) = legal_targets(game, &item, targets) {
+        let legal = legal_targets(game, &item, targets);
+        fizzled = legal.is_none();
+        if let Some(legal) = legal {
             // `PromiseGiftEffect`, the spell's first effect
             if let Some(to) = item.gift_to {
                 give_gift(game, d, &def, to, id);
@@ -2839,11 +2849,69 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     }
     if game.obj(id).zone == Zone::Stack {
         // an adventure goes on an adventure: exiled, its creature castable from there
-        if game.obj(id).adventurer.as_ref().is_some_and(|f| f.adventure.is_some()) && !game.obj(id).flashback {
+        if game.obj(id).adventurer.as_ref().is_some_and(|f| f.adventure.is_some()) && !game.obj(id).flashback && !fizzled
+        {
             game.move_to(id, Zone::Exile);
             game.obj_mut(id).on_adventure = true;
         } else {
             game.move_to(id, Zone::Graveyard);
+        }
+    }
+}
+
+/// `BecomesCreatureSourceEffect`: the card as the token's kind of creature (its other types gone unless `retain`)
+fn becomes_creature(old: &CardDef, token: &crate::card::TokenDef, retain: bool) -> CardDef {
+    let mut def = old.clone();
+    if !retain {
+        def.types.clear();
+        def.subtypes.clear();
+    }
+    for t in &token.types {
+        if !def.types.contains(t) {
+            def.types.push(*t);
+        }
+    }
+    def.subtypes.extend(token.subtypes.iter().cloned());
+    if !token.colors.is_empty() {
+        def.colors = token.colors.clone();
+    }
+    def.abilities.extend(token.abilities.iter().cloned());
+    def.power = token.power;
+    def.toughness = token.toughness;
+    def.all_creature_types |= token.all_creature_types;
+    def
+}
+
+/// A static "as long as …, it's a creature" (Kaito, Bane of Nightmares): applied or removed as its condition changes.
+/// Java applies continuous effects all the time; here, before each question, trace and state check.
+pub(crate) fn refresh_becomes(game: &mut Game) {
+    let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
+    for id in ids {
+        let o = game.obj(id);
+        let base = o.becomes_base.clone().unwrap_or_else(|| o.def.clone());
+        let found = base.abilities.iter().find_map(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().find_map(|e| match e {
+                EffectDef::ConditionalContinuousEffect { effect, condition } => match &**effect {
+                    EffectDef::BecomesCreatureSourceEffect { token, retain, .. } => {
+                        Some((token.clone(), *retain, condition.clone()))
+                    }
+                    _ => None,
+                },
+                _ => None,
+            }),
+            _ => None,
+        });
+        let Some((token, retain, condition)) = found else { continue };
+        let holds = game.condition_holds(Some(&condition), o.controller, id);
+        let applied = o.becomes_base.is_some();
+        if holds && !applied {
+            let def = Arc::new(becomes_creature(&base, &token, retain));
+            let o = game.obj_mut(id);
+            o.becomes_base = Some(base);
+            o.def = def;
+        } else if !holds && applied {
+            let o = game.obj_mut(id);
+            o.def = o.becomes_base.take().unwrap();
         }
     }
 }
@@ -4800,24 +4868,7 @@ fn apply_each_effect(
                 let (src, zcc) = source;
                 if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
                     let old = game.obj(src).def.clone();
-                    let mut def = (*old).clone();
-                    if !*retain {
-                        def.types.clear();
-                        def.subtypes.clear();
-                    }
-                    for t in &token.types {
-                        if !def.types.contains(t) {
-                            def.types.push(*t);
-                        }
-                    }
-                    def.subtypes.extend(token.subtypes.iter().cloned());
-                    if !token.colors.is_empty() {
-                        def.colors = token.colors.clone();
-                    }
-                    def.abilities.extend(token.abilities.iter().cloned());
-                    def.power = token.power;
-                    def.toughness = token.toughness;
-                    def.all_creature_types |= token.all_creature_types;
+                    let def = becomes_creature(&old, token, *retain);
                     let o = game.obj_mut(src);
                     if *duration == Duration::EndOfTurn && o.until_end_of_turn_def.is_none() {
                         o.until_end_of_turn_def = Some(old);
@@ -7281,6 +7332,7 @@ fn day_night(game: &mut Game) {
 }
 
 pub fn state_based_actions(game: &mut Game) {
+    refresh_becomes(game);
     day_night(game);
     loop {
         let mut any = false;
