@@ -2806,7 +2806,15 @@ fn unpaid_text(c: &ManaCost) -> String {
     s
 }
 
+/// Resolves the top of the stack. Java keeps it on the stack while it resolves (`GameImpl.resolve` removes it
+/// after), which shows in where things put onto the stack meanwhile are (`Game::resolving`).
 fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
+    game.resolving = game.stack.last().map(|i| (game.stack.len() - 1, i.card));
+    resolve_popped(game, d);
+    game.resolving = None;
+}
+
+fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
     let item = match Arc::make_mut(&mut game.stack).pop() {
         Some(i) => i,
         None => return,

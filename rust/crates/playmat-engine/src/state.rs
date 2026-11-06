@@ -423,6 +423,8 @@ pub struct Game {
     pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// "damage can't be prevented this turn" (Stomp): the turn it was said
     pub no_prevention_turn: Option<u32>,
+    /// the stack object resolving: where it was on the stack (from the bottom), and its card
+    pub resolving: Option<(usize, ObjId)>,
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
     /// order they were exiled
     pub exile_by_creation: bool,
@@ -488,6 +490,7 @@ impl Game {
             enter_counters: Vec::new(),
             paying_for: std::cell::Cell::new(None),
             no_prevention_turn: None,
+            resolving: None,
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),

@@ -217,12 +217,17 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
         }
         "B" => game.battlefield.get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
         "S" => {
+            // Java's stack, with what's resolving still on it
             let index: usize = rest.parse().ok()?;
-            let n = game.stack.len();
+            let mut stack: Vec<ObjId> = game.stack.iter().map(|i| i.card).collect();
+            if let Some((at, card)) = game.resolving {
+                stack.insert(at.min(stack.len()), card);
+            }
+            let n = stack.len();
             if index >= n {
                 return None;
             }
-            Some(Answer::Obj(game.stack[n - 1 - index].card))
+            Some(Answer::Obj(stack[n - 1 - index]))
         }
         "E" => exile_order(game).get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
         // a waiting trigger: its seat, then its place among that seat's
