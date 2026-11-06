@@ -221,6 +221,8 @@ CUSTOM = {
     'EnlightenedConfidantEffect': lambda: {'class': 'EnlightenedConfidantEffect'},
     'KraulHarpoonerEffect': lambda: {'class': 'KraulHarpoonerEffect'},
     'GreasefangOkibaBossEffect': lambda: {'class': 'GreasefangOkibaBossEffect'},
+    'DauntlessBodyguardGainAbilityEffect': lambda: {'class': 'ChosenCreatureGainsAbilityEffect',
+                                                    'ability': {'class': 'IndestructibleAbility'}},
     'SharkTyphoonCastEffect': lambda: {'class': 'CreateXXTokenEffect', 'token': token('SharkToken'), 'amount': {'v': 'x'}},
     'SharkTyphoonCycleEffect': lambda: {'class': 'CreateXXTokenEffect', 'token': token('SharkToken'), 'amount': {'v': 'x'}},
     'AdelineResplendentCatharEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('HumanToken'), 'amount': 1,
@@ -1053,6 +1055,9 @@ class Translator:
                     raise Unsupported('choice of ' + a)
                 names.append(re.sub(r'(?<!^)([A-Z])', r' \1', n.group(1)).lower())
             return {'class': cls, 'abilities': abilities, 'names': names}
+        if cls == 'ChooseCreatureEffect' and not args:
+            return {'class': cls, 'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'controller', 'who': 'you'},
+                                             {'p': 'another'}]}
         if cls == 'RegenerateSourceEffect' and len(args) <= 1:
             return {'class': cls}
         if cls == 'CounterUnlessPaysEffect' and len(args) == 1 and not args[0].strip().startswith('new '):

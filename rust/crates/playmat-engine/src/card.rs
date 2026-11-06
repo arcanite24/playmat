@@ -1085,6 +1085,10 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// as this enters, choose a permanent of the filter (not targeted)
+    ChooseCreatureEffect { filter: Filter },
+    /// the creature chosen as the source entered gains the ability until end of turn
+    ChosenCreatureGainsAbilityEffect { ability: Box<AbilityDef> },
     /// evolve's +1/+1 counter, if the creature that entered still has greater power or toughness
     EvolveEffect,
     /// a regeneration shield on the source until end of turn

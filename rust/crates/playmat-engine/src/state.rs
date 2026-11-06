@@ -127,6 +127,8 @@ pub struct Obj {
     pub escaped: bool,
     /// the player the attacker this ninja's ninjutsu returned was attacking
     pub ninjutsu_defender: Option<Seat>,
+    /// the permanent chosen as it entered (`ChooseCreatureEffect`), kept after it leaves
+    pub chosen: Option<(ObjId, u32)>,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
     /// regeneration shields until end of turn
@@ -459,6 +461,7 @@ impl Game {
             flashback: false,
             escaped: false,
             ninjutsu_defender: None,
+            chosen: None,
             exerted: false,
             regen_shields: 0,
             exile_instead_of_dying: false,

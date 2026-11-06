@@ -2855,6 +2855,7 @@ fn apply_each_effect(
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
             | EffectDef::SpellsCostIncreasingAllEffect { .. }
             | EffectDef::SpellsCostReductionControllerEffect { .. }
+            | EffectDef::ChooseCreatureEffect { .. }
             | EffectDef::SpellCostReductionSourceEffect { .. } => {}
             EffectDef::LoseLifeOpponentsYouGainLifeLostEffect { amount } => {
                 let n = v!(amount);
@@ -2980,6 +2981,13 @@ fn apply_each_effect(
                             let inner = StackItem { x: times, ..item.clone() };
                             apply_effects(game, d, &inner, effects, legal, source);
                         }
+                    }
+                }
+            }
+            EffectDef::ChosenCreatureGainsAbilityEffect { ability } => {
+                if let Some((o, zcc)) = game.obj(source.0).chosen {
+                    if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                        grant(game, o, ability);
                     }
                 }
             }
@@ -4210,6 +4218,21 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     for a in &def.abilities {
         if let AbilityDef::AsEntersBattlefieldAbility { effects, .. } = a {
             for e in effects {
+                if let EffectDef::ChooseCreatureEffect { filter } = e {
+                    let def = TargetDef::TargetPermanent { filter: filter.clone(), min: 1, max: 1 };
+                    let chosen = if target_possible(game, controller, &def, Some(id)) {
+                        choose_target(game, d, controller, &def, Some(id), "", false)
+                    } else {
+                        None
+                    };
+                    if d.stopped() {
+                        return;
+                    }
+                    game.obj_mut(id).chosen = match chosen.as_ref().and_then(|c| c.first()) {
+                        Some(Target::Obj(o)) => Some((*o, game.obj(*o).zcc)),
+                        _ => None,
+                    };
+                }
                 if let EffectDef::TapSourceUnlessPaysEffect { life } = e {
                     let paid = game.player(controller).life >= *life && {
                         let q = Query::YesNo {
