@@ -449,6 +449,12 @@ pub enum Condition {
     CardsInGraveyard { filter: Filter, n: i32 },
     /// `OpponentsLostLifeCondition`: an opponent lost life this turn
     OpponentsLostLife,
+    /// `OpponentControlsMoreCondition`: an opponent controls more permanents of the filter than you
+    OpponentControlsMore { filter: Filter },
+    /// `OpponentHasMoreLifeCondition`
+    OpponentMoreLife,
+    /// `OpponentHasMoreCardsInHandCondition`
+    OpponentMoreCards,
     /// it's your first, second or third turn of the game (two players: your turns alternate)
     StartingTown,
 }

@@ -333,6 +333,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
               'RevoltCondition.instance': {'c': 'revolt'},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
               'OpponentsLostLifeCondition.instance': {'c': 'opponents_lost_life'},
+              'OpponentHasMoreLifeCondition.instance': {'c': 'opponent_more_life'},
+              'OpponentHasMoreCardsInHandCondition.instance': {'c': 'opponent_more_cards'},
               # spell mastery: two or more instant and/or sorcery cards in your graveyard
               'SpellMasteryCondition.instance': {'c': 'cards_in_graveyard', 'n': 2, 'filter': [
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
@@ -709,6 +711,8 @@ class Translator:
             return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2))}
         if (m := re.fullmatch(r'new SourceTargetsPermanentCondition\((.*)\)', arg)):
             return {'c': 'source_targets', 'filter': self.filter(m.group(1))}
+        if (m := re.fullmatch(r'new OpponentControlsMoreCondition\((.*)\)', arg)):
+            return {'c': 'opponent_controls_more', 'filter': self.filter(m.group(1))}
         if arg == 'ArclightPhoenixCondition.instance':
             return {'c': 'instants_sorceries_cast', 'n': 3}
         if arg == 'MysticalDisputeCondition.instance':

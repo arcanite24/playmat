@@ -745,6 +745,21 @@ impl Game {
                 let g = &self.player(you).graveyard;
                 g.iter().filter(|c| self.filter_matches(filter, you, Some(source), **c)).count() as i32 >= *n
             }
+            Condition::OpponentControlsMore { filter } => {
+                let count = |p: Seat| {
+                    self.battlefield
+                        .iter()
+                        .filter(|b| self.obj(**b).controller == p && self.filter_matches(filter, you, Some(source), **b))
+                        .count()
+                };
+                (0..self.seats()).any(|p| p != you && count(p) > count(you))
+            }
+            Condition::OpponentMoreLife => {
+                (0..self.seats()).any(|p| p != you && self.player(p).life > self.player(you).life)
+            }
+            Condition::OpponentMoreCards => {
+                (0..self.seats()).any(|p| p != you && self.player(p).hand.len() > self.player(you).hand.len())
+            }
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
             Condition::Morbid => self.creature_died,
