@@ -635,7 +635,14 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
             continue;
         }
         let payable = costs.iter().all(|c| match c {
-            CostDef::ManaCost { .. } => can_pay(game, seat, &adjusted_mana_cost(game, seat, id, a, costs)),
+            CostDef::ManaCost { .. } => {
+                // the playable check counts conditional mana here too (the payment then enforces it)
+                let paying = game.paying_for.get();
+                game.paying_for.set(Some(ANY_SPELL));
+                let ok = can_pay(game, seat, &adjusted_mana_cost(game, seat, id, a, costs));
+                game.paying_for.set(paying);
+                ok
+            }
             _ => can_pay_cost(game, seat, id, c),
         });
         let targeted = targets.iter().all(|t| target_possible(game, seat, t, Some(id)));
