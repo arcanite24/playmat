@@ -1098,6 +1098,9 @@ class Translator:
         # "target creature blocks this turn if able": a requirement it has until end of turn
         if cls == 'BlocksIfAbleTargetEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
             return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'BlocksIfAbleAbility'}, 'duration': 'EndOfTurn'}
+        # its rule text only
+        if cls == 'ExileTargetEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
+            return {'class': cls}
         if cls == 'ChooseCreatureTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
         if cls == 'ChooseBasicLandTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
@@ -2102,6 +2105,18 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new ConditionalTargetAdjuster\(GiftWasPromisedCondition\.TRUE,(.*)\)\)', st)
         if m and len(a := split_args(m.group(1))) == 2:
             spell['gift_targets'] = ([t.target(a[0])], [t.target(a[1])])
+            return
+        # "with mana value X or less": the spell's last target
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new XManaValueTargetAdjuster\(ComparisonType\.(OR_LESS|EQUAL_TO)\)\)', st)
+        if m and spell['targets']:
+            spell['targets'][-1].setdefault('filter', []).append({'p': 'mana_value_x', 'cmp': m.group(1)})
+            return
+        # "you may exile any number of <filter> from your hand. This spell costs {2} less for each": its info static,
+        # and the adjuster
+        m = re.fullmatch(r'ExileCardsFromHandAdjuster\.addAdjusterAndMessage\(this,(\w+)\)', st)
+        if m:
+            added.append({'class': 'ExileCardsFromHandAdjusterAbility', 'java': 'SimpleStaticAbility',
+                          'filter': t.filter(m.group(1))})
             return
         # an effect's outcome only steers the Java AI
         if re.fullmatch(r'\w+\.setOutcome\(Outcome\.\w+\)', st):

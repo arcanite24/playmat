@@ -744,7 +744,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
             let ok = can_pay_extra(
                 game,
                 seat,
-                &harmonized(game, seat, def, modified_cost(game, seat, id, def.cost.clone())),
+                &exile_from_hand_reduced(game, seat, id, def, harmonized(game, seat, def, modified_cost(game, seat, id, def.cost.clone()))),
                 alternate_mana(game, seat, id, def),
             );
             game.paying_for.set(None);
@@ -752,6 +752,18 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         }
         && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
         && has_targets(game, seat, id, def)
+}
+
+/// `ExileCardsFromHandAdjuster` while checking what's playable: {4} off for each card of the filter in hand
+fn exile_from_hand_reduced(game: &Game, seat: Seat, id: ObjId, def: &CardDef, mut cost: ManaCost) -> ManaCost {
+    for a in &def.abilities {
+        if let AbilityDef::ExileCardsFromHandAdjusterAbility { filter, .. } = a {
+            // (the card itself counts, still in hand)
+            let n = game.player(seat).hand.iter().filter(|c| game.filter_matches(filter, seat, Some(id), **c)).count();
+            cost.generic = cost.generic.saturating_sub(4 * n as u32);
+        }
+    }
+    cost
 }
 
 /// Warp: the card's ability index and the card with its warp cost, if it can be cast that way from hand (at sorcery
@@ -1559,6 +1571,34 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
         game.player_mut(s).passed = false;
     }
     let mut cost = modified_cost(game, seat, id, cost);
+    // `ExileCardsFromHandAdjuster`: how many to exile (AMOUNT), each taking {4} off; exiled with the other costs
+    let mut exile_from_hand = None;
+    for a in &def.abilities {
+        if let AbilityDef::ExileCardsFromHandAdjusterAbility { filter, .. } = a {
+            let cards: Vec<ObjId> = game
+                .player(seat)
+                .hand
+                .iter()
+                .copied()
+                .filter(|c| game.filter_matches(filter, seat, Some(id), *c))
+                .collect();
+            if cards.is_empty() {
+                continue;
+            }
+            let q = Query::Amount { min: 0, max: cards.len() as i32 };
+            let n = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Int(n) if (0..=cards.len() as i32).contains(&n) => break n as usize,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            cost.generic = cost.generic.saturating_sub(4 * n as u32);
+            if n > 0 {
+                exile_from_hand = Some((cards, n));
+            }
+        }
+    }
     // `HarmonizeAbilityAdjuster`: tap a creature to reduce the cost by its power
     if def.spell.costs.contains(&CostDef::HarmonizeCost) {
         let creatures = untapped_creatures(game, seat);
@@ -1595,6 +1635,18 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
     for c in &def.spell.costs {
         if !pay_cost(game, d, seat, id, c) {
             return false;
+        }
+    }
+    if let Some((cards, n)) = exile_from_hand {
+        let cards: Vec<ObjId> = cards.into_iter().filter(|c| game.obj(*c).zone == Zone::Hand).collect();
+        let Some(chosen) = choose_cards(game, d, seat, &cards, &cards, n, n, "exile") else {
+            return false;
+        };
+        if chosen.len() < n {
+            return false;
+        }
+        for c in chosen {
+            game.move_to(c, Zone::Exile);
         }
     }
     for c in casualty.iter().chain(&teamwork) {

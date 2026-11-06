@@ -290,6 +290,10 @@ pub enum Pred {
     CastFrom {
         zone: String,
     },
+    /// `XManaValueTargetAdjuster`: mana value compared with the spell's X (the filter's source)
+    ManaValueX {
+        cmp: Cmp,
+    },
     /// `TappedPredicate.TAPPED` (true) or `.UNTAPPED`
     Tapped {
         v: bool,
@@ -1608,6 +1612,13 @@ pub enum AbilityDef {
     /// teamwork `n`: as it's cast, you may tap creatures you control with total power `n` or more (the spell is then
     /// kicked)
     TeamworkAbility { n: i32, rule: String },
+    /// `ExileCardsFromHandAdjuster`: as it's cast, you may exile any number of cards of the filter from your hand; it
+    /// costs less for each (Java takes {4} off per card: it doubles the reduction twice)
+    ExileCardsFromHandAdjusterAbility {
+        filter: Filter,
+        #[serde(default)]
+        rule: String,
+    },
     /// foretell `cost`: during your turn, pay {2} and exile it from your hand face down; cast it on a later turn for
     /// `cost`
     ForetellAbility {

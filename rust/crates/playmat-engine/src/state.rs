@@ -637,6 +637,13 @@ impl Game {
             }
             Pred::Toughness { cmp, n } => cmp.holds(self.power_toughness(id).1, *n),
             Pred::Tapped { v } => o.tapped == *v,
+            // a target adjuster: not applied while checking what's playable (the spell not yet cast)
+            Pred::ManaValueX { cmp } => {
+                match source.and_then(|s| self.stack.iter().rev().find(|i| i.card == s && i.ability.is_none())) {
+                    Some(i) => cmp.holds(o.def.mana_value() as i32, i.x),
+                    None => true,
+                }
+            }
             Pred::CastFrom { zone } => {
                 let z = if o.zone == Zone::Stack { o.cast_from } else { Some(o.zone) };
                 z == Some(match zone.as_str() {
