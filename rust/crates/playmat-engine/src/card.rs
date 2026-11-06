@@ -1587,6 +1587,13 @@ pub enum AbilityDef {
     /// teamwork `n`: as it's cast, you may tap creatures you control with total power `n` or more (the spell is then
     /// kicked)
     TeamworkAbility { n: i32, rule: String },
+    /// foretell `cost`: during your turn, pay {2} and exile it from your hand face down; cast it on a later turn for
+    /// `cost`
+    ForetellAbility {
+        cost: String,
+        #[serde(default)]
+        rule: String,
+    },
     /// "(Gain the next level as a sorcery to add its ability.)"
     ClassReminderAbility,
     /// "If this card is in your opening hand, you may begin the game with it on the battlefield." (before the game)
@@ -2090,6 +2097,17 @@ impl CardDef {
                 spell.costs.push(CostDef::HarmonizeCost);
                 Some(CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() })
             }
+            _ => None,
+        })
+    }
+
+    /// Foretell: its ability index, and the card with its foretell cost
+    pub fn foretold(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::ForetellAbility { cost, .. } => Some((
+                k,
+                CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() },
+            )),
             _ => None,
         })
     }

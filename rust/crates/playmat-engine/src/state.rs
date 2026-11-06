@@ -117,6 +117,8 @@ pub struct Obj {
     pub land_type_base: Option<(Arc<CardDef>, Vec<String>)>,
     /// the creature type chosen as it entered (Cavern of Souls)
     pub chosen_type: Option<String>,
+    /// the turn it was foretold (exiled face down from hand), while it stays in exile
+    pub foretold_turn: Option<u32>,
     /// a spell Cavern of Souls' mana was spent on: it can't be countered
     pub uncounterable: bool,
     /// the X it was cast with, while it's on the battlefield
@@ -549,6 +551,7 @@ impl Game {
             becomes_base: None,
             land_type_base: None,
             chosen_type: None,
+            foretold_turn: None,
             uncounterable: false,
             printed_def: None,
             copied_def: None,
@@ -1342,6 +1345,7 @@ impl Game {
                 o.cast = false;
                 o.attached_to = None;
                 o.uncounterable = false;
+                o.foretold_turn = None;
                 if let Some((def, _)) = o.land_type_base.take() {
                     o.def = def;
                 }

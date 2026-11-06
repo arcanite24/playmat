@@ -1464,6 +1464,10 @@ class Translator:
         # teamwork N: as you cast it, you may tap creatures with total power N or more (kept as the kicked flag)
         if cls == 'TeamworkAbility' and len(args) == 1 and args[0].strip().isdigit():
             return {'class': cls, 'java': cls, 'n': int(args[0].strip())}
+        # foretell: during your turn, pay {2} and exile it face down; cast it on a later turn for the foretell cost
+        if cls == 'ForetellAbility' and len(args) == 2 and args[0].strip() == 'this' \
+                and re.fullmatch(r'"(\{[^"]*\})"', args[1].strip()):
+            return {'class': cls, 'java': cls, 'cost': args[1].strip()[1:-1]}
         if cls == 'LeylineAbility' and not args:
             return {'class': cls, 'java': cls}
         if cls == 'ClassReminderAbility' and not args:
@@ -2243,6 +2247,9 @@ def ability_statement(t, st, added):
         # blitz: its "as it enters" part, listed on its own
         if added[-1].get('class') == 'BlitzAbility':
             added.append({'class': 'BlitzEntersAbility', 'java': 'EntersBattlefieldAbility'})
+        # foretell: its "look at the face-down card" static, listed on its own
+        if added[-1].get('class') == 'ForetellAbility':
+            added.append({'class': 'SimpleStaticAbility', 'effects': [], 'rule': ''})
         # offspring: its "when this enters, if its offspring cost was paid" trigger, listed on its own
         if added[-1].get('class') == 'OffspringAbility':
             added.append({'class': 'TriggeredAbility', 'java': 'EntersBattlefieldTriggeredAbility', 'on': {'e': 'enters'},

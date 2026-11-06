@@ -1095,8 +1095,37 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // a card in hand with an ability (cycling, channel): the picker, with its spell or land play (a0) and the abilities, if there is a choice
     // (or one you may play from exile, with its spectacle cost)
     let zone = game.obj(id).zone;
+    // a foretold card: cast for its foretell cost, on a later turn than it was foretold
+    if zone == Zone::Exile && game.obj(id).foretold_turn.is_some() {
+        if game.obj(id).foretold_turn == Some(game.turn) {
+            return;
+        }
+        let Some((_, def)) = game.obj(id).def.foretold() else { return };
+        if !castable(game, seat, id, &def) {
+            return;
+        }
+        let before = game.clone();
+        let full = game.obj(id).def.clone();
+        let o = game.obj_mut(id);
+        o.adventurer = Some(full);
+        o.def = Arc::new(def);
+        if !cast(game, d, seat, id) {
+            *game = before;
+        }
+        return;
+    }
     if (zone == Zone::Hand || zone == Zone::Exile) && game.obj(id).def.adventure.is_none() {
         let mut options = if zone == Zone::Hand { activatable(game, seat, id) } else { Vec::new() };
+        // foretell, a special action: during your turn, with {2} to pay
+        let foretell = game
+            .obj(id)
+            .def
+            .foretold()
+            .map(|(k, _)| k)
+            .filter(|_| zone == Zone::Hand && game.active == Some(seat) && can_pay(game, seat, &ManaCost { generic: 2, ..ManaCost::default() }));
+        if let Some(k) = foretell {
+            options.push(k);
+        }
         let spectacle = spectacle(game, seat, id);
         if let Some((k, _)) = &spectacle {
             options.push(*k);
@@ -1146,6 +1175,20 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
             if let Some((_, def)) = blitz.filter(|(k, _)| *k == index) {
                 cast_blitzed(game, d, seat, id, def);
+                return;
+            }
+            if foretell == Some(index) {
+                // `ForetellExileEffect`: pay {2}, then exile it face down; it can't be cast this turn
+                let before = game.clone();
+                if !pay_mana(game, d, seat, &ManaCost { generic: 2, ..ManaCost::default() }) {
+                    *game = before;
+                    return;
+                }
+                game.move_to(id, Zone::Exile);
+                game.obj_mut(id).foretold_turn = Some(game.turn);
+                for s in 0..game.seats() {
+                    game.player_mut(s).passed = false;
+                }
                 return;
             }
             if index != 0 {
