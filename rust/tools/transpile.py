@@ -167,6 +167,8 @@ CUSTOM = {
     'MightformHarmonizerEffect': lambda: {'class': 'MightformHarmonizerEffect'},
     'GhostVacuumEffect': lambda: {'class': 'GhostVacuumEffect'},
     'ReflectionOfKikiJikiEffect': lambda: {'class': 'ReflectionOfKikiJikiEffect'},
+    'QuantumRiddlerReplacementEffect': lambda: {'class': 'QuantumRiddlerReplacementEffect'},
+    'MultiversalPassagePassageEffect': lambda: {'class': 'MultiversalPassagePassageEffect'},
     'LivelyDirgeEffect': lambda: {'class': 'LivelyDirgeEffect'},
     'EtchingOfKumanoReplacementEffect': lambda: {'class': 'EtchingOfKumanoReplacementEffect'},
     'ExileSagaAndReturnTransformedEffect': lambda: {'class': 'ExileSagaAndReturnTransformedEffect'},
@@ -1070,6 +1072,8 @@ class Translator:
             return {'class': 'LoseAllAbilitiesUntilSourceLeavesEffect'}
         if cls == 'AddManaOfAnyColorEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
+        if cls == 'ChooseBasicLandTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
+            return {'class': cls}
         if cls in ('CreateTokenCopyTargetEffect', 'CreateTokenCopySourceEffect') and not args:
             return {'class': cls}
         if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (

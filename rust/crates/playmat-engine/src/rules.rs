@@ -297,13 +297,41 @@ fn end_step(game: &mut Game, step: Step) {
 /// Draws `n` cards, one at a time: each card drawn is a `DREW_CARD` event for "whenever … draws" triggers.
 pub fn draw(game: &mut Game, seat: Seat, n: usize) {
     for _ in 0..n {
+        draw_one(game, seat, &[]);
+    }
+}
+
+/// One `DRAW_CARD` event; `applied`: the replacement effects (their sources) already applied to it.
+fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
+    {
         // Narset, Parter of Veils: each opponent can't draw more than one card each turn
         if game.player(seat).drawn >= 1
             && game.any_static(|g, src, e| {
                 matches!(e, EffectDef::NarsetParterOfVeilsEffect) && g.obj(src).controller != seat
             })
         {
-            continue;
+            return;
+        }
+        // Quantum Riddler: with one or fewer cards in hand, two cards instead
+        if game.player(seat).hand.len() <= 1 {
+            let mut riddler = None;
+            game.any_static(|g, src, e| {
+                if riddler.is_none()
+                    && matches!(e, EffectDef::QuantumRiddlerReplacementEffect)
+                    && g.obj(src).controller == seat
+                    && !applied.contains(&src)
+                {
+                    riddler = Some(src);
+                }
+                false
+            });
+            if let Some(r) = riddler {
+                let mut applied = applied.to_vec();
+                applied.push(r);
+                draw_one(game, seat, &applied);
+                draw_one(game, seat, &applied);
+                return;
+            }
         }
         match game.player(seat).library.first().copied() {
             Some(id) => {
@@ -5162,6 +5190,9 @@ fn apply_each_effect(
             | EffectDef::TenaciousUnderdogEffect
             | EffectDef::BoostAllEffect { .. }
             | EffectDef::TapSourceUnlessPaysEffect { .. }
+            | EffectDef::ChooseBasicLandTypeEffect
+            | EffectDef::MultiversalPassagePassageEffect
+            | EffectDef::QuantumRiddlerReplacementEffect
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect
@@ -5682,6 +5713,40 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                         Some(Target::Obj(o)) => Some((*o, game.obj(*o).zcc)),
                         _ => None,
                     };
+                }
+                if let EffectDef::ChooseBasicLandTypeEffect = e {
+                    let choices: Vec<String> =
+                        ["Forest", "Island", "Mountain", "Plains", "Swamp"].iter().map(|c| c.to_string()).collect();
+                    let q = Query::Choice { message: "Choose a basic land type".into(), choices: choices.clone() };
+                    let chosen = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Text(t) if choices.contains(&t) => break t,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    // "This land is the chosen type": the subtype and its mana ability, after the printed ones
+                    let passage = def.abilities.iter().any(|a| {
+                        matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                            if effects.contains(&EffectDef::MultiversalPassagePassageEffect))
+                    });
+                    if passage {
+                        let mut land = (*game.obj(id).def).clone();
+                        land.subtypes.push(chosen.clone());
+                        let (effects, cost) = (Vec::new(), Vec::new());
+                        land.abilities.push(match chosen.as_str() {
+                            "Plains" => AbilityDef::WhiteManaAbility { effects, cost },
+                            "Island" => AbilityDef::BlueManaAbility { effects, cost },
+                            "Swamp" => AbilityDef::BlackManaAbility { effects, cost },
+                            "Mountain" => AbilityDef::RedManaAbility { effects, cost },
+                            _ => AbilityDef::GreenManaAbility { effects, cost },
+                        });
+                        let o = game.obj_mut(id);
+                        if o.printed_def.is_none() {
+                            o.printed_def = Some(o.def.clone());
+                        }
+                        o.def = Arc::new(land);
+                    }
                 }
                 if let EffectDef::TapSourceUnlessBeholdEffect { subtype } = e {
                     let (perms, cards) = beholdable(game, controller, subtype);

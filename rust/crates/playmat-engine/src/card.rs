@@ -984,6 +984,12 @@ pub enum EffectDef {
     GhostVacuumEffect,
     /// a token copy of the target, with haste, sacrificed at the beginning of the next end step
     ReflectionOfKikiJikiEffect,
+    /// with one or fewer cards in your hand, each card you'd draw is two instead
+    QuantumRiddlerReplacementEffect,
+    /// as it enters: choose a basic land type (a land with `MultiversalPassagePassageEffect` becomes it)
+    ChooseBasicLandTypeEffect,
+    /// "This land is the chosen type." (applied as the type is chosen)
+    MultiversalPassagePassageEffect,
     /// "you may discard up to `amount` cards. If you do, draw that many cards"
     DiscardAndDrawThatManyEffect { amount: i32 },
     /// a static ability's effect: a creature dealt damage this turn by a source you controlled that would die is
