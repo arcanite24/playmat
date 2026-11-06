@@ -274,6 +274,9 @@ pub struct Delayed {
     pub sacrifice: Vec<(ObjId, u32)>,
     /// warp: the permanent it exiles (castable by its owner from exile on a later turn)
     pub warp_exile: Vec<(ObjId, u32)>,
+    /// a reflexive trigger's effects, from its source as it was (`source_zcc`)
+    pub effects: Vec<crate::card::EffectDef>,
+    pub source_zcc: u32,
 }
 
 impl StackItem {
@@ -696,6 +699,9 @@ impl Game {
                     .map(|b| self.obj(*b).def.cost.mana_value() as i32)
                     .max()
                     .unwrap_or(0),
+                Value::SourceCounters { counter } => {
+                    if self.obj(source).zone == Zone::Battlefield { self.obj(source).counter(counter) } else { 0 }
+                }
                 Value::Devotion { c } => self
                     .battlefield
                     .iter()

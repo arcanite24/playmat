@@ -605,6 +605,8 @@ pub enum Value {
     CardsInGraveyard { filter: Filter },
     /// the source's power (`SourcePermanentPowerValue`)
     SourcePower,
+    /// counters of a kind on the source while it's on the battlefield
+    SourceCounters { counter: String },
     /// minus a value (`-X`)
     Negative { of: Box<Amount> },
     /// a value times a number
@@ -1079,6 +1081,13 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// pay `cost` any number of times, then `effects` with X the times paid (a reflexive trigger with that rule)
+    DoIfAnyNumberCostPaid {
+        cost: Vec<CostDef>,
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        reflexive: Option<String>,
+    },
     /// the source gains the chosen one of `abilities` (named by `names`, their rule texts) until end of turn
     GainsChoiceOfAbilitiesEffect { abilities: Vec<AbilityDef>, names: Vec<String> },
     /// creates one token with power and toughness `amount` (`new SharkToken(xValue)`)

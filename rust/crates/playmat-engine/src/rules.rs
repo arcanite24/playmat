@@ -1976,6 +1976,10 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
                 game.obj_mut(*o).warp_from = Some(turn + 1);
             }
         }
+        if !delayed.effects.is_empty() {
+            let effects = delayed.effects.clone();
+            apply_effects(game, d, &item, &effects, &[], (item.card, delayed.source_zcc));
+        }
         return;
     }
     if let Some((index, zcc)) = item.ability {
@@ -2284,6 +2288,8 @@ fn apply_each_effect(
                             rule: "At end of combat, sacrifice that token.".into(),
                             sacrifice: created.clone(),
                             warp_exile: Vec::new(),
+                            effects: Vec::new(),
+                            source_zcc: 0,
                         };
                     game.at_end_of_combat
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
@@ -2293,6 +2299,8 @@ fn apply_each_effect(
                         rule: "At the beginning of the next end step, sacrifice those tokens.".into(),
                         sacrifice: created,
                         warp_exile: Vec::new(),
+                        effects: Vec::new(),
+                        source_zcc: 0,
                     };
                     game.at_next_end_step
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
@@ -2902,6 +2910,56 @@ fn apply_each_effect(
                     }
                     if !put_on_library(game, d, controller, &top, true, true) {
                         return;
+                    }
+                }
+            }
+            // "you may pay {cost} any number of times": asked until they don't (a mana cost can always be paid); then
+            // the effects with X the times paid, as a reflexive trigger when it has a rule
+            EffectDef::DoIfAnyNumberCostPaid { cost, effects, reflexive } => {
+                let mana = ability_mana_cost(cost);
+                let mut times = 0;
+                loop {
+                    let message = format!(
+                        "Pay {}? You have paid this cost {} time{}",
+                        mana.text,
+                        times,
+                        if times != 1 { "s" } else { "" }
+                    );
+                    let yes = loop {
+                        match ask(game, d, controller, &Query::YesNo { message: message.clone() }) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if !yes || !pay_mana(game, d, controller, &mana) {
+                        break;
+                    }
+                    times += 1;
+                }
+                if d.stopped() {
+                    return;
+                }
+                if times > 0 {
+                    match reflexive {
+                        Some(rule) => {
+                            let delayed = Delayed {
+                                rule: rule.clone(),
+                                sacrifice: Vec::new(),
+                                warp_exile: Vec::new(),
+                                effects: effects.clone(),
+                                source_zcc: source.1,
+                            };
+                            game.pending.push(StackItem {
+                                delayed: Some(Arc::new(delayed)),
+                                x: times,
+                                ..StackItem::spell(source.0, controller)
+                            });
+                        }
+                        None => {
+                            let inner = StackItem { x: times, ..item.clone() };
+                            apply_effects(game, d, &inner, effects, legal, source);
+                        }
                     }
                 }
             }
@@ -4017,6 +4075,8 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             rule: "At the beginning of the next end step, exile this creature if it was cast for its warp cost.".into(),
             sacrifice: Vec::new(),
             warp_exile: vec![(id, zcc)],
+            effects: Vec::new(),
+            source_zcc: 0,
         };
         game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, controller) });
     }

@@ -641,6 +641,8 @@ class Translator:
         if arg in ('GetXValue.instance', 'ManacostVariableValue.REGULAR', 'ManacostVariableValue.ETB',
                    'SavedGainedLifeValue.MUCH', 'TheOozeValue.instance'):
             return {'v': 'x'}
+        if arg == 'IntrepidAdversaryValue.instance':
+            return {'v': 'source_counters', 'counter': 'valor'}
         if arg in ('SourcePermanentPowerValue.NOT_NEGATIVE', 'SourcePermanentPowerValue.ALLOW_NEGATIVE'):
             return {'v': 'source_power'}
         if arg in COUNT_FILTERS:
@@ -1024,6 +1026,11 @@ class Translator:
         if cls == 'EntersBattlefieldWithXCountersEffect' and len(args) == 1:
             return {'class': 'AddCountersSourceEffect', 'counter': self.value('counter', args[0].strip()),
                     'amount': {'v': 'x'}}
+        if cls == 'DoIfAnyNumberCostPaid' and len(args) == 2 and args[0].strip() == 'new IntrepidAdversaryEffect()':
+            return {'class': cls, 'cost': [self.cost(args[1].strip())],
+                    'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': 'valor', 'amount': 1},
+                                 'amount': {'v': 'x'}}],
+                    'reflexive': 'Put that many valor counters on {this}.'}
         # a cost reduction that applies while a condition holds
         if cls == 'ConditionalCostModificationEffect' and len(args) == 3:
             e = self.effect(args[0].strip())
