@@ -8,5 +8,5 @@
 4 Academic Dispute
 4 Rimrock Knight
 4 Bonecrusher Giant
-1 Burst Lightning
-20 Mountain
+4 Burst Lightning
+17 Mountain
