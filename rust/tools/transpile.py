@@ -145,6 +145,8 @@ CUSTOM = {
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
     'GarrukCurseBreakerEffect': lambda: {'class': 'GarrukCurseBreakerEffect'},
+    'PinnacleStarcageExileEffect': lambda: {'class': 'PinnacleStarcageExileEffect'},
+    'PinnacleStarcageTokenEffect': lambda: {'class': 'PinnacleStarcageTokenEffect', 'token': token('RobotToken')},
     # combat damage can't be prevented: the engine prevents no damage
     'QuestingBeastPreventionEffect': lambda: {'class': 'DamageCantBePreventedEffect', 'duration': 'WhileOnBattlefield'},
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},

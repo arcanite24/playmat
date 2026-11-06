@@ -3784,6 +3784,46 @@ fn apply_each_effect(
                     discard(game, d, controller, 1);
                 }
             }
+            EffectDef::PinnacleStarcageExileEffect => {
+                let (src, zcc) = source;
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    let filter = crate::card::Filter(vec![
+                        Pred::Or { xs: vec![Pred::Type { t: CardType::Artifact }, Pred::Type { t: CardType::Creature }] },
+                        Pred::Mv { cmp: Cmp::FewerThan, n: 3 },
+                    ]);
+                    for o in matching(game, &filter, controller, src) {
+                        game.move_to(o, Zone::Exile);
+                        game.exiled_until_leaves.push((src, zcc, o));
+                    }
+                }
+            }
+            EffectDef::PinnacleStarcageTokenEffect { token } => {
+                let (src, zcc) = source;
+                let exiled: Vec<ObjId> = game
+                    .exiled_until_leaves
+                    .iter()
+                    .filter(|(s, z, c)| *s == src && *z == zcc && game.obj(*c).zone == Zone::Exile && !game.obj(*c).token)
+                    .map(|(_, _, c)| *c)
+                    .collect();
+                for c in &exiled {
+                    game.move_to(*c, Zone::Graveyard);
+                }
+                let n = exiled.iter().filter(|c| game.obj(**c).zone == Zone::Graveyard).count() as i32;
+                if n > 0 {
+                    let e = EffectDef::CreateTokenEffect {
+                        token: token.clone(),
+                        amount: Amount::Fixed(n),
+                        tapped_and_attacking: false,
+                        tapped: false,
+                        attacking: false,
+                        sacrifice_at_end_of_combat: false,
+                        sacrifice_at_next_end_step: false,
+                        haste_until_end_of_turn: false,
+                        also: None,
+                    };
+                    apply_effects(game, d, item, std::slice::from_ref(&e), &[], source);
+                }
+            }
             EffectDef::TemporaryLockdownEffect => {
                 let (src, zcc) = source;
                 if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {

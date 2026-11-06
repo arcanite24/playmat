@@ -1054,6 +1054,10 @@ pub enum EffectDef {
     ChartACourseEffect,
     /// exile each other nonland permanent with mana value 2 or less until this leaves (Temporary Lockdown)
     TemporaryLockdownEffect,
+    /// exile all artifacts and creatures with mana value 2 or less until this leaves
+    PinnacleStarcageExileEffect,
+    /// the cards it exiled go to their owners' graveyards, then a `token` for each one that did
+    PinnacleStarcageTokenEffect { token: TokenDef },
     /// a static ability's effect: spells of the filter you control can't be countered
     CantBeCounteredControlledEffect { filter: Filter, duration: Duration },
     /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb)
