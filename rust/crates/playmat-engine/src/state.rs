@@ -212,6 +212,8 @@ pub struct Player {
     pub noncreature_cast: u32,
     /// times they gained life this turn
     pub life_gains: u32,
+    /// life they gained this turn
+    pub life_gained: i32,
     /// spells they cast this turn, and how many of them were instants or sorceries
     pub spells_cast: u32,
     pub instants_sorceries_cast: u32,
@@ -723,6 +725,7 @@ impl Game {
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
             Condition::Morbid => self.creature_died,
+            Condition::YouGainedLife => self.player(you).life_gained > 0,
             Condition::ExiledCardTypes { n } => {
                 let zcc = self.obj(source).zcc;
                 let mut types: Vec<CardType> = Vec::new();

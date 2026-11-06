@@ -92,6 +92,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.noncreature_cast = 0;
                 p.permanent_left = false;
                 p.life_gains = 0;
+                p.life_gained = 0;
                 p.spells_cast = 0;
                 p.instants_sorceries_cast = 0;
             }
@@ -2827,6 +2828,28 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::EnlightenedConfidantEffect => {
+                let gained = game.player(controller).life_gained;
+                let cards: Vec<ObjId> = game.player(controller).library.iter().take(1).copied().collect();
+                if !cards.is_empty() {
+                    let rule = item_rule(game, item);
+                    let Some(yard) = choose_cards(game, d, controller, &cards, &cards, 0, cards.len(), &rule) else {
+                        return;
+                    };
+                    for c in &yard {
+                        game.move_to(*c, Zone::Graveyard);
+                    }
+                    let top: Vec<ObjId> = cards.iter().copied().filter(|c| !yard.contains(c)).collect();
+                    if !put_on_library(game, d, controller, &top, true, true) {
+                        return;
+                    }
+                    for c in yard {
+                        if game.obj(c).zone == Zone::Graveyard && game.obj(c).def.cost.mana_value() as i32 <= gained {
+                            game.move_to(c, Zone::Hand);
+                        }
+                    }
+                }
+            }
             EffectDef::SurveilEffect { amount } => {
                 let amount = &v!(amount);
                 let cards: Vec<ObjId> =
@@ -4285,6 +4308,7 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
     let amount = amount + plus;
     game.player_mut(seat).life += amount;
     game.player_mut(seat).life_gains += 1;
+    game.player_mut(seat).life_gained += amount;
     let first = game.player(seat).life_gains == 1;
     let sources: Vec<ObjId> = game.trigger_sources();
     let fired = game.triggers(sources, |_, _, you, t| {

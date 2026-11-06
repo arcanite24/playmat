@@ -218,6 +218,7 @@ CUSTOM = {
         'class': 'TriggeredAbility', 'java': 'SurrakElusiveHunterTriggeredAbility', 'on': {'e': 'surrak_targeted'},
         'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
     # for each opponent, a 1/1 Human tapped and attacking them
+    'EnlightenedConfidantEffect': lambda: {'class': 'EnlightenedConfidantEffect'},
     'AdelineResplendentCatharEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('HumanToken'), 'amount': 1,
                                                'tapped_and_attacking': True},
     'MasterOfBarbsTriggeredAbility': lambda: {
@@ -329,6 +330,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
               'MyTurnCondition.instance': {'c': 'my_turn'},
               'MorbidCondition.instance': {'c': 'morbid'},
+              'YouGainedLifeCondition.getZero()': {'c': 'you_gained_life'},
               'KeenEyedCuratorCondition.instance': {'c': 'exiled_card_types', 'n': 4},
               'FerociousCondition.instance': {'c': 'permanents', 'cmp': 'OR_GREATER', 'n': 1, 'filter': [
                   {'p': 'type', 't': 'CREATURE'}, {'p': 'power', 'cmp': 'OR_GREATER', 'n': 4}]},
@@ -1723,6 +1725,10 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(?:final )?\w+ (\w+)=(.*)', st) or re.fullmatch(r'(\w+)=(new .*)', st)
     if m:
         t.assign(m.group(1), m.group(2))
+        return True
+    m = re.fullmatch(r'(\w+)\.withInterveningIf\((.*)\)', st)
+    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
+        t.vars[m.group(1)]['condition'] = t.value('condition', m.group(2).strip())
         return True
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop)|addHint)\(.*\)', st)
     if m and m.group(1) in t.vars:

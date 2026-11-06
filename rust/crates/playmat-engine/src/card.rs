@@ -426,6 +426,8 @@ pub enum Condition {
     },
     /// a creature died this turn
     Morbid,
+    /// you gained life this turn
+    YouGainedLife,
     /// four or more card types among cards exiled with the source (Keen-Eyed Curator)
     ExiledCardTypes { n: usize },
     SourceEnteredThisTurn,
@@ -1064,6 +1066,8 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// surveil 1; a card put into the graveyard with mana value up to the life you gained this turn goes to your hand
+    EnlightenedConfidantEffect,
     SurveilEffect {
         amount: Amount,
     },
