@@ -352,6 +352,8 @@ pub enum Trigger {
     /// dies, if it was a creature (the Enduring cycle's `EnduringGlimmerTriggeredAbility`)
     DiesIfCreature,
     EntersOrDies,
+    /// an opponent casts a spell during your turn, or this dies (Voice of Resurgence's `OrTriggeredAbility`)
+    OpponentCastsOnYourTurnOrDies,
     EntersOrAttacks,
     /// a permanent of the filter enters (`EntersBattlefieldAllTriggeredAbility`, `…ControlledTriggeredAbility`,
     /// landfall)
@@ -580,6 +582,10 @@ pub enum Condition {
     OpponentMoreLife,
     /// `OpponentHasMoreCardsInHandCondition`
     OpponentMoreCards,
+    /// `HellbentCondition` (`n` 0), `HeckbentCondition` (`n` 1): you have at most `n` cards in hand
+    CardsInHandAtMost {
+        n: usize,
+    },
     /// it's your first, second or third turn of the game (two players: your turns alternate)
     StartingTown,
 }
@@ -864,6 +870,11 @@ pub enum EffectDef {
     },
     /// the controller creates `amount` tokens; Kavaron Harrier's enter tapped and attacking and are sacrificed at end
     /// of combat
+    /// Dark Salvation: the first target player creates X of the token, then the second target (up to one creature)
+    /// gets -1/-1 until end of turn for each Zombie that player controls
+    DarkSalvationEffect {
+        token: TokenDef,
+    },
     CreateTokenEffect {
         token: TokenDef,
         amount: Amount,
@@ -1995,6 +2006,19 @@ pub enum AbilityDef {
         targets: Vec<TargetDef>,
         rule: String,
     },
+    /// an activated ability of a card in your graveyard (`ActivateIfConditionActivatedAbility` with
+    /// `Zone.GRAVEYARD`), only while the condition holds, at sorcery speed when `sorcery`
+    GraveyardActivatedAbility {
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        rule: String,
+        #[serde(default)]
+        sorcery: bool,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
     /// power-up: once each game, and for its mana cost less the turn this entered
     PowerUpAbility {
         effects: Vec<EffectDef>,
@@ -2195,6 +2219,9 @@ impl AbilityDef {
                 Some((rule, effects, targets, cost, false))
             }
             AbilityDef::NinjutsuAbility { effects, cost, rule } => Some((rule, effects, &[], cost, false)),
+            AbilityDef::GraveyardActivatedAbility { effects, cost, targets, rule, sorcery, .. } => {
+                Some((rule, effects, targets, cost, *sorcery))
+            }
             _ => None,
         }
     }
@@ -2213,6 +2240,11 @@ impl AbilityDef {
             self,
             AbilityDef::CyclingAbility { .. } | AbilityDef::ChannelAbility { .. } | AbilityDef::NinjutsuAbility { .. }
         )
+    }
+
+    /// activated from your graveyard, not the battlefield
+    pub fn from_graveyard(&self) -> bool {
+        matches!(self, AbilityDef::GraveyardActivatedAbility { .. })
     }
 
     pub fn is_enters_tapped(&self) -> bool {

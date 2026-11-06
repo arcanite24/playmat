@@ -993,6 +993,7 @@ impl Game {
             Condition::OpponentMoreLife => {
                 (0..self.seats()).any(|p| p != you && self.player(p).life > self.player(you).life)
             }
+            Condition::CardsInHandAtMost { n } => self.player(you).hand.len() <= *n,
             Condition::OpponentMoreCards => {
                 (0..self.seats()).any(|p| p != you && self.player(p).hand.len() > self.player(you).hand.len())
             }
@@ -1326,7 +1327,10 @@ impl Game {
                 self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
             sources.extend(self.battlefield.iter().copied());
             let fired = self.triggers(sources, |g, src, you, t| match t {
-                Trigger::Dies | Trigger::EntersOrDies | Trigger::LeavesBattlefield => src == id,
+                Trigger::Dies
+                | Trigger::EntersOrDies
+                | Trigger::OpponentCastsOnYourTurnOrDies
+                | Trigger::LeavesBattlefield => src == id,
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source itself always counts ("this or another"); others must match
                 Trigger::DiesAll { filter, include_self } => {

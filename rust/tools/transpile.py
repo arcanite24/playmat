@@ -146,6 +146,9 @@ PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED',
 CUSTOM = {
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
+    # "enters with a +1/+1 counter on it for each Zombie card in your graveyard"
+    'DiregrafColossusEffect': lambda: {'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1},
+                                       'amount': {'v': 'cards_in_graveyard', 'filter': [{'p': 'subtype', 's': 'Zombie'}]}},
     'GarrukCurseBreakerEffect': lambda: {'class': 'GarrukCurseBreakerEffect'},
     'PinnacleStarcageExileEffect': lambda: {'class': 'PinnacleStarcageExileEffect'},
     # a quest counter on it, then a reflexive trigger
@@ -415,6 +418,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'OpponentHasMoreLifeCondition.instance': {'c': 'opponent_more_life'},
               'DrewTwoOrMoreCardsCondition.instance': {'c': 'drew_cards', 'n': 2},
               'OpponentHasMoreCardsInHandCondition.instance': {'c': 'opponent_more_cards'},
+              'HellbentCondition.instance': {'c': 'cards_in_hand_at_most', 'n': 0},
+              'HeckbentCondition.instance': {'c': 'cards_in_hand_at_most', 'n': 1},
               # spell mastery: two or more instant and/or sorcery cards in your graveyard
               'SpellMasteryCondition.instance': {'c': 'cards_in_graveyard', 'n': 2, 'filter': [
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
@@ -506,6 +511,10 @@ def predicate(text, subtypes):
     # an outlaw: an Assassin, Mercenary, Pirate, Rogue or Warlock
     if text == 'CutDownPredicate.instance':
         return {'p': 'total_power_toughness', 'n': 5}
+    # Death Baron: Skeletons, and other Zombies
+    if text == 'DeathBaronPredicate.instance':
+        return {'p': 'or', 'xs': [{'p': 'subtype', 's': subtypes['SKELETON']},
+                                  {'p': 'and', 'xs': [{'p': 'another'}, {'p': 'subtype', 's': subtypes['ZOMBIE']}]}]}
     if text == 'OutlawPredicate.instance':
         return {'p': 'or', 'xs': [{'p': 'subtype', 's': t} for t in ('Assassin', 'Mercenary', 'Pirate', 'Rogue', 'Warlock')]}
     if (m := re.fullmatch(r'new (ManaValue|Power|Toughness)Predicate\(ComparisonType\.(\w+),(-?\d+)\)', text)) \
@@ -1016,6 +1025,10 @@ class Translator:
         if cls == 'OrCost' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls, 'costs': [self.cost(args[1]), self.cost(args[2])]}
         if cls == 'TapTargetCost' and len(args) == 1:
+            # (n, n, filter, notTarget): exactly n
+            n = re.fullmatch(r'new TargetControlledPermanent\((\d+),(\d+),(.*),true\)', canonical(args[0]))
+            if n and n.group(1) == n.group(2):
+                return {'class': cls, 'filter': self.filter(n.group(3)), 'amount': int(n.group(1))}
             n = re.fullmatch(r'new TargetControlledPermanent\((?:(\d+),)?(.*)\)', args[0].strip())
             if n:
                 return {'class': cls, 'filter': self.filter(n.group(2)), 'amount': int(n.group(1) or 1)}
@@ -1344,6 +1357,9 @@ class Translator:
             args = ['1', '1'] + args
         if cls == 'LookLibraryAndPickControllerEffect':
             return self.look_library(args)
+        # a text override as the last argument (rule texts come from the card facts)
+        if cls == 'GainAbilityAllEffect' and len(args) == 4 and args[3].strip().startswith('"'):
+            args = args[:3]
         if cls not in EFFECTS:
             raise Unsupported('effect ' + cls)
         return self.build(cls, args, EFFECTS[cls], 'effect')
@@ -1486,12 +1502,24 @@ class Translator:
                 raise Unsupported('a trigger limit on ' + a.get('class', '?'))
             a['limit_per_turn'] = int(m.group(2))
             return a
+        # `….setTiming(TimingRule.SORCERY)` on an ability from the graveyard
+        m = re.fullmatch(r'(.*\))\s*\.setTiming\(TimingRule\.SORCERY\)', self.strip_setters(expr), re.S)
+        if m and balanced(m.group(1)):
+            a = self.ability(m.group(1))
+            if a.get('class') != 'GraveyardActivatedAbility':
+                raise Unsupported('sorcery timing on ' + a.get('class', '?'))
+            a['sorcery'] = True
+            return a
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             return obj
         cls, args = obj
         if cls in KEYWORDS and not args:
             return {'class': cls}
+        # "{cost}: … Activate only if …", from your graveyard
+        if cls == 'ActivateIfConditionActivatedAbility' and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD':
+            return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [self.effect(args[1])],
+                    'cost': [self.cost(args[2])], 'condition': self.condition(args[3])}
         # Mobilize N: whenever this attacks, N 1/1 red Warriors tapped and attacking, sacrificed at the next end step
         if cls == 'MobilizeAbility' and len(args) == 1 and args[0].strip().isdigit():
             a = self.ability('new AttacksTriggeredAbility(new CreateTokenEffect(new RedWarriorToken(),'
@@ -1750,6 +1778,11 @@ class Translator:
                 and args[2].strip() == 'new EntersBattlefieldTriggeredAbility(null)' \
                 and args[3].strip() == 'new BeginningOfUpkeepTriggeredAbility(null)':
             return out({'e': 'enters_or_upkeep'}, args[1])
+        # Voice of Resurgence: "whenever an opponent casts a spell during your turn or when this dies"
+        if cls == 'OrTriggeredAbility' and n == 4 and args[0].strip() == 'Zone.BATTLEFIELD' \
+                and canonical(args[2]) == 'new SpellCastOpponentTriggeredAbility(null,StaticFilters.FILTER_SPELL_A,false).withTriggerCondition(MyTurnCondition.instance)' \
+                and canonical(args[3]) == 'new DiesSourceTriggeredAbility(null,false)':
+            return out({'e': 'opponent_casts_on_your_turn_or_dies'}, args[1])
         if cls == 'DiesCreatureTriggeredAbility':
             if n >= 3 and args[2] not in ('true', 'false'):
                 if n > 3 and flag(args[3]):
@@ -1913,6 +1946,14 @@ class Translator:
             self.vars[var] = self.ability(expr)
 
 
+# spells whose effects work across their targets in ways the statements can't say: their spell, by card name
+SPELL_OVERRIDES = {
+    'Dark Salvation': lambda: {
+        'effects': [{'class': 'DarkSalvationEffect', 'token': token('ZombieToken')}],
+        'targets': [{'class': 'TargetPlayer'}, {'class': 'TargetPermanent', 'filter': [CREATURE], 'min': 0, 'max': 1}]},
+}
+
+
 def translate(card_name, subtypes, facts):
     if card_name not in facts:
         raise Unsupported('no card facts')
@@ -1968,6 +2009,8 @@ def translate(card_name, subtypes, facts):
             if st == 'this.finalizeOmen()':
                 adventure['omen'] = True
                 return
+            if card_name in SPELL_OVERRIDES and ('getSpellAbility()' in st or re.match(r'(Effect\s+)?effect\b', st)):
+                return
             if st.startswith('this.getSpellCard().getSpellAbility()'):
                 card_statement(t, st.replace('this.getSpellCard().getSpellAbility()', 'this.getSpellAbility()', 1),
                                {}, [], aspell, amodes, subtypes)
@@ -1984,6 +2027,8 @@ def translate(card_name, subtypes, facts):
         raise Unsupported(' ;; '.join(errors))
     if 'types' not in card:
         raise Unsupported('no card types')
+    if card_name in SPELL_OVERRIDES:
+        spell.update(SPELL_OVERRIDES[card_name]())
     card['abilities'] = in_java_order(java_abilities, added)
     rule = next((f['rule'] for f in java_abilities if f['class'] == 'SpellAbility'), '')
     # spree: one or more modes, each with its own cost
@@ -2340,6 +2385,10 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.withInterveningIf\((.*)\)', st)
     if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
         t.vars[m.group(1)]['condition'] = t.value('condition', m.group(2).strip())
+        return True
+    # a trigger that looks back at the battlefield as it was (dies triggers here always do)
+    m = re.fullmatch(r'(\w+)\.setLeavesTheBattlefieldTrigger\(true\)', st)
+    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
         return True
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint)\(.*\)', st)
     if m and m.group(1) in t.vars:
