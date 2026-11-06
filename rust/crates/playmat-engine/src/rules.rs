@@ -241,8 +241,17 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
 }
 
 fn end_step(game: &mut Game, step: Step) {
+    // mana empties as steps end; firebending's {R} stays until combat ends
+    let in_combat =
+        matches!(step, Step::BeginCombat | Step::DeclareAttackers | Step::DeclareBlockers | Step::FirstCombatDamage | Step::CombatDamage);
     for s in 0..game.seats() {
-        game.player_mut(s).mana_pool = Mana::default();
+        let p = game.player_mut(s);
+        let keep = if in_combat { p.combat_red.min(p.mana_pool.colored[Color::R.index()]) } else { 0 };
+        p.mana_pool = Mana::of(Color::R, keep);
+        if keep == 0 {
+            p.mana_pool = Mana::default();
+        }
+        p.combat_red = keep;
     }
     if step == Step::EndCombat {
         game.first_strike_step = false;
@@ -2934,6 +2943,33 @@ fn apply_each_effect(
                         o.front = Some(std::mem::replace(&mut o.def, back));
                         enter_battlefield(game, d, src, controller, false);
                     }
+                }
+            }
+            EffectDef::FirebendingEffect { amount } => {
+                let p = game.player_mut(controller);
+                p.mana_pool.colored[Color::R.index()] += *amount;
+                p.combat_red += *amount;
+            }
+            EffectDef::AddManaOfAnyColorEffect { amount } => {
+                let names = ["White", "Blue", "Black", "Red", "Green"];
+                let choices: Vec<String> = names.iter().map(|n| n.to_string()).collect();
+                let q = Query::Choice { message: format!("Select a color of mana to add {amount} of it"), choices };
+                let color = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Text(t) => {
+                            if let Some(i) = names.iter().position(|n| *n == t) {
+                                break Some(Color::ALL[i]);
+                            }
+                        }
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                    if d.stopped() {
+                        return;
+                    }
+                };
+                if let Some(c) = color {
+                    game.player_mut(controller).mana_pool.colored[c.index()] += *amount;
                 }
             }
             EffectDef::LivelyDirgeEffect => {

@@ -220,6 +220,8 @@ pub struct Player {
     pub won: bool,
     pub lands_played: u32,
     pub mana_pool: Mana,
+    /// how much of the pool's {R} lasts until end of combat (firebending)
+    pub combat_red: u32,
     pub passed: bool,
     /// drew from an empty library since the last state-based check
     pub drew_from_empty: bool,

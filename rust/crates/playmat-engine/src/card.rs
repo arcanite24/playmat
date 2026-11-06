@@ -960,6 +960,10 @@ pub enum EffectDef {
     LivelyDirgeEffect,
     /// a 1/1 token copy of the source (offspring)
     OffspringEffect,
+    /// firebending: adds `amount` {R} that lasts until end of combat
+    FirebendingEffect { amount: u32 },
+    /// adds `amount` mana of one color its controller chooses (a resolving effect: always asked)
+    AddManaOfAnyColorEffect { amount: u32 },
     /// a token that's a copy of the target permanent
     CreateTokenCopyTargetEffect,
     /// `EmpowerJaceEffect`: loyalty counters on a Jace token you control, first creating one if you control none

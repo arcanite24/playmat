@@ -1032,6 +1032,8 @@ class Translator:
         # a Role token attached to each target
         if cls == 'CreateRoleAttachedTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'RoleType\.(\w+)', args[0].strip())):
             return {'class': cls, 'token': token(m.group(1).title().replace('_', '') + 'RoleToken')}
+        if cls == 'AddManaOfAnyColorEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'amount': int(args[0])}
         if cls == 'CreateTokenCopyTargetEffect' and not args:
             return {'class': cls}
         if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (
@@ -1608,6 +1610,10 @@ class Translator:
             if tok:
                 out['token'] = token(tok)
             return out
+        # firebending N: "whenever this attacks, add N {R}; it lasts until end of combat"
+        if cls == 'FirebendingAbility' and n == 1 and re.fullmatch(r'\d+', args[0]):
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacks'}, 'optional': False,
+                    'effects': [{'class': 'FirebendingEffect', 'amount': int(args[0])}]}
         if cls == 'SpreeAbility' and args == ['this']:
             return {'class': cls, 'java': cls}
         if cls == 'OffspringAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
