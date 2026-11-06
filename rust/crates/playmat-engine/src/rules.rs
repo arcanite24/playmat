@@ -429,6 +429,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
             || spectacle(game, seat, *id).is_some()
             || warp(game, seat, *id).is_some()
+            || cleave(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
         {
             out.push(*id);
@@ -644,6 +645,16 @@ fn warp(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
         return None;
     }
     let (k, def) = game.obj(id).def.warp()?;
+    castable(game, seat, id, &def).then_some((k, def))
+}
+
+/// Cleave: the card's ability index and the card with its cleave cost and effects, if it can be cast that way from
+/// hand.
+fn cleave(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    if game.obj(id).zone != Zone::Hand {
+        return None;
+    }
+    let (k, def) = game.obj(id).def.cleave()?;
     castable(game, seat, id, &def).then_some((k, def))
 }
 
@@ -900,6 +911,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &warp {
             options.push(*k);
         }
+        let cleave = cleave(game, seat, id);
+        if let Some((k, _)) = &cleave {
+            options.push(*k);
+        }
         if !options.is_empty() {
             let def = game.obj(id).def.clone();
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
@@ -914,7 +929,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 }
             };
             // cast for its spectacle or warp cost (the whole card comes back as it leaves the stack)
-            let alternative = spectacle.filter(|(k, _)| *k == index).map(|(_, def)| (def, false));
+            let alternative = spectacle
+                .filter(|(k, _)| *k == index)
+                .or(cleave.filter(|(k, _)| *k == index))
+                .map(|(_, def)| (def, false));
             if let Some((def, warped)) = alternative.or(warp.filter(|(k, _)| *k == index).map(|(_, def)| (def, true))) {
                 let before = game.clone();
                 let full = game.obj(id).def.clone();

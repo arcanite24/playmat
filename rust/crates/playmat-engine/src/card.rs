@@ -1310,6 +1310,12 @@ pub enum AbilityDef {
         counters: i32,
         rule: String,
     },
+    /// cast from hand for `cost` instead, doing `effects` in place of the spell's (a second spell ability)
+    CleaveAbility {
+        cost: String,
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
     /// cast from hand for `cost` instead if an opponent lost life this turn (a second spell ability)
     SpectacleAbility {
         cost: String,
@@ -1789,6 +1795,18 @@ impl CardDef {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
             AbilityDef::SpectacleAbility { cost, .. } => {
                 Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() }))
+            }
+            _ => None,
+        })
+    }
+
+    /// The cleave ability's index and the card with its cleave cost and effects.
+    pub fn cleave(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::CleaveAbility { cost, effects, .. } => {
+                let mut spell = self.spell.clone();
+                spell.effects = effects.clone();
+                Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, spell, ..self.clone() }))
             }
             _ => None,
         })

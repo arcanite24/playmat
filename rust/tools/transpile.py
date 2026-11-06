@@ -252,6 +252,8 @@ ABILITIES = {
     'EscapeAbility': [(None, 'this'), ('cost', 'cost_text'), ('exile', 'int')],
     'EscapesWithAbility': [('counters', 'int')],
     'SpectacleAbility': [(None, 'this'), ('cost', 'mana_costs')],
+    # cast for the cleave cost instead, with the effect without the bracketed words
+    'CleaveAbility': [(None, 'this'), ('effect', 'effect'), ('cost', 'cost_text')],
     'WarpAbility': [(None, 'this'), ('cost', 'cost_text')],
     # enters with an effect applied, if the condition holds (a replacement effect, not a trigger)
     'EntersBattlefieldAbility': [('effect', 'effect'), ('condition', 'condition'), (None, 'string'), (None, 'string')],
