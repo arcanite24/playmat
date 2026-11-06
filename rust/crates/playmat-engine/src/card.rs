@@ -1848,7 +1848,13 @@ impl CardDef {
         self.printed().mana_value()
     }
 
-    pub fn from_json(json: CardJson) -> Result<CardDef, String> {
+    pub fn from_json(mut json: CardJson) -> Result<CardDef, String> {
+        // a card's other faces and its adventure are printed in its set (their tokens look for its images)
+        for face in [&mut json.adventure, &mut json.back, &mut json.transform_back].into_iter().flatten() {
+            if face.set.is_empty() {
+                face.set = json.set.clone();
+            }
+        }
         let cost = ManaCost::parse(&json.cost)?;
         let colors = json.colors.unwrap_or_else(|| cost.colors());
         Ok(CardDef {

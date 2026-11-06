@@ -816,10 +816,34 @@ fn can_pay(game: &Game, seat: Seat, cost: &ManaCost) -> bool {
     can_pay_extra(game, seat, cost, Vec::new())
 }
 
+/// "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub): the colors tapping `id` for mana
+/// adds besides its own
+fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
+    let mut extra = Vec::new();
+    for b in game.battlefield.iter() {
+        let s = game.obj(*b);
+        if s.controller != seat {
+            continue;
+        }
+        for a in &s.def.abilities {
+            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, .. } = a {
+                if game.filter_matches(filter, seat, Some(*b), id) {
+                    extra.push("WUBRG".find(color.as_str()).unwrap_or(4));
+                }
+            }
+        }
+    }
+    extra
+}
+
 /// `can_pay`, with more sources (each a list of the mana it could make; none: generic only).
 fn can_pay_extra(game: &Game, seat: Seat, cost: &ManaCost, extra: Vec<Vec<Mana>>) -> bool {
     let mut options: Vec<Vec<Mana>> = Vec::new();
-    for (_, a) in mana_sources(game, seat) {
+    for (id, a) in mana_sources(game, seat) {
+        // the mana its tapping triggers: one more source each
+        for k in tap_for_mana_extra(game, seat, id) {
+            options.push(vec![Mana::of(Color::ALL[k], 1)]);
+        }
         let a: Vec<Mana> = a.into_iter().map(|(_, m)| m).collect();
         // one ability making several mana (a Lotus's three of one color): a source for each
         let n = match a.as_slice() {
@@ -1414,12 +1438,21 @@ fn choose_targets(
     rule: &str,
     cancellable: bool,
 ) -> bool {
+    // `Targets.makeChoice`: a cancelled target doesn't stop the others being asked; the choice fails at the end
     let mut targets = Vec::new();
+    let mut cancelled = false;
     for t in defs {
         match choose_target(game, d, seat, t, source, rule, cancellable) {
             Some(chosen) => targets.push(chosen),
-            None => return false,
+            None if d.stopped() => return false,
+            None => {
+                cancelled = true;
+                targets.push(Vec::new());
+            }
         }
+    }
+    if cancelled {
+        return false;
     }
     let target_zcc = targets.iter().map(|ts: &Vec<Target>| ts.iter().map(|t| target_zcc(game, *t)).collect()).collect();
     if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
@@ -2242,22 +2275,7 @@ fn activate_mana(
         pool.colored[c.index()] += m.colored[c.index()];
     }
     pool.colorless += m.colorless;
-    // "whenever you tap a creature for mana, add an additional {G}" (Badgermole Cub)
-    let mut extra = Vec::new();
-    for b in game.battlefield.iter() {
-        let s = game.obj(*b);
-        if s.controller != seat {
-            continue;
-        }
-        for a in &s.def.abilities {
-            if let AbilityDef::TapForManaAllTriggeredManaAbility { filter, color, .. } = a {
-                if game.filter_matches(filter, seat, Some(*b), id) {
-                    extra.push("WUBRG".find(color.as_str()).unwrap_or(4));
-                }
-            }
-        }
-    }
-    for k in extra {
+    for k in tap_for_mana_extra(game, seat, id) {
         game.player_mut(seat).mana_pool.colored[k] += 1;
     }
     // a mana ability's other effects happen at once (a pain land's damage)
