@@ -51,14 +51,14 @@ pub struct ShadowSeat {
     pub hand_trigger_order: Vec<i64>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, serde::Serialize, PartialEq)]
 pub struct ShadowDecision {
     pub seat: usize,
     pub target: Option<String>,
     pub bool: Option<bool>,
     pub integer: Option<i32>,
     pub string: Option<String>,
-    #[serde(rename = "manaType")]
+    #[serde(rename = "manaType", skip_serializing_if = "Option::is_none")]
     pub mana_type: Option<String>,
 }
 

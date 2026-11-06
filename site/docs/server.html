@@ -164,6 +164,14 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           with Java unless you set them. <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few
           accounts while you try it. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
+        <h3 id="rust-ai">What is <code>XMAGE_AI_BACKEND</code>?</h3>
+        <p>A new AI written in Rust can play against people instead of the Java AI. It decides in milliseconds instead
+          of seconds. Java still runs the game, and if the new AI ever loses track of it, the Java AI takes over for the
+          rest of that game. <code>XMAGE_AI_BACKEND=rust</code> turns it on for the players listed in
+          <code>XMAGE_RUST_AI_USERS</code> (user names separated by commas, or <code>*</code> for everyone), then run
+          <code>up -d</code>. It only plays one-on-one games whose decks it knows every card of (the Pioneer and
+          Standard Career decks for now). <code>XMAGE_ENGINE=java</code> turns it off again. Details are in
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-ai">the README</a>.</p>
         <h3 id="desktop">Can the XMage desktop client connect?</h3>
         <p>No. Playmat servers speak only to the web client (and the Android and desktop apps, which are the web client).
           The desktop client's protocol was removed to make the move to Rust possible.</p>

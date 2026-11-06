@@ -252,6 +252,23 @@ The gateway trusts `X-Forwarded-For` from `XMAGE_TRUSTED_PROXIES` only, and pass
 sets who a client is. Its counters (connections, calls by route, patches and the bytes they saved) are at `/metrics` on
 port 17180, which only the Compose network reaches. `docker compose exec xmage playmat-gateway health` checks it.
 
+### Rust AI
+
+A new AI written in Rust ([docs/rust/Ai.md](../../docs/rust/Ai.md)) can play the AI's seat in one-on-one games. It
+decides in milliseconds where the Java AI can take seconds. Java still runs the game: the Rust AI keeps a copy of it in
+step, and whenever the copy differs from Java's game, the Java AI takes the seat back for the rest of that game.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `XMAGE_AI_BACKEND` | `java` | `rust` lets the Rust AI play. |
+| `XMAGE_RUST_AI_USERS` | none | Comma-separated user names (any case), or `*` for everyone: whose games against the AI it plays. Empty: nobody's. |
+| `XMAGE_ENGINE` | | `java` turns every Rust part off. |
+
+It plays a game when it's one player against one AI from opening hands, and the Rust engine has every card in both
+decks (for now, the Pioneer and Standard Career school decks' cards). The log says `Rust AI plays seat …` when it
+starts and `Rust AI stops in …` with the reason when it hands a game back. Try it on staff first, e.g.
+`XMAGE_AI_BACKEND=rust` and `XMAGE_RUST_AI_USERS=neri`, then `up -d`.
+
 ### Small VPS (1 vCPU, 1 GB)
 
 The server runs a group's evening on a 1 vCPU / 1 GB VPS. Start from the preset, which lowers the limits to what one CPU keeps responsive and shrinks the picture cache to fit a small disk:

@@ -740,6 +740,14 @@ public class TableController {
             }
             // a solo game against the AI saves itself at every turn, and may carry on from a save
             mage.server.solo.SoloGames.get().prepareGame(this, gameOptions);
+            // the Rust AI plays the AI's seat, when the game qualifies (docs/rust/Ai.md)
+            if (RustAi.enabled()) {
+                Map<UUID, String> humans = new HashMap<>();
+                for (Entry<UUID, UUID> entry : userPlayerMap.entrySet()) {
+                    managerFactory.userManager().getUser(entry.getKey()).ifPresent(u -> humans.put(entry.getValue(), u.getName()));
+                }
+                RustAi.prepare(match, match.getGame(), gameOptions, humans);
+            }
             match.getGame().setGameOptions(gameOptions);
             managerFactory.gameManager().createGameSession(match.getGame(), userPlayerMap, table.getId(), choosingPlayerId, gameOptions);
             String creator = null;

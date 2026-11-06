@@ -46,6 +46,8 @@ Utils/data
 .settings
 .factorypath
 **/bin
+# Rust binaries' sources
+!rust/crates/*/src/bin/
 **/out
 # NetBeans
 **/nb-configuration.xml

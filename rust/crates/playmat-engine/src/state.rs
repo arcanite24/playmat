@@ -257,6 +257,8 @@ impl Obj {
 
 #[derive(Clone, Debug, Default)]
 pub struct Player {
+    /// `UserData.autoTargetLevel` 2 (Java's AI players): auto-choice picks any target, feel-bad or not
+    pub auto_target_all: bool,
     pub life: i32,
     pub counters: Vec<(String, i32)>,
     pub hand: Vec<ObjId>,

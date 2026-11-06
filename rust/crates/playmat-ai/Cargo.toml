@@ -1,0 +1,12 @@
+[package]
+name = "playmat-ai"
+description = "Rust AI for Playmat (docs/RustMigration.md, phase 5): search over the Rust engine's cheap game copies"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+playmat-engine = { path = "../playmat-engine" }
+serde.workspace = true
+serde_json.workspace = true

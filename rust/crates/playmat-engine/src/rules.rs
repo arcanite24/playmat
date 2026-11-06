@@ -15,6 +15,16 @@ const MAX_HAND: usize = 7;
 /// Plays from the first priority of the game (as `ShadowGame::start_game` leaves it) until a player loses, the decider
 /// stops, or turn `stop_on_turn` would begin (Java's `GameOptions.stopOnTurn`; 0 plays on).
 pub fn play_from_priority(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32) {
+    play_on(game, d, stop_on_turn, false)
+}
+
+/// Plays on from a copy of a game taken while a seat was asked `Query::Priority` (the AI's search): that seat is asked
+/// again, with the passes made so far kept.
+pub fn play_from_priority_question(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32) {
+    play_on(game, d, stop_on_turn, true)
+}
+
+fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: bool) {
     let mut first = true;
     while !game.over && !d.stopped() {
         let step = match game.step {
@@ -30,7 +40,7 @@ pub fn play_from_priority(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u3
         }
         // untap has no priority; cleanup only when 514.3a applies (nothing in the engine yet makes it)
         if step != Step::Untap && step != Step::Cleanup {
-            priority_round(game, d);
+            priority_round(game, d, std::mem::take(&mut resume));
         }
         if game.over || d.stopped() {
             break;
@@ -392,13 +402,17 @@ fn stops_in(step: Step) -> bool {
 
 /// `GameImpl.playPriority`: each player in turn order from the active one until all pass in a row; then the top of
 /// the stack resolves and priority starts again with the active player, or the step ends.
-fn priority_round(game: &mut Game, d: &mut dyn Decider) {
+fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
     let active = game.active.unwrap_or(0);
     loop {
-        for s in 0..game.seats() {
-            game.player_mut(s).passed = false;
-        }
         let mut seat = active;
+        if std::mem::take(&mut resume) {
+            seat = game.priority.unwrap_or(active);
+        } else {
+            for s in 0..game.seats() {
+                game.player_mut(s).passed = false;
+            }
+        }
         loop {
             game.priority = Some(seat);
             while !game.player(seat).passed {
@@ -2749,10 +2763,14 @@ fn choose_target(
             return Some(chosen);
         }
         if min == max && players.len() + objs.len() == min - chosen.len() && !rule.contains("search") {
-            let own_player = players.iter().find(|p| **p == seat).map(|p| Target::Player(*p));
-            let auto = own_player
-                .filter(|_| !feel_bad)
-                .or_else(|| objs.iter().copied().find(|o| !(feel_bad && owns_target(game, seat, *o))).map(Target::Obj));
+            let auto = if game.player(seat).auto_target_all {
+                players.first().map(|p| Target::Player(*p)).or_else(|| objs.first().map(|o| Target::Obj(*o)))
+            } else {
+                let own_player = players.iter().find(|p| **p == seat).map(|p| Target::Player(*p));
+                own_player.filter(|_| !feel_bad).or_else(|| {
+                    objs.iter().copied().find(|o| !(feel_bad && owns_target(game, seat, *o))).map(Target::Obj)
+                })
+            };
             if let Some(t) = auto {
                 chosen.push(t);
                 selected = true;
@@ -4591,6 +4609,7 @@ fn apply_each_effect(
                     aura.abilities.push(
                         serde_json::from_value(serde_json::json!({
                             "class": "SimpleStaticAbility",
+                            "rule": "Enchanted Forest has \"{T}: Add {G}{G}\" and \"{1}, {T}, Sacrifice this land: Create a tapped 4/4 green Troll Warrior creature token with trample.\"",
                             "effects": [
                                 {"class": "GainAbilityAttachedEffect",
                                  "ability": {"class": "ColoredManaAbility", "color": "G", "amount": 2,
@@ -6776,7 +6795,8 @@ fn choose_cards_with(
         }
         let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
         if min == max && left.len() == min - chosen.len() && !rule.contains("search") {
-            if let Some(c) = left.iter().copied().find(|c| !(feel_bad && owns_target(game, seat, *c))) {
+            let all = game.player(seat).auto_target_all;
+            if let Some(c) = left.iter().copied().find(|c| all || !(feel_bad && owns_target(game, seat, *c))) {
                 chosen.push(c);
                 continue;
             }
@@ -7113,10 +7133,13 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     // a permanent spell resolving was cast (`CastFromEverywhereSourceCondition`)
     let cast = game.obj(id).zone == Zone::Stack;
     let stack_zcc = game.obj(id).zcc;
+    // each its own replacement effect (Kumano's "enters with an additional +1/+1 counter")
+    let mut counter_effects = 0;
     let more_counters: i32 = if cast {
         let (mine, rest): (Vec<_>, Vec<_>) =
             std::mem::take(&mut game.enter_counters).into_iter().partition(|(o, z, _)| *o == id && *z == stack_zcc);
         game.enter_counters = rest;
+        counter_effects = mine.len();
         mine.iter().map(|(_, _, n)| n).sum()
     } else {
         0
@@ -7140,7 +7163,8 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         more_counters += giadas.count() as i32 * angels;
     }
     // replacement effects on its entering, more than one: the player picks the order (`chooseReplacementEffect`):
-    // Gev's counters for another creature, and the creature's own "enters" abilities
+    // Gev's counters for another creature, the next creature spell's counters, and the creature's own "enters"
+    // abilities (an `EscapesWithAbility` is one whether it escaped or not)
     if game.obj(id).def.is(CardType::Creature) {
         let gevs = game
             .battlefield
@@ -7154,10 +7178,16 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                     })
             })
             .count();
-        let own =
-            game.obj(id).def.abilities.iter().filter(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. })).count();
-        if gevs > 0 {
-            for _ in 1..gevs + own {
+        let own = game
+            .obj(id)
+            .def
+            .abilities
+            .iter()
+            .filter(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. } | AbilityDef::EscapesWithAbility { .. }))
+            .count();
+        let others = gevs + counter_effects;
+        if others > 0 {
+            for _ in 1..others + own {
                 game.owed_choices.push(controller);
             }
         }
@@ -7963,7 +7993,7 @@ fn first_strike_in_combat(game: &Game) -> bool {
     })
 }
 
-fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
+pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
     let o = game.obj(id);
     o.controller == seat
         && o.is(CardType::Creature)
@@ -8050,7 +8080,7 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     }
 }
 
-fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
+pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     if game.has_ability(attacker, &AbilityDef::CantBeBlockedSourceAbility)
         || game.cant_attack_or_block(blocker)
         || game.has_ability(blocker, &AbilityDef::CantBlockAbility)

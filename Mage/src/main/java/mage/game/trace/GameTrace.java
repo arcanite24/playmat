@@ -53,6 +53,7 @@ public class GameTrace {
     private final Consumer<Entry> sink;
     private final List<Entry> entries = Collections.synchronizedList(new ArrayList<>());
     private String last;
+    private Runnable onEnd;
 
     /**
      * @param keepText keep each state's text as well as its hash
@@ -67,13 +68,22 @@ public class GameTrace {
         this(false, null);
     }
 
+    /** runs once when the game ends (the {@link #END} point, recorded or not) */
+    public void setOnEnd(Runnable onEnd) {
+        this.onEnd = onEnd;
+    }
+
     /** records the game's state at this point, unless it's the same as the last one recorded */
     public void record(Game game, String point) {
         String text = StateFingerprint.text(game);
         String hash = StateFingerprint.hashText(text);
         synchronized (this) {
             if (hash.equals(last)) {
-                return; // a player passing priority without anything changing
+                // a player passing priority without anything changing
+                if (END.equals(point)) {
+                    ended();
+                }
+                return;
             }
             last = hash;
         }
@@ -82,6 +92,17 @@ public class GameTrace {
         entries.add(entry);
         if (sink != null) {
             sink.accept(entry);
+        }
+        if (END.equals(point)) {
+            ended();
+        }
+    }
+
+    private void ended() {
+        Runnable r = onEnd;
+        onEnd = null;
+        if (r != null) {
+            r.run();
         }
     }
 
