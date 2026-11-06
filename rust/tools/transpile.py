@@ -362,7 +362,7 @@ TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'perm
 
 # an emblem's static effect lasts the game: as long as its source is there, like a permanent's
 DURATIONS = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.WhileOnBattlefield': 'WhileOnBattlefield',
-             'Duration.EndOfGame': 'WhileOnBattlefield'}
+             'Duration.EndOfGame': 'WhileOnBattlefield', 'Duration.UntilYourNextTurn': 'UntilYourNextTurn'}
 
 STATIC_FILTERS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'filter', 'StaticFilters.java')
 
@@ -968,6 +968,8 @@ class Translator:
         if cls == 'PlayAdditionalLandsControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
+        if cls == 'CreateTwiceThatManyTokensEffect' and not args:
+            return {'class': cls}
         if cls == 'MaximumHandSizeControllerEffect' and [a.strip() for a in args] == [
                 'Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'MaximumHandSizeControllerEffect.HandSizeModification.SET']:
             return {'class': 'NoMaximumHandSizeEffect'}

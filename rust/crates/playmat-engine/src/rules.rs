@@ -97,6 +97,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.spells_cast = 0;
                 p.instants_sorceries_cast = 0;
             }
+            // "until your next turn" ends as it begins
+            if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
+                Arc::make_mut(&mut game.grants).retain(|g| g.until_turn_of != Some(active));
+            }
             game.triggered_this_turn.clear();
             game.creature_died = false;
             game.activated_this_turn.clear();
@@ -2335,7 +2339,7 @@ fn apply_each_effect(
                 sacrifice_at_next_end_step,
                 haste_until_end_of_turn,
             } => {
-                let amount = &v!(amount);
+                let amount = &(v!(amount) * token_copies(game, controller) as i32);
                 let def = Arc::new(token.card());
                 token_image(game, token, source.0);
                 let mut created = Vec::new();
@@ -2483,6 +2487,28 @@ fn apply_each_effect(
                         && !(*exclude_source && id == source.0)
                     {
                         grant(game, id, ability);
+                    }
+                }
+            }
+            EffectDef::GainAbilityControlledEffect {
+                ability,
+                duration: Duration::UntilYourNextTurn,
+                filter,
+                exclude_source,
+            } => {
+                for id in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.obj(id).controller == controller
+                        && game.filter_matches(filter, controller, Some(source.0), id)
+                        && !(*exclude_source && id == source.0)
+                    {
+                        let zcc = game.obj(id).zcc;
+                        Arc::make_mut(&mut game.grants).push(Grant {
+                            target: id,
+                            zcc,
+                            ability: (**ability).clone(),
+                            until_end_of_turn: false,
+                            until_turn_of: Some(controller),
+                        });
                     }
                 }
             }
@@ -2912,6 +2938,7 @@ fn apply_each_effect(
             | EffectDef::CastAsThoughItHadFlashAllEffect { .. }
             | EffectDef::NarsetParterOfVeilsEffect
             | EffectDef::NoMaximumHandSizeEffect
+            | EffectDef::CreateTwiceThatManyTokensEffect
             | EffectDef::PlayAdditionalLandsControllerEffect { .. }
             | EffectDef::PlayLandsFromGraveyardControllerEffect
             | EffectDef::GevScaledScorchEntersEffect
@@ -3090,6 +3117,7 @@ fn apply_each_effect(
                         zcc,
                         ability: AbilityDef::HasteAbility,
                         until_end_of_turn: false,
+                        until_turn_of: None,
                     });
                     let delayed = Delayed {
                         rule: "At the beginning of the next end step, return it to your hand.".into(),
@@ -3126,11 +3154,13 @@ fn apply_each_effect(
                 let n = v!(amount).max(0);
                 let def = Arc::new(CardDef { power: n, toughness: n, ..token.card() });
                 token_image(game, token, source.0);
-                let id = game.create_obj(def, controller, Zone::Library);
-                let o = game.obj_mut(id);
-                o.token = true;
-                o.trigger_order = (1 << 32) + id.0 as u64;
-                enter_battlefield(game, d, id, controller, false);
+                for _ in 0..token_copies(game, controller) {
+                    let id = game.create_obj(def.clone(), controller, Zone::Library);
+                    let o = game.obj_mut(id);
+                    o.token = true;
+                    o.trigger_order = (1 << 32) + id.0 as u64;
+                    enter_battlefield(game, d, id, controller, false);
+                }
             }
             EffectDef::KraulHarpoonerEffect => {
                 let (me, zcc) = source;
@@ -3633,6 +3663,8 @@ fn apply_each_effect(
                 let total: i32 = exiled.iter().map(|c| game.obj(*c).def.cost.mana_value() as i32).sum();
                 let mut owners: Vec<Seat> = exiled.iter().map(|c| game.obj(*c).owner).collect();
                 owners.dedup();
+                let owners: Vec<Seat> =
+                    owners.into_iter().flat_map(|p| std::iter::repeat_n(p, token_copies(game, p))).collect();
                 for owner in owners {
                     let def = Arc::new(CardDef { power: total, toughness: total, ..token.card() });
                     token_image(game, token, src);
@@ -3872,7 +3904,9 @@ fn apply_each_effect(
             EffectDef::CreateTokenTargetEffect { token } => {
                 let def = Arc::new(token.card());
                 token_image(game, token, source.0);
-                for p in players.clone() {
+                let each: Vec<Seat> =
+                    players.clone().into_iter().flat_map(|p| std::iter::repeat_n(p, token_copies(game, p))).collect();
+                for p in each {
                     let id = game.create_obj(def.clone(), p, Zone::Library);
                     let o = game.obj_mut(id);
                     o.token = true;
@@ -3891,7 +3925,9 @@ fn apply_each_effect(
                 let def = Arc::new(token.card());
                 token_image(game, token, source.0);
                 let to = objs.first().map(|o| game.obj(*o).controller);
-                for p in to.into_iter().flat_map(|p| std::iter::repeat_n(p, *amount as usize)) {
+                let each: Vec<Seat> =
+                    to.into_iter().flat_map(|p| std::iter::repeat_n(p, *amount as usize * token_copies(game, p))).collect();
+                for p in each {
                     let id = game.create_obj(def.clone(), p, Zone::Library);
                     let o = game.obj_mut(id);
                     o.token = true;
@@ -4283,7 +4319,25 @@ fn matching(game: &Game, filter: &crate::card::Filter, you: Seat, source: ObjId)
 /// An ability until end of turn (the only duration resolving grants have yet).
 fn grant(game: &mut Game, target: ObjId, ability: &AbilityDef) {
     let zcc = game.obj(target).zcc;
-    Arc::make_mut(&mut game.grants).push(Grant { target, zcc, ability: ability.clone(), until_end_of_turn: true });
+    Arc::make_mut(&mut game.grants).push(Grant {
+        target,
+        zcc,
+        ability: ability.clone(),
+        until_end_of_turn: true,
+        until_turn_of: None,
+    });
+}
+
+/// How many tokens are created for each one an effect would create under `seat`'s control (Elspeth, Storm Slayer)
+fn token_copies(game: &Game, seat: Seat) -> usize {
+    let mut n = 1;
+    game.any_static(|g, src, e| {
+        if matches!(e, EffectDef::CreateTwiceThatManyTokensEffect) && g.obj(src).controller == seat {
+            n *= 2;
+        }
+        false
+    });
+    n
 }
 
 fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: Duration) {

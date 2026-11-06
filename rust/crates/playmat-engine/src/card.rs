@@ -175,6 +175,7 @@ fn one() -> usize {
 pub enum Duration {
     EndOfTurn,
     WhileOnBattlefield,
+    UntilYourNextTurn,
 }
 
 /// `ComparisonType`
@@ -895,6 +896,8 @@ pub enum EffectDef {
     UntapLandsEffect { amount: usize },
     /// puts the target permanent into its owner's library `n`th from the top
     PutIntoLibraryNFromTopTargetEffect { n: usize },
+    /// if one or more tokens would be created under your control, twice that many are created instead
+    CreateTwiceThatManyTokensEffect,
     /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
     NoMaximumHandSizeEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card

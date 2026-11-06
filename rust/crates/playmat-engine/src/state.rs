@@ -272,6 +272,8 @@ pub struct Grant {
     pub zcc: u32,
     pub ability: AbilityDef,
     pub until_end_of_turn: bool,
+    /// it lasts until this player's next turn
+    pub until_turn_of: Option<Seat>,
 }
 
 /// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
