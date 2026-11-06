@@ -4194,6 +4194,28 @@ fn apply_each_effect(
                     game.obj_mut(source.0).chosen_name = Some(chosen);
                 }
             }
+            EffectDef::EsperOriginsEffect => {
+                let id = source.0;
+                if game.obj(id).zone == Zone::Stack && game.obj(id).cast_from == Some(Zone::Graveyard) {
+                    game.move_to(id, Zone::Exile);
+                    if let Some(back) = game.obj(id).def.transform_back.clone() {
+                        let o = game.obj_mut(id);
+                        o.front = Some(std::mem::replace(&mut o.def, back));
+                        enter_battlefield(game, d, id, game.obj(id).owner, false);
+                        if game.obj(id).zone == Zone::Battlefield {
+                            game.obj_mut(id).add_counters("finality", 1);
+                        }
+                    }
+                }
+            }
+            EffectDef::SummonEsperMaduinEffect => {
+                if let Some(c) = game.player(controller).library.first().copied() {
+                    let o = game.obj(c);
+                    if !o.is(CardType::Instant) && !o.is(CardType::Sorcery) {
+                        game.move_to(c, Zone::Hand);
+                    }
+                }
+            }
             EffectDef::LaughingJasperFlintEffect => {
                 if let Some(Target::Player(p)) = target {
                     let outlaws = ["Assassin", "Mercenary", "Pirate", "Rogue", "Warlock"];

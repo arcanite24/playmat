@@ -175,6 +175,8 @@ CUSTOM = {
     'TishanasTidebinderEffect': lambda: {'class': 'TishanasTidebinderEffect'},
     'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
     'LaughingJasperFlintEffect': lambda: {'class': 'LaughingJasperFlintEffect'},
+    'EsperOriginsEffect': lambda: {'class': 'EsperOriginsEffect'},
+    'SummonEsperMaduinEffect': lambda: {'class': 'SummonEsperMaduinEffect'},
     'PetrifiedHamletCostEffect': lambda: {'class': 'PetrifiedHamletCostEffect'},
     'RottenmouthViperCostReductionEffect': lambda: {'class': 'RottenmouthViperCostReductionEffect'},
     'OldGrowthTrollReturnEffect': lambda: {'class': 'OldGrowthTrollReturnEffect', 'token': token('TrollWarriorToken')},
@@ -627,7 +629,7 @@ TARGET_CLASSES = {
 PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPlayerOrPlaneswalker'}
 
 # chained calls that only change texts, hints or the AI's view
-TEXT_SETTERS = {'setText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
+TEXT_SETTERS = {'setText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
                 'withTextOptions', 'setTargetTag', 'setRuleVisible'}
 
@@ -1045,6 +1047,10 @@ class Translator:
     def effect(self, expr):
         # every target (the one target a duel's "for each opponent" adjuster leaves)
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
+        # `BoostControlledEffect(p, t, duration, excludeSource)`: creatures you control
+        m = re.fullmatch(r'new BoostControlledEffect\((-?\d+),(-?\d+),(Duration\.\w+),(true|false)\)', canonical(self.strip_setters(expr)))
+        if m:
+            return self.effect('new BoostControlledEffect({},{},{},StaticFilters.FILTER_PERMANENT_CREATURES,{})'.format(*m.groups()))
         # exiled "with" the source (Ghost Vacuum)
         if self.strip_setters(expr) == 'new ExileTargetEffect().setToSourceExileZone(true)':
             return {'class': 'ExileTargetForSourceEffect'}
@@ -2019,17 +2025,26 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
             face = back if m.group(1) == 'Right' else front
             face['power'], face['toughness'] = int(m.group(2)), int(m.group(3))
             continue
+        # a sorcery front (Esper Origins): its spell's effects
+        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.getSpellAbility\(\)\.addEffect\((.*)\)', st)
+        if m:
+            front.setdefault('spell', {'effects': [], 'targets': [], 'rule': java_abilities[0].get('rule', '')})
+            front['spell']['effects'].append(t.effect(m.group(1)))
+            continue
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(addAbility\(.*\))', st)
         if m:
-            if not ability_statement(t, 'this.' + m.group(2), added[m.group(1) == 'Right']):
+            # (a face given as the card: `new FlashbackAbility(this.getLeftHalfCard(), …)`)
+            body = m.group(2).replace('this.getLeftHalfCard()', 'this').replace('this.getRightHalfCard()', 'this')
+            if not ability_statement(t, 'this.' + body, added[m.group(1) == 'Right']):
                 raise Unsupported('transforming double-faced card statement ' + st)
             continue
         # a watcher is the engine's own bookkeeping
         if re.fullmatch(r'\w+\.addWatcher\(new \w+Watcher\(\)\)', st):
             continue
         # a Saga front: its lore counter and chapters are the front's abilities
-        saga = re.search(r'new SagaAbility\(this\.getLeftHalfCard\(\)\)|\.addChapterEffect\(this\.getLeftHalfCard\(\),', st)
-        if not ability_statement(t, st, added[0] if saga else []):
+        saga = re.search(r'new SagaAbility\(this\.get(Left|Right)HalfCard\(\)\)|\.addChapterEffect\(this\.get(Left|Right)HalfCard\(\),', st)
+        side = added[(saga.group(1) or saga.group(2)) == 'Right'] if saga else []
+        if not ability_statement(t, st, side):
             raise Unsupported('transforming double-faced card statement ' + st)
     if 'types' not in front or not java_abilities or java_abilities[0]['class'] != 'SpellAbility':
         raise Unsupported('transforming double-faced card without its faces')
@@ -2211,13 +2226,13 @@ CHAPTERS = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6}
 def ability_statement(t, st, added):
     """A constructor statement that builds or adds an ability (cards and tokens alike); False if it isn't one"""
     # a Saga: its lore counter as it enters (added to the card first), then a chapter ability per chapter
-    m = re.fullmatch(r'SagaAbility (\w+)=new SagaAbility\(this(?:\.getLeftHalfCard\(\))?\)', st)
+    m = re.fullmatch(r'SagaAbility (\w+)=new SagaAbility\(this(?:\.get(?:Left|Right)HalfCard\(\))?\)', st)
     if m:
         t.vars[m.group(1)] = {'class': 'SagaAbility', 'java': 'SagaAbility', 'max': 0}
         added.append({'class': 'EntersBattlefieldAbility', 'java': 'EntersBattlefieldAbility',
                       'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': 'lore', 'amount': 1}}]})
         return True
-    m = re.fullmatch(r'(\w+)\.addChapterEffect\(this(?:\.getLeftHalfCard\(\))?,(.*)\)', st)
+    m = re.fullmatch(r'(\w+)\.addChapterEffect\(this(?:\.get(?:Left|Right)HalfCard\(\))?,(.*)\)', st)
     if m and t.vars.get(m.group(1), {}).get('class') == 'SagaAbility':
         args = split_args(m.group(2))
         chapters = []

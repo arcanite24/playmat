@@ -1254,7 +1254,11 @@ impl Game {
         // "if it would die this turn, exile it instead"
         let zone = if from == Zone::Battlefield
             && zone == Zone::Graveyard
-            && (etching || self.exile_if_dies.contains(&(id, self.obj(id).zcc)) || self.obj(id).exile_instead_of_dying)
+            && (etching
+                || self.exile_if_dies.contains(&(id, self.obj(id).zcc))
+                || self.obj(id).exile_instead_of_dying
+                // a finality counter
+                || self.obj(id).counter("finality") > 0)
         {
             Zone::Exile
         } else {

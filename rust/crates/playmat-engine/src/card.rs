@@ -1314,6 +1314,10 @@ pub enum EffectDef {
     /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
     /// among them this turn, spending mana as though it were any type
     LaughingJasperFlintEffect,
+    /// if this spell was cast from a graveyard: exiled, then onto the battlefield transformed with a finality counter
+    EsperOriginsEffect,
+    /// reveal the top card of your library; a permanent card goes to your hand
+    SummonEsperMaduinEffect,
     /// `ChooseACardNameEffect(LAND_NAME)`: the source's chosen name
     ChooseLandNameEffect,
     /// a static ability's effect: activated abilities of sources with the chosen name can't be activated unless
