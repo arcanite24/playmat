@@ -3875,6 +3875,40 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::AcademicDisputeEffect => {
+                for o in &objs {
+                    let q = Query::YesNo { message: format!("Have {} gain reach until end of turn?", game.obj(*o).def.name) };
+                    let yes = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if yes {
+                        grant(game, *o, &AbilityDef::ReachAbility);
+                    }
+                }
+            }
+            EffectDef::LearnEffect => {
+                // `WishEffect` asks first; with no sideboard a yes does nothing more
+                let q = Query::YesNo { message: "Choose a Lesson card from outside the game?".into() };
+                let wish = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if !wish {
+                    let rummage: EffectDef = serde_json::from_str(
+                        r#"{"class": "DoIfCostPaid", "effect": {"class": "DrawCardSourceControllerEffect", "amount": 1},
+                            "cost": [{"class": "DiscardCardCost"}]}"#,
+                    )
+                    .unwrap();
+                    apply_effects(game, d, item, std::slice::from_ref(&rummage), legal, source);
+                }
+            }
             EffectDef::AvenInterrupterEffect => {
                 // `PlotAbility.doExileAndPlotCard`: the spell is exiled, plotted (a copy just leaves)
                 for o in &objs {
@@ -7092,7 +7126,9 @@ fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
 /// `Combat.selectBlockers`: the defender declares, then the block restrictions are checked. A creature with menace
 /// blocked by one loses its blocker; if the defender could have blocked it with two, they declare again.
 fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
+    let mut tries = 0;
     loop {
+        tries += 1;
         select_blockers(game, d, seat);
         if d.stopped() {
             return;
@@ -7134,6 +7170,24 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             if possible >= 2 {
                 legal = false;
             }
+        }
+        // `checkBlockRequirementsAfter`: a creature that blocks if able and isn't blocking, though it could block an
+        // attacker (not one that needs more blockers): asked again, the blocks as they are
+        // (a player that never makes the block gets its blocks after many tries, rather than asked forever)
+        if legal && tries < 100 {
+            let attacking = attackers(game);
+            legal = !game.battlefield.iter().any(|b| {
+                let o = game.obj(*b);
+                o.controller == seat
+                    && !o.tapped
+                    && o.blocking.is_empty()
+                    && game.has_ability(*b, &AbilityDef::BlocksIfAbleAbility)
+                    && attacking.iter().any(|a| {
+                        can_block(game, *b, *a)
+                            && !game.has_ability(*a, &AbilityDef::MenaceAbility)
+                            && !(max_blocked_by_one(game, *a) && !live_blockers(game, *a).is_empty())
+                    })
+            });
         }
         if legal {
             return;

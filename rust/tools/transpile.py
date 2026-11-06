@@ -172,6 +172,8 @@ CUSTOM = {
     'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
     'ArtistsTalentEffect': lambda: {'class': 'ArtistsTalentEffect'},
     'LeylineOfTheVoidEffect': lambda: {'class': 'LeylineOfTheVoidEffect'},
+    'AcademicDisputeEffect': lambda: {'class': 'AcademicDisputeEffect'},
+    'LearnEffect': lambda: {'class': 'LearnEffect'},
     'AvenInterrupterEffect': lambda: {'class': 'AvenInterrupterEffect'},
     'CavernOfSoulsCantCounterEffect': lambda: {'class': 'CavernOfSoulsCantCounterEffect'},
     'GiadaFontOfHopeEntersBattlefieldEffect': lambda: {'class': 'GiadaFontOfHopeEntersBattlefieldEffect'},
@@ -1090,6 +1092,9 @@ class Translator:
             return {'class': 'LoseAllAbilitiesUntilSourceLeavesEffect'}
         if cls == 'AddManaOfAnyColorEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
+        # "target creature blocks this turn if able": a requirement it has until end of turn
+        if cls == 'BlocksIfAbleTargetEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
+            return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'BlocksIfAbleAbility'}, 'duration': 'EndOfTurn'}
         if cls == 'ChooseCreatureTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
         if cls == 'ChooseBasicLandTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):

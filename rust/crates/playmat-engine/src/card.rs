@@ -1275,6 +1275,10 @@ pub enum EffectDef {
     GraveyardFromAnywhereExileReplacementEffect,
     /// an opponent's card that would be put into a graveyard from anywhere is exiled instead
     LeylineOfTheVoidEffect,
+    /// you may have the target creature gain reach until end of turn
+    AcademicDisputeEffect,
+    /// learn, with no cards outside the game: you may "wish" (for nothing), or else discard a card to draw one
+    LearnEffect,
     /// exile the target spell; it becomes plotted (its owner may cast it free as a sorcery on a later turn)
     AvenInterrupterEffect,
     /// each other Angel you control enters with an additional +1/+1 counter for each Angel you already control
@@ -1684,6 +1688,8 @@ pub enum AbilityDef {
     CantBeCounteredSourceAbility,
     FlyingAbility,
     ReachAbility,
+    /// it blocks this turn if able (`BlocksIfAbleTargetEffect`, granted until end of turn)
+    BlocksIfAbleAbility,
     HasteAbility,
     VigilanceAbility,
     TrampleAbility,
