@@ -331,6 +331,8 @@ pub enum Trigger {
     Sacrificed { filter: Filter, who: String },
     /// `who` ("you", "opponent") draws a card; with a target pointer, at that player
     Draws { who: String },
+    /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`)
+    DrawsNth { n: u32 },
     /// this deals damage to an opponent (`only_combat`: combat damage)
     DealsDamageToOpponent {
         #[serde(default)]
@@ -884,6 +886,8 @@ pub enum EffectDef {
     PlayAdditionalLandsControllerEffect { amount: u32 },
     /// you may play lands from your graveyard
     PlayLandsFromGraveyardControllerEffect,
+    /// exiles the target card from a graveyard; if it was a creature card, `then` (a Clue)
+    RavenEagleEffect { then: Box<EffectDef> },
     /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
     NoMaximumHandSizeEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card

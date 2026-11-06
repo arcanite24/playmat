@@ -144,6 +144,9 @@ CUSTOM = {
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
     'MagebaneLizardEffect': lambda: {'class': 'MagebaneLizardEffect'},
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
+    # exile up to one target card from a graveyard; a creature card: create a Clue
+    'RavenEagleEffect': lambda: {'class': 'RavenEagleEffect', 'then': {
+        'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'), 'amount': 1}},
     # a 2/2 Cadet that gains haste until end of turn
     'StingerquillCharmEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('CadetToken'), 'amount': 1,
                                         'haste_until_end_of_turn': True},
@@ -1526,6 +1529,9 @@ class Translator:
                     'optional': flag(args[1]), 'set_target_pointer': False}
         if cls == 'HeroicAbility' and n in (1, 2, 3):
             return out({'e': 'spell_cast_targeting_this'}, args[0], n == 2 and flag(args[1]))
+        # whenever you draw your second card each turn
+        if cls == 'DrawNthCardTriggeredAbility' and n == 1:
+            return out({'e': 'draws_nth', 'n': 2}, args[0])
         if cls == 'DrawCardControllerTriggeredAbility' and n == 2:
             return out({'e': 'draws', 'who': 'you'}, args[0], flag(args[1]))
         if cls == 'DrawCardOpponentTriggeredAbility' and n == 3:

@@ -259,8 +259,12 @@ pub fn draw(game: &mut Game, seat: Seat, n: usize) {
                 game.player_mut(seat).drawn += 1;
                 game.move_to(id, Zone::Hand);
                 let sources: Vec<ObjId> = game.trigger_sources();
-                let fired = game
-                    .triggers(sources, |_, _, you, t| matches!(t, Trigger::Draws { who } if Game::whose(who, you, seat)));
+                let drawn = game.player(seat).drawn;
+                let fired = game.triggers(sources, |_, _, you, t| match t {
+                    Trigger::Draws { who } => Game::whose(who, you, seat),
+                    Trigger::DrawsNth { n } => you == seat && drawn == *n,
+                    _ => false,
+                });
                 for mut t in fired {
                     if set_target_pointer(game, &t) {
                         t.targets = vec![vec![Target::Player(seat)]];
@@ -3653,6 +3657,17 @@ fn apply_each_effect(
                     let o = game.obj_mut(c);
                     o.may_play = Some((owner, u32::MAX));
                     o.play_tax = 2;
+                }
+            }
+            EffectDef::RavenEagleEffect { then } => {
+                let Some(Target::Obj(o)) = target else { continue };
+                if game.obj(o).zone != Zone::Graveyard {
+                    continue;
+                }
+                let creature = game.obj(o).is(CardType::Creature);
+                game.move_to(o, Zone::Exile);
+                if creature {
+                    apply_effects(game, d, item, std::slice::from_ref(&**then), &[], source);
                 }
             }
             EffectDef::KitesailFreebooterExileEffect { filter } => {
