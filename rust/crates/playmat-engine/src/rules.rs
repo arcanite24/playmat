@@ -15,6 +15,16 @@ const MAX_HAND: usize = 7;
 /// Plays from the first priority of the game (as `ShadowGame::start_game` leaves it) until a player loses, the decider
 /// stops, or turn `stop_on_turn` would begin (Java's `GameOptions.stopOnTurn`; 0 plays on).
 pub fn play_from_priority(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32) {
+    play_on(game, d, stop_on_turn, false)
+}
+
+/// Plays on from a copy of a game taken while a seat was asked `Query::Priority` (the AI's search): that seat is asked
+/// again, with the passes made so far kept.
+pub fn play_from_priority_question(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32) {
+    play_on(game, d, stop_on_turn, true)
+}
+
+fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: bool) {
     let mut first = true;
     while !game.over && !d.stopped() {
         let step = match game.step {
@@ -30,7 +40,7 @@ pub fn play_from_priority(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u3
         }
         // untap has no priority; cleanup only when 514.3a applies (nothing in the engine yet makes it)
         if step != Step::Untap && step != Step::Cleanup {
-            priority_round(game, d);
+            priority_round(game, d, std::mem::take(&mut resume));
         }
         if game.over || d.stopped() {
             break;
@@ -392,13 +402,17 @@ fn stops_in(step: Step) -> bool {
 
 /// `GameImpl.playPriority`: each player in turn order from the active one until all pass in a row; then the top of
 /// the stack resolves and priority starts again with the active player, or the step ends.
-fn priority_round(game: &mut Game, d: &mut dyn Decider) {
+fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
     let active = game.active.unwrap_or(0);
     loop {
-        for s in 0..game.seats() {
-            game.player_mut(s).passed = false;
-        }
         let mut seat = active;
+        if std::mem::take(&mut resume) {
+            seat = game.priority.unwrap_or(active);
+        } else {
+            for s in 0..game.seats() {
+                game.player_mut(s).passed = false;
+            }
+        }
         loop {
             game.priority = Some(seat);
             while !game.player(seat).passed {
@@ -4591,6 +4605,7 @@ fn apply_each_effect(
                     aura.abilities.push(
                         serde_json::from_value(serde_json::json!({
                             "class": "SimpleStaticAbility",
+                            "rule": "Enchanted Forest has \"{T}: Add {G}{G}\" and \"{1}, {T}, Sacrifice this land: Create a tapped 4/4 green Troll Warrior creature token with trample.\"",
                             "effects": [
                                 {"class": "GainAbilityAttachedEffect",
                                  "ability": {"class": "ColoredManaAbility", "color": "G", "amount": 2,
@@ -7963,7 +7978,7 @@ fn first_strike_in_combat(game: &Game) -> bool {
     })
 }
 
-fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
+pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
     let o = game.obj(id);
     o.controller == seat
         && o.is(CardType::Creature)
@@ -8050,7 +8065,7 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     }
 }
 
-fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
+pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     if game.has_ability(attacker, &AbilityDef::CantBeBlockedSourceAbility)
         || game.cant_attack_or_block(blocker)
         || game.has_ability(blocker, &AbilityDef::CantBlockAbility)
