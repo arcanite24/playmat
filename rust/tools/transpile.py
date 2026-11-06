@@ -372,6 +372,7 @@ TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'a
 COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun',
             'CounterType.M1M1': '-1/-1', 'CounterType.INDESTRUCTIBLE': 'indestructible'}
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
+              'ObsessivePursuitCondition.instance': {'c': 'sacrificed_this_turn', 'n': 3},
               # blight is an optional additional cost the engine keeps as the spell's kicked flag
               'BlightedCondition.instance': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
@@ -725,6 +726,8 @@ class Translator:
             return {'v': 'devotion', 'c': m.group(1)}
         if arg == 'CardsDrawnThisTurnDynamicValue.instance':
             return {'v': 'cards_drawn'}
+        if arg == 'PermanentsSacrificedThisTurnCount.YOU':
+            return {'v': 'sacrificed_this_turn'}
         if arg == 'CardsInControllerHandCount.ANY':
             return {'v': 'cards_in_hand'}
         obj = self.new_expr(arg)
@@ -1576,6 +1579,11 @@ class Translator:
                     'optional': optional, 'set_target_pointer': pointer}
 
         n = len(args)
+        # "when this enters and at the beginning of your upkeep"
+        if cls == 'OrTriggeredAbility' and n == 4 and args[0].strip() == 'Zone.BATTLEFIELD' \
+                and args[2].strip() == 'new EntersBattlefieldTriggeredAbility(null)' \
+                and args[3].strip() == 'new BeginningOfUpkeepTriggeredAbility(null)':
+            return out({'e': 'enters_or_upkeep'}, args[1])
         if cls == 'DiesCreatureTriggeredAbility':
             if n >= 3 and args[2] not in ('true', 'false'):
                 if n > 3 and flag(args[3]):

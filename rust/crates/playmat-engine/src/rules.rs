@@ -109,6 +109,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.life_gained = 0;
                 p.spells_cast = 0;
                 p.instants_sorceries_cast = 0;
+                p.sacrificed = 0;
             }
             // "until your next turn" ends as it begins
             game.attacks_opponent.retain(|(s, _)| *s != active);
@@ -233,6 +234,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 matches!(t, Trigger::StepBegins { step, who, graveyard }
                     if step == name && Game::whose(who, you, active)
                         && *graveyard == (g.obj(src).zone == Zone::Graveyard))
+                    || (matches!(t, Trigger::EntersOrUpkeep)
+                        && name == "upkeep"
+                        && you == active
+                        && g.obj(src).zone == Zone::Battlefield)
             });
             game.pending.extend(fired);
             // "at the beginning of the next end step" delayed triggers, after the others
@@ -5324,6 +5329,7 @@ fn sacrifice(game: &mut Game, id: ObjId) {
         return;
     }
     let who = game.obj(id).controller;
+    game.player_mut(who).sacrificed += 1;
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| {
         matches!(t, Trigger::Sacrificed { filter, who: w } if Game::whose(w, you, who) && g.filter_matches(filter, you, Some(src), id))
@@ -5694,7 +5700,11 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         sources.extend(p.graveyard.iter().copied());
     }
     let fired = game.triggers(sources, |g, src, you, t| match t {
-        Trigger::Enters | Trigger::EntersOrDies | Trigger::EntersOrAttacks | Trigger::TransformsOrEnters => {
+        Trigger::Enters
+        | Trigger::EntersOrDies
+        | Trigger::EntersOrAttacks
+        | Trigger::TransformsOrEnters
+        | Trigger::EntersOrUpkeep => {
             src == id && g.obj(src).zone == Zone::Battlefield
         }
         Trigger::EntersAll { filter, include_self, graveyard } => {

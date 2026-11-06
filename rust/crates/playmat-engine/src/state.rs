@@ -259,6 +259,8 @@ pub struct Player {
     /// spells they cast this turn, and how many of them were instants or sorceries
     pub spells_cast: u32,
     pub instants_sorceries_cast: u32,
+    /// permanents sacrificed this turn (`PermanentsSacrificedWatcher`)
+    pub sacrificed: u32,
     /// a permanent they controlled left the battlefield this turn (`RevoltWatcher`)
     pub permanent_left: bool,
 }
@@ -783,6 +785,7 @@ impl Game {
                     .count() as i32,
                 Value::CardsInHand => self.player(you).hand.len() as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
+                Value::SacrificedThisTurn => self.player(you).sacrificed as i32,
                 Value::CardsInGraveyard { filter } => self
                     .player(you)
                     .graveyard
@@ -846,6 +849,7 @@ impl Game {
                     })
             }),
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
+            Condition::SacrificedThisTurn { n } => self.player(you).sacrificed as i32 >= *n,
             Condition::CardsInGraveyard { filter, n } => {
                 let g = &self.player(you).graveyard;
                 g.iter().filter(|c| self.filter_matches(filter, you, Some(source), **c)).count() as i32 >= *n

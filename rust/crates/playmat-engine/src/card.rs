@@ -343,6 +343,8 @@ pub enum Trigger {
     BecomesTargetOfSpell { filter: Filter },
     /// `who` casts their second spell this turn
     CastSecondSpell { who: String },
+    /// this enters, and at the beginning of your upkeep (`OrTriggeredAbility`)
+    EntersOrUpkeep,
     /// you commit a crime: a spell or ability of yours targets an opponent, something of theirs or a card in their
     /// graveyard (`CommittedCrimeTriggeredAbility`)
     CommittedCrime,
@@ -479,6 +481,8 @@ pub enum Condition {
     SourceAttacking,
     /// `CardsInControllerGraveyardCondition`, spell mastery: at least `n` cards of the filter in your graveyard
     CardsInGraveyard { filter: Filter, n: i32 },
+    /// you sacrificed at least `n` permanents this turn
+    SacrificedThisTurn { n: i32 },
     /// `OpponentsLostLifeCondition`: an opponent lost life this turn
     OpponentsLostLife,
     /// `OpponentControlsMoreCondition`: an opponent controls more permanents of the filter than you
@@ -682,6 +686,8 @@ pub enum Value {
     GreatestManaValue { filter: Filter },
     /// cards the controller drew this turn
     CardsDrawn,
+    /// permanents the controller sacrificed this turn (`PermanentsSacrificedThisTurnCount.YOU`)
+    SacrificedThisTurn,
     /// the controller's devotion to a color: its mana symbols among the mana costs of permanents they control
     Devotion { c: Color },
 }
