@@ -936,6 +936,32 @@
     ]
   },
   {
+    "name": "Branchloft Pathway",
+    "set": "ZNR",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Branchloft Pathway"
+      },
+      {
+        "class": "GreenManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {G}."
+      },
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Boulderloft Pathway"
+      },
+      {
+        "class": "WhiteManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {W}."
+      }
+    ]
+  },
+  {
     "name": "Brazen Borrower",
     "set": "ELD",
     "abilities": [
@@ -1256,6 +1282,22 @@
         "class": "CyclingAbility",
         "type": "ACTIVATED_NONMANA",
         "rule": "Cycling {U} <i>({U}, Discard this card: Draw a card.)</i>"
+      }
+    ]
+  },
+  {
+    "name": "Champion of the Perished",
+    "set": "MID",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldControlledTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever another Zombie you control enters, put a +1/+1 counter on {this}."
       }
     ]
   },
@@ -1650,6 +1692,27 @@
     ]
   },
   {
+    "name": "Cryptbreaker",
+    "set": "EMN",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{1}{B}, {T}, Discard a card: Create a 2/2 black Zombie creature token."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "Tap three untapped Zombies you control: You draw a card and you lose 1 life."
+      }
+    ]
+  },
+  {
     "name": "Culling Ritual",
     "set": "STX",
     "abilities": [
@@ -1668,6 +1731,17 @@
         "class": "SpellAbility",
         "type": "SPELL",
         "rule": "destroy target creature with total power and toughness 5 or less."
+      }
+    ]
+  },
+  {
+    "name": "Dark Salvation",
+    "set": "EMN",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "target player creates X 2/2 black Zombie creature tokens, then up to one target creature gets -1/-1 until end of turn for each Zombie that player controls."
       }
     ]
   },
@@ -1814,6 +1888,22 @@
     ]
   },
   {
+    "name": "Death Baron",
+    "set": "FDN",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "Skeletons you control and other Zombies you control get +1/+1 and have deathtouch."
+      }
+    ]
+  },
+  {
     "name": "Demolition Field",
     "set": "FDN",
     "abilities": [
@@ -1883,6 +1973,27 @@
         "class": "BlueManaAbility",
         "type": "ACTIVATED_MANA",
         "rule": "{T}: Add {U}."
+      }
+    ]
+  },
+  {
+    "name": "Diregraf Colossus",
+    "set": "SOI",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldAbility",
+        "type": "STATIC",
+        "rule": "{this} enters with a +1/+1 counter on it for each Zombie card in your graveyard."
+      },
+      {
+        "class": "SpellCastControllerTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever you cast a Zombie spell, create a tapped 2/2 black Zombie creature token."
       }
     ]
   },
@@ -1967,6 +2078,27 @@
         "class": "RedManaAbility",
         "type": "ACTIVATED_MANA",
         "rule": "{T}: Add {R}."
+      }
+    ]
+  },
+  {
+    "name": "Dread Wanderer",
+    "set": "AKH",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldTappedAbility",
+        "type": "STATIC",
+        "rule": "{this} enters tapped."
+      },
+      {
+        "class": "ActivateIfConditionActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{2}{B}: Return this card from your graveyard to the battlefield. Activate only if you have one or fewer cards in hand and only as a sorcery."
       }
     ]
   },
@@ -4633,6 +4765,27 @@
     ]
   },
   {
+    "name": "Liliana's Mastery",
+    "set": "AKH",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "Zombies you control get +1/+1."
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, create two 2/2 black Zombie creature tokens."
+      }
+    ]
+  },
+  {
     "name": "Lively Dirge",
     "set": "OTJ",
     "abilities": [
@@ -4687,6 +4840,27 @@
         "class": "GreenManaAbility",
         "type": "ACTIVATED_MANA",
         "rule": "{T}: Add {G}. {this} deals 1 damage to you."
+      }
+    ]
+  },
+  {
+    "name": "Lord of the Accursed",
+    "set": "AKH",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "other Zombies you control get +1/+1."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{1}{B}, {T}: All Zombies gain menace until end of turn."
       }
     ]
   },
@@ -6101,6 +6275,22 @@
         "class": "LoyaltyAbility",
         "type": "ACTIVATED_NONMANA",
         "rule": "-6: You get an emblem with \"Whenever you gain life, target opponent loses that much life.\""
+      }
+    ]
+  },
+  {
+    "name": "Professor of Symbology",
+    "set": "STX",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, learn. <i>(You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.)</i>"
       }
     ]
   },
@@ -9372,6 +9562,22 @@
     ]
   },
   {
+    "name": "Voice of Resurgence",
+    "set": "DGM",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "OrTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "whenever an opponent casts a spell during your turn or when {this} dies, create a green and white Elemental creature token with \"This token's power and toughness are each equal to the number of creatures you control.\""
+      }
+    ]
+  },
+  {
     "name": "Voice of Victory",
     "set": "TDM",
     "abilities": [
@@ -10420,6 +10626,23 @@
     ]
   },
   {
+    "name": "token:VoiceOfResurgenceToken",
+    "images": {
+      "2XM": 1,
+      "DGM": 1,
+      "ECC": 1,
+      "MM3": 1,
+      "UST": 1
+    },
+    "abilities": [
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "{this}'s power and toughness are each equal to the number of creatures you control."
+      }
+    ]
+  },
+  {
     "name": "token:WhiteDogToken",
     "images": {
       "FDN": 1,
@@ -10427,6 +10650,87 @@
       "MKM": 1,
       "SLD": 1,
       "TDC": 1
+    },
+    "abilities": []
+  },
+  {
+    "name": "token:ZombieToken",
+    "images": {
+      "10E": 1,
+      "2X2": 1,
+      "AFR": 1,
+      "AKH": 1,
+      "ALA": 1,
+      "AVR": 1,
+      "BBD": 1,
+      "C14": 1,
+      "C15": 1,
+      "C16": 1,
+      "C17": 1,
+      "C18": 1,
+      "C19": 2,
+      "C20": 1,
+      "C21": 1,
+      "CC2": 1,
+      "CM2": 1,
+      "CMA": 1,
+      "CMM": 1,
+      "CMR": 1,
+      "CN2": 1,
+      "CNS": 1,
+      "DDQ": 1,
+      "DFT": 1,
+      "DMC": 1,
+      "DMR": 1,
+      "DTK": 1,
+      "ECC": 1,
+      "EMA": 1,
+      "EMN": 3,
+      "FDC": 1,
+      "FDN": 1,
+      "FIC": 1,
+      "GN3": 1,
+      "INR": 1,
+      "ISD": 3,
+      "KTK": 1,
+      "M10": 1,
+      "M11": 1,
+      "M12": 1,
+      "M13": 1,
+      "M14": 1,
+      "M15": 1,
+      "M19": 1,
+      "M20": 1,
+      "M21": 1,
+      "MBS": 1,
+      "MDD": 1,
+      "MED": 1,
+      "MH1": 1,
+      "MH2": 1,
+      "MH3": 1,
+      "MIC": 1,
+      "MKC": 1,
+      "MM3": 1,
+      "MMA": 1,
+      "MOM": 1,
+      "NCC": 1,
+      "ODY": 1,
+      "OGW": 1,
+      "ORI": 1,
+      "OTC": 1,
+      "PCA": 1,
+      "PEMN": 2,
+      "RNA": 1,
+      "RVR": 1,
+      "SCD": 1,
+      "SLD": 1,
+      "SOI": 1,
+      "THB": 1,
+      "UGL": 1,
+      "UMA": 1,
+      "UST": 1,
+      "VOW": 1,
+      "WAR": 1
     },
     "abilities": []
   },

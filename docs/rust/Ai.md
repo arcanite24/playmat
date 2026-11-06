@@ -96,8 +96,9 @@ against the Java AI isn't possible this way; both are measured against the same 
 
 A game qualifies when it's one human against one AI, from opening hands (no test setup, no resumed game), and the
 engine has every card in both decks (`playmat-ai-bridge --check`, asked once per card name). Others are untouched.
-The server logs `Rust AI plays seat …` when a game starts with it and `Rust AI stops in …` with the reason when it
-hands a game back.
+The server logs `Rust AI plays seat …` when a game starts with it, `Rust AI stops in …` with the reason when it
+hands a game back, and `… doesn't qualify, the Rust engine lacks N cards: …` for a listed player's game with cards the
+engine doesn't have.
 
 ### Tests
 

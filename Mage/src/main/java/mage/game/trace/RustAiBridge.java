@@ -73,6 +73,14 @@ public final class RustAiBridge {
 
     /** Whether the Rust engine has every one of these cards (asked once per name, then remembered). */
     public static boolean supports(Collection<String> names) {
+        return missing(names).isEmpty();
+    }
+
+    /**
+     * The cards of these the Rust engine doesn't have (asked once per name, then remembered); all of them when the
+     * bridge can't be asked.
+     */
+    public static Set<String> missing(Collection<String> names) {
         List<String> unknown = new ArrayList<>();
         for (String n : new LinkedHashSet<>(names)) {
             if (!SUPPORTED.containsKey(n)) {
@@ -96,25 +104,26 @@ public final class RustAiBridge {
                 }
                 if (!p.waitFor(30, TimeUnit.SECONDS) || p.exitValue() != 0) {
                     p.destroyForcibly();
-                    return false;
+                    return new LinkedHashSet<>(names);
                 }
                 for (String n : unknown) {
                     SUPPORTED.put(n, !missing.contains(n));
                 }
             } catch (IOException e) {
                 logger.warn("Rust AI: can't run " + binary() + ": " + e.getMessage());
-                return false;
+                return new LinkedHashSet<>(names);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                return false;
+                return new LinkedHashSet<>(names);
             }
         }
+        Set<String> missing = new TreeSet<>();
         for (String n : names) {
             if (!SUPPORTED.getOrDefault(n, false)) {
-                return false;
+                missing.add(n);
             }
         }
-        return true;
+        return missing;
     }
 
     /** the trace's sink: starts the copy at the first entry, forwards the rest, ends with the game */

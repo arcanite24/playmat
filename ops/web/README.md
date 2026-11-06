@@ -265,8 +265,10 @@ step, and whenever the copy differs from Java's game, the Java AI takes the seat
 | `XMAGE_ENGINE` | | `java` turns every Rust part off. |
 
 It plays a game when it's one player against one AI from opening hands, and the Rust engine has every card in both
-decks (for now, the Pioneer and Standard Career school decks' cards). The log says `Rust AI plays seat …` when it
-starts and `Rust AI stops in …` with the reason when it hands a game back. Try it on staff first, e.g.
+decks (for now, the Pioneer and Standard Career school decks' cards and a few Pioneer decks more,
+[docs/rust/Engine.md](../../docs/rust/Engine.md)). The log says `Rust AI plays seat …` when it starts, `Rust AI stops
+in …` with the reason when it hands a game back, and, for a listed player's game that doesn't qualify, which cards the
+engine lacks. Try it on staff first, e.g.
 `XMAGE_AI_BACKEND=rust` and `XMAGE_RUST_AI_USERS=neri`, then `up -d`.
 
 ### Small VPS (1 vCPU, 1 GB)

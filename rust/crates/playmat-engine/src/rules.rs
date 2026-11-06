@@ -582,6 +582,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         if def.flashback().is_some_and(|f| castable(game, seat, *id, &f))
             || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
             || blitz(game, seat, *id).is_some()
+            || !activatable(game, seat, *id).is_empty()
         {
             out.push(*id);
         }
@@ -621,7 +622,8 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
 /// A permanent's activated abilities (not mana abilities) its controller can activate now, by index.
 fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     let o = game.obj(id);
-    if o.controller != seat {
+    // a card in a graveyard is its owner's
+    if (o.zone == Zone::Graveyard && o.owner != seat) || (o.zone != Zone::Graveyard && o.controller != seat) {
         return Vec::new();
     }
     if activations_forbidden(game, id) {
@@ -654,8 +656,13 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
         }
         let Some((_, _, targets, costs, sorcery)) = a.activated() else { continue };
         // cycling works from hand, everything else on the battlefield
-        if a.from_hand() != (o.zone == Zone::Hand) {
+        if a.from_hand() != (o.zone == Zone::Hand) || a.from_graveyard() != (o.zone == Zone::Graveyard) {
             continue;
+        }
+        if let AbilityDef::GraveyardActivatedAbility { condition, .. } = a {
+            if !game.condition_holds(condition.as_ref(), seat, id) {
+                continue;
+            }
         }
         // The Wandering Emperor: her loyalty abilities at instant speed the turn she entered
         let flash = matches!(a, AbilityDef::LoyaltyAbility { .. })
@@ -1436,6 +1443,22 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     let before = game.clone();
     // flashback: cast with its flashback cost (the whole card comes back as it leaves the stack)
     if game.obj(id).zone == Zone::Graveyard {
+        // an ability that works from the graveyard (Dread Wanderer): with mana in its cost, activated directly
+        let abilities = activatable(game, seat, id);
+        if !abilities.is_empty() {
+            let index = if abilities.len() == 1 {
+                abilities[0]
+            } else {
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: abilities.clone() }) {
+                    Answer::Ability(o, i) if o == id && abilities.contains(&i) => i,
+                    _ => return,
+                }
+            };
+            if !activate(game, d, seat, id, index) {
+                *game = before;
+            }
+            return;
+        }
         if let Some((_, def)) = blitz(game, seat, id) {
             cast_blitzed(game, d, seat, id, def);
             return;
@@ -2018,6 +2041,9 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
     let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
         Trigger::SpellCast { filter, who } => {
             Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell)
+        }
+        Trigger::OpponentCastsOnYourTurnOrDies => {
+            you != seat && g.active == Some(you) && g.obj(src).zone == Zone::Battlefield
         }
         Trigger::CommittedCrime => you == seat && crime,
         Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
@@ -3972,6 +3998,29 @@ fn apply_each_effect(
                 if n > 0 {
                     for o in &objs {
                         game.obj_mut(*o).add_counters(&counter.name, n);
+                    }
+                }
+            }
+            EffectDef::DarkSalvationEffect { token } => {
+                if let Some(Target::Player(p)) = legal_target(0) {
+                    let def = Arc::new(token.card());
+                    token_image(game, token, source.0);
+                    for _ in 0..item.x.max(0) * token_copies(game, p) as i32 {
+                        let id = game.create_obj(def.clone(), p, Zone::Library);
+                        let o = game.obj_mut(id);
+                        o.token = true;
+                        o.trigger_order = (1 << 32) + id.0 as u64;
+                        enter_battlefield(game, d, id, p, false);
+                    }
+                    if let Some(Target::Obj(o)) = legal_target(1) {
+                        let n = game
+                            .battlefield
+                            .iter()
+                            .filter(|z| game.obj(**z).controller == p && game.has_subtype(**z, "Zombie"))
+                            .count() as i32;
+                        if game.obj(o).zone == Zone::Battlefield {
+                            boost(game, o, -n, -n, Duration::EndOfTurn);
+                        }
                     }
                 }
             }

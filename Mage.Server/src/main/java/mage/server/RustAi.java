@@ -78,7 +78,13 @@ public final class RustAi {
                     names.add(c.getName());
                 }
             }
-            if (ai == null || !RustAiBridge.supports(names)) {
+            if (ai == null) {
+                return;
+            }
+            Set<String> missing = RustAiBridge.missing(names);
+            if (!missing.isEmpty()) {
+                logger.info("Rust AI: " + user + " vs " + ai.getName() + " doesn't qualify, the Rust engine lacks "
+                        + missing.size() + " card" + (missing.size() == 1 ? "" : "s") + ": " + String.join(", ", missing));
                 return;
             }
             DecisionLog log = DecisionLog.recording();
