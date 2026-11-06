@@ -1162,6 +1162,20 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // a plotted card (cast free, as a sorcery) or a foretold one (for its foretell cost), on a later turn
     if zone == Zone::Exile && (game.obj(id).plotted_turn.is_some() || game.obj(id).foretold_turn.is_some()) {
         let Some((def, free)) = exile_cast(game, seat, id) else { return };
+        // `lookAtFaceDownCard`: a foretold card is face down, so its owner is asked whether to only look at it
+        if game.obj(id).foretold_turn.is_some() {
+            let q = Query::YesNo { message: format!("Look at {}", game.obj(id).def.name) };
+            let look = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return,
+                    _ => {}
+                }
+            };
+            if look {
+                return;
+            }
+        }
         if free {
             cast_free(game, d, seat, id);
             return;
@@ -1356,6 +1370,31 @@ fn cast_free(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> boo
 /// A cast an effect allows (paying its costs): the game is as it was before when it's cancelled
 fn cast_allowed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     let before = game.clone();
+    // `chooseAbilityForCast`: an adventurer card, the adventure (a0) or the creature (a1), asked with both castable
+    if let Some(adventure) = game.obj(id).def.adventure.clone() {
+        let mut options = Vec::new();
+        if castable(game, seat, id, &adventure) {
+            options.push(0);
+        }
+        if castable(game, seat, id, &game.obj(id).def.clone()) {
+            options.push(1);
+        }
+        let pick = if options.len() > 1 {
+            match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                Answer::Ability(o, k) if o == id && options.contains(&k) => k,
+                Answer::Stop => return false,
+                _ => 1,
+            }
+        } else {
+            options.first().copied().unwrap_or(1)
+        };
+        if pick == 0 {
+            let full = game.obj(id).def.clone();
+            let o = game.obj_mut(id);
+            o.adventurer = Some(full);
+            o.def = adventure;
+        }
+    }
     if cast_with(game, d, seat, id, false) {
         return true;
     }
@@ -2603,7 +2642,8 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
             game.stack
                 .iter()
                 .rev()
-                .filter(|i| (i.ability.is_some() || i.delayed.is_some()) && Some(i.card) != src)
+                // (`TargetActivatedOrTriggeredAbility` lets a trigger target itself, as Java does)
+                .filter(|i| i.ability.is_some() || i.delayed.is_some())
                 .map(|i| i.card)
                 .collect(),
         ),
@@ -3132,6 +3172,19 @@ fn becomes_creature(old: &CardDef, token: &crate::card::TokenDef, retain: bool) 
     def
 }
 
+/// It loses all abilities for as long as `src` stays: a static "it's a creature" of its own (Kaito) stops applying
+fn lose_all_abilities(game: &mut Game, id: ObjId, src: ObjId, zcc: u32) {
+    let ob = game.obj_mut(id);
+    if let Some(def) = ob.becomes_base.take() {
+        ob.def = def;
+    }
+    let old = ob.def.clone();
+    let mut def = (*old).clone();
+    def.abilities.clear();
+    ob.def = Arc::new(def);
+    ob.lost_abilities = Some((src, zcc, old));
+}
+
 /// A static "as long as …, it's a creature" (Kaito, Bane of Nightmares): applied or removed as its condition changes.
 /// Java applies continuous effects all the time; here, before each question, trace and state check.
 pub(crate) fn refresh_becomes(game: &mut Game) {
@@ -3139,7 +3192,10 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
     for id in ids {
         let o = game.obj(id);
         let base = o.becomes_base.clone().unwrap_or_else(|| o.def.clone());
-        let found = base.abilities.iter().find_map(|a| match a {
+        // with its abilities lost, the static still makes it a creature (layer 4), but doesn't set its power and
+        // toughness (layer 7b, after the loss in layer 6), and gives no abilities
+        let lost = o.lost_abilities.as_ref().map(|(_, _, d)| d.clone());
+        let found = lost.as_ref().unwrap_or(&base).abilities.iter().find_map(|a| match a {
             AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().find_map(|e| match e {
                 EffectDef::ConditionalContinuousEffect { effect, condition } => match &**effect {
                     EffectDef::BecomesCreatureSourceEffect { token, retain, .. } => {
@@ -3155,7 +3211,12 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
         let holds = game.condition_holds(Some(&condition), o.controller, id);
         let applied = o.becomes_base.is_some();
         if holds && !applied {
-            let def = Arc::new(becomes_creature(&base, &token, retain));
+            let mut def = becomes_creature(&base, &token, retain);
+            if lost.is_some() {
+                def.abilities.clear();
+                (def.power, def.toughness) = (base.power, base.toughness);
+            }
+            let def = Arc::new(def);
             let o = game.obj_mut(id);
             o.becomes_base = Some(base);
             o.def = def;
@@ -3787,12 +3848,7 @@ fn apply_each_effect(
                     {
                         continue;
                     }
-                    let old = p.def.clone();
-                    let mut def = (*old).clone();
-                    def.abilities.clear();
-                    let ob = game.obj_mut(*o);
-                    ob.def = Arc::new(def);
-                    ob.lost_abilities = Some((src, zcc, old));
+                    lose_all_abilities(game, *o, src, zcc);
                 }
             }
             EffectDef::LoseAllAbilitiesUntilSourceLeavesEffect => {
@@ -3804,12 +3860,7 @@ fn apply_each_effect(
                     if game.obj(*o).zone != Zone::Battlefield || game.obj(*o).lost_abilities.is_some() {
                         continue;
                     }
-                    let old = game.obj(*o).def.clone();
-                    let mut def = (*old).clone();
-                    def.abilities.clear();
-                    let ob = game.obj_mut(*o);
-                    ob.def = Arc::new(def);
-                    ob.lost_abilities = Some((src, zcc, old));
+                    lose_all_abilities(game, *o, src, zcc);
                 }
             }
             EffectDef::FirebendingEffect { amount } => {
