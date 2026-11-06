@@ -145,6 +145,8 @@ CUSTOM = {
     'MagebaneLizardEffect': lambda: {'class': 'MagebaneLizardEffect'},
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
     'ScreamingNemesisEffect': lambda: {'class': 'ScreamingNemesisEffect'},
+    'GraveyardTrespasserEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
+    'GraveyardGluttonEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
     # exile up to one target card from a graveyard; a creature card: create a Clue
     'RavenEagleEffect': lambda: {'class': 'RavenEagleEffect', 'then': {
         'class': 'CreateTokenEffect', 'token': token('ClueArtifactToken'), 'amount': 1}},

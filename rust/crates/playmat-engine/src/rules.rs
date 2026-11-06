@@ -1414,6 +1414,35 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
 /// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
 /// the payment; anything short of paying counters. None: stopped.
 fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef]) -> Option<bool> {
+    // ward—discard a card: a non-mana cost's message has no "Pay " (`DiscardTargetCost` text "discard a card")
+    if let Some(CostDef::DiscardCardCost { filter }) = cost.iter().find(|c| matches!(c, CostDef::DiscardCardCost { .. })) {
+        let hand = game.player(payer).hand.clone();
+        let possible: Vec<ObjId> =
+            hand.iter().copied().filter(|c| game.filter_matches(filter, payer, None, *c)).collect();
+        if possible.is_empty() {
+            return Some(false);
+        }
+        let q = Query::YesNo { message: "discard a card?".into() };
+        let yes = loop {
+            match ask(game, d, payer, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return None,
+                _ => {}
+            }
+        };
+        if !yes {
+            return Some(false);
+        }
+        let chosen = choose_cards(game, d, payer, &hand, &possible, 1, 1, "discard");
+        if d.stopped() {
+            return None;
+        }
+        let Some(chosen) = chosen else { return Some(false) };
+        for o in &chosen {
+            game.move_to(*o, Zone::Graveyard);
+        }
+        return Some(!chosen.is_empty());
+    }
     let life: i32 = cost.iter().map(|c| if let CostDef::PayLifeCost { amount } = c { *amount } else { 0 }).sum();
     let mana = ability_mana_cost(cost);
     if game.player(payer).life < life {
@@ -3804,6 +3833,25 @@ fn apply_each_effect(
                 if let Target::Player(p) = t {
                     if dealt > 0 {
                         game.player_mut(p).cant_gain_life = true;
+                    }
+                }
+            }
+            EffectDef::GraveyardTrespasserEffect => {
+                let cards: Vec<ObjId> = objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Graveyard).collect();
+                let mut amount = 0;
+                for o in cards {
+                    let creature = game.obj(o).is(CardType::Creature);
+                    game.move_to(o, Zone::Exile);
+                    if creature && game.obj(o).zone == Zone::Exile {
+                        amount += 1;
+                    }
+                }
+                if amount > 0 {
+                    gain_life(game, controller, amount);
+                    for s in 0..game.seats() {
+                        if s != controller {
+                            lose_life(game, s, amount);
+                        }
                     }
                 }
             }

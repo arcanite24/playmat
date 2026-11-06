@@ -909,6 +909,9 @@ pub enum EffectDef {
     /// deals X (the damage this was dealt) to the target; a player dealt damage this way can't gain life for the
     /// rest of the game
     ScreamingNemesisEffect,
+    /// exiles the target cards from graveyards; for each creature card, you gain 1 life and each opponent loses 1
+    /// (Graveyard Trespasser and its back face)
+    GraveyardTrespasserEffect,
     /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
     NoMaximumHandSizeEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card
