@@ -529,7 +529,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             let sick = game.has_type(id, CardType::Creature) && o.sick && !game.has_ability(id, &AbilityDef::HasteAbility);
             !(o.tapped || sick)
         }
-        CostDef::SacrificeSourceCost => true,
+        CostDef::SacrificeSourceCost | CostDef::ExileSourceCost => true,
         CostDef::ExileFromGraveCost { amount } => {
             game.player(seat).graveyard.iter().filter(|c| **c != id).count() >= *amount
         }
@@ -1404,6 +1404,13 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 top.lki_power = Some(power);
             }
             sacrifice(game, id)
+        }
+        CostDef::ExileSourceCost => {
+            let power = game.power_toughness(id).0;
+            if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                top.lki_power = Some(power);
+            }
+            game.move_to(id, Zone::Exile);
         }
         CostDef::RemoveCountersSourceCost { counter } => {
             let o = game.obj_mut(id);

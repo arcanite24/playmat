@@ -540,6 +540,8 @@ pub enum CostDef {
     TapTargetCost { filter: Filter, amount: usize },
     /// crew: tap any number of other untapped creatures you control with total power `value` or more
     CrewCost { value: i32 },
+    /// exile the source
+    ExileSourceCost,
     /// remove counters from the source
     RemoveCountersSourceCost { counter: CounterDef },
     /// return an unblocked attacker you control to its owner's hand (ninjutsu)

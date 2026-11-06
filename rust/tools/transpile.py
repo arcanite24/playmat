@@ -876,7 +876,7 @@ class Translator:
             return {'class': 'ManaCost', 'cost': '{' + n.group(1) + '}'}
         if cls == 'GenericManaCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': 'ManaCost', 'cost': '{' + args[0] + '}'}
-        if cls in ('TapSourceCost', 'SacrificeSourceCost') and not args:
+        if cls in ('TapSourceCost', 'SacrificeSourceCost', 'ExileSourceCost') and not args:
             return {'class': cls}
         if cls == 'RemoveCountersSourceCost' and len(args) == 1:
             return {'class': cls, 'counter': self.value('counter', args[0].strip())}
@@ -1258,6 +1258,12 @@ class Translator:
                     'cost': [{'class': 'ManaCost', 'cost': args[0].strip()[1:-1]},
                              {'class': 'ReturnAttackerToHandTargetCost'}]}
         # `new DelveAbility(false)`: the flag only keeps the exiled cards linked to the source
+        # affinity for a land type: the spell costs {1} less for each one you control
+        if cls == 'AffinityAbility' and len(args) == 1 and (n := re.fullmatch(r'AffinityType\.(FORESTS|ISLANDS|SWAMPS|MOUNTAINS|PLAINS)', args[0].strip())):
+            land = {'FORESTS': 'Forest', 'ISLANDS': 'Island', 'SWAMPS': 'Swamp', 'MOUNTAINS': 'Mountain', 'PLAINS': 'Plains'}[n.group(1)]
+            return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [{
+                'class': 'SpellCostReductionForEachSourceEffect', 'per': 1,
+                'amount': {'v': 'permanents', 'filter': [{'p': 'subtype', 's': land}, {'p': 'controller', 'who': 'you'}]}}]}
         if cls == 'DelveAbility' and args in ([], ['false']):
             return {'class': cls}
         # `new EnchantAbility(auraTarget)`: what it can enchant is the spell's target
