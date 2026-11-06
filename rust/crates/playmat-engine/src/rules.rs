@@ -3270,6 +3270,21 @@ fn apply_each_effect(
                     }
                 }
             }
+            // `FightEnchantedTargetEffect`: the Aura's creature (last known) fights the target
+            EffectDef::FightEnchantedTargetEffect => {
+                let enchanted = game.obj(source.0).attached_to.and_then(|(o, zcc)| {
+                    (game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc).then_some(o)
+                });
+                if let (Some(a), Some(Target::Obj(b))) = (enchanted, target) {
+                    if game.obj(b).zone == Zone::Battlefield && game.has_type(b, CardType::Creature) {
+                        let pb = game.power_toughness(b).0;
+                        let pa = game.power_toughness(a).0;
+                        deal_damage(game, b, Target::Obj(a), pb, false);
+                        let pa = pa.min(fight_lethal(game, b, a));
+                        deal_damage(game, a, Target::Obj(b), pa, false);
+                    }
+                }
+            }
             EffectDef::DestroyAllNamedPermanentsEffect => {
                 if let Some(Target::Obj(t)) = target {
                     if game.obj(t).zone == Zone::Battlefield {
@@ -4785,6 +4800,7 @@ fn apply_each_effect(
             | EffectDef::AttachEffect
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
+            | EffectDef::CantBeBlockedByMoreThanOneAttachedEffect
             | EffectDef::GraveyardFromAnywhereExileReplacementEffect
             | EffectDef::SetBasePowerSourceEffect { .. }
             | EffectDef::ValleyFlamecallerEffect
@@ -5906,6 +5922,18 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         }
         let mut legal = true;
         for a in attackers(game) {
+            // "can't be blocked by more than one creature" (an Aura's static): every blocker is removed
+            if max_blocked_by_one(game, a) && live_blockers(game, a).len() > 1 {
+                for b in live_blockers(game, a) {
+                    game.obj_mut(b).blocking.clear();
+                    game.obj_mut(b).blocks = 0;
+                }
+                let o = game.obj_mut(a);
+                o.blocked_by.clear();
+                o.blocked = false;
+                legal = false;
+                continue;
+            }
             if !game.has_ability(a, &AbilityDef::MenaceAbility) {
                 continue;
             }
@@ -5934,6 +5962,11 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             return;
         }
     }
+}
+
+/// Whether an Aura on `a` says it can't be blocked by more than one creature.
+fn max_blocked_by_one(game: &Game, a: ObjId) -> bool {
+    game.any_static(|g, src, e| matches!(e, EffectDef::CantBeBlockedByMoreThanOneAttachedEffect) && g.attached(src) == Some(a))
 }
 
 fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {

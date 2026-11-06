@@ -100,6 +100,8 @@ EFFECTS = {
     'GainAbilityAttachedEffect': [('ability', 'ability'), (None, 'aura')],
     'CantAttackBlockAttachedEffect': [(None, 'aura')],
     'FightTargetsEffect': [],
+    'FightEnchantedTargetEffect': [],
+    'CantBeBlockedByMoreThanOneAttachedEffect': [(None, 'aura')],
     'CantCastMoreThanOneSpellEffect': [('who', 'target_controller')],
     'CantCastDuringYourTurnEffect': [],
     # cheaper equip abilities: the engine has no equipment, so it never applies

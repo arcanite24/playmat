@@ -859,6 +859,10 @@ pub enum EffectDef {
     },
     /// the first target creature fights the second (each deals damage equal to its power to the other)
     FightTargetsEffect,
+    /// The creature this Aura enchants (or enchanted as it left) fights the target.
+    FightEnchantedTargetEffect,
+    /// Static: the enchanted creature can't be blocked by more than one creature.
+    CantBeBlockedByMoreThanOneAttachedEffect,
     /// destroy the target and every other permanent with its name
     DestroyAllNamedPermanentsEffect,
     /// double the source's counters of a kind
