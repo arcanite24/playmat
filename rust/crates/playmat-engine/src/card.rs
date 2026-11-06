@@ -440,6 +440,8 @@ pub enum Condition {
     FlierCast,
     /// you gained life this turn
     YouGainedLife,
+    /// you drew `n` or more cards this turn
+    DrewCards { n: u32 },
     /// four or more card types among cards exiled with the source (Keen-Eyed Curator)
     ExiledCardTypes { n: usize },
     SourceEnteredThisTurn,
@@ -635,6 +637,8 @@ pub enum Value {
     CardTypesInGraveyards,
     /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
     GreatestManaValue { filter: Filter },
+    /// cards the controller drew this turn
+    CardsDrawn,
     /// the controller's devotion to a color: its mana symbols among the mana costs of permanents they control
     Devotion { c: Color },
 }
@@ -689,6 +693,9 @@ pub enum EffectDef {
     /// puts counters on the target permanent
     AddCountersTargetEffect {
         counter: CounterDef,
+        /// how many, in place of the counter's own count
+        #[serde(default)]
+        value: Option<Amount>,
     },
     /// the controller creates `amount` tokens; Kavaron Harrier's enter tapped and attacking and are sacrificed at end
     /// of combat
@@ -870,6 +877,8 @@ pub enum EffectDef {
     },
     /// each opponent can't draw more than one card each turn
     NarsetParterOfVeilsEffect,
+    /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
+    NoMaximumHandSizeEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card
     ProphesiedEndEffect,
     /// exile each opponent's graveyard

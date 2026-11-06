@@ -2281,9 +2281,15 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::AddCountersTargetEffect { counter } => {
-                for o in &objs {
-                    game.obj_mut(*o).add_counters(&counter.name, counter.amount);
+            EffectDef::AddCountersTargetEffect { counter, value } => {
+                let n = match value {
+                    Some(a) => v!(a),
+                    None => counter.amount,
+                };
+                if n > 0 {
+                    for o in &objs {
+                        game.obj_mut(*o).add_counters(&counter.name, n);
+                    }
                 }
             }
             EffectDef::CreateTokenEffect {
@@ -2872,6 +2878,7 @@ fn apply_each_effect(
             | EffectDef::ClarionConquerorEffect
             | EffectDef::CastAsThoughItHadFlashAllEffect { .. }
             | EffectDef::NarsetParterOfVeilsEffect
+            | EffectDef::NoMaximumHandSizeEffect
             | EffectDef::GevScaledScorchEntersEffect
             | EffectDef::LovestruckBeastEffect
             | EffectDef::GainPlusOneLifeReplacementEffect
@@ -5140,7 +5147,10 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
 
 /// Discard to hand size (one card per answer, as `HumanPlayer.choose` asks), then damage wears off.
 fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
-    let excess = game.player(seat).hand.len().saturating_sub(MAX_HAND);
+    let unlimited = game.any_static(|g, src, e| {
+        matches!(e, EffectDef::NoMaximumHandSizeEffect) && g.obj(src).controller == seat
+    });
+    let excess = if unlimited { 0 } else { game.player(seat).hand.len().saturating_sub(MAX_HAND) };
     if excess > 0 {
         let mut chosen: Vec<ObjId> = Vec::new();
         while chosen.len() < excess {

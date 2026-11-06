@@ -336,6 +336,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance':
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
               'OpponentsLostLifeCondition.instance': {'c': 'opponents_lost_life'},
               'OpponentHasMoreLifeCondition.instance': {'c': 'opponent_more_life'},
+              'DrewTwoOrMoreCardsCondition.instance': {'c': 'drew_cards', 'n': 2},
               'OpponentHasMoreCardsInHandCondition.instance': {'c': 'opponent_more_cards'},
               # spell mastery: two or more instant and/or sorcery cards in your graveyard
               'SpellMasteryCondition.instance': {'c': 'cards_in_graveyard', 'n': 2, 'filter': [
@@ -660,6 +661,8 @@ class Translator:
             return {'v': 'card_types_in_graveyards'}
         if (m := re.fullmatch(r'DevotionCount\.([WUBRG])', arg)):
             return {'v': 'devotion', 'c': m.group(1)}
+        if arg == 'CardsDrawnThisTurnDynamicValue.instance':
+            return {'v': 'cards_drawn'}
         if arg == 'CardsInControllerHandCount.ANY':
             return {'v': 'cards_in_hand'}
         obj = self.new_expr(arg)
@@ -673,6 +676,8 @@ class Translator:
                 return v
             if cls == 'CardsInControllerGraveyardCount' and len(args) <= 1:
                 return {'v': 'cards_in_graveyard', 'filter': self.filter(args[0]) if args else []}
+            if cls == 'IntPlusDynamicValue' and len(args) == 2 and re.fullmatch(r'-?\d+', args[0].strip()):
+                return {'v': 'plus', 'of': self.amount(args[1]), 'n': int(args[0])}
             if cls == 'SignInversionDynamicValue' and len(args) == 1:
                 return {'v': 'negative', 'of': self.amount(args[0])}
             if cls == 'MultipliedValue' and len(args) == 2 and re.fullmatch(r'-?\d+', args[1].strip()):
@@ -953,6 +958,11 @@ class Translator:
             return {'class': 'DamageTargetSourcePowerEffect'}
         if cls.startswith('SearchLibraryPutIn'):
             return self.search_library(cls, [a.strip() for a in args])
+        if cls == 'MaximumHandSizeControllerEffect' and [a.strip() for a in args] == [
+                'Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'MaximumHandSizeControllerEffect.HandSizeModification.SET']:
+            return {'class': 'NoMaximumHandSizeEffect'}
+        if cls == 'AddCountersTargetEffect' and len(args) == 2:
+            return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'value': self.amount(args[1])}
         # (effect, condition[, text])
         if cls == 'ConditionalOneShotEffect' and len(args) in (2, 3) \
                 and (re.fullmatch(r'\w+Condition\.\w+', args[1].strip()) or args[1].strip() in self.conditions):

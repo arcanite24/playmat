@@ -686,6 +686,7 @@ impl Game {
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .count() as i32,
                 Value::CardsInHand => self.player(you).hand.len() as i32,
+                Value::CardsDrawn => self.player(you).drawn as i32,
                 Value::CardsInGraveyard { filter } => self
                     .player(you)
                     .graveyard
@@ -772,6 +773,7 @@ impl Game {
             Condition::Morbid => self.creature_died,
             Condition::FlierCast => self.player(you).flier_cast,
             Condition::YouGainedLife => self.player(you).life_gained > 0,
+            Condition::DrewCards { n } => self.player(you).drawn >= *n,
             Condition::ExiledCardTypes { n } => {
                 let zcc = self.obj(source).zcc;
                 let mut types: Vec<CardType> = Vec::new();
