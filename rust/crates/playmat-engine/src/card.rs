@@ -148,6 +148,13 @@ pub enum TargetDef {
         #[serde(default)]
         filter: Filter,
     },
+    /// an activated or triggered ability on the stack (`TargetActivatedOrTriggeredAbility`), named by its source
+    TargetStackAbility {
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
     /// any other spell, or a permanent of the filter
     TargetSpellOrPermanent {
         #[serde(default)]
@@ -1275,6 +1282,8 @@ pub enum EffectDef {
     GraveyardFromAnywhereExileReplacementEffect,
     /// an opponent's card that would be put into a graveyard from anywhere is exiled instead
     LeylineOfTheVoidEffect,
+    /// counter the target ability; its artifact, creature or planeswalker loses all abilities while the source stays
+    TishanasTidebinderEffect,
     /// the target opponent reveals their hand; you exile a nonland card from it, yours to cast if the gift was promised
     CruelclawsHeistEffect,
     /// you may have the target creature gain reach until end of turn

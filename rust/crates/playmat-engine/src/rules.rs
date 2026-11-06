@@ -2494,6 +2494,15 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
                 .filter(|c| game.filter_matches(filter, seat, src, *c))
                 .collect(),
         ),
+        TargetDef::TargetStackAbility { .. } => (
+            Vec::new(),
+            game.stack
+                .iter()
+                .rev()
+                .filter(|i| (i.ability.is_some() || i.delayed.is_some()) && Some(i.card) != src)
+                .map(|i| i.card)
+                .collect(),
+        ),
         TargetDef::TargetSpellOrPermanent { filter } => {
             let mut objs: Vec<ObjId> = game
                 .stack
@@ -2543,6 +2552,7 @@ fn target_counts(def: &TargetDef) -> (usize, usize) {
     match def {
         TargetDef::TargetPermanent { min, max, .. }
         | TargetDef::TargetCardInGraveyard { min, max, .. }
+        | TargetDef::TargetStackAbility { min, max }
         | TargetDef::TargetAnyTarget { min, max, .. } => (*min, *max),
         _ => (1, 1),
     }
@@ -3637,6 +3647,33 @@ fn apply_each_effect(
                         o.front = Some(std::mem::replace(&mut o.def, back));
                         enter_battlefield(game, d, src, controller, false);
                     }
+                }
+            }
+            EffectDef::TishanasTidebinderEffect => {
+                let (src, zcc) = source;
+                for o in &objs {
+                    let Some(k) =
+                        game.stack.iter().rposition(|i| i.card == *o && (i.ability.is_some() || i.delayed.is_some()))
+                    else {
+                        continue;
+                    };
+                    Arc::make_mut(&mut game.stack).remove(k);
+                    let p = game.obj(*o);
+                    let kinds = [CardType::Artifact, CardType::Creature, CardType::Planeswalker];
+                    if p.zone != Zone::Battlefield
+                        || !kinds.iter().any(|t| game.has_type(*o, *t))
+                        || game.obj(src).zone != Zone::Battlefield
+                        || game.obj(src).zcc != zcc
+                        || p.lost_abilities.is_some()
+                    {
+                        continue;
+                    }
+                    let old = p.def.clone();
+                    let mut def = (*old).clone();
+                    def.abilities.clear();
+                    let ob = game.obj_mut(*o);
+                    ob.def = Arc::new(def);
+                    ob.lost_abilities = Some((src, zcc, old));
                 }
             }
             EffectDef::LoseAllAbilitiesUntilSourceLeavesEffect => {
