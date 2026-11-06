@@ -259,8 +259,15 @@ impl Decider for Mirror<'_> {
                         self.differ(format!("Java asks the AI ({question}), but here seat {seat} is asked {q:?}"));
                         continue;
                     }
+                    let kind = question.split_whitespace().next().unwrap_or("");
+                    // a choice the engine doesn't ask (a color or type for mana paying a generic cost): Java takes its
+                    // first option; if that changes anything, the next fingerprint differs
+                    if kind == "CHOOSE_CHOICE" && !matches!(q, Query::Choice { .. }) && seat == self.bot {
+                        self.waiting = false;
+                        self.send(json!({"type": "answer", "string": ""}));
+                        continue;
+                    }
                     if let Some(want) = java_kind(q) {
-                        let kind = question.split_whitespace().next().unwrap_or("");
                         if !kind.is_empty() && !want.contains(&kind) {
                             self.differ(format!("Java asks the AI {question}, but here it's asked {q:?}"));
                             continue;

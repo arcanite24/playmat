@@ -47,6 +47,20 @@ Measured 6 Nov 2026, M-series Mac, one thread:
 All 84 games finish, none panics. The Rust AI searches far fewer nodes per decision than Java (whole-turn playouts
 instead of a deep tree), so the per-node figure flatters it; the decision times are what a player waits on.
 
+## Strength
+
+The bridge (below) can't put the two AIs against each other, so both play the same 48 seeded games of
+`RustAiGameTest` against a `RandomDriver` human seat (the 42 school decks, 20-turn cap), 6 Nov 2026:
+
+| | Java AI, skill 4 | Rust AI |
+|---|---|---|
+| games played start to finish | 48 | 41 (7 went back to the Java AI partway) |
+| won / drawn / lost | 36 / 7 / 4 | 36 / 5 / 0 (of the 41) |
+| wall time per game (Java's game included) | 21 s | 14 s |
+
+A random opponent is a low bar: it says the Rust AI isn't weaker than Java's at the basics, not that it's as strong
+against people. Playtests are the next measure.
+
 ## Playing in Java's games
 
 The Java server stays the game. The Rust AI plays the AI's seat through a copy of the game kept in step with Java's:
