@@ -115,6 +115,8 @@ pub struct Obj {
     pub cast_x: i32,
     /// what it was before an effect changed its characteristics (`def`) for as long as it stays on the battlefield
     pub printed_def: Option<Arc<CardDef>>,
+    /// what it entered as a copy of (Mockingbird): its copiable values, which a copy of it copies
+    pub copied_def: Option<Arc<CardDef>>,
     /// the permanent (and its zone change count) this Aura is attached to
     pub attached_to: Option<(ObjId, u32)>,
     /// cast as its adventure: the whole card, while `def` is the adventure's
@@ -192,6 +194,11 @@ pub struct Obj {
 }
 
 impl Obj {
+    /// Its copiable values: what it's a copy of, or its card before other effects changed it
+    pub fn copiable(&self) -> Arc<CardDef> {
+        self.copied_def.clone().or_else(|| self.printed_def.clone()).unwrap_or_else(|| self.def.clone())
+    }
+
     pub fn name(&self) -> &str {
         &self.def.name
     }
@@ -522,6 +529,7 @@ impl Game {
             cast: false,
             until_end_of_turn_def: None,
             printed_def: None,
+            copied_def: None,
             cast_x: 0,
             attached_to: None,
             adventurer: None,
@@ -1274,6 +1282,7 @@ impl Game {
                 if let Some(def) = o.until_end_of_turn_def.take() {
                     o.def = def;
                 }
+                o.copied_def = None;
                 if let Some(def) = o.printed_def.take() {
                     o.def = def;
                 }

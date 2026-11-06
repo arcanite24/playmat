@@ -2694,7 +2694,7 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
 /// toughness
 fn token_copy(game: &mut Game, d: &mut dyn Decider, of: ObjId, controller: Seat, pt: Option<(i32, i32)>) {
     let o = game.obj(of);
-    let mut def = (**o.printed_def.as_ref().unwrap_or(&o.def)).clone();
+    let mut def = (*o.copiable()).clone();
     if let Some((p, t)) = pt {
         def.power = p;
         def.toughness = t;
@@ -5424,16 +5424,18 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
         return;
     };
     let o = game.obj(of);
-    let mut copy = (**o.printed_def.as_ref().unwrap_or(&o.def)).clone();
+    let mut copy = (*o.copiable()).clone();
     if !copy.subtypes.iter().any(|t| t == "Bird") {
         copy.subtypes.push("Bird".into());
     }
     if !copy.abilities.contains(&AbilityDef::FlyingAbility) {
         copy.abilities.push(AbilityDef::FlyingAbility);
     }
+    let copy = Arc::new(copy);
     let o = game.obj_mut(id);
     o.printed_def = Some(def);
-    o.def = Arc::new(copy);
+    o.copied_def = Some(copy.clone());
+    o.def = copy;
 }
 
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
