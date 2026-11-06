@@ -166,6 +166,9 @@ pub struct Obj {
     pub targeted: (u32, u32),
     /// exiled "on an adventure": its owner may cast the creature from exile
     pub on_adventure: bool,
+    /// the zone Java keeps for an adventurer card's adventure part (`CardWithSpellOption`): it follows the card,
+    /// except when the card goes onto the stack or the battlefield or leaves the battlefield
+    pub adventure_zone: Zone,
     /// the attackers it blocks
     pub blocking: Vec<ObjId>,
     /// how many attackers it was declared to block (Java's `blocking` count: an attacker leaving combat doesn't
@@ -496,6 +499,7 @@ impl Game {
             owner,
             controller: owner,
             zone,
+            adventure_zone: zone,
             tapped: false,
             damage: 0,
             counters: Vec::new(),
@@ -1265,6 +1269,9 @@ impl Game {
                 o.blocked_by.clear();
                 o.controller = o.owner;
                 o.deathtouched = false;
+            }
+            if from != Zone::Battlefield && !matches!(zone, Zone::Battlefield | Zone::Stack) {
+                o.adventure_zone = zone;
             }
             o.zone = zone;
             o.zcc += 1;

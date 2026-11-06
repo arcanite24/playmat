@@ -492,7 +492,9 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             && if o.is(CardType::Land) {
                 can_play_land(game, seat)
             } else {
-                castable(game, seat, *id, &o.def) || spectacle(game, seat, *id).is_some()
+                castable(game, seat, *id, &o.def)
+                    || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
+                    || spectacle(game, seat, *id).is_some()
             }
         {
             out.push(*id);
@@ -1123,7 +1125,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     if let Some(adventure) = game.obj(id).def.adventure.clone() {
         let o = game.obj(id);
         let mut options = Vec::new();
-        if o.zone == Zone::Hand && castable(game, seat, id, &adventure) {
+        // from hand, or from exile with permission to play it (not the creature of a card on an adventure)
+        if (o.zone == Zone::Hand || (o.zone == Zone::Exile && !o.on_adventure)) && castable(game, seat, id, &adventure) {
             options.push(0);
         }
         if castable(game, seat, id, &o.def.clone()) {
@@ -2028,7 +2031,7 @@ fn choose_target(
                 chosen.push(Target::Player(s));
                 selected = true;
             }
-            Answer::Obj(o) if objs.contains(&o) => {
+            Answer::Obj(o) if objs.contains(&o) || clicks_itself(game, def, src, o) => {
                 chosen.push(Target::Obj(o));
                 selected = true;
             }
@@ -2076,7 +2079,8 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
             game.stack
                 .iter()
                 .rev()
-                .filter(|i| i.ability.is_none() && i.delayed.is_none())
+                // a spell is an illegal target for itself (rule 114.4)
+                .filter(|i| i.ability.is_none() && i.delayed.is_none() && Some(i.card) != src)
                 .map(|i| i.card)
                 .filter(|c| game.filter_matches(filter, seat, src, *c))
                 .collect(),
@@ -2148,7 +2152,18 @@ fn target_zcc(game: &Game, t: Target) -> u32 {
     }
 }
 
+/// `TargetSpellOrPermanent.canTarget` compares the card's id with the spell's, so a spell of it can be clicked as its
+/// own target (it isn't offered) and stays legal (Fatehold Charm returning itself to hand)
+fn clicks_itself(game: &Game, def: &TargetDef, src: Option<ObjId>, o: ObjId) -> bool {
+    matches!(def, TargetDef::TargetSpellOrPermanent { .. }) && src == Some(o) && game.obj(o).zone == Zone::Stack
+}
+
 fn target_legal(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>, t: Target, zcc: u32) -> bool {
+    if let Target::Obj(o) = t {
+        if clicks_itself(game, def, src, o) {
+            return game.obj(o).zcc == zcc;
+        }
+    }
     let (players, objs) = possible_targets(game, seat, def, src);
     match t {
         Target::Player(s) => players.contains(&s),
@@ -2418,7 +2433,8 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
             let fixed: Vec<Target> = delayed
                 .fixed
                 .iter()
-                .filter(|(o, z)| game.obj(*o).zone == Zone::Battlefield && game.obj(*o).zcc == *z)
+                // a permanent, or the spell that set it off (Kumano's "your next creature spell")
+                .filter(|(o, z)| matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Stack) && game.obj(*o).zcc == *z)
                 .map(|(o, _)| Target::Obj(*o))
                 .collect();
             if delayed.fixed.is_empty() || !fixed.is_empty() {
@@ -3010,7 +3026,19 @@ fn apply_each_effect(
                         .collect();
                     match ask(game, d, controller, &Query::Cards { objs: left.clone(), required: false }) {
                         Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
-                        Answer::Obj(o) if left.contains(&o) => chosen.push(o),
+                        Answer::Obj(o) if left.contains(&o) => {
+                            chosen.push(o);
+                            // `isChoiceCompleted`: no other card fits in what's left of the total
+                            let total: u32 = chosen.iter().map(|c| game.obj(*c).def.mana_value()).sum();
+                            let more = game.player(controller).graveyard.iter().any(|c| {
+                                !chosen.contains(c)
+                                    && game.obj(*c).is(CardType::Creature)
+                                    && total + game.obj(*c).def.mana_value() <= 4
+                            });
+                            if !more {
+                                break;
+                            }
+                        }
                         Answer::Stop => return,
                         Answer::Obj(_) | Answer::Player(_) | Answer::Unknown => {}
                         _ => break,
@@ -4801,6 +4829,7 @@ fn apply_each_effect(
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
             | EffectDef::CantBeBlockedByMoreThanOneAttachedEffect
+            | EffectDef::MockingbirdEffect
             | EffectDef::GraveyardFromAnywhereExileReplacementEffect
             | EffectDef::SetBasePowerSourceEffect { .. }
             | EffectDef::ValleyFlamecallerEffect
@@ -5116,6 +5145,53 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
 
 /// A permanent enters: under `controller`, tapped if it says so, with what its "enters with" abilities give it; then
 /// its own enters triggers and other permanents' "whenever … enters" triggers wait to go on the stack.
+/// `MockingbirdEffect` (an optional `EntersBattlefieldAbility`): it may enter as a copy of a creature with mana value
+/// up to the mana spent to cast it, a Bird with flying besides
+fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, cast: bool) {
+    let def = game.obj(id).def.clone();
+    let Some(rule) = def.abilities.iter().find_map(|a| match a {
+        AbilityDef::EntersBattlefieldAbility { effects, rule, .. }
+            if matches!(effects.as_slice(), [EffectDef::MockingbirdEffect]) =>
+        {
+            Some(rule.clone())
+        }
+        _ => None,
+    }) else {
+        return;
+    };
+    let q = Query::YesNo { message: format!("Use effect of {}?", def.name) };
+    if ask(game, d, controller, &q) != Answer::Bool(true) {
+        return;
+    }
+    let spent = if cast { game.obj(id).mana_spent } else { 0 };
+    let possible: Vec<ObjId> = game
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|o| *o != id && game.has_type(*o, CardType::Creature) && game.obj(*o).def.mana_value() <= spent)
+        .collect();
+    if possible.is_empty() {
+        return;
+    }
+    let Some(chosen) = choose_cards(game, d, controller, &possible, &possible, 1, 1, &rule) else {
+        return;
+    };
+    let Some(of) = chosen.first().copied() else {
+        return;
+    };
+    let o = game.obj(of);
+    let mut copy = (**o.printed_def.as_ref().unwrap_or(&o.def)).clone();
+    if !copy.subtypes.iter().any(|t| t == "Bird") {
+        copy.subtypes.push("Bird".into());
+    }
+    if !copy.abilities.contains(&AbilityDef::FlyingAbility) {
+        copy.abilities.push(AbilityDef::FlyingAbility);
+    }
+    let o = game.obj_mut(id);
+    o.printed_def = Some(def);
+    o.def = Arc::new(copy);
+}
+
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
     // Weathered Runestone: nonland permanent cards in graveyards and libraries can't enter
     if matches!(game.obj(id).zone, Zone::Graveyard | Zone::Library)
@@ -5137,6 +5213,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     };
     let turn = game.turn;
     game.move_to(id, Zone::Battlefield);
+    enter_as_copy(game, d, id, controller, cast);
     // at night a daybound card still enters as its front (Java never calls `NightboundAbility.checkCard`); the
     // state-based check transforms it
     let def = game.obj(id).def.clone();

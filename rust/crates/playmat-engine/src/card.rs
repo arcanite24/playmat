@@ -861,6 +861,8 @@ pub enum EffectDef {
     FightTargetsEffect,
     /// The creature this Aura enchants (or enchanted as it left) fights the target.
     FightEnchantedTargetEffect,
+    /// Mockingbird's enter-as-a-copy (done as it enters)
+    MockingbirdEffect,
     /// Static: the enchanted creature can't be blocked by more than one creature.
     CantBeBlockedByMoreThanOneAttachedEffect,
     /// destroy the target and every other permanent with its name

@@ -164,8 +164,17 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
     }
     // a double-faced card's face: `<object>f<index>`, the card itself
     if let Some((obj, face)) = r.rsplit_once('f') {
-        if face.parse::<usize>().is_ok() {
-            return resolve(game, obj);
+        if let Ok(face) = face.parse::<usize>() {
+            let card = resolve(game, obj);
+            // an adventure part whose zone Java left behind (the card was bounced from the battlefield): Java finds
+            // nothing to play for it, and the click does nothing
+            if let Some(Answer::Obj(o)) = card {
+                let o = game.obj(o);
+                if face == 1 && o.def.adventure.is_some() && o.adventure_zone != o.zone {
+                    return Some(Answer::Unknown);
+                }
+            }
+            return card;
         }
     }
     // an object's ability: `<object>a<index>`

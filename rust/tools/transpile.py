@@ -1400,6 +1400,8 @@ class Translator:
             return {'class': cls}
         if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and 'CantBeCounteredSourceEffect' in args[1])):
             args = args[1:]
+        if cls == 'EntersBattlefieldAbility' and args == ['new MockingbirdEffect()', 'true']:
+            return {'class': cls, 'effects': [{'class': 'MockingbirdEffect'}]}
         if cls == 'EntersBattlefieldAbility' and len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1].strip()):
             return {'class': cls, 'effects': [self.effect(args[0])]}
         if cls == 'EntersBattlefieldTappedUnlessAbility' and len(args) in (1, 2):
