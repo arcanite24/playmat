@@ -123,6 +123,8 @@ pub struct Obj {
     pub front: Option<Arc<CardDef>>,
     /// a spell cast with flashback: exiled instead of going anywhere else from the stack
     pub flashback: bool,
+    /// harmonize: the creature chosen to tap for the cost, while this is cast
+    pub harmonize_tap: Option<ObjId>,
     /// cast with its escape cost (until it enters, or leaves the stack another way)
     pub escaped: bool,
     /// the player the attacker this ninja's ninjutsu returned was attacking
@@ -381,6 +383,9 @@ pub struct Game {
     pub at_next_end_step: Vec<StackItem>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
     pub next_creature_spell: Vec<(Seat, u32, StackItem)>,
+    /// "until your next turn, whenever one or more creatures attack one of your opponents" delayed triggers: whose,
+    /// and the trigger (its `fixed` set to the attackers)
+    pub attacks_opponent: Vec<(Seat, StackItem)>,
     /// spells that enter with more +1/+1 counters: the card as it was on the stack, and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
@@ -442,6 +447,7 @@ impl Game {
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
+            attacks_opponent: Vec::new(),
             next_creature_spell: Vec::new(),
             enter_counters: Vec::new(),
             exile_by_creation: false,
@@ -500,6 +506,7 @@ impl Game {
             controller: owner,
             zone,
             adventure_zone: zone,
+            harmonize_tap: None,
             tapped: false,
             damage: 0,
             counters: Vec::new(),

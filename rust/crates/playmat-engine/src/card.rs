@@ -600,6 +600,8 @@ pub enum CostDef {
         filter: Filter,
     },
     PayLifeCost { amount: i32 },
+    /// harmonize: tapping the creature chosen to reduce the cost (`HarmonizeAbilityAdjuster`)
+    HarmonizeCost,
     /// behold a permanent or card of a subtype: choose one you control, or reveal one from your hand
     BeholdCost { subtype: String },
     /// discard this card (cycling)
@@ -773,11 +775,15 @@ pub enum EffectDef {
     SacrificeSourceEffect,
     /// the controller may pay `cost`; if they do, `effect`
     DoIfCostPaid {
-        effect: Box<EffectDef>,
+        #[serde(default)]
+        effect: Option<Box<EffectDef>>,
         cost: Vec<CostDef>,
         /// more effects done if it's paid (`.addEffect(…)`)
         #[serde(default)]
         also: Vec<EffectDef>,
+        /// what's done if it isn't paid (Winternight Stories)
+        #[serde(default)]
+        otherwise: Vec<EffectDef>,
     },
     /// the permanents of `filter` you control have `ability` (static), or gain it (resolving, until end of turn)
     GainAbilityControlledEffect {
@@ -863,6 +869,8 @@ pub enum EffectDef {
     FightEnchantedTargetEffect,
     /// Mockingbird's enter-as-a-copy (done as it enters)
     MockingbirdEffect,
+    /// until your next turn, creatures attacking your opponents get +2/+2 and trample
+    GarrukCurseBreakerEffect,
     /// Static: the enchanted creature can't be blocked by more than one creature.
     CantBeBlockedByMoreThanOneAttachedEffect,
     /// destroy the target and every other permanent with its name
@@ -1394,6 +1402,11 @@ pub enum AbilityDef {
     },
     /// cast from the graveyard for this cost, then exiled
     FlashbackAbility {
+        cost: String,
+        rule: String,
+    },
+    /// cast from the graveyard for this cost, which tapping a creature reduces by its power, then exiled
+    HarmonizeAbility {
         cost: String,
         rule: String,
     },
@@ -1931,6 +1944,11 @@ impl CardDef {
         self.abilities.iter().find_map(|a| match a {
             AbilityDef::FlashbackAbility { cost, .. } => {
                 Some(CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() })
+            }
+            AbilityDef::HarmonizeAbility { cost, .. } => {
+                let mut spell = self.spell.clone();
+                spell.costs.push(CostDef::HarmonizeCost);
+                Some(CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() })
             }
             _ => None,
         })

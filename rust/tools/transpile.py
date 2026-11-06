@@ -144,6 +144,7 @@ PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED',
 CUSTOM = {
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
+    'GarrukCurseBreakerEffect': lambda: {'class': 'GarrukCurseBreakerEffect'},
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
     'MagebaneLizardEffect': lambda: {'class': 'MagebaneLizardEffect'},
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
@@ -264,6 +265,7 @@ ABILITIES = {
     'EntersBattlefieldTappedAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
     'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
+    'HarmonizeAbility': [(None, 'this'), ('cost', 'cost_text')],
     'EscapeAbility': [(None, 'this'), ('cost', 'cost_text'), ('exile', 'int')],
     'EscapesWithAbility': [('counters', 'int')],
     'SpectacleAbility': [(None, 'this'), ('cost', 'mana_costs')],
@@ -1001,6 +1003,9 @@ class Translator:
         if isinstance(obj, dict):
             return obj
         cls, args = obj
+        # `new DoIfCostPaid(null, otherwise, cost)`: only what's done when it isn't paid
+        if cls == 'DoIfCostPaid' and len(args) == 3 and args[0].strip() == 'null':
+            return {'class': cls, 'cost': [self.cost(args[2])], 'otherwise': [self.effect(args[1])]}
         # Skyclave Apparition: an X/X token for the cards its source exiled
         if cls == 'CreateXXTokenExiledEffectManaValueEffect' and len(args) == 2 \
                 and args[0].strip() == 'CustomIllusionToken::new':

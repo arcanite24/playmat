@@ -111,6 +111,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.instants_sorceries_cast = 0;
             }
             // "until your next turn" ends as it begins
+            game.attacks_opponent.retain(|(s, _)| *s != active);
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
                 Arc::make_mut(&mut game.grants).retain(|g| g.until_turn_of != Some(active));
             }
@@ -185,6 +186,24 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     _ => false,
                 });
                 game.pending.extend(fired);
+                // DEFENDER_ATTACKED: the creatures attacking the defending player (not a planeswalker)
+                let at_player: Vec<(ObjId, u32)> = all
+                    .iter()
+                    .filter(|a| game.obj(**a).attacking_pw.is_none())
+                    .map(|a| (*a, game.obj(*a).zcc))
+                    .collect();
+                if !at_player.is_empty() {
+                    let defender = game.opponent(active);
+                    for (s, item) in game.attacks_opponent.clone() {
+                        if s != defender {
+                            let mut item = item;
+                            if let Some(dl) = item.delayed.as_mut() {
+                                Arc::make_mut(dl).fixed = at_player.clone();
+                            }
+                            game.pending.push(item);
+                        }
+                    }
+                }
             }
         }
         Step::DeclareBlockers => declare_blockers(game, d, game.opponent(active)),
@@ -579,6 +598,7 @@ fn unblocked_attackers(game: &Game, seat: Seat) -> Vec<ObjId> {
 fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
     let o = game.obj(id);
     match c {
+        CostDef::HarmonizeCost => true,
         CostDef::ManaCost { cost } => ManaCost::parse(cost).map(|m| can_pay(game, seat, &m)).unwrap_or(false),
         CostDef::TapSourceCost => {
             let sick = game.has_type(id, CardType::Creature) && o.sick && !game.has_ability(id, &AbilityDef::HasteAbility);
@@ -653,6 +673,15 @@ fn can_play_land(game: &Game, seat: Seat) -> bool {
     sorcery_speed(game, seat) && game.player(seat).lands_played < 1 + extra
 }
 
+/// While checking what's playable, harmonize counts the most power among untapped creatures off the cost
+fn harmonized(game: &Game, seat: Seat, def: &CardDef, mut cost: ManaCost) -> ManaCost {
+    if def.spell.costs.contains(&CostDef::HarmonizeCost) {
+        let most = untapped_creatures(game, seat).iter().map(|c| game.power_toughness(*c).0).max().unwrap_or(0);
+        cost.generic = cost.generic.saturating_sub(most.max(0) as u32);
+    }
+    cost
+}
+
 /// Whether the card (or its adventure, `def`) can be cast now: timing, the one-spell limit, its costs, its targets.
 fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
     (def.is(CardType::Instant) || def.has(&AbilityDef::FlashAbility) || sorcery_speed(game, seat) || {
@@ -664,7 +693,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         })
     })
         && !cant_cast_more(game, seat)
-        && can_pay_extra(game, seat, &modified_cost(game, seat, id, def.cost.clone()), alternate_mana(game, seat, id, def))
+        && can_pay_extra(game, seat, &harmonized(game, seat, def, modified_cost(game, seat, id, def.cost.clone())), alternate_mana(game, seat, id, def))
         && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
         && has_targets(game, seat, id, def)
 }
@@ -1292,7 +1321,32 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     for s in 0..game.seats() {
         game.player_mut(s).passed = false;
     }
-    let cost = modified_cost(game, seat, id, cost);
+    let mut cost = modified_cost(game, seat, id, cost);
+    // `HarmonizeAbilityAdjuster`: tap a creature to reduce the cost by its power
+    if def.spell.costs.contains(&CostDef::HarmonizeCost) {
+        let creatures = untapped_creatures(game, seat);
+        if !creatures.is_empty() {
+            let q = Query::YesNo { message: "Tap a creature to reduce the cost of this spell?".into() };
+            let yes = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if yes {
+                let rule = harmonize_rule(&def);
+                let Some(chosen) = choose_cards(game, d, seat, &creatures, &creatures, 1, 1, &rule) else {
+                    return false;
+                };
+                if let Some(c) = chosen.first().copied() {
+                    let power = game.power_toughness(c).0.max(0) as u32;
+                    cost.generic = cost.generic.saturating_sub(power);
+                    game.obj_mut(id).harmonize_tap = Some(c);
+                }
+            }
+        }
+    }
     if !pay_mana(game, d, seat, &cost) {
         return false;
     }
@@ -1391,6 +1445,24 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
 }
 
 /// `CantCastMoreThanOneSpellEffect`: the player already cast a spell this turn.
+fn untapped_creatures(game: &Game, seat: Seat) -> Vec<ObjId> {
+    game.battlefield
+        .iter()
+        .copied()
+        .filter(|c| game.obj(*c).controller == seat && game.has_type(*c, CardType::Creature) && !game.obj(*c).tapped)
+        .collect()
+}
+
+fn harmonize_rule(def: &CardDef) -> String {
+    def.abilities
+        .iter()
+        .find_map(|a| match a {
+            AbilityDef::HarmonizeAbility { rule, .. } => Some(rule.clone()),
+            _ => None,
+        })
+        .unwrap_or_default()
+}
+
 fn cant_cast_more(game: &Game, seat: Seat) -> bool {
     game.player(seat).spells_cast >= 1
         && game.any_static(|g, src, e| match e {
@@ -1689,6 +1761,19 @@ fn adjusted_mana_cost(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs:
 /// Pays one non-mana cost of `id`'s ability or spell (an `OrCost`'s mana cost too). False: cancelled or stopped.
 fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &CostDef) -> bool {
     match c {
+        // the `TapTargetCost` for the creature chosen as the cost was reduced: chosen again (the ability's text
+        // says "exile", so it isn't chosen by itself)
+        CostDef::HarmonizeCost => {
+            let Some(c) = game.obj_mut(id).harmonize_tap.take() else { return true };
+            if game.obj(c).zone != Zone::Battlefield || game.obj(c).tapped {
+                return false;
+            }
+            let rule = harmonize_rule(&game.obj(id).def);
+            if choose_cards(game, d, seat, &[c], &[c], 1, 1, &rule) != Some(vec![c]) {
+                return false;
+            }
+            game.obj_mut(c).tapped = true;
+        }
         // tapped already (it paid mana for this ability): the activation fails and is rolled back
         CostDef::TapSourceCost => {
             if game.obj(id).tapped {
@@ -3005,6 +3090,32 @@ fn apply_each_effect(
                     game.player_mut(controller).mana_pool.colored[c.index()] += *amount;
                 }
             }
+            EffectDef::GarrukCurseBreakerEffect => {
+                let delayed = Delayed {
+                    // `UntilYourNextTurnDelayedTriggeredAbility.getRule`; BoostTargetEffect describes a fixed target as "it"
+                    rule: "Until your next turn, whenever one or more creatures attack one of your opponents, it gets \
+                           +2/+2 until end of turn. Those creatures get +2/+2 and gain trample until end of turn."
+                        .into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![
+                        EffectDef::BoostTargetEffect {
+                            power: Amount::Fixed(2),
+                            toughness: Amount::Fixed(2),
+                            duration: Duration::EndOfTurn,
+                        },
+                        EffectDef::GainAbilityTargetEffect {
+                            ability: Box::new(AbilityDef::TrampleAbility),
+                            duration: Duration::EndOfTurn,
+                        },
+                    ],
+                    source_zcc: source.1,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                };
+                game.attacks_opponent
+                    .push((controller, StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) }));
+            }
             EffectDef::LivelyDirgeEffect => {
                 // `LivelyDirgeTarget`: what's left to choose keeps the total at 4 or less
                 let mut chosen: Vec<ObjId> = Vec::new();
@@ -3125,31 +3236,39 @@ fn apply_each_effect(
                     sacrifice(game, o);
                 }
             }
-            EffectDef::DoIfCostPaid { effect, cost, also } => {
+            EffectDef::DoIfCostPaid { effect, cost, also, otherwise } => {
                 // a cost that can't be paid isn't asked about (mana always counts as payable)
                 let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
-                if !others.iter().all(|c| can_pay_cost(game, controller, source.0, c)) {
-                    continue;
+                let mut paid = false;
+                if others.iter().all(|c| can_pay_cost(game, controller, source.0, c)) {
+                    let q = Query::YesNo { message: format!("Pay {}?", ability_mana_cost(cost).text) };
+                    let pay = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if pay {
+                        let before = game.clone();
+                        if others.iter().all(|c| pay_cost(game, d, controller, source.0, c))
+                            && pay_mana(game, d, controller, &ability_mana_cost(cost))
+                        {
+                            paid = true;
+                            if let Some(effect) = effect {
+                                apply_effects(game, d, item, std::slice::from_ref(&**effect), legal, source);
+                            }
+                            apply_effects(game, d, item, also, legal, source);
+                        } else if d.stopped() {
+                            return;
+                        } else {
+                            // `DoIfCostPaid` undoes a payment that was cancelled
+                            *game = before;
+                        }
+                    }
                 }
-                let q = Query::YesNo { message: format!("Pay {}?", ability_mana_cost(cost).text) };
-                let pay = loop {
-                    match ask(game, d, controller, &q) {
-                        Answer::Bool(b) => break b,
-                        Answer::Stop => return,
-                        _ => {}
-                    }
-                };
-                if pay {
-                    let before = game.clone();
-                    if others.iter().all(|c| pay_cost(game, d, controller, source.0, c))
-                        && pay_mana(game, d, controller, &ability_mana_cost(cost))
-                    {
-                        apply_effects(game, d, item, std::slice::from_ref(&**effect), legal, source);
-                        apply_effects(game, d, item, also, legal, source);
-                    } else if !d.stopped() {
-                        // `DoIfCostPaid` undoes a payment that was cancelled
-                        *game = before;
-                    }
+                if !paid {
+                    apply_effects(game, d, item, otherwise, legal, source);
                 }
             }
             EffectDef::DamageWithPowerFromOneToAnotherTargetEffect => {
