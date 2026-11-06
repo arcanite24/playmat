@@ -271,6 +271,8 @@ pub enum Pred {
     },
     /// `AnotherPredicate`: not the source
     Another,
+    /// `ChosenNamePredicate`: named the source's chosen name
+    ChosenName,
     /// `AdventurePredicate`: a card with an Adventure
     Adventure,
     /// `ManaValuePredicate`
@@ -1312,6 +1314,11 @@ pub enum EffectDef {
     /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
     /// among them this turn, spending mana as though it were any type
     LaughingJasperFlintEffect,
+    /// `ChooseACardNameEffect(LAND_NAME)`: the source's chosen name
+    ChooseLandNameEffect,
+    /// a static ability's effect: activated abilities of sources with the chosen name can't be activated unless
+    /// they're mana abilities (Petrified Hamlet)
+    PetrifiedHamletCostEffect,
     /// a static ability's effect: the spell costs {1} less for each permanent sacrificed for its `SacrificeXTargetCost`
     RottenmouthViperCostReductionEffect,
     /// for each blight counter on the source, each opponent loses 4 life unless they sacrifice a nonland permanent

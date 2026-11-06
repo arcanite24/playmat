@@ -579,6 +579,13 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     if activations_forbidden(game, id) {
         return Vec::new();
     }
+    // Petrified Hamlet: (not mana abilities, which aren't asked here)
+    let name = &o.def.name;
+    if game.any_static(|g, src, e| {
+        matches!(e, EffectDef::PetrifiedHamletCostEffect) && g.obj(src).chosen_name.as_ref() == Some(name)
+    }) {
+        return Vec::new();
+    }
     let mut out = Vec::new();
     for (i, a) in o.def.abilities.iter().enumerate() {
         let Some((_, _, targets, costs, sorcery)) = a.activated() else { continue };
@@ -3251,6 +3258,15 @@ fn refresh_land_types(game: &mut Game) {
                                 granted.push((to, (**ability).clone()));
                             }
                         }
+                        // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"
+                        EffectDef::GainAbilityAllEffect { ability, filter, .. } if ability.mana().is_some() => {
+                            let you = game.obj(*id).controller;
+                            for to in game.battlefield.iter() {
+                                if game.filter_matches(filter, you, Some(*id), *to) {
+                                    granted.push((*to, (**ability).clone()));
+                                }
+                            }
+                        }
                         _ => {}
                     }
                 }
@@ -4163,6 +4179,19 @@ fn apply_each_effect(
                             }
                         }
                     }
+                }
+            }
+            EffectDef::ChooseLandNameEffect => {
+                let q = Query::Choice { message: "Land card name".into(), choices: Vec::new() };
+                let chosen = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Text(t) => break t,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if game.obj(source.0).zone == Zone::Battlefield {
+                    game.obj_mut(source.0).chosen_name = Some(chosen);
                 }
             }
             EffectDef::LaughingJasperFlintEffect => {
@@ -6268,6 +6297,7 @@ fn apply_each_effect(
             | EffectDef::AddBasicLandTypeAllLandsEffect { .. }
             | EffectDef::AddCardSubtypeAllEffect { .. }
             | EffectDef::RottenmouthViperCostReductionEffect
+            | EffectDef::PetrifiedHamletCostEffect
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect

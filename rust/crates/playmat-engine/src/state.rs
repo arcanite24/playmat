@@ -117,6 +117,8 @@ pub struct Obj {
     pub land_type_base: Option<(Arc<CardDef>, Vec<String>, Vec<AbilityDef>)>,
     /// the creature type chosen as it entered (Cavern of Souls)
     pub chosen_type: Option<String>,
+    /// the card name chosen as it entered (Petrified Hamlet), while it's on the battlefield
+    pub chosen_name: Option<String>,
     /// the turn it was foretold (exiled face down from hand), while it stays in exile
     pub foretold_turn: Option<u32>,
     /// the turn it became plotted, while it stays in exile
@@ -567,6 +569,7 @@ impl Game {
             becomes_base: None,
             land_type_base: None,
             chosen_type: None,
+            chosen_name: None,
             foretold_turn: None,
             plotted_turn: None,
             cast_from: None,
@@ -631,6 +634,9 @@ impl Game {
             Pred::Controller { who } => (o.controller == you) == (who == "you"),
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
+            Pred::ChosenName => source
+                .and_then(|src| self.obj(src).chosen_name.as_ref())
+                .is_some_and(|n| *n == self.obj(id).def.name),
             Pred::Adventure => self.obj(id).def.adventure.is_some() || self.obj(id).adventurer.is_some(),
             Pred::Mv { cmp, n } => cmp.holds(o.def.mana_value() as i32, *n),
             Pred::Power { cmp, n } => cmp.holds(self.power_toughness(id).0, *n),
@@ -1385,6 +1391,7 @@ impl Game {
             o.may_play = None;
             o.any_mana = false;
             o.cast_only = false;
+            o.chosen_name = None;
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;

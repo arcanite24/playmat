@@ -175,6 +175,7 @@ CUSTOM = {
     'TishanasTidebinderEffect': lambda: {'class': 'TishanasTidebinderEffect'},
     'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
     'LaughingJasperFlintEffect': lambda: {'class': 'LaughingJasperFlintEffect'},
+    'PetrifiedHamletCostEffect': lambda: {'class': 'PetrifiedHamletCostEffect'},
     'RottenmouthViperCostReductionEffect': lambda: {'class': 'RottenmouthViperCostReductionEffect'},
     'OldGrowthTrollReturnEffect': lambda: {'class': 'OldGrowthTrollReturnEffect', 'token': token('TrollWarriorToken')},
     'AcademicDisputeEffect': lambda: {'class': 'AcademicDisputeEffect'},
@@ -485,6 +486,8 @@ def predicate(text, subtypes):
         return {'p': 'supertype', 's': m.group(1)}
     if (m := re.fullmatch(r'TargetController\.(YOU|OPPONENT|NOT_YOU)\.get(Controller|Owner)Predicate\(\)', text)):
         return {'p': m.group(2).lower(), 'who': 'you' if m.group(1) == 'YOU' else 'opponent'}
+    if text == 'ChosenNamePredicate.instance':
+        return {'p': 'chosen_name'}
     if text == 'AnotherPredicate.instance':
         return {'p': 'another'}
     if text == 'AdventurePredicate.instance':
@@ -1129,6 +1132,8 @@ class Translator:
         if cls == 'DoIfAnyNumberCostPaid' and len(args) == 2 and args[0].strip() == 'new BloodthirstyAdversaryEffect()' \
                 and (m := re.fullmatch(r'new ManaCostsImpl<>\("(\{[^"]*\})"\)', args[1].strip())):
             return {'class': 'BloodthirstyAdversaryEffect', 'cost': m.group(1)}
+        if cls == 'ChooseACardNameEffect' and [a.strip() for a in args] == ['ChooseACardNameEffect.TypeOfName.LAND_NAME']:
+            return {'class': 'ChooseLandNameEffect'}
         if cls == 'ChooseCreatureTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
         if cls == 'ChooseBasicLandTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
