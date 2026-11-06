@@ -2828,6 +2828,38 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::KraulHarpoonerEffect => {
+                let (me, zcc) = source;
+                if game.obj(me).zone != Zone::Battlefield || game.obj(me).zcc != zcc {
+                    continue;
+                }
+                let x = game
+                    .player(controller)
+                    .graveyard
+                    .iter()
+                    .filter(|c| game.obj(**c).def.types.contains(&CardType::Creature))
+                    .count() as i32;
+                boost(game, me, x, 0, Duration::EndOfTurn);
+                let Some(Target::Obj(creature)) = target else { continue };
+                if game.obj(creature).zone != Zone::Battlefield {
+                    continue;
+                }
+                let message = format!("Have {} fight {}?", game.obj(me).name(), game.obj(creature).name());
+                let yes = loop {
+                    match ask(game, d, controller, &Query::YesNo { message: message.clone() }) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if yes {
+                    // `creature.fight(source)`: the creature is dealt damage first, then deals only lethal damage
+                    let pm = game.power_toughness(me).0;
+                    deal_damage(game, me, Target::Obj(creature), pm, false);
+                    let pc = game.power_toughness(creature).0.min(fight_lethal(game, me, creature));
+                    deal_damage(game, creature, Target::Obj(me), pc, false);
+                }
+            }
             EffectDef::EnlightenedConfidantEffect => {
                 let gained = game.player(controller).life_gained;
                 let cards: Vec<ObjId> = game.player(controller).library.iter().take(1).copied().collect();

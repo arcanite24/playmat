@@ -1066,6 +1066,8 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// the source gets +X/+0 until end of turn (X: creature cards in your graveyard), then may fight the target
+    KraulHarpoonerEffect,
     /// surveil 1; a card put into the graveyard with mana value up to the life you gained this turn goes to your hand
     EnlightenedConfidantEffect,
     SurveilEffect {

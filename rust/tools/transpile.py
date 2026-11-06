@@ -219,6 +219,7 @@ CUSTOM = {
         'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]},
     # for each opponent, a 1/1 Human tapped and attacking them
     'EnlightenedConfidantEffect': lambda: {'class': 'EnlightenedConfidantEffect'},
+    'KraulHarpoonerEffect': lambda: {'class': 'KraulHarpoonerEffect'},
     'AdelineResplendentCatharEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('HumanToken'), 'amount': 1,
                                                'tapped_and_attacking': True},
     'MasterOfBarbsTriggeredAbility': lambda: {
@@ -1730,7 +1731,7 @@ def ability_statement(t, st, added):
     if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
         t.vars[m.group(1)]['condition'] = t.value('condition', m.group(2).strip())
         return True
-    m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop)|addHint)\(.*\)', st)
+    m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
     m = re.fullmatch(r'(\w+)\.setCostAdjuster\(LegendaryCreatureCostAdjuster\.instance\)', st)
