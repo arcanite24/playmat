@@ -34,7 +34,7 @@ KEYWORDS = {
     'CantBeCounteredSourceAbility', 'DoubleStrikeAbility', 'LifelinkAbility', 'DeathtouchAbility', 'DefenderAbility', 'MenaceAbility', 'FlashAbility',
     'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
-    'ConvokeAbility',
+    'ConvokeAbility', 'DayboundAbility', 'NightboundAbility',
 }
 
 # effects: class -> its constructor arguments, each (field name, kind); a kind of None means the argument is ignored
@@ -282,6 +282,7 @@ ABILITIES = {
                                                    ('set_target_pointer', 'bool')],
     'EntersBattlefieldOrDiesSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), (None, 'bool')],
     'EntersBattlefieldOrAttacksSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'TransformsOrEntersTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'DiesThisOrAnotherTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), ('filter', 'filter')],
     'SpellCastControllerTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('optional', 'bool'),
                                             (None, 'no_pointer')],
@@ -328,6 +329,7 @@ def triggered(a):
 SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'AttacksTriggeredAbility': 'attacks',
                    'DiesSourceTriggeredAbility': 'dies', 'EntersBattlefieldOrDiesSourceTriggeredAbility':
                    'enters_or_dies', 'EntersBattlefieldOrAttacksSourceTriggeredAbility': 'enters_or_attacks',
+                   'TransformsOrEntersTriggeredAbility': 'transforms_or_enters',
                    'GainLifeControllerTriggeredAbility': 'you_gain_life',
                    'GainLifeFirstTimeTriggeredAbility': 'you_gain_life_first_time',
                    'DealsCombatDamageToAPlayerTriggeredAbility': 'combat_damage_to_player',
@@ -1628,6 +1630,8 @@ def translate(card_name, subtypes, facts):
     source = open(path).read()
     if 'extends ModalDoubleFacedCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
         return modal_double_faced(card_name, subtypes, facts, cls, source)
+    if 'extends TransformingDoubleFacedCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
+        return transforming_double_faced(card_name, subtypes, facts, cls, source)
     if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
@@ -1688,6 +1692,52 @@ def translate(card_name, subtypes, facts):
     elif 'AdventureCardSpellAbility' in [f['class'] for f in java_abilities]:
         raise Unsupported('adventure without its spell')
     return card
+
+
+def transforming_double_faced(card_name, subtypes, facts, cls, source):
+    """A transforming double-faced card (`TransformingDoubleFacedCard`): the front is the card, the back what it
+    transforms into (`transform_back`); Java lists the front's abilities (its spell ability first), then the back's"""
+    java_abilities = facts[card_name]
+    t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    front, back = {'name': card_name}, {}
+    added = [[], []]
+    types = lambda g: [x.strip().split('.')[-1] for x in g.split(',') if x.strip()]
+    subs = lambda g: [subtypes[x.strip().split('.')[-1]] for x in g.split(',') if x.strip()]
+    sup = r'(?:new SuperType\[\]\{([^}]*)\},)?'
+    for st in statements(constructor_body(source, cls)):
+        m = re.fullmatch(r'super\(ownerId,setInfo,' + sup + r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{([^}]*)\},"(.*?)",'
+                         r'"(.*?)",' + sup + r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{([^}]*)\},"([WUBRG]*)"\)', st)
+        if m:
+            for face, (su, ty, sb) in ((front, m.group(1, 2, 3)), (back, m.group(6, 7, 8))):
+                face['types'] = types(ty)
+                face['subtypes'] = subs(sb)
+                if su and types(su):
+                    face['supertypes'] = types(su)
+            front['cost'] = m.group(4)
+            back['name'] = m.group(5)
+            # a transformed permanent's mana value is its front's
+            back['cost'] = m.group(4)
+            back['colors'] = list(m.group(9))
+            continue
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.setPT\((-?\d+),(-?\d+)\)', st)
+        if m:
+            face = back if m.group(1) == 'Right' else front
+            face['power'], face['toughness'] = int(m.group(2)), int(m.group(3))
+            continue
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(addAbility\(.*\))', st)
+        if m:
+            if not ability_statement(t, 'this.' + m.group(2), added[m.group(1) == 'Right']):
+                raise Unsupported('transforming double-faced card statement ' + st)
+            continue
+        if not ability_statement(t, st, []):
+            raise Unsupported('transforming double-faced card statement ' + st)
+    if 'types' not in front or not java_abilities or java_abilities[0]['class'] != 'SpellAbility':
+        raise Unsupported('transforming double-faced card without its faces')
+    split = 1 + len(added[0])
+    front['abilities'] = in_java_order(java_abilities[:split], added[0])
+    back['abilities'] = in_java_order(java_abilities[split:], added[1])
+    front['transform_back'] = back
+    return front
 
 
 def modal_double_faced(card_name, subtypes, facts, cls, source):

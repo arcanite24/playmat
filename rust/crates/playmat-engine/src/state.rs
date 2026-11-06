@@ -328,6 +328,8 @@ pub struct Boost {
 pub struct Game {
     pub rng: JavaRandom,
     pub turn: u32,
+    /// day (true) or night (false), once a daybound or nightbound permanent appeared
+    pub day: Option<bool>,
     pub step: Option<Step>,
     pub active: Option<Seat>,
     pub priority: Option<Seat>,
@@ -415,6 +417,7 @@ impl Game {
             exiled_until_leaves: Vec::new(),
             exiled_for_source: Vec::new(),
             returning: Vec::new(),
+            day: None,
             damaged_batch: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,

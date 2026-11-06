@@ -297,6 +297,8 @@ pub enum Pred {
 pub enum Trigger {
     /// this enters (`EntersBattlefieldTriggeredAbility`)
     Enters,
+    /// this enters or transforms into this face (`TransformsOrEntersTriggeredAbility`)
+    TransformsOrEnters,
     /// this attacks (`AttacksTriggeredAbility`)
     Attacks,
     /// this dies (`DiesSourceTriggeredAbility`)
@@ -543,6 +545,7 @@ impl TokenDef {
             all_creature_types: self.all_creature_types,
             adventure: None,
             back: None,
+            transform_back: None,
             omen: false,
         }
     }
@@ -1436,6 +1439,10 @@ pub enum AbilityDef {
     /// whether the spell can be cast; paying with them is a special action the shadow games' players never take
     DelveAbility,
     ConvokeAbility,
+    /// if a player casts no spells during their own turn, it becomes night next turn (the front of a werewolf)
+    DayboundAbility,
+    /// if a player casts at least two spells during their own turn, it becomes day next turn (its back)
+    NightboundAbility,
     /// "you may exert this as it attacks"; its `BecomesExertSourceTriggeredAbility` is the next ability
     ExertAbility,
     /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)
@@ -1687,6 +1694,9 @@ pub struct CardJson {
     /// a modal double-faced card's back face
     #[serde(default)]
     pub back: Option<Box<CardJson>>,
+    /// a transforming double-faced card's back face
+    #[serde(default)]
+    pub transform_back: Option<Box<CardJson>>,
     /// an omen card's spell (its `adventure`)
     #[serde(default)]
     pub omen: bool,
@@ -1722,6 +1732,9 @@ pub struct CardDef {
     pub adventure: Option<Arc<CardDef>>,
     /// a modal double-faced card's back face, played instead of the front (`ModalDoubleFacedCard`)
     pub back: Option<Arc<CardDef>>,
+    /// a transforming double-faced card's back face, what the permanent transforms into
+    /// (`TransformingDoubleFacedCard`)
+    pub transform_back: Option<Arc<CardDef>>,
     /// an omen card's spell: once it resolves, the card is shuffled into its owner's library (`OmenCard`)
     pub omen: bool,
 }
@@ -1749,6 +1762,10 @@ impl CardDef {
                 None => None,
             },
             back: match json.back {
+                Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
+                None => None,
+            },
+            transform_back: match json.transform_back {
                 Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
                 None => None,
             },

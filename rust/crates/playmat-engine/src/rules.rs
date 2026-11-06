@@ -83,6 +83,19 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
     let active = game.active.unwrap_or(0);
     match step {
         Step::Untap => {
+            // 726.2: the previous turn's active player cast no spells: day becomes night; two or more: night
+            // becomes day (`UntapStep.handleDayNight`, before untapping)
+            if game.day.is_some() && game.turn > 1 {
+                let previous = game.player((active + game.seats() - 1) % game.seats()).spells_cast;
+                let change = match game.day {
+                    Some(true) => previous == 0,
+                    _ => previous >= 2,
+                };
+                if change {
+                    game.day = game.day.map(|d| !d);
+                    day_night(game);
+                }
+            }
             for s in 0..game.seats() {
                 let p = game.player_mut(s);
                 p.lands_played = 0;
@@ -4393,6 +4406,14 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     let cast = game.obj(id).zone == Zone::Stack;
     let turn = game.turn;
     game.move_to(id, Zone::Battlefield);
+    // at night, a daybound card enters transformed (`NightboundAbility.checkCard`)
+    if game.day == Some(false) {
+        if let Some(back) = game.obj(id).def.transform_back.clone().filter(|b| b.has(&AbilityDef::NightboundAbility)) {
+            let o = game.obj_mut(id);
+            o.front = Some(o.def.clone());
+            o.def = back;
+        }
+    }
     let def = game.obj(id).def.clone();
     game.obj_mut(id).controller = controller;
     let tapped_by_static = game.any_static(|g, src, e| match e {
@@ -4530,7 +4551,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         sources.extend(p.graveyard.iter().copied());
     }
     let fired = game.triggers(sources, |g, src, you, t| match t {
-        Trigger::Enters | Trigger::EntersOrDies | Trigger::EntersOrAttacks => {
+        Trigger::Enters | Trigger::EntersOrDies | Trigger::EntersOrAttacks | Trigger::TransformsOrEnters => {
             src == id && g.obj(src).zone == Zone::Battlefield
         }
         Trigger::EntersAll { filter, include_self, graveyard } => {
@@ -5472,7 +5493,51 @@ fn legend_rule(game: &mut Game, d: &mut dyn Decider) -> bool {
     false
 }
 
+/// Transforms a permanent into its other face; transforming into its front fires "enters or transforms into"
+/// triggers (`PermanentImpl.transform`)
+fn transform(game: &mut Game, id: ObjId) {
+    let o = game.obj_mut(id);
+    let into_front = match o.front.take() {
+        Some(front) => {
+            o.def = front;
+            true
+        }
+        None => {
+            let Some(back) = o.def.transform_back.clone() else { return };
+            o.front = Some(std::mem::replace(&mut o.def, back));
+            false
+        }
+    };
+    if into_front {
+        let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::TransformsOrEnters));
+        game.pending.extend(fired);
+    }
+}
+
+/// Day and night: with a daybound (nightbound) permanent and neither, it becomes day (night); then a daybound
+/// permanent at night and a nightbound one by day transform (`GameImpl.checkStateBasedActions`)
+fn day_night(game: &mut Game) {
+    let bound = |g: &Game, a: &AbilityDef| g.battlefield.iter().any(|b| g.obj(*b).def.has(a));
+    if game.day.is_none() {
+        if bound(game, &AbilityDef::DayboundAbility) {
+            game.day = Some(true);
+        } else if bound(game, &AbilityDef::NightboundAbility) {
+            game.day = Some(false);
+        } else {
+            return;
+        }
+    }
+    let day = game.day == Some(true);
+    for id in Arc::clone(&game.battlefield).iter().copied() {
+        let def = &game.obj(id).def;
+        if (def.has(&AbilityDef::DayboundAbility) && !day) || (def.has(&AbilityDef::NightboundAbility) && day) {
+            transform(game, id);
+        }
+    }
+}
+
 pub fn state_based_actions(game: &mut Game) {
+    day_night(game);
     loop {
         let mut any = false;
         for s in 0..game.seats() {
