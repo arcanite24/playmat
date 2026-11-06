@@ -5201,20 +5201,30 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     }
     // Soul-Scar Mage: noncombat damage from your source to an opponent's creature is -1/-1 counters instead
     if let Target::Obj(o) = to {
-        if !combat
-            && game.obj(o).zone == Zone::Battlefield
-            && game.has_type(o, CardType::Creature)
-            && game.obj(o).controller != you
-            && game.battlefield.iter().any(|b| {
-                game.obj(*b).controller == you
-                    && game.obj(*b).def.abilities.iter().any(|a| match a {
+        let mages = game
+            .battlefield
+            .iter()
+            .filter(|b| {
+                game.obj(**b).controller == you
+                    && game.obj(**b).def.abilities.iter().any(|a| match a {
                         AbilityDef::SimpleStaticAbility { effects, .. } => {
                             effects.iter().any(|e| matches!(e, EffectDef::SoulScarMageDamageReplacementEffect))
                         }
                         _ => false,
                     })
             })
+            .count();
+        if !combat
+            && game.obj(o).zone == Zone::Battlefield
+            && game.has_type(o, CardType::Creature)
+            && game.obj(o).controller != you
+            && mages > 0
         {
+            // two or more: the creature's controller picks which applies (they all do the same)
+            if mages > 1 {
+                let c = game.obj(o).controller;
+                game.owed_choices.push(c);
+            }
             game.obj_mut(o).add_counters("-1/-1", amount);
             return 0;
         }
