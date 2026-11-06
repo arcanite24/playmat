@@ -277,6 +277,8 @@ pub struct Delayed {
     /// a reflexive trigger's effects, from its source as it was (`source_zcc`)
     pub effects: Vec<crate::card::EffectDef>,
     pub source_zcc: u32,
+    /// the permanents its effects act on, while they're still those objects (`FixedTarget`)
+    pub fixed: Vec<(ObjId, u32)>,
 }
 
 impl StackItem {

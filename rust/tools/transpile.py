@@ -220,6 +220,7 @@ CUSTOM = {
     # for each opponent, a 1/1 Human tapped and attacking them
     'EnlightenedConfidantEffect': lambda: {'class': 'EnlightenedConfidantEffect'},
     'KraulHarpoonerEffect': lambda: {'class': 'KraulHarpoonerEffect'},
+    'GreasefangOkibaBossEffect': lambda: {'class': 'GreasefangOkibaBossEffect'},
     'SharkTyphoonCastEffect': lambda: {'class': 'CreateXXTokenEffect', 'token': token('SharkToken'), 'amount': {'v': 'x'}},
     'SharkTyphoonCycleEffect': lambda: {'class': 'CreateXXTokenEffect', 'token': token('SharkToken'), 'amount': {'v': 'x'}},
     'AdelineResplendentCatharEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('HumanToken'), 'amount': 1,

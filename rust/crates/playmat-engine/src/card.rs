@@ -1081,6 +1081,8 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// Greasefang: the target Vehicle card returns with haste, back to hand at the next end step
+    GreasefangOkibaBossEffect,
     /// pay `cost` any number of times, then `effects` with X the times paid (a reflexive trigger with that rule)
     DoIfAnyNumberCostPaid {
         cost: Vec<CostDef>,

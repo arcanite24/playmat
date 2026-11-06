@@ -1978,7 +1978,16 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
         }
         if !delayed.effects.is_empty() {
             let effects = delayed.effects.clone();
-            apply_effects(game, d, &item, &effects, &[], (item.card, delayed.source_zcc));
+            let fixed: Vec<Target> = delayed
+                .fixed
+                .iter()
+                .filter(|(o, z)| game.obj(*o).zone == Zone::Battlefield && game.obj(*o).zcc == *z)
+                .map(|(o, _)| Target::Obj(*o))
+                .collect();
+            if delayed.fixed.is_empty() || !fixed.is_empty() {
+                let legal = if fixed.is_empty() { Vec::new() } else { vec![fixed] };
+                apply_effects(game, d, &item, &effects, &legal, (item.card, delayed.source_zcc));
+            }
         }
         return;
     }
@@ -2290,6 +2299,7 @@ fn apply_each_effect(
                             warp_exile: Vec::new(),
                             effects: Vec::new(),
                             source_zcc: 0,
+                            fixed: Vec::new(),
                         };
                     game.at_end_of_combat
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
@@ -2301,6 +2311,7 @@ fn apply_each_effect(
                         warp_exile: Vec::new(),
                         effects: Vec::new(),
                         source_zcc: 0,
+                        fixed: Vec::new(),
                     };
                     game.at_next_end_step
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
@@ -2949,6 +2960,7 @@ fn apply_each_effect(
                                 warp_exile: Vec::new(),
                                 effects: effects.clone(),
                                 source_zcc: source.1,
+                                fixed: Vec::new(),
                             };
                             game.pending.push(StackItem {
                                 delayed: Some(Arc::new(delayed)),
@@ -2961,6 +2973,33 @@ fn apply_each_effect(
                             apply_effects(game, d, &inner, effects, legal, source);
                         }
                     }
+                }
+            }
+            // return the Vehicle card; it gains haste, and goes back to your hand at the beginning of the next end step
+            EffectDef::GreasefangOkibaBossEffect => {
+                let Some(Target::Obj(c)) = target else { continue };
+                if game.obj(c).zone != Zone::Graveyard {
+                    continue;
+                }
+                enter_battlefield(game, d, c, controller, false);
+                if game.obj(c).zone == Zone::Battlefield {
+                    let zcc = game.obj(c).zcc;
+                    Arc::make_mut(&mut game.grants).push(Grant {
+                        target: c,
+                        zcc,
+                        ability: AbilityDef::HasteAbility,
+                        until_end_of_turn: false,
+                    });
+                    let delayed = Delayed {
+                        rule: "At the beginning of the next end step, return it to your hand.".into(),
+                        sacrifice: Vec::new(),
+                        warp_exile: Vec::new(),
+                        effects: vec![EffectDef::ReturnToHandTargetEffect],
+                        source_zcc: source.1,
+                        fixed: vec![(c, zcc)],
+                    };
+                    game.at_next_end_step
+                        .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
                 }
             }
             EffectDef::GainsChoiceOfAbilitiesEffect { abilities, names } => {
@@ -4077,6 +4116,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             warp_exile: vec![(id, zcc)],
             effects: Vec::new(),
             source_zcc: 0,
+            fixed: Vec::new(),
         };
         game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, controller) });
     }
