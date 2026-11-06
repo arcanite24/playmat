@@ -102,7 +102,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {
                     let o = game.obj_mut(id);
-                    untap(o);
+                    if o.exerted {
+                        o.exerted = false;
+                    } else {
+                        untap(o);
+                    }
                     o.sick = false;
                 }
             }
@@ -111,6 +115,26 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             declare_attackers(game, d, active);
             if !attackers(game).is_empty() {
                 game.player_mut(active).attacked = true;
+            }
+            // ATTACKER_DECLARED's replacement: "you may exert this as it attacks", asked for each attacker in turn,
+            // and its "when you do" trigger
+            for a in attackers(game) {
+                if !game.has_ability(a, &AbilityDef::ExertAbility) {
+                    continue;
+                }
+                let q = Query::YesNo { message: format!("Exert {}?", game.obj(a).name()) };
+                let yes = loop {
+                    match ask(game, d, active, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if yes {
+                    game.obj_mut(a).exerted = true;
+                    let fired = game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted));
+                    game.pending.extend(fired);
+                }
             }
             // "whenever this attacks" triggers, in the order the attackers are listed
             for a in attackers(game) {

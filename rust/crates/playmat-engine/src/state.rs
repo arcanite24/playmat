@@ -127,6 +127,8 @@ pub struct Obj {
     pub escaped: bool,
     /// the player the attacker this ninja's ninjutsu returned was attacking
     pub ninjutsu_defender: Option<Seat>,
+    /// exerted: doesn't untap during its controller's next untap step
+    pub exerted: bool,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
     pub exile_instead_of_dying: bool,
     /// in exile: this player may play it through the end of this turn number
@@ -444,6 +446,7 @@ impl Game {
             flashback: false,
             escaped: false,
             ninjutsu_defender: None,
+            exerted: false,
             exile_instead_of_dying: false,
             may_play: None,
             play_tax: 0,
@@ -1027,6 +1030,7 @@ impl Game {
             o.exile_instead_of_dying = false;
             o.may_play = None;
             o.play_tax = 0;
+            o.exerted = false;
             o.warp_from = None;
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;

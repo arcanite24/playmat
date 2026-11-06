@@ -356,6 +356,8 @@ pub enum Trigger {
     },
     /// this card is cycled (`CycleTriggeredAbility`); its X is the cycling's
     Cycled,
+    /// this becomes exerted (`BecomesExertSourceTriggeredAbility`)
+    Exerted,
     /// this deals combat damage to a player
     CombatDamageToPlayer,
     /// a permanent of the filter deals combat damage to a player
@@ -1332,6 +1334,8 @@ pub enum AbilityDef {
     /// whether the spell can be cast; paying with them is a special action the shadow games' players never take
     DelveAbility,
     ConvokeAbility,
+    /// "you may exert this as it attacks"; its `BecomesExertSourceTriggeredAbility` is the next ability
+    ExertAbility,
     /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)
     CantBeBlockedSourceAbility,
     MenaceAbility,

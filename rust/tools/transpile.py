@@ -1431,6 +1431,8 @@ class Translator:
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]}
         if cls == 'CastSecondSpellTriggeredAbility' and n == 2:
             return out({'e': 'cast_second_spell', 'who': self.value('target_controller', args[1])}, args[0])
+        if cls == 'BecomesExertSourceTriggeredAbility' and n == 1:
+            return out({'e': 'exerted'}, args[0])
         if cls == 'CycleTriggeredAbility' and n == 1:
             return out({'e': 'cycled'}, args[0])
         if cls == 'ValiantTriggeredAbility' and n == 1:
@@ -1772,6 +1774,11 @@ def ability_statement(t, st, added):
         # `addAbility(ability, new SomeWatcher())`: the watcher is the engine's own bookkeeping
         if len(args) == 2 and re.fullmatch(r'new \w+Watcher\(\)', args[1].strip()):
             args = args[:1]
+        # exert: the static ability, then its "when you do" trigger
+        if (e := re.fullmatch(r'new ExertAbility\((\w+)\)', ','.join(args).strip())):
+            added.append({'class': 'ExertAbility'})
+            added.append(t.ability(e.group(1)))
+            return True
         added.append(t.ability(','.join(args)))
         return True
     return False
