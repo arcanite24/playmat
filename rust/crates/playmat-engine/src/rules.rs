@@ -4047,6 +4047,88 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::BloodthirstyAdversaryEffect { cost } => {
+                // `DoIfAnyNumberCostPaid`: asked again after each payment (mana always counts as payable)
+                let Ok(mana) = ManaCost::parse(cost) else { continue };
+                let mut times = 0;
+                loop {
+                    let q = Query::YesNo {
+                        message: format!("Pay {}? You have paid this cost {} time{}", cost, times, if times != 1 { "s" } else { "" }),
+                    };
+                    let pay = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if !pay {
+                        break;
+                    }
+                    let before = game.clone();
+                    if !pay_mana(game, d, controller, &mana) {
+                        if d.stopped() {
+                            return;
+                        }
+                        *game = before;
+                        break;
+                    }
+                    times += 1;
+                }
+                if times > 0 {
+                    let (src, zcc) = source;
+                    let (counters, target): (EffectDef, TargetDef) = (
+                        serde_json::from_value(serde_json::json!({
+                            "class": "AddCountersSourceEffect", "counter": {"name": "+1/+1", "amount": times}
+                        }))
+                        .unwrap(),
+                        serde_json::from_value(serde_json::json!({
+                            "class": "TargetCardInGraveyard", "min": 0, "max": times,
+                            "filter": [{"p": "or", "xs": [{"p": "type", "t": "INSTANT"}, {"p": "type", "t": "SORCERY"}]},
+                                       {"p": "mv", "cmp": "FEWER_THAN", "n": 4}, {"p": "owner", "who": "you"}]
+                        }))
+                        .unwrap(),
+                    );
+                    let delayed = Delayed {
+                        rule: "put that many +1/+1 counters on {this}, then exile up to that many target instant and/or sorcery \
+                               cards with mana value 3 or less from your graveyard and copy them. You may cast any number of the \
+                               copies without paying their mana costs"
+                            .into(),
+                        sacrifice: Vec::new(),
+                        warp_exile: Vec::new(),
+                        effects: vec![counters, EffectDef::BloodthirstyAdversaryCopyEffect],
+                        source_zcc: zcc,
+                        fixed: Vec::new(),
+                        return_tapped: Vec::new(),
+                        targets: vec![target],
+                        condition: None,
+                    };
+                    game.pending.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(src, controller) });
+                }
+            }
+            EffectDef::BloodthirstyAdversaryCopyEffect => {
+                let cards: Vec<ObjId> = objs.iter().copied().filter(|c| game.obj(*c).zone == Zone::Graveyard).collect();
+                for c in &cards {
+                    game.move_to(*c, Zone::Exile);
+                }
+                for c in cards {
+                    // `game.copyCard`: a copy that leaves no card behind once it's cast and gone
+                    let def = game.obj(c).def.clone();
+                    let copy = game.create_obj(def.clone(), controller, Zone::Exile);
+                    game.obj_mut(copy).token = true;
+                    let q = Query::YesNo { message: format!("Cast {} for free?", def.name) };
+                    let yes = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if yes {
+                        cast_free(game, d, controller, copy);
+                    }
+                }
+            }
             EffectDef::AvenInterrupterEffect => {
                 // `PlotAbility.doExileAndPlotCard`: the spell is exiled, plotted (a copy just leaves)
                 for o in &objs {

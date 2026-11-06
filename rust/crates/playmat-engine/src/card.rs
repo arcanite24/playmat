@@ -1286,6 +1286,11 @@ pub enum EffectDef {
     GraveyardFromAnywhereExileReplacementEffect,
     /// an opponent's card that would be put into a graveyard from anywhere is exiled instead
     LeylineOfTheVoidEffect,
+    /// pay `cost` any number of times; when you do, that many +1/+1 counters on the source, then exile up to that
+    /// many instants and sorceries (mana value 3 or less) from your graveyard and cast copies free
+    BloodthirstyAdversaryEffect { cost: String },
+    /// the reflexive part: exile the target cards, then you may cast a copy of each without paying its mana cost
+    BloodthirstyAdversaryCopyEffect,
     /// counter the target ability; its artifact, creature or planeswalker loses all abilities while the source stays
     TishanasTidebinderEffect,
     /// the target opponent reveals their hand; you exile a nonland card from it, yours to cast if the gift was promised
