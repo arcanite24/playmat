@@ -652,9 +652,9 @@ impl Game {
             Pred::Controller { who } => (o.controller == you) == (who == "you"),
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
-            Pred::ChosenName => source
-                .and_then(|src| self.obj(src).chosen_name.as_ref())
-                .is_some_and(|n| *n == self.obj(id).def.name),
+            Pred::ChosenName => {
+                source.and_then(|src| self.obj(src).chosen_name.as_ref()).is_some_and(|n| *n == self.obj(id).def.name)
+            }
             Pred::Adventure => self.obj(id).def.adventure.is_some() || self.obj(id).adventurer.is_some(),
             Pred::Mv { cmp, n } => cmp.holds(o.def.mana_value() as i32, *n),
             Pred::Power { cmp, n } => cmp.holds(self.power_toughness(id).0, *n),
@@ -702,7 +702,8 @@ impl Game {
         let o = self.obj(id);
         let def = &o.def;
         if let Some(types) = o.creature_types.as_ref().filter(|_| o.zone == Zone::Battlefield) {
-            return types.iter().any(|x| x == s) || (crate::card::LAND_TYPES.contains(&s) && def.subtypes.iter().any(|x| x == s));
+            return types.iter().any(|x| x == s)
+                || (crate::card::LAND_TYPES.contains(&s) && def.subtypes.iter().any(|x| x == s));
         }
         def.subtypes.iter().any(|x| x == s)
             || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
@@ -762,7 +763,8 @@ impl Game {
             let o = self.obj(src);
             for (i, a) in o.def.abilities.iter().enumerate() {
                 if let Some(t) = a.trigger() {
-                    if fires(self, src, o.controller, t) && self.condition_holds(a.intervening_if(), o.controller, src)
+                    if fires(self, src, o.controller, t)
+                        && self.condition_holds(a.intervening_if(), o.controller, src)
                         && self.condition_holds(a.trigger_condition(), o.controller, src)
                     {
                         fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, o.controller) });
@@ -820,7 +822,9 @@ impl Game {
     pub fn trigger_key(&self, t: &StackItem) -> u64 {
         let o = self.obj(t.card);
         if let Some((i, _)) = t.ability {
-            if let Some(crate::card::Condition::ClassLevel { n }) = o.def.abilities.get(i).and_then(|a| a.trigger_condition()) {
+            if let Some(crate::card::Condition::ClassLevel { n }) =
+                o.def.abilities.get(i).and_then(|a| a.trigger_condition())
+            {
                 if let Some((_, k)) = o.class_gained.iter().find(|(l, _)| l == n) {
                     return *k;
                 }
@@ -884,11 +888,10 @@ impl Game {
             Amount::Fixed(n) => *n,
             Amount::Of(v) => match v {
                 Value::X => x,
-                Value::Permanents { filter } => self
-                    .battlefield
-                    .iter()
-                    .filter(|id| self.filter_matches(filter, you, Some(source), **id))
-                    .count() as i32,
+                Value::Permanents { filter } => {
+                    self.battlefield.iter().filter(|id| self.filter_matches(filter, you, Some(source), **id)).count()
+                        as i32
+                }
                 Value::CardsInHand => self.player(you).hand.len() as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
                 Value::SacrificedThisTurn => self.player(you).sacrificed as i32,
@@ -927,7 +930,11 @@ impl Game {
                     .max()
                     .unwrap_or(0),
                 Value::SourceCounters { counter } => {
-                    if self.obj(source).zone == Zone::Battlefield { self.obj(source).counter(counter) } else { 0 }
+                    if self.obj(source).zone == Zone::Battlefield {
+                        self.obj(source).counter(counter)
+                    } else {
+                        0
+                    }
                 }
                 Value::Devotion { c } => self
                     .battlefield
@@ -935,7 +942,7 @@ impl Game {
                     // a transformed permanent's back face has no mana symbols (its mana value is still its front's)
                     .filter(|b| {
                         let o = self.obj(**b);
-                        o.controller == you && !o.front.as_ref().is_some_and(|f| f.transform_back.is_some())
+                        o.controller == you && o.front.as_ref().is_none_or(|f| f.transform_back.is_none())
                     })
                     .map(|b| self.obj(*b).def.cost.colored[c.index()] as i32)
                     .sum(),
@@ -974,7 +981,9 @@ impl Game {
                 let count = |p: Seat| {
                     self.battlefield
                         .iter()
-                        .filter(|b| self.obj(**b).controller == p && self.filter_matches(filter, you, Some(source), **b))
+                        .filter(|b| {
+                            self.obj(**b).controller == p && self.filter_matches(filter, you, Some(source), **b)
+                        })
                         .count()
                 };
                 (0..self.seats()).any(|p| p != you && count(p) > count(you))
@@ -994,7 +1003,11 @@ impl Game {
             Condition::ExiledCardTypes { n } => {
                 let zcc = self.obj(source).zcc;
                 let mut types: Vec<CardType> = Vec::new();
-                for (_, _, c) in self.exiled_for_source.iter().filter(|(s, z, c)| *s == source && *z == zcc && self.obj(*c).zone == Zone::Exile) {
+                for (_, _, c) in self
+                    .exiled_for_source
+                    .iter()
+                    .filter(|(s, z, c)| *s == source && *z == zcc && self.obj(*c).zone == Zone::Exile)
+                {
                     for t in &self.obj(*c).def.types {
                         if !types.contains(t) {
                             types.push(*t);
@@ -1057,7 +1070,9 @@ impl Game {
                     && self.filter_matches(filter, you, Some(src), id)
             }
             EffectDef::GainAbilitySourceEffect { ability: given, .. } => **given == *ability && id == src,
-            EffectDef::GainAbilityAttachedEffect { ability: given } => **given == *ability && self.attached(src) == Some(id),
+            EffectDef::GainAbilityAttachedEffect { ability: given } => {
+                **given == *ability && self.attached(src) == Some(id)
+            }
             EffectDef::ConditionalContinuousEffect { effect, condition } => {
                 self.condition_holds(Some(condition), you, src) && self.static_gives(effect, src, you, id, ability)
             }
@@ -1086,7 +1101,8 @@ impl Game {
                     }
                     if let EffectDef::SetBasePowerToughnessSourceEffect { count } = e {
                         if count == "exiled_with_source" {
-                            let n = self.exiled_for_source.iter().filter(|(s, z, _)| *s == id && *z == o.zcc).count() as i32;
+                            let n = self.exiled_for_source.iter().filter(|(s, z, _)| *s == id && *z == o.zcc).count()
+                                as i32;
                             p = n;
                             t = n;
                         }
@@ -1176,7 +1192,8 @@ impl Game {
         }
         match item.ability {
             Some((i, _)) => {
-                let rule = self.item_def(item).abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
+                let rule =
+                    self.item_def(item).abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
                 format!("stack ability ({})", rule)
             }
             None => card.name().to_string(),
@@ -1268,20 +1285,21 @@ impl Game {
             zone
         };
         // Etching of Kumano: a creature dealt damage this turn by a source its controller controlled is exiled
-        let etching = from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) && {
-            let (turn, mask) = self.obj(id).damaged_by;
-            turn == self.turn
-                && self.battlefield.iter().any(|b| {
-                    let s = self.obj(*b);
-                    mask & (1 << s.controller) != 0
-                        && s.def.abilities.iter().any(|a| match a {
-                            AbilityDef::SimpleStaticAbility { effects, .. } => {
-                                effects.iter().any(|e| matches!(e, EffectDef::EtchingOfKumanoReplacementEffect))
-                            }
-                            _ => false,
-                        })
-                })
-        };
+        let etching =
+            from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) && {
+                let (turn, mask) = self.obj(id).damaged_by;
+                turn == self.turn
+                    && self.battlefield.iter().any(|b| {
+                        let s = self.obj(*b);
+                        mask & (1 << s.controller) != 0
+                            && s.def.abilities.iter().any(|a| match a {
+                                AbilityDef::SimpleStaticAbility { effects, .. } => {
+                                    effects.iter().any(|e| matches!(e, EffectDef::EtchingOfKumanoReplacementEffect))
+                                }
+                                _ => false,
+                            })
+                    })
+            };
         // "if it would die this turn, exile it instead"
         let zone = if from == Zone::Battlefield
             && zone == Zone::Graveyard
@@ -1302,10 +1320,10 @@ impl Game {
             self.creature_died = true;
         }
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
-            let fired;
-            let mut sources: Vec<ObjId> = self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
+            let mut sources: Vec<ObjId> =
+                self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
             sources.extend(self.battlefield.iter().copied());
-            fired = self.triggers(sources, |g, src, you, t| match t {
+            let fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Dies | Trigger::EntersOrDies | Trigger::LeavesBattlefield => src == id,
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source itself always counts ("this or another"); others must match
@@ -1394,7 +1412,7 @@ impl Game {
         // what lost its abilities while this was on the battlefield gets them back
         if from == Zone::Battlefield {
             let zcc = self.obj(id).zcc;
-            for b in self.battlefield.to_vec() {
+            for b in self.battlefield.iter().copied().collect::<Vec<_>>() {
                 if self.obj(b).lost_abilities.as_ref().is_some_and(|(s, z, _)| *s == id && *z == zcc) {
                     let o = self.obj_mut(b);
                     if let Some((_, _, def)) = o.lost_abilities.take() {

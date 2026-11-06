@@ -336,7 +336,12 @@ impl<'a> Decider for ReplayDecider<'a> {
         if std::env::var_os("PLAYMAT_SHADOW_DEBUG").is_some() {
             eprintln!("answer {} seat {} {:?} -> {:?} ({})", self.next, seat, query, answer, asked);
             if std::env::var_os("PLAYMAT_SHADOW_BF").is_some() {
-                let bf: Vec<String> = game.battlefield.iter().enumerate().map(|(i, o)| format!("B{}={}:{}", i, o.0, game.obj(*o).name())).collect();
+                let bf: Vec<String> = game
+                    .battlefield
+                    .iter()
+                    .enumerate()
+                    .map(|(i, o)| format!("B{}={}:{}", i, o.0, game.obj(*o).name()))
+                    .collect();
                 eprintln!("  {}", bf.join(" "));
             }
         }

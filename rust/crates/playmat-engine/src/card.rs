@@ -365,37 +365,57 @@ pub enum Trigger {
         graveyard: bool,
     },
     /// a creature of the filter attacks (`AttacksCreatureYouControlTriggeredAbility`); with a target pointer, at it
-    AttacksAll { filter: Filter },
+    AttacksAll {
+        filter: Filter,
+    },
     /// you attack with `min` or more creatures of the filter (`AttacksWithCreaturesTriggeredAbility`)
-    AttacksWith { min: usize, filter: Filter },
+    AttacksWith {
+        min: usize,
+        filter: Filter,
+    },
     /// this leaves the battlefield
     LeavesBattlefield,
     /// heroic: you cast a spell that targets this (`HeroicAbility`)
     SpellCastTargetingThis,
     /// this becomes the target of a spell of the filter (`BecomesTargetSourceTriggeredAbility`); with a target
     /// pointer, at that spell's controller
-    BecomesTargetOfSpell { filter: Filter },
+    BecomesTargetOfSpell {
+        filter: Filter,
+    },
     /// `who` casts their second spell this turn
-    CastSecondSpell { who: String },
+    CastSecondSpell {
+        who: String,
+    },
     /// this enters, and at the beginning of your upkeep (`OrTriggeredAbility`)
     EntersOrUpkeep,
     /// this Class becomes level `n`
-    ClassLevel { n: u32 },
+    ClassLevel {
+        n: u32,
+    },
     /// you unlock this door, the left or the right (`UnlockThisDoorTriggeredAbility`)
-    DoorUnlocked { left: bool },
+    DoorUnlocked {
+        left: bool,
+    },
     /// you commit a crime: a spell or ability of yours targets an opponent, something of theirs or a card in their
     /// graveyard (`CommittedCrimeTriggeredAbility`)
     CommittedCrime,
     /// valiant: this becomes the target of a spell or ability you control for the first time each turn
     Valiant,
     /// a player (`who`) sacrifices a permanent of the filter (`SacrificePermanentTriggeredAbility`)
-    Sacrificed { filter: Filter, who: String },
+    Sacrificed {
+        filter: Filter,
+        who: String,
+    },
     /// `who` ("you", "opponent") draws a card; with a target pointer, at that player
-    Draws { who: String },
+    Draws {
+        who: String,
+    },
     /// this is dealt damage (`DealtDamageToSourceTriggeredAbility`: once for each batch, with the damage as X)
     DealtDamage,
     /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`)
-    DrawsNth { n: u32 },
+    DrawsNth {
+        n: u32,
+    },
     /// this deals damage to an opponent (`only_combat`: combat damage)
     DealsDamageToOpponent {
         #[serde(default)]
@@ -403,7 +423,9 @@ pub enum Trigger {
     },
     /// a permanent of the filter dies; with `include_self`, this too, whatever the filter
     /// a permanent of the filter leaves the battlefield; the trigger's X is the +1/+1 counters it had (The Ooze)
-    LeavesAll { filter: Filter },
+    LeavesAll {
+        filter: Filter,
+    },
     DiesAll {
         filter: Filter,
         #[serde(default)]
@@ -435,7 +457,9 @@ pub enum Trigger {
     /// this deals combat damage to a player
     CombatDamageToPlayer,
     /// a permanent of the filter deals combat damage to a player
-    CombatDamageToPlayerAll { filter: Filter },
+    CombatDamageToPlayerAll {
+        filter: Filter,
+    },
     /// one or more opponents are dealt noncombat damage (Master of Barbs)
     OpponentsDealtNoncombatDamage,
     /// another permanent you control enters or dies, if its power is greater than this one's (Pelt Collector)
@@ -446,7 +470,9 @@ pub enum Trigger {
     /// an opponent searches their library (Wan Shi Tong)
     OpponentSearchesLibrary,
     /// a Saga's chapter ability: lore counters were added that reached chapter `n`
-    Chapter { n: u32 },
+    Chapter {
+        n: u32,
+    },
 }
 
 /// Mana abilities as `ManaUtil.tryToAutoPay` tells them apart: a basic one (`{T}: Add {G}`, pain lands too), one of
@@ -471,15 +497,23 @@ pub enum Condition {
     /// a permanent you controlled left the battlefield this turn
     Revolt,
     /// you cast `n` or more instant and sorcery spells this turn
-    InstantsSorceriesCast { n: u32 },
+    InstantsSorceriesCast {
+        n: u32,
+    },
     /// the source, a spell being cast, targets something of the filter (`SourceTargetsPermanentCondition`)
-    SourceTargets { filter: Filter },
+    SourceTargets {
+        filter: Filter,
+    },
     /// `MyTurnCondition`
     MyTurn,
     /// `CastFromEverywhereSourceCondition`: this permanent was cast
     CastFromEverywhere,
     /// `LifeCompareCondition`: your life (or an opponent's) compared with `n`
-    LifeCompare { who: String, cmp: Cmp, n: i32 },
+    LifeCompare {
+        who: String,
+        cmp: Cmp,
+        n: i32,
+    },
     /// `PermanentsOnTheBattlefieldCondition` / `YouControlPermanentCondition`: the number of permanents of the filter
     /// (you control, unless `all`) compared with `n`
     Permanents {
@@ -511,24 +545,37 @@ pub enum Condition {
     /// you gained life this turn
     YouGainedLife,
     /// you drew `n` or more cards this turn
-    DrewCards { n: u32 },
+    DrewCards {
+        n: u32,
+    },
     /// four or more card types among cards exiled with the source (Keen-Eyed Curator)
-    ExiledCardTypes { n: usize },
+    ExiledCardTypes {
+        n: usize,
+    },
     SourceEnteredThisTurn,
     /// `SourceAttackingCondition`
     SourceAttacking,
     /// `CardsInControllerGraveyardCondition`, spell mastery: at least `n` cards of the filter in your graveyard
-    CardsInGraveyard { filter: Filter, n: i32 },
+    CardsInGraveyard {
+        filter: Filter,
+        n: i32,
+    },
     /// you sacrificed at least `n` permanents this turn
-    SacrificedThisTurn { n: i32 },
+    SacrificedThisTurn {
+        n: i32,
+    },
     /// `OpusCondition`: five or more mana was spent to cast the spell that set off the trigger
     Opus,
     /// the source Class is at least level `n`
-    ClassLevel { n: u32 },
+    ClassLevel {
+        n: u32,
+    },
     /// `OpponentsLostLifeCondition`: an opponent lost life this turn
     OpponentsLostLife,
     /// `OpponentControlsMoreCondition`: an opponent controls more permanents of the filter than you
-    OpponentControlsMore { filter: Filter },
+    OpponentControlsMore {
+        filter: Filter,
+    },
     /// `OpponentHasMoreLifeCondition`
     OpponentMoreLife,
     /// `OpponentHasMoreCardsInHandCondition`
@@ -624,11 +671,15 @@ impl TokenDef {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "class")]
 pub enum CostDef {
-    ManaCost { cost: String },
+    ManaCost {
+        cost: String,
+    },
     TapSourceCost,
     SacrificeSourceCost,
     /// put (or remove) loyalty counters on the source
-    PayLoyaltyCost { amount: i32 },
+    PayLoyaltyCost {
+        amount: i32,
+    },
     /// sacrifice a permanent of the filter you control (chosen as the cost is paid)
     SacrificeTargetCost {
         filter: Filter,
@@ -636,31 +687,48 @@ pub enum CostDef {
         amount: usize,
     },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
-    SacrificeXTargetCost { filter: Filter },
+    SacrificeXTargetCost {
+        filter: Filter,
+    },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
-    TapTargetCost { filter: Filter, amount: usize },
+    TapTargetCost {
+        filter: Filter,
+        amount: usize,
+    },
     /// crew: tap any number of other untapped creatures you control with total power `value` or more
-    CrewCost { value: i32 },
+    CrewCost {
+        value: i32,
+    },
     /// exile the source
     ExileSourceCost,
     /// remove counters from the source
-    RemoveCountersSourceCost { counter: CounterDef },
+    RemoveCountersSourceCost {
+        counter: CounterDef,
+    },
     /// return an unblocked attacker you control to its owner's hand (ninjutsu)
     ReturnAttackerToHandTargetCost,
     /// exile this many other cards from your graveyard (escape)
-    ExileFromGraveCost { amount: usize },
+    ExileFromGraveCost {
+        amount: usize,
+    },
     /// one of these, the player's choice when both can be paid
-    OrCost { costs: Vec<CostDef> },
+    OrCost {
+        costs: Vec<CostDef>,
+    },
     /// discard a card of the filter
     DiscardCardCost {
         #[serde(default)]
         filter: Filter,
     },
-    PayLifeCost { amount: i32 },
+    PayLifeCost {
+        amount: i32,
+    },
     /// harmonize: tapping the creature chosen to reduce the cost (`HarmonizeAbilityAdjuster`)
     HarmonizeCost,
     /// behold a permanent or card of a subtype: choose one you control, or reveal one from your hand
-    BeholdCost { subtype: String },
+    BeholdCost {
+        subtype: String,
+    },
     /// discard this card (cycling)
     DiscardSourceCost,
 }
@@ -937,15 +1005,28 @@ pub enum EffectDef {
     /// destroy the target and every other permanent with its name
     DestroyAllNamedPermanentsEffect,
     /// double the source's counters of a kind
-    DoubleCountersSourceEffect { name: String },
+    DoubleCountersSourceEffect {
+        name: String,
+    },
     /// a static ability's effect in layer 7a: the source's base power is `amount`, its toughness that plus 1
-    SetBasePowerToughnessPlusOneSourceEffect { amount: Amount },
+    SetBasePowerToughnessPlusOneSourceEffect {
+        amount: Amount,
+    },
     /// each opponent loses `amount` life; you gain the life lost this way
-    LoseLifeOpponentsYouGainLifeLostEffect { amount: Amount },
+    LoseLifeOpponentsYouGainLifeLostEffect {
+        amount: Amount,
+    },
     /// destroy the target creature if its mana value is `n` or less (`revolt_n` or less with revolt: Fatal Push)
-    DestroyTargetIfManaValueEffect { n: i32, revolt_n: i32 },
+    DestroyTargetIfManaValueEffect {
+        n: i32,
+        revolt_n: i32,
+    },
     /// a static ability's effect: spells of the filter (cast by `who`, relative to its controller) cost {amount} more
-    SpellsCostIncreasingAllEffect { amount: i32, filter: Filter, who: String },
+    SpellsCostIncreasingAllEffect {
+        amount: i32,
+        filter: Filter,
+        who: String,
+    },
     /// spells of the filter you cast cost {amount} less (while the condition holds)
     SpellsCostReductionControllerEffect {
         filter: Filter,
@@ -982,7 +1063,9 @@ pub enum EffectDef {
     /// deals damage to the target player equal to the noncreature spells they cast this turn
     MagebaneLizardEffect,
     /// you may cast spells of the filter as though they had flash
-    CastAsThoughItHadFlashAllEffect { filter: Filter },
+    CastAsThoughItHadFlashAllEffect {
+        filter: Filter,
+    },
     /// exile the top `amount` cards (choosing one of them with `choose_one`); you may play them until the end of
     /// this turn (`EndOfTurn`) or of your next one (`UntilEndOfYourNextTurn`)
     ExileTopXMayPlayUntilEffect {
@@ -994,23 +1077,39 @@ pub enum EffectDef {
     /// each opponent can't draw more than one card each turn
     NarsetParterOfVeilsEffect,
     /// you may play `amount` additional lands on each of your turns
-    PlayAdditionalLandsControllerEffect { amount: u32 },
+    PlayAdditionalLandsControllerEffect {
+        amount: u32,
+    },
     /// you may play lands from your graveyard
     PlayLandsFromGraveyardControllerEffect,
     /// exiles the target card from a graveyard; if it was a creature card, `then` (a Clue)
-    RavenEagleEffect { then: Box<EffectDef> },
+    RavenEagleEffect {
+        then: Box<EffectDef>,
+    },
     /// "at the beginning of the next end step, …" (`CreateDelayedTriggeredAbilityEffect` with
     /// `AtTheBeginOfNextEndStepDelayedTriggeredAbility`)
-    CreateNextEndStepDelayedEffect { effects: Vec<EffectDef>, rule: String },
+    CreateNextEndStepDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
     /// "when you next cast a creature spell this turn, that creature enters with `amount` additional +1/+1
     /// counters" (`AddCounterNextSpellDelayedTriggeredAbility`)
-    CreateNextCreatureSpellDelayedEffect { amount: i32, rule: String },
+    CreateNextCreatureSpellDelayedEffect {
+        amount: i32,
+        rule: String,
+    },
     /// the target spell enters with `amount` additional +1/+1 counters
-    AddCounterNextSpellEffect { amount: i32 },
+    AddCounterNextSpellEffect {
+        amount: i32,
+    },
     /// untap up to `amount` tapped lands
-    UntapLandsEffect { amount: usize },
+    UntapLandsEffect {
+        amount: usize,
+    },
     /// puts the target permanent into its owner's library `n`th from the top
-    PutIntoLibraryNFromTopTargetEffect { n: usize },
+    PutIntoLibraryNFromTopTargetEffect {
+        n: usize,
+    },
     /// if one or more tokens would be created under your control, twice that many are created instead
     CreateTwiceThatManyTokensEffect,
     /// deals X (the damage this was dealt) to the target; a player dealt damage this way can't gain life for the
@@ -1036,7 +1135,9 @@ pub enum EffectDef {
         condition: Option<Condition>,
     },
     /// you have the ability (hexproof)
-    GainAbilityControllerEffect { ability: Box<AbilityDef> },
+    GainAbilityControllerEffect {
+        ability: Box<AbilityDef>,
+    },
     /// "when you cast your next instant or sorcery spell this turn, copy that spell. You may choose new targets for
     /// the copy."
     CreateCopyNextSpellDelayedEffect,
@@ -1051,7 +1152,9 @@ pub enum EffectDef {
     /// copy the spell that's this ability's source (casualty's "when you do"); its controller may choose new targets
     CopySourceSpellEffect,
     /// a Class gains level `level`
-    SetClassLevelEffect { level: u32 },
+    SetClassLevelEffect {
+        level: u32,
+    },
     /// exile the target card from a graveyard; a token copy of it, except a 4/4 black Zombie
     TheScarabGodExileEffect,
     /// "return it to its owner's hand at the beginning of the next end step", for the card that died
@@ -1065,7 +1168,9 @@ pub enum EffectDef {
     /// "This land is the chosen type." (applied as the type is chosen)
     MultiversalPassagePassageEffect,
     /// "you may discard up to `amount` cards. If you do, draw that many cards"
-    DiscardAndDrawThatManyEffect { amount: i32 },
+    DiscardAndDrawThatManyEffect {
+        amount: i32,
+    },
     /// a static ability's effect: a creature dealt damage this turn by a source you controlled that would die is
     /// exiled instead
     EtchingOfKumanoReplacementEffect,
@@ -1078,18 +1183,27 @@ pub enum EffectDef {
     /// the target loses all abilities for as long as the source remains on the battlefield
     LoseAllAbilitiesUntilSourceLeavesEffect,
     /// firebending: adds `amount` {R} that lasts until end of combat
-    FirebendingEffect { amount: u32 },
+    FirebendingEffect {
+        amount: u32,
+    },
     /// adds `amount` mana of one color its controller chooses (a resolving effect: always asked)
-    AddManaOfAnyColorEffect { amount: u32 },
+    AddManaOfAnyColorEffect {
+        amount: u32,
+    },
     /// a token that's a copy of the target permanent
     CreateTokenCopyTargetEffect,
     /// a token that's a copy of this permanent (or of it as it last was)
     CreateTokenCopySourceEffect,
     /// `EmpowerJaceEffect`: loyalty counters on a Jace token you control, first creating one if you control none
-    EmpowerJaceEffect { amount: Amount, token: TokenDef },
+    EmpowerJaceEffect {
+        amount: Amount,
+        token: TokenDef,
+    },
     /// earthbend N: the target land you control becomes a 0/0 creature with haste that's still a land, with N +1/+1
     /// counters; when it dies or is exiled, it returns to the battlefield tapped
-    EarthbendTargetEffect { amount: Amount },
+    EarthbendTargetEffect {
+        amount: Amount,
+    },
     /// static: you may cast this card from your graveyard using its blitz ability
     TenaciousUnderdogEffect,
     /// static: creatures your opponents control can be targeted as though they didn't have hexproof
@@ -1098,9 +1212,14 @@ pub enum EffectDef {
     NowhereToRunWardEffect,
     /// the source's creature types become these until it leaves the battlefield (`AddCardSubTypeSourceEffect`,
     /// `Duration.Custom`, not in addition)
-    BecomesSubtypesSourceEffect { subtypes: Vec<String> },
+    BecomesSubtypesSourceEffect {
+        subtypes: Vec<String>,
+    },
     /// the source has this base power and toughness until it leaves (layer 7b, `Duration.Custom`)
-    SetBasePowerToughnessUntilLeavesEffect { power: i32, toughness: i32 },
+    SetBasePowerToughnessUntilLeavesEffect {
+        power: i32,
+        toughness: i32,
+    },
     /// if the source is a Cleric: a deathtouch counter, and it becomes a Phyrexian Human Cleric with base 3/3
     EvolvedSleeperClericEffect,
     /// if the source is a Phyrexian: a +1/+1 counter, then you draw a card and lose 1 life
@@ -1124,28 +1243,57 @@ pub enum EffectDef {
     /// deals damage to each player (you first) equal to the nonbasic lands they control
     SunspineLynxEffect,
     /// choose a card of the filter in your graveyard (if there is one) and return it to your hand
-    ReturnCardChosenFromGraveyardEffect { filter: Filter, optional: bool },
+    ReturnCardChosenFromGraveyardEffect {
+        filter: Filter,
+        optional: bool,
+    },
     /// reveal the top `amount`, put `pick` of the filter into your hand (asked first if optional), the rest into
     /// your graveyard
-    RevealLibraryPickControllerEffect { amount: Amount, pick: usize, filter: Filter, optional: bool },
+    RevealLibraryPickControllerEffect {
+        amount: Amount,
+        pick: usize,
+        filter: Filter,
+        optional: bool,
+    },
     /// if you would gain life, you gain that much plus 1 instead
     GainPlusOneLifeReplacementEffect,
     /// the target player draws `draw` cards, then discards `discard`
-    DrawDiscardTargetEffect { draw: i32, discard: i32 },
+    DrawDiscardTargetEffect {
+        draw: i32,
+        discard: i32,
+    },
     /// the target player creates a token
-    CreateTokenTargetEffect { token: TokenDef },
+    CreateTokenTargetEffect {
+        token: TokenDef,
+    },
     /// adds mana to the controller's pool (WUBRG, then colorless)
-    BasicManaEffect { colored: [u32; 5], colorless: u32 },
+    BasicManaEffect {
+        colored: [u32; 5],
+        colorless: u32,
+    },
     /// the target permanent's controller (as it last was) creates `amount` tokens
-    CreateTokenControllerTargetEffect { token: TokenDef, amount: u32, tapped: bool },
+    CreateTokenControllerTargetEffect {
+        token: TokenDef,
+        amount: u32,
+        tapped: bool,
+    },
     /// returns every permanent of the filter to its owner's hand
-    ReturnToHandFromBattlefieldAllEffect { filter: Filter },
+    ReturnToHandFromBattlefieldAllEffect {
+        filter: Filter,
+    },
     /// the controller discards their hand
     DiscardHandControllerEffect,
     /// mill `amount`, then put a milled card of the filter into your hand (up to one if optional)
-    MillThenPutInHandEffect { amount: Amount, filter: Filter, optional: bool },
+    MillThenPutInHandEffect {
+        amount: Amount,
+        filter: Filter,
+        optional: bool,
+    },
     /// a spell costs `per` less for each of `amount` (`SpellCostReductionForEachSourceEffect`)
-    SpellCostReductionForEachSourceEffect { per: i32, amount: Amount },
+    SpellCostReductionForEachSourceEffect {
+        per: i32,
+        amount: Amount,
+    },
     /// Lovestruck Beast: this can't attack unless you control a 1/1 creature
     LovestruckBeastEffect,
     /// the target opponent exiles a creature they control and their graveyard (Strategic Betrayal)
@@ -1170,27 +1318,40 @@ pub enum EffectDef {
         effects: Vec<EffectDef>,
     },
     /// the cards it exiled go to their owners' graveyards, then a `token` for each one that did
-    PinnacleStarcageTokenEffect { token: TokenDef },
+    PinnacleStarcageTokenEffect {
+        token: TokenDef,
+    },
     /// a static ability's effect: spells of the filter you control can't be countered
-    CantBeCounteredControlledEffect { filter: Filter, duration: Duration },
+    CantBeCounteredControlledEffect {
+        filter: Filter,
+        duration: Duration,
+    },
     /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb)
     DontCauseTriggerEffect,
     /// a static ability's effect: each player of `who` can't cast more than one spell each turn
-    CantCastMoreThanOneSpellEffect { who: String },
+    CantCastMoreThanOneSpellEffect {
+        who: String,
+    },
     /// your opponents can't cast spells during your turn (Voice of Victory)
     CantCastDuringYourTurnEffect,
     /// equip abilities that target this cost less; the engine has no equipment, so it never applies
     ReduceCostEquipTargetSourceEffect,
     /// a static ability's effect: permanents of the filter enter tapped
-    PermanentsEnterBattlefieldTappedEffect { filter: Filter },
+    PermanentsEnterBattlefieldTappedEffect {
+        filter: Filter,
+    },
     /// a static ability's effect: players can't gain life
     CantGainLifeAllEffect,
     /// return the source from its graveyard to the battlefield
     ReturnSourceFromGraveyardToBattlefieldEffect,
     /// put the source card (a dies trigger's graveyard card) on top of or under its owner's library
-    PutOnLibrarySourceEffect { top: bool },
+    PutOnLibrarySourceEffect {
+        top: bool,
+    },
     /// damage can't be prevented (the engine has no prevention yet, so nothing to do)
-    DamageCantBePreventedEffect { duration: Duration },
+    DamageCantBePreventedEffect {
+        duration: Duration,
+    },
     /// exiles the targets
     ExileTargetEffect,
     /// returns the targets to their owners' hands
@@ -1218,25 +1379,39 @@ pub enum EffectDef {
         optional: bool,
     },
     /// the controller discards `amount` cards
-    DiscardControllerEffect { amount: Amount },
+    DiscardControllerEffect {
+        amount: Amount,
+    },
     /// the target player reveals their hand and you choose a card of the filter; they discard it (Duress)
-    DiscardCardYouChooseTargetEffect { filter: Filter },
+    DiscardCardYouChooseTargetEffect {
+        filter: Filter,
+    },
     /// exile the target until the source leaves the battlefield (Banishing Light)
     ExileUntilSourceLeavesEffect,
     /// the source explores `amount` times (`ExploreSourceEffect`)
-    ExploreSourceEffect { amount: Amount },
+    ExploreSourceEffect {
+        amount: Amount,
+    },
     /// the target creature explores
     ExploreTargetEffect,
     /// the target creature can't be blocked this turn
-    CantBeBlockedTargetEffect { duration: Duration },
+    CantBeBlockedTargetEffect {
+        duration: Duration,
+    },
     /// an Aura spell's effect: it's attached to its target as it enters
     AttachEffect,
     /// a static ability's effect: the permanent this is attached to gets +power/+toughness
-    BoostEnchantedEffect { power: Amount, toughness: Amount },
+    BoostEnchantedEffect {
+        power: Amount,
+        toughness: Amount,
+    },
     /// a static ability's effect: the permanent this is attached to can't attack or block
     CantAttackBlockAttachedEffect,
     /// each player (of `who`) discards `amount` cards they choose, all at once
-    DiscardEachPlayerEffect { amount: Amount, who: String },
+    DiscardEachPlayerEffect {
+        amount: Amount,
+        who: String,
+    },
     /// exile the target player's graveyard
     ExileGraveyardAllTargetPlayerEffect,
     /// exile all cards from all graveyards
@@ -1244,11 +1419,15 @@ pub enum EffectDef {
     /// exile the target into this permanent's exile zone (Skyclave Apparition)
     ExileTargetForSourceEffect,
     /// the owner of the cards this exiled creates an X/X `token`, X their total mana value
-    CreateXXTokenExiledEffect { token: TokenDef },
+    CreateXXTokenExiledEffect {
+        token: TokenDef,
+    },
     /// look at the target opponent's hand; you may exile a nonland card from it, which its owner may play for {2} more
     EliteSpellbinderEffect,
     /// the target opponent reveals their hand; you choose a card of the filter from it, exiled until this leaves
-    KitesailFreebooterExileEffect { filter: Filter },
+    KitesailFreebooterExileEffect {
+        filter: Filter,
+    },
     /// put this card from your hand onto the battlefield tapped and attacking (ninjutsu)
     NinjutsuEffect,
     /// the controller takes an extra turn after this one
@@ -1258,10 +1437,14 @@ pub enum EffectDef {
     /// return the source to the battlefield; it's an enchantment, not a creature, from then on
     EnduringGlimmerReturnEffect,
     /// remove up to `amount` counters, of any kinds, from the target (Glissa Sunslayer)
-    RemoveUpToAmountCountersEffect { amount: i32 },
+    RemoveUpToAmountCountersEffect {
+        amount: i32,
+    },
     /// Fabled Passage: search your library for a card of the filter, shuffle, put it onto the battlefield tapped,
     /// then untap it if you control four or more lands
-    FabledPassageSearchForLandEffect { filter: Filter },
+    FabledPassageSearchForLandEffect {
+        filter: Filter,
+    },
     /// its second half, done by the first
     FabledPassageUntapLandEffect,
     /// Scavenging Ooze: exile the target card from a graveyard; if it was a creature card, put a +1/+1 counter on
@@ -1284,11 +1467,19 @@ pub enum EffectDef {
     /// Floodpits Drowner: shuffle this and the target creature into their owners' libraries
     FloodpitsDrownerEffect,
     /// `first` damage to the first target, then `second` damage to the second
-    DamageTargetAndTargetEffect { first: i32, second: i32 },
+    DamageTargetAndTargetEffect {
+        first: i32,
+        second: i32,
+    },
     /// the source gains card types (until end of turn): a crewed Vehicle becomes an artifact creature
-    AddCardTypeSourceEffect { types: Vec<CardType>, duration: Duration },
+    AddCardTypeSourceEffect {
+        types: Vec<CardType>,
+        duration: Duration,
+    },
     /// a characteristic-defining ability: the source's base power is a number (Lumbering Worldwagon)
-    SetBasePowerSourceEffect { amount: Amount },
+    SetBasePowerSourceEffect {
+        amount: Amount,
+    },
     /// a static ability's effect: a card or token that would be put into a graveyard from anywhere is exiled
     /// instead (Rest in Peace)
     GraveyardFromAnywhereExileReplacementEffect,
@@ -1296,7 +1487,9 @@ pub enum EffectDef {
     LeylineOfTheVoidEffect,
     /// pay `cost` any number of times; when you do, that many +1/+1 counters on the source, then exile up to that
     /// many instants and sorceries (mana value 3 or less) from your graveyard and cast copies free
-    BloodthirstyAdversaryEffect { cost: String },
+    BloodthirstyAdversaryEffect {
+        cost: String,
+    },
     /// the reflexive part: exile the target cards, then you may cast a copy of each without paying its mana cost
     BloodthirstyAdversaryCopyEffect,
     /// counter the target ability; its artifact, creature or planeswalker loses all abilities while the source stays
@@ -1312,9 +1505,14 @@ pub enum EffectDef {
     /// each other Angel you control enters with an additional +1/+1 counter for each Angel you already control
     GiadaFontOfHopeEntersBattlefieldEffect,
     /// a static ability's effect: each land is also the basic land type, with its mana ability (Urborg)
-    AddBasicLandTypeAllLandsEffect { subtype: String },
+    AddBasicLandTypeAllLandsEffect {
+        subtype: String,
+    },
     /// a static ability's effect: each permanent the filter matches also has the subtype (Laughing Jasper Flint)
-    AddCardSubtypeAllEffect { filter: Filter, subtype: String },
+    AddCardSubtypeAllEffect {
+        filter: Filter,
+        subtype: String,
+    },
     /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
     /// among them this turn, spending mana as though it were any type
     LaughingJasperFlintEffect,
@@ -1338,9 +1536,13 @@ pub enum EffectDef {
     RottenmouthViperEffect,
     /// Old-Growth Troll: it returns as an Aura enchanting a Forest you control, which has "{T}: Add {G}{G}" and
     /// "{1}, {T}, sacrifice this land: create a tapped `token`"
-    OldGrowthTrollReturnEffect { token: serde_json::Value },
+    OldGrowthTrollReturnEffect {
+        token: serde_json::Value,
+    },
     /// the target player mills `amount` cards
-    MillCardsTargetEffect { amount: Amount },
+    MillCardsTargetEffect {
+        amount: Amount,
+    },
     /// the source becomes the token's kind of creature (still its old types with `retain`), with its abilities too
     BecomesCreatureSourceEffect {
         token: TokenDef,
@@ -1357,15 +1559,27 @@ pub enum EffectDef {
         counters: Option<CounterDef>,
     },
     /// the target player discards `amount` cards of their choice
-    DiscardTargetEffect { amount: Amount },
+    DiscardTargetEffect {
+        amount: Amount,
+    },
     /// you get an emblem (abilities in the command zone), read like a token class
-    GetEmblemEffect { emblem: TokenDef },
+    GetEmblemEffect {
+        emblem: TokenDef,
+    },
     /// the target player sacrifices `amount` permanents of the filter
-    SacrificeEffect { filter: Filter, amount: Amount },
+    SacrificeEffect {
+        filter: Filter,
+        amount: Amount,
+    },
     /// each opponent sacrifices `amount` permanents of the filter (all chosen, then sacrificed together)
-    SacrificeOpponentsEffect { filter: Filter, amount: Amount },
+    SacrificeOpponentsEffect {
+        filter: Filter,
+        amount: Amount,
+    },
     /// the controller mills `amount` cards
-    MillCardsControllerEffect { amount: Amount },
+    MillCardsControllerEffect {
+        amount: Amount,
+    },
     /// a static effect on a spell: it can't be countered
     CantBeCounteredSourceEffect,
     /// `SearchLibraryPutIn…Effect`: the controller (or the target's controller) searches their library for cards of
@@ -1400,9 +1614,13 @@ pub enum EffectDef {
     /// static: players can't cast spells from graveyards or libraries
     WeatheredRunestoneEffect2,
     /// as this enters, choose a permanent of the filter (not targeted)
-    ChooseCreatureEffect { filter: Filter },
+    ChooseCreatureEffect {
+        filter: Filter,
+    },
     /// the creature chosen as the source entered gains the ability until end of turn
-    ChosenCreatureGainsAbilityEffect { ability: Box<AbilityDef> },
+    ChosenCreatureGainsAbilityEffect {
+        ability: Box<AbilityDef>,
+    },
     /// evolve's +1/+1 counter, if the creature that entered still has greater power or toughness
     EvolveEffect,
     /// a regeneration shield on the source until end of turn
@@ -1417,9 +1635,15 @@ pub enum EffectDef {
         reflexive: Option<String>,
     },
     /// the source gains the chosen one of `abilities` (named by `names`, their rule texts) until end of turn
-    GainsChoiceOfAbilitiesEffect { abilities: Vec<AbilityDef>, names: Vec<String> },
+    GainsChoiceOfAbilitiesEffect {
+        abilities: Vec<AbilityDef>,
+        names: Vec<String>,
+    },
     /// creates one token with power and toughness `amount` (`new SharkToken(xValue)`)
-    CreateXXTokenEffect { token: TokenDef, amount: Amount },
+    CreateXXTokenEffect {
+        token: TokenDef,
+        amount: Amount,
+    },
     /// the source gets +X/+0 until end of turn (X: creature cards in your graveyard), then may fight the target
     KraulHarpoonerEffect,
     /// surveil 1; a card put into the graveyard with mana value up to the life you gained this turn goes to your hand
@@ -1446,9 +1670,13 @@ pub enum EffectDef {
     },
     /// a static ability's effect: the permanents of `filter` have `ability`
     /// a static ability's effect: the permanent this Aura enchants has the ability
-    GainAbilityAttachedEffect { ability: Box<AbilityDef> },
+    GainAbilityAttachedEffect {
+        ability: Box<AbilityDef>,
+    },
     /// a Role token attached to each target (`CreateRoleAttachedTargetEffect`)
-    CreateRoleAttachedTargetEffect { token: TokenDef },
+    CreateRoleAttachedTargetEffect {
+        token: TokenDef,
+    },
     GainAbilityAllEffect {
         ability: Box<AbilityDef>,
         duration: Duration,
@@ -1519,9 +1747,14 @@ pub enum AbilityDef {
     /// a Room entering unlocks the door of the half cast (`RoomCard`'s `EntersBattlefieldAbility`)
     RoomEnterUnlockAbility,
     /// a Room's shared type line: only its unlocked doors' names, costs and abilities (`RoomAbility`)
-    RoomAbility { rule: String },
+    RoomAbility {
+        rule: String,
+    },
     /// the special action to unlock a locked door, paying its cost, as a sorcery (`RoomUnlockAbility`)
-    RoomUnlockAbility { left: bool, cost: String },
+    RoomUnlockAbility {
+        left: bool,
+        cost: String,
+    },
     /// playing the card (every land has one)
     PlayLandAbility,
     SimpleStaticAbility {
@@ -1608,11 +1841,18 @@ pub enum AbilityDef {
         rule: String,
     },
     /// spree: the spell's modes each cost more, and one or more are chosen (the modes carry the costs)
-    SpreeAbility { rule: String },
+    SpreeAbility {
+        rule: String,
+    },
     /// tiered: choose one of the spell's modes, each with its additional cost
-    TieredAbility { rule: String },
+    TieredAbility {
+        rule: String,
+    },
     /// you may pay `cost` more as you cast it; if you do, when it enters, create a 1/1 token copy of it
-    OffspringAbility { cost: String, rule: String },
+    OffspringAbility {
+        cost: String,
+        rule: String,
+    },
     BlitzAbility {
         mana: String,
         #[serde(default)]
@@ -1621,9 +1861,15 @@ pub enum AbilityDef {
     },
     /// whenever you tap a permanent of the filter for mana, add one more mana of `color` (a mana ability that
     /// triggers, resolved at once)
-    TapForManaAllTriggeredManaAbility { filter: Filter, color: String, rule: String },
+    TapForManaAllTriggeredManaAbility {
+        filter: Filter,
+        color: String,
+        rule: String,
+    },
     /// the blitz ability's "as it enters" part (Java lists it on its own)
-    BlitzEntersAbility { rule: String },
+    BlitzEntersAbility {
+        rule: String,
+    },
     /// cast from hand for `cost` instead if an opponent lost life this turn (a second spell ability)
     SpectacleAbility {
         cost: String,
@@ -1653,10 +1899,16 @@ pub enum AbilityDef {
         rule: String,
     },
     /// casualty `n`: as it's cast, you may sacrifice a creature with power `n` or greater; when you do, copy the spell
-    CasualtyAbility { n: i32, rule: String },
+    CasualtyAbility {
+        n: i32,
+        rule: String,
+    },
     /// teamwork `n`: as it's cast, you may tap creatures you control with total power `n` or more (the spell is then
     /// kicked)
-    TeamworkAbility { n: i32, rule: String },
+    TeamworkAbility {
+        n: i32,
+        rule: String,
+    },
     /// `ExileCardsFromHandAdjuster`: as it's cast, you may exile any number of cards of the filter from your hand; it
     /// costs less for each (Java takes {4} off per card: it doubles the reduction twice)
     ExileCardsFromHandAdjusterAbility {
@@ -1771,7 +2023,10 @@ pub enum AbilityDef {
     EnchantAbility,
     /// when this becomes the target of a spell or ability an opponent controls, counter it unless that player pays
     /// (its effect, a `CounterUnlessPaysEffect`)
-    WardAbility { effects: Vec<EffectDef>, rule: String },
+    WardAbility {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
     /// this can't block
     CantBlockAbility,
     /// this can't be blocked by creatures with power 2 or less
@@ -1924,7 +2179,9 @@ impl AbilityDef {
     pub fn activated(&self) -> Option<Activated<'_>> {
         match self {
             AbilityDef::ActivateAsSorceryActivatedAbility { effects, cost, targets, rule }
-            | AbilityDef::ClassLevelAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, true)),
+            | AbilityDef::ClassLevelAbility { effects, cost, targets, rule, .. } => {
+                Some((rule, effects, targets, cost, true))
+            }
             AbilityDef::SimpleActivatedAbility { effects, cost, targets, rule }
             | AbilityDef::PowerUpAbility { effects, cost, targets, rule } => {
                 Some((rule, effects, targets, cost, false))
@@ -1934,7 +2191,9 @@ impl AbilityDef {
             AbilityDef::LimitedTimesPerTurnActivatedAbility { effects, cost, targets, rule, .. } => {
                 Some((rule, effects, targets, cost, false))
             }
-            AbilityDef::ChannelAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, false)),
+            AbilityDef::ChannelAbility { effects, cost, targets, rule, .. } => {
+                Some((rule, effects, targets, cost, false))
+            }
             AbilityDef::NinjutsuAbility { effects, cost, rule } => Some((rule, effects, &[], cost, false)),
             _ => None,
         }
@@ -1997,7 +2256,9 @@ impl AbilityDef {
     pub fn mana_kind(&self) -> ManaKind {
         match self {
             AbilityDef::AnyColorManaAbility { .. } => ManaKind::AnyColor,
-            AbilityDef::ActivateIfConditionManaAbility { .. } | AbilityDef::ConditionalManaAbility { .. } => ManaKind::Other,
+            AbilityDef::ActivateIfConditionManaAbility { .. } | AbilityDef::ConditionalManaAbility { .. } => {
+                ManaKind::Other
+            }
             _ => ManaKind::Basic,
         }
     }
@@ -2088,9 +2349,33 @@ pub struct CardJson {
 }
 
 /// Subtypes that aren't creature types, for "every creature type"
-pub const LAND_TYPES: &[&str] = &["Plains", "Island", "Swamp", "Mountain", "Forest", "Desert", "Gate", "Cave", "Town",
-    "Sphere", "Lair", "Locus", "Mine", "Power-Plant", "Tower", "Urza's", "Equipment", "Aura", "Vehicle", "Food",
-    "Clue", "Treasure", "Saga", "Class", "Role"];
+pub const LAND_TYPES: &[&str] = &[
+    "Plains",
+    "Island",
+    "Swamp",
+    "Mountain",
+    "Forest",
+    "Desert",
+    "Gate",
+    "Cave",
+    "Town",
+    "Sphere",
+    "Lair",
+    "Locus",
+    "Mine",
+    "Power-Plant",
+    "Tower",
+    "Urza's",
+    "Equipment",
+    "Aura",
+    "Vehicle",
+    "Food",
+    "Clue",
+    "Treasure",
+    "Saga",
+    "Class",
+    "Role",
+];
 
 /// A card's printed characteristics and abilities, shared by every copy of it and never changed.
 #[derive(Clone, Debug, PartialEq)]
@@ -2140,7 +2425,9 @@ impl CardDef {
 
     pub fn from_json(mut json: CardJson) -> Result<CardDef, String> {
         // a card's other faces and its adventure are printed in its set (their tokens look for its images)
-        for face in [&mut json.adventure, &mut json.back, &mut json.transform_back, &mut json.prepare].into_iter().flatten() {
+        for face in
+            [&mut json.adventure, &mut json.back, &mut json.transform_back, &mut json.prepare].into_iter().flatten()
+        {
             if face.set.is_empty() {
                 face.set = json.set.clone();
             }
@@ -2154,7 +2441,11 @@ impl CardDef {
             cost,
             types: json.types,
             // an omen card's spell is an Omen (`OmenCard`'s spell subtype)
-            subtypes: if json.omen { json.subtypes.into_iter().chain(["Omen".to_string()]).collect() } else { json.subtypes },
+            subtypes: if json.omen {
+                json.subtypes.into_iter().chain(["Omen".to_string()]).collect()
+            } else {
+                json.subtypes
+            },
             supertypes: json.supertypes,
             power: json.power.unwrap_or(0),
             toughness: json.toughness.unwrap_or(0),
@@ -2199,13 +2490,20 @@ impl CardDef {
     /// The card cast with its flashback cost, if it has flashback
     pub fn flashback(&self) -> Option<CardDef> {
         self.abilities.iter().find_map(|a| match a {
-            AbilityDef::FlashbackAbility { cost, .. } => {
-                Some(CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() })
-            }
+            AbilityDef::FlashbackAbility { cost, .. } => Some(CardDef {
+                cost: ManaCost::parse(cost).ok()?,
+                printed_cost: Some(self.printed().clone()),
+                ..self.clone()
+            }),
             AbilityDef::HarmonizeAbility { cost, .. } => {
                 let mut spell = self.spell.clone();
                 spell.costs.push(CostDef::HarmonizeCost);
-                Some(CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() })
+                Some(CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    spell,
+                    ..self.clone()
+                })
             }
             _ => None,
         })
@@ -2216,7 +2514,11 @@ impl CardDef {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
             AbilityDef::ForetellAbility { cost, .. } => Some((
                 k,
-                CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() },
+                CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    ..self.clone()
+                },
             )),
             _ => None,
         })
@@ -2228,7 +2530,12 @@ impl CardDef {
             AbilityDef::EscapeAbility { cost, exile, .. } => {
                 let mut spell = self.spell.clone();
                 spell.costs.push(CostDef::ExileFromGraveCost { amount: *exile });
-                Some(CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() })
+                Some(CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    spell,
+                    ..self.clone()
+                })
             }
             _ => None,
         })
@@ -2237,9 +2544,14 @@ impl CardDef {
     /// The spectacle ability's index and the card with its spectacle cost.
     pub fn spectacle(&self) -> Option<(usize, CardDef)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
-            AbilityDef::SpectacleAbility { cost, .. } => {
-                Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() }))
-            }
+            AbilityDef::SpectacleAbility { cost, .. } => Some((
+                k,
+                CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    ..self.clone()
+                },
+            )),
             _ => None,
         })
     }
@@ -2250,7 +2562,15 @@ impl CardDef {
             AbilityDef::BlitzAbility { mana, cost, .. } => {
                 let mut spell = self.spell.clone();
                 spell.costs.extend(cost.iter().cloned());
-                Some((k, CardDef { cost: ManaCost::parse(mana).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() }))
+                Some((
+                    k,
+                    CardDef {
+                        cost: ManaCost::parse(mana).ok()?,
+                        printed_cost: Some(self.printed().clone()),
+                        spell,
+                        ..self.clone()
+                    },
+                ))
             }
             _ => None,
         })
@@ -2262,7 +2582,15 @@ impl CardDef {
             AbilityDef::CleaveAbility { cost, effects, .. } => {
                 let mut spell = self.spell.clone();
                 spell.effects = effects.clone();
-                Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), spell, ..self.clone() }))
+                Some((
+                    k,
+                    CardDef {
+                        cost: ManaCost::parse(cost).ok()?,
+                        printed_cost: Some(self.printed().clone()),
+                        spell,
+                        ..self.clone()
+                    },
+                ))
             }
             _ => None,
         })
@@ -2271,7 +2599,14 @@ impl CardDef {
     /// The warp ability's index and the card with its warp cost.
     pub fn warp(&self) -> Option<(usize, CardDef)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
-            AbilityDef::WarpAbility { cost, .. } => Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() })),
+            AbilityDef::WarpAbility { cost, .. } => Some((
+                k,
+                CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    ..self.clone()
+                },
+            )),
             _ => None,
         })
     }

@@ -52,7 +52,13 @@ pub fn text(game: &Game) -> String {
         ));
         // as Java's trace sees the end: the loser's cards are gone from hand, library and graveyard (their
         // permanents stay), though continuous effects still counted them
-        let gone = |ids: &[ObjId]| -> Vec<ObjId> { if game.over && player.lost { Vec::new() } else { ids.to_vec() } };
+        let gone = |ids: &[ObjId]| -> Vec<ObjId> {
+            if game.over && player.lost {
+                Vec::new()
+            } else {
+                ids.to_vec()
+            }
+        };
         let (h, l, g) = (gone(&player.hand), gone(&player.library), gone(&player.graveyard));
         let mut hand: Vec<&str> = h.iter().map(|id| game.obj(*id).name()).collect();
         hand.sort();
