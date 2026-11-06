@@ -133,6 +133,9 @@ pub struct Obj {
     pub exerted: bool,
     /// its power-up ability was activated (once each game, for this object)
     pub powered_up: bool,
+    /// subtypes and base power and toughness it has until it leaves the battlefield (Evolved Sleeper)
+    pub added_subtypes: Vec<String>,
+    pub base_pt: Option<(i32, i32)>,
     /// regeneration shields until end of turn
     pub regen_shields: u32,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
@@ -480,6 +483,8 @@ impl Game {
             chosen: None,
             exerted: false,
             powered_up: false,
+            added_subtypes: Vec::new(),
+            base_pt: None,
             regen_shields: 0,
             exile_instead_of_dying: false,
             may_play: None,
@@ -546,8 +551,10 @@ impl Game {
 
     /// Whether an object has a subtype now.
     pub fn has_subtype(&self, id: ObjId, s: &str) -> bool {
-        let def = &self.obj(id).def;
-        def.subtypes.iter().any(|x| x == s) || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
+        let o = self.obj(id);
+        let def = &o.def;
+        (o.zone == Zone::Battlefield && o.added_subtypes.iter().any(|x| x == s))
+            || def.subtypes.iter().any(|x| x == s) || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
     }
 
     /// Whether a permanent has an ability: printed, given by a resolved effect, or given by a static ability.
@@ -558,6 +565,9 @@ impl Game {
         }
         // an indestructible counter
         if *ability == AbilityDef::IndestructibleAbility && o.counter("indestructible") > 0 {
+            return true;
+        }
+        if *ability == AbilityDef::DeathtouchAbility && o.counter("deathtouch") > 0 {
             return true;
         }
         if o.zone != Zone::Battlefield {
@@ -888,9 +898,16 @@ impl Game {
                 }
             }
         }
-        let counters = o.counter("+1/+1") - o.counter("-1/-1");
-        p += counters;
-        t += counters;
+        // layer 7b
+        if let Some((bp, bt)) = o.base_pt {
+            (p, t) = (bp, bt);
+        }
+        // +1/+1 counters change only a creature's power and toughness (a Vehicle's, while it's crewed)
+        if self.has_type(id, CardType::Creature) {
+            let counters = o.counter("+1/+1") - o.counter("-1/-1");
+            p += counters;
+            t += counters;
+        }
         for src in self.battlefield.iter().chain(self.command.iter()) {
             let s = self.obj(*src);
             for a in &s.def.abilities {
@@ -1097,6 +1114,8 @@ impl Game {
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;
+            o.added_subtypes.clear();
+            o.base_pt = None;
             o.regen_shields = 0;
             o.warp_from = None;
             if !(from == Zone::Stack && zone == Zone::Battlefield) {

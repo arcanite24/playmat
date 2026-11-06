@@ -912,6 +912,14 @@ pub enum EffectDef {
     /// exiles the target cards from graveyards; for each creature card, you gain 1 life and each opponent loses 1
     /// (Graveyard Trespasser and its back face)
     GraveyardTrespasserEffect,
+    /// the source gains these subtypes until it leaves the battlefield (`AddCardSubTypeSourceEffect`, `Duration.Custom`)
+    BecomesSubtypesSourceEffect { subtypes: Vec<String> },
+    /// the source has this base power and toughness until it leaves (layer 7b, `Duration.Custom`)
+    SetBasePowerToughnessUntilLeavesEffect { power: i32, toughness: i32 },
+    /// if the source is a Cleric: a deathtouch counter, and it becomes a Phyrexian Human Cleric with base 3/3
+    EvolvedSleeperClericEffect,
+    /// if the source is a Phyrexian: a +1/+1 counter, then you draw a card and lose 1 life
+    EvolvedSleeperPhyrexianEffect,
     /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
     NoMaximumHandSizeEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card

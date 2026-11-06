@@ -770,8 +770,18 @@ fn can_pay(game: &Game, seat: Seat, cost: &ManaCost) -> bool {
 
 /// `can_pay`, with more sources (each a list of the mana it could make; none: generic only).
 fn can_pay_extra(game: &Game, seat: Seat, cost: &ManaCost, extra: Vec<Vec<Mana>>) -> bool {
-    let mut options: Vec<Vec<Mana>> =
-        mana_sources(game, seat).into_iter().map(|(_, a)| a.into_iter().map(|(_, m)| m).collect()).collect();
+    let mut options: Vec<Vec<Mana>> = Vec::new();
+    for (_, a) in mana_sources(game, seat) {
+        let a: Vec<Mana> = a.into_iter().map(|(_, m)| m).collect();
+        // one ability making several mana (a Lotus's three of one color): a source for each
+        let n = match a.as_slice() {
+            [m] => m.colored.iter().copied().max().unwrap_or(0).max(m.colorless).max(1),
+            _ => 1,
+        };
+        for _ in 0..n {
+            options.push(a.clone());
+        }
+    }
     options.extend(extra);
     let pool = game.player(seat).mana_pool;
     for c in Color::ALL {
@@ -1543,9 +1553,20 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         }
         CostDef::CrewCost { value } => {
             let possible = crew_candidates(game, seat, id);
-            let Some(chosen) = choose_cards(game, d, seat, &possible, &possible, 0, usize::MAX, "tap") else {
+            let Some(mut chosen) = choose_cards(game, d, seat, &possible, &possible, 0, usize::MAX, "tap") else {
                 return false;
             };
+            // `TargetImpl.choose`: a round that ended with Done after choosing something asks again
+            while !chosen.is_empty() && chosen.len() < possible.len() {
+                let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
+                let Some(more) = choose_cards(game, d, seat, &left, &left, 0, usize::MAX, "tap") else {
+                    return false;
+                };
+                if more.is_empty() {
+                    break;
+                }
+                chosen.extend(more);
+            }
             let mut power = 0;
             for o in chosen {
                 if !game.obj(o).tapped {
@@ -2646,10 +2667,13 @@ fn apply_each_effect(
                 if let (Some(Target::Obj(a)), Some(Target::Obj(b))) = (target, legal_target(1)) {
                     let creature = |g: &Game, o: ObjId| g.obj(o).zone == Zone::Battlefield && g.has_type(o, CardType::Creature);
                     if creature(game, a) && creature(game, b) {
+                        // both powers as they were: -1/-1 counters put on during the fight (Soul-Scar Mage) don't
+                        // count until effects are applied again
                         let pb = game.power_toughness(b).0;
+                        let pa = game.power_toughness(a).0;
                         deal_damage(game, b, Target::Obj(a), pb, false);
                         // `fightWithExcess`: the second creature is dealt only lethal damage (`damageWithExcess`)
-                        let pa = game.power_toughness(a).0.min(fight_lethal(game, b, a));
+                        let pa = pa.min(fight_lethal(game, b, a));
                         deal_damage(game, a, Target::Obj(b), pa, false);
                     }
                 }
@@ -3836,6 +3860,47 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::BecomesSubtypesSourceEffect { subtypes } => {
+                let (src, zcc) = source;
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    let o = game.obj_mut(src);
+                    for s in subtypes {
+                        if !o.added_subtypes.contains(s) {
+                            o.added_subtypes.push(s.clone());
+                        }
+                    }
+                }
+            }
+            EffectDef::SetBasePowerToughnessUntilLeavesEffect { power, toughness } => {
+                let (src, zcc) = source;
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    game.obj_mut(src).base_pt = Some((*power, *toughness));
+                }
+            }
+            EffectDef::EvolvedSleeperClericEffect => {
+                let (src, zcc) = source;
+                if game.obj(src).zone != Zone::Battlefield || game.obj(src).zcc != zcc || !game.has_subtype(src, "Cleric") {
+                    continue;
+                }
+                game.obj_mut(src).add_counters("deathtouch", 1);
+                let o = game.obj_mut(src);
+                for s in ["Phyrexian", "Human", "Cleric"] {
+                    if !o.added_subtypes.iter().any(|x| x == s) {
+                        o.added_subtypes.push(s.into());
+                    }
+                }
+                o.base_pt = Some((3, 3));
+            }
+            EffectDef::EvolvedSleeperPhyrexianEffect => {
+                let (src, zcc) = source;
+                // (gone: Java looks at what it last was; its added subtypes aren't kept here)
+                if game.obj(src).zone != Zone::Battlefield || game.obj(src).zcc != zcc || !game.has_subtype(src, "Phyrexian") {
+                    continue;
+                }
+                game.obj_mut(src).add_counters("+1/+1", 1);
+                draw(game, controller, 1);
+                lose_life(game, controller, 1);
+            }
             EffectDef::GraveyardTrespasserEffect => {
                 let cards: Vec<ObjId> = objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Graveyard).collect();
                 let mut amount = 0;
@@ -4539,6 +4604,14 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                     let chosen = if target_possible(game, controller, &def, Some(id)) {
                         choose_target(game, d, controller, &def, Some(id), "", false)
                     } else {
+                        // `chooseTarget` still asks once with nothing to choose (not required then)
+                        let q = Query::Target { players: Vec::new(), objs: Vec::new(), required: false };
+                        loop {
+                            match ask(game, d, controller, &q) {
+                                Answer::Bool(_) | Answer::Stop => break,
+                                _ => {}
+                            }
+                        }
                         None
                     };
                     if d.stopped() {
@@ -4899,6 +4972,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     }
     let mut lifelink = 0;
     let src = game.obj(source).clone();
+    // keywords it has now (granted ones too), or had as it left
+    let keyword = |a: &AbilityDef| if src.zone == Zone::Battlefield { game.has_ability(source, a) } else { src.has(a) };
+    let (src_deathtouch, src_lifelink) = (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility));
     match to {
         Target::Player(s) => {
             lose_life(game, s, amount);
@@ -4910,7 +4986,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             if game.obj(o).zone != Zone::Battlefield {
                 return 0;
             }
-            let deathtouch = src.has(&AbilityDef::DeathtouchAbility);
+            let deathtouch = src_deathtouch;
             let creature = game.has_type(o, CardType::Creature);
             if game.obj(o).def.abilities.iter().any(|a| a.trigger() == Some(&Trigger::DealtDamage)) {
                 game.damaged_batch.push((o, amount));
@@ -4930,7 +5006,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
         }
     }
-    if src.has(&AbilityDef::LifelinkAbility) {
+    if src_lifelink {
         if combat {
             lifelink = amount;
         } else {

@@ -146,6 +146,8 @@ CUSTOM = {
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
     'ScreamingNemesisEffect': lambda: {'class': 'ScreamingNemesisEffect'},
     'GraveyardTrespasserEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
+    'EvolvedSleeperClericEffect': lambda: {'class': 'EvolvedSleeperClericEffect'},
+    'EvolvedSleeperPhyrexianEffect': lambda: {'class': 'EvolvedSleeperPhyrexianEffect'},
     'GraveyardGluttonEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
     # exile up to one target card from a graveyard; a creature card: create a Clue
     'RavenEagleEffect': lambda: {'class': 'RavenEagleEffect', 'then': {
@@ -983,6 +985,14 @@ class Translator:
         if cls == 'PlayAdditionalLandsControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
+        # Evolved Sleeper: "becomes a Human Cleric with base power and toughness 2/2" until it leaves
+        if cls == 'AddCardSubTypeSourceEffect' and len(args) > 1 and args[0].strip() == 'Duration.Custom' \
+                and all(re.fullmatch(r'SubType\.\w+', a.strip()) for a in args[1:]):
+            names = subtype_names()
+            return {'class': 'BecomesSubtypesSourceEffect', 'subtypes': [names[a.strip()[8:]] for a in args[1:]]}
+        if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 3 and args[2].strip() == 'Duration.Custom' \
+                and all(re.fullmatch(r'\d+', a.strip()) for a in args[:2]):
+            return {'class': 'SetBasePowerToughnessUntilLeavesEffect', 'power': int(args[0]), 'toughness': int(args[1])}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
             return {'class': cls}
         if cls == 'MaximumHandSizeControllerEffect' and [a.strip() for a in args] == [
