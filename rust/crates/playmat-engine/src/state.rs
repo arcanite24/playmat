@@ -421,6 +421,8 @@ pub struct Game {
     pub enter_counters: Vec<(ObjId, u32, i32)>,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
+    /// "damage can't be prevented this turn" (Stomp): the turn it was said
+    pub no_prevention_turn: Option<u32>,
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
     /// order they were exiled
     pub exile_by_creation: bool,
@@ -485,6 +487,7 @@ impl Game {
             next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
             paying_for: std::cell::Cell::new(None),
+            no_prevention_turn: None,
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
@@ -1135,6 +1138,9 @@ impl Game {
     /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
         let from = self.obj(id).zone;
+        // flashback's exile replaces the move, whichever zone it was to (with Rest in Peace or a Leyline too, the
+        // player chooses which applies)
+        let flashed_to_graveyard = from == Zone::Stack && self.obj(id).flashback && zone == Zone::Graveyard;
         let zone = if from == Zone::Stack && self.obj(id).flashback { Zone::Exile } else { zone };
         self.obj_mut(id).flashback = false;
         if !(from == Zone::Stack && zone == Zone::Battlefield) {
@@ -1170,6 +1176,10 @@ impl Game {
             })
             .count();
         let rest_in_peace = rest_in_peace + leylines;
+        if flashed_to_graveyard && rest_in_peace > 0 {
+            let o = self.obj(id);
+            self.owed_choices.push(o.owner);
+        }
         let zone = if zone == Zone::Graveyard && rest_in_peace > 0 {
             if rest_in_peace > 1 {
                 let o = self.obj(id);

@@ -4656,8 +4656,8 @@ fn apply_each_effect(
                     enter_battlefield(game, d, o, controller, false);
                 }
             }
-            EffectDef::DamageCantBePreventedEffect { .. }
-            | EffectDef::CantCastMoreThanOneSpellEffect { .. }
+            EffectDef::DamageCantBePreventedEffect { .. } => game.no_prevention_turn = Some(game.turn),
+            EffectDef::CantCastMoreThanOneSpellEffect { .. }
             | EffectDef::CantCastDuringYourTurnEffect
             | EffectDef::ReduceCostEquipTargetSourceEffect
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
@@ -6807,14 +6807,16 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             .count();
         amount += n as i32;
     }
-    // a shield counter: removed, and the damage prevented (unless combat damage of yours can't be)
+    // a shield counter: removed, and the damage prevented (unless damage can't be prevented this turn, or it's combat
+    // damage of yours that can't be)
     if let Target::Obj(o) = to {
         if game.obj(o).zone == Zone::Battlefield && game.obj(o).counter("shield") > 0 {
             game.obj_mut(o).add_counters("shield", -1);
-            let unpreventable = combat
-                && game.any_static(|g, src, e| {
-                    matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
-                });
+            let unpreventable = game.no_prevention_turn == Some(game.turn)
+                || combat
+                    && game.any_static(|g, src, e| {
+                        matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
+                    });
             if !unpreventable {
                 return 0;
             }

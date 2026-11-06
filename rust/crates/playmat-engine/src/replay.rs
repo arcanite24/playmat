@@ -5,6 +5,7 @@ use crate::decide::{Answer, Decider, Query};
 use crate::fingerprint;
 use crate::state::{Game, ObjId, Seat, Step, Zone};
 use serde::Deserialize;
+use std::sync::Arc;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ShadowGame {
@@ -108,6 +109,22 @@ impl ShadowGame {
                     game.obj_mut(id).trigger_order = *o as u64;
                 }
             }
+        }
+        // permanents put onto the battlefield from opening hands (Leyline of the Void): `bf <seat> <name> U|T p/t dmg …`
+        for line in self.start.fingerprint.lines().filter_map(|l| l.strip_prefix("bf ")) {
+            let words: Vec<&str> = line.split(' ').collect();
+            let Some(dmg) = words.iter().position(|w| *w == "dmg") else { continue };
+            let mut end = dmg - 1;
+            if words.get(end - 1) == Some(&"facedown") {
+                end -= 1;
+            }
+            let tapped = words.get(end - 1) == Some(&"T");
+            let seat: Seat = words[0].parse().map_err(|_| format!("bad battlefield line: {}", line))?;
+            let name = words[1..end - 1].join(" ");
+            let def = db.get(&name).ok_or_else(|| format!("card not in the engine: {}", name))?;
+            let id = game.create_obj(def, seat, Zone::Battlefield);
+            Arc::make_mut(&mut game.battlefield).push(id);
+            game.obj_mut(id).tapped = tapped;
         }
         let header = self.start.fingerprint.lines().nth(1).ok_or("no fingerprint")?;
         // turn <n> step <STEP> active <seat> priority <seat>
