@@ -368,6 +368,9 @@ pub struct Game {
     /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack), with
     /// the seat whose trigger that is
     pub returning: Vec<(Seat, ObjId)>,
+    /// cards exiled until something leaves that go back to their owner's hand, not the battlefield (Kitesail
+    /// Freebooter's)
+    pub return_to_hand: Vec<ObjId>,
     /// this combat has a first-strike damage step
     pub first_strike_step: bool,
     /// the game is over (a player lost, or it reached its last turn)
@@ -406,6 +409,7 @@ impl Game {
             exiled_until_leaves: Vec::new(),
             exiled_for_source: Vec::new(),
             returning: Vec::new(),
+            return_to_hand: Vec::new(),
             first_strike_step: false,
             over: false,
         }

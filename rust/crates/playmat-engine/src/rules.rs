@@ -137,11 +137,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     game.pending.extend(fired);
                 }
             }
-            // "whenever this attacks" triggers, in the order the attackers are listed
+            // ATTACKER_DECLARED triggers, in the order the attackers are listed
             for a in attackers(game) {
                 let sources: Vec<ObjId> = game.trigger_sources();
                 let fired = game.triggers(sources, |g, src, you, t| match t {
-                    Trigger::Attacks | Trigger::EntersOrAttacks => src == a,
+                    Trigger::EntersOrAttacks => src == a,
                     Trigger::AttacksAll { filter } => g.filter_matches(filter, you, Some(src), a),
                     _ => false,
                 });
@@ -154,14 +154,18 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     game.pending.push(t);
                 }
             }
-            // then DECLARED_ATTACKERS: "whenever you attack with N or more"
+            // then DECLARED_ATTACKERS, one event: "whenever this attacks" (`AttacksTriggeredAbility`), "whenever you
+            // attack with N or more"
             let all = attackers(game);
             if !all.is_empty() {
                 let sources: Vec<ObjId> = game.trigger_sources();
-                let fired = game.triggers(sources, |g, src, you, t| {
-                    matches!(t, Trigger::AttacksWith { min, filter }
-                        if you == active
-                            && all.iter().filter(|a| g.filter_matches(filter, you, Some(src), **a)).count() >= *min)
+                let fired = game.triggers(sources, |g, src, you, t| match t {
+                    Trigger::Attacks => all.contains(&src),
+                    Trigger::AttacksWith { min, filter } => {
+                        you == active
+                            && all.iter().filter(|a| g.filter_matches(filter, you, Some(src), **a)).count() >= *min
+                    }
+                    _ => false,
                 });
                 game.pending.extend(fired);
             }
@@ -3618,7 +3622,8 @@ fn apply_each_effect(
                 let exiled: Vec<ObjId> = game
                     .exiled_for_source
                     .iter()
-                    .filter(|(s, z, c)| *s == src && *z == zcc && game.obj(*c).zone == Zone::Exile)
+                    // a dies trigger has its graveyard card's zone change counter: the permanent's was one less
+                    .filter(|(s, z, c)| *s == src && (*z == zcc || *z + 1 == zcc) && game.obj(*c).zone == Zone::Exile)
                     .map(|(_, _, c)| *c)
                     .collect();
                 let total: i32 = exiled.iter().map(|c| game.obj(*c).def.cost.mana_value() as i32).sum();
@@ -3665,6 +3670,7 @@ fn apply_each_effect(
                     for c in chosen {
                         game.move_to(c, Zone::Exile);
                         game.exiled_until_leaves.push((src, zcc, c));
+                        game.return_to_hand.push(c);
                     }
                 }
             }
@@ -4458,6 +4464,11 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                 for c in back {
                     // a token that left the battlefield has ceased to exist
                     if game.obj(c).zone == Zone::Exile && !game.obj(c).token {
+                        if game.return_to_hand.contains(&c) {
+                            game.return_to_hand.retain(|x| *x != c);
+                            game.move_to(c, Zone::Hand);
+                            continue;
+                        }
                         let owner = game.obj(c).owner;
                         enter_battlefield(game, d, c, owner, false);
                     }
