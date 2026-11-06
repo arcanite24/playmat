@@ -174,6 +174,7 @@ CUSTOM = {
     'LeylineOfTheVoidEffect': lambda: {'class': 'LeylineOfTheVoidEffect'},
     'TishanasTidebinderEffect': lambda: {'class': 'TishanasTidebinderEffect'},
     'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
+    'LaughingJasperFlintEffect': lambda: {'class': 'LaughingJasperFlintEffect'},
     'AcademicDisputeEffect': lambda: {'class': 'AcademicDisputeEffect'},
     'LearnEffect': lambda: {'class': 'LearnEffect'},
     'AvenInterrupterEffect': lambda: {'class': 'AvenInterrupterEffect'},
@@ -550,8 +551,15 @@ def declared_filters(source, subtypes):
     # predicate fields (`static final Predicate<…> predicate = Predicates.or(…);`), by name
     preds = {m.group(1): canonical(m.group(2))
              for m in re.finditer(r'static final Predicate<[\w<>, ]*> (\w+)\s*=\s*(.*?);', source, re.S)}
-    for m in re.finditer(r'static final (?:\w+) (\w+)\s*=\s*new (Filter\w+)\((.*?)\);', source, re.S):
+    # top-level classes: a field's `add`s are read from its own class (two classes may both have a `filter`; the
+    # first, the card's, wins)
+    starts = [m.start() for m in re.finditer(r'^(?:public |final |abstract )*(?:class|enum) ', source, re.M)] + [len(source)]
+    whole = source
+    for m in re.finditer(r'static final (?:\w+) (\w+)\s*=\s*new (Filter\w+)\((.*?)\);', whole, re.S):
         name, cls, args = m.group(1), m.group(2), split_args(canonical(m.group(3)))
+        if name in out:
+            continue
+        source = whole[max([0] + [x for x in starts if x <= m.start()]):min(x for x in starts if x > m.start())]
         # "any other target": a creature, planeswalker, battle or player, not the source
         if cls == 'FilterAnyTarget' and re.search(r'\b' + name + r'\.getPermanentFilter\(\)\.add\(AnotherPredicate\.instance\);', source) \
                 and not re.search(r'\b' + name + r'\.(add|getPlayerFilter)', source):
@@ -1076,6 +1084,10 @@ class Translator:
         if cls == 'AddBasicLandTypeAllLandsEffect' and len(args) == 1 \
                 and args[0].strip() in ('SubType.PLAINS', 'SubType.ISLAND', 'SubType.SWAMP', 'SubType.MOUNTAIN', 'SubType.FOREST'):
             return {'class': cls, 'subtype': subtype_names()[args[0].strip()[8:]]}
+        # Laughing Jasper Flint: "creatures you control but don't own are Mercenaries in addition to their other types"
+        if cls == 'AddCardSubtypeAllEffect' and len(args) == 3 and re.fullmatch(r'SubType\.\w+', args[1].strip()) \
+                and args[2].strip() == 'DependencyType.AddingCreatureType':
+            return {'class': cls, 'filter': self.filter(args[0].strip()), 'subtype': subtype_names()[args[1].strip()[8:]]}
         # Evolved Sleeper: "becomes a Human Cleric with base power and toughness 2/2" until it leaves
         if cls == 'AddCardSubTypeSourceEffect' and len(args) > 1 and args[0].strip() == 'Duration.Custom' \
                 and all(re.fullmatch(r'SubType\.\w+', a.strip()) for a in args[1:]):

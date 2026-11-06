@@ -1305,6 +1305,11 @@ pub enum EffectDef {
     GiadaFontOfHopeEntersBattlefieldEffect,
     /// a static ability's effect: each land is also the basic land type, with its mana ability (Urborg)
     AddBasicLandTypeAllLandsEffect { subtype: String },
+    /// a static ability's effect: each permanent the filter matches also has the subtype (Laughing Jasper Flint)
+    AddCardSubtypeAllEffect { filter: Filter, subtype: String },
+    /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
+    /// among them this turn, spending mana as though it were any type
+    LaughingJasperFlintEffect,
     /// the target player mills `amount` cards
     MillCardsTargetEffect { amount: Amount },
     /// the source becomes the token's kind of creature (still its old types with `retain`), with its abilities too

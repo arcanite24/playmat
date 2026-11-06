@@ -170,6 +170,8 @@ pub struct Obj {
     pub may_play: Option<(Seat, u32)>,
     /// mana of any type can be spent to cast it (while it may be played from exile)
     pub any_mana: bool,
+    /// it may be played from exile only by casting it (not played as a land)
+    pub cast_only: bool,
     /// cast from exile, it costs this much more (Elite Spellbinder)
     pub play_tax: u32,
     /// cast for its warp cost (on the stack, then on the battlefield)
@@ -590,6 +592,7 @@ impl Game {
             lost_abilities: None,
             may_play: None,
             any_mana: false,
+            cast_only: false,
             play_tax: 0,
             warped: false,
             blitzed: false,
@@ -677,7 +680,15 @@ impl Game {
         if let Some(types) = o.creature_types.as_ref().filter(|_| o.zone == Zone::Battlefield) {
             return types.iter().any(|x| x == s) || (crate::card::LAND_TYPES.contains(&s) && def.subtypes.iter().any(|x| x == s));
         }
-        def.subtypes.iter().any(|x| x == s) || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
+        def.subtypes.iter().any(|x| x == s)
+            || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
+            || (o.zone == Zone::Battlefield
+                && self.any_static(|g, src, e| match e {
+                    EffectDef::AddCardSubtypeAllEffect { filter, subtype } => {
+                        subtype == s && g.filter_matches(filter, g.obj(src).controller, Some(src), id)
+                    }
+                    _ => false,
+                }))
     }
 
     /// Whether a permanent has an ability: printed, given by a resolved effect, or given by a static ability.
@@ -1373,6 +1384,7 @@ impl Game {
             o.exile_instead_of_dying = false;
             o.may_play = None;
             o.any_mana = false;
+            o.cast_only = false;
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;

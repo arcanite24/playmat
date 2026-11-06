@@ -549,7 +549,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             if exile_cast(game, seat, *id).is_some() {
                 out.push(*id);
             }
-        } else if (o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
+        } else if (o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t && !(o.cast_only && o.is(CardType::Land)))
             || o.warp_from.is_some_and(|t| o.owner == seat && game.turn >= t))
             && if o.is(CardType::Land) {
                 can_play_land(game, seat)
@@ -4047,6 +4047,27 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::LaughingJasperFlintEffect => {
+                if let Some(Target::Player(p)) = target {
+                    let outlaws = ["Assassin", "Mercenary", "Pirate", "Rogue", "Warlock"];
+                    let n = game
+                        .battlefield
+                        .iter()
+                        .filter(|b| game.obj(**b).controller == controller && outlaws.iter().any(|t| game.has_subtype(**b, t)))
+                        .count();
+                    let cards: Vec<ObjId> = game.player(p).library.iter().take(n).copied().collect();
+                    for c in cards {
+                        game.move_to(c, Zone::Exile);
+                        if game.obj(c).zone == Zone::Exile {
+                            let turn = game.turn;
+                            let o = game.obj_mut(c);
+                            o.may_play = Some((controller, turn));
+                            o.any_mana = true;
+                            o.cast_only = true;
+                        }
+                    }
+                }
+            }
             EffectDef::BloodthirstyAdversaryEffect { cost } => {
                 // `DoIfAnyNumberCostPaid`: asked again after each payment (mana always counts as payable)
                 let Ok(mana) = ManaCost::parse(cost) else { continue };
@@ -6040,6 +6061,7 @@ fn apply_each_effect(
             | EffectDef::LeylineOfTheVoidEffect
             | EffectDef::GiadaFontOfHopeEntersBattlefieldEffect
             | EffectDef::AddBasicLandTypeAllLandsEffect { .. }
+            | EffectDef::AddCardSubtypeAllEffect { .. }
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect
