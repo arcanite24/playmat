@@ -119,6 +119,10 @@ pub struct Obj {
     pub chosen_type: Option<String>,
     /// the card name chosen as it entered (Petrified Hamlet), while it's on the battlefield
     pub chosen_name: Option<String>,
+    /// prepared: the copy of its prepare spell in exile
+    pub prepared_copy: Option<ObjId>,
+    /// a prepared copy: the permanent (and its zone change count) whose copy it is
+    pub prepared_for: Option<(ObjId, u32)>,
     /// the turn it was foretold (exiled face down from hand), while it stays in exile
     pub foretold_turn: Option<u32>,
     /// the turn it became plotted, while it stays in exile
@@ -570,6 +574,8 @@ impl Game {
             land_type_base: None,
             chosen_type: None,
             chosen_name: None,
+            prepared_copy: None,
+            prepared_for: None,
             foretold_turn: None,
             plotted_turn: None,
             cast_from: None,
@@ -1185,6 +1191,14 @@ impl Game {
     /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
         let from = self.obj(id).zone;
+        // a prepared permanent's copy is kept only while it stays
+        if from == Zone::Battlefield {
+            if let Some(c) = self.obj_mut(id).prepared_copy.take() {
+                if self.obj(c).zone == Zone::Exile {
+                    self.move_to(c, Zone::Graveyard);
+                }
+            }
+        }
         // flashback's exile replaces the move, whichever zone it was to (with Rest in Peace or a Leyline too, the
         // player chooses which applies)
         let flashed_to_graveyard = from == Zone::Stack && self.obj(id).flashback && zone == Zone::Graveyard;

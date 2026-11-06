@@ -611,6 +611,7 @@ impl TokenDef {
             back: None,
             transform_back: None,
             omen: false,
+            prepare: None,
             printed_cost: None,
         }
     }
@@ -1314,6 +1315,8 @@ pub enum EffectDef {
     /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
     /// among them this turn, spending mana as though it were any type
     LaughingJasperFlintEffect,
+    /// the source becomes prepared: a copy of its prepare spell in exile, which its controller may cast
+    BecomePreparedSourceEffect,
     /// if this spell was cast from a graveyard: exiled, then onto the battlefield transformed with a finality counter
     EsperOriginsEffect,
     /// reveal the top card of your library; a permanent card goes to your hand
@@ -1764,6 +1767,13 @@ pub enum AbilityDef {
     DauntAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
     AdventureCardSpellAbility,
+    /// a preparation card's prepare spell (its `prepare`), which only a prepared copy casts
+    PrepareCardSpellAbility,
+    /// it enters prepared
+    EntersPreparedAbility {
+        #[serde(default)]
+        rule: String,
+    },
     OmenCardSpellAbility,
     /// Delve and Convoke: Java counts the graveyard's cards, or the untapped creatures, as mana when it works out
     /// whether the spell can be cast; paying with them is a special action the shadow games' players never take
@@ -2055,6 +2065,9 @@ pub struct CardJson {
     /// an omen card's spell (its `adventure`)
     #[serde(default)]
     pub omen: bool,
+    /// a preparation card's prepare spell (`PrepareCard`)
+    #[serde(default)]
+    pub prepare: Option<Box<CardJson>>,
     /// the set of the printing a deck gets by name
     #[serde(default)]
     pub set: String,
@@ -2092,6 +2105,8 @@ pub struct CardDef {
     pub transform_back: Option<Arc<CardDef>>,
     /// an omen card's spell: once it resolves, the card is shuffled into its owner's library (`OmenCard`)
     pub omen: bool,
+    /// a preparation card's prepare spell: what a prepared copy of it is (`PrepareCard`)
+    pub prepare: Option<Arc<CardDef>>,
     /// cast for an alternative cost (cleave, blitz, flashback…): the printed cost, which still gives the mana value
     pub printed_cost: Option<ManaCost>,
 }
@@ -2109,7 +2124,7 @@ impl CardDef {
 
     pub fn from_json(mut json: CardJson) -> Result<CardDef, String> {
         // a card's other faces and its adventure are printed in its set (their tokens look for its images)
-        for face in [&mut json.adventure, &mut json.back, &mut json.transform_back].into_iter().flatten() {
+        for face in [&mut json.adventure, &mut json.back, &mut json.transform_back, &mut json.prepare].into_iter().flatten() {
             if face.set.is_empty() {
                 face.set = json.set.clone();
             }
@@ -2143,6 +2158,10 @@ impl CardDef {
                 None => None,
             },
             omen: json.omen,
+            prepare: match json.prepare {
+                Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
+                None => None,
+            },
             printed_cost: None,
         })
     }

@@ -1412,6 +1412,12 @@ fn cast_allowed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> 
 fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
     let from = game.obj(id).zone;
     game.obj_mut(id).cast_from = Some(from);
+    // a prepared copy: casting it unprepares its permanent
+    if let Some((p, zcc)) = game.obj(id).prepared_for {
+        if game.obj(p).zcc == zcc && game.obj(p).prepared_copy == Some(id) {
+            game.obj_mut(p).prepared_copy = None;
+        }
+    }
     game.remove_from_zone(id);
     {
         let o = game.obj_mut(id);
@@ -3179,6 +3185,24 @@ fn becomes_creature(old: &CardDef, token: &crate::card::TokenDef, retain: bool) 
     def
 }
 
+/// `setPrepared(true)`: a permanent with a prepare spell, not yet prepared, gets a copy of that spell in exile
+fn become_prepared(game: &mut Game, id: ObjId) {
+    let o = game.obj(id);
+    if o.zone != Zone::Battlefield || o.prepared_copy.is_some() {
+        return;
+    }
+    let Some(spell) = o.def.prepare.clone() else { return };
+    let (controller, zcc) = (o.controller, o.zcc);
+    let copy = game.create_obj(spell, controller, Zone::Exile);
+    Arc::make_mut(&mut game.exile).push(copy);
+    let c = game.obj_mut(copy);
+    c.token = true;
+    c.may_play = Some((controller, u32::MAX));
+    c.cast_only = true;
+    c.prepared_for = Some((id, zcc));
+    game.obj_mut(id).prepared_copy = Some(copy);
+}
+
 /// It loses all abilities for as long as `src` stays: a static "it's a creature" of its own (Kaito) stops applying
 fn lose_all_abilities(game: &mut Game, id: ObjId, src: ObjId, zcc: u32) {
     let ob = game.obj_mut(id);
@@ -4214,6 +4238,11 @@ fn apply_each_effect(
                     if !o.is(CardType::Instant) && !o.is(CardType::Sorcery) {
                         game.move_to(c, Zone::Hand);
                     }
+                }
+            }
+            EffectDef::BecomePreparedSourceEffect => {
+                if game.obj(source.0).zcc == source.1 {
+                    become_prepared(game, source.0);
                 }
             }
             EffectDef::LaughingJasperFlintEffect => {
@@ -6748,6 +6777,10 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     let turn = game.turn;
     game.move_to(id, Zone::Battlefield);
     enter_as_copy(game, d, id, controller, cast);
+    // `EntersPreparedAbility`
+    if game.obj(id).def.abilities.iter().any(|a| matches!(a, AbilityDef::EntersPreparedAbility { .. })) {
+        become_prepared(game, id);
+    }
     // at night a daybound card still enters as its front (Java never calls `NightboundAbility.checkCard`); the
     // state-based check transforms it
     let def = game.obj(id).def.clone();

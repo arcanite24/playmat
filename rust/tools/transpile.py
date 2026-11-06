@@ -175,6 +175,7 @@ CUSTOM = {
     'TishanasTidebinderEffect': lambda: {'class': 'TishanasTidebinderEffect'},
     'CruelclawsHeistEffect': lambda: {'class': 'CruelclawsHeistEffect'},
     'LaughingJasperFlintEffect': lambda: {'class': 'LaughingJasperFlintEffect'},
+    'BecomePreparedSourceEffect': lambda: {'class': 'BecomePreparedSourceEffect'},
     'EsperOriginsEffect': lambda: {'class': 'EsperOriginsEffect'},
     'SummonEsperMaduinEffect': lambda: {'class': 'SummonEsperMaduinEffect'},
     'PetrifiedHamletCostEffect': lambda: {'class': 'PetrifiedHamletCostEffect'},
@@ -321,6 +322,7 @@ ABILITIES = {
     # once each game, for its mana cost less the turn this entered
     'PowerUpAbility': [('effect', 'effect'), ('cost', 'cost')],
     'ProwessAbility': [],
+    'EntersPreparedAbility': [],
     # the step triggers take a TargetController first; the shorter overloads mean "your" (filled in by `ability`)
     'BeginningOfUpkeepTriggeredAbility': [('controller', 'target_controller'), ('effect', 'effect'),
                                           ('optional', 'bool')],
@@ -634,7 +636,7 @@ TEXT_SETTERS = {'setText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord'
                 'withTextOptions', 'setTargetTag', 'setRuleVisible'}
 
 # abilities every card has, which the constructor doesn't add
-IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'OmenCardSpellAbility'}
+IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'OmenCardSpellAbility', 'PrepareCardSpellAbility'}
 
 
 class Unsupported(Exception):
@@ -992,6 +994,10 @@ class Translator:
     def cost(self, expr):
         if isinstance(self.vars.get(expr.strip()), dict) and self.vars[expr.strip()].get('class', '').endswith('Cost'):
             return self.vars[expr.strip()]
+        # "exile N cards from your graveyard" (Emeritus of Ideation; not with the source's exile zone)
+        if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((\d+)\)\)(?:\.withSourceExileZone\(false\))?',
+                              canonical(expr))):
+            return {'class': 'ExileFromGraveCost', 'amount': int(m.group(1))}
         cls, args = self.new_expr(expr)
         if cls == 'ManaCostsImpl' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0]):
             return {'class': 'ManaCost', 'cost': args[0][1:-1]}
@@ -1919,7 +1925,7 @@ def translate(card_name, subtypes, facts):
         return modal_double_faced(card_name, subtypes, facts, cls, source)
     if 'extends TransformingDoubleFacedCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
         return transforming_double_faced(card_name, subtypes, facts, cls, source)
-    if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
+    if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b|PrepareCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
     card = {'name': card_name}
@@ -1937,6 +1943,15 @@ def translate(card_name, subtypes, facts):
                 card['cost'] = m.group(3)
                 adventure = {'name': m.group(4), 'cost': m.group(5),
                              'types': [x.strip().split('.')[-1] for x in m.group(2).split(',') if x.strip()]}
+                return
+            # a preparation card (`PrepareCard`): its prepare spell, kept as the card's `prepare`
+            m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},"(.*?)","(.*?)",'
+                             r'(?:new CardType\[\]\{([^}]*)\}|(CardType\.\w+)),"(.*?)"\)', st)
+            if m:
+                card['types'] = [x.strip().split('.')[-1] for x in m.group(1).split(',') if x.strip()]
+                card['cost'] = m.group(2)
+                adventure = {'name': m.group(3), 'cost': m.group(6), 'prepare': True,
+                             'types': [x.strip().split('.')[-1] for x in (m.group(4) or m.group(5)).split(',') if x.strip()]}
                 return
             if st == 'this.finalizeAdventure()':
                 return
@@ -1987,9 +2002,12 @@ def translate(card_name, subtypes, facts):
         if amodes:
             raise Unsupported('modal adventure')
         arule = next((f['rule'] for f in java_abilities
-                      if f['class'] in ('AdventureCardSpellAbility', 'OmenCardSpellAbility')), '')
+                      if f['class'] in ('AdventureCardSpellAbility', 'OmenCardSpellAbility', 'PrepareCardSpellAbility')), '')
         adventure['spell'] = dict(aspell, rule=arule)
-        card['adventure'] = adventure
+        if adventure.pop('prepare', False):
+            card['prepare'] = adventure
+        else:
+            card['adventure'] = adventure
     elif 'AdventureCardSpellAbility' in [f['class'] for f in java_abilities]:
         raise Unsupported('adventure without its spell')
     return card
