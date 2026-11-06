@@ -495,6 +495,13 @@ fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 // played (priority again) or not playable (asked again): both come back to the priority loop
                 return;
             }
+            // a Room's half clicked in hand: the card (its half is asked again)
+            Answer::Ability(id, _) if !game.obj(id).def.room.is_empty() && playable.contains(&id) => {
+                let p = game.player_mut(seat);
+                p.mana_stock = p.mana_pool;
+                play(game, d, seat, id);
+                return;
+            }
             _ => return,
         }
     }
@@ -1415,17 +1422,16 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         game.obj_mut(id).escaped = true;
         return;
     }
-    // a Room: the half to cast, asked (h0, h1) when both can be
+    // a Room: the half to cast, always asked (h0, h1), even with one that can be
     if !game.obj(id).def.room.is_empty() {
         let full = game.obj(id).def.clone();
         let options: Vec<usize> = (0..full.room.len()).filter(|k| castable(game, seat, id, &full.room[*k])).collect();
-        let k = match options.len() {
-            0 => return,
-            1 => options[0],
-            _ => match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
-                Answer::Ability(o, k) if o == id && options.contains(&k) => k,
-                _ => return,
-            },
+        if options.is_empty() {
+            return;
+        }
+        let k = match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+            Answer::Ability(o, k) if o == id && options.contains(&k) => k,
+            _ => return,
         };
         let o = game.obj_mut(id);
         o.adventurer = Some(full.clone());
@@ -8420,14 +8426,14 @@ fn day_night(game: &mut Game) {
 pub fn state_based_actions(game: &mut Game) {
     refresh_becomes(game);
     day_night(game);
-    // 704.5e: a copy of a card outside the stack and battlefield ceases to exist (one that may be cast stays)
-    if game.exile.iter().any(|c| game.obj(*c).token && game.obj(*c).may_play.is_none()) {
-        let gone: Vec<ObjId> =
-            game.exile.iter().copied().filter(|c| game.obj(*c).token && game.obj(*c).may_play.is_none()).collect();
-        Arc::make_mut(&mut game.exile).retain(|c| !gone.contains(c));
-    }
     loop {
         let mut any = false;
+        // 704.5e: a copy of a card outside the stack and battlefield ceases to exist (one that may be cast stays)
+        if game.exile.iter().any(|c| game.obj(*c).token && game.obj(*c).may_play.is_none()) {
+            let gone: Vec<ObjId> =
+                game.exile.iter().copied().filter(|c| game.obj(*c).token && game.obj(*c).may_play.is_none()).collect();
+            Arc::make_mut(&mut game.exile).retain(|c| !gone.contains(c));
+        }
         for s in 0..game.seats() {
             let p = game.player(s);
             if !p.lost && (p.life <= 0 || p.drew_from_empty) {

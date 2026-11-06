@@ -932,7 +932,11 @@ impl Game {
                 Value::Devotion { c } => self
                     .battlefield
                     .iter()
-                    .filter(|b| self.obj(**b).controller == you)
+                    // a transformed permanent's back face has no mana symbols (its mana value is still its front's)
+                    .filter(|b| {
+                        let o = self.obj(**b);
+                        o.controller == you && !o.front.as_ref().is_some_and(|f| f.transform_back.is_some())
+                    })
                     .map(|b| self.obj(*b).def.cost.colored[c.index()] as i32)
                     .sum(),
             },
@@ -1203,11 +1207,12 @@ impl Game {
     /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
         let from = self.obj(id).zone;
-        // a prepared permanent's copy is kept only while it stays
+        // a prepared permanent's copy is kept only while it stays: it can't be cast, and the next state check
+        // removes it (704.5e)
         if from == Zone::Battlefield {
             if let Some(c) = self.obj_mut(id).prepared_copy.take() {
                 if self.obj(c).zone == Zone::Exile {
-                    self.move_to(c, Zone::Graveyard);
+                    self.obj_mut(c).may_play = None;
                 }
             }
         }
