@@ -129,6 +129,8 @@ pub struct Obj {
     pub ninjutsu_defender: Option<Seat>,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
+    /// regeneration shields until end of turn
+    pub regen_shields: u32,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
     pub exile_instead_of_dying: bool,
     /// in exile: this player may play it through the end of this turn number
@@ -255,6 +257,8 @@ pub struct StackItem {
     pub x: i32,
     /// a ward trigger: the ability it counters (its source and its `ability`); a spell is its target instead
     pub ward_of: Option<(ObjId, (usize, u32))>,
+    /// an evolve trigger: the creature that entered
+    pub entering: Option<ObjId>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -295,6 +299,7 @@ impl StackItem {
             modes: Vec::new(),
             x: 0,
             ward_of: None,
+            entering: None,
         }
     }
 }
@@ -455,6 +460,7 @@ impl Game {
             escaped: false,
             ninjutsu_defender: None,
             exerted: false,
+            regen_shields: 0,
             exile_instead_of_dying: false,
             may_play: None,
             play_tax: 0,
@@ -586,7 +592,7 @@ impl Game {
         fired
     }
 
-    fn trigger_of(&self, t: &StackItem) -> Option<&Trigger> {
+    pub fn trigger_of(&self, t: &StackItem) -> Option<&Trigger> {
         t.ability.and_then(|(i, _)| self.obj(t.card).def.abilities.get(i)).and_then(|a| a.trigger())
     }
 
@@ -1044,6 +1050,7 @@ impl Game {
             o.may_play = None;
             o.play_tax = 0;
             o.exerted = false;
+            o.regen_shields = 0;
             o.warp_from = None;
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;

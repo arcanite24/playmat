@@ -534,6 +534,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         }
         CostDef::ReturnAttackerToHandTargetCost => !unblocked_attackers(game, seat).is_empty(),
         CostDef::PayLoyaltyCost { amount } => !o.loyalty_used && o.counter("loyalty") + amount >= 0,
+        CostDef::RemoveCountersSourceCost { counter } => o.counter(&counter.name) >= counter.amount,
         // you can only sacrifice your own permanents
         CostDef::SacrificeTargetCost { filter } => {
             matching(game, filter, seat, id).iter().any(|p| game.obj(*p).controller == seat)
@@ -1402,6 +1403,13 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 top.lki_power = Some(power);
             }
             sacrifice(game, id)
+        }
+        CostDef::RemoveCountersSourceCost { counter } => {
+            let o = game.obj_mut(id);
+            if o.counter(&counter.name) < counter.amount {
+                return false;
+            }
+            o.add_counters(&counter.name, -counter.amount);
         }
         CostDef::PayLoyaltyCost { amount } => {
             let o = game.obj_mut(id);
@@ -2975,6 +2983,21 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::EvolveEffect => {
+                let (me, zcc) = source;
+                if game.obj(me).zone == Zone::Battlefield
+                    && game.obj(me).zcc == zcc
+                    && item.entering.is_some_and(|e| evolves(game, me, e))
+                {
+                    game.obj_mut(me).add_counters("+1/+1", 1);
+                }
+            }
+            EffectDef::RegenerateSourceEffect => {
+                let (me, zcc) = source;
+                if game.obj(me).zone == Zone::Battlefield && game.obj(me).zcc == zcc {
+                    game.obj_mut(me).regen_shields += 1;
+                }
+            }
             // return the Vehicle card; it gains haste, and goes back to your hand at the beginning of the next end step
             EffectDef::GreasefangOkibaBossEffect => {
                 let Some(Target::Obj(c)) = target else { continue };
@@ -4045,8 +4068,45 @@ fn sacrifice(game: &mut Game, id: ObjId) {
 /// Destroys a permanent, unless it's indestructible.
 fn destroy(game: &mut Game, id: ObjId) {
     if game.obj(id).zone == Zone::Battlefield && !game.has_ability(id, &AbilityDef::IndestructibleAbility) {
-        game.move_to(id, Zone::Graveyard);
+        if !regenerate(game, id) {
+            game.move_to(id, Zone::Graveyard);
+        }
     }
+}
+
+/// Evolve's check: both creatures, and the one that entered has greater power or toughness
+fn evolves(game: &Game, src: ObjId, entered: ObjId) -> bool {
+    let (sp, st) = game.power_toughness(src);
+    let (ep, et) = game.power_toughness(entered);
+    game.has_type(src, CardType::Creature) && game.has_type(entered, CardType::Creature) && (ep > sp || et > st)
+}
+
+/// `PermanentImpl.regenerate`, if it has a shield: tapped, removed from combat, its damage removed. True: it did.
+fn regenerate(game: &mut Game, id: ObjId) -> bool {
+    if game.obj(id).regen_shields == 0 {
+        return false;
+    }
+    let (attacking, blocking) = {
+        let o = game.obj_mut(id);
+        o.regen_shields -= 1;
+        o.tapped = true;
+        o.damage = 0;
+        o.deathtouched = false;
+        let a = o.attacking.take().is_some();
+        o.attacking_pw = None;
+        o.blocked = false;
+        (a, std::mem::take(&mut o.blocking))
+    };
+    let blockers = std::mem::take(&mut game.obj_mut(id).blocked_by);
+    if attacking {
+        for b in blockers {
+            game.obj_mut(b).blocking.retain(|x| *x != id);
+        }
+    }
+    for a in blocking {
+        game.obj_mut(a).blocked_by.retain(|x| *x != id);
+    }
+    true
 }
 
 /// The permanents of a filter, as `getActivePermanents` lists them (battlefield order).
@@ -4208,9 +4268,17 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                 && ((src == id && *include_self) || g.filter_matches(filter, you, Some(src), id))
         }
         Trigger::PeltCollector => src != id && g.obj(src).zone == Zone::Battlefield && controller == you,
+        Trigger::Evolve => {
+            g.obj(src).zone == Zone::Battlefield && controller == you && evolves(g, src, id)
+        }
         _ => false,
     });
     let mut fired = game.pelt_collector(fired, id);
+    for t in fired.iter_mut() {
+        if game.trigger_of(t) == Some(&Trigger::Evolve) {
+            t.entering = Some(id);
+        }
+    }
     let cast_x = game.obj(id).cast_x;
     for t in fired.iter_mut() {
         if t.card == id {
@@ -5050,6 +5118,9 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             o.damage = 0;
             o.deathtouched = false;
         }
+        if game.obj(id).regen_shields != 0 {
+            game.obj_mut(id).regen_shields = 0;
+        }
     }
 }
 
@@ -5171,7 +5242,11 @@ pub fn state_based_actions(game: &mut Game) {
             .collect();
         game.lookback = game.battlefield.to_vec();
         for id in dying {
-            game.move_to(id, Zone::Graveyard);
+            // lethal damage destroys (a regeneration shield replaces that); 0 toughness doesn't
+            let lethal = game.has_type(id, CardType::Creature) && game.power_toughness(id).1 > 0;
+            if !(lethal && regenerate(game, id)) {
+                game.move_to(id, Zone::Graveyard);
+            }
             any = true;
         }
         game.lookback.clear();

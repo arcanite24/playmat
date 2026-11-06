@@ -356,6 +356,8 @@ pub enum Trigger {
     },
     /// this card is cycled (`CycleTriggeredAbility`); its X is the cycling's
     Cycled,
+    /// evolve: a creature you control enters with greater power or toughness than this one
+    Evolve,
     /// this becomes exerted (`BecomesExertSourceTriggeredAbility`)
     Exerted,
     /// this deals combat damage to a player
@@ -538,6 +540,8 @@ pub enum CostDef {
     TapTargetCost { filter: Filter, amount: usize },
     /// crew: tap any number of other untapped creatures you control with total power `value` or more
     CrewCost { value: i32 },
+    /// remove counters from the source
+    RemoveCountersSourceCost { counter: CounterDef },
     /// return an unblocked attacker you control to its owner's hand (ninjutsu)
     ReturnAttackerToHandTargetCost,
     /// exile this many other cards from your graveyard (escape)
@@ -1081,6 +1085,10 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// evolve's +1/+1 counter, if the creature that entered still has greater power or toughness
+    EvolveEffect,
+    /// a regeneration shield on the source until end of turn
+    RegenerateSourceEffect,
     /// Greasefang: the target Vehicle card returns with haste, back to hand at the next end step
     GreasefangOkibaBossEffect,
     /// pay `cost` any number of times, then `effects` with X the times paid (a reflexive trigger with that rule)

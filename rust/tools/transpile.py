@@ -874,6 +874,8 @@ class Translator:
             return {'class': 'ManaCost', 'cost': '{' + args[0] + '}'}
         if cls in ('TapSourceCost', 'SacrificeSourceCost') and not args:
             return {'class': cls}
+        if cls == 'RemoveCountersSourceCost' and len(args) == 1:
+            return {'class': cls, 'counter': self.value('counter', args[0].strip())}
         if cls == 'OrCost' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls, 'costs': [self.cost(args[1]), self.cost(args[2])]}
         if cls == 'TapTargetCost' and len(args) == 1:
@@ -1051,6 +1053,8 @@ class Translator:
                     raise Unsupported('choice of ' + a)
                 names.append(re.sub(r'(?<!^)([A-Z])', r' \1', n.group(1)).lower())
             return {'class': cls, 'abilities': abilities, 'names': names}
+        if cls == 'RegenerateSourceEffect' and len(args) <= 1:
+            return {'class': cls}
         if cls == 'CounterUnlessPaysEffect' and len(args) == 1 and not args[0].strip().startswith('new '):
             return {'class': cls, 'generic': self.value('amount', args[0].strip())}
         if cls == 'SetBasePowerSourceEffect' and len(args) == 1:
@@ -1806,6 +1810,11 @@ def ability_statement(t, st, added):
         # `addAbility(ability, new SomeWatcher())`: the watcher is the engine's own bookkeeping
         if len(args) == 2 and re.fullmatch(r'new \w+Watcher\(\)', args[1].strip()):
             args = args[:1]
+        # evolve: a trigger on a creature of yours entering with greater power or toughness
+        if ','.join(args).strip() == 'new EvolveAbility()':
+            added.append({'class': 'TriggeredAbility', 'java': 'EvolveAbility', 'on': {'e': 'evolve'},
+                          'effects': [{'class': 'EvolveEffect'}]})
+            return True
         # exert: the static ability, then its "when you do" trigger
         if (e := re.fullmatch(r'new ExertAbility\((\w+)\)', ','.join(args).strip())):
             added.append({'class': 'ExertAbility'})
