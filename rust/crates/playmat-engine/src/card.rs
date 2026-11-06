@@ -990,6 +990,13 @@ pub enum EffectDef {
     ReflectionOfKikiJikiEffect,
     /// with one or fewer cards in your hand, each card you'd draw is two instead
     QuantumRiddlerReplacementEffect,
+    /// noncombat damage from a source you control to an opponent or their permanent is 2 more (Artist's Talent)
+    ArtistsTalentEffect {
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
+    /// you have the ability (hexproof)
+    GainAbilityControllerEffect { ability: Box<AbilityDef> },
     /// a Class gains level `level`
     SetClassLevelEffect { level: u32 },
     /// exile the target card from a graveyard; a token copy of it, except a 4/4 black Zombie

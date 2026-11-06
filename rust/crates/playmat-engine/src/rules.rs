@@ -2257,7 +2257,10 @@ fn owns_target(game: &Game, seat: Seat, id: ObjId) -> bool {
 
 /// `src`: the spell or ability's source, for its filters ("another")
 pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
-    let players: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
+    // a player with hexproof can't be the target of their opponents' spells and abilities
+    let players: Vec<Seat> = (0..game.seats())
+        .filter(|s| !game.player(*s).lost && !(*s != seat && game.player_has(*s, &AbilityDef::HexproofAbility)))
+        .collect();
     let permanents = |f: &dyn Fn(ObjId) -> bool| -> Vec<ObjId> {
         game.battlefield.iter().copied().filter(|id| f(*id) && targetable(game, seat, *id)).collect()
     };
@@ -5243,6 +5246,8 @@ fn apply_each_effect(
             | EffectDef::ChooseBasicLandTypeEffect
             | EffectDef::MultiversalPassagePassageEffect
             | EffectDef::QuantumRiddlerReplacementEffect
+            | EffectDef::ArtistsTalentEffect { .. }
+            | EffectDef::GainAbilityControllerEffect { .. }
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect
@@ -5484,10 +5489,19 @@ fn sacrifice(game: &mut Game, id: ObjId) {
 /// Destroys a permanent, unless it's indestructible.
 fn destroy(game: &mut Game, id: ObjId) {
     if game.obj(id).zone == Zone::Battlefield && !game.has_ability(id, &AbilityDef::IndestructibleAbility) {
-        if !regenerate(game, id) {
+        if !shield(game, id) && !regenerate(game, id) {
             game.move_to(id, Zone::Graveyard);
         }
     }
+}
+
+/// `ShieldCounterEffect`: a shield counter is removed instead. True: it was.
+fn shield(game: &mut Game, id: ObjId) -> bool {
+    if game.obj(id).counter("shield") == 0 {
+        return false;
+    }
+    game.obj_mut(id).add_counters("shield", -1);
+    true
 }
 
 /// Evolve's check: both creatures, and the one that entered has greater power or toughness
@@ -6182,6 +6196,38 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             })
             .count();
         amount += n as i32;
+    }
+    // a shield counter: removed, and the damage prevented (unless combat damage of yours can't be)
+    if let Target::Obj(o) = to {
+        if game.obj(o).zone == Zone::Battlefield && game.obj(o).counter("shield") > 0 {
+            game.obj_mut(o).add_counters("shield", -1);
+            let unpreventable = combat
+                && game.any_static(|g, src, e| {
+                    matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
+                });
+            if !unpreventable {
+                return 0;
+            }
+        }
+    }
+    // Artist's Talent: noncombat damage from your source to an opponent or their permanent, plus 2
+    if !combat {
+        let opponent = match to {
+            Target::Player(p) => p != you,
+            Target::Obj(o) => game.obj(o).controller != you,
+        };
+        if opponent {
+            let mut n = 0;
+            game.any_static(|g, src, e| {
+                if let EffectDef::ArtistsTalentEffect { condition } = e {
+                    if g.obj(src).controller == you && g.condition_holds(condition.as_ref(), you, src) {
+                        n += 2;
+                    }
+                }
+                false
+            });
+            amount += n;
+        }
     }
     // Soul-Scar Mage: noncombat damage from your source to an opponent's creature is -1/-1 counters instead
     if let Target::Obj(o) = to {
@@ -7025,7 +7071,7 @@ pub fn state_based_actions(game: &mut Game) {
         for id in dying {
             // lethal damage destroys (a regeneration shield replaces that); 0 toughness doesn't
             let lethal = game.has_type(id, CardType::Creature) && game.power_toughness(id).1 > 0;
-            if !(lethal && regenerate(game, id)) {
+            if !(lethal && (shield(game, id) || regenerate(game, id))) {
                 game.move_to(id, Zone::Graveyard);
             }
             any = true;

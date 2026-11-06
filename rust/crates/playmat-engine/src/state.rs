@@ -922,6 +922,20 @@ impl Game {
     }
 
     /// Whether a static ability's effect, from `src`, gives `id` the ability.
+    /// Whether a player has an ability from a static ability of theirs (`GainAbilityControllerEffect`)
+    pub fn player_has(&self, seat: Seat, ability: &AbilityDef) -> bool {
+        fn gives(g: &Game, e: &EffectDef, src: ObjId, you: Seat, ability: &AbilityDef) -> bool {
+            match e {
+                EffectDef::GainAbilityControllerEffect { ability: given } => **given == *ability,
+                EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                    g.condition_holds(Some(condition), you, src) && gives(g, effect, src, you, ability)
+                }
+                _ => false,
+            }
+        }
+        self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, ability))
+    }
+
     fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
         match e {
             EffectDef::GainAbilityAllEffect { ability: given, filter, exclude_source, .. } => {

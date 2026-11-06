@@ -60,6 +60,7 @@ EFFECTS = {
     'DamagePlayersEffect': [('amount', 'int'), ('controller', 'target_controller')],
     'SacrificeSourceEffect': [],
     'DoIfCostPaid': [('effect', 'effect'), ('cost', 'cost')],
+    'GainAbilityControllerEffect': [('ability', 'ability')],
     'GainAbilityControlledEffect': [('ability', 'ability'), ('duration', 'duration'), ('filter', 'filter'),
                                     ('exclude_source', 'bool')],
     'GainAbilityTargetEffect': [('ability', 'ability'), ('duration', 'duration')],
@@ -169,6 +170,7 @@ CUSTOM = {
     'ReflectionOfKikiJikiEffect': lambda: {'class': 'ReflectionOfKikiJikiEffect'},
     'QuantumRiddlerReplacementEffect': lambda: {'class': 'QuantumRiddlerReplacementEffect'},
     'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
+    'ArtistsTalentEffect': lambda: {'class': 'ArtistsTalentEffect'},
     'ReturnSourceToHandNextEndStepEffect': lambda: {'class': 'ReturnSourceToHandNextEndStepEffect'},
     'MultiversalPassagePassageEffect': lambda: {'class': 'MultiversalPassagePassageEffect'},
     'LivelyDirgeEffect': lambda: {'class': 'LivelyDirgeEffect'},
@@ -376,6 +378,7 @@ TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'a
                       'TargetController.OPPONENT': 'opponent'}
 
 COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun',
+            'CounterType.SHIELD': 'shield',
             'CounterType.M1M1': '-1/-1', 'CounterType.INDESTRUCTIBLE': 'indestructible'}
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'ObsessivePursuitCondition.instance': {'c': 'sacrificed_this_turn', 'n': 3},
@@ -789,8 +792,8 @@ class Translator:
             return {'c': 'life_compare', 'who': m.group(1).lower(), 'cmp': m.group(2), 'n': int(m.group(3))}
         if (m := re.fullmatch(r'new CardsInControllerGraveyardCondition\((\d+)(?:,(.*))?\)', arg)):
             return {'c': 'cards_in_graveyard', 'n': int(m.group(1)), 'filter': self.filter(m.group(2)) if m.group(2) else []}
-        if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+),(\d+)\)', arg)) and m.group(1) in COUNTERS:
-            return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2))}
+        if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+)(?:,(\d+))?\)', arg)) and m.group(1) in COUNTERS:
+            return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2) or 1)}
         if (m := re.fullmatch(r'new SourceTargetsPermanentCondition\((.*)\)', arg)):
             return {'c': 'source_targets', 'filter': self.filter(m.group(1))}
         if (m := re.fullmatch(r'new OpponentControlsMoreCondition\((.*)\)', arg)):
@@ -1454,10 +1457,18 @@ class Translator:
         if cls == 'SimpleStaticAbility' and len(args) == 1 \
                 and (g := re.fullmatch(r'new GainClassAbilitySourceEffect\((.*)\)', args[0].strip(), re.S)):
             inner, level = split_args(g.group(1))
+            gate = {'c': 'class_level', 'n': int(level.strip())}
+            # a static effect the level adds: the effect under that condition
+            if re.fullmatch(r'new \w+Effect\(.*\)', inner.strip(), re.S):
+                e = self.effect(inner)
+                if e.get('class') not in ('SpellsCostReductionControllerEffect', 'ArtistsTalentEffect') or e.get('condition'):
+                    raise Unsupported('class level effect ' + inner)
+                e['condition'] = gate
+                return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [e]}
             a = self.ability(inner)
             if a.get('class') != 'TriggeredAbility' or a.get('trigger_condition'):
                 raise Unsupported('class level ability ' + inner)
-            a['trigger_condition'] = {'c': 'class_level', 'n': int(level.strip())}
+            a['trigger_condition'] = gate
             a['java'] = cls
             return a
         if cls == 'EntersBattlefieldAbility' and args == ['new MockingbirdEffect()', 'true']:
