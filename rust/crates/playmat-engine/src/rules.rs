@@ -511,6 +511,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || warp(game, seat, *id).is_some()
             || cleave(game, seat, *id).is_some()
             || blitz(game, seat, *id).is_some()
+            || foretell(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
         {
             out.push(*id);
@@ -544,6 +545,10 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         let o = game.obj(*id);
         if o.on_adventure && o.owner == seat && castable(game, seat, *id, &o.def) {
             out.push(*id);
+        } else if o.foretold_turn.is_some() || o.plotted_turn.is_some() {
+            if exile_cast(game, seat, *id).is_some() {
+                out.push(*id);
+            }
         } else if (o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
             || o.warp_from.is_some_and(|t| o.owner == seat && game.turn >= t))
             && if o.is(CardType::Land) {
@@ -789,6 +794,34 @@ fn blitz(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     }
     let (k, def) = o.def.blitz()?;
     castable(game, seat, id, &def).then_some((k, def))
+}
+
+/// Foretell, a special action: the ability's index, if the card is in hand during its owner's turn with {2} to pay
+fn foretell(game: &Game, seat: Seat, id: ObjId) -> Option<usize> {
+    let o = game.obj(id);
+    if o.zone != Zone::Hand || game.active != Some(seat) {
+        return None;
+    }
+    let (k, _) = o.def.foretold()?;
+    can_pay(game, seat, &ManaCost { generic: 2, ..ManaCost::default() }).then_some(k)
+}
+
+/// A foretold card cast for its foretell cost, or a plotted one cast free as a sorcery, on a later turn: the card
+/// as it's cast, and whether it's free
+fn exile_cast(game: &Game, seat: Seat, id: ObjId) -> Option<(CardDef, bool)> {
+    let o = game.obj(id);
+    if o.zone != Zone::Exile || o.owner != seat {
+        return None;
+    }
+    if o.plotted_turn.is_some_and(|t| t != game.turn) && sorcery_speed(game, seat) {
+        let def = CardDef { cost: ManaCost::default(), ..(*o.def).clone() };
+        return castable(game, seat, id, &def).then_some((def, true));
+    }
+    if o.foretold_turn.is_some_and(|t| t != game.turn) {
+        let (_, def) = o.def.foretold()?;
+        return castable(game, seat, id, &def).then_some((def, false));
+    }
+    None
 }
 
 /// Cleave: the card's ability index and the card with its cleave cost and effects, if it can be cast that way from
@@ -1095,26 +1128,11 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // a card in hand with an ability (cycling, channel): the picker, with its spell or land play (a0) and the abilities, if there is a choice
     // (or one you may play from exile, with its spectacle cost)
     let zone = game.obj(id).zone;
-    // a plotted card: its owner may cast it without paying its mana cost, as a sorcery, on a later turn
-    if zone == Zone::Exile && game.obj(id).plotted_turn.is_some() {
-        let o = game.obj(id);
-        if o.plotted_turn == Some(game.turn) || o.owner != seat || !sorcery_speed(game, seat) {
-            return;
-        }
-        let def = CardDef { cost: ManaCost::default(), ..(*o.def).clone() };
-        if !castable(game, seat, id, &def) {
-            return;
-        }
-        cast_free(game, d, seat, id);
-        return;
-    }
-    // a foretold card: cast for its foretell cost, on a later turn than it was foretold
-    if zone == Zone::Exile && game.obj(id).foretold_turn.is_some() {
-        if game.obj(id).foretold_turn == Some(game.turn) {
-            return;
-        }
-        let Some((_, def)) = game.obj(id).def.foretold() else { return };
-        if !castable(game, seat, id, &def) {
+    // a plotted card (cast free, as a sorcery) or a foretold one (for its foretell cost), on a later turn
+    if zone == Zone::Exile && (game.obj(id).plotted_turn.is_some() || game.obj(id).foretold_turn.is_some()) {
+        let Some((def, free)) = exile_cast(game, seat, id) else { return };
+        if free {
+            cast_free(game, d, seat, id);
             return;
         }
         let before = game.clone();
@@ -1130,12 +1148,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     if (zone == Zone::Hand || zone == Zone::Exile) && game.obj(id).def.adventure.is_none() {
         let mut options = if zone == Zone::Hand { activatable(game, seat, id) } else { Vec::new() };
         // foretell, a special action: during your turn, with {2} to pay
-        let foretell = game
-            .obj(id)
-            .def
-            .foretold()
-            .map(|(k, _)| k)
-            .filter(|_| zone == Zone::Hand && game.active == Some(seat) && can_pay(game, seat, &ManaCost { generic: 2, ..ManaCost::default() }));
+        let foretell = foretell(game, seat, id);
         if let Some(k) = foretell {
             options.push(k);
         }
