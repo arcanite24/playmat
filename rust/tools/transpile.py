@@ -1119,6 +1119,16 @@ class Translator:
             n = re.fullmatch(r'StaticValue\.get\((\d+)\)', args[1].strip())
             if n:
                 return {'class': cls, 'amount': int(n.group(1)), 'controller': self.value('target_controller', args[2].strip())}
+        # "at the beginning of the next end step, …": its effects then
+        if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1:
+            d = self.vars.get(args[0].strip()) or self.ability(args[0])
+            if d.get('class') != 'NextEndStepDelayed':
+                raise Unsupported('delayed ability ' + args[0])
+            return {'class': 'CreateNextEndStepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
+        if cls == 'UntapLandsEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'amount': int(args[0])}
+        if cls == 'PutIntoLibraryNFromTopTargetEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'n': int(args[0])}
         if cls == 'GetEmblemEffect' and len(args) == 1:
             n = re.fullmatch(r'new (\w+Emblem)\(\)', args[0].strip())
             if not n:
@@ -1377,6 +1387,10 @@ class Translator:
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 \
                 and args[0].strip() == 'new SharkTyphoonCastEffect()' and args[3].strip() == 'SetTargetPointer.SPELL':
             args = args[:3] + ['SetTargetPointer.NONE']
+        if cls == 'AtTheBeginOfNextEndStepDelayedTriggeredAbility' and len(args) == 1 \
+                and args[0].strip() == 'new UntapLandsEffect(2)':
+            return {'class': 'NextEndStepDelayed', 'effects': [self.effect(args[0])],
+                    'rule': 'At the beginning of the next end step, untap up to two lands.'}
         t = self.more_triggers(cls, [x.strip() for x in args])
         if t is not None:
             return t
@@ -1534,6 +1548,8 @@ class Translator:
             return out({'e': 'draws_nth', 'n': 2}, args[0])
         if cls == 'DrawCardControllerTriggeredAbility' and n == 2:
             return out({'e': 'draws', 'who': 'you'}, args[0], flag(args[1]))
+        if cls == 'DrawCardControllerTriggeredAbility' and n == 3 and args[0] == 'Zone.COMMAND':
+            return out({'e': 'draws', 'who': 'you'}, args[1], flag(args[2]))
         if cls == 'DrawCardOpponentTriggeredAbility' and n == 3:
             return out({'e': 'draws', 'who': 'opponent'}, args[0], flag(args[1]), flag(args[2]))
         if cls == 'DealsDamageToOpponentTriggeredAbility' and 1 <= n <= 4:
@@ -2003,10 +2019,19 @@ def emblem(cls):
     if not m:
         raise Unsupported('emblem constructor ' + cls)
     subtypes = subtype_names()
-    t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes)
+    filters = declared_filters(source, subtypes)
+    # filters the constructor declares for itself
+    body = m.group(1)
+    for f in re.finditer(r'(?:final )?Filter\w+ (\w+)\s*=\s*new (Filter\w+)\((.*?)\);', body, re.S):
+        adds = [canonical(p) for p in re.findall(r'\b' + f.group(1) + r'\.add\((.*?)\);', body, re.S)]
+        filters[f.group(1)] = filter_object(f.group(2), split_args(canonical(f.group(3))), adds, subtypes)
+    t = Translator(filters, card_conditions(source), subtypes)
     out = {'types': [], 'abilities': []}
     added = []
-    for st in statements(m.group(1)):
+    for st in statements(body):
+        if (n := re.fullmatch(r'(?:final )?Filter\w+ (\w+)=new Filter.*', st) or re.fullmatch(r'(\w+)\.add\(.*\)', st)) \
+                and n.group(1) in filters:
+            continue
         st = re.sub(r'^this\.getAbilities\(\)\.add\((.*)\)$', r'this.addAbility(\1)', st)
         st = re.sub(r'^getAbilities\(\)\.add\((.*)\)$', r'this.addAbility(\1)', st)
         if (n := re.fullmatch(r'super\("([^"]+)"\)', st)):

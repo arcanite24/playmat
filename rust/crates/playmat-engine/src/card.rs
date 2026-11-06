@@ -888,6 +888,13 @@ pub enum EffectDef {
     PlayLandsFromGraveyardControllerEffect,
     /// exiles the target card from a graveyard; if it was a creature card, `then` (a Clue)
     RavenEagleEffect { then: Box<EffectDef> },
+    /// "at the beginning of the next end step, …" (`CreateDelayedTriggeredAbilityEffect` with
+    /// `AtTheBeginOfNextEndStepDelayedTriggeredAbility`)
+    CreateNextEndStepDelayedEffect { effects: Vec<EffectDef>, rule: String },
+    /// untap up to `amount` tapped lands
+    UntapLandsEffect { amount: usize },
+    /// puts the target permanent into its owner's library `n`th from the top
+    PutIntoLibraryNFromTopTargetEffect { n: usize },
     /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
     NoMaximumHandSizeEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card

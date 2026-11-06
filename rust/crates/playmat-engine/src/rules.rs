@@ -3659,6 +3659,81 @@ fn apply_each_effect(
                     o.play_tax = 2;
                 }
             }
+            EffectDef::CreateNextEndStepDelayedEffect { effects, rule } => {
+                let delayed = Delayed {
+                    rule: rule.clone(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: effects.clone(),
+                    source_zcc: source.1,
+                    fixed: Vec::new(),
+                };
+                game.at_next_end_step
+                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+            }
+            EffectDef::UntapLandsEffect { amount } => {
+                // `UntapLandsEffect`: any tapped land; with as few of yours tapped as it untaps, it first offers them
+                let tapped: Vec<ObjId> = game
+                    .battlefield
+                    .iter()
+                    .copied()
+                    .filter(|b| game.obj(*b).is(CardType::Land) && game.obj(*b).tapped)
+                    .collect();
+                let yours: Vec<ObjId> = tapped.iter().copied().filter(|b| game.obj(*b).controller == controller).collect();
+                let mut chosen: Vec<ObjId> = Vec::new();
+                let mut selected = false;
+                if yours.len() <= *amount {
+                    let q = Query::YesNo { message: "Include your tapped lands to untap?".into() };
+                    let yes = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if yes && !yours.is_empty() {
+                        chosen = yours.clone();
+                        selected = true;
+                    }
+                }
+                // `HumanPlayer.choose`: a choice already complete isn't asked, and untaps nothing
+                if selected && (chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t))) {
+                    continue;
+                }
+                loop {
+                    let q = Query::Target { players: Vec::new(), objs: tapped.clone(), required: false };
+                    match ask(game, d, controller, &q) {
+                        Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
+                        Answer::Obj(o) if tapped.contains(&o) => {
+                            chosen.push(o);
+                            if chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t)) {
+                                break;
+                            }
+                        }
+                        Answer::Bool(_) => break,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                }
+                for o in chosen {
+                    game.obj_mut(o).tapped = false;
+                }
+            }
+            EffectDef::PutIntoLibraryNFromTopTargetEffect { n } => {
+                for o in objs.iter().copied() {
+                    if game.obj(o).zone != Zone::Battlefield {
+                        continue;
+                    }
+                    let owner = game.obj(o).owner;
+                    let size = game.player(owner).library.len();
+                    game.move_to(o, Zone::Library);
+                    if size + 1 >= *n && game.obj(o).zone == Zone::Library {
+                        let lib = &mut game.player_mut(owner).library;
+                        lib.retain(|x| *x != o);
+                        lib.insert((*n - 1).min(lib.len()), o);
+                    }
+                }
+            }
             EffectDef::RavenEagleEffect { then } => {
                 let Some(Target::Obj(o)) = target else { continue };
                 if game.obj(o).zone != Zone::Graveyard {
