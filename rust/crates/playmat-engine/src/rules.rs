@@ -1294,6 +1294,30 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
             }
         }
     }
+    // teamwork: `TeamworkAbility.addOptionalAdditionalCosts`, asked only when the creatures can be tapped
+    let mut teamwork = None;
+    for a in &def.abilities {
+        if let AbilityDef::TeamworkAbility { n, .. } = a {
+            let c = CostDef::CrewCost { value: *n };
+            if !can_pay_cost(game, seat, id, &c) {
+                continue;
+            }
+            let q = Query::YesNo { message: format!("Teamwork {}?", n) };
+            let pay = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if pay {
+                teamwork = Some(c);
+                if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                    top.kicked = true;
+                }
+            }
+        }
+    }
     // blight: `BlightAbility.addOptionalAdditionalCosts`, asked only with a creature to put the counters on
     let mut blight = None;
     for a in &def.abilities {
@@ -1502,7 +1526,7 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
             return false;
         }
     }
-    if let Some(c) = &casualty {
+    for c in casualty.iter().chain(&teamwork) {
         if !pay_cost(game, d, seat, id, c) {
             return false;
         }

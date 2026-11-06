@@ -391,7 +391,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'KaitoBaneOfNightmaresCondition.instance': {'c': 'and', 'xs': [
                   {'c': 'my_turn'}, {'c': 'source_counter', 'name': 'loyalty', 'n': 1}]},
               # blight is an optional additional cost the engine keeps as the spell's kicked flag
-              'BlightedCondition.instance': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
+              'BlightedCondition.instance': {'c': 'kicked'}, 'TeamworkCondition.instance': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
               'OpponentsLostLifeCondition.instance': {'c': 'opponents_lost_life'},
@@ -1460,6 +1460,9 @@ class Translator:
         # a Class: its levels, gained as a sorcery one after another, and the abilities each level adds
         # casualty N: as you cast it, you may sacrifice a creature with power N or greater; when you do, copy it
         if cls == 'CasualtyAbility' and len(args) == 1 and args[0].strip().isdigit():
+            return {'class': cls, 'java': cls, 'n': int(args[0].strip())}
+        # teamwork N: as you cast it, you may tap creatures with total power N or more (kept as the kicked flag)
+        if cls == 'TeamworkAbility' and len(args) == 1 and args[0].strip().isdigit():
             return {'class': cls, 'java': cls, 'n': int(args[0].strip())}
         if cls == 'LeylineAbility' and not args:
             return {'class': cls, 'java': cls}

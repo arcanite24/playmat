@@ -1584,6 +1584,9 @@ pub enum AbilityDef {
     },
     /// casualty `n`: as it's cast, you may sacrifice a creature with power `n` or greater; when you do, copy the spell
     CasualtyAbility { n: i32, rule: String },
+    /// teamwork `n`: as it's cast, you may tap creatures you control with total power `n` or more (the spell is then
+    /// kicked)
+    TeamworkAbility { n: i32, rule: String },
     /// "(Gain the next level as a sorcery to add its ability.)"
     ClassReminderAbility,
     /// "If this card is in your opening hand, you may begin the game with it on the battlefield." (before the game)
