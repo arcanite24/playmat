@@ -4168,47 +4168,49 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
         if legend_rule(game, d) {
             continue;
         }
-        if !game.returning.is_empty() {
-            let mut back = std::mem::take(&mut game.returning);
-            // `AuraReplacementEffect` puts an Aura onto the battlefield as its move is replaced, before the rest
-            back.sort_by_key(|c| !game.obj(*c).def.has_subtype("Aura"));
-            for c in back {
-                // a token that left the battlefield has ceased to exist
-                if game.obj(c).zone == Zone::Exile && !game.obj(c).token {
-                    let owner = game.obj(c).owner;
-                    enter_battlefield(game, d, c, owner, false);
-                }
-            }
-            continue;
-        }
-        if d.stopped() || game.pending.is_empty() {
+        if d.stopped() || (game.pending.is_empty() && game.returning.is_empty()) {
             return;
         }
-        let mut pending = std::mem::take(&mut game.pending);
-        // an intervening "if" is checked as it triggers (and again as it resolves)
-        pending.retain(|t| {
-            let ability = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
-            game.condition_holds(ability.and_then(|a| a.intervening_if()), t.controller, t.card) && game.pelt_holds(t)
-        });
-        // a trigger limit each turn
-        pending.retain(|t| {
-            let Some((i, _)) = t.ability else { return true };
-            let Some(AbilityDef::TriggeredAbility { limit_per_turn: Some(n), .. }) = game.obj(t.card).def.abilities.get(i)
-            else {
-                return true;
-            };
-            let seen = game.triggered_this_turn.iter().filter(|x| **x == (t.card, i)).count() as u32;
-            if seen >= *n {
-                return false;
-            }
-            game.triggered_this_turn.push((t.card, i));
-            true
-        });
+        let pending = std::mem::take(&mut game.pending);
+        let mut pending = waiting(game, pending);
         let active = game.active.unwrap_or(0);
         for k in 0..game.seats() {
             let seat = (active + k) % game.seats();
+            // `GameImpl.checkTriggered` fetches each player's list as their turn comes: what triggered since
+            let arrived: Vec<StackItem> = take_seat(game, seat);
+            pending.extend(waiting(game, arrived));
             let mut mine: Vec<StackItem> = pending.iter().filter(|t| t.controller == seat).cloned().collect();
-            while !mine.is_empty() {
+            // their triggers that use no stack first: cards coming back from exile. What those trigger waits for the
+            // next pass if nothing else of theirs was waiting, and otherwise joins their list after the first pick
+            let mut back: Vec<ObjId> =
+                game.returning.iter().filter(|(s, _)| *s == seat).map(|(_, c)| *c).collect();
+            let mut refetch = false;
+            if !back.is_empty() {
+                game.returning.retain(|(s, _)| *s != seat);
+                // `AuraReplacementEffect` puts an Aura onto the battlefield as its move is replaced, before the rest
+                back.sort_by_key(|c| !game.obj(*c).def.has_subtype("Aura"));
+                for c in back {
+                    // a token that left the battlefield has ceased to exist
+                    if game.obj(c).zone == Zone::Exile && !game.obj(c).token {
+                        let owner = game.obj(c).owner;
+                        enter_battlefield(game, d, c, owner, false);
+                    }
+                }
+                if d.stopped() {
+                    return;
+                }
+                refetch = !mine.is_empty();
+            }
+            let mut picked = 0;
+            loop {
+                if refetch && picked > 0 {
+                    let arrived = take_seat(game, seat);
+                    mine.extend(waiting(game, arrived));
+                    refetch = false;
+                }
+                if mine.is_empty() {
+                    break;
+                }
                 // the player orders their triggers, unless they're all the same (auto-order)
                 let pick = if mine.len() > 1 && !mine.iter().all(|t| same_trigger(game, t, &mine[0])) {
                     match ask(game, d, seat, &Query::PickTrigger { count: mine.len() }) {
@@ -4220,6 +4222,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                     0
                 };
                 let mut t = mine.remove(pick);
+                picked += 1;
                 let ability = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i).cloned());
                 // a modal one: `HumanPlayer.chooseMode` among the modes whose targets can be chosen
                 let modes = ability.as_ref().map(|a| a.trigger_modes()).unwrap_or_default();
@@ -4260,6 +4263,37 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
             }
         }
     }
+}
+
+/// Takes `seat`'s waiting triggers out of `game.pending`.
+fn take_seat(game: &mut Game, seat: Seat) -> Vec<StackItem> {
+    let (mine, rest): (Vec<StackItem>, Vec<StackItem>) =
+        std::mem::take(&mut game.pending).into_iter().partition(|t| t.controller == seat);
+    game.pending = rest;
+    mine
+}
+
+/// The triggers that go on the stack: an intervening "if" is checked as it triggers (and again as it resolves), and
+/// a trigger limit each turn
+fn waiting(game: &mut Game, mut pending: Vec<StackItem>) -> Vec<StackItem> {
+    pending.retain(|t| {
+        let ability = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
+        game.condition_holds(ability.and_then(|a| a.intervening_if()), t.controller, t.card) && game.pelt_holds(t)
+    });
+    pending.retain(|t| {
+        let Some((i, _)) = t.ability else { return true };
+        let Some(AbilityDef::TriggeredAbility { limit_per_turn: Some(n), .. }) = game.obj(t.card).def.abilities.get(i)
+        else {
+            return true;
+        };
+        let seen = game.triggered_this_turn.iter().filter(|x| **x == (t.card, i)).count() as u32;
+        if seen >= *n {
+            return false;
+        }
+        game.triggered_this_turn.push((t.card, i));
+        true
+    });
+    pending
 }
 
 fn same_trigger(game: &Game, a: &StackItem, b: &StackItem) -> bool {

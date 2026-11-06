@@ -351,8 +351,9 @@ pub struct Game {
     pub exiled_until_leaves: Vec<(ObjId, u32, ObjId)>,
     /// cards exiled into a permanent's own exile zone (its id and zone change count), that stay there
     pub exiled_for_source: Vec<(ObjId, u32, ObjId)>,
-    /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack)
-    pub returning: Vec<ObjId>,
+    /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack), with
+    /// the seat whose trigger that is
+    pub returning: Vec<(Seat, ObjId)>,
     /// this combat has a first-strike damage step
     pub first_strike_step: bool,
     /// the game is over (a player lost, or it reached its last turn)
@@ -1010,7 +1011,8 @@ impl Game {
             let (back, kept): (Vec<_>, Vec<_>) =
                 self.exiled_until_leaves.iter().copied().partition(|(s, z, _)| *s == id && *z == zcc);
             self.exiled_until_leaves = kept;
-            self.returning.extend(back.into_iter().map(|(_, _, c)| c));
+            let controller = self.obj(id).controller;
+            self.returning.extend(back.into_iter().map(|(_, _, c)| (controller, c)));
         }
         if from == Zone::Battlefield && zone != Zone::Battlefield {
             let c = self.obj(id).controller;
