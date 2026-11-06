@@ -277,6 +277,7 @@ fn end_step(game: &mut Game, step: Step) {
         }
         p.combat_red = keep;
         p.conditional_pool.clear();
+        p.mana_stock = Mana::default();
     }
     if step == Step::EndCombat {
         game.first_strike_step = false;
@@ -485,7 +486,10 @@ fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 }
             }
             Answer::Obj(id) => {
-                if playable.contains(&id) {
+                // a permanent clicked for its mana ability works too (`HumanPlayer.activateAbility`)
+                if playable.contains(&id) || has_mana_ability_now(game, seat, id) {
+                    let p = game.player_mut(seat);
+                    p.mana_stock = p.mana_pool;
                     play(game, d, seat, id);
                 }
                 // played (priority again) or not playable (asked again): both come back to the priority loop
@@ -494,6 +498,18 @@ fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             _ => return,
         }
     }
+}
+
+/// Whether `id` is a permanent of `seat`'s with a mana ability they can activate now (conditional ones too).
+fn has_mana_ability_now(game: &Game, seat: Seat, id: ObjId) -> bool {
+    if !game.battlefield.contains(&id) {
+        return false;
+    }
+    let paying = game.paying_for.get();
+    game.paying_for.set(Some(ANY_SPELL));
+    let any = mana_sources_with_kinds(game, seat).iter().any(|(s, a)| *s == id && !a.is_empty());
+    game.paying_for.set(paying);
+    any
 }
 
 /// What `getPlayable` offers: lands to play, spells to cast that the player can pay for.
@@ -2781,6 +2797,16 @@ fn target_legal(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>, t:
 /// Mana already floating when the payment starts is "stock" (`ManaPool.setStock`, restricted auto-pay): it's spent
 /// only one mana at a time, when the player answers with its type. Mana made during the payment is spent by itself.
 fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -> bool {
+    let paid = pay_mana_from(game, d, seat, cost);
+    // what's left of the stock: mana spent from it (or gone) isn't there for a later payment
+    let p = game.player_mut(seat);
+    for k in 0..6 {
+        *kind(&mut p.mana_stock, k) = (*kind(&mut p.mana_stock, k)).min(*kind(&mut p.mana_pool, k));
+    }
+    paid
+}
+
+fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -> bool {
     let mut unpaid = cost.clone();
     // `handlePhyrexianManaCosts`: each phyrexian symbol, 2 life instead if the player wants (paid after asking)
     let mut life = 0;
@@ -2807,11 +2833,18 @@ fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -
     if life > 0 {
         lose_life(game, seat, life);
     }
-    let mut stock = game.player(seat).mana_pool;
+    let mut stock = Mana::default();
+    {
+        let p = game.player_mut(seat);
+        for k in 0..6 {
+            *kind(&mut stock, k) = (*kind(&mut p.mana_stock, k)).min(*kind(&mut p.mana_pool, k));
+        }
+    }
     let mut unlocked = Mana::default();
     let mut fresh_conditional = 0;
     loop {
         pay_from_pool(game, seat, &mut unpaid, &mut stock, &mut unlocked, fresh_conditional);
+        game.player_mut(seat).mana_stock = stock;
         if unpaid.mana_value() == 0 {
             return true;
         }
@@ -2857,6 +2890,9 @@ fn pay_mana(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCost) -
                             fresh_conditional += 1;
                             continue;
                         }
+                        // `HumanPlayer.activateAbility` sets the stock: what's in the pool now isn't fresh
+                        stock = game.player(seat).mana_pool;
+                        game.player_mut(seat).mana_stock = stock;
                         if !activate_mana(game, d, seat, id, i, m, k, &unpaid) {
                             return false;
                         }
@@ -4470,9 +4506,9 @@ fn apply_each_effect(
                         .unwrap(),
                     );
                     let delayed = Delayed {
-                        rule: "put that many +1/+1 counters on {this}, then exile up to that many target instant and/or sorcery \
+                        rule: "Put that many +1/+1 counters on {this}, then exile up to that many target instant and/or sorcery \
                                cards with mana value 3 or less from your graveyard and copy them. You may cast any number of the \
-                               copies without paying their mana costs"
+                               copies without paying their mana costs."
                             .into(),
                         sacrifice: Vec::new(),
                         warp_exile: Vec::new(),
@@ -4495,6 +4531,7 @@ fn apply_each_effect(
                     // `game.copyCard`: a copy that leaves no card behind once it's cast and gone
                     let def = game.obj(c).def.clone();
                     let copy = game.create_obj(def.clone(), controller, Zone::Exile);
+                    Arc::make_mut(&mut game.exile).push(copy);
                     game.obj_mut(copy).token = true;
                     let q = Query::YesNo { message: format!("Cast {} for free?", def.name) };
                     let yes = loop {
@@ -8213,6 +8250,12 @@ fn day_night(game: &mut Game) {
 pub fn state_based_actions(game: &mut Game) {
     refresh_becomes(game);
     day_night(game);
+    // 704.5e: a copy of a card outside the stack and battlefield ceases to exist (one that may be cast stays)
+    if game.exile.iter().any(|c| game.obj(*c).token && game.obj(*c).may_play.is_none()) {
+        let gone: Vec<ObjId> =
+            game.exile.iter().copied().filter(|c| game.obj(*c).token && game.obj(*c).may_play.is_none()).collect();
+        Arc::make_mut(&mut game.exile).retain(|c| !gone.contains(c));
+    }
     loop {
         let mut any = false;
         for s in 0..game.seats() {
