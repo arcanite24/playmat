@@ -354,6 +354,8 @@ pub enum Trigger {
         filter: Filter,
         who: String,
     },
+    /// this card is cycled (`CycleTriggeredAbility`); its X is the cycling's
+    Cycled,
     /// this deals combat damage to a player
     CombatDamageToPlayer,
     /// a permanent of the filter deals combat damage to a player
@@ -1066,6 +1068,8 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// creates one token with power and toughness `amount` (`new SharkToken(xValue)`)
+    CreateXXTokenEffect { token: TokenDef, amount: Amount },
     /// the source gets +X/+0 until end of turn (X: creature cards in your graveyard), then may fight the target
     KraulHarpoonerEffect,
     /// surveil 1; a card put into the graveyard with mana value up to the life you gained this turn goes to your hand

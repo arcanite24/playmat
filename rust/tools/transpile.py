@@ -220,6 +220,8 @@ CUSTOM = {
     # for each opponent, a 1/1 Human tapped and attacking them
     'EnlightenedConfidantEffect': lambda: {'class': 'EnlightenedConfidantEffect'},
     'KraulHarpoonerEffect': lambda: {'class': 'KraulHarpoonerEffect'},
+    'SharkTyphoonCastEffect': lambda: {'class': 'CreateXXTokenEffect', 'token': token('SharkToken'), 'amount': {'v': 'x'}},
+    'SharkTyphoonCycleEffect': lambda: {'class': 'CreateXXTokenEffect', 'token': token('SharkToken'), 'amount': {'v': 'x'}},
     'AdelineResplendentCatharEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('HumanToken'), 'amount': 1,
                                                'tapped_and_attacking': True},
     'MasterOfBarbsTriggeredAbility': lambda: {
@@ -1429,6 +1431,8 @@ class Translator:
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]}
         if cls == 'CastSecondSpellTriggeredAbility' and n == 2:
             return out({'e': 'cast_second_spell', 'who': self.value('target_controller', args[1])}, args[0])
+        if cls == 'CycleTriggeredAbility' and n == 1:
+            return out({'e': 'cycled'}, args[0])
         if cls == 'ValiantTriggeredAbility' and n == 1:
             return out({'e': 'valiant'}, args[0])
         if cls == 'BecomesTargetSourceTriggeredAbility' and n == 4 and args[2] in ('SetTargetPointer.PLAYER', 'SetTargetPointer.NONE'):
@@ -1830,6 +1834,12 @@ def token(cls):
     m = re.search(r'public ' + cls + r'\(\)\s*\{(.*?)\n    \}', source, re.S)
     if not m:
         raise Unsupported('token constructor ' + cls)
+    # `this(0)`: the X/X constructor with X = 0 (SharkToken); the engine sets X as it creates one
+    if (n := re.fullmatch(r'\s*this\((\d+)\);\s*', m.group(1))):
+        m = re.search(r'public ' + cls + r'\(int (\w+)\)\s*\{(.*?)\n    \}', source, re.S)
+        if not m:
+            raise Unsupported('token constructor ' + cls)
+        m = re.match(r'(.*)', re.sub(r'\b' + m.group(1) + r'\b', n.group(1), m.group(2)), re.S)
     out = {'types': [], 'colors': [], 'subtypes': [], 'abilities': []}
     subtypes = subtype_names()
     colors = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}
@@ -1936,7 +1946,7 @@ def token_classes(names):
             source = open(card_path(name)).read()
         except (Unsupported, OSError):
             continue
-        for m in re.finditer(r'new (\w+Token)\(\)|(\w+Token)::new', source):
+        for m in re.finditer(r'new (\w+Token)\((?:\w+)?\)|(\w+Token)::new', source):
             cls = m.group(1) or m.group(2)
             if os.path.exists(os.path.join(TOKENS, cls + '.java')):
                 out.add(cls)

@@ -1076,7 +1076,13 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         _ => false,
     });
     let mut fired = fired;
+    // the spell's mana value, X included (Shark Typhoon's "that spell's mana value")
+    let spell_mv = {
+        let c = &game.obj(spell).def.cost;
+        c.mana_value() as i32 + game.stack.last().map_or(0, |t| t.x) * c.x as i32
+    };
     for t in fired.iter_mut() {
+        t.x = spell_mv;
         let a = t.ability.and_then(|(i, _)| game.obj(t.card).def.abilities.get(i));
         if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
             t.targets = vec![vec![Target::Player(seat)]];
@@ -1246,19 +1252,42 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
         game.activated_this_turn.push((id, index));
     }
     Arc::make_mut(&mut game.stack).push(StackItem { ability: Some((index, zcc)), ..StackItem::spell(id, seat) });
+    // X: announced before the targets (`AbilityImpl.handleManaXCosts`)
+    let mut mana = adjusted_mana_cost(game, seat, &def.abilities[index], costs);
+    if mana.x > 0 {
+        let q = Query::Amount { min: 0, max: i32::MAX };
+        let x = loop {
+            match ask(game, d, seat, &q) {
+                Answer::Int(n) if n >= 0 => break n,
+                Answer::Stop => return false,
+                _ => {}
+            }
+        };
+        mana.generic += x as u32 * mana.x;
+        mana.x = 0;
+        if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+            top.x = x;
+        }
+    }
     if !choose_targets(game, d, seat, targets, None, rule, true) {
         return false;
     }
     for s in 0..game.seats() {
         game.player_mut(s).passed = false;
     }
-    if !pay_mana(game, d, seat, &adjusted_mana_cost(game, seat, &def.abilities[index], costs)) {
+    if !pay_mana(game, d, seat, &mana) {
         return false;
     }
     for c in costs {
         if !matches!(c, CostDef::ManaCost { .. }) && !pay_cost(game, d, seat, id, c) {
             return false;
         }
+    }
+    // `ACTIVATED_ABILITY`: "when you cycle this card" (`CycleTriggeredAbility`), with the cycling's X
+    if matches!(def.abilities[index], AbilityDef::CyclingAbility { .. }) {
+        let x = game.stack.last().map_or(0, |t| t.x);
+        let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::Cycled));
+        game.pending.extend(fired.into_iter().map(|t| StackItem { x, ..t }));
     }
     true
 }
@@ -2827,6 +2856,16 @@ fn apply_each_effect(
                         return;
                     }
                 }
+            }
+            EffectDef::CreateXXTokenEffect { token, amount } => {
+                let n = v!(amount).max(0);
+                let def = Arc::new(CardDef { power: n, toughness: n, ..token.card() });
+                token_image(game, token, source.0);
+                let id = game.create_obj(def, controller, Zone::Library);
+                let o = game.obj_mut(id);
+                o.token = true;
+                o.trigger_order = (1 << 32) + id.0 as u64;
+                enter_battlefield(game, d, id, controller, false);
             }
             EffectDef::KraulHarpoonerEffect => {
                 let (me, zcc) = source;
