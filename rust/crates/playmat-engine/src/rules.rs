@@ -438,7 +438,11 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             out.push(*id);
         } else if (o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
             || o.warp_from.is_some_and(|t| o.owner == seat && game.turn >= t))
-            && if o.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, *id, &o.def) }
+            && if o.is(CardType::Land) {
+                can_play_land(game, seat)
+            } else {
+                castable(game, seat, *id, &o.def) || spectacle(game, seat, *id).is_some()
+            }
         {
             out.push(*id);
         }
@@ -846,8 +850,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         return;
     }
     // a card in hand with an ability (cycling, channel): the picker, with its spell or land play (a0) and the abilities, if there is a choice
-    if game.obj(id).zone == Zone::Hand && game.obj(id).def.adventure.is_none() {
-        let mut options = activatable(game, seat, id);
+    // (or one you may play from exile, with its spectacle cost)
+    let zone = game.obj(id).zone;
+    if (zone == Zone::Hand || zone == Zone::Exile) && game.obj(id).def.adventure.is_none() {
+        let mut options = if zone == Zone::Hand { activatable(game, seat, id) } else { Vec::new() };
         let spectacle = spectacle(game, seat, id);
         if let Some((k, _)) = &spectacle {
             options.push(*k);
