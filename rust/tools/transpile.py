@@ -172,6 +172,7 @@ CUSTOM = {
     'TheScarabGodExileEffect': lambda: {'class': 'TheScarabGodExileEffect'},
     'ArtistsTalentEffect': lambda: {'class': 'ArtistsTalentEffect'},
     'LeylineOfTheVoidEffect': lambda: {'class': 'LeylineOfTheVoidEffect'},
+    'AvenInterrupterEffect': lambda: {'class': 'AvenInterrupterEffect'},
     'CavernOfSoulsCantCounterEffect': lambda: {'class': 'CavernOfSoulsCantCounterEffect'},
     'GiadaFontOfHopeEntersBattlefieldEffect': lambda: {'class': 'GiadaFontOfHopeEntersBattlefieldEffect'},
     'SpellQuellerEntersEffect': lambda: {'class': 'SpellQuellerEntersEffect'},
@@ -494,6 +495,8 @@ def predicate(text, subtypes):
         return {'p': {'ManaValue': 'mv'}.get(m.group(1), m.group(1).lower()), 'cmp': m.group(2), 'n': int(m.group(3))}
     if (m := re.fullmatch(r'new ColorPredicate\(ObjectColor\.(\w+)\)', text)) and m.group(1) in COLORS:
         return {'p': 'color', 'c': COLORS[m.group(1)]}
+    if (m := re.fullmatch(r'new CastFromZonePredicate\(Zone\.(GRAVEYARD|EXILED|HAND)\)', text)):
+        return {'p': 'cast_from', 'zone': {'GRAVEYARD': 'graveyard', 'EXILED': 'exile', 'HAND': 'hand'}[m.group(1)]}
     if (m := re.fullmatch(r'TappedPredicate\.(TAPPED|UNTAPPED)', text)):
         return {'p': 'tapped', 'v': m.group(1) == 'TAPPED'}
     if text == 'AttackingPredicate.instance':

@@ -5,7 +5,7 @@
 4 Vanguard Seraph
 4 Serra Angel
 3 Lyra Dawnbringer
-4 Thraben Inspector
+4 Aven Interrupter
 4 Seasoned Hallowblade
 1 Angel of Vitality
 20 Plains

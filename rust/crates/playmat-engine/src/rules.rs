@@ -1095,6 +1095,19 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // a card in hand with an ability (cycling, channel): the picker, with its spell or land play (a0) and the abilities, if there is a choice
     // (or one you may play from exile, with its spectacle cost)
     let zone = game.obj(id).zone;
+    // a plotted card: its owner may cast it without paying its mana cost, as a sorcery, on a later turn
+    if zone == Zone::Exile && game.obj(id).plotted_turn.is_some() {
+        let o = game.obj(id);
+        if o.plotted_turn == Some(game.turn) || o.owner != seat || !sorcery_speed(game, seat) {
+            return;
+        }
+        let def = CardDef { cost: ManaCost::default(), ..(*o.def).clone() };
+        if !castable(game, seat, id, &def) {
+            return;
+        }
+        cast_free(game, d, seat, id);
+        return;
+    }
     // a foretold card: cast for its foretell cost, on a later turn than it was foretold
     if zone == Zone::Exile && game.obj(id).foretold_turn.is_some() {
         if game.obj(id).foretold_turn == Some(game.turn) {
@@ -1307,6 +1320,8 @@ fn cast_allowed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> 
 }
 
 fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
+    let from = game.obj(id).zone;
+    game.obj_mut(id).cast_from = Some(from);
     game.remove_from_zone(id);
     {
         let o = game.obj_mut(id);
@@ -3857,6 +3872,21 @@ fn apply_each_effect(
                     game.move_to(*o, Zone::Exile);
                     if !game.obj(*o).token {
                         game.exiled_for_source.push((src, zcc, *o));
+                    }
+                }
+            }
+            EffectDef::AvenInterrupterEffect => {
+                // `PlotAbility.doExileAndPlotCard`: the spell is exiled, plotted (a copy just leaves)
+                for o in &objs {
+                    let Some(k) = game.stack.iter().position(|i| i.card == *o && i.ability.is_none() && i.delayed.is_none())
+                    else {
+                        continue;
+                    };
+                    Arc::make_mut(&mut game.stack).remove(k);
+                    game.move_to(*o, Zone::Exile);
+                    if game.obj(*o).zone == Zone::Exile {
+                        let turn = game.turn;
+                        game.obj_mut(*o).plotted_turn = Some(turn);
                     }
                 }
             }

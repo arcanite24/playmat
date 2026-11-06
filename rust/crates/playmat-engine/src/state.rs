@@ -119,6 +119,10 @@ pub struct Obj {
     pub chosen_type: Option<String>,
     /// the turn it was foretold (exiled face down from hand), while it stays in exile
     pub foretold_turn: Option<u32>,
+    /// the turn it became plotted, while it stays in exile
+    pub plotted_turn: Option<u32>,
+    /// the zone it was cast from, as a spell
+    pub cast_from: Option<Zone>,
     /// a spell Cavern of Souls' mana was spent on: it can't be countered
     pub uncounterable: bool,
     /// the X it was cast with, while it's on the battlefield
@@ -552,6 +556,8 @@ impl Game {
             land_type_base: None,
             chosen_type: None,
             foretold_turn: None,
+            plotted_turn: None,
+            cast_from: None,
             uncounterable: false,
             printed_def: None,
             copied_def: None,
@@ -619,6 +625,14 @@ impl Game {
             }
             Pred::Toughness { cmp, n } => cmp.holds(self.power_toughness(id).1, *n),
             Pred::Tapped { v } => o.tapped == *v,
+            Pred::CastFrom { zone } => {
+                let z = if o.zone == Zone::Stack { o.cast_from } else { Some(o.zone) };
+                z == Some(match zone.as_str() {
+                    "graveyard" => Zone::Graveyard,
+                    "exile" => Zone::Exile,
+                    _ => Zone::Hand,
+                })
+            }
             Pred::Attacking => o.attacking.is_some(),
             Pred::InCombat => o.attacking.is_some() || !o.blocking.is_empty(),
             Pred::Token { v } => o.token == *v,
@@ -1346,6 +1360,7 @@ impl Game {
                 o.attached_to = None;
                 o.uncounterable = false;
                 o.foretold_turn = None;
+                o.plotted_turn = None;
                 if let Some((def, _)) = o.land_type_base.take() {
                     o.def = def;
                 }

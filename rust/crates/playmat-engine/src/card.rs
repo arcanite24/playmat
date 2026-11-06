@@ -279,6 +279,10 @@ pub enum Pred {
         cmp: Cmp,
         n: i32,
     },
+    /// `CastFromZonePredicate`: a spell cast from the zone ("graveyard", "exile", "hand"), or a card there
+    CastFrom {
+        zone: String,
+    },
     /// `TappedPredicate.TAPPED` (true) or `.UNTAPPED`
     Tapped {
         v: bool,
@@ -1271,6 +1275,8 @@ pub enum EffectDef {
     GraveyardFromAnywhereExileReplacementEffect,
     /// an opponent's card that would be put into a graveyard from anywhere is exiled instead
     LeylineOfTheVoidEffect,
+    /// exile the target spell; it becomes plotted (its owner may cast it free as a sorcery on a later turn)
+    AvenInterrupterEffect,
     /// each other Angel you control enters with an additional +1/+1 counter for each Angel you already control
     GiadaFontOfHopeEntersBattlefieldEffect,
     /// a static ability's effect: each land is also the basic land type, with its mana ability (Urborg)
