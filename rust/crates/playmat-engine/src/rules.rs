@@ -2945,6 +2945,23 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::LoseAllAbilitiesUntilSourceLeavesEffect => {
+                let (src, zcc) = source;
+                if game.obj(src).zone != Zone::Battlefield || game.obj(src).zcc != zcc {
+                    continue;
+                }
+                for o in &objs {
+                    if game.obj(*o).zone != Zone::Battlefield || game.obj(*o).lost_abilities.is_some() {
+                        continue;
+                    }
+                    let old = game.obj(*o).def.clone();
+                    let mut def = (*old).clone();
+                    def.abilities.clear();
+                    let ob = game.obj_mut(*o);
+                    ob.def = Arc::new(def);
+                    ob.lost_abilities = Some((src, zcc, old));
+                }
+            }
             EffectDef::FirebendingEffect { amount } => {
                 let p = game.player_mut(controller);
                 p.mana_pool.colored[Color::R.index()] += *amount;

@@ -143,6 +143,9 @@ pub struct Obj {
     pub exile_instead_of_dying: bool,
     /// `DamagedByControlledWatcher`: the turn, and the players whose sources dealt it damage that turn (bits)
     pub damaged_by: (u32, u8),
+    /// it lost all abilities while this source (and zone-change count) is on the battlefield: the source, and its
+    /// card as it was
+    pub lost_abilities: Option<(ObjId, u32, Arc<CardDef>)>,
     /// in exile: this player may play it through the end of this turn number
     pub may_play: Option<(Seat, u32)>,
     /// cast from exile, it costs this much more (Elite Spellbinder)
@@ -519,6 +522,7 @@ impl Game {
             regen_shields: 0,
             exile_instead_of_dying: false,
             damaged_by: (0, 0),
+            lost_abilities: None,
             may_play: None,
             play_tax: 0,
             warped: false,
@@ -1188,6 +1192,22 @@ impl Game {
         if from == Zone::Battlefield && zone != Zone::Battlefield {
             let c = self.obj(id).controller;
             self.player_mut(c).permanent_left = true;
+        }
+        // what lost its abilities while this was on the battlefield gets them back
+        if from == Zone::Battlefield {
+            let zcc = self.obj(id).zcc;
+            for b in self.battlefield.to_vec() {
+                if self.obj(b).lost_abilities.as_ref().is_some_and(|(s, z, _)| *s == id && *z == zcc) {
+                    let o = self.obj_mut(b);
+                    if let Some((_, _, def)) = o.lost_abilities.take() {
+                        o.def = def;
+                    }
+                }
+            }
+            let o = self.obj_mut(id);
+            if let Some((_, _, def)) = o.lost_abilities.take() {
+                o.def = def;
+            }
         }
         self.remove_from_zone(id);
         {

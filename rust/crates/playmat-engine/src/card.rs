@@ -960,6 +960,8 @@ pub enum EffectDef {
     LivelyDirgeEffect,
     /// a 1/1 token copy of the source (offspring)
     OffspringEffect,
+    /// the target loses all abilities for as long as the source remains on the battlefield
+    LoseAllAbilitiesUntilSourceLeavesEffect,
     /// firebending: adds `amount` {R} that lasts until end of combat
     FirebendingEffect { amount: u32 },
     /// adds `amount` mana of one color its controller chooses (a resolving effect: always asked)

@@ -1032,6 +1032,8 @@ class Translator:
         # a Role token attached to each target
         if cls == 'CreateRoleAttachedTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'RoleType\.(\w+)', args[0].strip())):
             return {'class': cls, 'token': token(m.group(1).title().replace('_', '') + 'RoleToken')}
+        if cls == 'LoseAllAbilitiesTargetEffect' and [a.strip() for a in args] == ['Duration.UntilSourceLeavesBattlefield']:
+            return {'class': 'LoseAllAbilitiesUntilSourceLeavesEffect'}
         if cls == 'AddManaOfAnyColorEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
         if cls == 'CreateTokenCopyTargetEffect' and not args:
