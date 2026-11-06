@@ -443,6 +443,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || spectacle(game, seat, *id).is_some()
             || warp(game, seat, *id).is_some()
             || cleave(game, seat, *id).is_some()
+            || blitz(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
         {
             out.push(*id);
@@ -466,6 +467,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         }
         if def.flashback().is_some_and(|f| castable(game, seat, *id, &f))
             || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
+            || blitz(game, seat, *id).is_some()
         {
             out.push(*id);
         }
@@ -662,6 +664,38 @@ fn warp(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
         return None;
     }
     let (k, def) = game.obj(id).def.warp()?;
+    castable(game, seat, id, &def).then_some((k, def))
+}
+
+/// Casts a card for its blitz costs (the whole card comes back as it leaves the stack)
+fn cast_blitzed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, def: CardDef) {
+    let before = game.clone();
+    let full = game.obj(id).def.clone();
+    let o = game.obj_mut(id);
+    o.adventurer = Some(full);
+    o.def = Arc::new(def);
+    if !cast(game, d, seat, id) {
+        *game = before;
+        return;
+    }
+    game.obj_mut(id).blitzed = true;
+}
+
+/// Blitz: the card's ability index and the card with its blitz costs, if it can be cast that way: from hand, or from
+/// the graveyard with Tenacious Underdog's ability.
+fn blitz(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    let o = game.obj(id);
+    let from_graveyard = o.zone == Zone::Graveyard
+        && o.def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                effects.iter().any(|e| matches!(e, EffectDef::TenaciousUnderdogEffect))
+            }
+            _ => false,
+        });
+    if o.zone != Zone::Hand && !from_graveyard {
+        return None;
+    }
+    let (k, def) = o.def.blitz()?;
     castable(game, seat, id, &def).then_some((k, def))
 }
 
@@ -951,6 +985,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &cleave {
             options.push(*k);
         }
+        let blitz = if zone == Zone::Hand { blitz(game, seat, id) } else { None };
+        if let Some((k, _)) = &blitz {
+            options.push(*k);
+        }
         if !options.is_empty() {
             let def = game.obj(id).def.clone();
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
@@ -980,6 +1018,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     return;
                 }
                 game.obj_mut(id).warped = warped;
+                return;
+            }
+            if let Some((_, def)) = blitz.filter(|(k, _)| *k == index) {
+                cast_blitzed(game, d, seat, id, def);
                 return;
             }
             if index != 0 {
@@ -1014,6 +1056,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     let before = game.clone();
     // flashback: cast with its flashback cost (the whole card comes back as it leaves the stack)
     if game.obj(id).zone == Zone::Graveyard {
+        if let Some((_, def)) = blitz(game, seat, id) {
+            cast_blitzed(game, d, seat, id, def);
+            return;
+        }
         if let Some(f) = game.obj(id).def.flashback() {
             let full = game.obj(id).def.clone();
             let o = game.obj_mut(id);
@@ -4318,6 +4364,7 @@ fn apply_each_effect(
             | EffectDef::AddCardSubTypeSourceEffect
             | EffectDef::NowhereToRunHexproofEffect
             | EffectDef::NowhereToRunWardEffect
+            | EffectDef::TenaciousUnderdogEffect
             | EffectDef::BoostAllEffect { .. }
             | EffectDef::TapSourceUnlessPaysEffect { .. }
             | EffectDef::AttachEffect
@@ -4687,6 +4734,25 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         }
         o.zcc
     };
+    // blitz: haste, and sacrificed at the beginning of the next end step
+    if game.obj(id).blitzed {
+        Arc::make_mut(&mut game.grants).push(Grant {
+            target: id,
+            zcc,
+            ability: AbilityDef::HasteAbility,
+            until_end_of_turn: false,
+            until_turn_of: None,
+        });
+        let delayed = Delayed {
+            rule: "At the beginning of the next end step, sacrifice the blitzed creature.".into(),
+            sacrifice: vec![(id, zcc)],
+            warp_exile: Vec::new(),
+            effects: Vec::new(),
+            source_zcc: 0,
+            fixed: Vec::new(),
+        };
+        game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, controller) });
+    }
     // `WarpAbilityWatcher`: a warped permanent is exiled at the beginning of the next end step
     if game.obj(id).warped {
         let delayed = Delayed {

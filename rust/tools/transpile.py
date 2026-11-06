@@ -147,6 +147,7 @@ CUSTOM = {
     'ScreamingNemesisEffect': lambda: {'class': 'ScreamingNemesisEffect'},
     'GraveyardTrespasserEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
     'MightformHarmonizerEffect': lambda: {'class': 'MightformHarmonizerEffect'},
+    'TenaciousUnderdogEffect': lambda: {'class': 'TenaciousUnderdogEffect'},
     'NowhereToRunHexproofEffect': lambda: {'class': 'NowhereToRunHexproofEffect'},
     'NowhereToRunWardEffect': lambda: {'class': 'NowhereToRunWardEffect'},
     'EvolvedSleeperClericEffect': lambda: {'class': 'EvolvedSleeperClericEffect'},
@@ -1554,6 +1555,8 @@ class Translator:
             if n == 5:
                 a['condition'] = self.condition(args[4])
             return a
+        if cls == 'BlitzAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
+            return {'class': cls, 'java': cls, 'mana': args[1][1:-1], 'cost': []}
         if cls == 'WardAbility' and n in (1, 2) and (n == 1 or args[1] in ('true', 'false')):
             return {'class': 'WardAbility', 'java': cls,
                     'effects': [{'class': 'CounterUnlessPaysEffect', 'cost': [self.cost(args[0])]}]}
@@ -1976,6 +1979,9 @@ def ability_statement(t, st, added):
             added.append(t.ability(e.group(1)))
             return True
         added.append(t.ability(','.join(args)))
+        # blitz: its "as it enters" part, listed on its own
+        if added[-1].get('class') == 'BlitzAbility':
+            added.append({'class': 'BlitzEntersAbility', 'java': 'EntersBattlefieldAbility'})
         return True
     return False
 

@@ -146,6 +146,8 @@ pub struct Obj {
     pub play_tax: u32,
     /// cast for its warp cost (on the stack, then on the battlefield)
     pub warped: bool,
+    /// cast for its blitz cost (until it leaves the battlefield)
+    pub blitzed: bool,
     /// in exile after warp: its owner may cast it from this turn number on
     pub warp_from: Option<u32>,
     /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
@@ -490,6 +492,7 @@ impl Game {
             may_play: None,
             play_tax: 0,
             warped: false,
+            blitzed: false,
             warp_from: None,
             mana_spent: 0,
             entered_turn: 0,
@@ -1060,7 +1063,20 @@ impl Game {
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 _ => false,
             });
-            self.pelt_collector(fired, id)
+            let mut fired = self.pelt_collector(fired, id);
+            // blitz: its granted "When this creature dies, draw a card."
+            if self.obj(id).blitzed {
+                let delayed = Delayed {
+                    rule: "When this creature dies, draw a card.".into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::DrawCardSourceControllerEffect { amount: crate::card::Amount::Fixed(1) }],
+                    source_zcc: self.obj(id).zcc,
+                    fixed: Vec::new(),
+                };
+                fired.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, died_controller) });
+            }
+            fired
         } else if from == Zone::Battlefield && zone != Zone::Battlefield {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
             self.triggers(sources, |g, src, you, t| match t {
@@ -1120,6 +1136,7 @@ impl Game {
             o.warp_from = None;
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
+                o.blitzed = false;
             }
         }
         let owner = self.obj(id).owner;

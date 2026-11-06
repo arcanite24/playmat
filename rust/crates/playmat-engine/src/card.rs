@@ -928,6 +928,8 @@ pub enum EffectDef {
     TransformSourceEffect,
     /// the target gets +X/+0 until end of turn, X its power (Mightform Harmonizer: "double the power")
     MightformHarmonizerEffect,
+    /// static: you may cast this card from your graveyard using its blitz ability
+    TenaciousUnderdogEffect,
     /// static: creatures your opponents control can be targeted as though they didn't have hexproof
     NowhereToRunHexproofEffect,
     /// static: ward abilities of creatures your opponents control don't trigger
@@ -1350,6 +1352,16 @@ pub enum AbilityDef {
         effects: Vec<EffectDef>,
         rule: String,
     },
+    /// cast for `mana` and `cost` instead: it gains haste and "when this creature dies, draw a card", and it's
+    /// sacrificed at the beginning of the next end step (a second spell ability)
+    BlitzAbility {
+        mana: String,
+        #[serde(default)]
+        cost: Vec<CostDef>,
+        rule: String,
+    },
+    /// the blitz ability's "as it enters" part (Java lists it on its own)
+    BlitzEntersAbility { rule: String },
     /// cast from hand for `cost` instead if an opponent lost life this turn (a second spell ability)
     SpectacleAbility {
         cost: String,
@@ -1843,6 +1855,18 @@ impl CardDef {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
             AbilityDef::SpectacleAbility { cost, .. } => {
                 Some((k, CardDef { cost: ManaCost::parse(cost).ok()?, ..self.clone() }))
+            }
+            _ => None,
+        })
+    }
+
+    /// The blitz ability's index and the card with its blitz costs.
+    pub fn blitz(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::BlitzAbility { mana, cost, .. } => {
+                let mut spell = self.spell.clone();
+                spell.costs.extend(cost.iter().cloned());
+                Some((k, CardDef { cost: ManaCost::parse(mana).ok()?, spell, ..self.clone() }))
             }
             _ => None,
         })
