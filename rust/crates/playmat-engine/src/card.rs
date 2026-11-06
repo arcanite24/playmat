@@ -1470,6 +1470,11 @@ pub enum AbilityDef {
         cost: String,
         rule: String,
     },
+    /// "as an additional cost, you may blight N": N -1/-1 counters on a creature you control
+    BlightAbility {
+        amount: i32,
+        rule: String,
+    },
     /// enters with its effects applied (a replacement effect), if the condition holds
     EntersBattlefieldAbility {
         effects: Vec<EffectDef>,

@@ -266,6 +266,7 @@ ABILITIES = {
     'AsEntersBattlefieldAbility': [('effect', 'effect'), (None, 'string')],
     'EntersBattlefieldTappedAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
+    'BlightAbility': [('amount', 'int')],
     'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
     'HarmonizeAbility': [(None, 'this'), ('cost', 'cost_text')],
     'EscapeAbility': [(None, 'this'), ('cost', 'cost_text'), ('exile', 'int')],
@@ -359,7 +360,9 @@ TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'a
 
 COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun',
             'CounterType.M1M1': '-1/-1', 'CounterType.INDESTRUCTIBLE': 'indestructible'}
-CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
+CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
+              # blight is an optional additional cost the engine keeps as the spell's kicked flag
+              'BlightedCondition.instance': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
               'OpponentsLostLifeCondition.instance': {'c': 'opponents_lost_life'},

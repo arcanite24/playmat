@@ -1210,6 +1210,29 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             }
         }
     }
+    // blight: `BlightAbility.addOptionalAdditionalCosts`, asked only with a creature to put the counters on
+    let mut blight = None;
+    for a in &def.abilities {
+        if let AbilityDef::BlightAbility { amount, .. } = a {
+            if controlled_creatures(game, seat).is_empty() {
+                continue;
+            }
+            let q = Query::YesNo { message: format!("Blight {}?", amount) };
+            let pay = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if pay {
+                blight = Some(*amount);
+                if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                    top.kicked = true;
+                }
+            }
+        }
+    }
     // gift: `GiftAbility.addOptionalAdditionalCosts`
     for a in &def.abilities {
         if let AbilityDef::GiftAbility { name, .. } = a {
@@ -1357,6 +1380,17 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             return false;
         }
     }
+    // `BlightCost.doBlight`: the counters go on a creature the player chooses
+    if let Some(n) = blight {
+        let creatures = controlled_creatures(game, seat);
+        let Some(chosen) = choose_cards(game, d, seat, &creatures, &creatures, 1, 1, &def.spell.rule) else {
+            return false;
+        };
+        match chosen.first() {
+            Some(c) => game.obj_mut(*c).add_counters("-1/-1", n),
+            None => return false,
+        }
+    }
     // `PromiseGiftCost.pay`: the opponent it's promised to (a player is never auto-chosen)
     if game.stack.last().is_some_and(|t| t.gift_promised) {
         let Some(chosen) = choose_target(game, d, seat, &TargetDef::TargetOpponent, Some(id), "", false) else {
@@ -1445,6 +1479,14 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
 }
 
 /// `CantCastMoreThanOneSpellEffect`: the player already cast a spell this turn.
+fn controlled_creatures(game: &Game, seat: Seat) -> Vec<ObjId> {
+    game.battlefield
+        .iter()
+        .copied()
+        .filter(|c| game.obj(*c).controller == seat && game.has_type(*c, CardType::Creature))
+        .collect()
+}
+
 fn untapped_creatures(game: &Game, seat: Seat) -> Vec<ObjId> {
     game.battlefield
         .iter()
