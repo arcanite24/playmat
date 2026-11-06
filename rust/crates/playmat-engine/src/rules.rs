@@ -5897,6 +5897,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 t.targets = vec![vec![Target::Player(p)]];
                 t.target_zcc = vec![vec![0]];
             }
+            // the damage dealt (`SavedDamageValue.MUCH`)
+            t.x = amount;
             game.pending.push(t);
         }
     }
