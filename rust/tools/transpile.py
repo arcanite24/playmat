@@ -1242,6 +1242,8 @@ class Translator:
                 return {'class': cls, 'amount': int(n.group(1)), 'controller': self.value('target_controller', args[2].strip())}
         # "at the beginning of the next end step, …": its effects then
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1:
+            if args[0].strip() == 'new CopyNextSpellDelayedTriggeredAbility()':
+                return {'class': 'CreateCopyNextSpellDelayedEffect'}
             if args[0].strip() == 'new AddCounterNextSpellDelayedTriggeredAbility()':
                 return {'class': 'CreateNextCreatureSpellDelayedEffect', 'amount': 1,
                         'rule': 'When you next cast a creature spell this turn, that creature enters with an '
@@ -1445,6 +1447,9 @@ class Translator:
         if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and 'CantBeCounteredSourceEffect' in args[1])):
             args = args[1:]
         # a Class: its levels, gained as a sorcery one after another, and the abilities each level adds
+        # casualty N: as you cast it, you may sacrifice a creature with power N or greater; when you do, copy it
+        if cls == 'CasualtyAbility' and len(args) == 1 and args[0].strip().isdigit():
+            return {'class': cls, 'java': cls, 'n': int(args[0].strip())}
         if cls == 'LeylineAbility' and not args:
             return {'class': cls, 'java': cls}
         if cls == 'ClassReminderAbility' and not args:

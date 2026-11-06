@@ -1269,6 +1269,41 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             }
         }
     }
+    // casualty: `CasualtyAbility.addOptionalAdditionalCosts`, asked only when the sacrifice can be paid; "when you do,
+    // copy this spell" waits from then on
+    let mut casualty = None;
+    for a in &def.abilities {
+        if let AbilityDef::CasualtyAbility { n, .. } = a {
+            let filter = crate::card::Filter(vec![Pred::Type { t: CardType::Creature }, Pred::Power { cmp: Cmp::OrGreater, n: *n }]);
+            let c = CostDef::SacrificeTargetCost { filter, amount: 1 };
+            if !can_pay_cost(game, seat, id, &c) {
+                continue;
+            }
+            let q = Query::YesNo { message: format!("Sacrifice a creature with power {} or greater?", n) };
+            let pay = loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            };
+            if pay {
+                casualty = Some(c);
+                let delayed = Delayed {
+                    rule: "When you do, copy this spell.".into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::CopySourceSpellEffect],
+                    source_zcc: game.obj(id).zcc,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.pending.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, seat) });
+            }
+        }
+    }
     // gift: `GiftAbility.addOptionalAdditionalCosts`
     for a in &def.abilities {
         if let AbilityDef::GiftAbility { name, .. } = a {
@@ -1416,6 +1451,11 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             return false;
         }
     }
+    if let Some(c) = &casualty {
+        if !pay_cost(game, d, seat, id, c) {
+            return false;
+        }
+    }
     // `BlightCost.doBlight`: the counters go on a creature the player chooses
     if let Some(n) = blight {
         let creatures = controlled_creatures(game, seat);
@@ -1483,6 +1523,19 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         let (now, rest): (Vec<_>, Vec<_>) =
             std::mem::take(&mut game.next_creature_spell).into_iter().partition(|(s, t, _)| *s == seat && *t == turn);
         game.next_creature_spell = rest.into_iter().filter(|(_, t, _)| *t == turn).collect();
+        for (_, _, mut item) in now {
+            if let Some(dl) = item.delayed.as_mut() {
+                Arc::make_mut(dl).fixed = vec![(spell, game.obj(spell).zcc)];
+            }
+            game.pending.push(item);
+        }
+    }
+    // Galvanic Iteration: the next instant or sorcery spell this turn
+    if game.obj(spell).is(CardType::Instant) || game.obj(spell).is(CardType::Sorcery) {
+        let turn = game.turn;
+        let (now, rest): (Vec<_>, Vec<_>) =
+            std::mem::take(&mut game.next_instant_sorcery).into_iter().partition(|(s, t, _)| *s == seat && *t == turn);
+        game.next_instant_sorcery = rest.into_iter().filter(|(_, t, _)| *t == turn).collect();
         for (_, _, mut item) in now {
             if let Some(dl) = item.delayed.as_mut() {
                 Arc::make_mut(dl).fixed = vec![(spell, game.obj(spell).zcc)];
@@ -2770,6 +2823,105 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     }
 }
 
+/// A spell's targets, as it was cast: its chosen modes' (or its own), the kicked or gifted ones if so
+fn spell_target_defs(def: &CardDef, item: &StackItem) -> Vec<TargetDef> {
+    let mut defs: Vec<TargetDef> = Vec::new();
+    for k in if item.modes.is_empty() { vec![0] } else { item.modes.clone() } {
+        defs.extend(def.spell.mode(k).1.iter().cloned());
+    }
+    if let Some((unkicked, kicked)) = &def.spell.kicked_targets {
+        defs = if item.kicked { kicked.clone() } else { unkicked.clone() };
+    }
+    if let Some((plain, promised)) = &def.spell.gift_targets {
+        defs = if item.gift_promised { promised.clone() } else { plain.clone() };
+    }
+    defs
+}
+
+/// `Spell.createSingleCopy` with new targets: the copy (a token) goes on the stack, then `chooseNewTargets` asks of
+/// each target whether to change it (`chooseNewTarget`)
+fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, controller: Seat) {
+    let def = game.obj(original.card).def.clone();
+    let copy = game.create_obj(def.clone(), controller, Zone::Stack);
+    {
+        let o = game.obj_mut(copy);
+        o.token = true;
+        o.trigger_order = (1 << 32) + copy.0 as u64;
+    }
+    let mut item = original.clone();
+    item.card = copy;
+    item.controller = controller;
+    item.ward_of = None;
+    Arc::make_mut(&mut game.stack).push(item.clone());
+    let defs = spell_target_defs(&def, original);
+    let mut targets = item.targets.clone();
+    let mut zccs = item.target_zcc.clone();
+    for (k, tdef) in defs.iter().enumerate() {
+        let Some(old) = original.targets.get(k).cloned() else { continue };
+        let total = old.len();
+        let mut new: Vec<Target> = Vec::new();
+        for (n, t) in old.iter().enumerate() {
+            let q = Query::YesNo { message: format!("Change this {} of {} target?", n + 1, total) };
+            let change = loop {
+                match ask(game, d, controller, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return,
+                    _ => {}
+                }
+            };
+            if !change {
+                new.push(*t);
+                continue;
+            }
+            // one at a time; nothing chosen, or a target already chosen, asks whether to keep the old one
+            let single = tdef.single();
+            loop {
+                let chosen = choose_target(game, d, controller, &single, Some(copy), "", false);
+                if d.stopped() {
+                    return;
+                }
+                let picked = chosen.as_ref().and_then(|c| c.first().copied());
+                let reset = match picked {
+                    None => true,
+                    Some(p) => new.contains(&p) || old.contains(&p),
+                };
+                if !reset {
+                    new.push(picked.unwrap());
+                    break;
+                }
+                let q = Query::YesNo { message: "Reset to original target?".into() };
+                let yes = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if yes {
+                    new.push(*t);
+                    break;
+                }
+            }
+        }
+        if let Some(slot) = targets.get_mut(k) {
+            *slot = new.clone();
+        }
+        if let Some(slot) = zccs.get_mut(k) {
+            *slot = new
+                .iter()
+                .map(|t| match t {
+                    Target::Obj(o) => game.obj(*o).zcc,
+                    Target::Player(_) => 0,
+                })
+                .collect();
+        }
+    }
+    if let Some(top) = Arc::make_mut(&mut game.stack).iter_mut().rev().find(|i| i.card == copy) {
+        top.targets = targets;
+        top.target_zcc = zccs;
+    }
+}
+
 /// `CreateTokenCopyTargetEffect`: a token copy of `of`'s copiable values (its printed card), with a set power and
 /// toughness
 fn token_copy(game: &mut Game, d: &mut dyn Decider, of: ObjId, controller: Seat, pt: Option<(i32, i32)>) {
@@ -3374,6 +3526,51 @@ fn apply_each_effect(
                 };
                 game.at_next_end_step
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(card, controller) });
+            }
+            EffectDef::CreateCopyNextSpellDelayedEffect => {
+                let delayed = Delayed {
+                    rule: "When you next cast an instant or sorcery spell this turn, copy that spell. You may choose \
+                           new targets for the copy."
+                        .into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::CopyTargetSpellEffect],
+                    source_zcc: source.1,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                let turn = game.turn;
+                game.next_instant_sorcery.push((
+                    controller,
+                    turn,
+                    StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) },
+                ));
+            }
+            EffectDef::CopyTargetSpellEffect => {
+                for o in &objs {
+                    let original =
+                        game.stack.iter().find(|i| i.card == *o && i.ability.is_none() && i.delayed.is_none()).cloned();
+                    if let Some(original) = original {
+                        copy_spell(game, d, &original, controller);
+                    }
+                }
+            }
+            EffectDef::CopySourceSpellEffect => {
+                let (spell, zcc) = source;
+                let Some(original) = game
+                    .stack
+                    .iter()
+                    .find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none())
+                    .cloned()
+                else {
+                    continue;
+                };
+                if game.obj(spell).zcc != zcc {
+                    continue;
+                }
+                copy_spell(game, d, &original, controller);
             }
             EffectDef::SetClassLevelEffect { level } => {
                 let (me, zcc) = source;

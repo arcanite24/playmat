@@ -177,6 +177,23 @@ pub enum TargetDef {
     },
 }
 
+impl TargetDef {
+    /// The same target for exactly one object or player (`chooseNewTarget`'s one target at a time)
+    pub fn single(&self) -> TargetDef {
+        let mut t = self.clone();
+        match &mut t {
+            TargetDef::TargetAnyTarget { min, max, .. }
+            | TargetDef::TargetPermanent { min, max, .. }
+            | TargetDef::TargetCardInGraveyard { min, max, .. } => {
+                *min = 1;
+                *max = 1;
+            }
+            _ => {}
+        }
+        t
+    }
+}
+
 fn one_u32() -> u32 {
     1
 }
@@ -997,6 +1014,13 @@ pub enum EffectDef {
     },
     /// you have the ability (hexproof)
     GainAbilityControllerEffect { ability: Box<AbilityDef> },
+    /// "when you cast your next instant or sorcery spell this turn, copy that spell. You may choose new targets for
+    /// the copy."
+    CreateCopyNextSpellDelayedEffect,
+    /// copy the spell the delayed trigger points at (new targets may be chosen)
+    CopyTargetSpellEffect,
+    /// copy the spell that's this ability's source (casualty's "when you do"); its controller may choose new targets
+    CopySourceSpellEffect,
     /// a Class gains level `level`
     SetClassLevelEffect { level: u32 },
     /// exile the target card from a graveyard; a token copy of it, except a 4/4 black Zombie
@@ -1544,6 +1568,8 @@ pub enum AbilityDef {
         condition: Option<Condition>,
         rule: String,
     },
+    /// casualty `n`: as it's cast, you may sacrifice a creature with power `n` or greater; when you do, copy the spell
+    CasualtyAbility { n: i32, rule: String },
     /// "(Gain the next level as a sorcery to add its ability.)"
     ClassReminderAbility,
     /// "If this card is in your opening hand, you may begin the game with it on the battlefield." (before the game)

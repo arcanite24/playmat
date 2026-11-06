@@ -398,6 +398,8 @@ pub struct Game {
     pub at_next_end_step: Vec<StackItem>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
     pub next_creature_spell: Vec<(Seat, u32, StackItem)>,
+    /// "when you next cast an instant or sorcery spell this turn": the player, the turn, the delayed trigger
+    pub next_instant_sorcery: Vec<(Seat, u32, StackItem)>,
     /// "until your next turn, whenever one or more creatures attack one of your opponents" delayed triggers: whose,
     /// and the trigger (its `fixed` set to the attackers)
     pub attacks_opponent: Vec<(Seat, StackItem)>,
@@ -464,6 +466,7 @@ impl Game {
             at_next_end_step: Vec::new(),
             attacks_opponent: Vec::new(),
             next_creature_spell: Vec::new(),
+            next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
             exile_by_creation: false,
             creature_died: false,
