@@ -1092,12 +1092,26 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             p.instants_sorceries_cast += 1;
         }
     }
+    // TARGETED's valiant, ward and Surrak triggers: `processAction` handles them before SPELL_CAST
+    ward(game);
     let sources: Vec<ObjId> = game.trigger_sources();
     let targeted: Vec<ObjId> = game
         .stack
         .last()
         .map(|t| t.targets.iter().flatten().filter_map(|x| if let Target::Obj(o) = x { Some(*o) } else { None }).collect())
         .unwrap_or_default();
+    // the rest of TARGETED
+    let mut fired = game.triggers(sources.clone(), |g, src, you, t| match t {
+        Trigger::BecomesTargetOfSpell { filter } => targeted.contains(&src) && g.filter_matches(filter, you, Some(src), spell),
+        _ => false,
+    });
+    for t in fired.iter_mut() {
+        if set_target_pointer(game, t) {
+            t.targets = vec![vec![Target::Player(seat)]];
+            t.target_zcc = vec![vec![0]];
+        }
+    }
+    game.pending.extend(fired);
     let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
         Trigger::SpellCast { filter, who } => Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell),
         Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
@@ -1119,19 +1133,6 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         }
     }
     game.pending.extend(fired);
-    // TARGETED, a simultaneous event: handled after SPELL_CAST
-    let mut fired = game.triggers(sources, |g, src, you, t| match t {
-        Trigger::BecomesTargetOfSpell { filter } => targeted.contains(&src) && g.filter_matches(filter, you, Some(src), spell),
-        _ => false,
-    });
-    for t in fired.iter_mut() {
-        if set_target_pointer(game, t) {
-            t.targets = vec![vec![Target::Player(seat)]];
-            t.target_zcc = vec![vec![0]];
-        }
-    }
-    game.pending.extend(fired);
-    ward(game);
     true
 }
 
