@@ -150,6 +150,8 @@ CUSTOM = {
     'MightformHarmonizerEffect': lambda: {'class': 'MightformHarmonizerEffect'},
     'GhostVacuumEffect': lambda: {'class': 'GhostVacuumEffect'},
     'LivelyDirgeEffect': lambda: {'class': 'LivelyDirgeEffect'},
+    'EtchingOfKumanoReplacementEffect': lambda: {'class': 'EtchingOfKumanoReplacementEffect'},
+    'ExileSagaAndReturnTransformedEffect': lambda: {'class': 'ExileSagaAndReturnTransformedEffect'},
     'TenaciousUnderdogEffect': lambda: {'class': 'TenaciousUnderdogEffect'},
     'NowhereToRunHexproofEffect': lambda: {'class': 'NowhereToRunHexproofEffect'},
     'NowhereToRunWardEffect': lambda: {'class': 'NowhereToRunWardEffect'},
@@ -1192,6 +1194,10 @@ class Translator:
                 return {'class': cls, 'amount': int(n.group(1)), 'controller': self.value('target_controller', args[2].strip())}
         # "at the beginning of the next end step, …": its effects then
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1:
+            if args[0].strip() == 'new AddCounterNextSpellDelayedTriggeredAbility()':
+                return {'class': 'CreateNextCreatureSpellDelayedEffect', 'amount': 1,
+                        'rule': 'When you next cast a creature spell this turn, that creature enters with an '
+                                'additional +1/+1 counter on it.'}
             d = self.vars.get(args[0].strip()) or self.ability(args[0])
             if d.get('class') != 'NextEndStepDelayed':
                 raise Unsupported('delayed ability ' + args[0])
@@ -1817,7 +1823,12 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
             if not ability_statement(t, 'this.' + m.group(2), added[m.group(1) == 'Right']):
                 raise Unsupported('transforming double-faced card statement ' + st)
             continue
-        if not ability_statement(t, st, []):
+        # a watcher is the engine's own bookkeeping
+        if re.fullmatch(r'\w+\.addWatcher\(new \w+Watcher\(\)\)', st):
+            continue
+        # a Saga front: its lore counter and chapters are the front's abilities
+        saga = re.search(r'new SagaAbility\(this\.getLeftHalfCard\(\)\)|\.addChapterEffect\(this\.getLeftHalfCard\(\),', st)
+        if not ability_statement(t, st, added[0] if saga else []):
             raise Unsupported('transforming double-faced card statement ' + st)
     if 'types' not in front or not java_abilities or java_abilities[0]['class'] != 'SpellAbility':
         raise Unsupported('transforming double-faced card without its faces')

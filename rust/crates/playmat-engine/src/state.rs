@@ -141,6 +141,8 @@ pub struct Obj {
     pub regen_shields: u32,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
     pub exile_instead_of_dying: bool,
+    /// `DamagedByControlledWatcher`: the turn, and the players whose sources dealt it damage that turn (bits)
+    pub damaged_by: (u32, u8),
     /// in exile: this player may play it through the end of this turn number
     pub may_play: Option<(Seat, u32)>,
     /// cast from exile, it costs this much more (Elite Spellbinder)
@@ -369,6 +371,10 @@ pub struct Game {
     pub at_end_of_combat: Vec<StackItem>,
     /// "at the beginning of the next end step" delayed triggers
     pub at_next_end_step: Vec<StackItem>,
+    /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
+    pub next_creature_spell: Vec<(Seat, u32, StackItem)>,
+    /// spells that enter with more +1/+1 counters: the card as it was on the stack, and how many
+    pub enter_counters: Vec<(ObjId, u32, i32)>,
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
     /// order they were exiled
     pub exile_by_creation: bool,
@@ -428,6 +434,8 @@ impl Game {
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
+            next_creature_spell: Vec::new(),
+            enter_counters: Vec::new(),
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
@@ -508,6 +516,7 @@ impl Game {
             base_pt: None,
             regen_shields: 0,
             exile_instead_of_dying: false,
+            damaged_by: (0, 0),
             may_play: None,
             play_tax: 0,
             warped: false,
@@ -1062,10 +1071,25 @@ impl Game {
         } else {
             zone
         };
+        // Etching of Kumano: a creature dealt damage this turn by a source its controller controlled is exiled
+        let etching = from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) && {
+            let (turn, mask) = self.obj(id).damaged_by;
+            turn == self.turn
+                && self.battlefield.iter().any(|b| {
+                    let s = self.obj(*b);
+                    mask & (1 << s.controller) != 0
+                        && s.def.abilities.iter().any(|a| match a {
+                            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                                effects.iter().any(|e| matches!(e, EffectDef::EtchingOfKumanoReplacementEffect))
+                            }
+                            _ => false,
+                        })
+                })
+        };
         // "if it would die this turn, exile it instead"
         let zone = if from == Zone::Battlefield
             && zone == Zone::Graveyard
-            && (self.exile_if_dies.contains(&(id, self.obj(id).zcc)) || self.obj(id).exile_instead_of_dying)
+            && (etching || self.exile_if_dies.contains(&(id, self.obj(id).zcc)) || self.obj(id).exile_instead_of_dying)
         {
             Zone::Exile
         } else {
@@ -1175,6 +1199,7 @@ impl Game {
                 if let Some(def) = o.front.take() {
                     o.def = def;
                 }
+                o.damaged_by = (0, 0);
             }
             o.on_adventure = false;
             o.exile_instead_of_dying = false;

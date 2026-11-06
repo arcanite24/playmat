@@ -1341,6 +1341,19 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
         }
     }
     game.pending.extend(fired);
+    // delayed triggers first: "when you next cast a creature spell this turn"
+    if game.obj(spell).is(CardType::Creature) {
+        let turn = game.turn;
+        let (now, rest): (Vec<_>, Vec<_>) =
+            std::mem::take(&mut game.next_creature_spell).into_iter().partition(|(s, t, _)| *s == seat && *t == turn);
+        game.next_creature_spell = rest.into_iter().filter(|(_, t, _)| *t == turn).collect();
+        for (_, _, mut item) in now {
+            if let Some(dl) = item.delayed.as_mut() {
+                Arc::make_mut(dl).fixed = vec![(spell, game.obj(spell).zcc)];
+            }
+            game.pending.push(item);
+        }
+    }
     let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
         Trigger::SpellCast { filter, who } => Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell),
         Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
@@ -2885,6 +2898,42 @@ fn apply_each_effect(
                     game.obj_mut(id).attached_to = Some((*o, zcc));
                     enter_battlefield(game, d, id, controller, false);
                     game.obj_mut(id).attached_to = Some((*o, zcc));
+                }
+            }
+            EffectDef::CreateNextCreatureSpellDelayedEffect { amount, rule } => {
+                let delayed = Delayed {
+                    rule: rule.clone(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::AddCounterNextSpellEffect { amount: *amount }],
+                    source_zcc: source.1,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                };
+                let turn = game.turn;
+                game.next_creature_spell.push((
+                    controller,
+                    turn,
+                    StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) },
+                ));
+            }
+            EffectDef::AddCounterNextSpellEffect { amount } => {
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Stack {
+                        let zcc = game.obj(*o).zcc;
+                        game.enter_counters.push((*o, zcc, *amount));
+                    }
+                }
+            }
+            EffectDef::ExileSagaAndReturnTransformedEffect => {
+                let (src, zcc) = source;
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    game.move_to(src, Zone::Exile);
+                    if let Some(back) = game.obj(src).def.transform_back.clone() {
+                        let o = game.obj_mut(src);
+                        o.front = Some(std::mem::replace(&mut o.def, back));
+                        enter_battlefield(game, d, src, controller, false);
+                    }
                 }
             }
             EffectDef::LivelyDirgeEffect => {
@@ -4679,6 +4728,7 @@ fn apply_each_effect(
             | EffectDef::TapSourceUnlessPaysEffect { .. }
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
+            | EffectDef::EtchingOfKumanoReplacementEffect
             | EffectDef::AttachEffect
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
@@ -5007,6 +5057,15 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     }
     // a permanent spell resolving was cast (`CastFromEverywhereSourceCondition`)
     let cast = game.obj(id).zone == Zone::Stack;
+    let stack_zcc = game.obj(id).zcc;
+    let more_counters: i32 = if cast {
+        let (mine, rest): (Vec<_>, Vec<_>) =
+            std::mem::take(&mut game.enter_counters).into_iter().partition(|(o, z, _)| *o == id && *z == stack_zcc);
+        game.enter_counters = rest;
+        mine.iter().map(|(_, _, n)| n).sum()
+    } else {
+        0
+    };
     let turn = game.turn;
     game.move_to(id, Zone::Battlefield);
     // at night a daybound card still enters as its front (Java never calls `NightboundAbility.checkCard`); the
@@ -5073,6 +5132,9 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             return_tapped: Vec::new(),
         };
         game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(id, controller) });
+    }
+    if more_counters > 0 {
+        game.obj_mut(id).add_counters("+1/+1", more_counters);
     }
     // Gev, Scaled Scorch: other creatures you control enter with counters
     if game.has_type(id, CardType::Creature) {
@@ -5538,7 +5600,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 game.damaged_batch.push((o, amount));
             }
             let planeswalker = game.has_type(o, CardType::Planeswalker);
+            let turn = game.turn;
             let t = game.obj_mut(o);
+            t.damaged_by = if t.damaged_by.0 == turn { (turn, t.damaged_by.1 | (1 << you)) } else { (turn, 1 << you) };
             if creature {
                 t.damage += amount;
                 if deathtouch {

@@ -927,6 +927,11 @@ pub enum EffectDef {
     /// "at the beginning of the next end step, …" (`CreateDelayedTriggeredAbilityEffect` with
     /// `AtTheBeginOfNextEndStepDelayedTriggeredAbility`)
     CreateNextEndStepDelayedEffect { effects: Vec<EffectDef>, rule: String },
+    /// "when you next cast a creature spell this turn, that creature enters with `amount` additional +1/+1
+    /// counters" (`AddCounterNextSpellDelayedTriggeredAbility`)
+    CreateNextCreatureSpellDelayedEffect { amount: i32, rule: String },
+    /// the target spell enters with `amount` additional +1/+1 counters
+    AddCounterNextSpellEffect { amount: i32 },
     /// untap up to `amount` tapped lands
     UntapLandsEffect { amount: usize },
     /// puts the target permanent into its owner's library `n`th from the top
@@ -946,6 +951,11 @@ pub enum EffectDef {
     /// each creature card exiled with the source enters under your control with a flying counter, a 1/1 Spirit in
     /// addition to its other types
     GhostVacuumEffect,
+    /// a static ability's effect: a creature dealt damage this turn by a source you controlled that would die is
+    /// exiled instead
+    EtchingOfKumanoReplacementEffect,
+    /// exile this Saga, then return it to the battlefield transformed under your control
+    ExileSagaAndReturnTransformedEffect,
     /// up to two creature cards with total mana value 4 or less from your graveyard onto the battlefield
     LivelyDirgeEffect,
     /// a 1/1 token copy of the source (offspring)
