@@ -9,4 +9,4 @@
 4 Rimrock Knight
 4 Bonecrusher Giant
 1 Burst Lightning
-16 Mountain
+20 Mountain
