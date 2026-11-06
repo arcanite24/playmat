@@ -51,7 +51,7 @@ EFFECTS = {
                               ('exclude_source', 'bool')],
     'AddCountersSourceEffect': [('counter', 'counter')],
     'AddCountersTargetEffect': [('counter', 'counter')],
-    'CreateTokenEffect': [('token', 'token'), ('amount', 'int')],
+    'CreateTokenEffect': [('token', 'token'), ('amount', 'int'), ('tapped', 'bool'), ('attacking', 'bool')],
     'DamageWithPowerFromOneToAnotherTargetEffect': [],
     'GainAbilityAllEffect': [('ability', 'ability'), ('duration', 'duration'), ('filter', 'filter'),
                              ('exclude_source', 'bool')],
@@ -964,6 +964,8 @@ class Translator:
             return {'class': cls, 'filter': self.filter(args[1]), 'amount': int(args[0])}
         if cls == 'SacrificeTargetCost' and len(args) == 1:
             return {'class': cls, 'filter': self.filter(args[0])}
+        if cls == 'SacrificeTargetCost' and len(args) == 2 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': cls, 'filter': self.filter(args[1]), 'amount': int(args[0])}
         if cls == 'DiscardCardCost' and len(args) <= 1 and args != ['true']:
             return {'class': cls, 'filter': self.filter(args[0]) if args and args[0] != 'false' else []}
         if cls == 'BeholdCost' and len(args) == 1 and (m := re.fullmatch(r'SubType\.(\w+)', args[0].strip())):
@@ -1664,6 +1666,8 @@ class Translator:
             return out({'e': 'exerted'}, args[0])
         if cls == 'CycleTriggeredAbility' and n == 1:
             return out({'e': 'cycled'}, args[0])
+        if cls == 'CommittedCrimeTriggeredAbility' and n == 1:
+            return out({'e': 'committed_crime'}, args[0])
         if cls == 'ValiantTriggeredAbility' and n == 1:
             return out({'e': 'valiant'}, args[0])
         if cls == 'BecomesTargetSourceTriggeredAbility' and n == 4 and args[2] in ('SetTargetPointer.PLAYER', 'SetTargetPointer.NONE'):

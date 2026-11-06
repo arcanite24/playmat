@@ -343,6 +343,9 @@ pub enum Trigger {
     BecomesTargetOfSpell { filter: Filter },
     /// `who` casts their second spell this turn
     CastSecondSpell { who: String },
+    /// you commit a crime: a spell or ability of yours targets an opponent, something of theirs or a card in their
+    /// graveyard (`CommittedCrimeTriggeredAbility`)
+    CommittedCrime,
     /// valiant: this becomes the target of a spell or ability you control for the first time each turn
     Valiant,
     /// a player (`who`) sacrifices a permanent of the filter (`SacrificePermanentTriggeredAbility`)
@@ -579,7 +582,11 @@ pub enum CostDef {
     /// put (or remove) loyalty counters on the source
     PayLoyaltyCost { amount: i32 },
     /// sacrifice a permanent of the filter you control (chosen as the cost is paid)
-    SacrificeTargetCost { filter: Filter },
+    SacrificeTargetCost {
+        filter: Filter,
+        #[serde(default = "one")]
+        amount: usize,
+    },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
     TapTargetCost { filter: Filter, amount: usize },
     /// crew: tap any number of other untapped creatures you control with total power `value` or more

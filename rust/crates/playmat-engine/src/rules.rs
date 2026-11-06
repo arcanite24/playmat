@@ -612,8 +612,8 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::PayLoyaltyCost { amount } => !o.loyalty_used && o.counter("loyalty") + amount >= 0,
         CostDef::RemoveCountersSourceCost { counter } => o.counter(&counter.name) >= counter.amount,
         // you can only sacrifice your own permanents
-        CostDef::SacrificeTargetCost { filter } => {
-            matching(game, filter, seat, id).iter().any(|p| game.obj(*p).controller == seat)
+        CostDef::SacrificeTargetCost { filter, amount } => {
+            matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
         }
         CostDef::TapTargetCost { filter, amount } => {
             matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
@@ -1454,8 +1454,15 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
             game.pending.push(item);
         }
     }
+    let crime = game
+        .stack
+        .iter()
+        .rev()
+        .find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none())
+        .is_some_and(|i| is_crime(game, seat, &i.targets));
     let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
         Trigger::SpellCast { filter, who } => Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell),
+        Trigger::CommittedCrime => you == seat && crime,
         Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
         Trigger::CastSecondSpell { who } => Game::whose(who, you, seat) && g.player(seat).spells_cast == 2,
         _ => false,
@@ -1485,6 +1492,34 @@ fn controlled_creatures(game: &Game, seat: Seat) -> Vec<ObjId> {
         .copied()
         .filter(|c| game.obj(*c).controller == seat && game.has_type(*c, CardType::Creature))
         .collect()
+}
+
+/// `CommittedCrimeTriggeredAbility.getCriminal`: `seat`'s spell or ability targets an opponent, a permanent, spell or
+/// ability an opponent controls, or a card in an opponent's graveyard
+fn is_crime(game: &Game, seat: Seat, targets: &[Vec<Target>]) -> bool {
+    targets.iter().flatten().any(|t| match t {
+        Target::Player(p) => *p != seat,
+        Target::Obj(o) => {
+            let x = game.obj(*o);
+            match x.zone {
+                Zone::Battlefield | Zone::Stack => x.controller != seat,
+                Zone::Graveyard => x.owner != seat,
+                _ => false,
+            }
+        }
+    })
+}
+
+/// "Whenever you commit a crime" triggers, for the top of the stack (a spell just cast, an ability just activated or
+/// put on the stack)
+fn commit_crime(game: &mut Game, seat: Seat) {
+    let Some(top) = game.stack.last() else { return };
+    if top.controller != seat || !is_crime(game, seat, &top.targets) {
+        return;
+    }
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::CommittedCrime) && you == seat);
+    game.pending.extend(fired);
 }
 
 fn untapped_creatures(game: &Game, seat: Seat) -> Vec<ObjId> {
@@ -1713,6 +1748,7 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
         let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::Cycled));
         game.pending.extend(fired.into_iter().map(|t| StackItem { x, ..t }));
     }
+    commit_crime(game, seat);
     true
 }
 
@@ -1886,10 +1922,10 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
         }
-        CostDef::SacrificeTargetCost { filter } => {
+        CostDef::SacrificeTargetCost { filter, amount } => {
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
-            let Some(chosen) = choose_cards(game, d, seat, &possible, &possible, 1, 1, "sacrifice") else {
+            let Some(chosen) = choose_cards(game, d, seat, &possible, &possible, *amount, *amount, "sacrifice") else {
                 return false;
             };
             for o in chosen {
@@ -5872,11 +5908,16 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                 // its targets, which can't be cancelled; with no legal ones it's removed (rule 603.3d)
                 if let Some((rule, _, targets, _)) = ability.as_ref().and_then(|a| a.triggered()) {
                     let targets = mode_targets.as_deref().unwrap_or(targets);
-                    if !targets.is_empty() && !choose_targets(game, d, seat, targets, None, rule, false) {
-                        if d.stopped() {
-                            return;
+                    if !targets.is_empty() {
+                        if !choose_targets(game, d, seat, targets, None, rule, false) {
+                            if d.stopped() {
+                                return;
+                            }
+                            Arc::make_mut(&mut game.stack).pop();
+                        } else {
+                            // `TRIGGERED_ABILITY`
+                            commit_crime(game, seat);
                         }
-                        Arc::make_mut(&mut game.stack).pop();
                     }
                 }
             }
