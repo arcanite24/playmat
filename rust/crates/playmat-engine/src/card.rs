@@ -946,6 +946,8 @@ pub enum EffectDef {
     /// each creature card exiled with the source enters under your control with a flying counter, a 1/1 Spirit in
     /// addition to its other types
     GhostVacuumEffect,
+    /// up to two creature cards with total mana value 4 or less from your graveyard onto the battlefield
+    LivelyDirgeEffect,
     /// a 1/1 token copy of the source (offspring)
     OffspringEffect,
     /// a token that's a copy of the target permanent

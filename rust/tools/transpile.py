@@ -149,6 +149,7 @@ CUSTOM = {
     'GraveyardTrespasserEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
     'MightformHarmonizerEffect': lambda: {'class': 'MightformHarmonizerEffect'},
     'GhostVacuumEffect': lambda: {'class': 'GhostVacuumEffect'},
+    'LivelyDirgeEffect': lambda: {'class': 'LivelyDirgeEffect'},
     'TenaciousUnderdogEffect': lambda: {'class': 'TenaciousUnderdogEffect'},
     'NowhereToRunHexproofEffect': lambda: {'class': 'NowhereToRunHexproofEffect'},
     'NowhereToRunWardEffect': lambda: {'class': 'NowhereToRunWardEffect'},

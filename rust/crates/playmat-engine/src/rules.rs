@@ -2887,6 +2887,40 @@ fn apply_each_effect(
                     game.obj_mut(id).attached_to = Some((*o, zcc));
                 }
             }
+            EffectDef::LivelyDirgeEffect => {
+                // `LivelyDirgeTarget`: what's left to choose keeps the total at 4 or less
+                let mut chosen: Vec<ObjId> = Vec::new();
+                loop {
+                    if chosen.len() >= 2 {
+                        break;
+                    }
+                    let total: u32 = chosen.iter().map(|c| game.obj(*c).def.mana_value()).sum();
+                    let left: Vec<ObjId> = game
+                        .player(controller)
+                        .graveyard
+                        .iter()
+                        .copied()
+                        .filter(|c| {
+                            !chosen.contains(c)
+                                && game.obj(*c).is(CardType::Creature)
+                                && total + game.obj(*c).def.mana_value() <= 4
+                        })
+                        .collect();
+                    match ask(game, d, controller, &Query::Cards { objs: left.clone(), required: false }) {
+                        Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
+                        Answer::Obj(o) if left.contains(&o) => chosen.push(o),
+                        Answer::Stop => return,
+                        Answer::Obj(_) | Answer::Player(_) | Answer::Unknown => {}
+                        _ => break,
+                    }
+                    if d.stopped() {
+                        return;
+                    }
+                }
+                for c in chosen {
+                    enter_battlefield(game, d, c, controller, false);
+                }
+            }
             EffectDef::OffspringEffect => {
                 // of the permanent (or as it last was), 1/1
                 token_copy(game, d, source.0, controller, Some((1, 1)));
