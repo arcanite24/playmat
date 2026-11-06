@@ -1085,6 +1085,10 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// the controller surveils `amount`
+    /// static: nonland permanent cards in graveyards and libraries can't enter the battlefield
+    WeatheredRunestoneEffect,
+    /// static: players can't cast spells from graveyards or libraries
+    WeatheredRunestoneEffect2,
     /// as this enters, choose a permanent of the filter (not targeted)
     ChooseCreatureEffect { filter: Filter },
     /// the creature chosen as the source entered gains the ability until end of turn

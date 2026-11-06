@@ -221,6 +221,8 @@ CUSTOM = {
     'EnlightenedConfidantEffect': lambda: {'class': 'EnlightenedConfidantEffect'},
     'KraulHarpoonerEffect': lambda: {'class': 'KraulHarpoonerEffect'},
     'GreasefangOkibaBossEffect': lambda: {'class': 'GreasefangOkibaBossEffect'},
+    'WeatheredRunestoneEffect': lambda: {'class': 'WeatheredRunestoneEffect'},
+    'WeatheredRunestoneEffect2': lambda: {'class': 'WeatheredRunestoneEffect2'},
     'DauntlessBodyguardGainAbilityEffect': lambda: {'class': 'ChosenCreatureGainsAbilityEffect',
                                                     'ability': {'class': 'IndestructibleAbility'}},
     'SharkTyphoonCastEffect': lambda: {'class': 'CreateXXTokenEffect', 'token': token('SharkToken'), 'amount': {'v': 'x'}},

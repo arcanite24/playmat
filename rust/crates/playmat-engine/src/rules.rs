@@ -422,8 +422,9 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             out.push(*id);
         }
     }
-    // flashback, from the graveyard
-    for id in &p.graveyard {
+    // flashback, from the graveyard (Weathered Runestone: players can't cast spells from graveyards)
+    let runestone = game.any_static(|_, _, e| matches!(e, EffectDef::WeatheredRunestoneEffect2));
+    for id in p.graveyard.iter().filter(|_| !runestone) {
         let def = &game.obj(*id).def;
         if def.flashback().is_some_and(|f| castable(game, seat, *id, &f))
             || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
@@ -2855,6 +2856,8 @@ fn apply_each_effect(
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
             | EffectDef::SpellsCostIncreasingAllEffect { .. }
             | EffectDef::SpellsCostReductionControllerEffect { .. }
+            | EffectDef::WeatheredRunestoneEffect
+            | EffectDef::WeatheredRunestoneEffect2
             | EffectDef::ChooseCreatureEffect { .. }
             | EffectDef::SpellCostReductionSourceEffect { .. } => {}
             EffectDef::LoseLifeOpponentsYouGainLifeLostEffect { amount } => {
@@ -4142,6 +4145,13 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
 /// A permanent enters: under `controller`, tapped if it says so, with what its "enters with" abilities give it; then
 /// its own enters triggers and other permanents' "whenever … enters" triggers wait to go on the stack.
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
+    // Weathered Runestone: nonland permanent cards in graveyards and libraries can't enter
+    if matches!(game.obj(id).zone, Zone::Graveyard | Zone::Library)
+        && !game.obj(id).is(CardType::Land)
+        && game.any_static(|_, _, e| matches!(e, EffectDef::WeatheredRunestoneEffect))
+    {
+        return;
+    }
     // a permanent spell resolving was cast (`CastFromEverywhereSourceCondition`)
     let cast = game.obj(id).zone == Zone::Stack;
     let turn = game.turn;
