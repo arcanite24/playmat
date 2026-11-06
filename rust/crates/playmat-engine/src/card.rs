@@ -589,6 +589,8 @@ pub enum CostDef {
         filter: Filter,
     },
     PayLifeCost { amount: i32 },
+    /// behold a permanent or card of a subtype: choose one you control, or reveal one from your hand
+    BeholdCost { subtype: String },
     /// discard this card (cycling)
     DiscardSourceCost,
 }

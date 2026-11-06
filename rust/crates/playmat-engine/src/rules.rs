@@ -597,6 +597,10 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             game.player(seat).hand.iter().any(|c| game.filter_matches(filter, seat, Some(id), *c))
         }
         CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
+        CostDef::BeholdCost { subtype } => {
+            let (perms, cards) = beholdable(game, seat, subtype);
+            !perms.is_empty() || !cards.is_empty()
+        }
         CostDef::DiscardSourceCost => o.zone == Zone::Hand,
         // either one (`OrCost`)
         CostDef::OrCost { costs } => costs.iter().any(|c| or_cost_payable(game, seat, id, c)),
@@ -1612,6 +1616,47 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
         }
         CostDef::PayLifeCost { amount } => lose_life(game, seat, *amount),
+        // `BeholdType.beholdOne`
+        CostDef::BeholdCost { subtype } => {
+            let (perms, cards) = beholdable(game, seat, subtype);
+            let use_permanent = match (perms.is_empty(), cards.is_empty()) {
+                (true, true) => return false,
+                (false, true) => true,
+                (true, false) => false,
+                (false, false) => {
+                    let q = Query::YesNo {
+                        message: format!("Choose a {} you control or reveal one from your hand?", subtype),
+                    };
+                    loop {
+                        match ask(game, d, seat, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return false,
+                            _ => {}
+                        }
+                    }
+                }
+            };
+            if use_permanent {
+                let def = TargetDef::TargetPermanent {
+                    filter: crate::card::Filter(vec![
+                        Pred::Subtype { s: subtype.clone() },
+                        Pred::Controller { who: "you".into() },
+                    ]),
+                    min: 1,
+                    max: 1,
+                };
+                match choose_target(game, d, seat, &def, Some(id), "behold", false) {
+                    Some(t) if !t.is_empty() => {}
+                    _ => return false,
+                }
+            } else {
+                let hand = game.player(seat).hand.clone();
+                match choose_cards(game, d, seat, &hand, &cards, 1, 1, "behold") {
+                    Some(c) if !c.is_empty() => {}
+                    _ => return false,
+                }
+            }
+        }
         CostDef::ReturnAttackerToHandTargetCost => {
             let possible = unblocked_attackers(game, seat);
             let rule = game.obj(id).def.abilities.iter().find_map(|a| match a {
@@ -4803,6 +4848,14 @@ fn add_lore(game: &mut Game, id: ObjId, n: i32) {
         matches!(t, Trigger::Chapter { n } if before < *n as i32 && *n as i32 <= after)
     });
     game.pending.extend(fired);
+}
+
+/// Behold: the permanents of a subtype `seat` controls and the cards of it in their hand
+fn beholdable(game: &Game, seat: Seat, subtype: &str) -> (Vec<ObjId>, Vec<ObjId>) {
+    let perms =
+        game.battlefield.iter().copied().filter(|b| game.obj(*b).controller == seat && game.has_subtype(*b, subtype)).collect();
+    let cards = game.player(seat).hand.iter().copied().filter(|c| game.obj(*c).def.subtypes.iter().any(|s| s == subtype)).collect();
+    (perms, cards)
 }
 
 /// The creatures that can crew `vehicle`: its controller's other untapped creatures

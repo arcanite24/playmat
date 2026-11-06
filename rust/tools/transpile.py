@@ -929,6 +929,8 @@ class Translator:
             return {'class': cls, 'filter': self.filter(args[0])}
         if cls == 'DiscardCardCost' and len(args) <= 1 and args != ['true']:
             return {'class': cls, 'filter': self.filter(args[0]) if args and args[0] != 'false' else []}
+        if cls == 'BeholdCost' and len(args) == 1 and (m := re.fullmatch(r'SubType\.(\w+)', args[0].strip())):
+            return {'class': cls, 'subtype': subtype_names()[m.group(1)]}
         if cls == 'PayLifeCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': cls, 'amount': int(args[0])}
         raise Unsupported('cost ' + expr)
