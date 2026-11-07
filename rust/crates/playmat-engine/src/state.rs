@@ -479,6 +479,9 @@ pub struct Game {
     pub activated_this_turn: Vec<(ObjId, usize)>,
     /// the battlefield as the current action began, for the dies triggers of what it moves all at once
     pub lookback: Vec<ObjId>,
+    /// Etchings of Kumano that left the battlefield, with their controller and the turn: one leaving in the same
+    /// action as a creature still exiles it, though its card shows the saga by then
+    pub etchings_left: Vec<(ObjId, Seat, u32)>,
     /// cards exiled until a permanent (and its zone change count) leaves the battlefield
     pub exiled_until_leaves: Vec<(ObjId, u32, ObjId)>,
     /// earthbent lands (with their zone change counts): when one dies or is exiled, it returns tapped
@@ -537,6 +540,7 @@ impl Game {
             any_color_made: None,
             activated_this_turn: Vec::new(),
             lookback: Vec::new(),
+            etchings_left: Vec::new(),
             exiled_until_leaves: Vec::new(),
             earthbent: Vec::new(),
             exiled_for_source: Vec::new(),
@@ -708,6 +712,16 @@ impl Game {
     }
 
     /// Whether an object has a card type now.
+    /// whether it has Etching of Kumano's replacement effect
+    fn is_etching(&self, id: ObjId) -> bool {
+        self.obj(id).def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                effects.iter().any(|e| matches!(e, EffectDef::EtchingOfKumanoReplacementEffect))
+            }
+            _ => false,
+        })
+    }
+
     pub fn has_type(&self, id: ObjId, t: CardType) -> bool {
         self.obj(id).is(t)
     }
@@ -1300,22 +1314,36 @@ impl Game {
         } else {
             zone
         };
-        // Etching of Kumano: a creature dealt damage this turn by a source its controller controlled is exiled
-        let etching =
-            from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) && {
-                let (turn, mask) = self.obj(id).damaged_by;
-                turn == self.turn
-                    && self.battlefield.iter().any(|b| {
-                        let s = self.obj(*b);
-                        mask & (1 << s.controller) != 0
-                            && s.def.abilities.iter().any(|a| match a {
-                                AbilityDef::SimpleStaticAbility { effects, .. } => {
-                                    effects.iter().any(|e| matches!(e, EffectDef::EtchingOfKumanoReplacementEffect))
-                                }
-                                _ => false,
-                            })
-                    })
-            };
+        // Etching of Kumano: a creature dealt damage this turn by a source its controller controlled is exiled, also
+        // when the Etching leaves in the same action (Java looks back at it)
+        let etchings = if from == Zone::Battlefield
+            && zone == Zone::Graveyard
+            && self.has_type(id, CardType::Creature)
+            && self.obj(id).damaged_by.0 == self.turn
+        {
+            let mask = self.obj(id).damaged_by.1;
+            let here = self.battlefield.iter().filter(|b| {
+                let s = self.obj(**b);
+                mask & (1 << s.controller) != 0 && self.is_etching(**b)
+            });
+            let left = self.etchings_left.iter().filter(|(e, c, t)| {
+                *t == self.turn && mask & (1 << c) != 0 && self.lookback.contains(e) && !self.battlefield.contains(e)
+            });
+            here.count() + left.count()
+        } else {
+            0
+        };
+        // more than one applies: Java asks the creature's controller which, though each exiles it
+        if etchings > 1 {
+            let c = self.obj(id).controller;
+            self.owed_choices.push(c);
+        }
+        let etching = etchings > 0;
+        if from == Zone::Battlefield && self.is_etching(id) {
+            let (c, t) = (self.obj(id).controller, self.turn);
+            self.etchings_left.retain(|(_, _, x)| *x == t);
+            self.etchings_left.push((id, c, t));
+        }
         // "if it would die this turn, exile it instead"
         let zone = if from == Zone::Battlefield
             && zone == Zone::Graveyard

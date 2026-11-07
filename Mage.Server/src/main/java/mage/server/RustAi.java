@@ -97,7 +97,7 @@ public final class RustAi {
             trace.setOnEnd(bridge::end);
             options.decisions = log;
             options.trace = trace;
-            logger.info("Rust AI: " + user + " vs " + ai.getName() + " qualifies");
+            logger.info("Rust AI: " + user + " vs " + ai.getName() + " qualifies (AI deck: " + ai.getDeck().getName() + ")");
         } catch (RuntimeException e) {
             // the Rust AI is an extra: never stop a game over it
             logger.warn("Rust AI: setting up the game failed, the Java AI plays", e);

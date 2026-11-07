@@ -29,7 +29,10 @@ import java.io.File;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The Rust AI playing the Java AI's seat (docs/rust/Ai.md): the Pioneer and Standard school decks, a human seat
@@ -43,7 +46,8 @@ import java.util.concurrent.TimeUnit;
  * </pre>
  * Options: xmage.rustAiGames.games (default 10), .first (default 0), .turns (default 20); .decks=a.txt,b.txt plays
  * only those decks against each other instead of the school decks; .java=true plays the same
- * games with the Java AI alone, to compare (wins against the same random opponent, and time).
+ * games with the Java AI alone, to compare (wins against the same random opponent, and time); .threads (default half
+ * the processors) games at once, each seeded on its own, so a game plays the same whatever runs beside it.
  */
 public class RustAiGameTest {
 
@@ -74,35 +78,46 @@ public class RustAiGameTest {
             }
         }
         int n = decks.size();
-        List<String> problems = new ArrayList<>();
-        long answered = 0;
-        int wins = 0;
+        int threads = Integer.getInteger(PREFIX + ".threads", Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
+        List<String> problems = Collections.synchronizedList(new ArrayList<>());
+        AtomicLong answered = new AtomicLong();
+        AtomicInteger wins = new AtomicInteger();
         long started = System.nanoTime();
-        for (int i = first; i < first + games; i++) {
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        List<Future<?>> running = new ArrayList<>();
+        for (int g = first; g < first + games; g++) {
+            int i = g;
             int a = i % n;
             int b = (a + 1 + (i / n) % (n - 1)) % n;
-            long before = RustAiBridge.ANSWERED.get();
-            String result = play(i, decks.get(a), decks.get(b), turns, problems, names.get(a) + " vs " + names.get(b), java);
-            if (result.startsWith("AI won")) {
-                wins++;
-            }
-            long now = RustAiBridge.ANSWERED.get() - before;
-            answered += now;
-            System.out.println("[rust ai] game " + i + " " + names.get(a) + " vs " + names.get(b) + ": " + result + ", "
-                    + now + " Rust AI answers");
+            String name = names.get(a) + " vs " + names.get(b);
+            running.add(pool.submit(() -> {
+                long[] now = {0};
+                String result = play(i, decks.get(a), decks.get(b), turns, problems, name, java, now);
+                if (result.startsWith("AI won")) {
+                    wins.incrementAndGet();
+                }
+                answered.addAndGet(now[0]);
+                System.out.println("[rust ai] game " + i + " " + name + ": " + result + ", " + now[0] + " Rust AI answers");
+                return null;
+            }));
         }
-        System.out.println("[rust ai] " + (java ? "Java" : "Rust") + " AI won " + wins + " of " + games + " in "
+        for (Future<?> f : running) {
+            f.get();
+        }
+        pool.shutdown();
+        Collections.sort(problems);
+        System.out.println("[rust ai] " + (java ? "Java" : "Rust") + " AI won " + wins.get() + " of " + games + " in "
                 + (System.nanoTime() - started) / 1_000_000 + " ms");
         if (java) {
             return;
         }
-        Assert.assertTrue("the Rust AI answered nothing", answered > 0);
+        Assert.assertTrue("the Rust AI answered nothing", answered.get() > 0);
         Assert.assertTrue(problems.size() + " of " + games + " games left the Rust AI:\n" + String.join("\n", problems),
                 problems.isEmpty());
     }
 
     private static String play(long seed, DeckCardLists deckA, DeckCardLists deckB, int turns, List<String> problems,
-                               String name, boolean java) throws Exception {
+                               String name, boolean java, long[] answered) throws Exception {
         Game game = new TwoPlayerDuel(MultiplayerAttackOption.LEFT, RangeOfInfluence.ALL,
                 MulliganType.GAME_DEFAULT.getMulligan(0), 60, 20, 7);
         Match match = new TwoPlayerMatch(new MatchOptions("rust ai", "Two Player Duel", false));
@@ -154,6 +169,7 @@ public class RustAiGameTest {
         thread.join(5 * 60 * 1000L);
         answers.shutdownNow();
         answers.awaitTermination(5, TimeUnit.SECONDS);
+        answered[0] = bridge.getAnswered();
         if (thread.isAlive()) {
             game.setGameStopped(true);
             thread.interrupt();
