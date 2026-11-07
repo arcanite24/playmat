@@ -47,6 +47,11 @@ public final class RandomDriver {
         HumanPlayer human = (HumanPlayer) player;
         String message = event.getMessage() == null ? "" : event.getMessage();
         asking = event.getQueryType() + " " + message;
+        if (System.getenv("PLAYMAT_AI_DEBUG") != null) {
+            System.out.println("[random driver] " + asking + (event.getAbilities() == null ? ""
+                    : " abilities " + event.getAbilities().stream().map(a -> a.getClass().getSimpleName() + " " + a.getRule())
+                    .collect(Collectors.toList())));
+        }
         // a window ends when something changes: then every kind of answer gets its tries again
         String window = game.getTurnNum() + "/" + game.getTurnStepType() + "/" + game.getStack().size() + "/"
                 + game.getBattlefield().count(mage.filter.StaticFilters.FILTER_PERMANENT, player.getId(), null, game) + "/"
@@ -99,7 +104,9 @@ public final class RandomDriver {
                 if (event.getTargets() != null) candidates.addAll(event.getTargets());
                 if (event.getCards() != null) candidates.addAll(event.getCards());
                 if (event.getPerms() != null) event.getPerms().forEach(p -> candidates.add(p.getId()));
-                if (!candidates.isEmpty() && tries.merge("target " + window, 1, Integer::sum) <= 3) {
+                // a required pick (the rest of Collected Company's six, in order) can't be left: Java asks again
+                int tried = tries.merge("target " + window, 1, Integer::sum);
+                if (!candidates.isEmpty() && (tried <= 3 || (event.isRequired() && tried <= 40))) {
                     answer(human, pick(candidates), null, null, null);
                 } else {
                     answer(human, null, true, null, null);

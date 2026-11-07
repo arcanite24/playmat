@@ -41,7 +41,8 @@ import java.util.concurrent.TimeUnit;
  * mvn -pl Mage.Tests test -Dtest=RustAiGameTest -Dxmage.rustAi.bin=$PWD/rust/target/release/playmat-ai-bridge \
  *     -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:$PWD/.travis/log4j.properties
  * </pre>
- * Options: xmage.rustAiGames.games (default 10), .first (default 0), .turns (default 20); .java=true plays the same
+ * Options: xmage.rustAiGames.games (default 10), .first (default 0), .turns (default 20); .decks=a.txt,b.txt plays
+ * only those decks against each other instead of the school decks; .java=true plays the same
  * games with the Java AI alone, to compare (wins against the same random opponent, and time).
  */
 public class RustAiGameTest {
@@ -59,7 +60,12 @@ public class RustAiGameTest {
         CardScanner.scan();
         List<String> names = new ArrayList<>();
         List<DeckCardLists> decks = new ArrayList<>();
-        for (String school : new String[]{"pioneer", "standard"}) {
+        String only = System.getProperty(PREFIX + ".decks", "");
+        for (String file : only.isEmpty() ? new String[0] : only.split(",")) {
+            decks.add(DeckImporter.importDeckFromFile(file, new StringBuilder(), false));
+            names.add(new File(file).getName().replace(".txt", "").replace(".dck", ""));
+        }
+        for (String school : only.isEmpty() ? new String[]{"pioneer", "standard"} : new String[0]) {
             File[] files = new File("../Mage.Server/career-src", school).listFiles((d, name) -> name.endsWith(".txt"));
             Arrays.sort(files);
             for (File file : files) {

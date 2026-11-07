@@ -170,7 +170,13 @@ impl Decider for Table {
         let options = candidates(game, seat, q, &a, usize::MAX);
         let a = self.repeats.guard(seat, q, a, &options);
         if std::env::var_os("PLAYMAT_AI_DEBUG").is_some() {
-            eprintln!("turn {} {:?} seat {seat} {:?} -> {:?}", game.turn, game.step, q, a);
+            let name = match &a {
+                Answer::Obj(id) | Answer::Ability(id, _) => {
+                    format!(" ({} in {:?})", game.obj(*id).def.name, game.obj(*id).zone)
+                }
+                _ => String::new(),
+            };
+            eprintln!("turn {} {:?} seat {seat} {:?} -> {:?}{name}", game.turn, game.step, q, a);
         }
         self.since.push(a.clone());
         a

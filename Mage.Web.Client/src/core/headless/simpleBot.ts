@@ -35,6 +35,8 @@ export function chooseBotCommand(
     }
     case 'declareBlockers':
       return { type: 'boolean', value: true }; // no blocks
+    case 'assignDamage':
+      return interaction.mainButton?.command ?? null; // the lethal-first split, as the app's auto-assign sends
     case 'target':
     case 'pickCards': {
       if (prompt.kind !== 'target') return null;
@@ -45,7 +47,8 @@ export function chooseBotCommand(
       if (interaction.selected.size === 0 && (opponentTarget || unchosen)) {
         return { type: 'uuid', id: opponentTarget ?? unchosen! };
       }
-      return interaction.mainButton?.command ?? (unchosen ? { type: 'uuid', id: unchosen } : null);
+      // nothing left to choose (an optional target with no legal one): the app's Cancel
+      return interaction.mainButton?.command ?? (unchosen ? { type: 'uuid', id: unchosen } : interaction.secondaryButtons[0]?.command ?? null);
     }
     case 'payMana': {
       // skip sources that already failed to pay this cost (the server can list a source it then ignores)

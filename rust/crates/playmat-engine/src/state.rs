@@ -263,6 +263,9 @@ pub struct Player {
     pub every_priority: bool,
     /// `UserData.confirmEmptyManaPool` off: passes with mana in the pool without being asked
     pub no_pool_check: bool,
+    /// mana in the pool always pays automatically: the Java AI's pool, whose stock (`ManaPool.setStock`) is set on
+    /// the copy each dialog's stand-in player gets, never on its own
+    pub no_stock: bool,
     pub life: i32,
     pub counters: Vec<(String, i32)>,
     pub hand: Vec<ObjId>,
@@ -468,6 +471,10 @@ pub struct Game {
     pub exile_if_dies: Vec<(ObjId, u32)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, ability index
     pub triggered_this_turn: Vec<(ObjId, usize)>,
+    /// the cards an effect is putting onto the battlefield at once, in order (they see each other enter)
+    pub entering_together: Vec<ObjId>,
+    /// the color the last "any color" mana was made in without asking (one color owed): Java asks it
+    pub any_color_made: Option<crate::card::Color>,
     /// activated abilities with a limit each turn activated this turn: source, ability index
     pub activated_this_turn: Vec<(ObjId, usize)>,
     /// the battlefield as the current action began, for the dies triggers of what it moves all at once
@@ -526,6 +533,8 @@ impl Game {
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
+            entering_together: Vec::new(),
+            any_color_made: None,
             activated_this_turn: Vec::new(),
             lookback: Vec::new(),
             exiled_until_leaves: Vec::new(),
