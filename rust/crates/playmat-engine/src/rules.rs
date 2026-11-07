@@ -514,7 +514,7 @@ fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 // a permanent clicked for its mana ability works too (`HumanPlayer.activateAbility`)
                 if playable.contains(&id) || has_mana_ability_now(game, seat, id) {
                     let p = game.player_mut(seat);
-                    p.mana_stock = p.mana_pool;
+                    p.mana_stock = if p.no_stock { Mana::default() } else { p.mana_pool };
                     play(game, d, seat, id);
                 }
                 // played (priority again) or not playable (asked again): both come back to the priority loop
@@ -523,7 +523,7 @@ fn priority(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             // a Room's half clicked in hand: the card (its half is asked again)
             Answer::Ability(id, _) if !game.obj(id).def.room.is_empty() && playable.contains(&id) => {
                 let p = game.player_mut(seat);
-                p.mana_stock = p.mana_pool;
+                p.mana_stock = if p.no_stock { Mana::default() } else { p.mana_pool };
                 play(game, d, seat, id);
                 return;
             }
@@ -1208,8 +1208,14 @@ fn auto_pay_abilities(abilities: &[(usize, Mana, ManaKind)], unpaid: &ManaCost) 
 fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost, n: u32) -> Option<Color> {
     let owed: Vec<Color> = Color::ALL.iter().copied().filter(|c| unpaid.colored[c.index()] > 0).collect();
     match owed.len() {
-        0 => return Some(Color::W),
-        1 => return Some(owed[0]),
+        0 => {
+            game.any_color_made = Some(Color::W);
+            return Some(Color::W);
+        }
+        1 => {
+            game.any_color_made = Some(owed[0]);
+            return Some(owed[0]);
+        }
         _ => {}
     }
     let names = ["White", "Blue", "Black", "Red", "Green"];
@@ -6955,12 +6961,14 @@ fn put_cards(game: &mut Game, d: &mut dyn Decider, seat: Seat, cards: &[ObjId], 
             true
         }
         P::Battlefield | P::BattlefieldTapped => {
+            game.entering_together = cards.to_vec();
             for c in cards {
                 enter_battlefield(game, d, *c, seat, false);
                 if to == P::BattlefieldTapped {
                     game.obj_mut(*c).tapped = true;
                 }
             }
+            game.entering_together.clear();
             !d.stopped()
         }
     }
@@ -7542,6 +7550,30 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             t.targets = vec![vec![Target::Player(controller)]];
             t.target_zcc = vec![vec![0]];
         }
+    }
+    // entering at the same time as cards put before it: its "whenever another ... enters" sees them enter too
+    let earlier: Vec<ObjId> = game
+        .entering_together
+        .iter()
+        .copied()
+        .take_while(|e| *e != id)
+        .filter(|e| game.battlefield.contains(e))
+        .collect();
+    for e in earlier {
+        let mut more = game.triggers([id], |g, src, you, t| match t {
+            Trigger::EntersAll { filter, graveyard: false, .. } => {
+                g.obj(src).zone == Zone::Battlefield && g.filter_matches(filter, you, Some(src), e)
+            }
+            _ => false,
+        });
+        for t in more.iter_mut() {
+            let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
+            if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
+                t.targets = vec![vec![Target::Obj(e)]];
+                t.target_zcc = vec![vec![game.obj(e).zcc]];
+            }
+        }
+        fired.extend(more);
     }
     game.pending.extend(fired);
 }

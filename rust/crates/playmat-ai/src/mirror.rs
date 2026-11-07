@@ -99,6 +99,8 @@ pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), 
         }
     };
     game.player_mut(seat).auto_target_all = auto_all;
+    // the Java AI's seat (auto-targets at level 2): its pool always pays by itself
+    game.player_mut(seat).no_stock = auto_all;
     let other = game.player_mut(game.opponent(seat));
     other.every_priority = every;
     other.no_pool_check = pool_check == Some(false);
@@ -140,6 +142,18 @@ pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), 
     }
     if !mirror.ended {
         mirror.send(json!({"type": "over"}));
+        // Java's game ends a moment later: its last messages still find the process
+        while let Some(Ok(line)) = mirror.lines.next() {
+            match serde_json::from_str::<Message>(&line) {
+                Ok(Message::End) => break,
+                // Java's game goes on where this one ended: a difference
+                Ok(Message::Ask { .. }) => {
+                    mirror.send(json!({"type": "over"}));
+                    break;
+                }
+                _ => {}
+            }
+        }
     }
     Ok(())
 }
@@ -226,7 +240,8 @@ impl Decider for Mirror<'_> {
                 return Answer::Stop;
             };
             if std::env::var_os("PLAYMAT_AI_DEBUG").is_some() {
-                eprintln!("seat {seat} asked {q:?}; Java says {line}");
+                let pool = game.player(seat).mana_pool;
+                eprintln!("seat {seat} (pool {pool:?}) asked {q:?}; Java says {line}");
             }
             let msg = match serde_json::from_str::<Message>(&line) {
                 Ok(m) => m,
@@ -275,7 +290,14 @@ impl Decider for Mirror<'_> {
                     // first option; if that changes anything, the next fingerprint differs
                     if kind == "CHOOSE_CHOICE" && !matches!(q, Query::Choice { .. }) && seat == self.bot {
                         self.waiting = false;
-                        self.send(json!({"type": "answer", "string": ""}));
+                        // the color of "any color" mana the engine made for the one color owed
+                        let color = match game.any_color_made {
+                            Some(c) if question.contains("[White, Blue, Black, Red, Green]") => {
+                                ["White", "Blue", "Black", "Red", "Green"][c.index()]
+                            }
+                            _ => "",
+                        };
+                        self.send(json!({"type": "answer", "string": color}));
                         continue;
                     }
                     if let Some(want) = java_kind(q) {

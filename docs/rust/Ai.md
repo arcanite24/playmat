@@ -78,7 +78,10 @@ The Java server stays the game. The Rust AI plays the AI's seat through a copy o
 
 Java's AI players auto-choose targets at level 2 (`TargetImpl.tryToAutoChoose`), human players at level 1; the copy
 plays the AI's seat at level 2 (`Player::auto_target_all`). A replacement-effect order Java keys by its own ids is
-answered with Java's first key.
+answered with Java's first key. A color Java asks for "any color" mana is the one the copy made (`Game::any_color_made`).
+Mana floating in the AI's pool always pays by itself (`Player::no_stock`): Java sets a pool's stock on the copy of
+the player each dialog's stand-in gets, never on the AI's own. When the copy's game ends first, it reads on until
+Java's `end`.
 
 The engine passes for a human seat the way the client's default settings do (it isn't asked in upkeep, say), but a
 player's own skip settings and pass-until actions (F-keys) pass elsewhere, unasked and unlogged. So while the bridge
@@ -119,3 +122,9 @@ engine doesn't have.
         -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:$PWD/.travis/log4j.properties
 
   `PLAYMAT_AI_DEBUG=1` logs each question and message, and both fingerprint texts at a difference.
+  `-Dxmage.rustAiGames.decks=a.txt,b.txt` plays only those two decks against each other.
+- `Mage.Web.Client/src/core/headless/rustAi.live.test.ts`: the same through a running server, as a player meets it
+  (the client core with the app's default settings and auto-pass), Selesnya Company against mono-black Zombies. Start
+  the server with `XMAGE_AI_BACKEND=rust XMAGE_RUST_AI_USERS=* XMAGE_RUST_AI_BIN=<bridge>` (and `PLAYMAT_AI_DEBUG=1`),
+  then `MAGE_LIVE_SERVER=1 RUST_AI_GAMES=12 npx vitest run src/core/headless/rustAi`; the server log has
+  `Rust AI stops in …` for any game that left the Rust AI.

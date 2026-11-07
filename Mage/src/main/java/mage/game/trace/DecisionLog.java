@@ -205,6 +205,17 @@ public final class DecisionLog {
             }
             return false;
         });
+        if (found[0] == null && System.getenv("PLAYMAT_AI_DEBUG") != null) {
+            MageObject o = game.getObject(id);
+            StringBuilder where = new StringBuilder();
+            for (Permanent p : game.getState().getBattlefield().getAllPermanents()) {
+                for (Ability a : p.getAbilities()) {
+                    if (a.getId().equals(id)) where.append(" ability of ").append(p.getName()).append(" ").append(a.getRule());
+                }
+            }
+            org.apache.log4j.Logger.getLogger(DecisionLog.class).info("unplaced id " + id + ": "
+                    + (o == null ? "no object" : o.getClass().getSimpleName() + " " + o.getName()) + where);
+        }
         return found[0] != null ? found[0] : "?" + id;
     }
 
@@ -333,6 +344,13 @@ public final class DecisionLog {
         int j = 0;
         for (Ability ability : abilities) {
             if (ability(ability, ref + "a" + j++, visitor)) {
+                return true;
+            }
+        }
+        // a permanent that is one face of a card (a Pathway): the client can click the whole card
+        if (object instanceof Permanent) {
+            Card main = ((Permanent) object).getMainCard();
+            if (main != null && !main.getId().equals(object.getId()) && visitor.test(ref + "f0", main.getId())) {
                 return true;
             }
         }
