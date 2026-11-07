@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createFakeConnection, type FakeConnection } from '../../test/fakeConnection';
 
 
@@ -384,6 +384,89 @@ describe('session store', () => {
       fake.rpc.signInElsewhere();
       await useSession.getState().signOut();
       expect(useSession.getState()).toMatchObject({ signedInElsewhere: false, staleLogin: false });
+    });
+  });
+
+  describe('provider sign-out (RP-initiated logout)', () => {
+    let assign: ReturnType<typeof vi.spyOn>;
+    beforeEach(() => {
+      assign = vi.spyOn(window.location, 'assign').mockImplementation(() => {});
+    });
+    afterEach(() => assign.mockRestore());
+
+    test('a provider sign-in is marked, and its sign-out ends the provider session before the server session', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signInWithOidc(SERVER, 'alice', 'device-1', 'ref-1');
+
+      // the ref rides on the login (no restore token on this fresh device), and the sign-in is marked as a provider one
+      expect(fake.api.connectUser).toHaveBeenCalledWith('alice', '', '', null, null, 'device-1', 'ref-1');
+      expect(useSession.getState().signedInViaOidc).toBe(true);
+
+      fake.api.oidcLogout.mockResolvedValueOnce({ url: 'https://id.example.test/logout?state=xyz', state: 'xyz', expired: false });
+      await useSession.getState().signOut();
+
+      expect(fake.api.oidcLogout).toHaveBeenCalledTimes(1);
+      expect(fake.api.disconnectSession).toHaveBeenCalledTimes(1);
+      // the end-session URL is fetched while the session still lives, and the browser goes there last
+      expect(fake.api.oidcLogout.mock.invocationCallOrder[0]).toBeLessThan(fake.api.disconnectSession.mock.invocationCallOrder[0]);
+      expect(assign).toHaveBeenCalledWith('https://id.example.test/logout?state=xyz');
+    });
+
+    test('a sign-in that did not come through the provider asks the server, and a null answer stands', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', 'secret');
+      expect(useSession.getState().signedInViaOidc).toBe(false);
+
+      await useSession.getState().signOut();
+      expect(fake.api.oidcLogout).toHaveBeenCalledTimes(1); // the server decides: this account has no provider session
+      expect(assign).not.toHaveBeenCalled();
+      expect(useSession.getState()).toMatchObject({ phase: 'signedOut' });
+    });
+
+    test('a sign-in that did not come through the provider still ends the provider session when the server resolves one', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signIn(SERVER, 'alice', 'secret');
+
+      // the account is provider-linked: the server resolves its last verified token, so the sign-out hops
+      fake.api.oidcLogout.mockResolvedValueOnce({ url: 'https://id.example.test/logout?state=xyz', state: 'xyz', expired: true });
+      await useSession.getState().signOut();
+
+      expect(assign).toHaveBeenCalledWith('https://id.example.test/logout?state=xyz');
+      expect(useSession.getState()).toMatchObject({ phase: 'signedOut' });
+    });
+
+    test('a reconnection after a provider sign-in is not a provider sign-in, but its sign-out still asks', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signInWithOidc(SERVER, 'alice', 'device-1', 'ref-1');
+      fake.rpc.setStatus('reconnecting');
+      fake.rpc.setStatus('open');
+      await vi.waitFor(() => expect(useSession.getState().loginCount).toBe(2));
+      // the fresh session holds no ID token of its own
+      expect(useSession.getState().signedInViaOidc).toBe(false);
+
+      await useSession.getState().signOut();
+      expect(fake.api.oidcLogout).toHaveBeenCalledTimes(1); // the server resolves the account's last token, or says null
+      expect(assign).not.toHaveBeenCalled();
+    });
+
+    test('a provider sign-out the server declines signs out anyway', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signInWithOidc(SERVER, 'alice', 'device-1', 'ref-1');
+      fake.api.oidcLogout.mockResolvedValueOnce(null);
+
+      await useSession.getState().signOut();
+      expect(assign).not.toHaveBeenCalled();
+      expect(useSession.getState()).toMatchObject({ phase: 'signedOut', signedInViaOidc: false });
+    });
+
+    test('a provider sign-out whose call fails signs out anyway', async () => {
+      const { useSession, fake } = await load();
+      await useSession.getState().signInWithOidc(SERVER, 'alice', 'device-1', 'ref-1');
+      fake.api.oidcLogout.mockRejectedValueOnce(new Error('bridge closed'));
+
+      await useSession.getState().signOut();
+      expect(assign).not.toHaveBeenCalled();
+      expect(useSession.getState().phase).toBe('signedOut');
     });
   });
 });

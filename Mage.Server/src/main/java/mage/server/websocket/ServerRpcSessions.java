@@ -2,8 +2,10 @@ package mage.server.websocket;
 
 import mage.server.AuthorizedUserRepository;
 import mage.server.DisconnectReason;
+import mage.server.Session;
 import mage.server.TrustedHeaderAuth;
 import mage.server.User;
+import mage.server.admin.OidcAuth;
 import mage.server.managers.ManagerFactory;
 import mage.server.websocket.rpc.RpcSessions;
 import mage.server.ClientChannel;
@@ -90,6 +92,28 @@ final class ServerRpcSessions implements RpcSessions {
         String account = TrustedHeaderAuth.get().account(AuthorizedUserRepository.getInstance(), signedOnUser, System.currentTimeMillis());
         managers.sessionManager().getSession(sessionId).ifPresent(session -> session.trustSignedOnLogin(account));
         return account;
+    }
+
+    @Override
+    public void markOidcLogin(String sessionId, OidcAuth.Token token) {
+        if (token != null) {
+            managers.sessionManager().getSession(sessionId).ifPresent(session -> session.markOidcLogin(token));
+        }
+    }
+
+    @Override
+    public Optional<OidcAuth.Token> oidcIdToken(String sessionId) {
+        return managers.sessionManager().getSession(sessionId).map(Session::oidcLoginToken);
+    }
+
+    @Override
+    public void markOidcAdmin(String sessionId, boolean admin) {
+        managers.sessionManager().getSession(sessionId).ifPresent(session -> session.markOidcAdmin(admin));
+    }
+
+    @Override
+    public boolean oidcAdmin(String sessionId) {
+        return managers.sessionManager().getSession(sessionId).map(Session::oidcAdmin).orElse(false);
     }
 
     @Override

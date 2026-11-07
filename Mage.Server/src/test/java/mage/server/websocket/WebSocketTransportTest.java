@@ -294,6 +294,24 @@ public class WebSocketTransportTest {
         }
 
         @Override
+        public void markOidcLogin(String sessionId, mage.server.admin.OidcAuth.Token token) {
+        }
+
+        @Override
+        public Optional<mage.server.admin.OidcAuth.Token> oidcIdToken(String sessionId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public void markOidcAdmin(String sessionId, boolean admin) {
+        }
+
+        @Override
+        public boolean oidcAdmin(String sessionId) {
+            return false;
+        }
+
+        @Override
         public void forgetLogin(String userName, String token) {
         }
 

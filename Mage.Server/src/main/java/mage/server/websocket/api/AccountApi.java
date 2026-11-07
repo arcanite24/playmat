@@ -70,6 +70,13 @@ final class AccountApi {
         public String signOn;
         /** the server signs in only through its single sign-on: no passwords, registration, reset codes or GitHub */
         public boolean signOnOnly;
+        /** players can sign in with the identity provider (oidcStart) */
+        public boolean oidc;
+        /** the name on the sign-in button, or "OIDC" */
+        public String oidcName;
+        /** the identity provider is the only sign-in method (XMAGE_OIDC_ONLY) */
+        public boolean oidcOnly;
+
         /** open, or invite: new accounts need an invite link (or a place on the allowlist) */
         public String registration;
         /** when planned maintenance starts (epoch ms), or 0; no new tables can start meanwhile */
@@ -209,6 +216,12 @@ final class AccountApi {
             info.ownerPending = info.accounts && !info.signOnOnly && !access.owner().isEmpty()
                     && mage.server.AuthorizedUserRepository.getInstance().getByName(access.owner()) == null;
             info.github = info.accounts && !info.signOnOnly && mage.server.admin.GithubAuth.get().isEnabled();
+            mage.server.admin.OidcAuth oidc = mage.server.admin.OidcAuth.get();
+            // single sign-on locked down is the only door: the in-app provider button would go nowhere
+            info.oidc = info.accounts && !info.signOnOnly && oidc.isEnabled();
+            info.oidcName = oidc.label();
+            info.oidcOnly = info.accounts && !info.signOnOnly && oidc.isOidcOnly();
+
             info.registration = RuntimeSettings.get().registrationOpen() ? "open" : "invite";
             RuntimeSettings runtime = RuntimeSettings.get();
             info.support = runtime.supportOn() && (!runtime.supportKofiUrl().isEmpty() || !runtime.supportSponsorsUrl().isEmpty()

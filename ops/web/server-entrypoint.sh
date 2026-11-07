@@ -24,7 +24,7 @@ from_file() {
     eval "$1=\$(cat \"\$file\")"
   fi
 }
-for secret in XMAGE_ADMIN_PASSWORD XMAGE_MAIL_PASSWORD XMAGE_MAILGUN_API_KEY XMAGE_DISCORD_WEBHOOK XMAGE_DISCORD_STAFF_WEBHOOK XMAGE_GITHUB_CLIENT_SECRET XMAGE_GITHUB_TOKEN XMAGE_TURNSTILE_SECRET XMAGE_KOFI_TOKEN XMAGE_GITHUB_SPONSORS_SECRET; do
+for secret in XMAGE_ADMIN_PASSWORD XMAGE_MAIL_PASSWORD XMAGE_MAILGUN_API_KEY XMAGE_DISCORD_WEBHOOK XMAGE_DISCORD_STAFF_WEBHOOK XMAGE_GITHUB_CLIENT_SECRET XMAGE_GITHUB_TOKEN XMAGE_OIDC_CLIENT_SECRET XMAGE_TURNSTILE_SECRET XMAGE_KOFI_TOKEN XMAGE_GITHUB_SPONSORS_SECRET; do
   from_file "$secret"
 done
 
@@ -183,6 +183,17 @@ fi
 if [ -z "$SIGN_ON_HEADER" ] && [ "$PASSWORD_SIGNIN" = false ]; then
   die "XMAGE_PASSWORD_SIGNIN=false needs AUTH_TRUSTED_HEADER: nobody could sign in"
 fi
+# --- sign in with an identity provider (OpenID Connect) ------------------------------------------
+# true makes the provider the only sign-in method. It needs the provider set and accounts on
+# (XMAGE_AUTH=true): a login method that can't work is a boot failure, not a runtime surprise.
+OIDC_ONLY=${XMAGE_OIDC_ONLY:-false}
+is_bool "$OIDC_ONLY" || die "XMAGE_OIDC_ONLY must be true or false (got '$OIDC_ONLY')"
+if [ "$OIDC_ONLY" = true ]; then
+  [ -n "${XMAGE_OIDC_DISCOVERY:-}" ] && [ -n "${XMAGE_OIDC_CLIENT_ID:-}" ] && [ -n "${XMAGE_OIDC_CLIENT_SECRET:-}" ] \
+    || die "XMAGE_OIDC_ONLY=true needs the provider set: XMAGE_OIDC_DISCOVERY, XMAGE_OIDC_CLIENT_ID and XMAGE_OIDC_CLIENT_SECRET"
+  [ "${XMAGE_AUTH:-false}" = true ] || die "XMAGE_OIDC_ONLY=true needs XMAGE_AUTH=true: the provider is the only sign-in, and it signs in with accounts"
+  [ "$DESKTOP" = true ] && echo "xmage-server: warning: XMAGE_OIDC_ONLY=true with XMAGE_DESKTOP=true; desktop clients can't sign in on such a server" >&2
+fi
 
 # --- support for the server ---------------------------------------------------------------------
 # The payment webhooks' listener (Caddy forwards /hooks and /public to it): on 17174 when Ko-fi or GitHub Sponsors is
@@ -331,6 +342,14 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
       printf '"-Dxmage.github.%s=%s"\n' "${pair#*:}" "$(printf '%s' "$val" | sed 's/[\\"]/\\&/g')"
     fi
   done
+  # sign in with an identity provider (OpenID Connect); the secret stays out of ps
+  for pair in XMAGE_OIDC_DISCOVERY:discovery XMAGE_OIDC_CLIENT_ID:clientId XMAGE_OIDC_CLIENT_SECRET:clientSecret XMAGE_OIDC_LABEL:label XMAGE_OIDC_ADMIN_GROUP:adminGroup XMAGE_OIDC_SCOPE:scope XMAGE_OIDC_GROUPS_CLAIM:groupsClaim; do
+    eval "val=\${${pair%%:*}:-}"
+    if [ -n "$val" ]; then
+      printf '"-Dxmage.oidc.%s=%s"\n' "${pair#*:}" "$(printf '%s' "$val" | sed 's/[\\"]/\\&/g')"
+    fi
+  done
+  [ "$OIDC_ONLY" = true ] && echo "-Dxmage.oidc.only=true"
   # Cloudflare Turnstile on registration and access requests: the site key goes to the web client, the secret stays here
   if [ -n "${XMAGE_TURNSTILE_SITE_KEY:-}" ]; then
     printf '"-Dxmage.turnstile.siteKey=%s"\n' "$(printf '%s' "$XMAGE_TURNSTILE_SITE_KEY" | sed 's/[\\"]/\\&/g')"

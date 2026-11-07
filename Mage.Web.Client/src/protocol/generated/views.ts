@@ -19,6 +19,10 @@ export interface AccessOverview {
     mail?: boolean;
     mode?: string;
     notice?: string;
+    oidc?: boolean;
+    oidcIssuer?: string;
+    oidcName?: string;
+    oidcOnly?: boolean;
     owner?: string;
     requests?: AccessRequest[];
 }
@@ -42,6 +46,7 @@ export interface AccountDetail {
     githubLogin?: string;
     matches?: number;
     matchesQuit?: number;
+    oidcName?: string;
     rating?: number;
     reports?: PlayerReport[];
     sessions?: AccountSession[];
@@ -52,6 +57,7 @@ export interface AccountEmailStatus {
     email?: string;
     github?: boolean;
     mail?: boolean;
+    oidc?: boolean;
     verified?: boolean;
 }
 
@@ -1710,6 +1716,20 @@ export interface ObjectColor extends Serializable, Copyable<ObjectColor>, Compar
     white?: boolean;
 }
 
+export interface OidcLogout {
+    expired?: boolean;
+    state?: string;
+    url?: string;
+}
+
+export interface OidcSignInResult {
+    idTokenRef?: string;
+    nameProblem?: string;
+    rememberToken?: string;
+    suggestedName?: string;
+    userName?: string;
+}
+
 export interface PaidGame {
     at?: number;
     coins?: number;
@@ -1988,7 +2008,11 @@ export interface ServerInfo {
     minPasswordLength?: number;
     minUserNameLength?: number;
     notice?: string;
+    oidc?: boolean;
+    oidcName?: string;
+    oidcOnly?: boolean;
     ownerPending?: boolean;
+
     registration?: string;
     serverName?: string;
     signOn?: string;
