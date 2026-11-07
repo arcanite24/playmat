@@ -202,6 +202,7 @@ Running it:
 
 - Built alongside Phase 4 for two-player duels, measured with the same seeded duels as `AiSpeedBenchTest`: decision p50/p95/p99/worst, CPU per node and per game.
 - **Started 6 Nov 2026** ([rust/Ai.md](rust/Ai.md)): not a MAD port but whole-turn playouts on engine copies, scored with `GameStateEvaluator2`'s scores. On the bench's 84 duels: 0.02 s of CPU per game, p99 1 ms, worst decision 6 ms. It plays the AI's seat of Java's one-on-one games through a copy kept in step (`XMAGE_AI_BACKEND=rust`, `XMAGE_RUST_AI_USERS`), handing the game back to the Java AI at any difference.
+- **Next (proposed 7 Nov 2026)**: games against the AI played on the Rust engine alone, with Java keeping the tables and matches: [rust/GameHost.md](rust/GameHost.md).
 
 **Gate:** Rust MAD at least matches Java MAD's results on the bench at equal node budgets on the 42 decks, at a fraction of the CPU, with no decision over 1 s at skill 4 on the bench's heaviest games (Java after #217: worst 1.9 s, p99 1.6 s).
 
