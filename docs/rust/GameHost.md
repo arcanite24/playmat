@@ -67,10 +67,9 @@ in the first rollout, not after it. A game on the host should cost a few tens of
 take about 0.05 s today, and views built from the engine's state should cost the same order. Production's numbers come
 once #238 is deployed: a week of cost lines is step A's baseline.
 
-Java-only quick wins the numbers point at, which help every game while the host is built:
-- recording replays costs 17% of the game thread: record decisions instead of states, since a seeded game replays from
-  its decision log
-- views are built for each update: build them once per state change and reuse them for every viewer
+A Java-only quick win the numbers point at, which would help every game while the host is built: recording the replay
+costs 17% of the game thread. Recording only the decisions would be far cheaper, but Java doesn't always replay a seeded
+game the same way twice, so that needs a fix or a check first.
 
 ## Target
 
