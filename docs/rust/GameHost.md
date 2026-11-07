@@ -13,8 +13,8 @@ plays a copy that follows Java's answers ([Ai.md](Ai.md)). So each AI game still
 - A state fingerprint at every trace point (the whole state as text, hashed), so the copy can be checked.
 - The copy itself: cheap (a full game replays in about 2.5 ms).
 
-In `RustAiGameTest` a game takes 12 to 14 s of wall time, nearly all of it Java. The Rust AI's decisions take
-milliseconds.
+In `RustAiGameTest` a game takes 12 to 14 s of wall time, but little of that is CPU: the test's games mostly wait
+(below). The Rust AI's decisions take milliseconds.
 
 | | Today |
 |---|---|
@@ -22,6 +22,55 @@ milliseconds.
 | Pioneer and Standard meta decks the AI picks from (`public/meta-decks`) | 6 of 24 fully covered; 98 card names missing |
 | Of those 98, translated by today's transpiler | 38 (the rest need a new framework class or a card's own effect) |
 | Games the copy follows to the end (test, debug off) | 40 of 40 Company vs Zombies, 22 of 24 school-deck games |
+
+## Step A: what a game costs now (measured 7 Nov 2026)
+
+Since #238 the server logs `Rust AI cost in …` at the end of each game the Rust AI played: the game thread's CPU since
+the copy started, the trace's share of it, and the copy process's own CPU. Local server, Company vs Zombies through the
+client core with the app's default settings (`rustAi.live.test.ts`), 48 games in four rounds of 12 on one JVM:
+
+| Round | Whole JVM, CPU s per game |
+|---|---|
+| 1 (fresh JVM) | 2.2 |
+| 2 | 2.2 |
+| 3 | 1.0 |
+| 4 | 0.85 |
+
+| Per game, rounds 3 and 4 | CPU |
+|---|---|
+| Java's game thread (engine, dialogs, views) | 0.54 s |
+| of which fingerprints | about 10 ms (2%) |
+| of which sending to the copy | about 5 ms |
+| The Rust copy, AI search included | 0.05 s |
+
+- **A fresh JVM spends most of its CPU compiling.** In round 2 the JIT compiler threads took 79% of the JVM's CPU, and
+  the game threads 11%. That fades over rounds 3 and 4. Production's JVM runs for days, so its steady state is the part
+  that counts: about 0.6 to 0.8 s per game, most of it on the game thread.
+- **The game thread is mostly views, not rules.** Java's samples on the game thread (JFR, round 2, 184 samples, so
+  rough):
+
+  | Share | Work |
+  |---|---|
+  | 35% | building views (`mage.view`) |
+  | 20% | sending them to the client |
+  | 17% | recording the replay |
+  | 18% | the rules engine |
+  | 8% | playable highlights |
+
+- **What the trace and the copy cost is small:** about 3% of the game thread, plus 0.05 s in the copy.
+- The local run had `PLAYMAT_AI_DEBUG` on, so the copy also received each state's text; production's cost lines will
+  give the real numbers.
+
+What this means for the plan: moving the rules alone would save less than a fifth of the game thread. The views,
+sending them, and the replay are most of what Java does in these games, which is why step C (views in Rust) belongs
+in the first rollout, not after it. A game on the host should cost a few tens of milliseconds: the engine and the AI
+take about 0.05 s today, and views built from the engine's state should cost the same order. Production's numbers come
+once #238 is deployed: a week of cost lines is step A's baseline.
+
+Java-only quick wins the numbers point at, which help every game while the host is built:
+- recording replays costs 17% of the game thread: record decisions instead of states, since a seeded game replays from
+  its decision log
+- views are built for each update: build them once per state change and reuse them for every viewer
 
 ## Target
 
@@ -89,7 +138,7 @@ practice tools; puzzle export; replays; spectators; multiplayer and Commander.
 
 | Step | Work | Gate |
 |---|---|---|
-| A. Measure | Server CPU per AI game in production, split: Java's engine, fingerprints, the copy | A baseline the end state is measured against |
+| A. Measure | Server CPU per AI game in production, split: Java's engine, fingerprints, the copy. Local numbers above; the cost line ships with #238 | A week of production cost lines |
 | B. Fidelity | Fix what the stop log reports. All 24 meta decks in the engine, with shadow games for each pairing | A week of production AI games whose decks qualify with the copy following 99% to the end, every stop reason understood |
 | C. Views | View and prompt rendering, compared in production against Java's | Zero view differences on a week of real games |
 | D. Human side and host | Skip settings and F-keys, timers, mulligans, concede, reconnect; the host service and the gateway route | `rustAi.live.test.ts` and the conformance suite pass against a Rust-hosted game; the user plays a set of games locally |
