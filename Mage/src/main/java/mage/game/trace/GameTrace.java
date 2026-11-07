@@ -2,6 +2,9 @@ package mage.game.trace;
 
 import mage.game.Game;
 
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadMXBean;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -54,10 +57,13 @@ public class GameTrace {
     private final List<Entry> entries = Collections.synchronizedList(new ArrayList<>());
     private String last;
     private Runnable onEnd;
+    /** written on the game's thread only */
+    private long fingerprintNanos;
+    private long sinkNanos;
 
     /**
      * @param keepText keep each state's text as well as its hash
-     * @param sink     receives every entry as it is made (on the game thread); null for none
+     * @param sink     receives every entry as it is made, with its text (on the game thread); null for none
      */
     public GameTrace(boolean keepText, Consumer<Entry> sink) {
         this.keepText = keepText;
@@ -75,8 +81,10 @@ public class GameTrace {
 
     /** records the game's state at this point, unless it's the same as the last one recorded */
     public void record(Game game, String point) {
+        long before = cpuNanos();
         String text = StateFingerprint.text(game);
         String hash = StateFingerprint.hashText(text);
+        fingerprintNanos += cpuNanos() - before;
         synchronized (this) {
             if (hash.equals(last)) {
                 // a player passing priority without anything changing
@@ -87,15 +95,35 @@ public class GameTrace {
             }
             last = hash;
         }
-        Entry entry = new Entry(entries.size(), point, game.getTurnNum(), game.getTurnStepType() == null ? "-" : game.getTurnStepType().name(),
-                hash, keepText ? text : null);
+        int index = entries.size();
+        String step = game.getTurnStepType() == null ? "-" : game.getTurnStepType().name();
+        Entry entry = new Entry(index, point, game.getTurnNum(), step, hash, keepText ? text : null);
         entries.add(entry);
         if (sink != null) {
-            sink.accept(entry);
+            // the sink always gets the text; the trace keeps it only when asked
+            long sent = cpuNanos();
+            sink.accept(keepText ? entry : new Entry(index, point, game.getTurnNum(), step, hash, text));
+            sinkNanos += cpuNanos() - sent;
         }
         if (END.equals(point)) {
             ended();
         }
+    }
+
+    /** CPU time the game's thread spent on fingerprints (each state's text and hash), in nanoseconds */
+    public long getFingerprintNanos() {
+        return fingerprintNanos;
+    }
+
+    /** CPU time the game's thread spent in the sink, in nanoseconds */
+    public long getSinkNanos() {
+        return sinkNanos;
+    }
+
+    /** this thread's CPU time, or 0 when the JVM can't tell */
+    static long cpuNanos() {
+        ThreadMXBean threads = ManagementFactory.getThreadMXBean();
+        return threads.isCurrentThreadCpuTimeSupported() ? threads.getCurrentThreadCpuTime() : 0;
     }
 
     private void ended() {

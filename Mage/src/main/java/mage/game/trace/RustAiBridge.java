@@ -8,6 +8,7 @@ import mage.game.Game;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
@@ -39,6 +40,14 @@ public final class RustAiBridge {
     public static final AtomicLong ANSWERED = new AtomicLong();
     public static final AtomicLong STOPPED = new AtomicLong();
     public static final AtomicLong FINISHED = new AtomicLong();
+
+    private final AtomicLong answered = new AtomicLong();
+    /** the game thread's CPU when the copy started; the Java side's cost at the end; the copy's CPU when it reports */
+    private long gameThread;
+    private long gameThreadCpu;
+    private long[] javaCost;
+    private volatile long copyCpuMillis = -1;
+    private boolean costLogged;
 
     private final UUID seatId;
     private final DecisionLog log;
@@ -137,6 +146,9 @@ public final class RustAiBridge {
                 JsonObject m = new JsonObject();
                 m.addProperty("type", "trace");
                 m.addProperty("fp", entry.hash);
+                if (entry.text != null) {
+                    remember(entry.hash, entry.text);
+                }
                 if (DEBUG && entry.text != null) {
                     m.addProperty("text", entry.text);
                 }
@@ -145,6 +157,46 @@ public final class RustAiBridge {
         } catch (RuntimeException e) {
             stop("trace: " + e);
         }
+    }
+
+    /** the last states' texts by hash, to show where the copy's state differs */
+    private final Map<String, String> texts = new LinkedHashMap<String, String>() {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+            return size() > 32;
+        }
+    };
+
+    private synchronized void remember(String hash, String text) {
+        texts.put(hash, text);
+    }
+
+    /** a "diverged" at a differing state: the lines only Java's state has, and those only the copy's has */
+    private synchronized void logDifference(JsonObject a) {
+        if (!a.has("javaFp") || !a.has("rustText")) {
+            return;
+        }
+        String java = texts.get(a.get("javaFp").getAsString());
+        if (java == null) {
+            return;
+        }
+        List<String> j = new ArrayList<>(Arrays.asList(java.split("\n")));
+        List<String> r = new ArrayList<>(Arrays.asList(a.get("rustText").getAsString().split("\n")));
+        List<String> onlyJava = new ArrayList<>(j);
+        for (String line : r) {
+            onlyJava.remove(line);
+        }
+        List<String> onlyRust = new ArrayList<>(r);
+        for (String line : j) {
+            onlyRust.remove(line);
+        }
+        logger.info("Rust AI " + gameName + ": " + j.get(Math.min(1, j.size() - 1)) + "\n  Java only:\n    "
+                + String.join("\n    ", onlyJava) + "\n  Rust only:\n    " + String.join("\n    ", onlyRust));
+    }
+
+    /** the answers this bridge gave */
+    public long getAnswered() {
+        return answered.get();
     }
 
     public boolean isActive() {
@@ -156,6 +208,8 @@ public final class RustAiBridge {
     }
 
     private void start(Game game) {
+        gameThread = Thread.currentThread().getId();
+        gameThreadCpu = GameTrace.cpuNanos();
         seat = StateFingerprint.seats(game).indexOf(seatId);
         if (seat < 0) {
             stop("the seat isn't in the game");
@@ -207,7 +261,12 @@ public final class RustAiBridge {
             try (BufferedReader r = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = r.readLine()) != null) {
-                    logger.info("Rust AI " + gameName + ": " + line);
+                    if (line.startsWith("cpu ") && line.endsWith(" ms")) {
+                        copyCpuMillis = Long.parseLong(line.substring(4, line.length() - 3));
+                        logCost();
+                    } else {
+                        logger.info("Rust AI " + gameName + ": " + line);
+                    }
                 }
             } catch (IOException ignore) {
             }
@@ -218,7 +277,8 @@ public final class RustAiBridge {
             if (seatId.equals(event.getPlayerId())) {
                 choice = event.getChoice();
                 question = event.getQueryType() + " " + (event.getMessage() == null ? "" : event.getMessage())
-                        + (DEBUG && event.getChoice() != null ? " " + event.getChoice().getKeyChoices() + event.getChoice().getChoices() : "");
+                        // a choice's options, always: the copy answers a mana color from them
+                        + (event.getChoice() != null ? " " + event.getChoice().getKeyChoices() + event.getChoice().getChoices() : "");
             }
         });
         active = true;
@@ -250,6 +310,7 @@ public final class RustAiBridge {
             return null;
         }
         if (!"answer".equals(type(a))) {
+            logDifference(a);
             stop(type(a) + ": " + (a.has("message") ? a.get("message").getAsString() : a.toString()));
             return null;
         }
@@ -289,6 +350,7 @@ public final class RustAiBridge {
             }
         }
         ANSWERED.incrementAndGet();
+        answered.incrementAndGet();
         return answer;
     }
 
@@ -364,6 +426,35 @@ public final class RustAiBridge {
             }
         }
         close();
+    }
+
+    /**
+     * the game ended: the process is told and let go, and the game's cost is logged once the process reports its CPU:
+     * the game thread's CPU since the copy started (Java's engine, its dialogs and views), the share of it the trace
+     * took, and the copy's
+     */
+    public void end(Game game, GameTrace trace) {
+        if (gameThreadCpu > 0) {
+            synchronized (this) {
+                // the end can come on another thread (a concede, a timeout)
+                long now = ManagementFactory.getThreadMXBean().getThreadCpuTime(gameThread);
+                javaCost = new long[]{Math.max(0, now - gameThreadCpu), trace.getFingerprintNanos(),
+                        trace.getSinkNanos(), game.getTurnNum()};
+            }
+            logCost();
+        }
+        end();
+    }
+
+    private synchronized void logCost() {
+        if (javaCost == null || copyCpuMillis < 0 || costLogged) {
+            return;
+        }
+        costLogged = true;
+        logger.info("Rust AI cost in " + gameName + ": " + javaCost[3] + " turns, " + answered.get()
+                + " answers; CPU ms: game thread " + javaCost[0] / 1_000_000 + " (fingerprints " + javaCost[1] / 1_000_000
+                + ", sending to the copy " + javaCost[2] / 1_000_000 + "), copy " + copyCpuMillis
+                + (failure != null ? " (stopped partway)" : ""));
     }
 
     /** the game ended: the process is told and let go */

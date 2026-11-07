@@ -125,6 +125,7 @@ pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), 
         texts: VecDeque::new(),
         rust_texts: VecDeque::new(),
         diverged: None,
+        differs: None,
         ended: false,
         asked: 0,
         waiting: false,
@@ -137,7 +138,13 @@ pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), 
         if !mirror.waiting {
             mirror.drain_to_ask();
         }
-        mirror.send(json!({"type": "diverged", "message": why}));
+        let mut m = json!({"type": "diverged", "message": why});
+        // a state that differs: Java's hash and this copy's text, so the server can log the lines that differ
+        if let Some((java, rust)) = mirror.differs.take() {
+            m["javaFp"] = json!(java);
+            m["rustText"] = json!(rust);
+        }
+        mirror.send(m);
         return Err(why);
     }
     if !mirror.ended {
@@ -172,10 +179,12 @@ struct Mirror<'a> {
     java: VecDeque<String>,
     rust: VecDeque<String>,
     last: Option<String>,
-    /// fingerprint texts, Java's and this copy's (PLAYMAT_AI_DEBUG only)
+    /// fingerprint texts, Java's (PLAYMAT_AI_DEBUG only) and this copy's
     texts: VecDeque<String>,
     rust_texts: VecDeque<String>,
     diverged: Option<String>,
+    /// at a fingerprint that differs: Java's hash and this copy's text
+    differs: Option<(String, String)>,
     ended: bool,
     asked: u64,
     /// Java is waiting on an answer this side couldn't give
@@ -199,6 +208,9 @@ impl Mirror<'_> {
                 let why = format!("the state differs from Java's at a trace point (Java {j}, Rust {r})");
                 if let (Some(jt), Some(rt)) = (self.texts.front(), self.rust_texts.front()) {
                     eprintln!("--- Java\n{jt}--- Rust\n{rt}");
+                }
+                if let Some(rt) = self.rust_texts.front() {
+                    self.differs = Some((j.clone(), rt.clone()));
                 }
                 self.differ(why);
                 return;
@@ -261,6 +273,14 @@ impl Decider for Mirror<'_> {
                     self.compare();
                 }
                 Message::Decision { decision } => {
+                    // which of several replacement effects applies first (Archon of Emeria's and a land's own "enters
+                    // tapped", say): Java asks more often than the engine, which asks only where it owes the question;
+                    // either order gives the same state, and a fingerprint shows it if not
+                    let owed =
+                        matches!(q, Query::Choice { message, .. } if message.starts_with("Choose a replacement"));
+                    if !owed && decision.string.as_deref().is_some_and(replacement_key) {
+                        continue;
+                    }
                     if seat == self.bot || decision.seat != seat {
                         self.differ(format!(
                             "Java has seat {}'s answer, but here seat {seat} is asked {q:?}",
@@ -363,9 +383,7 @@ impl Decider for Mirror<'_> {
         if self.last.as_ref() == Some(&hash) {
             return;
         }
-        if std::env::var_os("PLAYMAT_AI_DEBUG").is_some() {
-            self.rust_texts.push_back(text);
-        }
+        self.rust_texts.push_back(text);
         self.last = Some(hash.clone());
         self.rust.push_back(hash);
         self.compare();
@@ -390,6 +408,12 @@ fn java_kind(q: &Query) -> Option<&'static [&'static str]> {
         Query::MultiAmount { .. } => &["MULTI_AMOUNT"],
         _ => return None,
     })
+}
+
+/// A key of Java's replacement-effect choice: the effect's id and the source's, both UUIDs
+fn replacement_key(s: &str) -> bool {
+    let uuid = |p: &str| p.len() == 36 && p.chars().all(|c| c == '-' || c.is_ascii_hexdigit());
+    s.split_once('_').is_some_and(|(a, b)| uuid(a) && uuid(b))
 }
 
 /// A Java answer as the engine's

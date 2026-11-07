@@ -6132,7 +6132,8 @@ fn apply_each_effect(
                     if same_owner { vec![perms.clone()] } else { perms.iter().map(|p| vec![*p]).collect() };
                 for mut cards in groups {
                     let owner = game.obj(cards[0]).owner;
-                    // `ZonesHandler.chooseOrder`: the owner picks the order to put them on the bottom
+                    // `ZonesHandler.chooseOrder`: the owner picks the order to put them on top (the last one topmost),
+                    // where `moveCards` puts them before the shuffle
                     let mut order = Vec::new();
                     while cards.len() > 1 {
                         match ask(game, d, owner, &Query::Cards { objs: cards.clone(), required: true }) {
@@ -6146,7 +6147,7 @@ fn apply_each_effect(
                     }
                     order.extend(cards);
                     for c in order {
-                        to_library(game, c, false);
+                        to_library(game, c, true);
                     }
                     let mut library = game.player(owner).library.clone();
                     game.rng.shuffle(&mut library);
