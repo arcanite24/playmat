@@ -109,7 +109,9 @@ The server logs `… qualifies (AI deck: …)` and `Rust AI plays seat …` when
 with the reason when it hands a game back, and `… doesn't qualify, the Rust engine lacks N cards: …` for a listed
 player's game with cards the engine doesn't have. When the reason is a state that differs, the line before it gives
 the fingerprint lines only Java's state has and those only the copy's has (the copy sends its text with `diverged`,
-and the bridge keeps Java's last few).
+and the bridge keeps Java's last few). At the end of each game it played, `Rust AI cost in …` gives the
+game thread's CPU since the copy started (Java's engine, dialogs and views), the share the trace took (fingerprints,
+sending to the copy) and the copy process's own CPU.
 
 ### Tests
 
