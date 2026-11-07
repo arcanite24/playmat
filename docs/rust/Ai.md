@@ -79,7 +79,8 @@ The Java server stays the game. The Rust AI plays the AI's seat through a copy o
 Java's AI players auto-choose targets at level 2 (`TargetImpl.tryToAutoChoose`), human players at level 1; the copy
 plays the AI's seat at level 2 (`Player::auto_target_all`). A replacement-effect order Java keys by its own ids is
 answered with Java's first key. A color Java asks for "any color" mana is the one the copy made (`Game::any_color_made`).
-Mana floating in the AI's pool always pays by itself (`Player::no_stock`): Java sets a pool's stock on the copy of
+A choice's options are part of the question the bridge sends (`[White, Blue, Black, Red, Green]`), with or without
+`PLAYMAT_AI_DEBUG`. Mana floating in the AI's pool always pays by itself (`Player::no_stock`): Java sets a pool's stock on the copy of
 the player each dialog's stand-in gets, never on the AI's own. When the copy's game ends first, it reads on until
 Java's `end`.
 
@@ -104,9 +105,11 @@ against the Java AI isn't possible this way; both are measured against the same 
 
 A game qualifies when it's one human against one AI, from opening hands (no test setup, no resumed game), and the
 engine has every card in both decks (`playmat-ai-bridge --check`, asked once per card name). Others are untouched.
-The server logs `Rust AI plays seat …` when a game starts with it, `Rust AI stops in …` with the reason when it
-hands a game back, and `… doesn't qualify, the Rust engine lacks N cards: …` for a listed player's game with cards the
-engine doesn't have.
+The server logs `… qualifies (AI deck: …)` and `Rust AI plays seat …` when a game starts with it, `Rust AI stops in …`
+with the reason when it hands a game back, and `… doesn't qualify, the Rust engine lacks N cards: …` for a listed
+player's game with cards the engine doesn't have. When the reason is a state that differs, the line before it gives
+the fingerprint lines only Java's state has and those only the copy's has (the copy sends its text with `diverged`,
+and the bridge keeps Java's last few).
 
 ### Tests
 
@@ -122,7 +125,11 @@ engine doesn't have.
         -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:$PWD/.travis/log4j.properties
 
   `PLAYMAT_AI_DEBUG=1` logs each question and message, and both fingerprint texts at a difference.
-  `-Dxmage.rustAiGames.decks=a.txt,b.txt` plays only those two decks against each other.
+  `-Dxmage.rustAiGames.decks=a.txt,b.txt` (absolute paths) plays only those two decks against each other.
+  `-Dxmage.rustAiGames.threads=N` plays N games at once (default half the processors; 24 games take about 70 s on an
+  M-series Mac instead of 6 minutes one at a time). Each game has its own seed, but Java doesn't always play a seeded
+  game the same way twice (orders that follow random ids), so a game can pass in one run and leave the Rust AI in
+  the next: rerun a single game with `.first=N -Dxmage.rustAiGames.games=1` a few times before chasing it.
 - `Mage.Web.Client/src/core/headless/rustAi.live.test.ts`: the same through a running server, as a player meets it
   (the client core with the app's default settings and auto-pass), Selesnya Company against mono-black Zombies. Start
   the server with `XMAGE_AI_BACKEND=rust XMAGE_RUST_AI_USERS=* XMAGE_RUST_AI_BIN=<bridge>` (and `PLAYMAT_AI_DEBUG=1`),

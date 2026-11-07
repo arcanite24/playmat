@@ -40,6 +40,8 @@ public final class RustAiBridge {
     public static final AtomicLong STOPPED = new AtomicLong();
     public static final AtomicLong FINISHED = new AtomicLong();
 
+    private final AtomicLong answered = new AtomicLong();
+
     private final UUID seatId;
     private final DecisionLog log;
     private final String gameName;
@@ -137,6 +139,9 @@ public final class RustAiBridge {
                 JsonObject m = new JsonObject();
                 m.addProperty("type", "trace");
                 m.addProperty("fp", entry.hash);
+                if (entry.text != null) {
+                    remember(entry.hash, entry.text);
+                }
                 if (DEBUG && entry.text != null) {
                     m.addProperty("text", entry.text);
                 }
@@ -145,6 +150,46 @@ public final class RustAiBridge {
         } catch (RuntimeException e) {
             stop("trace: " + e);
         }
+    }
+
+    /** the last states' texts by hash, to show where the copy's state differs */
+    private final Map<String, String> texts = new LinkedHashMap<String, String>() {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+            return size() > 32;
+        }
+    };
+
+    private synchronized void remember(String hash, String text) {
+        texts.put(hash, text);
+    }
+
+    /** a "diverged" at a differing state: the lines only Java's state has, and those only the copy's has */
+    private synchronized void logDifference(JsonObject a) {
+        if (!a.has("javaFp") || !a.has("rustText")) {
+            return;
+        }
+        String java = texts.get(a.get("javaFp").getAsString());
+        if (java == null) {
+            return;
+        }
+        List<String> j = new ArrayList<>(Arrays.asList(java.split("\n")));
+        List<String> r = new ArrayList<>(Arrays.asList(a.get("rustText").getAsString().split("\n")));
+        List<String> onlyJava = new ArrayList<>(j);
+        for (String line : r) {
+            onlyJava.remove(line);
+        }
+        List<String> onlyRust = new ArrayList<>(r);
+        for (String line : j) {
+            onlyRust.remove(line);
+        }
+        logger.info("Rust AI " + gameName + ": " + j.get(Math.min(1, j.size() - 1)) + "\n  Java only:\n    "
+                + String.join("\n    ", onlyJava) + "\n  Rust only:\n    " + String.join("\n    ", onlyRust));
+    }
+
+    /** the answers this bridge gave */
+    public long getAnswered() {
+        return answered.get();
     }
 
     public boolean isActive() {
@@ -218,7 +263,8 @@ public final class RustAiBridge {
             if (seatId.equals(event.getPlayerId())) {
                 choice = event.getChoice();
                 question = event.getQueryType() + " " + (event.getMessage() == null ? "" : event.getMessage())
-                        + (DEBUG && event.getChoice() != null ? " " + event.getChoice().getKeyChoices() + event.getChoice().getChoices() : "");
+                        // a choice's options, always: the copy answers a mana color from them
+                        + (event.getChoice() != null ? " " + event.getChoice().getKeyChoices() + event.getChoice().getChoices() : "");
             }
         });
         active = true;
@@ -250,6 +296,7 @@ public final class RustAiBridge {
             return null;
         }
         if (!"answer".equals(type(a))) {
+            logDifference(a);
             stop(type(a) + ": " + (a.has("message") ? a.get("message").getAsString() : a.toString()));
             return null;
         }
@@ -289,6 +336,7 @@ public final class RustAiBridge {
             }
         }
         ANSWERED.incrementAndGet();
+        answered.incrementAndGet();
         return answer;
     }
 

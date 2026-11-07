@@ -57,7 +57,7 @@ public class GameTrace {
 
     /**
      * @param keepText keep each state's text as well as its hash
-     * @param sink     receives every entry as it is made (on the game thread); null for none
+     * @param sink     receives every entry as it is made, with its text (on the game thread); null for none
      */
     public GameTrace(boolean keepText, Consumer<Entry> sink) {
         this.keepText = keepText;
@@ -87,11 +87,13 @@ public class GameTrace {
             }
             last = hash;
         }
-        Entry entry = new Entry(entries.size(), point, game.getTurnNum(), game.getTurnStepType() == null ? "-" : game.getTurnStepType().name(),
-                hash, keepText ? text : null);
+        int index = entries.size();
+        String step = game.getTurnStepType() == null ? "-" : game.getTurnStepType().name();
+        Entry entry = new Entry(index, point, game.getTurnNum(), step, hash, keepText ? text : null);
         entries.add(entry);
         if (sink != null) {
-            sink.accept(entry);
+            // the sink always gets the text; the trace keeps it only when asked
+            sink.accept(keepText ? entry : new Entry(index, point, game.getTurnNum(), step, hash, text));
         }
         if (END.equals(point)) {
             ended();
