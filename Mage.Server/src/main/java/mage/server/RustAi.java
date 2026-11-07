@@ -94,7 +94,7 @@ public final class RustAi {
                 return;
             }
             GameTrace trace = new GameTrace(false, entry -> bridge.onTrace(game, entry));
-            trace.setOnEnd(bridge::end);
+            trace.setOnEnd(() -> bridge.end(game, trace));
             options.decisions = log;
             options.trace = trace;
             logger.info("Rust AI: " + user + " vs " + ai.getName() + " qualifies (AI deck: " + ai.getDeck().getName() + ")");

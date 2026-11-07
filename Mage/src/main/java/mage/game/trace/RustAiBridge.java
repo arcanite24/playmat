@@ -8,6 +8,7 @@ import mage.game.Game;
 import org.apache.log4j.Logger;
 
 import java.io.*;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
@@ -41,6 +42,12 @@ public final class RustAiBridge {
     public static final AtomicLong FINISHED = new AtomicLong();
 
     private final AtomicLong answered = new AtomicLong();
+    /** the game thread's CPU when the copy started; the Java side's cost at the end; the copy's CPU when it reports */
+    private long gameThread;
+    private long gameThreadCpu;
+    private long[] javaCost;
+    private volatile long copyCpuMillis = -1;
+    private boolean costLogged;
 
     private final UUID seatId;
     private final DecisionLog log;
@@ -201,6 +208,8 @@ public final class RustAiBridge {
     }
 
     private void start(Game game) {
+        gameThread = Thread.currentThread().getId();
+        gameThreadCpu = GameTrace.cpuNanos();
         seat = StateFingerprint.seats(game).indexOf(seatId);
         if (seat < 0) {
             stop("the seat isn't in the game");
@@ -252,7 +261,12 @@ public final class RustAiBridge {
             try (BufferedReader r = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = r.readLine()) != null) {
-                    logger.info("Rust AI " + gameName + ": " + line);
+                    if (line.startsWith("cpu ") && line.endsWith(" ms")) {
+                        copyCpuMillis = Long.parseLong(line.substring(4, line.length() - 3));
+                        logCost();
+                    } else {
+                        logger.info("Rust AI " + gameName + ": " + line);
+                    }
                 }
             } catch (IOException ignore) {
             }
@@ -412,6 +426,35 @@ public final class RustAiBridge {
             }
         }
         close();
+    }
+
+    /**
+     * the game ended: the process is told and let go, and the game's cost is logged once the process reports its CPU:
+     * the game thread's CPU since the copy started (Java's engine, its dialogs and views), the share of it the trace
+     * took, and the copy's
+     */
+    public void end(Game game, GameTrace trace) {
+        if (gameThreadCpu > 0) {
+            synchronized (this) {
+                // the end can come on another thread (a concede, a timeout)
+                long now = ManagementFactory.getThreadMXBean().getThreadCpuTime(gameThread);
+                javaCost = new long[]{Math.max(0, now - gameThreadCpu), trace.getFingerprintNanos(),
+                        trace.getSinkNanos(), game.getTurnNum()};
+            }
+            logCost();
+        }
+        end();
+    }
+
+    private synchronized void logCost() {
+        if (javaCost == null || copyCpuMillis < 0 || costLogged) {
+            return;
+        }
+        costLogged = true;
+        logger.info("Rust AI cost in " + gameName + ": " + javaCost[3] + " turns, " + answered.get()
+                + " answers; CPU ms: game thread " + javaCost[0] / 1_000_000 + " (fingerprints " + javaCost[1] / 1_000_000
+                + ", sending to the copy " + javaCost[2] / 1_000_000 + "), copy " + copyCpuMillis
+                + (failure != null ? " (stopped partway)" : ""));
     }
 
     /** the game ended: the process is told and let go */

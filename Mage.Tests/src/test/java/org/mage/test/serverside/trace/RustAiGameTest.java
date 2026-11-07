@@ -139,7 +139,7 @@ public class RustAiGameTest {
         RustAiBridge bridge = new RustAiBridge(ai.getId(), log, "test " + seed);
         Assert.assertTrue(java || game.getPlayer(ai.getId()).attachRustAi(bridge));
         GameTrace trace = new GameTrace(System.getenv("PLAYMAT_AI_DEBUG") != null, entry -> bridge.onTrace(game, entry));
-        trace.setOnEnd(bridge::end);
+        trace.setOnEnd(() -> bridge.end(game, trace));
         GameOptions options = new GameOptions();
         options.testMode = false;
         options.rollbackTurnsAllowed = false;

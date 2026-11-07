@@ -10,3 +10,6 @@ publish.workspace = true
 playmat-engine = { path = "../playmat-engine" }
 serde.workspace = true
 serde_json.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
