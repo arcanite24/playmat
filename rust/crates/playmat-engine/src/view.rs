@@ -1,8 +1,21 @@
 //! Views (docs/rust/Views.md): what the web client sees, as Java's `JsonCodec` writes a `GameView`, with ids as
 //! decision-log references, and the field-by-field comparison with Java's.
 
-use crate::state::{Game, Seat, Step};
-use serde_json::{json, Value};
+use crate::card::CardType;
+use crate::replay::reference;
+use crate::state::{Game, ObjId, Seat, Step, Zone};
+use serde_json::{json, Map, Value};
+use std::collections::HashMap;
+use std::sync::OnceLock;
+
+/// Each card's view as Java builds it out of a game (`new CardView(card)`, written by `CardFactsTest` with
+/// `-Dxmage.cardFacts.views`), by name, without its ids: what the engine's card views start from.
+pub const VIEWS_JSON: &str = include_str!("../cards/views.json");
+
+fn templates() -> &'static HashMap<String, Value> {
+    static T: OnceLock<HashMap<String, Value>> = OnceLock::new();
+    T.get_or_init(|| serde_json::from_str(VIEWS_JSON).unwrap_or_default())
+}
 
 /// The view `seat`'s client gets of the game, as Java's `GameSessionPlayer.prepareGameView` builds it and `JsonCodec`
 /// writes it, with ids as decision-log references. `names` are the players' names, by seat.
@@ -22,11 +35,12 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "rollbackTurnsAllowed": false,
         "attackOption": "LEFT",
         "rangeOfInfluence": "ALL",
-        "myHand": {},
+        "myHand": cards_view(game, &game.player(seat).hand),
         "myHelperEmblems": {},
         "opponentHands": {},
         "watchedHands": {},
         "stack": {},
+        "exiles": [cards_view(game, &crate::replay::exile_order(game))],
         "combat": [],
         "revealed": [],
         "lookedAt": [],
@@ -53,6 +67,7 @@ fn phase_of(step: Step) -> &'static str {
 /// `PlayerView`: seat `p` as `viewer` sees it
 fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
     let pl = game.player(p);
+    let exile = crate::replay::exile_order(game);
     let mut pool = pl.mana_pool;
     for (m, _, _) in &pl.conditional_pool {
         for k in 0..5 {
@@ -78,6 +93,9 @@ fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
             "white": pool.colored[0], "blue": pool.colored[1], "black": pool.colored[2],
             "red": pool.colored[3], "green": pool.colored[4], "colorless": pool.colorless,
         },
+        "battlefield": battlefield_view(game, p, viewer, names),
+        "graveyard": cards_view(game, &pl.graveyard),
+        "exile": cards_view(game, &exile.iter().copied().filter(|c| game.obj(*c).owner == p).collect::<Vec<_>>()),
         "attachments": [],
         "commandList": [],
         "designationNames": [],
@@ -92,6 +110,110 @@ fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
         "monarch": false,
         "initiative": false,
     })
+}
+
+/// A zone's cards (`CardsView`), by reference
+fn cards_view(game: &Game, ids: &[ObjId]) -> Value {
+    let mut m = Map::new();
+    for id in ids {
+        let r = reference(game, *id);
+        m.insert(r.clone(), card_view(game, *id, &r, true));
+    }
+    Value::Object(m)
+}
+
+/// `CardView`: the card's template with its reference, owner and controller (`game_object`: built from the game,
+/// not from the card alone, as `original` is)
+fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
+    let o = game.obj(id);
+    let mut v = templates().get(&o.def.name).cloned().unwrap_or_else(|| json!({"name": o.def.name}));
+    if let Value::Object(m) = &mut v {
+        m.insert("id".into(), json!(r));
+        m.insert("cardId".into(), json!(r));
+        m.insert("ownerId".into(), json!(format!("P{}", o.owner)));
+        m.insert("controllerId".into(), json!(format!("P{}", o.controller)));
+        m.insert("gameObject".into(), json!(game_object));
+        if let Some(Value::Object(f)) = m.get_mut("secondCardFace") {
+            f.insert("id".into(), json!(format!("{}f1", r)));
+            f.insert("cardId".into(), json!(r));
+            f.insert("ownerId".into(), json!(format!("P{}", o.owner)));
+            f.insert("controllerId".into(), json!(format!("P{}", o.controller)));
+            f.insert("gameObject".into(), json!(game_object));
+        }
+    }
+    v
+}
+
+/// A player's permanents (`PermanentView`), by reference
+fn battlefield_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
+    let mut m = Map::new();
+    for id in game.battlefield.iter().copied() {
+        if game.obj(id).controller == p {
+            let r = reference(game, id);
+            m.insert(r.clone(), permanent_view(game, id, &r, viewer, names));
+        }
+    }
+    Value::Object(m)
+}
+
+/// `PermanentView`: the card's view as a permanent, with its state, and (for its controller, or a token) the card
+/// it was printed as
+fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str]) -> Value {
+    let o = game.obj(id);
+    let mut v = card_view(game, id, r, true);
+    let controlled = o.controller == viewer;
+    let Value::Object(m) = &mut v else { return v };
+    m.insert("mageObjectType".into(), json!("PERMANENT"));
+    m.insert("tapped".into(), json!(o.tapped));
+    m.insert("flipped".into(), json!(false));
+    m.insert("phasedIn".into(), json!(true));
+    m.insert("summoningSickness".into(), json!(o.sick));
+    m.insert("damage".into(), json!(o.damage));
+    m.insert("attachments".into(), json!([]));
+    if controlled || o.token {
+        m.insert("original".into(), card_view(game, id, r, false));
+    }
+    m.insert("copy".into(), json!(false));
+    m.insert(
+        "nameOwner".into(),
+        json!(if o.owner != o.controller { names.get(o.owner).copied().unwrap_or("") } else { "" }),
+    );
+    m.insert("nameController".into(), json!(names.get(o.controller).copied().unwrap_or("")));
+    m.insert("controlled".into(), json!(controlled));
+    for k in ["morphed", "disguised", "manifested", "cloaked", "attachedToPermanent", "attachedControllerDiffers"] {
+        m.insert(k.into(), json!(false));
+    }
+    m.insert("mutateView".into(), json!({}));
+    m.insert("mutated".into(), json!(false));
+    m.insert("roomLeftUnlocked".into(), json!(false));
+    m.insert("roomRightUnlocked".into(), json!(false));
+    m.insert("bandedCards".into(), json!([]));
+    if game.obj(id).zone == Zone::Battlefield
+        && (o.def.types.contains(&CardType::Creature) || game.has_type(id, CardType::Creature))
+    {
+        let (power, toughness) = game.power_toughness(id);
+        m.insert("power".into(), json!(power.to_string()));
+        m.insert("toughness".into(), json!(toughness.to_string()));
+        for (k, n) in [("originalPower", power), ("originalToughness", toughness)] {
+            if let Some(Value::Object(x)) = m.get_mut(k) {
+                x.insert("boostedValue".into(), json!(n));
+            }
+        }
+    }
+    // `CardView`: with counters, they're listed, and its loyalty and defense are counted
+    let counters: Vec<&(String, i32)> = o.counters.iter().filter(|(_, n)| *n > 0).collect();
+    if !counters.is_empty() {
+        m.insert("loyalty".into(), json!(o.counter("loyalty").to_string()));
+        m.insert("defense".into(), json!(o.counter("defense").to_string()));
+        m.insert(
+            "counters".into(),
+            json!(counters.iter().map(|(n, c)| json!({"name": n, "count": c})).collect::<Vec<_>>()),
+        );
+    }
+    if o.owner != o.controller {
+        m.insert("controlledByOwner".into(), json!(false));
+    }
+    v
 }
 
 /// Fields left out of the comparison, by name anywhere in the view: they can't match by design.

@@ -280,7 +280,7 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
 }
 
 /// Exiled cards in the order decision logs name them
-fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
+pub fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
     let mut exile = game.exile.to_vec();
     if game.exile_by_creation {
         exile.sort_by_key(|o| o.0);
