@@ -96,6 +96,22 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
      */
     MageObject getObject(UUID objectId);
 
+    /**
+     * {@link #getObject(UUID)} for a caller that only reads the object (whether it exists, its owner): an AI simulation
+     * sharing its cards with the game it was copied from doesn't copy the card for it. Never change what it returns.
+     */
+    default MageObject getObjectReadOnly(UUID objectId) {
+        return getObject(objectId);
+    }
+
+    /**
+     * Whether this is a copy an AI searches in (see createSimulationForAI). Its results only steer the AI's choice,
+     * which the real game then plays by the full rules, so it may skip redundant work.
+     */
+    default boolean isAiSimulation() {
+        return false;
+    }
+
     MageObject getObject(Ability source);
 
     MageObject getBaseObject(UUID objectId);
@@ -594,6 +610,14 @@ public interface Game extends MageItem, Serializable, Copyable<Game> {
      * the resolving spell or ability chooses the relative order of those actions.
      */
     void processAction();
+
+    /**
+     * After a mana ability resolves: {@link #processAction()}, except that an AI simulation leaves applying the effects
+     * to the spell or ability being paid for, which applies them once it's paid (see {@link #isAiSimulation()}).
+     */
+    default void processManaAction() {
+        processAction();
+    }
 
     @Deprecated
         // TODO: must research usage and remove it from all non engine code (example: Bestow ability, ProcessActions must be used instead)

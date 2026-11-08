@@ -1,0 +1,144 @@
+.picker {
+  display: grid;
+  gap: 14px;
+}
+
+.chosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.choice {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 92px;
+}
+
+.choiceButton {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.choiceName {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: var(--text-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.set {
+  color: var(--ink-dim);
+  font-size: var(--text-xs, 12px);
+  letter-spacing: 0.04em;
+}
+
+.reset {
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink-soft);
+  font-size: var(--text-xs, 12px);
+  cursor: pointer;
+}
+
+.search {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.search input {
+  height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: rgb(var(--mat-rgb) / 0.6);
+  box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  color: var(--ink-strong);
+  font-size: var(--text-md);
+}
+
+.common {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 16px;
+  background: rgb(var(--ink-rgb) / 0.08);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.chip[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 1.5px var(--decision);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 10px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.option {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 4px;
+  padding: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.option[aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--decision);
+  background: rgb(var(--ink-rgb) / 0.06);
+}
+
+.option:focus-visible,
+.choiceButton:focus-visible,
+.chip:focus-visible,
+.reset:focus-visible {
+  outline: 2px solid var(--decision);
+  outline-offset: 2px;
+}
+
+.plain {
+  display: grid;
+  place-items: center;
+  min-height: 40px;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.face {
+  width: 84px;
+}

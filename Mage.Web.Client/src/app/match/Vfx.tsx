@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { GameView, PermanentView } from '../../protocol/generated/views';
+import type { CardView, GameView, PermanentView } from '../../protocol/generated/views';
+import { useSettings } from '../stores/settings';
+import { resolvedCasts } from './cardVfx';
 import { lastPlacement, motionAllowed } from './flip';
+import { SignatureVfx } from './SignatureVfx';
+import { lifetimeOf, type Point, type SignatureEffect } from './signatureShapes';
 import { eventVisuals } from './vfxEvents';
 import { matchLayout } from './matchLayout';
 import { TriggerSignals } from './TriggerSignals';
@@ -14,7 +18,14 @@ import styles from './Vfx.module.css';
  * carries (exact even when a creature dies in the same update); the rest, and servers without events, from the
  * difference between two game views. A player who earned hit sparks (B300) throws a brief burst of them, in the
  * spark's color, where their creatures' combat damage lands.
+ *
+ * The spells and abilities people play most also get an effect of their own when they resolve (cardVfx.ts,
+ * SignatureVfx.tsx): lightning for Lightning Bolt, a glyph for Counterspell, a sweep of light for Wrath of God. The
+ * Spell effects setting chooses those, only the plain effects, or no spell effects at all.
  */
+
+/** at most this many signature effects play at once: a storm turn shouldn't bury the board */
+const MAX_SIGNATURES = 4;
 
 type EffectKind = 'damage' | 'heal' | 'enter' | 'resolve' | 'death' | 'charge' | 'bolt' | 'spark';
 
@@ -36,6 +47,8 @@ interface Snapshot {
   permanents: Map<string, PermanentView>;
   life: Map<string, number>;
   stack: Set<string>;
+  /** the stack's objects, for the signature effects of whatever leaves it */
+  stackCards: Map<string, CardView>;
   attackers: Set<string>;
   step: string | undefined;
 }
@@ -51,7 +64,7 @@ function snapshot(view: GameView): Snapshot {
   }
   const attackers = new Set<string>();
   for (const group of view.combat ?? []) Object.keys(group.attackers ?? {}).forEach((id) => attackers.add(id));
-  return { permanents, life, stack: new Set(Object.keys(view.stack ?? {})), attackers, step: view.step };
+  return { permanents, life, stack: new Set(Object.keys(view.stack ?? {})), stackCards: new Map(Object.entries(view.stack ?? {})), attackers, step: view.step };
 }
 
 /** Shake an element without disturbing its own transform (tapped, attacking). */
@@ -80,6 +93,10 @@ export function Vfx({ view, myPlayerId, sparks }: {
   sparks?: ReadonlyMap<string, string>;
 }) {
   const [effects, setEffects] = useState<Effect[]>([]);
+  const [signatures, setSignatures] = useState<SignatureEffect[]>([]);
+  const cardEffects = useSettings((state) => state.settings.cardEffects);
+  // where each stack object was drawn on the last view: a resolved spell's effect starts there
+  const stackSpots = useRef(new Map<string, Point>());
   // read when a view arrives: a look arriving later doesn't replay the last view's effects
   const sparksRef = useRef(sparks);
   useEffect(() => {
@@ -96,7 +113,19 @@ export function Vfx({ view, myPlayerId, sparks }: {
     const now = snapshot(view);
     const before = previous.current;
     previous.current = now;
-    if (!before || !motionAllowed()) return;
+    // measured once this view has painted, for the next one
+    const measureStack = () => {
+      const spots = new Map<string, Point>();
+      for (const id of now.stack) {
+        const at = center(id);
+        if (at) spots.set(id, at);
+      }
+      stackSpots.current = spots;
+    };
+    if (!before || !motionAllowed()) {
+      requestAnimationFrame(measureStack);
+      return;
+    }
 
     const spawned: Effect[] = [];
     let flush = false;
@@ -121,6 +150,28 @@ export function Vfx({ view, myPlayerId, sparks }: {
       const placement = lastPlacement(id);
       return placement ? { x: placement.x + placement.width / 2, y: placement.y + placement.height / 2 } : null;
     };
+    // signature effects of the spells and abilities that resolved
+    const casts = cardEffects === 'signature'
+      ? resolvedCasts(before.stackCards, now.stack, view.events, new Set(before.permanents.keys())).slice(0, MAX_SIGNATURES)
+      : [];
+    const signed = new Set(casts.map((cast) => cast.id));
+    const spawnedSignatures: SignatureEffect[] = [];
+    let quake = false;
+    for (const cast of casts) {
+      const from = stackSpots.current.get(cast.id) ?? matchLayout(stage).stackPoint;
+      const caster = cast.controllerId ? pointOf(cast.controllerId) : null;
+      const hit = new Set(cast.targets);
+      // what it damaged counts as hit, targeted or not (a Lava Spike's player, a Fiery Confluence's creatures)
+      for (const event of view.events ?? []) {
+        if (event.kind === 'DAMAGE' && event.targetId && (event.sourceId === cast.id || event.sourceId === before.stackCards.get(cast.id)?.cardId)) hit.add(event.targetId);
+      }
+      const targets = [...hit].map((id) => (before.stack.has(id) ? stackSpots.current.get(id) ?? null : pointOf(id))).filter((point): point is Point => !!point);
+      const spills = [...cast.milled].map(([player, count]) => ({ at: pointOf(player), count })).filter((spill): spill is { at: Point; count: number } => !!spill.at);
+      spawnedSignatures.push({ key: nextKey.current++, fx: cast.signature.fx, ink: cast.signature.ink, big: !!cast.signature.big, from, caster, targets, spills, width: stage.width, height: stage.height });
+      if (cast.signature.big) quake = true;
+    }
+    const plainSpells = cardEffects !== 'off';
+
     if (view.events) {
       const visuals = eventVisuals(view.events);
       for (const [id, amount] of visuals.damage) {
@@ -139,6 +190,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
         if (at) add({ kind: 'heal', ...at, value: amount });
       }
       for (const bolt of visuals.bolts) {
+        if (!plainSpells || signed.has(bolt.from) || [...signed].some((id) => before.stackCards.get(id)?.cardId === bolt.from)) continue;
         const from = pointOf(bolt.from);
         const to = pointOf(bolt.to);
         if (from && to) add({ kind: 'bolt', ...from, to });
@@ -194,7 +246,7 @@ export function Vfx({ view, myPlayerId, sparks }: {
       }
     }
     // spells and abilities resolving
-    if ([...before.stack].some((id) => !now.stack.has(id))) add({ kind: 'resolve', ...matchLayout(stage).stackPoint });
+    if (plainSpells && [...before.stack].some((id) => !now.stack.has(id) && !signed.has(id))) add({ kind: 'resolve', ...matchLayout(stage).stackPoint });
     // new attackers charge
     for (const id of now.attackers) {
       if (before.attackers.has(id)) continue;
@@ -222,12 +274,21 @@ export function Vfx({ view, myPlayerId, sparks }: {
     requestAnimationFrame(() => {
       if (spawned.length > 0) show(spawned);
       if (flush) setHurt((value) => value + 1);
+      if (spawnedSignatures.length > 0) {
+        setSignatures((current) => [...current, ...spawnedSignatures]);
+        for (const effect of spawnedSignatures) {
+          setTimeout(() => setSignatures((current) => current.filter((item) => item.key !== effect.key)), lifetimeOf(effect));
+        }
+        if (quake) shake(stage.element, 6);
+      }
+      measureStack();
     });
-  }, [view, center, stage, myPlayerId]);
+  }, [view, center, stage, myPlayerId, cardEffects]);
 
   return (
     <div className={styles.layer} aria-hidden="true">
       {effects.map((effect) => <EffectView key={effect.key} effect={effect} />)}
+      <SignatureVfx effects={signatures} />
       {hurt > 0 && <div key={hurt} className={styles.hurt} />}
       <TriggerSignals view={view} />
     </div>

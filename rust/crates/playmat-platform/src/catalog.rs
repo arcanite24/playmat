@@ -356,6 +356,28 @@ impl Catalog {
         Ok(Ok(Some(self.formats.validate(deck_type, format, &cards, &sideboard, &printings_of))))
     }
 
+    /// `CardRepository.findCard(set, number)` for the Career: the printing's name, set, number, rarity (the
+    /// `Rarity` name) and whether it has the basic supertype
+    pub async fn printing(
+        &self,
+        set: &str,
+        number: &str,
+    ) -> anyhow::Result<Option<(String, String, String, String, bool)>> {
+        let row = sqlx::query(
+            "SELECT p.name, p.set_code, p.card_number, p.rarity, \
+             (SELECT c.supertypes FROM cards c WHERE c.printing = p.id ORDER BY c.ord LIMIT 1) \
+             FROM exact e JOIN printings p ON p.id = e.printing WHERE e.set_code = ? AND e.card_number = ?",
+        )
+        .bind(lower(set))
+        .bind(lower(number))
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|row| {
+            let supertypes: Option<String> = row.get(4);
+            (row.get(0), row.get(1), row.get(2), row.get(3), supertypes.is_some_and(|s| s.contains("BASIC")))
+        }))
+    }
+
     pub fn card_rows(&self) -> usize {
         self.cards.row_count()
     }

@@ -38,6 +38,12 @@ pub trait Handlers: Send + Sync {
         self.call(caller, request).await
     }
 
+    /// Where Rust's answer differs from Java's in `shadow`, or None. A method can allow for what differs by design
+    /// (the time a write was made, a random code).
+    fn difference(&self, _method: &str, java: &serde_json::Value, rust: &serde_json::Value) -> Option<String> {
+        crate::compare::difference(java, rust)
+    }
+
     /// a session ended on the Java side (logout, expiry, signed in elsewhere): drop what is kept for it
     fn session_ended(&self, _caller: &Caller) {}
 }

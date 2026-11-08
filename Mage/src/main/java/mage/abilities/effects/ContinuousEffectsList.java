@@ -148,7 +148,8 @@ public class ContinuousEffectsList<T extends ContinuousEffect> extends ArrayList
                 // 800.4k  When a player leaves the game, any continuous effects with durations that last until that
                 // player’s next turn or until a specific point in that turn will last until that turn would have begun.
                 // They neither expire immediately nor last indefinitely.
-                MageObject object = game.getObject(ability.getSourceId());
+                // only some durations look at the source object, and they only read it
+                MageObject object = readsSourceObject(effect.getDuration()) ? game.getObjectReadOnly(ability.getSourceId()) : null;
                 boolean isObjectInGame = ability.getSourceId() == null || object != null; // Commander effects have no sourceId
                 boolean hasOwnerLeftGame = false;
                 if (object instanceof Card) {
@@ -213,6 +214,23 @@ public class ContinuousEffectsList<T extends ContinuousEffect> extends ArrayList
             }
         }
         return set.isEmpty();
+    }
+
+    /** whether isInactive looks at the effect's source object for this duration */
+    private static boolean readsSourceObject(Duration duration) {
+        switch (duration) {
+            case Custom:
+            case UntilYourNextTurn:
+            case UntilEndOfYourNextTurn:
+            case UntilEndCombatOfYourNextTurn:
+            case UntilYourNextEndStep:
+            case UntilYourNextUpkeepStep:
+            case EndOfTurn:
+            case UntilNextEndStep:
+                return false;
+            default:
+                return true;
+        }
     }
 
     /**

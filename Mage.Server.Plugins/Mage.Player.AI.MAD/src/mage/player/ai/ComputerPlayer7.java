@@ -44,7 +44,13 @@ public class ComputerPlayer7 extends ComputerPlayer6 {
     @Override
     public boolean priority(Game game) {
         game.resumeTimer(getTurnControlledBy());
+        long start = SearchStats.ENABLED ? System.nanoTime() : 0;
+        lastSearch = null;
         boolean result = priorityPlay(game);
+        if (SearchStats.ENABLED && lastSearch != null) {
+            SearchStats.record(SearchStats.decision(lastSearch, System.nanoTime() - start));
+            lastSearch = null;
+        }
         game.pauseTimer(getTurnControlledBy());
         return result;
     }

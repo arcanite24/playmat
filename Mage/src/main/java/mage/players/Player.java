@@ -1343,4 +1343,12 @@ public interface Player extends MageItem, Copyable<Player> {
     default Player prepareControllableProxy(Player playerUnderControl) {
         return this;
     }
+
+    /**
+     * Lets the Rust AI play this player's dialogs while the bridge runs (docs/rust/Ai.md). False: this player can't
+     * be played that way (only the Java AI's controllable proxy can).
+     */
+    default boolean attachRustAi(mage.game.trace.RustAiBridge bridge) {
+        return false;
+    }
 }

@@ -7,6 +7,14 @@ on:
     paths:
       - "site/**"
       - ".github/workflows/site.yml"
+      # the Rust tracker (site/rust/) counts these
+      - "docs/rust/**"
+      - "rust/tools/progress*"
+      - "rust/crates/playmat-engine/cards/**"
+      - "rust/crates/playmat-engine/shadow/**"
+      - "rust/crates/playmat-engine/shadow-decks/**"
+      - "Mage.Web.Client/public/meta-decks/**"
+      - "Mage.Server/career-src/**"
   workflow_dispatch: {}
 
 permissions:
@@ -27,6 +35,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/configure-pages@v5
+      - name: Count the Rust port's progress
+        run: python3 rust/tools/progress.py
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site

@@ -217,6 +217,43 @@ public final class CareerService {
     }
 
     /**
+     * What {@link #start} adds for each starter deck, for the Rust platform service (CareerViewsExport): the cards
+     * other than basic lands, resolved as start resolves them, with their amounts. A deck that can't be read, or has
+     * a card the card database doesn't know (not loaded yet, say), is left out, and Java answers for it.
+     */
+    public Map<String, List<Map<String, Object>>> starterCardsExport() {
+        CareerContent content = CareerContent.get();
+        Map<String, List<Map<String, Object>>> starters = new LinkedHashMap<>();
+        for (CareerContent.CareerStarter starter : content.starters()) {
+            DeckCardLists deck;
+            try {
+                deck = content.starterDeck(starter.id);
+            } catch (java.io.IOException e) {
+                continue;
+            }
+            List<Map<String, Object>> cards = new ArrayList<>();
+            boolean whole = true;
+            for (DeckCardInfo info : CareerContent.allCards(deck)) {
+                CareerCard card = resolve(info);
+                whole &= card != null;
+                if (card != null && !CareerRules.LAND.equals(card.rarity)) {
+                    Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("name", card.name);
+                    entry.put("setCode", card.setCode);
+                    entry.put("cardNumber", card.cardNumber);
+                    entry.put("rarity", card.rarity);
+                    entry.put("amount", info.getAmount());
+                    cards.add(entry);
+                }
+            }
+            if (whole && !cards.isEmpty()) {
+                starters.put(starter.id, cards);
+            }
+        }
+        return starters;
+    }
+
+    /**
      * The account's progression profile, made on its first counted game (B264): levels, quests and achievements need
      * no starter deck. Runs inside the caller's transaction.
      */
@@ -307,62 +344,72 @@ public final class CareerService {
         }
         List<CareerOpponent> views = new ArrayList<>();
         CareerLadder.Nemesis nemesis = CareerLadder.nemesis(user);
-        // each tier in order of measured difficulty, easiest first (S039); the rival after the rest of its tier
+        for (CareerContent.Opponent opponent : ordered(content)) {
+            views.add(opponentView(content, opponent, wins, winsByTier, nemesis != null && opponent.id.equals(nemesis.opponentId)));
+        }
+        return views;
+    }
+
+    /** each tier in order of measured difficulty, easiest first (S039); the rival after the rest of its tier */
+    public static List<CareerContent.Opponent> ordered(CareerContent content) {
         List<CareerContent.Opponent> ordered = new ArrayList<>(content.opponents());
         ordered.sort(java.util.Comparator.comparingInt((CareerContent.Opponent opponent) -> opponent.tier)
                 .thenComparing(opponent -> opponent.rival != null)
                 .thenComparing(opponent -> opponent.raid)
                 .thenComparingInt(opponent -> -CareerContent.measuredWinRate(opponent)));
-        for (CareerContent.Opponent opponent : ordered) {
-            CareerOpponent view = new CareerOpponent();
-            view.id = opponent.id;
-            view.name = opponent.name;
-            view.tier = opponent.tier;
-            view.tierName = content.tier(opponent.tier).name;
-            view.colors = opponent.colors;
-            view.tagline = opponent.tagline;
-            view.wins = wins.getOrDefault(opponent.id, 0);
-            view.unlocked = (opponent.tier == 1 || winsByTier.getOrDefault(opponent.tier - 1, 0) >= CareerRules.WINS_TO_UNLOCK_NEXT_TIER)
-                    && CareerLadder.rivalOpen(opponent, wins);
-            view.winCoins = CareerRules.winCoins(opponent.tier);
-            view.cover = content.cover(opponent);
-            view.lines = opponent.lines;
-            view.pips = CareerLadder.pips(opponent);
-            view.nemesis = nemesis != null && opponent.id.equals(nemesis.opponentId);
-            view.bounty = view.nemesis ? CareerLadder.NEMESIS_BOUNTY : 0;
-            if (opponent.rival != null) {
-                view.rivalChapter = opponent.rival.chapter;
-                view.rivalBefore = opponent.rival.before;
-            }
-            view.raid = opponent.raid;
-            view.lists = opponent.decks == null ? 1 : opponent.decks.size();
-            CareerContent.Tier tier = content.tier(opponent.tier);
-            view.aiType = opponent.aiType != null ? opponent.aiType : tier.aiType;
-            CareerSetup.CareerTwists twists = CareerSetup.combine(tier.twists, opponent.twists);
-            if (view.nemesis) {
-                CareerSetup.CareerTwists edge = new CareerSetup.CareerTwists();
-                edge.lifeBonus = CareerLadder.NEMESIS_LIFE;
-                twists = CareerSetup.combine(twists, edge);
-            }
-            view.twists = CareerSetup.empty(twists) ? null : twists;
-            if (opponent.personality != null) {
-                if (opponent.personality.aggression >= 40) {
-                    view.style.add("aggressive");
-                } else if (opponent.personality.aggression <= -20) {
-                    view.style.add("defensive");
-                }
-                if (opponent.personality.risk >= 40) {
-                    view.style.add("reckless");
-                } else if (opponent.personality.risk <= -20) {
-                    view.style.add("careful");
-                }
-                if (opponent.personality.patience >= 40) {
-                    view.style.add("patient");
-                }
-            }
-            views.add(view);
+        return ordered;
+    }
+
+    /** an opponent as a player sees it, with their wins against each opponent and each tier, and whether it's their nemesis */
+    public static CareerOpponent opponentView(CareerContent content, CareerContent.Opponent opponent, Map<String, Integer> wins,
+                                              Map<Integer, Integer> winsByTier, boolean nemesis) {
+        CareerOpponent view = new CareerOpponent();
+        view.id = opponent.id;
+        view.name = opponent.name;
+        view.tier = opponent.tier;
+        view.tierName = content.tier(opponent.tier).name;
+        view.colors = opponent.colors;
+        view.tagline = opponent.tagline;
+        view.wins = wins.getOrDefault(opponent.id, 0);
+        view.unlocked = (opponent.tier == 1 || winsByTier.getOrDefault(opponent.tier - 1, 0) >= CareerRules.WINS_TO_UNLOCK_NEXT_TIER)
+                && CareerLadder.rivalOpen(opponent, wins);
+        view.winCoins = CareerRules.winCoins(opponent.tier);
+        view.cover = content.cover(opponent);
+        view.lines = opponent.lines;
+        view.pips = CareerLadder.pips(opponent);
+        view.nemesis = nemesis;
+        view.bounty = view.nemesis ? CareerLadder.NEMESIS_BOUNTY : 0;
+        if (opponent.rival != null) {
+            view.rivalChapter = opponent.rival.chapter;
+            view.rivalBefore = opponent.rival.before;
         }
-        return views;
+        view.raid = opponent.raid;
+        view.lists = opponent.decks == null ? 1 : opponent.decks.size();
+        CareerContent.Tier tier = content.tier(opponent.tier);
+        view.aiType = opponent.aiType != null ? opponent.aiType : tier.aiType;
+        CareerSetup.CareerTwists twists = CareerSetup.combine(tier.twists, opponent.twists);
+        if (view.nemesis) {
+            CareerSetup.CareerTwists edge = new CareerSetup.CareerTwists();
+            edge.lifeBonus = CareerLadder.NEMESIS_LIFE;
+            twists = CareerSetup.combine(twists, edge);
+        }
+        view.twists = CareerSetup.empty(twists) ? null : twists;
+        if (opponent.personality != null) {
+            if (opponent.personality.aggression >= 40) {
+                view.style.add("aggressive");
+            } else if (opponent.personality.aggression <= -20) {
+                view.style.add("defensive");
+            }
+            if (opponent.personality.risk >= 40) {
+                view.style.add("reckless");
+            } else if (opponent.personality.risk <= -20) {
+                view.style.add("careful");
+            }
+            if (opponent.personality.patience >= 40) {
+                view.style.add("patient");
+            }
+        }
+        return view;
     }
 
     public boolean unlocked(String user, String opponentId) throws SQLException {

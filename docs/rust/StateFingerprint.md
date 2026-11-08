@@ -4,12 +4,12 @@ A state fingerprint is the game written as plain text that two engines can agree
 
 Java: `Mage/src/main/java/mage/game/trace/StateFingerprint.java` and `GameTrace.java`. Set `GameOptions.trace` to trace a game. AI search copies (simulations) are never traced.
 
-## Text, version 1
+## Text, version 2
 
-Lines end with `\n`. Players are named by **seat**: their place in the turn order (`GameState.getPlayerList()`), 0 first. Objects are named by card name. Object ids never appear, since they are random.
+Lines end with `\n`. Players are named by **seat**: their place in the seating order (`StateFingerprint.seats`, the order players joined: `GameState.getPlayers()`), 0 first. Version 1 used `GameState.getPlayerList()`, which is circular and starts at the current player, so its seat numbers turned with the game. Objects are named by card name. Object ids never appear, since they are random.
 
 ```
-v1
+v2
 turn <n> step <PhaseStep enum name> active <seat> priority <seat>
 player <seat> life <n> counters <counters>[ lost][ won]
  hand <names sorted, | separated>
@@ -57,6 +57,7 @@ change from game to game, so the log names an object by where it is when the ans
 | `B5`, `S0`, `E2`, `M0` | the sixth permanent, the top of the stack, an exiled card, a command zone object |
 | `X0`, `T1.0` | a special action, a triggered ability waiting for seat 1 to order it |
 | `B5a2`, `H0.3a0m1`, `S0s` | an ability of that object, a mode of that ability, a stack object's ability |
+| `H0.3f1` | a face of that double-faced card (0 front, 1 back) or an adventurer card's adventure (1), which a client can click instead of the card |
 
 A replay stops, with the reason in `DecisionLog.getFailure()`, when the next answer is another seat's or names an object
 that isn't there. `DecisionLogTest` plays a 14-turn game between two human players answered by a seeded driver

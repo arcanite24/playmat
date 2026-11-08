@@ -55,11 +55,23 @@ services:
       XMAGE_PORT: ${XMAGE_PORT:-}
       # on: the Rust gateway in front of the bridge (17180); the web service's XMAGE_GATEWAY sends /ws to it
       XMAGE_GATEWAY: ${XMAGE_GATEWAY:-off}
+      # rust: the Rust AI plays the AI's seat for XMAGE_RUST_AI_USERS (docs/rust/Ai.md); XMAGE_ENGINE=java turns it off
+      XMAGE_AI_BACKEND: ${XMAGE_AI_BACKEND:-java}
+      XMAGE_RUST_AI_USERS: ${XMAGE_RUST_AI_USERS:-}
+      XMAGE_ENGINE: ${XMAGE_ENGINE:-}
       # where the gateway sends each group of calls: java (default), shadow or rust (ops/web/README.md "Rust gateway")
       XMAGE_ROUTE_DEFAULT: ${XMAGE_ROUTE_DEFAULT:-}
       XMAGE_ROUTE_CATALOG: ${XMAGE_ROUTE_CATALOG:-}
       XMAGE_ROUTE_ACCOUNT: ${XMAGE_ROUTE_ACCOUNT:-}
       XMAGE_ROUTE_DECKIMPORT: ${XMAGE_ROUTE_DECKIMPORT:-}
+      XMAGE_ROUTE_ACCESS: ${XMAGE_ROUTE_ACCESS:-}
+      XMAGE_ROUTE_STAFF: ${XMAGE_ROUTE_STAFF:-}
+      XMAGE_ROUTE_ADMIN: ${XMAGE_ROUTE_ADMIN:-}
+      XMAGE_ROUTE_ACCOUNTS: ${XMAGE_ROUTE_ACCOUNTS:-}
+      XMAGE_ROUTE_SUPPORT: ${XMAGE_ROUTE_SUPPORT:-}
+      XMAGE_ROUTE_CAREER: ${XMAGE_ROUTE_CAREER:-}
+      XMAGE_ROUTE_CAREERPROGRESS: ${XMAGE_ROUTE_CAREERPROGRESS:-}
+      XMAGE_ACCOUNTS_DB: ${XMAGE_ACCOUNTS_DB:-}
       XMAGE_SHADOW_USERS: ${XMAGE_SHADOW_USERS:-}
       XMAGE_MONTE_CARLO: ${XMAGE_MONTE_CARLO:-}
       XMAGE_AI_THREADS: ${XMAGE_AI_THREADS:-}

@@ -71,4 +71,6 @@ export interface DeckCardLists {
   updatedAt?: number;
   /** what to swap against each kind of deck between games */
   sideboardPlans?: SideboardPlan[];
+  /** the deck's own token pictures, over the account's: token name to "SET/Name[/number]" (ui/tokenArt.ts) */
+  tokenArt?: Record<string, string>;
 }

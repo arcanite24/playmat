@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rust port · Playmat</title>
+  <meta name="description" content="How Playmat's move from Java to Rust is going: what's built, what's live, and the measured numbers, updated from the repository on every change.">
+  <meta name="theme-color" content="#0b120f">
+  <link rel="icon" href="../assets/brand/playmat-mark.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Playmat's Rust port: progress">
+  <meta property="og:description" content="What's built, what's live, and the measured numbers of Playmat's move from Java to Rust.">
+  <meta property="og:url" content="https://arcanite24.github.io/playmat/rust/">
+  <meta property="og:image" content="https://arcanite24.github.io/playmat/assets/og.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="rust.css">
+  <script src="rust.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <div class="wrap top-row">
+      <a class="brand" href="../" aria-label="Playmat home">
+        <img src="../assets/brand/playmat-logo.svg" alt="Playmat" width="172" height="40">
+      </a>
+      <nav aria-label="Site">
+        <ul class="nav">
+          <li><a href="https://playmat.deimos.studio">Play online</a></li>
+          <li><a href="../#download">Download</a></li>
+          <li><a href="../#host">Run a server</a></li>
+          <li><a href="../docs/">Docs</a></li>
+          <li><a href="./" aria-current="page">Rust port</a></li>
+          <li><a href="https://github.com/arcanite24/playmat">GitHub</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="rp-hero">
+      <div class="wrap rp-hero-copy">
+        <p class="rp-kicker">Progress report</p>
+        <h1>Moving the server to&nbsp;Rust.</h1>
+        <p class="lede">Playmat runs on <a href="https://github.com/magefree/mage">XMage</a>, a Java rules engine.
+          A game against the AI with real decks costs the server 8 to 12 seconds of CPU, almost all of it the AI
+          thinking. We're rewriting the engine and the AI in Rust a piece at a time, with Java still there behind
+          each piece, until AI games cost a fraction of that.</p>
+        <p class="rp-goal" id="goal"></p>
+        <p class="rp-stamp small" id="stamp">Counted from the repository on every change.</p>
+      </div>
+    </section>
+
+    <noscript>
+      <div class="wrap"><p class="note">This page draws its numbers with JavaScript. The same numbers are in
+        <a href="progress.json">progress.json</a> and in the
+        <a href="https://github.com/arcanite24/playmat/blob/master/docs/RustMigration.md">migration plan</a>.</p></div>
+    </noscript>
+
+    <section class="rp-section" aria-labelledby="h-numbers">
+      <div class="wrap">
+        <h2 id="h-numbers" class="visually-hidden">Headline numbers</h2>
+        <ul class="rp-stats" id="stats"></ul>
+      </div>
+    </section>
+
+    <section class="rp-section" aria-labelledby="h-where">
+      <div class="wrap">
+        <div class="rp-head">
+          <h2 id="h-where">Where it stands</h2>
+          <p>Two tracks. The server one moves everything around the game to Rust, each piece answered by Java and Rust
+            side by side until they agree. The game one puts AI games themselves on the Rust engine.</p>
+        </div>
+        <div class="rp-tracks">
+          <div class="rp-track zone">
+            <h3>The server, phase by phase</h3>
+            <ol class="rp-steps" id="phases"></ol>
+          </div>
+          <div class="rp-track zone">
+            <h3>AI games on the Rust engine</h3>
+            <ol class="rp-steps" id="steps"></ol>
+          </div>
+        </div>
+        <ul class="rp-legend" aria-label="Status key">
+          <li><span class="rp-chip" data-s="done">Done</span> built and checked</li>
+          <li><span class="rp-chip" data-s="live">Live</span> running on the public server</li>
+          <li><span class="rp-chip" data-s="active">Now</span> being worked on</li>
+          <li><span class="rp-chip" data-s="next">Next</span></li>
+          <li><span class="rp-chip" data-s="later">Later</span></li>
+          <li><span class="rp-chip" data-s="parked">Parked</span> on hold for the AI work</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="rp-section" aria-labelledby="h-speed">
+      <div class="wrap">
+        <div class="rp-head">
+          <h2 id="h-speed">How fast</h2>
+          <p>The Java AI against the Rust AI on the same seeded games, one thread, same machine.</p>
+        </div>
+        <div class="rp-bench" id="bench"></div>
+      </div>
+    </section>
+
+    <section class="rp-section" aria-labelledby="h-cost">
+      <div class="wrap">
+        <div class="rp-head">
+          <h2 id="h-cost">What an AI game costs the server</h2>
+          <p id="cost-note"></p>
+        </div>
+        <div class="rp-cost zone" id="cost"></div>
+      </div>
+    </section>
+
+    <section class="rp-section" aria-labelledby="h-cards">
+      <div class="wrap">
+        <div class="rp-head">
+          <h2 id="h-cards">Cards</h2>
+          <p>A game runs on Rust only when every card in both decks is in the Rust engine. A transpiler turns XMage's
+            Java card files into data; the rest is written by hand. The first target is the Pioneer and Standard decks
+            the AI plays.</p>
+        </div>
+        <div class="rp-bars" id="coverage"></div>
+        <details class="rp-decks">
+          <summary>The 24 meta decks, one by one</summary>
+          <ul id="meta-list"></ul>
+        </details>
+      </div>
+    </section>
+
+    <section class="rp-section" aria-labelledby="h-same">
+      <div class="wrap">
+        <div class="rp-head">
+          <h2 id="h-same">Does it play the same as Java?</h2>
+          <p>Every change is checked with <strong>shadow games</strong>: Java plays a seeded game and records every
+            choice and the full game state after each step; the Rust engine replays the same choices and must reach
+            the same state at every step. Cards come in by tiers of decks. A tier goes in once its games match; some of
+            them are kept in the repository and replayed on every change.</p>
+        </div>
+        <div class="rp-shadow" id="shadow-sum"></div>
+        <ol class="rp-tiers" id="tiers"></ol>
+      </div>
+    </section>
+
+    <section class="rp-section" aria-labelledby="h-more">
+      <div class="wrap">
+        <div class="rp-head">
+          <h2 id="h-more">Read more</h2>
+        </div>
+        <ul class="rp-links">
+          <li><a class="zone" href="https://github.com/arcanite24/playmat/blob/master/docs/RustMigration.md"><strong>The plan</strong><span>Why Rust, the phases and each phase's gate.</span></a></li>
+          <li><a class="zone" href="https://github.com/arcanite24/playmat/blob/master/docs/rust/GameHost.md"><strong>AI games on Rust</strong><span>The steps from a Rust AI to a Rust-hosted game.</span></a></li>
+          <li><a class="zone" href="https://github.com/arcanite24/playmat/blob/master/docs/rust/Engine.md"><strong>The engine</strong><span>The card pipeline and every shadow-game tier.</span></a></li>
+          <li><a class="zone" href="https://github.com/arcanite24/playmat/issues/182"><strong>Tracking issue</strong><span>Decisions and sub-issues on GitHub.</span></a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="wrap foot-row">
+      <p>The numbers come from <a href="progress.json">progress.json</a>, written by
+        <a href="https://github.com/arcanite24/playmat/blob/master/rust/tools/progress.py">rust/tools/progress.py</a>
+        each time the site is published. Benchmarks are re-run by hand and dated.</p>
+      <p class="legal">Playmat is unofficial Fan Content permitted under the Fan Content Policy. Not approved/endorsed by Wizards. Portions of the materials used are property of Wizards of the Coast. ©Wizards of the Coast LLC.</p>
+    </div>
+  </footer>
+</body>
+</html>

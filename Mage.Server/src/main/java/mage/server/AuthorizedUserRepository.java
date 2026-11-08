@@ -6,6 +6,7 @@ import com.j256.ormlite.jdbc.JdbcConnectionSource;
 import com.j256.ormlite.stmt.DeleteBuilder;
 import com.j256.ormlite.stmt.QueryBuilder;
 import com.j256.ormlite.stmt.SelectArg;
+import com.j256.ormlite.misc.TransactionManager;
 import com.j256.ormlite.support.ConnectionSource;
 import com.j256.ormlite.support.DatabaseConnection;
 import com.j256.ormlite.table.TableUtils;
@@ -34,9 +35,20 @@ public class AuthorizedUserRepository {
     private static final long DB_VERSION = 2;
     private static final RandomNumberGenerator rng = new SecureRandomNumberGenerator();
 
+    /** the accounts since Nov 2026: SQLite, so the Rust platform service can read them too */
+    public static final String SQLITE_NAME = "authorized_user.db";
+
+    private static final String[] SQLITE_TABLES = {
+            "CREATE TABLE IF NOT EXISTS authorized_user (name VARCHAR COLLATE NOCASE PRIMARY KEY, password VARCHAR,"
+                    + " salt VARCHAR, hashAlgorithm VARCHAR, hashIterations INTEGER, email VARCHAR COLLATE NOCASE UNIQUE,"
+                    + " active BOOLEAN, lockedUntil VARCHAR, chatLockedUntil VARCHAR, lastConnection VARCHAR)",
+            "CREATE TABLE IF NOT EXISTS remembered_login (tokenHash VARCHAR PRIMARY KEY, name VARCHAR COLLATE NOCASE, lastUsed BIGINT)",
+            "CREATE INDEX IF NOT EXISTS remembered_login_name_index ON remembered_login (name)"
+    };
+
     private static volatile AuthorizedUserRepository instance;
     static {
-        instance = new AuthorizedUserRepository(DatabaseUtils.prepareH2Connection(DatabaseUtils.DB_NAME_USERS, false));
+        instance = open(new File("db"), System.getenv("XMAGE_ACCOUNTS_DB"));
     }
 
     // "keep me signed in": a device that hasn't signed in for this long has to type the password again
@@ -46,14 +58,28 @@ public class AuthorizedUserRepository {
 
     private Dao<AuthorizedUser, Object> usersDao;
     private Dao<RememberedLogin, String> rememberedDao;
+    private final boolean sqlite;
 
     public AuthorizedUserRepository(String connectionString) {
         File file = new File("db");
         if (!file.exists()) {
             file.mkdirs();
         }
+        sqlite = connectionString.startsWith("jdbc:sqlite:");
         try {
             ConnectionSource connectionSource = new JdbcConnectionSource(connectionString);
+            if (sqlite) {
+                // H2 opens the accounts with IGNORECASE=TRUE: names and emails match in any case, and SQLite does that
+                // per column. ORMLite then finds the tables made.
+                DatabaseConnection connection = connectionSource.getReadWriteConnection("authorized_user");
+                try {
+                    for (String sql : SQLITE_TABLES) {
+                        connection.executeStatement(sql, DatabaseConnection.DEFAULT_RESULT_FLAGS);
+                    }
+                } finally {
+                    connectionSource.releaseConnection(connection);
+                }
+            }
             TableUtils.createTableIfNotExists(connectionSource, AuthorizedUser.class);
             usersDao = DaoManager.createDao(connectionSource, AuthorizedUser.class);
             TableUtils.createTableIfNotExists(connectionSource, RememberedLogin.class);
@@ -61,6 +87,125 @@ public class AuthorizedUserRepository {
         } catch (SQLException ex) {
             LOGGER.error("Error creating / assigning authorized_user repository - ", ex);
         }
+    }
+
+    /**
+     * The server's accounts in {@code dir}. By default db/authorized_user.db (SQLite); the first time it is made, it
+     * is filled from db/authorized_user.h2, which stays as it was. {@code mode} h2 goes back to the H2 file: the
+     * SQLite accounts are copied into it first and the SQLite file is put aside, so nothing made since is lost and the
+     * next switch to SQLite copies again. A copy that fails leaves the accounts where they were.
+     */
+    static AuthorizedUserRepository open(File dir, String mode) {
+        dir.mkdirs();
+        File sqliteFile = new File(dir, SQLITE_NAME);
+        String h2Url = DatabaseUtils.prepareH2Connection(DatabaseUtils.DB_NAME_USERS, false).replace("./db/", (dir.isAbsolute() ? dir.getPath() : "./" + dir.getPath()) + "/");
+        boolean h2Exists = new File(dir, DatabaseUtils.DB_NAME_USERS + ".mv.db").exists();
+        if ("h2".equalsIgnoreCase(mode == null ? "" : mode.trim())) {
+            AuthorizedUserRepository h2 = new AuthorizedUserRepository(h2Url);
+            if (sqliteFile.exists()) {
+                AuthorizedUserRepository from = new AuthorizedUserRepository(sqliteUrl(sqliteFile));
+                try {
+                    long copied = copy(from, h2);
+                    from.close();
+                    File aside = new File(dir, SQLITE_NAME + ".rolled-back-" + System.currentTimeMillis());
+                    if (!sqliteFile.renameTo(aside)) {
+                        LOGGER.error("Accounts: copied back to H2, but " + sqliteFile + " couldn't be put aside");
+                    }
+                    LOGGER.info("Accounts: back on H2 with the " + copied + " accounts from SQLite; the SQLite file is now " + aside.getName());
+                } catch (SQLException ex) {
+                    from.close();
+                    LOGGER.error("Accounts: the SQLite accounts couldn't be copied back to H2; staying on SQLite", ex);
+                    h2.close();
+                    return new AuthorizedUserRepository(sqliteUrl(sqliteFile));
+                }
+            }
+            return h2;
+        }
+        if (!sqliteFile.exists() && h2Exists) {
+            File part = new File(dir, SQLITE_NAME + ".part");
+            part.delete();
+            AuthorizedUserRepository h2 = new AuthorizedUserRepository(h2Url);
+            AuthorizedUserRepository to = new AuthorizedUserRepository(sqliteUrl(part));
+            try {
+                if (!h2.checkAlterAndMigrateAuthorizedUser()) {
+                    throw new SQLException("the H2 accounts couldn't be brought to version " + DB_VERSION);
+                }
+                long copied = copy(h2, to);
+                to.close();
+                if (!part.renameTo(sqliteFile)) {
+                    throw new SQLException("couldn't rename " + part + " to " + sqliteFile);
+                }
+                h2.close();
+                LOGGER.info("Accounts: " + copied + " accounts copied from H2 to " + sqliteFile + "; the H2 file stays as it was");
+            } catch (SQLException ex) {
+                to.close();
+                part.delete();
+                LOGGER.error("Accounts: the H2 accounts couldn't be copied to SQLite; staying on H2", ex);
+                return h2;
+            }
+        }
+        return new AuthorizedUserRepository(sqliteUrl(sqliteFile));
+    }
+
+    private static String sqliteUrl(File file) {
+        return "jdbc:sqlite:" + file.getPath();
+    }
+
+    /** Replaces every account and remembered device in {@code to} with {@code from}'s, in one transaction; returns the accounts. */
+    static long copy(AuthorizedUserRepository from, AuthorizedUserRepository to) throws SQLException {
+        List<AuthorizedUser> users = from.usersDao.queryForAll();
+        List<RememberedLogin> remembered = from.rememberedDao.queryForAll();
+        TransactionManager.callInTransaction(to.usersDao.getConnectionSource(), () -> {
+            to.usersDao.deleteBuilder().delete();
+            to.rememberedDao.deleteBuilder().delete();
+            for (AuthorizedUser user : users) {
+                to.usersDao.create(user);
+            }
+            for (RememberedLogin login : remembered) {
+                to.rememberedDao.create(login);
+            }
+            return null;
+        });
+        if (to.usersDao.countOf() != users.size()) {
+            throw new SQLException("copied " + to.usersDao.countOf() + " of " + users.size() + " accounts");
+        }
+        return users.size();
+    }
+
+    public boolean isSqlite() {
+        return sqlite;
+    }
+
+    /** Closes the accounts with every change written (unlike {@link #closeDB}, whose H2 shutdown drops the last second). */
+    void close() {
+        try {
+            if (sqlite) {
+                usersDao.getConnectionSource().close();
+                return;
+            }
+            DatabaseConnection conn = usersDao.getConnectionSource().getReadWriteConnection(usersDao.getTableName());
+            conn.executeStatement("SHUTDOWN", DatabaseConnection.DEFAULT_RESULT_FLAGS);
+        } catch (Exception ex) {
+            if (!alreadyClosed(ex)) {
+                LOGGER.error("Error closing authorized_user repository - ", ex);
+                return;
+            }
+        }
+        // H2's SHUTDOWN closed the database and its connections: closing the source again only says so
+        try {
+            usersDao.getConnectionSource().close();
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** H2's "Database is already closed" (90121): it has shut down already, with its changes written */
+    static boolean alreadyClosed(Throwable error) {
+        for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.sql.SQLException && ((java.sql.SQLException) cause).getErrorCode() == 90121) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static AuthorizedUserRepository getInstance() {
@@ -302,12 +447,16 @@ public class AuthorizedUserRepository {
 
     public void closeDB() {
         try {
+            if (sqlite && usersDao != null) {
+                usersDao.getConnectionSource().close();
+                return;
+            }
             if (usersDao != null && usersDao.getConnectionSource() != null) {
                 DatabaseConnection conn = usersDao.getConnectionSource().getReadWriteConnection(usersDao.getTableName());
                 conn.executeStatement("SHUTDOWN IMMEDIATELY", DatabaseConnection.DEFAULT_RESULT_FLAGS);
                 usersDao.getConnectionSource().releaseConnection(conn);
             }
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             LOGGER.error("Error closing authorized_user repository - ", ex);
         }
     }
@@ -323,6 +472,10 @@ public class AuthorizedUserRepository {
     }
 
     public boolean checkAlterAndMigrateAuthorizedUser() {
+        if (sqlite) {
+            // made at version 2
+            return true;
+        }
         long currentDBVersion = getDBVersionFromDB();
         if (currentDBVersion == 1 && DB_VERSION == 2) {
             return migrateFrom1To2();

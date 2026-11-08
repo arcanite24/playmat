@@ -25,6 +25,13 @@
             <artifactId>mage-player-ai</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <!-- the Rust AI plays this AI's dialogs as a human player would (RustHumanPlayer) -->
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>mage-player-human</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>

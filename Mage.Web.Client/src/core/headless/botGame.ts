@@ -36,6 +36,8 @@ export interface BotGameOptions {
   serverUrl: string;
   userName: string;
   deck?: DeckCardLists;
+  /** the AI's deck (the player's otherwise) */
+  aiDeck?: DeckCardLists;
   timeoutMs?: number;
   /** concede after this turn so a stalled race still ends */
   maxTurns?: number;
@@ -84,7 +86,7 @@ export async function playBotGame(options: BotGameOptions): Promise<BotGameStats
     });
     if (!table.tableId) throw new Error('no table');
     if (!await api.roomJoinTable(roomId, table.tableId, options.userName, 'HUMAN', 1, playDeck)) throw new Error('seat refused');
-    if (!await api.roomJoinTable(roomId, table.tableId, `AI ${options.userName}`.slice(0, 14), 'COMPUTER_MAD', 2, playDeck)) throw new Error('AI seat refused');
+    if (!await api.roomJoinTable(roomId, table.tableId, `AI ${options.userName}`.slice(0, 14), 'COMPUTER_MAD', 2, options.aiDeck ?? playDeck)) throw new Error('AI seat refused');
     const startedAt = Date.now();
     if (!await api.matchStart(roomId, table.tableId)) throw new Error('match did not start');
 

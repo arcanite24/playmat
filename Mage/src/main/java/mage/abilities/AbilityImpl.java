@@ -1,5 +1,7 @@
 package mage.abilities;
 
+import mage.util.RandomUtil;
+
 import mage.MageIdentifier;
 import mage.MageObject;
 import mage.Mana;
@@ -100,7 +102,7 @@ public abstract class AbilityImpl implements Ability {
     private Map<String, Object> costsTagMap = null;
 
     protected AbilityImpl(AbilityType abilityType, Zone zone) {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         this.originalId = id;
         this.abilityType = abilityType;
         this.zone = zone;
@@ -156,7 +158,7 @@ public abstract class AbilityImpl implements Ability {
     @Override
     public void newId() {
         if (!(this instanceof MageSingleton)) {
-            this.id = UUID.randomUUID();
+            this.id = RandomUtil.newId();
         }
         getEffects().newId();
 
@@ -167,7 +169,7 @@ public abstract class AbilityImpl implements Ability {
 
     @Override
     public void newOriginalId() {
-        this.id = UUID.randomUUID();
+        this.id = RandomUtil.newId();
         this.originalId = id;
         getEffects().newId();
     }
@@ -274,7 +276,11 @@ public abstract class AbilityImpl implements Ability {
              * abilities with replacement effects deactivated too late Example:
              * {@link org.mage.test.cards.replacement.DryadMilitantTest#testDiesByDestroy testDiesByDestroy}
              */
-            game.processAction();
+            if (isManaAbility()) {
+                game.processManaAction();
+            } else {
+                game.processAction();
+            }
         }
         return result;
     }
@@ -285,7 +291,11 @@ public abstract class AbilityImpl implements Ability {
         if (controller == null) {
             return false;
         }
-        game.applyEffects();
+        // an AI simulation taps its mana sources one after another while paying, and the action before applied the
+        // effects already: applying them again before each one was a fifth of the AI's time on big boards
+        if (!isManaAbility() || !game.isAiSimulation()) {
+            game.applyEffects();
+        }
 
         MageObject sourceObject = getSourceObject(game);
         initSourceObjectZoneChangeCounter(game, false);

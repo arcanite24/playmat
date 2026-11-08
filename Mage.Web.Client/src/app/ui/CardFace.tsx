@@ -10,6 +10,7 @@ import { cardBackOf } from './cardBack';
 import { useCosmetics } from './cosmeticsCatalog';
 import { sleeveBackOf } from './sleeveArt';
 import { LandStyleContext, landStylist, styledLand, type StylableCard } from './landStyles';
+import { styledToken, TokenArtContext } from './tokenArt';
 import { useCardStyle } from './cardStyles';
 import { useSettings } from '../stores/settings';
 import styles from './CardFace.module.css';
@@ -53,7 +54,11 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
   // in a match, a basic land shows its player's land style (landStyles.ts); everywhere else the context is empty
   const landStyleOf = useContext(LandStyleContext);
   const stylist = landStyleOf ? landStylist(printed) : undefined;
-  const card = stylist ? styledLand(printed, landStyleOf!(stylist)) : printed;
+  const landed = stylist ? styledLand(printed, landStyleOf!(stylist)) : printed;
+  // ...and a token its player's chosen picture (tokenArt.ts)
+  const tokenArtOf = useContext(TokenArtContext);
+  const tokenPlayer = tokenArtOf ? landStylist(printed) : undefined;
+  const card = tokenPlayer ? styledToken(landed, tokenArtOf!(tokenPlayer)) : landed;
   // a painted land style's own card (with painted art on) takes the place of the printing's picture
   const paintedArt = useSettings((state) => state.settings.paintedArt);
   const painted = !hidden && paintedArt && face !== 'back' ? card.paintedLand : undefined;
