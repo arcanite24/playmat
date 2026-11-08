@@ -570,6 +570,8 @@ pub struct Game {
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
     pub grants: Arc<Vec<Grant>>,
+    /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
+    pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
@@ -666,6 +668,7 @@ impl Game {
             owed_choices: Vec::new(),
             extra_turns: Vec::new(),
             grants: Arc::new(Vec::new()),
+            must_block_from: Vec::new(),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
             sac_insert: None,

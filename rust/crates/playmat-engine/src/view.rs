@@ -1346,6 +1346,10 @@ fn restriction_hints(game: &Game, id: ObjId) -> Vec<String> {
     let id_name = |src: ObjId| format!("{} [{}]", game.obj(src).def.name, reference(game, src));
     let mut out = Vec::new();
     let o = game.obj(id);
+    // `BlocksIfAbleSourceEffect`'s requirement, from what gave it
+    for (_, _, src) in game.must_block_from.iter().filter(|(t, z, _)| *t == id && *z == o.zcc) {
+        out.push(format!("ICON_REQUIREMust block any ({} [{}])", game.obj(*src).def.name, stack_ref(game, *src)));
+    }
     if game.cant_attack_alone(id) {
         out.push(format!("ICON_RESTRICTCan't attack ({})", id_name(id)));
     }

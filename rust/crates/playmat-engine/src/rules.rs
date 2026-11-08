@@ -6093,6 +6093,10 @@ fn apply_each_effect(
             EffectDef::GainAbilityTargetEffect { ability, .. } => {
                 for o in &objs {
                     grant(game, *o, ability);
+                    if **ability == AbilityDef::BlocksIfAbleAbility {
+                        let zcc = game.obj(*o).zcc;
+                        game.must_block_from.push((*o, zcc, source.0));
+                    }
                 }
             }
             EffectDef::LoseLifeOpponentsEffect { amount } => {
@@ -10363,6 +10367,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     if game.grants.iter().any(|g| g.until_end_of_turn) {
         Arc::make_mut(&mut game.grants).retain(|g| !g.until_end_of_turn);
     }
+    game.must_block_from.clear();
     game.exile_if_dies.clear();
     for id in Arc::clone(&game.battlefield).iter().copied() {
         if game.obj(id).loyalty_used {
