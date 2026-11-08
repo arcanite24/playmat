@@ -313,6 +313,8 @@ pub struct Player {
     /// mana in the pool always pays automatically: the Java AI's pool, whose stock (`ManaPool.setStock`) is set on
     /// the copy each dialog's stand-in player gets, never on its own
     pub no_stock: bool,
+    /// the cards in its sideboard (only counted: `OpenSideboardHint`)
+    pub sideboard: usize,
     pub life: i32,
     pub counters: Vec<(String, i32)>,
     pub hand: Vec<ObjId>,

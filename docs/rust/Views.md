@@ -67,6 +67,12 @@ names, cards copying others (Mockingbird), Evolved Sleeper's types, regeneration
 its cards, and play doesn't change it. Left: a Hive of the Eye Tyrant's granted Menace text, a few stack and
 playable-ability one-offs.
 
+16 more (games 16 to 31): **172 of 179 views match**, after Learn's sideboard count (each seat's sideboard size is in
+the shadow start, `sideboard`), Crusader of Odric's count in hand, Lovestruck Beast's "Can't attack" and flashback's
+playable text. Java's card of a Crusader on the battlefield keeps the count from before it entered; Rust takes the
+count less itself. Left: "Must block any" (Academic Dispute), Skyknight Squire's Knight type, a Warp return's
+targets.
+
 ## How the Rust side gets Java's text
 
 The engine doesn't compute card text. `CardFactsTest` renders, for every card in the pool, Java's own views and

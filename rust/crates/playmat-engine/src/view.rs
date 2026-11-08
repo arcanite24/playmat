@@ -154,6 +154,15 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
             PlayKind::Other if o.def.abilities.get(k) == Some(&crate::card::AbilityDef::SpellAbility) => {
                 format!("Cast {}", name)
             }
+            PlayKind::Other
+                if matches!(o.def.abilities.get(k), Some(crate::card::AbilityDef::FlashbackAbility { .. })) =>
+            {
+                // (`FlashbackAbility`'s own name, without its reminder)
+                match o.def.abilities.get(k) {
+                    Some(crate::card::AbilityDef::FlashbackAbility { cost, .. }) => format!("Flashback {}", cost),
+                    _ => String::new(),
+                }
+            }
             PlayKind::Other if matches!(o.def.abilities.get(k), Some(crate::card::AbilityDef::WarpAbility { .. })) => {
                 format!("Cast {} with Warp", name)
             }
@@ -507,6 +516,10 @@ fn cda_power(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
         }),
         _ => None,
     });
+    // and both (Crusader of Odric in hand)
+    if cda_counts_creatures(&o.def) {
+        set_pt(m, creatures_of(game, o.controller));
+    }
     let Some(amount) = amount else { return };
     let n = game.value(amount, o.controller, id, 0);
     m.insert("power".into(), json!(n.to_string()));
@@ -514,6 +527,35 @@ fn cda_power(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
         x.insert("modifiedBaseValue".into(), json!(n));
         x.insert("boostedValue".into(), json!(n));
         x.insert("cardValue".into(), json!(n.to_string()));
+    }
+}
+
+/// A power and toughness equal to the creatures you control (`SetBasePowerToughnessSourceEffect`)
+fn cda_counts_creatures(def: &CardDef) -> bool {
+    use crate::card::{AbilityDef as A, EffectDef as E};
+    def.abilities.iter().any(|a| match a {
+        A::SimpleStaticAbility { effects, .. } => effects
+            .iter()
+            .any(|e| matches!(e, E::SetBasePowerToughnessSourceEffect { count } if count == "creatures_you_control")),
+        _ => false,
+    })
+}
+
+fn creatures_of(game: &Game, you: Seat) -> i32 {
+    game.battlefield.iter().filter(|b| game.obj(**b).controller == you && game.obj(**b).is(CardType::Creature)).count()
+        as i32
+}
+
+/// A card's power and toughness set to `n`, before boosts
+fn set_pt(m: &mut Map<String, Value>, n: i32) {
+    m.insert("power".into(), json!(n.to_string()));
+    m.insert("toughness".into(), json!(n.to_string()));
+    for k in ["originalPower", "originalToughness"] {
+        if let Some(Value::Object(x)) = m.get_mut(k) {
+            x.insert("boostedValue".into(), json!(n));
+            x.insert("modifiedBaseValue".into(), json!(n));
+            x.insert("cardValue".into(), json!(n.to_string()));
+        }
     }
 }
 
@@ -1003,10 +1045,10 @@ fn named_hint(game: &Game, name: &str, you: Seat, id: ObjId) -> String {
             Zone::Battlefield => format!("Class level: {}", game.obj(id).class_level.max(1)),
             _ => String::new(),
         },
-        "OpenSideboardHint" => {
-            "Cards in your sideboard: 0 (<i>Right click on battlefield to open player's sideboard at any time</i>)"
-                .into()
-        }
+        "OpenSideboardHint" => format!(
+            "Cards in your sideboard: {} (<i>Right click on battlefield to open player's sideboard at any time</i>)",
+            game.player(you).sideboard
+        ),
         "DayNightHint" => day_night_hint(game),
         _ => String::new(),
     }
@@ -1304,6 +1346,9 @@ fn restriction_hints(game: &Game, id: ObjId) -> Vec<String> {
     let id_name = |src: ObjId| format!("{} [{}]", game.obj(src).def.name, reference(game, src));
     let mut out = Vec::new();
     let o = game.obj(id);
+    if game.cant_attack_alone(id) {
+        out.push(format!("ICON_RESTRICTCan't attack ({})", id_name(id)));
+    }
     for a in &o.def.abilities {
         if matches!(a, A::CantBlockAbility) {
             out.push(format!("ICON_RESTRICTCan't block ({})", id_name(id)));
@@ -1748,7 +1793,14 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
         }
         m.insert("original".into(), original);
     } else if controlled {
-        m.insert("original".into(), card_view(game, id, r, false));
+        let mut original = card_view(game, id, r, false);
+        // (its card counts a characteristic-defining power too, as last counted before it entered: Java doesn't
+        // count it again on the battlefield, and the others are as they were unless one came or went since)
+        if let (Value::Object(x), true) = (&mut original, cda_counts_creatures(&o.def)) {
+            let n = creatures_of(game, o.controller) - 1;
+            set_pt(x, n);
+        }
+        m.insert("original".into(), original);
     }
     if let Some(printed) = o.printed_def.as_ref().filter(|_| o.copied_def.is_some() && !o.token) {
         // `PermanentImpl` copying another: a copy, its base power and toughness its card's

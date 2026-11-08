@@ -74,6 +74,8 @@ public final class ShadowStart {
             // the printing each card's view shows (docs/rust/Views.md)
             seat.put("libraryPrintings", libraryPrintings);
             seat.put("handPrintings", handPrintings);
+            // for Learn's hint, which counts it
+            seat.put("sideboard", player.getSideboard().size());
             seats.add(seat);
         }
         start.put("seats", seats);
