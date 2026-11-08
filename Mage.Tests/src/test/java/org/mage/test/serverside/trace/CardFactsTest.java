@@ -4,6 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import mage.abilities.Abilities;
 import mage.abilities.Ability;
+import mage.cards.PrepareCard;
 import mage.cards.SplitCard;
 import mage.cards.DoubleFacedCard;
 import mage.constants.MultiplayerAttackOption;
@@ -172,6 +173,18 @@ public class CardFactsTest {
                                     JsonCodec.GSON.toJsonTree(new CardView(permanent, unstarted, true)), refs(permanent)));
                         } catch (RuntimeException e) {
                             System.err.println("no permanent view of " + face.getName() + ": " + e);
+                        }
+                    }
+                    // a prepare card's spell, as the copy it puts in exile once the permanent is prepared
+                    if (card instanceof PrepareCard) {
+                        try {
+                            PrepareCard prepare = (PrepareCard) card;
+                            Card copy = prepare.createPreparedSpellCopy(SEAT);
+                            unstarted.getState().addCardPartCopyToExileZone(card, prepare.getSpellCard(), copy, SEAT);
+                            views.put("prepared:" + copy.getName(),
+                                    ShadowViews.mapIds(JsonCodec.GSON.toJsonTree(new CardView(copy)), refs(copy)));
+                        } catch (RuntimeException e) {
+                            System.err.println("no prepared copy of " + name + ": " + e);
                         }
                     }
                 }

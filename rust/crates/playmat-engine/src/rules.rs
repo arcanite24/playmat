@@ -1358,7 +1358,7 @@ fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
 }
 
 /// a player's devotion to a color
-fn devotion(game: &Game, seat: Seat, c: Color) -> u32 {
+pub fn devotion(game: &Game, seat: Seat, c: Color) -> u32 {
     game.value(&Amount::Of(crate::card::Value::Devotion { c }), seat, ObjId(0), 0).max(0) as u32
 }
 

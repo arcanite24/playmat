@@ -208,7 +208,10 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
         let kind = if game_object { "permanent" } else { "face" };
         (o.zone == Zone::Battlefield).then(|| templates().get(&format!("{}:{}", kind, o.def.name)).cloned()).flatten()
     };
+    // a prepared permanent's spell, its copy in exile
+    let prepared = || o.prepared_for.and_then(|_| templates().get(&format!("prepared:{}", o.def.name)).cloned());
     let mut v = token_view(game, id)
+        .or_else(prepared)
         .or_else(permanent)
         .or_else(|| templates().get(&o.def.name).cloned())
         .unwrap_or_else(|| json!({"name": o.def.name}));
@@ -229,6 +232,9 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
             if game_object && o.zone == Zone::Battlefield {
                 rules.extend(o.info.iter().map(|(_, l)| json!(l)));
             }
+        }
+        if game_object && o.zone != Zone::Battlefield {
+            land_frame(game, id, m);
         }
         if game_object && o.zone == Zone::Battlefield {
             characteristics(game, id, m);
@@ -297,17 +303,7 @@ fn characteristics(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
         .and_then(|r| r.as_array())
         .map(|r| r.iter().filter_map(|x| x.as_str()).take_while(|x| *x != HINT_START).map(String::from).collect())
         .unwrap_or_default();
-    if o.is(CardType::Land) {
-        // the mana its mana abilities make
-        let mut makes = [false; 5];
-        for r in &rules {
-            let Some((_, add)) = r.split_once("Add ") else { continue };
-            for (i, c) in ["W", "U", "B", "R", "G"].iter().enumerate() {
-                makes[i] |= add.contains("any color") || add.contains(&format!("{{{}}}", c));
-            }
-        }
-        m.insert("frameColor".into(), five(&|i| makes[i]));
-    }
+    land_frame(game, id, m);
     // color identity: its colors and the mana symbols of its cost and rules (not their reminder text)
     let mut texts: Vec<String> = rules;
     let strs = |v: Option<&Value>| -> Vec<String> {
@@ -467,6 +463,43 @@ fn color_name(c: crate::card::Color) -> &'static str {
         C::B => "Black",
         C::R => "Red",
         C::G => "Green",
+    }
+}
+
+/// A land's frame: the colors of mana it can make (`MageObjectImpl.getFrameColor`, in any zone while the game is on)
+fn land_frame(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
+    let o = game.obj(id);
+    let five = |has: &dyn Fn(usize) -> bool| -> Value {
+        const NAMES: [&str; 5] = ["white", "blue", "black", "red", "green"];
+        Value::Object(NAMES.iter().enumerate().map(|(i, n)| (n.to_string(), json!(has(i)))).collect())
+    };
+    let rules: Vec<String> = m
+        .get("rules")
+        .and_then(|r| r.as_array())
+        .map(|r| r.iter().filter_map(|x| x.as_str()).take_while(|x| *x != HINT_START).map(String::from).collect())
+        .unwrap_or_default();
+    if o.is(CardType::Land) {
+        // the mana its mana abilities make
+        let mut makes = [false; 5];
+        for r in &rules {
+            let Some((_, add)) = r.split_once("Add ") else { continue };
+            for (i, c) in ["W", "U", "B", "R", "G"].iter().enumerate() {
+                makes[i] |= add.contains("any color") || add.contains(&format!("{{{}}}", c));
+            }
+        }
+        // (`getProducableManaTypes`: a chosen color's, and Nykthos's colors with devotion)
+        for a in &o.def.abilities {
+            match a {
+                crate::card::AbilityDef::ColoredManaAbility { color, .. } => makes[color.index()] = true,
+                crate::card::AbilityDef::NykthosShrineToNyxManaAbility { .. } => {
+                    for c in crate::card::Color::ALL {
+                        makes[c.index()] |= crate::rules::devotion(game, o.controller, c) > 0;
+                    }
+                }
+                _ => {}
+            }
+        }
+        m.insert("frameColor".into(), five(&|i| makes[i]));
     }
 }
 
