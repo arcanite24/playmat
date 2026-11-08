@@ -611,6 +611,33 @@ fn characteristics(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
         let subtypes: Vec<Value> = o.def.subtypes.iter().map(|s| json!(subtype_name(s))).collect();
         m.insert("subTypes".into(), Value::Array(subtypes));
     }
+    // a static `AddCardSubTypeSourceEffect` (Skyknight Squire's Knight while it has three counters)
+    let mut added: Vec<&str> = Vec::new();
+    for a in &o.def.abilities {
+        if let crate::card::AbilityDef::SimpleStaticAbility { effects, .. } = a {
+            for e in effects {
+                let (e, holds) = match e {
+                    crate::card::EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                        (&**effect, game.condition_holds(Some(condition), o.controller, id))
+                    }
+                    e => (e, true),
+                };
+                if let (crate::card::EffectDef::AddCardSubTypeSourceEffect { subtype }, true) = (e, holds) {
+                    if !subtype.is_empty() {
+                        added.push(subtype);
+                    }
+                }
+            }
+        }
+    }
+    if let (false, Some(Value::Array(subtypes))) = (added.is_empty(), m.get_mut("subTypes")) {
+        for t in added {
+            let t = json!(subtype_name(t));
+            if !subtypes.contains(&t) {
+                subtypes.push(t);
+            }
+        }
+    }
     // Evolved Sleeper's "becomes a Human Cleric": `AddCardSubTypeSourceEffect` adds the ones it hasn't
     if let (Some(types), Some(Value::Array(subtypes))) = (&o.creature_types, m.get_mut("subTypes")) {
         for t in types {
@@ -1144,6 +1171,20 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
                 pointed = c;
                 &pointed
             }
+            // warp's end-step exile points at the permanent (`FixedTarget`) while it's still that object
+            _ if item.delayed.as_ref().is_some_and(|d| !d.warp_exile.is_empty()) && item.targets.is_empty() => {
+                let mut c = item.clone();
+                let objs = item.delayed.as_ref().map_or(Vec::new(), |d| {
+                    d.warp_exile
+                        .iter()
+                        .filter(|(o, z)| game.obj(*o).zcc == *z)
+                        .map(|(o, _)| crate::state::Target::Obj(*o))
+                        .collect::<Vec<_>>()
+                });
+                c.targets = vec![objs];
+                pointed = c;
+                &pointed
+            }
             _ => item,
         };
         let targets: Vec<Value> = item
@@ -1166,6 +1207,7 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
         let declared = !item.targets.is_empty()
             || if spell {
                 !def.spell.targets.is_empty()
+                    || item.modes.iter().any(|k| def.spell.modes.get(*k).is_some_and(|m| !m.targets.is_empty()))
             } else {
                 ability.is_some_and(|a| {
                     a.triggered().is_some_and(|t| !t.2.is_empty()) || a.activated().is_some_and(|t| !t.2.is_empty())
