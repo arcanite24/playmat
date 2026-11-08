@@ -521,6 +521,8 @@ pub struct Game {
     pub no_prevention_turn: Option<u32>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
     pub resolving: Option<(usize, ObjId)>,
+    /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
+    pub resolving_item: Option<StackItem>,
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
     /// order they were exiled
     pub exile_by_creation: bool,
@@ -617,6 +619,7 @@ impl Game {
             spent_tally: [0; 6],
             no_prevention_turn: None,
             resolving: None,
+            resolving_item: None,
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),

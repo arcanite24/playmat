@@ -150,6 +150,22 @@ public class CardFactsTest {
                 set = card.getExpansionSetCode();
                 if (viewsOut != null) {
                     views.put(name, ShadowViews.mapIds(JsonCodec.GSON.toJsonTree(new CardView(card)), refs(card)));
+                    // a modal ability's modes' texts, by the ability's index (`Chosen mode: …` on the stack)
+                    Map<String, List<String>> modes = new LinkedHashMap<>();
+                    int index = 0;
+                    for (mage.abilities.Ability a : card.getAbilities()) {
+                        if (a.isModal()) {
+                            List<String> texts = new ArrayList<>();
+                            for (mage.abilities.Mode mode : a.getModes().values()) {
+                                texts.add(mode.getEffects().getText(mode));
+                            }
+                            modes.put(String.valueOf(index), texts);
+                        }
+                        index++;
+                    }
+                    if (!modes.isEmpty()) {
+                        views.put("modes:" + name, modes);
+                    }
                     // each face it can be on the battlefield as, as a permanent's view (`PermanentView`'s card part):
                     // its front, and a double-faced card's back (an MDFC's played face, a transformed card)
                     List<Card> faces = new ArrayList<>();
@@ -173,6 +189,30 @@ public class CardFactsTest {
                                     JsonCodec.GSON.toJsonTree(new CardView(permanent, unstarted, true)), refs(permanent)));
                         } catch (RuntimeException e) {
                             System.err.println("no permanent view of " + face.getName() + ": " + e);
+                        }
+                    }
+                    // the spell of each part cast on its own (a Room's halves, an adventure's or omen's spell), as it is
+                    // on the stack (`CardView(Spell)`)
+                    List<Card> parts = new ArrayList<>();
+                    if (card instanceof SplitCard) {
+                        parts.add(((SplitCard) card).getLeftHalfCard());
+                        parts.add(((SplitCard) card).getRightHalfCard());
+                    }
+                    if (card instanceof mage.cards.CardWithSpellOption) {
+                        parts.add(((mage.cards.CardWithSpellOption) card).getSpellCard());
+                        // and the card itself cast (an adventurer, a prepare creature): not split as a spell
+                        parts.add(card);
+                    }
+                    for (Card part : parts) {
+                        try {
+                            part.setOwnerId(SEAT);
+                            mage.game.stack.Spell spell = new mage.game.stack.Spell(part, part.getSpellAbility(), SEAT,
+                                    mage.constants.Zone.HAND, unstarted);
+                            // (without the game: the spell's characteristics are its part's)
+                            views.put("spell:" + part.getName(), ShadowViews.mapIds(
+                                    JsonCodec.GSON.toJsonTree(new CardView(spell, (Game) null, true)), refs(part)));
+                        } catch (RuntimeException e) {
+                            System.err.println("no spell view of " + part.getName() + ": " + e);
                         }
                     }
                     // a prepare card's spell, as the copy it puts in exile once the permanent is prepared

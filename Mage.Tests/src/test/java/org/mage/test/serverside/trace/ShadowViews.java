@@ -49,7 +49,16 @@ final class ShadowViews {
         m.put("decision", decision);
         m.put("seat", StateFingerprint.seats(game).indexOf(event.getPlayerId()));
         m.put("query", String.valueOf(event.getQueryType()));
-        m.put("view", mapIds(JsonCodec.GSON.toJsonTree(view), refs));
+        // a spell's id name (`Target on stack: Name [c3b]`) is its card's: the card's short id names the spell
+        Map<UUID, String> named = new java.util.HashMap<>(refs);
+        int i = 0;
+        for (mage.game.stack.StackObject object : game.getState().getStack()) {
+            if (object instanceof mage.game.stack.Spell) {
+                named.putIfAbsent(((mage.game.stack.Spell) object).getCard().getId(), "S" + i);
+            }
+            i++;
+        }
+        m.put("view", mapIdsNamed(JsonCodec.GSON.toJsonTree(view), refs, named));
         views.add(m);
     }
 
@@ -65,10 +74,26 @@ final class ShadowViews {
      * share stays as it is
      */
     static JsonElement mapIds(JsonElement e, Map<UUID, String> refs) {
+        return mapIdsNamed(e, refs, refs);
+    }
+
+    /** @param named the references of short ids: {@code refs}, and more */
+    static JsonElement mapIdsNamed(JsonElement e, Map<UUID, String> refs, Map<UUID, String> named) {
+        // by short id, the references of the highest rank: an object's own (a card in a library lower), then its
+        // abilities' and faces'; two of the same rank leave the short id as it is
         Map<String, String> shorts = new java.util.HashMap<>();
-        for (Map.Entry<UUID, String> r : refs.entrySet()) {
+        Map<String, Integer> ranks = new java.util.HashMap<>();
+        for (Map.Entry<UUID, String> r : named.entrySet()) {
             String k = r.getKey().toString().substring(0, 3);
-            shorts.merge(k, r.getValue(), (a, b) -> a.equals(b) ? a : "");
+            String ref = r.getValue();
+            int rank = ref.matches("[PHGBSEC][0-9]+(\\.[0-9]+)?") ? 2 : ref.matches("L[0-9]+\\.[0-9]+") ? 1 : 0;
+            int was = ranks.getOrDefault(k, -1);
+            if (rank > was) {
+                ranks.put(k, rank);
+                shorts.put(k, ref);
+            } else if (rank == was && !ref.equals(shorts.get(k))) {
+                shorts.put(k, "");
+            }
         }
         return mapIds(e, refs, shorts);
     }

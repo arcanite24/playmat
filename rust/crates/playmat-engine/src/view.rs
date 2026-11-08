@@ -259,6 +259,10 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
     let mut v = token_view(game, id)
         .or_else(prepared)
         .or_else(permanent)
+        // a part cast on its own (a Room's half, an adventure's spell) as a spell
+        .or_else(|| {
+            (o.zone == Zone::Stack).then(|| templates().get(&format!("spell:{}", o.def.name)).cloned()).flatten()
+        })
         .or_else(|| templates().get(&o.def.name).cloned())
         .or_else(|| if game_object { room_view(game, id) } else { room_card(game, id) })
         .unwrap_or_else(|| json!({"name": o.def.name}));
@@ -720,6 +724,11 @@ fn hint_lines(game: &Game, id: ObjId) -> Vec<String> {
 
 /// The hints of one of its faces' abilities
 fn hint_lines_of(game: &Game, id: ObjId, def: &CardDef) -> Vec<String> {
+    hint_lines_for(game, id, def, None)
+}
+
+/// The hints of its abilities, or of its ability `k` alone (`StackAbilityView`)
+fn hint_lines_for(game: &Game, id: ObjId, def: &CardDef, k: Option<usize>) -> Vec<String> {
     if game.step.is_none() {
         return Vec::new();
     }
@@ -730,10 +739,13 @@ fn hint_lines_of(game: &Game, id: ObjId, def: &CardDef) -> Vec<String> {
     let day_night = |a: &crate::card::AbilityDef| {
         matches!(a, crate::card::AbilityDef::DayboundAbility | crate::card::AbilityDef::NightboundAbility)
     };
-    if def.hints.is_empty() && def.abilities.iter().any(day_night) {
+    if k.is_none() && def.hints.is_empty() && def.abilities.iter().any(day_night) {
         return vec![day_night_hint(game)];
     }
-    for h in &def.hints {
+    for (i, h) in def.hints.iter().enumerate() {
+        if k.is_some() && def.hint_abilities.get(i).copied() != k {
+            continue;
+        }
         let text = match h {
             HintDef::Condition { condition, icons, true_text, false_text, true_color, false_color } => {
                 let holds = game.condition_holds(Some(condition), you, id);
@@ -853,7 +865,7 @@ fn combat_view(game: &Game, names: &[&str]) -> Value {
 /// `StackAbilityView`s with their source's view
 fn stack_view(game: &Game, names: &[&str]) -> Value {
     let mut out = Map::new();
-    for (i, item) in game.stack.iter().rev().enumerate() {
+    for (i, (item, at)) in view_stack(game).into_iter().rev().enumerate() {
         let r = format!("S{}", i);
         let targets: Vec<Value> = item
             .targets
@@ -865,7 +877,7 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
             })
             .collect();
         let o = game.obj(item.card);
-        let paid = game.unpaid != Some(game.stack.len() - 1 - i);
+        let paid = at.is_none() || game.unpaid != at;
         let mut icons = Vec::new();
         let def = game.item_def(item);
         let spell = item.ability.is_none() && item.delayed.is_none();
@@ -905,6 +917,20 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
             if let Value::Object(m) = &mut v {
                 m.insert("cardId".into(), json!("?"));
                 m.insert("mageObjectType".into(), json!("SPELL"));
+                // a transforming card's spell is its front face (`Spell` of the face card)
+                if o.def.transform_back.is_some() {
+                    m.insert("displayFullName".into(), json!(o.def.name));
+                    m.insert("isDoubleFacedCard".into(), json!(false));
+                    if let Some(c) =
+                        templates().get(&format!("face:{}", o.def.name)).and_then(|f| f.get("originalColorIdentity"))
+                    {
+                        m.insert("originalColorIdentity".into(), c.clone());
+                    }
+                    if let Some(Value::Object(f)) = m.get_mut("secondCardFace") {
+                        f.insert("id".into(), json!("?"));
+                        f.insert("cardId".into(), json!("?"));
+                    }
+                }
                 m.insert("paid".into(), json!(paid));
                 m.insert("cardIcons".into(), Value::Array(icons));
                 if let Some(c) = m.get("color").cloned() {
@@ -912,6 +938,11 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
                 }
                 if let Some(t) = targets {
                     m.insert("targets".into(), Value::Array(t));
+                }
+                if let Some(Value::Array(rules)) = m.get_mut("rules") {
+                    let k = def.abilities.iter().position(|a| matches!(a, crate::card::AbilityDef::SpellAbility));
+                    rules.extend(chosen_modes(game, item, k).into_iter().map(Value::String));
+                    rules.extend(targets_on_stack(game, item).into_iter().map(Value::String));
                 }
             }
             v
@@ -936,14 +967,57 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
             let source_ref = reference(game, item.card);
             let mut source = card_view(game, item.card, &source_ref, true);
             source["mageObjectType"] = json!(kind);
+            // (a permanent's card view: `CardView(Permanent)`)
+            if o.zone == Zone::Battlefield {
+                source["bandedCards"] = json!([]);
+            }
             v["id"] = json!(r);
-            v["rules"] = json!([rule]);
+            let mut rules = vec![rule];
+            // what its effects point at when it doesn't target (`StackAbilityView.updateTargets`)
+            let own_targets = ability.is_some_and(|a| {
+                a.triggered().is_some_and(|t| !t.2.is_empty()) || a.activated().is_some_and(|t| !t.2.is_empty())
+            });
+            let mut related: Vec<String> = Vec::new();
+            if !own_targets {
+                for t in item.targets.iter().flatten() {
+                    if let crate::state::Target::Obj(id) = t {
+                        let name = format!(
+                            "<font color='{}'>{} [{}]</font>",
+                            tooltip_color(&game.obj(*id).def.colors),
+                            game.obj(*id).def.name,
+                            stack_ref(game, *id)
+                        );
+                        if !related.contains(&name) {
+                            related.push(name);
+                        }
+                    }
+                }
+            }
+            if !related.is_empty() {
+                rules.push(format!("<i>Related objects: [{}]</i>", related.join(", ")));
+            }
+            rules.extend(chosen_modes(game, item, item.ability.map(|(k, _)| k)));
+            if let Some((k, _)) = item.ability.filter(|_| item.delayed.is_none()) {
+                let hints = hint_lines_for(game, item.card, def, Some(k));
+                if !hints.is_empty() {
+                    rules.push(HINT_START.to_string());
+                    rules.extend(hints);
+                }
+            }
+            if related.is_empty() {
+                rules.extend(targets_on_stack(game, item));
+            }
+            v["rules"] = json!(rules);
             v["mageObjectType"] = json!(kind);
             v["abilityType"] = json!(if triggered { "TRIGGERED_NONMANA" } else { "ACTIVATED_NONMANA" });
             if let Some(c) = source.get("counters").cloned() {
                 v["counters"] = c;
             }
-            v["paid"] = json!(paid);
+            // (`GameView.checkPaid`: an ability with no mana to pay is paid)
+            let mana = ability.and_then(|a| a.activated()).is_some_and(|t| {
+                t.3.iter().any(|c| matches!(c, crate::card::CostDef::ManaCost { cost } if !cost.is_empty()))
+            });
+            v["paid"] = json!(paid || !mana);
             v["cardIcons"] = Value::Array(icons);
             if let Some(t) = targets {
                 v["targets"] = Value::Array(t);
@@ -954,6 +1028,61 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
         out.insert(r, v);
     }
     Value::Object(out)
+}
+
+/// `GameLog.getTooltipColorName`
+fn tooltip_color(colors: &[crate::card::Color]) -> &'static str {
+    use crate::card::Color as C;
+    match colors {
+        [] => "#94A4BA",
+        [_, _, ..] => "#A97A00",
+        [C::R] => "Red",
+        [C::G] => "Green",
+        [C::U] => "Blue",
+        [C::W] => "#FDFFE6",
+        [C::B] => "Black",
+    }
+}
+
+/// A modal spell's or ability's chosen modes (`CardView(Spell)`, `StackAbilityView`), by its ability's index `k`
+/// in its card's abilities
+fn chosen_modes(game: &Game, item: &crate::state::StackItem, k: Option<usize>) -> Vec<String> {
+    let o = game.obj(item.card);
+    let name = o.printed_def.as_ref().map_or(&o.def.name, |p| &p.name);
+    let Some(texts) = k.and_then(|k| templates().get(&format!("modes:{}", name))?.get(k.to_string())?.as_array())
+    else {
+        return Vec::new();
+    };
+    // (a spree spell's modes are chosen with its costs: none before)
+    if game.item_def(item).spell.modes.iter().any(|m| m.cost.is_some())
+        && item.ability.is_none()
+        && item.modes.is_empty()
+    {
+        return Vec::new();
+    }
+    let chosen: Vec<usize> = if item.modes.is_empty() { vec![0] } else { item.modes.clone() };
+    chosen
+        .iter()
+        .filter_map(|m| texts.get(*m).and_then(|t| t.as_str()))
+        .map(|t| format!("<span color='green'><i>Chosen mode: {}</i></span>", t))
+        .collect()
+}
+
+/// `Target on stack: Name [id]` for its targets once one is a spell (Java names that spell for each target after)
+fn targets_on_stack(game: &Game, item: &crate::state::StackItem) -> Vec<String> {
+    let mut found: Option<String> = None;
+    let mut out = Vec::new();
+    for t in item.targets.iter().flatten() {
+        if let crate::state::Target::Obj(id) = t {
+            if game.obj(*id).zone == Zone::Stack {
+                found = Some(format!("{} [{}]", game.obj(*id).def.name, stack_ref(game, *id)));
+            }
+        }
+        if let Some(f) = &found {
+            out.push(format!("<span color='green'><i>Target on stack: {}", f));
+        }
+    }
+    out
 }
 
 fn icon(kind: &str, hint: &str, text: &str) -> Value {
@@ -1045,8 +1174,27 @@ fn targets_icon(game: &Game, item: &crate::state::StackItem, names: &[&str]) -> 
 }
 
 /// A target's reference; a spell on the stack is its stack object's
+/// The stack as Java's views show it (`GameImpl.resolve` removes an object after it resolves): with the object
+/// resolving where it was, from the bottom, and its index on the stack if it's there (None: the one resolving)
+fn view_stack(game: &Game) -> Vec<(&crate::state::StackItem, Option<usize>)> {
+    let mut items: Vec<(&crate::state::StackItem, Option<usize>)> =
+        game.stack.iter().enumerate().map(|(k, i)| (i, Some(k))).collect();
+    if let (Some(item), Some((at, _))) = (&game.resolving_item, game.resolving) {
+        let there = game.stack.get(at).is_some_and(|i| i.card == item.card && i.ability == item.ability);
+        if !there {
+            items.insert(at.min(items.len()), (item, None));
+        }
+    }
+    items
+}
+
 fn stack_ref(game: &Game, id: ObjId) -> String {
-    match game.stack.iter().rev().position(|t| t.card == id && t.ability.is_none() && t.delayed.is_none()) {
+    match view_stack(game)
+        .into_iter()
+        .map(|(i, _)| i)
+        .rev()
+        .position(|t| t.card == id && t.ability.is_none() && t.delayed.is_none())
+    {
         Some(i) if game.obj(id).zone == Zone::Stack => format!("S{}", i),
         _ => reference(game, id),
     }

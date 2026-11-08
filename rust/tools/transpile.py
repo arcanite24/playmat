@@ -3179,6 +3179,9 @@ def main():
             hints = card_hints(card['name'], subtypes)
             if hints:
                 card['hints'] = hints
+                # each hint's ability, by its index in the card's abilities
+                card['hint_abilities'] = [i for i, a in enumerate(EXTRA.get(card['name'], {}).get('abilities', []))
+                                          for _ in a.get('hints', [])]
             # a room's halves' hints, from one pass over the card's source (`addHint` calls in the halves' order)
             halves = EXTRA.get(card['name'], {}).get('halves', [])
             if card.get('room') and len(halves) == len(card['room']):

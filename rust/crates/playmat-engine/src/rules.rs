@@ -4170,9 +4170,11 @@ fn unpaid_text(c: &ManaCost) -> String {
 fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     game.short_lki.clear();
     game.resolving = game.stack.last().map(|i| (game.stack.len() - 1, i.card));
+    game.resolving_item = game.stack.last().cloned();
     game.resolving_controller = game.stack.last().filter(|i| i.ability.is_none()).map(|i| (i.card, i.controller));
     resolve_popped(game, d);
     game.resolving = None;
+    game.resolving_item = None;
     game.resolving_controller = None;
     game.short_lki.clear();
 }

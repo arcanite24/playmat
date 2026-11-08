@@ -751,6 +751,7 @@ impl TokenDef {
             room: Vec::new(),
             printed_cost: None,
             hints: Vec::new(),
+            hint_abilities: Vec::new(),
         }
     }
 }
@@ -2704,6 +2705,9 @@ pub struct CardJson {
     pub set: String,
     #[serde(default)]
     pub hints: Vec<HintDef>,
+    /// the index of the ability each hint is of, in its abilities
+    #[serde(default)]
+    pub hint_abilities: Vec<usize>,
 }
 
 /// A hint an ability adds to a card's rules in a view (`mage.abilities.hint`), in the order of its abilities.
@@ -2806,6 +2810,8 @@ pub struct CardDef {
     pub printed_cost: Option<ManaCost>,
     /// the hints its abilities add to its rules in a view (`Ability.getHints`)
     pub hints: Vec<HintDef>,
+    /// the index of the ability each hint is of (an ability's view on the stack shows its own)
+    pub hint_abilities: Vec<usize>,
 }
 
 impl CardDef {
@@ -2870,6 +2876,7 @@ impl CardDef {
             room: json.room.into_iter().map(|h| CardDef::from_json(h).map(Arc::new)).collect::<Result<_, _>>()?,
             printed_cost: None,
             hints: json.hints,
+            hint_abilities: json.hint_abilities,
         })
     }
 
