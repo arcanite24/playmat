@@ -15,6 +15,7 @@ import mage.target.common.TargetSacrifice;
 import mage.util.CardUtil;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -55,7 +56,7 @@ public class SacrificeOpponentsUnlessPayEffect extends OneShotEffect {
 
     @Override
     public boolean apply(Game game, Ability source) {
-        Set<UUID> permsToSacrifice = new HashSet<>();
+        Set<UUID> permsToSacrifice = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
 
         for (UUID playerId : game.getOpponents(source.getControllerId())) {
             Player player = game.getPlayer(playerId);

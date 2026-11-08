@@ -16,6 +16,7 @@ import mage.players.Player;
 import mage.util.RandomUtil;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -69,7 +70,7 @@ public class DraftFromSpellbookEffect extends OneShotEffect {
         if (cardInfo == null) {
             return false;
         }
-        Set<Card> cards = new HashSet<>();
+        Set<Card> cards = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
         cards.add(cardInfo.createCard());
         game.loadCards(cards, player.getId());
         player.moveCards(cards, Zone.HAND, source, game);

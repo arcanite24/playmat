@@ -13,6 +13,7 @@ import mage.target.common.TargetCardInYourGraveyard;
 import mage.util.CardUtil;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -55,7 +56,7 @@ public class ReturnFromGraveyardToBattlefieldTargetEffect extends OneShotEffect 
     public boolean apply(Game game, Ability source) {
         Player controller = game.getPlayer(source.getControllerId());
         if (controller != null) {
-            Set<Card> cardsToMove = new HashSet<>();
+            Set<Card> cardsToMove = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
             for (UUID targetId : getTargetPointer().getTargets(game, source)) {
                 Card card = game.getCard(targetId);
                 if (card != null && game.getState().getZone(card.getId()) == Zone.GRAVEYARD) {

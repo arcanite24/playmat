@@ -26,14 +26,17 @@ public class GameTrace {
         public final String hash;
         /** the state text, when the trace keeps it (for finding where two traces part) */
         public final String text;
+        /** the game's random generator's position ({@link mage.util.GameRandom#getState}), -1 without one */
+        public final long random;
 
-        Entry(int index, String point, int turn, String step, String hash, String text) {
+        Entry(int index, String point, int turn, String step, String hash, String text, long random) {
             this.index = index;
             this.point = point;
             this.turn = turn;
             this.step = step;
             this.hash = hash;
             this.text = text;
+            this.random = random;
         }
 
         /** one NDJSON line, without the text */
@@ -97,12 +100,14 @@ public class GameTrace {
         }
         int index = entries.size();
         String step = game.getTurnStepType() == null ? "-" : game.getTurnStepType().name();
-        Entry entry = new Entry(index, point, game.getTurnNum(), step, hash, keepText ? text : null);
+        java.util.Random generator = mage.util.RandomUtil.getRandom();
+        long random = generator instanceof mage.util.GameRandom ? ((mage.util.GameRandom) generator).getState() : -1;
+        Entry entry = new Entry(index, point, game.getTurnNum(), step, hash, keepText ? text : null, random);
         entries.add(entry);
         if (sink != null) {
             // the sink always gets the text; the trace keeps it only when asked
             long sent = cpuNanos();
-            sink.accept(keepText ? entry : new Entry(index, point, game.getTurnNum(), step, hash, text));
+            sink.accept(keepText ? entry : new Entry(index, point, game.getTurnNum(), step, hash, text, random));
             sinkNanos += cpuNanos() - sent;
         }
         if (END.equals(point)) {

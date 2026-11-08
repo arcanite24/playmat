@@ -20,6 +20,23 @@ pub struct ShadowGame {
     pub result: String,
     #[serde(default)]
     pub turns: u32,
+    /// the asked player's view at some answers (`-Dxmage.shadowGames.views`, docs/rust/Views.md)
+    #[serde(default)]
+    pub views: Vec<ShadowView>,
+}
+
+/// What a replay calls at each recorded view, with the engine's state at that point
+pub type OnView<'a> = Box<dyn FnMut(&Game, &ShadowView) + 'a>;
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ShadowView {
+    /// the answer the player was about to give
+    pub decision: usize,
+    pub seat: Seat,
+    #[serde(default)]
+    pub query: String,
+    /// Java's `GameView` as the web client gets it, ids as references
+    pub view: serde_json::Value,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -49,6 +66,11 @@ pub struct ShadowSeat {
     pub library_trigger_order: Vec<i64>,
     #[serde(default, rename = "handTriggerOrder")]
     pub hand_trigger_order: Vec<i64>,
+    /// each card's printing, `SET:number` (newer games)
+    #[serde(default, rename = "libraryPrintings")]
+    pub library_printings: Vec<String>,
+    #[serde(default, rename = "handPrintings")]
+    pub hand_printings: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, serde::Serialize, PartialEq)]
@@ -68,6 +90,9 @@ pub struct ShadowEntry {
     pub decision: Option<usize>,
     pub fp: String,
     pub text: Option<String>,
+    /// Java's random generator's position there (`GameRandom.getState`), in recordings that have it
+    #[serde(default)]
+    pub random: Option<i64>,
 }
 
 impl ShadowGame {
@@ -97,6 +122,7 @@ impl ShadowGame {
                 let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
                 let id = game.create_obj(def, seat, Zone::Library);
                 game.player_mut(seat).library.push(id);
+                set_printing(&mut game, id, s.library_printings.get(i));
                 if let Some(o) = s.library_trigger_order.get(i).filter(|o| **o >= 0) {
                     game.obj_mut(id).trigger_order = *o as u64;
                 }
@@ -105,6 +131,7 @@ impl ShadowGame {
                 let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
                 let id = game.create_obj(def, seat, Zone::Hand);
                 game.player_mut(seat).hand.push(id);
+                set_printing(&mut game, id, s.hand_printings.get(i));
                 if let Some(o) = s.hand_trigger_order.get(i).filter(|o| **o >= 0) {
                     game.obj_mut(id).trigger_order = *o as u64;
                 }
@@ -134,6 +161,16 @@ impl ShadowGame {
         game.active = words.get(5).and_then(|w| w.parse().ok());
         game.priority = words.get(7).and_then(|w| w.parse().ok());
         Ok(game)
+    }
+}
+
+fn set_printing(game: &mut Game, id: ObjId, printing: Option<&String>) {
+    if let Some(p) = printing {
+        let all = Arc::make_mut(&mut game.printings);
+        if all.len() <= id.0 as usize {
+            all.resize(id.0 as usize + 1, String::new());
+        }
+        all[id.0 as usize] = p.clone();
     }
 }
 
@@ -278,16 +315,36 @@ pub struct ReplayDecider<'a> {
     pub next: usize,
     pub trace: Vec<String>,
     pub failure: Option<String>,
+    /// called as a recorded view's question is asked: the game, the recorded view
+    pub on_view: Option<OnView<'a>>,
+    /// the first trace entry that matched with the random numbers already elsewhere: what drew one Java didn't (or
+    /// the other way round) happened before it
+    pub random_split: Option<usize>,
 }
 
 impl<'a> ReplayDecider<'a> {
     pub fn new(shadow: &'a ShadowGame) -> Self {
-        ReplayDecider { shadow, next: shadow.start.decision, trace: Vec::new(), failure: None }
+        ReplayDecider {
+            shadow,
+            next: shadow.start.decision,
+            trace: Vec::new(),
+            failure: None,
+            on_view: None,
+            random_split: None,
+        }
     }
 
     fn fail(&mut self, why: String) {
         if self.failure.is_none() {
-            self.failure = Some(why);
+            let split = match self.random_split {
+                Some(i) => format!(
+                    "\n(the random numbers parted before trace entry {}, after {:?} answers)",
+                    i,
+                    self.shadow.trace.get(i).and_then(|e| e.decision)
+                ),
+                None => String::new(),
+            };
+            self.failure = Some(why + &split);
         }
     }
 }
@@ -302,6 +359,13 @@ impl<'a> Decider for ReplayDecider<'a> {
             return Answer::Stop;
         };
         let asked = self.shadow.questions.get(self.next).cloned().unwrap_or_default();
+        if d.seat == seat {
+            if let Some(f) = self.on_view.as_mut() {
+                for v in self.shadow.views.iter().filter(|v| v.decision == self.next) {
+                    f(game, v);
+                }
+            }
+        }
         if d.seat != seat {
             self.fail(format!(
                 "answer {} is seat {}'s ({}), but seat {} is asked {:?}",
@@ -360,7 +424,12 @@ impl<'a> Decider for ReplayDecider<'a> {
         }
         let i = self.trace.len();
         match self.shadow.trace.get(i) {
-            Some(e) if e.fp == hash => self.trace.push(hash),
+            Some(e) if e.fp == hash => {
+                if self.random_split.is_none() && e.random.is_some_and(|r| r != game.rng.state()) {
+                    self.random_split = Some(i);
+                }
+                self.trace.push(hash)
+            }
             Some(e) => {
                 self.fail(format!(
                     "trace entry {} ({}) differs after {} answers (Java: {:?})\n--- Java\n{}--- Rust\n{}",
@@ -387,6 +456,11 @@ impl<'a> Decider for ReplayDecider<'a> {
 
 /// Replays a shadow game and reports how far it matched.
 pub fn replay(shadow: &ShadowGame, db: &CardDb) -> ReplayReport {
+    replay_with_views(shadow, db, None)
+}
+
+/// Replays a shadow game, calling `on_view` at each recorded view's question (docs/rust/Views.md).
+pub fn replay_with_views<'a>(shadow: &'a ShadowGame, db: &CardDb, on_view: Option<OnView<'a>>) -> ReplayReport {
     let mut report = ReplayReport { entries: shadow.trace.len(), ..ReplayReport::default() };
     let mut game = match shadow.start_game(db) {
         Ok(g) => g,
@@ -396,6 +470,7 @@ pub fn replay(shadow: &ShadowGame, db: &CardDb) -> ReplayReport {
         }
     };
     let mut decider = ReplayDecider::new(shadow);
+    decider.on_view = on_view;
     crate::rules::play_from_priority(&mut game, &mut decider, shadow.turns);
     report.matched = decider.trace.iter().zip(shadow.trace.iter()).take_while(|(a, b)| **a == b.fp).count();
     report.answers = decider.next;

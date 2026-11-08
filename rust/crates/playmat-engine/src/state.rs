@@ -103,6 +103,8 @@ pub struct Obj {
     pub attacking: Option<Seat>,
     /// the planeswalker it attacks (and its zone change count), if it attacks one
     pub attacking_pw: Option<(ObjId, u32)>,
+    /// a battle's protector
+    pub protector: Option<Seat>,
     /// a loyalty ability of it was activated this turn
     pub loyalty_used: bool,
     /// it entered the battlefield as a kicked spell
@@ -113,6 +115,12 @@ pub struct Obj {
     pub cast_lki: bool,
     /// its toughness as it last left the battlefield (Righteous Valkyrie's trigger on a creature already gone)
     pub toughness_lki: Option<i32>,
+    /// +1/+1 counters were put on it since triggers were last checked (`COUNTERS_ADDED`)
+    pub p1p1_added: bool,
+    /// it has flashback for its mana cost this turn (Stingcaster Mage), while it stays in the graveyard
+    pub flashback_turn: Option<u32>,
+    /// a Case that was solved
+    pub solved: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
     /// a static "as long as …, it's a creature" applied: the card as it is without it
@@ -143,6 +151,8 @@ pub struct Obj {
     pub cast_x: i32,
     /// what it was before an effect changed its characteristics (`def`) for as long as it stays on the battlefield
     pub printed_def: Option<Arc<CardDef>>,
+    /// a land's card as it was before Leyline of the Guildpact made it every basic land type
+    pub pre_guildpact: Option<Arc<CardDef>>,
     /// what it entered as a copy of (Mockingbird): its copiable values, which a copy of it copies
     pub copied_def: Option<Arc<CardDef>>,
     /// the permanent (and its zone change count) this Aura is attached to
@@ -159,6 +169,8 @@ pub struct Obj {
     pub escaped: bool,
     /// the player the attacker this ninja's ninjutsu returned was attacking
     pub ninjutsu_defender: Option<Seat>,
+    /// and the planeswalker it attacked, if one
+    pub ninjutsu_pw: Option<(ObjId, u32)>,
     /// the permanent chosen as it entered (`ChooseCreatureEffect`), kept after it leaves
     pub chosen: Option<(ObjId, u32)>,
     /// a Class's level (1 until it gains another)
@@ -190,6 +202,10 @@ pub struct Obj {
     pub play_tax: u32,
     /// cast for its warp cost (on the stack, then on the battlefield)
     pub warped: bool,
+    /// cast for its evoke cost
+    pub evoked: bool,
+    /// the mana of each color spent to cast it (WUBRG)
+    pub spent_colors: [u32; 5],
     /// cast for its blitz cost (until it leaves the battlefield)
     pub blitzed: bool,
     /// cast with its offspring cost paid
@@ -232,7 +248,11 @@ pub struct Obj {
 impl Obj {
     /// Its copiable values: what it's a copy of, or its card before other effects changed it
     pub fn copiable(&self) -> Arc<CardDef> {
-        self.copied_def.clone().or_else(|| self.printed_def.clone()).unwrap_or_else(|| self.def.clone())
+        self.copied_def
+            .clone()
+            .or_else(|| self.printed_def.clone())
+            .or_else(|| self.until_end_of_turn_def.clone())
+            .unwrap_or_else(|| self.def.clone())
     }
 
     pub fn name(&self) -> &str {
@@ -252,6 +272,9 @@ impl Obj {
     }
 
     pub fn add_counters(&mut self, name: &str, amount: i32) {
+        if amount > 0 && name == "+1/+1" {
+            self.p1p1_added = true;
+        }
         match self.counters.iter_mut().find(|(n, _)| n == name) {
             Some(c) => c.1 += amount,
             None => self.counters.push((name.to_string(), amount)),
@@ -312,6 +335,8 @@ pub struct Player {
     pub instants_sorceries_cast: u32,
     /// permanents sacrificed this turn (`PermanentsSacrificedWatcher`)
     pub sacrificed: u32,
+    /// mana spent on spells this turn (`ExpendWatcher`)
+    pub expended: u32,
     /// a permanent they controlled left the battlefield this turn (`RevoltWatcher`)
     pub permanent_left: bool,
 }
@@ -340,6 +365,10 @@ pub struct StackItem {
     pub kicked: bool,
     /// the source's power as it last was on the battlefield, for an ability whose cost sacrificed it
     pub lki_power: Option<i32>,
+    /// the greatest toughness among the permanents its cost sacrificed (Witch's Oven)
+    pub sacrificed_toughness: Option<i32>,
+    /// a divided target's share for each of its first target group's targets, in order
+    pub target_amounts: Vec<i32>,
     /// a delayed triggered ability (it has no ability index)
     pub delayed: Option<Arc<Delayed>>,
     /// a modal spell's chosen modes, in printed order (empty: the first)
@@ -397,6 +426,8 @@ impl StackItem {
             ability: None,
             kicked: false,
             lki_power: None,
+            sacrificed_toughness: None,
+            target_amounts: Vec::new(),
             delayed: None,
             modes: Vec::new(),
             x: 0,
@@ -424,6 +455,8 @@ pub struct Boost {
 #[derive(Clone, Debug)]
 pub struct Game {
     pub rng: JavaRandom,
+    /// each starting card's printing (`SET:number`), by object id, for its view (docs/rust/Views.md)
+    pub printings: Arc<Vec<String>>,
     pub turn: u32,
     /// day (true) or night (false), once a daybound or nightbound permanent appeared
     pub day: Option<bool>,
@@ -456,6 +489,14 @@ pub struct Game {
     pub enter_counters: Vec<(ObjId, u32, i32)>,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
+    /// what's being paid for is an activated ability of `paying_for` (not a spell)
+    pub paying_ability: std::cell::Cell<bool>,
+    /// a spell cast while an effect resolves ("you may cast"): timing doesn't apply
+    pub any_time: std::cell::Cell<bool>,
+    /// paying a forage cost: its rule reads "forage" (no feel-bad word for the auto-choice)
+    pub foraging: std::cell::Cell<bool>,
+    /// the mana spent on payments so far, by kind (WUBRG, colorless): a spell's colors spent are read from it
+    pub spent_tally: [u32; 6],
     /// "damage can't be prevented this turn" (Stomp): the turn it was said
     pub no_prevention_turn: Option<u32>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
@@ -473,8 +514,11 @@ pub struct Game {
     pub grants: Arc<Vec<Grant>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
-    /// triggered abilities with a limit each turn that triggered this turn: source, ability index
-    pub triggered_this_turn: Vec<(ObjId, usize)>,
+    /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
+    pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
+    /// permanents sacrificed together: where in `pending` the next one's sacrifice triggers go (before what their
+    /// leaving triggers)
+    pub sac_insert: Option<usize>,
     /// the cards an effect is putting onto the battlefield at once, in order (they see each other enter)
     pub entering_together: Vec<ObjId>,
     /// the color the last "any color" mana was made in without asking (one color owed): Java asks it
@@ -483,6 +527,8 @@ pub struct Game {
     pub activated_this_turn: Vec<(ObjId, usize)>,
     /// the battlefield as the current action began, for the dies triggers of what it moves all at once
     pub lookback: Vec<ObjId>,
+    /// what was sacrificed since Java last reset its short-living LKI (`resetShortLivingLKI`)
+    pub short_lki: Vec<ObjId>,
     /// Etchings of Kumano that left the battlefield, with their controller and the turn: one leaving in the same
     /// action as a creature still exiles it, though its card shows the saga by then
     pub etchings_left: Vec<(ObjId, Seat, u32)>,
@@ -499,6 +545,13 @@ pub struct Game {
     pub damaged_batch: Vec<(ObjId, i32)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
+    /// `LOST_LIFE_BATCH_FOR_ONE_PLAYER` triggers waiting for the batch: the player who lost life, and the trigger
+    /// with the total as its X
+    pub life_batch: Vec<(Seat, StackItem)>,
+    /// the spell resolving and its controller, after it's off the stack
+    pub resolving_controller: Option<(ObjId, Seat)>,
+    /// while a `not_first` target is chosen: the ability's targets chosen before it
+    pub chosen_before: Vec<Target>,
     /// cards exiled until something leaves that go back to their owner's hand, not the battlefield (Kitesail
     /// Freebooter's)
     pub return_to_hand: Vec<ObjId>,
@@ -533,6 +586,10 @@ impl Game {
             next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
             paying_for: std::cell::Cell::new(None),
+            paying_ability: std::cell::Cell::new(false),
+            any_time: std::cell::Cell::new(false),
+            foraging: std::cell::Cell::new(false),
+            spent_tally: [0; 6],
             no_prevention_turn: None,
             resolving: None,
             exile_by_creation: false,
@@ -542,10 +599,13 @@ impl Game {
             grants: Arc::new(Vec::new()),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
+            sac_insert: None,
             entering_together: Vec::new(),
             any_color_made: None,
             activated_this_turn: Vec::new(),
             lookback: Vec::new(),
+            short_lki: Vec::new(),
+            printings: Arc::new(Vec::new()),
             etchings_left: Vec::new(),
             exiled_until_leaves: Vec::new(),
             earthbent: Vec::new(),
@@ -554,6 +614,9 @@ impl Game {
             day: None,
             damaged_batch: Vec::new(),
             batch_pending: Vec::new(),
+            life_batch: Vec::new(),
+            resolving_controller: None,
+            chosen_before: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,
             over: false,
@@ -602,11 +665,15 @@ impl Game {
             face_down: false,
             attacking: None,
             attacking_pw: None,
+            protector: None,
             loyalty_used: false,
             kicked: false,
             cast: false,
             cast_lki: false,
             toughness_lki: None,
+            p1p1_added: false,
+            flashback_turn: None,
+            solved: false,
             until_end_of_turn_def: None,
             becomes_base: None,
             land_type_base: None,
@@ -621,6 +688,7 @@ impl Game {
             cast_from: None,
             uncounterable: false,
             printed_def: None,
+            pre_guildpact: None,
             copied_def: None,
             cast_x: 0,
             attached_to: None,
@@ -629,6 +697,7 @@ impl Game {
             flashback: false,
             escaped: false,
             ninjutsu_defender: None,
+            ninjutsu_pw: None,
             chosen: None,
             class_level: 1,
             exerted: false,
@@ -644,6 +713,8 @@ impl Game {
             cast_only: false,
             play_tax: 0,
             warped: false,
+            evoked: false,
+            spent_colors: [0; 5],
             blitzed: false,
             offspring: false,
             warp_from: None,
@@ -676,10 +747,11 @@ impl Game {
             Pred::Type { t } => self.has_type(id, *t),
             Pred::Subtype { s } => self.has_subtype(id, s),
             Pred::Supertype { s } => o.def.supertypes.iter().any(|x| x == s),
-            Pred::Color { c } => o.def.colors.contains(c),
+            Pred::Color { c } => self.colors(id).contains(c),
             Pred::Controller { who } => (o.controller == you) == (who == "you"),
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
+            Pred::Multicolored => self.colors(id).len() > 1,
             Pred::ChosenName => {
                 source.and_then(|src| self.obj(src).chosen_name.as_ref()).is_some_and(|n| *n == self.obj(id).def.name)
             }
@@ -763,7 +835,9 @@ impl Game {
             for a in &s.def.abilities {
                 let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
                 for e in effects {
-                    if let EffectDef::GainAbilityControlledEffect { ability, .. } = e {
+                    if let EffectDef::GainAbilityControlledEffect { ability, .. }
+                    | EffectDef::GainAbilityAttachedEffect { ability } = e
+                    {
                         if matches!(**ability, AbilityDef::WardAbility { .. })
                             && self.static_gives(e, *src, s.controller, id, ability)
                         {
@@ -778,11 +852,13 @@ impl Game {
 
     /// Protection: `id` has protection from a color of `source`
     pub fn protected_from(&self, id: ObjId, source: ObjId) -> bool {
-        self.obj(source)
-            .def
-            .colors
-            .iter()
-            .any(|c| self.has_ability(id, &AbilityDef::ProtectionFromColorAbility { c: *c }))
+        self.colors(source).iter().any(|c| self.has_ability(id, &AbilityDef::ProtectionFromColorAbility { c: *c }))
+            || self.obj(id).def.abilities.iter().any(|a| match a {
+                AbilityDef::ProtectionAbility { filter } => {
+                    self.filter_matches(filter, self.obj(id).controller, Some(id), source)
+                }
+                _ => false,
+            })
     }
 
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
@@ -926,6 +1002,18 @@ impl Game {
     }
 
     pub fn cant_attack_or_block(&self, id: ObjId) -> bool {
+        let o = self.obj(id);
+        if o.def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
+                EffectDef::CantAttackBlockUnlessConditionSourceEffect { condition } => {
+                    !self.condition_holds(Some(condition), o.controller, id)
+                }
+                _ => false,
+            }),
+            _ => false,
+        }) {
+            return true;
+        }
         self.battlefield.iter().any(|src| {
             self.attached(*src) == Some(id)
                 && self.obj(*src).def.abilities.iter().any(|a| match a {
@@ -938,6 +1026,94 @@ impl Game {
     }
 
     /// What triggered abilities can come from: permanents, then emblems.
+    /// the card cast with flashback: its own, or the one it gained this turn for its mana cost
+    pub fn flashback_def(&self, id: ObjId) -> Option<CardDef> {
+        let o = self.obj(id);
+        o.def.flashback().or_else(|| {
+            (o.flashback_turn == Some(self.turn))
+                .then(|| CardDef { printed_cost: Some(o.def.printed().clone()), ..(*o.def).clone() })
+        })
+    }
+
+    /// whether a Leyline of the Guildpact (or the like) is on the battlefield under `seat`'s control, with this effect
+    pub fn guildpact(&self, seat: Seat, land_part: bool) -> bool {
+        self.battlefield.iter().any(|src| {
+            let s = self.obj(*src);
+            s.controller == seat
+                && s.def.abilities.iter().any(|a| match a {
+                    AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| {
+                        if land_part {
+                            matches!(e, EffectDef::BecomesAllBasicsControlledEffect)
+                        } else {
+                            matches!(e, EffectDef::LeylineOfTheGuildpactEffect)
+                        }
+                    }),
+                    _ => false,
+                })
+        })
+    }
+
+    /// An object's colors: all five for a nonland permanent under Leyline of the Guildpact
+    pub fn colors(&self, id: ObjId) -> Vec<crate::card::Color> {
+        let o = self.obj(id);
+        if o.zone == Zone::Battlefield && !o.is(CardType::Land) && self.guildpact(o.controller, false) {
+            return crate::card::Color::ALL.to_vec();
+        }
+        o.def.colors.clone()
+    }
+
+    /// `BecomesAllBasicsControlledEffect`: the lands of a player with it are every basic land type, their basic mana
+    /// abilities replaced by one of any color (added last); undone when it's gone
+    pub fn update_guildpact(&mut self) {
+        let lands: Vec<ObjId> = self.battlefield.iter().copied().filter(|l| self.obj(*l).is(CardType::Land)).collect();
+        for l in lands {
+            let on = self.guildpact(self.obj(l).controller, true);
+            let o = self.obj_mut(l);
+            match (on, o.pre_guildpact.is_some()) {
+                (true, false) => {
+                    let mut def = (*o.def).clone();
+                    for t in ["Plains", "Island", "Swamp", "Mountain", "Forest"] {
+                        if !def.subtypes.iter().any(|s| s == t) {
+                            def.subtypes.push(t.to_string());
+                        }
+                    }
+                    def.abilities.retain(|a| {
+                        !matches!(
+                            a,
+                            AbilityDef::WhiteManaAbility { effects, cost }
+                            | AbilityDef::BlueManaAbility { effects, cost }
+                            | AbilityDef::BlackManaAbility { effects, cost }
+                            | AbilityDef::RedManaAbility { effects, cost }
+                            | AbilityDef::GreenManaAbility { effects, cost }
+                                if effects.is_empty() && cost.is_empty()
+                        )
+                    });
+                    if !def.abilities.iter().any(|a| {
+                        matches!(a, AbilityDef::AnyColorManaAbility { amount: 1, effects, cost, .. }
+                            if effects.is_empty() && cost.is_empty())
+                    }) {
+                        def.abilities.push(AbilityDef::AnyColorManaAbility {
+                            amount: 1,
+                            effects: Vec::new(),
+                            cost: Vec::new(),
+                            rule: "{T}: Add one mana of any color.".into(),
+                        });
+                    }
+                    o.pre_guildpact = Some(std::mem::replace(&mut o.def, Arc::new(def)));
+                }
+                (false, true) => {
+                    o.def = o.pre_guildpact.take().unwrap();
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// every object whose `p1p1_added` is set
+    pub fn objs_with_p1p1_added(&self) -> Vec<ObjId> {
+        (0..self.objs.len()).map(|i| ObjId(i as u32)).filter(|o| self.obj(*o).p1p1_added).collect()
+    }
+
     pub fn trigger_sources(&self) -> Vec<ObjId> {
         self.battlefield.iter().chain(self.command.iter()).copied().collect()
     }
@@ -973,6 +1149,12 @@ impl Game {
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .count() as i32,
                 Value::SourcePower => self.power_toughness(source).0,
+                Value::TotalPower { filter } => self
+                    .battlefield
+                    .iter()
+                    .filter(|id| self.filter_matches(filter, you, Some(source), **id))
+                    .map(|id| self.power_toughness(*id).0)
+                    .sum(),
                 Value::Negative { of } => -self.value(of, you, source, x),
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
                 Value::Half { of } => self.value(of, you, source, x) / 2,
@@ -1012,7 +1194,7 @@ impl Game {
                         let o = self.obj(**b);
                         o.controller == you && o.front.as_ref().is_none_or(|f| f.transform_back.is_none())
                     })
-                    .map(|b| self.obj(*b).def.cost.colored[c.index()] as i32)
+                    .map(|b| self.obj(*b).def.cost.symbols_of(*c) as i32)
                     .sum(),
             },
         }
@@ -1026,6 +1208,11 @@ impl Game {
             // only known on a cast trigger (`condition_with_kicker`)
             Condition::Opus => false,
             Condition::Offspring => self.obj(source).offspring,
+            Condition::Evoked => self.obj(source).evoked,
+            Condition::ManaColorSpent { color, n } => {
+                let o = self.obj(source);
+                (o.cast || (o.zone != Zone::Battlefield && o.cast_lki)) && o.spent_colors[color.index()] >= *n
+            }
             // `CastFromEverywhereSourceCondition`: the permanent, or as it last was on the battlefield
             Condition::CastFromEverywhere => {
                 let o = self.obj(source);
@@ -1090,6 +1277,7 @@ impl Game {
                 }
                 types.len() >= *n
             }
+            Condition::Solved => self.obj(source).zone == Zone::Battlefield && self.obj(source).solved,
             Condition::SourceEnteredThisTurn => self.obj(source).entered_turn == self.turn,
             Condition::StartingTown => self.active == Some(you) && self.turn.div_ceil(self.seats() as u32) <= 3,
             Condition::LifeCompare { who, cmp, n } => (0..self.seats())
@@ -1344,7 +1532,43 @@ impl Game {
                     })
             })
             .count();
-        let rest_in_peace = rest_in_peace + leylines;
+        // Valgavoth: a card (not a token) you didn't control, going to an opponent's graveyard, exiled with it
+        let valgavoths: Vec<ObjId> = if zone == Zone::Graveyard && !self.obj(id).token {
+            self.battlefield
+                .iter()
+                .copied()
+                .filter(|src| {
+                    let s = self.obj(*src);
+                    let o = self.obj(id);
+                    // a spell's controller is its stack item's (a card cast from another player's exile)
+                    let controller = if from == Zone::Stack {
+                        self.stack
+                            .iter()
+                            .find(|i| i.card == id && i.ability.is_none())
+                            .map(|i| i.controller)
+                            .or(self.resolving_controller.filter(|(c, _)| *c == id).map(|(_, s)| s))
+                            .unwrap_or(o.controller)
+                    } else {
+                        o.controller
+                    };
+                    o.owner != s.controller
+                        && (!matches!(from, Zone::Battlefield | Zone::Stack) || controller != s.controller)
+                        && s.def.abilities.iter().any(|a| match a {
+                            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                                effects.iter().any(|e| matches!(e, EffectDef::ValgavothTerrorEaterReplacementEffect))
+                            }
+                            _ => false,
+                        })
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+        let rest_in_peace = rest_in_peace + leylines + valgavoths.len();
+        if let Some(&v) = valgavoths.first() {
+            let zcc = self.obj(v).zcc;
+            self.exiled_for_source.push((v, zcc, id));
+        }
         if flashed_to_graveyard && rest_in_peace > 0 {
             let o = self.obj(id);
             self.owed_choices.push(o.owner);
@@ -1415,6 +1639,7 @@ impl Game {
                 Trigger::Dies
                 | Trigger::EntersOrDies
                 | Trigger::OpponentCastsOnYourTurnOrDies
+                | Trigger::EntersOrLeaves
                 | Trigger::LeavesBattlefield => src == id,
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source counts too unless it says "another", but it must match like the others
@@ -1446,7 +1671,7 @@ impl Game {
         } else if from == Zone::Battlefield && zone != Zone::Battlefield {
             let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
             self.triggers(sources, |g, src, you, t| match t {
-                Trigger::LeavesBattlefield => src == id,
+                Trigger::LeavesBattlefield | Trigger::EntersOrLeaves => src == id,
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 _ => false,
             })
@@ -1468,7 +1693,8 @@ impl Game {
         // earthbend's delayed trigger (delayed triggers are checked before the others)
         if from == Zone::Battlefield && matches!(zone, Zone::Graveyard | Zone::Exile) {
             let zcc = self.obj(id).zcc;
-            if let Some(k) = self.earthbent.iter().position(|e| *e == (id, zcc)) {
+            // one for each time it was earthbent
+            while let Some(k) = self.earthbent.iter().position(|e| *e == (id, zcc)) {
                 self.earthbent.remove(k);
                 let delayed = Delayed {
                     rule: "When it dies or is exiled, return it to the battlefield tapped.".into(),
@@ -1532,6 +1758,12 @@ impl Game {
                 if let Some(def) = o.adventurer.take() {
                     o.def = def;
                 }
+                // a spell cast transformed (a defeated Siege's back) is its front again anywhere but the battlefield
+                if zone != Zone::Battlefield {
+                    if let Some(def) = o.front.take() {
+                        o.def = def;
+                    }
+                }
             }
             if from == Zone::Battlefield {
                 o.cast_lki = o.cast;
@@ -1541,6 +1773,8 @@ impl Game {
                 o.damaged_by = (0, 0);
             }
             o.on_adventure = false;
+            o.flashback_turn = None;
+            o.solved = false;
             o.exile_instead_of_dying = false;
             o.may_play = None;
             o.any_mana = false;
@@ -1555,6 +1789,11 @@ impl Game {
             o.warp_from = None;
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
+                o.evoked = false;
+                // kept as it last was on the battlefield (Vibrance's "if {G}{G} was spent" after its evoke sacrifice)
+                if from != Zone::Stack && from != Zone::Battlefield {
+                    o.spent_colors = [0; 5];
+                }
                 o.blitzed = false;
                 o.offspring = false;
             }
@@ -1585,6 +1824,9 @@ impl Game {
                     o.def = def;
                 }
                 o.copied_def = None;
+                if let Some(def) = o.pre_guildpact.take() {
+                    o.def = def;
+                }
                 if let Some(def) = o.printed_def.take() {
                     o.def = def;
                 }

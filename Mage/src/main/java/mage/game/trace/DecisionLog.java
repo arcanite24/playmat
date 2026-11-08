@@ -17,6 +17,7 @@ import mage.players.Player;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -238,6 +239,16 @@ public final class DecisionLog {
             return false;
         });
         return found[0];
+    }
+
+    /** every object an answer can name and its reference (the first, for an object with two), to map a view's ids */
+    public static Map<UUID, String> refs(Game game) {
+        Map<UUID, String> out = new HashMap<>();
+        visit(game, (ref, objectId) -> {
+            out.putIfAbsent(objectId, ref);
+            return false;
+        });
+        return out;
     }
 
     /**

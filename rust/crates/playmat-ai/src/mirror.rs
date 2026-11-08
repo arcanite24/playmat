@@ -88,6 +88,7 @@ pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), 
         decisions: Vec::new(),
         questions: Vec::new(),
         trace: Vec::new(),
+        views: Vec::new(),
         result: String::new(),
         turns: 0,
     };
