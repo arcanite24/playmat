@@ -896,28 +896,48 @@ fn day_night_hint(game: &Game) -> String {
 /// The combat groups (`CombatGroupView`), an attacker each, with its blockers: permanents' views for no player
 fn combat_view(game: &Game, names: &[&str]) -> Value {
     let nobody = Seat::MAX;
+    // the groups in the order they attacked; any attacker not in one after them
+    let mut order: Vec<&crate::state::CombatGroup> = game.combat_groups.iter().collect();
+    let extra: Vec<crate::state::CombatGroup> = game
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|id| {
+            game.obj(*id).attacking.is_some()
+                && !game.combat_groups.iter().any(|g| g.attacker == *id && g.left.is_none())
+        })
+        .map(|attacker| crate::state::CombatGroup { attacker, left: None })
+        .collect();
+    order.extend(extra.iter());
     let mut groups = Vec::new();
-    for id in game.battlefield.iter().copied() {
+    for g in order {
+        let id = g.attacker;
         let o = game.obj(id);
-        let Some(defender) = o.attacking else { continue };
-        let (defender_id, defender_name) = match o.attacking_pw {
-            Some((pw, _)) if game.obj(pw).zone == Zone::Battlefield => {
-                (reference(game, pw), game.obj(pw).def.name.clone())
+        let (defender, pw, blocked, blockers, here) = match &g.left {
+            Some((d, pw, b, bl)) => (*d, *pw, *b, bl.clone(), false),
+            None => {
+                let Some(d) = o.attacking.filter(|_| o.zone == Zone::Battlefield) else { continue };
+                (d, o.attacking_pw.map(|p| p.0), o.blocked, o.blocked_by.clone(), true)
             }
+        };
+        let (defender_id, defender_name) = match pw {
+            Some(pw) if game.obj(pw).zone == Zone::Battlefield => (reference(game, pw), game.obj(pw).def.name.clone()),
             _ => (format!("P{}", defender), names.get(defender).copied().unwrap_or("").to_string()),
         };
-        let r = reference(game, id);
         let mut attackers = Map::new();
-        attackers.insert(r.clone(), permanent_view(game, id, &r, nobody, names));
-        let mut blockers = Map::new();
-        for b in o.blocked_by.iter().copied().filter(|b| game.obj(*b).zone == Zone::Battlefield) {
+        if here {
+            let r = reference(game, id);
+            attackers.insert(r.clone(), permanent_view(game, id, &r, nobody, names));
+        }
+        let mut blockers_view = Map::new();
+        for b in blockers.iter().copied().filter(|b| game.obj(*b).zone == Zone::Battlefield) {
             let r = reference(game, b);
-            blockers.insert(r.clone(), permanent_view(game, b, &r, nobody, names));
+            blockers_view.insert(r.clone(), permanent_view(game, b, &r, nobody, names));
         }
         groups.push(json!({
             "attackers": attackers,
-            "blockers": blockers,
-            "isBlocked": o.blocked,
+            "blockers": blockers_view,
+            "isBlocked": blocked,
             "defenderName": defender_name,
             "defenderId": defender_id,
         }));

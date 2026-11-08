@@ -366,6 +366,14 @@ pub enum Target {
     Obj(ObjId),
 }
 
+/// A combat group as views show it (`Combat.groups`): an attacker, in the order they attacked, and once it's left the
+/// battlefield what its group was then (Java keeps the group: its defender, blocked, and blockers)
+#[derive(Clone, Debug)]
+pub struct CombatGroup {
+    pub attacker: ObjId,
+    pub left: Option<(Seat, Option<ObjId>, bool, Vec<ObjId>)>,
+}
+
 #[derive(Clone, Debug)]
 pub struct StackItem {
     /// the spell's card, or the source of an ability
@@ -509,6 +517,8 @@ pub struct Game {
     pub unpaid: Option<usize>,
     /// `unpaid` once its mana is paid, while its other costs are (the view shows it paid)
     pub mana_paid: Option<usize>,
+    /// this combat's groups, for views
+    pub combat_groups: Vec<CombatGroup>,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
     pub step_start: bool,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
@@ -619,6 +629,7 @@ impl Game {
             enter_counters: Vec::new(),
             unpaid: None,
             mana_paid: None,
+            combat_groups: Vec::new(),
             step_start: false,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
@@ -1900,6 +1911,15 @@ impl Game {
             }
         }
         let owner = self.obj(id).owner;
+        if zone != Zone::Battlefield {
+            let o = self.obj(id);
+            if let Some(defender) = o.attacking {
+                let left = (defender, o.attacking_pw.map(|p| p.0), o.blocked, o.blocked_by.clone());
+                if let Some(g) = self.combat_groups.iter_mut().find(|g| g.attacker == id && g.left.is_none()) {
+                    g.left = Some(left);
+                }
+            }
+        }
         {
             let o = self.obj_mut(id);
             if zone != Zone::Battlefield {

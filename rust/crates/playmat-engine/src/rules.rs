@@ -312,6 +312,7 @@ fn end_step(game: &mut Game, step: Step) {
     }
     if step == Step::EndCombat {
         game.first_strike_step = false;
+        game.combat_groups.clear();
         for id in Arc::clone(&game.battlefield).iter().copied() {
             let o = game.obj(id);
             if o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0 || o.blocked {
@@ -4996,6 +4997,7 @@ fn apply_each_effect(
                         o.tapped |= *tapped_and_attacking;
                         o.attacking = Some(defender);
                         o.attacking_pw = pw;
+                        join_combat(game, id);
                     }
                     if *tapped {
                         game.obj_mut(id).tapped = true;
@@ -7551,6 +7553,9 @@ fn apply_each_effect(
                 o.tapped = true;
                 o.attacking = defender;
                 o.attacking_pw = pw;
+                if defender.is_some() {
+                    join_combat(game, card);
+                }
             }
             EffectDef::ExileGraveyardAllPlayersEffect => {
                 for p in 0..game.seats() {
@@ -9817,6 +9822,7 @@ fn declare_attackers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                     if !vigilance {
                         o.tapped = false;
                     }
+                    game.combat_groups.retain(|g| !(g.attacker == id && g.left.is_none()));
                 }
             }
             _ => return,
@@ -9825,6 +9831,11 @@ fn declare_attackers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             return;
         }
     }
+}
+
+/// `Combat.addAttackerToCombat`: a new group for the attacker
+fn join_combat(game: &mut Game, id: ObjId) {
+    game.combat_groups.push(crate::state::CombatGroup { attacker: id, left: None });
 }
 
 /// `HumanPlayer.selectDefender`: with the defending player the only defender there's no question; with their
@@ -9860,6 +9871,7 @@ fn choose_defender(game: &mut Game, d: &mut dyn Decider, seat: Seat, defender: S
 }
 
 fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) {
+    join_combat(game, id);
     let vigilance = game.obj(id).has(&AbilityDef::VigilanceAbility);
     let o = game.obj_mut(id);
     o.attacking = Some(defender);
