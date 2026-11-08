@@ -931,6 +931,22 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
     let mut out = Map::new();
     for (i, (item, at)) in view_stack(game).into_iter().rev().enumerate() {
         let r = format!("S{}", i);
+        // a step's trigger with no targets points at the step's player (`AtStepTriggeredAbility`)
+        let pointed;
+        let item = match (item.ability.and_then(|(k, _)| game.item_def(item).abilities.get(k)), game.active) {
+            (Some(a), Some(p))
+                if item.delayed.is_none()
+                    && item.targets.iter().all(|t| t.is_empty())
+                    && a.triggered().is_some_and(|t| t.2.is_empty())
+                    && matches!(a.trigger(), Some(crate::card::Trigger::StepBegins { .. })) =>
+            {
+                let mut c = item.clone();
+                c.targets = vec![vec![crate::state::Target::Player(p)]];
+                pointed = c;
+                &pointed
+            }
+            _ => item,
+        };
         let targets: Vec<Value> = item
             .targets
             .iter()
@@ -941,7 +957,8 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
             })
             .collect();
         let o = game.obj(item.card);
-        let paid = at.is_none() || game.unpaid != at;
+        let paid = at.is_none() || game.unpaid != at || game.mana_paid == at;
+        let casting = at.is_some() && game.unpaid == at;
         let mut icons = Vec::new();
         let def = game.item_def(item);
         let spell = item.ability.is_none() && item.delayed.is_none();
@@ -1005,7 +1022,7 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
                 }
                 if let Some(Value::Array(rules)) = m.get_mut("rules") {
                     let k = def.abilities.iter().position(|a| matches!(a, crate::card::AbilityDef::SpellAbility));
-                    rules.extend(chosen_modes(game, item, k).into_iter().map(Value::String));
+                    rules.extend(chosen_modes(game, item, k, casting).into_iter().map(Value::String));
                     rules.extend(targets_on_stack(game, item).into_iter().map(Value::String));
                 }
             }
@@ -1028,12 +1045,30 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
             };
             let triggered = item.delayed.is_some() || ability.is_some_and(|a| a.trigger().is_some());
             let kind = if o.token { "ABILITY_STACK_FROM_TOKEN" } else { "ABILITY_STACK_FROM_CARD" };
-            let source_ref = reference(game, item.card);
+            // (the decision log places a spell on the stack, not an ability's source; a token gone is nowhere)
+            let source_ref = match reference(game, item.card) {
+                r if r.starts_with('S') || r.starts_with('?') => {
+                    let spell = game
+                        .stack
+                        .iter()
+                        .rev()
+                        .position(|t| t.card == item.card && t.ability.is_none() && t.delayed.is_none());
+                    let exiled = crate::replay::exile_order(game).iter().position(|x| *x == item.card);
+                    match (spell, exiled) {
+                        (Some(i), _) => format!("S{}", i),
+                        (None, Some(i)) => format!("E{}", i),
+                        _ => "?".to_string(),
+                    }
+                }
+                r => r,
+            };
             let mut source = card_view(game, item.card, &source_ref, true);
             source["mageObjectType"] = json!(kind);
             // (a permanent's card view: `CardView(Permanent)`)
-            if o.zone == Zone::Battlefield {
+            // (a permanent's, or its last known one's: a token gone)
+            if o.zone == Zone::Battlefield || o.token && source_ref == "?" {
                 source["bandedCards"] = json!([]);
+                source["controlledByOwner"] = json!(o.owner == o.controller);
             }
             v["id"] = json!(r);
             let mut rules = vec![rule];
@@ -1060,9 +1095,12 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
             if !related.is_empty() {
                 rules.push(format!("<i>Related objects: [{}]</i>", related.join(", ")));
             }
-            rules.extend(chosen_modes(game, item, item.ability.map(|(k, _)| k)));
+            rules.extend(chosen_modes(game, item, item.ability.map(|(k, _)| k), casting));
             if let Some((k, _)) = item.ability.filter(|_| item.delayed.is_none()) {
-                let hints = hint_lines_for(game, item.card, def, Some(k));
+                let hints = match room_half_ability(game, item.card, k) {
+                    Some((half, local)) => hint_lines_for(game, item.card, &half, Some(local)),
+                    None => hint_lines_for(game, item.card, def, Some(k)),
+                };
                 if !hints.is_empty() {
                     rules.push(HINT_START.to_string());
                     rules.extend(hints);
@@ -1146,14 +1184,17 @@ fn tooltip_color(colors: &[crate::card::Color]) -> &'static str {
 
 /// A modal spell's or ability's chosen modes (`CardView(Spell)`, `StackAbilityView`), by its ability's index `k`
 /// in its card's abilities
-fn chosen_modes(game: &Game, item: &crate::state::StackItem, k: Option<usize>) -> Vec<String> {
+fn chosen_modes(game: &Game, item: &crate::state::StackItem, k: Option<usize>, casting: bool) -> Vec<String> {
     let o = game.obj(item.card);
     let name = o.printed_def.as_ref().map_or(&o.def.name, |p| &p.name);
     let Some(texts) = k.and_then(|k| templates().get(&format!("modes:{}", name))?.get(k.to_string())?.as_array())
     else {
         return Vec::new();
     };
-    // (a spree spell's modes are chosen with its costs: none before)
+    // (a spree spell's modes are chosen with its costs: none before; `Modes.choose` clears them while it asks)
+    if casting && item.modes.is_empty() {
+        return Vec::new();
+    }
     if game.item_def(item).spell.modes.iter().any(|m| m.cost.is_some())
         && item.ability.is_none()
         && item.modes.is_empty()
@@ -1166,6 +1207,26 @@ fn chosen_modes(game: &Game, item: &crate::state::StackItem, k: Option<usize>) -
         .filter_map(|m| texts.get(*m).and_then(|t| t.as_str()))
         .map(|t| format!("<span color='green'><i>Chosen mode: {}</i></span>", t))
         .collect()
+}
+
+/// A room permanent's ability `k` (`rules::room_face`: the unlocked halves' abilities but their spells, after the
+/// card's own) as its half's and its index there
+fn room_half_ability(game: &Game, id: ObjId, k: usize) -> Option<(Arc<CardDef>, usize)> {
+    let o = game.obj(id);
+    let full = o.printed_def.as_ref().filter(|f| f.room.len() == 2)?;
+    let mut at = full.abilities.len();
+    for (h, _) in full.room.iter().zip(o.doors).filter(|(_, u)| *u) {
+        for (i, a) in h.abilities.iter().enumerate() {
+            if matches!(a, crate::card::AbilityDef::SpellAbility) {
+                continue;
+            }
+            if at == k {
+                return Some((h.clone(), i));
+            }
+            at += 1;
+        }
+    }
+    None
 }
 
 /// `Target on stack: Name [id]` for its targets once one is a spell (Java names that spell for each target after)

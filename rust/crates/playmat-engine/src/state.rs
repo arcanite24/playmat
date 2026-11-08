@@ -507,6 +507,8 @@ pub struct Game {
     pub enter_counters: Vec<(ObjId, u32, i32)>,
     /// the stack position of the spell or ability being cast or activated: not paid for yet (a view shows it unpaid)
     pub unpaid: Option<usize>,
+    /// `unpaid` once its mana is paid, while its other costs are (the view shows it paid)
+    pub mana_paid: Option<usize>,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
     pub step_start: bool,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
@@ -616,6 +618,7 @@ impl Game {
             next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
             unpaid: None,
+            mana_paid: None,
             step_start: false,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),

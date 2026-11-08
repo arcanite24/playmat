@@ -2019,6 +2019,7 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
     let outer = game.unpaid.replace(game.stack.len());
     let cast = cast_paying(game, d, seat, id, free);
     game.unpaid = outer;
+    game.mana_paid = None;
     // `processAction` once it's cast
     game.short_lki.clear();
     cast
@@ -2403,6 +2404,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     if !paid {
         return false;
     }
+    game.mana_paid = game.unpaid;
     game.obj_mut(id).mana_spent =
         cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless + cost.hybrid.len() as u32;
     let mut spent = [0; 5];
@@ -2901,6 +2903,7 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
     let outer = game.unpaid.replace(game.stack.len());
     let done = activate_paying(game, d, seat, id, index);
     game.unpaid = outer;
+    game.mana_paid = None;
     done
 }
 
@@ -2969,6 +2972,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     if !paid {
         return false;
     }
+    game.mana_paid = game.unpaid;
     for c in costs {
         if !matches!(c, CostDef::ManaCost { .. }) && !pay_cost(game, d, seat, id, c) {
             return false;

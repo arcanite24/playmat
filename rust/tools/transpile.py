@@ -3190,6 +3190,8 @@ def main():
                     n = sum(len(a.get('hints', [])) for a in facts_half.get('abilities', []))
                     if hints[:n]:
                         half['hints'] = hints[:n]
+                        half['hint_abilities'] = [i for i, a in enumerate(facts_half.get('abilities', []))
+                                                  for _ in a.get('hints', [])]
                     hints = hints[n:]
             strip_java(card)
             cards.append(card)
