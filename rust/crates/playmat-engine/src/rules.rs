@@ -32,8 +32,10 @@ fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: 
             None => return,
         };
         if !first {
+            game.step_start = true;
             begin_step(game, d, step);
         }
+        game.step_start = false;
         first = false;
         if game.over || d.stopped() {
             break;
@@ -647,6 +649,126 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
     out
 }
 
+/// How the client groups a playable ability (`PlayableObjectStats`)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlayKind {
+    /// a `BasicManaAbility`
+    BasicMana,
+    /// a `PlayLandAbility`
+    Land,
+    /// a spell's own `SpellAbility`
+    Cast,
+    Other,
+}
+
+/// What `getPlayableObjects` lists for the client: each object with an ability `seat` can play now, as the
+/// ability's index in its card's abilities and its group, in the order Java finds them (hand, graveyard, exile, then
+/// the battlefield)
+pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKind, Option<u8>)> {
+    let mut out = Vec::new();
+    // `shouldSkipGettingPlayable`: nothing while attackers are declared
+    if game.step_start && game.step == Some(Step::DeclareAttackers) {
+        return out;
+    }
+    let index = |def: &CardDef, a: &AbilityDef| def.abilities.iter().position(|x| x == a);
+    for id in playable(game, seat) {
+        let o = game.obj(id);
+        let def = &o.def;
+        match o.zone {
+            Zone::Hand | Zone::Graveyard | Zone::Exile => {
+                // a double-faced card's faces: each its half too (`f0`, `f1`), the back's abilities after the front's
+                let mdfc = def.back.as_ref().filter(|_| o.zone == Zone::Hand);
+                let face = (mdfc.is_some() || def.transform_back.is_some()).then_some(0);
+                if let Some(back) = mdfc {
+                    if back.is(CardType::Land) && can_play_land(game, seat) {
+                        if let Some(k) = index(back, &AbilityDef::PlayLandAbility) {
+                            out.push((id, def.abilities.len() + k, PlayKind::Land, Some(1)));
+                        }
+                    }
+                }
+                if o.is(CardType::Land) {
+                    if let Some(k) = index(def, &AbilityDef::PlayLandAbility).filter(|_| can_play_land(game, seat)) {
+                        out.push((id, k, PlayKind::Land, face));
+                    }
+                } else {
+                    let spell = index(def, &AbilityDef::SpellAbility);
+                    let normal = match o.zone {
+                        Zone::Hand => castable(game, seat, id, def),
+                        Zone::Graveyard => {
+                            o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
+                                && castable(game, seat, id, def)
+                        }
+                        _ => castable(game, seat, id, def),
+                    };
+                    // (a double-faced card's front is cast with a `SpellAbility` that isn't the `BASE` one)
+                    if let (true, Some(k)) = (normal, spell) {
+                        out.push((id, k, if face.is_some() { PlayKind::Other } else { PlayKind::Cast }, face));
+                    }
+                    let alternatives = [
+                        spectacle(game, seat, id).map(|x| x.0),
+                        warp(game, seat, id).map(|x| x.0),
+                        cleave(game, seat, id).map(|x| x.0),
+                        blitz(game, seat, id).map(|x| x.0),
+                        foretell(game, seat, id),
+                        plot(game, seat, id).map(|x| x.0),
+                    ];
+                    out.extend(alternatives.into_iter().flatten().map(|k| (id, k, PlayKind::Other, None)));
+                    if o.zone == Zone::Graveyard {
+                        let flashback =
+                            def.abilities.iter().position(|a| matches!(a, AbilityDef::FlashbackAbility { .. }));
+                        if let Some(k) =
+                            flashback.filter(|_| game.flashback_def(id).is_some_and(|f| castable(game, seat, id, &f)))
+                        {
+                            out.push((id, k, PlayKind::Other, None));
+                        }
+                        let escape = def.abilities.iter().position(|a| matches!(a, AbilityDef::EscapeAbility { .. }));
+                        if let Some(k) = escape.filter(|_| def.escape().is_some_and(|f| castable(game, seat, id, &f))) {
+                            out.push((id, k, PlayKind::Other, None));
+                        }
+                    }
+                }
+                out.extend(activatable(game, seat, id).into_iter().map(|k| (id, k, PlayKind::Other, None)));
+            }
+            _ => {}
+        }
+    }
+    // the battlefield: mana abilities (conditional ones too), then the others, per permanent
+    let paying = game.paying_for.get();
+    game.paying_for.set(Some(ANY_SPELL));
+    let mana = mana_sources_with_kinds(game, seat);
+    game.paying_for.set(paying);
+    for id in game.battlefield.iter() {
+        let mut abilities: Vec<(usize, PlayKind)> = mana
+            .iter()
+            .filter(|(s, _)| s == id)
+            .flat_map(|(_, a)| a.iter())
+            .map(|(k, _, _)| {
+                // a `BasicManaAbility`: one of the six, painlands' too
+                let basic = matches!(
+                    game.obj(*id).def.abilities.get(*k),
+                    Some(
+                        AbilityDef::WhiteManaAbility { .. }
+                            | AbilityDef::BlueManaAbility { .. }
+                            | AbilityDef::BlackManaAbility { .. }
+                            | AbilityDef::RedManaAbility { .. }
+                            | AbilityDef::GreenManaAbility { .. }
+                            | AbilityDef::ColorlessManaAbility { .. }
+                    )
+                );
+                (*k, if basic { PlayKind::BasicMana } else { PlayKind::Other })
+            })
+            .collect();
+        abilities.extend(activatable(game, seat, *id).into_iter().map(|k| (k, PlayKind::Other)));
+        abilities.sort_by_key(|(k, _)| *k);
+        abilities.dedup();
+        // a modal double-faced card's permanent: its card too (`f0`)
+        let o = game.obj(*id);
+        let face = (o.front.is_some() || o.def.back.is_some()).then_some(0);
+        out.extend(abilities.into_iter().map(|(k, kind)| (*id, k, kind, face)));
+    }
+    out
+}
+
 /// A permanent's activated abilities (not mana abilities) its controller can activate now, by index.
 fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     let o = game.obj(id);
@@ -838,7 +960,13 @@ fn ability_mana_cost(costs: &[CostDef]) -> ManaCost {
 }
 
 fn sorcery_speed(game: &Game, seat: Seat) -> bool {
-    game.active == Some(seat) && game.step.map(|s| s.is_main()).unwrap_or(false) && game.stack.is_empty()
+    // (in Java a spell being cast is on the stack while its costs are paid and the object resolving until it's done:
+    // not yet or no longer on ours)
+    game.active == Some(seat)
+        && game.step.map(|s| s.is_main()).unwrap_or(false)
+        && game.stack.is_empty()
+        && game.unpaid.is_none()
+        && game.resolving.is_none()
 }
 
 fn can_play_land(game: &Game, seat: Seat) -> bool {

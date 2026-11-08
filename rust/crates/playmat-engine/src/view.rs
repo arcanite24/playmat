@@ -23,7 +23,7 @@ fn templates() -> &'static HashMap<String, Value> {
 pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
     let name = |s: Option<Seat>| s.and_then(|s| names.get(s)).map(|n| n.to_string()).unwrap_or_default();
     let players: Vec<Value> = (0..game.seats()).map(|p| player_view(game, p, seat, names)).collect();
-    json!({
+    let mut v = json!({
         "players": players,
         "myPlayerId": format!("P{}", seat),
         "phase": game.step.map(phase_of).unwrap_or(""),
@@ -46,7 +46,81 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "revealed": [],
         "lookedAt": [],
         "companion": [],
-    })
+    });
+    if let (Some(_), true) = (game.step, game.priority == Some(seat)) {
+        v["canPlayObjects"] = can_play_objects(game, seat);
+    }
+    v
+}
+
+/// What the priority player can play now, per object: each ability's reference and its text, in the client's groups
+/// (`PlayerImpl.getPlayableObjects`, `PlayableObjectStats`)
+fn can_play_objects(game: &Game, seat: Seat) -> Value {
+    use crate::rules::PlayKind;
+    let mut objects = Map::new();
+    for (id, k, kind, face) in crate::rules::playable_abilities(game, seat) {
+        let o = game.obj(id);
+        let r = reference(game, id);
+        // its card's text at its index, unless effects changed its abilities: then its own
+        let changed = printed(&o.def.name).is_some_and(|p| p.abilities.get(k) != o.def.abilities.get(k));
+        let card_text = ability_rules(game, id).and_then(|r| r.get(k).cloned()).filter(|t| !t.is_empty());
+        let own_text = o
+            .def
+            .abilities
+            .get(k)
+            .and_then(|a| {
+                a.triggered()
+                    .map(|t| t.0.to_string())
+                    .or_else(|| a.activated().map(|t| t.0.to_string()))
+                    .filter(|t| !t.is_empty())
+                    .or_else(|| ability_rule(a))
+            })
+            .filter(|t| !t.is_empty());
+        let text = if changed { own_text.or(card_text) } else { card_text.or(own_text) };
+        let name = match face {
+            Some(1) => o.def.back.as_ref().map_or(&o.def.name, |b| &b.name),
+            _ => &o.def.name,
+        };
+        let text = match kind {
+            PlayKind::Cast => format!("Cast {}", name),
+            PlayKind::Other if o.def.abilities.get(k) == Some(&crate::card::AbilityDef::SpellAbility) => {
+                format!("Cast {}", name)
+            }
+            PlayKind::Other if matches!(o.def.abilities.get(k), Some(crate::card::AbilityDef::WarpAbility { .. })) => {
+                format!("Cast {} with Warp", name)
+            }
+            PlayKind::Land => text.unwrap_or_else(|| format!("Play {}", name)),
+            _ => text.unwrap_or_default(),
+        };
+        // a short line for the client's popup (`PlayableObjectStats.load`)
+        let mut text = text.replace("<br>", " ").replace('\n', " ");
+        if text.encode_utf16().count() > 50 {
+            let cut: Vec<u16> = text.encode_utf16().take(49).collect();
+            text = String::from_utf16_lossy(&cut) + "...";
+        }
+        let group = match kind {
+            PlayKind::BasicMana => "basicManaAbilities",
+            PlayKind::Land => "basicPlayAbilities",
+            PlayKind::Cast => "basicCastAbilities",
+            PlayKind::Other => "other",
+        };
+        // Sunken Citadel's: the chosen color's symbol in its text
+        if let (Some(crate::card::AbilityDef::ColoredManaAbility { color, .. }), true) =
+            (o.def.abilities.get(k), text.contains("chosen color."))
+        {
+            text = text.replace("chosen color.", &format!("chosen color {{{}}}.", color_symbol(*color)));
+        }
+        let record = json!({"id": format!("{}a{}", r, k), "value": text});
+        for key in std::iter::once(r.clone()).chain(face.map(|f| format!("{}f{}", r, f))) {
+            let entry = objects.entry(key).or_insert_with(
+                || json!({"basicManaAbilities": [], "basicPlayAbilities": [], "basicCastAbilities": [], "other": []}),
+            );
+            if let Some(Value::Array(list)) = entry.get_mut(group) {
+                list.push(record.clone());
+            }
+        }
+    }
+    json!({ "objects": objects })
 }
 
 /// `TurnPhase` of a step
@@ -372,6 +446,17 @@ fn ability_rule(a: &crate::card::AbilityDef) -> Option<String> {
         }
         .to_string(),
     )
+}
+
+fn color_symbol(c: crate::card::Color) -> char {
+    use crate::card::Color as C;
+    match c {
+        C::W => 'W',
+        C::U => 'U',
+        C::B => 'B',
+        C::R => 'R',
+        C::G => 'G',
+    }
 }
 
 fn color_name(c: crate::card::Color) -> &'static str {
