@@ -139,6 +139,8 @@ pub struct Obj {
     pub prepared_for: Option<(ObjId, u32)>,
     /// in exile, in the zone of the source (and its zone change count) that exiled it (`CardUtil.getExileZoneId`)
     pub exiled_with: Option<(ObjId, u32)>,
+    /// it transformed on the battlefield (not entered transformed): its card's other face is a card of its own
+    pub transformed_in_place: bool,
     /// a Room permanent's doors, left and right: unlocked or not
     pub doors: [bool; 2],
     /// the half of a Room cast (0 left, 1 right): its door unlocks as the Room enters
@@ -523,6 +525,9 @@ pub struct Game {
     pub resolving: Option<(usize, ObjId)>,
     /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
     pub resolving_item: Option<StackItem>,
+    /// a card entering the battlefield from a hand while its as-enters choices are asked: Java moves it after
+    /// them, so it's still in the hand, at this index (`ZonesHandler.moveCard`)
+    pub entering_from_hand: Option<(ObjId, Seat, usize)>,
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
     /// order they were exiled
     pub exile_by_creation: bool,
@@ -620,6 +625,7 @@ impl Game {
             no_prevention_turn: None,
             resolving: None,
             resolving_item: None,
+            entering_from_hand: None,
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
@@ -712,6 +718,7 @@ impl Game {
             prepared_copy: None,
             prepared_for: None,
             exiled_with: None,
+            transformed_in_place: false,
             doors: [false; 2],
             room_cast: None,
             foretold_turn: None,
@@ -1870,6 +1877,7 @@ impl Game {
             o.chosen_name = None;
             o.info.clear();
             o.exiled_with = None;
+            o.transformed_in_place = false;
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;

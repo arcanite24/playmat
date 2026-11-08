@@ -8735,6 +8735,9 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
         }
     }
     let turn = game.turn;
+    let owner = game.obj(id).owner;
+    let from_hand = game.player(owner).hand.iter().position(|x| *x == id);
+    game.entering_from_hand = from_hand.map(|i| (id, owner, i));
     game.move_to(id, Zone::Battlefield);
     enter_as_copy(game, d, id, controller, cast);
     // `EntersPreparedAbility`
@@ -9026,6 +9029,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             }
         }
     }
+    game.entering_from_hand = None;
     for a in &def.abilities {
         if let AbilityDef::EntersBattlefieldAbility { effects, condition, .. } = a {
             if condition.as_ref().is_none_or(|c| condition_with_kicker(game, c, controller, id, kicked)) {
@@ -10358,6 +10362,7 @@ fn transform(game: &mut Game, id: ObjId) {
         None => {
             let Some(back) = o.def.transform_back.clone() else { return };
             o.front = Some(std::mem::replace(&mut o.def, back));
+            o.transformed_in_place = true;
             false
         }
     };

@@ -21,6 +21,16 @@ fn templates() -> &'static HashMap<String, Value> {
 /// The view `seat`'s client gets of the game, as Java's `GameSessionPlayer.prepareGameView` builds it and `JsonCodec`
 /// writes it, with ids as decision-log references. `names` are the players' names, by seat.
 pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
+    // a card entering from a hand while its as-enters choices are asked is still in the hand in Java
+    if let Some((id, owner, i)) = game.entering_from_hand.filter(|(id, _, _)| game.obj(*id).zone == Zone::Battlefield) {
+        let mut g = game.clone();
+        g.entering_from_hand = None;
+        Arc::make_mut(&mut g.battlefield).retain(|x| *x != id);
+        let hand = &mut g.player_mut(owner).hand;
+        hand.insert(i.min(hand.len()), id);
+        g.obj_mut(id).zone = Zone::Hand;
+        return game_view(&g, seat, names);
+    }
     let name = |s: Option<Seat>| s.and_then(|s| names.get(s)).map(|n| n.to_string()).unwrap_or_default();
     let players: Vec<Value> = (0..game.seats()).map(|p| player_view(game, p, seat, names)).collect();
     let mut v = json!({
@@ -304,9 +314,16 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
                 rules.push(json!(HINT_START));
                 rules.extend(hints.into_iter().map(Value::String));
             }
-            // a permanent's info comes after its hints (`PermanentImpl.getRules`)
+            // a permanent's info comes after its hints, then its restrictions (`PermanentImpl.getRules`)
             if game_object && o.zone == Zone::Battlefield {
                 rules.extend(o.info.iter().map(|(_, l)| json!(l)));
+                let restricts = restriction_hints(game, id);
+                if !restricts.is_empty() {
+                    if !rules.iter().any(|r| r.as_str().is_some_and(|t| t.contains(HINT_START))) {
+                        rules.push(json!(HINT_START));
+                    }
+                    rules.extend(restricts.into_iter().map(Value::String));
+                }
             }
         }
         if game_object {
@@ -315,26 +332,73 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
             if let Some(Value::Object(f)) =
                 m.get_mut("secondCardFace").and_then(|f| f.get_mut("secondCardFace")).filter(|f| f.is_object())
             {
-                let transformed = o.front.as_ref().is_some_and(|f| f.transform_back.is_some());
-                if transformed && f.get("id").and_then(|i| i.as_str()) == Some(r) {
+                if o.transformed_in_place && f.get("id").and_then(|i| i.as_str()) == Some(r) {
                     f.insert("id".into(), json!("?"));
                 }
             }
         }
         if game_object && o.zone != Zone::Battlefield {
             land_frame(game, id, m);
+            cda_power(game, id, m);
         }
         if game_object && o.zone == Zone::Battlefield {
             characteristics(game, id, m);
+            // a transforming card's front as a permanent has the whole card's color identity
+            if o.def.transform_back.is_some() {
+                if let Some(c) = templates().get(&o.def.name).and_then(|t| t.get("originalColorIdentity")) {
+                    m.insert("originalColorIdentity".into(), c.clone());
+                }
+            }
+            // a face shown again inside its other face (a Pathway's) is the permanent: its subtypes as they are
+            let (name, subtypes) = (m.get("name").cloned(), m.get("subTypes").cloned());
+            if let Some(Value::Object(f)) =
+                m.get_mut("secondCardFace").and_then(|f| f.get_mut("secondCardFace")).filter(|f| f.is_object())
+            {
+                if f.get("name") == name.as_ref() && f.get("id").and_then(|i| i.as_str()) == Some(r) {
+                    if let Some(st) = subtypes {
+                        f.insert("subTypes".into(), st);
+                    }
+                }
+            }
             permanent_state(game, id, m);
             let mut icons = permanent_icons(game, id);
             if spell_x(&o.def) {
                 icons.push(x_icon(o.cast_x));
             }
+            // (`CardView`: its restriction and requirement hints, sorted, as one icon)
+            let mut restricts: Vec<String> = restriction_hints(game, id)
+                .iter()
+                .map(|r| r.replace("ICON_RESTRICT", "").replace("ICON_REQUIRE", "").trim().to_string())
+                .collect();
+            if !restricts.is_empty() {
+                restricts.sort();
+                icons.push(icon("OTHER_HAS_RESTRICTIONS", &restricts.join("<br>"), ""));
+            }
             m.insert("cardIcons".into(), Value::Array(icons));
         }
     }
     v
+}
+
+/// A characteristic-defining power (Adeline's) applies in every zone (`CardView` of a card in a game)
+fn cda_power(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
+    use crate::card::{AbilityDef as A, EffectDef as E};
+    let o = game.obj(id);
+    let amount = o.def.abilities.iter().find_map(|a| match a {
+        A::SimpleStaticAbility { effects, .. } => effects.iter().find_map(|e| match e {
+            E::SetBasePowerSourceEffect { amount } => Some(amount),
+            _ => None,
+        }),
+        _ => None,
+    });
+    let Some(amount) = amount else { return };
+    let n = game.value(amount, o.controller, id, 0);
+    m.insert("power".into(), json!(n.to_string()));
+    if let Some(Value::Object(x)) = m.get_mut("originalPower") {
+        x.insert("modifiedBaseValue".into(), json!(n));
+        x.insert("boostedValue".into(), json!(n));
+        x.insert("cardValue".into(), json!(n.to_string()));
+    }
 }
 
 /// What a card's view of a permanent shows of its state (`CardView(permanent)`): its power and toughness, its
@@ -1030,6 +1094,42 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
     Value::Object(out)
 }
 
+/// The restriction hints of a permanent (`PermanentImpl.getRules`): what its restriction effects stop it from
+/// doing, with their source, sorted
+fn restriction_hints(game: &Game, id: ObjId) -> Vec<String> {
+    use crate::card::{AbilityDef as A, EffectDef as E};
+    if game.step.is_none() {
+        return Vec::new();
+    }
+    let id_name = |src: ObjId| format!("{} [{}]", game.obj(src).def.name, reference(game, src));
+    let mut out = Vec::new();
+    let o = game.obj(id);
+    for a in &o.def.abilities {
+        if let A::SimpleStaticAbility { effects, .. } = a {
+            for e in effects {
+                if let E::CantAttackBlockUnlessConditionSourceEffect { condition } = e {
+                    if !game.condition_holds(Some(condition), o.controller, id) {
+                        out.push(format!("ICON_RESTRICTCan't attack ({})", id_name(id)));
+                        out.push(format!("ICON_RESTRICTCan't block ({})", id_name(id)));
+                    }
+                }
+            }
+        }
+    }
+    for src in game.battlefield.iter().copied().filter(|s| game.attached(*s) == Some(id)) {
+        for a in &game.obj(src).def.abilities {
+            if let A::SimpleStaticAbility { effects, .. } = a {
+                if effects.iter().any(|e| matches!(e, E::CantAttackBlockAttachedEffect)) {
+                    out.push(format!("ICON_RESTRICTCan't attack ({})", id_name(src)));
+                    out.push(format!("ICON_RESTRICTCan't block ({})", id_name(src)));
+                }
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
 /// `GameLog.getTooltipColorName`
 fn tooltip_color(colors: &[crate::card::Color]) -> &'static str {
     use crate::card::Color as C;
@@ -1123,7 +1223,8 @@ fn permanent_icons(game: &Game, id: ObjId) -> Vec<Value> {
         .abilities
         .iter()
         .cloned()
-        .chain(game.granted_abilities(id))
+        // (an ability its own effect already put in its face, Soulstone Sanctuary's vigilance, once)
+        .chain(game.granted_abilities(id).into_iter().filter(|a| !o.def.abilities.contains(a)))
         .filter_map(|a| ability_icon(game, id, &a))
         .collect()
 }
