@@ -7002,6 +7002,10 @@ fn apply_each_effect(
                 token_image(game, emblem, source.0);
                 let id = game.create_obj(Arc::new(emblem.card()), controller, Zone::Library);
                 game.obj_mut(id).trigger_order = (1 << 32) + id.0 as u64;
+                // the emblem's set, for its view
+                if let Some((_, _, set, pick)) = game.token_made.take() {
+                    game.obj_mut(id).token_image = Some((String::new(), set, pick));
+                }
                 game.move_to(id, Zone::Command);
             }
             EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters } => {

@@ -225,7 +225,7 @@ fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
         "graveyard": cards_view(game, &pl.graveyard),
         "exile": cards_view(game, &exile.iter().copied().filter(|c| game.obj(*c).owner == p).collect::<Vec<_>>()),
         "attachments": [],
-        "commandList": [],
+        "commandList": command_view(game, p),
         "designationNames": [],
         "helperCards": {},
         "sideboard": {},
@@ -1299,6 +1299,39 @@ fn stack_ref(game: &Game, id: ObjId) -> String {
         Some(i) if game.obj(id).zone == Zone::Stack => format!("S{}", i),
         _ => reference(game, id),
     }
+}
+
+/// `PlayerView.commandList`: the emblems seat `p` controls (`EmblemView`), `M` and their index in the command zone
+fn command_view(game: &Game, p: Seat) -> Vec<Value> {
+    game.command
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| game.obj(**c).controller == p)
+        .map(|(i, c)| {
+            let o = game.obj(*c);
+            let rules: Vec<String> = o
+                .def
+                .abilities
+                .iter()
+                .filter_map(ability_rule)
+                .map(|r| {
+                    let mut ch = r.chars();
+                    ch.next().map(|f| f.to_uppercase().collect::<String>() + ch.as_str()).unwrap_or_default()
+                })
+                .collect();
+            json!({
+                "id": format!("M{}", i),
+                "name": o.def.name,
+                "cardNumber": "",
+                "imageFileName": "",
+                "imageNumber": 0,
+                "usesVariousArt": false,
+                "expansionSetCode": o.token_image.as_ref().map(|t| t.1.as_str()).unwrap_or(""),
+                "rules": rules,
+                "playableStats": {"basicManaAbilities": [], "basicPlayAbilities": [], "basicCastAbilities": [], "other": []},
+            })
+        })
+        .collect()
 }
 
 /// An object's abilities' rules, in order (from its card's or token's facts)
