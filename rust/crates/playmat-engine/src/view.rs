@@ -42,7 +42,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "watchedHands": {},
         "stack": stack_view(game),
         "exiles": [cards_view(game, &crate::replay::exile_order(game))],
-        "combat": [],
+        "combat": combat_view(game, names),
         "revealed": [],
         "lookedAt": [],
         "companion": [],
@@ -521,6 +521,38 @@ fn day_night_hint(game: &Game) -> String {
             )
         }
     }
+}
+
+/// The combat groups (`CombatGroupView`), an attacker each, with its blockers: permanents' views for no player
+fn combat_view(game: &Game, names: &[&str]) -> Value {
+    let nobody = Seat::MAX;
+    let mut groups = Vec::new();
+    for id in game.battlefield.iter().copied() {
+        let o = game.obj(id);
+        let Some(defender) = o.attacking else { continue };
+        let (defender_id, defender_name) = match o.attacking_pw {
+            Some((pw, _)) if game.obj(pw).zone == Zone::Battlefield => {
+                (reference(game, pw), game.obj(pw).def.name.clone())
+            }
+            _ => (format!("P{}", defender), names.get(defender).copied().unwrap_or("").to_string()),
+        };
+        let r = reference(game, id);
+        let mut attackers = Map::new();
+        attackers.insert(r.clone(), permanent_view(game, id, &r, nobody, names));
+        let mut blockers = Map::new();
+        for b in o.blocked_by.iter().copied().filter(|b| game.obj(*b).zone == Zone::Battlefield) {
+            let r = reference(game, b);
+            blockers.insert(r.clone(), permanent_view(game, b, &r, nobody, names));
+        }
+        groups.push(json!({
+            "attackers": attackers,
+            "blockers": blockers,
+            "isBlocked": o.blocked,
+            "defenderName": defender_name,
+            "defenderId": defender_id,
+        }));
+    }
+    Value::Array(groups)
 }
 
 /// The stack (`GameView`'s `stack`), by reference from the top: spells as their cards (`SpellView`), abilities as
