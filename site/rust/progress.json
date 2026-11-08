@@ -91,12 +91,15 @@
    "status": "active",
    "text": "Every card of the 24 Pioneer and Standard meta decks in the engine, with shadow games for each pairing.",
    "gate": "A week of production AI games that follow Java to the end",
-   "pr": []
+   "pr": [
+    243,
+    244
+   ]
   },
   {
    "n": "C",
    "name": "Views in Rust",
-   "status": "next",
+   "status": "active",
    "text": "Building what the client sees, compared in production against Java's.",
    "gate": "Zero view differences on a week of real games"
   },
@@ -191,7 +194,7 @@
   ]
  },
  "counted": {
-  "engine_cards": 481,
+  "engine_cards": 579,
   "java_card_files": 32749,
   "school": {
    "label": "Pioneer and Standard school decks",
@@ -415,14 +418,14 @@
   "meta": {
    "label": "Pioneer and Standard meta decks",
    "decks": 24,
-   "covered": 6,
+   "covered": 24,
    "cards": 278,
-   "cards_in": 180,
+   "cards_in": 278,
    "list": [
     {
      "deck": "pioneer-azorius-spirits",
      "cards": 16,
-     "missing": 4
+     "missing": 0
     },
     {
      "deck": "pioneer-dimir-aggro",
@@ -437,27 +440,27 @@
     {
      "deck": "pioneer-gruul-dinosaurs",
      "cards": 15,
-     "missing": 10
+     "missing": 0
     },
     {
      "deck": "pioneer-izzet-prowess",
      "cards": 19,
-     "missing": 3
+     "missing": 0
     },
     {
      "deck": "pioneer-jeskai-ensoul",
      "cards": 15,
-     "missing": 11
+     "missing": 0
     },
     {
      "deck": "pioneer-jund-artifact-sacrifice",
      "cards": 19,
-     "missing": 7
+     "missing": 0
     },
     {
      "deck": "pioneer-jund-sacrifice",
      "cards": 18,
-     "missing": 5
+     "missing": 0
     },
     {
      "deck": "pioneer-mono-black-zombies",
@@ -467,17 +470,17 @@
     {
      "deck": "pioneer-mono-white-humans",
      "cards": 12,
-     "missing": 4
+     "missing": 0
     },
     {
      "deck": "pioneer-nykthos-ramp",
      "cards": 17,
-     "missing": 11
+     "missing": 0
     },
     {
      "deck": "pioneer-selesnya-angels",
      "cards": 15,
-     "missing": 4
+     "missing": 0
     },
     {
      "deck": "standard-azorius-control",
@@ -497,47 +500,47 @@
     {
      "deck": "standard-golgari-squirrels",
      "cards": 13,
-     "missing": 9
+     "missing": 0
     },
     {
      "deck": "standard-gruul-dragons",
      "cards": 13,
-     "missing": 7
+     "missing": 0
     },
     {
      "deck": "standard-hare-apparent-tokens",
      "cards": 5,
-     "missing": 3
+     "missing": 0
     },
     {
      "deck": "standard-izzet-prowess",
      "cards": 20,
-     "missing": 7
+     "missing": 0
     },
     {
      "deck": "standard-izzet-spellementals",
      "cards": 19,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "standard-mono-black-reanimator",
      "cards": 10,
-     "missing": 7
+     "missing": 0
     },
     {
      "deck": "standard-mono-blue-terror",
      "cards": 11,
-     "missing": 4
+     "missing": 0
     },
     {
      "deck": "standard-mono-green-landfall",
      "cards": 17,
-     "missing": 1
+     "missing": 0
     },
     {
      "deck": "standard-mono-white-lifegain",
      "cards": 11,
-     "missing": 7
+     "missing": 0
     }
    ]
   },
@@ -841,24 +844,54 @@
     "note": "16 of 16 finished games match, 14 Java timeouts (10 checked in)",
     "checked_in": 10,
     "decks": 2
+   },
+   {
+    "tier": 31,
+    "what": "eight Pioneer and Standard meta decks (Azorius Spirits, Hare Apparent tokens, Izzet Prowess, Izzet Spellementals, Mono-Blue Terror, Mono-Green Landfall, Mono-White Humans, Selesnya Angels): plot (cast free from exile through its own picker), bargain, training, protection from a chosen color, counters removed from among creatures as a cost (asked again after each round), batched \"one or more enter\" triggers, class levels, \"if you cast it\" after it left, toughness of a creature already gone, granted triggers' {this} text, dies triggers that check the source too",
+    "matched": 56,
+    "played": 56,
+    "timeouts": 0,
+    "note": "56 of 56 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 8
+   },
+   {
+    "tier": 32,
+    "what": "five Pioneer and Standard meta decks (Gruul Dragons, Izzet Prowess for Standard, Jund Sacrifice, Mono-Black Reanimator, Mono-White Lifegain): forage, expend, reflexive \"when you do\" costs, Ghalta's cost by total power, wards granted by auras, hybrid costs like {W/U}, life loss triggers batched per player, the order of replacement choices (Twinflame Tyrant, enters tapped), distribute with X=0, a target added while choosing asks again, an adventure cast from a graveyard by an effect (timing ignored), a game drawn by state-based actions",
+    "matched": 56,
+    "played": 56,
+    "timeouts": 0,
+    "note": "56 of 56 match (11 checked in)",
+    "checked_in": 11,
+    "decks": 5
+   },
+   {
+    "tier": 33,
+    "what": "the last five Pioneer and Standard meta decks (Golgari Squirrels, Gruul Dinosaurs, Jeskai Ensoul, Jund Artifact Sacrifice, Nykthos Ramp): Nykthos's devotion mana, Sunken Citadel's land-only mana, \"one or more\" sacrifice triggers after the others, triggers of what was sacrificed together, hybrid auto-pay, the {0} and {X} spell picker, plot paid with conditional mana, evoke counted as castable, Old-Growth Troll's Aura and the abilities it grants, Ensoul'd equipment, \"if {G}{G} was spent\" after an evoke sacrifice",
+    "matched": 56,
+    "played": 56,
+    "timeouts": 0,
+    "note": "56 of 56 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 5
    }
   ],
   "shadow": {
-   "played": 888,
-   "matched": 888,
+   "played": 1056,
+   "matched": 1056,
    "java_timeouts": 24,
-   "checked_in": 307
+   "checked_in": 338
   },
   "rust": {
-   "lines": 26054,
+   "lines": 28655,
    "crates": [
     {
      "crate": "playmat-ai",
-     "lines": 1785
+     "lines": 1786
     },
     {
      "crate": "playmat-engine",
-     "lines": 13987
+     "lines": 16587
     },
     {
      "crate": "playmat-gateway",
@@ -879,6 +912,6 @@
    ]
   }
  },
- "commit": "1cdf6f370a955b0b716e18e4c3938bdb78e25abe",
+ "commit": "08afcdbc77e9a973527771eda3e62b545f2f9a39",
  "generated": "2026-11-07"
 }
