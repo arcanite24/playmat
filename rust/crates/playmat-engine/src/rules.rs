@@ -842,6 +842,11 @@ fn sorcery_speed(game: &Game, seat: Seat) -> bool {
 }
 
 fn can_play_land(game: &Game, seat: Seat) -> bool {
+    sorcery_speed(game, seat) && game.player(seat).lands_played < lands_per_turn(game, seat)
+}
+
+/// The lands a player may play this turn (`Player.getLandsPerTurn`)
+pub fn lands_per_turn(game: &Game, seat: Seat) -> u32 {
     let mut extra = 0;
     game.any_static(|g, src, e| {
         if let EffectDef::PlayAdditionalLandsControllerEffect { amount } = e {
@@ -851,7 +856,7 @@ fn can_play_land(game: &Game, seat: Seat) -> bool {
         }
         false
     });
-    sorcery_speed(game, seat) && game.player(seat).lands_played < 1 + extra
+    1 + extra
 }
 
 /// While checking what's playable, harmonize counts the most power among untapped creatures off the cost
@@ -6948,6 +6953,7 @@ fn apply_each_effect(
                 if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
                     let token = crate::card::TokenDef {
                         name: String::new(),
+                        class: String::new(),
                         types: vec![CardType::Creature],
                         colors: vec![Color::G],
                         subtypes: vec!["Hydra".into()],
@@ -8463,6 +8469,14 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
 }
 
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
+    // a token of the class last made takes its image
+    if game.obj(id).token && game.obj(id).token_image.is_none() {
+        if let Some((name, class, set, pick)) = game.token_made.clone() {
+            if name == game.obj(id).def.name {
+                game.obj_mut(id).token_image = Some((class, set, pick));
+            }
+        }
+    }
     // Weathered Runestone: nonland permanent cards in graveyards and libraries can't enter
     if matches!(game.obj(id).zone, Zone::Graveyard | Zone::Library)
         && !game.obj(id).is(CardType::Land)
@@ -8771,6 +8785,10 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                         o.printed_def = Some(o.def.clone());
                     }
                     o.def = Arc::new(land);
+                    o.add_info(
+                        "chosen color",
+                        &format!("Chosen color: {}", names[Color::ALL.iter().position(|x| *x == c).unwrap_or(0)]),
+                    );
                 }
                 if let EffectDef::ChooseBasicLandTypeEffect = e {
                     let choices: Vec<String> =
@@ -8783,6 +8801,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                             _ => {}
                         }
                     };
+                    game.obj_mut(id).add_info("chosen color", &format!("Chosen basic land type: {}", chosen));
                     // "This land is the chosen type": the subtype and its mana ability, after the printed ones
                     let passage = def.abilities.iter().any(|a| {
                         matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
@@ -9269,10 +9288,10 @@ fn same_trigger(game: &Game, a: &StackItem, b: &StackItem) -> bool {
 /// `TokenImpl.generateTokenInfo`: creating tokens (or an emblem) picks an image with the game's random when there are
 /// two or more to pick from.
 fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
-    let n = token.image_choices(&game.obj(source).def.set);
-    if n >= 2 {
-        game.rng.next_int_bound(n as i32);
-    }
+    let set = game.obj(source).def.set.clone();
+    let n = token.image_choices(&set);
+    let pick = if n >= 2 { game.rng.next_int_bound(n as i32) as u32 } else { 0 };
+    game.token_made = Some((token.name.clone(), token.class.clone(), set, pick));
 }
 
 /// Damage from `source`: to a player it's life lost, to a creature it's marked. Lifelink gains its controller life.

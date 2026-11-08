@@ -1,11 +1,12 @@
 //! Views (docs/rust/Views.md): what the web client sees, as Java's `JsonCodec` writes a `GameView`, with ids as
 //! decision-log references, and the field-by-field comparison with Java's.
 
-use crate::card::CardType;
+use crate::card::{Amount, CardDb, CardDef, CardType, HintDef};
 use crate::replay::reference;
 use crate::state::{Game, ObjId, Seat, Step, Zone};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::sync::OnceLock;
 
 /// Each card's view as Java builds it out of a game (`new CardView(card)`, written by `CardFactsTest` with
@@ -126,13 +127,29 @@ fn cards_view(game: &Game, ids: &[ObjId]) -> Value {
 /// not from the card alone, as `original` is)
 fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
     let o = game.obj(id);
-    let mut v = templates().get(&o.def.name).cloned().unwrap_or_else(|| json!({"name": o.def.name}));
+    let mut v = token_view(game, id)
+        .or_else(|| templates().get(&o.def.name).cloned())
+        .unwrap_or_else(|| json!({"name": o.def.name}));
     if let Value::Object(m) = &mut v {
         m.insert("id".into(), json!(r));
         m.insert("cardId".into(), json!(r));
         m.insert("ownerId".into(), json!(format!("P{}", o.owner)));
         m.insert("controllerId".into(), json!(format!("P{}", o.controller)));
         m.insert("gameObject".into(), json!(game_object));
+        let hints = if game_object { hint_lines(game, id) } else { Vec::new() };
+        if let (true, Some(Value::Array(rules))) = (game_object, m.get_mut("rules")) {
+            changed_rules(game, id, rules);
+        }
+        if let Some(Value::Array(rules)) = m.get_mut("rules") {
+            if !hints.is_empty() {
+                rules.push(json!(HINT_START));
+                rules.extend(hints.into_iter().map(Value::String));
+            }
+            // a permanent's info comes after its hints (`PermanentImpl.getRules`)
+            if game_object && o.zone == Zone::Battlefield {
+                rules.extend(o.info.iter().map(|(_, l)| json!(l)));
+            }
+        }
         if let Some(Value::Object(f)) = m.get_mut("secondCardFace") {
             f.insert("id".into(), json!(format!("{}f1", r)));
             f.insert("cardId".into(), json!(r));
@@ -142,6 +159,224 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
         }
     }
     v
+}
+
+/// A granted ability's rule (`Ability.getRule`), for the abilities effects give
+fn ability_rule(a: &crate::card::AbilityDef) -> Option<String> {
+    use crate::card::AbilityDef as A;
+    Some(
+        match a {
+            A::FlyingAbility => "Flying",
+            A::ReachAbility => "Reach",
+            A::HasteAbility => "Haste",
+            A::VigilanceAbility => "Vigilance",
+            A::TrampleAbility => "Trample",
+            A::FirstStrikeAbility => "First strike",
+            A::DoubleStrikeAbility => "Double strike",
+            A::LifelinkAbility => "Lifelink",
+            A::DeathtouchAbility => "Deathtouch",
+            A::DefenderAbility => "Defender",
+            A::MenaceAbility => "Menace",
+            A::HexproofAbility => "Hexproof",
+            A::IndestructibleAbility => "Indestructible",
+            A::FlashAbility => "Flash",
+            A::WardAbility { rule, .. } => return Some(upper_first(rule)),
+            A::WhiteManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {W}.",
+            A::BlueManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {U}.",
+            A::BlackManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {B}.",
+            A::RedManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {R}.",
+            A::GreenManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {G}.",
+            A::ColorlessManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {C}.",
+            A::AnyColorManaAbility { amount: 1, effects, cost, .. } if effects.is_empty() && cost.is_empty() => {
+                "{T}: Add one mana of any color."
+            }
+            A::ProtectionFromColorAbility { c } => {
+                return Some(format!("Protection from {}", color_name(*c)));
+            }
+            _ => return None,
+        }
+        .to_string(),
+    )
+}
+
+fn color_name(c: crate::card::Color) -> &'static str {
+    use crate::card::Color as C;
+    match c {
+        C::W => "White",
+        C::U => "Blue",
+        C::B => "Black",
+        C::R => "Red",
+        C::G => "Green",
+    }
+}
+
+/// The printed faces, by name: what a card's abilities were before effects changed its definition
+fn printed(name: &str) -> Option<Arc<CardDef>> {
+    static DB: OnceLock<HashMap<String, Arc<CardDef>>> = OnceLock::new();
+    DB.get_or_init(|| {
+        let mut m = HashMap::new();
+        let Ok((db, _)) = CardDb::load_json(crate::CARDS_JSON) else { return m };
+        fn add(m: &mut HashMap<String, Arc<CardDef>>, d: &Arc<CardDef>) {
+            m.entry(d.name.clone()).or_insert_with(|| d.clone());
+            for f in [&d.adventure, &d.back, &d.transform_back, &d.prepare].into_iter().flatten() {
+                add(m, f);
+            }
+            for f in &d.room {
+                add(m, f);
+            }
+        }
+        for d in db.iter() {
+            add(&mut m, d);
+        }
+        m
+    })
+    .get(name)
+    .cloned()
+}
+
+/// A permanent's rules as effects changed them: the printed abilities it lost taken out, the ones its definition
+/// gained and the ones effects give it added (`Permanent.getAbilities(game).getRules()`)
+fn changed_rules(game: &Game, id: ObjId, rules: &mut Vec<Value>) {
+    let o = game.obj(id);
+    if let Some(p) = printed(&o.def.name).filter(|p| !Arc::ptr_eq(p, &o.def)) {
+        for a in p.abilities.iter().filter(|a| !o.def.abilities.contains(a)) {
+            if let Some(r) = ability_rule(a) {
+                rules.retain(|x| x.as_str() != Some(&r));
+            }
+        }
+        for a in o.def.abilities.iter().filter(|a| !p.abilities.contains(a)) {
+            if let Some(r) = ability_rule(a) {
+                rules.push(Value::String(r));
+            }
+        }
+    }
+    for a in game.granted_abilities(id) {
+        if let Some(r) = ability_rule(&a) {
+            rules.push(Value::String(r));
+        }
+    }
+}
+
+/// Where a card's hints start in its rules (`HintUtils.HINT_START_MARK`)
+const HINT_START: &str = "<br/><hintstart/>";
+
+/// The hints of a card's abilities in a started game, each once (`CardUtil.getCardRulesWithAdditionalInfo`)
+fn hint_lines(game: &Game, id: ObjId) -> Vec<String> {
+    if game.step.is_none() {
+        return Vec::new();
+    }
+    let o = game.obj(id);
+    let you = o.controller;
+    let mut out: Vec<String> = Vec::new();
+    for h in &o.def.hints {
+        let text = match h {
+            HintDef::Condition { condition, icons, true_text, false_text, true_color, false_color } => {
+                let holds = game.condition_holds(Some(condition), you, id);
+                let (text, color) = if holds { (true_text, true_color) } else { (false_text, false_color) };
+                let text = upper_first(text.as_deref().unwrap_or(""));
+                let text = match color {
+                    Some(c) => format!("<font color={}>{}</font>", c, text),
+                    None => text,
+                };
+                let icon = if !*icons {
+                    ""
+                } else if holds {
+                    "ICON_GOOD"
+                } else {
+                    "ICON_BAD"
+                };
+                format!("{}{}", icon, text)
+            }
+            HintDef::Value { name, value } => {
+                format!("{}: {}", name, game.value(&Amount::Of(value.clone()), you, id, 0))
+            }
+            HintDef::Named { name } => named_hint(game, name, you, id),
+            HintDef::Unknown { .. } => String::new(),
+        };
+        if !text.is_empty() && !out.contains(&text) {
+            out.push(text);
+        }
+    }
+    out
+}
+
+fn upper_first(s: &str) -> String {
+    let mut c = s.chars();
+    c.next().map(|f| f.to_uppercase().chain(c).collect()).unwrap_or_default()
+}
+
+/// The hint classes of their own (`mage.abilities.hint.common`)
+fn named_hint(game: &Game, name: &str, you: Seat, id: ObjId) -> String {
+    match name {
+        "CanPlayAdditionalLandsHint" => {
+            let per_turn = crate::rules::lands_per_turn(game, you);
+            if per_turn == 1 {
+                return String::new();
+            }
+            let played = game.player(you).lands_played;
+            let stats = format!(" (played {} of {})", played, per_turn);
+            if played < per_turn {
+                format!("ICON_GOODCan play more lands{}", stats)
+            } else {
+                format!("ICON_BADCan't play lands{}", stats)
+            }
+        }
+        "ClassLevelHint" => match game.obj(id).zone {
+            Zone::Battlefield => format!("Class level: {}", game.obj(id).class_level.max(1)),
+            _ => String::new(),
+        },
+        "OpenSideboardHint" => {
+            "Cards in your sideboard: 0 (<i>Right click on battlefield to open player's sideboard at any time</i>)"
+                .into()
+        }
+        "DayNightHint" => match game.day {
+            None => "It's neither day nor night.".into(),
+            Some(day) => {
+                let spells = game.active.map(|a| game.player(a).spells_cast).unwrap_or(0);
+                let changes = if day { spells == 0 } else { spells >= 2 };
+                format!(
+                    "It's currently {}, active player has cast {} spells this turn. It will {} become {} next turn.",
+                    if day { "day" } else { "night" },
+                    spells,
+                    if changes { "" } else { "not" },
+                    if day { "night" } else { "day" }
+                )
+            }
+        },
+        _ => String::new(),
+    }
+}
+
+/// A token made from a token class: its class's view, with the image the random pick took (`TokenImpl`)
+fn token_view(game: &Game, id: ObjId) -> Option<Value> {
+    let o = game.obj(id);
+    let (class, set, pick) = o.token_image.as_ref()?;
+    let t = templates().get(&format!("token:{}", class))?;
+    let mut v = t.get("view")?.clone();
+    let images: Vec<(String, u64)> = t
+        .get("images")
+        .and_then(|i| i.as_array())
+        .map(|a| a.iter().filter_map(|x| Some((x.get(0)?.as_str()?.to_string(), x.get(1)?.as_u64()?))).collect())
+        .unwrap_or_default();
+    let of_set: Vec<&(String, u64)> = images.iter().filter(|(s, _)| s == set).collect();
+    let choices: Vec<&(String, u64)> = if of_set.is_empty() { images.iter().collect() } else { of_set };
+    if let (Some((s, n)), Value::Object(m)) = (choices.get(*pick as usize), &mut v) {
+        m.insert("expansionSetCode".into(), json!(s));
+        m.insert("imageNumber".into(), json!(n));
+        m.insert("rarity".into(), json!("SPECIAL"));
+        m.insert("isToken".into(), json!(true));
+        m.insert("ownerId".into(), json!(format!("P{}", o.owner)));
+        m.insert("controllerId".into(), json!(format!("P{}", o.controller)));
+        // `CardView` capitalizes each rule
+        if let Some(Value::Array(rules)) = m.get_mut("rules") {
+            for x in rules.iter_mut() {
+                if let Some(t) = x.as_str() {
+                    *x = json!(upper_first(t));
+                }
+            }
+        }
+    }
+    Some(v)
 }
 
 /// A player's permanents (`PermanentView`), by reference
@@ -170,7 +405,26 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     m.insert("summoningSickness".into(), json!(o.sick));
     m.insert("damage".into(), json!(o.damage));
     m.insert("attachments".into(), json!([]));
-    if controlled || o.token {
+    if let Some(t) = token_view(game, id) {
+        // `PermanentView`: a token's original is the token as made, without the game's
+        let mut original = t.clone();
+        if let Value::Object(x) = &mut original {
+            x.insert("id".into(), json!("?"));
+            x.insert("gameObject".into(), json!(false));
+            for k in ["originalPower", "originalToughness", "originalColorIdentity", "ownerId", "controllerId"] {
+                x.remove(k);
+            }
+        }
+        m.insert("original".into(), original);
+        if let Value::Object(t) = t {
+            for (k, x) in t {
+                if !matches!(k.as_str(), "id" | "cardId" | "gameObject" | "rules") {
+                    m.insert(k, x);
+                }
+            }
+        }
+        m.insert("mageObjectType".into(), json!("TOKEN"));
+    } else if controlled || o.token {
         m.insert("original".into(), card_view(game, id, r, false));
     }
     m.insert("copy".into(), json!(false));

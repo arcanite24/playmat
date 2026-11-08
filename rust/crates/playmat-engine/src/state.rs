@@ -131,6 +131,8 @@ pub struct Obj {
     pub chosen_type: Option<String>,
     /// the card name chosen as it entered (Petrified Hamlet), while it's on the battlefield
     pub chosen_name: Option<String>,
+    /// the lines a permanent adds to its rules in a view, by key (`Permanent.addInfo`: "Chosen color: Black")
+    pub info: Vec<(String, String)>,
     /// prepared: the copy of its prepare spell in exile
     pub prepared_copy: Option<ObjId>,
     /// a prepared copy: the permanent (and its zone change count) whose copy it is
@@ -234,6 +236,9 @@ pub struct Obj {
     pub blocked_by: Vec<ObjId>,
     /// came under its controller's control since their most recent turn began (summoning sickness)
     pub sick: bool,
+    /// a token made from a token class: the class, the set its image was looked for in, and which image the random
+    /// pick took (`TokenRepository.findPreferredTokenInfo`), for its view
+    pub token_image: Option<(String, String, u32)>,
     /// dealt damage by a source with deathtouch since the last check
     pub deathtouched: bool,
     /// a token: it exists only on the battlefield
@@ -246,6 +251,15 @@ pub struct Obj {
 }
 
 impl Obj {
+    /// Sets a line of its view's rules (`Permanent.addInfo`, with `CardUtil.addToolTipMarkTags`)
+    pub fn add_info(&mut self, key: &str, text: &str) {
+        let line = format!("<font color = 'blue'>{}</font>", text);
+        match self.info.iter_mut().find(|(k, _)| k == key) {
+            Some(x) => x.1 = line,
+            None => self.info.push((key.to_string(), line)),
+        }
+    }
+
     /// Its copiable values: what it's a copy of, or its card before other effects changed it
     pub fn copiable(&self) -> Arc<CardDef> {
         self.copied_def
@@ -534,6 +548,9 @@ pub struct Game {
     pub etchings_left: Vec<(ObjId, Seat, u32)>,
     /// cards exiled until a permanent (and its zone change count) leaves the battlefield
     pub exiled_until_leaves: Vec<(ObjId, u32, ObjId)>,
+    /// the last token class made, as `token_image` picked its image: name, class, set, image; the tokens of it
+    /// that enter take it
+    pub token_made: Option<(String, String, String, u32)>,
     /// earthbent lands (with their zone change counts): when one dies or is exiled, it returns tapped
     pub earthbent: Vec<(ObjId, u32)>,
     /// cards exiled into a permanent's own exile zone (its id and zone change count), that stay there
@@ -608,6 +625,7 @@ impl Game {
             printings: Arc::new(Vec::new()),
             etchings_left: Vec::new(),
             exiled_until_leaves: Vec::new(),
+            token_made: None,
             earthbent: Vec::new(),
             exiled_for_source: Vec::new(),
             returning: Vec::new(),
@@ -678,6 +696,7 @@ impl Game {
             becomes_base: None,
             land_type_base: None,
             chosen_type: None,
+            info: Vec::new(),
             chosen_name: None,
             prepared_copy: None,
             prepared_for: None,
@@ -727,6 +746,7 @@ impl Game {
             blocked: false,
             blocked_by: Vec::new(),
             sick: false,
+            token_image: None,
             deathtouched: false,
             token: false,
             trigger_order: id.0 as u64,
@@ -859,6 +879,47 @@ impl Game {
                 }
                 _ => false,
             })
+    }
+
+    /// The abilities a permanent has that it doesn't print, in the order they apply: its counters' keywords, resolved
+    /// effects' (as they resolved), then static abilities' (by source), each once
+    pub fn granted_abilities(&self, id: ObjId) -> Vec<AbilityDef> {
+        let o = self.obj(id);
+        let mut out: Vec<AbilityDef> = Vec::new();
+        let add = |a: &AbilityDef, out: &mut Vec<AbilityDef>| {
+            if !o.has(a) && !out.contains(a) {
+                out.push(a.clone());
+            }
+        };
+        for (counter, a) in [
+            ("flying", AbilityDef::FlyingAbility),
+            ("deathtouch", AbilityDef::DeathtouchAbility),
+            ("indestructible", AbilityDef::IndestructibleAbility),
+        ] {
+            if o.counter(counter) > 0 {
+                add(&a, &mut out);
+            }
+        }
+        if o.zone != Zone::Battlefield {
+            return out;
+        }
+        for g in self.grants.iter().filter(|g| g.target == id && g.zcc == o.zcc) {
+            add(&g.ability, &mut out);
+        }
+        for src in self.battlefield.iter().chain(self.command.iter()) {
+            let s = self.obj(*src);
+            for a in &s.def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    if let Some(given) = given_ability(e) {
+                        if self.static_gives(e, *src, s.controller, id, given) {
+                            add(given, &mut out);
+                        }
+                    }
+                }
+            }
+        }
+        out
     }
 
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
@@ -1138,6 +1199,8 @@ impl Game {
                 }
                 Value::CardsInHand => self.player(you).hand.len() as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
+                Value::LifeGained => self.player(you).life_gained,
+                Value::ManaExpended => self.player(you).expended as i32,
                 Value::SacrificedThisTurn => self.player(you).sacrificed as i32,
                 Value::OpponentsLostLife => {
                     (0..self.seats()).filter(|p| *p != you && self.player(*p).life_lost > 0).count() as i32
@@ -1780,6 +1843,7 @@ impl Game {
             o.any_mana = false;
             o.cast_only = false;
             o.chosen_name = None;
+            o.info.clear();
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;
@@ -1874,5 +1938,17 @@ impl Game {
             Zone::Command => Arc::make_mut(&mut self.command).push(id),
             Zone::Stack => {}
         }
+    }
+}
+
+/// The ability a continuous effect gives (`GainAbility…Effect`)
+fn given_ability(e: &EffectDef) -> Option<&AbilityDef> {
+    match e {
+        EffectDef::GainAbilityAllEffect { ability, .. }
+        | EffectDef::GainAbilityControlledEffect { ability, .. }
+        | EffectDef::GainAbilitySourceEffect { ability, .. }
+        | EffectDef::GainAbilityAttachedEffect { ability } => Some(ability),
+        EffectDef::ConditionalContinuousEffect { effect, .. } => given_ability(effect),
+        _ => None,
     }
 }

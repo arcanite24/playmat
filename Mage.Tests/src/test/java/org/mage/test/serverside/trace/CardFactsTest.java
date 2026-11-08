@@ -11,6 +11,7 @@ import mage.cards.repository.CardRepository;
 import mage.cards.repository.TokenInfo;
 import mage.cards.repository.TokenRepository;
 import mage.cards.repository.CardScanner;
+import mage.game.Game;
 import mage.game.command.Emblem;
 import mage.game.permanent.token.Token;
 import mage.server.websocket.rpc.JsonCodec;
@@ -22,6 +23,7 @@ import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -65,8 +67,20 @@ public class CardFactsTest {
             if (name.startsWith("token:")) {
                 // a token class from mage.game.permanent.token, by its simple name
                 Class<?> cls = Class.forName("mage.game.permanent.token." + name.substring("token:".length()));
-                cardAbilities = ((Token) cls.getConstructor().newInstance()).getAbilities();
+                Token token = (Token) cls.getConstructor().newInstance();
+                cardAbilities = token.getAbilities();
                 images = images(cls);
+                if (viewsOut != null) {
+                    // its view, and its images in the order `findPreferredTokenInfo` picks from
+                    Map<String, Object> v = new LinkedHashMap<>();
+                    v.put("view", JsonCodec.GSON.toJsonTree(new CardView(token, (Game) null)));
+                    List<List<Object>> list = new ArrayList<>();
+                    for (TokenInfo info : TokenRepository.instance.getByClassName(cls.getName())) {
+                        list.add(Arrays.asList(info.getSetCode(), info.getImageNumber()));
+                    }
+                    v.put("images", list);
+                    views.put(name, v);
+                }
             } else if (name.startsWith("emblem:")) {
                 // an emblem class from mage.game.command.emblems
                 Class<?> cls = Class.forName("mage.game.command.emblems." + name.substring("emblem:".length()));
@@ -125,9 +139,57 @@ public class CardFactsTest {
             a.put("class", ability.getClass().getSimpleName());
             a.put("type", ability.getAbilityType().name());
             a.put("rule", ability.getRule());
+            if (!ability.getRuleVisible()) {
+                a.put("rule_hidden", true);
+            }
+            if (ability.getRuleAtTheTop()) {
+                a.put("rule_at_top", true);
+            }
+            // the hints its card's view adds in a game (`CardUtil.getCardRulesWithAdditionalInfo`), each with the
+            // fields that make it: its class, and for each field the value's class and text
+            if (!ability.getHints().isEmpty()) {
+                List<Map<String, Object>> hints = new ArrayList<>();
+                for (mage.abilities.hint.Hint hint : ability.getHints()) {
+                    hints.add(describe(hint));
+                }
+                a.put("hints", hints);
+            }
             abilities.add(a);
         }
         return abilities;
+    }
+
+    /** an object's class and fields (each field's value: its class, and its text or own fields), for the facts */
+    private static Map<String, Object> describe(Object o) {
+        Map<String, Object> d = new LinkedHashMap<>();
+        d.put("class", o.getClass().getSimpleName());
+        for (Class<?> c = o.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for (java.lang.reflect.Field f : c.getDeclaredFields()) {
+                if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
+                    continue;
+                }
+                try {
+                    f.setAccessible(true);
+                    Object v = f.get(o);
+                    if (v == null) {
+                        continue;
+                    }
+                    if (v instanceof String || v instanceof Number || v instanceof Boolean || v instanceof Enum) {
+                        d.put(f.getName(), String.valueOf(v));
+                    } else if (v instanceof java.awt.Color) {
+                        d.put(f.getName(), "#" + Integer.toHexString(((java.awt.Color) v).getRGB() & 0xffffff));
+                    } else {
+                        Map<String, Object> x = new LinkedHashMap<>();
+                        x.put("class", v.getClass().getName());
+                        x.put("text", String.valueOf(v));
+                        d.put(f.getName(), x);
+                    }
+                } catch (Exception e) {
+                    d.put(f.getName(), "?");
+                }
+            }
+        }
+        return d;
     }
 
     private static Map<String, Integer> images(Class<?> cls) {
