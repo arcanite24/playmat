@@ -109,6 +109,10 @@ pub struct Obj {
     pub kicked: bool,
     /// it entered the battlefield by resolving as a spell
     pub cast: bool,
+    /// `cast` as it last left the battlefield (an ability of it that resolves later looks back)
+    pub cast_lki: bool,
+    /// its toughness as it last left the battlefield (Righteous Valkyrie's trigger on a creature already gone)
+    pub toughness_lki: Option<i32>,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
     /// a static "as long as …, it's a creature" applied: the card as it is without it
@@ -493,6 +497,8 @@ pub struct Game {
     pub returning: Vec<(Seat, ObjId)>,
     /// damage permanents were dealt since triggers were last checked, in order (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
     pub damaged_batch: Vec<(ObjId, i32)>,
+    /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
+    pub batch_pending: Vec<StackItem>,
     /// cards exiled until something leaves that go back to their owner's hand, not the battlefield (Kitesail
     /// Freebooter's)
     pub return_to_hand: Vec<ObjId>,
@@ -547,6 +553,7 @@ impl Game {
             returning: Vec::new(),
             day: None,
             damaged_batch: Vec::new(),
+            batch_pending: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,
             over: false,
@@ -598,6 +605,8 @@ impl Game {
             loyalty_used: false,
             kicked: false,
             cast: false,
+            cast_lki: false,
+            toughness_lki: None,
             until_end_of_turn_def: None,
             becomes_base: None,
             land_type_base: None,
@@ -746,6 +755,36 @@ impl Game {
     }
 
     /// Whether a permanent has an ability: printed, given by a resolved effect, or given by a static ability.
+    /// The ward abilities statics give `id` (Coppercoat Vanguard's "each other Human you control has ward {1}")
+    pub fn granted_wards(&self, id: ObjId) -> Vec<AbilityDef> {
+        let mut out = Vec::new();
+        for src in self.battlefield.iter() {
+            let s = self.obj(*src);
+            for a in &s.def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    if let EffectDef::GainAbilityControlledEffect { ability, .. } = e {
+                        if matches!(**ability, AbilityDef::WardAbility { .. })
+                            && self.static_gives(e, *src, s.controller, id, ability)
+                        {
+                            out.push((**ability).clone());
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    /// Protection: `id` has protection from a color of `source`
+    pub fn protected_from(&self, id: ObjId, source: ObjId) -> bool {
+        self.obj(source)
+            .def
+            .colors
+            .iter()
+            .any(|c| self.has_ability(id, &AbilityDef::ProtectionFromColorAbility { c: *c }))
+    }
+
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
         let o = self.obj(id);
         if o.has(ability) {
@@ -987,7 +1026,11 @@ impl Game {
             // only known on a cast trigger (`condition_with_kicker`)
             Condition::Opus => false,
             Condition::Offspring => self.obj(source).offspring,
-            Condition::CastFromEverywhere => self.obj(source).cast,
+            // `CastFromEverywhereSourceCondition`: the permanent, or as it last was on the battlefield
+            Condition::CastFromEverywhere => {
+                let o = self.obj(source);
+                o.cast || (o.zone != Zone::Battlefield && o.cast_lki)
+            }
             Condition::Raid => self.player(you).attacked,
             Condition::Revolt => self.player(you).permanent_left,
             Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
@@ -1029,6 +1072,7 @@ impl Game {
             Condition::Morbid => self.creature_died,
             Condition::FlierCast => self.player(you).flier_cast,
             Condition::YouGainedLife => self.player(you).life_gained > 0,
+            Condition::LifeGained { cmp, n } => cmp.holds(self.player(you).life_gained, *n),
             Condition::DrewCards { n } => self.player(you).drawn >= *n,
             Condition::ExiledCardTypes { n } => {
                 let zcc = self.obj(source).zcc;
@@ -1086,7 +1130,7 @@ impl Game {
         self.any_static(|g, src, e| g.obj(src).controller == seat && gives(g, e, src, seat, ability))
     }
 
-    fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
+    pub fn static_gives(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId, ability: &AbilityDef) -> bool {
         match e {
             EffectDef::GainAbilityAllEffect { ability: given, filter, exclude_source, .. } => {
                 **given == *ability
@@ -1373,13 +1417,10 @@ impl Game {
                 | Trigger::OpponentCastsOnYourTurnOrDies
                 | Trigger::LeavesBattlefield => src == id,
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
-                // the source itself always counts ("this or another"); others must match
+                // the source counts too unless it says "another", but it must match like the others
+                // (Bishop of Wings, a Human, isn't "an Angel you control")
                 Trigger::DiesAll { filter, include_self } => {
-                    if src == id {
-                        *include_self
-                    } else {
-                        g.filter_matches(filter, you, Some(src), id)
-                    }
+                    (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
                 Trigger::PeltCollector => src != id && died_controller == you,
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
@@ -1482,15 +1523,18 @@ impl Game {
                 }
             }
         }
+        let toughness_lki = (from == Zone::Battlefield).then(|| self.power_toughness(id).1);
         self.remove_from_zone(id);
         {
             let o = self.obj_mut(id);
+            o.toughness_lki = toughness_lki;
             if from == Zone::Stack {
                 if let Some(def) = o.adventurer.take() {
                     o.def = def;
                 }
             }
             if from == Zone::Battlefield {
+                o.cast_lki = o.cast;
                 if let Some(def) = o.front.take() {
                     o.def = def;
                 }

@@ -10801,5 +10801,559 @@
         "rule": "Whenever you draw a card, exile target permanent an opponent controls."
       }
     ]
+  },
+  {
+    "name": "Adarkar Wastes",
+    "set": "DMU",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Adarkar Wastes"
+      },
+      {
+        "class": "ColorlessManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {C}."
+      },
+      {
+        "class": "WhiteManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {W}. {this} deals 1 damage to you."
+      },
+      {
+        "class": "BlueManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {U}. {this} deals 1 damage to you."
+      }
+    ]
+  },
+  {
+    "name": "Bishop of Wings",
+    "set": "M20",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldControlledTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever an Angel you control enters, you gain 4 life."
+      },
+      {
+        "class": "DiesCreatureTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever an Angel you control dies, create a 1/1 white Spirit creature token with flying."
+      }
+    ]
+  },
+  {
+    "name": "Brave the Elements",
+    "set": "M14",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "Choose a color. White creatures you control gain protection from the chosen color until end of turn."
+      }
+    ]
+  },
+  {
+    "name": "Caretaker's Talent",
+    "set": "BLB",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "ClassReminderAbility",
+        "type": "STATIC",
+        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>"
+      },
+      {
+        "class": "EntersBattlefieldOneOrMoreTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever one or more tokens you control enter, draw a card. This ability triggers only once each turn."
+      },
+      {
+        "class": "ClassLevelAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{W}: Level 2"
+      },
+      {
+        "class": "BecomesClassLevelTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When this Class becomes level 2, create a token that's a copy of target token you control."
+      },
+      {
+        "class": "ClassLevelAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{3}{W}: Level 3"
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "creature tokens you control get +2/+2."
+      }
+    ]
+  },
+  {
+    "name": "Castle Ardenvale",
+    "set": "ELD",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Castle Ardenvale"
+      },
+      {
+        "class": "EntersBattlefieldTappedUnlessAbility",
+        "type": "STATIC",
+        "rule": "{this} enters tapped unless you control a Plains."
+      },
+      {
+        "class": "WhiteManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {W}."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{2}{W}{W}, {T}: Create a 1/1 white Human creature token."
+      }
+    ]
+  },
+  {
+    "name": "Coppercoat Vanguard",
+    "set": "MAT",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "each other Human you control gets +1/+0 and has ward {1}. <i>(Whenever it becomes the target of a spell or ability an opponent controls, counter it unless that player pays {1}.)</i>"
+      }
+    ]
+  },
+  {
+    "name": "Curious Obsession",
+    "set": "RIX",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EnchantAbility",
+        "type": "STATIC",
+        "rule": "Enchant creature"
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "enchanted creature gets +1/+1 and has \"Whenever this creature deals combat damage to a player, you may draw a card.\""
+      },
+      {
+        "class": "BeginningOfEndStepTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "At the beginning of your end step, if you didn't attack with a creature this turn, sacrifice {this}."
+      }
+    ]
+  },
+  {
+    "name": "Elven Passage",
+    "set": "HOB",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Elven Passage"
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{T}, Pay 1 life, Sacrifice {this}: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. You may behold an Elf. If you do, untap that land."
+      }
+    ]
+  },
+  {
+    "name": "Hare Apparent",
+    "set": "FDN",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "a deck can have any number of cards named Hare Apparent."
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent."
+      }
+    ]
+  },
+  {
+    "name": "Heroes' Hangout",
+    "set": "SPM",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "choose one &mdash;<br>&bull <i>Date Night</i> &mdash; Exile the top two cards of your library. Choose one of them. Until the end of your next turn, you may play that card.<br>&bull <i>Patrol Night</i> &mdash; One or two target creatures each get +1/+0 and gain first strike until end of turn.<br>"
+      }
+    ]
+  },
+  {
+    "name": "Hinterland Sanctifier",
+    "set": "FDN",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "EntersBattlefieldAllTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever another creature you control enters, you gain 1 life."
+      }
+    ]
+  },
+  {
+    "name": "Hopeful Initiate",
+    "set": "VOW",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "TrainingAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Training <i>(Whenever this creature attacks with another creature with greater power, put a +1/+1 counter on this creature.)</i>"
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{2}{W}, Remove two +1/+1 counters from among creatures you control: Destroy target artifact or enchantment."
+      }
+    ]
+  },
+  {
+    "name": "Ice Out",
+    "set": "WOE",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "this spell costs {1} less to cast if it's bargained. <br>Counter target spell."
+      },
+      {
+        "class": "BargainAbility",
+        "type": "STATIC",
+        "rule": "Bargain <i>(You may sacrifice an artifact, enchantment, or token as you cast this spell.)</i>"
+      }
+    ]
+  },
+  {
+    "name": "Kayla's Reconstruction",
+    "set": "BRO",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "look at the top seven cards of your library. Put up to X artifact and/or creature cards with mana value 3 or less from among them onto the battlefield. Put the rest on the bottom of your library in a random order."
+      }
+    ]
+  },
+  {
+    "name": "Lofty Denial",
+    "set": "M21",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "counter target spell unless its controller pays {1}. If you control a creature with flying, counter that spell unless its controller pays {4} instead."
+      }
+    ]
+  },
+  {
+    "name": "Quick Study",
+    "set": "SOS",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "draw two cards."
+      }
+    ]
+  },
+  {
+    "name": "Resplendent Angel",
+    "set": "LCI",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      },
+      {
+        "class": "BeginningOfEndStepTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "At the beginning of each end step, if you gained 5 or more life this turn, create a 4/4 white Angel creature token with flying and vigilance."
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{3}{W}{W}{W}: Until end of turn, {this} gets +2/+2 and gains lifelink."
+      }
+    ]
+  },
+  {
+    "name": "Righteous Valkyrie",
+    "set": "KHM",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      },
+      {
+        "class": "EntersBattlefieldControlledTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever another Angel or Cleric you control enters, you gain life equal to that creature's toughness."
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "as long as you have at least 7 life more than your starting life total, creatures you control get +2/+2."
+      }
+    ]
+  },
+  {
+    "name": "Seachrome Coast",
+    "set": "ONE",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Seachrome Coast"
+      },
+      {
+        "class": "EntersBattlefieldTappedUnlessAbility",
+        "type": "STATIC",
+        "rule": "{this} enters tapped unless you control two or fewer other lands."
+      },
+      {
+        "class": "WhiteManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {W}."
+      },
+      {
+        "class": "BlueManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {U}."
+      }
+    ]
+  },
+  {
+    "name": "Slickshot Show-Off",
+    "set": "OTJ",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      },
+      {
+        "class": "HasteAbility",
+        "type": "STATIC",
+        "rule": "haste"
+      },
+      {
+        "class": "SpellCastControllerTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "Whenever you cast a noncreature spell, {this} gets +2/+0 until end of turn."
+      },
+      {
+        "class": "PlotAbility",
+        "type": "SPECIAL_ACTION",
+        "rule": "Plot {1}{R}"
+      }
+    ]
+  },
+  {
+    "name": "Thundering Falls",
+    "set": "MKM",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Thundering Falls"
+      },
+      {
+        "class": "BlueManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {U}."
+      },
+      {
+        "class": "RedManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {R}."
+      },
+      {
+        "class": "EntersBattlefieldTappedAbility",
+        "type": "STATIC",
+        "rule": "{this} enters tapped."
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, surveil 1."
+      }
+    ]
+  },
+  {
+    "name": "Tolarian Terror",
+    "set": "FDN",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "this spell costs {1} less to cast for each instant and sorcery card in your graveyard."
+      },
+      {
+        "class": "WardAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "ward {2} <i>(Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)</i>"
+      }
+    ]
+  },
+  {
+    "name": "Unsummon",
+    "set": "FRA",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "return target creature to its owner's hand."
+      }
+    ]
+  },
+  {
+    "name": "Wrenn's Resolve",
+    "set": "MOM",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "exile the top two cards of your library. Until the end of your next turn, you may play those cards."
+      }
+    ]
+  },
+  {
+    "name": "token:RabbitToken",
+    "images": {
+      "BLB": 1,
+      "CLB": 1,
+      "FDN": 1
+    },
+    "abilities": []
+  },
+  {
+    "name": "token:SpiritWhiteToken",
+    "images": {
+      "2X2": 1,
+      "A25": 1,
+      "AVR": 1,
+      "BBD": 1,
+      "BLC": 1,
+      "C14": 1,
+      "C16": 1,
+      "C19": 1,
+      "C20": 1,
+      "CM2": 1,
+      "CMA": 1,
+      "CMM": 1,
+      "CMR": 1,
+      "CN2": 1,
+      "CNS": 1,
+      "DDC": 1,
+      "DDK": 1,
+      "DDQ": 1,
+      "DVD": 1,
+      "E01": 1,
+      "EMA": 1,
+      "FDC": 1,
+      "FDN": 1,
+      "FIC": 1,
+      "FRC": 1,
+      "FRF": 1,
+      "GK2": 1,
+      "IMA": 1,
+      "INR": 1,
+      "ISD": 1,
+      "KHM": 1,
+      "KTK": 1,
+      "LTR": 1,
+      "M15": 1,
+      "M20": 1,
+      "MD1": 1,
+      "MH3": 1,
+      "MID": 1,
+      "MKC": 1,
+      "MM2": 1,
+      "MM3": 1,
+      "MOC": 1,
+      "MPR": 1,
+      "ONC": 1,
+      "RVR": 1,
+      "SCD": 1,
+      "SHM": 1,
+      "SLD": 1,
+      "SOC": 1,
+      "SOI": 1,
+      "TDC": 1,
+      "UMA": 1,
+      "UST": 1,
+      "VOW": 1
+    },
+    "abilities": [
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      }
+    ]
   }
 ]

@@ -347,6 +347,8 @@ pub enum Trigger {
     TransformsOrEnters,
     /// this attacks (`AttacksTriggeredAbility`)
     Attacks,
+    /// training: this attacks with a creature of greater power (`TrainingAbility`)
+    Training,
     /// this dies (`DiesSourceTriggeredAbility`)
     Dies,
     /// dies, if it was a creature (the Enduring cycle's `EnduringGlimmerTriggeredAbility`)
@@ -365,6 +367,9 @@ pub enum Trigger {
         /// it triggers from its owner's graveyard instead of the battlefield (Bloodghast)
         #[serde(default)]
         graveyard: bool,
+        /// "one or more": once for permanents entering together, after their other triggers (`ZONE_CHANGE_BATCH`)
+        #[serde(default)]
+        batch: bool,
     },
     /// a creature of the filter attacks (`AttacksCreatureYouControlTriggeredAbility`); with a target pointer, at it
     AttacksAll {
@@ -423,11 +428,11 @@ pub enum Trigger {
         #[serde(default)]
         only_combat: bool,
     },
-    /// a permanent of the filter dies; with `include_self`, this too, whatever the filter
     /// a permanent of the filter leaves the battlefield; the trigger's X is the +1/+1 counters it had (The Ooze)
     LeavesAll {
         filter: Filter,
     },
+    /// a permanent of the filter dies; with `include_self`, this too when it matches
     DiesAll {
         filter: Filter,
         #[serde(default)]
@@ -546,6 +551,11 @@ pub enum Condition {
     FlierCast,
     /// you gained life this turn
     YouGainedLife,
+    /// `YouGainedLifeCondition`: the life you gained this turn compared with `n`
+    LifeGained {
+        cmp: Cmp,
+        n: i32,
+    },
     /// you drew `n` or more cards this turn
     DrewCards {
         n: u32,
@@ -710,6 +720,14 @@ pub enum CostDef {
     /// remove counters from the source
     RemoveCountersSourceCost {
         counter: CounterDef,
+    },
+    /// `RemoveCounterCost(TargetControlledCreaturePermanent(1, max), …, amount)`: remove `amount` counters of the
+    /// kind from among up to `max` permanents of the filter you control
+    RemoveCountersFromAmongCost {
+        filter: Filter,
+        counter: String,
+        amount: i32,
+        max: usize,
     },
     /// return an unblocked attacker you control to its owner's hand (ninjutsu)
     ReturnAttackerToHandTargetCost,
@@ -1477,6 +1495,14 @@ pub enum EffectDef {
     MagmaticHellkiteEffect,
     /// Floodpits Drowner: shuffle this and the target creature into their owners' libraries
     FloodpitsDrownerEffect,
+    /// "choose a color": the permanents of `filter` gain protection from it until end of turn
+    GainProtectionFromColorAllEffect {
+        filter: Filter,
+    },
+    /// Elven Passage: search for a basic land, shuffle, put it onto the battlefield tapped; may behold an Elf to untap it
+    ElvenPassageEffect,
+    /// the controller gains life equal to the toughness of the permanent whose entering triggered the ability
+    RighteousValkyrieEffect,
     /// `first` damage to the first target, then `second` damage to the second
     DamageTargetAndTargetEffect {
         first: i32,
@@ -1678,6 +1704,9 @@ pub enum EffectDef {
         up_to: bool,
         #[serde(default)]
         optional: bool,
+        /// pick up to the X paid in place of `pick` (Kayla's Reconstruction)
+        #[serde(default)]
+        pick_x: bool,
     },
     /// a static ability's effect: the permanents of `filter` have `ability`
     /// a static ability's effect: the permanent this Aura enchants has the ability
@@ -1909,6 +1938,14 @@ pub enum AbilityDef {
         condition: Option<Condition>,
         rule: String,
     },
+    /// bargain: as it's cast, you may sacrifice an artifact, enchantment, or token (the spell is then kicked);
+    /// `discount`: it costs that much less if bargained (Ice Out)
+    BargainAbility {
+        #[serde(default)]
+        discount: u32,
+        #[serde(default)]
+        rule: String,
+    },
     /// casualty `n`: as it's cast, you may sacrifice a creature with power `n` or greater; when you do, copy the spell
     CasualtyAbility {
         n: i32,
@@ -1930,6 +1967,12 @@ pub enum AbilityDef {
     /// foretell `cost`: during your turn, pay {2} and exile it from your hand face down; cast it on a later turn for
     /// `cost`
     ForetellAbility {
+        cost: String,
+        #[serde(default)]
+        rule: String,
+    },
+    /// plot `cost`: as a sorcery, pay it and exile the card from your hand; cast it free as a sorcery on a later turn
+    PlotAbility {
         cost: String,
         #[serde(default)]
         rule: String,
@@ -2080,6 +2123,10 @@ pub enum AbilityDef {
     MenaceAbility,
     FlashAbility,
     HexproofAbility,
+    /// protection from a color, as an effect grants it (Brave the Elements)
+    ProtectionFromColorAbility {
+        c: Color,
+    },
     IndestructibleAbility,
     /// {T}: Add {W}. The basic land types' mana abilities are these too.
     WhiteManaAbility {
@@ -2537,6 +2584,14 @@ impl CardDef {
                     ..self.clone()
                 })
             }
+            _ => None,
+        })
+    }
+
+    /// Plot: its ability index and plot cost
+    pub fn plot(&self) -> Option<(usize, ManaCost)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::PlotAbility { cost, .. } => Some((k, ManaCost::parse(cost).ok()?)),
             _ => None,
         })
     }
