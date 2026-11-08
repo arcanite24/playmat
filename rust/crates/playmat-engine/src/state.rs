@@ -366,6 +366,17 @@ pub enum Target {
     Obj(ObjId),
 }
 
+/// Cards revealed while an object resolves (`GameState.revealed`, cleared at priority): its source, the source's zone
+/// change count, whether the title has it in parentheses (`DiscardCardYouChooseTargetEffect`) and the cards with the
+/// zones they were revealed from
+#[derive(Clone, Debug)]
+pub struct Revealed {
+    pub source: ObjId,
+    pub zcc: u32,
+    pub paren: bool,
+    pub cards: Vec<(ObjId, Zone)>,
+}
+
 /// A combat group as views show it (`Combat.groups`): an attacker, in the order they attacked, and once it's left the
 /// battlefield what its group was then (Java keeps the group: its defender, blocked, and blockers)
 #[derive(Clone, Debug)]
@@ -519,6 +530,8 @@ pub struct Game {
     pub mana_paid: Option<usize>,
     /// this combat's groups, for views
     pub combat_groups: Vec<CombatGroup>,
+    /// cards revealed while the object resolving resolves, for views
+    pub revealed: Vec<Revealed>,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
     pub step_start: bool,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
@@ -630,6 +643,7 @@ impl Game {
             unpaid: None,
             mana_paid: None,
             combat_groups: Vec::new(),
+            revealed: Vec::new(),
             step_start: false,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),

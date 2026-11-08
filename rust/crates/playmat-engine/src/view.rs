@@ -53,7 +53,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "stack": stack_view(game, names),
         "exiles": exiles_view(game),
         "combat": combat_view(game, names),
-        "revealed": [],
+        "revealed": revealed_view(game),
         "lookedAt": [],
         "companion": [],
     });
@@ -192,6 +192,45 @@ fn phase_of(step: Step) -> &'static str {
     }
 }
 
+/// `GameView.revealed` (`RevealedView`): each reveal titled by its source's id name and zone change count
+/// (`CardUtil.createObjectRelatedWindowTitle`), its cards with the zones they were revealed from
+fn revealed_view(game: &Game) -> Vec<Value> {
+    let stack = view_stack(game);
+    game.revealed
+        .iter()
+        .map(|r| {
+            let at =
+                stack.iter().rev().position(|(i, _)| i.card == r.source && i.ability.is_none() && i.delayed.is_none());
+            let source = match at {
+                Some(i) => format!("S{}", i),
+                None => reference(game, r.source),
+            };
+            // (Java's count is one more: a card starts at 1 in its library)
+            let zcc = if r.paren { format!("({})", r.zcc + 1) } else { format!("[{}]", r.zcc + 1) };
+            let mut cards = Map::new();
+            for (c, zone) in &r.cards {
+                let rf = reference(game, *c);
+                let mut v = card_view(game, *c, &rf, true);
+                v["zone"] = json!(zone_name(*zone));
+                cards.insert(rf, v);
+            }
+            json!({"name": format!("{} [{}] {}", game.obj(r.source).def.name, source, zcc), "cards": cards})
+        })
+        .collect()
+}
+
+fn zone_name(z: Zone) -> &'static str {
+    match z {
+        Zone::Hand => "HAND",
+        Zone::Library => "LIBRARY",
+        Zone::Graveyard => "GRAVEYARD",
+        Zone::Battlefield => "BATTLEFIELD",
+        Zone::Stack => "STACK",
+        Zone::Exile => "EXILED",
+        Zone::Command => "COMMAND",
+    }
+}
+
 /// `PlayerView`: seat `p` as `viewer` sees it
 fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
     let pl = game.player(p);
@@ -259,8 +298,8 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
     // and its card (`PermanentView.original`): a double-faced card's face on its own
     let permanent = || {
         let kind = if game_object { "permanent" } else { "face" };
-        // (a transformed permanent's card is its front face)
-        let front = o.front.as_ref().filter(|f| f.transform_back.is_some() && !game_object);
+        // (a permanent transformed in place has its front face for its card; one that entered transformed its back)
+        let front = o.front.as_ref().filter(|f| f.transform_back.is_some() && !game_object && o.transformed_in_place);
         let name = front.map_or(&o.def.name, |f| &f.name);
         (o.zone == Zone::Battlefield).then(|| templates().get(&format!("{}:{}", kind, name)).cloned()).flatten()
     };

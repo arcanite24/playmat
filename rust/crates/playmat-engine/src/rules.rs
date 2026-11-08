@@ -4177,7 +4177,9 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     game.resolving = game.stack.last().map(|i| (game.stack.len() - 1, i.card));
     game.resolving_item = game.stack.last().cloned();
     game.resolving_controller = game.stack.last().filter(|i| i.ability.is_none()).map(|i| (i.card, i.controller));
+    game.revealed.clear();
     resolve_popped(game, d);
+    game.revealed.clear();
     game.resolving = None;
     game.resolving_item = None;
     game.resolving_controller = None;
@@ -6947,6 +6949,20 @@ fn apply_each_effect(
                         chosen = c;
                     }
                 }
+                // picked cards going to a hidden zone are revealed
+                if !chosen.is_empty()
+                    && matches!(
+                        picked,
+                        crate::card::PutCards::Hand
+                            | crate::card::PutCards::TopAny
+                            | crate::card::PutCards::BottomAny
+                            | crate::card::PutCards::BottomRandom
+                    )
+                {
+                    let zcc = game.obj(source.0).zcc;
+                    let cards = chosen.iter().map(|c| (*c, Zone::Library)).collect();
+                    game.revealed.push(crate::state::Revealed { source: source.0, zcc, paren: false, cards });
+                }
                 let rest: Vec<ObjId> = cards.iter().copied().filter(|c| !chosen.contains(c)).collect();
                 if !put_cards(game, d, controller, &chosen, *picked) || !put_cards(game, d, controller, &rest, *looked)
                 {
@@ -7830,6 +7846,11 @@ fn apply_each_effect(
                         .copied()
                         .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
                         .collect();
+                    if !hand.is_empty() {
+                        let zcc = game.obj(source.0).zcc;
+                        let cards = hand.iter().map(|c| (*c, Zone::Hand)).collect();
+                        game.revealed.push(crate::state::Revealed { source: source.0, zcc, paren: true, cards });
+                    }
                     if !possible.is_empty() {
                         // the spell's text: your own card to discard isn't chosen by itself
                         let rule = item_rule(game, item);
