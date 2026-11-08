@@ -22,6 +22,8 @@ import { RichText } from '../i18n/RichText';
 import { Button } from '../ui/Button';
 import { CARD_BACKS, cardBackImage, type CardBackId } from '../ui/cardBack';
 import { Dialog } from '../ui/Dialog';
+import { TokenArtPicker } from '../ui/TokenArtPicker';
+import { useTokenArt } from '../stores/tokenArt';
 import { useServerInfo } from '../queries';
 import { AccountSettings } from './AccountSettings';
 import { useSupportPerks } from '../support/supportData';
@@ -47,6 +49,8 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const t = useT();
   // the Account tab: servers with accounts only
   const accounts = useServerInfo().data?.accounts === true;
+  const tokenChoices = useTokenArt((state) => state.choices);
+  const chooseToken = useTokenArt((state) => state.choose);
   const career = useServerInfo().data?.career === true;
   // progression shows or hides per account, on every device (B283, B312)
   const careerState = useQuery<CareerState>({ queryKey: ['career', 'state'], queryFn: () => api.careerState(), enabled: career && accounts });
@@ -90,6 +94,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           <Tabs.Trigger value="answers" className={styles.trigger}>{t('settings.tab.answers')}</Tabs.Trigger>
           <Tabs.Trigger value="display" className={styles.trigger}>{t('settings.tab.display')}</Tabs.Trigger>
           <Tabs.Trigger value="playmat" className={styles.trigger}>{t('settings.tab.playmat')}</Tabs.Trigger>
+          <Tabs.Trigger value="tokens" className={styles.trigger}>{t('settings.tab.tokens')}</Tabs.Trigger>
           <Tabs.Trigger value="sound" className={styles.trigger}>{t('settings.tab.sound')}</Tabs.Trigger>
           <Tabs.Trigger value="alerts" className={styles.trigger}>{t('settings.tab.alerts')}</Tabs.Trigger>
           <Tabs.Trigger value="import" className={styles.trigger}>{t('settings.tab.import')}</Tabs.Trigger>
@@ -177,6 +182,19 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
         <Tabs.Content value="display" className={styles.panel}>
           <Row label={t('settings.hideStarterDecks')} detail={t('settings.hideStarterDecks.detail')}>{toggle('hideStarterDecks')}</Row>
           <Row label={t('settings.motion')} detail={t('settings.motion.detail')}>{toggle('animations')}</Row>
+          <Row label={t('settings.cardEffects')} detail={t('settings.cardEffects.detail')}>
+            <select
+              className={styles.select}
+              value={settings.animations ? settings.cardEffects : 'off'}
+              disabled={!settings.animations}
+              aria-label={t('settings.cardEffects')}
+              onChange={(event) => update({ cardEffects: event.target.value as PlaySettings['cardEffects'] })}
+            >
+              <option value="signature">{t('settings.cardEffects.signature')}</option>
+              <option value="simple">{t('settings.cardEffects.simple')}</option>
+              <option value="off">{t('settings.cardEffects.off')}</option>
+            </select>
+          </Row>
           <Row label={t('settings.sortHand')} detail={t('settings.sortHand.detail')}>{toggle('sortHand')}</Row>
           <Row label={t('settings.bigZoom')} detail={t('settings.bigZoom.detail')}>{toggle('bigZoom')}</Row>
           <Row label={t('settings.autoDismissReveals')} detail={t('settings.autoDismissReveals.detail')}>{toggle('autoDismissReveals')}</Row>
@@ -201,6 +219,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
         <Tabs.Content value="playmat" className={styles.panel}>
           <PlaymatSettings />
+        </Tabs.Content>
+
+        <Tabs.Content value="tokens" className={styles.panel}>
+          <p className={styles.intro}>{t('settings.tokens.intro')}{accounts ? '' : ` ${t('settings.tokens.local')}`}</p>
+          <TokenArtPicker choices={tokenChoices} onChoose={chooseToken} />
         </Tabs.Content>
 
         <Tabs.Content value="alerts" className={styles.panel}>

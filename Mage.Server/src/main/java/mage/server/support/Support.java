@@ -610,10 +610,41 @@ public final class Support {
             }
             look.badges = badges.isEmpty() ? null : badges;
         }
+        look.tokens = tokenChoices(wanted.tokens);
+        look.deckTokens = tokenChoices(wanted.deckTokens);
         // card styles are worn from the capsule shop, not sent with the look: the server says which (M30)
         java.util.Map<String, String> styles = accounts.careerCardStyles(account);
         look.cardStyles = styles.isEmpty() ? null : new java.util.TreeMap<>(styles);
         return look;
+    }
+
+    /** the most token pictures a look keeps, per map */
+    static final int MAX_TOKEN_CHOICES = 120;
+    /** a token picture: the token lists' "SET/Name" or "SET/Name/number" (Mage.Web.Client imageLinks.ts) */
+    private static final java.util.regex.Pattern TOKEN_PICTURE = java.util.regex.Pattern.compile("[A-Za-z0-9_]{1,12}/([^/\\p{Cntrl}]{1,60})(/[0-9]{1,3})?");
+
+    /**
+     * Token pictures chosen for a look (#226): free for everyone, but only well-formed ones, each under its own token's
+     * name, and not too many.
+     */
+    static java.util.Map<String, String> tokenChoices(java.util.Map<String, String> wanted) {
+        if (wanted == null || wanted.isEmpty()) {
+            return null;
+        }
+        java.util.Map<String, String> kept = new java.util.TreeMap<>();
+        for (java.util.Map.Entry<String, String> entry : wanted.entrySet()) {
+            String name = entry.getKey() == null ? "" : entry.getKey().trim();
+            String picture = entry.getValue() == null ? "" : entry.getValue().trim();
+            java.util.regex.Matcher matcher = TOKEN_PICTURE.matcher(picture);
+            if (name.isEmpty() || !matcher.matches() || !matcher.group(1).equals(name)) {
+                continue;
+            }
+            kept.put(name, picture);
+            if (kept.size() >= MAX_TOKEN_CHOICES) {
+                break;
+            }
+        }
+        return kept.isEmpty() ? null : kept;
     }
 
     private static String owned(Set<String> owned, String kind, String item) {

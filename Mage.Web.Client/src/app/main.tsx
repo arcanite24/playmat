@@ -91,6 +91,8 @@ const router = createBrowserRouter([
   // the month's server costs and supporting them, readable before signing in
   { path: '/support', lazy: () => import('./support/SupportScreen').then((m) => ({ Component: m.SupportScreen })) },
   { path: '/admin', lazy: () => import('./admin/AdminScreen').then((m) => ({ Component: m.AdminScreen })) },
+  // dev builds only: every signature effect on a mock table (#226)
+  ...(import.meta.env.DEV ? [{ path: '/dev/vfx', lazy: () => import('./dev/VfxGallery').then((m) => ({ Component: m.VfxGallery })) }] : []),
   {
     element: <SignedIn />,
     errorElement: <RouteError />,

@@ -6,6 +6,7 @@ import { readJson, writeJson } from '../stores/persist';
 import { usePlay } from '../stores/play';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
+import { useTokenArt } from '../stores/tokenArt';
 import { rememberLook, SUPPORT_PERKS, useWear, wearOf } from './supportData';
 import { lookOf, sameLook } from './supportModel';
 import { loadCatalog } from '../ui/cosmeticsCatalog';
@@ -42,8 +43,13 @@ function currentLook(account: string): PlayerLook {
     career,
     perks,
     wear: wearOf(useWear.getState().wear, account),
+    tokens: useTokenArt.getState().choices,
+    deckTokens: deck?.tokenArt,
   });
 }
+
+/** The account whose token choices were read back from the server this visit. */
+let tokensFetched: string | null = null;
 
 async function push(): Promise<void> {
   timer = null;
@@ -61,12 +67,19 @@ async function push(): Promise<void> {
   if (careerOn) await loadCatalog(() => api.careerCosmetics());
   // the thank-you set first, so the look can wear it
   await queryClient.fetchQuery({ queryKey: [...SUPPORT_PERKS, account], queryFn: () => api.supportPerks(), staleTime: 5 * 60_000 }).catch(() => null);
+  // a new browser takes the account's token choices from the server first (unless it changed some itself)
+  if (tokensFetched !== account) {
+    const [mine] = await api.profileLooks([session.userName]).catch(() => []);
+    tokensFetched = account;
+    useTokenArt.getState().adopt(mine?.tokens);
+  }
   const look = currentLook(account);
   if (sent?.account === account && sameLook(sent.look, look)) return;
   try {
     const kept = await api.profileSetLook(look);
     sent = { account, look };
     rememberLook(kept);
+    useTokenArt.getState().saved(kept.tokens ?? {});
   } catch {
     // an older server, or offline: tried again on the next change
   }
@@ -83,7 +96,11 @@ useSession.subscribe((state, previous) => {
   if (state.phase === 'signedIn' && (previous.phase !== 'signedIn' || state.userName !== previous.userName)) syncLook();
 });
 useDecks.subscribe((state, previous) => {
-  if (state.selectedId !== previous.selectedId || state.sleeves !== previous.sleeves) syncLook();
+  // a deck's token art changing arrives with the saved decks
+  if (state.selectedId !== previous.selectedId || state.sleeves !== previous.sleeves || state.saved !== previous.saved) syncLook();
+});
+useTokenArt.subscribe((state, previous) => {
+  if (state.choices !== previous.choices) syncLook();
 });
 useSettings.subscribe((state, previous) => {
   if (state.settings.matCloth !== previous.settings.matCloth) syncLook();

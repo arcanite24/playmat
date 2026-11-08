@@ -62,6 +62,9 @@ export interface PlaySettings {
   combatStops: TurnCombatStops;
   /** card motion: placed, flown between zones */
   animations: boolean;
+  /** spells resolving: signature effects for the cards people play most (cardVfx.ts), only the plain effects, or none
+   * (damage numbers stay; local only) */
+  cardEffects: 'signature' | 'simple' | 'off';
   /** opponents may ask to see your hand */
   allowHandRequests: boolean;
   /** pass priority for the player when they have nothing to cast, play or activate (local only) */
@@ -156,6 +159,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   muteEmotes: false,
   autoTargetLevel: 1,
   animations: true,
+  cardEffects: 'signature',
   allowHandRequests: true,
   autoPass: true,
   autoSkipCombat: true,

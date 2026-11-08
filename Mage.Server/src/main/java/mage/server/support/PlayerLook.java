@@ -36,6 +36,13 @@ public class PlayerLook {
     public java.util.List<String> badges;
     /** the full-art card styles the player wears, card name to style (M30); filled by the server from the capsule shop */
     public java.util.Map<String, String> cardStyles;
+    /**
+     * the token pictures the player chose (#226): a token's name (Goblin, Treasure) to its picture in the web client's
+     * token lists, "SET/Name" or "SET/Name/number". Free for everyone; shown to the whole table.
+     */
+    public java.util.Map<String, String> tokens;
+    /** the deck being played's own token pictures, over {@link #tokens} */
+    public java.util.Map<String, String> deckTokens;
     /** the account's progression level (B279); null on servers without Career or before its first counted game */
     public Integer level;
 
@@ -45,6 +52,7 @@ public class PlayerLook {
     boolean isEmpty() {
         return sleeve == null && cloth == null && avatar == null && frame == null && title == null && flair == null && pet == null
                 && arrow == null && spark == null && stamp == null && lands == null && (badges == null || badges.isEmpty())
-                && (cardStyles == null || cardStyles.isEmpty());
+                && (cardStyles == null || cardStyles.isEmpty()) && (tokens == null || tokens.isEmpty())
+                && (deckTokens == null || deckTokens.isEmpty());
     }
 }

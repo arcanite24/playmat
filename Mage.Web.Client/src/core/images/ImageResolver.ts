@@ -1,6 +1,7 @@
 import {
   exceptionLink,
   isTokenImage,
+  XMAGE_TOKENS_SET_CODE,
   namedImageLink,
   printingKey,
   setCodeOf,
@@ -194,6 +195,25 @@ export class ImageResolver {
 
     this.request(key, setCodeOf(card), normalizeCollectorNumber(card.cardNumber));
     return null;
+  }
+
+  /**
+   * The token lists' pictures (token art choices, #226): with a name, that token's pictures as the lists key them
+   * ("SET/Name" or "SET/Name/number"); without, every token name. Null until the lists have loaded (subscribeKey(null)
+   * hears when they do). XMage's own pictures (face down, copy...) are left out.
+   */
+  /** Whether the exported link lists have loaded (asks for them when not). */
+  linksLoaded(): boolean {
+    this.ensureLinks();
+    return this.links !== null;
+  }
+
+  tokenPictures(name?: string): string[] | null {
+    this.ensureLinks();
+    if (!this.links) return null;
+    const keys = Object.keys(this.links.tokens).filter((key) => !key.toUpperCase().startsWith(`${XMAGE_TOKENS_SET_CODE}/`));
+    if (name === undefined) return [...new Set(keys.map((key) => key.split('/')[1]))].sort((a, b) => a.localeCompare(b));
+    return keys.filter((key) => key.split('/')[1] === name).sort();
   }
 
   /** Look up many cards ahead of time (deck lists, a new board). */

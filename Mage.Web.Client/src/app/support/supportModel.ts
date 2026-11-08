@@ -91,13 +91,16 @@ export interface LookInputs {
   career?: { frame?: string | null; pet?: string | null; arrow?: string | null; spark?: string | null; stamp?: string | null; lands?: string | null; badges?: string[] };
   perks?: readonly SupportPerk[];
   wear?: Wear;
+  /** token pictures (ui/tokenArt.ts): the account's, and the deck being played's own */
+  tokens?: Record<string, string>;
+  deckTokens?: Record<string, string>;
 }
 
 /**
  * The look sent to the server. It drops what the account doesn't own anyway; this only leaves out the thank-you
  * pieces the player chose not to wear, so the server can keep the rest.
  */
-export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks, wear = DEFAULT_WEAR }: LookInputs): PlayerLook {
+export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks, wear = DEFAULT_WEAR, tokens, deckTokens }: LookInputs): PlayerLook {
   const look: PlayerLook = {};
   const sleeveId = sleeveIdOf(sleeve);
   if (sleeveId) look.sleeve = sleeveId;
@@ -117,7 +120,14 @@ export function lookOf({ sleeve, cloth, careerAvatar, careerTitle, career, perks
   if (career?.badges?.length) look.badges = career.badges.slice(0, 3);
   const title = wear.title && owns(perks, 'title', THANK_YOU.title) ? THANK_YOU.title : careerTitle;
   if (title) look.title = title;
+  if (tokens && Object.keys(tokens).length > 0) look.tokens = tokens;
+  if (deckTokens && Object.keys(deckTokens).length > 0) look.deckTokens = deckTokens;
   return look;
+}
+
+function sameMap(a: Record<string, string> | undefined, b: Record<string, string> | undefined): boolean {
+  const left = Object.entries(a ?? {});
+  return left.length === Object.keys(b ?? {}).length && left.every(([key, value]) => b?.[key] === value);
 }
 
 /** Whether two looks are the same, so an unchanged look isn't sent again. */
@@ -126,7 +136,8 @@ export function sameLook(a: PlayerLook | null | undefined, b: PlayerLook | null 
   return !!a && !!b && keys.every((key) => (a[key] ?? null) === (b[key] ?? null))
     && (a.badges ?? []).join() === (b.badges ?? []).join()
     && Object.keys(a.cardStyles ?? {}).length === Object.keys(b.cardStyles ?? {}).length
-    && Object.entries(a.cardStyles ?? {}).every(([card, style]) => b.cardStyles?.[card] === style);
+    && Object.entries(a.cardStyles ?? {}).every(([card, style]) => b.cardStyles?.[card] === style)
+    && sameMap(a.tokens, b.tokens) && sameMap(a.deckTokens, b.deckTokens);
 }
 
 /** The sleeve a player equipped, or the seat's default when none is known. */
