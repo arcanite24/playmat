@@ -117,7 +117,20 @@ public class GithubSignInTest {
         assertThat(ask.userName).isNull();
         assertThat(ask.suggestedName).isEqualTo("octo_cat_with_");
 
-        GithubSignIn.GithubSignInResult named = signIn(open).finish(true, state, null, "octo", now);
+        assertThat(ask.resume).isNotBlank();
+        assertThatThrownBy(() -> signIn(open).finish(true, state, null, "octo", now))
+                .as("the state from the callback URL can't name the account on its own").hasMessageContaining("expired");
+        assertThat(accounts.getByName("octo")).isNull();
+    }
+
+    @Test
+    void theNamingRetryNeedsTheResumeSecret() throws Exception {
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        accounts.add("octo_cat_with_", "secret1", "someone@example.test");
+        String state = state();
+
+        GithubSignIn.GithubSignInResult ask = signIn(open).finish(true, state, "good", null, now);
+        GithubSignIn.GithubSignInResult named = signIn(open).finish(true, state, ask.resume, "octo", now);
         assertThat(named.userName).isEqualTo("octo");
         assertThat(requests.stream().filter(r -> r.endsWith("/access_token"))).as("the code is used once").hasSize(1);
     }
@@ -126,11 +139,33 @@ public class GithubSignInTest {
     void verifiedEmailSignsInToTheExistingAccount() throws Exception {
         AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
         accounts.add("octavia", "secret1", "octo@example.test");
+        store.emailVerified("octavia", "octo@example.test", now); // the account confirmed the address itself
 
         GithubSignIn.GithubSignInResult result = signIn(open).finish(true, state(), "good", null, now);
 
         assertThat(result.userName).isEqualTo("octavia");
         assertThat(store.githubLink(42).account).isEqualTo("octavia");
+    }
+
+    @Test
+    void anAccountThatNeverConfirmedTheEmailIsNotTakenOver() throws Exception {
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        accounts.add("squatter", "secret1", "octo@example.test"); // registered with someone else's address
+
+        assertThatThrownBy(() -> signIn(open).finish(true, state(), "good", null, now))
+                .hasMessage(GithubSignIn.UNCONFIRMED_EMAIL);
+        assertThat(store.githubLink(42)).as("nothing is linked").isNull();
+        assertThat(store.accountEmail("squatter")).as("nor vouched").isNull();
+    }
+
+    @Test
+    void aRefusedLinkedSignInWritesNothing() throws Exception {
+        AccessPolicy closed = AccessPolicy.create(store, "", "allowlist", "", now);
+        accounts.add("octavia", "secret1", "octo@example.test");
+        store.emailVerified("octavia", "octo@example.test", now);
+
+        assertThatThrownBy(() -> signIn(closed).finish(true, state(), "good", null, now)).hasMessage(AccessPolicy.REFUSED);
+        assertThat(store.githubLink(42)).isNull();
     }
 
     @Test

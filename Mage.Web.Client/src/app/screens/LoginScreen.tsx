@@ -164,9 +164,17 @@ export function LoginScreen() {
 
   // back from GitHub: sign in to the account it names, or pick a name for a new one first
   const githubDone = useRef(false);
+  // the naming retry sends the server's resume secret, never the code from the URL again
+  const githubResume = useRef<string | null>(null);
   useEffect(() => {
     if (!github || status !== 'online' || githubDone.current) return;
     githubDone.current = true;
+    // only finish a sign-in this tab started: a callback link someone else sent would sign in to their account
+    if (takeSignInState() !== github.state) {
+      useSession.setState({ error: t('login.otherTab') });
+      setMode('sit');
+      return;
+    }
     void finishGithub(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the server answers
   }, [status]);
@@ -175,11 +183,12 @@ export function LoginScreen() {
     if (!github) return;
     setWorking(true);
     try {
-      const result = await api.githubFinish(github.state, github.code, chosen);
+      const result = await api.githubFinish(github.state, chosen && githubResume.current ? githubResume.current : github.code, chosen);
       if (result.userName && result.rememberToken) {
         if (await session.signInWithToken(serverUrl.trim(), result.userName, result.rememberToken)) seated();
         return;
       }
+      githubResume.current = result.resume ?? null;
       setMode('githubName');
       if (result.suggestedName && !chosen) setUserName(result.suggestedName);
       useSession.setState({ error: result.nameProblem ?? (chosen ? null : t('login.github.nameTaken')) });
@@ -194,7 +203,9 @@ export function LoginScreen() {
   async function startGithub() {
     setWorking(true);
     try {
-      window.location.assign(await api.githubStart());
+      const url = await api.githubStart();
+      keepSignInState(url);
+      window.location.assign(url);
     } catch (error) {
       useSession.setState({ error: error instanceof Error ? error.message : String(error) });
       setWorking(false);
@@ -209,8 +220,8 @@ export function LoginScreen() {
     if (!oidc || status !== 'online' || oidcDone.current) return;
     oidcDone.current = true;
     // only finish a sign-in this tab started: a callback link someone else sent would sign in to their account
-    if (takeOidcState() !== oidc.state) {
-      useSession.setState({ error: t('login.oidc.otherBrowser') });
+    if (takeSignInState() !== oidc.state) {
+      useSession.setState({ error: t('login.otherTab') });
       setMode('sit');
       return;
     }
@@ -244,7 +255,7 @@ export function LoginScreen() {
     setWorking(true);
     try {
       const url = await api.oidcStart();
-      keepOidcState(url);
+      keepSignInState(url);
       window.location.assign(url);
     } catch (error) {
       useSession.setState({ error: error instanceof Error ? error.message : String(error) });
@@ -697,23 +708,23 @@ function useRotatingArt() {
   return covers.length ? covers[index % covers.length] : null;
 }
 
-const OIDC_STATE_KEY = 'playmat.oidcState';
+const SIGN_IN_STATE_KEY = 'playmat.signInState';
 
 /** Remembers, for this tab only, the state of the sign-in it is about to start. */
-function keepOidcState(url: string) {
+function keepSignInState(url: string) {
   try {
     const state = new URL(url).searchParams.get('state');
-    if (state) sessionStorage.setItem(OIDC_STATE_KEY, state);
+    if (state) sessionStorage.setItem(SIGN_IN_STATE_KEY, state);
   } catch {
     // no storage: the callback is refused and the player starts again
   }
 }
 
 /** The state this tab started, read once. */
-function takeOidcState(): string | null {
+function takeSignInState(): string | null {
   try {
-    const state = sessionStorage.getItem(OIDC_STATE_KEY);
-    sessionStorage.removeItem(OIDC_STATE_KEY);
+    const state = sessionStorage.getItem(SIGN_IN_STATE_KEY);
+    sessionStorage.removeItem(SIGN_IN_STATE_KEY);
     return state;
   } catch {
     return null;

@@ -1506,6 +1506,7 @@ export interface GhostOpponent {
 export interface GithubSignInResult {
     nameProblem?: string;
     rememberToken?: string;
+    resume?: string;
     suggestedName?: string;
     userName?: string;
 }

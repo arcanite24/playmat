@@ -115,7 +115,7 @@ const es: Catalog = {
   'login.submit.oidc': 'Crear la cuenta',
   'login.oidc': 'Iniciar sesión con {name}',
   'login.oidc.nameTaken': 'Ese nombre ya está en uso aquí, o es muy largo. Elige el nombre con el que juegas.',
-  'login.oidc.otherBrowser': 'Ese inicio de sesión empezó en otro lugar. Vuelve a empezarlo aquí.',
+  'login.otherTab': 'Ese inicio de sesión empezó en otro lugar. Vuelve a empezarlo aquí.',
   'login.oidcOnly': 'Este servidor inicia sesión solo con {name}.',
   'login.title.ask': 'Pedir acceso',
   'login.submit.ask': 'Enviar la solicitud',

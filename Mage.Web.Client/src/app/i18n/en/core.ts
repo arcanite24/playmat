@@ -97,7 +97,7 @@ export default {
   'login.submit.oidc': 'Create the account',
   'login.oidc': 'Sign in with {name}',
   'login.oidc.nameTaken': 'That name is taken here, or too long. Choose the name you play under.',
-  'login.oidc.otherBrowser': 'That sign-in started somewhere else. Start it again here.',
+  'login.otherTab': 'That sign-in started somewhere else. Start it again here.',
   'login.oidcOnly': 'This server signs in with {name} only.',
   'login.title.ask': 'Ask for access',
   'login.submit.ask': 'Send the request',
