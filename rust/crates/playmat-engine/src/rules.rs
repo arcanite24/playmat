@@ -1888,7 +1888,9 @@ fn cast_allowed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> 
 }
 
 fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
+    let outer = game.unpaid.replace(game.stack.len());
     let cast = cast_paying(game, d, seat, id, free);
+    game.unpaid = outer;
     // `processAction` once it's cast
     game.short_lki.clear();
     cast
@@ -2768,6 +2770,13 @@ fn ward(game: &mut Game) {
 /// `PlayerImpl.playAbility`: the ability goes on the stack, then its targets, then mana, then other costs.
 /// False: cancelled.
 fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: usize) -> bool {
+    let outer = game.unpaid.replace(game.stack.len());
+    let done = activate_paying(game, d, seat, id, index);
+    game.unpaid = outer;
+    done
+}
+
+fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: usize) -> bool {
     let def = game.obj(id).def.clone();
     let Some((rule, _, targets, costs, _)) = def.abilities[index].activated() else { return false };
     let zcc = game.obj(id).zcc;

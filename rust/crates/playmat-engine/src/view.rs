@@ -40,7 +40,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "myHelperEmblems": helper_emblems(game),
         "opponentHands": {},
         "watchedHands": {},
-        "stack": {},
+        "stack": stack_view(game),
         "exiles": [cards_view(game, &crate::replay::exile_order(game))],
         "combat": [],
         "revealed": [],
@@ -158,9 +158,41 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
         }
         if game_object && o.zone == Zone::Battlefield {
             characteristics(game, id, m);
+            permanent_state(game, id, m);
         }
     }
     v
+}
+
+/// What a card's view of a permanent shows of its state (`CardView(permanent)`): its power and toughness, its
+/// counters, loyalty and defense
+fn permanent_state(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
+    let o = game.obj(id);
+    if game.obj(id).zone == Zone::Battlefield
+        && (o.def.types.contains(&CardType::Creature) || game.has_type(id, CardType::Creature))
+    {
+        let (power, toughness) = game.power_toughness(id);
+        let (base_power, base_toughness) = game.base_power_toughness(id);
+        m.insert("power".into(), json!(power.to_string()));
+        m.insert("toughness".into(), json!(toughness.to_string()));
+        for (k, n, base) in [("originalPower", power, base_power), ("originalToughness", toughness, base_toughness)] {
+            if let Some(Value::Object(x)) = m.get_mut(k) {
+                x.insert("boostedValue".into(), json!(n));
+                x.insert("modifiedBaseValue".into(), json!(base));
+                x.insert("cardValue".into(), json!(base.to_string()));
+            }
+        }
+    }
+    // `CardView`: with counters, they're listed, and its loyalty and defense are counted
+    let counters: Vec<&(String, i32)> = o.counters.iter().filter(|(_, n)| *n > 0).collect();
+    if !counters.is_empty() {
+        m.insert("loyalty".into(), json!(o.counter("loyalty").to_string()));
+        m.insert("defense".into(), json!(o.counter("defense").to_string()));
+        m.insert(
+            "counters".into(),
+            json!(counters.iter().map(|(n, c)| json!({"name": n, "count": c})).collect::<Vec<_>>()),
+        );
+    }
 }
 
 /// A permanent's characteristics as effects left them: its colors, card types and subtypes (once its definition
@@ -491,6 +523,96 @@ fn day_night_hint(game: &Game) -> String {
     }
 }
 
+/// The stack (`GameView`'s `stack`), by reference from the top: spells as their cards (`SpellView`), abilities as
+/// `StackAbilityView`s with their source's view
+fn stack_view(game: &Game) -> Value {
+    let mut out = Map::new();
+    for (i, item) in game.stack.iter().rev().enumerate() {
+        let r = format!("S{}", i);
+        let targets: Vec<Value> = item
+            .targets
+            .iter()
+            .flatten()
+            .map(|t| match t {
+                crate::state::Target::Player(p) => json!(format!("P{}", p)),
+                crate::state::Target::Obj(o) => json!(stack_ref(game, *o)),
+            })
+            .collect();
+        let o = game.obj(item.card);
+        let paid = game.unpaid != Some(game.stack.len() - 1 - i);
+        let targets = (!item.targets.is_empty()).then_some(targets);
+        let v = if item.ability.is_none() && item.delayed.is_none() {
+            // a spell: its card's view
+            let mut v = card_view(game, item.card, &r, true);
+            if let Value::Object(m) = &mut v {
+                m.insert("cardId".into(), json!("?"));
+                m.insert("mageObjectType".into(), json!("SPELL"));
+                m.insert("paid".into(), json!(paid));
+                if let Some(c) = m.get("color").cloned() {
+                    m.insert("frameColor".into(), c);
+                }
+                if let Some(t) = targets {
+                    m.insert("targets".into(), Value::Array(t));
+                }
+            }
+            v
+        } else {
+            let mut v: Value = serde_json::from_str(STACK_ABILITY).unwrap_or_default();
+            let def = game.item_def(item);
+            let ability = item.ability.and_then(|(k, _)| def.abilities.get(k));
+            let rule = match (&item.delayed, item.ability) {
+                (Some(d), _) => d.rule.clone(),
+                (None, Some((k, _))) => ability_rules(game, item.card)
+                    .and_then(|r| r.get(k).cloned())
+                    .unwrap_or_default()
+                    .replace("{this}", &o.def.name),
+                _ => String::new(),
+            };
+            let triggered = item.delayed.is_some() || ability.is_some_and(|a| a.trigger().is_some());
+            let kind = if o.token { "ABILITY_STACK_FROM_TOKEN" } else { "ABILITY_STACK_FROM_CARD" };
+            let source_ref = reference(game, item.card);
+            let mut source = card_view(game, item.card, &source_ref, true);
+            source["mageObjectType"] = json!(kind);
+            v["id"] = json!(r);
+            v["rules"] = json!([rule]);
+            v["mageObjectType"] = json!(kind);
+            v["abilityType"] = json!(if triggered { "TRIGGERED_NONMANA" } else { "ACTIVATED_NONMANA" });
+            if let Some(c) = source.get("counters").cloned() {
+                v["counters"] = c;
+            }
+            v["paid"] = json!(paid);
+            if let Some(t) = targets {
+                v["targets"] = Value::Array(t);
+            }
+            v["sourceCard"] = source;
+            v
+        };
+        out.insert(r, v);
+    }
+    Value::Object(out)
+}
+
+/// A target's reference; a spell on the stack is its stack object's
+fn stack_ref(game: &Game, id: ObjId) -> String {
+    match game.stack.iter().rev().position(|t| t.card == id && t.ability.is_none() && t.delayed.is_none()) {
+        Some(i) if game.obj(id).zone == Zone::Stack => format!("S{}", i),
+        _ => reference(game, id),
+    }
+}
+
+/// An object's abilities' rules, in order (from its card's or token's facts)
+fn ability_rules(game: &Game, id: ObjId) -> Option<Vec<String>> {
+    let o = game.obj(id);
+    let key = match &o.token_image {
+        Some((class, _, _)) => format!("abilities:token:{}", class),
+        None => format!("abilities:{}", o.def.name),
+    };
+    let rules = templates().get(&key)?.as_array()?;
+    Some(rules.iter().map(|r| r.as_str().unwrap_or("").to_string()).collect())
+}
+
+const STACK_ABILITY: &str = r#"{"name":"Ability","rules":[],"power":"","toughness":"","loyalty":"","defense":"","cardTypes":[],"subTypes":[],"superTypes":[],"color":{"white":false,"blue":false,"black":false,"red":false,"green":false},"manaCostLeftStr":[],"manaCostRightStr":[],"manaValue":0,"mageObjectType":"ABILITY_STACK_FROM_CARD","isAbility":false,"abilityType":"TRIGGERED_NONMANA","isToken":false,"imageFileName":"","imageNumber":0,"extraDeckCard":false,"transformable":false,"transformed":false,"backFace":false,"flipCard":false,"faceDown":false,"isSplitCard":false,"isDoubleFacedCard":false,"artRect":"NORMAL","paid":true,"controlledByOwner":true,"rotate":false,"hideInfo":false,"canAttack":false,"canBlock":false,"inViewerOnly":false,"cardIcons":[],"originalIsCopy":false,"id":"?","expansionSetCode":"","cardNumber":"0","usesVariousArt":false,"gameObject":true,"isChoosable":false,"isSelected":false,"playableStats":{"basicManaAbilities":[],"basicPlayAbilities":[],"basicCastAbilities":[],"other":[]}}"#;
+
 /// The helper emblems' view (`GameImpl.initGameDefaultHelperEmblems`, from the game's start): all three have no
 /// reference, so the last, day or night's, is the one left
 fn helper_emblems(game: &Game) -> Value {
@@ -619,31 +741,6 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     m.insert("roomLeftUnlocked".into(), json!(false));
     m.insert("roomRightUnlocked".into(), json!(false));
     m.insert("bandedCards".into(), json!([]));
-    if game.obj(id).zone == Zone::Battlefield
-        && (o.def.types.contains(&CardType::Creature) || game.has_type(id, CardType::Creature))
-    {
-        let (power, toughness) = game.power_toughness(id);
-        let (base_power, base_toughness) = game.base_power_toughness(id);
-        m.insert("power".into(), json!(power.to_string()));
-        m.insert("toughness".into(), json!(toughness.to_string()));
-        for (k, n, base) in [("originalPower", power, base_power), ("originalToughness", toughness, base_toughness)] {
-            if let Some(Value::Object(x)) = m.get_mut(k) {
-                x.insert("boostedValue".into(), json!(n));
-                x.insert("modifiedBaseValue".into(), json!(base));
-                x.insert("cardValue".into(), json!(base.to_string()));
-            }
-        }
-    }
-    // `CardView`: with counters, they're listed, and its loyalty and defense are counted
-    let counters: Vec<&(String, i32)> = o.counters.iter().filter(|(_, n)| *n > 0).collect();
-    if !counters.is_empty() {
-        m.insert("loyalty".into(), json!(o.counter("loyalty").to_string()));
-        m.insert("defense".into(), json!(o.counter("defense").to_string()));
-        m.insert(
-            "counters".into(),
-            json!(counters.iter().map(|(n, c)| json!({"name": n, "count": c})).collect::<Vec<_>>()),
-        );
-    }
     m.insert("controlledByOwner".into(), json!(o.owner == o.controller));
     v
 }

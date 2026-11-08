@@ -501,6 +501,8 @@ pub struct Game {
     pub attacks_opponent: Vec<(Seat, StackItem)>,
     /// spells that enter with more +1/+1 counters: the card as it was on the stack, and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
+    /// the stack position of the spell or ability being cast or activated: not paid for yet (a view shows it unpaid)
+    pub unpaid: Option<usize>,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
@@ -602,6 +604,7 @@ impl Game {
             next_creature_spell: Vec::new(),
             next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
+            unpaid: None,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
             any_time: std::cell::Cell::new(false),
