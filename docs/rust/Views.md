@@ -35,5 +35,48 @@ parted.
    and the server's metrics add them up.
 3. **Done** when the counts stay at zero for a week of real games: step C's gate.
 
-Prompts (the question's message, options, targets, `canPlayObjects`) and the game log's lines are compared the same
-way once the views match.
+Prompts (the question's message, options, targets) and the game log's lines are compared the same way once the views
+match. `canPlayObjects` is already part of the view comparison.
+
+## Where it stands
+
+On a recording of 40 shadow games of the meta decks (a view every 25 answers): **509 of 539 views match** field for
+field. An earlier recording's 552 views went from 334 matching, when the comparison started, to 493. What's left, by
+kind:
+
+- Fidelity gaps the views show: a permanent that should have lost its abilities (Tishana's Tidebinder), a state
+  trigger Java ran earlier (Mazemind Tome), a delayed trigger's source (Badgermole Cub's earthbend), one life total.
+  These are engine fixes, not view fixes.
+- Restriction and requirement hints not written yet: "Must block any" (Academic Dispute), "Can't use activated
+  abilities" (Clarion Conqueror).
+- Playable abilities while a cost is paid: Java leaves out some an X cost could still pay for.
+- A few one-offs: an X announced on a permanent's icon, a Room's unlock ability for its other half, Menace's reminder
+  text when it's granted.
+
+## How the Rust side gets Java's text
+
+The engine doesn't compute card text. `CardFactsTest` renders, for every card in the pool, Java's own views and
+writes them to `cards/views.json`, and `rust/tools/view_templates.py` turns those into templates with relative ids:
+
+- `{name}`: the card's `CardView` in hand; `face:{name}` and `permanent:{name}`: a face's card and its permanent;
+  `token:{class}`: a token's; `prepared:{name}`: a prepared permanent's spell copy.
+- `spell:{part}`: a part cast on its own (a Room's half, an adventure's spell) as a `Spell`'s `CardView`.
+- `abilities:{name}`: each ability's rule, by index; `modes:{name}`: each modal ability's modes' texts, for the
+  stack's "Chosen mode" lines.
+
+The view code (`playmat_engine::view`) picks a template and fills in the state: ids, counters, tapped, damage,
+attachments, combat, the stack, hints from each ability's `addHint` (transpiled into `hints` and `hint_abilities`),
+restriction hints, revealed cards, emblems, playable abilities.
+
+## Ids and short ids
+
+Java's text names objects by their id's first three hex digits (`Llanowar Elves [c3b]`). `ShadowViews` replaces each
+by the reference of the object it names, ranked when two share the digits: a card or permanent's own reference (`H`,
+`P`, `G`, `B`, `S`, `E`, `C`) first, then a library card's (`L0.3`), then an ability's or face's. Two of the same rank
+leave the short id as it is. A spell's card id maps to the spell's stack reference (`S0`).
+
+## Debugging a view
+
+- `PLAYMAT_VIEWS_SHOW=<n>` prints up to n differing values per field path.
+- `PLAYMAT_VIEWS_DUMP=game-00012.json:<answer>` prints the Rust view at that answer as `RUST VIEW {json}`, to set
+  beside the recorded Java view.
