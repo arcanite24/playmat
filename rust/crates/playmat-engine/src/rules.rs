@@ -666,6 +666,8 @@ pub enum PlayKind {
     Adventure,
     /// a plotted card cast from exile, by its `PlotAbility`
     Plotted,
+    /// a foretold card cast from exile for its foretell cost (`ForetellCostAbility`)
+    Foretold,
 }
 
 /// What `getPlayableObjects` lists for the client: each object with an ability `seat` can play now, as the
@@ -705,6 +707,8 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                             o.may_play.is_some_and(|(p, t)| p == seat && game.turn <= t)
                                 && castable(game, seat, id, def)
                         }
+                        // a foretold card is cast from exile only for its foretell cost
+                        Zone::Exile if o.foretold_turn.is_some() => false,
                         _ => castable(game, seat, id, def),
                     };
                     if o.zone == Zone::Exile && o.plotted_turn.is_some() && exile_cast(game, seat, id).is_some() {
@@ -712,6 +716,14 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         if def.plot().is_some() {
                             out.push((id, def.abilities.len(), PlayKind::Plotted, None));
                         }
+                    }
+                    // (`ForetellAbility` gives the card its cast from exile after its own abilities)
+                    if o.zone == Zone::Exile
+                        && o.foretold_turn.is_some()
+                        && exile_cast(game, seat, id).is_some()
+                        && def.foretold().is_some()
+                    {
+                        out.push((id, def.abilities.len(), PlayKind::Foretold, None));
                     }
                     if let Some(adventure) = &def.adventure {
                         if (o.zone == Zone::Hand || (o.zone == Zone::Exile && !o.on_adventure))
@@ -8667,7 +8679,8 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
         };
         let o = game.obj(of);
         let mut copy = (*o.copiable()).clone();
-        if !copy.subtypes.iter().any(|t| t == "Bird") {
+        // (Java's `addSubType` keeps a creature type off what isn't a creature: a copy of an unanimated Mutavault)
+        if copy.types.contains(&CardType::Creature) && !copy.subtypes.iter().any(|t| t == "Bird") {
             copy.subtypes.push("Bird".into());
         }
         if !copy.abilities.contains(&AbilityDef::FlyingAbility) {

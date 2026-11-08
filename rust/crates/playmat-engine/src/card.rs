@@ -911,6 +911,8 @@ pub enum Value {
     Plus { of: Box<Amount>, n: i32 },
     /// card types among cards in all graveyards (`CardTypesInGraveyardCount.ALL`)
     CardTypesInGraveyards,
+    /// cards exiled with the source while it's on the battlefield (`UnlicensedHearseValue`)
+    ExiledWithSource,
     /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
     GreatestManaValue { filter: Filter },
     /// cards the controller drew this turn

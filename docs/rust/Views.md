@@ -36,8 +36,8 @@ parted.
    reports `views {…}` with the counts, the most common fields and an example of each; Java logs `Rust views in …: n
    compared, m differ` and adds them to the admin console's Overview (`ServerStats.rustAi`).
    `playmat-ai`'s `mirror_views` test plays the recorded games through the copy as Java sends them and checks it
-   counts what the replay does. Live games so far (6 school-deck games in `RustAiGameTest`): 40 of 57 views match;
-   these decks' cards show gaps the meta decks didn't (face-down foretold cards, Crew icons, foretelling from hand).
+   counts what the replay does. The first live games (6 school-deck games in `RustAiGameTest`) had 40 of 57 views
+   matching; these decks' cards showed gaps the meta decks didn't, now fixed offline (below).
 3. **Done** when the counts stay at zero for a week of real games: step C's gate.
 
 Prompts (the question's message, options, targets) and the game log's lines are compared the same way once the views
@@ -56,7 +56,16 @@ kind:
   abilities" (Clarion Conqueror).
 - Playable abilities while a cost is paid: Java leaves out some an X cost could still pay for.
 - A few one-offs: an X announced on a permanent's icon, a Room's unlock ability for its other half, Menace's reminder
-  text when it's granted.
+  text when it's granted (`new MenaceAbility()` has it, `new MenaceAbility(false)` doesn't, and the transpiled card
+  doesn't keep which).
+
+On 16 shadow games of the school decks (`ShadowGamesTest`'s default decks, a view every 25 answers): **206 of 220
+views match**, from 137. Fixed for them: face-down foretold cards (`Foretell` to the opponent, `Foretell: Name` with
+the card as its other face to the owner, each in its own exile zone) and their cast from exile, Crew icons, chosen
+names, cards copying others (Mockingbird), Evolved Sleeper's types, regeneration shields, Unlicensed Hearse's count,
+"Can't block", Can't Stay Away's exile. The sideboard isn't compared (`view::IGNORED`): the decision log doesn't place
+its cards, and play doesn't change it. Left: a Hive of the Eye Tyrant's granted Menace text, a few stack and
+playable-ability one-offs.
 
 ## How the Rust side gets Java's text
 

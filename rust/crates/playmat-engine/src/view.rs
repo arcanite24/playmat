@@ -60,7 +60,55 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
     if let (Some(_), true) = (game.step, game.priority == Some(seat)) {
         v["canPlayObjects"] = can_play_objects(game, seat);
     }
+    face_down_exiles(game, seat, &mut v);
     v
+}
+
+const FORETOLD: &str = r#"{"rules":[],"power":"","toughness":"","loyalty":"","defense":"","startingLoyalty":"","startingDefense":"","cardTypes":[],"subTypes":[],"superTypes":[],"color":{"white":false,"blue":false,"black":false,"red":false,"green":false},"frameColor":{"white":false,"blue":false,"black":false,"red":false,"green":false},"frameStyle":"M15_NORMAL","manaCostLeftStr":[],"manaCostRightStr":[],"manaValue":0,"rarity":"SPECIAL","mageObjectType":"CARD","isAbility":false,"isToken":false,"imageFileName":"Foretell","imageNumber":1,"extraDeckCard":false,"transformable":false,"transformed":false,"backFace":false,"flipCard":false,"faceDown":true,"isSplitCard":false,"isDoubleFacedCard":false,"artRect":"NORMAL","paid":false,"controlledByOwner":true,"rotate":false,"hideInfo":false,"canAttack":false,"canBlock":false,"inViewerOnly":false,"cardIcons":[],"originalIsCopy":false,"expansionSetCode":"XMAGE","cardNumber":"0","usesVariousArt":false,"gameObject":true,"isChoosable":false,"isSelected":false,"playableStats":{"basicManaAbilities":[],"basicPlayAbilities":[],"basicCastAbilities":[],"other":[]}}"#;
+
+/// Foretold cards exiled face down (`ForetellAbility`): "Foretell" to everyone, and to their owner "Foretell: Name"
+/// with the card as its other face
+fn face_down_exiles(game: &Game, seat: Seat, v: &mut Value) {
+    for id in game.exile.iter().copied().filter(|c| game.obj(*c).foretold_turn.is_some()) {
+        let o = game.obj(id);
+        let r = reference(game, id);
+        let mut card: Value = serde_json::from_str(FORETOLD).unwrap_or_default();
+        let own = o.owner == seat;
+        let name = if own { format!("Foretell: {}", o.def.name) } else { "Foretell".to_string() };
+        for (k, x) in [
+            ("cardId", json!(r)),
+            ("id", json!(r)),
+            ("ownerId", json!(format!("P{}", o.owner))),
+            ("controllerId", json!(format!("P{}", o.owner))),
+            ("name", json!(name)),
+            ("displayName", json!(name)),
+            ("displayFullName", json!(name)),
+            ("alternateName", json!(if own { o.def.name.as_str() } else { "Foretell" })),
+        ] {
+            card[k] = x;
+        }
+        if own {
+            card["transformable"] = json!(true);
+            card["secondCardFace"] = card_view(game, id, &r, false);
+        }
+        let put = |zone: &mut Value| {
+            if let Some(Value::Object(m)) = Some(zone).filter(|z| z.get(&r).is_some()) {
+                m.insert(r.clone(), card.clone());
+            }
+        };
+        if let Some(Value::Array(players)) = v.get_mut("players") {
+            for p in players {
+                if let Some(e) = p.get_mut("exile") {
+                    put(e);
+                }
+            }
+        }
+        if let Some(Value::Array(zones)) = v.get_mut("exiles") {
+            for z in zones {
+                put(z);
+            }
+        }
+    }
 }
 
 /// What the priority player can play now, per object: each ability's reference and its text, in the client's groups
@@ -96,6 +144,13 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
             PlayKind::RoomHalf => format!("Cast {}", o.def.room.get(k).map_or("", |h| h.name.as_str())),
             PlayKind::Adventure => format!("Cast {}", o.def.adventure.as_ref().map_or("", |a| a.name.as_str())),
             PlayKind::Plotted => format!("Cast {} using Plot", name),
+            PlayKind::Foretold => {
+                let cost = o.def.abilities.iter().find_map(|a| match a {
+                    crate::card::AbilityDef::ForetellAbility { cost, .. } => Some(cost.as_str()),
+                    _ => None,
+                });
+                format!("Foretell {}", cost.unwrap_or(""))
+            }
             PlayKind::Other if o.def.abilities.get(k) == Some(&crate::card::AbilityDef::SpellAbility) => {
                 format!("Cast {}", name)
             }
@@ -114,7 +169,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
         let group = match kind {
             PlayKind::BasicMana => "basicManaAbilities",
             PlayKind::Land => "basicPlayAbilities",
-            PlayKind::Cast | PlayKind::Plotted => "basicCastAbilities",
+            PlayKind::Cast | PlayKind::Plotted | PlayKind::Foretold => "basicCastAbilities",
             PlayKind::Other | PlayKind::RoomHalf | PlayKind::Adventure => "other",
         };
         // Sunken Citadel's: the chosen color's symbol in its text
@@ -155,6 +210,9 @@ fn exiles_view(game: &Game) -> Value {
             format!("prepared {} {}", p.0, z)
         } else if o.on_adventure {
             format!("adventure {}", o.owner)
+        } else if o.foretold_turn.is_some() {
+            // `ForetellAbility` exiles each card into a zone of its own
+            format!("foretell {}", id.0)
         } else if o.warp_from.is_some() {
             format!("warp {}", o.owner)
         } else if let Some((s, z)) =
@@ -328,6 +386,13 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
         m.insert("id".into(), json!(r));
         m.entry("cardId").or_insert_with(|| json!(r));
         let mut hints = if game_object { hint_lines(game, id) } else { Vec::new() };
+        // `RegenerateSourceEffect` gives the permanent a hint of its shields for the turn
+        if game_object && o.zone == Zone::Battlefield && o.regen_shields > 0 {
+            hints.push(format!(
+                "ICON_GOODRegeneration shields: {} (permanent will be regenerated instead of destroyed)",
+                o.regen_shields
+            ));
+        }
         // a Room's halves: each half's rules get its hints, and a Room permanent's its unlocked doors'
         if game_object && o.zone == Zone::Battlefield {
             if let Some(full) = o.printed_def.as_ref().filter(|f| !f.room.is_empty()) {
@@ -348,6 +413,10 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
         }
         if let (true, Some(Value::Array(rules))) = (game_object, m.get_mut("rules")) {
             changed_rules(game, id, rules);
+            // the ability Can't Stay Away gives what it returns
+            if o.exile_instead_of_dying && o.zone == Zone::Battlefield {
+                rules.push(json!("If {this} would die, exile it instead."));
+            }
         }
         // an adventurer's creature half has the card's hints too
         if let (true, false, Some(Value::Array(rules))) =
@@ -452,8 +521,11 @@ fn cda_power(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
 /// counters, loyalty and defense
 fn permanent_state(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
     let o = game.obj(id);
+    // (a Vehicle's too while it isn't a creature: `CardView` shows any permanent's)
     if game.obj(id).zone == Zone::Battlefield
-        && (o.def.types.contains(&CardType::Creature) || game.has_type(id, CardType::Creature))
+        && (o.def.types.contains(&CardType::Creature)
+            || game.has_type(id, CardType::Creature)
+            || o.def.subtypes.iter().any(|t| t == "Vehicle"))
     {
         let (power, toughness) = game.power_toughness(id);
         let (base_power, base_toughness) = game.base_power_toughness(id);
@@ -496,6 +568,15 @@ fn characteristics(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
         m.insert("cardTypes".into(), Value::Array(types));
         let subtypes: Vec<Value> = o.def.subtypes.iter().map(|s| json!(subtype_name(s))).collect();
         m.insert("subTypes".into(), Value::Array(subtypes));
+    }
+    // Evolved Sleeper's "becomes a Human Cleric": `AddCardSubTypeSourceEffect` adds the ones it hasn't
+    if let (Some(types), Some(Value::Array(subtypes))) = (&o.creature_types, m.get_mut("subTypes")) {
+        for t in types {
+            let t = json!(subtype_name(t));
+            if !subtypes.contains(&t) {
+                subtypes.push(t);
+            }
+        }
     }
     let rules: Vec<String> = m
         .get("rules")
@@ -1224,6 +1305,9 @@ fn restriction_hints(game: &Game, id: ObjId) -> Vec<String> {
     let mut out = Vec::new();
     let o = game.obj(id);
     for a in &o.def.abilities {
+        if matches!(a, A::CantBlockAbility) {
+            out.push(format!("ICON_RESTRICTCan't block ({})", id_name(id)));
+        }
         if let A::SimpleStaticAbility { effects, .. } = a {
             for e in effects {
                 if let E::CantAttackBlockUnlessConditionSourceEffect { condition } = e {
@@ -1353,7 +1437,16 @@ fn ability_icon(game: &Game, id: ObjId, a: &crate::card::AbilityDef) -> Option<V
             let n = game.obj(id).class_level;
             return Some(icon("ABILITY_CLASS_LEVEL", &format!("Current class level: {}", n), &n.to_string()));
         }
-        _ => return None,
+        // `CrewAbility`'s icon
+        a => {
+            let crew = a.activated().and_then(|t| {
+                t.3.iter().find_map(|c| match c {
+                    crate::card::CostDef::CrewCost { value } => Some(*value),
+                    _ => None,
+                })
+            })?;
+            return Some(icon("ABILITY_CREW", &format!("Crew {}", crew), ""));
+        }
     };
     Some(icon(kind, hint, ""))
 }
@@ -1567,6 +1660,10 @@ fn battlefield_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value
 fn permanent_info(game: &Game, id: ObjId, names: &[&str], m: &mut Map<String, Value>) {
     let o = game.obj(id);
     if let Some(Value::Array(rules)) = m.get_mut("rules") {
+        if let Some(n) = &o.chosen_name {
+            // `ChooseACardNameEffect`
+            rules.push(json!(format!("<font color = 'blue'>Chosen name: {n}</font>")));
+        }
         if let Some(p) = o.protector {
             let name = names.get(p).copied().unwrap_or("");
             rules.push(json!(format!("Protected by <font color='#20B2AA'>{}</font>", name)));
@@ -1642,15 +1739,32 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
             }
         }
         m.insert("original".into(), original);
+    } else if let (Some(printed), true) = (o.printed_def.as_ref().filter(|_| o.copied_def.is_some()), controlled) {
+        // entered as a copy (Mockingbird): its card is the printed one
+        let mut original = templates().get(&printed.name).cloned().unwrap_or_else(|| json!({"name": printed.name}));
+        place_ids(&mut original, r, &format!("P{}", o.owner), &format!("P{}", o.controller), false);
+        if let Value::Object(x) = &mut original {
+            x.insert("id".into(), json!(r));
+        }
+        m.insert("original".into(), original);
     } else if controlled {
         m.insert("original".into(), card_view(game, id, r, false));
+    }
+    if let Some(printed) = o.printed_def.as_ref().filter(|_| o.copied_def.is_some() && !o.token) {
+        // `PermanentImpl` copying another: a copy, its base power and toughness its card's
+        m.insert("originalIsCopy".into(), json!(true));
+        for (k, n) in [("originalPower", printed.power), ("originalToughness", printed.toughness)] {
+            if let Some(Value::Object(x)) = m.get_mut(k) {
+                x.insert("baseValue".into(), json!(n));
+            }
+        }
     }
     // a permanent whose card has another name gets that name too
     let original_name = m.get("original").and_then(|x| x.get("name")).cloned();
     if let Some(n) = original_name.filter(|n| Some(n) != m.get("name") && !m.contains_key("alternateName")) {
         m.insert("alternateName".into(), n);
     }
-    m.insert("copy".into(), json!(o.token && o.token_image.is_none()));
+    m.insert("copy".into(), json!((o.token && o.token_image.is_none()) || (!o.token && o.copied_def.is_some())));
     m.insert(
         "nameOwner".into(),
         json!(if o.owner != o.controller { names.get(o.owner).copied().unwrap_or("") } else { "" }),
@@ -1689,6 +1803,10 @@ pub const IGNORED: &[(&str, &str)] = &[
     ("gameCycle", "Java's own state counter"),
     ("userData", "the player's settings, which the host passes through"),
     ("statesSavedSize", "Java's rollback states"),
+    (
+        "sideboard",
+        "the deck's sideboard: the decision log doesn't place its cards (every id is `?`), and play doesn't change it",
+    ),
 ];
 
 /// One field that differs: its path (`players[0].battlefield{B3}.tapped`), Java's value and the engine's.

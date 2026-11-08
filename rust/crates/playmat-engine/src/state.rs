@@ -1284,6 +1284,10 @@ impl Game {
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
                 Value::Half { of } => self.value(of, you, source, x) / 2,
                 Value::Plus { of, n } => self.value(of, you, source, x) + n,
+                Value::ExiledWithSource => {
+                    let zcc = self.obj(source).zcc;
+                    self.exiled_for_source.iter().filter(|(s, z, _)| *s == source && *z == zcc).count() as i32
+                }
                 Value::CardTypesInGraveyards => {
                     let mut types: Vec<CardType> = Vec::new();
                     for p in self.players.iter() {

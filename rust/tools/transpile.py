@@ -847,6 +847,8 @@ class Translator:
                    'SavedGainedLifeValue.MUCH', 'TheOozeValue.instance', 'SavedDamageValue.MUCH',
                    'SavedLifeLossValue.MUCH'):
             return {'v': 'x'}
+        if arg == 'UnlicensedHearseValue.instance':
+            return {'v': 'exiled_with_source'}
         if arg == 'IntrepidAdversaryValue.instance':
             return {'v': 'source_counters', 'counter': 'valor'}
         if arg in ('SourcePermanentPowerValue.NOT_NEGATIVE', 'SourcePermanentPowerValue.ALLOW_NEGATIVE'):
