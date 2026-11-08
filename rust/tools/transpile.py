@@ -1225,7 +1225,7 @@ class Translator:
         # Skyclave Apparition: an X/X token for the cards its source exiled
         if cls == 'CreateXXTokenExiledEffectManaValueEffect' and len(args) == 2 \
                 and args[0].strip() == 'CustomIllusionToken::new':
-            illusion = {'name': 'Illusion Token', 'types': ['CREATURE'], 'colors': ['U'], 'subtypes': ['Illusion'],
+            illusion = {'class': 'CustomIllusionToken', 'name': 'Illusion Token', 'types': ['CREATURE'], 'colors': ['U'], 'subtypes': ['Illusion'],
                         'abilities': []}
             if EXTRA.get('token:CustomIllusionToken', {}).get('images'):
                 illusion['images'] = EXTRA['token:CustomIllusionToken']['images']

@@ -249,7 +249,10 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
     // and its card (`PermanentView.original`): a double-faced card's face on its own
     let permanent = || {
         let kind = if game_object { "permanent" } else { "face" };
-        (o.zone == Zone::Battlefield).then(|| templates().get(&format!("{}:{}", kind, o.def.name)).cloned()).flatten()
+        // (a transformed permanent's card is its front face)
+        let front = o.front.as_ref().filter(|f| f.transform_back.is_some() && !game_object);
+        let name = front.map_or(&o.def.name, |f| &f.name);
+        (o.zone == Zone::Battlefield).then(|| templates().get(&format!("{}:{}", kind, name)).cloned()).flatten()
     };
     // a prepared permanent's spell, its copy in exile
     let prepared = || o.prepared_for.and_then(|_| templates().get(&format!("prepared:{}", o.def.name)).cloned());
@@ -1095,6 +1098,17 @@ fn token_view(game: &Game, id: ObjId) -> Option<Value> {
         m.insert("isToken".into(), json!(true));
         m.insert("ownerId".into(), json!(format!("P{}", o.owner)));
         m.insert("controllerId".into(), json!(format!("P{}", o.controller)));
+        // a token made with its size (`CustomIllusionToken(x)`): its class's view is 0/0
+        let base = o.printed_def.as_ref().unwrap_or(&o.def);
+        if base.types.contains(&CardType::Creature) && m.get("power") == Some(&json!("0")) && base.power != 0 {
+            m.insert("power".into(), json!(base.power.to_string()));
+            m.insert("toughness".into(), json!(base.toughness.to_string()));
+            for (k, n) in [("originalPower", base.power), ("originalToughness", base.toughness)] {
+                if let Some(Value::Object(x)) = m.get_mut(k) {
+                    x.insert("baseValue".into(), json!(n));
+                }
+            }
+        }
         // `CardView` capitalizes each rule
         if let Some(Value::Array(rules)) = m.get_mut("rules") {
             for x in rules.iter_mut() {
@@ -1111,7 +1125,12 @@ fn token_view(game: &Game, id: ObjId) -> Option<Value> {
 fn battlefield_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
     let mut m = Map::new();
     for id in game.battlefield.iter().copied() {
-        if game.obj(id).controller == p {
+        // an attachment shows with what it's attached to (`PlayerView.showInBattlefield`)
+        let shown_by = match game.attached(id).filter(|t| game.obj(*t).zone == Zone::Battlefield) {
+            Some(t) => game.obj(t).controller,
+            None => game.obj(id).controller,
+        };
+        if shown_by == p {
             let r = reference(game, id);
             m.insert(r.clone(), permanent_view(game, id, &r, viewer, names));
         }
@@ -1169,7 +1188,33 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
         }
         m.insert("original".into(), original);
         m.insert("mageObjectType".into(), json!("TOKEN"));
-    } else if controlled || o.token {
+    } else if o.token {
+        // a token copy of a card (`CreateTokenCopyTargetEffect`): the card's view as a token, its original the
+        // token as made
+        for (k, x) in [("isToken", json!(true)), ("rarity", json!("SPECIAL")), ("originalIsCopy", json!(true))] {
+            m.insert(k.into(), x);
+        }
+        m.insert("mageObjectType".into(), json!("TOKEN"));
+        let mut original = card_view(game, id, r, false);
+        if let Value::Object(x) = &mut original {
+            for k in
+                ["originalPower", "originalToughness", "originalColorIdentity", "ownerId", "controllerId", "cardId"]
+            {
+                x.remove(k);
+            }
+            for (k, v) in [
+                ("id", json!("?")),
+                ("isToken", json!(true)),
+                ("mageObjectType", json!("NULL")),
+                ("rarity", json!("SPECIAL")),
+                ("usesVariousArt", json!(false)),
+                ("manaValue", json!(0)),
+            ] {
+                x.insert(k.into(), v);
+            }
+        }
+        m.insert("original".into(), original);
+    } else if controlled {
         m.insert("original".into(), card_view(game, id, r, false));
     }
     // a permanent whose card has another name gets that name too
@@ -1177,7 +1222,7 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     if let Some(n) = original_name.filter(|n| Some(n) != m.get("name") && !m.contains_key("alternateName")) {
         m.insert("alternateName".into(), n);
     }
-    m.insert("copy".into(), json!(false));
+    m.insert("copy".into(), json!(o.token && o.token_image.is_none()));
     m.insert(
         "nameOwner".into(),
         json!(if o.owner != o.controller { names.get(o.owner).copied().unwrap_or("") } else { "" }),
