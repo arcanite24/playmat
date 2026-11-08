@@ -8,6 +8,7 @@ pub mod replay;
 pub mod rng;
 pub mod rules;
 pub mod state;
+pub mod view;
 
 /// The cards `rust/tools/transpile.py` wrote, built in.
 pub const CARDS_JSON: &str = include_str!("../cards/cards.json");

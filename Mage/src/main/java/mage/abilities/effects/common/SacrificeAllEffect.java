@@ -78,7 +78,7 @@ public class SacrificeAllEffect extends OneShotEffect {
         if (num < 1) {
             return false;
         }
-        Set<UUID> perms = new HashSet<>();
+        Set<UUID> perms = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
         for (UUID playerId : onlyOpponents ?
                 game.getOpponents(source.getControllerId()) :
                 game.getState().getPlayersInRange(source.getControllerId(), game)) {

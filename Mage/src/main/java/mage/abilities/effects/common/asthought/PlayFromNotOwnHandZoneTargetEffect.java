@@ -144,7 +144,7 @@ public class PlayFromNotOwnHandZoneTargetEffect extends AsThoughEffectImpl {
         if (card == null) {
             return true;
         }
-        Set<Card> cards = new HashSet<>();
+        Set<Card> cards = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
         cards.add(card);
         return exileAndPlayFromExile(game, source, cards, allowedCaster, duration, withoutMana, anyColor, onlyCastAllowed);
     }

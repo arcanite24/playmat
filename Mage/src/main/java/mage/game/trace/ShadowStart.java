@@ -53,24 +53,36 @@ public final class ShadowStart {
             Map<String, Object> seat = new LinkedHashMap<>();
             List<String> library = new ArrayList<>();
             List<Integer> libraryOrder = new ArrayList<>();
+            List<String> libraryPrintings = new ArrayList<>();
             for (Card card : player.getLibrary().getCards(game)) {
                 library.add(card.getName());
                 libraryOrder.add(triggerSources.indexOf(card.getId()));
+                libraryPrintings.add(printing(card));
             }
             List<String> hand = new ArrayList<>();
             List<Integer> handOrder = new ArrayList<>();
+            List<String> handPrintings = new ArrayList<>();
             for (UUID id : player.getHand()) {
                 hand.add(game.getCard(id).getName());
                 handOrder.add(triggerSources.indexOf(id));
+                handPrintings.add(printing(game.getCard(id)));
             }
             seat.put("library", library);
             seat.put("hand", hand);
             seat.put("libraryTriggerOrder", libraryOrder);
             seat.put("handTriggerOrder", handOrder);
+            // the printing each card's view shows (docs/rust/Views.md)
+            seat.put("libraryPrintings", libraryPrintings);
+            seat.put("handPrintings", handPrintings);
             seats.add(seat);
         }
         start.put("seats", seats);
         start.put("fingerprint", fingerprintText);
         return start;
+    }
+
+    /** {@code SET:number}, the printing a card's view shows */
+    static String printing(Card card) {
+        return card.getExpansionSetCode() + ":" + card.getCardNumber();
     }
 }

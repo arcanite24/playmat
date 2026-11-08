@@ -11,6 +11,7 @@ import mage.players.Player;
 import mage.util.CardUtil;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
 
@@ -46,7 +47,7 @@ public class ExileGraveyardAllTargetPlayerEffect extends OneShotEffect {
         if (controller == null) {
             return false;
         }
-        Set<Card> cardsToExile = new HashSet<>();
+        Set<Card> cardsToExile = new LinkedHashSet<>(); // in a fixed order, which the Rust engine follows
 
         for (UUID playerId : this.getTargetPointer().getTargets(game, source)) {
             Player targetPlayer = game.getPlayer(playerId);

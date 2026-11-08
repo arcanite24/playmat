@@ -57,7 +57,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * </pre>
  * Options: xmage.shadowGames.games (default 20), .first (first game, default 0), .turns (default 20),
  * .schools (default pioneer,standard: folders of Mage.Server/career-src), .decks (comma separated folders of deck
- * files to use instead, such as the engine's tiers in rust/crates/playmat-engine/shadow-decks).
+ * files to use instead, such as the engine's tiers in rust/crates/playmat-engine/shadow-decks), .views (record the
+ * asked player's view at every n-th answer, default 0: none; docs/rust/Views.md).
  */
 public class ShadowGamesTest {
 
@@ -141,6 +142,8 @@ public class ShadowGamesTest {
 
         ExecutorService answers = Executors.newSingleThreadExecutor();
         RandomDriver driver = new RandomDriver(game, answers, new Random(seed));
+        ShadowViews views = new ShadowViews(Integer.getInteger(PREFIX + ".views", 0));
+        game.addPlayerQueryEventListener(event -> views.ask(game, event, log.getDecisions().size()));
         game.addPlayerQueryEventListener(driver::ask);
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Thread thread = new Thread(() -> {
@@ -189,6 +192,9 @@ public class ShadowGamesTest {
         }
         record.put("decisions", decisions);
         record.put("questions", driver.getQuestions());
+        if (!views.getViews().isEmpty()) {
+            record.put("views", views.getViews());
+        }
         List<Map<String, Object>> entries = new ArrayList<>();
         for (GameTrace.Entry e : trace.getEntries()) {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -196,6 +202,7 @@ public class ShadowGamesTest {
             m.put("decision", e.index < decisionAt.size() ? decisionAt.get(e.index) : null); // answers given before it
             m.put("fp", e.hash);
             m.put("text", e.text);
+            if (e.random >= 0) m.put("random", e.random); // where two engines' random numbers part
             entries.add(m);
         }
         record.put("trace", entries);

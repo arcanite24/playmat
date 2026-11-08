@@ -13,6 +13,8 @@ import mage.cards.repository.TokenRepository;
 import mage.cards.repository.CardScanner;
 import mage.game.command.Emblem;
 import mage.game.permanent.token.Token;
+import mage.server.websocket.rpc.JsonCodec;
+import mage.view.CardView;
 import org.junit.Assume;
 import org.junit.Test;
 
@@ -33,7 +35,10 @@ import java.util.TreeMap;
  * A pool line {@code token:<class>} names a token class from {@code mage.game.permanent.token} instead, and
  * {@code emblem:<class>} an emblem class from {@code mage.game.command.emblems}.
  * <p>
- * Opt-in: {@code -Dxmage.cardFacts=<out.json> -Dxmage.cardFacts.pool=<file, one card name per line>}.
+ * Opt-in: {@code -Dxmage.cardFacts=<out.json> -Dxmage.cardFacts.pool=<file, one card name per line>}. With
+ * {@code -Dxmage.cardFacts.views=<views.json>} it also writes each card's view as the web client gets it out of a
+ * game ({@code new CardView(card)}, as {@code JsonCodec} writes it), the template the Rust engine's views start from
+ * (docs/rust/Views.md).
  */
 public class CardFactsTest {
 
@@ -44,6 +49,8 @@ public class CardFactsTest {
         Assume.assumeTrue("set -Dxmage.cardFacts=<file> and -Dxmage.cardFacts.pool=<file>", out != null && pool != null);
         CardScanner.scan();
         List<Map<String, Object>> cards = new ArrayList<>();
+        String viewsOut = System.getProperty("xmage.cardFacts.views");
+        Map<String, Object> views = new TreeMap<>();
         for (String line : Files.readAllLines(new File(pool).toPath(), StandardCharsets.UTF_8)) {
             String name = line.trim();
             if (name.isEmpty()) {
@@ -85,6 +92,9 @@ public class CardFactsTest {
                 }
                 // the printing a deck by name gets (`TxtDeckImporter`), whose set the tokens it makes look for
                 set = card.getExpansionSetCode();
+                if (viewsOut != null) {
+                    views.put(name, JsonCodec.GSON.toJsonTree(new CardView(card)));
+                }
             }
             Map<String, Object> facts = new LinkedHashMap<>();
             facts.put("name", name);
@@ -102,6 +112,10 @@ public class CardFactsTest {
         }
         Gson gson = new GsonBuilder().disableHtmlEscaping().setPrettyPrinting().create();
         Files.write(new File(out).toPath(), gson.toJson(cards).getBytes(StandardCharsets.UTF_8));
+        if (viewsOut != null) {
+            Gson compact = new GsonBuilder().disableHtmlEscaping().create();
+            Files.write(new File(viewsOut).toPath(), compact.toJson(views).getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     private static List<Map<String, Object>> abilityFacts(Iterable<Ability> cardAbilities) {

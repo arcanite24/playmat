@@ -18,9 +18,9 @@ In `RustAiGameTest` a game takes 12 to 14 s of wall time, but little of that is 
 
 | | Today |
 |---|---|
-| Cards in the engine | 481 (the Career school decks, the shadow-test decks, Company and Zombies) |
-| Pioneer and Standard meta decks the AI picks from (`public/meta-decks`) | 14 of 24 fully covered (tier31 added 8); 74 card names missing |
-| Of those 98, translated by today's transpiler | 38 (the rest need a new framework class or a card's own effect) |
+| Cards in the engine | 579 (the Career school decks, the shadow-test decks, Company and Zombies, the meta decks) |
+| Pioneer and Standard meta decks the AI picks from (`public/meta-decks`) | 24 of 24 fully covered (tiers 31 to 33) |
+| Shadow games of the meta decks against each other (`shadow-decks/meta`, each pairing) | 287 of 288 match; Java didn't finish the other |
 | Games the copy follows to the end (test, debug off) | 40 of 40 Company vs Zombies, 22 of 24 school-deck games |
 
 ## Step A: what a game costs now (measured 7 Nov 2026)

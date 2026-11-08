@@ -256,7 +256,15 @@ public class GameSessionPlayer extends GameSessionWatcher {
             if (key != null && key.equals(session.playableKey)) {
                 gameView.setCanPlayObjects(session.playable);
             } else {
-                PlayableObjectsList playable = priorityPlayer.getPlayableObjects(sourceGame, Zone.ALL);
+                // working it out copies and simulates the game: that mustn't draw from the game's own generator,
+                // or what a client is shown would change the game's random results (and the Rust engine's copy)
+                java.util.Random before = mage.util.RandomUtil.install(new java.util.Random(0));
+                PlayableObjectsList playable;
+                try {
+                    playable = priorityPlayer.getPlayableObjects(sourceGame, Zone.ALL);
+                } finally {
+                    mage.util.RandomUtil.install(before);
+                }
                 gameView.setCanPlayObjects(playable);
                 if (session != null) {
                     session.playableKey = key;

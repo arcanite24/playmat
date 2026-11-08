@@ -92,12 +92,15 @@
       "status": "active",
       "text": "Every card of the 24 Pioneer and Standard meta decks in the engine, with shadow games for each pairing.",
       "gate": "A week of production AI games that follow Java to the end",
-      "pr": []
+      "pr": [
+        243,
+        244
+      ]
     },
     {
       "n": "C",
       "name": "Views in Rust",
-      "status": "next",
+      "status": "active",
       "text": "Building what the client sees, compared in production against Java's.",
       "gate": "Zero view differences on a week of real games"
     },
