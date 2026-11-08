@@ -37,7 +37,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "attackOption": "LEFT",
         "rangeOfInfluence": "ALL",
         "myHand": cards_view(game, &game.player(seat).hand),
-        "myHelperEmblems": {},
+        "myHelperEmblems": helper_emblems(game),
         "opponentHands": {},
         "watchedHands": {},
         "stack": {},
@@ -127,15 +127,21 @@ fn cards_view(game: &Game, ids: &[ObjId]) -> Value {
 /// not from the card alone, as `original` is)
 fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
     let o = game.obj(id);
+    // on the battlefield, the face it's on as a permanent (`PermanentView`): an adventurer without its adventure, an
+    // MDFC's played face
+    // and its card (`PermanentView.original`): a double-faced card's face on its own
+    let permanent = || {
+        let kind = if game_object { "permanent" } else { "face" };
+        (o.zone == Zone::Battlefield).then(|| templates().get(&format!("{}:{}", kind, o.def.name)).cloned()).flatten()
+    };
     let mut v = token_view(game, id)
+        .or_else(permanent)
         .or_else(|| templates().get(&o.def.name).cloned())
         .unwrap_or_else(|| json!({"name": o.def.name}));
+    place_ids(&mut v, r, &format!("P{}", o.owner), &format!("P{}", o.controller), game_object);
     if let Value::Object(m) = &mut v {
         m.insert("id".into(), json!(r));
-        m.insert("cardId".into(), json!(r));
-        m.insert("ownerId".into(), json!(format!("P{}", o.owner)));
-        m.insert("controllerId".into(), json!(format!("P{}", o.controller)));
-        m.insert("gameObject".into(), json!(game_object));
+        m.entry("cardId").or_insert_with(|| json!(r));
         let hints = if game_object { hint_lines(game, id) } else { Vec::new() };
         if let (true, Some(Value::Array(rules))) = (game_object, m.get_mut("rules")) {
             changed_rules(game, id, rules);
@@ -150,15 +156,139 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
                 rules.extend(o.info.iter().map(|(_, l)| json!(l)));
             }
         }
-        if let Some(Value::Object(f)) = m.get_mut("secondCardFace") {
-            f.insert("id".into(), json!(format!("{}f1", r)));
-            f.insert("cardId".into(), json!(r));
-            f.insert("ownerId".into(), json!(format!("P{}", o.owner)));
-            f.insert("controllerId".into(), json!(format!("P{}", o.controller)));
-            f.insert("gameObject".into(), json!(game_object));
+        if game_object && o.zone == Zone::Battlefield {
+            characteristics(game, id, m);
         }
     }
     v
+}
+
+/// A permanent's characteristics as effects left them: its colors, card types and subtypes (once its definition
+/// changed: an animated land, a land given basic land types), a land's frame colors (the mana it can make), and the
+/// color identity of what it has now (`ManaUtil.getColorIdentity`)
+fn characteristics(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
+    const NAMES: [&str; 5] = ["white", "blue", "black", "red", "green"];
+    let o = game.obj(id);
+    let colors = game.colors(id);
+    let five = |has: &dyn Fn(usize) -> bool| -> Value {
+        Value::Object(NAMES.iter().enumerate().map(|(i, n)| (n.to_string(), json!(has(i)))).collect())
+    };
+    m.insert("color".into(), five(&|i| colors.contains(&crate::card::Color::ALL[i])));
+    let changed = printed(&o.def.name).is_none_or(|p| !Arc::ptr_eq(&p, &o.def));
+    if changed && !o.token {
+        let types: Vec<Value> = o.def.types.iter().map(|t| json!(type_name(*t))).collect();
+        m.insert("cardTypes".into(), Value::Array(types));
+        let subtypes: Vec<Value> = o.def.subtypes.iter().map(|s| json!(subtype_name(s))).collect();
+        m.insert("subTypes".into(), Value::Array(subtypes));
+    }
+    let rules: Vec<String> = m
+        .get("rules")
+        .and_then(|r| r.as_array())
+        .map(|r| r.iter().filter_map(|x| x.as_str()).take_while(|x| *x != HINT_START).map(String::from).collect())
+        .unwrap_or_default();
+    if o.is(CardType::Land) {
+        // the mana its mana abilities make
+        let mut makes = [false; 5];
+        for r in &rules {
+            let Some((_, add)) = r.split_once("Add ") else { continue };
+            for (i, c) in ["W", "U", "B", "R", "G"].iter().enumerate() {
+                makes[i] |= add.contains("any color") || add.contains(&format!("{{{}}}", c));
+            }
+        }
+        m.insert("frameColor".into(), five(&|i| makes[i]));
+    }
+    // color identity: its colors and the mana symbols of its cost and rules (not their reminder text)
+    let mut texts: Vec<String> = rules;
+    let strs = |v: Option<&Value>| -> Vec<String> {
+        v.and_then(|x| x.as_array()).into_iter().flatten().filter_map(|x| x.as_str().map(String::from)).collect()
+    };
+    texts.extend(strs(m.get("manaCostLeftStr")));
+    texts.extend(strs(m.get("manaCostRightStr")));
+    // and the back of a double-faced card on its front (`Card.getSecondCardFace`)
+    if let Some(Value::Object(f)) = m.get("secondCardFace").filter(|f| f["backFace"] == json!(true)) {
+        for k in ["rules", "manaCostLeftStr", "manaCostRightStr"] {
+            texts.extend(strs(f.get(k)));
+        }
+    }
+
+    let mut identity = String::new();
+    for (i, c) in ['W', 'U', 'B', 'R', 'G'].iter().enumerate() {
+        let has =
+            colors.contains(&crate::card::Color::ALL[i]) || texts.iter().any(|t| has_symbol(&strip_italic(t), *c));
+        if has {
+            identity.push_str(&format!("{{{}}}", c));
+        }
+    }
+    m.insert("originalColorIdentity".into(), json!(if identity.is_empty() { "{C}".to_string() } else { identity }));
+}
+
+/// Java's `ManaUtil` regex for a color's mana symbol: `{` up to two characters, the color, up to two, `}`
+fn has_symbol(text: &str, c: char) -> bool {
+    let b: Vec<char> = text.chars().collect();
+    (0..b.len()).any(|i| {
+        b[i] == c
+            && (1..=3).any(|l| i >= l && b[i - l] == '{' && b[i - l + 1..i].iter().all(|x| *x != '{' && *x != '}'))
+            && (1..=3)
+                .any(|r| i + r < b.len() && b[i + r] == '}' && b[i + 1..i + r].iter().all(|x| *x != '{' && *x != '}'))
+    })
+}
+
+/// a rule without its reminder text (`<i>…</i>`)
+fn strip_italic(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(i) = rest.find("<i") {
+        out.push_str(&rest[..i]);
+        match rest[i..].find("</i>") {
+            Some(j) => rest = &rest[i + j + 4..],
+            None => {
+                rest = "";
+                break;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+fn type_name(t: CardType) -> &'static str {
+    match t {
+        CardType::Artifact => "ARTIFACT",
+        CardType::Battle => "BATTLE",
+        CardType::Creature => "CREATURE",
+        CardType::Enchantment => "ENCHANTMENT",
+        CardType::Instant => "INSTANT",
+        CardType::Kindred => "KINDRED",
+        CardType::Land => "LAND",
+        CardType::Planeswalker => "PLANESWALKER",
+        CardType::Sorcery => "SORCERY",
+    }
+}
+
+/// Java's `SubType` constant for a subtype ("Power-Plant" is `POWER_PLANT`)
+fn subtype_name(s: &str) -> String {
+    s.chars().map(|c| if c.is_alphanumeric() { c.to_ascii_uppercase() } else { '_' }).collect()
+}
+
+/// A template's ids in place: `$` (the object's own) becomes its reference `r` (`$f0`, its first face, `rf0`), and
+/// the card and each face it shows get the owner, the controller and whether it's the game's object
+fn place_ids(v: &mut Value, r: &str, owner: &str, controller: &str, game_object: bool) {
+    fn strings(v: &mut Value, r: &str) {
+        match v {
+            Value::String(t) if t.starts_with('$') && !t.starts_with("$P") => *t = format!("{}{}", r, &t[1..]),
+            Value::Array(a) => a.iter_mut().for_each(|x| strings(x, r)),
+            Value::Object(m) => m.values_mut().for_each(|x| strings(x, r)),
+            _ => {}
+        }
+    }
+    strings(v, r);
+    let mut face = Some(v);
+    while let Some(Value::Object(m)) = face {
+        m.insert("ownerId".into(), json!(owner));
+        m.insert("controllerId".into(), json!(controller));
+        m.insert("gameObject".into(), json!(game_object));
+        face = m.get_mut("secondCardFace").filter(|f| f.is_object());
+    }
 }
 
 /// A granted ability's rule (`Ability.getRule`), for the abilities effects give
@@ -180,7 +310,15 @@ fn ability_rule(a: &crate::card::AbilityDef) -> Option<String> {
             A::HexproofAbility => "Hexproof",
             A::IndestructibleAbility => "Indestructible",
             A::FlashAbility => "Flash",
-            A::WardAbility { rule, .. } => return Some(upper_first(rule)),
+            A::WardAbility { rule, .. }
+            | A::ColoredManaAbility { rule, .. }
+            | A::SimpleActivatedAbility { rule, .. }
+            | A::TriggeredAbility { rule, .. }
+            | A::SimpleStaticAbility { rule, .. }
+                if !rule.is_empty() =>
+            {
+                return Some(upper_first(rule))
+            }
             A::WhiteManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {W}.",
             A::BlueManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {U}.",
             A::BlackManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {B}.",
@@ -244,8 +382,9 @@ fn changed_rules(game: &Game, id: ObjId, rules: &mut Vec<Value>) {
                 rules.retain(|x| x.as_str() != Some(&r));
             }
         }
+        // (an ability rewritten in place, Sunken Citadel's for its chosen color, keeps its line)
         for a in o.def.abilities.iter().filter(|a| !p.abilities.contains(a)) {
-            if let Some(r) = ability_rule(a) {
+            if let Some(r) = ability_rule(a).filter(|r| !rules.iter().any(|x| x.as_str() == Some(r))) {
                 rules.push(Value::String(r));
             }
         }
@@ -329,23 +468,41 @@ fn named_hint(game: &Game, name: &str, you: Seat, id: ObjId) -> String {
             "Cards in your sideboard: 0 (<i>Right click on battlefield to open player's sideboard at any time</i>)"
                 .into()
         }
-        "DayNightHint" => match game.day {
-            None => "It's neither day nor night.".into(),
-            Some(day) => {
-                let spells = game.active.map(|a| game.player(a).spells_cast).unwrap_or(0);
-                let changes = if day { spells == 0 } else { spells >= 2 };
-                format!(
-                    "It's currently {}, active player has cast {} spells this turn. It will {} become {} next turn.",
-                    if day { "day" } else { "night" },
-                    spells,
-                    if changes { "" } else { "not" },
-                    if day { "night" } else { "day" }
-                )
-            }
-        },
+        "DayNightHint" => day_night_hint(game),
         _ => String::new(),
     }
 }
+
+/// `DayNightHint`
+fn day_night_hint(game: &Game) -> String {
+    match game.day {
+        None => "It's neither day nor night.".into(),
+        Some(day) => {
+            let spells = game.active.map(|a| game.player(a).spells_cast).unwrap_or(0);
+            let changes = if day { spells == 0 } else { spells >= 2 };
+            format!(
+                "It's currently {}, active player has cast {} spells this turn. It will {} become {} next turn.",
+                if day { "day" } else { "night" },
+                spells,
+                if changes { "" } else { "not" },
+                if day { "night" } else { "day" }
+            )
+        }
+    }
+}
+
+/// The helper emblems' view (`GameImpl.initGameDefaultHelperEmblems`, from the game's start): all three have no
+/// reference, so the last, day or night's, is the one left
+fn helper_emblems(game: &Game) -> Value {
+    if game.step.is_none() {
+        return json!({});
+    }
+    let mut v: Value = serde_json::from_str(HELPER_EMBLEM).unwrap_or_default();
+    v["rules"] = json!(["Day or night.", HINT_START, day_night_hint(game)]);
+    json!({ "?": v })
+}
+
+const HELPER_EMBLEM: &str = r#"{"name":"Helper Emblem","displayName":"Helper Emblem","displayFullName":"Helper Emblem","rules":[],"power":"","toughness":"","loyalty":"","defense":"","startingLoyalty":"","startingDefense":"","cardTypes":[],"subTypes":[],"superTypes":[],"color":{"white":false,"blue":false,"black":false,"red":false,"green":false},"frameColor":{"white":false,"blue":false,"black":false,"red":false,"green":false},"frameStyle":"M15_NORMAL","manaCostLeftStr":[],"manaCostRightStr":[],"manaValue":0,"rarity":"SPECIAL","mageObjectType":"EMBLEM","isAbility":false,"isToken":false,"imageFileName":"","imageNumber":1,"extraDeckCard":false,"transformable":false,"transformed":false,"backFace":false,"flipCard":false,"faceDown":false,"isSplitCard":false,"isDoubleFacedCard":false,"artRect":"NORMAL","paid":false,"controlledByOwner":true,"rotate":false,"hideInfo":false,"canAttack":false,"canBlock":false,"inViewerOnly":false,"cardIcons":[],"originalIsCopy":false,"id":"?","expansionSetCode":"XMAGE","cardNumber":"","usesVariousArt":false,"gameObject":true,"isChoosable":false,"isSelected":false,"playableStats":{"basicManaAbilities":[],"basicPlayAbilities":[],"basicCastAbilities":[],"other":[]}}"#;
 
 /// A token made from a token class: its class's view, with the image the random pick took (`TokenImpl`)
 fn token_view(game: &Game, id: ObjId) -> Option<Value> {
@@ -398,13 +555,37 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     let mut v = card_view(game, id, r, true);
     let controlled = o.controller == viewer;
     let Value::Object(m) = &mut v else { return v };
+    // its info lines after the chosen color's, in the order of Java's `HashMap` of them: the protector, prepared
+    if let Some(Value::Array(rules)) = m.get_mut("rules") {
+        if let Some(p) = o.protector {
+            let name = names.get(p).copied().unwrap_or("");
+            rules.push(json!(format!("Protected by <font color='#20B2AA'>{}</font>", name)));
+        }
+        if o.prepared_copy.is_some() {
+            rules.push(json!("<font color = 'blue'>Prepared</font>"));
+        }
+    }
     m.insert("mageObjectType".into(), json!("PERMANENT"));
     m.insert("tapped".into(), json!(o.tapped));
     m.insert("flipped".into(), json!(false));
     m.insert("phasedIn".into(), json!(true));
-    m.insert("summoningSickness".into(), json!(o.sick));
+    // `Permanent.hasSummoningSickness`: not controlled since the turn began, without haste
+    m.insert(
+        "summoningSickness".into(),
+        json!(o.sick && !game.has_ability(id, &crate::card::AbilityDef::HasteAbility)),
+    );
     m.insert("damage".into(), json!(o.damage));
-    m.insert("attachments".into(), json!([]));
+    // what's attached to it, in the order they were attached (`Permanent.getAttachments`), and what it's attached to
+    let attachments: Vec<Value> = game
+        .battlefield
+        .iter()
+        .filter(|a| game.attached(**a) == Some(id))
+        .map(|a| json!(reference(game, *a)))
+        .collect();
+    m.insert("attachments".into(), Value::Array(attachments));
+    if let Some(to) = game.attached(id) {
+        m.insert("attachedTo".into(), json!(reference(game, to)));
+    }
     if let Some(t) = token_view(game, id) {
         // `PermanentView`: a token's original is the token as made, without the game's
         let mut original = t.clone();
@@ -416,13 +597,6 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
             }
         }
         m.insert("original".into(), original);
-        if let Value::Object(t) = t {
-            for (k, x) in t {
-                if !matches!(k.as_str(), "id" | "cardId" | "gameObject" | "rules") {
-                    m.insert(k, x);
-                }
-            }
-        }
         m.insert("mageObjectType".into(), json!("TOKEN"));
     } else if controlled || o.token {
         m.insert("original".into(), card_view(game, id, r, false));
@@ -434,9 +608,12 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     );
     m.insert("nameController".into(), json!(names.get(o.controller).copied().unwrap_or("")));
     m.insert("controlled".into(), json!(controlled));
-    for k in ["morphed", "disguised", "manifested", "cloaked", "attachedToPermanent", "attachedControllerDiffers"] {
+    for k in ["morphed", "disguised", "manifested", "cloaked"] {
         m.insert(k.into(), json!(false));
     }
+    let to = game.attached(id);
+    m.insert("attachedToPermanent".into(), json!(to.is_some()));
+    m.insert("attachedControllerDiffers".into(), json!(to.is_some_and(|t| game.obj(t).controller != o.controller)));
     m.insert("mutateView".into(), json!({}));
     m.insert("mutated".into(), json!(false));
     m.insert("roomLeftUnlocked".into(), json!(false));
@@ -446,11 +623,14 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
         && (o.def.types.contains(&CardType::Creature) || game.has_type(id, CardType::Creature))
     {
         let (power, toughness) = game.power_toughness(id);
+        let (base_power, base_toughness) = game.base_power_toughness(id);
         m.insert("power".into(), json!(power.to_string()));
         m.insert("toughness".into(), json!(toughness.to_string()));
-        for (k, n) in [("originalPower", power), ("originalToughness", toughness)] {
+        for (k, n, base) in [("originalPower", power, base_power), ("originalToughness", toughness, base_toughness)] {
             if let Some(Value::Object(x)) = m.get_mut(k) {
                 x.insert("boostedValue".into(), json!(n));
+                x.insert("modifiedBaseValue".into(), json!(base));
+                x.insert("cardValue".into(), json!(base.to_string()));
             }
         }
     }
@@ -464,9 +644,7 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
             json!(counters.iter().map(|(n, c)| json!({"name": n, "count": c})).collect::<Vec<_>>()),
         );
     }
-    if o.owner != o.controller {
-        m.insert("controlledByOwner".into(), json!(false));
-    }
+    m.insert("controlledByOwner".into(), json!(o.owner == o.controller));
     v
 }
 

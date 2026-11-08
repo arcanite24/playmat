@@ -1408,6 +1408,16 @@ impl Game {
     /// Power and toughness with continuous effects applied: static abilities of permanents, then resolved boosts
     /// (layer 7c; everything here only adds, so the order doesn't matter yet).
     pub fn power_toughness(&self, id: ObjId) -> (i32, i32) {
+        self.power_toughness_layers(id, true)
+    }
+
+    /// Power and toughness before counters and boosts: the printed values with layers 7a and 7b applied (Java's
+    /// `MageInt.getModifiedBaseValue`)
+    pub fn base_power_toughness(&self, id: ObjId) -> (i32, i32) {
+        self.power_toughness_layers(id, false)
+    }
+
+    fn power_toughness_layers(&self, id: ObjId, boosts: bool) -> (i32, i32) {
         let o = self.obj(id);
         let (mut p, mut t) = (o.def.power, o.def.toughness);
         if o.zone != Zone::Battlefield {
@@ -1450,6 +1460,9 @@ impl Game {
         // layer 7b
         if let Some((bp, bt)) = o.base_pt {
             (p, t) = (bp, bt);
+        }
+        if !boosts {
+            return (p, t);
         }
         // +1/+1 counters change only a creature's power and toughness (a Vehicle's, while it's crewed)
         if self.has_type(id, CardType::Creature) {

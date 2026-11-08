@@ -5,6 +5,13 @@ import com.google.gson.GsonBuilder;
 import mage.abilities.Abilities;
 import mage.abilities.Ability;
 import mage.cards.SplitCard;
+import mage.cards.DoubleFacedCard;
+import mage.constants.MultiplayerAttackOption;
+import mage.constants.RangeOfInfluence;
+import mage.game.TwoPlayerDuel;
+import mage.game.mulligan.MulliganType;
+import mage.game.permanent.PermanentCard;
+import mage.util.CardUtil;
 import mage.cards.Card;
 import mage.cards.repository.CardInfo;
 import mage.cards.repository.CardRepository;
@@ -44,6 +51,36 @@ import java.util.TreeMap;
  */
 public class CardFactsTest {
 
+    /** the owner and controller of the permanents whose views it writes (their ids aren't in the templates) */
+    private static final java.util.UUID SEAT = java.util.UUID.nameUUIDFromBytes(new byte[]{0});
+
+    /**
+     * A template's ids as references relative to the object's own ({@code $}, as {@code DecisionLog.refs} names an
+     * object's faces: {@code $f0}, {@code $f1}, a Room's halves {@code $h0}, {@code $h1}), its owner's {@code $P};
+     * any other becomes {@code ?}. The engine puts the object's reference in place of {@code $}.
+     */
+    private static Map<java.util.UUID, String> refs(Card card) {
+        Map<java.util.UUID, String> refs = new java.util.HashMap<>();
+        refs.put(SEAT, "$P");
+        Card main = card.getMainCard();
+        if (main != null && !main.getId().equals(card.getId())) {
+            refs.put(main.getId(), "$f0");
+        }
+        if (card instanceof DoubleFacedCard) {
+            refs.put(((DoubleFacedCard) card).getLeftHalfCard().getId(), "$f0");
+            refs.put(((DoubleFacedCard) card).getRightHalfCard().getId(), "$f1");
+        }
+        if (card instanceof mage.cards.CardWithSpellOption) {
+            refs.put(((mage.cards.CardWithSpellOption) card).getSpellCard().getId(), "$f1");
+        }
+        if (card instanceof SplitCard) {
+            refs.put(((SplitCard) card).getLeftHalfCard().getId(), "$h0");
+            refs.put(((SplitCard) card).getRightHalfCard().getId(), "$h1");
+        }
+        refs.put(card.getId(), "$");
+        return refs;
+    }
+
     @Test
     public void exportCardFacts() throws Exception {
         String out = System.getProperty("xmage.cardFacts");
@@ -53,6 +90,9 @@ public class CardFactsTest {
         List<Map<String, Object>> cards = new ArrayList<>();
         String viewsOut = System.getProperty("xmage.cardFacts.views");
         Map<String, Object> views = new TreeMap<>();
+        // a game that hasn't started: a permanent's view in it has no hints (`CardUtil.getCardRulesWithAdditionalInfo`)
+        Game unstarted = new TwoPlayerDuel(MultiplayerAttackOption.LEFT, RangeOfInfluence.ALL,
+                MulliganType.GAME_DEFAULT.getMulligan(0), 60, 20, 7);
         for (String line : Files.readAllLines(new File(pool).toPath(), StandardCharsets.UTF_8)) {
             String name = line.trim();
             if (name.isEmpty()) {
@@ -73,7 +113,8 @@ public class CardFactsTest {
                 if (viewsOut != null) {
                     // its view, and its images in the order `findPreferredTokenInfo` picks from
                     Map<String, Object> v = new LinkedHashMap<>();
-                    v.put("view", JsonCodec.GSON.toJsonTree(new CardView(token, (Game) null)));
+                    v.put("view", ShadowViews.mapIds(JsonCodec.GSON.toJsonTree(new CardView(token, (Game) null)),
+                            new java.util.HashMap<>()));
                     List<List<Object>> list = new ArrayList<>();
                     for (TokenInfo info : TokenRepository.instance.getByClassName(cls.getName())) {
                         list.add(Arrays.asList(info.getSetCode(), info.getImageNumber()));
@@ -107,7 +148,32 @@ public class CardFactsTest {
                 // the printing a deck by name gets (`TxtDeckImporter`), whose set the tokens it makes look for
                 set = card.getExpansionSetCode();
                 if (viewsOut != null) {
-                    views.put(name, JsonCodec.GSON.toJsonTree(new CardView(card)));
+                    views.put(name, ShadowViews.mapIds(JsonCodec.GSON.toJsonTree(new CardView(card)), refs(card)));
+                    // each face it can be on the battlefield as, as a permanent's view (`PermanentView`'s card part):
+                    // its front, and a double-faced card's back (an MDFC's played face, a transformed card)
+                    List<Card> faces = new ArrayList<>();
+                    faces.add(CardUtil.getDefaultCardSideForBattlefield(unstarted, card));
+                    if (card instanceof DoubleFacedCard) {
+                        faces.add(((DoubleFacedCard) card).getRightHalfCard());
+                    }
+                    for (Card face : faces) {
+                        if (!face.isPermanent()) {
+                            continue;
+                        }
+                        // a face's own view: what a permanent of it shows as its card (`PermanentView.original`)
+                        if (face != card) {
+                            views.put("face:" + face.getName(),
+                                    ShadowViews.mapIds(JsonCodec.GSON.toJsonTree(new CardView(face.copy(), (Game) null)), refs(face)));
+                        }
+                        try {
+                            face.setOwnerId(SEAT);
+                            PermanentCard permanent = new PermanentCard(face, SEAT, unstarted);
+                            views.put("permanent:" + permanent.getName(), ShadowViews.mapIds(
+                                    JsonCodec.GSON.toJsonTree(new CardView(permanent, unstarted, true)), refs(permanent)));
+                        } catch (RuntimeException e) {
+                            System.err.println("no permanent view of " + face.getName() + ": " + e);
+                        }
+                    }
                 }
             }
             Map<String, Object> facts = new LinkedHashMap<>();
