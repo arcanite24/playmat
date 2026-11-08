@@ -146,7 +146,7 @@ EFFECTS = {
     'SurveilEffect': [('amount', 'int'), (None, 'bool')],
     'DiscardAndDrawThatManyEffect': [('amount', 'int')],
     # subtypes aren't in the fingerprint and no rule here reads them yet
-    'AddCardSubTypeSourceEffect': [(None, 'duration'), (None, 'bool'), (None, 'subtype')],
+    'AddCardSubTypeSourceEffect': [(None, 'duration'), (None, 'bool'), ('subtype', 'subtype')],
 }
 
 COUNTS = {'CreaturesYouControlCount.PLURAL': 'creatures_you_control',
@@ -1071,7 +1071,7 @@ class Translator:
                 return None
         elif kind == 'subtype':
             if re.fullmatch(r'SubType\.\w+', arg):
-                return None
+                return subtype_names()[arg[8:]]
         elif kind == 'this':
             if arg == 'this':
                 return None

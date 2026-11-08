@@ -1079,8 +1079,11 @@ pub enum EffectDef {
     },
     /// if the target would die this turn, it's exiled instead
     ExileTargetIfDiesEffect,
-    /// adds a subtype to the source (subtypes aren't in the fingerprint, and no rule reads them yet)
-    AddCardSubTypeSourceEffect,
+    /// adds a subtype to the source (subtypes aren't in the fingerprint, and no rule reads them yet; views show it)
+    AddCardSubTypeSourceEffect {
+        #[serde(default)]
+        subtype: String,
+    },
     /// as it enters, its controller may pay `life`; if they don't, it enters tapped
     TapSourceUnlessPaysEffect {
         life: i32,

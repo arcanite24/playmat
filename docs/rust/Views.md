@@ -67,11 +67,12 @@ names, cards copying others (Mockingbird), Evolved Sleeper's types, regeneration
 its cards, and play doesn't change it. Left: a Hive of the Eye Tyrant's granted Menace text, a few stack and
 playable-ability one-offs.
 
-16 more (games 16 to 31): **173 of 179 views match**, after Learn's sideboard count (each seat's sideboard size is in
-the shadow start, `sideboard`), Crusader of Odric's count in hand, Lovestruck Beast's "Can't attack" and flashback's
-playable text. Java's card of a Crusader on the battlefield keeps the count from before it entered; Rust takes the
-count less itself. "Must block any" names what gave it (Academic Dispute). Left: Skyknight Squire's Knight type, a Warp return's
-targets.
+16 more (games 16 to 31, recorded again after the merge): **168 of 169 views match**, after Learn's sideboard count
+(each seat's sideboard size is in the shadow start, `sideboard`), Crusader of Odric's count in hand, Lovestruck
+Beast's "Can't attack", flashback's playable text, "Must block any" naming what gave it, Skyknight Squire's Knight
+type (`AddCardSubTypeSourceEffect` keeps its subtype), warp's end-step exile pointing at its permanent, and a modal
+spell's modes as they're chosen. Left: Java's card of a Crusader on the battlefield keeps the count from before it
+entered; Rust takes the count less itself, which is right only while no other creature came or went.
 
 ## How the Rust side gets Java's text
 

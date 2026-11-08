@@ -2309,11 +2309,20 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                     break;
                 }
                 match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
-                    Answer::Mode(k) if available.contains(&k) => modes.push(k),
+                    Answer::Mode(k) if available.contains(&k) => {
+                        modes.push(k);
+                        // (the spell shows the modes chosen so far while the next is asked)
+                        if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                            top.modes = modes.clone();
+                        }
+                    }
                     Answer::ModeDone if modes.len() >= min => break,
                     Answer::Stop => return false,
                     _ => {
                         modes.clear();
+                        if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+                            top.modes.clear();
+                        }
                         break;
                     }
                 }
@@ -8197,7 +8206,7 @@ fn apply_each_effect(
             | EffectDef::ConditionalContinuousEffect { .. }
             | EffectDef::SetBasePowerToughnessSourceEffect { .. }
             | EffectDef::CantBeCounteredSourceEffect
-            | EffectDef::AddCardSubTypeSourceEffect
+            | EffectDef::AddCardSubTypeSourceEffect { .. }
             | EffectDef::NowhereToRunHexproofEffect
             | EffectDef::NowhereToRunWardEffect
             | EffectDef::TenaciousUnderdogEffect
