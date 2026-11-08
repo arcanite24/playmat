@@ -229,6 +229,8 @@ pub struct Obj {
     /// the zone Java keeps for an adventurer card's adventure part (`CardWithSpellOption`): it follows the card,
     /// except when the card goes onto the stack or the battlefield or leaves the battlefield
     pub adventure_zone: Zone,
+    /// when it was attached (`Game.attach_clock`)
+    pub attached_at: u64,
     /// the attackers it blocks
     pub blocking: Vec<ObjId>,
     /// how many attackers it was declared to block (Java's `blocking` count: an attacker leaving combat doesn't
@@ -532,6 +534,8 @@ pub struct Game {
     pub combat_groups: Vec<CombatGroup>,
     /// cards revealed while the object resolving resolves, for views
     pub revealed: Vec<Revealed>,
+    /// counts attachments, for their order
+    pub attach_clock: u64,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
     pub step_start: bool,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
@@ -644,6 +648,7 @@ impl Game {
             mana_paid: None,
             combat_groups: Vec::new(),
             revealed: Vec::new(),
+            attach_clock: 0,
             step_start: false,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
@@ -788,6 +793,7 @@ impl Game {
             entered_turn: 0,
             targeted: (0, 0),
             on_adventure: false,
+            attached_at: 0,
             blocking: Vec::new(),
             blocks: 0,
             blocked: false,
@@ -1063,6 +1069,15 @@ impl Game {
 
     /// `who` ("you", "opponent", "any") of a trigger, for its controller `you` and the player `seat` it's about.
     /// The permanent an Aura is attached to, while it's still that object on the battlefield.
+    /// `Permanent.addAttachment`: attached, after what's attached already
+    pub fn attach_to(&mut self, id: ObjId, to: ObjId, zcc: u32) {
+        self.attach_clock += 1;
+        let at = self.attach_clock;
+        let o = self.obj_mut(id);
+        o.attached_to = Some((to, zcc));
+        o.attached_at = at;
+    }
+
     pub fn attached(&self, aura: ObjId) -> Option<ObjId> {
         let (to, zcc) = self.obj(aura).attached_to?;
         let o = self.obj(to);

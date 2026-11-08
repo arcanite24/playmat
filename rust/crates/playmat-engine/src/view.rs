@@ -679,7 +679,9 @@ fn land_frame(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
             }
         }
         // (`getProducableManaTypes`: a chosen color's, and Nykthos's colors with devotion)
-        for a in &o.def.abilities {
+        let left = matches!(o.zone, Zone::Graveyard | Zone::Library | Zone::Hand | Zone::Exile);
+        let def = if left { printed(&o.def.name).unwrap_or_else(|| o.def.clone()) } else { o.def.clone() };
+        for a in &def.abilities {
             match a {
                 crate::card::AbilityDef::ColoredManaAbility { color, .. } => makes[color.index()] = true,
                 crate::card::AbilityDef::NykthosShrineToNyxManaAbility { .. } => {
@@ -722,6 +724,12 @@ fn printed(name: &str) -> Option<Arc<CardDef>> {
 /// gained and the ones effects give it added (`Permanent.getAbilities(game).getRules()`)
 fn changed_rules(game: &Game, id: ObjId, rules: &mut Vec<Value>) {
     let o = game.obj(id);
+    // (a card that left the battlefield is its printed self: what effects gave its permanent is gone)
+    if matches!(o.zone, Zone::Graveyard | Zone::Library | Zone::Hand | Zone::Exile) && o.def.room.is_empty() {
+        if printed(&o.def.name).is_some_and(|p| !Arc::ptr_eq(&p, &o.def)) {
+            return;
+        }
+    }
     if let Some(p) = printed(&o.def.name).filter(|p| !Arc::ptr_eq(p, &o.def)) {
         for a in p.abilities.iter().filter(|a| !o.def.abilities.contains(a)) {
             if let Some(r) = ability_rule(a) {
@@ -1568,12 +1576,9 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     );
     m.insert("damage".into(), json!(o.damage));
     // what's attached to it, in the order they were attached (`Permanent.getAttachments`), and what it's attached to
-    let attachments: Vec<Value> = game
-        .battlefield
-        .iter()
-        .filter(|a| game.attached(**a) == Some(id))
-        .map(|a| json!(reference(game, *a)))
-        .collect();
+    let mut attached: Vec<ObjId> = game.battlefield.iter().copied().filter(|a| game.attached(*a) == Some(id)).collect();
+    attached.sort_by_key(|a| game.obj(*a).attached_at);
+    let attachments: Vec<Value> = attached.iter().map(|a| json!(reference(game, *a))).collect();
     m.insert("attachments".into(), Value::Array(attachments));
     if let Some(to) = game.attached(id) {
         m.insert("attachedTo".into(), json!(reference(game, to)));

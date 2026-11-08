@@ -4291,7 +4291,7 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             if let Some(Target::Obj(to)) = legal.first().and_then(|t| t.first()).copied() {
                 if game.obj(id).zone == Zone::Battlefield && game.obj(to).zone == Zone::Battlefield {
                     let zcc = game.obj(to).zcc;
-                    game.obj_mut(id).attached_to = Some((to, zcc));
+                    game.attach_to(id, to, zcc);
                 }
             }
             return;
@@ -5142,9 +5142,9 @@ fn apply_each_effect(
                     t.token = true;
                     t.trigger_order = (1 << 32) + id.0 as u64;
                     let zcc = game.obj(*o).zcc;
-                    game.obj_mut(id).attached_to = Some((*o, zcc));
+                    game.attach_to(id, *o, zcc);
                     enter_battlefield(game, d, id, controller, false);
-                    game.obj_mut(id).attached_to = Some((*o, zcc));
+                    game.attach_to(id, *o, zcc);
                 }
             }
             EffectDef::CreateNextCreatureSpellDelayedEffect { amount, rule } => {
@@ -7102,7 +7102,7 @@ fn apply_each_effect(
                             && !game.has_type(src, CardType::Creature)
                         {
                             let z = game.obj(to).zcc;
-                            game.obj_mut(src).attached_to = Some((to, z));
+                            game.attach_to(src, to, z);
                         }
                     }
                 }
@@ -8895,7 +8895,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
             if let Some(chosen) = choose_target(game, d, controller, t, Some(id), &rule, false) {
                 if let Some(Target::Obj(to)) = chosen.first().copied() {
                     let zcc = game.obj(to).zcc;
-                    game.obj_mut(id).attached_to = Some((to, zcc));
+                    game.attach_to(id, to, zcc);
                 }
             }
         }
