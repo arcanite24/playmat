@@ -94,6 +94,8 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
         let text = match kind {
             PlayKind::Cast => format!("Cast {}", name),
             PlayKind::RoomHalf => format!("Cast {}", o.def.room.get(k).map_or("", |h| h.name.as_str())),
+            PlayKind::Adventure => format!("Cast {}", o.def.adventure.as_ref().map_or("", |a| a.name.as_str())),
+            PlayKind::Plotted => format!("Cast {} using Plot", name),
             PlayKind::Other if o.def.abilities.get(k) == Some(&crate::card::AbilityDef::SpellAbility) => {
                 format!("Cast {}", name)
             }
@@ -112,8 +114,8 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
         let group = match kind {
             PlayKind::BasicMana => "basicManaAbilities",
             PlayKind::Land => "basicPlayAbilities",
-            PlayKind::Cast => "basicCastAbilities",
-            PlayKind::Other | PlayKind::RoomHalf => "other",
+            PlayKind::Cast | PlayKind::Plotted => "basicCastAbilities",
+            PlayKind::Other | PlayKind::RoomHalf | PlayKind::Adventure => "other",
         };
         // Sunken Citadel's: the chosen color's symbol in its text
         if let (Some(crate::card::AbilityDef::ColoredManaAbility { color, .. }), true) =

@@ -662,6 +662,10 @@ pub enum PlayKind {
     Other,
     /// a Room card's half, cast on its own (`h0`, `h1`): its index is the half's
     RoomHalf,
+    /// an adventurer card's adventure (`a0`, its spell card `f1`)
+    Adventure,
+    /// a plotted card cast from exile, by its `PlotAbility`
+    Plotted,
 }
 
 /// What `getPlayableObjects` lists for the client: each object with an ability `seat` can play now, as the
@@ -703,6 +707,19 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         }
                         _ => castable(game, seat, id, def),
                     };
+                    if o.zone == Zone::Exile && o.plotted_turn.is_some() && exile_cast(game, seat, id).is_some() {
+                        // (`PlotAbility` gives the card its cast from exile after its own abilities)
+                        if def.plot().is_some() {
+                            out.push((id, def.abilities.len(), PlayKind::Plotted, None));
+                        }
+                    }
+                    if let Some(adventure) = &def.adventure {
+                        if (o.zone == Zone::Hand || (o.zone == Zone::Exile && !o.on_adventure))
+                            && castable(game, seat, id, adventure)
+                        {
+                            out.push((id, 0, PlayKind::Adventure, Some(1)));
+                        }
+                    }
                     if o.zone == Zone::Hand {
                         for (h, half) in def.room.iter().enumerate() {
                             if castable(game, seat, id, half) {
