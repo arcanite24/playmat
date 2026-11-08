@@ -69,7 +69,9 @@
         <h2 id="console">Console sign-in</h2>
         <p>When no owner can sign in, <strong>Console sign-in</strong> at the bottom of <code>/admin</code> opens the
           console as an owner with <code>XMAGE_ADMIN_PASSWORD</code>. It's a break-glass key: once staff have roles you
-          can leave the password empty, which turns console sign-in off.</p>
+          can leave the password empty, which turns console sign-in off. A third door is the identity provider's
+          <code>XMAGE_OIDC_ADMIN_GROUP</code>: a member of that group who signs in runs the console on their own
+          session, for as long as it lives, with no password.</p>
 
         <h2 id="maintenance">Maintenance</h2>
         <p>Owners announce maintenance from <strong>Settings</strong>, now or up to a day ahead, with a message. From then
@@ -114,6 +116,14 @@
           make anyone a supporter. An admin gives it in <strong>Support</strong> &rarr; <strong>Give the contributors'
           pet</strong>, with the account name and a reason for the audit log. It shows up in the player's locker under
           <strong>Pets</strong>; players who don't have it never see it there.</p>
+        <h2 id="access">Access and accounts</h2>
+        <p>The <strong>Access</strong> tab shows who may play, and the sign-in methods: whether Sign in with
+          GitHub is on, whether an identity provider is set up (its name, its issuer, and whether the server signs
+          in with it only, <code>XMAGE_OIDC_ONLY</code>), plus the allowlist, invite links and access requests.
+          The <strong>Accounts</strong> tab shows each account's provider next to its GitHub handle, when it has
+          one. The setup of an identity provider is in the <a href="server.html#identity-provider">run-a-server
+          guide</a> and the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#sign-in-with-an-identity-provider">deployment guide</a>.</p>
 
         <h2 id="audit">The audit log</h2>
         <p>Every staff action that changes something goes in the <strong>Audit</strong> tab, with who did it and the

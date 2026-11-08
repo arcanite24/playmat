@@ -107,11 +107,15 @@ import { gzipSync } from 'node:zlib';
 // app raised 2026-10-30 from 794 kB when the Decks screen went lazy (its own route chunk, like the other screens):
 // the entry measured 85.0 kB on master and drops 11.5 kB, the first load 12.6 kB; the app total gains about 3.7 kB of
 // chunk overhead for the modules the split shares. Measured entry 73.5 kB, initial 207.6 kB, app 798.6 kB
+// entry raised 2026-11-04 from 85 kB and app from 803 kB for OIDC sign-in (the provider button, the /auth/oidc
+// catch, the naming mode, the provider-only screen, oidcStart/oidcFinish): re-based onto the 2026-10-30 raises
+// above. Measured entry 74.5 kB, initial 208.8 kB, app 803.2 kB
 // app raised 2026-11-07 from 803 kB for signature spell effects and token art (#226): the effects table (about 450
 // cards) and its sixteen primitives with their CSS, lazy with the match screen; the token art picker in Settings and
 // the deck builder, the look carrying the choices, and their English and Spanish messages. Measured app 815.6 kB
+// OIDC sign-in merged onto that 2026-11-08: measured entry 75.5 kB, initial 209.8 kB, app 817.1 kB, inside both raises
 const BUDGET_KB = {
-  entry: 85,
+  entry: 86,
   initial: 221,
   app: 818,
 };

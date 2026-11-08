@@ -15,6 +15,8 @@ import mage.server.admin.AuditEntry;
 import mage.server.admin.GithubAuth;
 import mage.server.admin.GithubSignIn;
 import mage.server.admin.Invite;
+import mage.server.admin.OidcAuth;
+import mage.server.admin.OidcSignIn;
 import mage.server.notify.DiscordNotifier;
 import mage.server.websocket.rpc.RpcCall;
 import mage.server.websocket.rpc.RpcException;
@@ -77,6 +79,14 @@ final class AccessApi {
         public long githubSyncedAt;
         /** why the last fetch of the repository's people failed, or null */
         public String githubProblem;
+        /** players can sign in with the identity provider (oidcStart) */
+        public boolean oidc;
+        /** the name on the sign-in button, or "OIDC" */
+        public String oidcName;
+        /** the provider's issuer from its discovery document, or empty until it is known */
+        public String oidcIssuer;
+        /** the identity provider is the only sign-in method (XMAGE_OIDC_ONLY) */
+        public boolean oidcOnly;
     }
 
     /**
@@ -240,7 +250,12 @@ final class AccessApi {
                                 + GithubAuth.CALLBACK_PATH + "?code=...&state=..., for githubFinish. Fails when it isn't set up.")
                         .handler(call -> {
                             signOnOnly();
-                            return store(() -> GithubAuth.get().start());
+                            return store(() -> {
+                                if (OidcAuth.get().isOidcOnly()) {
+                                    throw githubOnlyRefusal();
+                                }
+                                return GithubAuth.get().start();
+                            });
                         }),
 
                 RpcMethod.named("githubFinish")
@@ -256,7 +271,35 @@ final class AccessApi {
                             String code = call.string(1);
                             String name = call.optString(2, null);
                             GithubSignIn signIn = new GithubSignIn(GithubAuth.get(), AccessPolicy.get(), AuthorizedUserRepository.getInstance());
-                            return store(() -> signIn.finish(accounts(ctx), state, code, name, System.currentTimeMillis()));
+                            return store(() -> {
+                                if (OidcAuth.get().isOidcOnly()) {
+                                    throw githubOnlyRefusal();
+                                }
+                                return signIn.finish(accounts(ctx), state, code, name, System.currentTimeMillis());
+                            });
+                        }),
+
+                RpcMethod.named("oidcStart")
+                        .publicAccess()
+                        .returns("string")
+                        .doc("Sign in with the server's identity provider (OpenID Connect): the provider page to send the player to. "
+                                + "The provider sends them back to " + OidcAuth.CALLBACK_PATH + "?code=...&state=..., for oidcFinish. "
+                                + "Fails when it isn't set up.")
+                        .handler(call -> store(OidcAuth.get().label(), () -> OidcAuth.get().start())),
+
+                RpcMethod.named("oidcFinish")
+                        .publicAccess()
+                        .params(of("state", STRING), of("code", STRING), optional("userName", STRING))
+                        .returns("OidcSignInResult")
+                        .doc("Sign in with the identity provider, back from the provider: the account to sign in to with its rememberToken "
+                                + "(connectUser's), or a suggestedName when a new account needs a name (call again with "
+                                + "userName). On a contributors server, allowlisted emails get in.")
+                        .handler(call -> {
+                            String state = call.string(0);
+                            String code = call.string(1);
+                            String name = call.optString(2, null);
+                            OidcSignIn signIn = new OidcSignIn(OidcAuth.get(), AccessPolicy.get(), AuthorizedUserRepository.getInstance());
+                            return store(OidcAuth.get().label(), () -> signIn.finish(accounts(ctx), state, code, name, System.currentTimeMillis()));
                         }),
 
                 RpcMethod.named("accessRequest")
@@ -296,6 +339,11 @@ final class AccessApi {
         result.githubPeople = github.peopleCount();
         result.githubSyncedAt = github.syncedAt();
         result.githubProblem = github.syncProblem();
+        OidcAuth oidc = OidcAuth.get();
+        result.oidc = oidc.enabled();
+        result.oidcName = oidc.label();
+        result.oidcIssuer = oidc.issuer();
+        result.oidcOnly = oidc.isOidcOnly();
         return result;
     }
 
@@ -412,8 +460,10 @@ final class AccessApi {
         if (approve && mail(ctx)) {
             String server = serverLabel(ctx);
             String link = System.getProperty(DiscordNotifier.PUBLIC_URL_PROP, "").trim();
-            String text = "You can play on " + server + " now. Register with this email address (" + request.email + ")"
-                    + (link.isEmpty() ? "." : " at " + link + " .");
+            String text = OidcAuth.get().isOidcOnly()
+                    ? "You can play on " + server + " now. Sign in with " + OidcAuth.get().label() + " at " + link + "."
+                    : "You can play on " + server + " now. Register with this email address (" + request.email + ")"
+                            + (link.isEmpty() ? "." : " at " + link + " .");
             if (!Mailer.send(ctx.managers, request.email, "You're in: " + server, text)) {
                 logger.warn("Access approval email failed for request " + request.id);
             }
@@ -443,7 +493,9 @@ final class AccessApi {
     private static Object requestAccess(ApiContext ctx, RpcCall call) throws RpcException {
         // an approved request puts the name on the allowlist, which also lets it register while registration is invite only
         if (!AccessPolicy.get().isAllowlist() && mage.server.admin.RuntimeSettings.get().registrationOpen()) {
-            throw RpcException.invalidParams("This server is open to everyone: just register.");
+            // in the OIDC-only mode registration is refused, so an open server has nothing to offer either
+            throw RpcException.invalidParams(OidcAuth.get().isOidcOnly() ? OidcAuth.get().refusal()
+                    : "This server is open to everyone: just register.");
         }
         String address = call.getConnection() == null ? "" : call.getConnection().getRemoteHost();
         long now = System.currentTimeMillis();
@@ -535,6 +587,11 @@ final class AccessApi {
         return text == null || text.trim().isEmpty();
     }
 
+    /** While the server signs in with the identity provider only, GitHub is off too (the flag means "OIDC only"). */
+    private static IllegalStateException githubOnlyRefusal() {
+        return new IllegalStateException("Sign in with GitHub is off: this server signs in with " + OidcAuth.get().label() + " only.");
+    }
+
     @FunctionalInterface
     interface StoreCall<T> {
         T run() throws SQLException, RpcException, IOException;
@@ -542,6 +599,14 @@ final class AccessApi {
 
     /** Store errors become RPC errors: bad input is the caller's, the rest the server's. */
     static <T> T store(StoreCall<T> work) throws RpcException {
+        return store("GitHub", work);
+    }
+
+    /**
+     * {@link #store(StoreCall)} for a provider the player signed in with: its request failures are named, so the
+     * player knows which sign-in the server can't reach right now.
+     */
+    static <T> T store(String provider, StoreCall<T> work) throws RpcException {
         try {
             return work.run();
         } catch (IllegalArgumentException e) {
@@ -552,8 +617,8 @@ final class AccessApi {
             logger.error("Admin database error", e);
             throw new RpcException(RpcException.SERVER_ERROR, "The admin database can't be reached right now");
         } catch (IOException e) {
-            logger.warn("GitHub request failed: " + e.getMessage());
-            throw new RpcException(RpcException.SERVER_ERROR, "GitHub can't be reached right now. Try again in a minute.");
+            logger.warn(provider + " request failed: " + e.getMessage());
+            throw new RpcException(RpcException.SERVER_ERROR, provider + " can't be reached right now. Try again in a minute.");
         }
     }
 }

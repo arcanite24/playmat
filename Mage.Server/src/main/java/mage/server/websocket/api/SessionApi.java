@@ -3,6 +3,9 @@ package mage.server.websocket.api;
 import com.google.gson.JsonElement;
 import mage.server.AccountService;
 import mage.server.Session;
+import mage.server.admin.AccessPolicy;
+import mage.server.admin.OidcAuth;
+import mage.server.admin.OidcLink;
 import mage.players.net.UserData;
 import mage.server.DisconnectReason;
 import mage.server.Main;
@@ -15,6 +18,7 @@ import org.apache.log4j.Logger;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.sql.SQLException;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,12 +86,13 @@ final class SessionApi {
                         .establishes(2)
                         .params(of("userName", STRING), of("password", STRING), of("sessionId", STRING),
                                 optional("restoreSessionId", STRING), optional("clientVersion", STRING), optional("userIdStr", STRING),
-                                optional("rememberToken", STRING))
+                                optional("rememberToken", STRING), optional("idTokenRef", STRING))
                         .doc("Log in. Creates the connection's session; restoreSessionId reattaches a user that lost its connection. "
-                                + "rememberToken (from authRememberLogin) stands in for an account's password. Logging in as a user "
-                                + "that is connected elsewhere takes it over: the other connection is closed with code 4001. "
-                                + "On a connection that came through the server's single sign-on (serverInfo's signOn), only that "
-                                + "name signs in, without a password; its account is linked or created on the first sign-in.")
+                                + "rememberToken (from authRememberLogin) stands in for an account's password. idTokenRef (from "
+                                + "oidcFinish) lets a later sign-out end the identity provider session. On a connection that came "
+                                + "through the server's single sign-on (serverInfo's signOn), only that name signs in, without a "
+                                + "password; its account is linked or created on the first sign-in. Logging in as a user that is "
+                                + "connected elsewhere takes it over: the other connection is closed with code 4001.")
                         .handler(call -> {
                             String signedOn = call.getConnection().getSignedOnUser();
                             String rememberToken = call.optString(6, "");
@@ -96,6 +101,9 @@ final class SessionApi {
                             }
                             boolean ok = signedOn != null ? connectSignedOn(ctx, call, signedOn, serverVersion)
                                     : connectUser(ctx, call, serverVersion);
+                            if (ok) {
+                                bindOidcToken(ctx, call);
+                            }
                             // the name the server knows the user by: a later login as it elsewhere ends this session
                             call.getConnection().setUserName(ok ? ctx.sessions.userName(call.sessionId()).orElse(null) : null);
                             return ok;
@@ -206,6 +214,18 @@ final class SessionApi {
                 disconnect,
                 disconnect.alias("playerLogout"),
 
+                RpcMethod.named("oidcLogout")
+                        .session(0)
+                        .params(of("sessionId", STRING))
+                        .returns("OidcLogout | null")
+                        .doc("End the identity provider session for this sign-in (RP-initiated logout, RFC 7063): the URL to send "
+                                + "the player's browser to, or null when the provider isn't set up, offers no end-session endpoint, "
+                                + "or the account never signed in through it. A provider sign-in hints its own ID token; any other "
+                                + "session of a linked account (a password, a remembered device, a restored session) hints the "
+                                + "account's last verified one, so the sign-out ends the provider's session and the next button "
+                                + "click asks for the passkey again. Call it before disconnectSession.")
+                        .handler(call -> oidcLogout(ctx, call)),
+
                 RpcMethod.named("connectSetUserData")
                         .session(1)
                         .params(optional("userName", STRING), of("sessionId", STRING), object("userData", "UserData"),
@@ -240,8 +260,108 @@ final class SessionApi {
      */
     static final int FEEDBACK_PER_HOUR = 5;
 
+    /** The end of an identity-provider sign-in: where to send the browser to end the provider's session. */
+    public static class OidcLogout {
+        /** the provider's end-session URL: the ID token as id_token_hint, the app root as post-logout redirect, a one-use state */
+        public String url;
+        /** the state the provider returns in the post-logout redirect */
+        public String state;
+        /** the ID token is past its exp (sent anyway; the provider decides whether to accept it) */
+        public boolean expired;
+    }
+
+    /**
+     * The sign-in's ID token, if the sign-in came through the identity provider: the web client carries a one-use
+     * ref from oidcFinish. The token is bound only when its provider user is the one this account is linked to -
+     * a spent, expired or foreign ref is ignored, so a sign-in that didn't come through the provider is never
+     * marked (it never holds the group's admin marker). The token is also kept on the account's link, as the
+     * end-session's hint for sign-outs from sessions that hold no token of their own (a reload, a device, a
+     * restored session): without it, such a sign-out would leave the provider's session warm, and the next
+     * "Sign in with the provider" would silently re-create the person the sign-out was meant to send away.
+     */
+    private static void bindOidcToken(ApiContext ctx, RpcCall call) throws RpcException {
+        String ref = call.optString(7, "");
+        if (ref.isEmpty()) {
+            return;
+        }
+        OidcAuth.Token token = OidcAuth.get().takeTokenRef(ref);
+        if (token == null) {
+            return;
+        }
+        String account = ctx.sessions.userName(call.sessionId()).orElse(null);
+        if (account == null) {
+            return;
+        }
+        OidcLink link;
+        try {
+            link = AccessPolicy.get().store().oidcLinkOf(account);
+        } catch (SQLException e) {
+            return; // the sign-in stands; the provider session just isn't ended on sign-out
+        }
+        if (link != null && link.sub != null && link.sub.equals(token.sub)) {
+            ctx.sessions.markOidcLogin(call.sessionId(), token);
+            ctx.sessions.markOidcAdmin(call.sessionId(), token.admin);
+            try {
+                AccessPolicy.get().store().rememberOidcToken(link, token.raw, token.exp);
+            } catch (SQLException e) {
+                // the sign-in stands; sign-outs from this session just don't end the provider's
+            }
+        }
+    }
+
+    /**
+     * The URL that ends the provider session for this sign-in, or null when the plain sign-out stands: the
+     * provider isn't set up, it offers no end-session endpoint, or the account never signed in through it.
+     * A session that signed in through the provider hints its own token; any other session of a linked
+     * account (a password, a remembered device, a restored session) hints the account's last verified one,
+     * so the sign-out ends the provider's session and the next "Sign in with the provider" asks for the
+     * passkey again instead of silently re-creating the person. Call it before disconnectSession.
+     */
+    private static OidcLogout oidcLogout(ApiContext ctx, RpcCall call) {
+        OidcAuth oidc = OidcAuth.get();
+        if (!oidc.isEnabled()) {
+            return null;
+        }
+        OidcAuth.Token token = ctx.sessions.oidcIdToken(call.sessionId()).orElse(null);
+        if (token == null) {
+            // a sign-in that didn't come through the provider holds no token of its own: the account's
+            // last verified one ends the same provider session (it is refreshed at every provider sign-in)
+            String account = ctx.sessions.userName(call.sessionId()).orElse(null);
+            if (account != null) {
+                try {
+                    OidcLink link = AccessPolicy.get().store().oidcLinkOf(account);
+                    if (link != null && link.lastToken != null) {
+                        token = new OidcAuth.Token(link.lastToken, link.lastTokenExp, link.sub, false);
+                    }
+                } catch (SQLException e) {
+                    // the sign-out stands; the provider session just isn't ended
+                }
+            }
+        }
+        if (token == null) {
+            return null; // the provider is set up, but this account never signed in through it
+        }
+        String state = oidc.newStateToken();
+        String url = oidc.endSessionUrl(token.raw, state);
+        if (url == null) {
+            return null; // the provider's discovery document offers no end_session_endpoint
+        }
+        OidcLogout result = new OidcLogout();
+        result.url = url;
+        result.state = state;
+        result.expired = oidc.tokenExpired(token.exp);
+        return result;
+    }
+
     private static boolean connectUser(ApiContext ctx, RpcCall call, MageVersion serverVersion) throws Exception {
         String password = call.string(1);
+        // the OIDC-only mode refuses a password sign-in before it counts as a failed guess: the web client sees
+        // connectUser as a bare boolean and couldn't read the engine's message. A login that is remembered or
+        // restored is never refused: the mode forbids password sign-ins, not an account's standing
+        if (!password.isEmpty() && call.optString(3, "").isEmpty() && call.optString(6, "").isEmpty()
+                && OidcAuth.get().isOidcOnly()) {
+            throw RpcException.invalidParams(OidcAuth.get().refusal());
+        }
         if (password.isEmpty()) {
             return ctx.server.connectUser(call.string(0), password, call.string(2), call.optString(3, ""), serverVersion, call.optString(5, ""));
         }

@@ -185,6 +185,50 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
         <p>From <code>ghcr.io/arcanite24/playmat-server</code> and <code>ghcr.io/arcanite24/playmat-web</code>, built
           from <a href="https://github.com/arcanite24/playmat">github.com/arcanite24/playmat</a>. Other copies of the
           repository on GitHub aren't ours: don't take images, installers or install commands from them.</p>
+        <h2 id="identity-provider">Sign in with an identity provider</h2>
+        <p>Players can sign in through an identity provider (OpenID Connect) instead of a password: Pocket ID,
+          Keycloak, Authentik, or any provider that publishes a discovery document. In <code>ops/web/.env</code>,
+          set the client's details, with the callback URL <code>https://YOURDOMAIN/auth/oidc</code>:</p>
+        <div class="terminal" role="region" aria-label="Settings for sign-in with an identity provider">
+<pre><code>XMAGE_OIDC_DISCOVERY=https://id.example.com/.well-known/openid-configuration
+XMAGE_OIDC_CLIENT_ID=playmat
+XMAGE_OIDC_CLIENT_SECRET=...
+XMAGE_OIDC_LABEL=Pocket ID</code></pre>
+        </div>
+        <p>With <code>XMAGE_AUTH=true</code> and the three set, the sign-in screen offers the provider as a button
+          named by <code>XMAGE_OIDC_LABEL</code> (empty: "OIDC"). The first sign-in makes the player an account
+          here, named after the provider's display name and with its verified email, and the player's device is
+          remembered: from then on it signs in without a password.</p>
+        <p>Two things to know before you switch it on. The server talks to the provider directly, so your
+          container must be able to reach the discovery URL; when the provider sits behind a proxy, that can be a
+          different address than the players' one. And a player whose provider email isn't confirmed yet is told
+          to confirm it in the provider. An existing account here with the same email is signed in to only once it has
+          confirmed that address in Settings; until then the player is asked to confirm it first.</p>
+        <p>Signing a player out also ends the provider's session where the provider advertises RP-initiated
+          logout in its discovery document, so the next click of the button asks for the passkey again - whether
+          the sign-in came through the provider or is a reload of one. Without it, or for an account that never
+          signed in through the provider, signing out is unchanged.</p>
+        <p><code>XMAGE_OIDC_ADMIN_GROUP</code> names a user group in the provider: a member who signs in opens
+          the admin console on their own session, with no password, for as long as that session lives, and it
+          returns when they sign out. While it lasts the member is a full owner, the same envelope the shared
+          admin password already gives; <code>XMAGE_ADMIN_PASSWORD</code> stays the break-glass. Don't restrict
+          the client to that group in the provider, or everyone outside it is denied sign-in.</p>
+        <p>Pocket ID is a selfhosted, passkey-only provider and the one to start from: how to add the client,
+          what its passkeys mean for players, key rotation, and its one algorithm it can't use, are in the
+          <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#sign-in-with-an-identity-provider">deployment guide</a>.</p>
+
+        <h2 id="identity-provider-only">The provider as the only sign-in</h2>
+        <p><code>XMAGE_OIDC_ONLY=true</code> makes the provider the only way to get in. It refuses signing in with
+          a typed password (web and desktop clients alike), creating an account (including through an invite),
+          resetting a forgotten password, and Sign in with GitHub.</p>
+        <p>What keeps working: signing in with the provider, signing in on a remembered device, reconnecting a
+          game in progress, asking for access on a contributors server, and the admin console — staff are never
+          locked out.</p>
+        <p class="note warn">Use it only when your players sign in from a browser. The classic desktop client and
+          the sideloaded Android app can't sign in on such a server (the released Playmat desktop app is fine: it
+          ships the web client). Set <code>XMAGE_DESKTOP=false</code> on a web-only server. While the provider is
+          down, no new sign-in works, but remembered devices and games in progress are unaffected. A player who
+          is locked out gets a reset code from the admin console, or you turn the flag off until they're in.</p>
 
         <h2 id="build">Building the images yourself</h2>
         <p>To run your own changes, empty <code>XMAGE_SERVER_IMAGE</code> and <code>XMAGE_WEB_IMAGE</code> in

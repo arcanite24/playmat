@@ -10,6 +10,7 @@ import mage.players.net.UserGroup;
 import mage.remote.CustomThreadPool;
 import mage.server.admin.AccessPolicy;
 import mage.server.admin.Invite;
+import mage.server.admin.OidcAuth;
 import mage.server.admin.RuntimeSettings;
 import mage.server.game.GamesRoom;
 import mage.server.managers.ConfigSettings;
@@ -61,6 +62,8 @@ public class Session {
     private volatile String rememberedUserName; // see trustRememberedLogin
     private volatile String signedOnUserName; // see trustSignedOnLogin
     private final ClientChannel channel;
+    private volatile OidcAuth.Token oidcLoginToken; // see markOidcLogin
+    private volatile boolean oidcAdmin; // see markOidcAdmin
     private boolean valid = true;
 
     private final ReentrantLock lock;
@@ -98,6 +101,12 @@ public class Session {
         if (!TrustedHeaderAuth.get().passwordSignIn()) {
             sendErrorMessageToClient(TrustedHeaderAuth.PASSWORDS_OFF);
             return TrustedHeaderAuth.PASSWORDS_OFF;
+        }
+        // the OIDC-only mode: the provider is the only sign-in method, and every registration makes a password identity
+        if (OidcAuth.get().isOidcOnly()) {
+            String returnMessage = OidcAuth.get().refusal();
+            sendErrorMessageToClient(returnMessage);
+            return returnMessage;
         }
         synchronized (AuthorizedUserRepository.getInstance()) {
             // name
@@ -339,6 +348,33 @@ public class Session {
         this.signedOnUserName = userName;
     }
 
+    /**
+     * This sign-in came through the identity provider: the session keeps the sign-in's verified ID token, so a
+     * later sign-out can end the provider's session (the end-session's id_token_hint, RFC 7063). It dies with
+     * the session, like rememberedUserName.
+     */
+    public void markOidcLogin(OidcAuth.Token token) {
+        this.oidcLoginToken = token;
+    }
+
+    public OidcAuth.Token oidcLoginToken() {
+        return oidcLoginToken;
+    }
+
+    /**
+     * This sign-in came through the identity provider with its verified ID token carrying the configured
+     * admin group: for the session's life the session is the server's admin console. It dies with the session
+     * (sign-out, disconnect, restart), like oidcLoginToken, and is re-derived from the token at every
+     * provider sign-in - a sign-in the user makes outside the group re-derives without the console.
+     */
+    public void markOidcAdmin(boolean admin) {
+        this.oidcAdmin = admin;
+    }
+
+    public boolean oidcAdmin() {
+        return oidcAdmin;
+    }
+
     public boolean isLocked() {
         return lock.isLocked();
     }
@@ -355,6 +391,10 @@ public class Session {
         // named by the sign-on proxy for this connection (the web bridge sets it before every login on it)
         boolean signedOn = userName != null && userName.equals(signedOnUserName);
         signedOnUserName = null;
+        // every login starts without a provider: the web bridge marks the ID token only for one that came through it
+        this.oidcLoginToken = null;
+        // ... and the group's admin marker only when that token carried the configured admin group
+        this.oidcAdmin = false;
 
         // find auth user
         AuthorizedUser authorizedUser = null;
@@ -376,6 +416,12 @@ public class Session {
             if (!signedOn && !TrustedHeaderAuth.get().passwordSignIn()) {
                 // single sign-on only: passwords, remembered devices and restore tokens don't sign in without it
                 return TrustedHeaderAuth.PASSWORDS_OFF;
+            }
+            // the OIDC-only mode: this login relies on the password, which the server's identity provider replaces;
+            // remembered devices and restored sessions never do, so they keep working
+            if (OidcAuth.get().isOidcOnly() && !restoring && !remembered
+                    && password != null && !password.isEmpty()) {
+                return OidcAuth.get().refusal();
             }
             if (!Main.isTestMode() && !signedOn && !restoring && !remembered && !authorizedUser.doCredentialsMatch(userName, password)) {
                 return errorMsg;

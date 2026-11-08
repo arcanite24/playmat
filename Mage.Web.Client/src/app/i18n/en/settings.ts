@@ -46,6 +46,7 @@ export default {
   'settings.account.delete.title': 'Delete {name}?',
   'settings.account.delete.text': 'Your account, decks, Career, ratings, reports and feedback are deleted for good, and you are signed out. Type your account name and your password to confirm.',
   'settings.account.delete.github': 'You sign in with GitHub, so the password may stay empty: typing your account name is enough.',
+  'settings.account.delete.oidc': 'You sign in with the identity provider, so the password may stay empty: typing your account name is enough.',
   'settings.account.delete.name': 'Account name',
   'settings.account.delete.password': 'Password',
   'settings.account.delete.confirm': 'Delete my account for good',
