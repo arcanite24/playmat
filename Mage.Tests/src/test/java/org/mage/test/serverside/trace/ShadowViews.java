@@ -57,26 +57,57 @@ final class ShadowViews {
         return views;
     }
 
+    private static final Pattern SHORT_ID = Pattern.compile("\\[([0-9a-f]{3})]");
+
+    /**
+     * Ids replaced by references, in text too, and the short ids of objects' id names ({@code Name [c3b]}, the
+     * first three digits of the id) by their objects' references ({@code Name [B4]}); a short id two placed objects
+     * share stays as it is
+     */
     static JsonElement mapIds(JsonElement e, Map<UUID, String> refs) {
+        Map<String, String> shorts = new java.util.HashMap<>();
+        for (Map.Entry<UUID, String> r : refs.entrySet()) {
+            String k = r.getKey().toString().substring(0, 3);
+            shorts.merge(k, r.getValue(), (a, b) -> a.equals(b) ? a : "");
+        }
+        return mapIds(e, refs, shorts);
+    }
+
+    private static JsonElement mapIds(JsonElement e, Map<UUID, String> refs, Map<String, String> shorts) {
         if (e == null || e.isJsonNull()) {
             return e;
         }
         if (e.isJsonPrimitive()) {
             JsonPrimitive p = e.getAsJsonPrimitive();
-            return p.isString() ? new JsonPrimitive(mapText(p.getAsString(), refs)) : p;
+            return p.isString() ? new JsonPrimitive(mapShort(mapText(p.getAsString(), refs), shorts)) : p;
         }
         if (e.isJsonArray()) {
             JsonArray out = new JsonArray();
             for (JsonElement x : e.getAsJsonArray()) {
-                out.add(mapIds(x, refs));
+                out.add(mapIds(x, refs, shorts));
             }
             return out;
         }
         JsonObject out = new JsonObject();
         for (Map.Entry<String, JsonElement> x : e.getAsJsonObject().entrySet()) {
-            out.add(mapText(x.getKey(), refs), mapIds(x.getValue(), refs));
+            out.add(mapText(x.getKey(), refs), mapIds(x.getValue(), refs, shorts));
         }
         return out;
+    }
+
+    private static String mapShort(String s, Map<String, String> shorts) {
+        if (s.indexOf('[') < 0) {
+            return s;
+        }
+        java.util.regex.Matcher m = SHORT_ID.matcher(s);
+        StringBuffer out = new StringBuffer();
+        while (m.find()) {
+            String ref = shorts.get(m.group(1));
+            m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(
+                    ref == null || ref.isEmpty() ? m.group() : "[" + ref + "]"));
+        }
+        m.appendTail(out);
+        return out.toString();
     }
 
     /** a whole id becomes its reference; ids inside text (rules' object_id links) too */

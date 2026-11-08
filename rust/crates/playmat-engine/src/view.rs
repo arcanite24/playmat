@@ -40,7 +40,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "myHelperEmblems": helper_emblems(game),
         "opponentHands": {},
         "watchedHands": {},
-        "stack": stack_view(game),
+        "stack": stack_view(game, names),
         "exiles": [cards_view(game, &crate::replay::exile_order(game))],
         "combat": combat_view(game, names),
         "revealed": [],
@@ -159,6 +159,11 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
         if game_object && o.zone == Zone::Battlefield {
             characteristics(game, id, m);
             permanent_state(game, id, m);
+            let mut icons = permanent_icons(game, id);
+            if spell_x(&o.def) {
+                icons.push(x_icon(o.cast_x));
+            }
+            m.insert("cardIcons".into(), Value::Array(icons));
         }
     }
     v
@@ -557,7 +562,7 @@ fn combat_view(game: &Game, names: &[&str]) -> Value {
 
 /// The stack (`GameView`'s `stack`), by reference from the top: spells as their cards (`SpellView`), abilities as
 /// `StackAbilityView`s with their source's view
-fn stack_view(game: &Game) -> Value {
+fn stack_view(game: &Game, names: &[&str]) -> Value {
     let mut out = Map::new();
     for (i, item) in game.stack.iter().rev().enumerate() {
         let r = format!("S{}", i);
@@ -572,7 +577,39 @@ fn stack_view(game: &Game) -> Value {
             .collect();
         let o = game.obj(item.card);
         let paid = game.unpaid != Some(game.stack.len() - 1 - i);
-        let targets = (!item.targets.is_empty()).then_some(targets);
+        let mut icons = Vec::new();
+        let def = game.item_def(item);
+        let spell = item.ability.is_none() && item.delayed.is_none();
+        let ability = item.ability.and_then(|(k, _)| def.abilities.get(k));
+        // the targets it declares, chosen or not (`CardView.targets`, set when its ability has targets)
+        let declared = !item.targets.is_empty()
+            || if spell {
+                !def.spell.targets.is_empty()
+            } else {
+                ability.is_some_and(|a| {
+                    a.triggered().is_some_and(|t| !t.2.is_empty()) || a.activated().is_some_and(|t| !t.2.is_empty())
+                })
+            };
+        // (an X its costs announce shows once it's announced: before, the cost tag isn't there)
+        let announced = paid || item.x != 0;
+        let source_x = def.cost.x > 0
+            || announced
+                && if spell {
+                    x_cost(&def.spell.costs)
+                } else {
+                    ability.and_then(|a| a.activated()).is_some_and(|t| x_cost(t.3))
+                };
+        if !spell && o.zone == Zone::Battlefield {
+            // an ability's view shows its source's icons while it's a permanent
+            icons = permanent_icons(game, item.card);
+        }
+        if source_x {
+            icons.push(x_icon(item.x));
+        }
+        if !targets.is_empty() {
+            icons.push(targets_icon(game, item, names));
+        }
+        let targets = declared.then_some(targets);
         let v = if item.ability.is_none() && item.delayed.is_none() {
             // a spell: its card's view
             let mut v = card_view(game, item.card, &r, true);
@@ -580,6 +617,7 @@ fn stack_view(game: &Game) -> Value {
                 m.insert("cardId".into(), json!("?"));
                 m.insert("mageObjectType".into(), json!("SPELL"));
                 m.insert("paid".into(), json!(paid));
+                m.insert("cardIcons".into(), Value::Array(icons));
                 if let Some(c) = m.get("color").cloned() {
                     m.insert("frameColor".into(), c);
                 }
@@ -594,8 +632,12 @@ fn stack_view(game: &Game) -> Value {
             let ability = item.ability.and_then(|(k, _)| def.abilities.get(k));
             let rule = match (&item.delayed, item.ability) {
                 (Some(d), _) => d.rule.clone(),
-                (None, Some((k, _))) => ability_rules(game, item.card)
-                    .and_then(|r| r.get(k).cloned())
+                // its own rule, or its card's at its index when it has none (an effect's def can reorder them)
+                (None, Some((k, _))) => ability
+                    .and_then(|a| a.triggered().map(|t| t.0).or_else(|| a.activated().map(|t| t.0)))
+                    .filter(|r| !r.is_empty())
+                    .map(str::to_string)
+                    .or_else(|| ability_rules(game, item.card).and_then(|r| r.get(k).cloned()))
                     .unwrap_or_default()
                     .replace("{this}", &o.def.name),
                 _ => String::new(),
@@ -613,6 +655,7 @@ fn stack_view(game: &Game) -> Value {
                 v["counters"] = c;
             }
             v["paid"] = json!(paid);
+            v["cardIcons"] = Value::Array(icons);
             if let Some(t) = targets {
                 v["targets"] = Value::Array(t);
             }
@@ -622,6 +665,94 @@ fn stack_view(game: &Game) -> Value {
         out.insert(r, v);
     }
     Value::Object(out)
+}
+
+fn icon(kind: &str, hint: &str, text: &str) -> Value {
+    json!({"cardIconType": kind, "text": text, "hint": hint})
+}
+
+/// The icon an ability shows on its permanent (`Ability.getIcons(game)`)
+fn ability_icon(game: &Game, id: ObjId, a: &crate::card::AbilityDef) -> Option<Value> {
+    use crate::card::AbilityDef as A;
+    let (kind, hint) = match a {
+        A::FlyingAbility => ("ABILITY_FLYING", "Flying"),
+        A::ReachAbility => ("ABILITY_REACH", "Reach"),
+        A::VigilanceAbility => ("ABILITY_VIGILANCE", "Vigilance"),
+        A::TrampleAbility => ("ABILITY_TRAMPLE", "Trample"),
+        A::FirstStrikeAbility => ("ABILITY_FIRST_STRIKE", "First Strike"),
+        A::DoubleStrikeAbility => ("ABILITY_DOUBLE_STRIKE", "Double Strike"),
+        A::LifelinkAbility => ("ABILITY_LIFELINK", "Lifelink"),
+        A::DeathtouchAbility => ("ABILITY_DEATHTOUCH", "Deathtouch"),
+        A::DefenderAbility => ("ABILITY_DEFENDER", "Defender"),
+        A::IndestructibleAbility => ("ABILITY_INDESTRUCTIBLE", "Indestructible"),
+        A::HexproofAbility => ("ABILITY_HEXPROOF", "Hexproof from all"),
+        A::WardAbility { rule, .. } => {
+            return Some(icon("ABILITY_HEXPROOF", &upper_first(strip_italic(rule).trim()), ""));
+        }
+        A::ClassReminderAbility => {
+            let n = game.obj(id).class_level;
+            return Some(icon("ABILITY_CLASS_LEVEL", &format!("Current class level: {}", n), &n.to_string()));
+        }
+        _ => return None,
+    };
+    Some(icon(kind, hint, ""))
+}
+
+/// A permanent's icons from its abilities, printed then gained (`CardView.generateCardIconsForPermanent`)
+fn permanent_icons(game: &Game, id: ObjId) -> Vec<Value> {
+    let o = game.obj(id);
+    o.def
+        .abilities
+        .iter()
+        .cloned()
+        .chain(game.granted_abilities(id))
+        .filter_map(|a| ability_icon(game, id, &a))
+        .collect()
+}
+
+/// Costs that announce an X: an X in a mana cost, a `SacrificeXTargetCost` (`CardUtil.checkSourceCostsTagExists`)
+fn x_cost(costs: &[crate::card::CostDef]) -> bool {
+    costs.iter().any(|c| match c {
+        crate::card::CostDef::ManaCost { cost } => cost.contains("{X}"),
+        crate::card::CostDef::SacrificeXTargetCost { .. } => true,
+        _ => false,
+    })
+}
+
+/// A card cast with an X: in its mana cost or its spell's costs
+fn spell_x(def: &CardDef) -> bool {
+    def.cost.x > 0 || x_cost(&def.spell.costs)
+}
+
+/// The X announced for a spell or ability, or for the spell a permanent was cast as
+fn x_icon(x: i32) -> Value {
+    icon("OTHER_COST_X", &format!("Announced X = {}", x), &format!("x={}", x))
+}
+
+/// A stack object's targets, each as its controller's name and its name with its reference (Java's id names,
+/// `Name [c3b]`, have their short ids replaced by references when views are compared), sorted
+fn targets_icon(game: &Game, item: &crate::state::StackItem, names: &[&str]) -> Value {
+    let name = |p: Seat| names.get(p).copied().unwrap_or("").to_string();
+    let mut lines: Vec<String> = item
+        .targets
+        .iter()
+        .flatten()
+        .map(|t| match t {
+            crate::state::Target::Player(p) => name(*p),
+            crate::state::Target::Obj(t) => {
+                let o = game.obj(*t);
+                let p = if matches!(o.zone, Zone::Battlefield | Zone::Stack) { o.controller } else { o.owner };
+                format!("{}: {} [{}]", name(p), o.def.name, stack_ref(game, *t))
+            }
+        })
+        .collect();
+    lines.sort();
+    let n = lines.len();
+    icon(
+        "OTHER_HAS_TARGETS",
+        &format!("Has {} target(s). Move mouse over card to see target arrows:<br><br>{}", n, lines.join("<br>")),
+        &format!("T-{}", n),
+    )
 }
 
 /// A target's reference; a spell on the stack is its stack object's
