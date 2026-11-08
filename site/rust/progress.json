@@ -1,0 +1,884 @@
+{
+ "updated": "2026-11-07",
+ "goal": "games against the AI that cost a fraction of the server's CPU: one-on-one games against the AI with Pioneer and Standard decks, decided in milliseconds.",
+ "phases": [
+  {
+   "n": "0",
+   "name": "Contracts and measurement",
+   "status": "done",
+   "text": "State traces and fingerprints, decision logs, the wire conformance suite and the AI speed bench. A seeded game replays to the same trace twice in a row.",
+   "pr": [
+    192,
+    217
+   ]
+  },
+  {
+   "n": "1",
+   "name": "Rust gateway",
+   "status": "live",
+   "text": "playmat-gateway sits in front of the Java server and routes each group of calls to Java, Rust, or both to compare. Running on the public server since 4 Nov 2026.",
+   "pr": [
+    193
+   ]
+  },
+  {
+   "n": "2",
+   "name": "Platform services",
+   "status": "live",
+   "text": "Card search, deck checks, deck sync, deck import by link, staff records and support in Rust, each answered alongside Java and compared.",
+   "pr": [
+    194,
+    201,
+    205,
+    210
+   ]
+  },
+  {
+   "n": "3",
+   "name": "Career economy",
+   "status": "parked",
+   "text": "The Career's records and level track are built and compared; payouts wait until the AI work lands.",
+   "pr": [
+    211,
+    213
+   ]
+  },
+  {
+   "n": "4",
+   "name": "Rules engine and card pipeline",
+   "status": "active",
+   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games.",
+   "pr": [
+    219,
+    220,
+    228,
+    233
+   ]
+  },
+  {
+   "n": "5",
+   "name": "Rust AI",
+   "status": "active",
+   "text": "Whole-turn playouts on engine copies. Today it plays the AI's seat of Java's games through a copy kept in step, and hands the game back to the Java AI at any difference.",
+   "pr": [
+    232,
+    237,
+    238
+   ]
+  },
+  {
+   "n": "6",
+   "name": "Retire Java",
+   "status": "later",
+   "text": "Not before the Pioneer pool runs in Rust.",
+   "pr": []
+  }
+ ],
+ "steps": [
+  {
+   "n": "A",
+   "name": "Measure",
+   "status": "done",
+   "text": "The server logs what each Rust AI game costs: Java's game thread, the trace, and the Rust copy.",
+   "gate": "A week of production cost lines",
+   "pr": [
+    238
+   ]
+  },
+  {
+   "n": "B",
+   "name": "Fidelity",
+   "status": "active",
+   "text": "Every card of the 24 Pioneer and Standard meta decks in the engine, with shadow games for each pairing.",
+   "gate": "A week of production AI games that follow Java to the end",
+   "pr": []
+  },
+  {
+   "n": "C",
+   "name": "Views in Rust",
+   "status": "next",
+   "text": "Building what the client sees, compared in production against Java's.",
+   "gate": "Zero view differences on a week of real games"
+  },
+  {
+   "n": "D",
+   "name": "Human side and host",
+   "status": "later",
+   "text": "Skip settings, timers, mulligans, concede and reconnect; a Rust host for the whole game.",
+   "gate": "The live client tests pass against a Rust-hosted game"
+  },
+  {
+   "n": "E",
+   "name": "Rollout",
+   "status": "later",
+   "text": "Rust-hosted games for listed players first, then every AI duel whose decks qualify.",
+   "gate": "A week with no game lost to the host"
+  }
+ ],
+ "measures": [
+  {
+   "id": "node",
+   "label": "CPU per AI search node",
+   "java": 547,
+   "rust": 4.3,
+   "unit": "µs",
+   "date": "2026-11-06",
+   "source": "docs/rust/Ai.md",
+   "note": "84 seeded duels with the Pioneer and Standard school decks, one thread. The Rust AI searches fewer nodes per decision, so the decision times are the fairer comparison."
+  },
+  {
+   "id": "p99",
+   "label": "AI decision, 99th percentile",
+   "java": 1600,
+   "rust": 1,
+   "unit": "ms",
+   "date": "2026-11-06",
+   "source": "docs/rust/Ai.md"
+  },
+  {
+   "id": "worst",
+   "label": "Slowest AI decision",
+   "java": 1900,
+   "rust": 6,
+   "unit": "ms",
+   "date": "2026-11-06",
+   "source": "docs/rust/Ai.md"
+  },
+  {
+   "id": "replay",
+   "label": "A whole game replayed by the Rust engine",
+   "rust": 2.5,
+   "unit": "ms",
+   "date": "2026-11-06",
+   "source": "docs/rust/GameHost.md"
+  }
+ ],
+ "cost": {
+  "date": "2026-11-07",
+  "source": "docs/rust/GameHost.md",
+  "java_ai_game": [
+   8.6,
+   12.0
+  ],
+  "rust_ai_game": 0.54,
+  "rust_copy": 0.05,
+  "note": "CPU seconds per AI game with real decks. Java alone: its own AI. With the Rust AI: the AI's thinking moves to the Rust copy, and what's left is Java hosting the game.",
+  "split": [
+   {
+    "label": "Building views",
+    "share": 35
+   },
+   {
+    "label": "Sending them to the client",
+    "share": 20
+   },
+   {
+    "label": "Rules engine",
+    "share": 18
+   },
+   {
+    "label": "Recording the replay",
+    "share": 17
+   },
+   {
+    "label": "Playable highlights",
+    "share": 8
+   },
+   {
+    "label": "Trace and fingerprints",
+    "share": 2
+   }
+  ]
+ },
+ "counted": {
+  "engine_cards": 481,
+  "java_card_files": 32749,
+  "school": {
+   "label": "Pioneer and Standard school decks",
+   "decks": 42,
+   "covered": 42,
+   "cards": 410,
+   "cards_in": 410,
+   "list": [
+    {
+     "deck": "act1-boros-aggro",
+     "cards": 16,
+     "missing": 0
+    },
+    {
+     "deck": "act1-green-stompy",
+     "cards": 12,
+     "missing": 0
+    },
+    {
+     "deck": "act1-mono-black-devotion",
+     "cards": 14,
+     "missing": 0
+    },
+    {
+     "deck": "act2-abzan-greasefang",
+     "cards": 20,
+     "missing": 0
+    },
+    {
+     "deck": "act2-dimir-control",
+     "cards": 21,
+     "missing": 0
+    },
+    {
+     "deck": "act2-golgari-midrange",
+     "cards": 18,
+     "missing": 0
+    },
+    {
+     "deck": "act2-gruul-midrange",
+     "cards": 17,
+     "missing": 0
+    },
+    {
+     "deck": "act2-mono-red",
+     "cards": 12,
+     "missing": 0
+    },
+    {
+     "deck": "act2-mono-white-humans",
+     "cards": 13,
+     "missing": 0
+    },
+    {
+     "deck": "act2-rakdos-midrange",
+     "cards": 19,
+     "missing": 0
+    },
+    {
+     "deck": "act2-red-burn",
+     "cards": 12,
+     "missing": 0
+    },
+    {
+     "deck": "act3-azorius-spirits",
+     "cards": 17,
+     "missing": 0
+    },
+    {
+     "deck": "act3-izzet-phoenix",
+     "cards": 17,
+     "missing": 0
+    },
+    {
+     "deck": "act3-rakdos-graveyard",
+     "cards": 18,
+     "missing": 0
+    },
+    {
+     "deck": "meta-azorius-control",
+     "cards": 23,
+     "missing": 0
+    },
+    {
+     "deck": "meta-dimir-aggro",
+     "cards": 20,
+     "missing": 0
+    },
+    {
+     "deck": "meta-golgari-midrange",
+     "cards": 23,
+     "missing": 0
+    },
+    {
+     "deck": "meta-izzet-phoenix",
+     "cards": 20,
+     "missing": 0
+    },
+    {
+     "deck": "meta-izzet-prowess",
+     "cards": 20,
+     "missing": 0
+    },
+    {
+     "deck": "meta-mono-red-prowess",
+     "cards": 16,
+     "missing": 0
+    },
+    {
+     "deck": "meta-selesnya-company",
+     "cards": 19,
+     "missing": 0
+    },
+    {
+     "deck": "starter",
+     "cards": 16,
+     "missing": 0
+    },
+    {
+     "deck": "act1-boss-vampires",
+     "cards": 12,
+     "missing": 0
+    },
+    {
+     "deck": "act1-skies",
+     "cards": 14,
+     "missing": 0
+    },
+    {
+     "deck": "act1-stompy",
+     "cards": 12,
+     "missing": 0
+    },
+    {
+     "deck": "act2-aggro",
+     "cards": 11,
+     "missing": 0
+    },
+    {
+     "deck": "act2-combo",
+     "cards": 15,
+     "missing": 0
+    },
+    {
+     "deck": "act2-control",
+     "cards": 18,
+     "missing": 0
+    },
+    {
+     "deck": "act2-midrange",
+     "cards": 16,
+     "missing": 0
+    },
+    {
+     "deck": "act2-opp-gruul",
+     "cards": 16,
+     "missing": 0
+    },
+    {
+     "deck": "act2-opp-weenie",
+     "cards": 13,
+     "missing": 0
+    },
+    {
+     "deck": "act3-angels",
+     "cards": 11,
+     "missing": 0
+    },
+    {
+     "deck": "act3-boss-vigorbloom",
+     "cards": 15,
+     "missing": 0
+    },
+    {
+     "deck": "meta-azorius-control",
+     "cards": 23,
+     "missing": 0
+    },
+    {
+     "deck": "meta-boros-dragons",
+     "cards": 18,
+     "missing": 0
+    },
+    {
+     "deck": "meta-dimir-midrange",
+     "cards": 24,
+     "missing": 0
+    },
+    {
+     "deck": "meta-izzet-spellementals",
+     "cards": 19,
+     "missing": 0
+    },
+    {
+     "deck": "meta-jund-sacrifice",
+     "cards": 20,
+     "missing": 0
+    },
+    {
+     "deck": "meta-mono-green-landfall",
+     "cards": 15,
+     "missing": 0
+    },
+    {
+     "deck": "meta-rakdos-lizards",
+     "cards": 17,
+     "missing": 0
+    },
+    {
+     "deck": "signature",
+     "cards": 16,
+     "missing": 0
+    },
+    {
+     "deck": "starter",
+     "cards": 15,
+     "missing": 0
+    }
+   ]
+  },
+  "meta": {
+   "label": "Pioneer and Standard meta decks",
+   "decks": 24,
+   "covered": 6,
+   "cards": 278,
+   "cards_in": 180,
+   "list": [
+    {
+     "deck": "pioneer-azorius-spirits",
+     "cards": 16,
+     "missing": 4
+    },
+    {
+     "deck": "pioneer-dimir-aggro",
+     "cards": 20,
+     "missing": 0
+    },
+    {
+     "deck": "pioneer-golgari-midrange",
+     "cards": 23,
+     "missing": 0
+    },
+    {
+     "deck": "pioneer-gruul-dinosaurs",
+     "cards": 15,
+     "missing": 10
+    },
+    {
+     "deck": "pioneer-izzet-prowess",
+     "cards": 19,
+     "missing": 3
+    },
+    {
+     "deck": "pioneer-jeskai-ensoul",
+     "cards": 15,
+     "missing": 11
+    },
+    {
+     "deck": "pioneer-jund-artifact-sacrifice",
+     "cards": 19,
+     "missing": 7
+    },
+    {
+     "deck": "pioneer-jund-sacrifice",
+     "cards": 18,
+     "missing": 5
+    },
+    {
+     "deck": "pioneer-mono-black-zombies",
+     "cards": 11,
+     "missing": 0
+    },
+    {
+     "deck": "pioneer-mono-white-humans",
+     "cards": 12,
+     "missing": 4
+    },
+    {
+     "deck": "pioneer-nykthos-ramp",
+     "cards": 17,
+     "missing": 11
+    },
+    {
+     "deck": "pioneer-selesnya-angels",
+     "cards": 15,
+     "missing": 4
+    },
+    {
+     "deck": "standard-azorius-control",
+     "cards": 20,
+     "missing": 0
+    },
+    {
+     "deck": "standard-boros-dragons",
+     "cards": 18,
+     "missing": 0
+    },
+    {
+     "deck": "standard-dimir-midrange",
+     "cards": 23,
+     "missing": 0
+    },
+    {
+     "deck": "standard-golgari-squirrels",
+     "cards": 13,
+     "missing": 9
+    },
+    {
+     "deck": "standard-gruul-dragons",
+     "cards": 13,
+     "missing": 7
+    },
+    {
+     "deck": "standard-hare-apparent-tokens",
+     "cards": 5,
+     "missing": 3
+    },
+    {
+     "deck": "standard-izzet-prowess",
+     "cards": 20,
+     "missing": 7
+    },
+    {
+     "deck": "standard-izzet-spellementals",
+     "cards": 19,
+     "missing": 1
+    },
+    {
+     "deck": "standard-mono-black-reanimator",
+     "cards": 10,
+     "missing": 7
+    },
+    {
+     "deck": "standard-mono-blue-terror",
+     "cards": 11,
+     "missing": 4
+    },
+    {
+     "deck": "standard-mono-green-landfall",
+     "cards": 17,
+     "missing": 1
+    },
+    {
+     "deck": "standard-mono-white-lifegain",
+     "cards": 11,
+     "missing": 7
+    }
+   ]
+  },
+  "tiers": [
+   {
+    "tier": 1,
+    "what": "basic lands, vanilla and keyword creatures (flying, reach, vigilance, trample, lifelink), mana elves, burn",
+    "matched": 69,
+    "played": 69,
+    "timeouts": 0,
+    "note": "69 of 69 finished games match (15 checked in, 3 with combat damage splits)",
+    "checked_in": 15,
+    "decks": 3
+   },
+   {
+    "tier": 2,
+    "what": "enters and attack triggers, until-end-of-turn and static boosts, destroy, counterspells, enters-tapped and dual lands, first and double strike",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (11 checked in)",
+    "checked_in": 11,
+    "decks": 3
+   },
+   {
+    "tier": 3,
+    "what": "the Standard school deck act1-stompy against two tier-2 decks: kicker, +1/+1 counters, granted trample, landfall, tokens, dies triggers, \"another creature enters\" triggers, sorcery-speed activated abilities, two-target fight spells",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (11 checked in; no dies trigger resolved yet)",
+    "checked_in": 11,
+    "decks": 3
+   },
+   {
+    "tier": 4,
+    "what": "the Standard school deck act2-aggro against act1-stompy and gruul-pump: tap and sacrifice costs, prowess, menace, end-step triggers (raid, Ball Lightning), kicked burn, damage to each opponent, noncombat-damage triggers, attacking tokens with an end-of-combat sacrifice",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in; no menace re-declare seen yet)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 5,
+    "what": "the Standard school starter deck against act2-aggro and act1-stompy: modal spells, shock lands, abilities granted until end of turn, first strike during your turn, creature-count power and toughness, exile-if-it-would-die",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 6,
+    "what": "the act2 weenie deck against the starter and act2-aggro: beginning-of-combat triggers with a creature-count condition, counters on \"another creature enters\", abilities and a subtype from a counter count, a modal removal spell with a toughness filter",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 7,
+    "what": "UB control, white humans and RG burn from the pool's commons: counter-unless-pays, sweepers and damage to each creature, painlands and checklands, \"up to\" targets in graveyards, bounce and tap effects, lifelink, the legend rule",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 8,
+    "what": "UB grind, WU tempo and UR spells from the pool: discard and sacrifice costs, mill, draw-and-discard, sacrifice-for-mana tokens (Food, Clue, Treasure), the Verge lands, can't-be-countered, \"whenever you draw\" and \"whenever another creature you control enters\" triggers, abilities gained until end of turn",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 9,
+    "what": "WB removal, UR and WU tempo from the pool: exile-until-this-leaves (Banishing Light, Portable Hole), kicked enters triggers, discard and sacrifice spells, OrCost, \"can't be blocked\", hand-revealing discard",
+    "matched": 27,
+    "played": 27,
+    "timeouts": 0,
+    "note": "27 of 27 finished games match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 10,
+    "what": "BG and RW planeswalkers (Professor Dellian Fel, Ajani Resolute) against WU tempo: loyalty abilities, attacking planeswalkers, emblems, manlands (\"becomes a creature\" until end of turn), mana abilities chosen at priority, or-costs with a mana part, explore",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 11,
+    "what": "B removal, G stompy and W pacify from the pool: auras, sweepers, cost increases and reductions, fight, devotion, exile-until-this-leaves for every permanent of a kind",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 12,
+    "what": "Naya lands, R burn and U fliers: fast lands, slow lands and the other duals, Collected Company, flash, prowess, \"deals damage, then\" spells",
+    "matched": 14,
+    "played": 14,
+    "timeouts": 0,
+    "note": "14 of 14 finished games match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 13,
+    "what": "RB impulse, WB recursion and WU control: cards you may play from exile, spectacle, valiant, warp, Rattlechains, returning from the graveyard, \"until it leaves\" for several cards at once",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 14,
+    "what": "BR, GB, RW and UR from the pool: Vehicles and crew, two Rest in Peace (a replacement-effect choice), scavenge, tokens that enter attacking",
+    "matched": 28,
+    "played": 28,
+    "timeouts": 0,
+    "note": "28 of 28 finished games match (10 checked in)",
+    "checked_in": 10,
+    "decks": 4
+   },
+   {
+    "tier": 15,
+    "what": "WU mobilize, BG ooze, RB champion, UB lair and UR delve: mobilize, omens, modal triggers (Glissa), escape, ninjutsu, delve and convoke, extra turns, morbid, ferocious, \"you may pay; if you do\" costs",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 5
+   },
+   {
+    "tier": 16,
+    "what": "WB Spellbinder, UG curator, UR sharks and WR adversary: exert, Vehicles returned by Greasefang, cycling with X, cost reductions for fliers, \"pay any number of times\" (Intrepid Adversary), cards exiled until a creature leaves going back to hand, \"whenever this attacks\" triggers in one batch",
+    "matched": 29,
+    "played": 29,
+    "timeouts": 0,
+    "note": "29 of 29 finished games match (10 checked in)",
+    "checked_in": 10,
+    "decks": 4
+   },
+   {
+    "tier": 17,
+    "what": "WU Teferi, GW ramp and BR Raven Eagle: Teferi's delayed untap and emblem, power-up (Captain Marvel), Vehicles sized by what they exiled (Unlicensed Hearse), extra land drops and lands from the graveyard, Lotus tokens, \"chooses another creature\" with none to choose, Soul-Scar Mage's -1/-1 counters in fights, lifelink granted by Lyra",
+    "matched": 28,
+    "played": 28,
+    "timeouts": 0,
+    "note": "28 of 28 finished games match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 18,
+    "what": "WB Elspeth, UR Nemesis and BR Raven Eagle: day and night with daybound cards (Brutal Cathar, Graveyard Trespasser, Reckless Stormseeker), abilities that keep the face they came from after a transform, ward—discard a card, token doubling (Elspeth, Storm Slayer), cleave keeping the printed mana value, Evolved Sleeper's creature types",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 19,
+    "what": "BG Underdog, RG Sarkhan and WU Teferi: blitz from hand and graveyard (Tenacious Underdog), behold, Phyrexian mana, transforming creatures (Polukranos Reborn), earthbend, a second Soul-Scar Mage's replacement choice, blockers that stay blocking when their attacker leaves combat",
+    "matched": 27,
+    "played": 27,
+    "timeouts": 0,
+    "note": "27 of 27 finished games match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 20,
+    "what": "RG earthbend, U Jace and B graveyard: Ghost Vacuum's flying Spirits, Empower Jace and its planeswalker token, behold-or-tapped lands, Monster Roles, gift, offspring token copies, a cancelled target that still asks for the rest, Badgermole Cub's extra mana in what's castable",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 21,
+    "what": "G Chariot, WU charms and RB rage: spree (Three Steps Ahead, which can't target itself), Fatehold Charm returning itself to hand, Kumano's next-creature counter, Lively Dirge's total mana value, adventures cast from exile, an adventure that a bounced card can't be clicked as, Monstrous Rage's Role",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 22,
+    "what": "U Mockingbird, G Meltstrider and R Fire Magic: entering as a copy (of a copy too), an Aura's creature fighting, \"can't be blocked by more than one creature\", tiered spells",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 23,
+    "what": "G Garruk, UB hex and W Starcage: Garruk's until-your-next-turn attack trigger, Questing Beast, harmonize, blight, reflexive triggers with targets (Earthbender Ascension), Pinnacle Starcage, a Mockingbird copying a Mockingbird (asked again)",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 24,
+    "what": "UR Colorstorm, UB Kaito and R Fable: opus, Kaito's conditional creature form, Fable's token copy with haste, Obsessive Pursuit, Multiversal Passage's chosen land type, two Quantum Riddlers' replacement choice, a fizzled adventure",
+    "matched": 26,
+    "played": 26,
+    "timeouts": 4,
+    "note": "26 of 30 match, 4 Java timeouts (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 25,
+    "what": "UB Scarab God, WU Captain America and UR Talents: The Scarab God, Leyline of the Void from the opening hand, Class levels, Artist's Talent, shield counters with damage that can't be prevented, casualty and Galvanic Iteration copies, flashback beside a Leyline",
+    "matched": 24,
+    "played": 24,
+    "timeouts": 6,
+    "note": "24 of 30 match, 6 Java timeouts (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 26,
+    "what": "WU Spell Queller, R Chandra and UB Kaito: Spell Queller's exile, Chandra's +1 casting an exiled card or its adventure, foretell (Saw It Coming, looked at face down), teamwork (We Say Thee Nay!), Tishana's Tidebinder countering an ability (its own too) and taking Kaito's abilities, Urborg",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 27,
+    "what": "R dragons and W angels: Giada, Rockface Village, Maelstrom of the Spirit Dragon and Cavern of Souls (conditional mana kept in the pool, paid as Java's restricted auto-payment does), Aven Interrupter's plot, March of Otherworldly Light, Academic Dispute, Bloodthirsty Adversary's copies, Cruelclaw's Heist, omen spells as Omens",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 28,
+    "what": "BR outlaws, G trolls and U ideation: Laughing Jasper Flint, Rottenmouth Viper (sacrifice X, paid together), Pompous Battlemage and Emeritus of Ideation (prepared copies), Old-Growth Troll's Aura return, Esper Origins' flashback into its Saga, Petrified Hamlet, Gev's counters and another enters effect (the order asked)",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 29,
+    "what": "B Unholy Annex and the tier28 U and BR decks: Rooms (either half cast, doors locked and unlocked, unlocking as a special action, \"when you unlock this door\"), devotion counting double-faced permanents' back faces, prepared copies kept until the next state check",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 3
+   },
+   {
+    "tier": 30,
+    "what": "a player's Selesnya Company against Pioneer mono-black Zombies: Dread Wanderer returning from the graveyard (abilities of graveyard cards, \"one or fewer cards in hand\"), Cryptbreaker's tap-three-Zombies cost, Death Baron's Skeletons-and-other-Zombies filter, Diregraf Colossus's counters per Zombie card in the graveyard, Dark Salvation's tokens for the target player and its -1/-1 per Zombie, Voice of Resurgence's cast-on-your-turn-or-dies trigger",
+    "matched": 16,
+    "played": 16,
+    "timeouts": 14,
+    "note": "16 of 16 finished games match, 14 Java timeouts (10 checked in)",
+    "checked_in": 10,
+    "decks": 2
+   }
+  ],
+  "shadow": {
+   "played": 888,
+   "matched": 888,
+   "java_timeouts": 24,
+   "checked_in": 307
+  },
+  "rust": {
+   "lines": 26054,
+   "crates": [
+    {
+     "crate": "playmat-ai",
+     "lines": 1785
+    },
+    {
+     "crate": "playmat-engine",
+     "lines": 13987
+    },
+    {
+     "crate": "playmat-gateway",
+     "lines": 1497
+    },
+    {
+     "crate": "playmat-platform",
+     "lines": 7902
+    },
+    {
+     "crate": "playmat-protocol",
+     "lines": 543
+    },
+    {
+     "crate": "playmat-statediff",
+     "lines": 340
+    }
+   ]
+  }
+ },
+ "commit": "1cdf6f370a955b0b716e18e4c3938bdb78e25abe",
+ "generated": "2026-11-07"
+}
