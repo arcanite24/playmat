@@ -22,6 +22,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -462,16 +463,41 @@ public class SupportTest {
         // as a version 1 database left it: no pet column, no pet perk
         try (java.sql.Connection raw = java.sql.DriverManager.getConnection(url); java.sql.Statement sql = raw.createStatement()) {
             sql.execute("ALTER TABLE looks DROP COLUMN pet");
-            for (String column : new String[]{"arrow", "spark", "stamp", "lands", "badges"}) {
+            for (String column : new String[]{"arrow", "spark", "stamp", "lands", "badges", "tokens", "deck_tokens"}) {
                 sql.execute("ALTER TABLE looks DROP COLUMN " + column);
             }
             sql.execute("UPDATE schema_version SET version = 1");
         }
         try (SupportStore migrated = new SupportStore(url)) {
-            assertThat(migrated.schemaVersion()).isEqualTo(3);
+            assertThat(migrated.schemaVersion()).isEqualTo(4);
             assertThat(migrated.perks("old").stream().map(perk -> perk.kind + ":" + perk.item + ":" + perk.paymentId))
                     .contains("pet:party-corgi:7");
         }
+    }
+
+    @Test
+    void tokenPicturesAreFreeButWellFormed() throws Exception {
+        PlayerLook wanted = new PlayerLook();
+        wanted.tokens = new java.util.HashMap<>();
+        wanted.tokens.put("Goblin", "M10/Goblin/1");
+        wanted.tokens.put("Treasure", "XLN/Treasure");
+        wanted.tokens.put("Zombie", "M10/Goblin");
+        wanted.tokens.put("Spirit", "../etc/passwd");
+        wanted.deckTokens = Collections.singletonMap("Goblin", "DOM/Goblin");
+        PlayerLook kept = support.setLook("Cy", wanted, OCT_13);
+        assertThat(kept.tokens).as("each under its own name, as the token lists write them")
+                .containsOnly(entry("Goblin", "M10/Goblin/1"), entry("Treasure", "XLN/Treasure"));
+        assertThat(kept.deckTokens).containsOnly(entry("Goblin", "DOM/Goblin"));
+        PlayerLook stored = support.looks(Collections.singletonList("cy")).get(0);
+        assertThat(stored.tokens).as("kept in the store").containsEntry("Treasure", "XLN/Treasure");
+        assertThat(stored.deckTokens).containsEntry("Goblin", "DOM/Goblin");
+
+        PlayerLook many = new PlayerLook();
+        many.tokens = new java.util.HashMap<>();
+        for (int i = 0; i < 500; i++) {
+            many.tokens.put("Token" + i, "SET/Token" + i);
+        }
+        assertThat(support.validLook("Cy", many).tokens).hasSize(Support.MAX_TOKEN_CHOICES);
     }
 
     @Test

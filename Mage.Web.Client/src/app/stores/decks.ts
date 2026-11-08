@@ -30,6 +30,8 @@ export interface RosterDeck {
   fromStarter?: boolean;
   /** the deck website it was imported from */
   source?: DeckImportSource;
+  /** the deck's own token pictures, over the account's (ui/tokenArt.ts) */
+  tokenArt?: Record<string, string>;
 }
 
 const SELECTED_KEY = 'playmat.selectedDeck';
@@ -58,6 +60,7 @@ function summaryToRoster(deck: DeckSummary): RosterDeck {
     colors,
     starter: null,
     source: deck.source,
+    tokenArt: deck.tokenArt,
   };
 }
 

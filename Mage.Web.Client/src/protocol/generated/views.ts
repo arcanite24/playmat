@@ -1832,6 +1832,7 @@ export interface PlayerLook {
     badges?: string[];
     cardStyles?: { [index: string]: string };
     cloth?: string;
+    deckTokens?: { [index: string]: string };
     flair?: string;
     frame?: string;
     lands?: string;
@@ -1842,6 +1843,7 @@ export interface PlayerLook {
     spark?: string;
     stamp?: string;
     title?: string;
+    tokens?: { [index: string]: string };
 }
 
 export interface PlayerReport {

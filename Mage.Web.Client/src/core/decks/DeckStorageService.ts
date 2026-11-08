@@ -24,6 +24,8 @@ export interface DeckSummary {
     };
     /** the deck website the deck was imported from */
     source?: DeckImportSource;
+    /** the deck's own token pictures (ui/tokenArt.ts) */
+    tokenArt?: Record<string, string>;
 }
 
 export interface IDeckStorage {
@@ -67,6 +69,8 @@ interface DeckMeta {
     };
     /** the deck website the deck was imported from */
     source?: DeckImportSource;
+    /** the deck's own token pictures (ui/tokenArt.ts) */
+    tokenArt?: Record<string, string>;
 }
 
 export class LocalDeckStorage implements IDeckStorage {
@@ -123,6 +127,7 @@ export class LocalDeckStorage implements IDeckStorage {
             coverCard: deck.coverCard,
             colors: deck.colors,
             source: deck.source,
+            tokenArt: deck.tokenArt,
         };
         const newMeta = meta.filter(m => m.id !== deck.id);
         newMeta.push(newMetaItem);
@@ -221,6 +226,7 @@ export class LocalDeckStorage implements IDeckStorage {
             coverCard: m.coverCard,
             colors: m.colors,
             source: m.source,
+            tokenArt: m.tokenArt,
         })).sort((a, b) => b.updatedAt - a.updatedAt);
     }
 

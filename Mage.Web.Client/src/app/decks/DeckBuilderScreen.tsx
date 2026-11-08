@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Columns3, Crown, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Columns3, Coins, Crown, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMyCardStyles } from '../ui/cardStyles';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -21,6 +21,7 @@ import { useCardInfo, useCardInfoStore } from './cardInfo';
 import { Collection } from './Collection';
 import { DeckInsights } from './DeckInsights';
 import { SideboardPlansDialog } from './SideboardPlansDialog';
+import { TokenArtDialog } from './TokenArtDialog';
 import { PrintingPicker } from './PrintingPicker';
 import { ExportMenu } from './ExportMenu';
 import { ManaCurve } from './ManaCurve';
@@ -296,6 +297,7 @@ function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, s
   const [printingFor, setPrintingFor] = useState<DeckRow | null>(null);
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
+  const [tokensOpen, setTokensOpen] = useState(false);
   const commandZone = rules.commandZone;
   const listed = formats.some((group) => group.types.includes(format));
   // a commander deck counts its command zone; other decks count the main deck only
@@ -477,6 +479,7 @@ function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, s
         <ExportMenu getDeck={() => deck} side="top" />
         <Button variant="print" size="sm" icon={<BarChart3 size={16} />} onClick={() => setInsightsOpen(true)} disabled={mainCount === 0}>Numbers</Button>
         <Button variant="print" size="sm" icon={<ArrowLeftRight size={16} />} onClick={() => setPlansOpen(true)} disabled={mainCount === 0}>Sideboard plans</Button>
+        <Button variant="print" size="sm" icon={<Coins size={16} />} onClick={() => setTokensOpen(true)}>Token art</Button>
         <Button variant="decision" onClick={onPlay} disabled={mainCount === 0}>Play this deck</Button>
       </footer>
       <PrintingPicker
@@ -490,6 +493,7 @@ function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, s
       />
       <DeckInsights open={insightsOpen} onOpenChange={setInsightsOpen} deck={deck} info={info} />
       <SideboardPlansDialog open={plansOpen} onOpenChange={setPlansOpen} deck={deck} onChange={onChange} />
+      <TokenArtDialog open={tokensOpen} onOpenChange={setTokensOpen} deck={deck} onChange={onChange} />
     </aside>
   );
 }
