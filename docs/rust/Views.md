@@ -29,10 +29,15 @@ parted.
    at every n-th answer. `cargo test -p playmat-engine --test views` replays the games and renders its own view at
    each recorded one; with `PLAYMAT_VIEWS=<dir>` it reports the differences per field path, most common first.
    Recorded games with views are kept in `rust/crates/playmat-engine/views/`.
-2. **In production, beside the Rust AI's copy.** At each question to the human seat of a game the copy follows, Java
-   sends the copy the view it sent the client (already serialized for the socket, ids mapped), the copy renders its own
-   at the same point and counts the differing fields. Java logs the counts at the end of the game (`Rust views in …`)
-   and the server's metrics add them up.
+2. **In production, beside the Rust AI's copy.** At every 10th question to the human seat of a game the copy follows
+   (`XMAGE_RUST_VIEWS_EVERY`), the bridge builds that player's view as the client gets it, ids mapped
+   (`mage.server.game.RustViews`, shared with the shadow games), and sends it to the copy (`view`). The copy renders
+   its own at the same point and counts the views and fields that differ; a difference never stops it. As it ends it
+   reports `views {…}` with the counts, the most common fields and an example of each; Java logs `Rust views in …: n
+   compared, m differ` and adds them to the admin console's Overview (`ServerStats.rustAi`).
+   `playmat-ai`'s `mirror_views` test plays the recorded games through the copy as Java sends them and checks it
+   counts what the replay does. Live games so far (6 school-deck games in `RustAiGameTest`): 40 of 57 views match;
+   these decks' cards show gaps the meta decks didn't (face-down foretold cards, Crew icons, foretelling from hand).
 3. **Done** when the counts stay at zero for a week of real games: step C's gate.
 
 Prompts (the question's message, options, targets) and the game log's lines are compared the same way once the views

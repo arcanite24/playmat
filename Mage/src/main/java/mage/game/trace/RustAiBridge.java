@@ -40,6 +40,28 @@ public final class RustAiBridge {
     public static final AtomicLong ANSWERED = new AtomicLong();
     public static final AtomicLong STOPPED = new AtomicLong();
     public static final AtomicLong FINISHED = new AtomicLong();
+    /** the other seat's views the copies compared, and those with a field that differs (docs/rust/Views.md) */
+    public static final AtomicLong VIEWS_COMPARED = new AtomicLong();
+    public static final AtomicLong VIEWS_DIFFERING = new AtomicLong();
+    /**
+     * The view a player's client gets now, ids mapped to decision-log references, as JSON (set by the server: the
+     * views live there); null: no views are compared
+     */
+    public static volatile java.util.function.BiFunction<Game, UUID, Object> VIEWS;
+    /** XMAGE_RUST_VIEWS_EVERY: the copy compares the other seat's view at every n-th question to it (0: never) */
+    private static final int VIEWS_EVERY = viewsEvery();
+
+    private static int viewsEvery() {
+        try {
+            String v = System.getenv("XMAGE_RUST_VIEWS_EVERY");
+            return v == null || v.trim().isEmpty() ? 10 : Math.max(0, Integer.parseInt(v.trim()));
+        } catch (NumberFormatException e) {
+            return 10;
+        }
+    }
+
+    /** the other seat's questions so far, for the views' sampling */
+    private int otherAsked;
 
     private final AtomicLong answered = new AtomicLong();
     /** the game thread's CPU when the copy started; the Java side's cost at the end; the copy's CPU when it reports */
@@ -261,7 +283,9 @@ public final class RustAiBridge {
             try (BufferedReader r = new BufferedReader(new InputStreamReader(process.getErrorStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = r.readLine()) != null) {
-                    if (line.startsWith("cpu ") && line.endsWith(" ms")) {
+                    if (line.startsWith("views ")) {
+                        logViews(line.substring(6));
+                    } else if (line.startsWith("cpu ") && line.endsWith(" ms")) {
                         copyCpuMillis = Long.parseLong(line.substring(4, line.length() - 3));
                         logCost();
                     } else {
@@ -274,6 +298,9 @@ public final class RustAiBridge {
         errors.setDaemon(true);
         errors.start();
         game.addPlayerQueryEventListener(event -> {
+            if (event.getPlayerId() != null && !seatId.equals(event.getPlayerId())) {
+                sendView(game, event.getPlayerId());
+            }
             if (seatId.equals(event.getPlayerId())) {
                 choice = event.getChoice();
                 question = event.getQueryType() + " " + (event.getMessage() == null ? "" : event.getMessage())
@@ -352,6 +379,37 @@ public final class RustAiBridge {
         ANSWERED.incrementAndGet();
         answered.incrementAndGet();
         return answer;
+    }
+
+    /**
+     * At the other seat's question: its view, for the copy to render its own at the same point and count the fields
+     * that differ (it never stops the copy). Every {@link #VIEWS_EVERY}-th question, as building a view costs.
+     */
+    private void sendView(Game game, UUID playerId) {
+        java.util.function.BiFunction<Game, UUID, Object> views = VIEWS;
+        if (!active || views == null || VIEWS_EVERY <= 0 || otherAsked++ % VIEWS_EVERY != 0) {
+            return;
+        }
+        try {
+            Object view = views.apply(game, playerId);
+            sendDecisions();
+            JsonObject m = new JsonObject();
+            m.addProperty("type", "view");
+            m.add("view", view instanceof com.google.gson.JsonElement ? (com.google.gson.JsonElement) view
+                    : JsonParser.parseString(String.valueOf(view)));
+            com.google.gson.JsonArray names = new com.google.gson.JsonArray();
+            com.google.gson.JsonArray humans = new com.google.gson.JsonArray();
+            for (UUID id : StateFingerprint.seats(game)) {
+                names.add(game.getPlayer(id).getName());
+                humans.add(game.getPlayer(id).isHuman());
+            }
+            m.add("names", names);
+            m.add("humans", humans);
+            send(m.toString());
+        } catch (RuntimeException e) {
+            // a view is an extra: the copy goes on without it
+            logger.warn("Rust AI " + gameName + ": no view to compare: " + e);
+        }
     }
 
     /** the other seat's answers since the last call */
@@ -444,6 +502,33 @@ public final class RustAiBridge {
             logCost();
         }
         end();
+    }
+
+    /** the copy's count of the views it compared: {@code {"compared":n,"differing":m,"fields":{path:count}}} */
+    private void logViews(String json) {
+        try {
+            JsonObject v = JsonParser.parseString(json).getAsJsonObject();
+            long compared = v.get("compared").getAsLong();
+            long differing = v.get("differing").getAsLong();
+            if (compared == 0) {
+                return;
+            }
+            VIEWS_COMPARED.addAndGet(compared);
+            VIEWS_DIFFERING.addAndGet(differing);
+            logger.info("Rust views in " + gameName + ": " + compared + " compared, " + differing + " differ"
+                    + (differing > 0 && v.has("fields") ? "; fields: " + v.get("fields") : "")
+                    + (differing > 0 && v.has("examples") ? "\n  " + String.join("\n  ", examples(v)) : ""));
+        } catch (RuntimeException e) {
+            logger.info("Rust AI " + gameName + ": views " + json);
+        }
+    }
+
+    private static List<String> examples(JsonObject v) {
+        List<String> out = new ArrayList<>();
+        for (com.google.gson.JsonElement e : v.getAsJsonArray("examples")) {
+            out.add(e.getAsString());
+        }
+        return out;
     }
 
     private synchronized void logCost() {

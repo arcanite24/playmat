@@ -1955,6 +1955,15 @@ export interface RoundView extends Serializable {
     games?: TournamentGameView[];
 }
 
+export interface RustAiStats {
+    answered?: number;
+    finished?: number;
+    started?: number;
+    stopped?: number;
+    viewsCompared?: number;
+    viewsDiffering?: number;
+}
+
 export interface SeatView extends Serializable {
     constructedRating?: number;
     flagName?: string;
@@ -2040,6 +2049,7 @@ export interface ServerStats {
     now?: number;
     processCpu?: number;
     processors?: number;
+    rustAi?: RustAiStats;
     systemLoad?: number;
     tables?: number;
     threads?: number;

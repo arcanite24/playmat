@@ -262,13 +262,16 @@ step, and whenever the copy differs from Java's game, the Java AI takes the seat
 |---|---|---|
 | `XMAGE_AI_BACKEND` | `java` | `rust` lets the Rust AI play. |
 | `XMAGE_RUST_AI_USERS` | none | Comma-separated user names (any case), or `*` for everyone: whose games against the AI it plays. Empty: nobody's. |
+| `XMAGE_RUST_VIEWS_EVERY` | `10` | Every n-th question to the player, the Rust copy also renders the player's view and compares it with the one Java sent ([docs/rust/Views.md](../../docs/rust/Views.md)). `0` turns it off. It never changes the game. |
 | `XMAGE_ENGINE` | | `java` turns every Rust part off. |
 
 It plays a game when it's one player against one AI from opening hands, and the Rust engine has every card in both
 decks (for now, the Pioneer and Standard Career school decks' cards and a few Pioneer decks more,
 [docs/rust/Engine.md](../../docs/rust/Engine.md)). The log says `Rust AI plays seat …` when it starts, `Rust AI stops
 in …` with the reason when it hands a game back, and, for a listed player's game that doesn't qualify, which cards the
-engine lacks. Try it on staff first, e.g.
+engine lacks. At the end of each game it logs `Rust views in …: n compared, m differ` with the fields that differed
+and an example of each; the admin console's Overview adds up the games and views since the server started. Try it on
+staff first, e.g.
 `XMAGE_AI_BACKEND=rust` and `XMAGE_RUST_AI_USERS=neri`, then `up -d`.
 
 ### Small VPS (1 vCPU, 1 GB)

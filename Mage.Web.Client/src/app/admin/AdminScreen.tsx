@@ -268,6 +268,24 @@ function Overview({ api, role, onUpdates }: { api: AdminApi; role: StaffRole; on
         </ol>
       </section>
 
+      {(data.rustAi?.started ?? 0) > 0 && (
+        <section aria-labelledby="rust-ai" className={styles.block}>
+          <h2 id="rust-ai">Rust AI</h2>
+          <p className={styles.quiet}>
+            {(data.rustAi?.started ?? 0).toLocaleString()} games started, {(data.rustAi?.finished ?? 0).toLocaleString()} finished,{' '}
+            {(data.rustAi?.stopped ?? 0).toLocaleString()} handed back to the Java AI; {(data.rustAi?.answered ?? 0).toLocaleString()} answers.
+          </p>
+          {(data.rustAi?.viewsCompared ?? 0) > 0 && (
+            <p className={styles.quiet}>
+              Views: {(data.rustAi?.viewsCompared ?? 0).toLocaleString()} compared with Java's,{' '}
+              <span className={(data.rustAi?.viewsDiffering ?? 0) > 0 ? styles.alarm : undefined}>
+                {(data.rustAi?.viewsDiffering ?? 0).toLocaleString()} differ
+              </span>.
+            </p>
+          )}
+        </section>
+      )}
+
       <section aria-labelledby="heavy" className={styles.block}>
         <h2 id="heavy">Heaviest callbacks</h2>
         <table className={styles.table}>
