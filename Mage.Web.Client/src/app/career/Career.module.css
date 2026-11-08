@@ -586,7 +586,7 @@
 .sets {
   display: grid;
   gap: 8px;
-  max-height: 60vh;
+  max-height: 60dvh;
   margin: 0;
   padding: 0;
   overflow: auto;

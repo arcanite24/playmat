@@ -268,3 +268,83 @@
     display: none;
   }
 }
+
+/* a phone: the tools stay in the rail, and the labels move to a bar at the thumb's end of the screen. The rail and the
+   bar clear a notch or a gesture strip (the viewport covers it, see index.html) */
+@media (max-width: 640px) {
+  .mat {
+    grid-template-rows: calc(54px + env(safe-area-inset-top)) minmax(0, 1fr);
+  }
+
+  .rail {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--space-3);
+    padding-top: calc(var(--stitch-inset) + env(safe-area-inset-top));
+    padding-right: calc(var(--stitch-inset) + var(--space-3) + env(safe-area-inset-right));
+    padding-left: calc(var(--stitch-inset) + var(--space-3) + env(safe-area-inset-left));
+  }
+
+  .tools {
+    justify-self: end;
+    min-width: 0;
+  }
+
+  .nav {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-rail);
+    gap: 0;
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    overflow-x: auto;
+    background: var(--mat-800);
+    box-shadow: 0 -1px 0 var(--ink-ghost);
+  }
+
+  .navItem {
+    flex: 1 0 auto;
+    display: grid;
+    place-items: center;
+    min-width: 56px;
+    min-height: 52px;
+    padding: 0 8px;
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-print);
+    text-align: center;
+  }
+
+  /* the underline moves to the top edge of the bar */
+  .navItem::after {
+    top: 0;
+    bottom: auto;
+    left: 8px;
+    right: 8px;
+  }
+
+  .main,
+  .immersive .main {
+    padding-bottom: calc(52px + env(safe-area-inset-bottom));
+  }
+
+  .main {
+    padding-right: calc(var(--stitch-inset) + var(--space-2) + env(safe-area-inset-right));
+    padding-left: calc(var(--stitch-inset) + var(--space-2) + env(safe-area-inset-left));
+  }
+}
+
+
+/* a phone on its side keeps the top rail (a bottom bar would eat the little height there): the labels get a little
+   smaller and closer so more of them fit (the rest scroll sideways) */
+@media (max-height: 480px) and (min-width: 641px) and (max-width: 1000px) {
+  .navItem {
+    padding: 8px 7px;
+    font-size: var(--text-md);
+    letter-spacing: var(--tracking-print);
+  }
+
+  .navItem::after {
+    left: 7px;
+    right: 7px;
+  }
+}

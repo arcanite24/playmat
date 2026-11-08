@@ -296,3 +296,45 @@
 .upload small, .hint { margin: 0; color: var(--ink-dim); font-size: var(--text-sm); }
 
 .problem { flex: 1; margin: 0; color: var(--ink-soft); font-size: var(--text-sm); }
+
+/* a phone: the title and the host button share a wrapping row, the two lists stack, and the page scrolls as one */
+@media (max-width: 640px) {
+  .page {
+    overflow-y: auto;
+  }
+
+  .head {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  .title {
+    font-size: var(--text-3xl);
+  }
+
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+    flex: none;
+  }
+
+  .zone {
+    overflow: visible;
+  }
+
+  /* the name and its chevron on one line, what the event is under the name */
+  .start {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 2px;
+    padding: var(--space-2);
+  }
+
+  .start span {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .start svg {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}

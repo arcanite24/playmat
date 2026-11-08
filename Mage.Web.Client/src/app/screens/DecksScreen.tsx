@@ -71,6 +71,14 @@ export function DecksScreen() {
     }
   }
 
+  /** On a phone the chosen deck's panel sits under the shelf: bring it into view. */
+  function selectDeck(id: string) {
+    decks.select(id);
+    if (window.matchMedia('(max-width: 720px)').matches) {
+      requestAnimationFrame(() => document.getElementById('deck-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    }
+  }
+
   /** A site that blocks us: paste a fresh copy of the list, which replaces this deck's cards. */
   function pasteNewList(deck: RosterDeck) {
     if (!deck.source) return;
@@ -117,14 +125,14 @@ export function DecksScreen() {
           {roster.map((deck) => (
             <div key={deck.id} role="listitem" className={[styles.cell, deck.id === arrivedId ? styles.arrived : ''].join(' ')}>
               <div onDoubleClick={() => navigate(`/decks/${encodeURIComponent(deck.id)}`)}>
-                <DeckBox deck={deck} sleeve={sleeveFor(decks.sleeves, deck)} selected={deck.id === decks.selectedId} onSelect={() => decks.select(deck.id)} />
+                <DeckBox deck={deck} sleeve={sleeveFor(decks.sleeves, deck)} selected={deck.id === decks.selectedId} onSelect={() => selectDeck(deck.id)} />
               </div>
             </div>
           ))}
         </div>
       </Zone>
 
-      <Zone tone="filled" className={styles.detail}>
+      <Zone tone="filled" id="deck-detail" className={styles.detail}>
         {selected ? (
           <div className={styles.detailBody}>
             <h2 className={styles.detailName}>{selected.name}</h2>

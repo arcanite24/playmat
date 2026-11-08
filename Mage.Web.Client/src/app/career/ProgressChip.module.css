@@ -95,6 +95,18 @@
   }
 }
 
+/* a phone, upright or on its side: just the level ring, which opens the panel with the rest; the Career's own header
+   shows the counts, and the rail's labels get the room */
+@media (max-width: 640px), (max-height: 480px) and (max-width: 1000px) {
+  .packs {
+    display: none;
+  }
+
+  .chip {
+    padding-right: 2px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fill {
     transition: none;

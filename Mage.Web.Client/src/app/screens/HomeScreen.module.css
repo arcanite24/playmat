@@ -368,3 +368,30 @@
 .careerText small {
   font-size: var(--text-sm);
 }
+
+/* a phone, upright or on its side: the page scrolls as one, the deck list keeps a bounded height of its own above the play mat, and the
+   mat shows in full instead of scrolling inside itself */
+@media (max-width: 640px), (max-height: 480px) and (max-width: 1000px) {
+  /* max-content rows: with auto ones the page's own height squeezed the list to its header */
+  .home {
+    grid-template-rows: max-content max-content;
+    align-content: start;
+    gap: var(--space-3);
+    overflow-y: auto;
+  }
+
+  /* a set height: in an auto row a scrolling list would shrink to nothing */
+  .rosterList {
+    flex: none;
+    height: min(240px, 34dvh);
+    margin-right: 0;
+    padding-right: 2px;
+  }
+
+  .mat {
+    grid-template-rows: auto auto;
+    max-height: none;
+    padding: var(--space-4);
+    overflow: visible;
+  }
+}

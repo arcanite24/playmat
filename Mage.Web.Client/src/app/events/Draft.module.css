@@ -143,7 +143,7 @@
   grid-template-columns: repeat(8, minmax(0, 1fr));
   align-content: start;
   gap: 18px;
-  max-width: min(1500px, calc((100vh - 480px) / 2.8 * 8 + 126px));
+  max-width: min(1500px, calc((100dvh - 480px) / 2.8 * 8 + 126px));
   width: 100%;
   margin: 0 auto;
   padding: 8px 4px 12px;
@@ -189,7 +189,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-4);
-  max-width: min(1500px, calc((100vh - 480px) / 2.8 * 8 + 126px));
+  max-width: min(1500px, calc((100dvh - 480px) / 2.8 * 8 + 126px));
   width: 100%;
   margin: 0 auto;
   padding: var(--space-3) 4px;
@@ -244,7 +244,7 @@
   display: flex;
   gap: 14px;
   min-height: 170px;
-  max-height: 26vh;
+  max-height: 26dvh;
   overflow: auto hidden;
 }
 
@@ -281,3 +281,133 @@
   }
 }
 
+
+/* a phone: the header wraps (the seats get their own scrolling row), the pack is three cards across and scrolls, and
+   the picks shrink to a strip; the screen is fixed over the notch and gesture strip, so it pads for them */
+@media (max-width: 640px) {
+  .top {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-3);
+    padding: calc(var(--space-3) + env(safe-area-inset-top)) calc(var(--space-4) + env(safe-area-inset-right)) var(--space-2) calc(var(--space-4) + env(safe-area-inset-left));
+  }
+
+  .title {
+    font-size: var(--text-2xl);
+  }
+
+  .seats {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .seat {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  .pack {
+    padding: 0 calc(var(--space-3) + env(safe-area-inset-right)) 0 calc(var(--space-3) + env(safe-area-inset-left));
+  }
+
+  .booster {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 10px;
+    max-width: none;
+  }
+
+  /* a tap selects and the Pick button picks: no double-click to explain */
+  .action {
+    max-width: none;
+    padding: var(--space-2) 4px;
+  }
+
+  .hint {
+    display: none;
+  }
+
+  .picks {
+    padding: var(--space-2) calc(var(--space-3) + env(safe-area-inset-right)) calc(var(--space-3) + env(safe-area-inset-bottom)) calc(var(--space-3) + env(safe-area-inset-left));
+  }
+
+  .columns {
+    min-height: 0;
+    max-height: 24dvh;
+    overflow: auto;
+  }
+}
+
+/* a phone on its side: one slim header row, the pack in a single row that scrolls sideways, and the picks reduced to
+   their count (the pack gets the height) */
+@media (max-height: 480px) {
+  /* the sideways pack must scroll inside the screen, not widen it */
+  .screen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pack {
+    min-width: 0;
+  }
+
+  .top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .set {
+    display: none;
+  }
+
+  .title {
+    font-size: var(--text-xl);
+    white-space: nowrap;
+  }
+
+  .clock {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .seat {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+  }
+
+  /* the width rule above subtracts a header and picks that no longer take that much: it would go negative */
+  .booster,
+  .action {
+    max-width: none;
+  }
+
+  .booster {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-auto-columns: min(120px, 22dvh);
+    gap: 10px;
+    padding: 6px 4px;
+    overflow: auto hidden;
+  }
+
+  .action {
+    padding: 0 4px var(--space-2);
+  }
+
+  .picks {
+    padding-top: var(--space-1);
+    padding-bottom: var(--space-1);
+  }
+
+  .picks .columns {
+    display: none;
+  }
+
+  .picksLabel {
+    margin: 0;
+  }
+}

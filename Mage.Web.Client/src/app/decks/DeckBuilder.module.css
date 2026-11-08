@@ -24,6 +24,16 @@
   color: var(--ink-strong);
 }
 
+/* the phone's switch between the binder and the deck list: unused where both fit side by side */
+.paneSwitch {
+  display: none;
+}
+
+.binderPane,
+.deckPane {
+  display: contents;
+}
+
 /* collection */
 .collection {
   display: flex;
@@ -41,6 +51,15 @@
   gap: 10px 14px;
   padding: var(--space-4);
   border-bottom: 1px solid var(--ink-ghost);
+}
+
+/* the phone folds these away behind a button; elsewhere the group dissolves into the bar */
+.filterToggle {
+  display: none;
+}
+
+.filterBody {
+  display: contents;
 }
 
 .search {
@@ -794,4 +813,163 @@
 .styledMark {
   flex: none;
   color: var(--brass);
+}
+
+/* a phone, upright or on its side: one pane at a time, the switch above it. Each pane scrolls as a whole, so the
+   filters scroll away and leave the room to the cards, and the deck list's curve, land steppers and buttons stay
+   reachable under its cards */
+@media (max-width: 720px), (max-height: 480px) {
+  .page {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .paneSwitch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    padding: 4px;
+    border-radius: var(--radius-control);
+    background: rgb(var(--mat-rgb) / 0.6);
+    box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+  }
+
+  .paneOn,
+  .paneOff {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: calc(var(--radius-control) - 4px);
+    background: transparent;
+    color: var(--ink-dim);
+    font-family: var(--font-print);
+    font-size: var(--text-md);
+    font-weight: 700;
+    letter-spacing: var(--tracking-print);
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .paneOn {
+    background: rgb(var(--ink-rgb) / 0.12);
+    color: var(--ink-strong);
+  }
+
+  .binderPane,
+  .deckPane {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+    min-height: 0;
+  }
+
+  .page[data-pane='binder'] > .deckPane,
+  .page[data-pane='deck'] > .binderPane {
+    display: none;
+  }
+
+  .search {
+    min-width: 0;
+    max-width: none;
+  }
+
+  /* the search and a Filters button on one row; the rest opens beneath them */
+  .search {
+    flex: 1 1 0;
+  }
+
+  .filterToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: var(--radius-control);
+    background: rgb(var(--mat-rgb) / 0.6);
+    box-shadow: inset 0 0 0 1.5px var(--ink-faint);
+    color: var(--ink-strong);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .filterToggle[aria-expanded='true'] {
+    background: rgb(var(--ink-rgb) / 0.12);
+  }
+
+  .filterToggle b {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: var(--ink-strong);
+    color: var(--mat-900);
+    font-size: var(--text-xs);
+  }
+
+  .filterBody {
+    display: none;
+  }
+
+  .filterBody[data-open='true'] {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    flex: 1 0 100%;
+  }
+
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  }
+
+  .collection,
+  .deck {
+    overflow-y: auto;
+  }
+
+  .results {
+    flex: none;
+    overflow: visible;
+  }
+
+  .list {
+    flex: none;
+    margin-right: 0;
+    padding-right: 0;
+    overflow: visible;
+  }
+
+  /* fingers, not a pointer: the filters and land steppers grow toward a 44px target */
+  .pips,
+  .costs {
+    flex-wrap: wrap;
+  }
+
+  .pip {
+    width: 40px;
+    height: 40px;
+  }
+
+  .cost {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* three or so to a row, so each stepper keeps a thumb-sized button */
+  .basics {
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+    gap: 8px 4px;
+  }
+
+  .basic {
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
+  }
+
+  .basic button {
+    width: 32px;
+    height: 32px;
+  }
 }

@@ -1,5 +1,5 @@
-import { Search, X } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { useId, useState, type ReactNode } from 'react';
 import type { CardType, Rarity } from '../../protocol/generated/views';
 import styles from './DeckBuilder.module.css';
 import { EMPTY_FILTERS, isFiltered, type CardFilters } from './filters';
@@ -44,6 +44,10 @@ export function CardFilterBar({ filters, onChange, toggles, sets }: {
   sets?: { setCode?: string; name?: string }[] | null;
 }) {
   const set = (patch: Partial<CardFilters>) => onChange({ ...filters, ...patch });
+  // on a phone the filters fold away behind a button (the CSS shows them everywhere else): only the search stays out
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  const active = filters.colors.length + (filters.manaValue !== null ? 1 : 0) + (filters.type ? 1 : 0) + (filters.rarity ? 1 : 0) + (filters.set ? 1 : 0) + (filters.anyText ? 1 : 0);
   return (
     <div className={styles.filters}>
       <label className={styles.search}>
@@ -58,6 +62,11 @@ export function CardFilterBar({ filters, onChange, toggles, sets }: {
           <button type="button" className={styles.clearText} onClick={() => set({ text: '' })} aria-label="Clear search"><X size={16} /></button>
         )}
       </label>
+      <button type="button" className={styles.filterToggle} aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen(!open)}>
+        <SlidersHorizontal size={18} aria-hidden="true" />
+        Filters{active > 0 && <b>{active}</b>}
+      </button>
+      <div id={bodyId} className={styles.filterBody} data-open={open}>
       <label className={styles.toggle}>
         <input type="checkbox" checked={filters.anyText} onChange={(event) => set({ anyText: event.target.checked })} />
         Rules text
@@ -111,6 +120,7 @@ export function CardFilterBar({ filters, onChange, toggles, sets }: {
         </select>
       )}
       {isFiltered(filters) && <button type="button" className={styles.reset} onClick={() => onChange(EMPTY_FILTERS)}>Reset</button>}
+      </div>
     </div>
   );
 }

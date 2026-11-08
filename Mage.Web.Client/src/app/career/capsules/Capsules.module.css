@@ -772,12 +772,12 @@
   position: relative;
   display: flex;
   justify-content: center;
-  height: min(260px, 32vh);
+  height: min(260px, 32dvh);
   margin: var(--space-3) 0;
 }
 
 .fan img {
-  width: calc(min(260px, 32vh) * 0.716);
+  width: calc(min(260px, 32dvh) * 0.716);
   height: 100%;
   margin: 0 -26px;
   border-radius: 6px;
