@@ -6,12 +6,28 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Abandoned Air Temple"
+        "rule": "Play Abandoned Air Temple",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a basic land."
+        "rule": "{this} enters tapped unless you control a basic land.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "you control a basic land",
+            "trueText": "You control a basic land",
+            "falseText": "You control a basic land",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -48,7 +64,8 @@
       {
         "class": "CantBeCounteredSourceAbility",
         "type": "STATIC",
-        "rule": "This spell can't be countered."
+        "rule": "This spell can't be countered.",
+        "rule_at_top": true
       }
     ]
   },
@@ -59,7 +76,14 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "target creature blocks this turn if able. You may have it gain reach until end of turn. <br>Learn. <i>(You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.)</i>"
+        "rule": "target creature blocks this turn if able. You may have it gain reach until end of turn. <br>Learn. <i>(You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.)</i>",
+        "hints": [
+          {
+            "class": "OpenSideboardHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -70,7 +94,17 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "look at the top three cards of your library. Put one of those cards into your hand and the rest on the bottom of your library in any order. Put each of those cards into your hand instead if there are three or more Lesson cards in your graveyard."
+        "rule": "look at the top three cards of your library. Put one of those cards into your hand and the rest on the bottom of your library in any order. Put each of those cards into your hand instead if there are three or more Lesson cards in your graveyard.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Lesson cards in your graveyard",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.CardsInControllerGraveyardCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -91,7 +125,14 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "{this}'s power is equal to the number of creatures you control."
+        "rule": "{this}'s power is equal to the number of creatures you control.",
+        "hints": [
+          {
+            "class": "CreaturesYouControlHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AttacksWithCreaturesTriggeredAbility",
@@ -122,7 +163,17 @@
       {
         "class": "SimpleActivatedAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "{6}: Create a Heartwood token. Then {this} gets +X/+0 until end of turn, where X is the number of artifacts you control."
+        "rule": "{6}: Create a Heartwood token. Then {this} gets +X/+0 until end of turn, where X is the number of artifacts you control.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Artifacts you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "X"
+            }
+          }
+        ]
       }
     ]
   },
@@ -295,7 +346,14 @@
       {
         "class": "ClassReminderAbility",
         "type": "STATIC",
-        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>"
+        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>",
+        "hints": [
+          {
+            "class": "ClassLevelHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SpellCastControllerTriggeredAbility",
@@ -394,12 +452,28 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Ba Sing Se"
+        "rule": "Play Ba Sing Se",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a basic land."
+        "rule": "{this} enters tapped unless you control a basic land.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "you control a basic land",
+            "trueText": "You control a basic land",
+            "falseText": "You control a basic land",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -552,7 +626,43 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} enters, create a Treasure token if an opponent controls more lands than you. You gain 4 life if an opponent has more life than you. Create two 1/1 blue Fish creature tokens if an opponent controls more creatures than you. Draw a card if an opponent has more cards in hand than you."
+        "rule": "When {this} enters, create a Treasure token if an opponent controls more lands than you. You gain 4 life if an opponent has more life than you. Create two 1/1 blue Fish creature tokens if an opponent controls more creatures than you. Draw a card if an opponent has more cards in hand than you.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.OpponentControlsMoreCondition",
+              "text": "an opponent controls more lands than you"
+            },
+            "trueText": "An opponent controls more lands than you",
+            "falseText": "An opponent controls more lands than you",
+            "useIcons": "true"
+          },
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.OpponentControlsMoreCondition",
+              "text": "an opponent controls more creatures than you"
+            },
+            "trueText": "An opponent controls more creatures than you",
+            "falseText": "An opponent controls more creatures than you",
+            "useIcons": "true"
+          },
+          {
+            "class": "ConditionHint",
+            "condition": "an opponent has more life than you",
+            "trueText": "An opponent has more life than you",
+            "falseText": "An opponent has more life than you",
+            "useIcons": "true"
+          },
+          {
+            "class": "ConditionHint",
+            "condition": "an opponent has more cards in hand than you",
+            "trueText": "An opponent has more cards in hand than you",
+            "falseText": "An opponent has more cards in hand than you",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -568,7 +678,8 @@
       {
         "class": "EntersBattlefieldAbility",
         "type": "STATIC",
-        "rule": "{this} enters "
+        "rule": "{this} enters ",
+        "rule_hidden": true
       },
       {
         "class": "ChapterTriggeredAbility",
@@ -588,7 +699,8 @@
       {
         "class": "SagaAbility",
         "type": "STATIC",
-        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> "
+        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> ",
+        "rule_at_top": true
       }
     ]
   },
@@ -642,12 +754,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Blackcleave Cliffs"
+        "rule": "Play Blackcleave Cliffs",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -668,7 +799,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Blazemire Verge"
+        "rule": "Play Blazemire Verge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -678,7 +816,19 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {R}. Activate only if you control a Swamp or a Mountain."
+        "rule": "{T}: Add {R}. Activate only if you control a Swamp or a Mountain.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+              "text": "you control a Swamp or a Mountain"
+            },
+            "trueText": "You control a Swamp or a Mountain",
+            "falseText": "You control a Swamp or a Mountain",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -689,7 +839,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Blood Crypt"
+        "rule": "Play Blood Crypt",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -772,7 +929,14 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} enters, if an opponent lost life this turn, each opponent discards a card."
+        "rule": "When {this} enters, if an opponent lost life this turn, each opponent discards a card.",
+        "hints": [
+          {
+            "class": "OpponentsLostLifeHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -793,7 +957,17 @@
       {
         "class": "ActivateAsSorceryActivatedAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "{T}, Sacrifice {this}: Target creature gets -X/-X until end of turn, where X is twice the number of Blood tokens you control. Activate only as a sorcery."
+        "rule": "{T}, Sacrifice {this}: Target creature gets -X/-X until end of turn, where X is twice the number of Blood tokens you control. Activate only as a sorcery.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Blood tokens you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -825,12 +999,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Blooming Marsh"
+        "rule": "Play Blooming Marsh",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -921,7 +1114,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Boseiju, Who Endures"
+        "rule": "Play Boseiju, Who Endures",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -931,7 +1131,17 @@
       {
         "class": "ChannelAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "<i>Channel</i> &mdash; {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control."
+        "rule": "<i>Channel</i> &mdash; {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Legendary creatures you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -942,7 +1152,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Branchloft Pathway"
+        "rule": "Play Branchloft Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -952,7 +1169,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Boulderloft Pathway"
+        "rule": "Play Boulderloft Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -999,7 +1223,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Brightclimb Pathway"
+        "rule": "Play Brightclimb Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -1009,7 +1240,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Grimclimb Pathway"
+        "rule": "Play Grimclimb Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -1036,7 +1274,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Brushland"
+        "rule": "Play Brushland",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -1072,7 +1317,14 @@
       {
         "class": "DayboundAbility",
         "type": "STATIC",
-        "rule": "daybound <i>(If a player casts no spells during their own turn, it becomes night next turn.)</i>"
+        "rule": "daybound <i>(If a player casts no spells during their own turn, it becomes night next turn.)</i>",
+        "hints": [
+          {
+            "class": "DayNightHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "FirstStrikeAbility",
@@ -1087,7 +1339,14 @@
       {
         "class": "NightboundAbility",
         "type": "STATIC",
-        "rule": "nightbound <i>(If a player casts at least two spells during their own turn, it becomes day next turn.)</i>"
+        "rule": "nightbound <i>(If a player casts at least two spells during their own turn, it becomes day next turn.)</i>",
+        "hints": [
+          {
+            "class": "DayNightHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -1103,7 +1362,8 @@
       {
         "class": "KickerAbility",
         "type": "STATIC",
-        "rule": "Kicker {4} <i>(You may pay an additional {4} as you cast this spell.)</i>"
+        "rule": "Kicker {4} <i>(You may pay an additional {4} as you cast this spell.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -1219,12 +1479,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Castle Locthwain"
+        "rule": "Play Castle Locthwain",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a Swamp."
+        "rule": "{this} enters tapped unless you control a Swamp.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control a Swamp"
+            },
+            "trueText": "You control a Swamp",
+            "falseText": "You control a Swamp",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -1245,7 +1524,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Cavern of Souls"
+        "rule": "Play Cavern of Souls",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -1265,7 +1551,8 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": ""
+        "rule": "",
+        "rule_hidden": true
       }
     ]
   },
@@ -1371,7 +1658,14 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "draw two cards. Then discard a card unless you attacked this turn."
+        "rule": "draw two cards. Then discard a card unless you attacked this turn.",
+        "hints": [
+          {
+            "class": "RaidHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -1403,7 +1697,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Clearwater Pathway"
+        "rule": "Play Clearwater Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -1413,7 +1714,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Murkwater Pathway"
+        "rule": "Play Murkwater Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -1429,12 +1737,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Clifftop Retreat"
+        "rule": "Play Clifftop Retreat",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a Mountain or a Plains."
+        "rule": "{this} enters tapped unless you control a Mountain or a Plains.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control a Mountain or a Plains"
+            },
+            "trueText": "You control a Mountain or a Plains",
+            "falseText": "You control a Mountain or a Plains",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -1534,12 +1861,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Concealed Courtyard"
+        "rule": "Play Concealed Courtyard",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -1576,7 +1922,8 @@
       {
         "class": "KickerAbility",
         "type": "STATIC",
-        "rule": "Kicker {1}{U} <i>(You may pay an additional {1}{U} as you cast this spell.)</i>"
+        "rule": "Kicker {1}{U} <i>(You may pay an additional {1}{U} as you cast this spell.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -1587,12 +1934,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Copperline Gorge"
+        "rule": "Play Copperline Gorge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -1640,7 +2006,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Cragcrown Pathway"
+        "rule": "Play Cragcrown Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -1650,7 +2023,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Timbercrown Pathway"
+        "rule": "Play Timbercrown Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -1671,7 +2051,8 @@
       {
         "class": "GiftAbility",
         "type": "STATIC",
-        "rule": "Gift a card <i>(You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)</i>"
+        "rule": "Gift a card <i>(You may promise an opponent a gift as you cast this spell. If you do, they draw a card before its other effects.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -1687,7 +2068,14 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "{this}'s power and toughness are each equal to the number of creatures you control."
+        "rule": "{this}'s power and toughness are each equal to the number of creatures you control.",
+        "hints": [
+          {
+            "class": "CreaturesYouControlHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -1752,7 +2140,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Darkbore Pathway"
+        "rule": "Play Darkbore Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -1762,7 +2157,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Slitherbore Pathway"
+        "rule": "Play Slitherbore Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -1778,12 +2180,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Darkslick Shores"
+        "rule": "Play Darkslick Shores",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -1910,7 +2331,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Demolition Field"
+        "rule": "Play Demolition Field",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -1931,7 +2359,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Den of the Bugbear"
+        "rule": "Play Den of the Bugbear",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldAbility",
@@ -1957,12 +2392,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Deserted Beach"
+        "rule": "Play Deserted Beach",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or more other lands."
+        "rule": "{this} enters tapped unless you control two or more other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or more other lands"
+            },
+            "trueText": "You control two or more other lands",
+            "falseText": "You control two or more other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -2015,7 +2469,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Dismal Backwater"
+        "rule": "Play Dismal Backwater",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -2051,7 +2512,8 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "this spell can't be countered."
+        "rule": "this spell can't be countered.",
+        "rule_at_top": true
       }
     ]
   },
@@ -2062,12 +2524,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Dragonskull Summit"
+        "rule": "Play Dragonskull Summit",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a Swamp or a Mountain."
+        "rule": "{this} enters tapped unless you control a Swamp or a Mountain.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control a Swamp or a Mountain"
+            },
+            "trueText": "You control a Swamp or a Mountain",
+            "falseText": "You control a Swamp or a Mountain",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -2130,12 +2611,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Drowned Catacomb"
+        "rule": "Play Drowned Catacomb",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control an Island or a Swamp."
+        "rule": "{this} enters tapped unless you control an Island or a Swamp.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control an Island or a Swamp"
+            },
+            "trueText": "You control an Island or a Swamp",
+            "falseText": "You control an Island or a Swamp",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -2209,7 +2709,18 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "this spell costs {1} less to cast for each instant and sorcery card in your graveyard."
+        "rule": "this spell costs {1} less to cast for each instant and sorcery card in your graveyard.",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Instant and sorcery cards in your graveyard",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.CardsInControllerGraveyardCount",
+              "text": "1"
+            }
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldAbility",
@@ -2246,7 +2757,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Eiganjo, Seat of the Empire"
+        "rule": "Play Eiganjo, Seat of the Empire",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -2256,7 +2774,17 @@
       {
         "class": "ChannelAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "<i>Channel</i> &mdash; {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature. This ability costs {1} less to activate for each legendary creature you control."
+        "rule": "<i>Channel</i> &mdash; {2}{W}, Discard this card: It deals 4 damage to target attacking or blocking creature. This ability costs {1} less to activate for each legendary creature you control.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Legendary creatures you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -2512,7 +3040,14 @@
       {
         "class": "BeginningOfEndStepTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of your end step, if you gained life this turn, surveil 1. If you put a card with mana value less than or equal to the amount of life you gained this turn into your graveyard this way, put that card into your hand."
+        "rule": "At the beginning of your end step, if you gained life this turn, surveil 1. If you put a card with mana value less than or equal to the amount of life you gained this turn into your graveyard this way, put that card into your hand.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Life gained this turn",
+            "value": "X"
+          }
+        ]
       }
     ]
   },
@@ -2534,7 +3069,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Escape Tunnel"
+        "rule": "Play Escape Tunnel",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SimpleActivatedAbility",
@@ -2591,7 +3133,8 @@
       {
         "class": "EntersBattlefieldAbility",
         "type": "STATIC",
-        "rule": "{this} enters "
+        "rule": "{this} enters ",
+        "rule_hidden": true
       },
       {
         "class": "ChapterTriggeredAbility",
@@ -2611,7 +3154,8 @@
       {
         "class": "SagaAbility",
         "type": "STATIC",
-        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> "
+        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> ",
+        "rule_at_top": true
       }
     ]
   },
@@ -2670,7 +3214,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Evolving Wilds"
+        "rule": "Play Evolving Wilds",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SimpleActivatedAbility",
@@ -2723,7 +3274,8 @@
       {
         "class": "EntersBattlefieldAbility",
         "type": "STATIC",
-        "rule": "{this} enters "
+        "rule": "{this} enters ",
+        "rule_hidden": true
       },
       {
         "class": "ChapterTriggeredAbility",
@@ -2743,7 +3295,8 @@
       {
         "class": "SagaAbility",
         "type": "STATIC",
-        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> "
+        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> ",
+        "rule_at_top": true
       },
       {
         "class": "SimpleActivatedAbility",
@@ -2759,7 +3312,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Fabled Passage"
+        "rule": "Play Fabled Passage",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SimpleActivatedAbility",
@@ -2817,7 +3377,16 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "Destroy target creature if it has mana value 2 or less.<br><i>Revolt</i> &mdash; Destroy that creature if it has mana value 4 or less instead if a permanent left the battlefield under your control this turn."
+        "rule": "Destroy target creature if it has mana value 2 or less.<br><i>Revolt</i> &mdash; Destroy that creature if it has mana value 4 or less instead if a permanent left the battlefield under your control this turn.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "a permanent left the battlefield under your control this turn",
+            "trueText": "A permanent left the battlefield under your control this turn",
+            "falseText": "A permanent left the battlefield under your control this turn",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -2913,7 +3482,8 @@
       {
         "class": "TieredAbility",
         "type": "STATIC",
-        "rule": ""
+        "rule": "",
+        "rule_hidden": true
       }
     ]
   },
@@ -2929,7 +3499,8 @@
       {
         "class": "KickerAbility",
         "type": "STATIC",
-        "rule": "Kicker {4} <i>(You may pay an additional {4} as you cast this spell.)</i>"
+        "rule": "Kicker {4} <i>(You may pay an additional {4} as you cast this spell.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -2988,7 +3559,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Floodfarm Verge"
+        "rule": "Play Floodfarm Verge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -2998,7 +3576,19 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {U}. Activate only if you control a Plains or an Island."
+        "rule": "{T}: Add {U}. Activate only if you control a Plains or an Island.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+              "text": "you control a Plains or an Island"
+            },
+            "trueText": "You control a Plains or an Island",
+            "falseText": "You control a Plains or an Island",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -3040,7 +3630,29 @@
       {
         "class": "SpellAbility",
         "type": "SPELL",
-        "rule": "look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. If there is an instant card and a sorcery card in your graveyard, instead put two of them into your hand and the rest on the bottom of your library in any order."
+        "rule": "look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order. If there is an instant card and a sorcery card in your graveyard, instead put two of them into your hand and the rest on the bottom of your library in any order.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.CardsInControllerGraveyardCondition",
+              "text": "there are one or more card in your graveyard"
+            },
+            "trueText": "There's an instant card in your graveyard",
+            "falseText": "There's an instant card in your graveyard",
+            "useIcons": "true"
+          },
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.CardsInControllerGraveyardCondition",
+              "text": "there are one or more card in your graveyard"
+            },
+            "trueText": "There's a sorcery card in your graveyard",
+            "falseText": "There's a sorcery card in your graveyard",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -3062,7 +3674,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Forest"
+        "rule": "Play Forest",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -3078,7 +3697,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Fountainport"
+        "rule": "Play Fountainport",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -3183,7 +3809,8 @@
       {
         "class": "KickerAbility",
         "type": "STATIC",
-        "rule": "Kicker {B} <i>(You may pay an additional {B} as you cast this spell.)</i>"
+        "rule": "Kicker {B} <i>(You may pay an additional {B} as you cast this spell.)</i>",
+        "rule_at_top": true
       },
       {
         "class": "EntersBattlefieldTriggeredAbility",
@@ -3342,12 +3969,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Glacial Fortress"
+        "rule": "Play Glacial Fortress",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a Plains or an Island."
+        "rule": "{this} enters tapped unless you control a Plains or an Island.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control a Plains or an Island"
+            },
+            "trueText": "You control a Plains or an Island",
+            "falseText": "You control a Plains or an Island",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -3394,7 +4040,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Gloomlake Verge"
+        "rule": "Play Gloomlake Verge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -3404,7 +4057,19 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {B}. Activate only if you control an Island or a Swamp."
+        "rule": "{T}: Add {B}. Activate only if you control an Island or a Swamp.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+              "text": "you control an Island or a Swamp"
+            },
+            "trueText": "You control an Island or a Swamp",
+            "falseText": "You control an Island or a Swamp",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -3451,7 +4116,8 @@
       {
         "class": "BecomesExertSourceTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} becomes exerted, it deals 4 damage to target non-Dragon creature an opponent controls."
+        "rule": "When {this} becomes exerted, it deals 4 damage to target non-Dragon creature an opponent controls.",
+        "rule_hidden": true
       }
     ]
   },
@@ -3488,7 +4154,8 @@
       {
         "class": "KickerAbility",
         "type": "STATIC",
-        "rule": "Kicker {2}{G} <i>(You may pay an additional {2}{G} as you cast this spell.)</i>"
+        "rule": "Kicker {2}{G} <i>(You may pay an additional {2}{G} as you cast this spell.)</i>",
+        "rule_at_top": true
       },
       {
         "class": "EntersBattlefieldAbility",
@@ -3531,7 +4198,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Godless Shrine"
+        "rule": "Play Godless Shrine",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -3608,7 +4282,14 @@
       {
         "class": "DayboundAbility",
         "type": "STATIC",
-        "rule": "daybound <i>(If a player casts no spells during their own turn, it becomes night next turn.)</i>"
+        "rule": "daybound <i>(If a player casts no spells during their own turn, it becomes night next turn.)</i>",
+        "hints": [
+          {
+            "class": "DayNightHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WardAbility",
@@ -3623,7 +4304,14 @@
       {
         "class": "NightboundAbility",
         "type": "STATIC",
-        "rule": "nightbound <i>(If a player casts at least two spells during their own turn, it becomes day next turn.)</i>"
+        "rule": "nightbound <i>(If a player casts at least two spells during their own turn, it becomes day next turn.)</i>",
+        "hints": [
+          {
+            "class": "DayNightHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -3639,7 +4327,14 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way."
+        "rule": "When {this} enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Devotion to black",
+            "value": "X"
+          }
+        ]
       }
     ]
   },
@@ -3693,7 +4388,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Hall of Storm Giants"
+        "rule": "Play Hall of Storm Giants",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldAbility",
@@ -3719,7 +4421,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Hallowed Fountain"
+        "rule": "Play Hallowed Fountain",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -3745,12 +4454,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Haunted Ridge"
+        "rule": "Play Haunted Ridge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or more other lands."
+        "rule": "{this} enters tapped unless you control two or more other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or more other lands"
+            },
+            "trueText": "You control two or more other lands",
+            "falseText": "You control two or more other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -3823,7 +4551,17 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "This spell costs {X} less to cast, where X is the number of cards in your graveyard that are instant cards, sorcery cards, and/or have an Adventure."
+        "rule": "This spell costs {X} less to cast, where X is the number of cards in your graveyard that are instant cards, sorcery cards, and/or have an Adventure.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Number of Instant, Sorcery and/or Adventures in your graveyard",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.CardsInControllerGraveyardCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -3834,7 +4572,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Hengegate Pathway"
+        "rule": "Play Hengegate Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -3844,7 +4589,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Mistgate Pathway"
+        "rule": "Play Mistgate Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -3871,7 +4623,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Hidden Lair"
+        "rule": "Play Hidden Lair",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -3881,12 +4640,30 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {U}. Activate only if {this} entered this turn or if you control a basic land."
+        "rule": "{T}: Add {U}. Activate only if {this} entered this turn or if you control a basic land.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "{this} entered this turn or if you control a basic land",
+            "trueText": "{this} entered this turn or if you control a basic land",
+            "falseText": "{this} entered this turn or if you control a basic land",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {B}. Activate only if {this} entered this turn or if you control a basic land."
+        "rule": "{T}: Add {B}. Activate only if {this} entered this turn or if you control a basic land.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "{this} entered this turn or if you control a basic land",
+            "trueText": "{this} entered this turn or if you control a basic land",
+            "falseText": "{this} entered this turn or if you control a basic land",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -3939,7 +4716,14 @@
       {
         "class": "LimitedTimesPerTurnActivatedAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "{1}{R}: Put a +1/+1 counter on {this}. Activate only if an opponent lost life this turn and only once each turn."
+        "rule": "{1}{R}: Put a +1/+1 counter on {this}. Activate only if an opponent lost life this turn and only once each turn.",
+        "hints": [
+          {
+            "class": "OpponentsLostLifeHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -3950,7 +4734,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Hive of the Eye Tyrant"
+        "rule": "Play Hive of the Eye Tyrant",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldAbility",
@@ -3997,7 +4788,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Hushwood Verge"
+        "rule": "Play Hushwood Verge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -4007,7 +4805,19 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {W}. Activate only if you control a Forest or a Plains."
+        "rule": "{T}: Add {W}. Activate only if you control a Forest or a Plains.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+              "text": "you control a Forest or a Plains"
+            },
+            "trueText": "You control a Forest or a Plains",
+            "falseText": "You control a Forest or a Plains",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -4107,7 +4917,14 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "During your turn, this creature has first strike."
+        "rule": "During your turn, this creature has first strike.",
+        "hints": [
+          {
+            "class": "MyTurnHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SimpleStaticAbility",
@@ -4123,12 +4940,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Inspiring Vantage"
+        "rule": "Play Inspiring Vantage",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -4154,7 +4990,8 @@
       {
         "class": "GiftAbility",
         "type": "STATIC",
-        "rule": "Gift a tapped Fish <i>(You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)</i>"
+        "rule": "Gift a tapped Fish <i>(You may promise an opponent a gift as you cast this spell. If you do, they create a tapped 1/1 blue Fish creature token before its other effects.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -4207,12 +5044,14 @@
       {
         "class": "OffspringAbility",
         "type": "STATIC",
-        "rule": "Offspring {2} <i>(You may pay an additional {2} as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it.)</i>"
+        "rule": "Offspring {2} <i>(You may pay an additional {2} as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it.)</i>",
+        "rule_at_top": true
       },
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} enters, if its offspring cost was paid, create a 1/1 token copy of it."
+        "rule": "When {this} enters, if its offspring cost was paid, create a 1/1 token copy of it.",
+        "rule_hidden": true
       },
       {
         "class": "LandfallAbility",
@@ -4239,7 +5078,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Island"
+        "rule": "Play Island",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -4282,7 +5128,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Jungle Hollow"
+        "rule": "Play Jungle Hollow",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -4323,7 +5176,14 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "During your turn, as long as {this} has one or more loyalty counters on him, he's a 3/4 Ninja creature and has hexproof."
+        "rule": "During your turn, as long as {this} has one or more loyalty counters on him, he's a 3/4 Ninja creature and has hexproof.",
+        "hints": [
+          {
+            "class": "MyTurnHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "LoyaltyAbility",
@@ -4386,7 +5246,14 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "as long as there are four or more card types among cards exiled with {this}, it gets +4/+4 and has trample."
+        "rule": "as long as there are four or more card types among cards exiled with {this}, it gets +4/+4 and has trample.",
+        "hints": [
+          {
+            "class": "KeenEyedCuratorHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SimpleActivatedAbility",
@@ -4444,7 +5311,8 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "this spell costs {2} less to cast if it targets a red creature."
+        "rule": "this spell costs {2} less to cast if it targets a red creature.",
+        "rule_at_top": true
       }
     ]
   },
@@ -4545,7 +5413,8 @@
       {
         "class": "EntersBattlefieldAbility",
         "type": "STATIC",
-        "rule": "{this} enters "
+        "rule": "{this} enters ",
+        "rule_hidden": true
       },
       {
         "class": "ChapterTriggeredAbility",
@@ -4565,7 +5434,8 @@
       {
         "class": "SagaAbility",
         "type": "STATIC",
-        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> "
+        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> ",
+        "rule_at_top": true
       },
       {
         "class": "HasteAbility",
@@ -4643,7 +5513,17 @@
       {
         "class": "BeginningOfUpkeepTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of your upkeep, exile the top X cards of target opponent's library, where X is the number of outlaws you control. Until end of turn, you may cast spells from among those cards, and mana of any type can be spent to cast those spells."
+        "rule": "At the beginning of your upkeep, exile the top X cards of target opponent's library, where X is the number of outlaws you control. Until end of turn, you may cast spells from among those cards, and mana of any type can be spent to cast those spells.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Outlaws you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -4717,7 +5597,15 @@
       {
         "class": "SpectacleAbility",
         "type": "SPELL",
-        "rule": "Spectacle {R} <i>(You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)</i>"
+        "rule": "Spectacle {R} <i>(You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "OpponentsLostLifeHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -4797,7 +5685,8 @@
       {
         "class": "SpreeAbility",
         "type": "STATIC",
-        "rule": ""
+        "rule": "",
+        "rule_hidden": true
       }
     ]
   },
@@ -4824,7 +5713,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Llanowar Wastes"
+        "rule": "Play Llanowar Wastes",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -4997,7 +5893,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Maelstrom of the Spirit Dragon"
+        "rule": "Play Maelstrom of the Spirit Dragon",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -5102,7 +6005,8 @@
       {
         "class": "CasualtyAbility",
         "type": "STATIC",
-        "rule": "Casualty 1 <i>(As you cast this spell, you may sacrifice a creature with power 1 or greater. When you do, copy this spell.)</i>"
+        "rule": "Casualty 1 <i>(As you cast this spell, you may sacrifice a creature with power 1 or greater. When you do, copy this spell.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -5129,7 +6033,8 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "as an additional cost to cast this spell, you may exile any number of white cards from your hand. This spell costs {2} less to cast for each card exiled this way."
+        "rule": "as an additional cost to cast this spell, you may exile any number of white cards from your hand. This spell costs {2} less to cast for each card exiled this way.",
+        "rule_at_top": true
       }
     ]
   },
@@ -5250,7 +6155,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Meticulous Archive"
+        "rule": "Play Meticulous Archive",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -5360,7 +6272,16 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "the first non-Lemur creature spell with flying you cast during each of your turns costs {1} less to cast."
+        "rule": "the first non-Lemur creature spell with flying you cast during each of your turns costs {1} less to cast.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "instance",
+            "trueText": "You haven't cast a non-Lemur creature spell with flying during your turn yet",
+            "falseText": "You haven't cast a non-Lemur creature spell with flying during your turn yet",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldAllTriggeredAbility",
@@ -5455,7 +6376,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Mountain"
+        "rule": "Play Mountain",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -5471,7 +6399,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Multiversal Passage"
+        "rule": "Play Multiversal Passage",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -5529,7 +6464,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Mutavault"
+        "rule": "Play Mutavault",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -5555,7 +6497,8 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "this spell costs {2} less to cast if it targets a blue spell."
+        "rule": "this spell costs {2} less to cast if it targets a blue spell.",
+        "rule_at_top": true
       }
     ]
   },
@@ -5587,7 +6530,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Needleverge Pathway"
+        "rule": "Play Needleverge Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -5597,7 +6547,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Pillarverge Pathway"
+        "rule": "Play Pillarverge Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -5702,7 +6659,14 @@
       {
         "class": "AttacksWithCreaturesTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "Whenever you attack, put X +1/+1 counters on target attacking creature, where X is the number of permanents you've sacrificed this turn. If X is three or greater, that creature gains lifelink until end of turn."
+        "rule": "Whenever you attack, put X +1/+1 counters on target attacking creature, where X is the number of permanents you've sacrificed this turn. If X is three or greater, that creature gains lifelink until end of turn.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Permanents you sacrificed this turn",
+            "value": "X"
+          }
+        ]
       }
     ]
   },
@@ -5777,7 +6741,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Otawara, Soaring City"
+        "rule": "Play Otawara, Soaring City",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -5787,7 +6758,17 @@
       {
         "class": "ChannelAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "<i>Channel</i> &mdash; {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control."
+        "rule": "<i>Channel</i> &mdash; {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Legendary creatures you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -5814,12 +6795,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Overgrown Farmland"
+        "rule": "Play Overgrown Farmland",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or more other lands."
+        "rule": "{this} enters tapped unless you control two or more other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or more other lands"
+            },
+            "trueText": "You control two or more other lands",
+            "falseText": "You control two or more other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -5840,7 +6840,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Overgrown Tomb"
+        "rule": "Play Overgrown Tomb",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -5928,7 +6935,8 @@
       {
         "class": "CleaveAbility",
         "type": "SPELL",
-        "rule": "Cleave {4}{W}{B} <i>(You may cast this spell for its cleave cost. If you do, remove the words in square brackets.)</i>"
+        "rule": "Cleave {4}{W}{B} <i>(You may cast this spell for its cleave cost. If you do, remove the words in square brackets.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -5986,7 +6994,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Petrified Hamlet"
+        "rule": "Play Petrified Hamlet",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTriggeredAbility",
@@ -6116,7 +7131,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Plains"
+        "rule": "Play Plains",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -6290,7 +7312,14 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} enters, learn. <i>(You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.)</i>"
+        "rule": "When {this} enters, learn. <i>(You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.)</i>",
+        "hints": [
+          {
+            "class": "OpenSideboardHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -6458,7 +7487,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Ramunap Ruins"
+        "rule": "Play Ramunap Ruins",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -6530,7 +7566,14 @@
       {
         "class": "DrawNthCardTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "Whenever you draw your second card each turn, each opponent loses 1 life and you gain 1 life."
+        "rule": "Whenever you draw your second card each turn, each opponent loses 1 life and you gain 1 life.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Cards drawn this turn",
+            "value": "1"
+          }
+        ]
       }
     ]
   },
@@ -6557,12 +7600,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Razorverge Thicket"
+        "rule": "Play Razorverge Thicket",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -6604,7 +7666,14 @@
       {
         "class": "DayboundAbility",
         "type": "STATIC",
-        "rule": "daybound <i>(If a player casts no spells during their own turn, it becomes night next turn.)</i>"
+        "rule": "daybound <i>(If a player casts no spells during their own turn, it becomes night next turn.)</i>",
+        "hints": [
+          {
+            "class": "DayNightHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BeginningOfCombatTriggeredAbility",
@@ -6614,7 +7683,14 @@
       {
         "class": "NightboundAbility",
         "type": "STATIC",
-        "rule": "nightbound <i>(If a player casts at least two spells during their own turn, it becomes day next turn.)</i>"
+        "rule": "nightbound <i>(If a player casts at least two spells during their own turn, it becomes day next turn.)</i>",
+        "hints": [
+          {
+            "class": "DayNightHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -6700,7 +7776,8 @@
       {
         "class": "BlightAbility",
         "type": "STATIC",
-        "rule": "As an additional cost to cast this spell, you may blight 1. <i>(You may put a -1/-1 counteron a creature you control.)</i>"
+        "rule": "As an additional cost to cast this spell, you may blight 1. <i>(You may put a -1/-1 counteron a creature you control.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -6753,7 +7830,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Restless Anchorage"
+        "rule": "Play Restless Anchorage",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -6789,7 +7873,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Restless Cottage"
+        "rule": "Play Restless Cottage",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -6825,7 +7916,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Restless Reef"
+        "rule": "Play Restless Reef",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -6882,7 +7980,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Riverglide Pathway"
+        "rule": "Play Riverglide Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -6892,7 +7997,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Lavaglide Pathway"
+        "rule": "Play Lavaglide Pathway",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -6908,7 +8020,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Riverpyre Verge"
+        "rule": "Play Riverpyre Verge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -6918,7 +8037,19 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {U}. Activate only if you control an Island or a Mountain."
+        "rule": "{T}: Add {U}. Activate only if you control an Island or a Mountain.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+              "text": "you control an Island or a Mountain"
+            },
+            "trueText": "You control an Island or a Mountain",
+            "falseText": "You control an Island or a Mountain",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -6929,7 +8060,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Rockface Village"
+        "rule": "Play Rockface Village",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -6955,12 +8093,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Rockfall Vale"
+        "rule": "Play Rockfall Vale",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or more other lands."
+        "rule": "{this} enters tapped unless you control two or more other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or more other lands"
+            },
+            "trueText": "You control two or more other lands",
+            "falseText": "You control two or more other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -6981,12 +8138,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Rootbound Crag"
+        "rule": "Play Rootbound Crag",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a Mountain or a Forest."
+        "rule": "{this} enters tapped unless you control a Mountain or a Forest.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control a Mountain or a Forest"
+            },
+            "trueText": "You control a Mountain or a Forest",
+            "falseText": "You control a Mountain or a Forest",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -7028,7 +8204,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Rugged Highlands"
+        "rule": "Play Rugged Highlands",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -7080,7 +8263,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Sacred Foundry"
+        "rule": "Play Sacred Foundry",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -7127,7 +8317,18 @@
       {
         "class": "AffinityAbility",
         "type": "STATIC",
-        "rule": "Affinity for Forests <i>(This spell costs {1} less to cast for each Forests you control.)</i>"
+        "rule": "Affinity for Forests <i>(This spell costs {1} less to cast for each Forests you control.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Forests you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       },
       {
         "class": "LandfallAbility",
@@ -7271,7 +8472,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Scoured Barrens"
+        "rule": "Play Scoured Barrens",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -7545,7 +8753,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Shivan Reef"
+        "rule": "Play Shivan Reef",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -7644,7 +8859,15 @@
       {
         "class": "SpectacleAbility",
         "type": "SPELL",
-        "rule": "Spectacle {R} <i>(You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)</i>"
+        "rule": "Spectacle {R} <i>(You may cast this spell for its spectacle cost rather than its mana cost if an opponent lost life this turn.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "OpponentsLostLifeHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -7707,7 +8930,14 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "<i>Raid</i> &mdash; When {this} enters, if you attacked this turn, draw a card."
+        "rule": "<i>Raid</i> &mdash; When {this} enters, if you attacked this turn, draw a card.",
+        "hints": [
+          {
+            "class": "RaidHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -7744,7 +8974,17 @@
       {
         "class": "AttacksTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "Whenever {this} attacks, he deals damage equal to the number of Treasures you control to any target."
+        "rule": "Whenever {this} attacks, he deals damage equal to the number of Treasures you control to any target.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Treasures you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       },
       {
         "class": "BeginningOfUpkeepTriggeredAbility",
@@ -7760,7 +9000,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Sokenzan, Crucible of Defiance"
+        "rule": "Play Sokenzan, Crucible of Defiance",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -7770,7 +9017,17 @@
       {
         "class": "ChannelAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "<i>Channel</i> &mdash; {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This ability costs {1} less to activate for each legendary creature you control."
+        "rule": "<i>Channel</i> &mdash; {3}{R}, Discard this card: Create two 1/1 colorless Spirit creature tokens. They gain haste until end of turn. This ability costs {1} less to activate for each legendary creature you control.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Legendary creatures you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -7828,7 +9085,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Soulstone Sanctuary"
+        "rule": "Play Soulstone Sanctuary",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -7959,12 +9223,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Spirebluff Canal"
+        "rule": "Play Spirebluff Canal",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -8028,12 +9311,28 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Starting Town"
+        "rule": "Play Starting Town",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless it's your first, second, or third turn of the game."
+        "rule": "{this} enters tapped unless it's your first, second, or third turn of the game.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "it's your first, second, or third turn of the game",
+            "trueText": "It's your first, second, or third turn of the game",
+            "falseText": "It's your first, second, or third turn of the game",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -8075,7 +9374,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Steam Vents"
+        "rule": "Play Steam Vents",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -8171,7 +9477,18 @@
       {
         "class": "ConvokeAbility",
         "type": "STATIC",
-        "rule": "convoke <i>(Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)</i>"
+        "rule": "convoke <i>(Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Untapped creatures you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -8182,7 +9499,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Stomping Ground"
+        "rule": "Play Stomping Ground",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -8208,12 +9532,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Stormcarved Coast"
+        "rule": "Play Stormcarved Coast",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or more other lands."
+        "rule": "{this} enters tapped unless you control two or more other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or more other lands"
+            },
+            "trueText": "You control two or more other lands",
+            "falseText": "You control two or more other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -8239,7 +9582,14 @@
       {
         "class": "ClassReminderAbility",
         "type": "STATIC",
-        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>"
+        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>",
+        "hints": [
+          {
+            "class": "ClassLevelHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTriggeredAbility",
@@ -8317,7 +9667,14 @@
       {
         "class": "BeginningOfEndStepTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of your end step, if an opponent lost life this turn, put a +1/+1 counter on target Vampire you control."
+        "rule": "At the beginning of your end step, if an opponent lost life this turn, put a +1/+1 counter on target Vampire you control.",
+        "hints": [
+          {
+            "class": "OpponentsLostLifeHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -8328,7 +9685,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Sulfurous Springs"
+        "rule": "Play Sulfurous Springs",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -8354,7 +9718,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Sunbillow Verge"
+        "rule": "Play Sunbillow Verge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -8364,7 +9735,19 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {R}. Activate only if you control a Mountain or a Plains."
+        "rule": "{T}: Add {R}. Activate only if you control a Mountain or a Plains.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+              "text": "you control a Mountain or a Plains"
+            },
+            "trueText": "You control a Mountain or a Plains",
+            "falseText": "You control a Mountain or a Plains",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -8380,7 +9763,18 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "this spell costs {X} less to cast, where X is the greatest mana value among Elementals you control."
+        "rule": "this spell costs {X} less to cast, where X is the greatest mana value among Elementals you control.",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Greatest mana value among Elementals you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.GreatestAmongPermanentsValue",
+              "text": "X"
+            }
+          }
+        ]
       },
       {
         "class": "FlyingAbility",
@@ -8453,7 +9847,8 @@
       {
         "class": "CantBeCounteredSourceAbility",
         "type": "STATIC",
-        "rule": "This spell can't be countered."
+        "rule": "This spell can't be countered.",
+        "rule_at_top": true
       }
     ]
   },
@@ -8490,7 +9885,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Swamp"
+        "rule": "Play Swamp",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -8527,7 +9929,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Takenuma, Abandoned Mire"
+        "rule": "Play Takenuma, Abandoned Mire",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -8537,7 +9946,17 @@
       {
         "class": "ChannelAbility",
         "type": "ACTIVATED_NONMANA",
-        "rule": "<i>Channel</i> &mdash; {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your hand. This ability costs {1} less to activate for each legendary creature you control."
+        "rule": "<i>Channel</i> &mdash; {3}{B}, Discard this card: Mill three cards, then return a creature or planeswalker card from your graveyard to your hand. This ability costs {1} less to activate for each legendary creature you control.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Legendary creatures you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -8564,7 +9983,13 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "{this}'s power is equal to the number of the number of card types among cards in all graveyards and its toughness is equal to that number plus 1."
+        "rule": "{this}'s power is equal to the number of the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.",
+        "hints": [
+          {
+            "class": "CardTypesInGraveyardHint",
+            "value": "X"
+          }
+        ]
       }
     ]
   },
@@ -8580,7 +10005,8 @@
       {
         "class": "KickerAbility",
         "type": "STATIC",
-        "rule": "Kicker {1}{B} <i>(You may pay an additional {1}{B} as you cast this spell.)</i>"
+        "rule": "Kicker {1}{B} <i>(You may pay an additional {1}{B} as you cast this spell.)</i>",
+        "rule_at_top": true
       }
     ]
   },
@@ -8617,7 +10043,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Temple Garden"
+        "rule": "Play Temple Garden",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -8643,7 +10076,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Temple of Enlightenment"
+        "rule": "Play Temple of Enlightenment",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -8679,7 +10119,18 @@
       {
         "class": "DelveAbility",
         "type": "STATIC",
-        "rule": "Delve <i>(Each card you exile from your graveyard while casting this spell pays for {1}.)</i>"
+        "rule": "Delve <i>(Each card you exile from your graveyard while casting this spell pays for {1}.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Cards in your graveyard",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.CardsInControllerGraveyardCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -8716,7 +10167,8 @@
       {
         "class": "EntersBattlefieldAbility",
         "type": "STATIC",
-        "rule": "{this} enters {this} gains haste. {this} gains When this creature dies, draw a card."
+        "rule": "{this} enters {this} gains haste. {this} gains When this creature dies, draw a card.",
+        "rule_hidden": true
       },
       {
         "class": "SimpleStaticAbility",
@@ -8779,7 +10231,8 @@
       {
         "class": "EntersBattlefieldAbility",
         "type": "STATIC",
-        "rule": "{this} enters "
+        "rule": "{this} enters ",
+        "rule_hidden": true
       },
       {
         "class": "ChapterTriggeredAbility",
@@ -8799,7 +10252,8 @@
       {
         "class": "SagaAbility",
         "type": "STATIC",
-        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> "
+        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> ",
+        "rule_at_top": true
       },
       {
         "class": "FirebendingAbility",
@@ -8893,7 +10347,17 @@
       {
         "class": "BeginningOfUpkeepTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of your upkeep, each opponent loses X life and you scry X, where X is the number of Zombies you control. <i>(Look at the top X cards of your library, then put any number of them on the bottom and the rest on top in any order.)</i>"
+        "rule": "At the beginning of your upkeep, each opponent loses X life and you scry X, where X is the number of Zombies you control. <i>(Look at the top X cards of your library, then put any number of them on the bottom and the rest on top in any order.)</i>",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Number of Zombies you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "X"
+            }
+          }
+        ]
       },
       {
         "class": "SimpleActivatedAbility",
@@ -9007,7 +10471,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Theorist's Sanctum"
+        "rule": "Play Theorist's Sanctum",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -9108,7 +10579,8 @@
       {
         "class": "SpreeAbility",
         "type": "STATIC",
-        "rule": ""
+        "rule": "",
+        "rule_hidden": true
       }
     ]
   },
@@ -9182,7 +10654,14 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "<i>Morbid</i> &mdash; When {this} enters, target creature an opponent controls gets -1/-1 until end of turn. If a creature died this turn, that creature gets -13/-13 until end of turn instead."
+        "rule": "<i>Morbid</i> &mdash; When {this} enters, target creature an opponent controls gets -1/-1 until end of turn. If a creature died this turn, that creature gets -13/-13 until end of turn instead.",
+        "hints": [
+          {
+            "class": "MorbidHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -9193,7 +10672,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Tranquil Cove"
+        "rule": "Play Tranquil Cove",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -9240,7 +10726,18 @@
       {
         "class": "DelveAbility",
         "type": "STATIC",
-        "rule": "Delve <i>(Each card you exile from your graveyard while casting this spell pays for {1}.)</i>"
+        "rule": "Delve <i>(Each card you exile from your graveyard while casting this spell pays for {1}.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Cards in your graveyard",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.CardsInControllerGraveyardCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -9324,12 +10821,14 @@
       {
         "class": "EntersBattlefieldAbility",
         "type": "STATIC",
-        "rule": "{this} enters "
+        "rule": "{this} enters ",
+        "rule_hidden": true
       },
       {
         "class": "RoomAbility",
         "type": "STATIC",
-        "rule": "<i>(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)</i>"
+        "rule": "<i>(You may cast either half. That door unlocks on the battlefield. As a sorcery, you may pay the mana cost of a locked door to unlock it.)</i>",
+        "rule_at_top": true
       }
     ],
     "halves": [
@@ -9344,7 +10843,19 @@
           {
             "class": "BeginningOfEndStepTriggeredAbility",
             "type": "TRIGGERED_NONMANA",
-            "rule": "At the beginning of your end step, draw a card. If you control a Demon, each opponent loses 2 life and you gain 2 life. Otherwise, you lose 2 life."
+            "rule": "At the beginning of your end step, draw a card. If you control a Demon, each opponent loses 2 life and you gain 2 life. Otherwise, you lose 2 life.",
+            "hints": [
+              {
+                "class": "ConditionHint",
+                "condition": {
+                  "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+                  "text": "Demon"
+                },
+                "trueText": "You control a Demon",
+                "falseText": "You control a Demon",
+                "useIcons": "true"
+              }
+            ]
           }
         ]
       },
@@ -9382,7 +10893,14 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "{this}'s power and toughness are each equal to the number of cards exiled with it."
+        "rule": "{this}'s power and toughness are each equal to the number of cards exiled with it.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Cards exiled",
+            "value": "instance"
+          }
+        ]
       },
       {
         "class": "CrewAbility",
@@ -9398,7 +10916,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Urborg, Tomb of Yawgmoth"
+        "rule": "Play Urborg, Tomb of Yawgmoth",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SimpleStaticAbility",
@@ -9493,7 +11018,16 @@
       {
         "class": "GainLifeFirstTimeTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "Whenever you gain life for the first time each turn, surveil 1. <i>(Look at the top card of your library. You may put that card into your graveyard.)</i>"
+        "rule": "Whenever you gain life for the first time each turn, surveil 1. <i>(Look at the top card of your library. You may put that card into your graveyard.)</i>",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "You haven't gained life this turn",
+            "trueText": "You haven't gained life this turn",
+            "falseText": "You haven't gained life this turn",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -9573,7 +11107,19 @@
       {
         "class": "OrTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "whenever an opponent casts a spell during your turn or when {this} dies, create a green and white Elemental creature token with \"This token's power and toughness are each equal to the number of creatures you control.\""
+        "rule": "whenever an opponent casts a spell during your turn or when {this} dies, create a green and white Elemental creature token with \"This token's power and toughness are each equal to the number of creatures you control.\"",
+        "hints": [
+          {
+            "class": "MyTurnHint",
+            "name": "?",
+            "ordinal": "?"
+          },
+          {
+            "class": "CreaturesYouControlHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -9673,7 +11219,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Wastewood Verge"
+        "rule": "Play Wastewood Verge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "GreenManaAbility",
@@ -9683,7 +11236,19 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {B}. Activate only if you control a Swamp or a Forest."
+        "rule": "{T}: Add {B}. Activate only if you control a Swamp or a Forest.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+              "text": "you control a Swamp or a Forest"
+            },
+            "trueText": "You control a Swamp or a Forest",
+            "falseText": "You control a Swamp or a Forest",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -9694,7 +11259,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Watery Grave"
+        "rule": "Play Watery Grave",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "AsEntersBattlefieldAbility",
@@ -9725,7 +11297,15 @@
       {
         "class": "TeamworkAbility",
         "type": "STATIC",
-        "rule": "Teamwork 2 <i>(As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)</i>"
+        "rule": "Teamwork 2 <i>(As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "TeamworkCostWasPaidHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -9757,7 +11337,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Wind-Scarred Crag"
+        "rule": "Play Wind-Scarred Crag",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAbility",
@@ -9804,12 +11391,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Woodland Cemetery"
+        "rule": "Play Woodland Cemetery",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a Swamp or a Forest."
+        "rule": "{this} enters tapped unless you control a Swamp or a Forest.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control a Swamp or a Forest"
+            },
+            "trueText": "You control a Swamp or a Forest",
+            "falseText": "You control a Swamp or a Forest",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "BlackManaAbility",
@@ -10809,7 +12415,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Adarkar Wastes"
+        "rule": "Play Adarkar Wastes",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -10872,7 +12485,14 @@
       {
         "class": "ClassReminderAbility",
         "type": "STATIC",
-        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>"
+        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>",
+        "hints": [
+          {
+            "class": "ClassLevelHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldOneOrMoreTriggeredAbility",
@@ -10908,12 +12528,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Castle Ardenvale"
+        "rule": "Play Castle Ardenvale",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control a Plains."
+        "rule": "{this} enters tapped unless you control a Plains.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control a Plains"
+            },
+            "trueText": "You control a Plains",
+            "falseText": "You control a Plains",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -10965,7 +12604,14 @@
       {
         "class": "BeginningOfEndStepTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of your end step, if you didn't attack with a creature this turn, sacrifice {this}."
+        "rule": "At the beginning of your end step, if you didn't attack with a creature this turn, sacrifice {this}.",
+        "hints": [
+          {
+            "class": "RaidHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -10976,7 +12622,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Elven Passage"
+        "rule": "Play Elven Passage",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SimpleActivatedAbility",
@@ -10997,7 +12650,17 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent."
+        "rule": "When {this} enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Other creatures you control named Hare Apparent",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -11061,7 +12724,15 @@
       {
         "class": "BargainAbility",
         "type": "STATIC",
-        "rule": "Bargain <i>(You may sacrifice an artifact, enchantment, or token as you cast this spell.)</i>"
+        "rule": "Bargain <i>(You may sacrifice an artifact, enchantment, or token as you cast this spell.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "BargainCostWasPaidHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -11115,7 +12786,14 @@
       {
         "class": "BeginningOfEndStepTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "At the beginning of each end step, if you gained 5 or more life this turn, create a 4/4 white Angel creature token with flying and vigilance."
+        "rule": "At the beginning of each end step, if you gained 5 or more life this turn, create a 4/4 white Angel creature token with flying and vigilance.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Life gained this turn",
+            "value": "X"
+          }
+        ]
       },
       {
         "class": "SimpleActivatedAbility",
@@ -11157,12 +12835,31 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Seachrome Coast"
+        "rule": "Play Seachrome Coast",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedUnlessAbility",
         "type": "STATIC",
-        "rule": "{this} enters tapped unless you control two or fewer other lands."
+        "rule": "{this} enters tapped unless you control two or fewer other lands.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control two or fewer other lands"
+            },
+            "trueText": "You control two or fewer other lands",
+            "falseText": "You control two or fewer other lands",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "WhiteManaAbility",
@@ -11214,7 +12911,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Thundering Falls"
+        "rule": "Play Thundering Falls",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "BlueManaAbility",
@@ -11250,7 +12954,18 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "this spell costs {1} less to cast for each instant and sorcery card in your graveyard."
+        "rule": "this spell costs {1} less to cast for each instant and sorcery card in your graveyard.",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Instant and sorcery cards in your graveyard",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.CardsInControllerGraveyardCount",
+              "text": "1"
+            }
+          }
+        ]
       },
       {
         "class": "WardAbility",
@@ -11394,7 +13109,14 @@
       {
         "class": "ExpendTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "Whenever you expend 4, {this} gets +1/+1 until end of turn."
+        "rule": "Whenever you expend 4, {this} gets +1/+1 until end of turn.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Mana you expended this turn",
+            "value": "instance"
+          }
+        ]
       }
     ]
   },
@@ -11504,7 +13226,16 @@
       {
         "class": "CaseAbility",
         "type": "STATIC",
-        "rule": ""
+        "rule": "",
+        "hints": [
+          {
+            "class": "CaseOfTheUneatenFeastHint",
+            "condition": "{this} is solved",
+            "trueText": "Case is solved.",
+            "falseText": "Case is unsolved.",
+            "useIcons": "true"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldControlledTriggeredAbility",
@@ -11540,7 +13271,16 @@
       {
         "class": "CatCollectorTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "Whenever you gain life for the first time during each of your turns, create a 1/1 white Cat creature token."
+        "rule": "Whenever you gain life for the first time during each of your turns, create a 1/1 white Cat creature token.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": "You haven't gained life this turn",
+            "trueText": "You haven't gained life this turn",
+            "falseText": "You haven't gained life this turn",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -11646,7 +13386,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Darksteel Citadel"
+        "rule": "Play Darksteel Citadel",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "IndestructibleAbility",
@@ -11762,7 +13509,17 @@
       {
         "class": "DynamicManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {G} for each Elf you control."
+        "rule": "{T}: Add {G} for each Elf you control.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Elves you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       }
     ]
   },
@@ -11857,7 +13614,14 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} enters, if you control a creature with power 4 or greater, draw a card."
+        "rule": "When {this} enters, if you control a creature with power 4 or greater, draw a card.",
+        "hints": [
+          {
+            "class": "FerociousHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "SimpleStaticAbility",
@@ -11951,7 +13715,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Great Hall of the Biblioplex"
+        "rule": "Play Great Hall of the Biblioplex",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -12003,7 +13774,17 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When {this} enters, put a +1/+1 counter on it for each other Squirrel and/or Food you control."
+        "rule": "When {this} enters, put a +1/+1 counter on it for each other Squirrel and/or Food you control.",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Other Squirrels and Food you control",
+            "value": {
+              "class": "mage.abilities.dynamicvalue.common.PermanentsOnBattlefieldCount",
+              "text": "1"
+            }
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldControlledTriggeredAbility",
@@ -12029,7 +13810,8 @@
       {
         "class": "SiegeDefeatedTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When the last defense counter is removed from this permanent, exile it, then you may cast it transformed without paying its mana cost."
+        "rule": "When the last defense counter is removed from this permanent, exile it, then you may cast it transformed without paying its mana cost.",
+        "rule_hidden": true
       },
       {
         "class": "EntersBattlefieldTriggeredAbility",
@@ -12055,7 +13837,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Karplusan Forest"
+        "rule": "Play Karplusan Forest",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -12102,7 +13891,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Lair of the Hydra"
+        "rule": "Play Lair of the Hydra",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldAbility",
@@ -12253,7 +14049,8 @@
       {
         "class": "EntersBattlefieldAbility",
         "type": "STATIC",
-        "rule": "{this} enters "
+        "rule": "{this} enters ",
+        "rule_hidden": true
       },
       {
         "class": "ChapterTriggeredAbility",
@@ -12263,7 +14060,8 @@
       {
         "class": "ChapterTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "II - Target creature gets +1/+1 until end of turn for each artifact and/or enchantment you control."
+        "rule": "II - Target creature gets +1/+1 until end of turn for each artifact and/or enchantment you control.",
+        "rule_hidden": true
       },
       {
         "class": "ChapterTriggeredAbility",
@@ -12273,7 +14071,8 @@
       {
         "class": "SagaAbility",
         "type": "STATIC",
-        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> "
+        "rule": "<i>(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)</i> ",
+        "rule_at_top": true
       },
       {
         "class": "SimpleStaticAbility",
@@ -12289,7 +14088,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Nykthos, Shrine to Nyx"
+        "rule": "Play Nykthos, Shrine to Nyx",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -12299,7 +14105,34 @@
       {
         "class": "NykthosShrineToNyxManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{2}, {T}: Choose a color. Add an amount of mana of that color equal to your devotion to that color. <i>(Your devotion to a color is the number of mana symbols of that color in the mana costs of permanents you control.)</i>"
+        "rule": "{2}, {T}: Choose a color. Add an amount of mana of that color equal to your devotion to that color. <i>(Your devotion to a color is the number of mana symbols of that color in the mana costs of permanents you control.)</i>",
+        "hints": [
+          {
+            "class": "ValueHint",
+            "name": "Devotion to white",
+            "value": "X"
+          },
+          {
+            "class": "ValueHint",
+            "name": "Devotion to blue",
+            "value": "X"
+          },
+          {
+            "class": "ValueHint",
+            "name": "Devotion to black",
+            "value": "X"
+          },
+          {
+            "class": "ValueHint",
+            "name": "Devotion to red",
+            "value": "X"
+          },
+          {
+            "class": "ValueHint",
+            "name": "Devotion to green",
+            "value": "X"
+          }
+        ]
       }
     ]
   },
@@ -12504,7 +14337,14 @@
       {
         "class": "ClassReminderAbility",
         "type": "STATIC",
-        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>"
+        "rule": "<i>(Gain the next level as a sorcery to add its ability.)</i>",
+        "hints": [
+          {
+            "class": "ClassLevelHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "DiesCreatureTriggeredAbility",
@@ -12604,7 +14444,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Spire of Industry"
+        "rule": "Play Spire of Industry",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "ColorlessManaAbility",
@@ -12709,7 +14556,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Sunken Citadel"
+        "rule": "Play Sunken Citadel",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "EntersBattlefieldTappedAsItEntersChooseColorAbility",
@@ -12735,7 +14589,14 @@
       {
         "class": "PlayLandAbility",
         "type": "PLAY_LAND",
-        "rule": "Play Thornspire Verge"
+        "rule": "Play Thornspire Verge",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       },
       {
         "class": "RedManaAbility",
@@ -12745,7 +14606,19 @@
       {
         "class": "ActivateIfConditionManaAbility",
         "type": "ACTIVATED_MANA",
-        "rule": "{T}: Add {G}. Activate only if you control a Mountain or a Forest."
+        "rule": "{T}: Add {G}. Activate only if you control a Mountain or a Forest.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.PermanentsOnTheBattlefieldCondition",
+              "text": "you control a Mountain or a Forest"
+            },
+            "trueText": "You control a Mountain or a Forest",
+            "falseText": "You control a Mountain or a Forest",
+            "useIcons": "true"
+          }
+        ]
       }
     ]
   },
@@ -12792,7 +14665,14 @@
       {
         "class": "SimpleStaticAbility",
         "type": "STATIC",
-        "rule": "{this} can't attack or block unless you control seven or more lands."
+        "rule": "{this} can't attack or block unless you control seven or more lands.",
+        "hints": [
+          {
+            "class": "LandsYouControlHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -12808,7 +14688,15 @@
       {
         "class": "BargainAbility",
         "type": "STATIC",
-        "rule": "Bargain <i>(You may sacrifice an artifact, enchantment, or token as you cast this spell.)</i>"
+        "rule": "Bargain <i>(You may sacrifice an artifact, enchantment, or token as you cast this spell.)</i>",
+        "rule_at_top": true,
+        "hints": [
+          {
+            "class": "BargainCostWasPaidHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
       }
     ]
   },
@@ -12937,7 +14825,8 @@
       {
         "class": "EntersBattlefieldTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
-        "rule": "When this permanent enters, if its evoke cost was paid, its controller sacrifices it."
+        "rule": "When this permanent enters, if its evoke cost was paid, its controller sacrifices it.",
+        "rule_hidden": true
       }
     ]
   },

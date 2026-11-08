@@ -131,10 +131,16 @@ pub struct Obj {
     pub chosen_type: Option<String>,
     /// the card name chosen as it entered (Petrified Hamlet), while it's on the battlefield
     pub chosen_name: Option<String>,
+    /// the lines a permanent adds to its rules in a view, by key (`Permanent.addInfo`: "Chosen color: Black")
+    pub info: Vec<(String, String)>,
     /// prepared: the copy of its prepare spell in exile
     pub prepared_copy: Option<ObjId>,
     /// a prepared copy: the permanent (and its zone change count) whose copy it is
     pub prepared_for: Option<(ObjId, u32)>,
+    /// in exile, in the zone of the source (and its zone change count) that exiled it (`CardUtil.getExileZoneId`)
+    pub exiled_with: Option<(ObjId, u32)>,
+    /// it transformed on the battlefield (not entered transformed): its card's other face is a card of its own
+    pub transformed_in_place: bool,
     /// a Room permanent's doors, left and right: unlocked or not
     pub doors: [bool; 2],
     /// the half of a Room cast (0 left, 1 right): its door unlocks as the Room enters
@@ -223,6 +229,8 @@ pub struct Obj {
     /// the zone Java keeps for an adventurer card's adventure part (`CardWithSpellOption`): it follows the card,
     /// except when the card goes onto the stack or the battlefield or leaves the battlefield
     pub adventure_zone: Zone,
+    /// when it was attached (`Game.attach_clock`)
+    pub attached_at: u64,
     /// the attackers it blocks
     pub blocking: Vec<ObjId>,
     /// how many attackers it was declared to block (Java's `blocking` count: an attacker leaving combat doesn't
@@ -234,6 +242,9 @@ pub struct Obj {
     pub blocked_by: Vec<ObjId>,
     /// came under its controller's control since their most recent turn began (summoning sickness)
     pub sick: bool,
+    /// a token made from a token class: the class, the set its image was looked for in, and which image the random
+    /// pick took (`TokenRepository.findPreferredTokenInfo`), for its view
+    pub token_image: Option<(String, String, u32)>,
     /// dealt damage by a source with deathtouch since the last check
     pub deathtouched: bool,
     /// a token: it exists only on the battlefield
@@ -246,6 +257,15 @@ pub struct Obj {
 }
 
 impl Obj {
+    /// Sets a line of its view's rules (`Permanent.addInfo`, with `CardUtil.addToolTipMarkTags`)
+    pub fn add_info(&mut self, key: &str, text: &str) {
+        let line = format!("<font color = 'blue'>{}</font>", text);
+        match self.info.iter_mut().find(|(k, _)| k == key) {
+            Some(x) => x.1 = line,
+            None => self.info.push((key.to_string(), line)),
+        }
+    }
+
     /// Its copiable values: what it's a copy of, or its card before other effects changed it
     pub fn copiable(&self) -> Arc<CardDef> {
         self.copied_def
@@ -293,6 +313,8 @@ pub struct Player {
     /// mana in the pool always pays automatically: the Java AI's pool, whose stock (`ManaPool.setStock`) is set on
     /// the copy each dialog's stand-in player gets, never on its own
     pub no_stock: bool,
+    /// the cards in its sideboard (only counted: `OpenSideboardHint`)
+    pub sideboard: usize,
     pub life: i32,
     pub counters: Vec<(String, i32)>,
     pub hand: Vec<ObjId>,
@@ -346,6 +368,25 @@ pub struct Player {
 pub enum Target {
     Player(Seat),
     Obj(ObjId),
+}
+
+/// Cards revealed while an object resolves (`GameState.revealed`, cleared at priority): its source, the source's zone
+/// change count, whether the title has it in parentheses (`DiscardCardYouChooseTargetEffect`) and the cards with the
+/// zones they were revealed from
+#[derive(Clone, Debug)]
+pub struct Revealed {
+    pub source: ObjId,
+    pub zcc: u32,
+    pub paren: bool,
+    pub cards: Vec<(ObjId, Zone)>,
+}
+
+/// A combat group as views show it (`Combat.groups`): an attacker, in the order they attacked, and once it's left the
+/// battlefield what its group was then (Java keeps the group: its defender, blocked, and blockers)
+#[derive(Clone, Debug)]
+pub struct CombatGroup {
+    pub attacker: ObjId,
+    pub left: Option<(Seat, Option<ObjId>, bool, Vec<ObjId>)>,
 }
 
 #[derive(Clone, Debug)]
@@ -487,6 +528,18 @@ pub struct Game {
     pub attacks_opponent: Vec<(Seat, StackItem)>,
     /// spells that enter with more +1/+1 counters: the card as it was on the stack, and how many
     pub enter_counters: Vec<(ObjId, u32, i32)>,
+    /// the stack position of the spell or ability being cast or activated: not paid for yet (a view shows it unpaid)
+    pub unpaid: Option<usize>,
+    /// `unpaid` once its mana is paid, while its other costs are (the view shows it paid)
+    pub mana_paid: Option<usize>,
+    /// this combat's groups, for views
+    pub combat_groups: Vec<CombatGroup>,
+    /// cards revealed while the object resolving resolves, for views
+    pub revealed: Vec<Revealed>,
+    /// counts attachments, for their order
+    pub attach_clock: u64,
+    /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
+    pub step_start: bool,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
@@ -501,6 +554,11 @@ pub struct Game {
     pub no_prevention_turn: Option<u32>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
     pub resolving: Option<(usize, ObjId)>,
+    /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
+    pub resolving_item: Option<StackItem>,
+    /// a card entering the battlefield from a hand while its as-enters choices are asked: Java moves it after
+    /// them, so it's still in the hand, at this index (`ZonesHandler.moveCard`)
+    pub entering_from_hand: Option<(ObjId, Seat, usize)>,
     /// decision logs name exiled cards in the order the cards were created (`DecisionLog.setStartOrder`), not the
     /// order they were exiled
     pub exile_by_creation: bool,
@@ -512,6 +570,8 @@ pub struct Game {
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
     pub grants: Arc<Vec<Grant>>,
+    /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
+    pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
@@ -534,6 +594,9 @@ pub struct Game {
     pub etchings_left: Vec<(ObjId, Seat, u32)>,
     /// cards exiled until a permanent (and its zone change count) leaves the battlefield
     pub exiled_until_leaves: Vec<(ObjId, u32, ObjId)>,
+    /// the last token class made, as `token_image` picked its image: name, class, set, image; the tokens of it
+    /// that enter take it
+    pub token_made: Option<(String, String, String, u32)>,
     /// earthbent lands (with their zone change counts): when one dies or is exiled, it returns tapped
     pub earthbent: Vec<(ObjId, u32)>,
     /// cards exiled into a permanent's own exile zone (its id and zone change count), that stay there
@@ -585,6 +648,12 @@ impl Game {
             next_creature_spell: Vec::new(),
             next_instant_sorcery: Vec::new(),
             enter_counters: Vec::new(),
+            unpaid: None,
+            mana_paid: None,
+            combat_groups: Vec::new(),
+            revealed: Vec::new(),
+            attach_clock: 0,
+            step_start: false,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
             any_time: std::cell::Cell::new(false),
@@ -592,11 +661,14 @@ impl Game {
             spent_tally: [0; 6],
             no_prevention_turn: None,
             resolving: None,
+            resolving_item: None,
+            entering_from_hand: None,
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
             extra_turns: Vec::new(),
             grants: Arc::new(Vec::new()),
+            must_block_from: Vec::new(),
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
             sac_insert: None,
@@ -608,6 +680,7 @@ impl Game {
             printings: Arc::new(Vec::new()),
             etchings_left: Vec::new(),
             exiled_until_leaves: Vec::new(),
+            token_made: None,
             earthbent: Vec::new(),
             exiled_for_source: Vec::new(),
             returning: Vec::new(),
@@ -678,9 +751,12 @@ impl Game {
             becomes_base: None,
             land_type_base: None,
             chosen_type: None,
+            info: Vec::new(),
             chosen_name: None,
             prepared_copy: None,
             prepared_for: None,
+            exiled_with: None,
+            transformed_in_place: false,
             doors: [false; 2],
             room_cast: None,
             foretold_turn: None,
@@ -722,11 +798,13 @@ impl Game {
             entered_turn: 0,
             targeted: (0, 0),
             on_adventure: false,
+            attached_at: 0,
             blocking: Vec::new(),
             blocks: 0,
             blocked: false,
             blocked_by: Vec::new(),
             sick: false,
+            token_image: None,
             deathtouched: false,
             token: false,
             trigger_order: id.0 as u64,
@@ -861,6 +939,47 @@ impl Game {
             })
     }
 
+    /// The abilities a permanent has that it doesn't print, in the order they apply: its counters' keywords, resolved
+    /// effects' (as they resolved), then static abilities' (by source), each once
+    pub fn granted_abilities(&self, id: ObjId) -> Vec<AbilityDef> {
+        let o = self.obj(id);
+        let mut out: Vec<AbilityDef> = Vec::new();
+        let add = |a: &AbilityDef, out: &mut Vec<AbilityDef>| {
+            if !o.has(a) && !out.contains(a) {
+                out.push(a.clone());
+            }
+        };
+        for (counter, a) in [
+            ("flying", AbilityDef::FlyingAbility),
+            ("deathtouch", AbilityDef::DeathtouchAbility),
+            ("indestructible", AbilityDef::IndestructibleAbility),
+        ] {
+            if o.counter(counter) > 0 {
+                add(&a, &mut out);
+            }
+        }
+        if o.zone != Zone::Battlefield {
+            return out;
+        }
+        for g in self.grants.iter().filter(|g| g.target == id && g.zcc == o.zcc) {
+            add(&g.ability, &mut out);
+        }
+        for src in self.battlefield.iter().chain(self.command.iter()) {
+            let s = self.obj(*src);
+            for a in &s.def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    if let Some(given) = given_ability(e) {
+                        if self.static_gives(e, *src, s.controller, id, given) {
+                            add(given, &mut out);
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
+
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
         let o = self.obj(id);
         if o.has(ability) {
@@ -955,6 +1074,15 @@ impl Game {
 
     /// `who` ("you", "opponent", "any") of a trigger, for its controller `you` and the player `seat` it's about.
     /// The permanent an Aura is attached to, while it's still that object on the battlefield.
+    /// `Permanent.addAttachment`: attached, after what's attached already
+    pub fn attach_to(&mut self, id: ObjId, to: ObjId, zcc: u32) {
+        self.attach_clock += 1;
+        let at = self.attach_clock;
+        let o = self.obj_mut(id);
+        o.attached_to = Some((to, zcc));
+        o.attached_at = at;
+    }
+
     pub fn attached(&self, aura: ObjId) -> Option<ObjId> {
         let (to, zcc) = self.obj(aura).attached_to?;
         let o = self.obj(to);
@@ -1138,6 +1266,8 @@ impl Game {
                 }
                 Value::CardsInHand => self.player(you).hand.len() as i32,
                 Value::CardsDrawn => self.player(you).drawn as i32,
+                Value::LifeGained => self.player(you).life_gained,
+                Value::ManaExpended => self.player(you).expended as i32,
                 Value::SacrificedThisTurn => self.player(you).sacrificed as i32,
                 Value::OpponentsLostLife => {
                     (0..self.seats()).filter(|p| *p != you && self.player(*p).life_lost > 0).count() as i32
@@ -1159,6 +1289,10 @@ impl Game {
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
                 Value::Half { of } => self.value(of, you, source, x) / 2,
                 Value::Plus { of, n } => self.value(of, you, source, x) + n,
+                Value::ExiledWithSource => {
+                    let zcc = self.obj(source).zcc;
+                    self.exiled_for_source.iter().filter(|(s, z, _)| *s == source && *z == zcc).count() as i32
+                }
                 Value::CardTypesInGraveyards => {
                     let mut types: Vec<CardType> = Vec::new();
                     for p in self.players.iter() {
@@ -1345,6 +1479,16 @@ impl Game {
     /// Power and toughness with continuous effects applied: static abilities of permanents, then resolved boosts
     /// (layer 7c; everything here only adds, so the order doesn't matter yet).
     pub fn power_toughness(&self, id: ObjId) -> (i32, i32) {
+        self.power_toughness_layers(id, true)
+    }
+
+    /// Power and toughness before counters and boosts: the printed values with layers 7a and 7b applied (Java's
+    /// `MageInt.getModifiedBaseValue`)
+    pub fn base_power_toughness(&self, id: ObjId) -> (i32, i32) {
+        self.power_toughness_layers(id, false)
+    }
+
+    fn power_toughness_layers(&self, id: ObjId, boosts: bool) -> (i32, i32) {
         let o = self.obj(id);
         let (mut p, mut t) = (o.def.power, o.def.toughness);
         if o.zone != Zone::Battlefield {
@@ -1387,6 +1531,9 @@ impl Game {
         // layer 7b
         if let Some((bp, bt)) = o.base_pt {
             (p, t) = (bp, bt);
+        }
+        if !boosts {
+            return (p, t);
         }
         // +1/+1 counters change only a creature's power and toughness (a Vehicle's, while it's crewed)
         if self.has_type(id, CardType::Creature) {
@@ -1780,6 +1927,9 @@ impl Game {
             o.any_mana = false;
             o.cast_only = false;
             o.chosen_name = None;
+            o.info.clear();
+            o.exiled_with = None;
+            o.transformed_in_place = false;
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;
@@ -1799,6 +1949,15 @@ impl Game {
             }
         }
         let owner = self.obj(id).owner;
+        if zone != Zone::Battlefield {
+            let o = self.obj(id);
+            if let Some(defender) = o.attacking {
+                let left = (defender, o.attacking_pw.map(|p| p.0), o.blocked, o.blocked_by.clone());
+                if let Some(g) = self.combat_groups.iter_mut().find(|g| g.attacker == id && g.left.is_none()) {
+                    g.left = Some(left);
+                }
+            }
+        }
         {
             let o = self.obj_mut(id);
             if zone != Zone::Battlefield {
@@ -1874,5 +2033,17 @@ impl Game {
             Zone::Command => Arc::make_mut(&mut self.command).push(id),
             Zone::Stack => {}
         }
+    }
+}
+
+/// The ability a continuous effect gives (`GainAbility…Effect`)
+fn given_ability(e: &EffectDef) -> Option<&AbilityDef> {
+    match e {
+        EffectDef::GainAbilityAllEffect { ability, .. }
+        | EffectDef::GainAbilityControlledEffect { ability, .. }
+        | EffectDef::GainAbilitySourceEffect { ability, .. }
+        | EffectDef::GainAbilityAttachedEffect { ability } => Some(ability),
+        EffectDef::ConditionalContinuousEffect { effect, .. } => given_ability(effect),
+        _ => None,
     }
 }

@@ -693,6 +693,9 @@ pub struct CounterDef {
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 pub struct TokenDef {
     pub name: String,
+    /// its Java class (`mage.game.permanent.token`), whose view and images the views use
+    #[serde(default)]
+    pub class: String,
     pub types: Vec<CardType>,
     #[serde(default)]
     pub colors: Vec<Color>,
@@ -747,6 +750,8 @@ impl TokenDef {
             prepare: None,
             room: Vec::new(),
             printed_cost: None,
+            hints: Vec::new(),
+            hint_abilities: Vec::new(),
         }
     }
 }
@@ -906,10 +911,16 @@ pub enum Value {
     Plus { of: Box<Amount>, n: i32 },
     /// card types among cards in all graveyards (`CardTypesInGraveyardCount.ALL`)
     CardTypesInGraveyards,
+    /// cards exiled with the source while it's on the battlefield (`UnlicensedHearseValue`)
+    ExiledWithSource,
     /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
     GreatestManaValue { filter: Filter },
     /// cards the controller drew this turn
     CardsDrawn,
+    /// life the controller gained this turn (`ControllerGainedLifeCount`)
+    LifeGained,
+    /// mana the controller spent on spells this turn (expend)
+    ManaExpended,
     /// permanents the controller sacrificed this turn (`PermanentsSacrificedThisTurnCount.YOU`)
     SacrificedThisTurn,
     /// opponents who lost life this turn (`PlayerLostLifeWatcher`)
@@ -2694,6 +2705,46 @@ pub struct CardJson {
     /// the set of the printing a deck gets by name
     #[serde(default)]
     pub set: String,
+    #[serde(default)]
+    pub hints: Vec<HintDef>,
+    /// the index of the ability each hint is of, in its abilities
+    #[serde(default)]
+    pub hint_abilities: Vec<usize>,
+}
+
+/// A hint an ability adds to a card's rules in a view (`mage.abilities.hint`), in the order of its abilities.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "h", rename_all = "snake_case")]
+pub enum HintDef {
+    /// `ConditionHint`: the true or false text, with a good or bad icon and a color
+    Condition {
+        condition: Condition,
+        #[serde(default)]
+        icons: bool,
+        #[serde(default, rename = "trueText")]
+        true_text: Option<String>,
+        #[serde(default, rename = "falseText")]
+        false_text: Option<String>,
+        #[serde(default, rename = "trueColor")]
+        true_color: Option<String>,
+        #[serde(default, rename = "falseColor")]
+        false_color: Option<String>,
+    },
+    /// `ValueHint`: "name: value"
+    Value {
+        #[serde(default)]
+        name: String,
+        value: Value,
+    },
+    /// a hint class of its own (`CanPlayAdditionalLandsHint`, `DayNightHint`…)
+    Named { name: String },
+    /// one the transpiler doesn't know: shows nothing
+    Unknown {
+        #[serde(default)]
+        of: String,
+        #[serde(default)]
+        why: String,
+    },
 }
 
 /// Subtypes that aren't creature types, for "every creature type"
@@ -2759,6 +2810,10 @@ pub struct CardDef {
     pub room: Vec<Arc<CardDef>>,
     /// cast for an alternative cost (cleave, blitz, flashback…): the printed cost, which still gives the mana value
     pub printed_cost: Option<ManaCost>,
+    /// the hints its abilities add to its rules in a view (`Ability.getHints`)
+    pub hints: Vec<HintDef>,
+    /// the index of the ability each hint is of (an ability's view on the stack shows its own)
+    pub hint_abilities: Vec<usize>,
 }
 
 impl CardDef {
@@ -2822,6 +2877,8 @@ impl CardDef {
             },
             room: json.room.into_iter().map(|h| CardDef::from_json(h).map(Arc::new)).collect::<Result<_, _>>()?,
             printed_cost: None,
+            hints: json.hints,
+            hint_abilities: json.hint_abilities,
         })
     }
 
@@ -2996,6 +3053,10 @@ impl CardDb {
             }
         }
         Ok((db, errors))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &Arc<CardDef>> {
+        self.cards.values()
     }
 
     pub fn get(&self, name: &str) -> Option<Arc<CardDef>> {

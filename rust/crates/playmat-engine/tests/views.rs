@@ -1,7 +1,8 @@
 //! Views (docs/rust/Views.md): replays the shadow games with recorded views in `$PLAYMAT_VIEWS` (default `views/` in
 //! this crate), renders the engine's view at each and compares it field by field with Java's. The games checked in
 //! must match where their state does; for a folder named by `$PLAYMAT_VIEWS` the test reports the differing fields,
-//! most common first, and passes unless `PLAYMAT_VIEWS_STRICT=1`. `PLAYMAT_VIEWS_SHOW=<n>` prints n examples a field.
+//! most common first, and passes unless `PLAYMAT_VIEWS_STRICT=1`. `PLAYMAT_VIEWS_SHOW=<n>` prints n examples a field;
+//! `PLAYMAT_VIEWS_DUMP=<file>:<answer>` prints Rust's whole view at one answer.
 
 use playmat_engine::replay::{replay_with_views, ShadowGame, ShadowView};
 use playmat_engine::state::Game;
@@ -33,8 +34,14 @@ fn views_match_java() {
         }
         let name = f.file_name().unwrap().to_string_lossy().to_string();
         let results: RefCell<Vec<Vec<Difference>>> = RefCell::new(Vec::new());
+        let dump = std::env::var("PLAYMAT_VIEWS_DUMP").ok();
         let on_view = |game: &Game, v: &ShadowView| {
-            let d = compare(&v.view, &game_view(game, v.seat, &["A", "B"]));
+            let rust = game_view(game, v.seat, &["A", "B"]);
+            // `PLAYMAT_VIEWS_DUMP=game-00003.json:75` prints Rust's view at that answer
+            if dump.as_deref() == Some(&format!("{}:{}", name, v.decision)) {
+                eprintln!("RUST VIEW {}", rust);
+            }
+            let d = compare(&v.view, &rust);
             let mut seen = Vec::new();
             for x in &d {
                 let field = field_of(&x.path);

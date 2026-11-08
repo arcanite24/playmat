@@ -71,6 +71,9 @@ pub struct ShadowSeat {
     pub library_printings: Vec<String>,
     #[serde(default, rename = "handPrintings")]
     pub hand_printings: Vec<String>,
+    /// how many cards its sideboard has (newer games), for Learn's hint
+    #[serde(default)]
+    pub sideboard: usize,
 }
 
 #[derive(Clone, Debug, Deserialize, serde::Serialize, PartialEq)]
@@ -118,6 +121,7 @@ impl ShadowGame {
         let mut game = Game::new(self.start.seats.len(), self.start.random);
         game.exile_by_creation = self.start.exile_order.as_deref() == Some("start");
         for (seat, s) in self.start.seats.iter().enumerate() {
+            game.player_mut(seat).sideboard = s.sideboard;
             for (i, name) in s.library.iter().enumerate() {
                 let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
                 let id = game.create_obj(def, seat, Zone::Library);
@@ -280,7 +284,7 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
 }
 
 /// Exiled cards in the order decision logs name them
-fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
+pub fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
     let mut exile = game.exile.to_vec();
     if game.exile_by_creation {
         exile.sort_by_key(|o| o.0);

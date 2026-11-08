@@ -87,6 +87,10 @@ public final class RustAi {
                         + missing.size() + " card" + (missing.size() == 1 ? "" : "s") + ": " + String.join(", ", missing));
                 return;
             }
+            // the human's views, for the copy to compare with its own (docs/rust/Views.md)
+            if (RustAiBridge.VIEWS == null) {
+                RustAiBridge.VIEWS = mage.server.game.RustViews::view;
+            }
             DecisionLog log = DecisionLog.recording();
             RustAiBridge bridge = new RustAiBridge(ai.getPlayer().getId(), log, user + " vs " + ai.getName());
             mage.players.Player seat = game.getPlayer(ai.getPlayer().getId());

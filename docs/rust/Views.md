@@ -29,11 +29,74 @@ parted.
    at every n-th answer. `cargo test -p playmat-engine --test views` replays the games and renders its own view at
    each recorded one; with `PLAYMAT_VIEWS=<dir>` it reports the differences per field path, most common first.
    Recorded games with views are kept in `rust/crates/playmat-engine/views/`.
-2. **In production, beside the Rust AI's copy.** At each question to the human seat of a game the copy follows, Java
-   sends the copy the view it sent the client (already serialized for the socket, ids mapped), the copy renders its own
-   at the same point and counts the differing fields. Java logs the counts at the end of the game (`Rust views in …`)
-   and the server's metrics add them up.
+2. **In production, beside the Rust AI's copy.** At every 10th question to the human seat of a game the copy follows
+   (`XMAGE_RUST_VIEWS_EVERY`), the bridge builds that player's view as the client gets it, ids mapped
+   (`mage.server.game.RustViews`, shared with the shadow games), and sends it to the copy (`view`). The copy renders
+   its own at the same point and counts the views and fields that differ; a difference never stops it. As it ends it
+   reports `views {…}` with the counts, the most common fields and an example of each; Java logs `Rust views in …: n
+   compared, m differ` and adds them to the admin console's Overview (`ServerStats.rustAi`).
+   `playmat-ai`'s `mirror_views` test plays the recorded games through the copy as Java sends them and checks it
+   counts what the replay does. The first live games (6 school-deck games in `RustAiGameTest`) had 40 of 57 views
+   matching; these decks' cards showed gaps the meta decks didn't, now fixed offline (below).
 3. **Done** when the counts stay at zero for a week of real games: step C's gate.
 
-Prompts (the question's message, options, targets, `canPlayObjects`) and the game log's lines are compared the same
-way once the views match.
+Prompts (the question's message, options, targets) and the game log's lines are compared the same way once the views
+match. `canPlayObjects` is already part of the view comparison.
+
+## Where it stands
+
+On a recording of 40 shadow games of the meta decks (a view every 25 answers): **511 of 539 views match** field for
+field. An earlier recording's 552 views went from 334 matching, when the comparison started, to 493. What's left, by
+kind:
+
+- Fidelity gaps the views show: a permanent that should have lost its abilities (Tishana's Tidebinder), a state
+  trigger Java ran earlier (Mazemind Tome), a delayed trigger's source (Badgermole Cub's earthbend), one life total.
+  These are engine fixes, not view fixes.
+- Restriction and requirement hints not written yet: "Must block any" (Academic Dispute), "Can't use activated
+  abilities" (Clarion Conqueror).
+- Playable abilities while a cost is paid: Java leaves out some an X cost could still pay for.
+- A few one-offs: an X announced on a permanent's icon, a Room's unlock ability for its other half, Menace's reminder
+  text when it's granted (`new MenaceAbility()` has it, `new MenaceAbility(false)` doesn't, and the transpiled card
+  doesn't keep which).
+
+On 16 shadow games of the school decks (`ShadowGamesTest`'s default decks, a view every 25 answers): **206 of 220
+views match**, from 137. Fixed for them: face-down foretold cards (`Foretell` to the opponent, `Foretell: Name` with
+the card as its other face to the owner, each in its own exile zone) and their cast from exile, Crew icons, chosen
+names, cards copying others (Mockingbird), Evolved Sleeper's types, regeneration shields, Unlicensed Hearse's count,
+"Can't block", Can't Stay Away's exile. The sideboard isn't compared (`view::IGNORED`): the decision log doesn't place
+its cards, and play doesn't change it. Left: a Hive of the Eye Tyrant's granted Menace text, a few stack and
+playable-ability one-offs.
+
+16 more (games 16 to 31): **173 of 179 views match**, after Learn's sideboard count (each seat's sideboard size is in
+the shadow start, `sideboard`), Crusader of Odric's count in hand, Lovestruck Beast's "Can't attack" and flashback's
+playable text. Java's card of a Crusader on the battlefield keeps the count from before it entered; Rust takes the
+count less itself. "Must block any" names what gave it (Academic Dispute). Left: Skyknight Squire's Knight type, a Warp return's
+targets.
+
+## How the Rust side gets Java's text
+
+The engine doesn't compute card text. `CardFactsTest` renders, for every card in the pool, Java's own views and
+writes them to `cards/views.json`, and `rust/tools/view_templates.py` turns those into templates with relative ids:
+
+- `{name}`: the card's `CardView` in hand; `face:{name}` and `permanent:{name}`: a face's card and its permanent;
+  `token:{class}`: a token's; `prepared:{name}`: a prepared permanent's spell copy.
+- `spell:{part}`: a part cast on its own (a Room's half, an adventure's spell) as a `Spell`'s `CardView`.
+- `abilities:{name}`: each ability's rule, by index; `modes:{name}`: each modal ability's modes' texts, for the
+  stack's "Chosen mode" lines.
+
+The view code (`playmat_engine::view`) picks a template and fills in the state: ids, counters, tapped, damage,
+attachments, combat, the stack, hints from each ability's `addHint` (transpiled into `hints` and `hint_abilities`),
+restriction hints, revealed cards, emblems, playable abilities.
+
+## Ids and short ids
+
+Java's text names objects by their id's first three hex digits (`Llanowar Elves [c3b]`). `ShadowViews` replaces each
+by the reference of the object it names, ranked when two share the digits: a card or permanent's own reference (`H`,
+`P`, `G`, `B`, `S`, `E`, `C`) first, then a library card's (`L0.3`), then an ability's or face's. Two of the same rank
+leave the short id as it is. A spell's card id maps to the spell's stack reference (`S0`).
+
+## Debugging a view
+
+- `PLAYMAT_VIEWS_SHOW=<n>` prints up to n differing values per field path.
+- `PLAYMAT_VIEWS_DUMP=game-00012.json:<answer>` prints the Rust view at that answer as `RUST VIEW {json}`, to set
+  beside the recorded Java view.

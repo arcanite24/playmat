@@ -57,7 +57,61 @@ enum Message {
         #[serde(default)]
         follow: Option<ShadowDecision>,
     },
+    /// the other seat's view as its client gets it now, ids mapped (docs/rust/Views.md), and the players' names
+    View {
+        view: Value,
+        #[serde(default)]
+        names: Vec<String>,
+        /// whether each seat's player is human (`PlayerView.isHuman`)
+        #[serde(default)]
+        humans: Vec<bool>,
+    },
     End,
+}
+
+/// The other seat's views compared with this copy's: how many, how many differ, and by field path how many differ in it
+#[derive(Default, Debug)]
+pub struct ViewTally {
+    pub compared: u64,
+    pub differing: u64,
+    pub fields: std::collections::BTreeMap<String, u64>,
+    /// a field's first difference: where, Java's value and this copy's
+    pub examples: std::collections::BTreeMap<String, String>,
+}
+
+impl ViewTally {
+    fn add(&mut self, java: &Value, rust: &Value) {
+        let d = playmat_engine::view::compare(java, rust);
+        self.compared += 1;
+        if d.is_empty() {
+            return;
+        }
+        self.differing += 1;
+        let mut seen = Vec::new();
+        for x in &d {
+            let field = playmat_engine::view::field_of(&x.path);
+            if !seen.contains(&field) {
+                *self.fields.entry(field.clone()).or_default() += 1;
+                self.examples
+                    .entry(field.clone())
+                    .or_insert_with(|| format!("{}: Java {} | Rust {}", x.path, x.java, x.rust));
+                seen.push(field);
+            }
+        }
+    }
+
+    /// the line Java's log gets: `views {"compared":n,"differing":m,"fields":{…},"examples":[…]}`: the 20 most common
+    /// fields, and the first difference of the 10 most common
+    pub fn report(&self) -> String {
+        let mut top: Vec<(&String, &u64)> = self.fields.iter().collect();
+        top.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
+        let fields: serde_json::Map<String, Value> =
+            top.iter().take(20).map(|(k, v)| ((*k).clone(), json!(v))).collect();
+        let examples: Vec<&String> = top.iter().take(10).filter_map(|(k, _)| self.examples.get(*k)).collect();
+        let report =
+            json!({"compared": self.compared, "differing": self.differing, "fields": fields, "examples": examples});
+        format!("views {report}")
+    }
 }
 
 #[derive(Deserialize, Default)]
@@ -70,7 +124,21 @@ struct ConfigJson {
 
 /// Runs one game: reads Java's messages from `input`, writes answers to `out`, until Java ends the game, the copy
 /// differs, or the input closes.
-pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), String> {
+pub fn run(db: &CardDb, input: impl BufRead, out: impl Write) -> Result<(), String> {
+    let mut views = ViewTally::default();
+    let result = run_counting(db, input, out, &mut views);
+    // the views compared, for the server's log and metrics
+    eprintln!("{}", views.report());
+    result
+}
+
+/// [`run`], with the other seat's views it compared counted in `views`
+pub fn run_counting(
+    db: &CardDb,
+    input: impl BufRead,
+    mut out: impl Write,
+    views: &mut ViewTally,
+) -> Result<(), String> {
     let mut lines = input.lines();
     let first = lines.next().ok_or("no start message")?.map_err(|e| e.to_string())?;
     let (seat, start, cfg, auto_all, every, pool_check) = match serde_json::from_str::<Message>(&first) {
@@ -130,6 +198,7 @@ pub fn run(db: &CardDb, input: impl BufRead, mut out: impl Write) -> Result<(), 
         ended: false,
         asked: 0,
         waiting: false,
+        views,
     };
     rules::play_from_priority(&mut game, &mut mirror, 0);
     if let Some(why) = mirror.diverged.clone() {
@@ -190,6 +259,7 @@ struct Mirror<'a> {
     asked: u64,
     /// Java is waiting on an answer this side couldn't give
     waiting: bool,
+    views: &'a mut ViewTally,
 }
 
 impl Mirror<'_> {
@@ -265,6 +335,19 @@ impl Decider for Mirror<'_> {
             };
             match msg {
                 Message::Start { .. } => self.differ("a second start".into()),
+                // (at the other seat's question, before its answer: this copy is asked the same now)
+                Message::View { view, names, humans } => {
+                    if seat != self.bot {
+                        let names: Vec<&str> = names.iter().map(String::as_str).collect();
+                        let mut rust = playmat_engine::view::game_view(game, seat, &names);
+                        if let Some(Value::Array(players)) = rust.get_mut("players") {
+                            for (p, human) in players.iter_mut().zip(&humans) {
+                                p["isHuman"] = json!(human);
+                            }
+                        }
+                        self.views.add(&view, &rust);
+                    }
+                }
                 Message::End => self.ended = true,
                 Message::Trace { fp, text } => {
                     if let Some(t) = text {

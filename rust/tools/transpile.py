@@ -847,6 +847,8 @@ class Translator:
                    'SavedGainedLifeValue.MUCH', 'TheOozeValue.instance', 'SavedDamageValue.MUCH',
                    'SavedLifeLossValue.MUCH'):
             return {'v': 'x'}
+        if arg == 'UnlicensedHearseValue.instance':
+            return {'v': 'exiled_with_source'}
         if arg == 'IntrepidAdversaryValue.instance':
             return {'v': 'source_counters', 'counter': 'valor'}
         if arg in ('SourcePermanentPowerValue.NOT_NEGATIVE', 'SourcePermanentPowerValue.ALLOW_NEGATIVE'):
@@ -1225,7 +1227,7 @@ class Translator:
         # Skyclave Apparition: an X/X token for the cards its source exiled
         if cls == 'CreateXXTokenExiledEffectManaValueEffect' and len(args) == 2 \
                 and args[0].strip() == 'CustomIllusionToken::new':
-            illusion = {'name': 'Illusion Token', 'types': ['CREATURE'], 'colors': ['U'], 'subtypes': ['Illusion'],
+            illusion = {'class': 'CustomIllusionToken', 'name': 'Illusion Token', 'types': ['CREATURE'], 'colors': ['U'], 'subtypes': ['Illusion'],
                         'abilities': []}
             if EXTRA.get('token:CustomIllusionToken', {}).get('images'):
                 illusion['images'] = EXTRA['token:CustomIllusionToken']['images']
@@ -2861,7 +2863,150 @@ def token(cls):
         out['abilities'] = in_java_order(FACTS['token:' + cls], added)
     if EXTRA.get('token:' + cls, {}).get('images'):
         out['images'] = EXTRA['token:' + cls]['images']
+    out['class'] = cls
     return out
+
+
+def balanced_args(source, start):
+    """the text inside the parentheses that open at `start`"""
+    depth, i = 0, start
+    while i < len(source):
+        if source[i] == '(':
+            depth += 1
+        elif source[i] == ')':
+            depth -= 1
+            if depth == 0:
+                return source[start + 1:i]
+        elif source[i] == '"':
+            i = source.index('"', i + 1)
+        i += 1
+    raise Unsupported('unbalanced hint')
+
+
+NAMED_HINTS = {'CanPlayAdditionalLandsHint', 'DayNightHint', 'ClassLevelHint', 'OpenSideboardHint',
+               'OpponentsLostLifeHint', 'CreaturesYouControlHint', 'RaidHint', 'MyTurnHint', 'MorbidHint',
+               'FerociousHint', 'LandsYouControlHint', 'BargainCostWasPaidHint', 'TeamworkCostWasPaidHint'}
+
+
+def _cond_hint(c, text):
+    return {'h': 'condition', 'condition': CONDITIONS[c], 'icons': True, 'trueText': text, 'falseText': text}
+
+
+# the named hints that are a condition or a value hint (`RaidHint` is "You attacked this turn")
+NAMED_AS = {
+    'OpponentsLostLifeHint': _cond_hint('OpponentsLostLifeCondition.instance', 'An opponent lost life this turn'),
+    'RaidHint': _cond_hint('RaidCondition.instance', 'You attacked this turn'),
+    'MyTurnHint': _cond_hint('MyTurnCondition.instance', "It's your turn"),
+    'MorbidHint': _cond_hint('MorbidCondition.instance', 'A creature died this turn'),
+    'FerociousHint': _cond_hint('FerociousCondition.instance', 'You control a creature with power 4+'),
+    'CreaturesYouControlHint': {'h': 'value', 'name': 'Creatures you control',
+                                'value': {'v': 'permanents', 'filter': COUNT_FILTERS['CreaturesYouControlCount.PLURAL']}},
+    'LandsYouControlHint': {'h': 'value', 'name': 'Lands you control',
+                            'value': {'v': 'permanents', 'filter': COUNT_FILTERS['LandsYouControlCount.instance']}},
+}
+
+
+def card_hints(name, subtypes, abilities=None):
+    """The hints a card's view shows in a game (`CardUtil.getCardRulesWithAdditionalInfo`), in Java's order: from its
+    facts (each ability's hints, their texts), with the conditions and values from its source (`addHint(…)`);
+    `abilities`: the facts of other abilities of the card (a room's halves')"""
+    if abilities is None:
+        abilities = EXTRA.get(name, {}).get('abilities', [])
+    descs = [(a['class'], h) for a in abilities for h in a.get('hints', [])]
+    if not descs:
+        return []
+    # hints an ability class adds itself, with nothing in the card's source
+    own = []
+    for ability, d in descs:
+        if d['class'] in NAMED_AS:
+            own.append(NAMED_AS[d['class']])
+        elif d['class'] in NAMED_HINTS:
+            own.append({'h': 'named', 'name': d['class']})
+        elif ability in ABILITY_HINTS:
+            own.append(dict(ABILITY_HINTS[ability](d), name=d.get('name', '')) if d['class'] == 'ValueHint'
+                       else ABILITY_HINTS[ability](d))
+        else:
+            own.append(None)
+    if all(o is not None for o in own):
+        return own
+    try:
+        source = open(card_path(name)).read()
+    except (Unsupported, OSError):
+        return [{'h': 'unknown', 'of': d['class'], 'why': 'no source'} for d in descs]
+    fields = {m.group(1): canonical(m.group(2)) for m in
+              re.finditer(r'(?:private|public)\s+static\s+final\s+\w*Hint\s+(\w+)\s*=\s*(.*?);\n', source, re.S)}
+    exprs = [canonical(balanced_args(source, m.end() - 1)) for m in re.finditer(r'\baddHint\(', source)]
+    exprs = [fields.get(e, e) for e in exprs]
+    t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    out = []
+    for (ability, d), o in zip(descs, own):
+        cls = d['class']
+        if o is not None:
+            if exprs and exprs[0] == cls + '.instance':
+                exprs.pop(0)
+            out.append(o)
+            continue
+        expr = exprs.pop(0) if exprs else ''
+        try:
+            out.append(hint_of(t, expr, d))
+        except Unsupported as e:
+            out.append({'h': 'unknown', 'of': cls, 'why': str(e)})
+    return out
+
+
+def hint_of(t, expr, d):
+    texts = {k: d[k] for k in ('trueText', 'falseText', 'trueColor', 'falseColor') if k in d}
+    icons = d.get('useIcons', 'true') == 'true'
+    if (m := re.fullmatch(r'new (?:ConditionHint|ConditionPermanentHint)\((.*)\)', expr, re.S)):
+        cond = split_args(m.group(1))[0]
+        return dict({'h': 'condition', 'condition': t.condition(cond), 'icons': icons}, **texts)
+    if (m := re.fullmatch(r'new ValueHint\((".*?"),(.*)\)', expr, re.S)):
+        return {'h': 'value', 'name': d.get('name', json.loads(m.group(1))), 'value': t.amount(m.group(2))}
+    if (m := re.fullmatch(r'(.+)\.getHint\(\)', expr, re.S)):
+        inner = m.group(1)
+        if d['class'] == 'ValueHint':
+            if inner in HINT_VALUES:
+                return {'h': 'value', 'name': d['name'], 'value': HINT_VALUES[inner]}
+            for v in (inner, inner + '.instance'):
+                try:
+                    return {'h': 'value', 'name': d['name'], 'value': t.amount(v)}
+                except Unsupported:
+                    pass
+            raise Unsupported('hint value ' + inner)
+        for c in (inner, inner + '.instance'):
+            try:
+                return dict({'h': 'condition', 'condition': t.condition(c), 'icons': icons}, **texts)
+            except Unsupported:
+                pass
+        raise Unsupported('hint condition ' + inner)
+    if d['class'] == 'CardTypesInGraveyardHint' or expr == 'CardTypesInGraveyardCount.ALL.getHint()':
+        return {'h': 'value', 'name': 'Card types in graveyards', 'value': {'v': 'card_types_in_graveyards'}}
+    raise Unsupported('hint ' + expr[:80])
+
+
+NOT_GAINED_LIFE = {'c': 'not', 'x': {'c': 'you_gained_life'}}
+YOURS = {'p': 'controller', 'who': 'you'}
+# the values whose `getHint()` a card adds (`LessonsInGraveCondition.getHint()` counts Lessons)
+HINT_VALUES = {
+    'LessonsInGraveCondition': {'v': 'cards_in_graveyard', 'filter': [{'p': 'subtype', 's': 'Lesson'}]},
+    'ControllerGainedLifeCount': {'v': 'life_gained'},
+    'LegendaryCreatureCostAdjuster': {'v': 'permanents', 'filter': [{'p': 'type', 't': 'CREATURE'},
+                                                                    {'p': 'supertype', 's': 'LEGENDARY'}, YOURS]},
+}
+# the hints an ability class adds (by its facts): `DelveAbility` counts your graveyard…
+ABILITY_HINTS = {
+    'AffinityAbility': lambda d: {'h': 'value', 'value': {'v': 'permanents', 'filter': [
+        {'p': 'subtype', 's': d['name'].removesuffix(' you control').removesuffix('s')}, YOURS]}},
+    'DelveAbility': lambda d: {'h': 'value', 'value': {'v': 'cards_in_graveyard', 'filter': []}},
+    'ConvokeAbility': lambda d: {'h': 'value', 'value': {'v': 'permanents', 'filter': [
+        {'p': 'type', 't': 'CREATURE'}, YOURS, {'p': 'tapped', 'v': False}]}},
+    'DrawNthCardTriggeredAbility': lambda d: {'h': 'value', 'value': {'v': 'cards_drawn'}},
+    'ExpendTriggeredAbility': lambda d: {'h': 'value', 'value': {'v': 'mana_expended'}},
+    'GainLifeFirstTimeTriggeredAbility': lambda d: {'h': 'condition', 'condition': NOT_GAINED_LIFE, 'icons': True,
+                                                    'trueText': d['trueText'], 'falseText': d['falseText']},
+    'CatCollectorTriggeredAbility': lambda d: {'h': 'condition', 'condition': NOT_GAINED_LIFE, 'icons': True,
+                                               'trueText': d['trueText'], 'falseText': d['falseText']},
+}
 
 
 def school_pool():
@@ -3033,6 +3178,23 @@ def main():
             if EXTRA.get(card['name'], {}).get('set'):
                 card['set'] = EXTRA[card['name']]['set']
             granted_rules(card)
+            hints = card_hints(card['name'], subtypes)
+            if hints:
+                card['hints'] = hints
+                # each hint's ability, by its index in the card's abilities
+                card['hint_abilities'] = [i for i, a in enumerate(EXTRA.get(card['name'], {}).get('abilities', []))
+                                          for _ in a.get('hints', [])]
+            # a room's halves' hints, from one pass over the card's source (`addHint` calls in the halves' order)
+            halves = EXTRA.get(card['name'], {}).get('halves', [])
+            if card.get('room') and len(halves) == len(card['room']):
+                hints = card_hints(card['name'], subtypes, [a for h in halves for a in h.get('abilities', [])])
+                for half, facts_half in zip(card['room'], halves):
+                    n = sum(len(a.get('hints', [])) for a in facts_half.get('abilities', []))
+                    if hints[:n]:
+                        half['hints'] = hints[:n]
+                        half['hint_abilities'] = [i for i, a in enumerate(facts_half.get('abilities', []))
+                                                  for _ in a.get('hints', [])]
+                    hints = hints[n:]
             strip_java(card)
             cards.append(card)
         except Unsupported as e:

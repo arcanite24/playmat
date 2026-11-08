@@ -36,6 +36,19 @@ public class ServerStats {
     public BackupStatus.BackupRun backup;
     /** planned maintenance, or null */
     public Maintenance.MaintenancePlan maintenance;
+    /** the Rust AI's games since the server started (docs/rust/Ai.md, docs/rust/Views.md) */
+    public RustAiStats rustAi;
+
+    /** Rust AI games: started, answers given, stopped partway (back to the Java AI), finished; the views compared */
+    public static class RustAiStats {
+        public long started;
+        public long answered;
+        public long stopped;
+        public long finished;
+        /** the human's views the Rust copies rendered and compared with Java's, and those with a field that differs */
+        public long viewsCompared;
+        public long viewsDiffering;
+    }
 
     static ServerStats collect(ManagerFactory managers) {
         ServerStats stats = new ServerStats();
@@ -58,6 +71,14 @@ public class ServerStats {
         stats.bridge = BridgeMetrics.get().snapshot();
         stats.backup = BackupStatus.read();
         stats.maintenance = Maintenance.get().plan();
+        RustAiStats rust = new RustAiStats();
+        rust.started = mage.game.trace.RustAiBridge.STARTED.get();
+        rust.answered = mage.game.trace.RustAiBridge.ANSWERED.get();
+        rust.stopped = mage.game.trace.RustAiBridge.STOPPED.get();
+        rust.finished = mage.game.trace.RustAiBridge.FINISHED.get();
+        rust.viewsCompared = mage.game.trace.RustAiBridge.VIEWS_COMPARED.get();
+        rust.viewsDiffering = mage.game.trace.RustAiBridge.VIEWS_DIFFERING.get();
+        stats.rustAi = rust;
         return stats;
     }
 }

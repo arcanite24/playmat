@@ -78,6 +78,10 @@ public class RustAiGameTest {
             }
         }
         int n = decks.size();
+        // the human's views, compared by the Rust copies (docs/rust/Views.md)
+        RustAiBridge.VIEWS = mage.server.game.RustViews::view;
+        long viewsBefore = RustAiBridge.VIEWS_COMPARED.get();
+        long differingBefore = RustAiBridge.VIEWS_DIFFERING.get();
         int threads = Integer.getInteger(PREFIX + ".threads", Math.max(1, Runtime.getRuntime().availableProcessors() / 2));
         List<String> problems = Collections.synchronizedList(new ArrayList<>());
         AtomicLong answered = new AtomicLong();
@@ -108,6 +112,12 @@ public class RustAiGameTest {
         Collections.sort(problems);
         System.out.println("[rust ai] " + (java ? "Java" : "Rust") + " AI won " + wins.get() + " of " + games + " in "
                 + (System.nanoTime() - started) / 1_000_000 + " ms");
+        if (!java) {
+            // (the copies report as their processes end)
+            Thread.sleep(2000);
+            System.out.println("[rust ai] views: " + (RustAiBridge.VIEWS_COMPARED.get() - viewsBefore) + " compared, "
+                    + (RustAiBridge.VIEWS_DIFFERING.get() - differingBefore) + " differ");
+        }
         if (java) {
             return;
         }
