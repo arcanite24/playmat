@@ -54,6 +54,8 @@ final class OidcVerifier {
     static final long SKEW_MILLIS = TimeUnit.MINUTES.toMillis(1);
     /** a JWKS re-fetch after a missing key, at most this often (a flood of bad tokens must not hammer the provider) */
     static final long REFRESH_MILLIS = TimeUnit.MINUTES.toMillis(1);
+    /** how long the provider's published keys are trusted before they are fetched again, kid miss or not */
+    static final long MAX_KEYS_AGE_MILLIS = 24L * 60 * 60 * 1000;
 
     private final OidcAuth.Http http;
     private final LongSupplier clock;
@@ -155,6 +157,17 @@ final class OidcVerifier {
         JWKSet set = keys;
         String kid = header.getKeyID();
         boolean noKid = kid == null || kid.trim().isEmpty();
+        if (set != null && now - fetchedAt >= MAX_KEYS_AGE_MILLIS) {
+            // a key the provider retired must stop verifying, and a kid-less token's key may have rotated
+            try {
+                set = fetchKeys(discovery);
+                keys = set;
+                fetchedAt = now;
+            } catch (IllegalArgumentException e) {
+                logger.warn("The provider's keys couldn't be refreshed: " + e.getMessage());
+                fetchedAt = now - MAX_KEYS_AGE_MILLIS + REFRESH_MILLIS; // keep the old set, try again in a minute
+            }
+        }
         if (set == null) {
             if (fetchedAt == 0 || now - fetchedAt >= REFRESH_MILLIS) {
                 fetchedAt = now;

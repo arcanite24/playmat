@@ -30,6 +30,11 @@ public final class OidcSignIn {
         public String suggestedName;
         /** why the suggested or chosen name can't be used */
         public String nameProblem;
+        /**
+         * set with suggestedName: the one secret the naming retry sends in place of the provider's code (the
+         * state is in the callback URL, so it alone can't finish the sign-in)
+         */
+        public String resume;
     }
 
     private static final SecureRandom random = new SecureRandom();
@@ -48,6 +53,18 @@ public final class OidcSignIn {
      * @param chosenName the name the player picked for a new account, or null to try the provider's display name
      */
     public OidcSignInResult finish(boolean accountsOn, String state, String code, String chosenName, long now) throws IOException, SQLException {
+        try {
+            return attempt(accountsOn, state, code, chosenName, now);
+        } catch (RuntimeException | IOException | SQLException e) {
+            oidc.forget(state); // a refused or failed sign-in leaves nothing behind for its state
+            throw e;
+        }
+    }
+
+    static final String UNCONFIRMED_EMAIL = "An account on this server already uses that email address, but hasn't"
+            + " confirmed it. Sign in to that account and confirm the email in Settings, then try again.";
+
+    private OidcSignInResult attempt(boolean accountsOn, String state, String code, String chosenName, long now) throws IOException, SQLException {
         if (!accountsOn) {
             throw new IllegalStateException("This server has no accounts, so there is nothing to sign in to with " + oidc.label());
         }
@@ -62,17 +79,27 @@ public final class OidcSignIn {
             account = link.account;
         } else if (who.email != null && who.emailVerified) {
             AuthorizedUser byEmail = accounts.getByEmail(who.email);
-            account = byEmail == null ? null : byEmail.getName();
+            if (byEmail != null) {
+                // Both sides must have proved the address. Accounts register with any email, unconfirmed, so a
+                // match on the provider's word alone would hand an account someone pre-registered with this
+                // address (still holding its password) to the provider user, or the reverse.
+                AccountEmail proved = store.accountEmail(byEmail.getName());
+                if (proved == null || proved.verifiedEmail == null || !proved.verifiedEmail.equalsIgnoreCase(who.email)) {
+                    throw new IllegalArgumentException(UNCONFIRMED_EMAIL);
+                }
+                account = byEmail.getName();
+            }
         }
         if (account != null) {
             AuthorizedUser user = accounts.getByName(account);
+            // refused before anything is written: a refused sign-in leaves no link behind
+            if (!access.allows(account, user.getEmail())) {
+                throw new IllegalArgumentException(AccessPolicy.REFUSED);
+            }
             store.linkOidc(who.sub, who.displayName, who.email, account, now);
             // the provider vouches that this person reads the address
             if (who.emailVerified && who.email != null && who.email.equalsIgnoreCase(user.getEmail())) {
                 store.emailVerified(account, user.getEmail(), now);
-            }
-            if (!access.allows(account, user.getEmail())) {
-                throw new IllegalArgumentException(AccessPolicy.REFUSED);
             }
             return signedIn(account, state);
         }
@@ -90,6 +117,7 @@ public final class OidcSignIn {
             OidcSignInResult result = new OidcSignInResult();
             result.suggestedName = chosenName == null ? name : OidcAuth.suggestName(who.displayName);
             result.nameProblem = chosenName == null && problem.equals(TAKEN) ? null : problem;
+            result.resume = oidc.resumeSecret(state);
             return result;
         }
         byte[] bytes = new byte[24];

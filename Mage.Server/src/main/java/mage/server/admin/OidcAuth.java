@@ -15,6 +15,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -165,6 +166,11 @@ public final class OidcAuth {
     private final Map<String, OidcPending> pending = new ConcurrentHashMap<>();
     /** state → who it signed in, so naming the new account doesn't need the provider's one-use code again */
     private final Map<String, Identity> identities = new ConcurrentHashMap<>();
+    /**
+     * state → the secret a naming retry must send in place of the code: the state travels in the callback URL
+     * (browser history, proxy logs), so it alone must never be enough to finish someone else's sign-in
+     */
+    private final Map<String, String> resumes = new ConcurrentHashMap<>();
     /** state → the verified ID token, so a finished sign-in can end the provider session later (RFC 7063) */
     private final Map<String, Token> identityTokens = new ConcurrentHashMap<>();
     /** one-use ref → the token it hands over, until when */
@@ -202,6 +208,11 @@ public final class OidcAuth {
                             System.getProperty(ADMIN_GROUP_PROP, ""), System.getProperty(SCOPE_PROP, ""),
                             System.getProperty(GROUPS_CLAIM_PROP, ""),
                             OidcAuth::httpRequest, System::currentTimeMillis);
+                    if (current.only && !current.isEnabled()) {
+                        // the entrypoint refuses to boot like this; a hand-run server gets told loudly
+                        logger.error("xmage.oidc.only is set, but the provider isn't fully configured (discovery URL,"
+                                + " client id, client secret and xmage.publicUrl): nobody can sign in except remembered devices");
+                    }
                     current.startDiscovery();
                     instance = current;
                 }
@@ -255,7 +266,9 @@ public final class OidcAuth {
         if (current == null || current.endSessionEndpoint == null) {
             return null;
         }
-        return current.endSessionEndpoint + "?id_token_hint=" + encode(rawToken)
+        return current.endSessionEndpoint + (current.endSessionEndpoint.contains("?") ? "&" : "?")
+                + "id_token_hint=" + encode(rawToken)
+                + "&client_id=" + encode(clientId)
                 + "&post_logout_redirect_uri=" + encode(publicUrl + "/")
                 + "&state=" + encode(state);
     }
@@ -349,6 +362,11 @@ public final class OidcAuth {
         prune(now);
         Identity known = state == null ? null : identities.get(state);
         if (known != null) {
+            String expected = resumes.get(state);
+            if (expected == null || code == null || !MessageDigest.isEqual(
+                    expected.getBytes(StandardCharsets.UTF_8), code.trim().getBytes(StandardCharsets.UTF_8))) {
+                throw new IllegalArgumentException("That sign-in with " + label + " has expired. Start again.");
+            }
             return known;
         }
         OidcPending spot = state == null ? null : pending.remove(state);
@@ -390,6 +408,7 @@ public final class OidcAuth {
         List<String> groups = groupsOf(claims);
         Identity identity = new Identity(sub, email, emailVerified, displayOf(claims, email), groups);
         identities.put(state, identity);
+        resumes.put(state, randomToken());
         pending.put("identity:" + state, new OidcPending(now + STATE_MILLIS, spot.nonce)); // how long the identity is kept
         Date expiration = claims.getExpirationTime();
         if (expiration != null) {
@@ -397,6 +416,25 @@ public final class OidcAuth {
                     adminGroupMatches(groups)));
         }
         return identity;
+    }
+
+    /**
+     * The secret a naming retry for this state sends as its code (null once the sign-in is done or forgotten).
+     * It goes back to the client in the naming answer only, never in a URL.
+     */
+    public String resumeSecret(String state) {
+        return state == null ? null : resumes.get(state);
+    }
+
+    /** The state's sign-in failed or was refused: drop who it was, and hand nothing out. */
+    public void forget(String state) {
+        if (state == null) {
+            return;
+        }
+        identities.remove(state);
+        identityTokens.remove(state);
+        resumes.remove(state);
+        pending.remove("identity:" + state);
     }
 
     /**
@@ -409,6 +447,7 @@ public final class OidcAuth {
             return null;
         }
         identities.remove(state);
+        resumes.remove(state);
         pending.remove("identity:" + state);
         Token token = identityTokens.remove(state);
         if (token == null) {
@@ -447,6 +486,7 @@ public final class OidcAuth {
                     String state = key.substring("identity:".length());
                     identities.remove(state);
                     identityTokens.remove(state);
+                    resumes.remove(state);
                 } else if (key.startsWith("tokenref:")) {
                     tokenRefs.remove(key.substring("tokenref:".length()));
                 }

@@ -1726,6 +1726,7 @@ export interface OidcSignInResult {
     idTokenRef?: string;
     nameProblem?: string;
     rememberToken?: string;
+    resume?: string;
     suggestedName?: string;
     userName?: string;
 }
@@ -1852,6 +1853,7 @@ export interface PlayerLook {
     badges?: string[];
     cardStyles?: { [index: string]: string };
     cloth?: string;
+    deckTokens?: { [index: string]: string };
     flair?: string;
     frame?: string;
     lands?: string;
@@ -1862,6 +1864,7 @@ export interface PlayerLook {
     spark?: string;
     stamp?: string;
     title?: string;
+    tokens?: { [index: string]: string };
 }
 
 export interface PlayerReport {
@@ -1973,6 +1976,15 @@ export interface RoundView extends Serializable {
     games?: TournamentGameView[];
 }
 
+export interface RustAiStats {
+    answered?: number;
+    finished?: number;
+    started?: number;
+    stopped?: number;
+    viewsCompared?: number;
+    viewsDiffering?: number;
+}
+
 export interface SeatView extends Serializable {
     constructedRating?: number;
     flagName?: string;
@@ -2062,6 +2074,7 @@ export interface ServerStats {
     now?: number;
     processCpu?: number;
     processors?: number;
+    rustAi?: RustAiStats;
     systemLoad?: number;
     tables?: number;
     threads?: number;

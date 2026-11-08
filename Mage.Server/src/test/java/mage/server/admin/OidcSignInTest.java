@@ -223,9 +223,28 @@ public class OidcSignInTest {
         assertThat(ask.userName).isNull();
         assertThat(ask.suggestedName).isEqualTo("octo_cat_with_");
 
-        OidcSignIn.OidcSignInResult named = signIn(open).finish(true, state, "the-code", "octo", now);
+        assertThat(ask.resume).isNotBlank();
+        assertThatThrownBy(() -> signIn(open).finish(true, state, "the-code", "octo", now))
+                .as("the state from the callback URL can't name the account without the resume secret").hasMessageContaining("expired");
+        assertThat(accounts.getByName("octo")).isNull();
+    }
+
+    @Test
+    void theNamingRetryNeedsTheResumeSecret() throws Exception {
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        accounts.add("octo_cat_with_", "secret1", "someone@example.test");
+        String state = ready();
+
+        OidcSignIn.OidcSignInResult ask = signIn(open).finish(true, state, "the-code", null, now);
+        OidcSignIn.OidcSignInResult named = signIn(open).finish(true, state, ask.resume, "octo", now);
         assertThat(named.userName).isEqualTo("octo");
         assertThat(hits("/api/oidc/token")).as("the provider's code is one-use").isEqualTo(1);
+    }
+
+    @Test
+    void aTakenNameAsksAgainForANewPerson() throws Exception {
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        accounts.add("octo_cat_with_", "secret1", "someone@example.test");
 
         sub = "sub-newbie"; // a first-time person
         email = "newbie@example.test";
@@ -261,7 +280,7 @@ public class OidcSignInTest {
         OidcSignIn.OidcSignInResult ask = signIn(open).finish(true, state, "the-code", null, now);
         assertThat(ask.idTokenRef).as("a naming ask has no signed-in account yet, so nothing to hand over").isNull();
 
-        OidcSignIn.OidcSignInResult named = signIn(open).finish(true, state, "the-code", "octo", now);
+        OidcSignIn.OidcSignInResult named = signIn(open).finish(true, state, ask.resume, "octo", now);
         assertThat(named.userName).isEqualTo("octo");
         assertThat(named.idTokenRef).isNotBlank();
         assertThat(oidc.takeTokenRef(named.idTokenRef).sub).isEqualTo("sub-octo");
@@ -271,12 +290,34 @@ public class OidcSignInTest {
     void aVerifiedEmailSignsInToTheExistingAccount() throws Exception {
         AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
         accounts.add("octavia", "secret1", "octo@example.test");
+        store.emailVerified("octavia", "octo@example.test", now); // the account confirmed the address itself
 
         OidcSignIn.OidcSignInResult result = signIn(open).finish(true, ready(), "the-code", null, now);
 
         assertThat(result.userName).isEqualTo("octavia");
         assertThat(store.oidcLink("sub-octo").account).isEqualTo("octavia");
         assertThat(store.accountEmail("octavia").verifiedEmail).as("the provider vouches the address").isEqualTo("octo@example.test");
+    }
+
+    @Test
+    void anAccountThatNeverConfirmedTheEmailIsNotTakenOver() throws Exception {
+        AccessPolicy open = AccessPolicy.create(store, "", "open", "", now);
+        accounts.add("squatter", "secret1", "octo@example.test"); // registered with someone else's address
+
+        assertThatThrownBy(() -> signIn(open).finish(true, ready(), "the-code", null, now))
+                .hasMessage(OidcSignIn.UNCONFIRMED_EMAIL);
+        assertThat(store.oidcLink("sub-octo")).as("nothing is linked").isNull();
+        assertThat(store.accountEmail("squatter")).as("nor vouched").isNull();
+    }
+
+    @Test
+    void aRefusedLinkedSignInWritesNothing() throws Exception {
+        AccessPolicy closed = AccessPolicy.create(store, "", "allowlist", "", now);
+        accounts.add("octavia", "secret1", "octo@example.test");
+        store.emailVerified("octavia", "octo@example.test", now);
+
+        assertThatThrownBy(() -> signIn(closed).finish(true, ready(), "the-code", null, now)).hasMessage(AccessPolicy.REFUSED);
+        assertThat(store.oidcLink("sub-octo")).isNull();
     }
 
     @Test

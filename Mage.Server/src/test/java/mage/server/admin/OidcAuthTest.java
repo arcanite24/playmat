@@ -290,7 +290,10 @@ public class OidcAuthTest {
         tokenJson = tokenResponse(query(url, "nonce"));
 
         oidc.identify(state, "the-code");
-        assertThat(oidc.identify(state, "the-code").sub).as("the client asks again while naming the account").isEqualTo("sub-octo");
+        assertThat(oidc.identify(state, oidc.resumeSecret(state)).sub).as("the client asks again while naming the account").isEqualTo("sub-octo");
+        assertThatThrownBy(() -> oidc.identify(state, "the-code")).as("the state and the URL's code alone can't finish it")
+                .hasMessageContaining("expired");
+        assertThatThrownBy(() -> oidc.identify(state, null)).hasMessageContaining("expired");
         assertThat(hits("/api/oidc/token")).as("the provider's code is one-use").isEqualTo(1);
         oidc.done(state);
 

@@ -203,9 +203,17 @@ export function LoginScreen() {
 
   // back from the identity provider: sign in to the account it names, or pick a name for a new one first
   const oidcDone = useRef(false);
+  // the naming retry sends the server's resume secret, never the code from the URL again
+  const oidcResume = useRef<string | null>(null);
   useEffect(() => {
     if (!oidc || status !== 'online' || oidcDone.current) return;
     oidcDone.current = true;
+    // only finish a sign-in this tab started: a callback link someone else sent would sign in to their account
+    if (takeOidcState() !== oidc.state) {
+      useSession.setState({ error: t('login.oidc.otherBrowser') });
+      setMode('sit');
+      return;
+    }
     void finishOidc(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, when the server answers
   }, [status]);
@@ -214,12 +222,13 @@ export function LoginScreen() {
     if (!oidc) return;
     setWorking(true);
     try {
-      const result = await api.oidcFinish(oidc.state, oidc.code, chosen);
+      const result = await api.oidcFinish(oidc.state, chosen && oidcResume.current ? oidcResume.current : oidc.code, chosen);
       if (result.userName && result.rememberToken) {
         // the ID-token ref marks the sign-in as a provider one: its sign-out ends the provider session too
         if (await session.signInWithOidc(serverUrl.trim(), result.userName, result.rememberToken, result.idTokenRef ?? null)) seated();
         return;
       }
+      oidcResume.current = result.resume ?? null;
       setMode('oidcName');
       if (result.suggestedName && !chosen) setUserName(result.suggestedName);
       useSession.setState({ error: result.nameProblem ?? (chosen ? null : t('login.oidc.nameTaken')) });
@@ -234,7 +243,9 @@ export function LoginScreen() {
   async function startOidc() {
     setWorking(true);
     try {
-      window.location.assign(await api.oidcStart());
+      const url = await api.oidcStart();
+      keepOidcState(url);
+      window.location.assign(url);
     } catch (error) {
       useSession.setState({ error: error instanceof Error ? error.message : String(error) });
       setWorking(false);
@@ -684,4 +695,27 @@ function useRotatingArt() {
     return () => clearInterval(timer);
   }, [covers.length]);
   return covers.length ? covers[index % covers.length] : null;
+}
+
+const OIDC_STATE_KEY = 'playmat.oidcState';
+
+/** Remembers, for this tab only, the state of the sign-in it is about to start. */
+function keepOidcState(url: string) {
+  try {
+    const state = new URL(url).searchParams.get('state');
+    if (state) sessionStorage.setItem(OIDC_STATE_KEY, state);
+  } catch {
+    // no storage: the callback is refused and the player starts again
+  }
+}
+
+/** The state this tab started, read once. */
+function takeOidcState(): string | null {
+  try {
+    const state = sessionStorage.getItem(OIDC_STATE_KEY);
+    sessionStorage.removeItem(OIDC_STATE_KEY);
+    return state;
+  } catch {
+    return null;
+  }
 }

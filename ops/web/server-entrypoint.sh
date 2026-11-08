@@ -10,6 +10,8 @@ APP=${XMAGE_HOME:-/opt/xmage}
 TEMPLATE=$APP/config/config.template.xml
 CONFIG=$APP/config/config.xml
 DB_DIR=$APP/db          # volume: user data only (accounts, stats, table records, feedback)
+# the Career views Java writes at start and on content reloads, which the gateway serves
+export XMAGE_CAREER_EXPORT=${XMAGE_CAREER_EXPORT:-$DB_DIR/career-views.json}
 CARDS_DIR=$APP/cards-db # volume: card database cache, rebuilt when the image changes
 
 die() { echo "xmage-server: $*" >&2; exit 1; }
@@ -189,6 +191,7 @@ is_bool "$OIDC_ONLY" || die "XMAGE_OIDC_ONLY must be true or false (got '$OIDC_O
 if [ "$OIDC_ONLY" = true ]; then
   [ -n "${XMAGE_OIDC_DISCOVERY:-}" ] && [ -n "${XMAGE_OIDC_CLIENT_ID:-}" ] && [ -n "${XMAGE_OIDC_CLIENT_SECRET:-}" ] \
     || die "XMAGE_OIDC_ONLY=true needs the provider set: XMAGE_OIDC_DISCOVERY, XMAGE_OIDC_CLIENT_ID and XMAGE_OIDC_CLIENT_SECRET"
+  [ -n "${XMAGE_PUBLIC_URL:-}" ] || die "XMAGE_OIDC_ONLY=true needs XMAGE_PUBLIC_URL: the provider sends players back to it"
   [ "${XMAGE_AUTH:-false}" = true ] || die "XMAGE_OIDC_ONLY=true needs XMAGE_AUTH=true: the provider is the only sign-in, and it signs in with accounts"
   [ "$DESKTOP" = true ] && echo "xmage-server: warning: XMAGE_OIDC_ONLY=true with XMAGE_DESKTOP=true; desktop clients can't sign in on such a server" >&2
 fi
@@ -388,6 +391,12 @@ if [ "$GATEWAY" = on ]; then
     export XMAGE_PLATFORM_CATALOG=$CARDS_DIR/catalog.sqlite
     # the bridge's own decks database (./db/web_decks.db), for XMAGE_ROUTE_ACCOUNT
     export XMAGE_PLATFORM_DECKS=$DB_DIR/web_decks.db
+    # the bridge's admin and reports databases, for XMAGE_ROUTE_ACCESS, XMAGE_ROUTE_STAFF and XMAGE_ROUTE_ADMIN
+    export XMAGE_PLATFORM_ADMIN=$DB_DIR/web_admin.db XMAGE_PLATFORM_REPORTS=$DB_DIR/web_reports.db
+    # support's records and the accounts, for XMAGE_ROUTE_SUPPORT
+    export XMAGE_PLATFORM_SUPPORT=$DB_DIR/support.db XMAGE_PLATFORM_ACCOUNTS=$DB_DIR/authorized_user.db
+    # the Career's records, for XMAGE_ROUTE_CAREER and XMAGE_ROUTE_CAREERPROGRESS
+    export XMAGE_PLATFORM_CAREER=$DB_DIR/career.db XMAGE_PLATFORM_CAREER_CONTENT=/opt/xmage/career-content
     while true; do
       playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
       sleep 2

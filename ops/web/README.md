@@ -244,16 +244,41 @@ and the container restarts the gateway. `off`, the default, leaves things as the
 |---|---|---|
 | `XMAGE_GATEWAY_STATE_DIFFS` | `true` | `false` lets Java make the state patches again. |
 | `XMAGE_GATEWAY_MAX_OUTGOING_BYTES` | `16777216` | Bytes waiting for one slow client before it is disconnected. |
-| `XMAGE_ROUTE_CATALOG` | `java` | Where the card catalog's calls go: `java`, `rust` or `shadow` (both run, Java answers, differences are counted and logged). Rust answers `lookupCards`, `searchCards`, `deckValidate` (the constructed formats), `getExpansionSets` and `getBasicLandSets` from the card catalog the server exports ([docs/rust/Catalog.md](../../docs/rust/Catalog.md)); the group's other calls stay with Java, and so do the searches and formats Rust doesn't cover yet (`playmat_gateway_declined_total` counts them). |
+| `XMAGE_ROUTE_CATALOG` | `java` | Where the card catalog's calls go: `java`, `rust` or `shadow` (both run, Java answers, differences are counted and logged). Rust answers `lookupCards`, `searchCards`, `deckValidate` (the constructed formats), `getExpansionSets` and `getBasicLandSets` from the card catalog the server exports ([docs/rust/Catalog.md](../../docs/rust/Catalog.md)); the group's other calls stay with Java, and so do the searches and formats Rust doesn't cover yet (`playmat_gateway_declined_total` counts them, and `playmat_gateway_declined_method_total` by method). |
 | `XMAGE_ROUTE_ACCOUNT` | `java` | The same for the account calls. Rust answers deck sync (`deckSyncList`, `deckSyncGet`, `deckSyncPut`, `deckSyncDelete`) on the bridge's own `db/web_decks.db`, so either side reads what the other wrote ([docs/rust/Decks.md](../../docs/rust/Decks.md)). In `shadow`, Rust's change is rolled back and Java stores it. |
 | `XMAGE_SHADOW_USERS` | everyone | Comma-separated user names (any case). When set, `shadow` routes run Rust only for these users; everyone else's calls go to Java alone. A way to try a group on a few accounts first. |
 | `XMAGE_ROUTE_DECKIMPORT` | `java` | The same for importing decks by link (`deckImportFromUrl`, `deckImportSources`) from Archidekt, TCGplayer, MTGTop8, Scryfall and ManaBox ([docs/rust/DeckImport.md](../../docs/rust/DeckImport.md)). In `shadow`, both sides fetch the deck. |
+| `XMAGE_ROUTE_ACCESS`, `XMAGE_ROUTE_STAFF`, `XMAGE_ROUTE_ADMIN` | `java` | The same for the staff console. Rust answers the calls that live in the bridge's `db/web_admin.db` and `db/web_reports.db` and nowhere in Java's memory: `staffMe`, `adminStaff`, `adminAudit`, `adminGetReports`, `adminCloseReport`, `adminClientErrors`, `adminClientErrorResolve`, `adminAllowAdd`, `adminInviteCreate`, `adminInviteRevoke` and `inviteCheck` ([docs/rust/Admin.md](../../docs/rust/Admin.md)). The groups' other calls stay with Java. In `shadow`, Rust's change is rolled back and Java makes it. |
+| `XMAGE_ROUTE_ACCOUNTS`, `XMAGE_ROUTE_SUPPORT` | `java` | The same for staff's feedback inbox (`adminFeedback`, `adminFeedbackMark`) and support's records: `supportPerks`, `supportNoticeSeen`, `supportSetWall`, `adminSupportLedger`, `adminSupportLink`, `adminSupportRevoke`, `adminSupportGrant` and `adminContributorGrant` ([docs/rust/Support.md](../../docs/rust/Support.md)). The support status, players' looks and the Ko-fi and GitHub hooks stay with Java. |
+| `XMAGE_ROUTE_CAREER`, `XMAGE_ROUTE_CAREERPROGRESS` | `java` | The same for the Career's records in `db/career.db`: `careerCollection`, `careerDeck`, `careerGameResult`, `careerShowProgress`, `careerLevels`, and `careerStarters`, `careerCosmetics`, `careerOpponents`, `careerAchievements`, `careerQuests`, `careerEquipStyle`, `careerCraft` (with the card catalog), `careerStart` and `careerSaveDeck` from the views Java writes to `XMAGE_CAREER_EXPORT` (`db/career-views.json`) ([docs/rust/Career.md](../../docs/rust/Career.md)). Everything else in the Career, packs, quests, payouts and the games it starts, stays with Java. |
 | `XMAGE_ROUTE_DEFAULT`, `XMAGE_ROUTES_FILE` | `java` | The route for every other group, and a file with routes by group, by method and rollout percentages (`rust/crates/playmat-protocol/src/routes.rs`). |
 | `XMAGE_GATEWAY_LOG` | `info` | Log level, e.g. `debug`. |
 
 The gateway trusts `X-Forwarded-For` from `XMAGE_TRUSTED_PROXIES` only, and passes the bridge nothing else that
 sets who a client is. Its counters (connections, calls by route, patches and the bytes they saved) are at `/metrics` on
 port 17180, which only the Compose network reaches. `docker compose exec xmage playmat-gateway health` checks it.
+
+### Rust AI
+
+A new AI written in Rust ([docs/rust/Ai.md](../../docs/rust/Ai.md)) can play the AI's seat in one-on-one games. It
+decides in milliseconds where the Java AI can take seconds. Java still runs the game: the Rust AI keeps a copy of it in
+step, and whenever the copy differs from Java's game, the Java AI takes the seat back for the rest of that game.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `XMAGE_AI_BACKEND` | `java` | `rust` lets the Rust AI play. |
+| `XMAGE_RUST_AI_USERS` | none | Comma-separated user names (any case), or `*` for everyone: whose games against the AI it plays. Empty: nobody's. |
+| `XMAGE_RUST_VIEWS_EVERY` | `10` | Every n-th question to the player, the Rust copy also renders the player's view and compares it with the one Java sent ([docs/rust/Views.md](../../docs/rust/Views.md)). `0` turns it off. It never changes the game. |
+| `XMAGE_ENGINE` | | `java` turns every Rust part off. |
+
+It plays a game when it's one player against one AI from opening hands, and the Rust engine has every card in both
+decks (for now, the Pioneer and Standard Career school decks' cards and a few Pioneer decks more,
+[docs/rust/Engine.md](../../docs/rust/Engine.md)). The log says `Rust AI plays seat …` when it starts, `Rust AI stops
+in …` with the reason when it hands a game back, and, for a listed player's game that doesn't qualify, which cards the
+engine lacks. At the end of each game it logs `Rust views in …: n compared, m differ` with the fields that differed
+and an example of each; the admin console's Overview adds up the games and views since the server started. Try it on
+staff first, e.g.
+`XMAGE_AI_BACKEND=rust` and `XMAGE_RUST_AI_USERS=neri`, then `up -d`.
 
 ### Small VPS (1 vCPU, 1 GB)
 
@@ -289,6 +314,8 @@ ops/web/ship-images.sh <ssh-host> podman
 With `XMAGE_AUTH=true`, players register in the web client with a name, an email address and a password they choose. A forgotten password is reset with a six-digit code sent by mail: it works for 30 minutes and 5 tries. Configure Mailgun or SMTP (above), or players can't reset passwords. The web client asks the server (`serverInfo`) whether accounts and mail are on and shows only the forms that work. With GitHub or the identity provider set up, the sign-in screen offers them too, as passwordless sign-ins; the provider's setup is in [Sign in with an identity provider](#sign-in-with-an-identity-provider).
 
 With mail on, the welcome mail carries a six-digit code that confirms the player's email address; Home and Settings, Account let them type it or ask for a new one (once a minute, five an hour). A password reset by mailed code, and Sign in with GitHub or the identity provider, confirm the address too. Confirmed addresses are kept in `web_admin.db`, and the admin console marks them. Unconfirmed accounts play everything. When someone registers with an address held by an account that never confirmed it, was registered more than 48 hours ago and hasn't signed in for 48 hours, the address moves to the new account and the audit log records it (`user.email.release`), so a squatter can't keep an owner out.
+
+Accounts are kept in `db/authorized_user.db` (SQLite). Servers from before Nov 2026 kept them in `db/authorized_user.h2`: the first start after updating copies every account and remembered device to SQLite and logs `Accounts: N accounts copied from H2`. The H2 file stays as it was. To go back, set `XMAGE_ACCOUNTS_DB=h2` and restart: the SQLite accounts are copied into the H2 file, so nothing made since is lost, and the SQLite file is renamed `authorized_user.db.rolled-back-<time>`. Removing the setting later copies them to SQLite again.
 
 Signed-in players' decks sync to their account (`web_decks.db`), so they follow the player to another browser. Without accounts, decks stay in each browser.
 
@@ -354,7 +381,7 @@ Docker can make every client look like the bridge gateway (rootless Docker, the 
 **The Android app** opens its game connection itself, without the sign-on's cookie, so the proxy turns it away and it can't use single sign-on. For the app, keep `XMAGE_PASSWORD_SIGNIN=true` and a route to Caddy that skips the proxy; the header is absent there and players use passwords.
 ## Sign in with an identity provider
 
-With `XMAGE_OIDC_DISCOVERY`, `XMAGE_OIDC_CLIENT_ID` and `XMAGE_OIDC_CLIENT_SECRET` set, players can sign in through an identity provider instead of a password, the same as with GitHub. Any OpenID Connect provider works, addressed by its discovery document; Pocket ID is the one most selfhosters run. The first sign-in makes the player an account named after the provider's display name (or one they pick when that name is taken), with the provider's verified email; an account that already has that email is used instead, and the sign-in gives a remembered device. A provider email that isn't verified yet never matches or creates an account, and the player is told to verify it in the provider.
+With `XMAGE_OIDC_DISCOVERY`, `XMAGE_OIDC_CLIENT_ID` and `XMAGE_OIDC_CLIENT_SECRET` set, players can sign in through an identity provider instead of a password, the same as with GitHub. Any OpenID Connect provider works, addressed by its discovery document; Pocket ID is the one most selfhosters run. The first sign-in makes the player an account named after the provider's display name (or one they pick when that name is taken), with the provider's verified email; an account that already has that email is used instead, but only once that account has confirmed the address here (an unconfirmed one is refused with a message to confirm it in Settings first, so nobody can pre-register an address and wait for its owner), and the sign-in gives a remembered device. A provider email that isn't verified yet never matches or creates an account, and the player is told to verify it in the provider. The sign-in only finishes in the browser tab that started it.
 
 **Pocket ID, from its console.** Administration → OIDC Clients → Add a client: a *confidential* client, with the callback URL `https://DOMAIN/auth/oidc` and no group restriction (or "All Users"). Copy the client ID, the client secret and the discovery URL it shows (`https://<the IdP's address>/.well-known/openid-configuration`) into `XMAGE_OIDC_CLIENT_ID`, `XMAGE_OIDC_CLIENT_SECRET` and `XMAGE_OIDC_DISCOVERY`, add `https://DOMAIN/` to the client's *logout callback URLs* (so a sign-out can bounce the browser back to the sign-in screen), set `XMAGE_OIDC_LABEL=Pocket ID` for the button, and `up -d`.
 
@@ -598,7 +625,7 @@ Caddy allows one address 30 new `/ws` connections a minute (`WS_RATE_LIMIT`). A 
 
 | Volume | Mounted at | Holds | Back up? |
 |---|---|---|---|
-| `xmage-db` | `/opt/xmage/db` | `authorized_user.h2` (accounts), `feedback.h2`, `user_stats.db` (player stats), `table_record.db` (finished tables), `web_decks.db` (decks synced to accounts), `web_reports.db` (player reports), `career.db` (Career collections and progress), `web_admin.db` (/admin), `support.db` (support ledger, perks, looks), `solo.db` (single player: saved games, ghosts, AI batches, scores), `content-packs/` (packs staff added) | yes, nightly |
+| `xmage-db` | `/opt/xmage/db` | `authorized_user.db` (accounts; `authorized_user.h2` before Nov 2026), `feedback.h2`, `user_stats.db` (player stats), `table_record.db` (finished tables), `web_decks.db` (decks synced to accounts), `web_reports.db` (player reports), `career.db` (Career collections and progress), `web_admin.db` (/admin), `support.db` (support ledger, perks, looks), `solo.db` (single player: saved games, ghosts, AI batches, scores), `content-packs/` (packs staff added) | yes, nightly |
 | `xmage-cards` | `/opt/xmage/cards-db` | `cards.h2`, the card database | no: a cache built from the image |
 | `xmage-saved` | `/opt/xmage/saved` | saved games (`XMAGE_SAVE_GAMES`) and web client replays (`saved/replays`) | optional |
 | `xmage-logs` | `/opt/xmage/logs` | `mageserver.log*` | no |
@@ -613,7 +640,7 @@ XMage opens every database under `./db`. Only user data stays on `xmage-db`. The
 The `backup` service runs daily at `BACKUP_AT` and writes `/backups/<UTC timestamp>/` into the `xmage-backups` volume:
 
 - `authorized_user.h2.sql.gz` and `feedback.h2.sql.gz`: H2 SQL dumps. They're taken online by joining the running server's database through H2's auto-server mode, so each dump is consistent.
-- `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db` and `solo.db`: SQLite copies made with SQLite's online backup API.
+- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db` and `solo.db`: SQLite copies made with SQLite's online backup API.
 - `content-packs.tar.gz`: the `db/content-packs` folder, when there is one.
 
 Every run writes `db/backup-status.json` (when, whether it worked, its size and the last good one). The admin Overview shows it, and once an hour the server checks it: a failed run, or no good backup for 36 hours, is posted to the staff channel (once a day at most).
