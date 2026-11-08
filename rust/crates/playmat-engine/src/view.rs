@@ -93,6 +93,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
         };
         let text = match kind {
             PlayKind::Cast => format!("Cast {}", name),
+            PlayKind::RoomHalf => format!("Cast {}", o.def.room.get(k).map_or("", |h| h.name.as_str())),
             PlayKind::Other if o.def.abilities.get(k) == Some(&crate::card::AbilityDef::SpellAbility) => {
                 format!("Cast {}", name)
             }
@@ -112,7 +113,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
             PlayKind::BasicMana => "basicManaAbilities",
             PlayKind::Land => "basicPlayAbilities",
             PlayKind::Cast => "basicCastAbilities",
-            PlayKind::Other => "other",
+            PlayKind::Other | PlayKind::RoomHalf => "other",
         };
         // Sunken Citadel's: the chosen color's symbol in its text
         if let (Some(crate::card::AbilityDef::ColoredManaAbility { color, .. }), true) =
@@ -120,8 +121,13 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
         {
             text = text.replace("chosen color.", &format!("chosen color {{{}}}.", color_symbol(*color)));
         }
-        let record = json!({"id": format!("{}a{}", r, k), "value": text});
-        for key in std::iter::once(r.clone()).chain(face.map(|f| format!("{}f{}", r, f))) {
+        let tag = if kind == PlayKind::RoomHalf { "h" } else { "a" };
+        let record = json!({"id": format!("{}{}{}", r, tag, k), "value": text});
+        let part = match kind {
+            PlayKind::RoomHalf => Some(format!("{}h{}", r, k)),
+            _ => face.map(|f| format!("{}f{}", r, f)),
+        };
+        for key in std::iter::once(r.clone()).chain(part) {
             let entry = objects.entry(key).or_insert_with(
                 || json!({"basicManaAbilities": [], "basicPlayAbilities": [], "basicCastAbilities": [], "other": []}),
             );
@@ -1137,6 +1143,11 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
             if o.zone == Zone::Battlefield || o.token && source_ref == "?" {
                 source["bandedCards"] = json!([]);
                 source["controlledByOwner"] = json!(o.owner == o.controller);
+                if o.zone == Zone::Battlefield {
+                    if let Value::Object(m) = &mut source {
+                        permanent_info(game, item.card, names, m);
+                    }
+                }
             }
             v["id"] = json!(r);
             let mut rules = vec![rule];
@@ -1549,14 +1560,10 @@ fn battlefield_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value
     Value::Object(m)
 }
 
-/// `PermanentView`: the card's view as a permanent, with its state, and (for its controller, or a token) the card
-/// it was printed as
-fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str]) -> Value {
+/// A permanent's info lines after the chosen color's, in the order of Java's `HashMap` of them: the protector,
+/// prepared
+fn permanent_info(game: &Game, id: ObjId, names: &[&str], m: &mut Map<String, Value>) {
     let o = game.obj(id);
-    let mut v = card_view(game, id, r, true);
-    let controlled = o.controller == viewer;
-    let Value::Object(m) = &mut v else { return v };
-    // its info lines after the chosen color's, in the order of Java's `HashMap` of them: the protector, prepared
     if let Some(Value::Array(rules)) = m.get_mut("rules") {
         if let Some(p) = o.protector {
             let name = names.get(p).copied().unwrap_or("");
@@ -1566,6 +1573,17 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
             rules.push(json!("<font color = 'blue'>Prepared</font>"));
         }
     }
+}
+
+/// `PermanentView`: the card's view as a permanent, with its state, and (for its controller, or a token) the card
+/// it was printed as
+fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str]) -> Value {
+    let o = game.obj(id);
+    let mut v = card_view(game, id, r, true);
+    let controlled = o.controller == viewer;
+    let Value::Object(m) = &mut v else { return v };
+    // its info lines after the chosen color's, in the order of Java's `HashMap` of them: the protector, prepared
+    permanent_info(game, id, names, m);
     m.insert("mageObjectType".into(), json!("PERMANENT"));
     m.insert("tapped".into(), json!(o.tapped));
     m.insert("flipped".into(), json!(false));

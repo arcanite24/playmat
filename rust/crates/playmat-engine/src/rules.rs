@@ -660,6 +660,8 @@ pub enum PlayKind {
     /// a spell's own `SpellAbility`
     Cast,
     Other,
+    /// a Room card's half, cast on its own (`h0`, `h1`): its index is the half's
+    RoomHalf,
 }
 
 /// What `getPlayableObjects` lists for the client: each object with an ability `seat` can play now, as the
@@ -701,6 +703,13 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         }
                         _ => castable(game, seat, id, def),
                     };
+                    if o.zone == Zone::Hand {
+                        for (h, half) in def.room.iter().enumerate() {
+                            if castable(game, seat, id, half) {
+                                out.push((id, h, PlayKind::RoomHalf, None));
+                            }
+                        }
+                    }
                     // (a double-faced card's front is cast with a `SpellAbility` that isn't the `BASE` one)
                     if let (true, Some(k)) = (normal, spell) {
                         out.push((id, k, if face.is_some() { PlayKind::Other } else { PlayKind::Cast }, face));
