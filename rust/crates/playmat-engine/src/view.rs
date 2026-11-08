@@ -41,7 +41,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "opponentHands": {},
         "watchedHands": {},
         "stack": stack_view(game, names),
-        "exiles": [cards_view(game, &crate::replay::exile_order(game))],
+        "exiles": exiles_view(game),
         "combat": combat_view(game, names),
         "revealed": [],
         "lookedAt": [],
@@ -121,6 +121,49 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
         }
     }
     json!({ "objects": objects })
+}
+
+/// The exile zones (`GameView.exiles`): the main one, then one per source that exiled cards to its own (exiled until
+/// it leaves, for it, its impulse draws), per prepared permanent and per player's adventures. Java keeps its zones in
+/// a `HashMap` by random ids, so `compare` puts both sides' in one order and drops the empty ones (and the main zone
+/// isn't always first).
+fn exiles_view(game: &Game) -> Value {
+    let mut zones: Vec<(String, Vec<ObjId>)> = vec![(String::new(), Vec::new())];
+    for id in crate::replay::exile_order(game) {
+        let o = game.obj(id);
+        let linked =
+            |list: &[(ObjId, u32, ObjId)]| list.iter().rev().find(|(_, _, c)| *c == id).map(|(s, z, _)| (*s, *z));
+        let key = if let Some((p, z)) = o.prepared_for {
+            format!("prepared {} {}", p.0, z)
+        } else if o.on_adventure {
+            format!("adventure {}", o.owner)
+        } else if o.warp_from.is_some() {
+            format!("warp {}", o.owner)
+        } else if let Some((s, z)) =
+            o.exiled_with.or_else(|| linked(&game.exiled_until_leaves)).or_else(|| linked(&game.exiled_for_source))
+        {
+            format!("source {} {}", s.0, z)
+        } else {
+            String::new()
+        };
+        match zones.iter_mut().find(|(k, _)| *k == key) {
+            Some((_, ids)) => ids.push(id),
+            None => zones.push((key, vec![id])),
+        }
+    }
+    Value::Array(zones.iter().map(|(_, ids)| cards_view(game, ids)).collect())
+}
+
+/// Exile zones in one order to compare, by their cards, the empty ones left out (Java's order is its `HashMap`'s)
+fn normalize_exiles(v: &mut Value) {
+    if let Some(Value::Array(zones)) = v.get_mut("exiles") {
+        zones.retain(|z| z.as_object().is_some_and(|m| !m.is_empty()));
+        zones.sort_by_key(|z| {
+            let mut keys: Vec<String> = z.as_object().map(|m| m.keys().cloned().collect()).unwrap_or_default();
+            keys.sort();
+            keys.join(",")
+        });
+    }
 }
 
 /// `TurnPhase` of a step
@@ -1105,8 +1148,11 @@ fn list_key(v: &Value) -> Option<String> {
 
 /// Every field where the two views differ. Maps match by key; lists of objects with ids by id, other lists by place.
 pub fn compare(java: &Value, rust: &Value) -> Vec<Difference> {
+    let (mut java, mut rust) = (java.clone(), rust.clone());
+    normalize_exiles(&mut java);
+    normalize_exiles(&mut rust);
     let mut out = Vec::new();
-    diff(&mut out, String::new(), Some(java), Some(rust));
+    diff(&mut out, String::new(), Some(&java), Some(&rust));
     out
 }
 

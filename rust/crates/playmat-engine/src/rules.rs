@@ -6295,8 +6295,17 @@ fn apply_each_effect(
             EffectDef::ExileTopXMayPlayUntilEffect { amount, choose_one, duration } => {
                 let n = v!(amount).max(0) as usize;
                 let cards: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
+                // the source's zone for them: a leaves trigger's is the permanent's that left (its stack moment's)
+                let zone = if item.ability.is_some() && game.obj(source.0).zone != Zone::Battlefield {
+                    (source.0, source.1.saturating_sub(1))
+                } else {
+                    source
+                };
                 for c in &cards {
                     game.move_to(*c, Zone::Exile);
+                    if game.obj(*c).zone == Zone::Exile {
+                        game.obj_mut(*c).exiled_with = Some(zone);
+                    }
                 }
                 let mut cards: Vec<ObjId> = cards.into_iter().filter(|c| game.obj(*c).zone == Zone::Exile).collect();
                 if *choose_one && cards.len() > 1 {

@@ -137,6 +137,8 @@ pub struct Obj {
     pub prepared_copy: Option<ObjId>,
     /// a prepared copy: the permanent (and its zone change count) whose copy it is
     pub prepared_for: Option<(ObjId, u32)>,
+    /// in exile, in the zone of the source (and its zone change count) that exiled it (`CardUtil.getExileZoneId`)
+    pub exiled_with: Option<(ObjId, u32)>,
     /// a Room permanent's doors, left and right: unlocked or not
     pub doors: [bool; 2],
     /// the half of a Room cast (0 left, 1 right): its door unlocks as the Room enters
@@ -706,6 +708,7 @@ impl Game {
             chosen_name: None,
             prepared_copy: None,
             prepared_for: None,
+            exiled_with: None,
             doors: [false; 2],
             room_cast: None,
             foretold_turn: None,
@@ -1863,6 +1866,7 @@ impl Game {
             o.cast_only = false;
             o.chosen_name = None;
             o.info.clear();
+            o.exiled_with = None;
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;
