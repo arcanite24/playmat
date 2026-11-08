@@ -725,10 +725,11 @@ fn printed(name: &str) -> Option<Arc<CardDef>> {
 fn changed_rules(game: &Game, id: ObjId, rules: &mut Vec<Value>) {
     let o = game.obj(id);
     // (a card that left the battlefield is its printed self: what effects gave its permanent is gone)
-    if matches!(o.zone, Zone::Graveyard | Zone::Library | Zone::Hand | Zone::Exile) && o.def.room.is_empty() {
-        if printed(&o.def.name).is_some_and(|p| !Arc::ptr_eq(&p, &o.def)) {
-            return;
-        }
+    if matches!(o.zone, Zone::Graveyard | Zone::Library | Zone::Hand | Zone::Exile)
+        && o.def.room.is_empty()
+        && printed(&o.def.name).is_some_and(|p| !Arc::ptr_eq(&p, &o.def))
+    {
+        return;
     }
     if let Some(p) = printed(&o.def.name).filter(|p| !Arc::ptr_eq(p, &o.def)) {
         for a in p.abilities.iter().filter(|a| !o.def.abilities.contains(a)) {
