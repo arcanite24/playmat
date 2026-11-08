@@ -2904,10 +2904,13 @@ NAMED_AS = {
 }
 
 
-def card_hints(name, subtypes):
+def card_hints(name, subtypes, abilities=None):
     """The hints a card's view shows in a game (`CardUtil.getCardRulesWithAdditionalInfo`), in Java's order: from its
-    facts (each ability's hints, their texts), with the conditions and values from its source (`addHint(…)`)"""
-    descs = [(a['class'], h) for a in EXTRA.get(name, {}).get('abilities', []) for h in a.get('hints', [])]
+    facts (each ability's hints, their texts), with the conditions and values from its source (`addHint(…)`);
+    `abilities`: the facts of other abilities of the card (a room's halves')"""
+    if abilities is None:
+        abilities = EXTRA.get(name, {}).get('abilities', [])
+    descs = [(a['class'], h) for a in abilities for h in a.get('hints', [])]
     if not descs:
         return []
     # hints an ability class adds itself, with nothing in the card's source
@@ -3176,6 +3179,15 @@ def main():
             hints = card_hints(card['name'], subtypes)
             if hints:
                 card['hints'] = hints
+            # a room's halves' hints, from one pass over the card's source (`addHint` calls in the halves' order)
+            halves = EXTRA.get(card['name'], {}).get('halves', [])
+            if card.get('room') and len(halves) == len(card['room']):
+                hints = card_hints(card['name'], subtypes, [a for h in halves for a in h.get('abilities', [])])
+                for half, facts_half in zip(card['room'], halves):
+                    n = sum(len(a.get('hints', [])) for a in facts_half.get('abilities', []))
+                    if hints[:n]:
+                        half['hints'] = hints[:n]
+                    hints = hints[n:]
             strip_java(card)
             cards.append(card)
         except Unsupported as e:

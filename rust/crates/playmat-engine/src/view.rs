@@ -257,14 +257,40 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
         .or_else(prepared)
         .or_else(permanent)
         .or_else(|| templates().get(&o.def.name).cloned())
+        .or_else(|| if game_object { room_view(game, id) } else { room_card(game, id) })
         .unwrap_or_else(|| json!({"name": o.def.name}));
     place_ids(&mut v, r, &format!("P{}", o.owner), &format!("P{}", o.controller), game_object);
     if let Value::Object(m) = &mut v {
         m.insert("id".into(), json!(r));
         m.entry("cardId").or_insert_with(|| json!(r));
-        let hints = if game_object { hint_lines(game, id) } else { Vec::new() };
+        let mut hints = if game_object { hint_lines(game, id) } else { Vec::new() };
+        // a Room's halves: each half's rules get its hints, and a Room permanent's its unlocked doors'
+        if game_object && o.zone == Zone::Battlefield {
+            if let Some(full) = o.printed_def.as_ref().filter(|f| !f.room.is_empty()) {
+                for (half, _) in full.room.iter().zip(o.doors).filter(|(_, u)| *u) {
+                    let half_hints = hint_lines_of(game, id, half);
+                    hints.extend(half_hints.into_iter().filter(|h| !hints.contains(h)).collect::<Vec<_>>());
+                }
+            }
+        }
+        if game_object {
+            for (half, key) in o.def.room.iter().zip(["leftSplitRules", "rightSplitRules"]) {
+                let half_hints = hint_lines_of(game, id, half);
+                if let (false, Some(Value::Array(rules))) = (half_hints.is_empty(), m.get_mut(key)) {
+                    rules.push(json!(HINT_START));
+                    rules.extend(half_hints.iter().map(|h| json!(h)));
+                }
+            }
+        }
         if let (true, Some(Value::Array(rules))) = (game_object, m.get_mut("rules")) {
             changed_rules(game, id, rules);
+        }
+        // an adventurer's creature half has the card's hints too
+        if let (true, false, Some(Value::Array(rules))) =
+            (o.def.adventure.is_some(), hints.is_empty(), m.get_mut("leftSplitRules"))
+        {
+            rules.push(json!(HINT_START));
+            rules.extend(hints.iter().map(|h| json!(h)));
         }
         if let Some(Value::Array(rules)) = m.get_mut("rules") {
             if !hints.is_empty() {
@@ -274,6 +300,18 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
             // a permanent's info comes after its hints (`PermanentImpl.getRules`)
             if game_object && o.zone == Zone::Battlefield {
                 rules.extend(o.info.iter().map(|(_, l)| json!(l)));
+            }
+        }
+        if game_object {
+            face_hints(game, id, m);
+            // a transformed permanent's card's other face is a card of its own, with an id the log doesn't place
+            if let Some(Value::Object(f)) =
+                m.get_mut("secondCardFace").and_then(|f| f.get_mut("secondCardFace")).filter(|f| f.is_object())
+            {
+                let transformed = o.front.as_ref().is_some_and(|f| f.transform_back.is_some());
+                if transformed && f.get("id").and_then(|i| i.as_str()) == Some(r) {
+                    f.insert("id".into(), json!("?"));
+                }
             }
         }
         if game_object && o.zone != Zone::Battlefield {
@@ -594,18 +632,105 @@ fn changed_rules(game: &Game, id: ObjId, rules: &mut Vec<Value>) {
     }
 }
 
+/// A double-faced card's other faces' rules get their own hints (`CardView` of each face)
+fn face_hints(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
+    let o = game.obj(id);
+    let defs: Vec<&Arc<CardDef>> = [
+        Some(&o.def),
+        o.def.back.as_ref(),
+        o.def.transform_back.as_ref(),
+        o.front.as_ref(),
+        o.front.as_ref().and_then(|f| f.back.as_ref()),
+        o.front.as_ref().and_then(|f| f.transform_back.as_ref()),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    let mut face = m.get_mut("secondCardFace").filter(|f| f.is_object());
+    while let Some(Value::Object(f)) = face {
+        let name = f.get("name").and_then(|n| n.as_str()).unwrap_or("").to_string();
+        if let (Some(def), Some(Value::Array(rules))) = (defs.iter().find(|d| d.name == name), f.get_mut("rules")) {
+            let hints = hint_lines_of(game, id, def);
+            if !hints.is_empty() && !rules.iter().any(|r| r.as_str() == Some(HINT_START)) {
+                rules.push(json!(HINT_START));
+                rules.extend(hints.into_iter().map(Value::String));
+            }
+        }
+        face = f.get_mut("secondCardFace").filter(|f| f.is_object());
+    }
+}
+
+/// A Room permanent's card (`PermanentView.original`): the whole Room's
+fn room_card(game: &Game, id: ObjId) -> Option<Value> {
+    let full = game.obj(id).printed_def.as_ref().filter(|f| !f.room.is_empty())?;
+    templates().get(&full.name).cloned()
+}
+
+/// A Room permanent with one door unlocked (`PermanentCard` of a `RoomCard`): the card's view as the unlocked
+/// half, its rules the room's, the unlocked half's and the locked half's unlock ability
+fn room_view(game: &Game, id: ObjId) -> Option<Value> {
+    let o = game.obj(id);
+    let full = o.printed_def.as_ref().filter(|f| f.room.len() == 2 && o.zone == Zone::Battlefield)?;
+    let mut v = templates().get(&full.name)?.clone();
+    let m = v.as_object_mut()?;
+    let rules = |k: &str| m.get(k).and_then(|r| r.as_array()).cloned().unwrap_or_default();
+    let mut out = rules("rules");
+    let mut costs = Vec::new();
+    let mut unlocks = Vec::new();
+    for (k, side) in ["left", "right"].iter().enumerate() {
+        if o.doors[k] {
+            out.extend(rules(&format!("{}SplitRules", side)));
+            let cost = if k == 0 { "manaCostLeftStr" } else { "manaCostRightStr" };
+            costs.extend(rules(cost));
+        } else {
+            let cost = m.get(&format!("{}SplitCostsStr", side)).and_then(|c| c.as_str()).unwrap_or("");
+            unlocks.push(json!(format!(
+                "{}: Unlock the {} half. <i>(Activate only as a sorcery, and only if the {} half is locked.)</i>",
+                cost, side, side
+            )));
+        }
+    }
+    out.extend(unlocks);
+    for k in ["Name", "CostsStr", "Rules", "TypeLine"] {
+        m.remove(&format!("leftSplit{}", k));
+        m.remove(&format!("rightSplit{}", k));
+    }
+    for k in ["name", "displayName", "displayFullName"] {
+        m.insert(k.into(), json!(o.def.name));
+    }
+    m.insert("rules".into(), Value::Array(out));
+    m.insert("manaValue".into(), json!(o.def.cost.mana_value()));
+    m.insert("manaCostLeftStr".into(), Value::Array(costs));
+    m.insert("manaCostRightStr".into(), json!([]));
+    m.insert("isSplitCard".into(), json!(false));
+    m.insert("rotate".into(), json!(false));
+    Some(v)
+}
+
 /// Where a card's hints start in its rules (`HintUtils.HINT_START_MARK`)
 const HINT_START: &str = "<br/><hintstart/>";
 
 /// The hints of a card's abilities in a started game, each once (`CardUtil.getCardRulesWithAdditionalInfo`)
 fn hint_lines(game: &Game, id: ObjId) -> Vec<String> {
+    hint_lines_of(game, id, &game.obj(id).def)
+}
+
+/// The hints of one of its faces' abilities
+fn hint_lines_of(game: &Game, id: ObjId, def: &CardDef) -> Vec<String> {
     if game.step.is_none() {
         return Vec::new();
     }
     let o = game.obj(id);
     let you = o.controller;
     let mut out: Vec<String> = Vec::new();
-    for h in &o.def.hints {
+    // (a back face's own hints aren't in its facts: daybound and nightbound add the day's)
+    let day_night = |a: &crate::card::AbilityDef| {
+        matches!(a, crate::card::AbilityDef::DayboundAbility | crate::card::AbilityDef::NightboundAbility)
+    };
+    if def.hints.is_empty() && def.abilities.iter().any(day_night) {
+        return vec![day_night_hint(game)];
+    }
+    for h in &def.hints {
         let text = match h {
             HintDef::Condition { condition, icons, true_text, false_text, true_color, false_color } => {
                 let holds = game.condition_holds(Some(condition), you, id);
@@ -1047,6 +1172,11 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     } else if controlled || o.token {
         m.insert("original".into(), card_view(game, id, r, false));
     }
+    // a permanent whose card has another name gets that name too
+    let original_name = m.get("original").and_then(|x| x.get("name")).cloned();
+    if let Some(n) = original_name.filter(|n| Some(n) != m.get("name") && !m.contains_key("alternateName")) {
+        m.insert("alternateName".into(), n);
+    }
     m.insert("copy".into(), json!(false));
     m.insert(
         "nameOwner".into(),
@@ -1062,8 +1192,12 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     m.insert("attachedControllerDiffers".into(), json!(to.is_some_and(|t| game.obj(t).controller != o.controller)));
     m.insert("mutateView".into(), json!({}));
     m.insert("mutated".into(), json!(false));
-    m.insert("roomLeftUnlocked".into(), json!(false));
-    m.insert("roomRightUnlocked".into(), json!(false));
+    if let Some(full) = o.printed_def.as_ref().filter(|f| f.room.len() == 2) {
+        m.insert("roomLeftDoor".into(), json!(full.room[0].name));
+        m.insert("roomRightDoor".into(), json!(full.room[1].name));
+    }
+    m.insert("roomLeftUnlocked".into(), json!(o.doors[0]));
+    m.insert("roomRightUnlocked".into(), json!(o.doors[1]));
     m.insert("bandedCards".into(), json!([]));
     m.insert("controlledByOwner".into(), json!(o.owner == o.controller));
     v

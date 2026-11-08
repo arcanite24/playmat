@@ -5597,6 +5597,13 @@ fn apply_each_effect(
                         "filter": [{"p": "subtype", "s": "Forest"}, {"p": "controller", "who": "you"}],
                     }))
                     .unwrap()];
+                    // (Java adds an `EnchantAbility` first: only its rule line shows)
+                    aura.abilities.push(
+                        serde_json::from_value(serde_json::json!({
+                            "class": "SimpleStaticAbility", "rule": "Enchant Forest you control", "effects": [],
+                        }))
+                        .unwrap(),
+                    );
                     aura.abilities.push(
                         serde_json::from_value(serde_json::json!({
                             "class": "SimpleStaticAbility",
@@ -8890,6 +8897,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                             _ => {}
                         }
                     };
+                    game.obj_mut(id).add_info("chosen type", &format!("Chosen type: {}", chosen));
                     game.obj_mut(id).chosen_type = Some(chosen);
                 }
                 if let EffectDef::EntersTappedChooseColorEffect = e {
