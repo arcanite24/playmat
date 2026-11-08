@@ -40,8 +40,42 @@ parted.
    matching; these decks' cards showed gaps the meta decks didn't, now fixed offline (below).
 3. **Done** when the counts stay at zero for a week of real games: step C's gate.
 
-Prompts (the question's message, options, targets) and the game log's lines are compared the same way once the views
-match. `canPlayObjects` is already part of the view comparison.
+`canPlayObjects` is part of the view comparison. Prompts and the game log are compared the same way (next section).
+
+## Prompts and the game log
+
+A prompt is what the client gets with a question besides the view: the callback's name and its `GameClientMessage` or
+`AbilityPickerView` without the game view (`{method, data}`: the message, options, targets, choices), ids mapped as
+in views (`mage.server.game.RustPrompts.prompt`). The game log's lines are `game.informPlayers`'s messages, ids
+mapped and players named by seat, `A` and `B` (`RustPrompts.logLine`).
+
+- Rust: `playmat_engine::prompt::prompt_view(game, seat, query)` renders a question's prompt, or `None` for one it
+  doesn't render yet (counted as differing, `unrendered METHOD`). The engine writes its log lines while
+  `Game::log` is kept (`playmat_engine::log`); nothing is built otherwise.
+- Offline: `ShadowGamesTest` records the asked player's prompt at every question and the log's lines when it records
+  views (`prompts`, `log`). `cargo test -p playmat-engine --test prompts` replays the games, compares each prompt
+  field by field and the log's lines answer by answer (a line counts with the answers before it), and reports the
+  differences, most common first: prompts by callback and field, log lines by template (`OBJ` for an object, `N`
+  for a number), Java's only and Rust's only. With `PLAYMAT_PROMPTS=<dir>`; the default is the games checked in under
+  `rust/crates/playmat-engine/prompts/`.
+- In production: the bridge sends the human's prompt at each of their questions (`prompt`) and every log line
+  (`log`, after the answers it follows); the copy compares them and, as it ends, reports `prompts {…}` and `log {…}`.
+  Java logs `Rust prompts in …` and `Rust log lines in …` and adds the counts to the admin console's Overview.
+  `XMAGE_RUST_PROMPTS=0` turns both off. `playmat-ai`'s `mirror_prompts` test checks the copy counts what the
+  replay does. A game's last lines (who lost and why, what died with them) come after Java's game ends, so the
+  bridge tells the copy the game is over at the match's end-of-game info, not at the game's end.
+
+On games 16 to 31 of the school decks (13 replayed to the end): **4125 of 4330 prompts** and **2022 of 2186 log
+lines** match. On 6 live games against a local server (`rustAi.live.test.ts`, a view at every question): **579 of
+613 prompts**, **747 of 779 log lines** and **605 of 610 views** match. Left:
+
+- Target prompts (`GAME_TARGET`, about 150): Java's message ("Select a creature") comes from the target's filter,
+  which the transpiled cards don't keep yet; the mode picker, multi-amounts and a few choices aren't rendered either.
+- Questions the engine words its own way ("pay which cost?", `Pay ?` for a cost paid to do something) and costs
+  written in a different order (`{R}{4}` for a kicked spell, which Java writes by cost).
+- Log lines of effects not written yet: surveil, scry, mill, sacrifices, exile moves, "is countered", returns to hand,
+  a library card put on the bottom (Collected Company), an X announced.
+- Object short ids Java can't map (an adventure's card on the stack as `[236]`): random hex that Rust can't write.
 
 ## Where it stands
 

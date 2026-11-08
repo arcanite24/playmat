@@ -39,6 +39,17 @@ enum Message {
         /// the other seat's `confirmEmptyManaPool`
         #[serde(default, rename = "poolCheck")]
         pool_check: Option<bool>,
+        /// game log lines will come: keep the engine's to compare
+        #[serde(default)]
+        log: bool,
+    },
+    /// the prompt the other seat's client gets with its question now (`RustPrompts.prompt`)
+    Prompt {
+        prompt: Value,
+    },
+    /// a line of Java's game log (`RustPrompts.logLine`)
+    Log {
+        line: String,
     },
     Decision {
         #[serde(flatten)]
@@ -81,6 +92,11 @@ pub struct ViewTally {
 
 impl ViewTally {
     fn add(&mut self, java: &Value, rust: &Value) {
+        self.add_as("", java, rust)
+    }
+
+    /// a view or prompt compared, its fields named after `prefix`
+    fn add_as(&mut self, prefix: &str, java: &Value, rust: &Value) {
         let d = playmat_engine::view::compare(java, rust);
         self.compared += 1;
         if d.is_empty() {
@@ -89,7 +105,7 @@ impl ViewTally {
         self.differing += 1;
         let mut seen = Vec::new();
         for x in &d {
-            let field = playmat_engine::view::field_of(&x.path);
+            let field = format!("{}{}", prefix, playmat_engine::view::field_of(&x.path));
             if !seen.contains(&field) {
                 *self.fields.entry(field.clone()).or_default() += 1;
                 self.examples
@@ -100,18 +116,86 @@ impl ViewTally {
         }
     }
 
+    /// a prompt the engine doesn't render yet: one that differs
+    fn unrendered(&mut self, method: &str, example: String) {
+        self.compared += 1;
+        self.differing += 1;
+        let field = format!("unrendered {method}");
+        *self.fields.entry(field.clone()).or_default() += 1;
+        self.examples.entry(field).or_insert(example);
+    }
+
     /// the line Java's log gets: `views {"compared":n,"differing":m,"fields":{…},"examples":[…]}`: the 20 most common
     /// fields, and the first difference of the 10 most common
     pub fn report(&self) -> String {
+        format!("views {}", self.json())
+    }
+
+    fn json(&self) -> Value {
         let mut top: Vec<(&String, &u64)> = self.fields.iter().collect();
         top.sort_by(|a, b| b.1.cmp(a.1).then(a.0.cmp(b.0)));
         let fields: serde_json::Map<String, Value> =
             top.iter().take(20).map(|(k, v)| ((*k).clone(), json!(v))).collect();
         let examples: Vec<&String> = top.iter().take(10).filter_map(|(k, _)| self.examples.get(*k)).collect();
-        let report =
-            json!({"compared": self.compared, "differing": self.differing, "fields": fields, "examples": examples});
-        format!("views {report}")
+        json!({"compared": self.compared, "differing": self.differing, "fields": fields, "examples": examples})
     }
+}
+
+/// The game log's lines compared, answer by answer: Java's (`lines.0`) and this copy's (`lines.1`), by how many
+/// questions came before them
+#[derive(Default, Debug)]
+pub struct LogTally {
+    pub lines: std::collections::BTreeMap<usize, (Vec<String>, Vec<String>)>,
+    /// once counted: Java's lines compared, those this copy didn't write the same, by template the lines only Java
+    /// wrote (`-`) and only this copy (`+`), with a first example
+    pub compared: u64,
+    pub differing: u64,
+    pub fields: std::collections::BTreeMap<String, u64>,
+    pub examples: std::collections::BTreeMap<String, String>,
+}
+
+impl LogTally {
+    /// Counts the lines before question `upto` (where the copy left Java's game: what's after can't match)
+    pub fn count(&mut self, upto: usize) {
+        for (_, (java, mut rust)) in std::mem::take(&mut self.lines).into_iter().filter(|(k, _)| *k < upto) {
+            for j in java {
+                self.compared += 1;
+                if let Some(i) = rust.iter().position(|r| *r == j) {
+                    rust.remove(i);
+                } else {
+                    self.differing += 1;
+                    self.note(format!("- {}", playmat_engine::log::template(&j)), j);
+                }
+            }
+            for r in rust {
+                self.note(format!("+ {}", playmat_engine::log::template(&r)), r);
+            }
+        }
+    }
+
+    fn note(&mut self, field: String, line: String) {
+        *self.fields.entry(field.clone()).or_default() += 1;
+        self.examples.entry(field).or_insert(line);
+    }
+
+    /// the line Java's log gets: `log {"compared":n,"differing":m,"fields":{…},"examples":[…]}`
+    pub fn report(&self) -> String {
+        let t = ViewTally {
+            compared: self.compared,
+            differing: self.differing,
+            fields: self.fields.clone(),
+            examples: self.examples.clone(),
+        };
+        format!("log {}", t.json())
+    }
+}
+
+/// What a copy compared with Java's: the other seat's views and prompts, and the game log
+#[derive(Default, Debug)]
+pub struct Compared {
+    pub views: ViewTally,
+    pub prompts: ViewTally,
+    pub log: LogTally,
 }
 
 #[derive(Deserialize, Default)]
@@ -125,25 +209,27 @@ struct ConfigJson {
 /// Runs one game: reads Java's messages from `input`, writes answers to `out`, until Java ends the game, the copy
 /// differs, or the input closes.
 pub fn run(db: &CardDb, input: impl BufRead, out: impl Write) -> Result<(), String> {
-    let mut views = ViewTally::default();
-    let result = run_counting(db, input, out, &mut views);
-    // the views compared, for the server's log and metrics
-    eprintln!("{}", views.report());
+    let mut compared = Compared::default();
+    let result = run_counting(db, input, out, &mut compared);
+    // the views, prompts and log lines compared, for the server's log and metrics
+    eprintln!("{}", compared.views.report());
+    eprintln!("prompts {}", compared.prompts.json());
+    eprintln!("{}", compared.log.report());
     result
 }
 
-/// [`run`], with the other seat's views it compared counted in `views`
+/// [`run`], with what it compared with Java's counted in `compared`
 pub fn run_counting(
     db: &CardDb,
     input: impl BufRead,
     mut out: impl Write,
-    views: &mut ViewTally,
+    compared: &mut Compared,
 ) -> Result<(), String> {
     let mut lines = input.lines();
     let first = lines.next().ok_or("no start message")?.map_err(|e| e.to_string())?;
-    let (seat, start, cfg, auto_all, every, pool_check) = match serde_json::from_str::<Message>(&first) {
-        Ok(Message::Start { seat, start, config, auto_target_all, every_priority, pool_check }) => {
-            (seat, start, config.unwrap_or_default(), auto_target_all, every_priority, pool_check)
+    let (seat, start, cfg, auto_all, every, pool_check, log) = match serde_json::from_str::<Message>(&first) {
+        Ok(Message::Start { seat, start, config, auto_target_all, every_priority, pool_check, log }) => {
+            (seat, start, config.unwrap_or_default(), auto_target_all, every_priority, pool_check, log)
         }
         Ok(_) => return Err("the first message must be start".into()),
         Err(e) => return Err(format!("bad start message: {e}")),
@@ -157,6 +243,8 @@ pub fn run_counting(
         questions: Vec::new(),
         trace: Vec::new(),
         views: Vec::new(),
+        prompts: Vec::new(),
+        log: Vec::new(),
         result: String::new(),
         turns: 0,
     };
@@ -167,6 +255,9 @@ pub fn run_counting(
             return Err(e);
         }
     };
+    if log {
+        game.log = Some(Vec::new());
+    }
     game.player_mut(seat).auto_target_all = auto_all;
     // the Java AI's seat (auto-targets at level 2): its pool always pays by itself
     game.player_mut(seat).no_stock = auto_all;
@@ -198,9 +289,15 @@ pub fn run_counting(
         ended: false,
         asked: 0,
         waiting: false,
-        views,
+        views: &mut compared.views,
+        prompts: &mut compared.prompts,
+        log: &mut compared.log,
+        questions: 0,
+        log_seen: 0,
     };
     rules::play_from_priority(&mut game, &mut mirror, 0);
+    // the engine's last lines, after the last question
+    mirror.take_log(&game);
     if let Some(why) = mirror.diverged.clone() {
         // where, for the server's log
         let why = format!("turn {}, {:?}: {why}", game.turn, game.step);
@@ -215,6 +312,9 @@ pub fn run_counting(
             m["rustText"] = json!(rust);
         }
         mirror.send(m);
+        // the lines up to the question where it left Java's game
+        let upto = mirror.questions.saturating_sub(1);
+        mirror.log.count(upto);
         return Err(why);
     }
     if !mirror.ended {
@@ -223,6 +323,7 @@ pub fn run_counting(
         while let Some(Ok(line)) = mirror.lines.next() {
             match serde_json::from_str::<Message>(&line) {
                 Ok(Message::End) => break,
+                Ok(Message::Log { line }) => mirror.log.lines.entry(mirror.questions).or_default().0.push(line),
                 // Java's game goes on where this one ended: a difference
                 Ok(Message::Ask { .. }) => {
                     mirror.send(json!({"type": "over"}));
@@ -232,6 +333,7 @@ pub fn run_counting(
             }
         }
     }
+    mirror.log.count(usize::MAX);
     Ok(())
 }
 
@@ -260,9 +362,25 @@ struct Mirror<'a> {
     /// Java is waiting on an answer this side couldn't give
     waiting: bool,
     views: &'a mut ViewTally,
+    prompts: &'a mut ViewTally,
+    log: &'a mut LogTally,
+    /// the questions asked so far: a log line is counted with those before it
+    questions: usize,
+    /// the engine's log lines already counted
+    log_seen: usize,
 }
 
 impl Mirror<'_> {
+    /// the engine's new log lines, after the questions so far
+    fn take_log(&mut self, game: &Game) {
+        if let Some(lines) = &game.log {
+            for l in &lines[self.log_seen.min(lines.len())..] {
+                self.log.lines.entry(self.questions).or_default().1.push(l.clone());
+            }
+            self.log_seen = lines.len();
+        }
+    }
+
     fn send(&mut self, v: Value) {
         send(&mut self.out, v);
     }
@@ -314,6 +432,10 @@ impl Mirror<'_> {
 
 impl Decider for Mirror<'_> {
     fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
+        // Java's lines read while this question is asked come after the same answers as the engine's so far
+        self.take_log(game);
+        let at = self.questions;
+        self.questions += 1;
         loop {
             if self.diverged.is_some() || self.ended {
                 return Answer::Stop;
@@ -348,6 +470,20 @@ impl Decider for Mirror<'_> {
                         self.views.add(&view, &rust);
                     }
                 }
+                // (at the other seat's question too: the prompt it's asked with)
+                Message::Prompt { prompt } => {
+                    if seat != self.bot {
+                        let method = prompt["method"].as_str().unwrap_or("?").to_string();
+                        match playmat_engine::prompt::prompt_view(game, seat, q) {
+                            Some(rust) => self.prompts.add_as(&format!("{method} "), &prompt, &rust),
+                            None => {
+                                let example = prompt["data"]["message"].as_str().unwrap_or("").to_string();
+                                self.prompts.unrendered(&method, example)
+                            }
+                        }
+                    }
+                }
+                Message::Log { line } => self.log.lines.entry(at).or_default().0.push(line),
                 Message::End => self.ended = true,
                 Message::Trace { fp, text } => {
                     if let Some(t) = text {

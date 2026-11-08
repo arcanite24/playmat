@@ -23,6 +23,30 @@ pub struct ShadowGame {
     /// the asked player's view at some answers (`-Dxmage.shadowGames.views`, docs/rust/Views.md)
     #[serde(default)]
     pub views: Vec<ShadowView>,
+    /// the prompt the client got at each question, in games with views (docs/rust/Views.md)
+    #[serde(default)]
+    pub prompts: Vec<ShadowPrompt>,
+    /// the game log's lines, in games with views
+    #[serde(default)]
+    pub log: Vec<ShadowLog>,
+}
+
+/// What a replay calls at each recorded prompt's question: the game, the engine's question, Java's prompt
+pub type OnPrompt<'a> = Box<dyn FnMut(&Game, &Query, &ShadowPrompt) + 'a>;
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ShadowPrompt {
+    pub decision: usize,
+    pub seat: Seat,
+    /// `{method, data}`: the callback's name and what it carries but the game view, ids as references
+    pub prompt: serde_json::Value,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ShadowLog {
+    /// the answers given before it
+    pub decision: usize,
+    pub line: String,
 }
 
 /// What a replay calls at each recorded view, with the engine's state at that point
@@ -321,6 +345,11 @@ pub struct ReplayDecider<'a> {
     pub failure: Option<String>,
     /// called as a recorded view's question is asked: the game, the recorded view
     pub on_view: Option<OnView<'a>>,
+    /// called as a recorded prompt's question is asked
+    pub on_prompt: Option<OnPrompt<'a>>,
+    prompt_at: usize,
+    /// the engine's log lines (`Game::log`), each with the answers given before it
+    pub log: Vec<(usize, String)>,
     /// the first trace entry that matched with the random numbers already elsewhere: what drew one Java didn't (or
     /// the other way round) happened before it
     pub random_split: Option<usize>,
@@ -334,7 +363,20 @@ impl<'a> ReplayDecider<'a> {
             trace: Vec::new(),
             failure: None,
             on_view: None,
+            on_prompt: None,
+            prompt_at: 0,
+            log: Vec::new(),
             random_split: None,
+        }
+    }
+
+    /// The engine's new log lines, after the answers given so far
+    pub fn take_log(&mut self, game: &Game) {
+        let seen: usize = self.log.len();
+        if let Some(lines) = &game.log {
+            for l in lines.iter().skip(seen) {
+                self.log.push((self.next, l.clone()));
+            }
         }
     }
 
@@ -363,6 +405,16 @@ impl<'a> Decider for ReplayDecider<'a> {
             return Answer::Stop;
         };
         let asked = self.shadow.questions.get(self.next).cloned().unwrap_or_default();
+        self.take_log(game);
+        if let Some(f) = self.on_prompt.as_mut() {
+            let prompts = &self.shadow.prompts;
+            while self.prompt_at < prompts.len() && prompts[self.prompt_at].decision < self.next {
+                self.prompt_at += 1;
+            }
+            if let Some(p) = prompts.get(self.prompt_at).filter(|p| p.decision == self.next && p.seat == seat) {
+                f(game, query, p);
+            }
+        }
         if d.seat == seat {
             if let Some(f) = self.on_view.as_mut() {
                 for v in self.shadow.views.iter().filter(|v| v.decision == self.next) {
@@ -465,17 +517,33 @@ pub fn replay(shadow: &ShadowGame, db: &CardDb) -> ReplayReport {
 
 /// Replays a shadow game, calling `on_view` at each recorded view's question (docs/rust/Views.md).
 pub fn replay_with_views<'a>(shadow: &'a ShadowGame, db: &CardDb, on_view: Option<OnView<'a>>) -> ReplayReport {
+    replay_checked(shadow, db, on_view, None).0
+}
+
+/// Replays a shadow game with its views and prompts compared (`on_view`, `on_prompt`) and the engine's game log
+/// kept: the report, and the log's lines, each with the answers given before it.
+pub fn replay_checked<'a>(
+    shadow: &'a ShadowGame,
+    db: &CardDb,
+    on_view: Option<OnView<'a>>,
+    on_prompt: Option<OnPrompt<'a>>,
+) -> (ReplayReport, Vec<(usize, String)>) {
     let mut report = ReplayReport { entries: shadow.trace.len(), ..ReplayReport::default() };
     let mut game = match shadow.start_game(db) {
         Ok(g) => g,
         Err(e) => {
             report.failure = Some(e);
-            return report;
+            return (report, Vec::new());
         }
     };
+    if !shadow.log.is_empty() {
+        game.log = Some(Vec::new());
+    }
     let mut decider = ReplayDecider::new(shadow);
     decider.on_view = on_view;
+    decider.on_prompt = on_prompt;
     crate::rules::play_from_priority(&mut game, &mut decider, shadow.turns);
+    decider.take_log(&game);
     report.matched = decider.trace.iter().zip(shadow.trace.iter()).take_while(|(a, b)| **a == b.fp).count();
     report.answers = decider.next;
     report.failure = decider.failure.clone();
@@ -488,5 +556,5 @@ pub fn replay_with_views<'a>(shadow: &'a ShadowGame, db: &CardDb, on_view: Optio
             shadow.decisions.len()
         ));
     }
-    report
+    (report, decider.log)
 }

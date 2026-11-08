@@ -139,7 +139,7 @@ practice tools; puzzle export; replays; spectators; multiplayer and Commander.
 |---|---|---|
 | A. Measure | Server CPU per AI game in production, split: Java's engine, fingerprints, the copy. Local numbers above; the cost line ships with #238 | A week of production cost lines |
 | B. Fidelity | Fix what the stop log reports. All 24 meta decks in the engine, with shadow games for each pairing | A week of production AI games whose decks qualify with the copy following 99% to the end, every stop reason understood |
-| C. Views | View and prompt rendering, compared in production against Java's | Zero view differences on a week of real games |
+| C. Views | View, prompt and game log rendering, compared in production against Java's ([Views.md](Views.md)) | Zero view, prompt and log differences on a week of real games |
 | D. Human side and host | Skip settings and F-keys, timers, mulligans, concede, reconnect; the host service and the gateway route | `rustAi.live.test.ts` and the conformance suite pass against a Rust-hosted game; the user plays a set of games locally |
 | E. Rollout | `XMAGE_ENGINE_RUST_USERS` (like `XMAGE_RUST_AI_USERS`) for listed users, then every AI duel that qualifies | A week for the listed users with no game lost to the host; then the default |
 | F. Then | Career tally checked, best-of-three games, more of the Pioneer pool, the features left on Java | Per feature |

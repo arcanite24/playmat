@@ -173,7 +173,8 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           <code>up -d</code>. It only plays one-on-one games whose decks it knows every card of (the Pioneer and
           Standard Career decks and a few more for now; the server log names the cards it's missing). <code>XMAGE_ENGINE=java</code> turns it off again.
           While it plays, it also checks the screens it would draw against Java's (every 10th question by default,
-          <code>XMAGE_RUST_VIEWS_EVERY</code>; <code>0</code> turns that off); the admin console's Overview shows how many
+          <code>XMAGE_RUST_VIEWS_EVERY</code>; <code>0</code> turns that off), and its prompts and game log at every
+          question (<code>XMAGE_RUST_PROMPTS=0</code> turns that off); the admin console's Overview shows how many
           matched. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-ai">the README</a>.</p>
         <h3 id="desktop">Can the XMage desktop client connect?</h3>

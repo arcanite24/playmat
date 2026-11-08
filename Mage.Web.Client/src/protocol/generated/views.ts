@@ -1958,6 +1958,10 @@ export interface RoundView extends Serializable {
 export interface RustAiStats {
     answered?: number;
     finished?: number;
+    logLinesCompared?: number;
+    logLinesDiffering?: number;
+    promptsCompared?: number;
+    promptsDiffering?: number;
     started?: number;
     stopped?: number;
     viewsCompared?: number;

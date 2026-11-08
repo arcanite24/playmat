@@ -91,12 +91,27 @@ public final class RustAi {
             if (RustAiBridge.VIEWS == null) {
                 RustAiBridge.VIEWS = mage.server.game.RustViews::view;
             }
+            // and the human's prompts and the game log's lines
+            if (RustAiBridge.PROMPTS == null) {
+                RustAiBridge.PROMPTS = mage.server.game.RustPrompts::prompt;
+            }
+            if (RustAiBridge.LOG == null) {
+                RustAiBridge.LOG = mage.server.game.RustPrompts::logLine;
+            }
             DecisionLog log = DecisionLog.recording();
             RustAiBridge bridge = new RustAiBridge(ai.getPlayer().getId(), log, user + " vs " + ai.getName());
             mage.players.Player seat = game.getPlayer(ai.getPlayer().getId());
             if (seat == null || !seat.attachRustAi(bridge)) {
                 return;
             }
+            game.addTableEventListener(event -> {
+                if (event.getEventType() == mage.game.events.TableEvent.EventType.INFO) {
+                    bridge.onLog(game, event.getMessage());
+                } else if (event.getEventType() == mage.game.events.TableEvent.EventType.END_GAME_INFO) {
+                    // the game's last lines are in: the copy can end
+                    bridge.end();
+                }
+            });
             GameTrace trace = new GameTrace(false, entry -> bridge.onTrace(game, entry));
             trace.setOnEnd(() -> bridge.end(game, trace));
             options.decisions = log;

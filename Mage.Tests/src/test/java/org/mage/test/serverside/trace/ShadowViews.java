@@ -21,6 +21,8 @@ final class ShadowViews {
 
     private final int every;
     private final List<Map<String, Object>> views = new ArrayList<>();
+    private final List<Map<String, Object>> prompts = new ArrayList<>();
+    private final List<Map<String, Object>> log = new ArrayList<>();
 
     /** @param every record the view at every n-th answer (0: none) */
     ShadowViews(int every) {
@@ -29,7 +31,19 @@ final class ShadowViews {
 
     /** on the game thread, as the player is asked: {@code decision} is the index of the answer it will get */
     void ask(Game game, PlayerQueryEvent event, int decision) {
-        if (every <= 0 || decision % every != 0 || event.getPlayerId() == null) {
+        if (every <= 0 || event.getPlayerId() == null) {
+            return;
+        }
+        // every question's prompt (they're small), the view at every n-th
+        com.google.gson.JsonElement prompt = mage.server.game.RustPrompts.prompt(game, event);
+        if (prompt != null) {
+            Map<String, Object> p = new LinkedHashMap<>();
+            p.put("decision", decision);
+            p.put("seat", StateFingerprint.seats(game).indexOf(event.getPlayerId()));
+            p.put("prompt", prompt);
+            prompts.add(p);
+        }
+        if (decision % every != 0) {
             return;
         }
         Map<String, Object> m = new LinkedHashMap<>();
@@ -42,6 +56,25 @@ final class ShadowViews {
 
     List<Map<String, Object>> getViews() {
         return views;
+    }
+
+    /** a game log line, as it's sent: {@code decision} answers were given before it */
+    void log(Game game, String line, int decision) {
+        if (every <= 0 || line == null) {
+            return;
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("decision", decision);
+        m.put("line", mage.server.game.RustPrompts.logLine(game, line));
+        log.add(m);
+    }
+
+    List<Map<String, Object>> getPrompts() {
+        return prompts;
+    }
+
+    List<Map<String, Object>> getLog() {
+        return log;
     }
 
     static JsonElement mapIds(JsonElement e, Map<UUID, String> refs) {

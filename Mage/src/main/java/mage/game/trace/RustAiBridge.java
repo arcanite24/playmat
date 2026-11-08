@@ -48,6 +48,21 @@ public final class RustAiBridge {
      * views live there); null: no views are compared
      */
     public static volatile java.util.function.BiFunction<Game, UUID, Object> VIEWS;
+    /** the human's prompts the copies rendered and compared with Java's, and those with a field that differs */
+    public static final AtomicLong PROMPTS_COMPARED = new AtomicLong();
+    public static final AtomicLong PROMPTS_DIFFERING = new AtomicLong();
+    /** the game log's lines the copies compared with their own, and those the copy didn't write the same */
+    public static final AtomicLong LOG_LINES_COMPARED = new AtomicLong();
+    public static final AtomicLong LOG_LINES_DIFFERING = new AtomicLong();
+    /**
+     * The prompt a player's client gets with a question ({@code {method, data}}, ids mapped), as JSON, or null for
+     * one that isn't rendered (set by the server); null: no prompts are compared
+     */
+    public static volatile java.util.function.BiFunction<Game, mage.game.events.PlayerQueryEvent, Object> PROMPTS;
+    /** a game log line, ids mapped and players named by seat (set by the server); null: the log isn't compared */
+    public static volatile java.util.function.BiFunction<Game, String, String> LOG;
+    /** XMAGE_RUST_PROMPTS: 0 turns the prompts' and the log's comparison off */
+    private static final boolean PROMPTS_ON = !"0".equals(String.valueOf(System.getenv("XMAGE_RUST_PROMPTS")).trim());
     /** XMAGE_RUST_VIEWS_EVERY: the copy compares the other seat's view at every n-th question to it (0: never) */
     private static final int VIEWS_EVERY = viewsEvery();
 
@@ -255,6 +270,8 @@ public final class RustAiBridge {
         // asks it at every priority
         log.recordAutoPasses();
         message.put("everyPriority", true);
+        // the copy keeps its game log to compare with the lines it gets
+        message.put("log", PROMPTS_ON && LOG != null);
         for (UUID id : StateFingerprint.seats(game)) {
             if (!id.equals(seatId) && game.getPlayer(id).getUserData() != null) {
                 message.put("poolCheck", game.getPlayer(id).getUserData().confirmEmptyManaPool());
@@ -285,6 +302,10 @@ public final class RustAiBridge {
                 while ((line = r.readLine()) != null) {
                     if (line.startsWith("views ")) {
                         logViews(line.substring(6));
+                    } else if (line.startsWith("prompts ")) {
+                        logTally("prompts", line.substring(8), PROMPTS_COMPARED, PROMPTS_DIFFERING);
+                    } else if (line.startsWith("log ")) {
+                        logTally("log lines", line.substring(4), LOG_LINES_COMPARED, LOG_LINES_DIFFERING);
                     } else if (line.startsWith("cpu ") && line.endsWith(" ms")) {
                         copyCpuMillis = Long.parseLong(line.substring(4, line.length() - 3));
                         logCost();
@@ -300,6 +321,7 @@ public final class RustAiBridge {
         game.addPlayerQueryEventListener(event -> {
             if (event.getPlayerId() != null && !seatId.equals(event.getPlayerId())) {
                 sendView(game, event.getPlayerId());
+                sendPrompt(game, event);
             }
             if (seatId.equals(event.getPlayerId())) {
                 choice = event.getChoice();
@@ -412,6 +434,46 @@ public final class RustAiBridge {
         }
     }
 
+    /** At the other seat's question: the prompt its client gets, for the copy to render its own and compare */
+    private void sendPrompt(Game game, mage.game.events.PlayerQueryEvent event) {
+        java.util.function.BiFunction<Game, mage.game.events.PlayerQueryEvent, Object> prompts = PROMPTS;
+        if (!active || !PROMPTS_ON || prompts == null) {
+            return;
+        }
+        try {
+            Object prompt = prompts.apply(game, event);
+            if (prompt == null) {
+                return;
+            }
+            sendDecisions();
+            JsonObject m = new JsonObject();
+            m.addProperty("type", "prompt");
+            m.add("prompt", prompt instanceof com.google.gson.JsonElement ? (com.google.gson.JsonElement) prompt
+                    : JsonParser.parseString(String.valueOf(prompt)));
+            send(m.toString());
+        } catch (RuntimeException e) {
+            logger.warn("Rust AI " + gameName + ": no prompt to compare: " + e);
+        }
+    }
+
+    /** A line of the game log ({@code game.informPlayers}), for the copy to compare with the lines it writes */
+    public synchronized void onLog(Game game, String line) {
+        java.util.function.BiFunction<Game, String, String> map = LOG;
+        if (!active || !PROMPTS_ON || map == null || line == null) {
+            return;
+        }
+        try {
+            // after the answers it follows, as the copy counts them
+            sendDecisions();
+            JsonObject m = new JsonObject();
+            m.addProperty("type", "log");
+            m.addProperty("line", map.apply(game, line));
+            send(m.toString());
+        } catch (RuntimeException e) {
+            logger.warn("Rust AI " + gameName + ": no log line to compare: " + e);
+        }
+    }
+
     /** the other seat's answers since the last call */
     private void sendDecisions() {
         List<DecisionLog.Decision> decisions = log.getDecisions();
@@ -501,6 +563,20 @@ public final class RustAiBridge {
             }
             logCost();
         }
+        if (active && PROMPTS_ON && LOG != null) {
+            // the game's last log lines come after its end (who lost and why, what died with them): the process
+            // is told at the match's end-of-game info ({@link #end()}), or in a few seconds if that never comes
+            Thread t = new Thread(() -> {
+                try {
+                    Thread.sleep(10_000);
+                } catch (InterruptedException ignore) {
+                }
+                end();
+            }, "rust-ai-end " + gameName);
+            t.setDaemon(true);
+            t.start();
+            return;
+        }
         end();
     }
 
@@ -520,6 +596,25 @@ public final class RustAiBridge {
                     + (differing > 0 && v.has("examples") ? "\n  " + String.join("\n  ", examples(v)) : ""));
         } catch (RuntimeException e) {
             logger.info("Rust AI " + gameName + ": views " + json);
+        }
+    }
+
+    /** the copy's count of the prompts or log lines it compared: {@code {"compared":n,"differing":m,…}} */
+    private void logTally(String what, String json, AtomicLong compared, AtomicLong differing) {
+        try {
+            JsonObject v = JsonParser.parseString(json).getAsJsonObject();
+            long n = v.get("compared").getAsLong();
+            long d = v.get("differing").getAsLong();
+            if (n == 0) {
+                return;
+            }
+            compared.addAndGet(n);
+            differing.addAndGet(d);
+            logger.info("Rust " + what + " in " + gameName + ": " + n + " compared, " + d + " differ"
+                    + (d > 0 && v.has("fields") ? "; " + v.get("fields") : "")
+                    + (d > 0 && v.has("examples") ? "\n  " + String.join("\n  ", examples(v)) : ""));
+        } catch (RuntimeException e) {
+            logger.info("Rust AI " + gameName + ": " + what + " " + json);
         }
     }
 
@@ -543,7 +638,7 @@ public final class RustAiBridge {
     }
 
     /** the game ended: the process is told and let go */
-    public void end() {
+    public synchronized void end() {
         if (active) {
             send("{\"type\":\"end\"}");
             active = false;

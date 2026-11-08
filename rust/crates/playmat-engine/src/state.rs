@@ -572,6 +572,9 @@ pub struct Game {
     pub grants: Arc<Vec<Grant>>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
+    /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
+    /// it with Java's; docs/rust/Views.md)
+    pub log: Option<Vec<String>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
@@ -669,6 +672,7 @@ impl Game {
             extra_turns: Vec::new(),
             grants: Arc::new(Vec::new()),
             must_block_from: Vec::new(),
+            log: None,
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
             sac_insert: None,

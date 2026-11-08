@@ -7,6 +7,7 @@ use crate::card::{
     ManaKind, Pred, TargetDef, Trigger,
 };
 use crate::decide::{Answer, Decider, Query};
+use crate::log;
 use crate::state::{Boost, Delayed, Game, Grant, ObjId, Seat, StackItem, Step, Target, Zone};
 use std::sync::Arc;
 
@@ -48,6 +49,11 @@ fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: 
             break;
         }
         end_step(game, step);
+        if step == Step::Upkeep && game.turn == 1 && game.log.is_some() {
+            // the starting player's draw (Java's turn mod for it)
+            let line = format!("{} skips Draw step", log::player(game.active.unwrap_or(0)));
+            log::inform(game, line);
+        }
         match next_step(game, step) {
             Some(s) => game.step = Some(s),
             None => {
@@ -146,6 +152,23 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         }
         Step::DeclareAttackers => {
             declare_attackers(game, d, active);
+            if log::kept(game) {
+                // `Combat.declareAttackers`
+                let n = game.combat_groups.len();
+                let line = if n > 0 {
+                    let defender = game.opponent(active);
+                    format!(
+                        "{} attacks {} with {} creature{}",
+                        log::player(active),
+                        log::player(defender),
+                        n,
+                        if n == 1 { "" } else { "s" }
+                    )
+                } else {
+                    format!("{} skips attack", log::player(active))
+                };
+                log::inform(game, line);
+            }
             if !attackers(game).is_empty() {
                 game.player_mut(active).attacked = true;
             }
@@ -226,7 +249,31 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
         }
-        Step::DeclareBlockers => declare_blockers(game, d, game.opponent(active)),
+        Step::DeclareBlockers => {
+            declare_blockers(game, d, game.opponent(active));
+            if log::kept(game) && !d.stopped() {
+                // `Combat.logBlockerInfo`
+                for g in game.combat_groups.clone() {
+                    let a = g.attacker;
+                    if game.obj(a).zone != Zone::Battlefield {
+                        continue;
+                    }
+                    let (p, t) = game.power_toughness(a);
+                    let mut line = format!("Attacker: {} ({}/{}) ", log::object(game, a), p, t);
+                    let blockers = live_blockers(game, a);
+                    if blockers.is_empty() {
+                        line += "unblocked";
+                    } else {
+                        line += "blocked by ";
+                        for b in blockers {
+                            let (p, t) = game.power_toughness(b);
+                            line += &format!("{} ({}/{}) ", log::object(game, b), p, t);
+                        }
+                    }
+                    log::inform(game, line);
+                }
+            }
+        }
         // "at end of combat" delayed triggers
         Step::EndCombat => {
             let delayed = std::mem::take(&mut game.at_end_of_combat);
@@ -330,8 +377,15 @@ fn end_step(game: &mut Game, step: Step) {
 
 /// Draws `n` cards, one at a time: each card drawn is a `DREW_CARD` event for "whenever … draws" triggers.
 pub fn draw(game: &mut Game, seat: Seat, n: usize) {
+    let before = game.player(seat).drawn;
     for _ in 0..n {
         draw_one(game, seat, &[]);
+    }
+    let drawn = game.player(seat).drawn.saturating_sub(before) as usize;
+    if drawn > 0 && log::kept(game) {
+        let line =
+            format!("{} draws {} card{}", log::player(seat), log::number(drawn), if drawn > 1 { "s" } else { "" });
+        log::inform(game, line);
     }
 }
 
@@ -1878,6 +1932,28 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
         enter_battlefield(game, d, id, seat, false);
         game.player_mut(seat).lands_played += 1;
+        if log::kept(game) {
+            // `PlayerImpl.playLand`
+            let line = match game
+                .obj(id)
+                .front
+                .clone()
+                .or_else(|| game.obj(id).def.back.as_ref().map(|_| game.obj(id).def.clone()))
+            {
+                // a modal double-faced card's face (`GameLog.replaceNameByColoredName`)
+                Some(main) => {
+                    let r = crate::replay::reference(game, id);
+                    let color = crate::prompt::log_color(&game.colors(id));
+                    format!(
+                        "{} plays <font color='{}' object_id='{}' alternative_name='{}'>{}</font> [{}] as MDF side of <font color='{}' object_id='{}f0'>{}</font> [{}f0]",
+                        log::player(seat), color, r, main.name.replace(' ', "+"), game.obj(id).name(), r,
+                        crate::prompt::log_color(&main.colors), r, main.name, r
+                    )
+                }
+                None => format!("{} plays {}", log::player(seat), log::object(game, id)),
+            };
+            log::inform(game, line);
+        }
         return;
     }
     let before = game.clone();
@@ -2527,6 +2603,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             top.gift_to = to;
         }
     }
+    if log::kept(game) {
+        let line = log::casts(game, seat, id);
+        log::inform(game, line);
+    }
     // SPELL_CAST
     let spell = id;
     {
@@ -2952,6 +3032,12 @@ fn activate(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, index: 
     let done = activate_paying(game, d, seat, id, index);
     game.unpaid = outer;
     game.mana_paid = None;
+    if done && log::kept(game) {
+        if let Some(top) = game.stack.last().filter(|t| t.card == id && t.ability.is_some_and(|(k, _)| k == index)) {
+            let line = log::activates(game, seat, top);
+            log::inform(game, line);
+        }
+    }
     done
 }
 
@@ -3444,9 +3530,21 @@ fn discard(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32) -> Vec
         }
     };
     for c in &chosen {
-        game.move_to(*c, Zone::Graveyard);
+        discard_card(game, seat, *c);
     }
     chosen
+}
+
+/// `PlayerImpl.doDiscard`: the log first, then the card goes
+fn discard_card(game: &mut Game, seat: Seat, c: ObjId) {
+    if log::kept(game) {
+        let mut line = format!("{} discards {}", log::player(seat), log::object(game, c));
+        if let Some(s) = log::source(game) {
+            line += &format!(" (source: {})", log::object(game, s));
+        }
+        log::inform(game, line);
+    }
+    game.move_to(c, Zone::Graveyard);
 }
 
 /// `PlayerImpl.searchLibrary` with `TargetCardInLibrary.choose`: the whole library is shown and the player picks
@@ -4406,6 +4504,18 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             game.obj_mut(id).on_adventure = true;
         } else {
             game.move_to(id, Zone::Graveyard);
+            if log::kept(game) && game.obj(id).zone == Zone::Graveyard {
+                // `PlayerImpl.moveCardToGraveyardWithInfo`
+                let whose =
+                    if game.obj(id).owner == item.controller { "their graveyard" } else { "its owner's graveyard" };
+                let line = format!(
+                    "{} puts {} from stack into {}",
+                    log::player(item.controller),
+                    log::object(game, id),
+                    whose
+                );
+                log::inform(game, line);
+            }
         }
     }
 }
@@ -4972,7 +5082,7 @@ fn apply_each_effect(
                     if counter.name == "lore" {
                         add_lore(game, o, n);
                     } else {
-                        game.obj_mut(o).add_counters(&counter.name, n);
+                        put_counters(game, o, &counter.name, n, controller);
                     }
                 }
             }
@@ -4983,7 +5093,7 @@ fn apply_each_effect(
                 };
                 if n > 0 {
                     for o in &objs {
-                        game.obj_mut(*o).add_counters(&counter.name, n);
+                        put_counters(game, *o, &counter.name, n, controller);
                     }
                 }
             }
@@ -6159,7 +6269,7 @@ fn apply_each_effect(
                 };
                 for o in matching(game, filter, controller, source.0) {
                     if n > 0 {
-                        game.obj_mut(o).add_counters(&counter.name, n);
+                        put_counters(game, o, &counter.name, n, controller);
                     }
                 }
             }
@@ -8557,13 +8667,43 @@ fn sacrifice(game: &mut Game, id: ObjId) {
 }
 
 /// Destroys a permanent, unless it's indestructible.
+/// `n` counters put on `o` by `by`'s effect, logged as `CardUtil.addCountersLog`... writes it
+fn put_counters(game: &mut Game, o: ObjId, name: &str, n: i32, by: Seat) {
+    game.obj_mut(o).add_counters(name, n);
+    if log::kept(game) {
+        let mut line = format!(
+            "{} puts {} {} counter{} on {}, remaining {}",
+            log::player(by),
+            n,
+            name,
+            if n == 1 { "" } else { "s" },
+            log::object(game, o),
+            game.obj(o).counter(name)
+        );
+        if let Some(s) = log::source(game).filter(|s| *s != o) {
+            line += &format!(" (source: {})", log::object(game, s));
+        }
+        log::inform(game, line);
+    }
+}
+
 fn destroy(game: &mut Game, id: ObjId) {
     if game.obj(id).zone == Zone::Battlefield
         && !game.has_ability(id, &AbilityDef::IndestructibleAbility)
         && !shield(game, id)
         && !regenerate(game, id)
     {
+        let creature = game.has_type(id, CardType::Creature);
+        let token = game.obj(id).token;
         game.move_to(id, Zone::Graveyard);
+        if log::kept(game) && !token && game.obj(id).zone == Zone::Graveyard {
+            // `PermanentImpl.destroy`
+            let mut line = format!("{} {}", log::object(game, id), if creature { "died" } else { "was destroyed" });
+            if let Some(s) = log::source(game) {
+                line += &format!(" by {}", log::object(game, s));
+            }
+            log::inform(game, line);
+        }
     }
 }
 
@@ -8710,6 +8850,29 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
 }
 
 fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
+    let (from, zcc) = (game.obj(id).zone, game.obj(id).zcc);
+    let source = game.resolving.map(|(_, card)| card).filter(|c| *c != id);
+    enter_battlefield_now(game, d, id, controller, kicked);
+    if log::kept(game) && game.obj(id).token && game.obj(id).zone == Zone::Battlefield {
+        // `TokenImpl.putOntoBattlefield`
+        let line = format!("{} creates a {} token", log::player(controller), log::object(game, id));
+        log::inform(game, line);
+    } else if log::kept(game) && game.obj(id).zone == Zone::Battlefield && game.obj(id).zcc != zcc {
+        // `PlayerImpl.moveCards`, with what put it there (`CardUtil.getSourceLogName`)
+        let mut line = format!(
+            "{} puts {} from {} onto the Battlefield",
+            log::player(controller),
+            log::object(game, id),
+            log::zone(from)
+        );
+        if let Some(src) = source {
+            line += &format!(" (source: {})", log::object(game, src));
+        }
+        log::inform(game, line);
+    }
+}
+
+fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
     // a token of the class last made takes its image
     if game.obj(id).token && game.obj(id).token_image.is_none() {
         if let Some((name, class, set, pick)) = game.token_made.clone() {
@@ -9096,7 +9259,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                 if let EffectDef::TapSourceUnlessPaysEffect { life } = e {
                     let paid = game.player(controller).life >= *life && {
                         let q = Query::YesNo {
-                            message: format!("Pay {} life? (otherwise {} becomes tapped)", life, def.name),
+                            message: format!("pay {} life? (otherwise {} becomes tapped)", life, def.name),
                         };
                         loop {
                             match ask(game, d, controller, &q) {
@@ -9107,7 +9270,7 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
                         }
                     };
                     if paid {
-                        lose_life(game, controller, *life);
+                        lose_life_by(game, controller, *life, Some(id), false);
                     } else {
                         game.obj_mut(id).tapped = true;
                     }
@@ -9459,6 +9622,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                     .filter(|dl| !dl.targets.is_empty())
                     .map(|dl| (dl.rule.clone(), dl.targets.clone()));
                 Arc::make_mut(&mut game.stack).push(t);
+                let at = game.stack.len();
                 // a reflexive trigger's targets, the same way
                 if let Some((rule, targets)) = reflexive {
                     if !choose_targets(game, d, seat, &targets, None, &rule, false) {
@@ -9482,6 +9646,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                             commit_crime(game, seat);
                         }
                     }
+                }
+                if log::kept(game) && game.stack.len() == at {
+                    let line = log::triggers(game, seat, &game.stack[at - 1]);
+                    log::inform(game, line);
                 }
             }
         }
@@ -9676,7 +9844,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility));
     match to {
         Target::Player(s) => {
-            lose_life(game, s, amount);
+            lose_life_by(game, s, amount, Some(source), combat);
             if !combat {
                 damaged_opponent_triggers(game, s);
             }
@@ -9692,6 +9860,11 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
             let planeswalker = game.has_type(o, CardType::Planeswalker);
             let battle = game.has_type(o, CardType::Battle);
+            if log::kept(game) {
+                // `PermanentImpl.doDamage`
+                let line = format!("{} deals {} damage to {}", log::object(game, source), amount, log::object(game, o));
+                log::inform(game, line);
+            }
             let turn = game.turn;
             let t = game.obj_mut(o);
             t.damaged_by = if t.damaged_by.0 == turn { (turn, t.damaged_by.1 | (1 << you)) } else { (turn, 1 << you) };
@@ -9786,6 +9959,22 @@ fn same_ability(game: &Game, p: &StackItem, t: &Trigger) -> bool {
 /// `seat` gains life: "whenever you gain life" triggers (`GAINED_LIFE`).
 /// Life lost (damage, paying life, "loses life"), counted for the turn (`PlayerLostLifeWatcher`).
 pub fn lose_life(game: &mut Game, seat: Seat, amount: i32) {
+    let source = log::source(game);
+    lose_life_by(game, seat, amount, source, false);
+}
+
+/// Loses life to `source` (`PlayerImpl.loseLife`; `combat`: to combat damage)
+fn lose_life_by(game: &mut Game, seat: Seat, amount: i32, source: Option<ObjId>, combat: bool) {
+    if log::kept(game) {
+        let mut line = format!("{} loses {} life", log::player(seat), amount);
+        if combat {
+            line += " at combat";
+        }
+        if let Some(s) = source {
+            line += &format!(" from {}", log::object(game, s));
+        }
+        log::inform(game, line);
+    }
     let p = game.player_mut(seat);
     p.life -= amount;
     if amount > 0 {
@@ -9826,6 +10015,13 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
         })
         .count() as i32;
     let amount = amount + plus;
+    if log::kept(game) {
+        let mut line = format!("{} gains {} life", log::player(seat), amount);
+        if let Some(s) = log::source(game) {
+            line += &format!(" (source: {})", log::object(game, s));
+        }
+        log::inform(game, line);
+    }
     game.player_mut(seat).life += amount;
     game.player_mut(seat).life_gains += 1;
     game.player_mut(seat).life_gained += amount;
@@ -10356,6 +10552,10 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         game.any_static(|g, src, e| matches!(e, EffectDef::NoMaximumHandSizeEffect) && g.obj(src).controller == seat);
     let excess = if unlimited { 0 } else { game.player(seat).hand.len().saturating_sub(MAX_HAND) };
     if excess > 0 {
+        if log::kept(game) {
+            let line = format!("{} discards down to {} hand cards", log::player(seat), MAX_HAND);
+            log::inform(game, line);
+        }
         let mut chosen: Vec<ObjId> = Vec::new();
         while chosen.len() < excess {
             let objs: Vec<ObjId> = game.player(seat).hand.iter().copied().filter(|c| !chosen.contains(c)).collect();
@@ -10367,7 +10567,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             }
         }
         for id in chosen {
-            game.move_to(id, Zone::Graveyard);
+            discard_card(game, seat, id);
         }
     }
     if game.boosts.iter().any(|b| b.until_end_of_turn) {
@@ -10506,6 +10706,15 @@ pub fn state_based_actions(game: &mut Game) {
             }
             let p = game.player(s);
             if !p.lost && (p.life <= 0 || p.drew_from_empty) {
+                if log::kept(game) {
+                    // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`
+                    let why =
+                        if p.drew_from_empty { "drawing from an empty library" } else { "to having 0 or less life" };
+                    let line = format!("{} has lost the game", log::player(s));
+                    log::inform(game, line);
+                    let line = format!("{} lost the game due {}", log::player(s), why);
+                    log::inform(game, line);
+                }
                 let p = game.player_mut(s);
                 p.lost = true;
                 p.drew_from_empty = false;
@@ -10549,6 +10758,10 @@ pub fn state_based_actions(game: &mut Game) {
         let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
         if alive.len() <= 1 && !game.over && alive.len() < game.seats() {
             // nobody is marked as the winner yet; the fingerprint hides the loser's cards
+            if let (Some(w), true) = (alive.first(), log::kept(game)) {
+                let line = format!("{} has won the game", log::player(*w));
+                log::inform(game, line);
+            }
             game.over = true;
             return;
         }
@@ -10606,9 +10819,23 @@ pub fn state_based_actions(game: &mut Game) {
         game.lookback = game.battlefield.to_vec();
         for id in dying {
             // lethal damage destroys (a regeneration shield replaces that); 0 toughness doesn't
-            let lethal = game.has_type(id, CardType::Creature) && game.power_toughness(id).1 > 0;
+            let creature = game.has_type(id, CardType::Creature);
+            let lethal = creature && game.power_toughness(id).1 > 0;
             if !(lethal && (shield(game, id) || regenerate(game, id))) {
+                let token = game.obj(id).token;
                 game.move_to(id, Zone::Graveyard);
+                if log::kept(game) && creature && !token && game.obj(id).zone == Zone::Graveyard {
+                    // `PermanentImpl.destroy` for lethal damage, `movePermanentToGraveyardWithInfo` for 0 toughness
+                    let line = if lethal {
+                        format!("{} died", log::object(game, id))
+                    } else {
+                        format!(
+                            "{} is put into graveyard from battlefield (SBA: creature has toughness 0 or less)",
+                            log::object(game, id)
+                        )
+                    };
+                    log::inform(game, line);
+                }
             }
             any = true;
         }

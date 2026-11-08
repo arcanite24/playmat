@@ -3,7 +3,7 @@
 //! its questions. The copy must compare each of seat 0's views at the point it was recorded: as many differ as when
 //! the engine replays the game on its own.
 
-use playmat_ai::mirror::{run_counting, ViewTally};
+use playmat_ai::mirror::{run_counting, Compared};
 use playmat_engine::replay::{replay_with_views, ShadowGame, ShadowView};
 use playmat_engine::state::Game;
 use playmat_engine::view::{compare, game_view};
@@ -70,9 +70,10 @@ fn the_mirror_compares_the_other_seats_views() {
             lines.push(json!({"type": "trace", "fp": e.fp}).to_string());
         }
         lines.push(json!({"type": "end"}).to_string());
-        let mut views = ViewTally::default();
+        let mut compared = Compared::default();
         let mut out = Vec::new();
-        let result = run_counting(&db, lines.join("\n").as_bytes(), &mut out, &mut views);
+        let result = run_counting(&db, lines.join("\n").as_bytes(), &mut out, &mut compared);
+        let views = compared.views;
         let name = f.file_name().unwrap().to_string_lossy().to_string();
         assert!(result.is_ok(), "{name}: {result:?}");
         assert!(!String::from_utf8_lossy(&out).contains("\"diverged\""), "{name} left the mirror");

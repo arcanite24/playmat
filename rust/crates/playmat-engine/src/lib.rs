@@ -4,6 +4,8 @@
 pub mod card;
 pub mod decide;
 pub mod fingerprint;
+pub mod log;
+pub mod prompt;
 pub mod replay;
 pub mod rng;
 pub mod rules;
