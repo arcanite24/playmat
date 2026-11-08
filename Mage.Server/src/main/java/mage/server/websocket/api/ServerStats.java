@@ -48,6 +48,12 @@ public class ServerStats {
         /** the human's views the Rust copies rendered and compared with Java's, and those with a field that differs */
         public long viewsCompared;
         public long viewsDiffering;
+        /** the human's prompts the copies compared, and those with a field that differs */
+        public long promptsCompared;
+        public long promptsDiffering;
+        /** the game log's lines the copies compared, and those they didn't write the same */
+        public long logLinesCompared;
+        public long logLinesDiffering;
     }
 
     static ServerStats collect(ManagerFactory managers) {
@@ -78,6 +84,10 @@ public class ServerStats {
         rust.finished = mage.game.trace.RustAiBridge.FINISHED.get();
         rust.viewsCompared = mage.game.trace.RustAiBridge.VIEWS_COMPARED.get();
         rust.viewsDiffering = mage.game.trace.RustAiBridge.VIEWS_DIFFERING.get();
+        rust.promptsCompared = mage.game.trace.RustAiBridge.PROMPTS_COMPARED.get();
+        rust.promptsDiffering = mage.game.trace.RustAiBridge.PROMPTS_DIFFERING.get();
+        rust.logLinesCompared = mage.game.trace.RustAiBridge.LOG_LINES_COMPARED.get();
+        rust.logLinesDiffering = mage.game.trace.RustAiBridge.LOG_LINES_DIFFERING.get();
         stats.rustAi = rust;
         return stats;
     }

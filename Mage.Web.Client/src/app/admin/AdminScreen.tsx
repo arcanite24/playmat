@@ -283,6 +283,17 @@ function Overview({ api, role, onUpdates }: { api: AdminApi; role: StaffRole; on
               </span>.
             </p>
           )}
+          {(data.rustAi?.promptsCompared ?? 0) > 0 && (
+            <p className={styles.quiet}>
+              Prompts: {(data.rustAi?.promptsCompared ?? 0).toLocaleString()} compared,{' '}
+              <span className={(data.rustAi?.promptsDiffering ?? 0) > 0 ? styles.alarm : undefined}>
+                {(data.rustAi?.promptsDiffering ?? 0).toLocaleString()} differ
+              </span>; game log: {(data.rustAi?.logLinesCompared ?? 0).toLocaleString()} lines compared,{' '}
+              <span className={(data.rustAi?.logLinesDiffering ?? 0) > 0 ? styles.alarm : undefined}>
+                {(data.rustAi?.logLinesDiffering ?? 0).toLocaleString()} differ
+              </span>.
+            </p>
+          )}
         </section>
       )}
 

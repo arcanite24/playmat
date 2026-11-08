@@ -18,17 +18,23 @@ fn templates() -> &'static HashMap<String, Value> {
     T.get_or_init(|| serde_json::from_str(VIEWS_JSON).unwrap_or_default())
 }
 
+/// The game as Java has it, where it differs: a card entering from a hand while its as-enters choices are asked is
+/// still in the hand in Java
+pub fn as_java(game: &Game) -> Option<Game> {
+    let (id, owner, i) = game.entering_from_hand.filter(|(id, _, _)| game.obj(*id).zone == Zone::Battlefield)?;
+    let mut g = game.clone();
+    Arc::make_mut(&mut g.battlefield).retain(|x| *x != id);
+    let hand = &mut g.player_mut(owner).hand;
+    hand.insert(i.min(hand.len()), id);
+    g.obj_mut(id).zone = Zone::Hand;
+    Some(g)
+}
+
 /// The view `seat`'s client gets of the game, as Java's `GameSessionPlayer.prepareGameView` builds it and `JsonCodec`
 /// writes it, with ids as decision-log references. `names` are the players' names, by seat.
 pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
     // a card entering from a hand while its as-enters choices are asked is still in the hand in Java
-    if let Some((id, owner, i)) = game.entering_from_hand.filter(|(id, _, _)| game.obj(*id).zone == Zone::Battlefield) {
-        let mut g = game.clone();
-        g.entering_from_hand = None;
-        Arc::make_mut(&mut g.battlefield).retain(|x| *x != id);
-        let hand = &mut g.player_mut(owner).hand;
-        hand.insert(i.min(hand.len()), id);
-        g.obj_mut(id).zone = Zone::Hand;
+    if let Some(g) = as_java(game) {
         return game_view(&g, seat, names);
     }
     let name = |s: Option<Seat>| s.and_then(|s| names.get(s)).map(|n| n.to_string()).unwrap_or_default();
@@ -1272,18 +1278,7 @@ fn stack_view(game: &Game, names: &[&str]) -> Value {
             let mut v: Value = serde_json::from_str(STACK_ABILITY).unwrap_or_default();
             let def = game.item_def(item);
             let ability = item.ability.and_then(|(k, _)| def.abilities.get(k));
-            let rule = match (&item.delayed, item.ability) {
-                (Some(d), _) => d.rule.clone(),
-                // its own rule, or its card's at its index when it has none (an effect's def can reorder them)
-                (None, Some((k, _))) => ability
-                    .and_then(|a| a.triggered().map(|t| t.0).or_else(|| a.activated().map(|t| t.0)))
-                    .filter(|r| !r.is_empty())
-                    .map(str::to_string)
-                    .or_else(|| ability_rules(game, item.card).and_then(|r| r.get(k).cloned()))
-                    .unwrap_or_default()
-                    .replace("{this}", &o.def.name),
-                _ => String::new(),
-            };
+            let rule = item_rule(game, item).replace("{this}", &o.def.name);
             let triggered = item.delayed.is_some() || ability.is_some_and(|a| a.trigger().is_some());
             let kind = if o.token { "ABILITY_STACK_FROM_TOKEN" } else { "ABILITY_STACK_FROM_CARD" };
             // (the decision log places a spell on the stack, not an ability's source; a token gone is nowhere)
@@ -1615,7 +1610,24 @@ fn view_stack(game: &Game) -> Vec<(&crate::state::StackItem, Option<usize>)> {
     items
 }
 
-fn stack_ref(game: &Game, id: ObjId) -> String {
+/// A stack ability's rule, `{this}` for its source's name
+pub(crate) fn item_rule(game: &Game, item: &crate::state::StackItem) -> String {
+    let def = game.item_def(item);
+    let ability = item.ability.and_then(|(k, _)| def.abilities.get(k));
+    match (&item.delayed, item.ability) {
+        (Some(d), _) => d.rule.clone(),
+        // its own rule, or its card's at its index when it has none (an effect's def can reorder them)
+        (None, Some((k, _))) => ability
+            .and_then(|a| a.triggered().map(|t| t.0).or_else(|| a.activated().map(|t| t.0)))
+            .filter(|r| !r.is_empty())
+            .map(str::to_string)
+            .or_else(|| ability_rules(game, item.card).and_then(|r| r.get(k).cloned()))
+            .unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+pub(crate) fn stack_ref(game: &Game, id: ObjId) -> String {
     match view_stack(game)
         .into_iter()
         .map(|(i, _)| i)
@@ -1661,7 +1673,7 @@ fn command_view(game: &Game, p: Seat) -> Vec<Value> {
 }
 
 /// An object's abilities' rules, in order (from its card's or token's facts)
-fn ability_rules(game: &Game, id: ObjId) -> Option<Vec<String>> {
+pub(crate) fn ability_rules(game: &Game, id: ObjId) -> Option<Vec<String>> {
     let o = game.obj(id);
     let key = match &o.token_image {
         Some((class, _, _)) => format!("abilities:token:{}", class),
@@ -1901,6 +1913,8 @@ pub const IGNORED: &[(&str, &str)] = &[
     ("gameCycle", "Java's own state counter"),
     ("userData", "the player's settings, which the host passes through"),
     ("statesSavedSize", "Java's rollback states"),
+    ("wins", "the match's score, which the host passes through"),
+    ("winsNeeded", "the match's score, which the host passes through"),
     (
         "sideboard",
         "the deck's sideboard: the decision log doesn't place its cards (every id is `?`), and play doesn't change it",

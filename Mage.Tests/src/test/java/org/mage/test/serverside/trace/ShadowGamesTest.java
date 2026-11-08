@@ -144,6 +144,11 @@ public class ShadowGamesTest {
         RandomDriver driver = new RandomDriver(game, answers, new Random(seed));
         ShadowViews views = new ShadowViews(Integer.getInteger(PREFIX + ".views", 0));
         game.addPlayerQueryEventListener(event -> views.ask(game, event, log.getDecisions().size()));
+        game.addTableEventListener(event -> {
+            if (event.getEventType() == mage.game.events.TableEvent.EventType.INFO) {
+                views.log(game, event.getMessage(), log.getDecisions().size());
+            }
+        });
         game.addPlayerQueryEventListener(driver::ask);
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Thread thread = new Thread(() -> {
@@ -194,6 +199,8 @@ public class ShadowGamesTest {
         record.put("questions", driver.getQuestions());
         if (!views.getViews().isEmpty()) {
             record.put("views", views.getViews());
+            record.put("prompts", views.getPrompts());
+            record.put("log", views.getLog());
         }
         List<Map<String, Object>> entries = new ArrayList<>();
         for (GameTrace.Entry e : trace.getEntries()) {

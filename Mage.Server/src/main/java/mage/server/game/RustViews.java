@@ -34,6 +34,11 @@ public final class RustViews {
     public static JsonElement view(Game game, UUID playerId) {
         GameView view = GameSessionPlayer.prepareGameView(game, playerId, null);
         Map<UUID, String> refs = DecisionLog.refs(game);
+        return mapIds(JsonCodec.GSON.toJsonTree(view), refs, named(game, refs));
+    }
+
+    /** the references of short ids: {@code refs}, and a spell's card id as its stack object's */
+    public static Map<UUID, String> named(Game game, Map<UUID, String> refs) {
         // a spell's id name (`Target on stack: Name [c3b]`) is its card's: the card's short id names the spell
         Map<UUID, String> named = new HashMap<>(refs);
         int i = 0;
@@ -43,7 +48,7 @@ public final class RustViews {
             }
             i++;
         }
-        return mapIds(JsonCodec.GSON.toJsonTree(view), refs, named);
+        return named;
     }
 
     /**
