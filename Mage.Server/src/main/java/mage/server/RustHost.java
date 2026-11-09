@@ -174,6 +174,9 @@ public final class RustHost {
             data.addProperty("seed", seed);
             data.addProperty("tableId", tableId.toString());
             data.add("seats", seats);
+            // the match's priority timer, which the host runs as GameController does (0: none)
+            data.addProperty("priorityTime", match.getOptions().getMatchTimeLimit().getPrioritySecs());
+            data.addProperty("bufferTime", match.getOptions().getMatchBufferTime().getBufferSecs());
             HOSTED.put(game.getId(), new Hosted(tableId, game, token, managers, human.getKey(), human.getValue()));
             user.get().fireCallback(new ClientCallback(ClientCallbackMethod.HOST_GAME, game.getId(), data));
             logger.info("Rust host: plays " + user.get().getName() + "'s game " + game.getId() + " (seed " + seed + ")");

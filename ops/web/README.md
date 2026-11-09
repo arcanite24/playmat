@@ -296,14 +296,15 @@ starts, it hands the game to the gateway, which plays it and reports the result 
 A game qualifies when it's a single game (one win needed) of one player against one AI, not a Career game and not a
 setup or resumed game, the player is connected through the gateway, and the Rust engine has every card in both decks.
 The log says `Rust host: plays …'s game` when it hosts one, `Rust host: game … ended after n turns` at its end, and,
-for a listed player's game that doesn't qualify, why. Not there yet: priority timers, spectators, the solo tools
+for a listed player's game that doesn't qualify, why. The table's priority timer and buffer time work as on Java: a
+player whose time runs out loses. Not there yet: spectators, the solo tools
 (saves, undo), advice, and the Career's quests and stats for these games, which pay nothing for now. If the host
 fails mid-game, the game ends as a draw. If a player stays away (or the gateway is gone) for 35 minutes, the game
 ends as their loss.
 
 The gateway's `/metrics` counts the hosted games: `playmat_gateway_host_games_open`,
 `playmat_gateway_host_games_started_total`, and `playmat_gateway_host_games_ended_total` by `how`: `over` (played
-out), `conceded`, `stopped` (no answer for 30 minutes, or the player left), `error` and `panic`. The last two are games
+out), `conceded`, `timed out` (a player's priority timer ran out), `stopped` (no answer for 30 minutes, or the player left), `error` and `panic`. The last two are games
 the host lost, which end as draws; step E widens hosting after a week without them.
 
 ### Small VPS (1 vCPU, 1 GB)

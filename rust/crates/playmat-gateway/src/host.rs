@@ -5,7 +5,7 @@
 //! carries on with the table.
 
 use playmat_engine::card::CardDb;
-use playmat_host::{Call, Event, HostedGame, SeatStart, Start};
+use playmat_host::{Call, Event, HostedGame, SeatStart, Start, Timer};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
@@ -48,12 +48,13 @@ pub struct Hosts {
     ended: Mutex<BTreeMap<&'static str, u64>>,
 }
 
-/// How a hosted game ended, from its reason: `over` (played out), `conceded`, `stopped` (no answer for 30 minutes,
+/// How a hosted game ended, from its reason: `over` (played out), `conceded`, `timed out` (a player's priority timer ran out), `stopped` (no answer for 30 minutes,
 /// or the player left), `error` (the host stopped on an error, or couldn't start) or `panic`
 pub fn end_kind(reason: &str) -> &'static str {
     match reason {
         "over" => "over",
         "conceded" => "conceded",
+        "timed out" => "timed out",
         "stopped" => "stopped",
         r if r.starts_with("error") => "error",
         _ => "panic",
@@ -98,7 +99,7 @@ impl Hosts {
         let _ = writeln!(out, "playmat_gateway_host_games_started_total {}", self.started.lock().unwrap());
         let _ = writeln!(out, "# TYPE playmat_gateway_host_games_ended_total counter");
         let ended = self.ended.lock().unwrap();
-        for how in ["over", "conceded", "stopped", "error", "panic"] {
+        for how in ["over", "conceded", "timed out", "stopped", "error", "panic"] {
             let n = ended.get(how).copied().unwrap_or(0);
             let _ = writeln!(out, "playmat_gateway_host_games_ended_total{{how=\"{how}\"}} {n}");
         }
@@ -129,7 +130,9 @@ impl Hosts {
             })
             .unwrap_or_default();
         let players: Vec<String> = seats.iter().map(|s| s.player_id.clone()).collect();
-        let start = Start { game_id: game_id.clone(), seed, seats };
+        let secs = |k: &str| data[k].as_u64().and_then(|n| u32::try_from(n).ok()).unwrap_or(0);
+        let timer = Timer { priority_secs: secs("priorityTime"), buffer_secs: secs("bufferTime") };
+        let start = Start { game_id: game_id.clone(), seed, seats, timer };
         // known before the game starts, so its calls (the client joins at once) wait for it
         let chat_id = playmat_host::ids::Ids::new(&game_id, players.clone()).chat();
         let (calls, calls_in) = std::sync::mpsc::channel();

@@ -182,6 +182,14 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
   a quit as the player's loss.
 - **Trigger order.** The "always first" and "always last" buttons (`TRIGGER_AUTO_ORDER_*`) set an order by rule text,
   as `HumanPlayer` does; the host then orders those triggers itself and asks only about the rest.
+- **Priority timer.** `HOST_GAME` carries the table's `priorityTime` and `bufferTime` (seconds, 0 for none), and the
+  host runs them as `GameController`'s `PriorityTimer` does (`playmat-host/src/timer.rs`): each player's time counts
+  down while the human is asked anything (`HumanPlayer.waitForResponse`) or the AI thinks at priority
+  (`ComputerPlayer7.priority`), the buffer first, refilled each time the clock starts. The views carry Java's fields:
+  `priorityTime` and `bufferTime` on the game, and `priorityTimeLeftSecs` (`Integer.MAX_VALUE` without a timer),
+  `priorityTimeSavedTimeMs`, `bufferTimeLeft` and `timerActive` (holding priority, or being asked) on each player. A
+  player whose time runs out loses: the log says they conceded and "has run out of time, losing the match", and the
+  host reports the end as `timed out`.
 
 Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI), `rustAi.live.test.ts` (16 games
 against a local server through the gateway), the conformance suite with `MAGE_CONFORMANCE_DECK` set to a deck the
@@ -190,7 +198,7 @@ from `shadow-decks/`, the app's default settings, and a bot that also mulligans,
 trigger orders and presses F-keys. It fails a game that locks (no prompt to answer for 20 seconds) or loops (400
 answers in one turn). 150 games across seeds 2, 3 and 11 finished with none locked or looping (8 Nov 2026).
 
-Not there yet: priority timers, the Career's tally (step F), spectators, and best-of-three.
+Not there yet: the Career's tally (step F), spectators, and best-of-three.
 
 ## Decisions needed
 

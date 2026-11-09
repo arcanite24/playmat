@@ -5,6 +5,7 @@
 use crate::ids::Ids;
 use crate::prompts;
 use crate::skips::{Passing, Settings};
+use crate::timer::{Clock, Timer};
 use playmat_ai::search::{Config, Table};
 use playmat_engine::card::{CardDb, CardType};
 use playmat_engine::decide::{Answer, Decider, Query};
@@ -17,7 +18,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 use std::sync::Arc;
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// A seat as Java's table gives it
 #[derive(Clone, Debug)]
@@ -36,6 +37,8 @@ pub struct Start {
     pub game_id: String,
     pub seed: i64,
     pub seats: Vec<SeatStart>,
+    /// the table's priority timer
+    pub timer: Timer,
 }
 
 /// What a client sends during the game (`GameApi`)
@@ -76,7 +79,7 @@ pub struct Ended {
     /// the winner's seat; none for a draw
     pub winner: Option<Seat>,
     pub turns: u32,
-    /// why, for the server's log: "over", "conceded", "error: …"
+    /// why, for the server's log: "over", "conceded", "timed out", "error: …"
     pub reason: String,
 }
 
@@ -187,6 +190,12 @@ struct Host {
     order_last: Vec<String>,
     /// the rule texts of the triggers the open question asks to order, by place
     open_triggers: Vec<String>,
+    /// the priority timer
+    clock: Clock,
+    /// the seat being asked, whose clock runs
+    asking: Option<Seat>,
+    /// the seat whose time ran out (it lost)
+    timed_out: Option<Seat>,
 }
 
 impl Host {
@@ -232,6 +241,9 @@ impl Host {
             order_first: Vec::new(),
             order_last: Vec::new(),
             open_triggers: Vec::new(),
+            clock: Clock::new(start.timer),
+            asking: None,
+            timed_out: None,
         }
     }
 
@@ -249,6 +261,38 @@ impl Host {
             }
         }
         v
+    }
+
+    /// The view with the timer's fields (`GameView.priorityTime`, `PlayerView.priorityTimeLeftSecs`…), which change
+    /// with the time, so they're left out of the comparison with the last view sent
+    fn timed(&self, mut v: Value) -> Value {
+        let now = Instant::now();
+        let timer = self.clock.timer();
+        v["priorityTime"] = json!(timer.priority_secs);
+        v["bufferTime"] = json!(timer.buffer_secs);
+        let saved = now_ms();
+        if let Some(Value::Array(players)) = v.get_mut("players") {
+            for (seat, p) in players.iter_mut().enumerate() {
+                let (left, buffer) = self.clock.view_secs(seat, now);
+                let priority = p["hasPriority"].as_bool().unwrap_or(false);
+                p["priorityTimeLeftSecs"] = json!(left);
+                p["priorityTimeSavedTimeMs"] = json!(saved);
+                p["bufferTimeLeft"] = json!(buffer);
+                // Java: the player with priority, or the one choosing
+                p["timerActive"] = json!(priority || self.asking == Some(seat));
+            }
+        }
+        v
+    }
+
+    /// The open question again, its view's clocks as they are now
+    fn send_open(&self) {
+        if let Some(mut e) = self.open.clone() {
+            if let Some(v) = e.data.get_mut("gameView").map(Value::take) {
+                e.data["gameView"] = self.timed(v);
+            }
+            let _ = self.events.send(e);
+        }
     }
 
     /// The game log's new lines, as the game chat's messages
@@ -301,7 +345,7 @@ impl Host {
         let view = self.view();
         if self.last_view.as_ref() != Some(&view) {
             self.last_view = Some(view.clone());
-            self.send("GAME_UPDATE", &self.game_id.clone(), view);
+            self.send("GAME_UPDATE", &self.game_id.clone(), self.timed(view));
         }
     }
 
@@ -314,7 +358,7 @@ impl Host {
                     self.ids.clear();
                     let view = self.view();
                     self.last_view = Some(view.clone());
-                    self.send("GAME_INIT", &self.game_id.clone(), view);
+                    self.send("GAME_INIT", &self.game_id.clone(), self.timed(view));
                     self.log();
                 }
                 Ok(Call::Quit) | Ok(Call::Action(..)) => {
@@ -343,8 +387,11 @@ impl Host {
         let prompt = self.ids.map(&self.game, prompt);
         let method = prompt["method"].as_str().unwrap_or("GAME_SELECT").to_string();
         let mut data = prompt["data"].clone();
+        // the human's clock runs while they're asked (`HumanPlayer.waitForResponse`)
+        self.asking = Some(self.human);
+        self.clock.resume(self.human, Instant::now());
         if let Some(d) = data.as_object_mut() {
-            d.insert("gameView".into(), view.clone());
+            d.insert("gameView".into(), self.timed(view.clone()));
         }
         self.last_view = Some(view);
         if debug() {
@@ -360,14 +407,35 @@ impl Host {
         let event = Event { method, object_id: self.game_id.clone(), data };
         self.open = Some(event.clone());
         let _ = self.events.send(event);
+        let answer = self.wait(accept);
+        self.clock.pause(Instant::now());
+        self.asking = None;
+        answer
+    }
+
+    /// The human's answer to the open question; `None` when they left, or their time ran out
+    fn wait(&mut self, accept: &dyn Fn(&Host, &Call) -> Option<Answer>) -> Option<Answer> {
         loop {
-            let call = match self.calls.recv_timeout(IDLE) {
+            let wait = match self.clock.remaining(self.human, Instant::now()) {
+                Some(left) => left.min(IDLE),
+                None => IDLE,
+            };
+            let call = match self.calls.recv_timeout(wait) {
                 Ok(c) => c,
+                Err(RecvTimeoutError::Timeout) if self.clock.expired(self.human, Instant::now()) => {
+                    self.time_out(self.human);
+                    return None;
+                }
                 Err(RecvTimeoutError::Timeout) | Err(RecvTimeoutError::Disconnected) => {
                     self.conceded = Some(self.human);
                     return None;
                 }
             };
+            if self.clock.expired(self.human, Instant::now()) {
+                // an answer after the time ran out (Java's timer thread ends the game first)
+                self.time_out(self.human);
+                return None;
+            }
             if debug() {
                 // an id: what it names in the game
                 let named = match &call {
@@ -388,16 +456,12 @@ impl Host {
                 Call::Join => {
                     // a reconnect: the whole view, then the question again
                     let view = self.last_view.clone().unwrap_or(Value::Null);
-                    self.send("GAME_INIT", &self.game_id.clone(), view);
-                    if let Some(e) = self.open.clone() {
-                        let _ = self.events.send(e);
-                    }
+                    self.send("GAME_INIT", &self.game_id.clone(), self.timed(view));
+                    self.send_open();
                     continue;
                 }
                 Call::Resync => {
-                    if let Some(e) = self.open.clone() {
-                        let _ = self.events.send(e);
-                    }
+                    self.send_open();
                     continue;
                 }
                 Call::Quit => {
@@ -435,10 +499,14 @@ impl Host {
                 return Some(answer);
             }
             // an answer that doesn't fit: the question again (as Java re-asks)
-            if let Some(e) = self.open.clone() {
-                let _ = self.events.send(e);
-            }
+            self.send_open();
         }
+    }
+
+    /// `PlayerImpl.timerTimeout`: the seat's time ran out, it loses
+    fn time_out(&mut self, seat: Seat) {
+        self.timed_out = Some(seat);
+        self.conceded = Some(seat);
     }
 
     fn auto_answer(&mut self, action: &str, data: Option<&Value>) {
@@ -535,7 +603,16 @@ impl Host {
         self.log();
         let (winner, reason) = if let Some(loser) = self.conceded {
             self.inform(format!("<font color='#20B2AA'>{}</font> has conceded.", self.names[loser]));
-            (Some(1 - loser), "conceded".to_string())
+            if self.timed_out == Some(loser) {
+                let line = format!(
+                    "<font color='#20B2AA'>{}</font> has run out of time, losing the match.",
+                    self.names[loser]
+                );
+                self.inform(line);
+                (Some(1 - loser), "timed out".to_string())
+            } else {
+                (Some(1 - loser), "conceded".to_string())
+            }
         } else if self.game.over {
             let alive: Vec<Seat> = (0..2).filter(|s| !self.game.player(*s).lost).collect();
             (if alive.len() == 1 { Some(alive[0]) } else { None }, "over".to_string())
@@ -553,6 +630,7 @@ impl Host {
     fn over(&mut self, _winner: Option<Seat>, message: &str) {
         self.ids.clear();
         let view = self.view();
+        let view = self.timed(view);
         self.send("GAME_OVER", &self.game_id.clone(), json!({"gameView": view, "message": message}));
     }
 
@@ -674,7 +752,19 @@ impl Decider for HostDecider<'_> {
             return Answer::Stop;
         }
         if seat == h.ai {
-            return h.table.answer(game, seat, q);
+            // the AI's clock runs while it thinks at priority (`ComputerPlayer7.priority`)
+            if !matches!(q, Query::Priority { .. }) || !h.clock.on() {
+                return h.table.answer(game, seat, q);
+            }
+            h.clock.resume(seat, Instant::now());
+            let a = h.table.answer(game, seat, q);
+            let now = Instant::now();
+            h.clock.pause(now);
+            if h.clock.expired(seat, now) {
+                h.time_out(seat);
+                return Answer::Stop;
+            }
+            return a;
         }
         // the host's game is the engine's game while it asks
         h.game = game.clone();

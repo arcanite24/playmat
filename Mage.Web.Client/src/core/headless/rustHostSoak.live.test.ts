@@ -10,6 +10,9 @@
  * SOAK_PAIR: two deck names (e.g. meta/pioneer-jund-sacrifice.txt,tier30/b-zombies.txt) every game plays.
  * SOAK_MINE: one deck name the bot always plays, against random decks.
  * SOAK_SERVER_LOG: the Java server's log; the test then checks each game was hosted on Rust, not Java.
+ * SOAK_TIME_LIMIT, SOAK_BUFFER_TIME: the tables' priority timer (MatchTimeLimit and MatchBufferTime names, e.g.
+ *   MIN___5 and SEC__05); the views must then show the player's clock.
+ * SOAK_RUN_OUT: with a time limit, the bot stops answering after this turn, so its time runs out and it loses.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -18,7 +21,7 @@ import { autoAnswer } from '../game/autoPass';
 import { DEFAULT_SETTINGS, toUserData } from '../../app/stores/settings';
 import { deckList, playBotGame } from './botGame';
 import type { Command } from '../game/interaction';
-import type { PlayerAction } from '../../protocol/generated/views';
+import type { MatchBufferTime, MatchTimeLimit, PlayerAction } from '../../protocol/generated/views';
 import { isTriggerOrderPrompt } from '../game/autoAnswer';
 import type { GameSessionState } from '../game/gameSession';
 
@@ -29,6 +32,11 @@ const SEED = Number(process.env.SOAK_SEED ?? Date.now() % 100000);
 const SERVER_LOG = process.env.SOAK_SERVER_LOG ?? '';
 const ROOT = join(__dirname, '../../../../rust/crates/playmat-engine/shadow-decks');
 const DIRS = (process.env.SOAK_DECKS ?? 'meta,tier30').split(',');
+const TIME_LIMIT = process.env.SOAK_TIME_LIMIT as MatchTimeLimit | undefined;
+const BUFFER_TIME = process.env.SOAK_BUFFER_TIME as MatchBufferTime | undefined;
+const RUN_OUT = process.env.SOAK_RUN_OUT === undefined ? undefined : Number(process.env.SOAK_RUN_OUT);
+/** a clock without a limit: Java's Integer.MAX_VALUE */
+const NO_LIMIT = 2147483647;
 
 const COMMANDS: Record<string, Command> = {
   pass: { type: 'boolean', value: false },
@@ -130,6 +138,8 @@ describe.skipIf(!live)('Rust-hosted games, soaked', () => {
       if (process.env.SOAK_MINE) mine = all.find((d) => d.name === process.env.SOAK_MINE)!;
       const userName = `soak${game}_${(SEED + game) % 10000}`;
       const own = restless(random(SEED * 1000 + game));
+      // the lowest clock the player's views showed
+      let clock = NO_LIMIT;
       try {
         const stats = await playBotGame({
           serverUrl: SERVER_URL,
@@ -138,9 +148,14 @@ describe.skipIf(!live)('Rust-hosted games, soaked', () => {
           aiDeck: theirs,
           maxTurns: 30,
           timeoutMs: 600_000,
-          stuckMs: 20_000,
+          // a player who stops answering looks locked: no lock check then
+          stuckMs: RUN_OUT === undefined ? 20_000 : undefined,
           userData: toUserData(settings),
+          table: TIME_LIMIT ? { matchTimeLimit: TIME_LIMIT, matchBufferTime: BUFFER_TIME ?? 'NONE' } : undefined,
+          ...(RUN_OUT === undefined ? {} : { holdAfterTurn: RUN_OUT, holdUntil: Date.now() + 3_600_000 }),
           intercept(state) {
+            const me = state.view?.players?.find((p) => p.playerId === state.view?.myPlayerId);
+            if (me?.timerActive) clock = Math.min(clock, me.priorityTimeLeftSecs ?? NO_LIMIT);
             const answer = autoAnswer(state.view, state.prompt, {
               autoPass: settings.autoPass,
               autoSkipCombat: settings.autoSkipCombat,
@@ -154,6 +169,9 @@ describe.skipIf(!live)('Rust-hosted games, soaked', () => {
         results.push(`game ${game} ${mine.name} vs AI ${theirs.name}: turn ${stats.maxTurn}, ${stats.commands} answers, `
           + `${stats.spellsCast} spells, ${stats.attacks} attacks, over ${stats.gameOver}`);
         if (!stats.gameOver) failures.push(`game ${game}: not over`);
+        if (TIME_LIMIT && clock === NO_LIMIT) failures.push(`game ${game}: the views showed no priority timer`);
+        if (!TIME_LIMIT && clock !== NO_LIMIT) failures.push(`game ${game}: a clock (${clock}s) without a time limit`);
+        if (TIME_LIMIT) results.push(`  clock down to ${clock}s`);
       } catch (e) {
         failures.push(`game ${game} ${mine.name} vs AI ${theirs.name} (${userName}): ${(e as Error).message}`);
       }
@@ -162,6 +180,10 @@ describe.skipIf(!live)('Rust-hosted games, soaked', () => {
         if (!log.includes(`Rust host: plays ${userName}'s game`)) {
           const why = log.split('\n').filter((l) => l.includes(`${userName}'s game`)).pop() ?? 'no line';
           failures.push(`game ${game} (${userName}) wasn't hosted on Rust: ${why.slice(0, 300)}`);
+        }
+        // each game so far ended on the timer (a fresh log)
+        if (RUN_OUT !== undefined && (log.match(/ended after \d+ turns, timed out/g) ?? []).length < game + 1) {
+          failures.push(`game ${game} (${userName}) didn't end on the timer`);
         }
       }
     }
