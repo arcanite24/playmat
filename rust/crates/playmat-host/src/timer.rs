@@ -11,6 +11,9 @@ use std::time::{Duration, Instant};
 pub struct Timer {
     pub priority_secs: u32,
     pub buffer_secs: u32,
+    /// each seat's time left from the match's earlier games (`MatchImpl.initGame`: "2+ games must keep times");
+    /// none: the whole priority time
+    pub left: [Option<u32>; 2],
 }
 
 /// Java's `priorityTimeLeft` for a game without a timer
@@ -28,8 +31,8 @@ pub struct Clock {
 
 impl Clock {
     pub fn new(timer: Timer) -> Clock {
-        let left = Duration::from_secs(timer.priority_secs.into());
-        Clock { timer, left: [left; 2], buffer: [Duration::ZERO; 2], running: None }
+        let left = |seat: usize| Duration::from_secs(timer.left[seat].unwrap_or(timer.priority_secs).into());
+        Clock { timer, left: [left(0), left(1)], buffer: [Duration::ZERO; 2], running: None }
     }
 
     pub fn on(&self) -> bool {
@@ -96,6 +99,14 @@ impl Clock {
     }
 }
 
+impl Clock {
+    /// The seat's time left in whole seconds, for the match's next game (Java's `priorityTimeLeft`); none without a
+    /// timer
+    pub fn left_secs(&self, seat: Seat, now: Instant) -> Option<u32> {
+        self.on().then(|| self.view_secs(seat, now).0.clamp(0, u32::MAX as i64) as u32)
+    }
+}
+
 fn secs_up(d: Duration) -> i64 {
     d.as_millis().div_ceil(1000) as i64
 }
@@ -121,7 +132,7 @@ mod tests {
 
     #[test]
     fn counts_down_the_buffer_first_and_only_while_running() {
-        let mut c = Clock::new(Timer { priority_secs: 60, buffer_secs: 5 });
+        let mut c = Clock::new(Timer { priority_secs: 60, buffer_secs: 5, ..Timer::default() });
         let t = Instant::now();
         assert_eq!(c.view_secs(0, t), (60, 0));
         c.resume(0, t);
@@ -145,8 +156,19 @@ mod tests {
     }
 
     #[test]
+    fn a_match_keeps_the_time_left() {
+        // the match's second game: seat 0 has 40 of the 60 seconds left from the first
+        let c = Clock::new(Timer { priority_secs: 60, buffer_secs: 5, left: [Some(40), None] });
+        let t = Instant::now();
+        assert_eq!(c.view_secs(0, t), (40, 0));
+        assert_eq!(c.view_secs(1, t), (60, 0));
+        assert_eq!(c.left_secs(0, t), Some(40));
+        assert_eq!(Clock::new(Timer::default()).left_secs(0, t), None);
+    }
+
+    #[test]
     fn runs_out() {
-        let mut c = Clock::new(Timer { priority_secs: 10, buffer_secs: 2 });
+        let mut c = Clock::new(Timer { priority_secs: 10, buffer_secs: 2, ..Timer::default() });
         let t = Instant::now();
         c.resume(1, t);
         assert!(!c.expired(1, t + s(11)));

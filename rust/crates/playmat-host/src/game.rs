@@ -39,6 +39,8 @@ pub struct Start {
     pub seats: Vec<SeatStart>,
     /// the table's priority timer
     pub timer: Timer,
+    /// the player id of who chooses who plays first: in a match, the previous game's loser; none for a random seat
+    pub chooser: Option<String>,
 }
 
 /// What a client sends during the game (`GameApi`)
@@ -74,13 +76,16 @@ impl Event {
 }
 
 /// How the game ended
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Ended {
     /// the winner's seat; none for a draw
     pub winner: Option<Seat>,
     pub turns: u32,
-    /// why, for the server's log: "over", "conceded", "timed out", "error: …"
+    /// why, for the server's log: "over", "conceded" (the game), "quit" (the match: `matchQuit`, or no answer for
+    /// 30 minutes), "timed out" (the loser's priority timer ran out, which loses the match), "error: …"
     pub reason: String,
+    /// each seat's priority time left in seconds, for the match's next game; none without a timer
+    pub time_left: [Option<u32>; 2],
 }
 
 pub struct HostedGame {
@@ -131,7 +136,12 @@ impl HostedGame {
                             .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
                             .unwrap_or_default();
                         host.over(None, &format!("The game stopped on an error and ends as a draw. ({why})"));
-                        Ended { winner: None, turns: host.game.turn, reason: format!("error: {why}") }
+                        Ended {
+                            winner: None,
+                            turns: host.game.turn,
+                            reason: format!("error: {why}"),
+                            ..Ended::default()
+                        }
                     }
                 }
             })
@@ -152,7 +162,7 @@ impl HostedGame {
     /// Waits for the game's end (after its `GAME_OVER`)
     pub fn join(mut self) -> Ended {
         let thread = self.thread.take().expect("a started game");
-        thread.join().unwrap_or(Ended { winner: None, turns: 0, reason: "panic".into() })
+        thread.join().unwrap_or(Ended { reason: "panic".into(), ..Ended::default() })
     }
 
     pub fn finished(&self) -> bool {
@@ -181,6 +191,10 @@ struct Host {
     open: Option<Event>,
     log_seen: usize,
     conceded: Option<Seat>,
+    /// the human left the match, not only the game
+    quit: bool,
+    /// who chooses who plays first, when the table says
+    chooser: Option<Seat>,
     /// the last view sent, so a state the client already has isn't sent again
     last_view: Option<Value>,
     /// auto-answers the player asked for (`REQUEST_AUTO_ANSWER_TEXT_*`): the question's text and the answer
@@ -236,6 +250,8 @@ impl Host {
             open: None,
             log_seen: 0,
             conceded: None,
+            quit: false,
+            chooser: start.chooser.as_ref().and_then(|c| start.seats.iter().position(|s| &s.player_id == c)),
             last_view: None,
             auto_answers: Vec::new(),
             order_first: Vec::new(),
@@ -361,13 +377,15 @@ impl Host {
                     self.send("GAME_INIT", &self.game_id.clone(), self.timed(view));
                     self.log();
                 }
-                Ok(Call::Quit) | Ok(Call::Action(..)) => {
+                Ok(c @ Call::Quit) | Ok(c @ Call::Action(..)) => {
                     self.conceded = Some(self.human);
+                    self.quit = matches!(c, Call::Quit);
                     return false;
                 }
                 Ok(_) => {}
                 Err(_) => {
                     self.conceded = Some(self.human);
+                    self.quit = true;
                     return false;
                 }
             }
@@ -428,6 +446,7 @@ impl Host {
                 }
                 Err(RecvTimeoutError::Timeout) | Err(RecvTimeoutError::Disconnected) => {
                     self.conceded = Some(self.human);
+                    self.quit = true;
                     return None;
                 }
             };
@@ -466,6 +485,7 @@ impl Host {
                 }
                 Call::Quit => {
                     self.conceded = Some(self.human);
+                    self.quit = true;
                     return None;
                 }
                 Call::Action(action, data) => match action.as_str() {
@@ -611,7 +631,7 @@ impl Host {
                 self.inform(line);
                 (Some(1 - loser), "timed out".to_string())
             } else {
-                (Some(1 - loser), "conceded".to_string())
+                (Some(1 - loser), if self.quit { "quit" } else { "conceded" }.to_string())
             }
         } else if self.game.over {
             let alive: Vec<Seat> = (0..2).filter(|s| !self.game.player(*s).lost).collect();
@@ -624,7 +644,10 @@ impl Host {
             None => "Game is a draw".to_string(),
         };
         self.over(winner, &message);
-        Ended { winner, turns: self.game.turn, reason }
+        let now = Instant::now();
+        self.clock.pause(now);
+        let time_left = [self.clock.left_secs(0, now), self.clock.left_secs(1, now)];
+        Ended { winner, turns: self.game.turn, reason, time_left }
     }
 
     fn over(&mut self, _winner: Option<Seat>, message: &str) {
@@ -634,9 +657,13 @@ impl Host {
         self.send("GAME_OVER", &self.game_id.clone(), json!({"gameView": view, "message": message}));
     }
 
-    /// `GameImpl.init`: a random player chooses who goes first; the AI always starts itself
+    /// `GameImpl.init`: the table's chooser (a match's last loser), else a random player, chooses who goes first; the
+    /// AI always starts itself
     fn choose_starting_player(&mut self) -> Option<Seat> {
-        let choosing = self.game.rng.next_int_bound(2) as Seat;
+        let choosing = match self.chooser {
+            Some(seat) => seat,
+            None => self.game.rng.next_int_bound(2) as Seat,
+        };
         if choosing == self.ai {
             let line =
                 format!("<font color='#20B2AA'>{}</font> chooses that they take the first turn", self.names[self.ai]);

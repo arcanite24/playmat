@@ -66,7 +66,7 @@ export interface RpcMethods {
   chatFindByTournament: { params: [tournamentId: UUID]; result: UUID | null };
   chatFindByRoom: { params: [roomId: UUID]; result: UUID | null };
   gameJoin: { params: [gameId: UUID, sessionId: string]; result: boolean };
-  hostGameEnded: { params: [gameId: UUID, token: string, winnerId: string | null, turns: number, reason: string]; result: boolean };
+  hostGameEnded: { params: [gameId: UUID, token: string, winnerId: string | null, turns: number, reason: string, timeLeft?: unknown | null]; result: boolean };
   gameResync: { params: [gameId: UUID, sessionId: string]; result: boolean };
   gameStateResync: { params: [gameId: UUID, sessionId: string]; result: boolean };
   matchQuit: { params: [gameId: UUID, sessionId: string]; result: boolean };
