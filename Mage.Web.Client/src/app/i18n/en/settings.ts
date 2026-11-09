@@ -107,7 +107,7 @@ export default {
   'settings.bigZoom': "Bigger card zoom",
   'settings.bigZoom.detail': "The card you point at opens larger, for reading rules text on a small screen.",
   'settings.matchSize': "Match size",
-  'settings.matchSize.detail': "The match fits your window, so browser zoom doesn't change it. On a laptop screen, draw creatures and your hand bigger.",
+  'settings.matchSize.detail': "The match fits your window, so in a match the browser's zoom keys (Ctrl or Cmd with + and -) and a trackpad pinch change this instead. On a laptop screen, draw creatures and your hand bigger.",
   'settings.matchSize.fit': "Fit window",
   'settings.matchSize.larger': "Larger cards",
   'settings.matchSize.largest': "Largest cards",

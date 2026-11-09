@@ -388,7 +388,7 @@ const es: Catalog = {
   'settings.bigZoom': "Ampliación de carta más grande",
   'settings.bigZoom.detail': "La carta que señalas se abre más grande, para leer el texto de reglas en una pantalla pequeña.",
   'settings.matchSize': "Tamaño de la partida",
-  'settings.matchSize.detail': "La partida se ajusta a tu ventana, así que el zoom del navegador no la cambia. En una laptop, dibuja las criaturas y tu mano más grandes.",
+  'settings.matchSize.detail': "La partida se ajusta a tu ventana, así que en una partida las teclas de zoom del navegador (Ctrl o Cmd con + y -) y pellizcar en el trackpad cambian esto. En una laptop, dibuja las criaturas y tu mano más grandes.",
   'settings.matchSize.fit': "Ajustar a la ventana",
   'settings.matchSize.larger': "Cartas más grandes",
   'settings.matchSize.largest': "Cartas aún más grandes",
