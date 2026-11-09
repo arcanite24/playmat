@@ -165,6 +165,7 @@ export function MiniPiles({ player, commanders = [] }: { player: PlayerView } & 
           type="button"
           className={[styles.chip, styles.chipCommander].join(' ')}
           aria-label={`${name} commander ${commander.name} is in the command zone${commander.tax > 0 ? `, costs ${commander.tax} more` : ''}`}
+          title={commander.name}
           onClick={() => openViewer({ title: `${name} command zone`, cards: [commander.card] })}
         >
           <Crown size={16} aria-hidden="true" />

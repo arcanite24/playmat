@@ -1,6 +1,6 @@
 import {
   AlertTriangle, ArrowDownToLine, HelpCircle, Ban, BellRing, BookOpen, Dot, Flag, Flame, Heart, HeartCrack, MessageCircle,
-  MessageSquare, Mountain, Shield, Shuffle, Skull, Sparkles, Swords, Trophy, Archive, Zap, X, type LucideIcon,
+  MessageSquare, Mountain, Pin, PinOff, Shield, Shuffle, Skull, Sparkles, Swords, Trophy, Archive, Zap, X, type LucideIcon,
 } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { DelayedRelay } from '../../core/game/broadcastDelay';
@@ -12,16 +12,20 @@ import {
 } from '../../core/game/gameLog';
 import type { CardView, ChatMessage, GameView } from '../../protocol/generated/views';
 import { api, events } from '../connection';
+import { readJson, writeJson } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { useSocial } from '../stores/social';
 import { IconButton } from '../ui/Button';
 import { PromptText } from '../ui/PromptText';
 import { useEmotes } from './emotes';
+import { matchKeysBlocked } from './keyboard';
 import { useMatchUi } from './matchUi';
 import { usePresence } from './presence';
 import styles from './GameLog.module.css';
 
 const MAX_LINES = 300;
+/** a pinned log stays open while the player plays; kept in this browser */
+const PINNED_KEY = 'playmat.logPinned';
 
 const ICONS: Record<LogIcon, LucideIcon> = {
   turn: Dot,
@@ -154,7 +158,37 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
   const recorded = useMemo(() => (replayLog ? replayEntries(replayLog) : null), [replayLog]);
   const chat = recorded ? { ...live, entries: recorded } : live;
   const [draft, setDraft] = useState('');
+  const [pinned, setPinned] = useState(() => readJson(PINNED_KEY, false));
   const list = useRef<HTMLOListElement>(null);
+  const drawer = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLDivElement>(null);
+  // an open log closes on Escape or a click elsewhere on the table, unless it's pinned (#249)
+  useEffect(() => {
+    if (!open || pinned) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || matchKeysBlocked()) return;
+      // the log takes this Escape: it doesn't also cancel the question on the table
+      event.preventDefault();
+      toggle(false);
+    };
+    const onPointer = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node) || drawer.current?.contains(target) || toggleRef.current?.contains(target)) return;
+      // a card or viewer opened from the log is part of reading it
+      if (target instanceof Element && target.closest('[role="dialog"], [role="alertdialog"], [role="menu"]')) return;
+      toggle(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    document.addEventListener('pointerdown', onPointer, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('pointerdown', onPointer, true);
+    };
+  }, [open, pinned, toggle]);
+  const pin = () => {
+    writeJson(PINNED_KEY, !pinned);
+    setPinned(!pinned);
+  };
   // every card seen this game, so lines about cards that left the table can still show them
   const cards = useRef(new Map<string, CardView>());
   useEffect(() => {
@@ -183,12 +217,12 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
 
   return (
     <>
-      <div className={styles.toggle}>
+      <div ref={toggleRef} className={styles.toggle}>
         <IconButton label={open ? 'Close log and chat' : 'Open log and chat'} icon={<MessageSquare size={22} />} pressed={open} onClick={() => toggle()} />
         {chat.unread > 0 && !open && <span className={styles.badge}>{chat.unread}</span>}
       </div>
       {open && (
-        <aside className={styles.drawer} aria-label="Game log and chat">
+        <aside ref={drawer} className={styles.drawer} aria-label="Game log and chat">
           <header className={styles.head}>
             <h2>Log</h2>
             <div className={styles.headActions}>
@@ -197,6 +231,12 @@ export function GameLog({ gameId, notices, canChat, view, replayLog, delayMs = 0
                   {muted ? 'Unmute opponent' : 'Mute opponent'}
                 </button>
               )}
+              <IconButton
+                label={pinned ? 'Unpin the log: a click elsewhere or Escape closes it' : 'Pin the log open while you play'}
+                icon={pinned ? <PinOff size={20} /> : <Pin size={20} />}
+                pressed={pinned}
+                onClick={pin}
+              />
               <IconButton label="Close log" icon={<X size={20} />} onClick={() => toggle(false)} />
             </div>
           </header>
