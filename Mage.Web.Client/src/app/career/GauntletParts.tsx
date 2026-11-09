@@ -267,6 +267,18 @@ export function RunMap({ run, onFight }: { run: CareerRun; onFight(): void }) {
           </li>
         ))}
       </ol>
+      <details className={styles.mapLegend}>
+        <summary>{t('career.map.legend')}</summary>
+        <ul className={styles.reasons}>
+          {LEGEND.map((type) => (
+            <li key={type}><NodeIcon type={type} size={14} /> <b>{t(NODE_KEYS[type])}:</b> {t(`career.map.about.${type}` as MessageKey)}</li>
+          ))}
+          <li><HeartCrack size={14} aria-hidden="true" /> {t('career.map.about.wounds', { life: run.woundLife ?? 2 })}</li>
+        </ul>
+      </details>
     </section>
   );
 }
+
+/** the map's stops, in the order the legend tells them (#203) */
+const LEGEND = ['fight', 'elite', 'shop', 'rest', 'event', 'boss'] as const;

@@ -230,4 +230,53 @@ public class CareerGauntletMapTest {
         assertTrue(gauntlet.plan("Ana").skill >= firstSkill, "endless never gets easier");
         assertEquals(6, gauntlet.state("Ana").run.wins);
     }
+
+    @Test
+    public void eventChoicesSayWhatTheyDo() {
+        // #203: "Heal every wound" with no wounds did nothing and said nothing
+        CareerGauntlet.RunData data = new CareerGauntlet.RunData();
+        CareerGauntlet.EventOption heal = new CareerGauntlet.EventOption();
+        heal.heal = 99;
+        assertTrue(gauntlet.eventText(data, heal).contains("no wounds"), gauntlet.eventText(data, heal));
+        data.wounds = 2;
+        assertTrue(gauntlet.eventText(data, heal).contains("all 2"), gauntlet.eventText(data, heal));
+
+        CareerGauntlet.EventOption buy = new CareerGauntlet.EventOption();
+        buy.coins = -20;
+        buy.relic = true;
+        String text = gauntlet.eventText(data, buy);
+        assertTrue(text.contains("Costs 20 run coins") && text.contains("relic"), text);
+
+        CareerGauntlet.EventOption pass = new CareerGauntlet.EventOption();
+        assertTrue(gauntlet.eventText(data, pass).contains("Nothing happens"));
+
+        for (CareerGauntlet.Event event : gauntlet.rules().events) {
+            for (CareerGauntlet.EventOption choice : event.options) {
+                assertFalse(gauntlet.eventText(data, choice).isEmpty(), event.id + "/" + choice.id);
+            }
+        }
+    }
+
+    @Test
+    public void bossRushCountsToTheRosterAndEndsAfterItsLastBoss() throws Exception {
+        // #207: the run said "9 of 8 wins" and went on; it runs the whole roster, and says so
+        int roster = CareerGauntlet.rosterOrder().size();
+        CareerGauntlet.CareerRun rush = takeFirst(gauntlet.start("Ana", options("bossrush", null, 0)));
+        assertEquals(roster, rush.maxWins, "boss rush counts to the roster, not the pay table");
+        for (int i = 0; i < roster; i++) {
+            CareerGauntlet.CareerRun now = gauntlet.state("Ana").run;
+            assertNotNull(now, "still on after " + i + " wins");
+            assertTrue(now.wins < now.maxWins, "never past its own end");
+            play(rush.id, true);
+        }
+        assertNull(gauntlet.state("Ana").run, "the last boss ends the run");
+        CareerGauntlet.CareerRun done = gauntlet.state("Ana").recent.get(0);
+        assertEquals("won", done.state);
+        assertEquals(roster, done.wins);
+        assertNull(done.next);
+        assertThrows(CareerService.CareerException.class, () -> gauntlet.plan("Ana"), "nothing more to play");
+
+        CareerGauntlet.CareerRun map = gauntlet.start("Ana", options("map", null, 0));
+        assertEquals(gauntlet.rules().maxWins, map.maxWins, "the other modes keep the pay table's count");
+    }
 }
