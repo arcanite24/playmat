@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { GameView } from '../../protocol/generated/views';
-import { askedAboutCards, cleanRevealTitle, revealGroups, revealLabel, revealSeat } from './reveals';
+import { askedAboutCards, cleanRevealTitle, NO_REVEALS, rememberReveals, revealGroups, revealLabel, revealSeat } from './reveals';
 
 const view: GameView = {
   myPlayerId: 'me',
@@ -69,13 +69,44 @@ describe('askedAboutCards', () => {
   const ask = (secondMessage?: string) => ({ kind: 'ask', options: secondMessage ? { secondMessage } : {} });
 
   test('finds the cards the source of the question looked at', () => {
-    const group = askedAboutCards(ask("<font color='#ff0'>Elvish Rejuvenator [1a2]</font>"), view);
+    const group = askedAboutCards(ask("<font color='#ff0'>Elvish Rejuvenator [1a2]</font>"), revealGroups(view));
     expect(group?.cards.map((card) => card.id)).toEqual(['f', 'c']);
   });
 
   test('nothing for other questions, or a source that looked at nothing', () => {
-    expect(askedAboutCards(ask('Llanowar Elves [777]'), view)).toBeNull();
-    expect(askedAboutCards(ask(), view)).toBeNull();
-    expect(askedAboutCards({ kind: 'target', options: { secondMessage: 'Elvish Rejuvenator [1a2]' } }, view)).toBeNull();
+    expect(askedAboutCards(ask('Llanowar Elves [777]'), revealGroups(view))).toBeNull();
+    expect(askedAboutCards(ask(), revealGroups(view))).toBeNull();
+    expect(askedAboutCards({ kind: 'target', options: { secondMessage: 'Elvish Rejuvenator [1a2]' } }, revealGroups(view))).toBeNull();
+  });
+});
+
+describe('rememberReveals', () => {
+  // Arachne, Psionic Weaver: the update right after the look lists the opponent's hand; the question that follows
+  // ("choose a card type") and every later view come without it
+  const looked = {
+    turn: 3,
+    lookedAt: [{ name: 'Arachne, Psionic Weaver [4b1]', cards: { h1: { id: 'h1', expansionSetCode: 'M21', cardNumber: '12' } } }],
+  } as unknown as GameView;
+  const after = { turn: 3 } as GameView;
+
+  test('a look stays for the rest of the turn after the server stops listing it', () => {
+    const memory = rememberReveals(rememberReveals(NO_REVEALS, looked), after);
+    expect(memory.groups.map((group) => group.title)).toEqual(['Arachne, Psionic Weaver']);
+    expect(memory.groups[0].cards.map((card) => card.id)).toEqual(['h1']);
+  });
+
+  test('views without reveals keep the same memory', () => {
+    const memory = rememberReveals(NO_REVEALS, looked);
+    expect(rememberReveals(memory, after)).toBe(memory);
+  });
+
+  test('a new turn forgets them', () => {
+    const memory = rememberReveals(rememberReveals(NO_REVEALS, looked), { turn: 4 } as GameView);
+    expect(memory.groups).toEqual([]);
+  });
+
+  test('a reveal listed again moves to the end, once', () => {
+    const memory = rememberReveals(rememberReveals(rememberReveals(NO_REVEALS, looked), { ...view, turn: 3 }), looked);
+    expect(memory.groups.map((group) => group.title)).toEqual(['Duress', 'Opt', 'Arachne, Psionic Weaver']);
   });
 });

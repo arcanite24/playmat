@@ -251,6 +251,13 @@ public class GameSessionPlayer extends GameSessionWatcher {
         Player player = sourceGame.getPlayer(playerId); // null for watcher
         Player priorityPlayer = sourceGame.getPlayer(sourceGame.getPriorityPlayerId());
         Player controllingPlayer = priorityPlayer == null ? null : sourceGame.getPlayer(priorityPlayer.getTurnControlledBy());
+        // a player asked to pay mana without holding priority (an attack tax like Propaganda's during declare
+        // attackers, a cost an effect asks for) needs their own sources listed: the priority player's say nothing
+        if (player != null && player != priorityPlayer && player.isInPayManaMode()
+                && player.getId().equals(player.getTurnControlledBy())) {
+            priorityPlayer = player;
+            controllingPlayer = player;
+        }
         if (controllingPlayer != null && player == controllingPlayer) {
             String key = session == null ? null : GameChangeKey.of(sourceGame) + '|' + priorityPlayer.getId();
             if (key != null && key.equals(session.playableKey)) {

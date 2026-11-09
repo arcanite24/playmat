@@ -96,6 +96,7 @@ import { PetSpot } from '../pets/PetSpot';
 import { SpectatorBar, WatcherCount } from './SpectatorBar';
 import { useWatchers } from './useWatchers';
 import { Reveals } from './Reveals';
+import { useReveals } from './useReveals';
 import { StackZone } from './StackZone';
 import { Stage } from './Stage';
 import { useRightEdge } from './useRightEdge';
@@ -166,6 +167,7 @@ export interface MatchStageProps {
 export function MatchStage({ session, state, replayLog, onLeave }: MatchStageProps) {
   const { view, interaction, playerId, mode, awaitingServer, prediction } = state;
   const revealedHands = useRevealedHands(view, mode !== 'replay');
+  const reveals = useReveals(view, mode !== 'replay');
   const t = useT();
   const navigate = useNavigate();
   const animations = useSettings((settings) => settings.settings.animations);
@@ -435,7 +437,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     return defenders ? askedAttacker(view, myId, lastAttacker)?.name ?? null : null;
   }, [prompt, defenders, view, myId, lastAttacker]);
   // a yes/no question about cards an effect just looked at ("you may put a land from among them..."): show them
-  const askCards = useMemo(() => (canAct ? askedAboutCards(prompt, view)?.cards ?? null : null), [canAct, prompt, view]);
+  const askCards = useMemo(() => (canAct ? askedAboutCards(prompt, reveals)?.cards ?? null : null), [canAct, prompt, reveals]);
   // announcing X: what the player could pay, when the server sets no limit
   const announceLimit = useMemo(() => (prompt?.kind === 'amount' ? xLimit(prompt, view, myId) : null), [prompt, view, myId]);
   // a concession takes effect when the player holding priority passes: name them while it is pending
@@ -611,7 +613,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
               </>
             )}
 
-            <Reveals view={view} myPlayerId={myId} opponentIds={opponentIds} autoDismiss={autoDismissReveals} />
+            <Reveals groups={reveals} myPlayerId={myId} opponentIds={opponentIds} autoDismiss={autoDismissReveals} />
             <StackZone items={stack} clickable={clickable} selected={interaction.selected} sleeveOf={sleeveOf} onClick={onClick} originOf={originOf} />
             <PhaseLadder
               step={view?.step}
