@@ -1,5 +1,6 @@
 import { createApi } from '../../protocol/generated/api';
 import type { DeckCardLists, TableClientMessage, UserData } from '../../protocol/generated/views';
+import type { WebMatchOptions } from '../../protocol/options';
 import { RpcClient } from '../rpc/RpcClient';
 import { EventBus } from '../rpc/EventBus';
 import { GameSession, type GameSessionState } from '../game/gameSession';
@@ -60,6 +61,8 @@ export interface BotGameOptions {
   holdUntil?: number;
   /** fail when the bot has nothing to answer, or the server hasn't answered, for this long (a locked game) */
   stuckMs?: number;
+  /** more table options (a priority timer…) */
+  table?: Partial<WebMatchOptions>;
 }
 
 export interface BotGameStats {
@@ -93,6 +96,7 @@ export async function playBotGame(options: BotGameOptions): Promise<BotGameStats
       deckType: 'Constructed - Freeform',
       winsNeeded: 1,
       playerTypes: ['HUMAN', 'COMPUTER_MAD'],
+      ...options.table,
     });
     if (!table.tableId) throw new Error('no table');
     if (!await api.roomJoinTable(roomId, table.tableId, options.userName, 'HUMAN', 1, playDeck)) throw new Error('seat refused');

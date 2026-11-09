@@ -3,7 +3,7 @@
 //! one it can send back.
 
 use playmat_ai::duel::Deck;
-use playmat_host::{Call, Event, HostedGame, SeatStart, Start};
+use playmat_host::{Call, Event, HostedGame, SeatStart, Start, Timer};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -40,6 +40,8 @@ struct Bot {
     tried: HashSet<String>,
     turn: u64,
     concede_at: u64,
+    /// never answers at priority (the game's priority timer runs out)
+    silent: bool,
 }
 
 impl Bot {
@@ -60,6 +62,7 @@ impl Bot {
                 let t: Vec<&str> = d["targets"].as_array()?.iter().filter_map(Value::as_str).collect();
                 Call::Uuid(t.first().map(|s| s.to_string()))
             }
+            "GAME_SELECT" if self.silent => return None,
             "GAME_SELECT" => {
                 let options = &d["options"];
                 if options.get("possibleAttackers").is_some() || options.get("possibleBlockers").is_some() {
@@ -103,6 +106,17 @@ impl Bot {
 }
 
 fn play(human_deck: &Deck, ai_deck: &Deck, seed: i64, concede_at: u64) -> (playmat_host::Ended, Vec<Event>) {
+    play_timed(human_deck, ai_deck, seed, concede_at, Timer::default(), false)
+}
+
+fn play_timed(
+    human_deck: &Deck,
+    ai_deck: &Deck,
+    seed: i64,
+    concede_at: u64,
+    timer: Timer,
+    silent: bool,
+) -> (playmat_host::Ended, Vec<Event>) {
     let db = Arc::new(playmat_engine::cards());
     let start = Start {
         game_id: format!("game-{seed}"),
@@ -123,10 +137,11 @@ fn play(human_deck: &Deck, ai_deck: &Deck, seed: i64, concede_at: u64) -> (playm
                 user_data: None,
             },
         ],
+        timer,
     };
     let game = HostedGame::start(start, db).unwrap();
     game.call(Call::Join);
-    let mut bot = Bot { tried: HashSet::new(), turn: 0, concede_at };
+    let mut bot = Bot { tried: HashSet::new(), turn: 0, concede_at, silent };
     let mut events = Vec::new();
     loop {
         let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers within a minute");
@@ -169,4 +184,43 @@ fn a_concede_ends_the_game() {
     assert_eq!(ended.reason, "conceded");
     assert_eq!(ended.winner, Some(1));
     assert_eq!(events.last().unwrap().method, "GAME_OVER");
+}
+
+#[test]
+fn the_priority_timer_runs_out() {
+    let timer = Timer { priority_secs: 2, buffer_secs: 1 };
+    let (ended, events) = play_timed(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, u64::MAX, timer, true);
+    assert_eq!(ended.reason, "timed out");
+    // the human lost
+    assert_eq!(ended.winner, Some(1));
+    let over = events.last().unwrap();
+    assert_eq!(over.method, "GAME_OVER");
+    let log: Vec<&str> =
+        events.iter().filter(|e| e.method == "CHATMESSAGE").filter_map(|e| e.data["message"].as_str()).collect();
+    assert!(log.iter().any(|l| l.contains("tester</font> has run out of time, losing the match.")), "{log:?}");
+    // the views carry Java's timer fields: the game's settings, each player's time left and whose clock runs
+    let select = events.iter().find(|e| e.method == "GAME_SELECT").expect("a priority prompt");
+    let view = &select.data["gameView"];
+    assert_eq!(view["priorityTime"], 2);
+    assert_eq!(view["bufferTime"], 1);
+    let me = view["players"].as_array().unwrap().iter().find(|p| p["isHuman"] == true).unwrap();
+    assert!(me["priorityTimeLeftSecs"].as_i64().unwrap() <= 2);
+    assert_eq!(me["bufferTimeLeft"], 1);
+    assert_eq!(me["timerActive"], true);
+    assert!(me["priorityTimeSavedTimeMs"].as_u64().unwrap() > 0);
+    let me =
+        over.data["gameView"]["players"].as_array().unwrap().iter().find(|p| p["isHuman"] == true).unwrap().clone();
+    assert_eq!(me["priorityTimeLeftSecs"], 0);
+}
+
+#[test]
+fn no_timer_views() {
+    let (_, events) = play(&deck("gw-company.txt"), &deck("b-zombies.txt"), 7, 3);
+    let view = &events.iter().find(|e| e.method == "GAME_SELECT").unwrap().data["gameView"];
+    assert_eq!(view["priorityTime"], 0);
+    for p in view["players"].as_array().unwrap() {
+        // Java's Integer.MAX_VALUE: no limit
+        assert_eq!(p["priorityTimeLeftSecs"], i32::MAX as i64);
+        assert_eq!(p["bufferTimeLeft"], 0);
+    }
 }
