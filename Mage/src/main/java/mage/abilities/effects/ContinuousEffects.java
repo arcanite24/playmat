@@ -109,6 +109,32 @@ public class ContinuousEffects implements Serializable {
         return requirementEffects;
     }
 
+    /**
+     * AI helper: whether an active prevention effect would prevent all the damage of this event (e.g. Dovin, Hand of
+     * Control or a Fog). Only checks, applies nothing. Prevention shields of a limited amount don't count, nor do
+     * effects that make damage unpreventable.
+     */
+    public boolean isAllDamagePrevented(GameEvent event, Game game) {
+        if (!event.getFlag()) {
+            return false; // damage can't be prevented
+        }
+        for (PreventionEffect effect : preventionEffects) {
+            if (!(effect instanceof PreventionEffectImpl)
+                    || !((PreventionEffectImpl) effect).preventsAllDamage()
+                    || !effect.checksEventType(event, game)
+                    || (effect.getDuration() == Duration.OneUse && effect.isUsed())) {
+                continue;
+            }
+            for (Ability ability : preventionEffects.getAbility(effect.getId())) {
+                if ((ability.getAbilityType() != AbilityType.STATIC || ability.isInUseableZone(game, null, event))
+                        && effect.applies(event, ability, game)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     public List<ReplacementEffect> getReplacementEffects() {
         return replacementEffects;
     }

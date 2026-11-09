@@ -17,6 +17,7 @@ import mage.counters.CounterType;
 import mage.filter.StaticFilters;
 import mage.game.Game;
 import mage.game.combat.Combat;
+import mage.game.events.DamagePlayerEvent;
 import mage.game.events.GameEvent;
 import mage.game.permanent.Permanent;
 import mage.game.stack.StackAbility;
@@ -1225,6 +1226,22 @@ public class ComputerPlayer6 extends ComputerPlayer {
         return attackersLeft;
     }
 
+    /**
+     * Creatures that can attack the defender, without those whose combat damage would all be prevented (e.g. by
+     * Dovin, Hand of Control): like a 0 power creature, attacking with them only taps them (#199).
+     */
+    private List<Permanent> getUsefulAttackers(Game game, UUID defenderId) {
+        List<Permanent> attackers = super.getAvailableAttackers(defenderId, game);
+        attackers.removeIf(attacker -> isCombatDamagePrevented(game, attacker, defenderId));
+        return attackers;
+    }
+
+    private static boolean isCombatDamagePrevented(Game game, Permanent attacker, UUID defenderId) {
+        DamagePlayerEvent event = new DamagePlayerEvent(defenderId, attacker.getId(), defenderId,
+                Math.max(1, attacker.getPower().getValue()), true, true);
+        return game.getContinuousEffects().isAllDamagePrevented(event, game);
+    }
+
     private List<Permanent> getAttackers(Game game) {
         Set<UUID> attackersUUID = game.getCombat().getAttackers();
         if (attackersUUID.isEmpty()) {
@@ -1263,7 +1280,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                     continue;
                 }
 
-                attackersList = super.getAvailableAttackers(defenderId, game);
+                attackersList = getUsefulAttackers(game, defenderId);
                 if (attackersList.isEmpty()) {
                     continue;
                 }
@@ -1285,7 +1302,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                 if (!defender.isInGame()) {
                     continue;
                 }
-                attackersList = super.getAvailableAttackers(defenderId, game);
+                attackersList = getUsefulAttackers(game, defenderId);
                 if (attackersList.isEmpty()) {
                     continue;
                 }
