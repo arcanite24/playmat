@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import type { CardView } from '../../protocol/generated/views';
 import { isStackAbility } from '../../core/game/cards';
+import { stackSourceId } from '../../core/game/promptSource';
 import { AbilityCard } from '../ui/AbilityCard';
 import { CardFace } from '../ui/CardFace';
 import { zoneKeys } from './boardModel';
@@ -58,6 +59,7 @@ function StackItem({ item, index, total, clickable, selected, sleeve, onClick, o
 }) {
   const ref = useRef<HTMLLIElement>(null);
   const setZoom = useMatchUi((state) => state.setZoom);
+  const setSourceHover = useMatchUi((state) => state.setSourceHover);
   const ability = isStackAbility(item) ? item : null;
   const face = ability?.sourceCard ?? item;
   useFlip(ability ? item.id : (item.cardId ?? item.id), ref, { fallbackOrigin: origin });
@@ -67,8 +69,15 @@ function StackItem({ item, index, total, clickable, selected, sleeve, onClick, o
       ref={ref}
       className={[styles.item, index === 0 ? styles.top : '', clickable ? styles.clickable : '', selected ? styles.selected : ''].join(' ')}
       style={{ zIndex: total - index, ['--i' as string]: index }}
-      onPointerEnter={(event) => setZoom({ card: item, x: event.clientX, y: event.clientY, sleeve })}
-      onPointerLeave={() => setZoom(null)}
+      onPointerEnter={(event) => {
+        setZoom({ card: item, x: event.clientX, y: event.clientY, sleeve });
+        // an ability marks the permanent it comes from: which of two Guiding Hydras it belongs to (#227)
+        setSourceHover(stackSourceId(item));
+      }}
+      onPointerLeave={() => {
+        setZoom(null);
+        setSourceHover(null);
+      }}
       onClick={() => clickable && onClick(item.id!)}
       data-object-id={item.id}
       aria-label={`${ability ? 'Ability of ' : ''}${face.name}${index === 0 ? ', resolves next' : ''}`}

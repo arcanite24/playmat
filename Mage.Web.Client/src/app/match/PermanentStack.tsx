@@ -144,6 +144,8 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
   const isAttacking = attacking.has(id);
   const isBlocking = blocking.has(id);
   const setZoom = useMatchUi((state) => state.setZoom);
+  // the source of a hovered stack ability, or of the question being asked (#227)
+  const isSource = useMatchUi((state) => (state.sourceHover ?? state.promptSource) === id);
   const keywords = useMemo(() => keywordMarks(permanent), [permanent]);
   const effects = useMemo(() => keywordEffects(keywords), [keywords]);
   const motion = useSettings((state) => state.settings.animations);
@@ -218,12 +220,13 @@ function PlacedCard({ permanent, width, sleeve, clickable, selected, attacking, 
         isSelected ? styles.selected : '',
         isAttacking ? styles.attacking : '',
         pending === id ? styles.pending : '',
+        isSource ? styles.source : '',
       ].join(' ')}
       style={style}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       onMouseDown={preventMatchObjectMouseFocus}
-      aria-label={describe(permanent, { tapped, asleep, isAttacking, isBlocking, isSelected, keywords: keywords.map((mark) => (mark.gained ? `${mark.name.toLowerCase()} (gained)` : mark.name.toLowerCase())) }) + (isClickable && targeting && !isSelected ? ', can be targeted' : '')}
+      aria-label={describe(permanent, { tapped, asleep, isAttacking, isBlocking, isSelected, keywords: keywords.map((mark) => (mark.gained ? `${mark.name.toLowerCase()} (gained)` : mark.name.toLowerCase())) }) + (isClickable && targeting && !isSelected ? ', can be targeted' : '') + (isSource ? ', source of the ability' : '')}
       aria-pressed={isClickable ? isSelected : undefined}
       onClick={() => {
         if (suppressClick.current) {

@@ -58,6 +58,7 @@ import { GameLog } from './GameLog';
 import { Hand } from './Hand';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
+import { promptSourceId } from '../../core/game/promptSource';
 import { useGameCues } from './useGameCues';
 import { useWarmImages } from './useWarmImages';
 import { useAutoCrew } from './useAutoCrew';
@@ -194,7 +195,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
   useEffect(() => setCardMotion(animations), [animations]);
   // a new game starts with a clean table
-  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null }), []);
+  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null, sourceHover: null, promptSource: null }), []);
 
   // a click's likely outcome (a land tapped for mana) shows at once; the server's next view replaces it
   const board = useMemo(() => buildBoard(withPrediction(view, prediction), playerId), [view, prediction, playerId]);
@@ -386,6 +387,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   }, [choosingTargets, interaction.selected, stack]);
 
   const prompt = interaction.prompt;
+  // the permanent a question is asked for stays marked while it's open (#227)
+  const promptSource = useMemo(() => (awaitingServer ? null : promptSourceId(prompt)), [awaitingServer, prompt]);
+  useEffect(() => useMatchUi.setState({ promptSource }), [promptSource]);
   const targeting = interaction.mode === 'target' && !awaitingServer;
   // the decision corner names the blocker when the server asks which attacker it blocks
   // while paying: what is still owed, and for what
