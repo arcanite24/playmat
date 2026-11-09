@@ -2,6 +2,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Columns3, Coins, Crown, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMyCardStyles } from '../ui/cardStyles';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { CardView } from '../../protocol/generated/views';
 import { BASIC_FOR, MANA_LETTERS, suggestLands, type ManaLetter } from '../../core/decks/analysis';
@@ -18,6 +19,7 @@ import { Button } from '../ui/Button';
 import { CardFace } from '../ui/CardFace';
 import { ManaCost } from '../ui/ManaCost';
 import { useCardInfo, useCardInfoStore } from './cardInfo';
+import { CardInspect } from './CardInspect';
 import { Collection } from './Collection';
 import { DeckInsights } from './DeckInsights';
 import { SideboardPlansDialog } from './SideboardPlansDialog';
@@ -50,6 +52,8 @@ export interface BinderProps {
   onAdd(card: CardView): void;
   onRemove(card: CardView): void;
   onPreview(card: CardView | null, anchor?: DOMRect): void;
+  /** opens a card up close (#250) */
+  onInspect(card: CardView): void;
 }
 
 /**
@@ -124,6 +128,11 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
   // a phone shows one pane at a time: the binder to pick from, or the deck list (the page's CSS decides)
   const [pane, setPane] = useState<'binder' | 'deck'>('binder');
   const [preview, setPreview] = useState<{ card: CardView; anchor: DOMRect; side: 'auto' | 'left' } | null>(null);
+  const [inspected, setInspected] = useState<CardView | null>(null);
+  const onInspect = useCallback((card: CardView) => {
+    setPreview(null);
+    setInspected(card);
+  }, []);
   const [view, setViewState] = useState<DeckView>(() => readJson<DeckView>(DECK_VIEW_KEY, 'list'));
   const setView = useCallback((next: DeckView) => {
     setViewState(next);
@@ -233,9 +242,9 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
             </div>
           </section>
         ) : mode ? (
-          <mode.Binder format={format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} />
+          <mode.Binder format={format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} onInspect={onInspect} />
         ) : (
-          <Collection format={format === 'Limited' ? '' : format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} />
+          <Collection format={format === 'Limited' ? '' : format} identity={identity} counts={counts} limitOf={limitOf} onAdd={add} onRemove={removeOne} onPreview={onPreview} onInspect={onInspect} />
         )}
       </div>
       <div className={styles.deckPane}>
@@ -263,6 +272,7 @@ export function DeckBuilder({ initial, mode }: { initial: DeckCardLists; mode?: 
         />
       </div>
       {preview && <Preview {...preview} />}
+      <CardInspect card={inspected} onClose={() => setInspected(null)} />
     </div>
   );
 }
@@ -636,13 +646,16 @@ function Preview({ card, anchor, side }: { card: CardView; anchor: DOMRect; side
   const fitsRight = side === 'auto' && anchor.right + gap + span <= deckEdge;
   const left = fitsRight ? anchor.right + gap : Math.max(gap, anchor.left - gap - span);
   const top = Math.max(12, Math.min(window.innerHeight - height - 12, anchor.top + anchor.height / 2 - height / 2));
-  return (
+  // on the page itself: inside Career's screen, whose entrance animation moves it, a fixed box is placed against that
+  // screen rather than the window, and the clamp above pushed the preview off the bottom (#250)
+  return createPortal(
     <div className={styles.preview} style={{ left, top, width: span }} aria-hidden="true">
       <div className={styles.previewFaces}>
         <CardFace card={card} size="large" style={{ width }} />
         {back && <CardFace card={back} face="back" size="normal" style={{ width: width * 0.62 }} />}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

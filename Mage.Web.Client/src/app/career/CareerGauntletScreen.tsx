@@ -193,10 +193,13 @@ function Ladder({ run, rewards }: { run: CareerRun; rewards: CareerRunReward[] }
   const wins = run.wins ?? 0;
   const now = rewardLines(runReward(rewards, wins));
   const next = run.next;
-  const last = run.bosses?.length ?? 8;
   const map = run.mode === 'map';
   const endless = run.mode === 'endless';
+  const rush = run.mode === 'bossrush';
+  // the line's last rung: the classic run's eighth boss, or the end of the boss rush's roster (its line grows as it goes)
+  const last = rush ? run.maxWins ?? 0 : run.bosses?.length ?? 8;
   const boss = next?.type === 'boss' || (!map && !endless && next?.number === last);
+  const top = rewards.reduce((most, reward) => Math.max(most, reward.wins ?? 0), 0);
   const heading = map
     ? t('career.map.title', { wins })
     : endless ? t('career.gauntlet.endlessRun', { wins }) : t('career.gauntlet.run', { wins, max: run.maxWins ?? 8 });
@@ -220,6 +223,7 @@ function Ladder({ run, rewards }: { run: CareerRun; rewards: CareerRunReward[] }
           <header className={styles.panelHead}>
             <h2 id="gauntlet-run" className={styles.panelTitle}>{heading}</h2>
             {now.length > 0 && <p className={styles.small}>{t('career.gauntlet.paysNow', { reward: now.map((line) => t(line.key, line.vars)).join(', ') })}</p>}
+            {rush && top > 0 && (run.maxWins ?? 0) > top && <p className={styles.small}>{t('career.gauntlet.rushCapped', { max: top })}</p>}
           </header>
           <ol className={styles.ladder} aria-label={t('career.gauntlet.ladder')}>
             {(run.bosses ?? []).map((item) => {

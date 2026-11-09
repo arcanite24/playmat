@@ -97,11 +97,16 @@
 }
 
 /* multiplayer: an opponent's zones as one row of counters under their seat */
+/* one row: a long commander name shortens instead of wrapping onto a second row, where it lay over the log button (#249) */
 .mini {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
   max-width: 270px;
+}
+
+.mini > .chip {
+  flex: none;
 }
 
 .chip {
@@ -135,6 +140,20 @@ button.chip:disabled {
 
 .chipCommander {
   max-width: 100%;
+}
+
+.mini > .chipCommander {
+  flex: 0 1 auto;
+  min-width: 64px;
+  overflow: hidden;
+}
+
+.mini .chipName {
+  min-width: 0;
+}
+
+.mini > .chipCommander > svg {
+  flex: none;
 }
 
 .chipName {

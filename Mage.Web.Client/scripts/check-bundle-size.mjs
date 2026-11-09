@@ -116,10 +116,14 @@ import { gzipSync } from 'node:zlib';
 // OIDC sign-in merged onto that 2026-11-08: measured entry 75.5 kB, initial 209.8 kB, app 817.1 kB, inside both raises
 // app raised 2026-11-08 from 818 kB for the match-feel batch (#248 steady hand, #235 multi-mana auto-pay, #227 ability
 // source marks), all in the lazy match chunk: measured 818.4 kB
+// app raised 2026-11-08 from 818 kB for the UI and Gauntlet fixes (#203, #249, #250): the deck builder's card close-up
+// and its magnifier, the log's pin and outside-click close, the Gauntlet map's legend, with their English and Spanish
+// messages; all lazy with their screens. Measured app 820.1 kB
+// both on master together 2026-11-08: the match-feel batch, Match size and the UI and Gauntlet fixes, measured app 821.6 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 820,
+  app: 824,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

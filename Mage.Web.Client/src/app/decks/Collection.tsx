@@ -4,6 +4,7 @@ import type { CardCriteria, CardView } from '../../protocol/generated/views';
 import { api } from '../connection';
 import { CardFace } from '../ui/CardFace';
 import { CardFilterBar } from './CardFilterBar';
+import { InspectButton } from './CardInspect';
 import { useCardInfoStore } from './cardInfo';
 import styles from './DeckBuilder.module.css';
 import { EMPTY_FILTERS, type CardFilters } from './filters';
@@ -47,7 +48,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 /** Every card the format allows, filterable; click a card to add it. */
-export function Collection({ format, identity, counts, limitOf, onAdd, onRemove, onPreview }: {
+export function Collection({ format, identity, counts, limitOf, onAdd, onRemove, onPreview, onInspect }: {
   format: string;
   /** a commander deck's color identity (WUBRG letters): only cards it allows are shown; null shows every color */
   identity: string[] | null;
@@ -57,6 +58,7 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
   onAdd(card: CardView): void;
   onRemove(card: CardView): void;
   onPreview(card: CardView | null, anchor?: DOMRect): void;
+  onInspect(card: CardView): void;
 }) {
   const [filters, setFilters] = useState<CardFilters>(EMPTY_FILTERS);
   const [allSets, setAllSets] = useState(false);
@@ -145,6 +147,7 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
                 onAdd={onAdd}
                 onRemove={onRemove}
                 onPreview={onPreview}
+                onInspect={onInspect}
               />
             ))}
           </div>
@@ -156,36 +159,42 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
   );
 }
 
-const CollectionCard = memo(function CollectionCard({ card, count, limit, onAdd, onRemove, onPreview }: {
+const CollectionCard = memo(function CollectionCard({ card, count, limit, onAdd, onRemove, onPreview, onInspect }: {
   card: CardView;
   count: number;
   limit: number;
   onAdd(card: CardView): void;
   onRemove(card: CardView): void;
   onPreview(card: CardView | null, anchor?: DOMRect): void;
+  onInspect(card: CardView): void;
 }) {
   const full = count >= limit;
   return (
-    <button
-      type="button"
-      className={[styles.tile, full ? styles.tileFull : ''].join(' ')}
-      onClick={() => onAdd(card)}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        if (count > 0) onRemove(card);
-      }}
+    <div
+      className={styles.tileWrap}
       onPointerEnter={(event) => onPreview(card, event.currentTarget.getBoundingClientRect())}
       onPointerLeave={() => onPreview(null)}
-      aria-label={`${card.name}${count > 0 ? `, ${count} in deck` : ''}. Click to add, right-click to remove.`}
     >
-      <CardFace card={card} size="normal" />
-      {count > 0 && (
-        <span className={styles.copies} aria-hidden="true">
-          {Number.isFinite(limit) && limit <= 4
-            ? Array.from({ length: limit }, (_, i) => <i key={i} className={i < count ? styles.copyOn : styles.copyOff} />)
-            : <b>×{count}</b>}
-        </span>
-      )}
-    </button>
+      <button
+        type="button"
+        className={[styles.tile, full ? styles.tileFull : ''].join(' ')}
+        onClick={() => onAdd(card)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          if (count > 0) onRemove(card);
+        }}
+        aria-label={`${card.name}${count > 0 ? `, ${count} in deck` : ''}. Click to add, right-click to remove.`}
+      >
+        <CardFace card={card} size="normal" />
+        {count > 0 && (
+          <span className={styles.copies} aria-hidden="true">
+            {Number.isFinite(limit) && limit <= 4
+              ? Array.from({ length: limit }, (_, i) => <i key={i} className={i < count ? styles.copyOn : styles.copyOff} />)
+              : <b>×{count}</b>}
+          </span>
+        )}
+      </button>
+      <InspectButton card={card} label={`Look at ${card.name ?? 'the card'} up close`} onInspect={onInspect} />
+    </div>
   );
 });

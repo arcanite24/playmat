@@ -972,8 +972,9 @@
   background: transparent;
 }
 
-/* a boss's face on its rung: their card's art, cropped round */
-.rungArt {
+/* a boss's face on its rung: their card's art, cropped round. Scoped to the rung so it outranks CardArt's own
+   full-size .art whichever stylesheet loads last: in a build where Portraits' came later, the face filled the panel (#206) */
+.rung .rungArt {
   flex: none;
   width: 48px;
   height: 48px;
@@ -1761,6 +1762,30 @@
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* what each kind of stop does, folded under the map (#203) */
+.mapLegend {
+  margin-top: var(--space-4);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+.mapLegend summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.mapLegend .reasons {
+  display: grid;
+  gap: 4px;
+  margin-top: var(--space-2);
+  padding-left: 0;
+  list-style: none;
+}
+
+.mapLegend svg {
+  vertical-align: -2px;
 }
 
 .mapRow > ul {

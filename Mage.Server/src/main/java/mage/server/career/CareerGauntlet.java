@@ -235,6 +235,7 @@ public final class CareerGauntlet {
         public String state;
         public int wins;
         public int losses;
+        /** the wins that end the run: the pay table's top, or the whole roster in boss rush */
         public int maxWins;
         public String colors;
         public List<CareerRunCard> deck;
@@ -481,7 +482,6 @@ public final class CareerGauntlet {
         run.state = row.state;
         run.wins = row.wins;
         run.losses = row.losses;
-        run.maxWins = rules.maxWins;
         run.colors = data.colors;
         run.deck = data.deck;
         run.deckSize = data.deck.stream().mapToInt(card -> card.amount).sum();
@@ -489,6 +489,8 @@ public final class CareerGauntlet {
         run.started = row.started;
         run.ended = row.ended;
         run.mode = modeOf(data);
+        // boss rush runs the whole roster, not the pay table's eight: "9 of 8 wins" read as a run that forgot to end (#207)
+        run.maxWins = MODE_BOSS_RUSH.equals(run.mode) ? rosterOrder().size() : rules.maxWins;
         run.variant = data.variant == null ? GauntletPacks.JUMPSTART : data.variant;
         run.seed = data.mode == null ? null : seedCode(data.seed);
         run.ascension = data.ascension;
@@ -1202,7 +1204,7 @@ public final class CareerGauntlet {
                 data.wounds++;
             }
         }
-        if (choice.relic) {
+        if (choice.relic && relicsLeft(data)) {
             data.offer = relicOffer(data, offer.node);
         } else if (choice.bundle) {
             data.offer = bundles(data, offer.node, "event");
@@ -1278,7 +1280,7 @@ public final class CareerGauntlet {
         return offer;
     }
 
-    private static CareerOffer restOffer(RunData data, Node node) {
+    private CareerOffer restOffer(RunData data, Node node) {
         CareerOffer offer = new CareerOffer();
         offer.kind = "rest";
         offer.pick = 1;
@@ -1289,11 +1291,16 @@ public final class CareerGauntlet {
         heal.id = "heal";
         heal.kind = "heal";
         heal.name = data.wounds > 0 ? "Heal every wound" : "Rest";
+        heal.text = data.wounds > 0
+                ? "Your " + (data.wounds == 1 ? "wound costs " : data.wounds + " wounds cost ") + data.wounds * woundLife(data) + " life at the start of each fight; this heals them all."
+                : "Nothing to heal: resting changes nothing.";
         offer.options.add(heal);
         CareerOfferOption train = new CareerOfferOption();
         train.id = "train";
         train.kind = "train";
         train.name = "Train: pick a bundle";
+        int count = runRule(data, "fewerBundles") ? Math.max(1, rules.bundles - 1) : rules.bundles;
+        train.text = "Pick one of " + count + " bundles of " + rules.bundleSize + " cards for your deck.";
         offer.options.add(train);
         return offer;
     }
@@ -1312,9 +1319,58 @@ public final class CareerGauntlet {
             option.id = choice.id;
             option.kind = "choice";
             option.name = choice.label;
+            option.text = eventText(data, choice);
+            if (choice.coins < 0) {
+                // shown as a price, so the choice can't be taken without the coins
+                option.price = -choice.coins;
+            }
             offer.options.add(option);
         }
         return offer;
+    }
+
+    /**
+     * What an event's choice does, in plain words, worked out from the choice itself (#203): a heal with no wound to
+     * heal says it does nothing rather than leave the player wondering.
+     */
+    String eventText(RunData data, EventOption choice) {
+        List<String> parts = new ArrayList<>();
+        int life = woundLife(data);
+        if (choice.coins < 0) {
+            parts.add("Costs " + (-choice.coins) + " run coins.");
+        } else if (choice.coins > 0) {
+            parts.add("Gain " + choice.coins + " run coins.");
+        }
+        if (choice.wound > 0) {
+            parts.add((choice.wound == 1 ? "Take a wound" : "Take " + choice.wound + " wounds")
+                    + ": you start each fight " + (choice.wound * life) + " life down until you heal.");
+        }
+        if (choice.heal > 0) {
+            if (data.wounds <= 0) {
+                parts.add("You have no wounds, so there is nothing to heal.");
+            } else if (choice.heal >= data.wounds) {
+                parts.add(data.wounds == 1 ? "Heals your wound." : "Heals all " + data.wounds + " of your wounds.");
+            } else {
+                parts.add(choice.heal == 1 ? "Heals one of your " + data.wounds + " wounds." : "Heals " + choice.heal + " of your " + data.wounds + " wounds.");
+            }
+        }
+        if (choice.gamble) {
+            parts.add("Even odds: 30 run coins, or a wound (" + life + " life less each fight until you heal).");
+        }
+        if (choice.relic) {
+            parts.add(relicsLeft(data) ? "Then pick one of up to three relics: edges that last the whole run." : "You already have every relic, so there's none to gain.");
+        } else if (choice.bundle) {
+            int count = runRule(data, "fewerBundles") ? Math.max(1, rules.bundles - 1) : rules.bundles;
+            parts.add("Then pick one of " + count + " bundles of " + rules.bundleSize + " cards for your deck.");
+        }
+        if (parts.isEmpty()) {
+            parts.add("Nothing happens; you move on.");
+        }
+        return String.join(" ", parts);
+    }
+
+    private boolean relicsLeft(RunData data) {
+        return rules.relics.stream().anyMatch(relic -> !data.relics.contains(relic.id));
     }
 
     private CareerOffer relicOffer(RunData data, String nodeId) {

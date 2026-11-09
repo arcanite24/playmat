@@ -6,6 +6,7 @@ import type { DeckCardInfo, DeckCardLists } from '../../core/decks/types';
 import { api } from '../connection';
 import { CardFilterBar } from '../decks/CardFilterBar';
 import { useCardInfo } from '../decks/cardInfo';
+import { InspectButton } from '../decks/CardInspect';
 import { entryKey } from '../decks/deckModel';
 import { EMPTY_FILTERS, matchesFilters, type CardFilters } from '../decks/filters';
 import { DeckBuilder, type BinderProps, type BuilderMode } from '../decks/DeckBuilderScreen';
@@ -59,7 +60,7 @@ export function CareerDeckScreen() {
 }
 
 /** The binder: every card the Career owns, one tile per card name. */
-function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview }: BinderProps) {
+function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview, onInspect }: BinderProps) {
   const t = useT();
   const collection = useCareerCollection(true);
   // names and types by default, as this binder always searched
@@ -103,6 +104,7 @@ function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview }: BinderProp
                 onAdd={onAdd}
                 onRemove={onRemove}
                 onPreview={onPreview}
+                onInspect={onInspect}
               />
             ))}
           </div>
@@ -112,33 +114,40 @@ function OwnedBinder({ counts, limitOf, onAdd, onRemove, onPreview }: BinderProp
   );
 }
 
-const BinderCard = memo(function BinderCard({ card, count, limit, onAdd, onRemove, onPreview }: {
+const BinderCard = memo(function BinderCard({ card, count, limit, onAdd, onRemove, onPreview, onInspect }: {
   card: CardView;
   count: number;
   limit: number;
   onAdd(card: CardView): void;
   onRemove(card: CardView): void;
   onPreview(card: CardView | null, anchor?: DOMRect): void;
+  onInspect(card: CardView): void;
 }) {
+  const t = useT();
   return (
-    <button
-      type="button"
-      className={[builder.tile, count >= limit ? builder.tileFull : ''].join(' ')}
-      onClick={() => onAdd(card)}
-      onContextMenu={(event) => {
-        event.preventDefault();
-        if (count > 0) onRemove(card);
-      }}
+    <div
+      className={builder.tileWrap}
       onPointerEnter={(event) => onPreview(card, event.currentTarget.getBoundingClientRect())}
       onPointerLeave={() => onPreview(null)}
-      aria-label={`${card.name}, ${count} / ${limit}`}
     >
-      <CardFace card={card} size="normal" />
-      <span className={builder.copies} aria-hidden="true">
-        {Number.isFinite(limit) && limit <= 4
-          ? Array.from({ length: limit }, (_, i) => <i key={i} className={i < count ? builder.copyOn : builder.copyOff} />)
-          : <b>×{count}</b>}
-      </span>
-    </button>
+      <button
+        type="button"
+        className={[builder.tile, count >= limit ? builder.tileFull : ''].join(' ')}
+        onClick={() => onAdd(card)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          if (count > 0) onRemove(card);
+        }}
+        aria-label={`${card.name}, ${count} / ${limit}`}
+      >
+        <CardFace card={card} size="normal" />
+        <span className={builder.copies} aria-hidden="true">
+          {Number.isFinite(limit) && limit <= 4
+            ? Array.from({ length: limit }, (_, i) => <i key={i} className={i < count ? builder.copyOn : builder.copyOff} />)
+            : <b>×{count}</b>}
+        </span>
+      </button>
+      <InspectButton card={card} label={t('career.deck.inspect', { name: card.name ?? '' })} onInspect={onInspect} />
+    </div>
   );
 });
