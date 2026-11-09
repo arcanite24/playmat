@@ -136,7 +136,12 @@ impl HostedGame {
                             .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
                             .unwrap_or_default();
                         host.over(None, &format!("The game stopped on an error and ends as a draw. ({why})"));
-                        Ended { winner: None, turns: host.game.turn, reason: format!("error: {why}"), ..Ended::default() }
+                        Ended {
+                            winner: None,
+                            turns: host.game.turn,
+                            reason: format!("error: {why}"),
+                            ..Ended::default()
+                        }
                     }
                 }
             })
