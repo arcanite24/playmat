@@ -22,10 +22,8 @@ fn uuid(s: &str) -> bool {
 fn ids_of(e: &Event) -> Vec<String> {
     let d = &e.data;
     let mut out: Vec<String> = Vec::new();
-    for key in ["targets"] {
-        if let Some(a) = d[key].as_array() {
-            out.extend(a.iter().filter_map(|v| v.as_str().map(str::to_string)));
-        }
+    if let Some(a) = d["targets"].as_array() {
+        out.extend(a.iter().filter_map(|v| v.as_str().map(str::to_string)));
     }
     for key in ["possibleAttackers", "possibleBlockers", "possibleTargets"] {
         if let Some(a) = d["options"][key].as_array() {
