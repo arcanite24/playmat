@@ -3,6 +3,7 @@ package mage.player.ai;
 import mage.MageObject;
 import mage.abilities.Ability;
 import mage.abilities.ActivatedAbility;
+import mage.abilities.Mode;
 import mage.abilities.TriggeredAbility;
 import mage.abilities.common.PassAbility;
 import mage.abilities.costs.mana.ManaCost;
@@ -15,6 +16,7 @@ import mage.game.events.GameEvent;
 import mage.game.match.MatchPlayer;
 import mage.game.permanent.Permanent;
 import mage.game.stack.StackAbility;
+import mage.game.stack.StackObject;
 import mage.players.Player;
 import mage.players.net.UserData;
 import mage.target.Target;
@@ -112,6 +114,14 @@ public final class SimulatedPlayer2 extends ComputerPlayer {
                 continue;
             }
             List<Ability> options = game.getPlayer(playerId).getPlayableOptions(ability, game);
+            if (!options.isEmpty() && !game.getStack().isEmpty()) {
+                // never counter (or otherwise hurt) your own spells and abilities: with only those to target, the
+                // ability isn't an option at all (#224)
+                options.removeIf(option -> hurtsOwnStackObject(game, option));
+                if (options.isEmpty()) {
+                    continue;
+                }
+            }
             options = optimizeOptions(game, options, ability);
             if (options.isEmpty()) {
                 allActions.add(ability);
@@ -172,6 +182,29 @@ public final class SimulatedPlayer2 extends ComputerPlayer {
             }
 
         }
+    }
+
+    /**
+     * Whether a mode with only bad effects (counter, bounce, ...) targets a spell or ability this player controls.
+     * Good effects like copy a spell may still target your own.
+     */
+    private boolean hurtsOwnStackObject(Game game, Ability option) {
+        for (UUID modeId : option.getModes().getSelectedModes()) {
+            Mode mode = option.getModes().get(modeId);
+            if (mode == null || mode.getTargets().isEmpty()
+                    || mode.getEffects().stream().anyMatch(effect -> effect.getOutcome().isGood())) {
+                continue;
+            }
+            for (Target target : mode.getTargets()) {
+                for (UUID targetId : target.getTargets()) {
+                    StackObject stackObject = game.getStack().getStackObject(targetId);
+                    if (stackObject != null && playerId.equals(stackObject.getControllerId())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     protected List<Ability> optimizeOptions(Game game, List<Ability> options, Ability ability) {
