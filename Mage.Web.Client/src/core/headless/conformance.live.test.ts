@@ -6,17 +6,23 @@
  *
  * MAGE_CONFORMANCE_REFERENCE_URL: a second server (usually the Java bridge itself) whose answers must have the same
  * shapes, probe by probe. MAGE_ADMIN_PASSWORD: also checks an admin login. MAGE_CONFORMANCE_GAME=0 skips the game.
+ * MAGE_CONFORMANCE_DECK: a deck list file both seats play in the game (the default is the bot's red deck), e.g. a
+ * shadow deck, so the game qualifies for a Rust-hosted game (docs/rust/GameHost.md, step D).
  */
+import { readFileSync } from 'node:fs';
+import { basename } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { createApi } from '../../protocol/generated/api';
 import { RpcClient } from '../rpc/RpcClient';
-import { playBotGame } from './botGame';
+import { deckList, playBotGame } from './botGame';
 import { MALFORMED, PUBLIC_PROBES, RawConnection, replyShape, SESSION_PROBES, type Observation } from './conformance';
 
 const SERVER_URL = process.env.MAGE_SERVER_URL ?? 'ws://127.0.0.1:17172';
 const REFERENCE_URL = process.env.MAGE_CONFORMANCE_REFERENCE_URL ?? '';
 const ADMIN_PASSWORD = process.env.MAGE_ADMIN_PASSWORD ?? '';
 const live = process.env.MAGE_LIVE_SERVER === '1';
+const DECK_FILE = process.env.MAGE_CONFORMANCE_DECK ?? '';
+const DECK = DECK_FILE ? deckList(basename(DECK_FILE), readFileSync(DECK_FILE, 'utf8')) : undefined;
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const userName = (prefix: string) => `${prefix}${Date.now() % 1_000_000}`.slice(0, 14);
 
@@ -128,7 +134,7 @@ describe.skipIf(!live)('wire protocol conformance', () => {
 
   test.skipIf(process.env.MAGE_CONFORMANCE_GAME === '0')('a whole game with state patches, and one without', async () => {
     for (const stateDiffs of [true, false]) {
-      const stats = await playBotGame({ serverUrl: SERVER_URL, userName: userName(stateDiffs ? 'cp' : 'cf'), stateDiffs, maxTurns: 8, timeoutMs: 180_000 });
+      const stats = await playBotGame({ serverUrl: SERVER_URL, userName: userName(stateDiffs ? 'cp' : 'cf'), stateDiffs, maxTurns: 8, timeoutMs: 180_000, deck: DECK, aiDeck: DECK });
       expect(stats.gameOver, `stateDiffs ${stateDiffs}`).toBe(true);
       expect(stats.commands).toBeGreaterThan(5);
     }

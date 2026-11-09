@@ -749,7 +749,10 @@ public class TableController {
                 RustAi.prepare(match, match.getGame(), gameOptions, humans);
             }
             match.getGame().setGameOptions(gameOptions);
-            managerFactory.gameManager().createGameSession(match.getGame(), userPlayerMap, table.getId(), choosingPlayerId, gameOptions);
+            // the Rust host plays it, when it qualifies (docs/rust/GameHost.md); otherwise Java does
+            if (!RustHost.host(managerFactory, table.getId(), match, userPlayerMap, gameOptions)) {
+                managerFactory.gameManager().createGameSession(match.getGame(), userPlayerMap, table.getId(), choosingPlayerId, gameOptions);
+            }
             String creator = null;
             StringBuilder opponent = new StringBuilder();
             for (Entry<UUID, UUID> entry : userPlayerMap.entrySet()) { // do only for no AI players

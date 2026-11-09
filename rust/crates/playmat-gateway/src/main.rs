@@ -6,6 +6,7 @@
 
 mod config;
 mod connection;
+mod host;
 mod metrics;
 mod net;
 mod states;
@@ -31,6 +32,8 @@ pub struct App {
     pub handlers: Arc<dyn Handlers>,
     /// the server has accounts on (serverInfo.accounts), so a logged in user is signed in to one
     pub accounts: AtomicBool,
+    /// the games the Rust host plays (`XMAGE_RUST_HOST`)
+    pub hosts: Arc<host::Hosts>,
 }
 
 #[tokio::main]
@@ -54,7 +57,9 @@ async fn main() {
     // the platform service's calls (phase 2); which of them Rust answers is the routing table's choice
     let platform = playmat_platform::Platform::new(app_catalog(), app_decks().await, app_admin().await);
     tokio::spawn(platform.clone().watch());
+    let hosts = Arc::new(host::Hosts::new(config.rust_host));
     let app = Arc::new(App {
+        hosts,
         config,
         metrics: Metrics::default(),
         handlers: platform.clone(),

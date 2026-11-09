@@ -22,6 +22,8 @@ pub struct Config {
     /// when set, `shadow` routes run Rust only for these users, lower case; everyone else goes to Java
     /// (`XMAGE_SHADOW_USERS`, comma separated)
     pub shadow_users: Option<Vec<String>>,
+    /// games Java hands over are played on the Rust host (`XMAGE_RUST_HOST`, default off; docs/rust/GameHost.md)
+    pub rust_host: bool,
 }
 
 impl Config {
@@ -87,6 +89,7 @@ impl Config {
             max_message_bytes: 4 * 1024 * 1024,
             routes,
             shadow_users: var("XMAGE_SHADOW_USERS").map(|v| names(&v)),
+            rust_host: flag("XMAGE_RUST_HOST", false)?,
         })
     }
 }
@@ -105,6 +108,7 @@ mod tests {
             max_message_bytes: 1,
             routes: RouteTable::default(),
             shadow_users: shadow_users.map(names),
+            rust_host: false,
         }
     }
 

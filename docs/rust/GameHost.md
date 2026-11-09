@@ -1,8 +1,8 @@
 # Rust game host: games played on the Rust engine
 
 Plan, 7 Nov 2026. Next step of migration phases 4 and 6 ([../RustMigration.md](../RustMigration.md)): one-on-one games
-against the AI run on the Rust engine, with no Java game behind them. Status: proposed, waiting on the decisions at the
-end.
+against the AI run on the Rust engine, with no Java game behind them. Status: steps C and D built; step D's gate waits
+on games played by hand ([Step D](#step-d-the-host)).
 
 ## Where it stands
 
@@ -149,6 +149,48 @@ Steps B and C can run side by side: both use the copy production already runs.
 If the host fails mid-game (a panic, a question it can't ask), it ends the game as a draw with a message, and the
 Career pays nothing for it. Handing the game to Java by replaying its decision log would be nicer, but Java doesn't
 always play the same answers the same way twice, so it isn't safe to count on.
+
+## Step D: the host
+
+Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection.rs`), with `RustHost` on the Java side.
+
+- **Start.** Java keeps the table and the match. At `TableController.startGame`, `RustHost.host` decides whether the
+  game qualifies (one win needed, one human against one AI, not Career, not a setup or resume, the human connected
+  through a hosting gateway, every card in the engine, `XMAGE_RUST_HOST_USERS`), and logs why when it doesn't. If it
+  does, Java sends the human's connection `HOST_GAME` (the game id, a token, the seed, each seat's player id, name,
+  deck and, for the human, preferences) instead of making a game session; `START_GAME` still goes to the client.
+- **The gateway** takes `HOST_GAME` (the client never sees it), registers the game and its chat, and starts a
+  `HostedGame` on its own thread. The game's calls go to it, not to Java: `gameJoin`, the resyncs, `matchQuit`,
+  `sendPlayerUUID/String/Boolean/Integer/ManaType`, `sendPlayerAction`, `chatFindByGame`, and the game chat's calls.
+  Its callbacks are numbered after Java's and patched like Java's (`GAME_INIT`, `GAME_UPDATE`, the prompts,
+  `CHATMESSAGE` for the log, `GAME_OVER`). A `gameJoin` from a new connection moves the callbacks there.
+- **Trust.** Java grants the `gameHost` capability only to a connection from a trusted proxy address. The gateway asks
+  for it itself when it connects to Java, and hides it from the client.
+- **Play.** Ids are the decision log's references, mapped to fixed UUIDs per game. The host shuffles, asks for the
+  starting player and mulligans (London), then plays with the engine's rules. The human's seat has the player's stops
+  and F-keys applied as `HumanPlayer` applies them (`skips.rs`); the AI's seat is `playmat_ai::search::Table`. Prompts
+  are the engine's (step C) with fallbacks for the questions step C didn't render (targets, modes, combat damage
+  division, amounts, choices).
+- **End.** The gateway calls Java's `hostGameEnded(gameId, token, winner, turns, reason)` (refused from a client);
+  Java sets each player's result and ends the game on the table as if it had played it. A panic in the host ends the
+  game as a draw. `RustHost.sweep` ends a game whose human has been gone, or connected without a hosting gateway, for
+  35 minutes as their loss; the host itself ends a game as the human's loss after 30 minutes without an answer.
+- **Reconnect.** `User.onReconnect` resends `START_GAME` for the user's hosted games; the client joins again and the
+  gateway re-sends the view and the open question.
+- **A host that lost its game.** The gateway routes a hosted game's join and quit to the host, so one that reaches Java
+  means the host no longer has the game (the gateway restarted). `RustHost.orphaned` ends it there: a join as a draw,
+  a quit as the player's loss.
+- **Trigger order.** The "always first" and "always last" buttons (`TRIGGER_AUTO_ORDER_*`) set an order by rule text,
+  as `HumanPlayer` does; the host then orders those triggers itself and asks only about the rest.
+
+Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI), `rustAi.live.test.ts` (16 games
+against a local server through the gateway), the conformance suite with `MAGE_CONFORMANCE_DECK` set to a deck the
+engine knows, `rustHost.live.test.ts` (a dropped connection and a reconnect), and `rustHostSoak.live.test.ts`: random deck pairs
+from `shadow-decks/`, the app's default settings, and a bot that also mulligans, blocks and takes blocks back, sets
+trigger orders and presses F-keys. It fails a game that locks (no prompt to answer for 20 seconds) or loops (400
+answers in one turn). 150 games across seeds 2, 3 and 11 finished with none locked or looping (8 Nov 2026).
+
+Not there yet: priority timers, the Career's tally (step F), spectators, and best-of-three.
 
 ## Decisions needed
 

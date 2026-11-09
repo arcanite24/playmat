@@ -42,6 +42,15 @@ final class GameApi {
                             return true;
                         }),
 
+                RpcMethod.named("hostGameEnded")
+                        .publicAccess()
+                        .params(gameId(), of("token", STRING), optional("winnerId", STRING), of("turns", INT),
+                                of("reason", STRING))
+                        .doc("The gateway only: a game the Rust host played ended (docs/rust/GameHost.md). The token is "
+                                + "the one the game's HOST_GAME carried. Returns false for a game that isn't hosted.")
+                        .handler(call -> mage.server.RustHost.ended(call.uuid(0), call.string(1), call.optString(2, ""),
+                                call.integer(3), call.string(4))),
+
                 RpcMethod.named("gameResync")
                         .session(1)
                         .params(gameId(), of("sessionId", STRING))

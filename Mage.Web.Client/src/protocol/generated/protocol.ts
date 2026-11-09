@@ -66,6 +66,7 @@ export interface RpcMethods {
   chatFindByTournament: { params: [tournamentId: UUID]; result: UUID | null };
   chatFindByRoom: { params: [roomId: UUID]; result: UUID | null };
   gameJoin: { params: [gameId: UUID, sessionId: string]; result: boolean };
+  hostGameEnded: { params: [gameId: UUID, token: string, winnerId: string | null, turns: number, reason: string]; result: boolean };
   gameResync: { params: [gameId: UUID, sessionId: string]; result: boolean };
   gameStateResync: { params: [gameId: UUID, sessionId: string]; result: boolean };
   matchQuit: { params: [gameId: UUID, sessionId: string]; result: boolean };
@@ -331,6 +332,7 @@ export const RPC_METHODS: { readonly [M in RpcMethodName]: { readonly access: Rp
   chatFindByTournament: { access: 'session', sessionParam: -1 },
   chatFindByRoom: { access: 'session', sessionParam: -1 },
   gameJoin: { access: 'session', sessionParam: 1 },
+  hostGameEnded: { access: 'public', sessionParam: -1 },
   gameResync: { access: 'session', sessionParam: 1 },
   gameStateResync: { access: 'session', sessionParam: 1 },
   matchQuit: { access: 'session', sessionParam: 1 },
@@ -562,6 +564,7 @@ export interface CallbackPayloads {
   USER_REQUEST_DIALOG: UserRequestMessage;
   GAME_REDRAW_GUI: null;
   START_GAME: TableClientMessage;
+  HOST_GAME: unknown;
   GAME_INIT: GameView;
   GAME_UPDATE_AND_INFORM: GameClientMessage;
   GAME_INFORM_PERSONAL: GameClientMessage;
@@ -615,6 +618,7 @@ export const CALLBACK_DELIVERY: { readonly [M in CallbackMethodName]: CallbackDe
   USER_REQUEST_DIALOG: 'DIALOG',
   GAME_REDRAW_GUI: 'CLIENT_SIDE_EVENT',
   START_GAME: 'TABLE_CHANGE',
+  HOST_GAME: 'TABLE_CHANGE',
   GAME_INIT: 'TABLE_CHANGE',
   GAME_UPDATE_AND_INFORM: 'UPDATE',
   GAME_INFORM_PERSONAL: 'MESSAGE',

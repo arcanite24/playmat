@@ -21,12 +21,21 @@ pub enum Query {
     /// PICK_TARGET for a discard to hand size, or another choice of cards
     Cards { objs: Vec<ObjId>, required: bool },
     /// MULTI_AMOUNT: one amount per item (combat damage among blockers), each within its range, summing to between
-    /// `min` and `max`; answered as a string of space-separated numbers
-    MultiAmount { defaults: Vec<i32>, ranges: Vec<(i32, i32)>, min: i32, max: i32 },
+    /// `min` and `max`; answered as a string of space-separated numbers. For combat damage, `source` is the creature
+    /// dealing it and `items` the creatures it's divided among, one per amount; otherwise both are empty.
+    MultiAmount {
+        defaults: Vec<i32>,
+        ranges: Vec<(i32, i32)>,
+        min: i32,
+        max: i32,
+        source: Option<ObjId>,
+        items: Vec<ObjId>,
+    },
     /// CHOOSE_ABILITY: which of a permanent's abilities (by index) to activate
     ChooseAbility { source: ObjId, abilities: Vec<usize> },
-    /// PICK_ABILITY: which of the player's `count` waiting triggers goes on the stack next
-    PickTrigger { count: usize },
+    /// PICK_ABILITY: which of the player's `count` waiting triggers goes on the stack next; `triggers` names each, in
+    /// the same order: its source and its rule text
+    PickTrigger { count: usize, triggers: Vec<(ObjId, String)> },
     /// ASK: yes or no
     YesNo { message: String },
     /// CHOOSE_MODE: one of a modal spell's modes (by index)

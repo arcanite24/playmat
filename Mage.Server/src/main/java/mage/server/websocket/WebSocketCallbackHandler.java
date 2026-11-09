@@ -79,6 +79,18 @@ public class WebSocketCallbackHandler implements ClientChannel {
         this.sender = sender;
     }
 
+    /** whether this connection's gateway hosts games (it asked, from a trusted address) */
+    private volatile java.util.function.BooleanSupplier hostsGames = () -> false;
+
+    void setHostsGames(java.util.function.BooleanSupplier hostsGames) {
+        this.hostsGames = hostsGames;
+    }
+
+    @Override
+    public boolean hostsGames() {
+        return hostsGames.getAsBoolean();
+    }
+
     /**
      * The player answered (or passed): the question is no longer open.
      */

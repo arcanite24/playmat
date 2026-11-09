@@ -58,6 +58,8 @@ services:
       # rust: the Rust AI plays the AI's seat for XMAGE_RUST_AI_USERS (docs/rust/Ai.md); XMAGE_ENGINE=java turns it off
       XMAGE_AI_BACKEND: ${XMAGE_AI_BACKEND:-java}
       XMAGE_RUST_AI_USERS: ${XMAGE_RUST_AI_USERS:-}
+      # the Rust engine hosts these users' qualifying AI duels, through the gateway (docs/rust/GameHost.md, step D)
+      XMAGE_RUST_HOST_USERS: ${XMAGE_RUST_HOST_USERS:-}
       XMAGE_ENGINE: ${XMAGE_ENGINE:-}
       # where the gateway sends each group of calls: java (default), shadow or rust (ops/web/README.md "Rust gateway")
       XMAGE_ROUTE_DEFAULT: ${XMAGE_ROUTE_DEFAULT:-}

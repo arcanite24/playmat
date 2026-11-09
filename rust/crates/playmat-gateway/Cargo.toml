@@ -14,6 +14,8 @@ path = "src/main.rs"
 playmat-protocol = { path = "../playmat-protocol" }
 playmat-statediff = { path = "../playmat-statediff" }
 playmat-platform = { path = "../playmat-platform" }
+playmat-engine = { path = "../playmat-engine" }
+playmat-host = { path = "../playmat-host" }
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

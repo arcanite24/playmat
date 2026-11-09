@@ -19,6 +19,14 @@ export function deck(name: string, cards: [number, string][]): DeckCardLists {
   };
 }
 
+/** A deck from a plain list, one "4 Card Name" per line (the shadow decks' format) */
+export function deckList(name: string, text: string): DeckCardLists {
+  return deck(name, text.split(/\r?\n/).flatMap((line): [number, string][] => {
+    const m = /^(\d+)\s+(.+)$/.exec(line.trim());
+    return m ? [[Number(m[1]), m[2]]] : [];
+  }));
+}
+
 export const RED_AGGRO = deck('Headless Red', [
   [22, 'Mountain'],
   [4, 'Raging Goblin'],
@@ -50,6 +58,8 @@ export interface BotGameOptions {
   /** stop answering after this turn and leave the game open until `holdUntil` (epoch ms), then concede; perf runs use it to measure held games */
   holdAfterTurn?: number;
   holdUntil?: number;
+  /** fail when the bot has nothing to answer, or the server hasn't answered, for this long (a locked game) */
+  stuckMs?: number;
 }
 
 export interface BotGameStats {
@@ -103,16 +113,41 @@ export async function playBotGame(options: BotGameOptions): Promise<BotGameStats
       const unaffordable = new Set<string>();
       let lastCast: string | null = null;
       let lastPay: { headline: string; id: string } | null = null;
+      let lastMode = '';
       let skipTurn = -1;
+      // a prompt the bot can't answer, or an answer the server never takes up: the game is locked
+      let stuck: ReturnType<typeof setTimeout> | null = null;
+      let stuckKey = '';
+      const watch = (key: string | null) => {
+        if (!options.stuckMs || key === stuckKey) return;
+        stuckKey = key ?? '';
+        if (stuck) clearTimeout(stuck);
+        stuck = null;
+        if (!key) return;
+        stuck = setTimeout(() => {
+          const s = session.getState();
+          clearTimeout(deadline);
+          reject(new Error(`Game locked (${key}): mode ${s.interaction.mode}, "${s.interaction.headline}", prompt ${s.prompt?.kind}, `
+            + `${s.interaction.clickable.size} clickable, main ${JSON.stringify(s.interaction.mainButton?.label ?? null)}, `
+            + `turn ${s.view?.turn} ${s.view?.step}, awaiting ${s.awaitingServer}`));
+        }, options.stuckMs);
+      };
+      // the last answers, and how many this turn: a game that answers without end in one turn is looping
+      const trail: string[] = [];
+      let turnAnswers = 0;
+      let answersTurn = -1;
       const step = () => {
         const state = session.getState();
+        if (state.awaitingServer) watch('no answer from the server');
         stats.maxTurn = Math.max(stats.maxTurn, state.view?.turn ?? 0);
         if (state.gameOver) {
           clearTimeout(deadline);
+          if (stuck) clearTimeout(stuck);
           resolve();
           return;
         }
         if (busy || state.awaitingServer) return;
+        if (state.interaction.mode === 'waiting') watch(null);
         if (options.holdAfterTurn !== undefined && stats.maxTurn > options.holdAfterTurn && state.interaction.mode === 'priority') {
           if (Date.now() < (options.holdUntil ?? 0)) {
             setTimeout(step, 1000);
@@ -134,13 +169,33 @@ export async function playBotGame(options: BotGameOptions): Promise<BotGameStats
         }
         // the same payment prompt after clicking a source: that source paid nothing, so don't click it again
         if (state.interaction.mode === 'payMana' && lastPay && lastPay.headline === state.interaction.headline) unaffordable.add(lastPay.id);
+        // back at priority after paying, the spell still in hand: the cast rolled back (e.g. a Treasure paid the mana
+        // and left no artifact to sacrifice), so it can't be cast this turn
+        if (state.interaction.mode === 'priority' && lastMode === 'payMana' && lastCast && state.view?.myHand?.[lastCast]) unaffordable.add(lastCast);
+        lastMode = state.interaction.mode;
         const command = options.intercept?.(state) ?? chooseBotCommand(state.view, state.interaction, unaffordable);
         lastPay = state.interaction.mode === 'payMana' && command?.type === 'uuid' && command.id
           ? { headline: state.interaction.headline, id: command.id }
           : null;
         if (state.interaction.mode === 'payMana' && command?.type === 'boolean' && lastCast) unaffordable.add(lastCast);
         if (state.interaction.mode === 'priority' && command?.type === 'uuid' && command.id) lastCast = command.id;
-        if (!command) return;
+        if (!command) {
+          if (state.interaction.mode !== 'waiting') watch(`nothing to answer: ${state.interaction.mode} ${state.interaction.headline}`);
+          return;
+        }
+        watch(null);
+        if ((state.view?.turn ?? 0) !== answersTurn) {
+          answersTurn = state.view?.turn ?? 0;
+          turnAnswers = 0;
+        }
+        trail.push(`${state.interaction.mode} "${state.interaction.headline}" -> ${JSON.stringify(command)}`);
+        if (trail.length > 12) trail.shift();
+        if (options.stuckMs && ++turnAnswers > 400) {
+          clearTimeout(deadline);
+          if (stuck) clearTimeout(stuck);
+          reject(new Error(`Game loops: ${turnAnswers} answers in turn ${answersTurn}; the last:\n  ${trail.join('\n  ')}`));
+          return;
+        }
         if (state.interaction.mode === 'priority' && command.type === 'uuid') {
           const card = state.view?.myHand?.[command.id ?? ''];
           if (card?.cardTypes?.includes('LAND')) stats.landsPlayed++;

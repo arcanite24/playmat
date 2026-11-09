@@ -1218,6 +1218,8 @@ dependencies = [
  "bytes",
  "futures-util",
  "http",
+ "playmat-engine",
+ "playmat-host",
  "playmat-platform",
  "playmat-protocol",
  "playmat-statediff",
@@ -1228,6 +1230,16 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "yawc",
+]
+
+[[package]]
+name = "playmat-host"
+version = "0.1.0"
+dependencies = [
+ "playmat-ai",
+ "playmat-engine",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

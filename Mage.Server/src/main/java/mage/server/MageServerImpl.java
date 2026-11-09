@@ -574,7 +574,9 @@ public class MageServerImpl implements MageServer {
         execute("joinGame", sessionId, () -> {
             managerFactory.sessionManager().getSession(sessionId).ifPresent(session -> {
                 UUID userId = session.getUserId();
-                managerFactory.gameManager().joinGame(gameId, userId);
+                if (!RustHost.orphaned(gameId, userId, false)) {
+                    managerFactory.gameManager().joinGame(gameId, userId);
+                }
             });
         });
     }
@@ -717,7 +719,9 @@ public class MageServerImpl implements MageServer {
                         () -> {
                             managerFactory.sessionManager().getSession(sessionId).ifPresent(session -> {
                                 UUID userId = session.getUserId();
-                                managerFactory.gameManager().quitMatch(gameId, userId);
+                                if (!RustHost.orphaned(gameId, userId, true)) {
+                                    managerFactory.gameManager().quitMatch(gameId, userId);
+                                }
                             });
                         }
                 );

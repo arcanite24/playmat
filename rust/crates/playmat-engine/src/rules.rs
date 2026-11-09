@@ -2953,7 +2953,7 @@ fn distribute(
     // `MultiAmountType.prepareDefaultValues`: 1 each, the rest on the first
     let mut defaults = vec![1; n];
     defaults[0] += total - n as i32;
-    multi_amount(game, d, seat, defaults, vec![(1, total); n], total, total)
+    multi_amount(game, d, seat, defaults, vec![(1, total); n], (total, total), (None, Vec::new()))
 }
 
 /// `WardAbility`: the permanents the top of the stack targets whose controller is that object's opponent, each with
@@ -7686,8 +7686,15 @@ fn apply_each_effect(
                 if n == 0 {
                     continue;
                 }
-                let Some(values) = multi_amount(game, d, controller, vec![0; n], vec![(0, *amount); n], 0, *amount)
-                else {
+                let Some(values) = multi_amount(
+                    game,
+                    d,
+                    controller,
+                    vec![0; n],
+                    vec![(0, *amount); n],
+                    (0, *amount),
+                    (None, Vec::new()),
+                ) else {
                     continue;
                 };
                 for (name, v) in names.iter().zip(values) {
@@ -9580,7 +9587,8 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                 }
                 // the player orders their triggers, unless they're all the same (auto-order)
                 let pick = if mine.len() > 1 && !mine.iter().all(|t| same_trigger(game, t, &mine[0])) {
-                    match ask(game, d, seat, &Query::PickTrigger { count: mine.len() }) {
+                    let triggers = mine.iter().map(|t| (t.card, crate::view::item_rule(game, t))).collect();
+                    match ask(game, d, seat, &Query::PickTrigger { count: mine.len(), triggers }) {
                         Answer::Trigger(i) if i < mine.len() => i,
                         Answer::Stop => return,
                         _ => continue,
@@ -10305,7 +10313,10 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         }
         if !o.blocking.is_empty() {
             if game.stack.is_empty() {
-                game.obj_mut(blocker).blocking.clear();
+                // `Combat.removeBlocker`: out of each group it blocked, too (the view's blockers)
+                for a in std::mem::take(&mut game.obj_mut(blocker).blocking) {
+                    game.obj_mut(a).blocked_by.retain(|x| *x != blocker);
+                }
                 game.obj_mut(blocker).blocks = 0;
                 refresh_blocked(game);
             }
@@ -10400,14 +10411,15 @@ fn multi_amount(
     seat: Seat,
     defaults: Vec<i32>,
     ranges: Vec<(i32, i32)>,
-    min: i32,
-    max: i32,
+    (min, max): (i32, i32),
+    about: (Option<ObjId>, Vec<ObjId>),
 ) -> Option<Vec<i32>> {
     let n = defaults.len();
     if n == 0 || (n == 1 && min == max) || ranges.iter().all(|(lo, hi)| lo == hi) {
         return Some(defaults);
     }
-    let q = Query::MultiAmount { defaults, ranges: ranges.clone(), min, max };
+    let (source, items) = about;
+    let q = Query::MultiAmount { defaults, ranges: ranges.clone(), min, max, source, items };
     loop {
         match ask(game, d, seat, &q) {
             Answer::Text(s) => {
@@ -10474,7 +10486,15 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
         let seat = game.obj(a).controller;
         let amounts = if trample {
             if remaining > 0 || blockers.len() > 1 {
-                match multi_amount(game, d, seat, defaults, ranges, damage - remaining, damage) {
+                match multi_amount(
+                    game,
+                    d,
+                    seat,
+                    defaults,
+                    ranges,
+                    (damage - remaining, damage),
+                    (Some(a), blockers.clone()),
+                ) {
                     Some(v) => v,
                     None => return,
                 }
@@ -10488,7 +10508,7 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
                 defaults[0] += remaining;
             }
             if blockers.len() > 1 {
-                match multi_amount(game, d, seat, defaults, ranges, damage, damage) {
+                match multi_amount(game, d, seat, defaults, ranges, (damage, damage), (Some(a), blockers.clone())) {
                     Some(v) => v,
                     None => return,
                 }

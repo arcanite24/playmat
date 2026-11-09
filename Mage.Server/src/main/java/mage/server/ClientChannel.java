@@ -15,6 +15,11 @@ public interface ClientChannel {
      */
     void send(ClientCallback callback) throws Closed;
 
+    /** whether games can be handed to the Rust host on this connection: it comes through the gateway, which hosts them */
+    default boolean hostsGames() {
+        return false;
+    }
+
     final class Closed extends Exception {
 
         public Closed(String message) {
