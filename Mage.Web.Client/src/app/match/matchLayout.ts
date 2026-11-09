@@ -47,7 +47,16 @@ export interface MatchLayout {
   handRaise: number;
   /** the hand keeps this far from the stage's right edge: wide, clear of the decision corner */
   handClearRight: number;
+  /** a hand card's width: HAND_CARD_WIDTH, grown by the "Match size" setting */
+  handCard: number;
 }
+
+/**
+ * Settings, "Match size" (#147): how much bigger than usual the creatures and the hand are drawn, for reading a match
+ * on a laptop screen. The wide layout pays for it with the room above the opponent's lands, so nothing else moves.
+ */
+export type MatchSize = 'fit' | 'larger' | 'largest';
+export const MATCH_SIZE_SCALE: Record<MatchSize, number> = { fit: 1, larger: 1.11, largest: 1.22 };
 
 /** A hand card's width in stage pixels. */
 export const HAND_CARD_WIDTH = 168;
@@ -63,13 +72,15 @@ const HAND_MIN_SPREAD = 36;
  * through a window that fills the room between them, and scrolls. `center` is the window's middle, `view` its width,
  * `width` the whole fan's, `spread` the step between cards.
  */
-export function placeHand(count: number, stageWidth: number, clearLeft = 0, clearRight = 0): { center: number; spread: number; width: number; view: number } {
-  const natural = Math.min(HAND_MAX_SPREAD, HAND_FAN / Math.max(1, count));
+export function placeHand(count: number, stageWidth: number, clearLeft = 0, clearRight = 0, cardWidth = HAND_CARD_WIDTH): { center: number; spread: number; width: number; view: number } {
+  // bigger cards (the "Match size" setting) overlap more instead of fanning wider, so the fan's tilted ends stay clear
+  // of your seat and the decision corner
+  const natural = Math.min(HAND_MAX_SPREAD * (cardWidth / HAND_CARD_WIDTH), HAND_FAN / Math.max(1, count));
   const room = stageWidth - clearLeft - clearRight;
-  const fit = count > 1 ? (room - HAND_CARD_WIDTH) / (count - 1) : natural;
+  const fit = count > 1 ? (room - cardWidth) / (count - 1) : natural;
   const spread = Math.max(HAND_MIN_SPREAD, Math.min(natural, fit));
-  const width = spread * Math.max(0, count - 1) + HAND_CARD_WIDTH;
-  const view = Math.min(width, Math.max(HAND_CARD_WIDTH, room));
+  const width = spread * Math.max(0, count - 1) + cardWidth;
+  const view = Math.min(width, Math.max(cardWidth, room));
   const center = Math.max(clearLeft + view / 2, Math.min(stageWidth / 2, stageWidth - clearRight - view / 2));
   return { center, spread, width, view };
 }
@@ -89,6 +100,13 @@ const SEAT_SPACING = 172;
  */
 const WIDE_EXTRA_FRONT = 0.2;
 const WIDE_EXTRA_BACK = 0.15;
+/**
+ * wide: how far a bigger match size may lift the opponent's rows into the room above their lands (their hidden hand
+ * peeks down to about 50). Both creature rows grow out of it, so a creature grows at most half of it in height:
+ * any more would push your lands down into your seat.
+ */
+const WIDE_TOP_SLACK = 96;
+const WIDE_MAX_FRONT_GROWTH = Math.floor(WIDE_TOP_SLACK / 2 / (88 / 63));
 
 /** The tall layout: margins, the bands above and below the battlefield, and the rows between them. */
 const TALL_MARGIN = 24;
@@ -113,12 +131,12 @@ const cache = new Map<string, MatchLayout>();
  * The layout for a stage size. The same size gives the same objects (rows included), so memoized zones don't
  * re-render because the layout was worked out again.
  */
-export function matchLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 'height'>): MatchLayout {
-  const key = `${stage.layout}:${stage.width}:${stage.height}`;
+export function matchLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 'height'>, size: MatchSize = 'fit'): MatchLayout {
+  const key = `${stage.layout}:${stage.width}:${stage.height}:${size}`;
   let layout = cache.get(key);
   if (!layout) {
     if (cache.size > 16) cache.clear();
-    layout = computeLayout(stage);
+    layout = computeLayout(stage, MATCH_SIZE_SCALE[size] ?? 1);
     const columns = new Map<string, RowsPlacement>();
     const them = layout.them;
     layout.them = (index, count) => {
@@ -135,32 +153,38 @@ export function matchLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 
   return layout;
 }
 
-function computeLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 'height'>): MatchLayout {
+function computeLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 'height'>, sizeScale: number): MatchLayout {
+  // the tall layout has no room to spare: a bigger match size is for desktops and laptops
   if (stage.layout === 'tall') return tallLayout(stage.width, stage.height);
   const fieldWidth = stage.width - FIELD_LEFT - FIELD_RIGHT_MARGIN;
   const extra = Math.max(0, stage.height - STAGE_HEIGHT);
   const half = Math.round(extra / 2);
-  const frontIdeal = Math.round(150 + extra * WIDE_EXTRA_FRONT);
+  const fitFront = Math.round(150 + extra * WIDE_EXTRA_FRONT);
+  const frontIdeal = Math.min(Math.round(fitFront * sizeScale), fitFront + WIDE_MAX_FRONT_GROWTH);
   const backIdeal = Math.round(112 + extra * WIDE_EXTRA_BACK);
-  const frontGrowth = Math.round((frontIdeal - 150) * CARD_RATIO);
+  const frontGrowth = Math.round((fitFront - 150) * CARD_RATIO);
   const backGrowth = Math.round((backIdeal - 112) * CARD_RATIO);
+  // a bigger match size grows each creature row by `grow`, paid for with the room above the opponent's lands: their
+  // rows rise by both rows' growth, the seam by one, and your lands stay where they are
+  const grow = Math.round((frontIdeal - fitFront) * CARD_RATIO);
+  const lift = 2 * grow;
   return {
     tall: false,
     fieldLeft: FIELD_LEFT,
     fieldWidth,
-    me: { left: FIELD_LEFT, width: fieldWidth, frontTop: 556 + half, backTop: 778 + half + frontGrowth, frontIdeal, backIdeal },
+    me: { left: FIELD_LEFT, width: fieldWidth, frontTop: 556 + half - lift + grow, backTop: 778 + half + frontGrowth - lift + 2 * grow, frontIdeal, backIdeal },
     them: (index, count) => {
       const width = fieldWidth / count;
       return {
         left: FIELD_LEFT + index * width,
         width: width - (count > 1 ? 24 : 0),
-        frontTop: (count === 1 ? 330 : 300) + backGrowth,
-        backTop: count === 1 ? 160 : 150,
+        frontTop: (count === 1 ? 330 : 300) + backGrowth - lift,
+        backTop: (count === 1 ? 160 : 150) - lift,
         frontIdeal,
         backIdeal,
       };
     },
-    seam: STAGE_HEIGHT / 2 + half,
+    seam: STAGE_HEIGHT / 2 + half - lift + grow,
     playLine: stage.height - 300,
     myPlate: { left: WIDE_SEAT_MARGIN, bottom: WIDE_SEAT_MARGIN },
     myPiles: { left: 24, top: 600 + half },
@@ -170,6 +194,7 @@ function computeLayout(stage: Pick<StageContextValue, 'layout' | 'width' | 'heig
     stackPoint: { x: stage.width - 341, y: 470 + half },
     handRaise: 0,
     handClearRight: WIDE_CORNER,
+    handCard: Math.round(HAND_CARD_WIDTH * sizeScale),
   };
 }
 
@@ -212,5 +237,6 @@ function tallLayout(width: number, height: number): MatchLayout {
     stackPoint: { x: TALL_MARGIN + 95, y: seam - 180 },
     handRaise,
     handClearRight: 0,
+    handCard: HAND_CARD_WIDTH,
   };
 }

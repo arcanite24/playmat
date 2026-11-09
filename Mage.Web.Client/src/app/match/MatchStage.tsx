@@ -181,6 +181,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const hideHands = useSettings((settings) => settings.settings.hideHands);
   const largeZoom = useSettings((settings) => settings.settings.largeZoom);
   const bigZoom = useSettings((settings) => settings.settings.bigZoom);
+  const matchSize = useSettings((settings) => settings.settings.matchSize);
   useEffect(() => {
     // the session only delays a game being watched; turning the delay off catches up at once
     session.setBroadcastDelay(mode === 'watch' && isBroadcastDelay(broadcastDelay) ? broadcastDelay * 1000 : 0);
@@ -520,7 +521,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     <LandStyleContext.Provider value={landStyleOf}><TokenArtContext.Provider value={tokenArtOf}><CardStyleContext.Provider value={cardStylesOf}><Stage style={matStyle}>
       {(stage) => {
         // the stage widens with the window and the field takes the extra width; a portrait window gets the tall layout
-        const layout = matchLayout(stage);
+        // "Match size" grows the creatures and the hand for a laptop screen (#147)
+        const layout = matchLayout(stage, matchSize);
         return (
           <div className={styles.layout} style={{ ['--seam' as string]: `${layout.seam}px`, ['--hand-raise' as string]: `${layout.handRaise}px` }}>
             {/* an opponent's own cloth dyes their half of the table (B295); several opponents dye their columns */}
@@ -634,6 +636,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onPlay={ignore}
                 playLine={0}
                 libraryOrigin={`library:${board.me.player.playerId}`}
+                cardWidth={layout.handCard}
               />
             )}
             {board.me && !handHidden && mode === 'play' && (
@@ -648,6 +651,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onPlay={onClick}
                 playLine={layout.playLine}
                 libraryOrigin={`library:${board.me.player.playerId}`}
+                cardWidth={layout.handCard}
                 // wide: the fan keeps clear of your seat (it grows sideways with counters) and of the decision corner
                 clearLeft={layout.tall || !plateRight ? 0 : plateRight + HAND_SEAT_GAP + (emotes ? EMOTE_BUTTON_ROOM : 0)}
                 clearRight={layout.handClearRight}

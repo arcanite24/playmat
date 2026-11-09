@@ -37,6 +37,8 @@ export interface HandProps {
   /** stage x the fan keeps right of (your seat), and how far it keeps from the stage's right edge (the decision corner) */
   clearLeft?: number;
   clearRight?: number;
+  /** a card's width in stage pixels: bigger with the "Match size" setting. The same strip of it shows at the bottom edge */
+  cardWidth?: number;
 }
 
 const ZONE_TAG: Record<PlayableZone, string> = { exile: 'From exile', graveyard: 'From graveyard', library: 'From library' };
@@ -50,7 +52,7 @@ const REVEAL_MARGIN = 24;
 const WHEEL_LINE = 40;
 
 /** The player's hand, fanned along the bottom edge. Hover lifts a card; drag it up (or click it) to play it. */
-export function Hand({ cards, choosing = false, clickable, selected, pending = null, sleeve, onPlay, playLine, libraryOrigin, faceDown = false, label = 'Your hand', fromZone, clearLeft = 0, clearRight = 0 }: HandProps) {
+export function Hand({ cards, choosing = false, clickable, selected, pending = null, sleeve, onPlay, playLine, libraryOrigin, faceDown = false, label = 'Your hand', fromZone, clearLeft = 0, clearRight = 0, cardWidth = HAND_CARD_WIDTH }: HandProps) {
   const t = useT();
   const stage = useStage();
   const hints = useKeyboardHints();
@@ -69,7 +71,7 @@ export function Hand({ cards, choosing = false, clickable, selected, pending = n
     return () => window.removeEventListener('keydown', onKey, true);
   }, [cards, clickable, faceDown, pending, onPlay]);
   const count = cards.length;
-  const { center, spread, width, view } = placeHand(count, stage.width, clearLeft, clearRight);
+  const { center, spread, width, view } = placeHand(count, stage.width, clearLeft, clearRight, cardWidth);
   // a hand too big for the room (storm, Commander, a pile castable from exile) scrolls through its window: wheel,
   // a sideways drag or swipe, the arrows at its ends, and keyboard focus all move it
   const maxScroll = Math.max(0, width - view);
@@ -101,7 +103,7 @@ export function Hand({ cards, choosing = false, clickable, selected, pending = n
   function reveal(index: number) {
     const left = index * spread;
     if (left - REVEAL_MARGIN < scroll) scrollTo(left - REVEAL_MARGIN);
-    else if (left + HAND_CARD_WIDTH + REVEAL_MARGIN > scroll + view) scrollTo(left + HAND_CARD_WIDTH + REVEAL_MARGIN - view);
+    else if (left + cardWidth + REVEAL_MARGIN > scroll + view) scrollTo(left + cardWidth + REVEAL_MARGIN - view);
   }
   const keys = useMemo(() => zoneKeys(cards), [cards]);
   const setZoom = useMatchUi((state) => state.setZoom);
@@ -158,7 +160,7 @@ export function Hand({ cards, choosing = false, clickable, selected, pending = n
     <div
       ref={viewport}
       className={[styles.hand, maxScroll > 0 ? styles.scrolls : '', dragging ? styles.holding : ''].join(' ')}
-      style={{ width: view, left: center }}
+      style={{ width: view, left: center, ...(cardWidth !== HAND_CARD_WIDTH ? { ['--hand-card' as string]: `${cardWidth}px` } : {}) }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={endSweep}

@@ -197,6 +197,18 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
           </Row>
           <Row label={t('settings.sortHand')} detail={t('settings.sortHand.detail')}>{toggle('sortHand')}</Row>
           <Row label={t('settings.bigZoom')} detail={t('settings.bigZoom.detail')}>{toggle('bigZoom')}</Row>
+          <Row label={t('settings.matchSize')} detail={t('settings.matchSize.detail')}>
+            <select
+              className={styles.select}
+              value={settings.matchSize}
+              aria-label={t('settings.matchSize')}
+              onChange={(event) => update({ matchSize: event.target.value as PlaySettings['matchSize'] })}
+            >
+              <option value="fit">{t('settings.matchSize.fit')}</option>
+              <option value="larger">{t('settings.matchSize.larger')}</option>
+              <option value="largest">{t('settings.matchSize.largest')}</option>
+            </select>
+          </Row>
           <Row label={t('settings.autoDismissReveals')} detail={t('settings.autoDismissReveals.detail')}>{toggle('autoDismissReveals')}</Row>
           <Row label={t('settings.compactBoard')} detail={t('settings.compactBoard.detail')}>{toggle('compactBoard')}</Row>
           <Row label={t('settings.muteEmotes')} detail={t('settings.muteEmotes.detail')}>{toggle('muteEmotes')}</Row>
