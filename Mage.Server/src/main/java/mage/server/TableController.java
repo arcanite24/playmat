@@ -750,7 +750,7 @@ public class TableController {
             }
             match.getGame().setGameOptions(gameOptions);
             // the Rust host plays it, when it qualifies (docs/rust/GameHost.md); otherwise Java does
-            if (!RustHost.host(managerFactory, table.getId(), match, userPlayerMap, gameOptions)) {
+            if (!RustHost.host(managerFactory, table.getId(), match, userPlayerMap, gameOptions, choosingPlayerId)) {
                 managerFactory.gameManager().createGameSession(match.getGame(), userPlayerMap, table.getId(), choosingPlayerId, gameOptions);
             }
             String creator = null;

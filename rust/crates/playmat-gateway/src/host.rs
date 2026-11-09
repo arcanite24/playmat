@@ -48,12 +48,13 @@ pub struct Hosts {
     ended: Mutex<BTreeMap<&'static str, u64>>,
 }
 
-/// How a hosted game ended, from its reason: `over` (played out), `conceded`, `stopped` (no answer for 30 minutes,
-/// or the player left), `error` (the host stopped on an error, or couldn't start) or `panic`
+/// How a hosted game ended, from its reason: `over` (played out), `conceded` (the game, or the match: `quit`),
+/// `stopped` (no answer for 30 minutes, or the player left), `error` (the host stopped on an error, or couldn't
+/// start) or `panic`
 pub fn end_kind(reason: &str) -> &'static str {
     match reason {
         "over" => "over",
-        "conceded" => "conceded",
+        "conceded" | "quit" => "conceded",
         "stopped" => "stopped",
         r if r.starts_with("error") => "error",
         _ => "panic",
@@ -129,7 +130,9 @@ impl Hosts {
             })
             .unwrap_or_default();
         let players: Vec<String> = seats.iter().map(|s| s.player_id.clone()).collect();
-        let start = Start { game_id: game_id.clone(), seed, seats };
+        // a match's next game: its last loser chooses who plays first
+        let chooser = data["chooser"].as_str().filter(|c| !c.is_empty()).map(str::to_string);
+        let start = Start { game_id: game_id.clone(), seed, seats, chooser };
         // known before the game starts, so its calls (the client joins at once) wait for it
         let chat_id = playmat_host::ids::Ids::new(&game_id, players.clone()).chat();
         let (calls, calls_in) = std::sync::mpsc::channel();
@@ -260,6 +263,7 @@ mod tests {
     #[test]
     fn host_metrics() {
         assert_eq!(end_kind("over"), "over");
+        assert_eq!(end_kind("quit"), "conceded");
         assert_eq!(end_kind("error: no such card"), "error");
         assert_eq!(end_kind("panic: the host's thread"), "panic");
         let hosts = Hosts::default();

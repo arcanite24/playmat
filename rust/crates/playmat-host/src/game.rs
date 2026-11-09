@@ -36,6 +36,8 @@ pub struct Start {
     pub game_id: String,
     pub seed: i64,
     pub seats: Vec<SeatStart>,
+    /// the player id of who chooses who plays first: in a match, the previous game's loser; none for a random seat
+    pub chooser: Option<String>,
 }
 
 /// What a client sends during the game (`GameApi`)
@@ -76,7 +78,8 @@ pub struct Ended {
     /// the winner's seat; none for a draw
     pub winner: Option<Seat>,
     pub turns: u32,
-    /// why, for the server's log: "over", "conceded", "error: …"
+    /// why, for the server's log: "over", "conceded" (the game), "quit" (the match: `matchQuit`, or no answer for
+    /// 30 minutes), "error: …"
     pub reason: String,
 }
 
@@ -178,6 +181,10 @@ struct Host {
     open: Option<Event>,
     log_seen: usize,
     conceded: Option<Seat>,
+    /// the human left the match, not only the game
+    quit: bool,
+    /// who chooses who plays first, when the table says
+    chooser: Option<Seat>,
     /// the last view sent, so a state the client already has isn't sent again
     last_view: Option<Value>,
     /// auto-answers the player asked for (`REQUEST_AUTO_ANSWER_TEXT_*`): the question's text and the answer
@@ -227,6 +234,8 @@ impl Host {
             open: None,
             log_seen: 0,
             conceded: None,
+            quit: false,
+            chooser: start.chooser.as_ref().and_then(|c| start.seats.iter().position(|s| &s.player_id == c)),
             last_view: None,
             auto_answers: Vec::new(),
             order_first: Vec::new(),
@@ -317,13 +326,15 @@ impl Host {
                     self.send("GAME_INIT", &self.game_id.clone(), view);
                     self.log();
                 }
-                Ok(Call::Quit) | Ok(Call::Action(..)) => {
+                Ok(c @ Call::Quit) | Ok(c @ Call::Action(..)) => {
                     self.conceded = Some(self.human);
+                    self.quit = matches!(c, Call::Quit);
                     return false;
                 }
                 Ok(_) => {}
                 Err(_) => {
                     self.conceded = Some(self.human);
+                    self.quit = true;
                     return false;
                 }
             }
@@ -365,6 +376,7 @@ impl Host {
                 Ok(c) => c,
                 Err(RecvTimeoutError::Timeout) | Err(RecvTimeoutError::Disconnected) => {
                     self.conceded = Some(self.human);
+                    self.quit = true;
                     return None;
                 }
             };
@@ -402,6 +414,7 @@ impl Host {
                 }
                 Call::Quit => {
                     self.conceded = Some(self.human);
+                    self.quit = true;
                     return None;
                 }
                 Call::Action(action, data) => match action.as_str() {
@@ -535,7 +548,7 @@ impl Host {
         self.log();
         let (winner, reason) = if let Some(loser) = self.conceded {
             self.inform(format!("<font color='#20B2AA'>{}</font> has conceded.", self.names[loser]));
-            (Some(1 - loser), "conceded".to_string())
+            (Some(1 - loser), if self.quit { "quit" } else { "conceded" }.to_string())
         } else if self.game.over {
             let alive: Vec<Seat> = (0..2).filter(|s| !self.game.player(*s).lost).collect();
             (if alive.len() == 1 { Some(alive[0]) } else { None }, "over".to_string())
@@ -556,9 +569,13 @@ impl Host {
         self.send("GAME_OVER", &self.game_id.clone(), json!({"gameView": view, "message": message}));
     }
 
-    /// `GameImpl.init`: a random player chooses who goes first; the AI always starts itself
+    /// `GameImpl.init`: the table's chooser (a match's last loser), else a random player, chooses who goes first; the
+    /// AI always starts itself
     fn choose_starting_player(&mut self) -> Option<Seat> {
-        let choosing = self.game.rng.next_int_bound(2) as Seat;
+        let choosing = match self.chooser {
+            Some(seat) => seat,
+            None => self.game.rng.next_int_bound(2) as Seat,
+        };
         if choosing == self.ai {
             let line =
                 format!("<font color='#20B2AA'>{}</font> chooses that they take the first turn", self.names[self.ai]);

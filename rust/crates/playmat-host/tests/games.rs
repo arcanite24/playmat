@@ -102,29 +102,11 @@ impl Bot {
     }
 }
 
+const HUMAN: &str = "11111111-1111-4111-8111-111111111111";
+const AI: &str = "22222222-2222-4222-8222-222222222222";
+
 fn play(human_deck: &Deck, ai_deck: &Deck, seed: i64, concede_at: u64) -> (playmat_host::Ended, Vec<Event>) {
-    let db = Arc::new(playmat_engine::cards());
-    let start = Start {
-        game_id: format!("game-{seed}"),
-        seed,
-        seats: vec![
-            SeatStart {
-                player_id: "11111111-1111-4111-8111-111111111111".into(),
-                name: "tester".into(),
-                human: true,
-                deck: human_deck.cards.clone(),
-                user_data: None,
-            },
-            SeatStart {
-                player_id: "22222222-2222-4222-8222-222222222222".into(),
-                name: "Computer".into(),
-                human: false,
-                deck: ai_deck.cards.clone(),
-                user_data: None,
-            },
-        ],
-    };
-    let game = HostedGame::start(start, db).unwrap();
+    let game = HostedGame::start(start(human_deck, ai_deck, seed, None), Arc::new(playmat_engine::cards())).unwrap();
     game.call(Call::Join);
     let mut bot = Bot { tried: HashSet::new(), turn: 0, concede_at };
     let mut events = Vec::new();
@@ -143,6 +125,43 @@ fn play(human_deck: &Deck, ai_deck: &Deck, seed: i64, concede_at: u64) -> (playm
         assert!(events.len() < 50_000, "the game doesn't end");
     }
     (game.join(), events)
+}
+
+fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) -> Start {
+    Start {
+        game_id: format!("game-{seed}"),
+        seed,
+        seats: vec![
+            SeatStart {
+                player_id: HUMAN.into(),
+                name: "tester".into(),
+                human: true,
+                deck: human_deck.cards.clone(),
+                user_data: None,
+            },
+            SeatStart {
+                player_id: AI.into(),
+                name: "Computer".into(),
+                human: false,
+                deck: ai_deck.cards.clone(),
+                user_data: None,
+            },
+        ],
+        chooser: chooser.map(str::to_string),
+    }
+}
+
+/// The game's first question after the join, and the log lines before it
+fn first_question(game: &HostedGame) -> (Event, Vec<String>) {
+    let mut log = Vec::new();
+    loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers within a minute");
+        match e.method.as_str() {
+            "GAME_INIT" | "GAME_UPDATE" => {}
+            "CHATMESSAGE" => log.push(e.data["message"].as_str().unwrap_or("").to_string()),
+            _ => return (e, log),
+        }
+    }
 }
 
 #[test]
@@ -169,4 +188,30 @@ fn a_concede_ends_the_game() {
     assert_eq!(ended.reason, "conceded");
     assert_eq!(ended.winner, Some(1));
     assert_eq!(events.last().unwrap().method, "GAME_OVER");
+}
+
+/// A match's next game: the last game's loser chooses who plays first (`MatchImpl.getChooser`)
+#[test]
+fn the_chooser_picks_who_plays_first() {
+    let (company, zombies) = (deck("gw-company.txt"), deck("b-zombies.txt"));
+    let db = Arc::new(playmat_engine::cards());
+    for seed in 0..3 {
+        // the human lost: they're asked who starts
+        let game = HostedGame::start(start(&company, &zombies, seed, Some(HUMAN)), db.clone()).unwrap();
+        game.call(Call::Join);
+        let (e, _) = first_question(&game);
+        assert_eq!(e.data["options"]["webPrompt"], "startingPlayer", "seed {seed}: {}", e.method);
+        game.call(Call::Quit);
+        let ended = game.join();
+        assert_eq!(ended.reason, "quit");
+        assert_eq!(ended.winner, Some(1));
+        // the AI lost: it takes the first turn, and the human is asked about their hand
+        let game = HostedGame::start(start(&company, &zombies, seed, Some(AI)), db.clone()).unwrap();
+        game.call(Call::Join);
+        let (e, log) = first_question(&game);
+        assert_ne!(e.data["options"]["webPrompt"], "startingPlayer", "seed {seed}");
+        assert!(log.iter().any(|l| l.contains("Computer") && l.contains("first turn")), "seed {seed}: {log:?}");
+        game.call(Call::Action("CONCEDE".into(), None));
+        assert_eq!(game.join().reason, "conceded");
+    }
 }

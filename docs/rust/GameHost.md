@@ -142,7 +142,7 @@ practice tools; puzzle export; replays; spectators; multiplayer and Commander.
 | C. Views | View, prompt and game log rendering, compared in production against Java's ([Views.md](Views.md)) | Zero view, prompt and log differences on a week of real games |
 | D. Human side and host | Skip settings and F-keys, timers, mulligans, concede, reconnect; the host service and the gateway route | `rustAi.live.test.ts` and the conformance suite pass against a Rust-hosted game; the user plays a set of games locally |
 | E. Rollout | `XMAGE_RUST_HOST_USERS` (step D's setting: listed users, or `*`) for listed users, then every AI duel that qualifies | A week for the listed users with no game lost to the host (`playmat_gateway_host_games_ended_total` with `how` `error` or `panic` at 0); then the default |
-| F. Then | Career tally checked, best-of-three games, more of the Pioneer pool, the features left on Java | Per feature |
+| F. Then | Career tally checked, best-of-three games (built, [Matches](#step-d-the-host)), more of the Pioneer pool, the features left on Java | Per feature |
 
 Steps B and C can run side by side: both use the copy production already runs.
 
@@ -155,10 +155,11 @@ always play the same answers the same way twice, so it isn't safe to count on.
 Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection.rs`), with `RustHost` on the Java side.
 
 - **Start.** Java keeps the table and the match. At `TableController.startGame`, `RustHost.host` decides whether the
-  game qualifies (one win needed, one human against one AI, not Career, not a setup or resume, the human connected
-  through a hosting gateway, every card in the engine, `XMAGE_RUST_HOST_USERS`), and logs why when it doesn't. If it
-  does, Java sends the human's connection `HOST_GAME` (the game id, a token, the seed, each seat's player id, name,
-  deck and, for the human, preferences) instead of making a game session; `START_GAME` still goes to the client.
+  game qualifies (one human against one AI, not Career, not a setup or resume, the human connected through a hosting
+  gateway, every card in the engine, `XMAGE_RUST_HOST_USERS`), and logs why when it doesn't. If it does, Java sends
+  the human's connection `HOST_GAME` (the game id, a token, the seed, each seat's player id, name, deck and, for the
+  human, preferences, and in a match's later games the `chooser`) instead of making a game session; `START_GAME`
+  still goes to the client.
 - **The gateway** takes `HOST_GAME` (the client never sees it), registers the game and its chat, and starts a
   `HostedGame` on its own thread. The game's calls go to it, not to Java: `gameJoin`, the resyncs, `matchQuit`,
   `sendPlayerUUID/String/Boolean/Integer/ManaType`, `sendPlayerAction`, `chatFindByGame`, and the game chat's calls.
@@ -172,8 +173,10 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
   are the engine's (step C) with fallbacks for the questions step C didn't render (targets, modes, combat damage
   division, amounts, choices).
 - **End.** The gateway calls Java's `hostGameEnded(gameId, token, winner, turns, reason)` (refused from a client);
-  Java sets each player's result and ends the game on the table as if it had played it. A panic in the host ends the
-  game as a draw. `RustHost.sweep` ends a game whose human has been gone, or connected without a hosting gateway, for
+  Java sets each player's result and ends the game on the table as if it had played it, and sends the client the
+  game's `END_GAME_INFO` (the result and the match's score), as `GameController` does for Java's games. A panic in the
+  host ends the game as a draw. The reason `conceded` ends the game; `quit` (`matchQuit`, or no answer for 30
+  minutes) also marks the player as having left the match, so no next game starts. `RustHost.sweep` ends a game whose human has been gone, or connected without a hosting gateway, for
   35 minutes as their loss; the host itself ends a game as the human's loss after 30 minutes without an answer.
 - **Reconnect.** `User.onReconnect` resends `START_GAME` for the user's hosted games; the client joins again and the
   gateway re-sends the view and the open question.
@@ -183,14 +186,25 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
 - **Trigger order.** The "always first" and "always last" buttons (`TRIGGER_AUTO_ORDER_*`) set an order by rule text,
   as `HumanPlayer` does; the host then orders those triggers itself and asks only about the rest.
 
-Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI), `rustAi.live.test.ts` (16 games
+- **Matches.** A best-of-three is a hosted game at a time. Java's match runs as for its own games: at a game's end
+  `MatchImpl.endGame` counts the win, `TableController` sends `SIDEBOARD` and waits for the deck, then starts the
+  next game, which `RustHost.host` checks and hands to the host again (a deck that now has a card the engine lacks
+  plays that game on Java). The next game's `chooser` is the last game's loser (`MatchImpl.getChooser`): the host asks
+  them who plays first, or, when it's the AI, the AI starts. After a draw nobody has lost, so a random player
+  chooses, as in Java. The match ends at `winsNeeded` wins, or when the player leaves it.
+
+Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI, and the chooser of a match's next
+game), `rustAi.live.test.ts` (16 games
 against a local server through the gateway), the conformance suite with `MAGE_CONFORMANCE_DECK` set to a deck the
 engine knows, `rustHost.live.test.ts` (a dropped connection and a reconnect), and `rustHostSoak.live.test.ts`: random deck pairs
 from `shadow-decks/`, the app's default settings, and a bot that also mulligans, blocks and takes blocks back, sets
-trigger orders and presses F-keys. It fails a game that locks (no prompt to answer for 20 seconds) or loops (400
+trigger orders and presses F-keys. `rustHostMatch.live.test.ts` plays a best-of-three to the end: the end summary
+after each game, sideboarding, and the next game on the host. It fails a game that locks (no prompt to answer for 20 seconds) or loops (400
 answers in one turn). 150 games across seeds 2, 3 and 11 finished with none locked or looping (8 Nov 2026).
 
-Not there yet: priority timers, the Career's tally (step F), spectators, and best-of-three.
+Not there yet: priority timers, the Career's tally (step F), and spectators. Best-of-three games are hosted (step
+F's first part). The end summary's player views come from Java's unplayed copy of the game, so they show no life
+totals or zones from the hosted game; the client shows the result and the score from them.
 
 ## Decisions needed
 
