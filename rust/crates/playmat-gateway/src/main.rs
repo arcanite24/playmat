@@ -229,7 +229,11 @@ async fn health(State(app): State<Arc<App>>) -> Response {
 }
 
 async fn metrics(State(app): State<Arc<App>>) -> Response {
-    ([(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4")], app.metrics.render()).into_response()
+    let mut text = app.metrics.render();
+    if app.hosts.enabled {
+        app.hosts.render(&mut text);
+    }
+    ([(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4")], text).into_response()
 }
 
 /// keeps `accounts` in step with the server (it can change with the admin console's settings)

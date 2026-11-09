@@ -183,7 +183,8 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           whose games it should host (user names separated by commas, or <code>*</code> for everyone), then run
           <code>up -d</code>. It only hosts single one-on-one games against the AI, outside the Career, whose decks it
           knows every card of; other games play on Java as before. These games have no priority timer yet and don't
-          count toward Career quests. <code>XMAGE_ENGINE=java</code> turns it off. Details are in
+          count toward Career quests. <code>XMAGE_ENGINE=java</code> turns it off. The gateway's <code>/metrics</code>
+          counts hosted games and how they ended (<code>playmat_gateway_host_games_ended_total</code>). Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-hosted-games">the README</a>.</p>
         <h3 id="desktop">Can the XMage desktop client connect?</h3>
         <p>No. Playmat servers speak only to the web client (and the Android and desktop apps, which are the web client).

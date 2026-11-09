@@ -7,7 +7,8 @@
 use playmat_engine::card::CardDb;
 use playmat_host::{Call, Event, HostedGame, SeatStart, Start};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::fmt::Write;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, OnceLock};
 use tokio::sync::mpsc::UnboundedSender;
@@ -42,6 +43,21 @@ pub struct Hosts {
     games: Mutex<HashMap<String, Arc<Hosted>>>,
     /// each hosted game's chat id, to its game
     chats: Mutex<HashMap<String, String>>,
+    /// games started, and ended by how (`end_kind`): step E's gate is a week with no `error` or `panic`
+    started: Mutex<u64>,
+    ended: Mutex<BTreeMap<&'static str, u64>>,
+}
+
+/// How a hosted game ended, from its reason: `over` (played out), `conceded`, `stopped` (no answer for 30 minutes,
+/// or the player left), `error` (the host stopped on an error, or couldn't start) or `panic`
+pub fn end_kind(reason: &str) -> &'static str {
+    match reason {
+        "over" => "over",
+        "conceded" => "conceded",
+        "stopped" => "stopped",
+        r if r.starts_with("error") => "error",
+        _ => "panic",
+    }
 }
 
 fn db() -> Arc<CardDb> {
@@ -68,6 +84,24 @@ impl Hosts {
 
     pub fn count(&self) -> usize {
         self.games.lock().unwrap().len()
+    }
+
+    fn ended(&self, reason: &str) {
+        *self.ended.lock().unwrap().entry(end_kind(reason)).or_default() += 1;
+    }
+
+    /// The counters for `/metrics`: games playing, started, and ended by how
+    pub fn render(&self, out: &mut String) {
+        let _ = writeln!(out, "# TYPE playmat_gateway_host_games_open gauge");
+        let _ = writeln!(out, "playmat_gateway_host_games_open {}", self.count());
+        let _ = writeln!(out, "# TYPE playmat_gateway_host_games_started_total counter");
+        let _ = writeln!(out, "playmat_gateway_host_games_started_total {}", self.started.lock().unwrap());
+        let _ = writeln!(out, "# TYPE playmat_gateway_host_games_ended_total counter");
+        let ended = self.ended.lock().unwrap();
+        for how in ["over", "conceded", "stopped", "error", "panic"] {
+            let n = ended.get(how).copied().unwrap_or(0);
+            let _ = writeln!(out, "playmat_gateway_host_games_ended_total{{how=\"{how}\"}} {n}");
+        }
     }
 
     /// Java's `HOST_GAME`: starts the game; its callbacks go to `subscriber`. The end is reported to Java at
@@ -105,6 +139,7 @@ impl Hosts {
             chat_id: chat_id.clone(),
         });
         self.games.lock().unwrap().insert(game_id.clone(), hosted.clone());
+        *self.started.lock().unwrap() += 1;
         self.chats.lock().unwrap().insert(chat_id.clone(), game_id.clone());
         let handle = tokio::runtime::Handle::current();
         let hosts = self.clone();
@@ -121,6 +156,7 @@ impl Hosts {
                         let over = json!({"objectId": game_id, "method": "GAME_OVER",
                             "data": {"message": format!("The game couldn't start on the Rust host: {why}")}});
                         let _ = subscriber.events.send(over);
+                        hosts.ended("error: can't start");
                         handle.spawn(report(java_url, game_id, token, None, 0, format!("error: {why}")));
                         return;
                     }
@@ -137,12 +173,13 @@ impl Hosts {
                 let ended = thread.join().unwrap_or(playmat_host::Ended {
                     winner: None,
                     turns: 0,
-                    reason: "the host's thread panicked".into(),
+                    reason: "panic: the host's thread".into(),
                 });
                 hosts.games.lock().unwrap().remove(&game_id);
                 hosts.chats.lock().unwrap().remove(&chat_id);
                 let winner = ended.winner.and_then(|w| players.get(w).cloned());
                 info!("Rust host: game {game_id} ended after {} turns: {}", ended.turns, ended.reason);
+                hosts.ended(&ended.reason);
                 handle.spawn(report(java_url, game_id, token, winner, ended.turns, ended.reason));
             })
             .expect("a thread");
@@ -214,4 +251,26 @@ pub fn call_of(method: &str, params: &[Value]) -> Option<Call> {
         }
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn host_metrics() {
+        assert_eq!(end_kind("over"), "over");
+        assert_eq!(end_kind("error: no such card"), "error");
+        assert_eq!(end_kind("panic: the host's thread"), "panic");
+        let hosts = Hosts::default();
+        hosts.ended("over");
+        hosts.ended("over");
+        hosts.ended("error: x");
+        let mut out = String::new();
+        hosts.render(&mut out);
+        assert!(out.contains("playmat_gateway_host_games_ended_total{how=\"over\"} 2"));
+        assert!(out.contains("playmat_gateway_host_games_ended_total{how=\"error\"} 1"));
+        assert!(out.contains("playmat_gateway_host_games_ended_total{how=\"panic\"} 0"));
+        assert!(out.contains("playmat_gateway_host_games_open 0"));
+    }
 }

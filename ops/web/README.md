@@ -301,6 +301,11 @@ for a listed player's game that doesn't qualify, why. Not there yet: priority ti
 fails mid-game, the game ends as a draw. If a player stays away (or the gateway is gone) for 35 minutes, the game
 ends as their loss.
 
+The gateway's `/metrics` counts the hosted games: `playmat_gateway_host_games_open`,
+`playmat_gateway_host_games_started_total`, and `playmat_gateway_host_games_ended_total` by `how`: `over` (played
+out), `conceded`, `stopped` (no answer for 30 minutes, or the player left), `error` and `panic`. The last two are games
+the host lost, which end as draws; step E widens hosting after a week without them.
+
 ### Small VPS (1 vCPU, 1 GB)
 
 The server runs a group's evening on a 1 vCPU / 1 GB VPS. Start from the preset, which lowers the limits to what one CPU keeps responsive and shrinks the picture cache to fit a small disk:
