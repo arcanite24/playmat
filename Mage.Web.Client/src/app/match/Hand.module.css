@@ -1,8 +1,11 @@
 .hand {
+  /* a card's width (bigger with the "Match size" setting), and how much more of a bigger card sinks below the edge:
+     the same strip of every size shows, so a bigger hand doesn't climb into your lands */
+  --hand-sink: calc(var(--hand-card, 168px) * 236 / 168 - 236px);
   position: absolute;
   left: 50%;
-  bottom: -118px;
-  height: 236px;
+  bottom: calc(-118px - var(--hand-sink));
+  height: calc(var(--hand-card, 168px) * 236 / 168);
   transform: translateX(-50%);
   z-index: var(--z-hand);
 }
@@ -71,7 +74,7 @@
 .card {
   position: absolute;
   bottom: 0;
-  width: 168px;
+  width: var(--hand-card, 168px);
   border-radius: var(--card-radius) / calc(var(--card-radius) * 63 / 88);
   transform-origin: 50% 120%;
   transform: translateY(var(--drop, 0)) rotate(var(--rotate, 0deg));
@@ -83,20 +86,20 @@
 
 /* rises out of the hand: straighten, lift clear of the edge, grow */
 .card:focus-visible {
-  transform: translateY(-120px) rotate(0deg) scale(1.22);
+  transform: translateY(calc(-120px - var(--hand-sink, 0px))) rotate(0deg) scale(1.22);
   z-index: var(--z-held) !important;
 }
 
 /* a mouse lifts the card it rests on (picked by Hand from the pointer's x); a finger has no hover (a tapped card would
    stay up), so it lifts the card it holds */
 .card.lifted {
-  transform: translateY(-120px) rotate(0deg) scale(1.22);
+  transform: translateY(calc(-120px - var(--hand-sink, 0px))) rotate(0deg) scale(1.22);
   z-index: var(--z-held) !important;
 }
 
 @media (hover: none) {
   .card:active {
-    transform: translateY(-120px) rotate(0deg) scale(1.22);
+    transform: translateY(calc(-120px - var(--hand-sink, 0px))) rotate(0deg) scale(1.22);
     z-index: var(--z-held) !important;
   }
 }
@@ -138,7 +141,7 @@
 /* played, and the server hasn't answered yet: already on its way out of the hand */
 .pending,
 .card.pending {
-  transform: translateY(-150px) rotate(0deg) scale(1.08);
+  transform: translateY(calc(-150px - var(--hand-sink, 0px))) rotate(0deg) scale(1.08);
   cursor: progress;
   z-index: var(--z-held) !important;
 }
@@ -168,7 +171,7 @@
 
 /* tall: on a taller tablet the hand stands higher, so more of each card shows */
 :global([data-layout='tall']) .hand {
-  bottom: calc(-118px + var(--hand-raise, 0px));
+  bottom: calc(-118px - var(--hand-sink) + var(--hand-raise, 0px));
 }
 
 /* played from another zone (an adventurer in exile, flashback): it joins the hand while it can be played */

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { HAND_CARD_WIDTH, matchLayout, placeHand } from './matchLayout';
+import { HAND_CARD_WIDTH, MATCH_SIZE_SCALE, matchLayout, placeHand, type MatchSize } from './matchLayout';
 import { fitStage, MAX_STAGE_HEIGHT, MAX_TALL_HEIGHT, MIN_TALL_HEIGHT, STAGE_HEIGHT, STAGE_WIDTH, TALL_STAGE_WIDTH } from './stageContext';
 
 const CARD_RATIO = 88 / 63;
@@ -74,6 +74,40 @@ describe('matchLayout', () => {
     expect(layout.handRaise).toBeGreaterThanOrEqual(0);
   });
 
+  const bigger: MatchSize[] = ['larger', 'largest'];
+  test.each(bigger.flatMap((size) => [1080, 1093, 1200, 1440].map((height) => [size, height] as const)))(
+    'wide, match size %s at %i: bigger creatures and hand, paid for above their lands; your lands and seat stay put',
+    (size, height) => {
+      const fit = matchLayout({ layout: 'wide', width: 1920, height });
+      const layout = matchLayout({ layout: 'wide', width: 1920, height }, size);
+      const them = layout.them(0, 1);
+      const me = layout.me;
+      expect(me.frontIdeal).toBeGreaterThan(fit.me.frontIdeal);
+      expect(me.frontIdeal).toBeLessThanOrEqual(Math.round(fit.me.frontIdeal * MATCH_SIZE_SCALE[size]));
+      expect(me.backIdeal).toBe(fit.me.backIdeal);
+      expect(layout.handCard).toBe(Math.round(HAND_CARD_WIDTH * MATCH_SIZE_SCALE[size]));
+      // the opponent's lands stay below their hidden hand, which peeks down to about 50
+      expect(them.backTop).toBeGreaterThanOrEqual(60);
+      expect(them.frontTop).toBeGreaterThanOrEqual(them.backTop + them.backIdeal * CARD_RATIO);
+      expect(layout.seam).toBeGreaterThanOrEqual(them.frontTop + them.frontIdeal * CARD_RATIO - 1);
+      expect(me.frontTop).toBeGreaterThan(layout.seam);
+      expect(me.backTop).toBeGreaterThanOrEqual(me.frontTop + me.frontIdeal * CARD_RATIO - 1);
+      expect(me.backTop).toBe(fit.me.backTop);
+      expect(height - layout.myPlate.bottom! - (me.backTop + me.backIdeal * CARD_RATIO)).toBeGreaterThanOrEqual(SEAT_HEIGHT);
+      // several opponents' columns rise the same way
+      const lift = fit.them(0, 1).backTop - them.backTop;
+      expect(fit.them(1, 3).backTop - layout.them(1, 3).backTop).toBe(lift);
+      expect(fit.them(1, 3).frontTop - layout.them(1, 3).frontTop).toBe(lift);
+    },
+  );
+
+  test('match size leaves the tall layout as it is', () => {
+    const fit = matchLayout({ layout: 'tall', width: 1080, height: 1554 });
+    const largest = matchLayout({ layout: 'tall', width: 1080, height: 1554 }, 'largest');
+    expect(largest.me).toEqual(fit.me);
+    expect(largest.handCard).toBe(HAND_CARD_WIDTH);
+  });
+
   test('the same size gives the same objects, so memoized rows keep their props', () => {
     const a = matchLayout({ layout: 'tall', width: 1080, height: 1554 });
     const b = matchLayout({ layout: 'tall', width: 1080, height: 1554 });
@@ -117,6 +151,14 @@ describe('placeHand', () => {
     expect(hand.view).toBe(1920 - 900 - 472);
     expect(hand.center - hand.view / 2).toBe(900);
     expect(hand.center + hand.view / 2).toBe(1920 - 472);
+  });
+
+  test('bigger hand cards overlap more instead of fanning wider', () => {
+    const card = Math.round(HAND_CARD_WIDTH * MATCH_SIZE_SCALE.largest);
+    const hand = placeHand(7, 1920, 0, 0, card);
+    expect(hand.spread).toBeCloseTo(1000 / 7);
+    expect(hand.width).toBeCloseTo(6 * (1000 / 7) + card);
+    expect(placeHand(2, 1920, 0, 0, card).spread).toBeCloseTo(card * 0.78);
   });
 
   test('a seventy-card hand on a portrait tablet scrolls in a window as wide as the stage', () => {
