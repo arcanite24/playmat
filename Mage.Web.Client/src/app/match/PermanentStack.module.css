@@ -79,6 +79,13 @@
   pointer-events: none;
 }
 
+/* the permanent a hovered stack ability, or the question being asked, comes from: a brass ring, raised above its row,
+   so two copies of a card can be told apart (#227) */
+.source {
+  z-index: var(--z-lifted) !important;
+  box-shadow: 0 0 0 3px rgb(var(--brass-rgb) / 0.95), 0 0 24px 6px rgb(var(--brass-rgb) / 0.55);
+}
+
 .attacking .body > :last-child {
   box-shadow: 0 0 0 2px var(--oxblood), var(--shadow-lifted);
 }

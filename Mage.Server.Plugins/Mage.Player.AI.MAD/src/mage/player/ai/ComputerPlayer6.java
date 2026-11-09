@@ -17,6 +17,7 @@ import mage.counters.CounterType;
 import mage.filter.StaticFilters;
 import mage.game.Game;
 import mage.game.combat.Combat;
+import mage.game.events.DamagePlayerEvent;
 import mage.game.events.GameEvent;
 import mage.game.permanent.Permanent;
 import mage.game.stack.StackAbility;
@@ -90,6 +91,17 @@ public class ComputerPlayer6 extends ComputerPlayer {
     List<Permanent> attackersToCheck = new ArrayList<>();
 
     protected Set<String> actionCache;
+
+    // Loop guard (#231). A loop that leaves the board a little better each time scores better on every search, so the
+    // AI used to repeat it forever (Blade of the Bloodchief + Basking Broodscale: equip a Spawn, pay with that Spawn).
+    // Each ability (same source, same rule) may be used this many times a turn, and the AI takes at most this many
+    // actions a turn in all. Real turns stay far below both.
+    static final int MAX_SAME_ACTION_PER_TURN = 20;
+    static final int MAX_ACTIONS_PER_TURN = 100;
+    private transient Map<String, Integer> actionsThisTurn;
+    private transient int actionsThisTurnTotal;
+    private transient int actionsTurnNum = -1;
+
     private static final List<TreeOptimizer> optimizers = new ArrayList<>();
     protected int lastLoggedTurn = 0; // for debug logs: mark start of the turn
     protected static final String BLANKS = "...............................................";
@@ -179,6 +191,44 @@ public class ComputerPlayer6 extends ComputerPlayer {
         }
         this.actions.addAll(player.actions);
         this.actionCache = player.actionCache;
+        if (player.actionsThisTurn != null) {
+            this.actionsThisTurn = new HashMap<>(player.actionsThisTurn);
+        }
+        this.actionsThisTurnTotal = player.actionsThisTurnTotal;
+        this.actionsTurnNum = player.actionsTurnNum;
+    }
+
+    private static boolean countsAsAction(Ability ability) {
+        return !(ability instanceof PassAbility) && !ability.isManaAbility();
+    }
+
+    private static String actionKey(Ability ability) {
+        return ability.getSourceId() + "|" + ability.getRule();
+    }
+
+    /**
+     * Whether the loop guard forbids this action now: the same ability was used too often this turn, or the AI took
+     * too many actions this turn. Read only, so the search threads can call it.
+     */
+    protected boolean isActionOverTurnLimit(Game game, Ability ability) {
+        if (!countsAsAction(ability) || actionsThisTurn == null || actionsTurnNum != game.getTurnNum()) {
+            return false;
+        }
+        return actionsThisTurnTotal >= MAX_ACTIONS_PER_TURN
+                || actionsThisTurn.getOrDefault(actionKey(ability), 0) >= MAX_SAME_ACTION_PER_TURN;
+    }
+
+    private void countAction(Game game, Ability ability) {
+        if (!countsAsAction(ability)) {
+            return;
+        }
+        if (actionsThisTurn == null || actionsTurnNum != game.getTurnNum()) {
+            actionsThisTurn = new HashMap<>();
+            actionsThisTurnTotal = 0;
+            actionsTurnNum = game.getTurnNum();
+        }
+        actionsThisTurn.merge(actionKey(ability), 1, Integer::sum);
+        actionsThisTurnTotal++;
     }
 
     /**
@@ -242,8 +292,18 @@ public class ComputerPlayer6 extends ComputerPlayer {
             pass(game);
         } else {
             boolean usedStack = false;
+            boolean acted = false;
             while (actions.peek() != null) {
                 Ability ability = actions.poll();
+                if (isActionOverTurnLimit(game, ability)) {
+                    // loop guard: drop the rest of this chain too, it was planned with this action in it
+                    logger.info(String.format("===> SKIPPED ACTION for %s (used too often this turn): %s",
+                            getName(), getAbilityAndSourceInfo(game, ability, false)));
+                    actions.clear();
+                    break;
+                }
+                countAction(game, ability);
+                acted = true;
                 // example: ===> SELECTED ACTION for PlayerA: Play Swamp
                 logger.info(String.format("===> SELECTED ACTION for %s: %s",
                         getName(),
@@ -264,7 +324,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                     usedStack = true;
                 }
             }
-            if (usedStack) {
+            if (usedStack || !acted) {
                 pass(game);
             }
         }
@@ -642,6 +702,10 @@ public class ComputerPlayer6 extends ComputerPlayer {
         SimulatedPlayer2 currentPlayer = (SimulatedPlayer2) game.getPlayer(game.getPlayerList().get());
         SimulationNode2 bestNode = null;
         List<Ability> allActions = currentPlayer.simulatePriority(game);
+        if (node.getParent() == null && currentPlayer.getId().equals(playerId)) {
+            // loop guard: what the AI may not do anymore this turn isn't worth a search
+            allActions.removeIf(action -> isActionOverTurnLimit(game, action));
+        }
         optimize(game, allActions);
         int startedScore = GameStateEvaluator2.evaluate(this.getId(), node.getGame()).getTotalScore();
         if (logger.isInfoEnabled()
@@ -1162,6 +1226,22 @@ public class ComputerPlayer6 extends ComputerPlayer {
         return attackersLeft;
     }
 
+    /**
+     * Creatures that can attack the defender, without those whose combat damage would all be prevented (e.g. by
+     * Dovin, Hand of Control): like a 0 power creature, attacking with them only taps them (#199).
+     */
+    private List<Permanent> getUsefulAttackers(Game game, UUID defenderId) {
+        List<Permanent> attackers = super.getAvailableAttackers(defenderId, game);
+        attackers.removeIf(attacker -> isCombatDamagePrevented(game, attacker, defenderId));
+        return attackers;
+    }
+
+    private static boolean isCombatDamagePrevented(Game game, Permanent attacker, UUID defenderId) {
+        DamagePlayerEvent event = new DamagePlayerEvent(defenderId, attacker.getId(), defenderId,
+                Math.max(1, attacker.getPower().getValue()), true, true);
+        return game.getContinuousEffects().isAllDamagePrevented(event, game);
+    }
+
     private List<Permanent> getAttackers(Game game) {
         Set<UUID> attackersUUID = game.getCombat().getAttackers();
         if (attackersUUID.isEmpty()) {
@@ -1200,7 +1280,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                     continue;
                 }
 
-                attackersList = super.getAvailableAttackers(defenderId, game);
+                attackersList = getUsefulAttackers(game, defenderId);
                 if (attackersList.isEmpty()) {
                     continue;
                 }
@@ -1222,7 +1302,7 @@ public class ComputerPlayer6 extends ComputerPlayer {
                 if (!defender.isInGame()) {
                     continue;
                 }
-                attackersList = super.getAvailableAttackers(defenderId, game);
+                attackersList = getUsefulAttackers(game, defenderId);
                 if (attackersList.isEmpty()) {
                     continue;
                 }

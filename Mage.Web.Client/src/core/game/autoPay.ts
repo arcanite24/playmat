@@ -17,6 +17,8 @@ export interface ManaSource {
   isLand: boolean;
   /** 0 plain, 1 any color, 2 costs life or deals damage: higher tiers are tapped only when lower ones can't pay */
   tier?: number;
+  /** how much mana one activation adds (Sol Ring: 2); 1 when left out */
+  amount?: number;
 }
 
 /** Which sources beyond the plain ones auto-pay may tap (Settings: Use any-color mana, Use painful mana). */
@@ -83,9 +85,11 @@ type ManaPermanent = Pick<PermanentView, 'rules' | 'subTypes' | 'cardTypes'>;
 const PAINFUL = /damage to you|you lose \d+ life/i;
 
 /** What a permanent's mana abilities add, and at what price; null when beyond auto-pay, undefined when there are none. */
-function readMana(permanent: ManaPermanent): { colors: ManaColor[]; anyColor: boolean; painful: boolean; identity: boolean } | null | undefined {
+function readMana(permanent: ManaPermanent): { colors: ManaColor[]; anyColor: boolean; painful: boolean; identity: boolean; amount: number } | null | undefined {
   const rules = (permanent.rules ?? []).map((rule) => rule.replace(/<[^>]*>/g, ''));
   const kinds = new Set<ManaColor>();
+  // the least any one of its abilities adds: "{T}: Add {C}{C}" is two, a choice of abilities counts its smallest
+  let amount = Number.POSITIVE_INFINITY;
   let anyColor = false;
   let painful = false;
   let identity = false;
@@ -100,6 +104,7 @@ function readMana(permanent: ManaPermanent): { colors: ManaColor[]; anyColor: bo
         // "Spend this mana only to cast creature spells": a restriction auto-pay can't weigh
         if (/\S/.test(rider) && !PAINFUL.test(rider)) return null;
         anyColor = true;
+        amount = 1;
         if (/color identity/i.test(clause)) identity = true;
         for (const color of COLORS.slice(0, 5)) kinds.add(color);
       }
@@ -108,6 +113,8 @@ function readMana(permanent: ManaPermanent): { colors: ManaColor[]; anyColor: bo
       // a choice of colors with another rider costs more than mana
       else if (new Set(symbols).size > 1 && /\S/.test(rider)) return null;
       for (const symbol of symbols) kinds.add(symbol);
+      // "Add {C}{C}" makes both; "Add {W} or {U}" one of them
+      if (symbols.length > 0) amount = Math.min(amount, new Set(symbols).size === 1 && !/\bor\b/i.test(clause) ? symbols.length : 1);
     }
     // a cost besides tapping: life ("{T}, Pay 1 life: Add {B}") is a price, the rest a choice
     if (/^[^:]*(sacrifice|discard|counter)[^:]*:\s*Add/i.test(rule)) return null;
@@ -115,12 +122,15 @@ function readMana(permanent: ManaPermanent): { colors: ManaColor[]; anyColor: bo
   }
   for (const type of permanent.subTypes ?? []) {
     const color = BASIC_TYPES[type];
-    if (color) kinds.add(color);
+    if (color) {
+      kinds.add(color);
+      amount = 1;
+    }
   }
   if (kinds.size === 0) return undefined; // no mana ability we can read
   // colorless next to colors: fine for a painland ({C} free, colors hurt) or an any-color source, not otherwise
   if (kinds.size > 1 && kinds.has('C') && !painful && !anyColor) return null;
-  return { colors: COLORS.filter((color) => kinds.has(color)), anyColor, painful, identity };
+  return { colors: COLORS.filter((color) => kinds.has(color)), anyColor, painful, identity, amount: Number.isFinite(amount) ? amount : 1 };
 }
 
 /**
@@ -148,6 +158,11 @@ export function orderReadings(readings: ManaCostParts[], sources: ManaSource[]):
   return readings.map((cost, index) => ({ cost, index, score: covered(cost) }))
     .sort((a, b) => b.score - a.score || a.index - b.index)
     .map((entry) => entry.cost);
+}
+
+/** How much mana one activation of a permanent's mana ability adds (see ManaSource.amount). */
+export function manaAmount(permanent: ManaPermanent): number {
+  return readMana(permanent)?.amount ?? 1;
 }
 
 /** The ManaSource tier of a permanent (see ManaSource.tier). */
@@ -179,7 +194,8 @@ const total = (cost: ManaCostParts) => cost.generic + Object.values(cost.colored
 
 /** Whether `sources` can still pay `cost`: every colored symbol gets a source that makes it, and enough are left for the rest. */
 export function canPay(cost: ManaCostParts, sources: ManaSource[]): boolean {
-  const usable = sources.filter((source) => source.colors !== null);
+  // a source that adds two (Sol Ring) can cover two symbols
+  const usable = sources.filter((source) => source.colors !== null).flatMap((source) => Array<ManaSource>(amountOf(source)).fill(source).map((slot) => ({ ...slot })));
   if (usable.length < total(cost)) return false;
   const symbols = COLORS.flatMap((color) => Array<ManaColor>(cost.colored[color] ?? 0).fill(color));
   // bipartite matching of colored symbols to sources (augmenting paths; costs are a handful of symbols)
@@ -208,17 +224,36 @@ function serverPick(source: ManaSource, cost: ManaCostParts): ManaColor | 'gener
   return owed.length === 0 ? 'generic' : 'ask';
 }
 
-/** The cost after `color` is paid: a colored symbol of that color if one is owed, otherwise generic; null when the mana would be wasted. */
-function afterPaying(cost: ManaCostParts, color: ManaColor | 'generic'): ManaCostParts | null {
+const amountOf = (source: ManaSource) => Math.max(1, source.amount ?? 1);
+
+/** The cost after one mana of `color` is paid: a colored symbol of that color if one is owed, otherwise generic; null when the mana would be wasted. */
+function afterOne(cost: ManaCostParts, color: ManaColor | 'generic'): ManaCostParts | null {
   if (color !== 'generic' && (cost.colored[color] ?? 0) > 0) return { ...cost, colored: { ...cost.colored, [color]: cost.colored[color]! - 1 } };
   return cost.generic > 0 ? { ...cost, generic: cost.generic - 1 } : null;
+}
+
+/**
+ * The cost after a source adds `amount` mana of `color` and the server spends it, and how much of it is left floating
+ * unspent; null when none of it pays anything.
+ */
+function afterPaying(cost: ManaCostParts, color: ManaColor | 'generic', amount: number): { cost: ManaCostParts; wasted: number } | null {
+  let rest = afterOne(cost, color);
+  if (!rest) return null;
+  let wasted = 0;
+  for (let unit = 1; unit < amount; unit++) {
+    const next = afterOne(rest, color);
+    if (next) rest = next;
+    else wasted++;
+  }
+  return { cost: rest, wasted };
 }
 
 /**
  * The next source to tap for this cost, or null when the payment isn't clear enough to make for the player. A tap is
  * only made if the rest of the cost can still be covered afterwards. Colored symbols are covered first by sources of
  * just that color, then by multicolor sources the server will point at the owed color itself; generic mana then uses
- * lands before creatures, single colors before multicolor sources, colorless before colors, and of the colors the ones
+ * sources that add several mana at once (Sol Ring) for as much of it as they cover, then lands before creatures,
+ * single colors before multicolor sources, colorless before colors, and of the colors the ones
  * with sources to spare beyond what `keep` (the rest of the hand, see handNeeds) wants untapped, colors nothing needs
  * before needed ones, and the most plentiful first. Multicolor sources that would make the server ask come last.
  */
@@ -247,19 +282,22 @@ function tapFrom(cost: ManaCostParts, usable: ManaSource[], pool: ManaSource[], 
     return color === 'C' ? 9 : 2 * Number(left(color) > needed) + Number(!needed);
   };
 
-  const tries = (source: ManaSource, color: ManaColor | 'generic', ask: boolean): ManaTap | null => {
-    const after = afterPaying(cost, color);
-    if (!after || !canPay(after, usable.filter((other) => other !== source))) return null;
+  const tries = (source: ManaSource, color: ManaColor | 'generic', ask: boolean): (ManaTap & { wasted: number }) | null => {
     // generic mana: colorless when the source makes it (a painland's free ability)
     const made = color !== 'generic' ? color : source.colors!.includes('C') ? 'C' : source.colors![0];
-    return { id: source.id, color: made, ask };
+    const after = afterPaying(cost, made, amountOf(source));
+    if (!after || !canPay(after.cost, usable.filter((other) => other !== source))) return null;
+    return { id: source.id, color: made, ask, wasted: after.wasted };
   };
-  const first = (candidates: ManaSource[], color: (source: ManaSource) => ManaColor | 'generic', ask = false) => {
+  // a tap that would leave mana floating (Sol Ring for the last {1}) only when nothing pays without waste (#235)
+  const first = (candidates: ManaSource[], color: (source: ManaSource) => ManaColor | 'generic', ask = false): ManaTap | null => {
+    let fallback: ManaTap | null = null;
     for (const source of candidates) {
       const tap = tries(source, color(source), ask);
-      if (tap) return tap;
+      if (tap && tap.wasted === 0) return { id: tap.id, color: tap.color, ask: tap.ask };
+      if (tap && !fallback) fallback = { id: tap.id, color: tap.color, ask: tap.ask };
     }
-    return null;
+    return fallback;
   };
   const owedColors = COLORS.filter((color) => (cost.colored[color] ?? 0) > 0);
   for (const color of owedColors) {
@@ -272,8 +310,10 @@ function tapFrom(cost: ManaCostParts, usable: ManaSource[], pool: ManaSource[], 
   }
   if (cost.generic > 0) {
     const spare = single.filter((source) => !owedColors.includes(source.colors![0]));
+    // a source that adds several (Sol Ring) pays that much of the generic in one tap, before lands that add one (#235)
+    const pays = (source: ManaSource) => Math.min(amountOf(source), cost.generic);
     const tap =
-      first(spare.sort((a, b) => landsFirst(a, b) || rank(b) - rank(a) || left(b.colors![0]) - left(a.colors![0])), () => 'generic') ??
+      first(spare.sort((a, b) => pays(b) - pays(a) || landsFirst(a, b) || rank(b) - rank(a) || left(b.colors![0]) - left(a.colors![0])), () => 'generic') ??
       first(multi.filter((source) => serverPick(source, cost) === 'generic').sort(landsFirst), () => 'generic');
     if (tap) return tap;
   }

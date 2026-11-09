@@ -10,6 +10,7 @@ import type { CardImageRef } from '../../core/images/imageLinks';
 import { readJson, writeJson } from './persist';
 import { useSession } from './session';
 import { DEFAULT_CARD_BACK, type CardBackId } from '../ui/cardBack';
+import type { MatchSize } from '../match/matchLayout';
 
 export interface PlaySettings {
   /** tap lands automatically when the payment is unambiguous */
@@ -105,6 +106,8 @@ export interface PlaySettings {
   largeZoom: boolean;
   /** playing: the hovered card opens bigger beside the pointer, to read rules text on a small screen (#147, local only) */
   bigZoom: boolean;
+  /** playing: the creatures and the hand drawn bigger than the fitted layout, for a laptop screen (#147, local only) */
+  matchSize: MatchSize;
   /** Career: the player chose to try it (local only; a server Career profile counts too) */
   careerOptIn: boolean;
   /** Career: the menu music on Career's screens (synthesized, local only) */
@@ -180,6 +183,7 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   hideHands: true,
   largeZoom: false,
   bigZoom: false,
+  matchSize: 'fit',
   careerOptIn: false,
   careerMusic: true,
   musicVolume: 0.5,

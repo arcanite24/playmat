@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { commandersByPlayer } from '../../core/game/commander';
-import { abilityFor, colorChoiceFor, handNeeds, landsPartOf, manaOf, manaTier, nextTap, orderReadings, parseCostOptions, type ManaCostParts, type ManaReach, type ManaSource, type ManaTap } from '../../core/game/autoPay';
+import { abilityFor, colorChoiceFor, handNeeds, landsPartOf, manaAmount, manaOf, manaTier, nextTap, orderReadings, parseCostOptions, type ManaCostParts, type ManaReach, type ManaSource, type ManaTap } from '../../core/game/autoPay';
 import { parsePayment } from '../../core/game/payment';
 import type { GameSession, GameSessionState } from '../../core/game/gameSession';
 import type { PlayerBoard } from './boardModel';
@@ -75,7 +75,7 @@ export function useAutoPay(session: GameSession, state: GameSessionState, me: Pl
       if (!permanent || permanent.tapped || id === payingFor) continue;
       const colors = manaOf(permanent, { anyColor, painful, commander });
       if (colors === undefined) continue;
-      sources.push({ id, colors, isLand: (permanent.cardTypes ?? []).includes('LAND'), tier: manaTier(permanent) });
+      sources.push({ id, colors, isLand: (permanent.cardTypes ?? []).includes('LAND'), tier: manaTier(permanent), amount: manaAmount(permanent) });
     }
     // generic mana leaves untapped the colors the rest of the hand still needs this turn
     const handCosts = Object.values(view?.myHand ?? {}).map((card) => (card.manaCostLeftStr ?? []).join(''));

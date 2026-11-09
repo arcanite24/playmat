@@ -19,6 +19,10 @@ interface MatchUiState {
   logOpen: boolean;
   /** card opened in the detail view (right click); the id keeps it live as the game changes */
   detail: { id: string; card: CardView } | null;
+  /** the permanent a hovered stack ability comes from, marked on the table (#227) */
+  sourceHover: string | null;
+  /** the permanent the open prompt is asked for (its ability is resolving), marked on the table (#227) */
+  promptSource: string | null;
   setZoom(zoom: MatchUiState['zoom']): void;
   setPointer(pointer: MatchUiState['pointer']): void;
   setArrowFrom(point: MatchUiState['arrowFrom']): void;
@@ -27,6 +31,7 @@ interface MatchUiState {
   openViewer(viewer: MatchUiState['viewer']): void;
   toggleLog(open?: boolean): void;
   openDetail(detail: MatchUiState['detail']): void;
+  setSourceHover(id: string | null): void;
 }
 
 export const useMatchUi = create<MatchUiState>((set) => ({
@@ -38,6 +43,8 @@ export const useMatchUi = create<MatchUiState>((set) => ({
   viewer: null,
   logOpen: false,
   detail: null,
+  sourceHover: null,
+  promptSource: null,
   setZoom: (zoom) => set({ zoom }),
   setPointer: (pointer) => set({ pointer }),
   setArrowFrom: (arrowFrom) => set({ arrowFrom }),
@@ -47,4 +54,5 @@ export const useMatchUi = create<MatchUiState>((set) => ({
   toggleLog: (open) => set((state) => ({ logOpen: open ?? !state.logOpen })),
   // the zoomed copy would sit on top of the detail view
   openDetail: (detail) => set({ detail, zoom: null }),
+  setSourceHover: (sourceHover) => set({ sourceHover }),
 }));

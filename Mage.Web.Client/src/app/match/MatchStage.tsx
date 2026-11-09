@@ -16,7 +16,7 @@ import { spectatorHand } from '../../core/game/spectatorHand';
 import { matchProgress } from '../../core/game/matchProgress';
 import { pregameChoice } from '../../core/game/pregame';
 import { offBoardTargets } from '../../core/game/offBoardTargets';
-import { heldOffZone, offZonePlayables, type OffZonePlayable } from '../../core/game/offZonePlayables';
+import { NO_OFF_ZONE_HOLD, nextOffZoneHold, offZonePlayables, type OffZoneHold } from '../../core/game/offZonePlayables';
 import { predict, withPredictedAttack, withPrediction } from '../../core/game/prediction';
 import type { CardView, ChatMessage, GameView, PlayerLook, PlayerView } from '../../protocol/generated/views';
 import { rosterOf, sleeveFor, SLEEVE_COLORS, useDecks } from '../stores/decks';
@@ -58,6 +58,7 @@ import { GameLog } from './GameLog';
 import { Hand } from './Hand';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
+import { promptSourceId } from '../../core/game/promptSource';
 import { useGameCues } from './useGameCues';
 import { useWarmImages } from './useWarmImages';
 import { useAutoCrew } from './useAutoCrew';
@@ -95,6 +96,7 @@ import { PetSpot } from '../pets/PetSpot';
 import { SpectatorBar, WatcherCount } from './SpectatorBar';
 import { useWatchers } from './useWatchers';
 import { Reveals } from './Reveals';
+import { useReveals } from './useReveals';
 import { StackZone } from './StackZone';
 import { Stage } from './Stage';
 import { useRightEdge } from './useRightEdge';
@@ -165,6 +167,7 @@ export interface MatchStageProps {
 export function MatchStage({ session, state, replayLog, onLeave }: MatchStageProps) {
   const { view, interaction, playerId, mode, awaitingServer, prediction } = state;
   const revealedHands = useRevealedHands(view, mode !== 'replay');
+  const reveals = useReveals(view, mode !== 'replay');
   const t = useT();
   const navigate = useNavigate();
   const animations = useSettings((settings) => settings.settings.animations);
@@ -178,6 +181,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const hideHands = useSettings((settings) => settings.settings.hideHands);
   const largeZoom = useSettings((settings) => settings.settings.largeZoom);
   const bigZoom = useSettings((settings) => settings.settings.bigZoom);
+  const matchSize = useSettings((settings) => settings.settings.matchSize);
   useEffect(() => {
     // the session only delays a game being watched; turning the delay off catches up at once
     session.setBroadcastDelay(mode === 'watch' && isBroadcastDelay(broadcastDelay) ? broadcastDelay * 1000 : 0);
@@ -194,7 +198,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
   useEffect(() => setCardMotion(animations), [animations]);
   // a new game starts with a clean table
-  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null }), []);
+  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null, sourceHover: null, promptSource: null }), []);
 
   // a click's likely outcome (a land tapped for mana) shows at once; the server's next view replaces it
   const board = useMemo(() => buildBoard(withPrediction(view, prediction), playerId), [view, prediction, playerId]);
@@ -219,9 +223,10 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   }, [view?.myHand, sortedHand]);
   // cards played from exile or a graveyard (an adventurer, flashback) join the hand while they can be played
   const liveOffZone = useMemo(() => (interaction.mode === 'priority' ? offZonePlayables(view, clickable) : null), [interaction.mode, view, clickable]);
-  const [lastOffZone, setLastOffZone] = useState<OffZonePlayable[]>([]);
-  if (liveOffZone && liveOffZone !== lastOffZone) setLastOffZone(liveOffZone);
-  const offZone = useMemo(() => liveOffZone ?? heldOffZone(lastOffZone, view), [liveOffZone, lastOffZone, view]);
+  const [lastOffZone, setLastOffZone] = useState<OffZoneHold>(NO_OFF_ZONE_HOLD);
+  const offZoneHold = useMemo(() => nextOffZoneHold(lastOffZone, liveOffZone, view), [lastOffZone, liveOffZone, view]);
+  if (offZoneHold !== lastOffZone) setLastOffZone(offZoneHold);
+  const offZone = useMemo(() => offZonePlayables(view, offZoneHold.ids), [view, offZoneHold]);
   const handAndPlayables = useMemo(() => (offZone.length > 0 ? [...hand, ...offZone.map((entry) => entry.card)] : hand), [hand, offZone]);
   const fromZone = useMemo(() => new Map(offZone.map((entry) => [entry.card.id!, entry.zone])), [offZone]);
   // watching: the seat's hand, if its player lets us see it, and only backs while hands are hidden for the broadcast
@@ -385,6 +390,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   }, [choosingTargets, interaction.selected, stack]);
 
   const prompt = interaction.prompt;
+  // the permanent a question is asked for stays marked while it's open (#227)
+  const promptSource = useMemo(() => (awaitingServer ? null : promptSourceId(prompt)), [awaitingServer, prompt]);
+  useEffect(() => useMatchUi.setState({ promptSource }), [promptSource]);
   const targeting = interaction.mode === 'target' && !awaitingServer;
   // the decision corner names the blocker when the server asks which attacker it blocks
   // while paying: what is still owed, and for what
@@ -430,7 +438,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     return defenders ? askedAttacker(view, myId, lastAttacker)?.name ?? null : null;
   }, [prompt, defenders, view, myId, lastAttacker]);
   // a yes/no question about cards an effect just looked at ("you may put a land from among them..."): show them
-  const askCards = useMemo(() => (canAct ? askedAboutCards(prompt, view)?.cards ?? null : null), [canAct, prompt, view]);
+  const askCards = useMemo(() => (canAct ? askedAboutCards(prompt, reveals)?.cards ?? null : null), [canAct, prompt, reveals]);
   // announcing X: what the player could pay, when the server sets no limit
   const announceLimit = useMemo(() => (prompt?.kind === 'amount' ? xLimit(prompt, view, myId) : null), [prompt, view, myId]);
   // a concession takes effect when the player holding priority passes: name them while it is pending
@@ -513,7 +521,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
     <LandStyleContext.Provider value={landStyleOf}><TokenArtContext.Provider value={tokenArtOf}><CardStyleContext.Provider value={cardStylesOf}><Stage style={matStyle}>
       {(stage) => {
         // the stage widens with the window and the field takes the extra width; a portrait window gets the tall layout
-        const layout = matchLayout(stage);
+        // "Match size" grows the creatures and the hand for a laptop screen (#147)
+        const layout = matchLayout(stage, matchSize);
         return (
           <div className={styles.layout} style={{ ['--seam' as string]: `${layout.seam}px`, ['--hand-raise' as string]: `${layout.handRaise}px` }}>
             {/* an opponent's own cloth dyes their half of the table (B295); several opponents dye their columns */}
@@ -606,7 +615,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
               </>
             )}
 
-            <Reveals view={view} myPlayerId={myId} opponentIds={opponentIds} autoDismiss={autoDismissReveals} />
+            <Reveals groups={reveals} myPlayerId={myId} opponentIds={opponentIds} autoDismiss={autoDismissReveals} />
             <StackZone items={stack} clickable={clickable} selected={interaction.selected} sleeveOf={sleeveOf} onClick={onClick} originOf={originOf} />
             <PhaseLadder
               step={view?.step}
@@ -627,6 +636,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onPlay={ignore}
                 playLine={0}
                 libraryOrigin={`library:${board.me.player.playerId}`}
+                cardWidth={layout.handCard}
               />
             )}
             {board.me && !handHidden && mode === 'play' && (
@@ -641,6 +651,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 onPlay={onClick}
                 playLine={layout.playLine}
                 libraryOrigin={`library:${board.me.player.playerId}`}
+                cardWidth={layout.handCard}
                 // wide: the fan keeps clear of your seat (it grows sideways with counters) and of the decision corner
                 clearLeft={layout.tall || !plateRight ? 0 : plateRight + HAND_SEAT_GAP + (emotes ? EMOTE_BUTTON_ROOM : 0)}
                 clearRight={layout.handClearRight}
