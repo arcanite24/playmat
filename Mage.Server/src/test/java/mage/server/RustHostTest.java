@@ -23,5 +23,7 @@ class RustHostTest {
         // a join that reached Java: the host is gone, the player isn't
         assertFalse(RustHost.quitsMatch("its host is gone"));
         assertFalse(RustHost.quitsMatch(null));
+        // running out of time loses the match, as in Java (PlayerImpl.timerTimeout)
+        assertTrue(RustHost.quitsMatch("timed out"));
     }
 }

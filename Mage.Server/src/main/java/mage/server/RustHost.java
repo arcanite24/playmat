@@ -152,6 +152,10 @@ public final class RustHost {
                 seat.addProperty("playerId", player.getId().toString());
                 seat.addProperty("name", player.getName());
                 seat.addProperty("human", isHuman);
+                if (match.getOptions().getMatchTimeLimit().getPrioritySecs() > 0 && match.getNumGames() > 1) {
+                    // a match's later game: the time left from the earlier ones (MatchImpl.initGame)
+                    seat.addProperty("priorityTimeLeft", Math.max(0, player.getPriorityTimeLeft()));
+                }
                 JsonArray deck = new JsonArray();
                 for (Card c : p.getDeck().getCards()) {
                     deck.add(c.getName());
@@ -179,6 +183,9 @@ public final class RustHost {
                 data.addProperty("chooser", chooser.toString());
             }
             data.add("seats", seats);
+            // the match's priority timer, which the host runs as GameController does (0: none)
+            data.addProperty("priorityTime", match.getOptions().getMatchTimeLimit().getPrioritySecs());
+            data.addProperty("bufferTime", match.getOptions().getMatchBufferTime().getBufferSecs());
             Hosted hosted = new Hosted(tableId, match, game, token, managers, human.getKey(), human.getValue());
             // the game's end summary (the match's score, what the client shows between games), as GameController
             // sends it for a game Java plays: MatchImpl.endGame fires it once the result is in
@@ -218,12 +225,27 @@ public final class RustHost {
      * The host's report of a game's end: the game ends here with that result, and the table goes on as after a game
      * Java played (the match's result, the table's end). The Career doesn't pay hosted games yet (GameHost.md, step F).
      *
+     * @param timeLeft each player's priority time left in seconds, by player id, for the match's next game; null
+     *                 without a timer
      * @return false when the game isn't hosted or the token is wrong
      */
-    public static boolean ended(UUID gameId, String token, String winner, int turns, String reason) {
+    public static boolean ended(UUID gameId, String token, String winner, int turns, String reason,
+                                JsonObject timeLeft) {
         Hosted hosted = HOSTED.get(gameId);
         if (hosted == null || token == null || !hosted.token.equals(token) || !HOSTED.remove(gameId, hosted)) {
             return false;
+        }
+        if (timeLeft != null) {
+            for (Map.Entry<String, com.google.gson.JsonElement> e : timeLeft.entrySet()) {
+                try {
+                    Player p = hosted.game.getPlayer(UUID.fromString(e.getKey()));
+                    if (p != null) {
+                        // MatchImpl.endGame keeps it for the next game
+                        p.setPriorityTimeLeft(e.getValue().getAsInt());
+                    }
+                } catch (RuntimeException ignore) {
+                }
+            }
         }
         return end(gameId, hosted, winner, turns, reason);
     }
@@ -287,8 +309,15 @@ public final class RustHost {
             hosted.game.getState().setTurnNum(turns);
         }
         if (quitsMatch(reason)) {
-            // the player left the match, not only this game: no next game (MatchImpl.checkIfMatchEnds)
-            mage.game.match.MatchPlayer quitter = hosted.match.getPlayer(hosted.playerId);
+            // the player left the match, not only this game, or ran out of time, which loses it: no next game
+            // (MatchImpl.checkIfMatchEnds)
+            UUID quitterId = hosted.playerId;
+            if (reason.equals("timed out") && winnerId != null) {
+                final UUID won = winnerId;
+                quitterId = hosted.game.getPlayers().keySet().stream().filter(id -> !id.equals(won)).findFirst()
+                        .orElse(hosted.playerId);
+            }
+            mage.game.match.MatchPlayer quitter = hosted.match.getPlayer(quitterId);
             if (quitter != null) {
                 quitter.setQuit(true);
             }
@@ -301,10 +330,11 @@ public final class RustHost {
 
     /**
      * Whether a hosted game's end reason means the human left the match, not only the game: {@code matchQuit}, no
-     * answer for 30 minutes, or a host that's gone with them ({@code quit}); a concede ends only the game.
+     * answer for 30 minutes, or a host that's gone with them ({@code quit}), and running out of time, which loses the
+     * match as in Java ({@code timed out}); a concede ends only the game.
      */
     static boolean quitsMatch(String reason) {
-        return reason != null && (reason.equals("quit") || reason.startsWith("quit,"));
+        return reason != null && (reason.equals("quit") || reason.startsWith("quit,") || reason.equals("timed out"));
     }
 
     /** the human's {@code END_GAME_INFO}: the game's result and the match's score */

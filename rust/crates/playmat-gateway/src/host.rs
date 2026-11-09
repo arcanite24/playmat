@@ -5,7 +5,7 @@
 //! carries on with the table.
 
 use playmat_engine::card::CardDb;
-use playmat_host::{Call, Event, HostedGame, SeatStart, Start};
+use playmat_host::{Call, Event, HostedGame, SeatStart, Start, Timer};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
@@ -49,12 +49,13 @@ pub struct Hosts {
 }
 
 /// How a hosted game ended, from its reason: `over` (played out), `conceded` (the game, or the match: `quit`),
-/// `stopped` (no answer for 30 minutes, or the player left), `error` (the host stopped on an error, or couldn't
-/// start) or `panic`
+/// `timed out` (a player's priority timer ran out), `stopped` (no answer for 30 minutes, or the player left), `error`
+/// (the host stopped on an error, or couldn't start) or `panic`
 pub fn end_kind(reason: &str) -> &'static str {
     match reason {
         "over" => "over",
         "conceded" | "quit" => "conceded",
+        "timed out" => "timed out",
         "stopped" => "stopped",
         r if r.starts_with("error") => "error",
         _ => "panic",
@@ -99,7 +100,7 @@ impl Hosts {
         let _ = writeln!(out, "playmat_gateway_host_games_started_total {}", self.started.lock().unwrap());
         let _ = writeln!(out, "# TYPE playmat_gateway_host_games_ended_total counter");
         let ended = self.ended.lock().unwrap();
-        for how in ["over", "conceded", "stopped", "error", "panic"] {
+        for how in ["over", "conceded", "timed out", "stopped", "error", "panic"] {
             let n = ended.get(how).copied().unwrap_or(0);
             let _ = writeln!(out, "playmat_gateway_host_games_ended_total{{how=\"{how}\"}} {n}");
         }
@@ -130,9 +131,19 @@ impl Hosts {
             })
             .unwrap_or_default();
         let players: Vec<String> = seats.iter().map(|s| s.player_id.clone()).collect();
+        let secs = |v: &Value| v.as_u64().and_then(|n| u32::try_from(n).ok());
+        let mut timer = Timer {
+            priority_secs: secs(&data["priorityTime"]).unwrap_or(0),
+            buffer_secs: secs(&data["bufferTime"]).unwrap_or(0),
+            ..Timer::default()
+        };
+        // a match's later game: each seat's time left from the earlier ones
+        for (seat, s) in data["seats"].as_array().into_iter().flatten().take(2).enumerate() {
+            timer.left[seat] = secs(&s["priorityTimeLeft"]);
+        }
         // a match's next game: its last loser chooses who plays first
         let chooser = data["chooser"].as_str().filter(|c| !c.is_empty()).map(str::to_string);
-        let start = Start { game_id: game_id.clone(), seed, seats, chooser };
+        let start = Start { game_id: game_id.clone(), seed, seats, timer, chooser };
         // known before the game starts, so its calls (the client joins at once) wait for it
         let chat_id = playmat_host::ids::Ids::new(&game_id, players.clone()).chat();
         let (calls, calls_in) = std::sync::mpsc::channel();
@@ -160,7 +171,7 @@ impl Hosts {
                             "data": {"message": format!("The game couldn't start on the Rust host: {why}")}});
                         let _ = subscriber.events.send(over);
                         hosts.ended("error: can't start");
-                        handle.spawn(report(java_url, game_id, token, None, 0, format!("error: {why}")));
+                        handle.spawn(report(java_url, game_id, token, None, 0, format!("error: {why}"), Value::Null));
                         return;
                     }
                 };
@@ -174,18 +185,29 @@ impl Hosts {
                     }
                 }
                 let ended = thread.join().unwrap_or(playmat_host::Ended {
-                    winner: None,
-                    turns: 0,
                     reason: "panic: the host's thread".into(),
+                    ..playmat_host::Ended::default()
                 });
                 hosts.games.lock().unwrap().remove(&game_id);
                 hosts.chats.lock().unwrap().remove(&chat_id);
                 let winner = ended.winner.and_then(|w| players.get(w).cloned());
                 info!("Rust host: game {game_id} ended after {} turns: {}", ended.turns, ended.reason);
                 hosts.ended(&ended.reason);
-                handle.spawn(report(java_url, game_id, token, winner, ended.turns, ended.reason));
+                let time_left = time_left(&players, &ended.time_left);
+                handle.spawn(report(java_url, game_id, token, winner, ended.turns, ended.reason, time_left));
             })
             .expect("a thread");
+    }
+}
+
+/// Each player's priority time left, by player id, for the match's next game; null without a timer
+fn time_left(players: &[String], left: &[Option<u32>; 2]) -> Value {
+    let map: serde_json::Map<String, Value> =
+        players.iter().zip(left).filter_map(|(id, l)| l.map(|secs| (id.clone(), json!(secs)))).collect();
+    if map.is_empty() {
+        Value::Null
+    } else {
+        Value::Object(map)
     }
 }
 
@@ -197,10 +219,11 @@ async fn report(
     winner: Option<String>,
     turns: u32,
     reason: String,
+    time_left: Value,
 ) {
     use futures_util::{SinkExt, StreamExt};
     let request = json!({"jsonrpc": "2.0", "id": 1, "method": "hostGameEnded",
-        "params": [game_id, token, winner.unwrap_or_default(), turns, reason]});
+        "params": [game_id, token, winner.unwrap_or_default(), turns, reason, time_left]});
     for attempt in 0..5u64 {
         if attempt > 0 {
             tokio::time::sleep(std::time::Duration::from_secs(2 * attempt)).await;
@@ -264,6 +287,10 @@ mod tests {
     fn host_metrics() {
         assert_eq!(end_kind("over"), "over");
         assert_eq!(end_kind("quit"), "conceded");
+        assert_eq!(end_kind("timed out"), "timed out");
+        let players = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(time_left(&players, &[Some(40), Some(0)]), json!({"a": 40, "b": 0}));
+        assert_eq!(time_left(&players, &[None, None]), Value::Null);
         assert_eq!(end_kind("error: no such card"), "error");
         assert_eq!(end_kind("panic: the host's thread"), "panic");
         let hosts = Hosts::default();

@@ -299,7 +299,9 @@ connected through the gateway, and the Rust engine has every card in both decks.
 game's loser chooses who plays first, and a game whose deck gains a card the engine lacks after sideboarding plays on
 Java.
 The log says `Rust host: plays …'s game` when it hosts one, `Rust host: game … ended after n turns` at its end, and,
-for a listed player's game that doesn't qualify, why. Not there yet: priority timers, spectators, the solo tools
+for a listed player's game that doesn't qualify, why. The table's priority timer and buffer time work as on Java: a
+player whose time runs out loses the match, and each game of a match keeps the time left from the earlier ones. Not
+there yet: spectators, the solo tools
 (saves, undo), advice, and the Career's quests and stats for these games, which pay nothing for now. If the host
 fails mid-game, the game ends as a draw. Conceding a game ends that game; leaving the match, or no answer for 30
 minutes, ends the match. If a player stays away (or the gateway is gone) for 35 minutes, the game ends as their loss
@@ -307,8 +309,8 @@ and they leave the match.
 
 The gateway's `/metrics` counts the hosted games: `playmat_gateway_host_games_open`,
 `playmat_gateway_host_games_started_total`, and `playmat_gateway_host_games_ended_total` by `how`: `over` (played
-out), `conceded` (the game or the match), `stopped`, `error` and `panic`. The last two are games
-the host lost, which end as draws; step E widens hosting after a week without them.
+out), `conceded` (the game or the match), `timed out` (a player's priority timer ran out, which loses the match),
+`stopped`, `error` and `panic`. The last two are games the host lost, which end as draws; step E widens hosting after a week without them.
 
 ### Small VPS (1 vCPU, 1 GB)
 

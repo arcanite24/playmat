@@ -39,12 +39,17 @@ describe.skipIf(!live)('a Rust-hosted match', () => {
     // how many times the player was asked who plays first (once a game at most)
     let askedFirst = 0;
     let asking = false;
+    // the player's clock on the timed table: its highest reading in each game, which a later game must start below
+    const clocks: number[] = [];
+    let lastTurn = 0;
     const stats = await playBotGame({
       serverUrl: SERVER_URL,
       userName,
       deck: company,
       aiDeck: zombies,
       winsNeeded: 2,
+      // a timed table: each game keeps the time left from the earlier ones (MatchImpl.initGame)
+      table: { matchTimeLimit: 'MIN___5', matchBufferTime: 'NONE' },
       // a stalled race concedes the game, which still moves the match on
       maxTurns: 20,
       timeoutMs: 600_000,
@@ -54,6 +59,11 @@ describe.skipIf(!live)('a Rust-hosted match', () => {
         const starting = /starting player/i.test(state.interaction.headline);
         if (starting && !asking) askedFirst++;
         asking = starting;
+        const turn = state.view?.turn ?? 0;
+        if (clocks.length === 0 || turn < lastTurn) clocks.push(0);
+        lastTurn = turn;
+        const me = state.view?.players?.find((p) => p.playerId === state.view?.myPlayerId);
+        if (me?.priorityTimeLeftSecs !== undefined) clocks[clocks.length - 1] = Math.max(clocks[clocks.length - 1], me.priorityTimeLeftSecs);
         const answer = autoAnswer(state.view, state.prompt, {
           autoPass: settings.autoPass,
           autoSkipCombat: settings.autoSkipCombat,
@@ -86,6 +96,10 @@ describe.skipIf(!live)('a Rust-hosted match', () => {
     console.log(`asked who plays first ${askedFirst} times; lost ${lostBeforeNext} and won ${wonBeforeNext} games before another`);
     expect(askedFirst).toBeGreaterThanOrEqual(lostBeforeNext);
     expect(askedFirst).toBeLessThanOrEqual(lostBeforeNext + 1);
+    console.log(`the player's clock at each game's start: ${clocks.join(', ')} s`);
+    expect(clocks.length).toBe(stats.games.length);
+    expect(clocks[0]).toBeLessThanOrEqual(300);
+    for (let i = 1; i < clocks.length; i++) expect(clocks[i]).toBeLessThan(clocks[i - 1]);
     if (SERVER_LOG) {
       const log = readFileSync(SERVER_LOG, 'utf8');
       for (const game of stats.games) expect(log).toContain(`Rust host: plays ${userName}'s game ${game.gameId}`);

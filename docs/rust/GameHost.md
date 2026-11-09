@@ -185,13 +185,23 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
   a quit as the player's loss.
 - **Trigger order.** The "always first" and "always last" buttons (`TRIGGER_AUTO_ORDER_*`) set an order by rule text,
   as `HumanPlayer` does; the host then orders those triggers itself and asks only about the rest.
-
+- **Priority timer.** `HOST_GAME` carries the table's `priorityTime` and `bufferTime` (seconds, 0 for none), and the
+  host runs them as `GameController`'s `PriorityTimer` does (`playmat-host/src/timer.rs`): each player's time counts
+  down while the human is asked anything (`HumanPlayer.waitForResponse`) or the AI thinks at priority
+  (`ComputerPlayer7.priority`), the buffer first, refilled each time the clock starts. The views carry Java's fields:
+  `priorityTime` and `bufferTime` on the game, and `priorityTimeLeftSecs` (`Integer.MAX_VALUE` without a timer),
+  `priorityTimeSavedTimeMs`, `bufferTimeLeft` and `timerActive` (holding priority, or being asked) on each player. A
+  player whose time runs out loses: the log says they conceded and "has run out of time, losing the match", and the
+  host reports the end as `timed out`, which Java takes as the player leaving the match (`PlayerImpl.timerTimeout`).
 - **Matches.** A best-of-three is a hosted game at a time. Java's match runs as for its own games: at a game's end
   `MatchImpl.endGame` counts the win, `TableController` sends `SIDEBOARD` and waits for the deck, then starts the
   next game, which `RustHost.host` checks and hands to the host again (a deck that now has a card the engine lacks
   plays that game on Java). The next game's `chooser` is the last game's loser (`MatchImpl.getChooser`): the host asks
   them who plays first, or, when it's the AI, the AI starts. After a draw nobody has lost, so a random player
-  chooses, as in Java. The match ends at `winsNeeded` wins, or when the player leaves it.
+  chooses, as in Java. On a timed table each game keeps the time left from the earlier ones: the host reports it
+  (`hostGameEnded`'s `timeLeft`, seconds by player id), Java keeps it on the match (`MatchImpl.endGame`) and sends
+  it with the next game (each seat's `priorityTimeLeft`). The match ends at `winsNeeded` wins, or when a player
+  leaves it or runs out of time.
 
 Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI, and the chooser of a match's next
 game), `rustAi.live.test.ts` (16 games
@@ -202,9 +212,12 @@ trigger orders and presses F-keys. `rustHostMatch.live.test.ts` plays a best-of-
 after each game, sideboarding, and the next game on the host. It fails a game that locks (no prompt to answer for 20 seconds) or loops (400
 answers in one turn). 150 games across seeds 2, 3 and 11 finished with none locked or looping (8 Nov 2026).
 
-Not there yet: priority timers, the Career's tally (step F), and spectators. Best-of-three games are hosted (step
-F's first part). The end summary's player views come from Java's unplayed copy of the game, so they show no life
-totals or zones from the hosted game; the client shows the result and the score from them.
+Not there yet: the Career's tally (step F) and spectators. Best-of-three games are hosted (step F's first part); on
+a timed table each game keeps the time left from the earlier ones, as Java's `MatchImpl.initGame` does: the host
+reports each player's time left with the end (`hostGameEnded`'s `timeLeft`) and Java sends it with the next
+`HOST_GAME` (each seat's `priorityTimeLeft`). Running out of time loses the match, as in Java. The end summary's
+player views come from Java's unplayed copy of the game, so they show no life totals or zones from the hosted game;
+the client shows the result and the score from them.
 
 ## Decisions needed
 
