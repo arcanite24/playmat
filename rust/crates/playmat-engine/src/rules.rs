@@ -3693,7 +3693,10 @@ fn choose_target(
                 continue;
             }
         }
-        let q = Query::Target { players: players.clone(), objs: objs.clone(), required: !cancellable };
+        // `HumanPlayer.chooseTarget`: not required (the client offers "done") when there's nothing to choose or the
+        // fewest targets are chosen
+        let required = !cancellable && !(players.is_empty() && objs.is_empty()) && chosen.len() < min;
+        let q = Query::Target { players: players.clone(), objs: objs.clone(), required };
         match ask(game, d, seat, &q) {
             Answer::Player(s) if players.contains(&s) => {
                 chosen.push(Target::Player(s));

@@ -9,6 +9,7 @@ use playmat_host::{Call, Event, HostedGame, SeatStart, Start, Timer};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex, OnceLock};
 use tokio::sync::mpsc::UnboundedSender;
@@ -45,7 +46,28 @@ pub struct Hosts {
     chats: Mutex<HashMap<String, String>>,
     /// games started, and ended by how (`end_kind`): step E's gate is a week with no `error` or `panic`
     started: Mutex<u64>,
+    /// where each game's record goes (`XMAGE_RUST_HOST_RECORDS`, a folder; playmat-host's `record.rs`), and how many
+    /// records are kept (`XMAGE_RUST_HOST_RECORDS_KEEP`, 500 by default; the oldest go first)
+    records: Option<PathBuf>,
+    keep: usize,
     ended: Mutex<BTreeMap<&'static str, u64>>,
+}
+
+/// Deletes the oldest game records (`*.jsonl`) in `dir` past the newest `keep`
+fn prune(dir: &Path, keep: usize) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    let mut files: Vec<(std::time::SystemTime, PathBuf)> = entries
+        .flatten()
+        .filter(|e| e.path().extension().is_some_and(|x| x == "jsonl"))
+        .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
+        .collect();
+    if files.len() <= keep {
+        return;
+    }
+    files.sort();
+    for (_, path) in &files[..files.len() - keep] {
+        let _ = std::fs::remove_file(path);
+    }
 }
 
 /// How a hosted game ended, from its reason: `over` (played out), `conceded` (the game, or the match: `quit`),
@@ -73,7 +95,12 @@ impl Hosts {
             // the card pool loads in the background, so the first game doesn't wait for it
             std::thread::spawn(db);
         }
-        Hosts { enabled, ..Hosts::default() }
+        let records = std::env::var_os("XMAGE_RUST_HOST_RECORDS").filter(|v| !v.is_empty()).map(PathBuf::from);
+        let keep = std::env::var("XMAGE_RUST_HOST_RECORDS_KEEP").ok().and_then(|v| v.parse().ok()).unwrap_or(500);
+        if let (true, Some(dir)) = (enabled, &records) {
+            info!("Rust host: game records in {} (the last {keep})", dir.display());
+        }
+        Hosts { enabled, records, keep, ..Hosts::default() }
     }
 
     pub fn get(&self, game_id: &str) -> Option<Arc<Hosted>> {
@@ -143,7 +170,11 @@ impl Hosts {
         }
         // a match's next game: its last loser chooses who plays first
         let chooser = data["chooser"].as_str().filter(|c| !c.is_empty()).map(str::to_string);
-        let start = Start { game_id: game_id.clone(), seed, seats, timer, chooser };
+        let record = self.records.as_ref().map(|dir| {
+            prune(dir, self.keep.saturating_sub(1));
+            dir.join(format!("{game_id}.jsonl"))
+        });
+        let start = Start { game_id: game_id.clone(), seed, seats, timer, chooser, record, log_to: None };
         // known before the game starts, so its calls (the client joins at once) wait for it
         let chat_id = playmat_host::ids::Ids::new(&game_id, players.clone()).chat();
         let (calls, calls_in) = std::sync::mpsc::channel();
@@ -282,6 +313,30 @@ pub fn call_of(method: &str, params: &[Value]) -> Option<Call> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prune_keeps_the_newest() {
+        let dir = std::env::temp_dir().join(format!("playmat-prune-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        for i in 0..5 {
+            std::fs::write(dir.join(format!("g{i}.jsonl")), "{}").unwrap();
+            // distinct times, oldest first
+            let t = std::time::SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000 + i);
+            std::fs::File::options()
+                .write(true)
+                .open(dir.join(format!("g{i}.jsonl")))
+                .unwrap()
+                .set_modified(t)
+                .unwrap();
+        }
+        std::fs::write(dir.join("other.txt"), "").unwrap();
+        prune(&dir, 2);
+        let mut left: Vec<String> =
+            std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        left.sort();
+        assert_eq!(left, ["g3.jsonl", "g4.jsonl", "other.txt"]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn host_metrics() {

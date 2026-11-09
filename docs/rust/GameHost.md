@@ -212,6 +212,28 @@ trigger orders and presses F-keys. `rustHostMatch.live.test.ts` plays a best-of-
 after each game, sideboarding, and the next game on the host. It fails a game that locks (no prompt to answer for 20 seconds) or loops (400
 answers in one turn). 150 games across seeds 2, 3 and 11 finished with none locked or looping (8 Nov 2026).
 
+### Game records
+
+Each hosted game leaves a record, so a game a player reports can be played again exactly
+(`playmat-host/src/record.rs`). The record is one JSON object a line: the start (seed, seats, decks, the player's
+settings, the timer), every call the player's client sent, in the order the host took them, the game log, and the
+end. The engine is deterministic and the AI's search is bounded by answers, not time. The client's ids are made from
+the game id and the engine's objects. So the start and the calls play the same game again. Timers are left out of a
+replay (they only end games): a game that timed out replays to its last answer, then ends as a player who left.
+
+The gateway writes records to `XMAGE_RUST_HOST_RECORDS` (in the image, `saved/host-games` on the `xmage-saved`
+volume) and keeps the newest `XMAGE_RUST_HOST_RECORDS_KEEP` (500). Records are only written for Rust-hosted games. To
+replay one:
+
+```bash
+sudo docker cp xmage-xmage-1:/opt/xmage/saved/host-games/<game id>.jsonl .
+cargo run --release -p playmat-host --bin host-replay -- <game id>.jsonl [--turn N] [--quiet]
+```
+
+It prints the replayed log and says whether it matches the record's, line for line, and ended the same way.
+`PLAYMAT_HOST_DEBUG=1` also prints every question and answer. `a_record_replays_the_game` in the host's `games` test
+checks the round trip.
+
 Not there yet: the Career's tally (step F) and spectators. Best-of-three games are hosted (step F's first part); on
 a timed table each game keeps the time left from the earlier ones, as Java's `MatchImpl.initGame` does: the host
 reports each player's time left with the end (`hostGameEnded`'s `timeLeft`) and Java sends it with the next

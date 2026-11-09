@@ -4,6 +4,7 @@
 pub mod game;
 pub mod ids;
 pub mod prompts;
+pub mod record;
 pub mod skips;
 pub mod timer;
 
