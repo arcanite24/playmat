@@ -40,12 +40,28 @@ export function offZonePlayables(view: GameView | null | undefined, playable: It
   return found;
 }
 
+/** The off-zone cards shown with the hand, by id, and the turn and step of the priority prompt that last decided them. */
+export interface OffZoneHold {
+  ids: readonly string[];
+  turn?: number;
+  step?: string;
+}
+
+export const NO_OFF_ZONE_HOLD: OffZoneHold = { ids: [] };
+
 /**
- * Between two priority prompts (a pass on its way, the server sending the state again) the playable list is empty for a
- * moment. The cards found last time stay in the hand while they're still where they were, so they don't leave and fly
- * back in, shifting the whole hand (#170). The next priority prompt decides again.
+ * Which off-zone cards the hand shows next (#170, #248). A card stays while it's still where it was, for the rest of the
+ * step it was playable in: between prompts the playable list is empty for a moment, and a prompt or update in the
+ * same step can list the hand without it. Those used to drop it, and it flew back in from its pile on the next list
+ * that had it. A priority prompt in a new step decides again from its own list. `live` is what the current priority
+ * prompt offers, `null` while there isn't one. Returns `last` itself when nothing changed.
  */
-export function heldOffZone(previous: readonly OffZonePlayable[], view: GameView | null | undefined): OffZonePlayable[] {
-  if (previous.length === 0) return [];
-  return offZonePlayables(view, previous.map((entry) => entry.card.id!));
+export function nextOffZoneHold(last: OffZoneHold, live: readonly OffZonePlayable[] | null, view: GameView | null | undefined): OffZoneHold {
+  const sameStep = last.turn === view?.turn && last.step === view?.step;
+  const kept = live === null || sameStep ? offZonePlayables(view, last.ids).map((entry) => entry.card.id!) : [];
+  const ids = [...kept, ...(live ?? []).map((entry) => entry.card.id!).filter((id) => !kept.includes(id))];
+  const turn = live === null ? last.turn : view?.turn;
+  const step = live === null ? last.step : view?.step;
+  if (turn === last.turn && step === last.step && ids.length === last.ids.length && ids.every((id, index) => id === last.ids[index])) return last;
+  return { ids, turn, step };
 }
