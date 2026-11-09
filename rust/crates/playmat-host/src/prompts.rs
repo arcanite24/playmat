@@ -58,19 +58,18 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
         Query::BlockTarget { attackers } => json!({"method": "GAME_TARGET", "data": {
             "message": "Select an attacker to block", "flag": true, "targets": refs(game, attackers),
             "min": 0, "max": 0, "options": {"queryType": "PICK_TARGET"}}}),
-        Query::PickTrigger { count } => {
-            // each waiting trigger by its place in the seat's list
+        Query::PickTrigger { triggers, .. } => {
+            // each waiting trigger by its place in the list the engine asks about (`AbilityView`: the source's name)
             let mut cards = Map::new();
-            let mine: Vec<&playmat_engine::state::StackItem> =
-                game.pending.iter().filter(|t| t.controller == seat).collect();
-            for (i, t) in mine.iter().take(*count).enumerate() {
+            for (i, (source, rule)) in triggers.iter().enumerate() {
                 let r = format!("T{seat}.{i}");
-                let rule = playmat_engine::view::item_rule(game, t);
+                let name = game.obj(*source).name();
+                let rule = rule.replace("{this}", name);
                 cards.insert(
                     r.clone(),
-                    json!({"id": r, "name": game.obj(t.card).name(), "rules": [rule], "cardTypes": [],
-                           "superTypes": [], "subTypes": [], "manaCost": [], "power": "", "toughness": "",
-                           "expansionSetCode": "", "cardNumber": ""}),
+                    json!({"id": r, "name": name, "sourceName": name,
+                           "rules": [rule], "cardTypes": [], "superTypes": [], "subTypes": [], "manaCost": [],
+                           "power": "", "toughness": "", "expansionSetCode": "", "cardNumber": ""}),
                 );
             }
             let targets: Vec<String> = cards.keys().cloned().collect();
@@ -165,4 +164,31 @@ pub fn starting_player(seats: usize) -> Value {
     json!({"method": "GAME_TARGET", "data": {
         "message": "Select a starting player", "flag": true, "targets": targets, "min": 0, "max": 0,
         "options": {"webPrompt": "startingPlayer", "queryType": "PICK_TARGET"}}})
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use playmat_ai::duel::{new_duel, Deck};
+
+    /// The engine takes the triggers it asks about out of `pending`: the prompt lists the ones in the question
+    #[test]
+    fn trigger_order_lists_the_asked_triggers() {
+        let db = playmat_engine::cards();
+        let text = "20 Plains\n20 Llanowar Elves\n20 Elvish Mystic";
+        let deck = Deck::parse("d", text);
+        let game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let a = game.players[0].library[0];
+        let b = game.players[0].library[1];
+        let q = Query::PickTrigger {
+            count: 2,
+            triggers: vec![(a, "When {this} enters, draw a card.".into()), (b, "Scry 1.".into())],
+        };
+        let p = prompt(&game, 0, &q);
+        let cards = p["data"]["cardsView1"].as_object().unwrap();
+        assert_eq!(cards.len(), 2);
+        assert_eq!(p["data"]["targets"].as_array().unwrap().len(), 2);
+        let first = &cards["T0.0"];
+        assert_eq!(first["rules"][0], format!("When {} enters, draw a card.", game.obj(a).name()));
+    }
 }

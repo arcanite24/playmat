@@ -33,8 +33,9 @@ pub enum Query {
     },
     /// CHOOSE_ABILITY: which of a permanent's abilities (by index) to activate
     ChooseAbility { source: ObjId, abilities: Vec<usize> },
-    /// PICK_ABILITY: which of the player's `count` waiting triggers goes on the stack next
-    PickTrigger { count: usize },
+    /// PICK_ABILITY: which of the player's `count` waiting triggers goes on the stack next; `triggers` names each, in
+    /// the same order: its source and its rule text
+    PickTrigger { count: usize, triggers: Vec<(ObjId, String)> },
     /// ASK: yes or no
     YesNo { message: String },
     /// CHOOSE_MODE: one of a modal spell's modes (by index)

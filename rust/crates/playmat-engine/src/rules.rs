@@ -9587,7 +9587,8 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                 }
                 // the player orders their triggers, unless they're all the same (auto-order)
                 let pick = if mine.len() > 1 && !mine.iter().all(|t| same_trigger(game, t, &mine[0])) {
-                    match ask(game, d, seat, &Query::PickTrigger { count: mine.len() }) {
+                    let triggers = mine.iter().map(|t| (t.card, crate::view::item_rule(game, t))).collect();
+                    match ask(game, d, seat, &Query::PickTrigger { count: mine.len(), triggers }) {
                         Answer::Trigger(i) if i < mine.len() => i,
                         Answer::Stop => return,
                         _ => continue,
