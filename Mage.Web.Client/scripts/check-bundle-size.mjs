@@ -114,10 +114,12 @@ import { gzipSync } from 'node:zlib';
 // cards) and its sixteen primitives with their CSS, lazy with the match screen; the token art picker in Settings and
 // the deck builder, the look carrying the choices, and their English and Spanish messages. Measured app 815.6 kB
 // OIDC sign-in merged onto that 2026-11-08: measured entry 75.5 kB, initial 209.8 kB, app 817.1 kB, inside both raises
+// app raised 2026-11-08 from 818 kB for the match-feel batch (#248 steady hand, #235 multi-mana auto-pay, #227 ability
+// source marks), all in the lazy match chunk: measured 818.4 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 818,
+  app: 820,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;
