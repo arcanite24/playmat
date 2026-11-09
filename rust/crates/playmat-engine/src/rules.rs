@@ -10312,7 +10312,10 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         }
         if !o.blocking.is_empty() {
             if game.stack.is_empty() {
-                game.obj_mut(blocker).blocking.clear();
+                // `Combat.removeBlocker`: out of each group it blocked, too (the view's blockers)
+                for a in std::mem::take(&mut game.obj_mut(blocker).blocking) {
+                    game.obj_mut(a).blocked_by.retain(|x| *x != blocker);
+                }
                 game.obj_mut(blocker).blocks = 0;
                 refresh_blocked(game);
             }

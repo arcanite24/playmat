@@ -215,6 +215,26 @@ public final class RustHost {
         return end(gameId, hosted, winner, turns, reason);
     }
 
+    /**
+     * A hosted game's join or quit that reached Java: the gateway routes those to the host, so the host doesn't have
+     * the game (the gateway restarted, or the player came in around it). The game ends: as the quitter's loss, or as
+     * a draw for a join, as a host that fails does.
+     *
+     * @return true when the game was hosted (and is now over), so Java has nothing to join or quit
+     */
+    public static boolean orphaned(UUID gameId, UUID userId, boolean quit) {
+        Hosted h = HOSTED.get(gameId);
+        if (h == null || !h.userId.equals(userId) || !HOSTED.remove(gameId, h)) {
+            return false;
+        }
+        String winner = !quit ? null : h.game.getPlayers().keySet().stream().filter(id -> !id.equals(h.playerId))
+                .findFirst().map(UUID::toString).orElse(null);
+        logger.warn("Rust host: game " + gameId + " isn't on its host any more (" + (quit ? "quit" : "joined")
+                + " through Java), ending it");
+        end(gameId, h, winner, 0, quit ? "conceded, its host is gone" : "its host is gone");
+        return true;
+    }
+
     /** ends the hosted games whose human is gone (above) as their loss */
     static void sweep() {
         long now = System.currentTimeMillis();

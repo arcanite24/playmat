@@ -177,6 +177,9 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
   35 minutes as their loss; the host itself ends a game as the human's loss after 30 minutes without an answer.
 - **Reconnect.** `User.onReconnect` resends `START_GAME` for the user's hosted games; the client joins again and the
   gateway re-sends the view and the open question.
+- **A host that lost its game.** The gateway routes a hosted game's join and quit to the host, so one that reaches Java
+  means the host no longer has the game (the gateway restarted). `RustHost.orphaned` ends it there: a join as a draw,
+  a quit as the player's loss.
 
 Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI), `rustAi.live.test.ts` (16 games
 against a local server through the gateway), the conformance suite with `MAGE_CONFORMANCE_DECK` set to a deck the
