@@ -114,10 +114,13 @@ import { gzipSync } from 'node:zlib';
 // cards) and its sixteen primitives with their CSS, lazy with the match screen; the token art picker in Settings and
 // the deck builder, the look carrying the choices, and their English and Spanish messages. Measured app 815.6 kB
 // OIDC sign-in merged onto that 2026-11-08: measured entry 75.5 kB, initial 209.8 kB, app 817.1 kB, inside both raises
+// app raised 2026-11-08 from 818 kB for the UI and Gauntlet fixes (#203, #249, #250): the deck builder's card close-up
+// and its magnifier, the log's pin and outside-click close, the Gauntlet map's legend, with their English and Spanish
+// messages; all lazy with their screens. Measured app 820.1 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 818,
+  app: 822,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

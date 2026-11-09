@@ -67,6 +67,7 @@ export default {
   'career.deck.fix': 'Fix the deck',
   'career.deck.summary': { one: '{count} card', other: '{count} cards' },
   'career.deck.edit': 'Edit deck',
+  'career.deck.inspect': 'Look at {name} up close',
   'career.lossNote': 'Losses pay a little too, unless the game ends before turn 3.',
 
   'career.recent': 'Recent matches',

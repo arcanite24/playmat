@@ -225,6 +225,98 @@
   opacity: 0.55;
 }
 
+/* a binder card and its magnifier (#250): the card adds and removes, the magnifier opens it up close */
+.tileWrap {
+  position: relative;
+}
+
+.tileWrap:hover .tile {
+  transform: translateY(-4px);
+}
+
+.inspectButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(var(--mat-rgb) / 0.88);
+  box-shadow: inset 0 0 0 1px var(--ink-faint);
+  color: var(--ink);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-quick) linear, transform var(--dur-quick) var(--ease-lift);
+}
+
+.tileWrap:hover .inspectButton {
+  opacity: 1;
+  transform: translateY(-4px);
+}
+
+.inspectButton:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.inspectButton:hover {
+  box-shadow: inset 0 0 0 1.5px var(--ink-soft);
+}
+
+/* a finger has no hover: the magnifier is always there */
+:global([data-touch]) .inspectButton {
+  opacity: 1;
+  min-width: var(--touch-target, 32px);
+  min-height: var(--touch-target, 32px);
+}
+
+.inspect {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  align-items: flex-start;
+}
+
+.inspectFaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.inspectFace {
+  width: min(340px, 80vw);
+}
+
+.inspectText {
+  display: grid;
+  flex: 1 1 260px;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.inspectText h3 {
+  font-size: var(--text-lg);
+}
+
+.inspectText ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  line-height: 1.45;
+}
+
+.inspectType {
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
 /* copies in the deck, as pips under the card */
 .copies {
   position: absolute;

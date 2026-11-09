@@ -742,6 +742,7 @@ const es: Catalog = {
   'career.deck.notReady': 'Tu mazo necesita al menos {min} cartas; tiene {count}.',
   'career.deck.missing': { one: 'Tu mazo usa {count} carta de la que no tienes suficientes copias.', other: 'Tu mazo usa {count} cartas de las que no tienes suficientes copias.' },
   'career.deck.fix': 'Arreglar el mazo',
+  'career.deck.inspect': 'Ver {name} de cerca',
   'career.deck.summary': { one: '{count} carta', other: '{count} cartas' },
   'career.deck.edit': 'Editar mazo',
   'career.lossNote': 'Las derrotas también pagan un poco, salvo que la partida termine antes del turno 3.',
