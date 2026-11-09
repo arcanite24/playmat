@@ -55,6 +55,7 @@ import { useOpponentVoice } from './useOpponentVoice';
 import { useRevealedHands } from './useRevealedHands';
 import { setCardMotion, useFlipOrigin } from './flip';
 import { GameLog } from './GameLog';
+import { useMatchZoomKeys } from './matchZoomKeys';
 import { Hand } from './Hand';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
@@ -182,6 +183,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const largeZoom = useSettings((settings) => settings.settings.largeZoom);
   const bigZoom = useSettings((settings) => settings.settings.bigZoom);
   const matchSize = useSettings((settings) => settings.settings.matchSize);
+  // the browser's zoom keys and a trackpad pinch step the match size: zoom alone cancels out (#147)
+  useMatchZoomKeys(true);
   useEffect(() => {
     // the session only delays a game being watched; turning the delay off catches up at once
     session.setBroadcastDelay(mode === 'watch' && isBroadcastDelay(broadcastDelay) ? broadcastDelay * 1000 : 0);
