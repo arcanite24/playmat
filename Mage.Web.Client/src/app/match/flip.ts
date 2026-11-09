@@ -71,11 +71,14 @@ export function useFlipOrigin(key: string, ref: RefObject<HTMLElement | null>) {
  * `fallbackOrigin` names a zone to fly from when the card was never on screen (a draw, an opponent's cast).
  * `shift` is how far the card's zone has scrolled it (a big hand): when it changes, the card's new place is noted
  * without a flight, since the card itself didn't go anywhere.
+ * `posed` is a pose of the card's own (a hand card lifted under the pointer): while it holds, the card isn't measured,
+ * so its place stays the resting one and the lift (a CSS transition) is never taken for a move and flown (#248).
  */
-export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement | null>, options: { rotation?: number; fallbackOrigin?: string; shift?: number } = {}) {
+export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement | null>, options: { rotation?: number; fallbackOrigin?: string; shift?: number; posed?: boolean } = {}) {
   const stage = useStage();
   const rotation = options.rotation ?? 0;
   const shift = options.shift ?? 0;
+  const posed = options.posed ?? false;
   // the element's first layout: it may have come from another zone at another angle (the fanned hand)
   const arrived = useRef(false);
   const shifted = useRef(shift);
@@ -85,7 +88,15 @@ export function useFlip(cardId: string | undefined, ref: RefObject<HTMLElement |
     if (!element || !cardId || !stage.element) return;
     const firstLayout = !arrived.current;
     arrived.current = true;
-    // a card in flight is measured where it lands, not mid-air
+    // a posed card keeps its resting place (one never seen yet notes where it is, so it doesn't fly from its origin later)
+    if (posed) {
+      if (!placements.has(cardId)) {
+        const here = measure(element, stage.element, stage.scale, rotation);
+        if (here) placements.set(cardId, here);
+      }
+      return;
+    }
+    // a card in flight is measured where it lands, not mid-air (a pose easing back counts: it settles where it rests)
     if (element.getAnimations().some((animation) => animation.playState === 'running')) return;
     const now = measure(element, stage.element, stage.scale, rotation);
     if (!now) return;

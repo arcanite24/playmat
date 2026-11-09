@@ -250,7 +250,7 @@ function HandCard({ card, choosing, index, hints, left, rotate, drop, lifted, cl
   const [drag, setDrag] = useState<{ dx: number; dy: number; moved: boolean } | null>(null);
   // the gesture lives in a ref: pointer events can arrive faster than React re-renders
   const gesture = useRef<{ startX: number; startY: number; moved: boolean; sweeping?: boolean } | null>(null);
-  useFlip(card.cardId ?? card.id, ref, { rotation: rotate, fallbackOrigin: libraryOrigin, shift });
+  useFlip(card.cardId ?? card.id, ref, { rotation: rotate, fallbackOrigin: libraryOrigin, shift, posed: lifted });
 
   function onPointerDown(event: ReactPointerEvent) {
     if (!clickable || event.button !== 0) return;

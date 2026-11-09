@@ -16,7 +16,7 @@ import { spectatorHand } from '../../core/game/spectatorHand';
 import { matchProgress } from '../../core/game/matchProgress';
 import { pregameChoice } from '../../core/game/pregame';
 import { offBoardTargets } from '../../core/game/offBoardTargets';
-import { heldOffZone, offZonePlayables, type OffZonePlayable } from '../../core/game/offZonePlayables';
+import { NO_OFF_ZONE_HOLD, nextOffZoneHold, offZonePlayables, type OffZoneHold } from '../../core/game/offZonePlayables';
 import { predict, withPredictedAttack, withPrediction } from '../../core/game/prediction';
 import type { CardView, ChatMessage, GameView, PlayerLook, PlayerView } from '../../protocol/generated/views';
 import { rosterOf, sleeveFor, SLEEVE_COLORS, useDecks } from '../stores/decks';
@@ -58,6 +58,7 @@ import { GameLog } from './GameLog';
 import { Hand } from './Hand';
 import './matchMessages';
 import { useMatchUi } from './matchUi';
+import { promptSourceId } from '../../core/game/promptSource';
 import { useGameCues } from './useGameCues';
 import { useWarmImages } from './useWarmImages';
 import { useAutoCrew } from './useAutoCrew';
@@ -194,7 +195,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
 
   useEffect(() => setCardMotion(animations), [animations]);
   // a new game starts with a clean table
-  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null }), []);
+  useEffect(() => () => useMatchUi.setState({ zoom: null, dragging: null, viewer: null, logOpen: false, detail: null, sourceHover: null, promptSource: null }), []);
 
   // a click's likely outcome (a land tapped for mana) shows at once; the server's next view replaces it
   const board = useMemo(() => buildBoard(withPrediction(view, prediction), playerId), [view, prediction, playerId]);
@@ -219,9 +220,10 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   }, [view?.myHand, sortedHand]);
   // cards played from exile or a graveyard (an adventurer, flashback) join the hand while they can be played
   const liveOffZone = useMemo(() => (interaction.mode === 'priority' ? offZonePlayables(view, clickable) : null), [interaction.mode, view, clickable]);
-  const [lastOffZone, setLastOffZone] = useState<OffZonePlayable[]>([]);
-  if (liveOffZone && liveOffZone !== lastOffZone) setLastOffZone(liveOffZone);
-  const offZone = useMemo(() => liveOffZone ?? heldOffZone(lastOffZone, view), [liveOffZone, lastOffZone, view]);
+  const [lastOffZone, setLastOffZone] = useState<OffZoneHold>(NO_OFF_ZONE_HOLD);
+  const offZoneHold = useMemo(() => nextOffZoneHold(lastOffZone, liveOffZone, view), [lastOffZone, liveOffZone, view]);
+  if (offZoneHold !== lastOffZone) setLastOffZone(offZoneHold);
+  const offZone = useMemo(() => offZonePlayables(view, offZoneHold.ids), [view, offZoneHold]);
   const handAndPlayables = useMemo(() => (offZone.length > 0 ? [...hand, ...offZone.map((entry) => entry.card)] : hand), [hand, offZone]);
   const fromZone = useMemo(() => new Map(offZone.map((entry) => [entry.card.id!, entry.zone])), [offZone]);
   // watching: the seat's hand, if its player lets us see it, and only backs while hands are hidden for the broadcast
@@ -385,6 +387,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   }, [choosingTargets, interaction.selected, stack]);
 
   const prompt = interaction.prompt;
+  // the permanent a question is asked for stays marked while it's open (#227)
+  const promptSource = useMemo(() => (awaitingServer ? null : promptSourceId(prompt)), [awaitingServer, prompt]);
+  useEffect(() => useMatchUi.setState({ promptSource }), [promptSource]);
   const targeting = interaction.mode === 'target' && !awaitingServer;
   // the decision corner names the blocker when the server asks which attacker it blocks
   // while paying: what is still owed, and for what
