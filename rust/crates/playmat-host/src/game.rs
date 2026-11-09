@@ -182,6 +182,11 @@ struct Host {
     last_view: Option<Value>,
     /// auto-answers the player asked for (`REQUEST_AUTO_ANSWER_TEXT_*`): the question's text and the answer
     auto_answers: Vec<(String, bool)>,
+    /// trigger orders the player set (`TRIGGER_AUTO_ORDER_*`): triggers by rule text (with their source's name)
+    order_first: Vec<String>,
+    order_last: Vec<String>,
+    /// the rule texts of the triggers the open question asks to order, by place
+    open_triggers: Vec<String>,
 }
 
 impl Host {
@@ -224,6 +229,9 @@ impl Host {
             conceded: None,
             last_view: None,
             auto_answers: Vec::new(),
+            order_first: Vec::new(),
+            order_last: Vec::new(),
+            open_triggers: Vec::new(),
         }
     }
 
@@ -361,7 +369,20 @@ impl Host {
                 }
             };
             if debug() {
-                eprintln!("host {} <- {:?}", self.game_id, call);
+                // an id: what it names in the game
+                let named = match &call {
+                    Call::Uuid(Some(u)) => self.ids.ref_of(u).map(|r| {
+                        let name = playmat_engine::replay::resolve(&self.game, r)
+                            .and_then(|a| match a {
+                                Answer::Obj(o) => Some(self.game.obj(o).name().to_string()),
+                                _ => None,
+                            })
+                            .unwrap_or_default();
+                        format!(" = {r} {name}")
+                    }),
+                    _ => None,
+                };
+                eprintln!("host {} <- {:?}{}", self.game_id, call, named.unwrap_or_default());
             }
             match &call {
                 Call::Join => {
@@ -390,6 +411,10 @@ impl Host {
                     }
                     a if a.starts_with("REQUEST_AUTO_ANSWER_") => {
                         self.auto_answer(a, data.as_ref());
+                        continue;
+                    }
+                    a if a.starts_with("TRIGGER_AUTO_ORDER_") => {
+                        self.trigger_order(a, data.as_ref());
                         continue;
                     }
                     a => {
@@ -427,6 +452,39 @@ impl Host {
             }
             _ => {}
         }
+    }
+
+    /// `HumanPlayer.setTriggerAutoOrder`: a trigger of the open question (by id) or a rule text (by name) to put first
+    /// or last from now on
+    fn trigger_order(&mut self, action: &str, data: Option<&Value>) {
+        if action == "TRIGGER_AUTO_ORDER_RESET_ALL" {
+            self.order_first.clear();
+            self.order_last.clear();
+            return;
+        }
+        let Some(data) = data.and_then(Value::as_str) else { return };
+        let rule = if action.starts_with("TRIGGER_AUTO_ORDER_ABILITY_") {
+            match self.ids.answer(&self.game, data) {
+                Some(Answer::Trigger(i)) => match self.open_triggers.get(i) {
+                    Some(r) => r.clone(),
+                    None => return,
+                },
+                _ => return,
+            }
+        } else {
+            data.to_string()
+        };
+        self.order_first.retain(|r| *r != rule);
+        self.order_last.retain(|r| *r != rule);
+        if action.ends_with("_FIRST") {
+            self.order_first.push(rule);
+        } else {
+            self.order_last.push(rule);
+        }
+    }
+
+    fn auto_order(&self, rules: &[String]) -> Result<usize, Vec<usize>> {
+        auto_order(&self.order_first, &self.order_last, rules)
     }
 
     /// The answer a call gives a question, if it fits
@@ -633,6 +691,47 @@ impl Decider for HostDecider<'_> {
                 return a;
             }
         }
+        if let Query::PickTrigger { triggers, .. } = q {
+            let rules: Vec<String> =
+                triggers.iter().map(|(source, rule)| rule.replace("{this}", game.obj(*source).name())).collect();
+            loop {
+                let open = match h.auto_order(&rules) {
+                    Ok(i) => {
+                        let a = Answer::Trigger(i);
+                        h.table.record(game, q, &a);
+                        return a;
+                    }
+                    Err(open) => open,
+                };
+                // the question lists only the triggers with no order set
+                let mut prompt = prompts::prompt(game, seat, q);
+                for i in (0..rules.len()).filter(|i| !open.contains(i)) {
+                    let r = format!("T{seat}.{i}");
+                    if let Some(cards) = prompt["data"]["cardsView1"].as_object_mut() {
+                        cards.remove(&r);
+                    }
+                    if let Some(t) = prompt["data"]["targets"].as_array_mut() {
+                        t.retain(|x| x.as_str() != Some(r.as_str()));
+                    }
+                }
+                h.open_triggers = rules.clone();
+                let q2 = q.clone();
+                // no id: "put it last" was just set, so the order is looked at again
+                let answer = h.ask(prompt, &|h, c| match c {
+                    Call::Uuid(None) => Some(Answer::Unknown),
+                    _ => h.answer_of(&q2, c),
+                });
+                h.open_triggers.clear();
+                match answer {
+                    Some(Answer::Unknown) => continue,
+                    Some(a) => {
+                        h.table.record(game, q, &a);
+                        return a;
+                    }
+                    None => return Answer::Stop,
+                }
+            }
+        }
         let prompt = prompts::prompt(game, seat, q);
         let q2 = q.clone();
         let answer = h.ask(prompt, &|h, c| h.answer_of(&q2, c));
@@ -688,4 +787,44 @@ fn debug() -> bool {
 
 fn now_ms() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// `HumanPlayer.chooseTriggeredAbility`'s auto order: a trigger set to go first, else the only one not set to go last
+/// (or the first of those set last); Err with the places the player has to choose among
+fn auto_order(first: &[String], last: &[String], rules: &[String]) -> Result<usize, Vec<usize>> {
+    if let Some(i) = rules.iter().position(|r| first.contains(r)) {
+        return Ok(i);
+    }
+    let open: Vec<usize> = (0..rules.len()).filter(|i| !last.contains(&rules[*i])).collect();
+    match open.len() {
+        0 => Ok(0),
+        1 => Ok(open[0]),
+        _ => Err(open),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::auto_order;
+
+    fn s(v: &[&str]) -> Vec<String> {
+        v.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn trigger_auto_order() {
+        let rules = s(&["a", "b", "c"]);
+        // nothing set: the player chooses among all
+        assert_eq!(auto_order(&[], &[], &rules), Err(vec![0, 1, 2]));
+        // one set first goes first
+        assert_eq!(auto_order(&s(&["b"]), &[], &rules), Ok(1));
+        // first wins over last
+        assert_eq!(auto_order(&s(&["c"]), &s(&["c"]), &rules), Ok(2));
+        // two set last: the one left goes
+        assert_eq!(auto_order(&[], &s(&["a", "c"]), &rules), Ok(1));
+        // one set last: the player chooses among the others
+        assert_eq!(auto_order(&[], &s(&["a"]), &rules), Err(vec![1, 2]));
+        // all set last: the first
+        assert_eq!(auto_order(&[], &rules, &rules), Ok(0));
+    }
 }

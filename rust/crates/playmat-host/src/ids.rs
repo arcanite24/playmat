@@ -72,6 +72,11 @@ impl Ids {
         self.refs.clear();
     }
 
+    /// The reference an id of the last render stands for (debugging)
+    pub fn ref_of(&self, uuid: &str) -> Option<&str> {
+        self.refs.get(uuid).map(String::as_str)
+    }
+
     /// What an id of the last render names, as an answer
     pub fn answer(&self, game: &Game, uuid: &str) -> Option<playmat_engine::decide::Answer> {
         if let Some(seat) = self.players.iter().position(|p| p == uuid) {

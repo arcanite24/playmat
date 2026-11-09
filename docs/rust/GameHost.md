@@ -180,12 +180,17 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
 - **A host that lost its game.** The gateway routes a hosted game's join and quit to the host, so one that reaches Java
   means the host no longer has the game (the gateway restarted). `RustHost.orphaned` ends it there: a join as a draw,
   a quit as the player's loss.
+- **Trigger order.** The "always first" and "always last" buttons (`TRIGGER_AUTO_ORDER_*`) set an order by rule text,
+  as `HumanPlayer` does; the host then orders those triggers itself and asks only about the rest.
 
 Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI), `rustAi.live.test.ts` (16 games
 against a local server through the gateway), the conformance suite with `MAGE_CONFORMANCE_DECK` set to a deck the
-engine knows, and `rustHost.live.test.ts` (a dropped connection and a reconnect).
+engine knows, `rustHost.live.test.ts` (a dropped connection and a reconnect), and `rustHostSoak.live.test.ts`: random deck pairs
+from `shadow-decks/`, the app's default settings, and a bot that also mulligans, blocks and takes blocks back, sets
+trigger orders and presses F-keys. It fails a game that locks (no prompt to answer for 20 seconds) or loops (400
+answers in one turn). 150 games across seeds 2, 3 and 11 finished with none locked or looping (8 Nov 2026).
 
-Not there yet: priority timers, trigger auto-order, the Career's tally (step F), spectators, and best-of-three.
+Not there yet: priority timers, the Career's tally (step F), spectators, and best-of-three.
 
 ## Decisions needed
 
