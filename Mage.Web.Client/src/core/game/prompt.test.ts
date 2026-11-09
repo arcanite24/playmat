@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { AbilityPickerView, CardView, GameClientMessage, GameView } from '../../protocol/generated/views';
-import { abilityChooserSource, isPromptEvent, parsePrompt, promptGameView, PROMPT_EVENTS, stripMarkup } from './prompt';
+import { abilityChooserSource, decodeEntities, isPromptEvent, parsePrompt, promptGameView, PROMPT_EVENTS, stripMarkup } from './prompt';
 
 // Fixture payloads shaped like the server's dialog callbacks (GameClientMessage / AbilityPickerView)
 const GAME_VIEW = { turn: 3 } as unknown as GameView;
@@ -193,6 +193,16 @@ describe('prompt helpers', () => {
   test('stripMarkup removes tags and decodes entities', () => {
     expect(stripMarkup('Pay <b>2</b>&nbsp;life&mdash;or&hellip;<br/>not &amp; &#65;')).toBe('Pay 2 life—or… not & A');
     expect(stripMarkup(undefined)).toBe('');
+  });
+
+  test('entities decode with or without their semicolon (#204)', () => {
+    // Modes writes "&bull " before each mode; a few cards write "&mdash" bare
+    expect(stripMarkup('When Trufflesnout enters, choose one &mdash;<br>&bull Put a +1/+1 counter on it.<br>&bull You gain 4 life.'))
+      .toBe('When Trufflesnout enters, choose one — • Put a +1/+1 counter on it. • You gain 4 life.');
+    expect(stripMarkup('Ward&mdash;Pay 2 life &ndash; &minus;1 &hellip; &rsquo;s &quot;x&quot; &bull;')).toBe('Ward—Pay 2 life – −1 … \'s "x" •');
+    expect(decodeEntities('&amp;lt; &AMP; &#x2014; &#8226; &lt;b&gt;')).toBe('&lt; & — • <b>');
+    // not entities: left as they are
+    expect(decodeEntities('R&D, Tom & Jerry, &bullet, &#xZZ;')).toBe('R&D, Tom & Jerry, &bullet, &#xZZ;');
   });
 });
 

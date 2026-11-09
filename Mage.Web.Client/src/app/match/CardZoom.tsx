@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CardView, PermanentView } from '../../protocol/generated/views';
 import { isStackAbility } from '../../core/game/cards';
 import { explainCard } from '../../core/game/glossary';
+import { stripMarkup } from '../../core/game/prompt';
 import { AbilityCard } from '../ui/AbilityCard';
 import { showsBackFace } from '../../core/images/imageLinks';
 import { CardFace } from '../ui/CardFace';
@@ -60,7 +61,7 @@ export function CardZoom({ large = false, big = false }: { large?: boolean; big?
   const card = shown.card as PermanentView;
   const back = card.secondCardFace;
   const extra = details(card);
-  const rules = styled ? (card.rules ?? []).filter((line) => line.trim()) : [];
+  const rules = styled ? (card.rules ?? []).map(stripMarkup).filter(Boolean) : [];
   const width = large ? LARGE_WIDTH : big ? BIG_WIDTH : ZOOM_WIDTH;
   const height = width * (88 / 63);
   const point = toStagePoint(stage, shown.x, shown.y);
