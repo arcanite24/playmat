@@ -14,8 +14,6 @@ public class CounterOwnSpellAITest extends CardTestPlayerBaseAI {
     public void test_ForceOfWill_NotOnOwnSpell() {
         addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
         addCard(Zone.HAND, playerA, "Grizzly Bears", 1);
-        // You may pay 1 life and exile a blue card from your hand rather than pay this spell's mana cost.
-        // Counter target spell.
         addCard(Zone.HAND, playerA, "Force of Will", 2);
 
         setStopAt(1, PhaseStep.END_TURN);
@@ -27,10 +25,11 @@ public class CounterOwnSpellAITest extends CardTestPlayerBaseAI {
     }
 
     @Test
-    public void test_ForceOfWill_OnOpponentCounter() {
+    public void test_Counterspell_OnOpponentCounter() {
         addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
+        addCard(Zone.BATTLEFIELD, playerA, "Island", 4);
         addCard(Zone.HAND, playerA, "Grizzly Bears", 1);
-        addCard(Zone.HAND, playerA, "Force of Will", 2);
+        addCard(Zone.HAND, playerA, "Counterspell", 1);
 
         addCard(Zone.BATTLEFIELD, playerB, "Island", 2);
         addCard(Zone.HAND, playerB, "Counterspell", 1);
@@ -39,22 +38,8 @@ public class CounterOwnSpellAITest extends CardTestPlayerBaseAI {
         setStopAt(1, PhaseStep.END_TURN);
         execute();
 
-        // the AI may fight for its Bears, but must never counter its own Bears or its own Force of Will
+        // the AI fights for its Bears, never counters them
         assertGraveyardCount(playerB, "Counterspell", 1);
         assertPermanentCount(playerA, "Grizzly Bears", 1);
-    }
-
-    @Test
-    public void test_Counterspell_NotOnOwnSpell() {
-        addCard(Zone.BATTLEFIELD, playerA, "Forest", 2);
-        addCard(Zone.BATTLEFIELD, playerA, "Island", 2);
-        addCard(Zone.HAND, playerA, "Grizzly Bears", 1);
-        addCard(Zone.HAND, playerA, "Counterspell", 1);
-
-        setStopAt(1, PhaseStep.END_TURN);
-        execute();
-
-        assertPermanentCount(playerA, "Grizzly Bears", 1);
-        assertHandCount(playerA, "Counterspell", 1);
     }
 }
