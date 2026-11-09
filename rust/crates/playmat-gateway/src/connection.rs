@@ -52,6 +52,8 @@ enum Pending {
     Resync { had_state: bool },
     /// a call the gateway made itself; the reply is not passed on
     Whoami,
+    /// a call the gateway made itself whose reply nobody needs
+    Ignore,
 }
 
 struct Shared {
@@ -62,6 +64,8 @@ struct Shared {
     pending: Mutex<HashMap<String, Pending>>,
     queued_bytes: AtomicUsize,
     limit: Mutex<RateLimit>,
+    /// the Rust host's callbacks for this connection, numbered and patched before they go out
+    host_events: mpsc::UnboundedSender<Value>,
 }
 
 /// The Java bridge's limit on one connection's requests (`ConnectionState.tryAcquire`): a token bucket of 120,
@@ -100,6 +104,7 @@ fn id_key(id: &Value) -> String {
 }
 
 const WHOAMI_ID: &str = "gw:whoami";
+const CAPS_ID: &str = "gw:capabilities";
 
 fn next_connection() -> u64 {
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
@@ -132,7 +137,9 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
         }
     };
 
+    let (host_events, mut host_queue) = mpsc::unbounded_channel::<Value>();
     let shared = Arc::new(Shared {
+        host_events,
         caller: Mutex::new(Caller { ip: ip.to_string(), connection: next_connection(), ..Caller::default() }),
         identified: tokio::sync::watch::Sender::new(true),
         states: Mutex::new(GameStates::new()),
@@ -195,6 +202,42 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
         }
     };
 
+    // the gateway hosts games: Java hands them over on this connection (a client that never sets capabilities too)
+    if app.hosts.enabled {
+        shared.pending.lock().unwrap().insert(id_key(&Value::from(CAPS_ID)), Pending::Ignore);
+        let caps = Request {
+            id: Some(Value::from(CAPS_ID)),
+            method: "setCapabilities".into(),
+            params: vec![json!(["gameHost"])],
+        };
+        let _ = to_java.send(Frame::text(Bytes::from(caps.to_text())));
+    }
+
+    // the Rust host -> client: each callback numbered after Java's last, patched as Java's are
+    let from_host = {
+        let shared = shared.clone();
+        let app = app.clone();
+        let send_client = send_client.clone();
+        tokio::spawn(async move {
+            while let Some(event) = host_queue.recv().await {
+                let Value::Object(mut event) = event else { continue };
+                let text = {
+                    let mut states = shared.states.lock().unwrap();
+                    let id = states.next_message_id();
+                    event.insert("messageId".into(), Value::from(id));
+                    let diffs = app.config.state_diffs && states.is_enabled();
+                    match diffs.then(|| states.encode(&event)).flatten() {
+                        Some(encoded) => encoded.json,
+                        None => Value::Object(event).to_string(),
+                    }
+                };
+                if !send_client(text) {
+                    break;
+                }
+            }
+        })
+    };
+
     // Java -> client
     let from_java = {
         let shared = shared.clone();
@@ -250,6 +293,7 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
     drop(to_java);
     let _ = java_writer.await;
     from_java.abort();
+    from_host.abort();
     // send_client and the Java reader hold senders too: a close frame ends the writer whoever still holds one
     let _ = to_client.send(Frame::close(CloseCode::Normal, ""));
     drop(send_client);
@@ -320,6 +364,21 @@ fn on_java_text(
             Some(pending) => on_reply(app, shared, to_java, send_client, reply, text, pending),
         };
     }
+    // Java's message ids, so the host's callbacks come after them
+    if let Some(id) = message_id(&text) {
+        shared.states.lock().unwrap().sent(id);
+    }
+    if app.hosts.enabled && text.contains("\"HOST_GAME\"") {
+        if let Ok(event) = serde_json::from_str::<Value>(&text) {
+            if event["method"] == "HOST_GAME" {
+                let connection = shared.caller.lock().unwrap().connection;
+                let subscriber = crate::host::Subscriber { connection, events: shared.host_events.clone() };
+                app.hosts.start(&event, subscriber, app.config.java_url.clone());
+                // the client never sees it
+                return true;
+            }
+        }
+    }
     let diffs = app.config.state_diffs && shared.states.lock().unwrap().is_enabled();
     if !diffs {
         return send_client(text);
@@ -339,6 +398,13 @@ fn on_java_text(
             send_client(encoded.json)
         }
     }
+}
+
+/// an event's `messageId`, read without parsing the whole event
+fn message_id(text: &str) -> Option<i64> {
+    let at = text.rfind("\"messageId\":")? + 12;
+    let digits: String = text[at..].chars().take_while(|c| c.is_ascii_digit()).collect();
+    digits.parse().ok()
 }
 
 fn on_reply(
@@ -392,6 +458,8 @@ fn on_reply(
         }
         Pending::Capabilities { wanted_diffs } => {
             if let Some(Value::Array(on)) = reply.get_mut("result") {
+                // the gateway's own
+                on.retain(|c| c.as_str() != Some("gameHost"));
                 if wanted_diffs && !on.iter().any(|c| c.as_str() == Some("stateDiffs")) {
                     on.push(Value::from("stateDiffs"));
                 }
@@ -407,6 +475,7 @@ fn on_reply(
             }
             send_client(reply.to_string())
         }
+        Pending::Ignore => true,
         Pending::Whoami => {
             if let Some(Value::String(user)) = reply.get("result") {
                 shared.caller.lock().unwrap().user = Some(user.clone());
@@ -470,11 +539,36 @@ async fn handle_request<S: Fn(String) -> bool + Clone + Send + Sync + 'static>(
             shared.pending.lock().unwrap().insert(id_key(id), Pending::Login { method: request.method.clone() });
         }
     }
+    // the games the Rust host plays take their calls here
+    if app.hosts.enabled {
+        if request.method == "hostGameEnded" {
+            // the gateway's call to Java, never a client's
+            if let Some(id) = &request.id {
+                send_client(
+                    json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32601, "message": "Method not found"}})
+                        .to_string(),
+                );
+            }
+            return;
+        }
+        if let Some(reply) = hosted_call(app, shared, send_client, &request) {
+            if let Some(id) = &request.id {
+                send_client(json!({"jsonrpc": "2.0", "id": id, "result": reply}).to_string());
+            }
+            return;
+        }
+    }
     match request.method.as_str() {
-        "setCapabilities" if gateway_diffs => {
+        "setCapabilities" if gateway_diffs || app.hosts.enabled => {
             let asked: Vec<Value> = request.params.first().and_then(Value::as_array).cloned().unwrap_or_default();
-            let wanted_diffs = asked.iter().any(|c| c.as_str() == Some("stateDiffs"));
-            let rest: Vec<Value> = asked.into_iter().filter(|c| c.as_str() != Some("stateDiffs")).collect();
+            let wanted_diffs = gateway_diffs && asked.iter().any(|c| c.as_str() == Some("stateDiffs"));
+            let mut rest: Vec<Value> = asked
+                .into_iter()
+                .filter(|c| !(gateway_diffs && c.as_str() == Some("stateDiffs")) && c.as_str() != Some("gameHost"))
+                .collect();
+            if app.hosts.enabled {
+                rest.push(Value::from("gameHost"));
+            }
             match &request.id {
                 Some(id) => {
                     shared.pending.lock().unwrap().insert(id_key(id), Pending::Capabilities { wanted_diffs });
@@ -534,6 +628,40 @@ async fn handle_request<S: Fn(String) -> bool + Clone + Send + Sync + 'static>(
     } else {
         answer(app, shared, route, to_java, send_client, text, request).await;
     }
+}
+
+/// A call about a game the Rust host plays: passed to the host, and its reply. None: not such a call.
+fn hosted_call(app: &App, shared: &Shared, send_client: &impl Fn(String) -> bool, request: &Request) -> Option<Value> {
+    let method = request.method.as_str();
+    // the game's chat: its log comes from the host, and nobody else is in it
+    if matches!(method, "chatJoin" | "chatLeave" | "chatSendMessage") {
+        let chat = request.params.first().and_then(Value::as_str)?;
+        app.hosts.game_of_chat(chat)?;
+        return Some(Value::Bool(true));
+    }
+    let at = crate::host::game_param(method)?;
+    let game_id = request.params.get(at).and_then(Value::as_str)?;
+    let hosted = app.hosts.get(game_id)?;
+    match method {
+        "chatFindByGame" => return Some(Value::from(hosted.chat_id.clone())),
+        "gameEmote" => return Some(Value::Bool(true)),
+        "gameJoin" => {
+            // this connection gets the game's callbacks from now on (a reconnect moves it)
+            let connection = shared.caller.lock().unwrap().connection;
+            hosted.subscribe(crate::host::Subscriber { connection, events: shared.host_events.clone() });
+        }
+        "gameStateResync" => {
+            let state = shared.states.lock().unwrap().resync(game_id);
+            if let Some(state) = state {
+                send_client(state);
+            }
+        }
+        _ => {}
+    }
+    if let Some(call) = crate::host::call_of(method, &request.params) {
+        hosted.call(call);
+    }
+    Some(Value::Bool(true))
 }
 
 /// a call routed `rust` or `shadow`

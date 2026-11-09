@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
 import { autoAnswer } from '../game/autoPass';
 import { DEFAULT_SETTINGS, toUserData } from '../../app/stores/settings';
-import { deck, playBotGame } from './botGame';
+import { deckList, playBotGame } from './botGame';
 import type { Command } from '../game/interaction';
 
 const SERVER_URL = process.env.MAGE_SERVER_URL ?? 'ws://127.0.0.1:17172';
@@ -19,11 +19,7 @@ const GAMES = Number(process.env.RUST_AI_GAMES ?? 4);
 const DECKS = join(__dirname, '../../../../rust/crates/playmat-engine/shadow-decks/tier30');
 
 function deckFile(file: string) {
-  const cards = readFileSync(join(DECKS, file), 'utf8').split(/\r?\n/).flatMap((line): [number, string][] => {
-    const m = /^(\d+)\s+(.+)$/.exec(line.trim());
-    return m ? [[Number(m[1]), m[2]]] : [];
-  });
-  return deck(file, cards);
+  return deckList(file, readFileSync(join(DECKS, file), 'utf8'));
 }
 
 const COMMANDS: Record<string, Command> = {

@@ -165,6 +165,8 @@ public class WebSocketServerImpl extends WebSocketServer {
         String clientIp = clientIp(conn, handshake);
         ConnectionState state = new ConnectionState(conn, workers, clientIp, limits.maxOutgoingBytes);
         state.setSignedOnUser(signedOnUser(conn, handshake));
+        InetSocketAddress peer = conn.getRemoteSocketAddress();
+        state.setTrustedPeer(peer != null && peer.getAddress() != null && limits.addressResolver.isTrusted(peer.getAddress()));
         conn.setAttachment(state);
         BridgeMetrics.get().opened(); // every connection with a state is closed through onClose
         if (limits.limitLoopback || !isLoopback(clientIp)) {

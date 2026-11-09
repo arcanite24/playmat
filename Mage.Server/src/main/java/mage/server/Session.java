@@ -653,6 +653,11 @@ public class Session {
     /**
      * Send event/command to the client
      */
+    /** whether this session's games can go to the Rust host (its connection comes through a gateway that hosts them) */
+    public boolean hostsGames() {
+        return channel != null && channel.hostsGames();
+    }
+
     public void fireCallback(final ClientCallback call) {
         List<ClientCallback> droppedAsOverflow = new ArrayList<>();
         List<ClientCallback> droppedAsOutdated = new ArrayList<>();

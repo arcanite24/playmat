@@ -61,6 +61,12 @@ impl GameStates {
         self.last_message_id = self.last_message_id.max(message_id);
     }
 
+    /// the next message id for a callback the gateway sends itself (the Rust host's), after Java's last
+    pub fn next_message_id(&mut self) -> i64 {
+        self.last_message_id = self.last_message_id.max(0) + 1;
+        self.last_message_id
+    }
+
     /// a new login on the connection: message ids start again
     pub fn new_session(&mut self) {
         self.games.clear();

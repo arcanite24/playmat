@@ -19,6 +19,14 @@ export function deck(name: string, cards: [number, string][]): DeckCardLists {
   };
 }
 
+/** A deck from a plain list, one "4 Card Name" per line (the shadow decks' format) */
+export function deckList(name: string, text: string): DeckCardLists {
+  return deck(name, text.split(/\r?\n/).flatMap((line): [number, string][] => {
+    const m = /^(\d+)\s+(.+)$/.exec(line.trim());
+    return m ? [[Number(m[1]), m[2]]] : [];
+  }));
+}
+
 export const RED_AGGRO = deck('Headless Red', [
   [22, 'Mountain'],
   [4, 'Raging Goblin'],

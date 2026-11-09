@@ -281,6 +281,26 @@ and an example of each; the admin console's Overview adds up the games and views
 staff first, e.g.
 `XMAGE_AI_BACKEND=rust` and `XMAGE_RUST_AI_USERS=neri`, then `up -d`.
 
+### Rust-hosted games
+
+The Rust engine can also play a whole game against the AI, with no Java game behind it
+([docs/rust/GameHost.md](../../docs/rust/GameHost.md), step D). Java still makes the table and the match; when the game
+starts, it hands the game to the gateway, which plays it and reports the result back. It needs the gateway
+(`XMAGE_GATEWAY=on`); it's off by default and still being tried.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `XMAGE_RUST_HOST_USERS` | none | Comma-separated user names (any case), or `*` for everyone: whose qualifying games the Rust engine hosts. Empty: nobody's. Setting it also turns hosting on in the gateway (`XMAGE_RUST_HOST=on`). |
+| `XMAGE_ENGINE` | | `java` keeps every game on Java. |
+
+A game qualifies when it's a single game (one win needed) of one player against one AI, not a Career game and not a
+setup or resumed game, the player is connected through the gateway, and the Rust engine has every card in both decks.
+The log says `Rust host: plays …'s game` when it hosts one, `Rust host: game … ended after n turns` at its end, and,
+for a listed player's game that doesn't qualify, why. Not there yet: priority timers, spectators, the solo tools
+(saves, undo), advice, and the Career's quests and stats for these games, which pay nothing for now. If the host
+fails mid-game, the game ends as a draw. If a player stays away (or the gateway is gone) for 35 minutes, the game
+ends as their loss.
+
 ### Small VPS (1 vCPU, 1 GB)
 
 The server runs a group's evening on a 1 vCPU / 1 GB VPS. Start from the preset, which lowers the limits to what one CPU keeps responsive and shrinks the picture cache to fit a small disk:

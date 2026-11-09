@@ -68,6 +68,8 @@ public class WebClientApiDocsTest {
         CALLBACK_DATA.put(ClientCallbackMethod.USER_REQUEST_DIALOG, "UserRequestMessage");
         CALLBACK_DATA.put(ClientCallbackMethod.GAME_REDRAW_GUI, "null");
         CALLBACK_DATA.put(ClientCallbackMethod.START_GAME, "TableClientMessage");
+        // the gateway takes it; a client never gets it
+        CALLBACK_DATA.put(ClientCallbackMethod.HOST_GAME, "unknown");
         CALLBACK_DATA.put(ClientCallbackMethod.GAME_INIT, "GameView");
         CALLBACK_DATA.put(ClientCallbackMethod.GAME_UPDATE_AND_INFORM, "GameClientMessage");
         CALLBACK_DATA.put(ClientCallbackMethod.GAME_INFORM_PERSONAL, "GameClientMessage");

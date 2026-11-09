@@ -75,7 +75,7 @@ export function chooseBotCommand(
         case 'amount':
           return { type: 'integer', value: prompt.min };
         case 'multiAmount':
-          return { type: 'string', value: prompt.items.map((item) => String(item.min ?? 0)).join(' ') };
+          return { type: 'string', value: prompt.items.map((item) => String(item.defaultValue ?? item.min ?? 0)).join(' ') };
         default:
           return null;
       }

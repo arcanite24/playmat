@@ -361,7 +361,7 @@ fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
 }
 
 /// A zone's cards (`CardsView`), by reference
-fn cards_view(game: &Game, ids: &[ObjId]) -> Value {
+pub fn cards_view(game: &Game, ids: &[ObjId]) -> Value {
     let mut m = Map::new();
     for id in ids {
         let r = reference(game, *id);
@@ -1433,6 +1433,18 @@ fn tooltip_color(colors: &[crate::card::Color]) -> &'static str {
     }
 }
 
+/// Every mode's text of a modal spell or ability on the stack, by mode (empty: no texts known)
+pub fn mode_texts(game: &Game, item: &crate::state::StackItem) -> Vec<String> {
+    let o = game.obj(item.card);
+    let name = o.printed_def.as_ref().map_or(&o.def.name, |p| &p.name);
+    let k = item.ability.map(|(k, _)| k).or_else(|| {
+        game.item_def(item).abilities.iter().position(|a| matches!(a, crate::card::AbilityDef::SpellAbility))
+    });
+    k.and_then(|k| templates().get(&format!("modes:{}", name))?.get(k.to_string())?.as_array().cloned())
+        .map(|a| a.iter().filter_map(|t| t.as_str().map(str::to_string)).collect())
+        .unwrap_or_default()
+}
+
 /// A modal spell's or ability's chosen modes (`CardView(Spell)`, `StackAbilityView`), by its ability's index `k`
 /// in its card's abilities
 fn chosen_modes(game: &Game, item: &crate::state::StackItem, k: Option<usize>, casting: bool) -> Vec<String> {
@@ -1611,7 +1623,7 @@ fn view_stack(game: &Game) -> Vec<(&crate::state::StackItem, Option<usize>)> {
 }
 
 /// A stack ability's rule, `{this}` for its source's name
-pub(crate) fn item_rule(game: &Game, item: &crate::state::StackItem) -> String {
+pub fn item_rule(game: &Game, item: &crate::state::StackItem) -> String {
     let def = game.item_def(item);
     let ability = item.ability.and_then(|(k, _)| def.abilities.get(k));
     match (&item.delayed, item.ability) {
@@ -1627,7 +1639,7 @@ pub(crate) fn item_rule(game: &Game, item: &crate::state::StackItem) -> String {
     }
 }
 
-pub(crate) fn stack_ref(game: &Game, id: ObjId) -> String {
+pub fn stack_ref(game: &Game, id: ObjId) -> String {
     match view_stack(game)
         .into_iter()
         .map(|(i, _)| i)

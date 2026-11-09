@@ -256,6 +256,11 @@ public class User {
         return " (online: " + connTime + "; seen: " + lastSecs + " sec ago)";
     }
 
+    /** whether this user's games can go to the Rust host, see {@link Session#hostsGames()} */
+    public boolean hostsGames() {
+        return isConnected() && managerFactory.sessionManager().getSession(sessionId).map(Session::hostsGames).orElse(false);
+    }
+
     public void fireCallback(final ClientCallback call) {
         if (isConnected()) {
             managerFactory.sessionManager().getSession(sessionId).ifPresent(session
@@ -457,6 +462,7 @@ public class User {
                 }
             }
         }
+        RustHost.reconnect(this);
 
         // active drafts
         for (Entry<UUID, DraftSession> entry : draftSessions.entrySet()) {
