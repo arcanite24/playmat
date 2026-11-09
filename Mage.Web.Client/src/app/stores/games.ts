@@ -45,6 +45,23 @@ interface GamesState {
 const ATTENTION_DELAY_MS = 1500;
 const stopWatching = new Map<string, () => void>();
 
+/**
+ * The way back (usePlay's return path) when it belongs to a game opening at this table: a start is still on its way
+ * (Career, a mode, the AI), it names this table's rewards, or another game of the same match is open. Anything else is
+ * left over from an earlier match and leads nowhere for this one (#214).
+ */
+export function returnPathFor(table: GameTable | null, tables: Record<string, GameTable>): string | null {
+  const { phase, returnPath } = usePlay.getState();
+  if (!returnPath) return null;
+  if (phase !== 'idle') return returnPath;
+  const ids = [table?.tableId, table?.parentTableId].filter((id): id is string => !!id);
+  if (ids.length === 0) return null;
+  const query = returnPath.indexOf('?');
+  const game = query >= 0 ? new URLSearchParams(returnPath.slice(query + 1)).get('game') : null;
+  if (game && ids.includes(game)) return returnPath;
+  return Object.values(tables).some((other) => !!other.tableId && other.tableId === table?.tableId) ? returnPath : null;
+}
+
 /** Calls the player back when their game waits on them while they are in another tab. */
 function watchForAttention(session: GameSession): () => void {
   let last: unknown = null;
@@ -82,12 +99,14 @@ export const useGames = create<GamesState>((set, get) => ({
     if (mode === 'play') stops.push(watchForAttention(session));
     // remembered so a reload can rejoin it (replays are not worth it), until it ends: a reload then has nothing to rejoin
     const { serverUrl, userName } = useSession.getState();
+    let leadsBack: string | null | undefined;
     if (mode !== 'replay') {
       // where leaving it goes (a Career match leads back to Career) only lives in memory: it's kept with the record, and
       // a game rejoined after a reload takes it back up, rather than leading home
       const remembered = openGameRecord(serverUrl, userName, gameId);
-      const returnPath = mode === 'play' ? usePlay.getState().returnPath ?? remembered?.returnPath ?? null : null;
-      if (returnPath && !usePlay.getState().returnPath) usePlay.setState({ returnPath });
+      const current = returnPathFor(table ?? null, get().tables);
+      const returnPath = mode === 'play' ? current ?? remembered?.returnPath ?? null : null;
+      if (mode === 'play') leadsBack = returnPath;
       rememberOpenGame(serverUrl, userName, {
         gameId, playerId, mode, tableId: table?.tableId ?? null, parentTableId: table?.parentTableId ?? null, openedAt: Date.now(), returnPath,
       });
@@ -104,6 +123,8 @@ export const useGames = create<GamesState>((set, get) => ({
       tables: table ? { ...state.tables, [gameId]: table } : state.tables,
       latestGameId: gameId,
     }));
+    // a way back left over from an earlier match (a Gauntlet game, then a game against a friend) doesn't lead this one
+    if (leadsBack !== undefined && leadsBack !== usePlay.getState().returnPath) usePlay.setState({ returnPath: leadsBack });
     return session;
   },
 

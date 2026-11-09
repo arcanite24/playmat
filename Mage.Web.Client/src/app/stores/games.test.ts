@@ -151,6 +151,24 @@ describe('games store', () => {
     expect(Object.keys(useGames.getState().sessions)).toEqual(['g2']);
   });
 
+  test('a Career way back stays with its own match, not a later game against people (#214)', async () => {
+    const { useGames, fake } = await load();
+    const { usePlay } = await import('./play');
+    const rewards = '/career/rewards?game=t1&career=1&back=%2Fcareer%2Fgauntlet';
+    // the Gauntlet game starts while its start is on its way, then learns its rewards
+    usePlay.setState({ phase: 'waitingForGame', returnPath: '/career/gauntlet' });
+    startGame(fake, { gameId: 'g1', playerId: 'p1', currentTableId: 't1', parentTableId: null });
+    expect(usePlay.getState().returnPath).toBe('/career/gauntlet');
+    usePlay.setState({ phase: 'idle', returnPath: rewards });
+    // the match's next game keeps it
+    startGame(fake, { gameId: 'g2', playerId: 'p1', currentTableId: 't1', parentTableId: null });
+    expect(usePlay.getState().returnPath).toBe(rewards);
+    // a game at a friend's table later on doesn't lead to the old run's rewards
+    startGame(fake, { gameId: 'g3', playerId: 'p1', currentTableId: 't9', parentTableId: null });
+    expect(usePlay.getState().returnPath).toBeNull();
+    expect(useGames.getState().latestGameId).toBe('g3');
+  });
+
   test('a question left open calls the player back; one answered at once does not', async () => {
     vi.useFakeTimers();
     try {
