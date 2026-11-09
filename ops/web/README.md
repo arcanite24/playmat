@@ -291,6 +291,7 @@ starts, it hands the game to the gateway, which plays it and reports the result 
 | Variable | Default | Meaning |
 |---|---|---|
 | `XMAGE_RUST_HOST_USERS` | none | Comma-separated user names (any case), or `*` for everyone: whose qualifying games the Rust engine hosts. Empty: nobody's. Setting it also turns hosting on in the gateway (`XMAGE_RUST_HOST=on`). |
+| `XMAGE_RUST_HOST_RECORDS_KEEP` | `500` | How many hosted games' records the gateway keeps in `saved/host-games` (the `xmage-saved` volume); the oldest go first. |
 | `XMAGE_ENGINE` | | `java` keeps every game on Java. |
 
 A game qualifies when it's one player against one AI, not a Career game and not a setup or resumed game, the player is
@@ -311,6 +312,16 @@ The gateway's `/metrics` counts the hosted games: `playmat_gateway_host_games_op
 `playmat_gateway_host_games_started_total`, and `playmat_gateway_host_games_ended_total` by `how`: `over` (played
 out), `conceded` (the game or the match), `timed out` (a player's priority timer ran out, which loses the match),
 `stopped`, `error` and `panic`. The last two are games the host lost, which end as draws; step E widens hosting after a week without them.
+
+Each hosted game leaves a record in `saved/host-games/<game id>.jsonl`: its start, the player's answers, the game log
+and the end. It holds the player's name, decks and plays, and stays on the server. The game log alone is often
+enough to see what happened. `host-replay` plays the game again exactly
+([docs/rust/GameHost.md, "Game records"](../../docs/rust/GameHost.md#game-records)):
+
+```bash
+sudo docker cp xmage-xmage-1:/opt/xmage/saved/host-games/<game id>.jsonl .
+cargo run --release -p playmat-host --bin host-replay -- <game id>.jsonl
+```
 
 ### Small VPS (1 vCPU, 1 GB)
 

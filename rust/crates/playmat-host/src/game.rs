@@ -20,6 +20,9 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
+/// Where a game's log lines go as they're written, with their turn
+pub type LogSink = Arc<std::sync::Mutex<Vec<(u32, String)>>>;
+
 /// A seat as Java's table gives it
 #[derive(Clone, Debug)]
 pub struct SeatStart {
@@ -41,6 +44,10 @@ pub struct Start {
     pub timer: Timer,
     /// the player id of who chooses who plays first: in a match, the previous game's loser; none for a random seat
     pub chooser: Option<String>,
+    /// where the game's record goes (`record.rs`): its start, the human's calls, the log and the end
+    pub record: Option<std::path::PathBuf>,
+    /// the game log's lines as they're written, with their turn (a replay compares them with the record's)
+    pub log_to: Option<LogSink>,
 }
 
 /// What a client sends during the game (`GameApi`)
@@ -127,7 +134,7 @@ impl HostedGame {
             .spawn(move || {
                 let mut host = Host::new(start, &db, ids, chat, calls_in, events_out);
                 let run = catch_unwind(AssertUnwindSafe(|| host.play()));
-                match run {
+                let ended = match run {
                     Ok(ended) => ended,
                     Err(e) => {
                         let why = e
@@ -143,7 +150,11 @@ impl HostedGame {
                             ..Ended::default()
                         }
                     }
+                };
+                if let Some(r) = host.record.as_mut() {
+                    r.end(&ended);
                 }
+                ended
             })
             .map_err(|e| e.to_string())?;
         Ok(HostedGame { game_id, chat_id, calls, events, thread: Some(thread) })
@@ -175,6 +186,8 @@ const IDLE: Duration = Duration::from_secs(30 * 60);
 
 struct Host {
     game: Game,
+    record: Option<crate::record::Recorder>,
+    log_to: Option<LogSink>,
     game_id: String,
     chat_id: String,
     names: Vec<String>,
@@ -233,8 +246,17 @@ impl Host {
         game.player_mut(human).no_pool_check = !settings.confirm_empty_mana_pool;
         let mut ai_seats = vec![None, None];
         ai_seats[ai] = Some(Config::default());
+        let record = start.record.as_ref().and_then(|path| match crate::record::Recorder::create(path, &start) {
+            Ok(r) => Some(r),
+            Err(e) => {
+                eprintln!("host {}: no record at {}: {e}", start.game_id, path.display());
+                None
+            }
+        });
         Host {
             game,
+            record,
+            log_to: start.log_to.clone(),
             game_id: start.game_id,
             chat_id,
             names: start.seats.iter().map(|s| s.name.clone()).collect(),
@@ -321,6 +343,12 @@ impl Host {
         let turn = format!("T{}.{}", self.game.turn, self.game.step.map(|s| s.name().to_string()).unwrap_or_default());
         for line in lines {
             let line = self.named(&line);
+            if let Some(r) = self.record.as_mut() {
+                r.line(json!({"log": line, "turn": self.game.turn}));
+            }
+            if let Some(l) = &self.log_to {
+                l.lock().unwrap().push((self.game.turn, line.clone()));
+            }
             let message = self.ids.text(&self.game, &line);
             self.send(
                 "CHATMESSAGE",
@@ -368,7 +396,11 @@ impl Host {
     /// Waits for the human to join (`gameJoin`), answering nothing else
     fn wait_join(&mut self) -> bool {
         while !self.joined {
-            match self.calls.recv_timeout(IDLE) {
+            let call = self.calls.recv_timeout(IDLE);
+            if let (Ok(c), Some(r)) = (&call, self.record.as_mut()) {
+                r.call(c, self.game.turn, None);
+            }
+            match call {
                 Ok(Call::Join) => {
                     self.joined = true;
                     self.ids.clear();
@@ -450,6 +482,13 @@ impl Host {
                     return None;
                 }
             };
+            if let Some(r) = self.record.as_mut() {
+                let reference = match &call {
+                    Call::Uuid(Some(u)) => self.ids.ref_of(u),
+                    _ => None,
+                };
+                r.call(&call, self.game.turn, reference);
+            }
             if self.clock.expired(self.human, Instant::now()) {
                 // an answer after the time ran out (Java's timer thread ends the game first)
                 self.time_out(self.human);

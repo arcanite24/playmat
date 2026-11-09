@@ -120,7 +120,10 @@ fn play_timed(
     timer: Timer,
     silent: bool,
 ) -> (playmat_host::Ended, Vec<Event>) {
-    let start = Start { timer, ..start(human_deck, ai_deck, seed, None) };
+    play_start(Start { timer, ..start(human_deck, ai_deck, seed, None) }, concede_at, silent)
+}
+
+fn play_start(start: Start, concede_at: u64, silent: bool) -> (playmat_host::Ended, Vec<Event>) {
     let game = HostedGame::start(start, Arc::new(playmat_engine::cards())).unwrap();
     game.call(Call::Join);
     let mut bot = Bot { tried: HashSet::new(), turn: 0, concede_at, silent };
@@ -164,6 +167,8 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
         ],
         timer: Timer::default(),
         chooser: chooser.map(str::to_string),
+        record: None,
+        log_to: None,
     }
 }
 
@@ -291,4 +296,20 @@ fn a_match_keeps_the_time_left() {
     let ended = game.join();
     assert!(ended.time_left[0].is_some_and(|l| l <= 42));
     assert_eq!(ended.time_left[1], Some(600));
+}
+
+/// A recorded game plays the same again from its record: the same log, the same end
+#[test]
+fn a_record_replays_the_game() {
+    let (company, zombies) = (deck("gw-company.txt"), deck("b-zombies.txt"));
+    let path = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("host-records/game-7.jsonl");
+    let start = Start { record: Some(path.clone()), ..start(&company, &zombies, 7, None) };
+    let (ended, _) = play_start(start, 6, false);
+    let rec = playmat_host::record::read(&path).unwrap();
+    assert!(!rec.calls.is_empty() && !rec.log.is_empty());
+    assert_eq!(rec.end.as_ref().unwrap()["reason"], ended.reason);
+    let replayed = playmat_host::record::replay(&rec, Arc::new(playmat_engine::cards())).unwrap();
+    assert_eq!(replayed.first_difference, None, "the replay's log differs from the record's");
+    assert_eq!((replayed.ended.winner, replayed.ended.turns), (ended.winner, ended.turns));
+    assert_eq!(replayed.ended.reason, ended.reason);
 }

@@ -60,6 +60,8 @@ services:
       XMAGE_RUST_AI_USERS: ${XMAGE_RUST_AI_USERS:-}
       # the Rust engine hosts these users' qualifying AI duels, through the gateway (docs/rust/GameHost.md, step D)
       XMAGE_RUST_HOST_USERS: ${XMAGE_RUST_HOST_USERS:-}
+      # how many hosted games' records the gateway keeps in saved/host-games (docs/rust/GameHost.md, "Game records")
+      XMAGE_RUST_HOST_RECORDS_KEEP: ${XMAGE_RUST_HOST_RECORDS_KEEP:-500}
       XMAGE_ENGINE: ${XMAGE_ENGINE:-}
       # where the gateway sends each group of calls: java (default), shadow or rust (ops/web/README.md "Rust gateway")
       XMAGE_ROUTE_DEFAULT: ${XMAGE_ROUTE_DEFAULT:-}
