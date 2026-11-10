@@ -59,6 +59,10 @@ import java.util.concurrent.atomic.AtomicReference;
  * .schools (default pioneer,standard: folders of Mage.Server/career-src), .decks (comma separated folders of deck
  * files to use instead, such as the engine's tiers in rust/crates/playmat-engine/shadow-decks), .views (record the
  * asked player's view at every n-th answer, default 0: none; docs/rust/Views.md).
+ * <p>
+ * With -Dxmage.shadowGames.replay=&lt;dir&gt; it plays each game in that folder again from its decks, seed and answers
+ * instead of the random driver, and writes it with Java's trace now: for a game whose answers were edited by hand after
+ * Java stopped asking a question (docs/rust/HumanDialogs.md).
  */
 public class ShadowGamesTest {
 
@@ -98,7 +102,7 @@ public class ShadowGamesTest {
         for (int i = first; i < first + games; i++) {
             int a = i % n;
             int b = (a + 1 + (i / n) % (n - 1)) % n;
-            Map<String, Object> record = play(i, names.get(a), decks.get(a), names.get(b), decks.get(b), turns);
+            Map<String, Object> record = play(i, names.get(a), decks.get(a), names.get(b), decks.get(b), turns, null);
             Files.write(new File(out, String.format("game-%05d.json", i)).toPath(),
                     gson.toJson(record).getBytes(StandardCharsets.UTF_8));
             System.out.println("[shadow] game " + i + " " + names.get(a) + " vs " + names.get(b) + ": "
@@ -107,17 +111,69 @@ public class ShadowGamesTest {
         }
     }
 
+    @Test
+    public void replayShadowGames() throws Exception {
+        String dir = System.getProperty(PREFIX, "");
+        String in = System.getProperty(PREFIX + ".replay", "");
+        Assume.assumeFalse("shadow games are replayed only with -D" + PREFIX + ".replay=<dir> -D" + PREFIX + "=<dir>",
+                dir.isEmpty() || in.isEmpty());
+        CardScanner.scan();
+        File out = new File(dir);
+        out.mkdirs();
+        Gson gson = new GsonBuilder().disableHtmlEscaping().create();
+        File[] files = new File(in).listFiles((d, name) -> name.endsWith(".json"));
+        Assume.assumeTrue("no games in " + in, files != null);
+        Arrays.sort(files);
+        for (File file : files) {
+            Map<?, ?> game = gson.fromJson(new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8), Map.class);
+            List<String> names = new ArrayList<>();
+            List<DeckCardLists> decks = new ArrayList<>();
+            for (Object o : (List<?>) game.get("decks")) {
+                Map<?, ?> deck = (Map<?, ?>) o;
+                StringBuilder text = new StringBuilder();
+                for (Object line : (List<?>) deck.get("main")) {
+                    text.append(line).append('\n');
+                }
+                for (Object line : (List<?>) deck.get("sideboard")) {
+                    text.append("SB: ").append(line).append('\n');
+                }
+                File tmp = File.createTempFile("shadow-deck", ".txt");
+                tmp.deleteOnExit();
+                Files.write(tmp.toPath(), text.toString().getBytes(StandardCharsets.UTF_8));
+                StringBuilder errors = new StringBuilder();
+                decks.add(DeckImporter.importDeckFromFile(tmp.toString(), errors, false));
+                names.add((String) deck.get("name"));
+            }
+            List<DecisionLog.Decision> decisions = new ArrayList<>();
+            for (Object o : (List<?>) game.get("decisions")) {
+                Map<?, ?> d = (Map<?, ?>) o;
+                decisions.add(new DecisionLog.Decision(((Number) d.get("seat")).intValue(), (String) d.get("target"),
+                        (Boolean) d.get("bool"), d.get("integer") == null ? null : ((Number) d.get("integer")).intValue(),
+                        (String) d.get("string"), (String) d.get("manaType"), (String) d.get("manaPlayer")));
+            }
+            long seed = ((Number) game.get("seed")).longValue();
+            int turns = ((Number) game.get("turns")).intValue();
+            Map<String, Object> record = play(seed, names.get(0), decks.get(0), names.get(1), decks.get(1), turns, decisions);
+            Files.write(new File(out, file.getName()).toPath(), gson.toJson(record).getBytes(StandardCharsets.UTF_8));
+            System.out.println("[shadow] replayed " + file.getName() + ": " + record.get("result") + ", "
+                    + decisions.size() + " answers, " + ((List<?>) record.get("trace")).size() + " trace entries");
+        }
+    }
+
+    /** {@code replay}: the answers to give, or null for the random driver's */
     private static Map<String, Object> play(long seed, String nameA, DeckCardLists deckA, String nameB, DeckCardLists deckB,
-                                            int turns) throws Exception {
+                                            int turns, List<DecisionLog.Decision> replay) throws Exception {
         Map<String, Object> start = new LinkedHashMap<>();
-        DecisionLog log = DecisionLog.recording();
+        DecisionLog log = replay == null ? DecisionLog.recording() : DecisionLog.replaying(replay);
+        java.util.function.IntSupplier answered = () -> replay == null ? log.getDecisions().size() : log.used();
         AtomicReference<Game> gameRef = new AtomicReference<>();
         List<Integer> decisionAt = java.util.Collections.synchronizedList(new ArrayList<>());
         GameTrace trace = new GameTrace(true, entry -> {
-            decisionAt.add(log.getDecisions().size());
+            decisionAt.add(answered.getAsInt());
             if (entry.index == 0) {
                 // the first priority: everything before it (shuffles, mulligans, opening hands) is the start
                 start.putAll(mage.game.trace.ShadowStart.capture(gameRef.get(), log, entry.text));
+                start.put("decision", answered.getAsInt());
             }
         });
         Game game = new TwoPlayerDuel(MultiplayerAttackOption.LEFT, RangeOfInfluence.ALL,
@@ -141,15 +197,25 @@ public class ShadowGamesTest {
         game.setGameOptions(options);
 
         ExecutorService answers = Executors.newSingleThreadExecutor();
-        RandomDriver driver = new RandomDriver(game, answers, new Random(seed));
+        RandomDriver driver = replay == null ? new RandomDriver(game, answers, new Random(seed)) : null;
+        // a replay's questions: each human query's type and message, as the driver writes them
+        List<String> asked = java.util.Collections.synchronizedList(new ArrayList<>());
         ShadowViews views = new ShadowViews(Integer.getInteger(PREFIX + ".views", 0));
-        game.addPlayerQueryEventListener(event -> views.ask(game, event, log.getDecisions().size()));
+        game.addPlayerQueryEventListener(event -> views.ask(game, event, answered.getAsInt()));
         game.addTableEventListener(event -> {
             if (event.getEventType() == mage.game.events.TableEvent.EventType.INFO) {
-                views.log(game, event.getMessage(), log.getDecisions().size());
+                views.log(game, event.getMessage(), answered.getAsInt());
             }
         });
-        game.addPlayerQueryEventListener(driver::ask);
+        if (driver != null) {
+            game.addPlayerQueryEventListener(driver::ask);
+        } else {
+            game.addPlayerQueryEventListener(event -> {
+                if (game.getPlayer(event.getPlayerId()) instanceof HumanPlayer) {
+                    asked.add(event.getQueryType() + " " + (event.getMessage() == null ? "" : event.getMessage()));
+                }
+            });
+        }
         AtomicReference<Throwable> failure = new AtomicReference<>();
         Thread thread = new Thread(() -> {
             try {
@@ -176,6 +242,11 @@ public class ShadowGamesTest {
         } else {
             result = one.hasWon() ? "A won" : two.hasWon() ? "B won" : "draw";
         }
+        if (replay != null && log.getFailure() != null) {
+            result = "error: replay " + log.getFailure();
+        } else if (replay != null && log.used() != replay.size()) {
+            result = "error: replay used " + log.used() + " of " + replay.size() + " answers";
+        }
 
         Map<String, Object> record = new LinkedHashMap<>();
         record.put("version", 1);
@@ -196,7 +267,7 @@ public class ShadowGamesTest {
             decisions.add(m);
         }
         record.put("decisions", decisions);
-        record.put("questions", driver.getQuestions());
+        record.put("questions", driver != null ? driver.getQuestions() : asked);
         if (!views.getViews().isEmpty()) {
             record.put("views", views.getViews());
             record.put("prompts", views.getPrompts());

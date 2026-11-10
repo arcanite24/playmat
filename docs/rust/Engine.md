@@ -25,7 +25,10 @@ Recording games (Mage.Tests; `mvn -o -q install -pl Mage -DskipTests` first if M
       -Dxmage.shadowGames.decks=$PWD/rust/crates/playmat-engine/shadow-decks/tier1 \
       -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:$PWD/.travis/log4j.properties
 
-Without `.decks` it plays the Pioneer and Standard school decks. The checked-in games have their trace texts removed
+Without `.decks` it plays the Pioneer and Standard school decks. With `-Dxmage.shadowGames.replay=<dir>` (and
+`-Dtest='ShadowGamesTest#replayShadowGames'`) it plays the games in that folder again from their decks, seed and
+answers, and writes them with Java's trace now: for checked-in games whose answers were edited after Java stopped
+asking a question (#265's empty target prompts). Answers that name a mode or a choice by object id can't be replayed. The checked-in games have their trace texts removed
 to keep them small; a recording keeps them, which is what the difference report prints.
 
 `HumanDialogs.md` is the question-by-question reference for what `HumanPlayer` asks.
