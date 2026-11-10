@@ -98,6 +98,8 @@ pub struct Obj {
     pub tapped: bool,
     pub damage: i32,
     pub counters: Vec<(String, i32)>,
+    /// its counters as it last left the battlefield
+    pub lki_counters: Vec<(String, i32)>,
     pub face_down: bool,
     /// the player it attacks
     pub attacking: Option<Seat>,
@@ -404,6 +406,8 @@ pub struct StackItem {
     /// an ability's face, when its source has transformed since it triggered or was activated
     pub def: Option<Arc<CardDef>>,
     pub controller: Seat,
+    /// the times its replicate cost was paid
+    pub replicated: u32,
     /// the chosen targets, per target of the spell or ability (a target can take several, "up to two")
     pub targets: Vec<Vec<Target>>,
     /// each object target's zone-change count when it was chosen (0 for players)
@@ -470,6 +474,7 @@ impl StackItem {
         StackItem {
             card,
             controller,
+            replicated: 0,
             targets: Vec::new(),
             target_zcc: Vec::new(),
             ability: None,
@@ -529,6 +534,8 @@ pub struct Game {
     pub at_next_end_step: Vec<StackItem>,
     /// "at the beginning of the next turn's upkeep" delayed triggers
     pub at_next_upkeep: Vec<StackItem>,
+    /// cards exiled by rebound: (card, its exile zcc, owner), offered at the owner's next upkeep
+    pub rebound: Vec<(ObjId, u32, Seat)>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
     pub next_creature_spell: Vec<(Seat, u32, StackItem)>,
     /// "when you next cast an instant or sorcery spell this turn": the player, the turn, the delayed trigger
@@ -582,6 +589,8 @@ pub struct Game {
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
     pub grants: Arc<Vec<Grant>>,
+    /// abilities lost until end of turn: (permanent, its zcc, the ability, the turn)
+    pub lost_until_eot: Vec<(ObjId, u32, AbilityDef, u32)>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
@@ -623,6 +632,8 @@ pub struct Game {
     pub damaged_batch: Vec<(ObjId, i32)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
+    /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
+    pub exiled_batch: bool,
     /// `LOST_LIFE_BATCH_FOR_ONE_PLAYER` triggers waiting for the batch: the player who lost life, and the trigger
     /// with the total as its X
     pub life_batch: Vec<(Seat, StackItem)>,
@@ -666,6 +677,7 @@ impl Game {
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
             at_next_upkeep: Vec::new(),
+            rebound: Vec::new(),
             attacks_opponent: Vec::new(),
             next_creature_spell: Vec::new(),
             next_instant_sorcery: Vec::new(),
@@ -691,6 +703,7 @@ impl Game {
             owed_choices: Vec::new(),
             extra_turns: Vec::new(),
             grants: Arc::new(Vec::new()),
+            lost_until_eot: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             exile_if_dies: Vec::new(),
@@ -711,6 +724,7 @@ impl Game {
             day: None,
             damaged_batch: Vec::new(),
             batch_pending: Vec::new(),
+            exiled_batch: false,
             life_batch: Vec::new(),
             resolving_controller: None,
             chosen_before: Vec::new(),
@@ -761,6 +775,7 @@ impl Game {
             tapped: false,
             damage: 0,
             counters: Vec::new(),
+            lki_counters: Vec::new(),
             face_down: false,
             attacking: None,
             attacking_pw: None,
@@ -864,6 +879,16 @@ impl Game {
             },
             Pred::Multicolored => self.colors(id).len() > 1,
             Pred::Colorless => self.colors(id).is_empty(),
+            Pred::ManaCostIn { costs } => costs.iter().any(|c| *c == o.def.cost.text),
+            Pred::ManaValueEqualSourceCounters { counter } => source.is_some_and(|src| {
+                let s = self.obj(src);
+                let n = if s.zone == Zone::Battlefield {
+                    s.counter(counter)
+                } else {
+                    s.lki_counters.iter().filter(|(k, _)| k == counter).map(|(_, n)| *n).sum()
+                };
+                o.def.mana_value() as i32 == n
+            }),
             Pred::AuraAttached => self.battlefield.iter().any(|a| {
                 Some(*a) != source && self.attached(*a) == Some(id) && self.has_subtype(*a, "Aura")
             }),
@@ -1019,6 +1044,11 @@ impl Game {
 
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
         let o = self.obj(id);
+        if !self.lost_until_eot.is_empty()
+            && self.lost_until_eot.iter().any(|(x, z, a, t)| *x == id && *z == o.zcc && a == ability && *t == self.turn)
+        {
+            return false;
+        }
         if o.has(ability) {
             return true;
         }
@@ -1509,6 +1539,8 @@ impl Game {
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
             Condition::Morbid => self.creature_died,
+            Condition::PlayedLand => self.player(you).lands_played > 0,
+            Condition::CardsInExile { n } => self.exile.len() >= *n,
             Condition::Delirium => {
                 self.value(&Amount::Of(crate::card::Value::CardTypesInYourGraveyard), you, source, 0) >= 4
             }
@@ -1900,6 +1932,9 @@ impl Game {
         // dies triggers look back at the battlefield as it was (this one included), and at what left it in the same
         // action (Java's short-living LKI: a sweeper's creatures see each other die)
         let died_controller = self.obj(id).controller;
+        if zone == Zone::Exile && matches!(from, Zone::Graveyard | Zone::Battlefield) {
+            self.exiled_batch = true;
+        }
         if from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) {
             self.creature_died = true;
         }
@@ -2089,6 +2124,9 @@ impl Game {
             if zone != Zone::Battlefield {
                 o.tapped = false;
                 o.damage = 0;
+                if from == Zone::Battlefield {
+                    o.lki_counters = std::mem::take(&mut o.counters);
+                }
                 o.counters.clear();
                 o.attacking = None;
                 o.attacking_pw = None;

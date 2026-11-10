@@ -20,6 +20,9 @@ fn shadow_games_match_java() {
         let shadow = ShadowGame::parse(&std::fs::read_to_string(f).unwrap()).unwrap();
         let name = f.strip_prefix(&dir).unwrap_or(f).display().to_string();
         let missing: Vec<String> = shadow.card_names().into_iter().filter(|n| db.get(n).is_none()).collect();
+        if !missing.is_empty() && std::env::var("PLAYMAT_SHADOW_MISSING").is_ok() {
+            eprintln!("{name}: missing {missing:?}");
+        }
         if !missing.is_empty() || shadow.result == "timeout" || shadow.result.starts_with("error") {
             skipped += 1;
             continue;

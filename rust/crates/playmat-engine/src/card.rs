@@ -172,6 +172,8 @@ pub enum TargetDef {
         filter: Filter,
     },
     /// an activated or triggered ability on the stack (`TargetActivatedOrTriggeredAbility`), named by its source
+    /// Consign to Memory: a triggered ability or a colorless spell on the stack
+    TargetTriggeredAbilityOrColorlessSpell,
     TargetStackAbility {
         #[serde(default = "one")]
         min: usize,
@@ -272,6 +274,15 @@ impl Cmp {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "p", rename_all = "snake_case")]
 pub enum Pred {
+    /// its mana cost is one of these (Urza's Saga's "{0} or {1}")
+    ManaCostIn {
+        costs: Vec<String>,
+    },
+    /// `ManaValueEqualToCountersSourceCountPredicate`: mana value equal to the source's counters of this kind (as it
+    /// last was on the battlefield)
+    ManaValueEqualSourceCounters {
+        counter: String,
+    },
     /// `CardType.X.getPredicate()`
     Type {
         t: CardType,
@@ -461,6 +472,13 @@ pub enum Trigger {
     },
     /// `SacrificeOneOrMorePermanentsTriggeredAbility`: once for the permanents sacrificed together, from the batch
     /// event (after what triggers on each sacrifice and on them leaving)
+    /// Ketramose: one or more cards put into exile from graveyards and/or the battlefield during your turn (once a batch)
+    ExiledFromGraveyardOrBattlefieldBatch,
+    /// "when you cast this spell" (`CastSourceTriggeredAbility`); `replicated`: only when its replicate cost was paid
+    CastThis {
+        #[serde(default)]
+        replicated: bool,
+    },
     SacrificedBatch {
         filter: Filter,
         who: String,
@@ -569,6 +587,12 @@ pub enum ManaKind {
 pub enum Condition {
     /// delirium: four or more card types among cards in your graveyard
     Delirium,
+    /// `PlayLandCondition`: you played a land this turn
+    PlayedLand,
+    /// `CardsInExileCondition`: at least `n` cards in exile
+    CardsInExile {
+        n: usize,
+    },
     /// `KickedCondition`: the spell was kicked (only a spell or what it put on the battlefield knows)
     Kicked,
     /// `OffspringCondition`: the permanent's offspring cost was paid
@@ -1108,6 +1132,12 @@ pub enum EffectDef {
         ability: Box<AbilityDef>,
         duration: Duration,
     },
+    /// the permanents of the filter (as it resolves) lose the ability until end of turn (Shadowspear)
+    LoseAbilityAllEffect {
+        ability: Box<AbilityDef>,
+        duration: Duration,
+        filter: Filter,
+    },
     /// a static effect that applies only while the condition holds ("my_turn")
     ConditionalContinuousEffect {
         effect: Box<EffectDef>,
@@ -1344,6 +1374,8 @@ pub enum EffectDef {
     SpellQuellerLeavesEffect,
     /// copy the spell that's this ability's source (casualty's "when you do"); its controller may choose new targets
     CopySourceSpellEffect,
+    /// replicate's cast trigger: a copy of the spell for each time its replicate cost was paid
+    ReplicateCopyEffect,
     /// a Class gains level `level`
     SetClassLevelEffect {
         level: u32,
@@ -1565,6 +1597,24 @@ pub enum EffectDef {
     },
     /// exiles the targets
     ExileTargetEffect,
+    /// the source gains the ability for as long as it's on the battlefield (`GainAbilitySourceEffect`, `Custom`)
+    GainAbilityPermanentlyEffect {
+        ability: Box<AbilityDef>,
+    },
+    /// activated abilities (not mana abilities) of sources with the source's chosen name can't be activated
+    PithingNeedleEffect,
+    /// Emry: you may cast the target (a nonland card in your graveyard) this turn
+    MayCastTargetFromGraveyardThisTurnEffect,
+    /// converge: exile the target nonland permanent if its mana value is at most the colors spent to cast this
+    PrismaticEndingEffect,
+    /// target player exiles a card from their graveyard
+    RelicOfProgenitusEffect,
+    /// `ExileAndGainLifeEqualPowerTargetEffect`: exile the target; its controller gains life equal to its power
+    ExileAndGainLifeEqualPowerTargetEffect,
+    /// `ExileThenReturnTargetEffect`: exile the targets, then return them under their owner's control
+    ExileThenReturnTargetEffect,
+    /// rebound's upkeep trigger: its owner may cast the exiled card without paying its mana cost
+    ReboundCastSpellFromExileEffect,
     /// returns the targets to their owners' hands
     ReturnToHandTargetEffect,
     /// return this to its owner's hand: from the battlefield, or (unless `battlefield_only`) the graveyard or exile
@@ -2246,12 +2296,21 @@ pub enum AbilityDef {
     /// evoke: cast for this cost instead (an alternative cost); its sacrifice trigger is the next ability
     EvokeAbility {
         cost: String,
+        /// the costs that aren't mana (Solitude's "exile a white card from your hand")
+        #[serde(default)]
+        costs: Vec<CostDef>,
         #[serde(default)]
         rule: String,
         /// the alternative cost's keyword: empty for evoke, "Dash" for dash (gains haste, returned to its owner's
         /// hand at the beginning of the next end step)
         #[serde(default)]
         keyword: String,
+    },
+    /// replicate: pay this cost any number of times as you cast it; a cast trigger copies it that many times
+    ReplicateAbility {
+        cost: String,
+        #[serde(default)]
+        rule: String,
     },
     KickerAbility {
         cost: String,
@@ -2458,6 +2517,10 @@ pub enum AbilityDef {
     /// whether the spell can be cast; paying with them is a special action the shadow games' players never take
     DelveAbility,
     ConvokeAbility,
+    /// improvise: each untapped artifact you control can pay {1}
+    ImproviseAbility,
+    /// sunburst: enters with a charge counter (a +1/+1 counter, if a creature) for each color of mana spent to cast it
+    SunburstAbility,
     /// if a player casts no spells during their own turn, it becomes night next turn (the front of a werewolf)
     DayboundAbility,
     /// if a player casts at least two spells during their own turn, it becomes day next turn (its back)
@@ -2476,6 +2539,8 @@ pub enum AbilityDef {
     },
     MenaceAbility,
     FlashAbility,
+    /// rebound: cast from hand, it's exiled as it resolves, and its owner may cast it free at their next upkeep
+    ReboundAbility,
     HexproofAbility,
     /// protection from a color, as an effect grants it (Brave the Elements)
     ProtectionFromColorAbility {
@@ -2520,6 +2585,11 @@ pub enum AbilityDef {
         effects: Vec<EffectDef>,
         #[serde(default)]
         cost: Vec<CostDef>,
+        /// it doesn't tap its source (an Eldrazi Scion's "Sacrifice this creature: Add {C}.")
+        #[serde(default)]
+        no_tap: bool,
+        #[serde(default)]
+        rule: String,
     },
     /// `{T}: Add` `amount` mana of one color (`SimpleManaAbility` with `Mana.GreenMana(2)`)
     ColoredManaAbility {
@@ -2531,6 +2601,14 @@ pub enum AbilityDef {
         /// it doesn't tap its source (Heritage Druid's "Tap three untapped Elves you control")
         #[serde(default)]
         no_tap: bool,
+        #[serde(default)]
+        rule: String,
+    },
+    /// `{T}: Add {otherwise}. If <condition>, add {color} instead` (River of Tears)
+    ConditionalColorManaAbility {
+        color: Color,
+        otherwise: Color,
+        condition: Condition,
         #[serde(default)]
         rule: String,
     },
@@ -2721,6 +2799,8 @@ impl AbilityDef {
             AbilityDef::ColoredManaAbility { color, amount, .. } => Some(Mana::of(*color, *amount)),
             // at least one, as far as this can tell (the game counts the rest)
             AbilityDef::DynamicManaAbility { color, .. } => Some(Mana::of(*color, 1)),
+            // (the game picks which as it lists the sources)
+            AbilityDef::ConditionalColorManaAbility { otherwise, .. } => Some(Mana::of(*otherwise, 1)),
             // one of each: whichever is needed
             AbilityDef::AnyColorManaAbility { amount, .. } => Some(Mana { colored: [*amount; 5], ..Mana::default() }),
             AbilityDef::ActivateIfConditionManaAbility { color, .. } => Some(Mana::of(*color, 1)),
@@ -2745,6 +2825,7 @@ impl AbilityDef {
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }
             | AbilityDef::NykthosShrineToNyxManaAbility { .. }
             | AbilityDef::ConditionalManaAbility { .. }
+            | AbilityDef::ConditionalColorManaAbility { .. }
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
             // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" is a `SimpleManaAbility`
             AbilityDef::ColoredManaAbility { amount, .. } if *amount != 1 => ManaKind::Other,
@@ -2754,7 +2835,10 @@ impl AbilityDef {
 
     /// whether activating this mana ability taps its source
     pub fn taps_source(&self) -> bool {
-        !matches!(self, AbilityDef::ColoredManaAbility { no_tap: true, .. })
+        !matches!(
+            self,
+            AbilityDef::ColoredManaAbility { no_tap: true, .. } | AbilityDef::ColorlessManaAbility { no_tap: true, .. }
+        )
     }
 
     /// the mana a mana ability's cost asks for (Castle Garenbrig's {2}{G}{G}; not Nykthos's, paid its own way)
