@@ -3095,7 +3095,8 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         }
     }
     // `Spell.activate`: each spliced ability is activated after the spell's own (its targets; its cost was added)
-    let spliced: Vec<ObjId> = game.stack.last().map(|t| t.spliced.iter().map(|(c, _, _)| *c).collect()).unwrap_or_default();
+    let spliced: Vec<ObjId> =
+        game.stack.last().map(|t| t.spliced.iter().map(|(c, _, _)| *c).collect()).unwrap_or_default();
     for (k, c) in spliced.into_iter().enumerate() {
         let splice_def = game.obj(c).def.clone();
         let Some(top) = game.stack.last() else { return false };
@@ -8148,10 +8149,8 @@ fn apply_each_effect(
                         targets: Vec::new(),
                         condition: None,
                     };
-                    game.at_next_end_step.push(StackItem {
-                        delayed: Some(Arc::new(delayed)),
-                        ..StackItem::spell(source.0, controller)
-                    });
+                    game.at_next_end_step
+                        .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
                 }
             }
             EffectDef::AtraxaGrandUnifierEffect => {
@@ -8169,10 +8168,12 @@ fn apply_each_effect(
                     let possible: Vec<ObjId> = cards
                         .iter()
                         .copied()
-                        .filter(|c| !chosen.contains(c) && {
-                            let mut with = chosen.clone();
-                            with.push(*c);
-                            distinct_card_types(game, &with)
+                        .filter(|c| {
+                            !chosen.contains(c) && {
+                                let mut with = chosen.clone();
+                                with.push(*c);
+                                distinct_card_types(game, &with)
+                            }
                         })
                         .collect();
                     match ask(game, d, controller, &Query::Cards { objs: possible.clone(), required: false }) {
@@ -8201,8 +8202,7 @@ fn apply_each_effect(
                 for c in &chosen {
                     game.move_to(*c, Zone::Hand);
                 }
-                let rest: Vec<ObjId> =
-                    cards.iter().copied().filter(|c| game.obj(*c).zone == Zone::Library).collect();
+                let rest: Vec<ObjId> = cards.iter().copied().filter(|c| game.obj(*c).zone == Zone::Library).collect();
                 if !put_on_library(game, d, controller, &rest, false, false) {
                     return;
                 }
