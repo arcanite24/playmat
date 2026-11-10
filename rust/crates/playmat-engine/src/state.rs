@@ -401,6 +401,9 @@ pub struct CombatGroup {
     pub left: Option<(Seat, Option<ObjId>, bool, Vec<ObjId>)>,
 }
 
+/// A card spliced onto a spell: the card, its targets and their zone change counters.
+pub type Spliced = (ObjId, Vec<Vec<Target>>, Vec<Vec<u32>>);
+
 #[derive(Clone, Debug)]
 pub struct StackItem {
     /// the spell's card, or the source of an ability
@@ -439,7 +442,7 @@ pub struct StackItem {
     pub gift_to: Option<Seat>,
     /// cards spliced onto this spell: each card's spell ability resolves after the spell's own, with its targets
     /// and their zone-change counts
-    pub spliced: Vec<(ObjId, Vec<Vec<Target>>, Vec<Vec<u32>>)>,
+    pub spliced: Vec<Spliced>,
 }
 
 /// An ability a resolved effect gave one object.
