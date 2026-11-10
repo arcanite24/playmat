@@ -900,9 +900,10 @@ impl Game {
                 };
                 o.def.mana_value() as i32 == n
             }),
-            Pred::AuraAttached => self.battlefield.iter().any(|a| {
-                Some(*a) != source && self.attached(*a) == Some(id) && self.has_subtype(*a, "Aura")
-            }),
+            Pred::AuraAttached => self
+                .battlefield
+                .iter()
+                .any(|a| Some(*a) != source && self.attached(*a) == Some(id) && self.has_subtype(*a, "Aura")),
             Pred::ChosenName => {
                 source.and_then(|src| self.obj(src).chosen_name.as_ref()).is_some_and(|n| *n == self.obj(id).def.name)
             }
@@ -1500,7 +1501,8 @@ impl Game {
         match c {
             // a permanent that was cast kicked ("when this enters, if it was kicked")
             Condition::Kicked => {
-                self.obj(source).kicked || self.stack.iter().any(|i| i.card == source && i.ability.is_none() && i.kicked)
+                self.obj(source).kicked
+                    || self.stack.iter().any(|i| i.card == source && i.ability.is_none() && i.kicked)
             }
             // only known on a cast trigger (`condition_with_kicker`)
             Condition::Opus => false,

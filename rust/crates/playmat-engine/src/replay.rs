@@ -206,8 +206,7 @@ impl ShadowGame {
         for (q, a) in self.questions.iter().zip(self.decisions.iter()).take(self.start.decision) {
             if q.starts_with("ASK Reveal Devourer of Destiny") && a.bool == Some(true) {
                 let card = game.player(a.seat).hand.iter().copied().find(|c| {
-                    game.obj(*c).def.name == "Devourer of Destiny"
-                        && !game.at_first_upkeep.iter().any(|i| i.card == *c)
+                    game.obj(*c).def.name == "Devourer of Destiny" && !game.at_first_upkeep.iter().any(|i| i.card == *c)
                 });
                 if let Some(card) = card {
                     crate::rules::devourer_first_upkeep(&mut game, card, a.seat);
