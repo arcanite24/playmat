@@ -163,6 +163,9 @@ pub enum TargetDef {
         /// not one of the ability's earlier targets (`AnotherTargetPredicate`: Drakuseth's "other targets")
         #[serde(default)]
         not_first: bool,
+        /// an amount divided among the targets as they're chosen (`TargetAnyTargetAmount`)
+        #[serde(default)]
+        distribute: Option<Amount>,
     },
     TargetPlayer,
     TargetOpponent,
@@ -405,6 +408,8 @@ pub enum Trigger {
     TransformsOrEnters,
     /// this attacks (`AttacksTriggeredAbility`)
     Attacks,
+    /// this attacks alone (`AttacksAloneSourceTriggeredAbility`)
+    AttacksAlone,
     /// training: this attacks with a creature of greater power (`TrainingAbility`)
     Training,
     /// this dies (`DiesSourceTriggeredAbility`)
@@ -507,6 +512,8 @@ pub enum Trigger {
         #[serde(default)]
         only_combat: bool,
     },
+    /// the permanent this is attached to is put into a graveyard from the battlefield; its target is that card
+    DiesAttached,
     /// a permanent of the filter leaves the battlefield; the trigger's X is the +1/+1 counters it had (The Ooze)
     LeavesAll {
         filter: Filter,
@@ -687,6 +694,8 @@ pub enum Condition {
     SourceEnteredThisTurn,
     /// `SourceAttackingCondition`
     SourceAttacking,
+    /// `AttackedOrBlockedThisCombatSourceCondition` (checked at end of combat, before it's removed from combat)
+    AttackedOrBlockedThisCombat,
     /// `CardsInControllerGraveyardCondition`, spell mastery: at least `n` cards of the filter in your graveyard
     CardsInGraveyard {
         filter: Filter,
@@ -800,6 +809,7 @@ impl TokenDef {
             back: None,
             transform_back: None,
             omen: false,
+            aftermath: false,
             prepare: None,
             room: Vec::new(),
             printed_cost: None,
@@ -834,6 +844,10 @@ pub enum CostDef {
     },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
     SacrificeXTargetCost {
+        filter: Filter,
+    },
+    /// tap X untapped permanents of the filter you control, X announced (Merchant's Dockhand); the ability's X
+    TapXTargetCost {
         filter: Filter,
     },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
@@ -972,6 +986,10 @@ pub enum Value {
     CardsInGraveyard { filter: Filter },
     /// the source's power (`SourcePermanentPowerValue`)
     SourcePower,
+    /// the source's toughness (`SourcePermanentToughnessValue`)
+    SourceToughness,
+    /// the controller's life total (`ControllerLifeCount`)
+    ControllerLife,
     /// the total power of the permanents of the filter
     TotalPower { filter: Filter },
     /// counters of a kind on the source while it's on the battlefield
@@ -1067,6 +1085,13 @@ pub enum EffectDef {
         /// how many, in place of the counter's own count
         #[serde(default)]
         value: Option<Amount>,
+        /// on the ability's second target (`SecondTargetPointer`)
+        #[serde(default)]
+        second: bool,
+    },
+    /// removes one counter of the kind from the target
+    RemoveCounterTargetEffect {
+        counter: String,
     },
     /// the controller creates `amount` tokens; Kavaron Harrier's enter tapped and attacking and are sacrificed at end
     /// of combat
@@ -1546,8 +1571,40 @@ pub enum EffectDef {
     EdificeOfAuthorityEffect,
     /// tap the permanent the source is attached to
     TapEnchantedEffect,
+    /// prevent all damage that would be dealt to the source this turn
+    PreventAllDamageToSourceEffect,
+    /// choose a permanent of the filter: prevent all combat damage it would deal this turn (Ajani's Aid)
+    PreventCombatDamageByChosenEffect {
+        filter: Filter,
+    },
+    /// tap every permanent of the filter
+    TapAllEffect {
+        filter: Filter,
+    },
+    /// reveal cards from the top until one of the filter: it goes to your hand, the rest on the bottom at random
+    RevealUntilToHandEffect {
+        filter: Filter,
+    },
+    /// gain control of every permanent of the filter the target player controls (for the rest of the game)
+    GainControlAllControlledTargetEffect {
+        filter: Filter,
+    },
+    /// reveal the top two: the lands onto the battlefield, the rest into your hand
+    NissaNaturesArtisanEffect,
+    /// exile the top card; until end of turn you may play it without paying its mana cost
+    OraclesVaultFreeEffect,
+    /// look at the top X cards: one into your hand, the rest on the bottom in any order
+    MerchantsDockhandEffect,
     /// remove the flood counters; none removed: a flood counter and draw a card, else add {C}{G}{U}
     BountyOfTheLuxaEffect,
+    /// Believe: the top card of your library onto the battlefield if it's a creature card and you choose to, else
+    /// into your hand
+    BelieveEffect,
+    /// `UntapTargetEffect` with `EachTargetPointer`: every target's permanents untap
+    UntapEachTargetEffect,
+    /// Nissa's Encouragement: a Forest, a Brambleweft Behemoth and a Nissa, Genesis Mage from your library (and the
+    /// ones not found there, from your graveyard) into your hand
+    NissasEncouragementEffect,
     /// sacrifice the target at the beginning of the next end step (Hazoret's Favor)
     SacrificeTargetNextEndStepEffect,
     /// reveal the top card: a permanent card may go onto the battlefield, else it may go on the bottom
@@ -2004,6 +2061,10 @@ pub enum EffectDef {
     GainFlashbackTargetEffect,
     /// +1/+1 counters on the targets, as many on each as was divided to it
     DistributeCountersEffect,
+    /// -1/-1 counters, divided as the targets were chosen (Splendid Agony)
+    DistributeM1M1CountersEffect,
+    /// damage divided as the targets were chosen (`DamageMultiEffect`)
+    DamageMultiEffect,
     /// each nonland permanent you control is all colors
     LeylineOfTheGuildpactEffect,
     /// until end of turn, the source becomes an X/X green Hydra creature, still a land
@@ -3062,6 +3123,9 @@ pub struct CardJson {
     /// an omen card's spell (its `adventure`)
     #[serde(default)]
     pub omen: bool,
+    /// an aftermath split card: its `room` halves are spells, the right one cast only from the graveyard
+    #[serde(default)]
+    pub aftermath: bool,
     /// a preparation card's prepare spell (`PrepareCard`)
     #[serde(default)]
     pub prepare: Option<Box<CardJson>>,
@@ -3170,6 +3234,9 @@ pub struct CardDef {
     pub transform_back: Option<Arc<CardDef>>,
     /// an omen card's spell: once it resolves, the card is shuffled into its owner's library (`OmenCard`)
     pub omen: bool,
+    /// an aftermath split card (`SplitCard`, `SPLIT_AFTERMATH`): its `room` halves are spells, the left cast from
+    /// hand, the right only from the graveyard and then exiled
+    pub aftermath: bool,
     /// a preparation card's prepare spell: what a prepared copy of it is (`PrepareCard`)
     pub prepare: Option<Arc<CardDef>>,
     /// a Room's halves, left then right: each cast as a spell, and unlocked as a door on the battlefield (`RoomCard`)
@@ -3237,6 +3304,7 @@ impl CardDef {
                 None => None,
             },
             omen: json.omen,
+            aftermath: json.aftermath,
             prepare: match json.prepare {
                 Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
                 None => None,
@@ -3262,6 +3330,10 @@ impl CardDef {
 
     /// The card cast with its flashback cost, if it has flashback
     pub fn flashback(&self) -> Option<CardDef> {
+        // an aftermath card's right half
+        if self.aftermath {
+            return self.room.get(1).map(|h| (**h).clone());
+        }
         self.abilities.iter().find_map(|a| match a {
             AbilityDef::FlashbackAbility { cost, costs, .. } => {
                 let mut spell = self.spell.clone();

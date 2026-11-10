@@ -206,6 +206,8 @@ pub struct Obj {
     pub may_play: Option<(Seat, u32)>,
     /// mana of any type can be spent to cast it (while it may be played from exile)
     pub any_mana: bool,
+    /// while it may be played from exile, it's cast without paying its mana cost (Oracle's Vault)
+    pub play_free: bool,
     /// it may be played from exile only by casting it (not played as a land)
     pub cast_only: bool,
     /// cast from exile, it costs this much more (Elite Spellbinder)
@@ -569,6 +571,11 @@ pub struct Game {
     pub spent_tally: [u32; 6],
     /// "damage can't be prevented this turn" (Stomp): the turn it was said
     pub no_prevention_turn: Option<u32>,
+    /// "prevent all damage that would be dealt to it this turn": the permanent, its zone-change count, the turn
+    pub prevent_all_to: Vec<(ObjId, u32, u32)>,
+    /// "prevent all combat damage a source of your choice would deal this turn": the source, its zone-change count,
+    /// the turn
+    pub prevent_combat_from: Vec<(ObjId, u32, u32)>,
     /// "players can't gain life this turn" (Skullcrack): the turn it was said
     pub no_lifegain_turn: Option<u32>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
@@ -700,6 +707,8 @@ impl Game {
             foraging: std::cell::Cell::new(false),
             spent_tally: [0; 6],
             no_prevention_turn: None,
+            prevent_all_to: Vec::new(),
+            prevent_combat_from: Vec::new(),
             no_lifegain_turn: None,
             resolving: None,
             resolving_item: None,
@@ -837,6 +846,7 @@ impl Game {
             lost_abilities: None,
             may_play: None,
             any_mana: false,
+            play_free: false,
             cast_only: false,
             play_tax: 0,
             warped: false,
@@ -1416,6 +1426,8 @@ impl Game {
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .count() as i32,
                 Value::SourcePower => self.power_toughness(source).0,
+                Value::SourceToughness => self.power_toughness(source).1,
+                Value::ControllerLife => self.player(you).life,
                 Value::TotalPower { filter } => self
                     .battlefield
                     .iter()
@@ -1529,6 +1541,10 @@ impl Game {
                     })
             }),
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
+            Condition::AttackedOrBlockedThisCombat => {
+                let o = self.obj(source);
+                o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0
+            }
             Condition::SacrificedThisTurn { n } => self.player(you).sacrificed as i32 >= *n,
             Condition::ClassLevel { n } => self.obj(source).class_level >= *n,
             Condition::CardsInGraveyard { filter, n } => {
@@ -1972,6 +1988,7 @@ impl Game {
                     (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
                 Trigger::PeltCollector => src != id && died_controller == you,
+                Trigger::DiesAttached => g.obj(src).attached_to.is_some_and(|(a, _)| a == id),
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 _ => false,
             });
@@ -2102,6 +2119,7 @@ impl Game {
             o.exile_instead_of_dying = false;
             o.may_play = None;
             o.any_mana = false;
+            o.play_free = false;
             o.cast_only = false;
             o.chosen_name = None;
             o.info.clear();
@@ -2197,6 +2215,11 @@ impl Game {
             if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
                 t.targets = vec![vec![Target::Player(died_controller)]];
                 t.target_zcc = vec![vec![0]];
+            }
+            // "return that card": the card in the graveyard
+            if t.card != id && self.trigger_of(&t) == Some(&Trigger::DiesAttached) {
+                t.targets = vec![vec![Target::Obj(id)]];
+                t.target_zcc = vec![vec![self.obj(id).zcc]];
             }
             self.pending.push(t);
         }
