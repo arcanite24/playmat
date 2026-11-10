@@ -882,6 +882,12 @@ public class HumanPlayer extends PlayerImpl {
 
         while (canRespond()) {
             Set<UUID> possibleTargets = target.possibleTargets(abilityControllerId, source, game);
+
+            // stop on nothing to choose: don't show an empty prompt (e.g. Relic of Progenitus on an empty graveyard)
+            if (possibleTargets.isEmpty() && target.getTargets().isEmpty()) {
+                return false;
+            }
+
             boolean required = target.isRequiredExplicitlySet() ? target.isRequired() : target.isRequired(source != null ? source.getSourceId() : null, game);
             if (possibleTargets.isEmpty()
                     || target.getTargets().size() >= target.getMinNumberOfTargets()) {
