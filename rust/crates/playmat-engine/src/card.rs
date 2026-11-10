@@ -298,6 +298,10 @@ pub enum Pred {
     },
     /// `AnotherPredicate`: not the source
     Another,
+    /// `ColorlessPredicate`
+    Colorless,
+    /// `AuraAttachedPredicate`: an Aura other than the source is attached to it
+    AuraAttached,
     /// controlled by the ability's first target (a player, or a planeswalker's controller), while targets are
     /// chosen; any controller before that (Searing Blaze's `SearingBlazeTarget`)
     ControlledByFirstTarget,
@@ -529,6 +533,8 @@ pub enum Trigger {
     Exerted,
     /// this deals combat damage to a player
     CombatDamageToPlayer,
+    /// this deals combat damage to a player or planeswalker (`DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility`)
+    CombatDamageToPlayerOrPlaneswalker,
     /// a permanent of the filter deals combat damage to a player
     CombatDamageToPlayerAll {
         filter: Filter,
@@ -561,6 +567,8 @@ pub enum ManaKind {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "c", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Condition {
+    /// delirium: four or more card types among cards in your graveyard
+    Delirium,
     /// `KickedCondition`: the spell was kicked (only a spell or what it put on the battlefield knows)
     Kicked,
     /// `OffspringCondition`: the permanent's offspring cost was paid
@@ -952,6 +960,10 @@ pub enum Value {
     Devotion { c: Color },
     /// basic land types among lands the controller controls (`DomainValue.REGULAR`)
     Domain,
+    /// Auras attached to the source (`AuraAttachedCount`)
+    AurasAttached,
+    /// card types among cards in the controller's graveyard (`CardTypesInGraveyardCount.YOU`)
+    CardTypesInYourGraveyard,
 }
 
 /// One-shot effects, named after the Java effect classes.
@@ -1035,6 +1047,9 @@ pub enum EffectDef {
         /// another token created with these (`withAdditionalTokens`)
         #[serde(default)]
         also: Option<TokenDef>,
+        /// then this Equipment is attached to it (`CreateTokenAttachSourceEffect`); true: if its controller wants
+        #[serde(default)]
+        attach_source: Option<bool>,
     },
     /// deals damage equal to the source's power (as it last was on the battlefield) to the target
     DamageTargetSourcePowerEffect,
@@ -1260,6 +1275,16 @@ pub enum EffectDef {
         effects: Vec<EffectDef>,
         rule: String,
     },
+    /// "… at the beginning of the next turn's upkeep" (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility`)
+    CreateNextUpkeepDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
+    /// Expressive Iteration: of the top three cards, one into your hand, one on the bottom, one exiled (you may play
+    /// it this turn)
+    ExpressiveIterationEffect,
+    /// look at the top card of target player's library (only its controller sees it)
+    LookLibraryTopCardTargetPlayerEffect,
     /// "when you next cast a creature spell this turn, that creature enters with `amount` additional +1/+1
     /// counters" (`AddCounterNextSpellDelayedTriggeredAbility`)
     CreateNextCreatureSpellDelayedEffect {
@@ -1542,6 +1567,12 @@ pub enum EffectDef {
     ExileTargetEffect,
     /// returns the targets to their owners' hands
     ReturnToHandTargetEffect,
+    /// return this to its owner's hand: from the battlefield, or (unless `battlefield_only`) the graveyard or exile
+    /// it went to (Rancor)
+    ReturnToHandSourceEffect {
+        #[serde(default)]
+        battlefield_only: bool,
+    },
     TapTargetEffect,
     UntapTargetEffect,
     /// taps the source
@@ -1848,6 +1879,12 @@ pub enum EffectDef {
     /// a Siege defeated: exile it, then cast it transformed without paying its mana cost
     SiegeDefeatedEffect,
     /// a static: this can't attack or block unless the condition holds
+    /// this attacks each combat if able (`AttacksIfAbleSourceEffect`, `AttacksEachCombatStaticAbility`), while the
+    /// condition holds (`ConditionalRequirementEffect`)
+    AttacksIfAbleSourceEffect {
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
     CantAttackBlockUnlessConditionSourceEffect {
         condition: Condition,
     },
@@ -2107,6 +2144,9 @@ pub enum AbilityDef {
     /// cast from the graveyard for this cost, then exiled
     FlashbackAbility {
         cost: String,
+        /// a cost that isn't mana (Lava Dart's "Sacrifice a Mountain")
+        #[serde(default)]
+        costs: Vec<CostDef>,
         rule: String,
     },
     /// cast from the graveyard for this cost, which tapping a creature reduces by its power, then exiled
@@ -2402,6 +2442,8 @@ pub enum AbilityDef {
     DauntAbility,
     /// this can't be blocked as long as the defending player controls an Island
     IslandwalkAbility,
+    /// umbra armor: if the enchanted creature would be destroyed, its damage is removed and this Aura is destroyed
+    UmbraArmorAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
     AdventureCardSpellAbility,
     /// a preparation card's prepare spell (its `prepare`), which only a prepared copy casts
@@ -2483,6 +2525,12 @@ pub enum AbilityDef {
     ColoredManaAbility {
         color: Color,
         amount: u32,
+        /// its costs besides tapping (or instead of it, `no_tap`)
+        #[serde(default)]
+        cost: Vec<CostDef>,
+        /// it doesn't tap its source (Heritage Druid's "Tap three untapped Elves you control")
+        #[serde(default)]
+        no_tap: bool,
         #[serde(default)]
         rule: String,
     },
@@ -2535,6 +2583,9 @@ pub enum AbilityDef {
         /// spent only to activate abilities of lands (Sunken Citadel), not on spells
         #[serde(default)]
         land_abilities: bool,
+        /// spent on activated abilities of creatures too (Castle Garenbrig)
+        #[serde(default)]
+        creature_abilities: bool,
         #[serde(default)]
         rule: String,
     },
@@ -2701,6 +2752,22 @@ impl AbilityDef {
         }
     }
 
+    /// whether activating this mana ability taps its source
+    pub fn taps_source(&self) -> bool {
+        !matches!(self, AbilityDef::ColoredManaAbility { no_tap: true, .. })
+    }
+
+    /// the mana a mana ability's cost asks for (Castle Garenbrig's {2}{G}{G}; not Nykthos's, paid its own way)
+    pub fn mana_ability_mana_cost(&self) -> Option<&str> {
+        if matches!(self, AbilityDef::NykthosShrineToNyxManaAbility { .. }) {
+            return None;
+        }
+        self.mana_costs().iter().find_map(|c| match c {
+            CostDef::ManaCost { cost } => Some(cost.as_str()),
+            _ => None,
+        })
+    }
+
     /// a mana ability's costs besides tapping it
     pub fn mana_costs(&self) -> &[CostDef] {
         match self {
@@ -2711,6 +2778,7 @@ impl AbilityDef {
             | AbilityDef::RedManaAbility { cost, .. }
             | AbilityDef::GreenManaAbility { cost, .. }
             | AbilityDef::ColorlessManaAbility { cost, .. }
+            | AbilityDef::ColoredManaAbility { cost, .. }
             | AbilityDef::ConditionalManaAbility { cost, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { cost, .. }
             | AbilityDef::NykthosShrineToNyxManaAbility { cost, .. } => cost,
@@ -2983,11 +3051,16 @@ impl CardDef {
     /// The card cast with its flashback cost, if it has flashback
     pub fn flashback(&self) -> Option<CardDef> {
         self.abilities.iter().find_map(|a| match a {
-            AbilityDef::FlashbackAbility { cost, .. } => Some(CardDef {
-                cost: ManaCost::parse(cost).ok()?,
-                printed_cost: Some(self.printed().clone()),
-                ..self.clone()
-            }),
+            AbilityDef::FlashbackAbility { cost, costs, .. } => {
+                let mut spell = self.spell.clone();
+                spell.costs.extend(costs.iter().cloned());
+                Some(CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    spell,
+                    ..self.clone()
+                })
+            }
             AbilityDef::HarmonizeAbility { cost, .. } => {
                 let mut spell = self.spell.clone();
                 spell.costs.push(CostDef::HarmonizeCost);

@@ -527,6 +527,8 @@ pub struct Game {
     pub at_end_of_combat: Vec<StackItem>,
     /// "at the beginning of the next end step" delayed triggers
     pub at_next_end_step: Vec<StackItem>,
+    /// "at the beginning of the next turn's upkeep" delayed triggers
+    pub at_next_upkeep: Vec<StackItem>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
     pub next_creature_spell: Vec<(Seat, u32, StackItem)>,
     /// "when you next cast an instant or sorcery spell this turn": the player, the turn, the delayed trigger
@@ -636,6 +638,9 @@ pub struct Game {
     pub return_to_hand: Vec<ObjId>,
     /// this combat has a first-strike damage step
     pub first_strike_step: bool,
+    /// `FirstStrikeWatcher`: the creatures that dealt damage in this combat's first-strike step (702.7c: only double
+    /// strike deals damage again)
+    pub first_strikers: Vec<ObjId>,
     /// the game is over (a player lost, or it reached its last turn)
     pub over: bool,
 }
@@ -660,6 +665,7 @@ impl Game {
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
+            at_next_upkeep: Vec::new(),
             attacks_opponent: Vec::new(),
             next_creature_spell: Vec::new(),
             next_instant_sorcery: Vec::new(),
@@ -711,6 +717,7 @@ impl Game {
             land_becomes: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,
+            first_strikers: Vec::new(),
             over: false,
         }
     }
@@ -856,6 +863,10 @@ impl Game {
                 _ => true,
             },
             Pred::Multicolored => self.colors(id).len() > 1,
+            Pred::Colorless => self.colors(id).is_empty(),
+            Pred::AuraAttached => self.battlefield.iter().any(|a| {
+                Some(*a) != source && self.attached(*a) == Some(id) && self.has_subtype(*a, "Aura")
+            }),
             Pred::ChosenName => {
                 source.and_then(|src| self.obj(src).chosen_name.as_ref()).is_some_and(|n| *n == self.obj(id).def.name)
             }
@@ -957,7 +968,7 @@ impl Game {
     /// Protection: `id` has protection from a color of `source`
     pub fn protected_from(&self, id: ObjId, source: ObjId) -> bool {
         self.colors(source).iter().any(|c| self.has_ability(id, &AbilityDef::ProtectionFromColorAbility { c: *c }))
-            || self.obj(id).def.abilities.iter().any(|a| match a {
+            || self.obj(id).def.abilities.iter().chain(self.granted_abilities(id).iter()).any(|a| match a {
                 AbilityDef::ProtectionAbility { filter } => {
                     self.filter_matches(filter, self.obj(id).controller, Some(id), source)
                 }
@@ -1152,6 +1163,20 @@ impl Game {
                     let o = g.obj(*c);
                     o.controller == you && o.is(CardType::Creature) && g.power_toughness(*c) == (1, 1)
                 })
+        })
+    }
+
+    /// `checkAttackRequirements`: it attacks each combat if able
+    pub fn must_attack(&self, id: ObjId) -> bool {
+        let o = self.obj(id);
+        o.def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
+                EffectDef::AttacksIfAbleSourceEffect { condition } => {
+                    self.condition_holds(condition.as_ref(), o.controller, id)
+                }
+                _ => false,
+            }),
+            _ => false,
         })
     }
 
@@ -1361,6 +1386,17 @@ impl Game {
                     let zcc = self.obj(source).zcc;
                     self.exiled_for_source.iter().filter(|(s, z, _)| *s == source && *z == zcc).count() as i32
                 }
+                Value::CardTypesInYourGraveyard => {
+                    let mut types: Vec<CardType> = Vec::new();
+                    for c in self.player(you).graveyard.iter() {
+                        for t in &self.obj(*c).def.types {
+                            if !types.contains(t) {
+                                types.push(*t);
+                            }
+                        }
+                    }
+                    types.len() as i32
+                }
                 Value::CardTypesInGraveyards => {
                     let mut types: Vec<CardType> = Vec::new();
                     for p in self.players.iter() {
@@ -1388,6 +1424,11 @@ impl Game {
                         0
                     }
                 }
+                Value::AurasAttached => self
+                    .battlefield
+                    .iter()
+                    .filter(|a| self.attached(**a) == Some(source) && self.has_subtype(**a, "Aura"))
+                    .count() as i32,
                 Value::Domain => ["Plains", "Island", "Swamp", "Mountain", "Forest"]
                     .iter()
                     .filter(|t| {
@@ -1468,6 +1509,9 @@ impl Game {
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
             Condition::Morbid => self.creature_died,
+            Condition::Delirium => {
+                self.value(&Amount::Of(crate::card::Value::CardTypesInYourGraveyard), you, source, 0) >= 4
+            }
             Condition::FlierCast => self.player(you).flier_cast,
             Condition::YouGainedLife => self.player(you).life_gained > 0,
             Condition::LifeGained { cmp, n } => cmp.holds(self.player(you).life_gained, *n),
