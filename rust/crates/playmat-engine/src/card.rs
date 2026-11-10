@@ -298,6 +298,9 @@ pub enum Pred {
     },
     /// `AnotherPredicate`: not the source
     Another,
+    /// controlled by the ability's first target (a player, or a planeswalker's controller), while targets are
+    /// chosen; any controller before that (Searing Blaze's `SearingBlazeTarget`)
+    ControlledByFirstTarget,
     /// `MulticoloredPredicate`: two or more colors
     Multicolored,
     /// `ChosenNamePredicate`: named the source's chosen name
@@ -490,7 +493,12 @@ pub enum Trigger {
         /// it triggers from its owner's graveyard instead of the battlefield
         #[serde(default)]
         graveyard: bool,
+        /// it triggers from exile, while the card is suspended (`SuspendUpkeepAbility`)
+        #[serde(default)]
+        suspended: bool,
     },
+    /// the last time counter was removed from this suspended card in exile (`SuspendPlayCardAbility`)
+    SuspendLastCounter,
     /// you gain life (`GainLifeControllerTriggeredAbility`)
     YouGainLife,
     /// `who` ("you", "opponent", "any") loses life (`LoseLifeTriggeredAbility`); the life lost is its X
@@ -827,6 +835,21 @@ pub enum CostDef {
         #[serde(default)]
         filter: Filter,
     },
+    /// reveal between `min` and `max` cards of the filter from your hand; the number revealed is the ability's X
+    /// (`RevealTargetFromHandCost`, `RevealTargetFromHandCostCount`)
+    RevealTargetFromHandCost {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
+    /// exile a card of the filter from your hand (not this one)
+    ExileFromHandCost {
+        #[serde(default)]
+        filter: Filter,
+    },
     PayLifeCost {
         amount: i32,
     },
@@ -927,6 +950,8 @@ pub enum Value {
     OpponentsLostLife,
     /// the controller's devotion to a color: its mana symbols among the mana costs of permanents they control
     Devotion { c: Color },
+    /// basic land types among lands the controller controls (`DomainValue.REGULAR`)
+    Domain,
 }
 
 /// One-shot effects, named after the Java effect classes.
@@ -1076,6 +1101,10 @@ pub enum EffectDef {
     /// the source's base power and toughness are each a count (layer 7a; "creatures_you_control")
     SetBasePowerToughnessSourceEffect {
         count: String,
+    },
+    /// the source's base power and toughness are each `amount` (layer 7a; Pack Rat, Territorial Kavu)
+    SetBasePowerToughnessAmountSourceEffect {
+        amount: Amount,
     },
     /// if the target would die this turn, it's exiled instead
     ExileTargetIfDiesEffect,
@@ -1497,6 +1526,8 @@ pub enum EffectDef {
     },
     /// a static ability's effect: players can't gain life
     CantGainLifeAllEffect,
+    /// players can't gain life this turn (`CantGainLifeAllEffect(Duration.EndOfTurn)` as a spell's effect)
+    CantGainLifeThisTurnEffect,
     /// return the source from its graveyard to the battlefield
     ReturnSourceFromGraveyardToBattlefieldEffect,
     /// put the source card (a dies trigger's graveyard card) on top of or under its owner's library
@@ -1684,6 +1715,35 @@ pub enum EffectDef {
     /// exile the top X cards of the target opponent's library (X: outlaws you control); you may cast spells from
     /// among them this turn, spending mana as though it were any type
     LaughingJasperFlintEffect,
+    /// exile the top card of that player's library; you may cast it this turn
+    RagavanNimblePilfererEffect,
+    /// the defending player reveals the top card of their library; a land card goes to their hand
+    GoblinGuideEffect,
+    /// 1 damage to the first target (a player or planeswalker) and to the second (a creature that player controls);
+    /// 3 each if a land entered under your control this turn (landfall)
+    SearingBlazeEffect,
+    /// your opponents can't cast noncreature spells this turn
+    RangerCaptainOfEosEffect,
+    /// the target land becomes an Island (losing its other land types and abilities) for as long as the source
+    /// remains on the battlefield
+    TideShaperEffect,
+    /// you may put a creature card with mana value equal to the source's charge counters from your hand onto the
+    /// battlefield
+    AetherVialEffect,
+    /// counter the target spell; it's exiled instead of put into its owner's graveyard
+    CounterTargetExileEffect,
+    /// the targets lose all abilities until end of turn (`LoseAllAbilitiesTargetEffect(Duration.EndOfTurn)`)
+    LoseAllAbilitiesTargetEffect,
+    /// a static ability's effect: the source doesn't untap during its controller's untap step
+    DontUntapInControllersUntapStepSourceEffect,
+    /// untap the source
+    UntapSourceEffect,
+    /// a regeneration shield on each target
+    RegenerateTargetEffect,
+    /// remove a time counter from the suspended source card; the last one sets off its `SuspendLastCounter` trigger
+    SuspendRemoveTimeCounterEffect,
+    /// its owner may cast the suspended source card without paying its mana cost; if they don't, it stays exiled
+    SuspendPlayCardEffect,
     /// Unholy Annex: each opponent loses 2 life and you gain 2 life
     UnholyAnnexDrainEffect,
     /// the source becomes prepared: a copy of its prepare spell in exile, which its controller may cast
@@ -2134,11 +2194,24 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+    /// cast by paying `costs` instead of the mana cost while the condition holds (`AlternativeCostSourceAbility`:
+    /// Force of Negation)
+    AlternativeCostSourceAbility {
+        costs: Vec<CostDef>,
+        #[serde(default)]
+        condition: Option<Condition>,
+        #[serde(default)]
+        rule: String,
+    },
     /// evoke: cast for this cost instead (an alternative cost); its sacrifice trigger is the next ability
     EvokeAbility {
         cost: String,
         #[serde(default)]
         rule: String,
+        /// the alternative cost's keyword: empty for evoke, "Dash" for dash (gains haste, returned to its owner's
+        /// hand at the beginning of the next end step)
+        #[serde(default)]
+        keyword: String,
     },
     KickerAbility {
         cost: String,
@@ -2191,6 +2264,14 @@ pub enum AbilityDef {
     },
     /// plot `cost`: as a sorcery, pay it and exile the card from your hand; cast it free as a sorcery on a later turn
     PlotAbility {
+        cost: String,
+        #[serde(default)]
+        rule: String,
+    },
+    /// suspend, a special action: from hand, pay `cost` and exile it with `time` time counters (as its spell could
+    /// be cast); its upkeep and last-counter triggers are the next two abilities
+    SuspendAbility {
+        time: i32,
         cost: String,
         #[serde(default)]
         rule: String,
@@ -2319,6 +2400,8 @@ pub enum AbilityDef {
     CantBlockAbility,
     /// this can't be blocked by creatures with power 2 or less
     DauntAbility,
+    /// this can't be blocked as long as the defending player controls an Island
+    IslandwalkAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
     AdventureCardSpellAbility,
     /// a preparation card's prepare spell (its `prepare`), which only a prepared copy casts
@@ -2923,6 +3006,14 @@ impl CardDef {
     pub fn plot(&self) -> Option<(usize, ManaCost)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
             AbilityDef::PlotAbility { cost, .. } => Some((k, ManaCost::parse(cost).ok()?)),
+            _ => None,
+        })
+    }
+
+    /// Suspend: its ability index, time counters and cost
+    pub fn suspend(&self) -> Option<(usize, i32, ManaCost)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::SuspendAbility { time, cost, .. } => Some((k, *time, ManaCost::parse(cost).ok()?)),
             _ => None,
         })
     }

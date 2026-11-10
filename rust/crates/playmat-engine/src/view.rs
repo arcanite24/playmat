@@ -526,6 +526,17 @@ fn cda_power(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
     if cda_counts_creatures(&o.def) {
         set_pt(m, creatures_of(game, o.controller));
     }
+    // both, of any count (Pack Rat, Territorial Kavu in hand)
+    let both = o.def.abilities.iter().find_map(|a| match a {
+        A::SimpleStaticAbility { effects, .. } => effects.iter().find_map(|e| match e {
+            E::SetBasePowerToughnessAmountSourceEffect { amount } => Some(amount),
+            _ => None,
+        }),
+        _ => None,
+    });
+    if let Some(both) = both {
+        set_pt(m, game.value(both, o.controller, id, 0));
+    }
     let Some(amount) = amount else { return };
     let n = game.value(amount, o.controller, id, 0);
     m.insert("power".into(), json!(n.to_string()));

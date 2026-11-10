@@ -149,6 +149,8 @@ pub struct Obj {
     pub foretold_turn: Option<u32>,
     /// the turn it became plotted, while it stays in exile
     pub plotted_turn: Option<u32>,
+    /// suspended: in exile with time counters, from its suspend ability
+    pub suspended: bool,
     /// the zone it was cast from, as a spell
     pub cast_from: Option<Zone>,
     /// a spell Cavern of Souls' mana was spent on: it can't be countered
@@ -210,6 +212,8 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its evoke cost
     pub evoked: bool,
+    /// cast for its dash cost
+    pub dashed: bool,
     /// the mana of each color spent to cast it (WUBRG)
     pub spent_colors: [u32; 5],
     /// cast for its blitz cost (until it leaves the battlefield)
@@ -359,6 +363,10 @@ pub struct Player {
     pub sacrificed: u32,
     /// mana spent on spells this turn (`ExpendWatcher`)
     pub expended: u32,
+    /// lands that entered under their control this turn (`LandfallWatcher`)
+    pub lands_entered: u32,
+    /// can't cast noncreature spells during this turn (an opponent's Ranger-Captain of Eos)
+    pub no_noncreature_turn: Option<u32>,
     /// a permanent they controlled left the battlefield this turn (`RevoltWatcher`)
     pub permanent_left: bool,
 }
@@ -552,6 +560,8 @@ pub struct Game {
     pub spent_tally: [u32; 6],
     /// "damage can't be prevented this turn" (Stomp): the turn it was said
     pub no_prevention_turn: Option<u32>,
+    /// "players can't gain life this turn" (Skullcrack): the turn it was said
+    pub no_lifegain_turn: Option<u32>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
     pub resolving: Option<(usize, ObjId)>,
     /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
@@ -618,6 +628,9 @@ pub struct Game {
     pub resolving_controller: Option<(ObjId, Seat)>,
     /// while a `not_first` target is chosen: the ability's targets chosen before it
     pub chosen_before: Vec<Target>,
+    /// lands that are a basic land type instead of their own for as long as a permanent stays (Tide Shaper): the land
+    /// and its zone change count, the source and its count, the type
+    pub land_becomes: Vec<(ObjId, u32, ObjId, u32, String)>,
     /// cards exiled until something leaves that go back to their owner's hand, not the battlefield (Kitesail
     /// Freebooter's)
     pub return_to_hand: Vec<ObjId>,
@@ -663,6 +676,7 @@ impl Game {
             foraging: std::cell::Cell::new(false),
             spent_tally: [0; 6],
             no_prevention_turn: None,
+            no_lifegain_turn: None,
             resolving: None,
             resolving_item: None,
             entering_from_hand: None,
@@ -694,6 +708,7 @@ impl Game {
             life_batch: Vec::new(),
             resolving_controller: None,
             chosen_before: Vec::new(),
+            land_becomes: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,
             over: false,
@@ -765,6 +780,7 @@ impl Game {
             room_cast: None,
             foretold_turn: None,
             plotted_turn: None,
+            suspended: false,
             cast_from: None,
             uncounterable: false,
             printed_def: None,
@@ -794,6 +810,7 @@ impl Game {
             play_tax: 0,
             warped: false,
             evoked: false,
+            dashed: false,
             spent_colors: [0; 5],
             blitzed: false,
             offspring: false,
@@ -833,6 +850,11 @@ impl Game {
             Pred::Controller { who } => (o.controller == you) == (who == "you"),
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
+            Pred::ControlledByFirstTarget => match self.chosen_before.first() {
+                Some(Target::Player(p)) => o.controller == *p,
+                Some(Target::Obj(x)) => o.controller == self.obj(*x).controller && id != *x,
+                _ => true,
+            },
             Pred::Multicolored => self.colors(id).len() > 1,
             Pred::ChosenName => {
                 source.and_then(|src| self.obj(src).chosen_name.as_ref()).is_some_and(|n| *n == self.obj(id).def.name)
@@ -1167,6 +1189,35 @@ impl Game {
         })
     }
 
+    /// The stack's and the waiting triggers' abilities of `id` moved to their new index in its list (`map[old]`); one
+    /// that's gone keeps its index
+    fn remap_abilities(&mut self, id: ObjId, map: &[Option<usize>]) {
+        let moved = |i: usize| map.get(i).copied().flatten().unwrap_or(i);
+        let on_stack = self.stack.iter().any(|t| t.card == id && t.ability.is_some());
+        if on_stack {
+            for t in Arc::make_mut(&mut self.stack).iter_mut() {
+                if let (true, Some((i, z))) = (t.card == id, t.ability) {
+                    t.ability = Some((moved(i), z));
+                }
+            }
+        }
+        for t in self.pending.iter_mut() {
+            if let (true, Some((i, z))) = (t.card == id, t.ability) {
+                t.ability = Some((moved(i), z));
+            }
+        }
+        for (o, _, i) in self.triggered_this_turn.iter_mut() {
+            if *o == id {
+                *i = moved(*i);
+            }
+        }
+        for (o, i) in self.activated_this_turn.iter_mut() {
+            if *o == id {
+                *i = moved(*i);
+            }
+        }
+    }
+
     /// whether a Leyline of the Guildpact (or the like) is on the battlefield under `seat`'s control, with this effect
     pub fn guildpact(&self, seat: Seat, land_part: bool) -> bool {
         self.battlefield.iter().any(|src| {
@@ -1197,29 +1248,39 @@ impl Game {
     /// `BecomesAllBasicsControlledEffect`: the lands of a player with it are every basic land type, their basic mana
     /// abilities replaced by one of any color (added last); undone when it's gone
     pub fn update_guildpact(&mut self) {
+        // a basic mana ability with no other costs or effects, which the any-color one replaces
+        fn basic(a: &AbilityDef) -> bool {
+            matches!(
+                a,
+                AbilityDef::WhiteManaAbility { effects, cost }
+                | AbilityDef::BlueManaAbility { effects, cost }
+                | AbilityDef::BlackManaAbility { effects, cost }
+                | AbilityDef::RedManaAbility { effects, cost }
+                | AbilityDef::GreenManaAbility { effects, cost }
+                    if effects.is_empty() && cost.is_empty()
+            )
+        }
         let lands: Vec<ObjId> = self.battlefield.iter().copied().filter(|l| self.obj(*l).is(CardType::Land)).collect();
         for l in lands {
             let on = self.guildpact(self.obj(l).controller, true);
+            // the abilities kept, by their index in the land's own card: an ability on the stack or waiting to be
+            // put there keeps pointing at its ability as the list changes
+            let own = self.obj(l).pre_guildpact.clone().unwrap_or_else(|| self.obj(l).def.clone());
+            let kept: Vec<usize> = (0..own.abilities.len()).filter(|i| !basic(&own.abilities[*i])).collect();
             let o = self.obj_mut(l);
             match (on, o.pre_guildpact.is_some()) {
                 (true, false) => {
+                    let map: Vec<Option<usize>> =
+                        (0..own.abilities.len()).map(|i| kept.iter().position(|k| *k == i)).collect();
+                    self.remap_abilities(l, &map);
+                    let o = self.obj_mut(l);
                     let mut def = (*o.def).clone();
                     for t in ["Plains", "Island", "Swamp", "Mountain", "Forest"] {
                         if !def.subtypes.iter().any(|s| s == t) {
                             def.subtypes.push(t.to_string());
                         }
                     }
-                    def.abilities.retain(|a| {
-                        !matches!(
-                            a,
-                            AbilityDef::WhiteManaAbility { effects, cost }
-                            | AbilityDef::BlueManaAbility { effects, cost }
-                            | AbilityDef::BlackManaAbility { effects, cost }
-                            | AbilityDef::RedManaAbility { effects, cost }
-                            | AbilityDef::GreenManaAbility { effects, cost }
-                                if effects.is_empty() && cost.is_empty()
-                        )
-                    });
+                    def.abilities.retain(|a| !basic(a));
                     if !def.abilities.iter().any(|a| {
                         matches!(a, AbilityDef::AnyColorManaAbility { amount: 1, effects, cost, .. }
                             if effects.is_empty() && cost.is_empty())
@@ -1235,6 +1296,9 @@ impl Game {
                 }
                 (false, true) => {
                     o.def = o.pre_guildpact.take().unwrap();
+                    let n = self.obj(l).def.abilities.len() + 1;
+                    let map: Vec<Option<usize>> = (0..n).map(|k| kept.get(k).copied()).collect();
+                    self.remap_abilities(l, &map);
                 }
                 _ => {}
             }
@@ -1324,6 +1388,15 @@ impl Game {
                         0
                     }
                 }
+                Value::Domain => ["Plains", "Island", "Swamp", "Mountain", "Forest"]
+                    .iter()
+                    .filter(|t| {
+                        self.battlefield.iter().any(|b| {
+                            let o = self.obj(*b);
+                            o.controller == you && o.is(CardType::Land) && self.has_subtype(*b, t)
+                        })
+                    })
+                    .count() as i32,
                 Value::Devotion { c } => self
                     .battlefield
                     .iter()
@@ -1508,6 +1581,10 @@ impl Game {
                     if let EffectDef::SetBasePowerToughnessPlusOneSourceEffect { amount } = e {
                         p = self.value(amount, o.controller, id, 0);
                         t = p + 1;
+                    }
+                    if let EffectDef::SetBasePowerToughnessAmountSourceEffect { amount } = e {
+                        p = self.value(amount, o.controller, id, 0);
+                        t = p;
                     }
                     if let EffectDef::SetBasePowerToughnessSourceEffect { count } = e {
                         if count == "exiled_with_source" {
@@ -1944,6 +2021,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.evoked = false;
+                o.dashed = false;
                 // kept as it last was on the battlefield (Vibrance's "if {G}{G} was spent" after its evoke sacrifice)
                 if from != Zone::Stack && from != Zone::Battlefield {
                     o.spent_colors = [0; 5];
@@ -1977,6 +2055,7 @@ impl Game {
                 o.uncounterable = false;
                 o.foretold_turn = None;
                 o.plotted_turn = None;
+                o.suspended = false;
                 if let Some((def, _, _)) = o.land_type_base.take() {
                     o.def = def;
                 }
