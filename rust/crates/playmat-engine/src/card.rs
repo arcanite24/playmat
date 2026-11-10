@@ -199,6 +199,8 @@ pub enum TargetDef {
         distribute: Option<Amount>,
     },
     TargetPlayerOrPlaneswalker,
+    /// an opponent or a planeswalker an opponent controls
+    TargetOpponentOrPlaneswalker,
     /// a card in a graveyard (`TargetCardInGraveyard`, or `…InYourGraveyard` with the "you" owner predicate)
     TargetCardInGraveyard {
         #[serde(default)]
@@ -210,6 +212,9 @@ pub enum TargetDef {
         /// all from one graveyard: the first card's (`TargetCardInASingleGraveyard`)
         #[serde(default)]
         single: bool,
+        /// up to the spell's X (Kozilek's Command's adjuster; X 0 is any number, as Java's max 0)
+        #[serde(default)]
+        max_x: bool,
     },
 }
 
@@ -318,6 +323,10 @@ pub enum Pred {
     ControlledByFirstTarget,
     /// `MulticoloredPredicate`: two or more colors
     Multicolored,
+    /// a spell no mana was spent to cast (`FILTER_SPELL_NO_MANA_SPENT`)
+    NoManaSpent,
+    /// a kicked spell (Elfhame Druid's mana)
+    KickedSpell,
     /// `ChosenNamePredicate`: named the source's chosen name
     ChosenName,
     /// `AdventurePredicate`: a card with an Adventure
@@ -549,6 +558,10 @@ pub enum Trigger {
     Evolve,
     /// this becomes exerted (`BecomesExertSourceTriggeredAbility`)
     Exerted,
+    /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle
+    CrewsVehicle,
+    /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
+    BecomesTapped,
     /// this deals combat damage to a player
     CombatDamageToPlayer,
     /// this deals combat damage to a player or planeswalker (`DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility`)
@@ -866,6 +879,9 @@ pub enum CostDef {
     DiscardCardCost {
         #[serde(default)]
         filter: Filter,
+        /// how many (Cathartic Reunion's two)
+        #[serde(default = "one")]
+        amount: usize,
     },
     /// reveal between `min` and `max` cards of the filter from your hand; the number revealed is the ability's X
     /// (`RevealTargetFromHandCost`, `RevealTargetFromHandCostCount`)
@@ -883,6 +899,10 @@ pub enum CostDef {
         filter: Filter,
     },
     PayLifeCost {
+        amount: i32,
+    },
+    /// pay {E} `amount` times: energy counters off the player
+    PayEnergyCost {
         amount: i32,
     },
     /// harmonize: tapping the creature chosen to reduce the cost (`HarmonizeAbilityAdjuster`)
@@ -1029,6 +1049,10 @@ pub enum EffectDef {
         duration: Duration,
         filter: Filter,
         exclude_source: bool,
+    },
+    /// adapt N: N +1/+1 counters on the source if it has none
+    AdaptEffect {
+        amount: i32,
     },
     /// puts counters on the source
     AddCountersSourceEffect {
@@ -1182,6 +1206,16 @@ pub enum EffectDef {
     },
     /// destroys every permanent of `filter`
     DestroyAllEffect {
+        filter: Filter,
+    },
+    /// deals `amount` damage to each permanent of `filter` the target player (or the target planeswalker's
+    /// controller) controls
+    DamageAllControlledTargetEffect {
+        amount: Amount,
+        filter: Filter,
+    },
+    /// put every card of `filter` in your graveyard onto the battlefield
+    ReturnFromYourGraveyardToBattlefieldAllEffect {
         filter: Filter,
     },
     /// deals `amount` damage to every permanent of `filter`
@@ -1497,7 +1531,65 @@ pub enum EffectDef {
     /// the target player creates a token
     CreateTokenTargetEffect {
         token: TokenDef,
+        /// how many each target player creates (one when absent)
+        #[serde(default)]
+        amount: Option<Amount>,
     },
+    /// the target player scries `amount`
+    ScryTargetEffect {
+        amount: Amount,
+    },
+    /// Blade of the Bloodchief: a +1/+1 counter on the equipped creature, two if it's a Vampire
+    BladeOfTheBloodchiefEffect,
+    /// Edifice of Authority: until your next turn, the target can't attack or block and its activated abilities
+    /// can't be activated
+    EdificeOfAuthorityEffect,
+    /// tap the permanent the source is attached to
+    TapEnchantedEffect,
+    /// remove the flood counters; none removed: a flood counter and draw a card, else add {C}{G}{U}
+    BountyOfTheLuxaEffect,
+    /// sacrifice the target at the beginning of the next end step (Hazoret's Favor)
+    SacrificeTargetNextEndStepEffect,
+    /// reveal the top card: a permanent card may go onto the battlefield, else it may go on the bottom
+    AidFromTheCowlEffect,
+    /// reveal until a nonland card with mana value 3 or less, which may be cast free; the rest go on the bottom
+    TreasureKeeperEffect,
+    /// the permanent the source is attached to doesn't untap in its controller's untap step (a static's)
+    DontUntapInControllersUntapStepEnchantedEffect,
+    /// discard your hand, then draw that many cards
+    DiscardHandDrawSameNumberSourceEffect,
+    /// this must be blocked if able (a static's)
+    MustBeBlockedByAtLeastOneSourceEffect,
+    /// untap each permanent of the filter
+    UntapAllEffect {
+        filter: Filter,
+    },
+    /// this can't attack alone (a static's)
+    CantAttackAloneSourceEffect,
+    /// this can't block alone (a static's)
+    CantBlockAloneSourceEffect,
+    /// you may tap the target permanent, or untap it if it's tapped
+    MayTapOrUntapTargetEffect,
+    /// you get `amount` {E} (energy counters)
+    GetEnergyCountersControllerEffect {
+        amount: Amount,
+    },
+    /// search your library and/or graveyard for a card of the filter, reveal it, put it into your hand; shuffle if
+    /// the library was searched (`both`: the library is searched without asking)
+    SearchLibraryGraveyardPutInHandEffect {
+        filter: Filter,
+        #[serde(default)]
+        both: bool,
+    },
+    /// Shifting Woodland: the source becomes a copy of the target card in your graveyard until end of turn
+    ShiftingWoodlandCopyEffect,
+    /// Emrakul, the Promised End: you control the target opponent during their next turn; then they take an extra
+    /// turn
+    EmrakulThePromisedEndGainControlEffect,
+    /// Ugin's Labyrinth: you may exile a colorless card with mana value 7 or more from your hand, with the source
+    UginsLabyrinthExileEffect,
+    /// Ugin's Labyrinth: the cards exiled with the source go to their owner's hand
+    UginsLabyrinthReturnEffect,
     /// adds mana to the controller's pool (WUBRG, then colorless)
     BasicManaEffect {
         colored: [u32; 5],
@@ -2379,6 +2471,16 @@ pub enum AbilityDef {
     ClassReminderAbility,
     /// "If this card is in your opening hand, you may begin the game with it on the battlefield." (before the game)
     LeylineAbility,
+    /// "You may reveal this card from your opening hand. If you do, at the beginning of your first upkeep, look at
+    /// the top four cards …" (Devourer of Destiny's `ChancellorAbility`; the host asks it before the first turn)
+    ChancellorAbility,
+    /// it can't attack (given: `CantAttackTargetEffect`)
+    CantAttackAbility,
+    /// its activated abilities can't be activated (given: Edifice of Authority)
+    CantActivateAbilitiesAbility,
+    /// "If this card is in your opening hand and you're not the starting player, you may begin the game with it on
+    /// the battlefield with a luck counter on it. If you do, exile a card from your hand." (the host asks it)
+    GemstoneCavernsAbility,
     /// a Class's next level: activated as a sorcery when the Class is the level below
     ClassLevelAbility {
         level: u32,
@@ -2541,6 +2643,8 @@ pub enum AbilityDef {
     FlashAbility,
     /// rebound: cast from hand, it's exiled as it resolves, and its owner may cast it free at their next upkeep
     ReboundAbility,
+    /// devoid: no colors (the card's colors are set empty; this is its keyword)
+    DevoidAbility,
     HexproofAbility,
     /// protection from a color, as an effect grants it (Brave the Elements)
     ProtectionFromColorAbility {
@@ -2588,6 +2692,15 @@ pub enum AbilityDef {
         /// it doesn't tap its source (an Eldrazi Scion's "Sacrifice this creature: Add {C}.")
         #[serde(default)]
         no_tap: bool,
+        /// how much {C} (Weaver of Currents' two)
+        #[serde(default = "one_u32")]
+        amount: u32,
+        /// {C}{C} instead while a card is exiled with the source (Ugin's Labyrinth)
+        #[serde(default)]
+        two_if_exiled: bool,
+        /// one mana of any color instead while the source has a counter of this kind (Gemstone Caverns' luck)
+        #[serde(default)]
+        any_color_with: Option<String>,
         #[serde(default)]
         rule: String,
     },
@@ -2664,6 +2777,12 @@ pub enum AbilityDef {
         /// spent on activated abilities of creatures too (Castle Garenbrig)
         #[serde(default)]
         creature_abilities: bool,
+        /// it makes colorless mana, `amount` of it (Eldrazi Temple)
+        #[serde(default)]
+        colorless: bool,
+        /// spent on activated abilities of permanents of `filter` too (Eldrazi Temple)
+        #[serde(default)]
+        filter_abilities: bool,
         #[serde(default)]
         rule: String,
     },
@@ -2795,7 +2914,7 @@ impl AbilityDef {
             AbilityDef::BlackManaAbility { .. } => Some(Mana::of(Color::B, 1)),
             AbilityDef::RedManaAbility { .. } => Some(Mana::of(Color::R, 1)),
             AbilityDef::GreenManaAbility { .. } => Some(Mana::of(Color::G, 1)),
-            AbilityDef::ColorlessManaAbility { .. } => Some(Mana { colorless: 1, ..Mana::default() }),
+            AbilityDef::ColorlessManaAbility { amount, .. } => Some(Mana { colorless: *amount, ..Mana::default() }),
             AbilityDef::ColoredManaAbility { color, amount, .. } => Some(Mana::of(*color, *amount)),
             // at least one, as far as this can tell (the game counts the rest)
             AbilityDef::DynamicManaAbility { color, .. } => Some(Mana::of(*color, 1)),
@@ -2809,6 +2928,9 @@ impl AbilityDef {
             }
             // counted by the game (devotion)
             AbilityDef::NykthosShrineToNyxManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            AbilityDef::ConditionalManaAbility { colorless: true, amount, .. } => {
+                Some(Mana { colorless: *amount, ..Mana::default() })
+            }
             AbilityDef::ConditionalManaAbility { color: Some(c), amount, .. } => Some(Mana::of(*c, *amount)),
             AbilityDef::ConditionalManaAbility { color: None, amount, .. } => {
                 Some(Mana { colored: [*amount; 5], ..Mana::default() })
@@ -2829,6 +2951,12 @@ impl AbilityDef {
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
             // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" is a `SimpleManaAbility`
             AbilityDef::ColoredManaAbility { amount, .. } if *amount != 1 => ManaKind::Other,
+            // `SimpleManaAbility`s with a `ConditionalManaEffect` (Ugin's Labyrinth, Gemstone Caverns) or {C}{C}
+            AbilityDef::ColorlessManaAbility { amount, two_if_exiled, any_color_with, .. }
+                if *amount != 1 || *two_if_exiled || any_color_with.is_some() =>
+            {
+                ManaKind::Other
+            }
             _ => ManaKind::Basic,
         }
     }

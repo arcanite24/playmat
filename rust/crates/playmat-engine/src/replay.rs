@@ -165,6 +165,7 @@ impl ShadowGame {
                 }
             }
         }
+        let mut gemstone_seat: Option<usize> = None;
         // permanents put onto the battlefield from opening hands (Leyline of the Void): `bf <seat> <name> U|T p/t dmg …`
         for line in self.start.fingerprint.lines().filter_map(|l| l.strip_prefix("bf ")) {
             let words: Vec<&str> = line.split(' ').collect();
@@ -180,6 +181,38 @@ impl ShadowGame {
             let id = game.create_obj(def, seat, Zone::Battlefield);
             Arc::make_mut(&mut game.battlefield).push(id);
             game.obj_mut(id).tapped = tapped;
+            // its counters (Gemstone Caverns' luck): `counters name=n,…`
+            if let Some(c) = words.iter().position(|w| *w == "counters") {
+                for kv in words.get(c + 1).unwrap_or(&"-").split(',') {
+                    if let Some((k, n)) = kv.split_once('=') {
+                        game.obj_mut(id).add_counters(k, n.parse().unwrap_or(0));
+                    }
+                }
+                // a card exiled as it went there (Gemstone Caverns): the start's exile, its owner's
+                if name == "Gemstone Caverns" {
+                    gemstone_seat = Some(seat);
+                }
+            }
+        }
+        // the start's exile (only an opening hand's action puts cards there)
+        if let Some(line) = self.start.fingerprint.lines().find_map(|l| l.strip_prefix("exile ")) {
+            for name in line.split('|').filter(|n| !n.is_empty()) {
+                let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
+                let id = game.create_obj(def, gemstone_seat.unwrap_or(0), Zone::Exile);
+                Arc::make_mut(&mut game.exile).push(id);
+            }
+        }
+        // Devourer of Destiny revealed from an opening hand: its first-upkeep trigger
+        for (q, a) in self.questions.iter().zip(self.decisions.iter()).take(self.start.decision) {
+            if q.starts_with("ASK Reveal Devourer of Destiny") && a.bool == Some(true) {
+                let card = game.player(a.seat).hand.iter().copied().find(|c| {
+                    game.obj(*c).def.name == "Devourer of Destiny"
+                        && !game.at_first_upkeep.iter().any(|i| i.card == *c)
+                });
+                if let Some(card) = card {
+                    crate::rules::devourer_first_upkeep(&mut game, card, a.seat);
+                }
+            }
         }
         let header = self.start.fingerprint.lines().nth(1).ok_or("no fingerprint")?;
         // turn <n> step <STEP> active <seat> priority <seat>
@@ -188,6 +221,14 @@ impl ShadowGame {
         game.step = words.get(3).and_then(|w| Step::parse(w));
         game.active = words.get(5).and_then(|w| w.parse().ok());
         game.priority = words.get(7).and_then(|w| w.parse().ok());
+        // the record starts in the first upkeep with its triggers on the stack already
+        if game.step == Some(Step::Upkeep) {
+            let active = game.active;
+            let (mine, rest): (Vec<_>, Vec<_>) =
+                std::mem::take(&mut game.at_first_upkeep).into_iter().partition(|i| Some(i.controller) == active);
+            game.at_first_upkeep = rest;
+            Arc::make_mut(&mut game.stack).extend(mine);
+        }
         Ok(game)
     }
 }

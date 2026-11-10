@@ -588,6 +588,12 @@ pub struct Game {
     pub owed_choices: Vec<Seat>,
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
+    /// Emrakul, the Promised End: (player, controller) for a player's next turn, controlled by another
+    pub control_next_turn: Vec<(Seat, Seat)>,
+    /// (player, controller) while a player's turn is controlled by another; an extra turn follows it
+    pub controlled_by: Vec<(Seat, Seat)>,
+    /// "at the beginning of your first upkeep" delayed triggers (Devourer of Destiny's), each its controller's
+    pub at_first_upkeep: Vec<StackItem>,
     pub grants: Arc<Vec<Grant>>,
     /// abilities lost until end of turn: (permanent, its zcc, the ability, the turn)
     pub lost_until_eot: Vec<(ObjId, u32, AbilityDef, u32)>,
@@ -702,6 +708,9 @@ impl Game {
             creature_died: false,
             owed_choices: Vec::new(),
             extra_turns: Vec::new(),
+            control_next_turn: Vec::new(),
+            controlled_by: Vec::new(),
+            at_first_upkeep: Vec::new(),
             grants: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
             must_block_from: Vec::new(),
@@ -879,6 +888,8 @@ impl Game {
             },
             Pred::Multicolored => self.colors(id).len() > 1,
             Pred::Colorless => self.colors(id).is_empty(),
+            Pred::NoManaSpent => self.obj(id).mana_spent == 0,
+            Pred::KickedSpell => self.stack.iter().any(|i| i.card == id && i.ability.is_none() && i.kicked),
             Pred::ManaCostIn { costs } => costs.iter().any(|c| *c == o.def.cost.text),
             Pred::ManaValueEqualSourceCounters { counter } => source.is_some_and(|src| {
                 let s = self.obj(src);
@@ -1097,7 +1108,9 @@ impl Game {
                         && self.condition_holds(a.intervening_if(), o.controller, src)
                         && self.condition_holds(a.trigger_condition(), o.controller, src)
                     {
-                        fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, o.controller) });
+                        // a copy until end of turn (Shifting Woodland) keeps what it copied once it has left
+                        let def = o.until_end_of_turn_def.as_ref().map(|_| o.def.clone());
+                        fired.push(StackItem { ability: Some((i, o.zcc)), def, ..StackItem::spell(src, o.controller) });
                     }
                 }
             }
@@ -1486,7 +1499,9 @@ impl Game {
         let Some(c) = condition else { return true };
         match c {
             // a permanent that was cast kicked ("when this enters, if it was kicked")
-            Condition::Kicked => self.obj(source).kicked,
+            Condition::Kicked => {
+                self.obj(source).kicked || self.stack.iter().any(|i| i.card == source && i.ability.is_none() && i.kicked)
+            }
             // only known on a cast trigger (`condition_with_kicker`)
             Condition::Opus => false,
             Condition::Offspring => self.obj(source).offspring,

@@ -651,7 +651,11 @@ impl Host {
         let mut game = self.game.clone();
         {
             let mut d = HostDecider { host: self };
-            rules::play_from_priority(&mut game, &mut d, 0);
+            // the opening hands' actions (Devourer of Destiny's reveal, Gemstone Caverns), then the first turn
+            if rules::opening_hand_actions(&mut game, &mut d, first) {
+                game.priority = Some(first);
+                rules::play_from_priority(&mut game, &mut d, 0);
+            }
         }
         self.game = game;
         self.finish()
@@ -816,6 +820,14 @@ impl Decider for HostDecider<'_> {
         let h = &mut *self.host;
         if h.conceded.is_some() {
             return Answer::Stop;
+        }
+        // a turn another player controls (Emrakul, the Promised End): the controller has the player do nothing it
+        // needn't; what it must answer, the quick policy answers
+        if game.controlled_by.iter().any(|(p, c)| *p == seat && *c != seat) {
+            if let Query::Priority { .. } = q {
+                return Answer::Bool(false);
+            }
+            return h.table.answer(game, seat, q);
         }
         if seat == h.ai {
             // the AI's clock runs while it thinks at priority (`ComputerPlayer7.priority`)
