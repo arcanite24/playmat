@@ -189,6 +189,16 @@ Order (`PI.cast` PI:1358 → `AbilityImpl.activate`, `Mage/src/main/java/mage/ab
      `restoreState(bookmark)`**, so the card goes back to hand and the lands untap. For an "up to one" target, a
      boolean means none and the cast goes on (seen with a trigger: `Select up to one creature you don't control with
      flying` → `bool true`).
+   - **Nothing to choose: no question.** When `possibleTargets` is empty and nothing is chosen yet, `HP.chooseTarget`
+     returns false without a PICK_TARGET (since #265). With min > 0 the cast or trigger fails as before; an "up to"
+     target goes on with none, exactly as the boolean above did. Effects that call `chooseTarget` behave the same:
+     Relic of Progenitus on an empty graveyard (which also checks `canChoose` first) and `ChooseCreatureEffect` with
+     no other creature ask nothing. Only `HP.chooseTarget(outcome, target, …)` changed: `HP.choose` (sacrifice,
+     discard, Aether Vial, Lively Dirge, BlightCost), `HP.chooseTarget(outcome, cards, …)` and `HP.choose(cards)`
+     still show a prompt with nothing selectable, and `chooseTargetAmount` (divided "up to" targets) still asks.
+     Effects that skip the call themselves still skip it (SearchLibraryGraveyardPutInHandEffect asks nothing for an
+     empty graveyard, but asks for a graveyard with no match). Shadow games recorded before #265 have an extra
+     boolean answer at these points.
 7. Cost modification, then **mana**: `ManaCostsImpl.pay`
    (`Mage/src/main/java/mage/abilities/costs/mana/ManaCostsImpl.java:132`).
    - `assignPayment` from the pool first.

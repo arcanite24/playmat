@@ -4287,13 +4287,18 @@ fn choose_target(
             TargetDef::TargetPermanent { distribute: Some(_), .. }
                 | TargetDef::TargetAnyTarget { distribute: Some(_), .. }
         );
+        // `HumanPlayer.chooseTarget`: nothing to choose and nothing chosen returns without asking (an "up to" target
+        // with no legal choice; `chooseTargetAmount`, for a divided one, still asks)
+        if !divided && chosen.is_empty() && players.is_empty() && objs.is_empty() {
+            return Some(chosen);
+        }
         if chosen.len() >= max && !(divided && added_in_prompt) {
             return Some(chosen);
         }
         players.retain(|p| !chosen.contains(&Target::Player(*p)));
         objs.retain(|o| !chosen.contains(&Target::Obj(*o)));
-        // `isChoiceCompleted`: nothing more to choose, but only once a target was chosen (an "up to" target with
-        // nothing to choose is still asked once)
+        // `isChoiceCompleted`: nothing more to choose, but only once a target was chosen (a divided "up to" target
+        // with nothing to choose is still asked once)
         if selected && players.is_empty() && objs.is_empty() && chosen.len() >= min && !(divided && added_in_prompt) {
             return Some(chosen);
         }
@@ -7824,16 +7829,8 @@ fn apply_each_effect(
                     continue;
                 };
                 let cards = game.player(p).graveyard.clone();
+                // `canChoose` first: an empty graveyard asks nothing
                 if cards.is_empty() {
-                    // `chooseTarget` still asks once with nothing to choose (not required then)
-                    let q = Query::Target { players: Vec::new(), objs: Vec::new(), required: false };
-                    loop {
-                        match ask(game, d, p, &q) {
-                            Answer::Bool(_) => break,
-                            Answer::Stop => return,
-                            _ => {}
-                        }
-                    }
                     continue;
                 }
                 let Some(chosen) = choose_cards(game, d, p, &cards, &cards, 1, 1, "exiles") else { return };
@@ -10963,17 +10960,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                 }
                 if let EffectDef::ChooseCreatureEffect { filter } = e {
                     let def = TargetDef::TargetPermanent { filter: filter.clone(), min: 1, max: 1, distribute: None };
+                    // `chooseTarget` with nothing to choose returns without asking
                     let chosen = if target_possible(game, controller, &def, Some(id)) {
                         choose_target(game, d, controller, &def, Some(id), "", false)
                     } else {
-                        // `chooseTarget` still asks once with nothing to choose (not required then)
-                        let q = Query::Target { players: Vec::new(), objs: Vec::new(), required: false };
-                        loop {
-                            match ask(game, d, controller, &q) {
-                                Answer::Bool(_) | Answer::Stop => break,
-                                _ => {}
-                            }
-                        }
                         None
                     };
                     if d.stopped() {
