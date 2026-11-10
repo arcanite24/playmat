@@ -687,6 +687,51 @@
     ]
   },
   {
+    "name": "Arena of Glory",
+    "set": "MH3",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Arena of Glory",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "EntersBattlefieldTappedUnlessAbility",
+        "type": "STATIC",
+        "rule": "{this} enters tapped unless you control a Mountain.",
+        "hints": [
+          {
+            "class": "ConditionHint",
+            "condition": {
+              "class": "mage.abilities.condition.common.YouControlPermanentCondition",
+              "text": "you control a Mountain"
+            },
+            "trueText": "You control a Mountain",
+            "falseText": "You control a Mountain",
+            "useIcons": "true"
+          }
+        ]
+      },
+      {
+        "class": "RedManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {R}."
+      },
+      {
+        "class": "SimpleManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{R}, {T}, Exert {this}: Add {R}{R}. If any of that mana is spent on a creature spell, it gains haste until end of turn."
+      }
+    ]
+  },
+  {
     "name": "Arid Mesa",
     "set": "ZEN",
     "abilities": [
@@ -770,6 +815,42 @@
         "class": "SimpleStaticAbility",
         "type": "STATIC",
         "rule": "if a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 2 instead."
+      }
+    ]
+  },
+  {
+    "name": "Atraxa, Grand Unifier",
+    "set": "ONE",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      },
+      {
+        "class": "VigilanceAbility",
+        "type": "STATIC",
+        "rule": "vigilance"
+      },
+      {
+        "class": "DeathtouchAbility",
+        "type": "STATIC",
+        "rule": "deathtouch"
+      },
+      {
+        "class": "LifelinkAbility",
+        "type": "STATIC",
+        "rule": "lifelink"
+      },
+      {
+        "class": "EntersBattlefieldTriggeredAbility",
+        "type": "TRIGGERED_NONMANA",
+        "rule": "When {this} enters, reveal the top ten cards of your library. For each card type, you may put a card of that type from among the revealed cards into your hand. Put the rest on the bottom of your library in a random order."
       }
     ]
   },
@@ -2099,6 +2180,39 @@
         "class": "HasteAbility",
         "type": "STATIC",
         "rule": "haste"
+      }
+    ]
+  },
+  {
+    "name": "Breeding Pool",
+    "set": "TRK",
+    "abilities": [
+      {
+        "class": "PlayLandAbility",
+        "type": "PLAY_LAND",
+        "rule": "Play Breeding Pool",
+        "hints": [
+          {
+            "class": "CanPlayAdditionalLandsHint",
+            "name": "?",
+            "ordinal": "?"
+          }
+        ]
+      },
+      {
+        "class": "AsEntersBattlefieldAbility",
+        "type": "STATIC",
+        "rule": "As {this} enters, you may pay 2 life. If you don't, it enters tapped."
+      },
+      {
+        "class": "GreenManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {G}."
+      },
+      {
+        "class": "BlueManaAbility",
+        "type": "ACTIVATED_MANA",
+        "rule": "{T}: Add {U}."
       }
     ]
   },
@@ -5827,6 +5941,22 @@
     ]
   },
   {
+    "name": "Faithful Mending",
+    "set": "MID",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "you gain 2 life, draw two cards, then discard two cards."
+      },
+      {
+        "class": "FlashbackAbility",
+        "type": "SPELL",
+        "rule": "Flashback {1}{W}{U} <i>(You may cast this card from your graveyard for its flashback cost. Then exile it.)</i>"
+      }
+    ]
+  },
+  {
     "name": "Fanatical Firebrand",
     "set": "FDN",
     "abilities": [
@@ -7488,6 +7618,22 @@
     ]
   },
   {
+    "name": "Goryo's Vengeance",
+    "set": "BOK",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": "Return target legendary creature card from your graveyard to the battlefield. That creature gains haste. Exile it at the beginning of the next end step."
+      },
+      {
+        "class": "SpliceAbility",
+        "type": "STATIC",
+        "rule": "Splice onto Arcane {2}{B} <i>(As you cast an Arcane spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)</i>"
+      }
+    ]
+  },
+  {
     "name": "Graceful Cat",
     "set": "AKH",
     "abilities": [
@@ -7687,6 +7833,32 @@
         "class": "DiesSourceTriggeredAbility",
         "type": "TRIGGERED_NONMANA",
         "rule": "When {this} dies, scry 1 and create a Treasure token."
+      }
+    ]
+  },
+  {
+    "name": "Griselbrand",
+    "set": "AVR",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "FlyingAbility",
+        "type": "EVASION",
+        "rule": "flying"
+      },
+      {
+        "class": "LifelinkAbility",
+        "type": "STATIC",
+        "rule": "lifelink"
+      },
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "Pay 7 life: Draw seven cards."
       }
     ]
   },
@@ -17381,6 +17553,32 @@
         "class": "LoyaltyAbility",
         "type": "ACTIVATED_NONMANA",
         "rule": "-8: You get an emblem with \"Whenever you draw a card, exile target permanent an opponent controls.\""
+      }
+    ]
+  },
+  {
+    "name": "Teferi, Time Raveler",
+    "set": "WAR",
+    "abilities": [
+      {
+        "class": "SpellAbility",
+        "type": "SPELL",
+        "rule": ""
+      },
+      {
+        "class": "SimpleStaticAbility",
+        "type": "STATIC",
+        "rule": "Each opponent can cast spells only any time they could cast a sorcery."
+      },
+      {
+        "class": "LoyaltyAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "+1: Until your next turn, you may cast sorcery spells as though they had flash."
+      },
+      {
+        "class": "LoyaltyAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "-3: Return up to one target artifact, creature, or enchantment to its owner's hand. Draw a card."
       }
     ]
   },
