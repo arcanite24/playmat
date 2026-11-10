@@ -623,8 +623,8 @@
   "series": "Stack and priority",
   "objective": "survive",
   "firstTurn": "you",
-  "text": "You're at 2 life and your opponent holds Sudden Shock. Live to your next turn after theirs.",
-  "hint": "Split second means no one can respond while it's on the stack. Gain the life before it's cast, not in response.",
+  "text": "You're at 2 life and your opponent holds Sudden Shock, but one of their Mountains is tapped. Live to your next turn after theirs.",
+  "hint": "Split second means no one can respond while it's on the stack, and they can't cast it with one land. Gain the life now, while they're short on mana.",
   "you": {
    "life": 2,
    "hand": [
@@ -647,7 +647,7 @@
    ],
    "battlefield": [
     "Mountain",
-    "Mountain"
+    "Mountain|tapped"
    ],
    "graveyard": [],
    "library": [

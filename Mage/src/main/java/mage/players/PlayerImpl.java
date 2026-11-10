@@ -4372,7 +4372,8 @@ public abstract class PlayerImpl implements Player, Serializable {
      */
     public List<ActivatedAbility> getPlayable(Game originalGame, boolean hidden, Zone fromZone, boolean hideDuplicatedAbilities) {
         List<ActivatedAbility> playable = new ArrayList<>();
-        if (shouldSkipGettingPlayable(originalGame)) {
+        // a cost paid while attackers are declared (Propaganda, Ghostly Prison) still needs its mana sources shown
+        if (!isInPayManaMode() && shouldSkipGettingPlayable(originalGame)) {
             return playable;
         }
 
