@@ -18,9 +18,10 @@ In `RustAiGameTest` a game takes 12 to 14 s of wall time, but little of that is 
 
 | | Today |
 |---|---|
-| Cards in the engine | 624 (the Career school decks, the shadow-test decks, Company and Zombies, the meta decks) |
+| Cards in the engine | 874 (the Career school decks, the shadow-test decks, Company and Zombies, the meta decks, the starter decks) |
 | Pioneer and Standard meta decks the AI picks from (`public/meta-decks`) | 24 of 24 fully covered (tiers 31 to 33) |
-| Modern meta decks | 5 of 12 fully covered (tier 34: Domain Zoo, Mono-Black Rats, Boros Burn, Soul Sisters, Merfolk); Elves lacks Heritage Druid and Castle Garenbrig |
+| Modern meta decks | 12 of 12 fully covered (tiers 34 to 38) |
+| Starter decks the AI picks when it has no format deck (`public/starter-decks`, the nine that aren't commander decks) | 9 of 9 fully covered (tier 39) |
 | Shadow games of the meta decks against each other (`shadow-decks/meta`, each pairing) | 287 of 288 match; Java didn't finish the other |
 | Games the copy follows to the end (test, debug off) | 40 of 40 Company vs Zombies, 22 of 24 school-deck games |
 
