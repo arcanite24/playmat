@@ -1743,8 +1743,10 @@ impl Game {
                 }
             }
         }
+        // (`BoostTargetEffect` changes only a creature: a Vehicle's boost counts once it's crewed)
+        let creature = self.has_type(id, CardType::Creature);
         for b in self.boosts.iter() {
-            if b.target == id && b.zcc == o.zcc {
+            if b.target == id && b.zcc == o.zcc && creature {
                 p += b.power;
                 t += b.toughness;
             }

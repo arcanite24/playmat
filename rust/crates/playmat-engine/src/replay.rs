@@ -79,6 +79,10 @@ pub struct ShadowStart {
     /// "start": exile is named in the cards' order at the first priority; older games name it as it was exiled
     #[serde(default, rename = "exileOrder")]
     pub exile_order: Option<String>,
+    /// cards revealed from an opening hand for a delayed trigger (Devourer of Destiny), as `[seat, hand index]`;
+    /// older games lack it, and their answers say instead
+    #[serde(default)]
+    pub revealed: Option<Vec<(usize, usize)>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -202,8 +206,23 @@ impl ShadowGame {
                 Arc::make_mut(&mut game.exile).push(id);
             }
         }
-        // Devourer of Destiny revealed from an opening hand: its first-upkeep trigger
-        for (q, a) in self.questions.iter().zip(self.decisions.iter()).take(self.start.decision) {
+        // Devourer of Destiny revealed from an opening hand: its first-upkeep trigger (from the start's `revealed`, or
+        // from the answers of a game recorded without it)
+        if let Some(revealed) = &self.start.revealed {
+            for (seat, k) in revealed {
+                let card = game.players.get(*seat).and_then(|p| p.hand.get(*k)).copied();
+                if let Some(card) = card.filter(|c| game.obj(*c).def.name == "Devourer of Destiny") {
+                    crate::rules::devourer_first_upkeep(&mut game, card, *seat);
+                }
+            }
+        }
+        for (q, a) in self
+            .questions
+            .iter()
+            .zip(self.decisions.iter())
+            .take(self.start.decision)
+            .filter(|_| self.start.revealed.is_none())
+        {
             if q.starts_with("ASK Reveal Devourer of Destiny") && a.bool == Some(true) {
                 let card = game.player(a.seat).hand.iter().copied().find(|c| {
                     game.obj(*c).def.name == "Devourer of Destiny" && !game.at_first_upkeep.iter().any(|i| i.card == *c)

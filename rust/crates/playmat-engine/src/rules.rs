@@ -3593,6 +3593,25 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             top.x = x;
         }
     }
+    // "tap X untapped artifacts you control": X announced before the mana (`VariableCostImpl`), up to the ones
+    // untapped now (the source too)
+    if let Some(CostDef::TapXTargetCost { filter }) = costs.iter().find(|c| matches!(c, CostDef::TapXTargetCost { .. }))
+    {
+        let max = matching(game, filter, seat, id)
+            .into_iter()
+            .filter(|p| game.obj(*p).controller == seat && !game.obj(*p).tapped)
+            .count() as i32;
+        let x = loop {
+            match ask(game, d, seat, &Query::Amount { min: 0, max }) {
+                Answer::Int(n) if (0..=max).contains(&n) => break n,
+                Answer::Stop => return false,
+                _ => {}
+            }
+        };
+        if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+            top.x = x;
+        }
+    }
     if !choose_targets(game, d, seat, targets, None, rule, true) {
         return false;
     }
@@ -3756,22 +3775,19 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 .into_iter()
                 .filter(|p| game.obj(*p).controller == seat && !game.obj(*p).tapped)
                 .collect();
-            let x = loop {
-                match ask(game, d, seat, &Query::Amount { min: 0, max: can.len() as i32 }) {
-                    Answer::Int(n) if (0..=can.len() as i32).contains(&n) => break n as usize,
-                    Answer::Stop => return false,
-                    _ => {}
-                }
-            };
+            let x = game.stack.last().map_or(0, |t| t.x).max(0) as usize;
             if x > 0 {
+                // not required: fewer than X chosen, the cost isn't paid and the activation is rolled back
                 let rule = "untapped artifacts you control".to_string();
-                let Some(chosen) = choose_cards(game, d, seat, &can, &can, x, x, &rule) else { return false };
+                let Some(chosen) = choose_cards_with(game, d, seat, &can, &can, x, x, &rule, true) else {
+                    return false;
+                };
+                if chosen.len() < x {
+                    return false;
+                }
                 for c in chosen {
                     tap(game, c);
                 }
-            }
-            if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
-                top.x = x as i32;
             }
         }
         // tapped already (it paid mana for this ability): the activation fails and is rolled back
@@ -4652,6 +4668,9 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                                 if let CostDef::PayEnergyCost { amount } = c {
                                     add_energy(game, seat, -amount);
                                 }
+                                if let CostDef::RemoveCountersSourceCost { counter } = c {
+                                    game.obj_mut(id).add_counters(&counter.name, -counter.amount);
+                                }
                             }
                             // of any color: `ManaUtil.tryToAutoSelectAManaColor` picks it, as the mana is made
                             let mut m = m;
@@ -4855,6 +4874,9 @@ fn activate_mana_paying(
             CostDef::SacrificeSourceCost => sacrifice(game, id),
             CostDef::PayLifeCost { amount } => lose_life(game, seat, amount),
             CostDef::PayEnergyCost { amount } => add_energy(game, seat, -amount),
+            CostDef::RemoveCountersSourceCost { counter } => {
+                game.obj_mut(id).add_counters(&counter.name, -counter.amount)
+            }
             _ => {}
         }
     }
@@ -7108,6 +7130,21 @@ fn apply_each_effect(
             }
             EffectDef::GainAbilityTargetEffect { ability, duration } => {
                 for o in &objs {
+                    // an activated ability for good (Quicksmith Spy's "{T}: Draw a card"): one of the permanent's own,
+                    // after its printed ones
+                    if *duration == Duration::WhileOnBattlefield
+                        && ability.activated().is_some()
+                        && game.obj(*o).zone == Zone::Battlefield
+                    {
+                        let p = game.obj_mut(*o);
+                        let mut def = (*p.def).clone();
+                        def.abilities.push((**ability).clone());
+                        if p.printed_def.is_none() {
+                            p.printed_def = Some(p.def.clone());
+                        }
+                        p.def = Arc::new(def);
+                        continue;
+                    }
                     grant(game, *o, ability);
                     // "for as long as you control …" (taken as for good)
                     if *duration == Duration::WhileOnBattlefield {
@@ -7934,7 +7971,10 @@ fn apply_each_effect(
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Battlefield {
                         let delayed = Delayed {
-                            rule: format!("Sacrifice boosted {}", game.obj(o).def.name),
+                            rule: format!(
+                                "At the beginning of the next end step, Sacrifice boosted {}.",
+                                game.obj(o).def.name
+                            ),
                             sacrifice: vec![(o, game.obj(o).zcc)],
                             warp_exile: Vec::new(),
                             effects: Vec::new(),
@@ -8251,10 +8291,14 @@ fn apply_each_effect(
                             .copied()
                             .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
                             .collect();
-                        let Some(chosen) = choose_cards(game, d, controller, &grave, &possible, 0, 1, "choose") else {
-                            return;
-                        };
-                        found = chosen.first().copied();
+                        // (an empty graveyard: nothing asked; one without a match is still asked)
+                        if !grave.is_empty() {
+                            let Some(chosen) = choose_cards(game, d, controller, &grave, &possible, 0, 1, "choose")
+                            else {
+                                return;
+                            };
+                            found = chosen.first().copied();
+                        }
                     }
                 }
                 if let Some(c) = found {
@@ -9790,7 +9834,8 @@ fn apply_each_effect(
             }
             EffectDef::PutOnLibraryTargetEffect { top } => {
                 for o in &objs {
-                    if game.obj(*o).zone == Zone::Graveyard {
+                    // a card from a graveyard, or a permanent (Natural Obsolescence's artifact; a token ceases to exist)
+                    if matches!(game.obj(*o).zone, Zone::Graveyard | Zone::Battlefield) {
                         to_library(game, *o, *top);
                     }
                 }

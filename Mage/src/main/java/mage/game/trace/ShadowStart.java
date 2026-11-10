@@ -1,8 +1,11 @@
 package mage.game.trace;
 
+import mage.abilities.DelayedTriggeredAbility;
 import mage.abilities.TriggeredAbility;
 import mage.cards.Card;
 import mage.game.Game;
+import mage.game.stack.StackAbility;
+import mage.game.stack.StackObject;
 import mage.players.Player;
 
 import java.util.*;
@@ -79,6 +82,29 @@ public final class ShadowStart {
             seats.add(seat);
         }
         start.put("seats", seats);
+        // cards revealed from an opening hand for a delayed trigger (Devourer of Destiny): [seat, hand index], the
+        // trigger waiting or on the stack already
+        Set<UUID> delayedSources = new HashSet<>();
+        for (DelayedTriggeredAbility ability : game.getState().getDelayed()) {
+            delayedSources.add(ability.getSourceId());
+        }
+        for (StackObject object : game.getStack()) {
+            if (object instanceof StackAbility && ((StackAbility) object).getStackAbility() instanceof DelayedTriggeredAbility) {
+                delayedSources.add(object.getSourceId());
+            }
+        }
+        List<List<Integer>> revealed = new ArrayList<>();
+        List<UUID> seatIds = StateFingerprint.seats(game);
+        for (int s = 0; s < seatIds.size(); s++) {
+            int k = 0;
+            for (UUID id : game.getPlayer(seatIds.get(s)).getHand()) {
+                if (delayedSources.contains(id)) {
+                    revealed.add(Arrays.asList(s, k));
+                }
+                k++;
+            }
+        }
+        start.put("revealed", revealed);
         start.put("fingerprint", fingerprintText);
         return start;
     }
