@@ -671,7 +671,9 @@ pub fn encode(game: &Game, seat: Seat, _q: &Query, a: &Answer) -> Option<Value> 
             if r.starts_with('?') {
                 return None;
             }
-            let room = !game.obj(*o).def.room.is_empty() && game.obj(*o).zone == Zone::Hand;
+            let room = !game.obj(*o).def.room.is_empty()
+                && (game.obj(*o).zone == Zone::Hand
+                    || (game.obj(*o).def.aftermath && game.obj(*o).zone == Zone::Graveyard));
             json!({"target": format!("{r}{}{k}", if room { "h" } else { "a" })})
         }
         Answer::Trigger(i) => json!({"target": format!("T{seat}.{i}")}),

@@ -797,7 +797,7 @@ fn ability_rule(a: &crate::card::AbilityDef) -> Option<String> {
             A::BlackManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {B}.",
             A::RedManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {R}.",
             A::GreenManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {G}.",
-            A::ColorlessManaAbility { effects, cost } if effects.is_empty() && cost.is_empty() => "{T}: Add {C}.",
+            A::ColorlessManaAbility { effects, cost, .. } if effects.is_empty() && cost.is_empty() => "{T}: Add {C}.",
             A::AnyColorManaAbility { amount: 1, effects, cost, .. } if effects.is_empty() && cost.is_empty() => {
                 "{T}: Add one mana of any color."
             }

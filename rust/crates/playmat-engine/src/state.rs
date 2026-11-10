@@ -98,6 +98,8 @@ pub struct Obj {
     pub tapped: bool,
     pub damage: i32,
     pub counters: Vec<(String, i32)>,
+    /// its counters as it last left the battlefield
+    pub lki_counters: Vec<(String, i32)>,
     pub face_down: bool,
     /// the player it attacks
     pub attacking: Option<Seat>,
@@ -204,6 +206,8 @@ pub struct Obj {
     pub may_play: Option<(Seat, u32)>,
     /// mana of any type can be spent to cast it (while it may be played from exile)
     pub any_mana: bool,
+    /// while it may be played from exile, it's cast without paying its mana cost (Oracle's Vault)
+    pub play_free: bool,
     /// it may be played from exile only by casting it (not played as a land)
     pub cast_only: bool,
     /// cast from exile, it costs this much more (Elite Spellbinder)
@@ -404,6 +408,8 @@ pub struct StackItem {
     /// an ability's face, when its source has transformed since it triggered or was activated
     pub def: Option<Arc<CardDef>>,
     pub controller: Seat,
+    /// the times its replicate cost was paid
+    pub replicated: u32,
     /// the chosen targets, per target of the spell or ability (a target can take several, "up to two")
     pub targets: Vec<Vec<Target>>,
     /// each object target's zone-change count when it was chosen (0 for players)
@@ -470,6 +476,7 @@ impl StackItem {
         StackItem {
             card,
             controller,
+            replicated: 0,
             targets: Vec::new(),
             target_zcc: Vec::new(),
             ability: None,
@@ -527,6 +534,10 @@ pub struct Game {
     pub at_end_of_combat: Vec<StackItem>,
     /// "at the beginning of the next end step" delayed triggers
     pub at_next_end_step: Vec<StackItem>,
+    /// "at the beginning of the next turn's upkeep" delayed triggers
+    pub at_next_upkeep: Vec<StackItem>,
+    /// cards exiled by rebound: (card, its exile zcc, owner), offered at the owner's next upkeep
+    pub rebound: Vec<(ObjId, u32, Seat)>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
     pub next_creature_spell: Vec<(Seat, u32, StackItem)>,
     /// "when you next cast an instant or sorcery spell this turn": the player, the turn, the delayed trigger
@@ -560,6 +571,11 @@ pub struct Game {
     pub spent_tally: [u32; 6],
     /// "damage can't be prevented this turn" (Stomp): the turn it was said
     pub no_prevention_turn: Option<u32>,
+    /// "prevent all damage that would be dealt to it this turn": the permanent, its zone-change count, the turn
+    pub prevent_all_to: Vec<(ObjId, u32, u32)>,
+    /// "prevent all combat damage a source of your choice would deal this turn": the source, its zone-change count,
+    /// the turn
+    pub prevent_combat_from: Vec<(ObjId, u32, u32)>,
     /// "players can't gain life this turn" (Skullcrack): the turn it was said
     pub no_lifegain_turn: Option<u32>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
@@ -579,7 +595,15 @@ pub struct Game {
     pub owed_choices: Vec<Seat>,
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
+    /// Emrakul, the Promised End: (player, controller) for a player's next turn, controlled by another
+    pub control_next_turn: Vec<(Seat, Seat)>,
+    /// (player, controller) while a player's turn is controlled by another; an extra turn follows it
+    pub controlled_by: Vec<(Seat, Seat)>,
+    /// "at the beginning of your first upkeep" delayed triggers (Devourer of Destiny's), each its controller's
+    pub at_first_upkeep: Vec<StackItem>,
     pub grants: Arc<Vec<Grant>>,
+    /// abilities lost until end of turn: (permanent, its zcc, the ability, the turn)
+    pub lost_until_eot: Vec<(ObjId, u32, AbilityDef, u32)>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
     pub must_block_from: Vec<(ObjId, u32, ObjId)>,
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
@@ -621,6 +645,8 @@ pub struct Game {
     pub damaged_batch: Vec<(ObjId, i32)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
+    /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
+    pub exiled_batch: bool,
     /// `LOST_LIFE_BATCH_FOR_ONE_PLAYER` triggers waiting for the batch: the player who lost life, and the trigger
     /// with the total as its X
     pub life_batch: Vec<(Seat, StackItem)>,
@@ -636,6 +662,9 @@ pub struct Game {
     pub return_to_hand: Vec<ObjId>,
     /// this combat has a first-strike damage step
     pub first_strike_step: bool,
+    /// `FirstStrikeWatcher`: the creatures that dealt damage in this combat's first-strike step (702.7c: only double
+    /// strike deals damage again)
+    pub first_strikers: Vec<ObjId>,
     /// the game is over (a player lost, or it reached its last turn)
     pub over: bool,
 }
@@ -660,6 +689,8 @@ impl Game {
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
+            at_next_upkeep: Vec::new(),
+            rebound: Vec::new(),
             attacks_opponent: Vec::new(),
             next_creature_spell: Vec::new(),
             next_instant_sorcery: Vec::new(),
@@ -676,6 +707,8 @@ impl Game {
             foraging: std::cell::Cell::new(false),
             spent_tally: [0; 6],
             no_prevention_turn: None,
+            prevent_all_to: Vec::new(),
+            prevent_combat_from: Vec::new(),
             no_lifegain_turn: None,
             resolving: None,
             resolving_item: None,
@@ -684,7 +717,11 @@ impl Game {
             creature_died: false,
             owed_choices: Vec::new(),
             extra_turns: Vec::new(),
+            control_next_turn: Vec::new(),
+            controlled_by: Vec::new(),
+            at_first_upkeep: Vec::new(),
             grants: Arc::new(Vec::new()),
+            lost_until_eot: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
             exile_if_dies: Vec::new(),
@@ -705,12 +742,14 @@ impl Game {
             day: None,
             damaged_batch: Vec::new(),
             batch_pending: Vec::new(),
+            exiled_batch: false,
             life_batch: Vec::new(),
             resolving_controller: None,
             chosen_before: Vec::new(),
             land_becomes: Vec::new(),
             return_to_hand: Vec::new(),
             first_strike_step: false,
+            first_strikers: Vec::new(),
             over: false,
         }
     }
@@ -754,6 +793,7 @@ impl Game {
             tapped: false,
             damage: 0,
             counters: Vec::new(),
+            lki_counters: Vec::new(),
             face_down: false,
             attacking: None,
             attacking_pw: None,
@@ -806,6 +846,7 @@ impl Game {
             lost_abilities: None,
             may_play: None,
             any_mana: false,
+            play_free: false,
             cast_only: false,
             play_tax: 0,
             warped: false,
@@ -856,6 +897,23 @@ impl Game {
                 _ => true,
             },
             Pred::Multicolored => self.colors(id).len() > 1,
+            Pred::Colorless => self.colors(id).is_empty(),
+            Pred::NoManaSpent => self.obj(id).mana_spent == 0,
+            Pred::KickedSpell => self.stack.iter().any(|i| i.card == id && i.ability.is_none() && i.kicked),
+            Pred::ManaCostIn { costs } => costs.iter().any(|c| *c == o.def.cost.text),
+            Pred::ManaValueEqualSourceCounters { counter } => source.is_some_and(|src| {
+                let s = self.obj(src);
+                let n = if s.zone == Zone::Battlefield {
+                    s.counter(counter)
+                } else {
+                    s.lki_counters.iter().filter(|(k, _)| k == counter).map(|(_, n)| *n).sum()
+                };
+                o.def.mana_value() as i32 == n
+            }),
+            Pred::AuraAttached => self
+                .battlefield
+                .iter()
+                .any(|a| Some(*a) != source && self.attached(*a) == Some(id) && self.has_subtype(*a, "Aura")),
             Pred::ChosenName => {
                 source.and_then(|src| self.obj(src).chosen_name.as_ref()).is_some_and(|n| *n == self.obj(id).def.name)
             }
@@ -957,7 +1015,7 @@ impl Game {
     /// Protection: `id` has protection from a color of `source`
     pub fn protected_from(&self, id: ObjId, source: ObjId) -> bool {
         self.colors(source).iter().any(|c| self.has_ability(id, &AbilityDef::ProtectionFromColorAbility { c: *c }))
-            || self.obj(id).def.abilities.iter().any(|a| match a {
+            || self.obj(id).def.abilities.iter().chain(self.granted_abilities(id).iter()).any(|a| match a {
                 AbilityDef::ProtectionAbility { filter } => {
                     self.filter_matches(filter, self.obj(id).controller, Some(id), source)
                 }
@@ -1008,6 +1066,11 @@ impl Game {
 
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
         let o = self.obj(id);
+        if !self.lost_until_eot.is_empty()
+            && self.lost_until_eot.iter().any(|(x, z, a, t)| *x == id && *z == o.zcc && a == ability && *t == self.turn)
+        {
+            return false;
+        }
         if o.has(ability) {
             return true;
         }
@@ -1056,7 +1119,9 @@ impl Game {
                         && self.condition_holds(a.intervening_if(), o.controller, src)
                         && self.condition_holds(a.trigger_condition(), o.controller, src)
                     {
-                        fired.push(StackItem { ability: Some((i, o.zcc)), ..StackItem::spell(src, o.controller) });
+                        // a copy until end of turn (Shifting Woodland) keeps what it copied once it has left
+                        let def = o.until_end_of_turn_def.as_ref().map(|_| o.def.clone());
+                        fired.push(StackItem { ability: Some((i, o.zcc)), def, ..StackItem::spell(src, o.controller) });
                     }
                 }
             }
@@ -1152,6 +1217,20 @@ impl Game {
                     let o = g.obj(*c);
                     o.controller == you && o.is(CardType::Creature) && g.power_toughness(*c) == (1, 1)
                 })
+        })
+    }
+
+    /// `checkAttackRequirements`: it attacks each combat if able
+    pub fn must_attack(&self, id: ObjId) -> bool {
+        let o = self.obj(id);
+        o.def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
+                EffectDef::AttacksIfAbleSourceEffect { condition } => {
+                    self.condition_holds(condition.as_ref(), o.controller, id)
+                }
+                _ => false,
+            }),
+            _ => false,
         })
     }
 
@@ -1347,6 +1426,8 @@ impl Game {
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .count() as i32,
                 Value::SourcePower => self.power_toughness(source).0,
+                Value::SourceToughness => self.power_toughness(source).1,
+                Value::ControllerLife => self.player(you).life,
                 Value::TotalPower { filter } => self
                     .battlefield
                     .iter()
@@ -1360,6 +1441,17 @@ impl Game {
                 Value::ExiledWithSource => {
                     let zcc = self.obj(source).zcc;
                     self.exiled_for_source.iter().filter(|(s, z, _)| *s == source && *z == zcc).count() as i32
+                }
+                Value::CardTypesInYourGraveyard => {
+                    let mut types: Vec<CardType> = Vec::new();
+                    for c in self.player(you).graveyard.iter() {
+                        for t in &self.obj(*c).def.types {
+                            if !types.contains(t) {
+                                types.push(*t);
+                            }
+                        }
+                    }
+                    types.len() as i32
                 }
                 Value::CardTypesInGraveyards => {
                     let mut types: Vec<CardType> = Vec::new();
@@ -1388,6 +1480,11 @@ impl Game {
                         0
                     }
                 }
+                Value::AurasAttached => self
+                    .battlefield
+                    .iter()
+                    .filter(|a| self.attached(**a) == Some(source) && self.has_subtype(**a, "Aura"))
+                    .count() as i32,
                 Value::Domain => ["Plains", "Island", "Swamp", "Mountain", "Forest"]
                     .iter()
                     .filter(|t| {
@@ -1415,7 +1512,10 @@ impl Game {
         let Some(c) = condition else { return true };
         match c {
             // a permanent that was cast kicked ("when this enters, if it was kicked")
-            Condition::Kicked => self.obj(source).kicked,
+            Condition::Kicked => {
+                self.obj(source).kicked
+                    || self.stack.iter().any(|i| i.card == source && i.ability.is_none() && i.kicked)
+            }
             // only known on a cast trigger (`condition_with_kicker`)
             Condition::Opus => false,
             Condition::Offspring => self.obj(source).offspring,
@@ -1441,6 +1541,10 @@ impl Game {
                     })
             }),
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
+            Condition::AttackedOrBlockedThisCombat => {
+                let o = self.obj(source);
+                o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0
+            }
             Condition::SacrificedThisTurn { n } => self.player(you).sacrificed as i32 >= *n,
             Condition::ClassLevel { n } => self.obj(source).class_level >= *n,
             Condition::CardsInGraveyard { filter, n } => {
@@ -1468,6 +1572,11 @@ impl Game {
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
             Condition::Morbid => self.creature_died,
+            Condition::PlayedLand => self.player(you).lands_played > 0,
+            Condition::CardsInExile { n } => self.exile.len() >= *n,
+            Condition::Delirium => {
+                self.value(&Amount::Of(crate::card::Value::CardTypesInYourGraveyard), you, source, 0) >= 4
+            }
             Condition::FlierCast => self.player(you).flier_cast,
             Condition::YouGainedLife => self.player(you).life_gained > 0,
             Condition::LifeGained { cmp, n } => cmp.holds(self.player(you).life_gained, *n),
@@ -1634,8 +1743,10 @@ impl Game {
                 }
             }
         }
+        // (`BoostTargetEffect` changes only a creature: a Vehicle's boost counts once it's crewed)
+        let creature = self.has_type(id, CardType::Creature);
         for b in self.boosts.iter() {
-            if b.target == id && b.zcc == o.zcc {
+            if b.target == id && b.zcc == o.zcc && creature {
                 p += b.power;
                 t += b.toughness;
             }
@@ -1856,6 +1967,9 @@ impl Game {
         // dies triggers look back at the battlefield as it was (this one included), and at what left it in the same
         // action (Java's short-living LKI: a sweeper's creatures see each other die)
         let died_controller = self.obj(id).controller;
+        if zone == Zone::Exile && matches!(from, Zone::Graveyard | Zone::Battlefield) {
+            self.exiled_batch = true;
+        }
         if from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) {
             self.creature_died = true;
         }
@@ -1876,6 +1990,7 @@ impl Game {
                     (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
                 Trigger::PeltCollector => src != id && died_controller == you,
+                Trigger::DiesAttached => g.obj(src).attached_to.is_some_and(|(a, _)| a == id),
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 _ => false,
             });
@@ -2006,6 +2121,7 @@ impl Game {
             o.exile_instead_of_dying = false;
             o.may_play = None;
             o.any_mana = false;
+            o.play_free = false;
             o.cast_only = false;
             o.chosen_name = None;
             o.info.clear();
@@ -2045,6 +2161,9 @@ impl Game {
             if zone != Zone::Battlefield {
                 o.tapped = false;
                 o.damage = 0;
+                if from == Zone::Battlefield {
+                    o.lki_counters = std::mem::take(&mut o.counters);
+                }
                 o.counters.clear();
                 o.attacking = None;
                 o.attacking_pw = None;
@@ -2098,6 +2217,11 @@ impl Game {
             if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
                 t.targets = vec![vec![Target::Player(died_controller)]];
                 t.target_zcc = vec![vec![0]];
+            }
+            // "return that card": the card in the graveyard
+            if t.card != id && self.trigger_of(&t) == Some(&Trigger::DiesAttached) {
+                t.targets = vec![vec![Target::Obj(id)]];
+                t.target_zcc = vec![vec![self.obj(id).zcc]];
             }
             self.pending.push(t);
         }

@@ -163,6 +163,9 @@ pub enum TargetDef {
         /// not one of the ability's earlier targets (`AnotherTargetPredicate`: Drakuseth's "other targets")
         #[serde(default)]
         not_first: bool,
+        /// an amount divided among the targets as they're chosen (`TargetAnyTargetAmount`)
+        #[serde(default)]
+        distribute: Option<Amount>,
     },
     TargetPlayer,
     TargetOpponent,
@@ -172,6 +175,8 @@ pub enum TargetDef {
         filter: Filter,
     },
     /// an activated or triggered ability on the stack (`TargetActivatedOrTriggeredAbility`), named by its source
+    /// Consign to Memory: a triggered ability or a colorless spell on the stack
+    TargetTriggeredAbilityOrColorlessSpell,
     TargetStackAbility {
         #[serde(default = "one")]
         min: usize,
@@ -197,6 +202,8 @@ pub enum TargetDef {
         distribute: Option<Amount>,
     },
     TargetPlayerOrPlaneswalker,
+    /// an opponent or a planeswalker an opponent controls
+    TargetOpponentOrPlaneswalker,
     /// a card in a graveyard (`TargetCardInGraveyard`, or `…InYourGraveyard` with the "you" owner predicate)
     TargetCardInGraveyard {
         #[serde(default)]
@@ -208,6 +215,9 @@ pub enum TargetDef {
         /// all from one graveyard: the first card's (`TargetCardInASingleGraveyard`)
         #[serde(default)]
         single: bool,
+        /// up to the spell's X (Kozilek's Command's adjuster; X 0 is any number, as Java's max 0)
+        #[serde(default)]
+        max_x: bool,
     },
 }
 
@@ -272,6 +282,15 @@ impl Cmp {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "p", rename_all = "snake_case")]
 pub enum Pred {
+    /// its mana cost is one of these (Urza's Saga's "{0} or {1}")
+    ManaCostIn {
+        costs: Vec<String>,
+    },
+    /// `ManaValueEqualToCountersSourceCountPredicate`: mana value equal to the source's counters of this kind (as it
+    /// last was on the battlefield)
+    ManaValueEqualSourceCounters {
+        counter: String,
+    },
     /// `CardType.X.getPredicate()`
     Type {
         t: CardType,
@@ -298,11 +317,19 @@ pub enum Pred {
     },
     /// `AnotherPredicate`: not the source
     Another,
+    /// `ColorlessPredicate`
+    Colorless,
+    /// `AuraAttachedPredicate`: an Aura other than the source is attached to it
+    AuraAttached,
     /// controlled by the ability's first target (a player, or a planeswalker's controller), while targets are
     /// chosen; any controller before that (Searing Blaze's `SearingBlazeTarget`)
     ControlledByFirstTarget,
     /// `MulticoloredPredicate`: two or more colors
     Multicolored,
+    /// a spell no mana was spent to cast (`FILTER_SPELL_NO_MANA_SPENT`)
+    NoManaSpent,
+    /// a kicked spell (Elfhame Druid's mana)
+    KickedSpell,
     /// `ChosenNamePredicate`: named the source's chosen name
     ChosenName,
     /// `AdventurePredicate`: a card with an Adventure
@@ -381,6 +408,8 @@ pub enum Trigger {
     TransformsOrEnters,
     /// this attacks (`AttacksTriggeredAbility`)
     Attacks,
+    /// this attacks alone (`AttacksAloneSourceTriggeredAbility`)
+    AttacksAlone,
     /// training: this attacks with a creature of greater power (`TrainingAbility`)
     Training,
     /// this dies (`DiesSourceTriggeredAbility`)
@@ -457,6 +486,13 @@ pub enum Trigger {
     },
     /// `SacrificeOneOrMorePermanentsTriggeredAbility`: once for the permanents sacrificed together, from the batch
     /// event (after what triggers on each sacrifice and on them leaving)
+    /// Ketramose: one or more cards put into exile from graveyards and/or the battlefield during your turn (once a batch)
+    ExiledFromGraveyardOrBattlefieldBatch,
+    /// "when you cast this spell" (`CastSourceTriggeredAbility`); `replicated`: only when its replicate cost was paid
+    CastThis {
+        #[serde(default)]
+        replicated: bool,
+    },
     SacrificedBatch {
         filter: Filter,
         who: String,
@@ -476,6 +512,8 @@ pub enum Trigger {
         #[serde(default)]
         only_combat: bool,
     },
+    /// the permanent this is attached to is put into a graveyard from the battlefield; its target is that card
+    DiesAttached,
     /// a permanent of the filter leaves the battlefield; the trigger's X is the +1/+1 counters it had (The Ooze)
     LeavesAll {
         filter: Filter,
@@ -527,8 +565,14 @@ pub enum Trigger {
     Evolve,
     /// this becomes exerted (`BecomesExertSourceTriggeredAbility`)
     Exerted,
+    /// this crews a Vehicle (`CrewsVehicleSourceTriggeredAbility`); its target is the Vehicle
+    CrewsVehicle,
+    /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
+    BecomesTapped,
     /// this deals combat damage to a player
     CombatDamageToPlayer,
+    /// this deals combat damage to a player or planeswalker (`DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility`)
+    CombatDamageToPlayerOrPlaneswalker,
     /// a permanent of the filter deals combat damage to a player
     CombatDamageToPlayerAll {
         filter: Filter,
@@ -561,6 +605,14 @@ pub enum ManaKind {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "c", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Condition {
+    /// delirium: four or more card types among cards in your graveyard
+    Delirium,
+    /// `PlayLandCondition`: you played a land this turn
+    PlayedLand,
+    /// `CardsInExileCondition`: at least `n` cards in exile
+    CardsInExile {
+        n: usize,
+    },
     /// `KickedCondition`: the spell was kicked (only a spell or what it put on the battlefield knows)
     Kicked,
     /// `OffspringCondition`: the permanent's offspring cost was paid
@@ -642,6 +694,8 @@ pub enum Condition {
     SourceEnteredThisTurn,
     /// `SourceAttackingCondition`
     SourceAttacking,
+    /// `AttackedOrBlockedThisCombatSourceCondition` (checked at end of combat, before it's removed from combat)
+    AttackedOrBlockedThisCombat,
     /// `CardsInControllerGraveyardCondition`, spell mastery: at least `n` cards of the filter in your graveyard
     CardsInGraveyard {
         filter: Filter,
@@ -755,6 +809,7 @@ impl TokenDef {
             back: None,
             transform_back: None,
             omen: false,
+            aftermath: false,
             prepare: None,
             room: Vec::new(),
             printed_cost: None,
@@ -789,6 +844,10 @@ pub enum CostDef {
     },
     /// an additional cost: sacrifice any number (X, announced as the spell is cast) of the filter's permanents
     SacrificeXTargetCost {
+        filter: Filter,
+    },
+    /// tap X untapped permanents of the filter you control, X announced (Merchant's Dockhand); the ability's X
+    TapXTargetCost {
         filter: Filter,
     },
     /// tap `amount` permanents of the filter you control (chosen, not targeted)
@@ -834,6 +893,9 @@ pub enum CostDef {
     DiscardCardCost {
         #[serde(default)]
         filter: Filter,
+        /// how many (Cathartic Reunion's two)
+        #[serde(default = "one")]
+        amount: usize,
     },
     /// reveal between `min` and `max` cards of the filter from your hand; the number revealed is the ability's X
     /// (`RevealTargetFromHandCost`, `RevealTargetFromHandCostCount`)
@@ -851,6 +913,10 @@ pub enum CostDef {
         filter: Filter,
     },
     PayLifeCost {
+        amount: i32,
+    },
+    /// pay {E} `amount` times: energy counters off the player
+    PayEnergyCost {
         amount: i32,
     },
     /// harmonize: tapping the creature chosen to reduce the cost (`HarmonizeAbilityAdjuster`)
@@ -920,6 +986,10 @@ pub enum Value {
     CardsInGraveyard { filter: Filter },
     /// the source's power (`SourcePermanentPowerValue`)
     SourcePower,
+    /// the source's toughness (`SourcePermanentToughnessValue`)
+    SourceToughness,
+    /// the controller's life total (`ControllerLifeCount`)
+    ControllerLife,
     /// the total power of the permanents of the filter
     TotalPower { filter: Filter },
     /// counters of a kind on the source while it's on the battlefield
@@ -952,6 +1022,10 @@ pub enum Value {
     Devotion { c: Color },
     /// basic land types among lands the controller controls (`DomainValue.REGULAR`)
     Domain,
+    /// Auras attached to the source (`AuraAttachedCount`)
+    AurasAttached,
+    /// card types among cards in the controller's graveyard (`CardTypesInGraveyardCount.YOU`)
+    CardTypesInYourGraveyard,
 }
 
 /// One-shot effects, named after the Java effect classes.
@@ -994,6 +1068,10 @@ pub enum EffectDef {
         filter: Filter,
         exclude_source: bool,
     },
+    /// adapt N: N +1/+1 counters on the source if it has none
+    AdaptEffect {
+        amount: i32,
+    },
     /// puts counters on the source
     AddCountersSourceEffect {
         counter: CounterDef,
@@ -1007,6 +1085,13 @@ pub enum EffectDef {
         /// how many, in place of the counter's own count
         #[serde(default)]
         value: Option<Amount>,
+        /// on the ability's second target (`SecondTargetPointer`)
+        #[serde(default)]
+        second: bool,
+    },
+    /// removes one counter of the kind from the target
+    RemoveCounterTargetEffect {
+        counter: String,
     },
     /// the controller creates `amount` tokens; Kavaron Harrier's enter tapped and attacking and are sacrificed at end
     /// of combat
@@ -1035,6 +1120,9 @@ pub enum EffectDef {
         /// another token created with these (`withAdditionalTokens`)
         #[serde(default)]
         also: Option<TokenDef>,
+        /// then this Equipment is attached to it (`CreateTokenAttachSourceEffect`); true: if its controller wants
+        #[serde(default)]
+        attach_source: Option<bool>,
     },
     /// deals damage equal to the source's power (as it last was on the battlefield) to the target
     DamageTargetSourcePowerEffect,
@@ -1093,6 +1181,12 @@ pub enum EffectDef {
         ability: Box<AbilityDef>,
         duration: Duration,
     },
+    /// the permanents of the filter (as it resolves) lose the ability until end of turn (Shadowspear)
+    LoseAbilityAllEffect {
+        ability: Box<AbilityDef>,
+        duration: Duration,
+        filter: Filter,
+    },
     /// a static effect that applies only while the condition holds ("my_turn")
     ConditionalContinuousEffect {
         effect: Box<EffectDef>,
@@ -1137,6 +1231,16 @@ pub enum EffectDef {
     },
     /// destroys every permanent of `filter`
     DestroyAllEffect {
+        filter: Filter,
+    },
+    /// deals `amount` damage to each permanent of `filter` the target player (or the target planeswalker's
+    /// controller) controls
+    DamageAllControlledTargetEffect {
+        amount: Amount,
+        filter: Filter,
+    },
+    /// put every card of `filter` in your graveyard onto the battlefield
+    ReturnFromYourGraveyardToBattlefieldAllEffect {
         filter: Filter,
     },
     /// deals `amount` damage to every permanent of `filter`
@@ -1260,6 +1364,16 @@ pub enum EffectDef {
         effects: Vec<EffectDef>,
         rule: String,
     },
+    /// "… at the beginning of the next turn's upkeep" (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility`)
+    CreateNextUpkeepDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
+    /// Expressive Iteration: of the top three cards, one into your hand, one on the bottom, one exiled (you may play
+    /// it this turn)
+    ExpressiveIterationEffect,
+    /// look at the top card of target player's library (only its controller sees it)
+    LookLibraryTopCardTargetPlayerEffect,
     /// "when you next cast a creature spell this turn, that creature enters with `amount` additional +1/+1
     /// counters" (`AddCounterNextSpellDelayedTriggeredAbility`)
     CreateNextCreatureSpellDelayedEffect {
@@ -1319,6 +1433,8 @@ pub enum EffectDef {
     SpellQuellerLeavesEffect,
     /// copy the spell that's this ability's source (casualty's "when you do"); its controller may choose new targets
     CopySourceSpellEffect,
+    /// replicate's cast trigger: a copy of the spell for each time its replicate cost was paid
+    ReplicateCopyEffect,
     /// a Class gains level `level`
     SetClassLevelEffect {
         level: u32,
@@ -1440,7 +1556,97 @@ pub enum EffectDef {
     /// the target player creates a token
     CreateTokenTargetEffect {
         token: TokenDef,
+        /// how many each target player creates (one when absent)
+        #[serde(default)]
+        amount: Option<Amount>,
     },
+    /// the target player scries `amount`
+    ScryTargetEffect {
+        amount: Amount,
+    },
+    /// Blade of the Bloodchief: a +1/+1 counter on the equipped creature, two if it's a Vampire
+    BladeOfTheBloodchiefEffect,
+    /// Edifice of Authority: until your next turn, the target can't attack or block and its activated abilities
+    /// can't be activated
+    EdificeOfAuthorityEffect,
+    /// tap the permanent the source is attached to
+    TapEnchantedEffect,
+    /// prevent all damage that would be dealt to the source this turn
+    PreventAllDamageToSourceEffect,
+    /// choose a permanent of the filter: prevent all combat damage it would deal this turn (Ajani's Aid)
+    PreventCombatDamageByChosenEffect {
+        filter: Filter,
+    },
+    /// tap every permanent of the filter
+    TapAllEffect {
+        filter: Filter,
+    },
+    /// reveal cards from the top until one of the filter: it goes to your hand, the rest on the bottom at random
+    RevealUntilToHandEffect {
+        filter: Filter,
+    },
+    /// gain control of every permanent of the filter the target player controls (for the rest of the game)
+    GainControlAllControlledTargetEffect {
+        filter: Filter,
+    },
+    /// reveal the top two: the lands onto the battlefield, the rest into your hand
+    NissaNaturesArtisanEffect,
+    /// exile the top card; until end of turn you may play it without paying its mana cost
+    OraclesVaultFreeEffect,
+    /// look at the top X cards: one into your hand, the rest on the bottom in any order
+    MerchantsDockhandEffect,
+    /// remove the flood counters; none removed: a flood counter and draw a card, else add {C}{G}{U}
+    BountyOfTheLuxaEffect,
+    /// Believe: the top card of your library onto the battlefield if it's a creature card and you choose to, else
+    /// into your hand
+    BelieveEffect,
+    /// `UntapTargetEffect` with `EachTargetPointer`: every target's permanents untap
+    UntapEachTargetEffect,
+    /// Nissa's Encouragement: a Forest, a Brambleweft Behemoth and a Nissa, Genesis Mage from your library (and the
+    /// ones not found there, from your graveyard) into your hand
+    NissasEncouragementEffect,
+    /// sacrifice the target at the beginning of the next end step (Hazoret's Favor)
+    SacrificeTargetNextEndStepEffect,
+    /// reveal the top card: a permanent card may go onto the battlefield, else it may go on the bottom
+    AidFromTheCowlEffect,
+    /// reveal until a nonland card with mana value 3 or less, which may be cast free; the rest go on the bottom
+    TreasureKeeperEffect,
+    /// the permanent the source is attached to doesn't untap in its controller's untap step (a static's)
+    DontUntapInControllersUntapStepEnchantedEffect,
+    /// discard your hand, then draw that many cards
+    DiscardHandDrawSameNumberSourceEffect,
+    /// this must be blocked if able (a static's)
+    MustBeBlockedByAtLeastOneSourceEffect,
+    /// untap each permanent of the filter
+    UntapAllEffect {
+        filter: Filter,
+    },
+    /// this can't attack alone (a static's)
+    CantAttackAloneSourceEffect,
+    /// this can't block alone (a static's)
+    CantBlockAloneSourceEffect,
+    /// you may tap the target permanent, or untap it if it's tapped
+    MayTapOrUntapTargetEffect,
+    /// you get `amount` {E} (energy counters)
+    GetEnergyCountersControllerEffect {
+        amount: Amount,
+    },
+    /// search your library and/or graveyard for a card of the filter, reveal it, put it into your hand; shuffle if
+    /// the library was searched (`both`: the library is searched without asking)
+    SearchLibraryGraveyardPutInHandEffect {
+        filter: Filter,
+        #[serde(default)]
+        both: bool,
+    },
+    /// Shifting Woodland: the source becomes a copy of the target card in your graveyard until end of turn
+    ShiftingWoodlandCopyEffect,
+    /// Emrakul, the Promised End: you control the target opponent during their next turn; then they take an extra
+    /// turn
+    EmrakulThePromisedEndGainControlEffect,
+    /// Ugin's Labyrinth: you may exile a colorless card with mana value 7 or more from your hand, with the source
+    UginsLabyrinthExileEffect,
+    /// Ugin's Labyrinth: the cards exiled with the source go to their owner's hand
+    UginsLabyrinthReturnEffect,
     /// adds mana to the controller's pool (WUBRG, then colorless)
     BasicManaEffect {
         colored: [u32; 5],
@@ -1540,8 +1746,32 @@ pub enum EffectDef {
     },
     /// exiles the targets
     ExileTargetEffect,
+    /// the source gains the ability for as long as it's on the battlefield (`GainAbilitySourceEffect`, `Custom`)
+    GainAbilityPermanentlyEffect {
+        ability: Box<AbilityDef>,
+    },
+    /// activated abilities (not mana abilities) of sources with the source's chosen name can't be activated
+    PithingNeedleEffect,
+    /// Emry: you may cast the target (a nonland card in your graveyard) this turn
+    MayCastTargetFromGraveyardThisTurnEffect,
+    /// converge: exile the target nonland permanent if its mana value is at most the colors spent to cast this
+    PrismaticEndingEffect,
+    /// target player exiles a card from their graveyard
+    RelicOfProgenitusEffect,
+    /// `ExileAndGainLifeEqualPowerTargetEffect`: exile the target; its controller gains life equal to its power
+    ExileAndGainLifeEqualPowerTargetEffect,
+    /// `ExileThenReturnTargetEffect`: exile the targets, then return them under their owner's control
+    ExileThenReturnTargetEffect,
+    /// rebound's upkeep trigger: its owner may cast the exiled card without paying its mana cost
+    ReboundCastSpellFromExileEffect,
     /// returns the targets to their owners' hands
     ReturnToHandTargetEffect,
+    /// return this to its owner's hand: from the battlefield, or (unless `battlefield_only`) the graveyard or exile
+    /// it went to (Rancor)
+    ReturnToHandSourceEffect {
+        #[serde(default)]
+        battlefield_only: bool,
+    },
     TapTargetEffect,
     UntapTargetEffect,
     /// taps the source
@@ -1831,6 +2061,10 @@ pub enum EffectDef {
     GainFlashbackTargetEffect,
     /// +1/+1 counters on the targets, as many on each as was divided to it
     DistributeCountersEffect,
+    /// -1/-1 counters, divided as the targets were chosen (Splendid Agony)
+    DistributeM1M1CountersEffect,
+    /// damage divided as the targets were chosen (`DamageMultiEffect`)
+    DamageMultiEffect,
     /// each nonland permanent you control is all colors
     LeylineOfTheGuildpactEffect,
     /// until end of turn, the source becomes an X/X green Hydra creature, still a land
@@ -1848,6 +2082,12 @@ pub enum EffectDef {
     /// a Siege defeated: exile it, then cast it transformed without paying its mana cost
     SiegeDefeatedEffect,
     /// a static: this can't attack or block unless the condition holds
+    /// this attacks each combat if able (`AttacksIfAbleSourceEffect`, `AttacksEachCombatStaticAbility`), while the
+    /// condition holds (`ConditionalRequirementEffect`)
+    AttacksIfAbleSourceEffect {
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
     CantAttackBlockUnlessConditionSourceEffect {
         condition: Condition,
     },
@@ -2107,6 +2347,9 @@ pub enum AbilityDef {
     /// cast from the graveyard for this cost, then exiled
     FlashbackAbility {
         cost: String,
+        /// a cost that isn't mana (Lava Dart's "Sacrifice a Mountain")
+        #[serde(default)]
+        costs: Vec<CostDef>,
         rule: String,
     },
     /// cast from the graveyard for this cost, which tapping a creature reduces by its power, then exiled
@@ -2206,12 +2449,21 @@ pub enum AbilityDef {
     /// evoke: cast for this cost instead (an alternative cost); its sacrifice trigger is the next ability
     EvokeAbility {
         cost: String,
+        /// the costs that aren't mana (Solitude's "exile a white card from your hand")
+        #[serde(default)]
+        costs: Vec<CostDef>,
         #[serde(default)]
         rule: String,
         /// the alternative cost's keyword: empty for evoke, "Dash" for dash (gains haste, returned to its owner's
         /// hand at the beginning of the next end step)
         #[serde(default)]
         keyword: String,
+    },
+    /// replicate: pay this cost any number of times as you cast it; a cast trigger copies it that many times
+    ReplicateAbility {
+        cost: String,
+        #[serde(default)]
+        rule: String,
     },
     KickerAbility {
         cost: String,
@@ -2280,6 +2532,16 @@ pub enum AbilityDef {
     ClassReminderAbility,
     /// "If this card is in your opening hand, you may begin the game with it on the battlefield." (before the game)
     LeylineAbility,
+    /// "You may reveal this card from your opening hand. If you do, at the beginning of your first upkeep, look at
+    /// the top four cards …" (Devourer of Destiny's `ChancellorAbility`; the host asks it before the first turn)
+    ChancellorAbility,
+    /// it can't attack (given: `CantAttackTargetEffect`)
+    CantAttackAbility,
+    /// its activated abilities can't be activated (given: Edifice of Authority)
+    CantActivateAbilitiesAbility,
+    /// "If this card is in your opening hand and you're not the starting player, you may begin the game with it on
+    /// the battlefield with a luck counter on it. If you do, exile a card from your hand." (the host asks it)
+    GemstoneCavernsAbility,
     /// a Class's next level: activated as a sorcery when the Class is the level below
     ClassLevelAbility {
         level: u32,
@@ -2402,6 +2664,8 @@ pub enum AbilityDef {
     DauntAbility,
     /// this can't be blocked as long as the defending player controls an Island
     IslandwalkAbility,
+    /// umbra armor: if the enchanted creature would be destroyed, its damage is removed and this Aura is destroyed
+    UmbraArmorAbility,
     /// an adventurer card's adventure spell (its first ability; the card's own spell is the second)
     AdventureCardSpellAbility,
     /// a preparation card's prepare spell (its `prepare`), which only a prepared copy casts
@@ -2416,6 +2680,10 @@ pub enum AbilityDef {
     /// whether the spell can be cast; paying with them is a special action the shadow games' players never take
     DelveAbility,
     ConvokeAbility,
+    /// improvise: each untapped artifact you control can pay {1}
+    ImproviseAbility,
+    /// sunburst: enters with a charge counter (a +1/+1 counter, if a creature) for each color of mana spent to cast it
+    SunburstAbility,
     /// if a player casts no spells during their own turn, it becomes night next turn (the front of a werewolf)
     DayboundAbility,
     /// if a player casts at least two spells during their own turn, it becomes day next turn (its back)
@@ -2434,6 +2702,10 @@ pub enum AbilityDef {
     },
     MenaceAbility,
     FlashAbility,
+    /// rebound: cast from hand, it's exiled as it resolves, and its owner may cast it free at their next upkeep
+    ReboundAbility,
+    /// devoid: no colors (the card's colors are set empty; this is its keyword)
+    DevoidAbility,
     HexproofAbility,
     /// protection from a color, as an effect grants it (Brave the Elements)
     ProtectionFromColorAbility {
@@ -2478,11 +2750,39 @@ pub enum AbilityDef {
         effects: Vec<EffectDef>,
         #[serde(default)]
         cost: Vec<CostDef>,
+        /// it doesn't tap its source (an Eldrazi Scion's "Sacrifice this creature: Add {C}.")
+        #[serde(default)]
+        no_tap: bool,
+        /// how much {C} (Weaver of Currents' two)
+        #[serde(default = "one_u32")]
+        amount: u32,
+        /// {C}{C} instead while a card is exiled with the source (Ugin's Labyrinth)
+        #[serde(default)]
+        two_if_exiled: bool,
+        /// one mana of any color instead while the source has a counter of this kind (Gemstone Caverns' luck)
+        #[serde(default)]
+        any_color_with: Option<String>,
+        #[serde(default)]
+        rule: String,
     },
     /// `{T}: Add` `amount` mana of one color (`SimpleManaAbility` with `Mana.GreenMana(2)`)
     ColoredManaAbility {
         color: Color,
         amount: u32,
+        /// its costs besides tapping (or instead of it, `no_tap`)
+        #[serde(default)]
+        cost: Vec<CostDef>,
+        /// it doesn't tap its source (Heritage Druid's "Tap three untapped Elves you control")
+        #[serde(default)]
+        no_tap: bool,
+        #[serde(default)]
+        rule: String,
+    },
+    /// `{T}: Add {otherwise}. If <condition>, add {color} instead` (River of Tears)
+    ConditionalColorManaAbility {
+        color: Color,
+        otherwise: Color,
+        condition: Condition,
         #[serde(default)]
         rule: String,
     },
@@ -2535,6 +2835,15 @@ pub enum AbilityDef {
         /// spent only to activate abilities of lands (Sunken Citadel), not on spells
         #[serde(default)]
         land_abilities: bool,
+        /// spent on activated abilities of creatures too (Castle Garenbrig)
+        #[serde(default)]
+        creature_abilities: bool,
+        /// it makes colorless mana, `amount` of it (Eldrazi Temple)
+        #[serde(default)]
+        colorless: bool,
+        /// spent on activated abilities of permanents of `filter` too (Eldrazi Temple)
+        #[serde(default)]
+        filter_abilities: bool,
         #[serde(default)]
         rule: String,
     },
@@ -2666,10 +2975,12 @@ impl AbilityDef {
             AbilityDef::BlackManaAbility { .. } => Some(Mana::of(Color::B, 1)),
             AbilityDef::RedManaAbility { .. } => Some(Mana::of(Color::R, 1)),
             AbilityDef::GreenManaAbility { .. } => Some(Mana::of(Color::G, 1)),
-            AbilityDef::ColorlessManaAbility { .. } => Some(Mana { colorless: 1, ..Mana::default() }),
+            AbilityDef::ColorlessManaAbility { amount, .. } => Some(Mana { colorless: *amount, ..Mana::default() }),
             AbilityDef::ColoredManaAbility { color, amount, .. } => Some(Mana::of(*color, *amount)),
             // at least one, as far as this can tell (the game counts the rest)
             AbilityDef::DynamicManaAbility { color, .. } => Some(Mana::of(*color, 1)),
+            // (the game picks which as it lists the sources)
+            AbilityDef::ConditionalColorManaAbility { otherwise, .. } => Some(Mana::of(*otherwise, 1)),
             // one of each: whichever is needed
             AbilityDef::AnyColorManaAbility { amount, .. } => Some(Mana { colored: [*amount; 5], ..Mana::default() }),
             AbilityDef::ActivateIfConditionManaAbility { color, .. } => Some(Mana::of(*color, 1)),
@@ -2678,6 +2989,9 @@ impl AbilityDef {
             }
             // counted by the game (devotion)
             AbilityDef::NykthosShrineToNyxManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            AbilityDef::ConditionalManaAbility { colorless: true, amount, .. } => {
+                Some(Mana { colorless: *amount, ..Mana::default() })
+            }
             AbilityDef::ConditionalManaAbility { color: Some(c), amount, .. } => Some(Mana::of(*c, *amount)),
             AbilityDef::ConditionalManaAbility { color: None, amount, .. } => {
                 Some(Mana { colored: [*amount; 5], ..Mana::default() })
@@ -2694,11 +3008,37 @@ impl AbilityDef {
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }
             | AbilityDef::NykthosShrineToNyxManaAbility { .. }
             | AbilityDef::ConditionalManaAbility { .. }
+            | AbilityDef::ConditionalColorManaAbility { .. }
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
             // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" is a `SimpleManaAbility`
             AbilityDef::ColoredManaAbility { amount, .. } if *amount != 1 => ManaKind::Other,
+            // `SimpleManaAbility`s with a `ConditionalManaEffect` (Ugin's Labyrinth, Gemstone Caverns) or {C}{C}
+            AbilityDef::ColorlessManaAbility { amount, two_if_exiled, any_color_with, .. }
+                if *amount != 1 || *two_if_exiled || any_color_with.is_some() =>
+            {
+                ManaKind::Other
+            }
             _ => ManaKind::Basic,
         }
+    }
+
+    /// whether activating this mana ability taps its source
+    pub fn taps_source(&self) -> bool {
+        !matches!(
+            self,
+            AbilityDef::ColoredManaAbility { no_tap: true, .. } | AbilityDef::ColorlessManaAbility { no_tap: true, .. }
+        )
+    }
+
+    /// the mana a mana ability's cost asks for (Castle Garenbrig's {2}{G}{G}; not Nykthos's, paid its own way)
+    pub fn mana_ability_mana_cost(&self) -> Option<&str> {
+        if matches!(self, AbilityDef::NykthosShrineToNyxManaAbility { .. }) {
+            return None;
+        }
+        self.mana_costs().iter().find_map(|c| match c {
+            CostDef::ManaCost { cost } => Some(cost.as_str()),
+            _ => None,
+        })
     }
 
     /// a mana ability's costs besides tapping it
@@ -2711,6 +3051,7 @@ impl AbilityDef {
             | AbilityDef::RedManaAbility { cost, .. }
             | AbilityDef::GreenManaAbility { cost, .. }
             | AbilityDef::ColorlessManaAbility { cost, .. }
+            | AbilityDef::ColoredManaAbility { cost, .. }
             | AbilityDef::ConditionalManaAbility { cost, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { cost, .. }
             | AbilityDef::NykthosShrineToNyxManaAbility { cost, .. } => cost,
@@ -2782,6 +3123,9 @@ pub struct CardJson {
     /// an omen card's spell (its `adventure`)
     #[serde(default)]
     pub omen: bool,
+    /// an aftermath split card: its `room` halves are spells, the right one cast only from the graveyard
+    #[serde(default)]
+    pub aftermath: bool,
     /// a preparation card's prepare spell (`PrepareCard`)
     #[serde(default)]
     pub prepare: Option<Box<CardJson>>,
@@ -2890,6 +3234,9 @@ pub struct CardDef {
     pub transform_back: Option<Arc<CardDef>>,
     /// an omen card's spell: once it resolves, the card is shuffled into its owner's library (`OmenCard`)
     pub omen: bool,
+    /// an aftermath split card (`SplitCard`, `SPLIT_AFTERMATH`): its `room` halves are spells, the left cast from
+    /// hand, the right only from the graveyard and then exiled
+    pub aftermath: bool,
     /// a preparation card's prepare spell: what a prepared copy of it is (`PrepareCard`)
     pub prepare: Option<Arc<CardDef>>,
     /// a Room's halves, left then right: each cast as a spell, and unlocked as a door on the battlefield (`RoomCard`)
@@ -2957,6 +3304,7 @@ impl CardDef {
                 None => None,
             },
             omen: json.omen,
+            aftermath: json.aftermath,
             prepare: match json.prepare {
                 Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
                 None => None,
@@ -2982,12 +3330,21 @@ impl CardDef {
 
     /// The card cast with its flashback cost, if it has flashback
     pub fn flashback(&self) -> Option<CardDef> {
+        // an aftermath card's right half
+        if self.aftermath {
+            return self.room.get(1).map(|h| (**h).clone());
+        }
         self.abilities.iter().find_map(|a| match a {
-            AbilityDef::FlashbackAbility { cost, .. } => Some(CardDef {
-                cost: ManaCost::parse(cost).ok()?,
-                printed_cost: Some(self.printed().clone()),
-                ..self.clone()
-            }),
+            AbilityDef::FlashbackAbility { cost, costs, .. } => {
+                let mut spell = self.spell.clone();
+                spell.costs.extend(costs.iter().cloned());
+                Some(CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    spell,
+                    ..self.clone()
+                })
+            }
             AbilityDef::HarmonizeAbility { cost, .. } => {
                 let mut spell = self.spell.clone();
                 spell.costs.push(CostDef::HarmonizeCost);
