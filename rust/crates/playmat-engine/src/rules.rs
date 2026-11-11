@@ -51,6 +51,9 @@ fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: 
             break;
         }
         end_step(game, step);
+        if d.stop_after(game, step) {
+            return;
+        }
         if step == Step::Upkeep && game.turn == 1 && game.log.is_some() {
             // the starting player's draw (Java's turn mod for it)
             let line = format!("{} skips Draw step", log::player(game.active.unwrap_or(0)));
@@ -1462,7 +1465,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
                         seat,
                         id,
                         def,
-                        harmonized(game, seat, def, modified_cost(game, seat, id, cost)),
+                        harmonized(game, seat, def, modified_cost_of(game, seat, id, def, cost)),
                     ),
                     alternate_mana(game, seat, id, def),
                 )
@@ -3547,7 +3550,30 @@ fn bargain_cost() -> CostDef {
     CostDef::SacrificeTargetCost { filter, amount: 1 }
 }
 
-fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> ManaCost {
+fn modified_cost(game: &Game, seat: Seat, id: ObjId, cost: ManaCost) -> ManaCost {
+    modified_cost_of(game, seat, id, &game.obj(id).def, cost)
+}
+
+/// Whether a spell filter matches `id` cast as `face` (an adventurer card's adventure, an instant, is checked as
+/// one: Artist's Talent makes Free the Fae cheaper, not Picklock Prankster): its types from the face, the rest
+/// from the card
+fn face_matches(game: &Game, filter: &crate::card::Filter, you: Seat, src: ObjId, id: ObjId, face: &CardDef) -> bool {
+    fn holds(game: &Game, p: &Pred, you: Seat, src: ObjId, id: ObjId, face: &CardDef) -> bool {
+        match p {
+            Pred::Type { t } => face.is(*t),
+            Pred::Not { x } => !holds(game, x, you, src, id, face),
+            Pred::Or { xs } => xs.iter().any(|x| holds(game, x, you, src, id, face)),
+            Pred::And { xs } => xs.iter().all(|x| holds(game, x, you, src, id, face)),
+            p => game.filter_matches(&crate::card::Filter(vec![p.clone()]), you, Some(src), id),
+        }
+    }
+    if std::ptr::eq(face, &*game.obj(id).def) {
+        return game.filter_matches(filter, you, Some(src), id);
+    }
+    filter.0.iter().all(|p| holds(game, p, you, src, id, face))
+}
+
+fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost: ManaCost) -> ManaCost {
     cost.generic += game.obj(id).play_tax;
     // reductions after increases (`CostModificationType`)
     let mut reduce = 0;
@@ -3558,14 +3584,14 @@ fn modified_cost(game: &Game, seat: Seat, id: ObjId, mut cost: ManaCost) -> Mana
                 for e in effects {
                     if let EffectDef::SpellsCostIncreasingAllEffect { amount, filter, who } = e {
                         if Game::whose(who, s.controller, seat)
-                            && game.filter_matches(filter, s.controller, Some(*src), id)
+                            && face_matches(game, filter, s.controller, *src, id, face)
                         {
                             cost.generic += *amount as u32;
                         }
                     }
                     if let EffectDef::SpellsCostReductionControllerEffect { amount, filter, condition } = e {
                         if s.controller == seat
-                            && game.filter_matches(filter, seat, Some(*src), id)
+                            && face_matches(game, filter, seat, *src, id, face)
                             && game.condition_holds(condition.as_ref(), seat, *src)
                         {
                             reduce += *amount as u32;
@@ -6682,8 +6708,9 @@ fn apply_each_effect(
                 let old = game.obj(o).def.clone();
                 let zcc = game.obj(o).zcc;
                 let p = game.obj_mut(o);
+                // the card as printed: under an animation until end of turn (Mutavault's), what it was before
                 if p.printed_def.is_none() {
-                    p.printed_def = Some(old.clone());
+                    p.printed_def = Some(p.until_end_of_turn_def.clone().unwrap_or_else(|| old.clone()));
                 }
                 p.def = earthbent(&old);
                 // still one once an animation until end of turn ends (Mutavault's)
@@ -7109,7 +7136,7 @@ fn apply_each_effect(
                 }
             }
             EffectDef::LearnEffect => {
-                // `WishEffect` asks first; with no sideboard a yes does nothing more
+                // `WishEffect` asks first; a yes with no Lesson outside the game does nothing more
                 let q = Query::YesNo { message: "Choose a Lesson card from outside the game?".into() };
                 let wish = loop {
                     match ask(game, d, controller, &q) {
@@ -7118,7 +7145,22 @@ fn apply_each_effect(
                         _ => {}
                     }
                 };
-                if !wish {
+                if wish {
+                    // `WishEffect`: one of the Lessons outside the game, into the hand
+                    let outside = game.player(controller).outside.clone();
+                    let lessons: Vec<ObjId> =
+                        outside.iter().copied().filter(|c| game.has_subtype(*c, "Lesson")).collect();
+                    if !lessons.is_empty() {
+                        let rule_text = item_rule(game, item);
+                        let Some(chosen) = choose_cards(game, d, controller, &outside, &lessons, 1, 1, &rule_text)
+                        else {
+                            return;
+                        };
+                        for c in chosen {
+                            game.move_to(c, Zone::Hand);
+                        }
+                    }
+                } else {
                     let rummage: EffectDef = serde_json::from_str(
                         r#"{"class": "DoIfCostPaid", "effect": {"class": "DrawCardSourceControllerEffect", "amount": 1},
                             "cost": [{"class": "DiscardCardCost"}]}"#,
@@ -7137,7 +7179,8 @@ fn apply_each_effect(
                     if !possible.is_empty() {
                         // Java's `TargetCardInHand` takes only cards in the chooser's own hand: none of these, so
                         // nothing is chosen (asked until the player gives up)
-                        let Some(chosen) = choose_cards(game, d, controller, &hand, &[], 1, 1, "choose") else {
+                        let rule_text = item_rule(game, item);
+                        let Some(chosen) = choose_cards(game, d, controller, &hand, &[], 1, 1, &rule_text) else {
                             return;
                         };
                         for c in chosen {
@@ -7297,7 +7340,13 @@ fn apply_each_effect(
                 }
             }
             EffectDef::RottenmouthViperEffect => {
-                let repeat = game.obj(source.0).counter("blight");
+                // `CountersSourceCount`: the counters it had as it left, when it's gone
+                let viper = game.obj(source.0);
+                let repeat = if viper.zone == Zone::Battlefield {
+                    viper.counter("blight")
+                } else {
+                    viper.lki_counters.iter().filter(|(k, _)| k == "blight").map(|(_, n)| *n).sum()
+                };
                 for i in 1..=repeat {
                     for p in (0..game.seats()).filter(|p| *p != controller) {
                         let nonland: Vec<ObjId> = game
@@ -8030,7 +8079,8 @@ fn apply_each_effect(
                 }
                 let mut cards: Vec<ObjId> = cards.into_iter().filter(|c| game.obj(*c).zone == Zone::Exile).collect();
                 if *choose_one && cards.len() > 1 {
-                    let Some(chosen) = choose_cards(game, d, controller, &cards, &cards, 1, 1, "choose") else {
+                    let rule_text = item_rule(game, item);
+                    let Some(chosen) = choose_cards(game, d, controller, &cards, &cards, 1, 1, &rule_text) else {
                         return;
                     };
                     cards = chosen;
@@ -8506,7 +8556,9 @@ fn apply_each_effect(
                         if possible.is_empty() {
                             continue;
                         }
-                        let Some(chosen) = choose_cards(game, d, controller, &grave, &possible, 0, 1, "choose") else {
+                        let rule_text = item_rule(game, item);
+                        let Some(chosen) = choose_cards(game, d, controller, &grave, &possible, 0, 1, &rule_text)
+                        else {
                             return;
                         };
                         cards.extend(chosen);
@@ -8957,7 +9009,8 @@ fn apply_each_effect(
                             .collect();
                         // (an empty graveyard: nothing asked; one without a match is still asked)
                         if !grave.is_empty() {
-                            let Some(chosen) = choose_cards(game, d, controller, &grave, &possible, 0, 1, "choose")
+                            let rule_text = item_rule(game, item);
+                            let Some(chosen) = choose_cards(game, d, controller, &grave, &possible, 0, 1, &rule_text)
                             else {
                                 return;
                             };
@@ -10137,7 +10190,10 @@ fn apply_each_effect(
                     continue;
                 }
                 let possible: Vec<ObjId> = hand.iter().copied().filter(|c| !game.obj(*c).is(CardType::Land)).collect();
-                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 0, 1, "choose") else { return };
+                let rule_text = item_rule(game, item);
+                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 0, 1, &rule_text) else {
+                    return;
+                };
                 for c in chosen {
                     game.move_to(c, Zone::Exile);
                     let owner = game.obj(c).owner;
@@ -10192,7 +10248,8 @@ fn apply_each_effect(
                     return;
                 }
                 let min = usize::from(cards.len() == 3);
-                let Some(hand) = choose_cards(game, d, controller, &cards.clone(), &cards.clone(), min, 1, "choose")
+                let rule_text = item_rule(game, item);
+                let Some(hand) = choose_cards(game, d, controller, &cards.clone(), &cards.clone(), min, 1, &rule_text)
                 else {
                     return;
                 };
@@ -10204,7 +10261,9 @@ fn apply_each_effect(
                     return;
                 }
                 let min = usize::from(cards.len() == 2);
-                let Some(bottom) = choose_cards(game, d, controller, &cards.clone(), &cards.clone(), min, 1, "choose")
+                let rule_text = item_rule(game, item);
+                let Some(bottom) =
+                    choose_cards(game, d, controller, &cards.clone(), &cards.clone(), min, 1, &rule_text)
                 else {
                     return;
                 };
@@ -10215,7 +10274,8 @@ fn apply_each_effect(
                 if cards.is_empty() {
                     return;
                 }
-                let Some(exiled) = choose_cards(game, d, controller, &cards.clone(), &cards.clone(), 1, 1, "choose")
+                let rule_text = item_rule(game, item);
+                let Some(exiled) = choose_cards(game, d, controller, &cards.clone(), &cards.clone(), 1, 1, &rule_text)
                 else {
                     return;
                 };
@@ -10284,7 +10344,8 @@ fn apply_each_effect(
                     let owner = game.obj(o).owner;
                     let size = game.player(owner).library.len();
                     game.move_to(o, Zone::Library);
-                    if size + 1 >= *n && game.obj(o).zone == Zone::Library {
+                    // a token ceases to exist (it's in no library's list)
+                    if size + 1 >= *n && game.obj(o).zone == Zone::Library && !game.obj(o).token {
                         let lib = &mut game.player_mut(owner).library;
                         lib.retain(|x| *x != o);
                         lib.insert((*n - 1).min(lib.len()), o);
@@ -10377,7 +10438,10 @@ fn apply_each_effect(
                 if possible.is_empty() {
                     continue;
                 }
-                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, "choose") else { return };
+                let rule_text = item_rule(game, item);
+                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, &rule_text) else {
+                    return;
+                };
                 // the card isn't exiled if this left the battlefield first
                 if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
                     for c in chosen {
@@ -10451,7 +10515,8 @@ fn apply_each_effect(
                     .collect();
                 let mut squirrel = false;
                 if !possible.is_empty() {
-                    match choose_cards(game, d, controller, &milled, &possible, 0, 1, "choose") {
+                    let rule_text = item_rule(game, item);
+                    match choose_cards(game, d, controller, &milled, &possible, 0, 1, &rule_text) {
                         Some(chosen) => {
                             for c in chosen {
                                 game.move_to(c, Zone::Hand);
@@ -10486,7 +10551,8 @@ fn apply_each_effect(
                 let possible: Vec<ObjId> =
                     graveyard.iter().copied().filter(|c| game.has_type(*c, CardType::Creature)).collect();
                 if !possible.is_empty() {
-                    match choose_cards(game, d, controller, &graveyard, &possible, 1, 1, "choose") {
+                    let rule_text = item_rule(game, item);
+                    match choose_cards(game, d, controller, &graveyard, &possible, 1, 1, &rule_text) {
                         Some(chosen) => {
                             for c in chosen {
                                 if game.obj(c).zone == Zone::Graveyard {
@@ -10508,7 +10574,8 @@ fn apply_each_effect(
                     .collect();
                 if !possible.is_empty() {
                     let min = if *optional { 0 } else { 1 };
-                    match choose_cards(game, d, controller, &graveyard, &possible, min, 1, "choose") {
+                    let rule_text = item_rule(game, item);
+                    match choose_cards(game, d, controller, &graveyard, &possible, min, 1, &rule_text) {
                         Some(chosen) => {
                             for c in chosen {
                                 game.move_to(c, Zone::Hand);
@@ -10549,7 +10616,8 @@ fn apply_each_effect(
                         }
                     };
                     if yes {
-                        match choose_cards(game, d, controller, &cards, &possible, number, number, "choose") {
+                        let rule_text = item_rule(game, item);
+                        match choose_cards(game, d, controller, &cards, &possible, number, number, &rule_text) {
                             Some(chosen) => picked = chosen,
                             None => return,
                         }
@@ -10642,9 +10710,11 @@ fn apply_each_effect(
                     .copied()
                     .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
                     .collect();
-                if !possible.is_empty() {
-                    let min = if *optional { 0 } else { 1 };
-                    match choose_cards(game, d, controller, &milled, &possible, min, 1, "choose") {
+                // `HumanPlayer.choose(cards)` shows the milled cards even when none of them can be chosen
+                if !milled.is_empty() {
+                    let min = if *optional || possible.is_empty() { 0 } else { 1 };
+                    let rule_text = item_rule(game, item);
+                    match choose_cards(game, d, controller, &milled, &possible, min, 1, &rule_text) {
                         Some(chosen) => {
                             for c in chosen {
                                 game.move_to(c, Zone::Hand);
@@ -11071,6 +11141,7 @@ fn put_cards(game: &mut Game, d: &mut dyn Decider, seat: Seat, cards: &[ObjId], 
         }
         P::Battlefield | P::BattlefieldTapped => {
             game.entering_together = cards.to_vec();
+            let pending_before = game.pending.len();
             for c in cards {
                 enter_battlefield(game, d, *c, seat, false);
                 if to == P::BattlefieldTapped {
@@ -11078,6 +11149,18 @@ fn put_cards(game: &mut Game, d: &mut dyn Decider, seat: Seat, cards: &[ObjId], 
                 }
             }
             game.entering_together.clear();
+            // `GameImpl.moveCards`: the enter events come after they're all in, each in turn, and each one's
+            // triggers in Java's order (`trigger_key`)
+            if game.pending.len() > pending_before + 1 {
+                let mut fired = game.pending.split_off(pending_before);
+                let key = |g: &Game, t: &StackItem| {
+                    let event = t.entering.unwrap_or(t.card);
+                    let at = cards.iter().position(|c| *c == event).unwrap_or(cards.len());
+                    (at, g.trigger_key(t))
+                };
+                fired.sort_by_key(|t| key(game, t));
+                game.pending.extend(fired);
+            }
             !d.stopped()
         }
     }
@@ -11848,13 +11931,29 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     game.entering_from_hand = None;
     for a in &def.abilities {
         if let AbilityDef::EntersBattlefieldAbility { effects, condition, .. } = a {
-            if condition.as_ref().is_none_or(|c| condition_with_kicker(game, c, controller, id, kicked)) {
+            // Java checks it as the permanent enters (`EntersBattlefieldEffect`, a replacement): it isn't on the
+            // battlefield yet, so it doesn't count itself (Hive of the Eye Tyrant's "two or more other lands")
+            let holds = condition.as_ref().is_none_or(|c| {
+                let at = game.battlefield.iter().position(|x| *x == id);
+                if let Some(i) = at {
+                    Arc::make_mut(&mut game.battlefield).remove(i);
+                }
+                let holds = condition_with_kicker(game, c, controller, id, kicked);
+                if let Some(i) = at {
+                    Arc::make_mut(&mut game.battlefield).insert(i, id);
+                }
+                holds
+            });
+            if holds {
                 let mut item = StackItem::spell(id, controller);
                 item.x = game.obj(id).cast_x;
                 apply_effects(game, d, &item, effects, &[], (id, zcc));
             }
         }
     }
+    // Java's continuous effects apply before the event is checked: Kaito, entering on its controller's turn with
+    // loyalty, enters as a creature
+    refresh_becomes(game);
     // everything that triggers on this event, in Java's registration order
     let mut sources: Vec<ObjId> = game.battlefield.iter().copied().filter(|s| *s != id).collect();
     sources.insert(0, id);

@@ -56,6 +56,7 @@ change from game to game, so the log names an object by where it is when the ans
 | `H0.3`, `L0.3`, `G0.3` | the fourth card in seat 0's hand, library or graveyard |
 | `B5`, `S0`, `E2`, `M0` | the sixth permanent, the top of the stack, an exiled card, a command zone object |
 | `X0`, `T1.0` | a special action, a triggered ability waiting for seat 1 to order it |
+| `O0.2` | the third card of seat 0's sideboard, outside the game (Learn's Lessons; shadow games list them as `sideboardCards`) |
 | `B5a2`, `H0.3a0m1`, `S0s` | an ability of that object, a mode of that ability, a stack object's ability |
 | `H0.3f1` | a face of that double-faced card (0 front, 1 back) or an adventurer card's adventure (1), which a client can click instead of the card |
 

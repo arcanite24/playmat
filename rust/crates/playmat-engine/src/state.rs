@@ -21,6 +21,8 @@ pub enum Zone {
     Exile,
     /// emblems
     Command,
+    /// outside the game: a sideboard's cards (Learn's Lessons)
+    Outside,
 }
 
 /// The steps of a turn, named as Java's `PhaseStep`.
@@ -323,6 +325,9 @@ pub struct Player {
     pub no_stock: bool,
     /// the cards in its sideboard (only counted: `OpenSideboardHint`)
     pub sideboard: usize,
+    /// the sideboard's cards, when the game knows them (shadow games' `sideboardCards`), in Java's order: what
+    /// Learn can reveal
+    pub outside: Vec<ObjId>,
     pub life: i32,
     pub counters: Vec<(String, i32)>,
     pub hand: Vec<ObjId>,
@@ -2045,6 +2050,11 @@ impl Game {
             Zone::Battlefield => Arc::make_mut(&mut self.battlefield).retain(|x| *x != id),
             Zone::Exile => Arc::make_mut(&mut self.exile).retain(|x| *x != id),
             Zone::Command => Arc::make_mut(&mut self.command).retain(|x| *x != id),
+            Zone::Outside => {
+                let p = self.player_mut(owner);
+                p.outside.retain(|x| *x != id);
+                p.sideboard = p.sideboard.saturating_sub(1);
+            }
             Zone::Stack => Arc::make_mut(&mut self.stack).retain(|x| x.card != id || x.ability.is_some()),
         }
     }
@@ -2480,6 +2490,7 @@ impl Game {
             Zone::Exile => Arc::make_mut(&mut self.exile).push(id),
             Zone::Command => Arc::make_mut(&mut self.command).push(id),
             Zone::Stack => {}
+            Zone::Outside => self.player_mut(owner).outside.push(id),
         }
     }
 }

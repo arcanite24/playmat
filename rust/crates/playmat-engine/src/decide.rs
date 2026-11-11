@@ -89,6 +89,12 @@ pub trait Decider {
     fn stopped(&self) -> bool {
         false
     }
+
+    /// the engine checks this as each step ends (after its end-of-step work, as Java's `Phase.checkStopOnStepOption`)
+    /// and stops the game there when it's true: exported tests' `stopOnTurn` and `stopAtStep`
+    fn stop_after(&mut self, _game: &Game, _step: crate::state::Step) -> bool {
+        false
+    }
 }
 
 /// Passes every question: never plays anything, never attacks or blocks.
