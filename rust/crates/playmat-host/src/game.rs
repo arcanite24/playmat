@@ -282,6 +282,9 @@ struct Host {
     asking: Option<Seat>,
     /// the seat whose time ran out (it lost)
     timed_out: Option<Seat>,
+    /// what the human last did at priority (`PlayerImpl.justActivatedType`): the object they played and the stack's
+    /// size then, for "pass priority after casting / activating"
+    just_played: Option<(ObjId, usize)>,
     /// the events the client was sent (or that it had no use for) so far, as the engine recorded them
     events_sent: Vec<playmat_engine::state::GameEvent>,
     free_mulligans: u32,
@@ -364,6 +367,7 @@ impl Host {
             asking: None,
             timed_out: None,
             events_sent: Vec::new(),
+            just_played: None,
             free_mulligans: start.rules.free_mulligans,
         }
     }
@@ -1064,6 +1068,23 @@ impl Decider for HostDecider<'_> {
         // the host's game is the engine's game while it asks
         h.game = game.clone();
         if let Query::Priority { .. } = q {
+            // `HumanPlayer.priority`: a spell just cast (an ability just activated) passes at once when the player's
+            // settings say so, unless they held priority for it
+            if let Some((obj, before)) = h.just_played.take() {
+                let item = game.stack.iter().skip(before).find(|i| i.card == obj && i.controller == seat);
+                let pass = match item {
+                    Some(i) if i.ability.is_none() && i.delayed.is_none() => h.settings.pass_after_cast,
+                    Some(_) => h.settings.pass_after_activation,
+                    None => false,
+                };
+                if pass && !h.passing.holding {
+                    h.passing.holding = false;
+                    h.table.record(game, q, &Answer::Bool(false));
+                    return Answer::Bool(false);
+                }
+            }
+            // held for one action: the next priority asks again
+            h.passing.holding = false;
             if h.passing.passes(game, seat, &h.settings) {
                 h.table.record(game, q, &Answer::Bool(false));
                 return Answer::Bool(false);
@@ -1123,6 +1144,9 @@ impl Decider for HostDecider<'_> {
         match answer {
             Some(a) => {
                 h.table.record(game, q, &a);
+                if let (Query::Priority { .. }, Answer::Obj(o) | Answer::Ability(o, _)) = (q, &a) {
+                    h.just_played = Some((*o, game.stack.len()));
+                }
                 a
             }
             None => Answer::Stop,

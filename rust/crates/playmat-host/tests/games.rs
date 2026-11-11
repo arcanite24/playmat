@@ -42,13 +42,18 @@ struct Bot {
     concede_at: u64,
     /// never answers at priority (the game's priority timer runs out)
     silent: bool,
+    /// casts what it can from hand in its main phases, as well as playing lands
+    casts: bool,
+    /// holds priority (HOLD_PRIORITY) for each card it plays
+    holds: bool,
 }
 
 impl Bot {
     fn answer(&mut self, e: &Event) -> Option<Call> {
         let d = &e.data;
         let view = &d["gameView"];
-        let turn = view["turn"].as_u64().unwrap_or(0);
+        // (an update's view is its data: only a question's view says the turn)
+        let turn = view["turn"].as_u64().unwrap_or(self.turn);
         if turn != self.turn {
             self.turn = turn;
             self.tried.clear();
@@ -84,6 +89,12 @@ impl Bot {
                                 return Some(Call::Uuid(Some(id.clone())));
                             }
                         }
+                        let playable = view["canPlayObjects"]["objects"].as_object();
+                        for id in hand.keys() {
+                            if self.casts && playable.is_some_and(|p| p.contains_key(id)) && self.tried.insert(id.clone()) {
+                                return Some(Call::Uuid(Some(id.clone())));
+                            }
+                        }
                     }
                 }
                 Call::Bool(false)
@@ -99,6 +110,22 @@ impl Bot {
                     .collect::<Vec<_>>()
                     .join(" "),
             ),
+            // an untapped land of its own pays, when it casts; else the payment is cancelled
+            "GAME_PLAY_MANA" if self.casts => {
+                let me = view["myPlayerId"].as_str().unwrap_or("");
+                let lands = view["players"].as_array()?.iter().find(|p| p["playerId"] == me)?["battlefield"]
+                    .as_object()?
+                    .iter()
+                    .filter(|(_, c)| {
+                        c["tapped"] != true && c["cardTypes"].as_array().is_some_and(|t| t.iter().any(|x| x == "LAND"))
+                    })
+                    .map(|(id, _)| id.clone())
+                    .next();
+                match lands {
+                    Some(id) => Call::Uuid(Some(id)),
+                    None => Call::Bool(false),
+                }
+            }
             "GAME_PLAY_MANA" | "GAME_PLAY_XMANA" => Call::Bool(false),
             _ => return None,
         })
@@ -124,9 +151,12 @@ fn play_timed(
 }
 
 fn play_start(start: Start, concede_at: u64, silent: bool) -> (playmat_host::Ended, Vec<Event>) {
+    play_with(start, Bot { tried: HashSet::new(), turn: 0, concede_at, silent, casts: false, holds: false })
+}
+
+fn play_with(start: Start, mut bot: Bot) -> (playmat_host::Ended, Vec<Event>) {
     let game = HostedGame::start(start, Arc::new(playmat_engine::cards())).unwrap();
     game.call(Call::Join);
-    let mut bot = Bot { tried: HashSet::new(), turn: 0, concede_at, silent };
     let mut events = Vec::new();
     loop {
         let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers within a minute");
@@ -138,6 +168,9 @@ fn play_start(start: Start, concede_at: u64, silent: bool) -> (playmat_host::End
             assert!(uuid(&id), "{} offers {id}, not an id the client can send", e.method);
         }
         if let Some(call) = bot.answer(&e) {
+            if bot.holds && e.method == "GAME_SELECT" && matches!(call, Call::Uuid(Some(_))) {
+                game.call(Call::Action("HOLD_PRIORITY".into(), None));
+            }
             game.call(call);
         }
         assert!(events.len() < 50_000, "the game doesn't end");
@@ -419,4 +452,37 @@ fn a_hosted_game_writes_its_replay() {
     }
     assert!(lines.iter().any(|l| l["log"]["message"].is_string()), "the game log");
     assert!(frames.windows(2).all(|w| w[0]["view"] != w[1]["view"]), "no snapshot twice");
+}
+
+/// Priority questions the human was asked with only their own spells and abilities on the stack
+fn asked_over_own_stack(events: &[Event]) -> usize {
+    events
+        .iter()
+        .filter(|e| e.method == "GAME_SELECT")
+        .filter(|e| {
+            let stack = e.data["gameView"]["stack"].as_object().cloned().unwrap_or_default();
+            !stack.is_empty() && stack.values().all(|c| c["controllerId"] == HUMAN)
+        })
+        .count()
+}
+
+#[test]
+fn pass_priority_after_casting_passes_unless_held() {
+    let deck_h = deck("gw-company.txt");
+    let deck_a = deck("b-zombies.txt");
+    let mut total = (0, 0, 0);
+    for seed in 0..4 {
+        let caster = || Bot { tried: HashSet::new(), turn: 0, concede_at: 12, silent: false, casts: true, holds: false };
+        let (_, plain) = play_with(start(&deck_h, &deck_a, seed, None), caster());
+        let mut s = start(&deck_h, &deck_a, seed, None);
+        s.seats[0].user_data = Some(serde_json::json!({"passPriorityCast": true, "passPriorityActivation": true}));
+        let (_, passing) = play_with(s.clone(), caster());
+        let (_, held) = play_with(s, Bot { holds: true, ..caster() });
+        total.0 += asked_over_own_stack(&plain);
+        total.1 += asked_over_own_stack(&passing);
+        total.2 += asked_over_own_stack(&held);
+    }
+    assert!(total.0 > 0, "the player is asked again after casting by default");
+    assert_eq!(total.1, 0, "never with pass priority after casting on (asked {} times without it)", total.0);
+    assert!(total.2 > 0, "holding priority asks again");
 }
