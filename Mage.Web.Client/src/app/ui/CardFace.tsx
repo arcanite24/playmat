@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, type CSSProperties } from 'react';
+import { useContext, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { printsPowerToughness } from '../../core/game/cards';
 import { useCardImage } from '../../core/images/useCardImage';
 import { isDecoded, markDecoded } from './imageCache';
@@ -20,6 +20,9 @@ import styles from './CardFace.module.css';
  * picture for an hour) must not leave cards blank for the rest of the match. After the last one the text frame stays.
  */
 const RETRY_DELAYS_MS = [2_000, 10_000, 30_000, 60_000, 120_000, 300_000];
+
+/** A picture that arrives within this long of asking for it (the disk cache) appears at once instead of fading in. */
+const INSTANT_LOAD_MS = 150;
 
 export interface CardFaceProps {
   card: StylableCard & {
@@ -68,6 +71,9 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
   const printing = useCardImage(hidden || painted || styled ? null : card, face === 'back' || showsBackFace(card) ? 'back' : 'front', size);
   const src = styled ?? painted ?? printing;
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  // the picture that fades in: only one that kept the card waiting
+  const [fadedSrc, setFadedSrc] = useState<string | null>(null);
+  const askedAt = useRef<{ src: string; at: number } | null>(null);
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
   const [retries, setRetries] = useState<{ src: string; count: number } | null>(null);
   const retryCount = retries && retries.src === src ? retries.count : 0;
@@ -82,6 +88,9 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
   const showImage = typeof src === 'string' && src !== failedSrc;
   // a picture decoded earlier this session shows on the first frame: no text-frame flash when a card changes zone
   const loaded = showImage && (loadedSrc === src || isDecoded(src));
+  useEffect(() => {
+    if (showImage && !loaded && askedAt.current?.src !== src) askedAt.current = { src, at: performance.now() };
+  }, [showImage, loaded, src]);
   const name = card.displayName ?? card.name ?? '';
 
   return (
@@ -89,6 +98,7 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
       className={[styles.sleeve, className ?? ''].join(' ')}
       style={{ ...(sleeve ? { '--sleeve': sleeve } : {}), ...style } as CSSProperties}
       data-loaded={loaded || undefined}
+      data-fade={(loaded && fadedSrc === src) || undefined}
       data-back={hidden || undefined}
     >
       <div className={styles.card}>
@@ -117,11 +127,14 @@ export function CardFace({ card: printed, face = 'front', size = 'normal', sleev
                 className={styles.image}
                 src={src}
                 alt={name}
-                loading="lazy"
-                decoding="async"
+                // a picture the browser already has shows on this frame; the rest wait their turn on screen
+                loading={loaded ? 'eager' : 'lazy'}
+                decoding={loaded ? 'auto' : 'async'}
                 draggable={false}
                 onLoad={() => {
                   markDecoded(src);
+                  const asked = askedAt.current;
+                  if (asked?.src === src && performance.now() - asked.at >= INSTANT_LOAD_MS) setFadedSrc(src);
                   setLoadedSrc(src);
                 }}
                 onError={() => setFailedSrc(src)}
