@@ -401,6 +401,9 @@ pub struct CombatGroup {
     pub left: Option<(Seat, Option<ObjId>, bool, Vec<ObjId>)>,
 }
 
+/// A card spliced onto a spell: the card, its targets and their zone change counters.
+pub type Spliced = (ObjId, Vec<Vec<Target>>, Vec<Vec<u32>>);
+
 #[derive(Clone, Debug)]
 pub struct StackItem {
     /// the spell's card, or the source of an ability
@@ -437,6 +440,9 @@ pub struct StackItem {
     /// gift: promised as it was cast, and the opponent it was promised to
     pub gift_promised: bool,
     pub gift_to: Option<Seat>,
+    /// cards spliced onto this spell: each card's spell ability resolves after the spell's own, with its targets
+    /// and their zone-change counts
+    pub spliced: Vec<Spliced>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -492,6 +498,7 @@ impl StackItem {
             gift_promised: false,
             gift_to: None,
             def: None,
+            spliced: Vec::new(),
         }
     }
 }
@@ -578,6 +585,9 @@ pub struct Game {
     pub prevent_combat_from: Vec<(ObjId, u32, u32)>,
     /// "players can't gain life this turn" (Skullcrack): the turn it was said
     pub no_lifegain_turn: Option<u32>,
+    /// "until your next turn, you may cast spells of the filter as though they had flash": the player, the filter,
+    /// the effect's source (Teferi, Time Raveler's +1)
+    pub flash_until_next_turn: Vec<(Seat, crate::card::Filter, ObjId)>,
     /// the stack object resolving: where it was on the stack (from the bottom), and its card
     pub resolving: Option<(usize, ObjId)>,
     /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
@@ -710,6 +720,7 @@ impl Game {
             prevent_all_to: Vec::new(),
             prevent_combat_from: Vec::new(),
             no_lifegain_turn: None,
+            flash_until_next_turn: Vec::new(),
             resolving: None,
             resolving_item: None,
             entering_from_hand: None,

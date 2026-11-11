@@ -831,6 +831,8 @@ pub enum CostDef {
         cost: String,
     },
     TapSourceCost,
+    /// exert this: it doesn't untap during its controller's next untap step
+    ExertSourceCost,
     SacrificeSourceCost,
     /// put (or remove) loyalty counters on the source
     PayLoyaltyCost {
@@ -1338,6 +1340,18 @@ pub enum EffectDef {
     CastAsThoughItHadFlashAllEffect {
         filter: Filter,
     },
+    /// until your next turn, you may cast spells of the filter as though they had flash (Teferi, Time Raveler's +1)
+    CastAsThoughItHadFlashUntilYourNextTurnEffect {
+        filter: Filter,
+    },
+    /// each opponent can cast spells only any time they could cast a sorcery (Teferi, Time Raveler)
+    TeferiTimeRavelerEffect,
+    /// return the target legendary creature card from your graveyard to the battlefield; it gains haste; exile it at
+    /// the beginning of the next end step (Goryo's Vengeance)
+    GoryosVengeanceEffect,
+    /// reveal the top ten cards; for each card type, you may put a card of that type into your hand; the rest go on
+    /// the bottom in a random order (Atraxa, Grand Unifier)
+    AtraxaGrandUnifierEffect,
     /// exile the top `amount` cards (choosing one of them with `choose_one`); you may play them until the end of
     /// this turn (`EndOfTurn`) or of your next one (`UntilEndOfYourNextTurn`)
     ExileTopXMayPlayUntilEffect {
@@ -2690,6 +2704,14 @@ pub enum AbilityDef {
     NightboundAbility,
     /// "you may exert this as it attacks"; its `BecomesExertSourceTriggeredAbility` is the next ability
     ExertAbility,
+    /// splice onto `subtype` `cost`: as you cast a spell of that subtype, you may reveal this card from your hand and
+    /// pay the cost; its effects are added to that spell
+    SpliceAbility {
+        subtype: String,
+        cost: String,
+        #[serde(default)]
+        rule: String,
+    },
     /// this can't be blocked (`CantBeBlockedSourceAbility`, or given by `CantBeBlockedTargetEffect`)
     CantBeBlockedSourceAbility,
     /// protection from objects of the filter (`ProtectionAbility`)
@@ -2775,6 +2797,9 @@ pub enum AbilityDef {
         /// it doesn't tap its source (Heritage Druid's "Tap three untapped Elves you control")
         #[serde(default)]
         no_tap: bool,
+        /// "if any of that mana is spent on a creature spell, it gains haste until end of turn" (Arena of Glory)
+        #[serde(default)]
+        creature_spell_haste: bool,
         #[serde(default)]
         rule: String,
     },

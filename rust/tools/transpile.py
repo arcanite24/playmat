@@ -221,6 +221,12 @@ CUSTOM = {
     'BoomerangBasicsEffect': lambda: {'class': 'BoomerangBasicsEffect'},
     'MagebaneLizardEffect': lambda: {'class': 'MagebaneLizardEffect'},
     'NarsetParterOfVeilsEffect': lambda: {'class': 'NarsetParterOfVeilsEffect'},
+    # each opponent can cast spells only any time they could cast a sorcery
+    'TeferiTimeRavelerReplacementEffect': lambda: {'class': 'TeferiTimeRavelerEffect'},
+    # return target legendary creature card to the battlefield with haste; exile it at the next end step
+    'GoryosVengeanceEffect': lambda: {'class': 'GoryosVengeanceEffect'},
+    # reveal the top ten; a card of each card type into the hand, the rest on the bottom in a random order
+    'AtraxaGrandUnifierEffect': lambda: {'class': 'AtraxaGrandUnifierEffect'},
     'ScreamingNemesisEffect': lambda: {'class': 'ScreamingNemesisEffect'},
     'GraveyardTrespasserEffect': lambda: {'class': 'GraveyardTrespasserEffect'},
     'MightformHarmonizerEffect': lambda: {'class': 'MightformHarmonizerEffect'},
@@ -1215,7 +1221,7 @@ class Translator:
             return {'class': 'ManaCost', 'cost': '{' + n.group(1) + '}'}
         if cls == 'GenericManaCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': 'ManaCost', 'cost': '{' + args[0] + '}'}
-        if cls in ('TapSourceCost', 'SacrificeSourceCost', 'ExileSourceCost', 'ExileSourceFromGraveCost', 'ForageCost') and not args:
+        if cls in ('TapSourceCost', 'SacrificeSourceCost', 'ExileSourceCost', 'ExileSourceFromGraveCost', 'ForageCost', 'ExertSourceCost') and not args:
             return {'class': cls}
         if cls == 'RemoveCounterCost' and len(args) == 3 and args[1].strip() in COUNTERS and args[2].strip().isdigit() \
                 and (n := re.fullmatch(r'new TargetControlledCreaturePermanent\(1,(\d+)\)', canonical(args[0]))):
@@ -1547,6 +1553,8 @@ class Translator:
         if cls == 'CastAsThoughItHadFlashAllEffect' and len(args) == 3 and args[0].strip() == 'Duration.WhileOnBattlefield' \
                 and args[2].strip() == 'false':
             return {'class': cls, 'filter': self.filter(args[1])}
+        if cls == 'CastAsThoughItHadFlashAllEffect' and len(args) == 2 and args[0].strip() == 'Duration.UntilYourNextTurn':
+            return {'class': 'CastAsThoughItHadFlashUntilYourNextTurnEffect', 'filter': self.filter(args[1])}
         if cls == 'ConniveSourceEffect' and args in (['"{this}"'], []):
             return {'class': cls}
         if cls == 'BasicManaEffect' and len(args) == 1:
@@ -2229,6 +2237,12 @@ class Translator:
         if cls == 'SimpleManaAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD' \
                 and args[1].strip() == 'Mana.ColorlessMana(1)' and self.strip_setters(args[2].strip()) == 'new SacrificeSourceCost()':
             return {'class': 'ColorlessManaAbility', 'java': cls, 'cost': [{'class': 'SacrificeSourceCost'}], 'no_tap': True}
+        # Arena of Glory: "{R}, {T}, Exert: Add {R}{R}" (its other costs and effect added after)
+        if cls == 'SimpleManaAbility' and len(args) == 2 \
+                and (n := re.fullmatch(r'new BasicManaEffect\(Mana\.(White|Blue|Black|Red|Green)Mana\((\d+)\)\)', args[0].strip())) \
+                and (c := re.fullmatch(r'new ManaCostsImpl<>\("(\{[^"]*\})"\)', args[1].strip())):
+            return {'class': 'ColoredManaAbility', 'java': cls, 'color': COLOR_LETTERS[n.group(1)],
+                    'amount': int(n.group(2)), 'no_tap': True, 'cost': [{'class': 'ManaCost', 'cost': c.group(1)}]}
         # Heritage Druid: "Tap three untapped Elves you control: Add {G}{G}{G}." (it doesn't tap itself)
         if cls == 'SimpleManaAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD' \
                 and re.fullmatch(r'new HeritageDruidManaEffect\(\w+\)', args[1].strip()) \
@@ -3202,6 +3216,19 @@ def ability_statement(t, st, added):
     if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
         t.vars[m.group(1)].setdefault('modes', []).append(mode_expr(t, m.group(2)))
         return True
+    # a mana ability built with a mana cost: tapping is one more cost; "if any of that mana is spent on a creature
+    # spell, it gains haste until end of turn" (Arena of Glory)
+    m = re.fullmatch(r'(\w+)\.add(Effect|Cost)\((.*)\)', st)
+    if m and t.vars.get(m.group(1), {}).get('class') == 'ColoredManaAbility' and t.vars[m.group(1)].get('no_tap'):
+        holder = t.vars[m.group(1)]
+        if m.group(2) == 'Cost' and m.group(3).strip() == 'new TapSourceCost()':
+            holder['no_tap'] = False
+            return True
+        if m.group(2) == 'Effect' and m.group(3).replace(' ', '') == 'newManaSpentOnSpellGainsAbilityEffect(' \
+                'StaticFilters.FILTER_SPELL_CREATURE,newGainAbilityTargetEffect(HasteAbility.getInstance(),' \
+                'Duration.EndOfTurn,null,true),true)':
+            holder['creature_spell_haste'] = True
+            return True
     m = re.fullmatch(r'(\w+)\.add(Effect|Target|Cost)\((.*)\)', st)
     if m and m.group(1) in t.vars and 'class' in t.vars[m.group(1)]:
         holder = t.vars[m.group(1)]
@@ -3223,6 +3250,10 @@ def ability_statement(t, st, added):
         # `addAbility(ability, new SomeWatcher())`: the watcher is the engine's own bookkeeping
         if len(args) == 2 and re.fullmatch(r'new \w+Watcher\((ability\.getOriginalId\(\))?\)', args[1].strip()):
             args = args[:1]
+        # splice onto Arcane: revealed from the hand as an Arcane spell is cast, its effects added to that spell
+        if (e := re.fullmatch(r'new SpliceAbility\(SpliceAbility\.ARCANE,"(\{[^"]*\})"\)', ','.join(args).strip())):
+            added.append({'class': 'SpliceAbility', 'java': 'SpliceAbility', 'subtype': 'Arcane', 'cost': e.group(1)})
+            return True
         # evolve: a trigger on a creature of yours entering with greater power or toughness
         if ','.join(args).strip() == 'new EvolveAbility()':
             added.append({'class': 'TriggeredAbility', 'java': 'EvolveAbility', 'on': {'e': 'evolve'},
