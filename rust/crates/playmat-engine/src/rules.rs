@@ -4605,6 +4605,24 @@ fn add_energy(game: &mut Game, seat: Seat, n: i32) {
     counters.retain(|(_, k)| *k != 0);
 }
 
+/// A player's poison counters (`CounterType.POISON`)
+pub fn poison(game: &Game, seat: Seat) -> i32 {
+    game.player(seat).counters.iter().filter(|(n, _)| n == "poison").map(|(_, k)| *k).sum()
+}
+
+/// Gives a player poison counters (infect or toxic damage to a player, `Player.addCounters`); 704.5c makes them lose
+/// at ten
+pub fn add_poison(game: &mut Game, seat: Seat, n: i32) {
+    if n <= 0 {
+        return;
+    }
+    let counters = &mut game.player_mut(seat).counters;
+    match counters.iter_mut().find(|(c, _)| c == "poison") {
+        Some((_, k)) => *k += n,
+        None => counters.push(("poison".to_string(), n)),
+    }
+}
+
 /// The controller scries `amount`: the cards to put on the bottom, then the rest on top. False: the decider stopped.
 fn scry(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32, rule: &str) -> bool {
     let cards: Vec<ObjId> = game.player(seat).library.iter().take(amount.max(0) as usize).copied().collect();
@@ -12998,12 +13016,19 @@ pub fn state_based_actions(game: &mut Game) {
             if (0..game.seats()).filter(|t| !game.player(*t).lost).count() <= 1 {
                 break;
             }
+            let poisoned = poison(game, s) >= 10;
             let p = game.player(s);
-            if !p.lost && (p.life <= 0 || p.drew_from_empty) {
+            // 704.5a-c: 0 or less life, drawing from an empty library, ten or more poison counters
+            if !p.lost && (p.life <= 0 || p.drew_from_empty || poisoned) {
                 if log::kept(game) {
-                    // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`
-                    let why =
-                        if p.drew_from_empty { "drawing from an empty library" } else { "to having 0 or less life" };
+                    // `GameImpl.checkStateBasedActions`, `PlayerImpl.lost`: the last reason that holds is logged
+                    let why = if poisoned {
+                        "to having 10 or more poison counters"
+                    } else if p.drew_from_empty {
+                        "drawing from an empty library"
+                    } else {
+                        "to having 0 or less life"
+                    };
                     let line = format!("{} has lost the game", log::player(s));
                     log::inform(game, line);
                     let line = format!("{} lost the game due {}", log::player(s), why);
@@ -13282,5 +13307,22 @@ mod tests {
         assert!(!can_attack(&game, 0, wall));
         grant(&mut game, bear, &AbilityDef::DefenderAbility);
         assert!(!can_attack(&game, 0, bear));
+    }
+
+    #[test]
+    fn ten_poison_counters_lose_the_game_and_show_in_the_view() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        add_poison(&mut game, 1, 9);
+        state_based_actions(&mut game);
+        assert!(!game.player(1).lost && !game.over);
+        add_poison(&mut game, 1, 1);
+        assert_eq!(poison(&game, 1), 10);
+        let view = crate::view::game_view(&game, 0, &["a", "b"]);
+        let counters = &view["players"][1]["counters"];
+        assert_eq!(counters, &serde_json::json!([{"name": "poison", "count": 10}]));
+        state_based_actions(&mut game);
+        assert!(game.player(1).lost && game.over);
+        assert!(!game.player(0).lost);
     }
 }
