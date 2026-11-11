@@ -4,8 +4,10 @@
 //! slowest decisions.
 //!
 //! cargo run --release -p playmat-ai --bin ai-bench -- [--games 24] [--first 0] [--only 1,5] [--turns 30]
-//!     [--budget 6000] [--width 12] [--extra-turns 0] [--schools DIR,DIR]
+//!     [--budget 6000] [--width 12] [--extra-turns 0] [--policy playouts|mcts|quick|random] [--threads 4]
+//!     [--schools DIR,DIR]
 
+use playmat_ai::decision::PolicyKind;
 use playmat_ai::duel::{new_duel, Deck};
 use playmat_ai::eval;
 use playmat_ai::search::{Config, DecisionStat, Table};
@@ -25,6 +27,8 @@ fn main() {
         width: num("--width", Config::default().width as u64) as usize,
         extra_turns: num("--extra-turns", 0) as u32,
         playout_cap: num("--playout-cap", Config::default().playout_cap),
+        policy: opt("--policy").map(|p| p.parse().expect("--policy")).unwrap_or_else(PolicyKind::from_env),
+        threads: num("--threads", Config::default().threads as u64) as usize,
     };
     // `--b-…`: seat B plays with these instead (to compare two configs; run again with `--swap` for the other seats)
     let cfg_b = Config {
@@ -32,6 +36,8 @@ fn main() {
         width: num("--b-width", cfg.width as u64) as usize,
         extra_turns: num("--b-extra-turns", cfg.extra_turns as u64) as u32,
         playout_cap: num("--b-playout-cap", cfg.playout_cap),
+        policy: opt("--b-policy").map(|p| p.parse().expect("--b-policy")).unwrap_or(cfg.policy),
+        threads: num("--b-threads", cfg.threads as u64) as usize,
     };
     let (cfg, cfg_b) = if args.iter().any(|a| a == "--swap") { (cfg_b, cfg) } else { (cfg, cfg_b) };
     let root = env!("CARGO_MANIFEST_DIR").to_string() + "/../../../Mage.Server/career-src";
@@ -118,6 +124,7 @@ fn main() {
     }
     let mut ms: Vec<u128> = all.iter().map(|s| s.nanos / 1_000_000).collect();
     ms.sort();
+    println!("BENCH cpu: {:.3} s per game (all threads)", cpu_seconds() / games_run_of(played + failed));
     let nodes: u64 = all.iter().map(|s| s.nodes).sum();
     let search: f64 = all.iter().map(|s| s.nanos as f64 / 1e9).sum();
     let games_run = (played + failed).max(1);
@@ -159,6 +166,23 @@ fn main() {
             s.permanents
         );
     }
+}
+
+fn games_run_of(n: usize) -> f64 {
+    n.max(1) as f64
+}
+
+/// The process's CPU time (user and system, all threads)
+fn cpu_seconds() -> f64 {
+    #[cfg(unix)]
+    unsafe {
+        let mut u: libc::rusage = std::mem::zeroed();
+        libc::getrusage(libc::RUSAGE_SELF, &mut u);
+        let t = |v: libc::timeval| v.tv_sec as f64 + v.tv_usec as f64 / 1e6;
+        t(u.ru_utime) + t(u.ru_stime)
+    }
+    #[cfg(not(unix))]
+    0.0
 }
 
 fn pct(sorted: &[u128], p: f64) -> u128 {

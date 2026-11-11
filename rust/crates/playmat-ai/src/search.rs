@@ -7,10 +7,10 @@
 //! table keeps the game as it was at the last priority question and every answer given since: a copy replays those
 //! answers to get back to the question being searched.
 
+use crate::decision::{Choice, Decision, DecisionPolicy, PolicyKind, Root};
 use crate::eval;
 use crate::policy::{Policy, Repeats};
 use playmat_engine::decide::{Answer, Decider, Query};
-use playmat_engine::rules;
 use playmat_engine::state::{Game, Seat, Zone};
 use std::time::Instant;
 
@@ -24,11 +24,27 @@ pub struct Config {
     pub extra_turns: u32,
     /// answers one playout may give before it's cut off
     pub playout_cap: u64,
+    /// who answers the seat's decisions (`PLAYMAT_AI_POLICY`)
+    pub policy: PolicyKind,
+    /// threads a search may use (`Mcts`; `PLAYMAT_AI_THREADS`)
+    pub threads: usize,
 }
 
 impl Default for Config {
+    /// The settings `PLAYMAT_AI_POLICY` and `PLAYMAT_AI_THREADS` (default: playouts, and up to 4 threads) apply here
     fn default() -> Self {
-        Config { budget: 6000, width: 12, extra_turns: 0, playout_cap: 1500 }
+        let threads = std::env::var("PLAYMAT_AI_THREADS")
+            .ok()
+            .and_then(|v| v.trim().parse().ok())
+            .unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get().min(4)));
+        Config {
+            budget: 6000,
+            width: 12,
+            extra_turns: 0,
+            playout_cap: 1500,
+            policy: PolicyKind::from_env(),
+            threads: threads.max(1),
+        }
     }
 }
 
@@ -50,6 +66,8 @@ pub struct Table {
     pub ai: Vec<Option<Config>>,
     policy: Vec<Policy>,
     repeats: Repeats,
+    /// each seat's decider, built from its config's `policy` (or set with `set_policy`)
+    deciders: Vec<Option<(Option<PolicyKind>, Box<dyn DecisionPolicy>)>>,
     /// the game at the last priority question, and the answers since
     snapshot: Option<Game>,
     since: Vec<Answer>,
@@ -67,6 +85,7 @@ impl Table {
             ai,
             policy: (0..n).map(|_| Policy::default()).collect(),
             repeats: Repeats::default(),
+            deciders: (0..n).map(|_| None).collect(),
             snapshot: None,
             since: Vec::new(),
             stats: Vec::new(),
@@ -74,6 +93,21 @@ impl Table {
             max_answers: 200_000,
             stop: false,
         }
+    }
+
+    /// Has `policy` answer `seat`'s decisions instead of the one its config names (a Jev, LLM or ONNX decider).
+    /// The seat still needs a config: it gives the policy its budget and width.
+    pub fn set_policy(&mut self, seat: Seat, policy: Box<dyn DecisionPolicy>) {
+        self.deciders[seat] = Some((None, policy));
+    }
+
+    /// The name of the policy answering `seat`'s decisions, `None` for a seat on the quick answers alone
+    pub fn policy_name(&self, seat: Seat) -> Option<String> {
+        let cfg = self.ai.get(seat).cloned().flatten()?;
+        Some(match self.deciders.get(seat).and_then(|d| d.as_ref()) {
+            Some((None, p)) => p.name().to_string(),
+            _ => cfg.policy.name().to_string(),
+        })
     }
 
     /// Whether the game was cut off by `max_answers`
@@ -122,29 +156,16 @@ impl Table {
         if candidates.len() < 2 {
             return quick;
         }
-        let Some(snapshot) = self.snapshot.clone() else { return quick };
-        let start = Instant::now();
-        let per = (cfg.budget / candidates.len() as u64).clamp(50, cfg.playout_cap);
-        let mut nodes = 0;
-        let mut best = (i64::MIN, quick.clone());
-        for c in candidates.iter() {
-            if nodes >= cfg.budget {
-                break;
-            }
-            let mut g = snapshot.clone();
-            let mut script = self.since.clone();
-            script.push(c.clone());
-            let mut p = Playout::new(script, per, game.turn + 1 + cfg.extra_turns);
-            rules::play_from_priority_question(&mut g, &mut p, game.turn + 1 + cfg.extra_turns);
-            nodes += p.answers;
-            if p.diverged {
-                continue;
-            }
-            let score = eval::evaluate(&g, seat);
-            if score > best.0 {
-                best = (score, c.clone());
-            }
+        let root = self.snapshot.clone().map(|snapshot| Root { snapshot, since: self.since.clone() });
+        let slot = &mut self.deciders[seat];
+        if !matches!(slot, Some((None, _))) && slot.as_ref().map(|(k, _)| *k) != Some(Some(cfg.policy)) {
+            *slot = Some((Some(cfg.policy), cfg.policy.build(seat)));
         }
+        let decider = &mut slot.as_mut().unwrap().1;
+        let start = Instant::now();
+        let d = Decision { game, seat, query: q, quick: &quick, candidates: &candidates, config: &cfg, root: root.as_ref() };
+        let choice = decider.decide(&d);
+        let nodes = choice.as_ref().map_or(0, |c| c.nodes);
         self.stats.push(DecisionStat {
             game: 0,
             seat,
@@ -155,7 +176,45 @@ impl Table {
             options: candidates.len(),
             permanents: game.battlefield.len(),
         });
-        best.1
+        match choice {
+            Some(c) if q.accepts(&c.answer) => c.answer,
+            _ => quick,
+        }
+    }
+}
+
+/// The default search: each candidate played once to the end of the turn (`extra_turns` more), the one whose game
+/// scores best kept; `budget` split evenly over the candidates.
+pub struct Playouts;
+
+impl DecisionPolicy for Playouts {
+    fn name(&self) -> &str {
+        "playouts"
+    }
+
+    fn decide(&mut self, d: &Decision) -> Option<Choice> {
+        let root = d.root?;
+        let cfg = d.config;
+        let stop = d.game.turn + 1 + cfg.extra_turns;
+        let per = (cfg.budget / d.candidates.len() as u64).clamp(50, cfg.playout_cap);
+        let mut nodes = 0;
+        let mut best = (i64::MIN, d.quick.clone());
+        for c in d.candidates.iter() {
+            if nodes >= cfg.budget {
+                break;
+            }
+            match root.play_out(c, per, stop, None) {
+                Ok(o) => {
+                    nodes += o.nodes;
+                    let score = eval::evaluate(&o.game, d.seat);
+                    if score > best.0 {
+                        best = (score, c.clone());
+                    }
+                }
+                Err(n) => nodes += n,
+            }
+        }
+        Some(Choice { answer: best.1, nodes })
     }
 }
 
@@ -184,67 +243,6 @@ impl Decider for Table {
 
     fn stopped(&self) -> bool {
         self.stop
-    }
-}
-
-/// A playout: the recorded answers back to the question, the candidate, then quick answers for everyone until the
-/// turn ends or the answers run out.
-struct Playout {
-    script: Vec<Answer>,
-    next: usize,
-    policy: [Policy; 2],
-    repeats: Repeats,
-    answers: u64,
-    cap: u64,
-    stop_turn: u32,
-    stopped: bool,
-    /// the copy asked something other than what was recorded: its result means nothing
-    diverged: bool,
-}
-
-impl Playout {
-    fn new(script: Vec<Answer>, cap: u64, stop_turn: u32) -> Playout {
-        Playout {
-            script,
-            next: 0,
-            policy: [Policy::default(), Policy::default()],
-            repeats: Repeats::default(),
-            answers: 0,
-            cap,
-            stop_turn,
-            stopped: false,
-            diverged: false,
-        }
-    }
-}
-
-impl Decider for Playout {
-    fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
-        if self.next < self.script.len() {
-            let a = self.script[self.next].clone();
-            self.next += 1;
-            if !q.accepts(&a) {
-                self.diverged = true;
-                self.stopped = true;
-                return Answer::Stop;
-            }
-            return a;
-        }
-        self.answers += 1;
-        if self.answers > self.cap || game.turn >= self.stop_turn {
-            self.stopped = true;
-            return Answer::Stop;
-        }
-        let a = self.policy[seat.min(1)].answer(game, seat, q);
-        if self.repeats.is_repeat(seat, q) {
-            let options = candidates(game, seat, q, &a, usize::MAX);
-            return self.repeats.guard(seat, q, a, &options);
-        }
-        self.repeats.guard(seat, q, a, &[])
-    }
-
-    fn stopped(&self) -> bool {
-        self.stopped
     }
 }
 
