@@ -171,6 +171,7 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
         chooser: chooser.map(str::to_string),
         record: None,
         log_to: None,
+        rules: playmat_host::TableRules::default(),
     }
 }
 
@@ -342,4 +343,54 @@ fn views_carry_the_games_events() {
     assert!(draws(HUMAN).count() > 0 && draws(HUMAN).all(|e| e["targetId"].as_str().is_some_and(uuid)));
     assert!(draws(AI).count() > 0 && draws(AI).all(|e| e.get("targetId").is_none()), "the AI's draws are hidden");
     assert!(seen.iter().any(|e| e["kind"] == "LIFE_LOSS" && e["playerId"] == HUMAN));
+}
+
+#[test]
+fn the_end_carries_the_humans_career_tally() {
+    let (ended, _) = play(&deck("gw-company.txt"), &deck("b-zombies.txt"), 0, u64::MAX);
+    let tally = &ended.summary["tally"];
+    let counters = &tally["counters"];
+    let n = |k: &str| counters[k].as_i64().unwrap_or(0);
+    assert!(n("my_turns") > 0, "turns counted: {tally}");
+    assert!(n("lands_played") > 0, "lands counted: {tally}");
+    assert!(n("cards_drawn") > 0, "draws counted: {tally}");
+    // (the test's player casts little and loses to the damage)
+    let life = tally["life"].as_i64().unwrap();
+    assert_eq!(n("damage_taken"), 20 - life + n("life_gained"), "damage counted: {tally}");
+    assert_eq!(tally["startingLife"], 20);
+    assert_eq!(ended.summary["players"].as_array().map(Vec::len), Some(2));
+    assert_eq!(tally["life"], ended.summary["players"][0]["life"], "the human's life, seat 0");
+    assert!(tally["lowestLife"].as_i64().unwrap() <= tally["life"].as_i64().unwrap());
+}
+
+#[test]
+fn a_tables_starting_life_and_free_mulligans_are_played() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.rules = playmat_host::TableRules { starting_life: 30, free_mulligans: 1, ai_skill: Some(3) };
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut asked = 0;
+    let mut log = Vec::new();
+    loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "CHATMESSAGE" {
+            log.push(e.data["message"].as_str().unwrap_or("").to_string());
+        }
+        if e.method == "GAME_INIT" {
+            assert_eq!(e.data["players"][0]["life"], 30, "the table's starting life");
+        }
+        if e.method == "GAME_ASK" {
+            // a mulligan: once for free, then keep
+            asked += 1;
+            let size_text = e.data["message"].as_str().unwrap_or("").to_string();
+            let size = if asked == 1 { "7" } else { "6" };
+            assert!(size_text.contains(size), "mulligan {asked} goes down to {size}: {size_text}");
+            game.call(Call::Bool(asked == 1));
+            if asked == 2 {
+                break;
+            }
+        }
+    }
+    assert!(log.iter().any(|l| l.contains("mulligans for free")), "{log:?}");
+    game.call(Call::Action("CONCEDE".into(), None));
 }

@@ -56,6 +56,16 @@ public final class CareerTally {
     private final Set<UUID> lastHit = new HashSet<>();
     /** one-game feats (B309): the best value of each and the turn it happened on */
     private final Map<String, Moment> moments = new LinkedHashMap<>();
+    /** a game the Rust host played: how it ended there (Java's copy of the game never played) */
+    private HostEnd hostEnd;
+
+    /** the end of a hosted game, as the host reports it: what {@link #finish} reads of the game otherwise */
+    static final class HostEnd {
+        int life;
+        int startingLife;
+        /** each opponent's life, poison counters and library size */
+        final List<int[]> opponents = new ArrayList<>();
+    }
 
     /** A one-game feat: what it was, how big, and on which turn. */
     public static final class Moment {
@@ -163,6 +173,42 @@ public final class CareerTally {
         return playerId;
     }
 
+    /**
+     * A game the Rust host played: its tally of the human (playmat-host's {@code tally.rs}, counted as {@link Recorder}
+     * counts), kept for the game's end as an open tally is.
+     */
+    public static CareerTally fromHost(UUID gameId, UUID playerId, com.google.gson.JsonObject json) {
+        CareerTally tally = new CareerTally(playerId);
+        if (json.has("counters") && json.get("counters").isJsonObject()) {
+            for (Map.Entry<String, com.google.gson.JsonElement> e : json.getAsJsonObject("counters").entrySet()) {
+                tally.set(e.getKey(), e.getValue().getAsInt());
+            }
+        }
+        if (json.has("moments") && json.get("moments").isJsonArray()) {
+            for (com.google.gson.JsonElement m : json.getAsJsonArray("moments")) {
+                com.google.gson.JsonObject o = m.getAsJsonObject();
+                tally.moment(o.get("id").getAsString(), o.get("value").getAsInt(), o.get("turn").getAsInt());
+            }
+        }
+        HostEnd end = new HostEnd();
+        end.life = json.has("life") ? json.get("life").getAsInt() : 0;
+        end.startingLife = json.has("startingLife") ? json.get("startingLife").getAsInt() : 20;
+        if (json.has("lowestLife")) {
+            tally.lowestLife = json.get("lowestLife").getAsInt();
+        }
+        if (json.has("opponents") && json.get("opponents").isJsonArray()) {
+            for (com.google.gson.JsonElement e : json.getAsJsonArray("opponents")) {
+                com.google.gson.JsonObject o = e.getAsJsonObject();
+                end.opponents.add(new int[]{o.get("life").getAsInt(), o.get("poison").getAsInt(), o.get("library").getAsInt()});
+            }
+        }
+        tally.hostEnd = end;
+        Map<UUID, CareerTally> seats = new java.util.LinkedHashMap<>();
+        seats.put(playerId, tally);
+        TALLIES.put(gameId, java.util.Collections.synchronizedMap(seats));
+        return tally;
+    }
+
     /** a tally outside a running game (tests, or a game nothing was recorded for) */
     static CareerTally forTest(UUID playerId) {
         return new CareerTally(playerId);
@@ -247,12 +293,19 @@ public final class CareerTally {
         if (won) {
             add(WINS, 1);
         }
-        if (game == null) {
+        if (game == null && hostEnd == null) {
             return; // nothing was recorded: how the game ended is unknown
         }
-        Player me = game.getPlayer(playerId);
-        int life = me == null ? 0 : me.getLife();
-        int startingLife = game.getStartingLife();
+        int life;
+        int startingLife;
+        if (hostEnd != null) {
+            life = hostEnd.life;
+            startingLife = hostEnd.startingLife;
+        } else {
+            Player me = game.getPlayer(playerId);
+            life = me == null ? 0 : me.getLife();
+            startingLife = game.getStartingLife();
+        }
         lowestLife = Math.min(lowestLife, life);
         set("turns", turns);
         set("life_at_end", life);
@@ -288,20 +341,27 @@ public final class CareerTally {
             set("won_by_turn_four", 1);
             moment("fast_win", get("my_turns"), turns);
         }
-        {
+        List<int[]> opponents = new ArrayList<>();
+        if (hostEnd != null) {
+            opponents.addAll(hostEnd.opponents);
+        } else {
             for (UUID opponentId : game.getOpponents(playerId)) {
                 Player opponent = game.getPlayer(opponentId);
-                if (opponent == null) {
-                    continue;
+                if (opponent != null) {
+                    opponents.add(new int[]{opponent.getLife(),
+                            opponent.getCountersCount(mage.counters.CounterType.POISON), opponent.getLibrary().size()});
                 }
-                if (opponent.getCountersCount(mage.counters.CounterType.POISON) >= 10) {
-                    set("won_by_poison", 1);
-                } else if (opponent.getLibrary().size() == 0 && opponent.getLife() > 0) {
-                    set("won_by_mill", 1);
-                }
-                if (opponent.getLife() <= -10) {
-                    set("won_overkill", 1);
-                }
+            }
+        }
+        for (int[] opponent : opponents) {
+            // life, poison, library
+            if (opponent[1] >= 10) {
+                set("won_by_poison", 1);
+            } else if (opponent[2] == 0 && opponent[0] > 0) {
+                set("won_by_mill", 1);
+            }
+            if (opponent[0] <= -10) {
+                set("won_overkill", 1);
             }
         }
     }

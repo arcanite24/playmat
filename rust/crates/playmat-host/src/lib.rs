@@ -6,7 +6,8 @@ pub mod ids;
 pub mod prompts;
 pub mod record;
 pub mod skips;
+pub mod tally;
 pub mod timer;
 
-pub use game::{Call, Ended, Event, HostedGame, SeatStart, Start};
+pub use game::{Call, Ended, Event, HostedGame, SeatStart, Start, TableRules};
 pub use timer::Timer;

@@ -522,6 +522,40 @@ pub enum EventKind {
     LifeLoss,
     Draw,
     Zone,
+    // what only the Career's tally counts (`CareerTally.Recorder`): the client gets none of these
+    /// a turn begins: `player` is the active player (`BEGIN_TURN`)
+    Turn,
+    /// `player` cast `target` (`SPELL_CAST`)
+    Cast,
+    /// `source`'s effect countered `target`, `player`'s spell (`COUNTERED`)
+    Countered,
+    /// `player` activated `source`'s loyalty ability (`ACTIVATED_ABILITY` of a planeswalker)
+    Loyalty,
+    /// `source` became attached to `target` (`ATTACHED`)
+    Attached,
+    /// `player` sacrificed `target` (`SACRIFICED_PERMANENT`)
+    Sacrificed,
+    /// `player` discarded `target` (`DISCARDED_CARD`)
+    Discarded,
+    /// `player` milled `amount` cards (`MILLED_CARD`)
+    Milled,
+    /// `player` made `amount` mana (`MANA_ADDED`)
+    Mana,
+    /// `player` played a land (`LAND_PLAYED`)
+    Land,
+    /// `source` attacks (`ATTACKER_DECLARED`)
+    Attack,
+    /// `source` blocks (`BLOCKER_DECLARED`)
+    Block,
+    /// `player` put `amount` counters on `target` (`COUNTERS_ADDED`)
+    Counters,
+}
+
+impl EventKind {
+    /// whether the client gets it (`GameEventView`): the others are the Career tally's
+    pub fn shown(self) -> bool {
+        matches!(self, EventKind::Damage | EventKind::LifeGain | EventKind::LifeLoss | EventKind::Draw | EventKind::Zone)
+    }
 }
 
 /// One game event (`GameEventView`): damage dealt, life gained or lost, a card drawn, a zone change
@@ -535,11 +569,13 @@ pub struct GameEvent {
     pub from: Option<Zone>,
     pub to: Option<Zone>,
     pub combat: bool,
+    /// the turn it happened on (`Game::record` sets it)
+    pub turn: u32,
 }
 
 impl GameEvent {
     pub fn new(kind: EventKind) -> GameEvent {
-        GameEvent { kind, target: None, source: None, player: None, amount: 0, from: None, to: None, combat: false }
+        GameEvent { kind, target: None, source: None, player: None, amount: 0, from: None, to: None, combat: false, turn: 0 }
     }
 }
 
@@ -549,6 +585,8 @@ pub struct Game {
     pub rng: JavaRandom,
     /// each starting card's printing (`SET:number`), by object id, for its view (docs/rust/Views.md)
     pub printings: Arc<Vec<String>>,
+    /// each player's life as the game began (`Game.getStartingLife`): 20, or the table's
+    pub starting_life: i32,
     pub turn: u32,
     /// day (true) or night (false), once a daybound or nightbound permanent appeared
     pub day: Option<bool>,
@@ -718,6 +756,7 @@ impl Game {
         rng.set_state(seed_state);
         Game {
             rng,
+            starting_life: 20,
             turn: 0,
             step: None,
             active: None,
@@ -1218,6 +1257,15 @@ impl Game {
         let o = self.obj_mut(id);
         o.attached_to = Some((to, zcc));
         o.attached_at = at;
+        if self.events.is_some() {
+            let player = Some(self.obj(id).controller);
+            self.record(GameEvent {
+                source: Some(id),
+                target: Some(Target::Obj(to)),
+                player,
+                ..GameEvent::new(EventKind::Attached)
+            });
+        }
     }
 
     pub fn attached(&self, aura: ObjId) -> Option<ObjId> {
@@ -1244,7 +1292,8 @@ impl Game {
 
     /// Whether a static ability's effect on the battlefield matches (for effects that apply to the whole game).
     /// Keeps a game event, while they're kept
-    pub fn record(&mut self, event: GameEvent) {
+    pub fn record(&mut self, mut event: GameEvent) {
+        event.turn = self.turn;
         if let Some(events) = self.events.as_mut() {
             events.push(event);
         }
@@ -2281,6 +2330,7 @@ impl Game {
         if self.events.is_some() {
             self.record(GameEvent {
                 target: Some(Target::Obj(id)),
+                source: self.resolving.map(|(_, card)| card),
                 player: Some(owner),
                 from: Some(from),
                 to: Some(zone),

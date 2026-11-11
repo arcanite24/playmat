@@ -108,10 +108,24 @@ fn next_step(game: &Game, step: Step) -> Option<Step> {
 }
 
 /// The turn-based actions at the start of a step.
+/// An event only the Career's tally counts (`EventKind::shown`), while events are kept
+fn note(game: &mut Game, kind: EventKind, player: Option<Seat>, source: Option<ObjId>, target: Option<Target>, amount: i32) {
+    if game.events.is_some() {
+        game.record(GameEvent { player, source, target, amount, ..GameEvent::new(kind) });
+    }
+}
+
+/// `source`'s effect countered `spell`
+fn note_countered(game: &mut Game, spell: ObjId, source: ObjId) {
+    let player = Some(game.obj(spell).controller);
+    note(game, EventKind::Countered, player, Some(source), Some(Target::Obj(spell)), 0);
+}
+
 fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
     let active = game.active.unwrap_or(0);
     match step {
         Step::Untap => {
+            note(game, EventKind::Turn, Some(active), None, None, 0);
             // 726.2: the previous turn's active player cast no spells: day becomes night; two or more: night
             // becomes day (`UntapStep.handleDayNight`, before untapping)
             if game.day.is_some() && game.turn > 1 {
@@ -2295,6 +2309,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
         enter_battlefield(game, d, id, seat, false);
         game.player_mut(seat).lands_played += 1;
+        note(game, EventKind::Land, Some(seat), Some(id), None, 0);
         if log::kept(game) {
             // `PlayerImpl.playLand`
             let line = match game
@@ -3148,6 +3163,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             p.instants_sorceries_cast += 1;
         }
     }
+    note(game, EventKind::Cast, Some(seat), None, Some(Target::Obj(spell)), 0);
     // TARGETED's valiant, ward and Surrak triggers: `processAction` handles them before SPELL_CAST
     ward(game);
     let sources: Vec<ObjId> = game.trigger_sources();
@@ -3972,6 +3988,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let o = game.obj_mut(id);
             o.add_counters("loyalty", *amount);
             o.loyalty_used = true;
+            note(game, EventKind::Loyalty, Some(seat), Some(id), None, 0);
         }
         CostDef::TapTargetCost { filter, amount } => {
             let possible: Vec<ObjId> =
@@ -4251,6 +4268,7 @@ fn discard_card(game: &mut Game, seat: Seat, c: ObjId) {
         }
         log::inform(game, line);
     }
+    note(game, EventKind::Discarded, Some(seat), None, Some(Target::Obj(c)), 0);
     game.move_to(c, Zone::Graveyard);
 }
 
@@ -5004,9 +5022,12 @@ fn activate_mana_paying(
         pool.colored[c.index()] += m.colored[c.index()];
     }
     pool.colorless += m.colorless;
-    for k in tap_for_mana_extra(game, seat, id) {
+    let extra = tap_for_mana_extra(game, seat, id);
+    let made = m.total() as i32 + extra.len() as i32;
+    for k in extra {
         game.player_mut(seat).mana_pool.colored[k] += 1;
     }
+    note(game, EventKind::Mana, Some(seat), Some(id), None, made);
     // a mana ability's other effects happen at once (a pain land's damage)
     let effects = game.obj(id).def.abilities[i].mana_effects().to_vec();
     if !effects.is_empty() {
@@ -6021,6 +6042,7 @@ fn apply_each_effect(
             EffectDef::CounterTargetExileEffect => {
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
+                        note_countered(game, o, item.card);
                         Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
                         game.move_to(o, Zone::Exile);
                     }
@@ -6040,6 +6062,7 @@ fn apply_each_effect(
                 }
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone == Zone::Stack && !cant_be_countered(game, o) {
+                        note_countered(game, o, item.card);
                         Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
                         game.move_to(o, Zone::Graveyard);
                     }
@@ -9082,6 +9105,7 @@ fn apply_each_effect(
                 let n = v!(amount).max(0) as usize;
                 if let Some(Target::Player(p)) = target {
                     let top: Vec<ObjId> = game.player(p).library.iter().take(n).copied().collect();
+                    note(game, EventKind::Milled, Some(p), None, None, top.len() as i32);
                     for c in top {
                         game.move_to(c, Zone::Graveyard);
                     }
@@ -10229,6 +10253,7 @@ fn apply_each_effect(
                 let amount = &v!(amount);
                 let n = (*amount).max(0) as usize;
                 let top: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
+                note(game, EventKind::Milled, Some(controller), None, None, top.len() as i32);
                 for c in top {
                     game.move_to(c, Zone::Graveyard);
                 }
@@ -10259,6 +10284,7 @@ fn apply_each_effect(
                 let Some(payer) = payer else { continue };
                 let Some(paid) = pay_unless(game, d, payer, cost) else { return };
                 if !paid && !cant_be_countered(game, spell) {
+                    note_countered(game, spell, item.card);
                     Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
                     game.move_to(spell, if *exile { Zone::Exile } else { Zone::Graveyard });
                 }
@@ -10688,6 +10714,7 @@ fn sacrifice(game: &mut Game, id: ObjId) {
     }
     let who = game.obj(id).controller;
     game.player_mut(who).sacrificed += 1;
+    note(game, EventKind::Sacrificed, Some(who), None, Some(Target::Obj(id)), 0);
     // what left in the same action still sees it (Java's short-living LKI): sacrificed together
     // and so does what was sacrificed since the player last passed, cast or made mana (activating an ability doesn't
     // reset it)
@@ -10731,6 +10758,7 @@ fn sacrifice(game: &mut Game, id: ObjId) {
 /// `n` counters put on `o` by `by`'s effect, logged as `CardUtil.addCountersLog`... writes it
 fn put_counters(game: &mut Game, o: ObjId, name: &str, n: i32, by: Seat) {
     game.obj_mut(o).add_counters(name, n);
+    note(game, EventKind::Counters, Some(by), None, Some(Target::Obj(o)), n);
     if log::kept(game) {
         let mut line = format!(
             "{} puts {} {} counter{} on {}, remaining {}",
@@ -12376,6 +12404,8 @@ fn choose_defender(game: &mut Game, d: &mut dyn Decider, seat: Seat, defender: S
 fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) {
     join_combat(game, id);
     let vigilance = game.has_ability(id, &AbilityDef::VigilanceAbility);
+    let controller = game.obj(id).controller;
+    note(game, EventKind::Attack, Some(controller), Some(id), None, 0);
     let o = game.obj_mut(id);
     o.attacking = Some(defender);
     o.attacking_pw = pw;
@@ -12607,6 +12637,8 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         if let Some(a) = chosen {
             game.obj_mut(blocker).blocking.push(a);
             game.obj_mut(blocker).blocks += 1;
+            let controller = game.obj(blocker).controller;
+            note(game, EventKind::Block, Some(controller), Some(blocker), Some(Target::Obj(a)), 0);
             let by = &mut game.obj_mut(a).blocked_by;
             by.retain(|x| *x != blocker);
             by.push(blocker);

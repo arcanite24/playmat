@@ -37,11 +37,60 @@ pub struct SeatStart {
     pub user_data: Option<Value>,
 }
 
+/// The table's options the game plays by (`MatchOptions`); Java keeps the games whose other options the host
+/// doesn't play (`RustHost.host`)
+#[derive(Clone, Debug, PartialEq)]
+pub struct TableRules {
+    /// each player's starting life (`Game.getStartingLife`)
+    pub starting_life: i32,
+    /// mulligans that don't cost a card (`Mulligan.getFreeMulligans`)
+    pub free_mulligans: u32,
+    /// the AI seat's skill, 1 to 10 (`TableController.skillOf`); none: the AI's full search
+    pub ai_skill: Option<u32>,
+}
+
+impl Default for TableRules {
+    fn default() -> Self {
+        TableRules { starting_life: 20, free_mulligans: 0, ai_skill: None }
+    }
+}
+
+impl TableRules {
+    /// The JSON `HOST_GAME` carries them as (`startingLife`, `freeMulligans`, `aiSkill`); a missing one is the default
+    pub fn of(v: &Value) -> TableRules {
+        let d = TableRules::default();
+        TableRules {
+            starting_life: v["startingLife"].as_i64().map(|n| n as i32).unwrap_or(d.starting_life),
+            free_mulligans: v["freeMulligans"].as_u64().map(|n| n as u32).unwrap_or(d.free_mulligans),
+            ai_skill: v["aiSkill"].as_u64().map(|n| n as u32),
+        }
+    }
+
+    pub fn json(&self) -> Value {
+        json!({"startingLife": self.starting_life, "freeMulligans": self.free_mulligans, "aiSkill": self.ai_skill})
+    }
+
+    /// The AI's search for its skill: Java's AI looks less far at a lower skill (`ComputerPlayer6.maxDepth`); the
+    /// lowest skills play the quick answers only
+    pub fn ai_config(&self) -> Option<Config> {
+        let full = Config::default();
+        match self.ai_skill {
+            None => Some(full),
+            Some(0..=1) => None,
+            Some(2..=3) => Some(Config { budget: full.budget / 5, width: 5, ..full }),
+            Some(4..=5) => Some(Config { budget: full.budget / 2, width: 8, ..full }),
+            Some(_) => Some(full),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Start {
     pub game_id: String,
     pub seed: i64,
     pub seats: Vec<SeatStart>,
+    /// starting life, free mulligans, the AI's skill
+    pub rules: TableRules,
     /// the table's priority timer
     pub timer: Timer,
     /// the player id of who chooses who plays first: in a match, the previous game's loser; none for a random seat
@@ -95,6 +144,9 @@ pub struct Ended {
     pub reason: String,
     /// each seat's priority time left in seconds, for the match's next game; none without a timer
     pub time_left: [Option<u32>; 2],
+    /// what Java needs of the game's end besides the result: each seat's life and poison (`players`, by seat) and the
+    /// human's Career tally (`tally`, `tally.rs`); null when the game never started
+    pub summary: Value,
 }
 
 pub struct HostedGame {
@@ -227,6 +279,9 @@ struct Host {
     asking: Option<Seat>,
     /// the seat whose time ran out (it lost)
     timed_out: Option<Seat>,
+    /// the events the client was sent (or that it had no use for) so far, as the engine recorded them
+    events_sent: Vec<playmat_engine::state::GameEvent>,
+    free_mulligans: u32,
 }
 
 impl Host {
@@ -234,6 +289,10 @@ impl Host {
         let human = start.seats.iter().position(|s| s.human).unwrap_or(0);
         let ai = 1 - human;
         let mut game = Game::new(2, JavaRandom::new(start.seed).state());
+        game.starting_life = start.rules.starting_life;
+        for seat in 0..2 {
+            game.player_mut(seat).life = start.rules.starting_life;
+        }
         for (seat, s) in start.seats.iter().enumerate() {
             let mut library = Vec::new();
             for (i, name) in s.deck.iter().enumerate() {
@@ -255,7 +314,7 @@ impl Host {
         game.player_mut(human).every_priority = true;
         game.player_mut(human).no_pool_check = !settings.confirm_empty_mana_pool;
         let mut ai_seats = vec![None, None];
-        ai_seats[ai] = Some(Config::default());
+        ai_seats[ai] = start.rules.ai_config();
         let record = start.record.as_ref().and_then(|path| match crate::record::Recorder::create(path, &start) {
             Ok(r) => Some(r),
             Err(e) => {
@@ -293,6 +352,8 @@ impl Host {
             clock: Clock::new(start.timer),
             asking: None,
             timed_out: None,
+            events_sent: Vec::new(),
+            free_mulligans: start.rules.free_mulligans,
         }
     }
 
@@ -326,7 +387,13 @@ impl Host {
     /// The game's events since the last view, as `GameEventView`s for the human (`GameEventFeed.since`): a card
     /// that moved between zones they can't see (another player's draw) carries no identity. None: no new events
     fn take_events(&mut self) -> Option<Value> {
-        let events = self.game.events.as_mut().map(std::mem::take).unwrap_or_default();
+        // the engine's game keeps every event (the host's game is a copy of it as it asks): what's new is what
+        // follows the events sent already; an action taken back took its events back too
+        let all = self.game.events.clone().unwrap_or_default();
+        let same = self.events_sent.iter().zip(&all).take_while(|(a, b)| a == b).count();
+        let mut events = all[same..].to_vec();
+        self.events_sent = all;
+        events.retain(|e| e.kind.shown());
         if events.is_empty() {
             return None;
         }
@@ -351,6 +418,7 @@ impl Host {
                 EventKind::LifeLoss => "LIFE_LOSS",
                 EventKind::Draw => "DRAW",
                 EventKind::Zone => "ZONE",
+                _ => continue,
             };
             let seen = match e.kind {
                 EventKind::Draw => e.player == Some(self.human),
@@ -764,6 +832,7 @@ impl Host {
 
     /// The game's end: who won, `GAME_OVER`
     fn finish(&mut self) -> Ended {
+        let summary = self.summary();
         self.log();
         let (winner, reason) = if let Some(loser) = self.conceded {
             self.inform(format!("<font color='#20B2AA'>{}</font> has conceded.", self.names[loser]));
@@ -791,7 +860,21 @@ impl Host {
         let now = Instant::now();
         self.clock.pause(now);
         let time_left = [self.clock.left_secs(0, now), self.clock.left_secs(1, now)];
-        Ended { winner, turns: self.game.turn, reason, time_left }
+        Ended { winner, turns: self.game.turn, reason, time_left, summary }
+    }
+
+    /// The end's `summary` (`Ended`), the tally counted from the game's whole history
+    fn summary(&mut self) -> Value {
+        let mut tally = crate::tally::Tally::new(self.human, self.game.starting_life);
+        tally.watch(&self.game, self.game.events.as_deref().unwrap_or_default());
+        let players: Vec<Value> = (0..2)
+            .map(|s| {
+                let p = self.game.player(s);
+                let poison: i32 = p.counters.iter().filter(|(n, _)| n == "poison").map(|(_, k)| *k).sum();
+                json!({"life": p.life, "poison": poison})
+            })
+            .collect();
+        json!({"players": players, "tally": tally.report(&self.game)})
     }
 
     fn over(&mut self, _winner: Option<Seat>, message: &str) {
@@ -838,14 +921,17 @@ impl Host {
     fn mulligans(&mut self, first: Seat) -> bool {
         let mut kept = [false, false];
         let mut taken = [0usize, 0usize];
+        // `LondonMulligan`: the first free ones keep the hand's size
+        let free = self.free_mulligans as usize;
+        let size_after = |taken: usize| 7usize.saturating_sub(taken.saturating_sub(free));
         while !(kept[0] && kept[1]) {
             let mut going = Vec::new();
             for seat in [first, 1 - first] {
                 if kept[seat] {
                     continue;
                 }
-                let size = 7usize.saturating_sub(taken[seat] + 1);
-                let wants = if taken[seat] >= 6 {
+                let size = size_after(taken[seat] + 1);
+                let wants = if size_after(taken[seat]) == 0 {
                     false
                 } else if seat == self.human {
                     match self.ask(prompts::mulligan(size), &|_, c| match c {
@@ -856,7 +942,7 @@ impl Host {
                         _ => return false,
                     }
                 } else {
-                    ai_mulligans(&self.game, seat, taken[seat])
+                    ai_mulligans(&self.game, seat, taken[seat].saturating_sub(free))
                 };
                 let name = self.names[seat].clone();
                 if wants {
@@ -869,7 +955,8 @@ impl Host {
             }
             for seat in going {
                 taken[seat] += 1;
-                let size = 7 - taken[seat];
+                let size = size_after(taken[seat]);
+                let for_free = taken[seat] <= free;
                 let hand = std::mem::take(&mut self.game.player_mut(seat).hand);
                 for id in &hand {
                     self.game.obj_mut(*id).zone = Zone::Library;
@@ -880,7 +967,12 @@ impl Host {
                 self.game.player_mut(seat).library = library;
                 rules::draw(&mut self.game, seat, 7);
                 let name = self.names[seat].clone();
-                self.inform(format!("<font color='#20B2AA'>{name}</font> mulligans down to {size} cards"));
+                if for_free {
+                    self.inform(format!("<font color='#20B2AA'>{name}</font> mulligans for free."));
+                } else {
+                    let cards = if size == 1 { "card" } else { "cards" };
+                    self.inform(format!("<font color='#20B2AA'>{name}</font> mulligans down to {size} {cards}"));
+                }
                 // the cards over the new size go to the bottom, one at a time
                 while self.game.player(seat).hand.len() > size {
                     let more = self.game.player(seat).hand.len() - size;

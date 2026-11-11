@@ -126,7 +126,7 @@ public final class RustHost {
      * @param chooser who chooses who plays first (a match's last loser), or null for a random player
      */
     static boolean host(ManagerFactory managers, UUID tableId, Match match, Map<UUID, UUID> userPlayerMap,
-                        GameOptions options, UUID chooser) {
+                        GameOptions options, UUID chooser, java.util.function.Function<UUID, Integer> skillOf) {
         try {
             Game game = match.getGame();
             if (!enabled() || game == null || userPlayerMap.size() != 1) {
@@ -146,6 +146,8 @@ public final class RustHost {
                 why = "a Career table";
             } else if (!user.get().hostsGames()) {
                 why = "the player isn't connected through a gateway that hosts games";
+            } else {
+                why = unplayedOption(match, game);
             }
             if (why != null) {
                 logger.info("Rust host: " + user.get().getName() + "'s game stays on Java: " + why);
@@ -153,6 +155,7 @@ public final class RustHost {
             }
             List<String> names = new ArrayList<>();
             JsonArray seats = new JsonArray();
+            Integer aiSkill = null;
             for (MatchPlayer p : match.getPlayers()) {
                 Player player = game.getPlayer(p.getPlayer().getId());
                 if (p.getDeck() == null || player == null) {
@@ -179,6 +182,16 @@ public final class RustHost {
                     names.add(c.getName());
                 }
                 seat.add("deck", deck);
+                for (Card c : p.getDeck().getSideboard()) {
+                    if (c.getAbilities().stream().anyMatch(a -> a instanceof mage.abilities.keyword.CompanionAbility)) {
+                        logger.info("Rust host: " + user.get().getName() + "'s game stays on Java: a companion ("
+                                + c.getName() + ")");
+                        return false;
+                    }
+                }
+                if (!isHuman && skillOf != null && skillOf.apply(player.getId()) != null) {
+                    aiSkill = skillOf.apply(player.getId());
+                }
                 seat.add("printings", printings);
                 if (isHuman) {
                     seat.add("userData", JsonCodec.GSON.toJsonTree(user.get().getUserData()));
@@ -201,6 +214,12 @@ public final class RustHost {
                 data.addProperty("chooser", chooser.toString());
             }
             data.add("seats", seats);
+            // the table's options the host plays by (the others keep the game on Java: unplayedOption)
+            data.addProperty("startingLife", game.getStartingLife());
+            data.addProperty("freeMulligans", game.getMulligan().getFreeMulligans());
+            if (aiSkill != null) {
+                data.addProperty("aiSkill", aiSkill);
+            }
             // the match's priority timer, which the host runs as GameController does (0: none)
             data.addProperty("priorityTime", match.getOptions().getMatchTimeLimit().getPrioritySecs());
             data.addProperty("bufferTime", match.getOptions().getMatchBufferTime().getBufferSecs());
@@ -223,6 +242,30 @@ public final class RustHost {
     }
 
     /**
+     * Why a game stays on Java for an option the host doesn't play, or null: another game type than a plain duel
+     * (Commander, Brawl… have a command zone), a mulligan other than London, another starting hand size, emblems or
+     * planes the table adds.
+     */
+    static String unplayedOption(Match match, Game game) {
+        mage.game.match.MatchOptions o = match.getOptions();
+        if (o.getGameType() != null && !o.getGameType().equals("Two Player Duel")) {
+            return "its game type (" + o.getGameType() + ")";
+        }
+        mage.game.mulligan.Mulligan mulligan = game.getMulligan();
+        if (!(mulligan instanceof mage.game.mulligan.LondonMulligan)
+                || mulligan instanceof mage.game.mulligan.SmoothedLondonMulligan) {
+            return "its mulligan (" + (mulligan == null ? "none" : mulligan.getClass().getSimpleName()) + ")";
+        }
+        if (o.isCustomStartHandSizeEnabled() && o.getCustomStartHandSize() != 7) {
+            return "its starting hand size";
+        }
+        if (o.isPlaneChase() || !o.getPerPlayerEmblemCards().isEmpty() || !o.getGlobalEmblemCards().isEmpty()) {
+            return "its planes or emblems";
+        }
+        return null;
+    }
+
+    /**
      * A user who reconnects gets the start of each hosted game they're in again, as {@link User#onReconnect} sends
      * the games Java plays; the client joins it, and the gateway moves the game's callbacks to the new connection.
      */
@@ -241,14 +284,16 @@ public final class RustHost {
 
     /**
      * The host's report of a game's end: the game ends here with that result, and the table goes on as after a game
-     * Java played (the match's result, the table's end). The Career doesn't pay hosted games yet (GameHost.md, step F).
+     * Java played (the match's result, the table's end, the Career's pay from the host's tally).
      *
      * @param timeLeft each player's priority time left in seconds, by player id, for the match's next game; null
      *                 without a timer
+     * @param summary  each seat's life and poison at the end ({@code players}, by seat) and the human's Career tally
+     *                 ({@code tally}); null when the game never started
      * @return false when the game isn't hosted or the token is wrong
      */
     public static boolean ended(UUID gameId, String token, String winner, int turns, String reason,
-                                JsonObject timeLeft) {
+                                JsonObject timeLeft, JsonObject summary) {
         Hosted hosted = HOSTED.get(gameId);
         if (hosted == null || token == null || !hosted.token.equals(token) || !HOSTED.remove(gameId, hosted)) {
             return false;
@@ -265,7 +310,27 @@ public final class RustHost {
                 }
             }
         }
+        if (summary != null) {
+            summarize(hosted, summary);
+        }
         return end(gameId, hosted, winner, turns, reason);
+    }
+
+    /**
+     * The host's end summary: the human's Career tally, kept for the game's end as the game's watcher would have left
+     * it, so the table pays the game as one Java played. (Java's copy of the game isn't touched: its life totals are
+     * the start's, which nothing reads at the end; the Career reads the tally's own.)
+     */
+    static void summarize(Hosted hosted, JsonObject summary) {
+        try {
+            if (summary.has("tally") && summary.get("tally").isJsonObject()
+                    && !Main.isTestMode()
+                    && mage.server.career.CareerService.enabled(hosted.managers.configSettings().isAuthenticationActivated())) {
+                mage.server.career.CareerTally.fromHost(hosted.game.getId(), hosted.playerId, summary.getAsJsonObject("tally"));
+            }
+        } catch (RuntimeException e) {
+            logger.warn("Rust host: game " + hosted.game.getId() + "'s end summary: " + e, e);
+        }
     }
 
     /**
