@@ -4382,10 +4382,27 @@ fn discard_card(game: &mut Game, seat: Seat, c: ObjId) {
     game.move_to(c, Zone::Graveyard);
 }
 
-/// `PlayerImpl.searchLibrary` with `TargetCardInLibrary.choose`: the whole library is shown and the player picks
-/// cards of the filter (PICK_TARGET each), never automatically. Fewer than the least is fine when fewer match; only a
-/// search for any card at all can't be left empty. None: stopped.
+/// `PlayerImpl.searchLibrary` with `TargetCardInLibrary.choose`: the whole library is shown (sorted by name,
+/// `Game::searching`) and the player picks cards of the filter (PICK_TARGET each), never automatically. Fewer than
+/// the least is fine when fewer match; only a search for any card at all can't be left empty. None: stopped.
 fn search_library(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    filter: &crate::card::Filter,
+    min: usize,
+    max: usize,
+    source: ObjId,
+) -> Option<Vec<ObjId>> {
+    let mut shown = game.player(seat).library.clone();
+    shown.sort_by(|a, b| game.obj(*a).name().cmp(game.obj(*b).name()));
+    game.searching = Some((shown, Vec::new()));
+    let chosen = search_library_cards(game, d, seat, filter, min, max, source);
+    game.searching = None;
+    chosen
+}
+
+fn search_library_cards(
     game: &mut Game,
     d: &mut dyn Decider,
     seat: Seat,
@@ -4407,6 +4424,9 @@ fn search_library(
         loop {
             let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
             let must = required && chosen.len() < min && !left.is_empty();
+            if let Some((_, so_far)) = &mut game.searching {
+                so_far.clone_from(&chosen);
+            }
             match ask(game, d, seat, &Query::Cards { objs: left.clone(), required: must }) {
                 Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
                 Answer::Obj(o) if left.contains(&o) => {
@@ -13551,5 +13571,35 @@ mod tests {
             game.player_mut(k % 2).life -= 1;
         }
         assert!(!game.over && game.loop_declined == 0);
+    }
+
+    /// Picks the first card it may, and keeps what the search showed.
+    struct Searcher(Vec<(usize, usize)>);
+
+    impl Decider for Searcher {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            if let (Query::Cards { objs, .. }, Some((shown, chosen))) = (query, &game.searching) {
+                self.0.push((shown.len(), chosen.len()));
+                if let Some(o) = objs.first() {
+                    return Answer::Obj(*o);
+                }
+            }
+            Passer.answer(game, seat, query)
+        }
+    }
+
+    #[test]
+    fn a_library_search_shows_the_whole_library_sorted() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 5), ("Bear Cub", 5)]);
+        let source = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        let filter = crate::card::Filter(vec![crate::card::Pred::Type { t: CardType::Creature }]);
+        let library = game.player(0).library.len();
+        let mut d = Searcher(Vec::new());
+        let found = search_library(&mut game, &mut d, 0, &filter, 0, 2, source).unwrap();
+        assert_eq!(found.len(), 2);
+        assert!(found.iter().all(|c| game.obj(*c).name() == "Bear Cub"));
+        assert_eq!(d.0, vec![(library, 0), (library, 1)]);
+        assert!(game.searching.is_none());
     }
 }

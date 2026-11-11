@@ -601,6 +601,10 @@ pub struct Game {
     /// size after the last resolution, the players' life when the count started, the count (reset at each priority
     /// round) and how many times in a row the players declined to call it a draw
     pub loop_sources: Vec<ObjId>,
+    /// while a library is searched (`TargetCardInLibrary.choose`): the whole library as the client is shown it,
+    /// sorted by name, and the cards chosen so far. The question's cards are the ones that can still be picked
+    /// (Java's `possibleTargets`).
+    pub searching: Option<(Vec<ObjId>, Vec<ObjId>)>,
     pub loop_stack: usize,
     pub loop_lives: Option<Vec<i32>>,
     pub loop_count: u32,
@@ -755,6 +759,7 @@ impl Game {
             attach_clock: 0,
             step_start: false,
             loop_sources: Vec::new(),
+            searching: None,
             loop_stack: 0,
             loop_lives: None,
             loop_count: 0,

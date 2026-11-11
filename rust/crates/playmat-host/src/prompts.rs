@@ -51,6 +51,21 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
             } else {
                 format!("Select a card{}", about(game))
             };
+            // a library search shows the whole library; only the cards of the filter can be picked, and the ones
+            // chosen so far can be picked again to take them back (`HumanPlayer.chooseTarget`'s options)
+            if let Some((shown, chosen)) = &game.searching {
+                let possible: Vec<ObjId> =
+                    shown.iter().copied().filter(|c| objs.contains(c) || chosen.contains(c)).collect();
+                let mut options = Map::new();
+                options.insert("queryType".into(), json!("PICK_TARGET"));
+                options.insert("chosenTargets".into(), json!(refs(game, chosen)));
+                if !possible.is_empty() {
+                    options.insert("possibleTargets".into(), json!(refs(game, &possible)));
+                }
+                return json!({"method": "GAME_TARGET", "data": {
+                    "message": text, "flag": required, "cardsView1": cards_view(game, shown),
+                    "targets": refs(game, &possible), "min": 0, "max": 0, "options": options}});
+            }
             json!({"method": "GAME_TARGET", "data": {
                 "message": text, "flag": required, "cardsView1": cards_view(game, objs),
                 "targets": refs(game, objs), "min": 0, "max": 0, "options": {"queryType": "PICK_TARGET"}}})
@@ -217,5 +232,20 @@ mod tests {
         assert_eq!(choices[&format!("{r}sm0")], "discard a card. If you do, draw a card.");
         assert_eq!(choices[&format!("{r}sm1")], "exile up to one target card from a graveyard.");
         assert!(crate::ids::is_ref(&format!("{r}sm1")));
+    }
+
+    /// A library search shows the whole library, with only the cards of the filter to pick
+    #[test]
+    fn a_library_search_shows_the_whole_library() {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "10 Plains\n10 Llanowar Elves");
+        let mut game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let library = game.players[0].library.clone();
+        let plains: Vec<ObjId> = library.iter().copied().filter(|c| game.obj(*c).name() == "Plains").collect();
+        game.searching = Some((library.clone(), vec![plains[0]]));
+        let p = prompt(&game, 0, &Query::Cards { objs: plains[1..].to_vec(), required: false });
+        assert_eq!(p["data"]["cardsView1"].as_object().unwrap().len(), library.len());
+        assert_eq!(p["data"]["options"]["possibleTargets"].as_array().unwrap().len(), plains.len());
+        assert_eq!(p["data"]["options"]["chosenTargets"], json!([reference(&game, plains[0])]));
     }
 }
