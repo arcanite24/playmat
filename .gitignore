@@ -69,6 +69,7 @@ mage-bundle.zip
 
 # personal notes
 /TODO.md
+/PROMO.md
 
 # design review screenshots (regenerate with node e2e/review-shots.mjs)
 Mage.Web.Client/.impeccable/review/
@@ -76,3 +77,6 @@ Mage.Web.Client/.impeccable/review/
 # local agent and editor config
 .agent/
 .claude/
+
+# local-only working files (screenshots for posts, etc.)
+/.local/
