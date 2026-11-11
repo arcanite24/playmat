@@ -293,6 +293,8 @@ impl Host {
         let names: Vec<&str> = self.names.iter().map(String::as_str).collect();
         let v = game_view(&self.game, self.human, &names);
         let mut v = self.ids.map(&self.game, v);
+        // which engine plays the game (Java's views have none): the client shows that the Rust engine does
+        v["engine"] = json!("rust");
         if let Some(Value::Array(players)) = v.get_mut("players") {
             for (seat, p) in players.iter_mut().enumerate() {
                 p["isHuman"] = json!(seat == self.human);

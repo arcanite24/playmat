@@ -7,6 +7,14 @@ import type { Catalog } from './locales';
  */
 const es: Catalog = {
   // match keyboard help
+  'match.engine.rust': 'Motor Rust',
+  'match.engine.beta': 'Beta',
+  'match.engine.rust.tooltip': 'Esta partida corre en el motor Rust de Playmat (beta).',
+  'match.engine.notice.title': 'Jugando en el motor Rust',
+  'match.engine.notice.body': 'Esta partida corre en el nuevo motor Rust de Playmat en lugar del de Java. Es más rápido, pero es nuevo: si una carta o una pregunta se comporta raro, avísanos.',
+  'match.engine.notice.settings': 'Puedes desactivarlo en Ajustes → Juego.',
+  'match.engine.notice.dontShow': 'No volver a mostrar',
+  'match.engine.notice.ok': 'Entendido',
   'match.shortcuts.title': "Atajos de teclado",
   'match.shortcuts.primaryKeys': "Espacio / Intro",
   'match.shortcuts.primary': "Usa la acción principal (excepto en preguntas de sí o no) o activa una carta o botón al que llegaste con el teclado.",
@@ -381,6 +389,9 @@ const es: Catalog = {
   'settings.autoAssignDamage.detail': "Cuando solo un reparto de daño tiene sentido, se asigna sin preguntar.",
   'settings.autoAssignTrample': "Asignar el daño de arrollar por mí",
   'settings.autoAssignTrample.detail': "Arrollar hace daño letal a los bloqueadores y el resto al jugador sin preguntar.",
+  'settings.rustEngine': 'Jugar en el motor Rust',
+  'settings.rustEngine.detail': 'Los duelos contra la IA corren en el nuevo motor Rust de Playmat cuando todas las cartas de ambos mazos están soportadas; los demás siguen en Java. Una etiqueta en el tablero muestra cuándo está activo.',
+  'settings.beta': 'Beta',
   'settings.hideStarterDecks': 'Ocultar mazos iniciales',
   'settings.hideStarterDecks.detail': 'Oculta los mazos iniciales en tu biblioteca y al elegir mazo. Las copias guardadas siguen visibles. Los oponentes de IA aleatorios aún pueden usarlos.',
   'settings.sortHand': "Ordenar mi mano",

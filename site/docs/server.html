@@ -190,6 +190,12 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           game also leaves a record in <code>saved/host-games</code> (the last 500, <code>XMAGE_RUST_HOST_RECORDS_KEEP</code>),
           so a game a player reports can be played again exactly. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-hosted-games">the README</a>.</p>
+        <h3 id="rust-opt-in">Can players turn the Rust engine on themselves?</h3>
+        <p>Yes, with <code>XMAGE_RUST_OPT_IN=on</code> (it also needs <code>XMAGE_GATEWAY=on</code>). Each player then
+          gets a "Play on the Rust engine" switch in Settings → Gameplay, off until they turn it on. Their games that
+          qualify, the same ones as above, are played by the Rust engine; the rest stay on Java. A game on the Rust
+          engine shows a "Rust engine" chip on the board and a short note as it starts. The players listed in
+          <code>XMAGE_RUST_HOST_USERS</code> keep it on whatever their switch says.</p>
         <h3 id="desktop">Can the XMage desktop client connect?</h3>
         <p>No. Playmat servers speak only to the web client (and the Android and desktop apps, which are the web client).
           The desktop client's protocol was removed to make the move to Rust possible.</p>

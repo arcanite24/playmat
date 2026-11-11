@@ -52,6 +52,8 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
   const tokenChoices = useTokenArt((state) => state.choices);
   const chooseToken = useTokenArt((state) => state.choose);
   const career = useServerInfo().data?.career === true;
+  // the Rust engine opt-in: servers that offer it only
+  const rustEngine = useServerInfo().data?.rustEngine === true;
   // progression shows or hides per account, on every device (B283, B312)
   const careerState = useQuery<CareerState>({ queryKey: ['career', 'state'], queryFn: () => api.careerState(), enabled: career && accounts });
   const showProgress = careerState.data?.profile ? careerState.data.profile.showProgress !== false : null;
@@ -118,6 +120,11 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               })}
             </div>
           </div>
+          {rustEngine && (
+            <Row label={<>{t('settings.rustEngine')} <span className={styles.beta}>{t('settings.beta')}</span></>} detail={t('settings.rustEngine.detail')}>
+              {toggle('rustEngine')}
+            </Row>
+          )}
           <Row label={t('settings.autoPass')} detail={t('settings.autoPass.detail')}>{toggle('autoPass')}</Row>
           <Row label={t('settings.theirTurn')} detail={t('settings.theirTurn.detail')}>{toggle('abilitiesOnTheirTurn')}</Row>
           <Row label={t('settings.skipCombat')} detail={t('settings.skipCombat.detail')}>{toggle('autoSkipCombat')}</Row>
@@ -618,7 +625,7 @@ function PictureStoreRow() {
   );
 }
 
-function Row({ label, detail, children }: { label: string; detail?: string; children: React.ReactNode }) {
+function Row({ label, detail, children }: { label: React.ReactNode; detail?: string; children: React.ReactNode }) {
   return (
     <div className={styles.row}>
       <div>

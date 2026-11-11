@@ -144,7 +144,7 @@ practice tools; puzzle export; replays; spectators; multiplayer and Commander.
 | B. Fidelity | Fix what the stop log reports. All 24 meta decks in the engine, with shadow games for each pairing | A week of production AI games whose decks qualify with the copy following 99% to the end, every stop reason understood |
 | C. Views | View, prompt and game log rendering, compared in production against Java's ([Views.md](Views.md)) | Zero view, prompt and log differences on a week of real games |
 | D. Human side and host | Skip settings and F-keys, timers, mulligans, concede, reconnect; the host service and the gateway route | `rustAi.live.test.ts` and the conformance suite pass against a Rust-hosted game; the user plays a set of games locally |
-| E. Rollout | `XMAGE_RUST_HOST_USERS` (step D's setting: listed users, or `*`) for listed users, then every AI duel that qualifies | A week for the listed users with no game lost to the host (`playmat_gateway_host_games_ended_total` with `how` `error` or `panic` at 0); then the default |
+| E. Rollout | `XMAGE_RUST_HOST_USERS` (step D's setting: listed users, or `*`) for listed users; `XMAGE_RUST_OPT_IN=on` for players who turn it on in Settings (`UserData.useRustEngine`; hosted views carry `engine: "rust"`, which the client shows as a chip and a note); then every AI duel that qualifies | A week for the listed users with no game lost to the host (`playmat_gateway_host_games_ended_total` with `how` `error` or `panic` at 0); then the default |
 | F. Then | Career tally checked, best-of-three games (built, [Matches](#step-d-the-host)), more of the Pioneer pool, the features left on Java | Per feature |
 
 Steps B and C can run side by side: both use the copy production already runs.

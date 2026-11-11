@@ -60,6 +60,8 @@ services:
       XMAGE_RUST_AI_USERS: ${XMAGE_RUST_AI_USERS:-}
       # the Rust engine hosts these users' qualifying AI duels, through the gateway (docs/rust/GameHost.md, step D)
       XMAGE_RUST_HOST_USERS: ${XMAGE_RUST_HOST_USERS:-}
+      # on: players can turn the Rust engine on for themselves in Settings (docs/rust/GameHost.md)
+      XMAGE_RUST_OPT_IN: ${XMAGE_RUST_OPT_IN:-}
       # how many hosted games' records the gateway keeps in saved/host-games (docs/rust/GameHost.md, "Game records")
       XMAGE_RUST_HOST_RECORDS_KEEP: ${XMAGE_RUST_HOST_RECORDS_KEEP:-500}
       XMAGE_ENGINE: ${XMAGE_ENGINE:-}

@@ -20,6 +20,7 @@ import { NO_OFF_ZONE_HOLD, nextOffZoneHold, offZonePlayables, type OffZoneHold }
 import { predict, withPredictedAttack, withPrediction } from '../../core/game/prediction';
 import type { CardView, ChatMessage, GameView, PlayerLook, PlayerView } from '../../protocol/generated/views';
 import { rosterOf, sleeveFor, SLEEVE_COLORS, useDecks } from '../stores/decks';
+import { EngineBadge } from './EngineBadge';
 import { useT } from '../i18n';
 import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
@@ -701,6 +702,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
               </p>
             )}
             {mode === 'play' && <WatcherCount watchers={watchers} className={styles.watchers} />}
+            <EngineBadge gameId={state.gameId} view={view} showNotice={mode === 'play' && !state.gameOver} />
             <GameMenu
               gameId={state.gameId}
               quests={mode === 'play' && !state.gameOver}

@@ -2031,6 +2031,7 @@ export interface ServerInfo {
     ownerPending?: boolean;
 
     registration?: string;
+    rustEngine?: boolean;
     serverName?: string;
     signOn?: string;
     signOnOnly?: boolean;
@@ -2379,6 +2380,7 @@ export interface UserData extends Serializable {
     tourneyHistory?: string;
     tourneyQuitRatio?: number;
     useFirstManaAbility?: boolean;
+    useRustEngine?: boolean;
     useSameSettingsForReplacementEffects?: boolean;
     userIdStr?: string;
     userSkipPrioritySteps?: UserSkipPrioritySteps;

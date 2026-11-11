@@ -291,6 +291,7 @@ starts, it hands the game to the gateway, which plays it and reports the result 
 | Variable | Default | Meaning |
 |---|---|---|
 | `XMAGE_RUST_HOST_USERS` | none | Comma-separated user names (any case), or `*` for everyone: whose qualifying games the Rust engine hosts. Empty: nobody's. Setting it also turns hosting on in the gateway (`XMAGE_RUST_HOST=on`). |
+| `XMAGE_RUST_OPT_IN` | off | `on`: every player can turn the Rust engine on for themselves in Settings → Gameplay ("Play on the Rust engine", marked beta). Their qualifying games are then hosted as a listed player's are. The board shows a "Rust engine" chip, and the first view of each such game a short note. Setting it also turns hosting on in the gateway. |
 | `XMAGE_RUST_HOST_RECORDS_KEEP` | `500` | How many hosted games' records the gateway keeps in `saved/host-games` (the `xmage-saved` volume); the oldest go first. |
 | `XMAGE_ENGINE` | | `java` keeps every game on Java. |
 

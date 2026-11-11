@@ -398,7 +398,8 @@ if [ "$GATEWAY" = on ]; then
     # the Career's records, for XMAGE_ROUTE_CAREER and XMAGE_ROUTE_CAREERPROGRESS
     export XMAGE_PLATFORM_CAREER=$DB_DIR/career.db XMAGE_PLATFORM_CAREER_CONTENT=/opt/xmage/career-content
     # the gateway hosts the games Java hands it (XMAGE_RUST_HOST_USERS); XMAGE_ENGINE=java keeps them all on Java
-    if [ -n "${XMAGE_RUST_HOST_USERS:-}" ] && [ "${XMAGE_ENGINE:-}" != java ]; then export XMAGE_RUST_HOST=on; fi
+    case "${XMAGE_RUST_OPT_IN:-}" in on|ON|On|true|TRUE|True) rust_opt_in=1 ;; *) rust_opt_in= ;; esac
+    if { [ -n "${XMAGE_RUST_HOST_USERS:-}" ] || [ -n "$rust_opt_in" ]; } && [ "${XMAGE_ENGINE:-}" != java ]; then export XMAGE_RUST_HOST=on; fi
     # each hosted game's record (its start, the player's answers, the log), to replay a reported game; the last 500
     export XMAGE_RUST_HOST_RECORDS=${XMAGE_RUST_HOST_RECORDS:-$APP/saved/host-games}
     while true; do

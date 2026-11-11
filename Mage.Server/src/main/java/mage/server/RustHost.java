@@ -82,7 +82,21 @@ public final class RustHost {
     }
 
     static boolean enabled() {
-        return !env("XMAGE_RUST_HOST_USERS").isEmpty() && !"java".equalsIgnoreCase(env("XMAGE_ENGINE"));
+        return (!env("XMAGE_RUST_HOST_USERS").isEmpty() || optIn()) && !"java".equalsIgnoreCase(env("XMAGE_ENGINE"));
+    }
+
+    /**
+     * Whether players can opt in ({@code XMAGE_RUST_OPT_IN=on}): a player who turned the Rust engine on in their
+     * settings ({@code UserData.useRustEngine}) has their qualifying games played by it, as a listed one does
+     */
+    public static boolean optIn() {
+        String v = env("XMAGE_RUST_OPT_IN");
+        return ("on".equalsIgnoreCase(v) || "true".equalsIgnoreCase(v)) && !"java".equalsIgnoreCase(env("XMAGE_ENGINE"));
+    }
+
+    /** a listed player ({@code XMAGE_RUST_HOST_USERS}), or one who opted in where the server allows it */
+    static boolean forUser(User user) {
+        return forUser(user.getName()) || optIn() && user.getUserData() != null && user.getUserData().isUseRustEngine();
     }
 
     static boolean forUser(String name) {
@@ -120,7 +134,7 @@ public final class RustHost {
             }
             Map.Entry<UUID, UUID> human = userPlayerMap.entrySet().iterator().next();
             Optional<User> user = managers.userManager().getUser(human.getKey());
-            if (!user.isPresent() || !forUser(user.get().getName())) {
+            if (!user.isPresent() || !forUser(user.get())) {
                 return false;
             }
             String why = null;
