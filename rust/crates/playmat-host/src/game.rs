@@ -47,11 +47,13 @@ pub struct TableRules {
     pub free_mulligans: u32,
     /// the AI seat's skill, 1 to 10 (`TableController.skillOf`); none: the AI's full search
     pub ai_skill: Option<u32>,
+    /// players may roll back to the start of a turn (`GameOptions.rollbackTurnsAllowed`)
+    pub rollback: bool,
 }
 
 impl Default for TableRules {
     fn default() -> Self {
-        TableRules { starting_life: 20, free_mulligans: 0, ai_skill: None }
+        TableRules { starting_life: 20, free_mulligans: 0, ai_skill: None, rollback: false }
     }
 }
 
@@ -63,11 +65,13 @@ impl TableRules {
             starting_life: v["startingLife"].as_i64().map(|n| n as i32).unwrap_or(d.starting_life),
             free_mulligans: v["freeMulligans"].as_u64().map(|n| n as u32).unwrap_or(d.free_mulligans),
             ai_skill: v["aiSkill"].as_u64().map(|n| n as u32),
+            rollback: v["rollbackTurns"].as_bool().unwrap_or(d.rollback),
         }
     }
 
     pub fn json(&self) -> Value {
-        json!({"startingLife": self.starting_life, "freeMulligans": self.free_mulligans, "aiSkill": self.ai_skill})
+        json!({"startingLife": self.starting_life, "freeMulligans": self.free_mulligans, "aiSkill": self.ai_skill,
+               "rollbackTurns": self.rollback})
     }
 
     /// The AI's search for its skill: Java's AI looks less far at a lower skill (`ComputerPlayer6.maxDepth`); the
@@ -282,6 +286,16 @@ struct Host {
     asking: Option<Seat>,
     /// the seat whose time ran out (it lost)
     timed_out: Option<Seat>,
+    /// the game before the mana the human made at priority since they last did anything else, for "Undo tap"
+    /// (`PlayerImpl.storedBookmark`)
+    undo_point: Option<Game>,
+    /// each turn's game at its first priority, for a rollback (`GameImpl.gameStatesRollBack`, the last few)
+    turn_starts: std::collections::BTreeMap<u32, Game>,
+    rollback: bool,
+    /// the game the engine plays on from instead (an undo, a rollback): the question being asked is dropped
+    restart: Option<Game>,
+    /// the human is being asked at priority
+    at_priority: bool,
     /// what the human last did at priority (`PlayerImpl.justActivatedType`): the object they played and the stack's
     /// size then, for "pass priority after casting / activating"
     just_played: Option<(ObjId, usize)>,
@@ -319,6 +333,7 @@ impl Host {
         // the host decides when the human is asked
         game.player_mut(human).every_priority = true;
         game.player_mut(human).no_pool_check = !settings.confirm_empty_mana_pool;
+        pool_payment(&game, human, &settings);
         let mut ai_seats = vec![None, None];
         ai_seats[ai] = start.rules.ai_config();
         let record = start.record.as_ref().and_then(|path| match crate::record::Recorder::create(path, &start) {
@@ -368,6 +383,11 @@ impl Host {
             timed_out: None,
             events_sent: Vec::new(),
             just_played: None,
+            undo_point: None,
+            turn_starts: std::collections::BTreeMap::new(),
+            rollback: start.rules.rollback,
+            restart: None,
+            at_priority: false,
             free_mulligans: start.rules.free_mulligans,
         }
     }
@@ -395,7 +415,12 @@ impl Host {
             for (seat, p) in players.iter_mut().enumerate() {
                 p["isHuman"] = json!(seat == self.human);
             }
+            // "Undo tap" (`PlayerView.statesSavedSize`): mana made at priority can be taken back
+            if let Some(p) = players.get_mut(self.human) {
+                p["statesSavedSize"] = json!(usize::from(self.undo_point.is_some()));
+            }
         }
+        v["rollbackTurnsAllowed"] = json!(self.rollback);
         v
     }
 
@@ -725,12 +750,33 @@ impl Host {
                         self.conceded = Some(self.human);
                         return None;
                     }
+                    "UNDO" => {
+                        // `GameImpl.undo`: the mana made since the last action is taken back
+                        if self.at_priority {
+                            if let Some(g) = self.undo_point.take() {
+                                self.restart = Some(g);
+                                return None;
+                            }
+                        }
+                        continue;
+                    }
+                    "ROLLBACK_TURNS" => {
+                        if self.at_priority && self.roll_back(data.as_ref()) {
+                            return None;
+                        }
+                        continue;
+                    }
                     a if a.starts_with("REQUEST_AUTO_ANSWER_") => {
                         self.auto_answer(a, data.as_ref());
                         continue;
                     }
                     a if a.starts_with("TRIGGER_AUTO_ORDER_") => {
                         self.trigger_order(a, data.as_ref());
+                        continue;
+                    }
+                    a if self.settings.press(a) => {
+                        // `GameImpl.setManaPaymentMode` (the engine's game shares it with this copy)
+                        pool_payment(&self.game, self.human, &self.settings);
                         continue;
                     }
                     a => {
@@ -753,6 +799,32 @@ impl Host {
             // an answer that doesn't fit: the question again (as Java re-asks)
             self.send_open();
         }
+    }
+
+    /// `GameController`'s `ROLLBACK_TURNS` against the AI (nobody else to ask): back to the start of the turn the data
+    /// says, so many turns ago (0: this one); true when the game goes back
+    fn roll_back(&mut self, data: Option<&Value>) -> bool {
+        let back = data.and_then(Value::as_u64).unwrap_or(0) as u32;
+        let turn = self.game.turn.saturating_sub(back);
+        let state = if self.rollback && turn > 0 { self.turn_starts.get(&turn).cloned() } else { None };
+        let Some(state) = state else {
+            self.inform_human("That turn is not available for rollback.");
+            return false;
+        };
+        // `GameImpl.rollbackTurnsExecution`
+        self.inform(format!("<font color='#FF8C00'>Player request: Rolling back to start of turn {turn}</font>"));
+        self.turn_starts.split_off(&(turn + 1));
+        self.undo_point = None;
+        self.restart = Some(state);
+        true
+    }
+
+    /// A line in the human's game log only (`Game.informPlayer`)
+    fn inform_human(&mut self, line: &str) {
+        let turn = format!("T{}.{}", self.game.turn, self.game.step.map(|s| s.name().to_string()).unwrap_or_default());
+        let data = json!({"username": "", "message": line, "time": now_ms(), "turnInfo": turn,
+               "color": "BLACK", "messageType": "GAME"});
+        self.send("CHATMESSAGE", &self.chat_id.clone(), data);
     }
 
     /// `PlayerImpl.timerTimeout`: the seat's time ran out, it loses
@@ -849,6 +921,17 @@ impl Host {
                 game.priority = Some(first);
                 rules::play_from_priority(&mut game, &mut d, 0);
             }
+        }
+        // an undo or a rollback: the engine plays on from the game it goes back to, from its priority question
+        while let Some(back) = self.restart.take() {
+            if self.conceded.is_some() {
+                break;
+            }
+            game = back;
+            self.game = game.clone();
+            self.update();
+            let mut d = HostDecider { host: self };
+            rules::play_from_priority_question(&mut game, &mut d, 0);
         }
         self.game = game;
         self.finish()
@@ -1039,8 +1122,15 @@ struct HostDecider<'a> {
 impl Decider for HostDecider<'_> {
     fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
         let h = &mut *self.host;
-        if h.conceded.is_some() {
+        if h.conceded.is_some() || h.restart.is_some() {
             return Answer::Stop;
+        }
+        // each turn's first priority, for a rollback (`GameImpl.saveRollBackGameState`, the last four turns)
+        if h.rollback && matches!(q, Query::Priority { .. }) && !h.turn_starts.contains_key(&game.turn) {
+            h.turn_starts.insert(game.turn, game.clone());
+            while h.turn_starts.len() > 5 {
+                h.turn_starts.pop_first();
+            }
         }
         // a turn another player controls (Emrakul, the Promised End): the controller has the player do nothing it
         // needn't; what it must answer, the quick policy answers
@@ -1088,6 +1178,18 @@ impl Decider for HostDecider<'_> {
             if h.passing.passes(game, seat, &h.settings) {
                 h.table.record(game, q, &Answer::Bool(false));
                 return Answer::Bool(false);
+            }
+        }
+        // `useFirstManaAbility`: a permanent with several mana abilities uses its first
+        if let Query::ChooseAbility { source, abilities } = q {
+            let def = &game.obj(*source).def;
+            if h.settings.use_first_mana_ability
+                && abilities.len() > 1
+                && abilities.iter().all(|i| def.abilities.get(*i).is_some_and(is_mana_ability))
+            {
+                let a = Answer::Ability(*source, abilities[0]);
+                h.table.record(game, q, &a);
+                return a;
             }
         }
         if let Query::YesNo { message } = q {
@@ -1140,12 +1242,23 @@ impl Decider for HostDecider<'_> {
         }
         let prompt = prompts::prompt(game, seat, q);
         let q2 = q.clone();
+        h.at_priority = matches!(q, Query::Priority { .. });
         let answer = h.ask(prompt, &|h, c| h.answer_of(&q2, c));
+        h.at_priority = false;
         match answer {
             Some(a) => {
                 h.table.record(game, q, &a);
-                if let (Query::Priority { .. }, Answer::Obj(o) | Answer::Ability(o, _)) = (q, &a) {
-                    h.just_played = Some((*o, game.stack.len()));
+                if let Query::Priority { playable } = q {
+                    if let Answer::Obj(o) | Answer::Ability(o, _) = &a {
+                        h.just_played = Some((*o, game.stack.len()));
+                    }
+                    // a permanent clicked for its mana: undoable until the player does anything else
+                    let mana = matches!(a, Answer::Obj(o) if !playable.contains(&o) && game.battlefield.contains(&o));
+                    if !mana {
+                        h.undo_point = None;
+                    } else if h.undo_point.is_none() {
+                        h.undo_point = Some(game.clone());
+                    }
                 }
                 a
             }
@@ -1161,8 +1274,20 @@ impl Decider for HostDecider<'_> {
     }
 
     fn stopped(&self) -> bool {
-        self.host.conceded.is_some()
+        self.host.conceded.is_some() || self.host.restart.is_some()
     }
+}
+
+/// Whether an ability is a mana ability (its variant's name: `…ManaAbility`)
+fn is_mana_ability(a: &playmat_engine::card::AbilityDef) -> bool {
+    let name = format!("{a:?}");
+    name.split(|c: char| !c.is_alphanumeric()).next().is_some_and(|v| v.ends_with("ManaAbility"))
+}
+
+/// How the player's pool pays (`ManaPool.autoPayment`, `autoPaymentRestricted`): never by itself, by itself once mana
+/// was made for the payment (the engine's stock), or always
+fn pool_payment(game: &Game, seat: Seat, settings: &Settings) {
+    game.set_pool_mode(seat, !settings.pool_automatic, settings.pool_automatic && !settings.pool_restricted);
 }
 
 /// The AI's keep (the Java AI's rule of thumb): two to five lands in seven, fewer cards keep looser

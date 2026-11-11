@@ -221,6 +221,7 @@ public final class RustHost {
             // the table's options the host plays by (the others keep the game on Java: unplayedOption)
             data.addProperty("startingLife", game.getStartingLife());
             data.addProperty("freeMulligans", game.getMulligan().getFreeMulligans());
+            data.addProperty("rollbackTurns", options.rollbackTurnsAllowed);
             if (aiSkill != null) {
                 data.addProperty("aiSkill", aiSkill);
             }

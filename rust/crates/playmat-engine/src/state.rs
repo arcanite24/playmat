@@ -554,7 +554,10 @@ pub enum EventKind {
 impl EventKind {
     /// whether the client gets it (`GameEventView`): the others are the Career tally's
     pub fn shown(self) -> bool {
-        matches!(self, EventKind::Damage | EventKind::LifeGain | EventKind::LifeLoss | EventKind::Draw | EventKind::Zone)
+        matches!(
+            self,
+            EventKind::Damage | EventKind::LifeGain | EventKind::LifeLoss | EventKind::Draw | EventKind::Zone
+        )
     }
 }
 
@@ -575,7 +578,17 @@ pub struct GameEvent {
 
 impl GameEvent {
     pub fn new(kind: EventKind) -> GameEvent {
-        GameEvent { kind, target: None, source: None, player: None, amount: 0, from: None, to: None, combat: false, turn: 0 }
+        GameEvent {
+            kind,
+            target: None,
+            source: None,
+            player: None,
+            amount: 0,
+            from: None,
+            to: None,
+            combat: false,
+            turn: 0,
+        }
     }
 }
 
@@ -587,6 +600,10 @@ pub struct Game {
     pub printings: Arc<Vec<String>>,
     /// each player's life as the game began (`Game.getStartingLife`): 20, or the table's
     pub starting_life: i32,
+    /// how each seat's pool pays (`ManaPool.autoPayment`, `autoPaymentRestricted`), two bits a seat: manual (only the
+    /// type the player unlocks pays), unrestricted (all of the pool pays). Shared by the game's copies, so a player
+    /// who changes it mid-game changes it for the game being played (the host's copy of it, as it asks, sets it)
+    pub pool_modes: Arc<std::sync::atomic::AtomicU32>,
     pub turn: u32,
     /// day (true) or night (false), once a daybound or nightbound permanent appeared
     pub day: Option<bool>,
@@ -757,6 +774,7 @@ impl Game {
         Game {
             rng,
             starting_life: 20,
+            pool_modes: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             turn: 0,
             step: None,
             active: None,
@@ -1292,6 +1310,19 @@ impl Game {
 
     /// Whether a static ability's effect on the battlefield matches (for effects that apply to the whole game).
     /// Keeps a game event, while they're kept
+    /// `seat`'s pool payment: (manual, unrestricted); see `pool_modes`
+    pub fn pool_mode(&self, seat: Seat) -> (bool, bool) {
+        let bits = self.pool_modes.load(std::sync::atomic::Ordering::Relaxed) >> (2 * seat);
+        (bits & 1 != 0, bits & 2 != 0)
+    }
+
+    pub fn set_pool_mode(&self, seat: Seat, manual: bool, unrestricted: bool) {
+        use std::sync::atomic::Ordering;
+        let mask = 3u32 << (2 * seat);
+        let bits = (u32::from(manual) | (u32::from(unrestricted) << 1)) << (2 * seat);
+        let _ = self.pool_modes.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| Some((v & !mask) | bits));
+    }
+
     pub fn record(&mut self, mut event: GameEvent) {
         event.turn = self.turn;
         if let Some(events) = self.events.as_mut() {

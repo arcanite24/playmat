@@ -91,7 +91,10 @@ impl Bot {
                         }
                         let playable = view["canPlayObjects"]["objects"].as_object();
                         for id in hand.keys() {
-                            if self.casts && playable.is_some_and(|p| p.contains_key(id)) && self.tried.insert(id.clone()) {
+                            if self.casts
+                                && playable.is_some_and(|p| p.contains_key(id))
+                                && self.tried.insert(id.clone())
+                            {
                                 return Some(Call::Uuid(Some(id.clone())));
                             }
                         }
@@ -400,7 +403,7 @@ fn the_end_carries_the_humans_career_tally() {
 #[test]
 fn a_tables_starting_life_and_free_mulligans_are_played() {
     let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
-    s.rules = playmat_host::TableRules { starting_life: 30, free_mulligans: 1, ai_skill: Some(3) };
+    s.rules = playmat_host::TableRules { starting_life: 30, free_mulligans: 1, ai_skill: Some(3), rollback: false };
     let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
     game.call(Call::Join);
     let mut asked = 0;
@@ -472,7 +475,8 @@ fn pass_priority_after_casting_passes_unless_held() {
     let deck_a = deck("b-zombies.txt");
     let mut total = (0, 0, 0);
     for seed in 0..4 {
-        let caster = || Bot { tried: HashSet::new(), turn: 0, concede_at: 12, silent: false, casts: true, holds: false };
+        let caster =
+            || Bot { tried: HashSet::new(), turn: 0, concede_at: 12, silent: false, casts: true, holds: false };
         let (_, plain) = play_with(start(&deck_h, &deck_a, seed, None), caster());
         let mut s = start(&deck_h, &deck_a, seed, None);
         s.seats[0].user_data = Some(serde_json::json!({"passPriorityCast": true, "passPriorityActivation": true}));
@@ -485,4 +489,102 @@ fn pass_priority_after_casting_passes_unless_held() {
     assert!(total.0 > 0, "the player is asked again after casting by default");
     assert_eq!(total.1, 0, "never with pass priority after casting on (asked {} times without it)", total.0);
     assert!(total.2 > 0, "holding priority asks again");
+}
+
+/// The human's untapped lands in a question's view
+fn my_untapped_lands(view: &Value) -> Vec<String> {
+    let me = view["myPlayerId"].as_str().unwrap_or("");
+    view["players"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|p| p["playerId"] == me)
+        .flat_map(|p| {
+            p["battlefield"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .filter(|(_, c)| {
+                    c["tapped"] != true && c["cardTypes"].as_array().is_some_and(|t| t.iter().any(|x| x == "LAND"))
+                })
+                .map(|(id, _)| id.clone())
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+fn my_pool(view: &Value) -> i64 {
+    let me = view["myPlayerId"].as_str().unwrap_or("");
+    let p = view["players"].as_array().unwrap().iter().find(|p| p["playerId"] == me).unwrap();
+    ["red", "green", "blue", "white", "black", "colorless"].iter().map(|c| p["manaPool"][c].as_i64().unwrap_or(0)).sum()
+}
+
+fn me_of(view: &Value) -> Value {
+    let me = view["myPlayerId"].as_str().unwrap_or("").to_string();
+    view["players"].as_array().unwrap().iter().find(|p| p["playerId"] == me.as_str()).unwrap().clone()
+}
+
+#[test]
+fn undo_tap_and_rollback_take_the_game_back() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 2, None);
+    s.rules.rollback = true;
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut bot =
+        Bot { tried: HashSet::new(), turn: 0, concede_at: u64::MAX, silent: false, casts: false, holds: false };
+    // 0: playing to a main phase of the human's with an untapped land; 1: tapped it; 2: undone; 3: rolled back
+    let mut stage = 0;
+    let mut turn_at = 0;
+    let mut log = Vec::new();
+    for _ in 0..20_000 {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "CHATMESSAGE" {
+            log.push(e.data["message"].as_str().unwrap_or("").to_string());
+        }
+        assert_ne!(e.method, "GAME_OVER", "the test is done before the game is");
+        let v = &e.data["gameView"];
+        let priority = e.method == "GAME_SELECT" && e.data["message"].as_str().is_some_and(|m| m.starts_with("Play"));
+        if !priority {
+            if let Some(c) = bot.answer(&e) {
+                game.call(c);
+            }
+            continue;
+        }
+        let mine = v["activePlayerId"] == v["myPlayerId"];
+        let main = v["step"].as_str().is_some_and(|s| s.contains("MAIN"));
+        let empty = v["stack"].as_object().is_none_or(|m| m.is_empty());
+        match stage {
+            0 if mine && main && empty && v["turn"].as_u64().unwrap() >= 3 && !my_untapped_lands(v).is_empty() => {
+                assert_eq!(me_of(v)["statesSavedSize"], 0);
+                assert_eq!(v["rollbackTurnsAllowed"], true);
+                stage = 1;
+                game.call(Call::Uuid(Some(my_untapped_lands(v)[0].clone())));
+            }
+            1 => {
+                assert!(my_pool(v) > 0, "the land made mana");
+                assert_eq!(me_of(v)["statesSavedSize"], 1, "it can be undone");
+                stage = 2;
+                game.call(Call::Action("UNDO".into(), None));
+            }
+            2 => {
+                assert_eq!(my_pool(v), 0, "the mana is gone");
+                assert_eq!(me_of(v)["statesSavedSize"], 0);
+                turn_at = v["turn"].as_u64().unwrap();
+                stage = 3;
+                game.call(Call::Action("ROLLBACK_TURNS".into(), Some(serde_json::json!(0))));
+            }
+            3 => {
+                assert_eq!(v["turn"].as_u64().unwrap(), turn_at, "back to the start of the turn");
+                assert!(log.iter().any(|l| l.contains(&format!("Rolling back to start of turn {turn_at}"))), "{log:?}");
+                game.call(Call::Action("CONCEDE".into(), None));
+                return;
+            }
+            _ => {
+                if let Some(c) = bot.answer(&e) {
+                    game.call(c);
+                }
+            }
+        }
+    }
+    panic!("never got to stage 3 (stage {stage})");
 }

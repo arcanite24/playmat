@@ -185,7 +185,8 @@ impl Hosts {
         let rules = playmat_host::TableRules::of(data);
         // the replay goes where Java keeps its games' (XMAGE_HOST_REPLAYS: its xmage.replays.dir), listed at the end
         let replay = self.replays.as_ref().map(|dir| dir.join(format!("{game_id}.ndjson.gz.part")));
-        let start = Start { game_id: game_id.clone(), seed, seats, rules, timer, chooser, record, replay, log_to: None };
+        let start =
+            Start { game_id: game_id.clone(), seed, seats, rules, timer, chooser, record, replay, log_to: None };
         // known before the game starts, so its calls (the client joins at once) wait for it
         let chat_id = playmat_host::ids::Ids::new(&game_id, players.clone()).chat();
         let (calls, calls_in) = std::sync::mpsc::channel();
@@ -213,7 +214,14 @@ impl Hosts {
                             "data": {"message": format!("The game couldn't start on the Rust host: {why}")}});
                         let _ = subscriber.events.send(over);
                         hosts.ended("error: can't start");
-                        handle.spawn(report(java_url, game_id, token, None, 0, format!("error: {why}"), Value::Null, Value::Null));
+                        let end = Report {
+                            winner: None,
+                            turns: 0,
+                            reason: format!("error: {why}"),
+                            time_left: Value::Null,
+                            summary: Value::Null,
+                        };
+                        handle.spawn(report(java_url, game_id, token, end));
                         return;
                     }
                 };
@@ -236,7 +244,9 @@ impl Hosts {
                 info!("Rust host: game {game_id} ended after {} turns: {}", ended.turns, ended.reason);
                 hosts.ended(&ended.reason);
                 let time_left = time_left(&players, &ended.time_left);
-                handle.spawn(report(java_url, game_id, token, winner, ended.turns, ended.reason, time_left, ended.summary));
+                let end =
+                    Report { winner, turns: ended.turns, reason: ended.reason, time_left, summary: ended.summary };
+                handle.spawn(report(java_url, game_id, token, end));
             })
             .expect("a thread");
     }
@@ -253,18 +263,19 @@ fn time_left(players: &[String], left: &[Option<u32>; 2]) -> Value {
     }
 }
 
-/// `hostGameEnded` to Java, on a connection of its own (the player's may be gone); a few tries
-async fn report(
-    java_url: url::Url,
-    game_id: String,
-    token: String,
+/// How a hosted game ended, for Java (`hostGameEnded`'s params after the game and the token)
+struct Report {
     winner: Option<String>,
     turns: u32,
     reason: String,
     time_left: Value,
     summary: Value,
-) {
+}
+
+/// `hostGameEnded` to Java, on a connection of its own (the player's may be gone); a few tries
+async fn report(java_url: url::Url, game_id: String, token: String, end: Report) {
     use futures_util::{SinkExt, StreamExt};
+    let Report { winner, turns, reason, time_left, summary } = end;
     let request = json!({"jsonrpc": "2.0", "id": 1, "method": "hostGameEnded",
         "params": [game_id, token, winner.unwrap_or_default(), turns, reason, time_left, summary]});
     for attempt in 0..5u64 {

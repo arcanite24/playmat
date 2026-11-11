@@ -128,7 +128,8 @@ impl Tally {
                         }
                         Some(Target::Player(_)) if from_me => {
                             self.add("damage_to_opponents", e.amount);
-                            let how = if e.combat { "combat_damage_to_opponents" } else { "noncombat_damage_to_opponents" };
+                            let how =
+                                if e.combat { "combat_damage_to_opponents" } else { "noncombat_damage_to_opponents" };
                             self.add(how, e.amount);
                             self.max("biggest_hit", e.amount);
                             self.moment("big_hit", e.amount, e.turn);
@@ -226,10 +227,12 @@ impl Tally {
         if e.from == Some(Zone::Battlefield) && e.to == Some(Zone::Graveyard) && creature && obj.controller != me {
             self.add("opponent_creatures_died", 1);
         }
-        if e.to == Some(Zone::Exile) && e.from != Some(Zone::Stack) && obj.owner != me {
-            if e.source.is_some_and(|s| game.obj(s).controller == me) {
-                self.add("cards_exiled", 1);
-            }
+        if e.to == Some(Zone::Exile)
+            && e.from != Some(Zone::Stack)
+            && obj.owner != me
+            && e.source.is_some_and(|s| game.obj(s).controller == me)
+        {
+            self.add("cards_exiled", 1);
         }
     }
 

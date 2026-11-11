@@ -109,7 +109,14 @@ fn next_step(game: &Game, step: Step) -> Option<Step> {
 
 /// The turn-based actions at the start of a step.
 /// An event only the Career's tally counts (`EventKind::shown`), while events are kept
-fn note(game: &mut Game, kind: EventKind, player: Option<Seat>, source: Option<ObjId>, target: Option<Target>, amount: i32) {
+fn note(
+    game: &mut Game,
+    kind: EventKind,
+    player: Option<Seat>,
+    source: Option<ObjId>,
+    target: Option<Target>,
+    amount: i32,
+) {
     if game.events.is_some() {
         game.record(GameEvent { player, source, target, amount, ..GameEvent::new(kind) });
     }
@@ -5135,12 +5142,18 @@ fn pay_from_pool(
     fresh_conditional: &mut u32,
 ) {
     let mut pool = game.player(seat).mana_pool;
+    let (manual, unrestricted) = game.pool_mode(seat);
+    if unrestricted {
+        // (all of the pool pays, what was there before too)
+        *stock = Mana::default();
+    }
     let mut conditional = std::mem::take(&mut game.player_mut(seat).conditional_pool);
     let mut tally = [0u32; 6];
     let mut spend = |pool: &mut Mana, stock: &mut Mana, unlocked: &mut Mana, k: usize, want: u32| -> u32 {
         let mut paid = 0;
         while paid < want {
-            let fresh = (0..6).any(|k| *kind(pool, k) > *kind(stock, k)) || *fresh_conditional > 0;
+            // (`ManaPool.pay`: with automatic payment off, only an unlocked type pays)
+            let fresh = !manual && ((0..6).any(|k| *kind(pool, k) > *kind(stock, k)) || *fresh_conditional > 0);
             let usable = fresh
                 .then(|| {
                     conditional.iter().position(|(m, src, j)| {
@@ -5163,9 +5176,9 @@ fn pay_from_pool(
                 }
             } else if fresh && *kind(pool, k) > *kind(stock, k) {
                 *kind(pool, k) -= 1;
-            } else if *kind(unlocked, k) > 0 {
+            } else if *kind(unlocked, k) > 0 && *kind(pool, k) > 0 {
                 *kind(unlocked, k) -= 1;
-                *kind(stock, k) -= 1;
+                *kind(stock, k) = kind(stock, k).saturating_sub(1);
                 *kind(pool, k) -= 1;
             } else {
                 break;
@@ -13191,6 +13204,51 @@ mod tests {
         game.step = Some(Step::Upkeep);
         game.active = Some(0);
         game
+    }
+
+    /// Pays with the pool: a mana type when asked to pay (`unlock`), else cancels; counts the questions
+    struct PoolPayer {
+        unlock: bool,
+        asked: usize,
+    }
+
+    impl Decider for PoolPayer {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            match query {
+                Query::PlayMana { .. } => {
+                    self.asked += 1;
+                    if self.unlock && self.asked == 1 {
+                        Answer::ManaType("GREEN".into())
+                    } else {
+                        Answer::Bool(false)
+                    }
+                }
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    #[test]
+    fn the_pool_pays_as_the_players_payment_mode_says() {
+        let db = crate::cards();
+        let cost = ManaCost::parse("{G}").unwrap();
+        // (manual, unrestricted, the mana was there before, unlocks) -> (paid, questions)
+        for (manual, unrestricted, before, unlock, paid, asked) in [
+            (false, false, false, false, true, 0),
+            (false, false, true, false, false, 1),
+            (false, true, true, false, true, 0),
+            (true, false, false, false, false, 1),
+            (true, false, false, true, true, 1),
+        ] {
+            let mut game = game_with(&db, &[("Forest", 20)]);
+            game.player_mut(0).mana_pool = Mana::of(Color::G, 1);
+            game.player_mut(0).mana_stock = if before { Mana::of(Color::G, 1) } else { Mana::default() };
+            game.set_pool_mode(0, manual, unrestricted);
+            let mut d = PoolPayer { unlock, asked: 0 };
+            let ok = pay_mana_from(&mut game, &mut d, 0, &cost);
+            assert_eq!((ok, d.asked), (paid, asked), "manual {manual}, unrestricted {unrestricted}, before {before}");
+            assert_eq!(game.pool_mode(1), (false, false), "only the seat's own mode");
+        }
     }
 
     /// Says yes to every yes/no question and keeps what it was asked.
