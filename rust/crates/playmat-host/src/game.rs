@@ -11,7 +11,7 @@ use playmat_engine::card::{CardDb, CardType};
 use playmat_engine::decide::{Answer, Decider, Query};
 use playmat_engine::rng::JavaRandom;
 use playmat_engine::rules;
-use playmat_engine::state::{Game, ObjId, Seat, Step, Zone};
+use playmat_engine::state::{EventKind, Game, ObjId, Seat, Step, Target, Zone};
 use playmat_engine::view::game_view;
 use serde_json::{json, Value};
 use std::panic::{catch_unwind, AssertUnwindSafe};
@@ -212,6 +212,8 @@ struct Host {
     chooser: Option<Seat>,
     /// the last view sent, so a state the client already has isn't sent again
     last_view: Option<Value>,
+    /// the last game event's number sent (`GameEventView.seq`)
+    event_seq: u64,
     /// auto-answers the player asked for (`REQUEST_AUTO_ANSWER_TEXT_*`): the question's text and the answer
     auto_answers: Vec<(String, bool)>,
     /// trigger orders the player set (`TRIGGER_AUTO_ORDER_*`): triggers by rule text (with their source's name)
@@ -246,6 +248,8 @@ impl Host {
             game.player_mut(seat).library = library;
         }
         game.log = Some(Vec::new());
+        // the views carry the game's events, as `GameEventRecorder` feeds Java's (the client's effects play them)
+        game.events = Some(Vec::new());
         let settings = Settings::parse(start.seats[human].user_data.as_ref());
         // the host decides when the human is asked
         game.player_mut(human).every_priority = true;
@@ -281,6 +285,7 @@ impl Host {
             quit: false,
             chooser: start.chooser.as_ref().and_then(|c| start.seats.iter().position(|s| &s.player_id == c)),
             last_view: None,
+            event_seq: 0,
             auto_answers: Vec::new(),
             order_first: Vec::new(),
             order_last: Vec::new(),
@@ -299,12 +304,85 @@ impl Host {
         let names: Vec<&str> = self.names.iter().map(String::as_str).collect();
         let v = game_view(&self.game, self.human, &names);
         let mut v = self.ids.map(&self.game, v);
+        // a spell's card is the card it was in hand (the engine leaves it unnamed for the comparison with Java's,
+        // whose spell has an id of its own): the client follows the card from hand to stack by it
+        if let Some(Value::Object(stack)) = v.get_mut("stack") {
+            for (id, card) in stack.iter_mut() {
+                if card.get("cardId").and_then(Value::as_str) == Some("?") {
+                    card["cardId"] = json!(id);
+                }
+            }
+        }
         if let Some(Value::Array(players)) = v.get_mut("players") {
             for (seat, p) in players.iter_mut().enumerate() {
                 p["isHuman"] = json!(seat == self.human);
             }
         }
         v
+    }
+
+    /// The game's events since the last view, as `GameEventView`s for the human (`GameEventFeed.since`): a card
+    /// that moved between zones they can't see (another player's draw) carries no identity. None: no new events
+    fn take_events(&mut self) -> Option<Value> {
+        let events = self.game.events.as_mut().map(std::mem::take).unwrap_or_default();
+        if events.is_empty() {
+            return None;
+        }
+        let zone = |z: Option<Zone>| {
+            z.map(|z| match z {
+                Zone::Battlefield => "BATTLEFIELD",
+                Zone::Graveyard => "GRAVEYARD",
+                Zone::Stack => "STACK",
+                Zone::Exile => "EXILED",
+                Zone::Hand => "HAND",
+                Zone::Library => "LIBRARY",
+                Zone::Command => "COMMAND",
+            })
+        };
+        let public = |z: Option<Zone>| !matches!(z, Some(Zone::Hand | Zone::Library) | None);
+        let mut out = Vec::new();
+        for e in events {
+            self.event_seq += 1;
+            let kind = match e.kind {
+                EventKind::Damage => "DAMAGE",
+                EventKind::LifeGain => "LIFE_GAIN",
+                EventKind::LifeLoss => "LIFE_LOSS",
+                EventKind::Draw => "DRAW",
+                EventKind::Zone => "ZONE",
+            };
+            let seen = match e.kind {
+                EventKind::Draw => e.player == Some(self.human),
+                EventKind::Zone => public(e.from) || public(e.to) || e.player == Some(self.human),
+                _ => true,
+            };
+            let mut v = json!({"seq": self.event_seq, "kind": kind, "amount": e.amount, "combat": e.combat});
+            if let Some(p) = e.player.and_then(|s| self.ids.players.get(s)) {
+                v["playerId"] = json!(p);
+            }
+            if let (Some(from), Some(to)) = (zone(e.from), zone(e.to)) {
+                v["fromZone"] = json!(from);
+                v["toZone"] = json!(to);
+            }
+            if seen {
+                match e.target {
+                    Some(Target::Player(s)) => {
+                        v["targetId"] = json!(self.ids.players.get(s));
+                        v["targetName"] = json!(self.names.get(s));
+                    }
+                    Some(Target::Obj(o)) => {
+                        v["targetId"] = json!(self.ids.object(o));
+                        v["targetName"] = json!(self.game.obj(o).name());
+                    }
+                    _ => {}
+                }
+                if let Some(s) = e.source {
+                    v["sourceId"] = json!(self.ids.object(s));
+                    v["sourceName"] = json!(self.game.obj(s).name());
+                }
+            }
+            out.push(v);
+        }
+        Some(Value::Array(out))
     }
 
     /// The view with the timer's fields (`GameView.priorityTime`, `PlayerView.priorityTimeLeftSecs`…), which change
@@ -332,7 +410,11 @@ impl Host {
     /// The open question again, its view's clocks as they are now
     fn send_open(&self) {
         if let Some(mut e) = self.open.clone() {
-            if let Some(v) = e.data.get_mut("gameView").map(Value::take) {
+            if let Some(mut v) = e.data.get_mut("gameView").map(Value::take) {
+                // (its events were played already)
+                if let Some(m) = v.as_object_mut() {
+                    m.remove("events");
+                }
                 e.data["gameView"] = self.timed(v);
             }
             let _ = self.events.send(e);
@@ -393,9 +475,15 @@ impl Host {
         self.log();
         self.ids.clear();
         let view = self.view();
+        // (events with no change to show wait for the next view; an action taken back takes its events back too)
         if self.last_view.as_ref() != Some(&view) {
+            let events = self.take_events();
             self.last_view = Some(view.clone());
-            self.send("GAME_UPDATE", &self.game_id.clone(), self.timed(view));
+            let mut v = self.timed(view);
+            if let Some(e) = events {
+                v["events"] = e;
+            }
+            self.send("GAME_UPDATE", &self.game_id.clone(), v);
         }
     }
 
@@ -446,8 +534,13 @@ impl Host {
         // the human's clock runs while they're asked (`HumanPlayer.waitForResponse`)
         self.asking = Some(self.human);
         self.clock.resume(self.human, Instant::now());
+        let events = self.take_events();
         if let Some(d) = data.as_object_mut() {
-            d.insert("gameView".into(), self.timed(view.clone()));
+            let mut v = self.timed(view.clone());
+            if let Some(e) = events {
+                v["events"] = e;
+            }
+            d.insert("gameView".into(), v);
         }
         self.last_view = Some(view);
         if debug() {
