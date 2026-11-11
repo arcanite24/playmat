@@ -11560,15 +11560,17 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             .def
             .abilities
             .iter()
-            .filter(|a| {
-                matches!(
+            .filter(|a| match a {
+                // `EntersBattlefieldEffect.applies` checks a kicker condition (Gnarlid Colony unkicked has none)
+                AbilityDef::EntersBattlefieldAbility { condition: Some(Condition::Kicked), .. } => kicked,
+                _ => matches!(
                     a,
                     AbilityDef::EntersPreparedAbility { .. }
                         | AbilityDef::EscapesWithAbility { .. }
                         | AbilityDef::EntersBattlefieldAbility { .. }
                         | AbilityDef::EntersBattlefieldTappedAbility { .. }
                         | AbilityDef::AsEntersBattlefieldAbility { .. }
-                )
+                ),
             })
             .count();
         // "creatures your opponents control enter tapped" (Authority of the Consuls)
