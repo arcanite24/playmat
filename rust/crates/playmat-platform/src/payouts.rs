@@ -1760,8 +1760,9 @@ mod tests {
         let case = &cases[0];
         let event: Event = serde_json::from_value(case["event"].clone()).unwrap();
         let mut after = case["after"].as_object().unwrap().clone();
-        after["profile"][0]["coins"] = json!(after["profile"][0]["coins"].as_i64().unwrap() + 1);
-        let found = replay(&book, &schema, &event, case["before"].as_object().unwrap(), &after).await.unwrap();
+        let coins = after["profile"][0]["coins"].as_i64().unwrap();
+        after.get_mut("profile").unwrap()[0]["coins"] = json!(coins + 1);
+        let found = replay(&book, &schema, &event, case["before"].as_object().unwrap(), &after).await.ok().flatten();
         assert!(found.is_some_and(|d| d.starts_with("profile:")));
     }
 
