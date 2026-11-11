@@ -9494,8 +9494,14 @@ fn apply_each_effect(
                     let old = game.obj(src).def.clone();
                     let def = becomes_creature(&old, token, *retain);
                     let o = game.obj_mut(src);
-                    if *duration == Duration::EndOfTurn && o.until_end_of_turn_def.is_none() {
-                        o.until_end_of_turn_def = Some(old);
+                    if *duration == Duration::EndOfTurn {
+                        if o.until_end_of_turn_def.is_none() {
+                            o.until_end_of_turn_def = Some(old);
+                        }
+                    } else if o.printed_def.is_none() {
+                        // for as long as it stays: the card it was comes back when it leaves (Soulstone Sanctuary in
+                        // a graveyard isn't a creature card)
+                        o.printed_def = Some(o.until_end_of_turn_def.clone().unwrap_or(old));
                     }
                     o.def = Arc::new(def);
                 }
@@ -10032,8 +10038,14 @@ fn apply_each_effect(
                         }
                     }
                     let o = game.obj_mut(src);
-                    if *duration == Duration::EndOfTurn && o.until_end_of_turn_def.is_none() {
-                        o.until_end_of_turn_def = Some(old);
+                    if *duration == Duration::EndOfTurn {
+                        if o.until_end_of_turn_def.is_none() {
+                            o.until_end_of_turn_def = Some(old);
+                        }
+                    } else if o.printed_def.is_none() {
+                        // for as long as it stays: the card it was comes back when it leaves (Soulstone Sanctuary in
+                        // a graveyard isn't a creature card)
+                        o.printed_def = Some(o.until_end_of_turn_def.clone().unwrap_or(old));
                     }
                     o.def = Arc::new(def);
                 }
@@ -11526,24 +11538,32 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         0
     };
     // Giada: each other Angel you control enters with a +1/+1 counter for each Angel you already control (not one
-    // entering with it: Collected Company's two)
+    // entering with it: Collected Company's two). Java moves cards together one at a time and an entering
+    // permanent's static abilities already apply (`AbilityImpl.isInUseableZone`), so a Giada moved before this
+    // Angel gives it counters, one moved after doesn't
     let mut more_counters = more_counters;
     if game.obj(id).def.subtypes.iter().any(|t| t == "Angel") {
         let together = |o: &ObjId| game.entering_together.contains(o);
+        let mine = game.entering_together.iter().position(|o| *o == id);
+        let before: Vec<ObjId> = match mine {
+            Some(i) => game.entering_together[..i].to_vec(),
+            None => Vec::new(),
+        };
         let angels = game
             .battlefield
             .iter()
             .filter(|o| !together(o) && game.obj(**o).controller == controller && game.has_subtype(**o, "Angel"))
             .count() as i32;
-        let giadas = game.battlefield.iter().filter(|src| {
-            **src != id
-                && !together(src)
-                && game.obj(**src).controller == controller
-                && game.obj(**src).def.abilities.iter().any(|a| {
-                    matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+        let giadas =
+            game.battlefield.iter().chain(before.iter().filter(|o| !game.battlefield.contains(o))).filter(|src| {
+                **src != id
+                    && (!together(src) || before.contains(src))
+                    && game.obj(**src).controller == controller
+                    && game.obj(**src).def.abilities.iter().any(|a| {
+                        matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
                         if effects.contains(&EffectDef::GiadaFontOfHopeEntersBattlefieldEffect))
-                })
-        });
+                    })
+            });
         more_counters += giadas.count() as i32 * angels;
     }
     // replacement effects on its entering, more than one: the player picks the order (`chooseReplacementEffect`):
@@ -13302,12 +13322,25 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
     let mut gains: Vec<(ObjId, Seat, i32)> = Vec::new();
     // `CombatDamageStep`: each attacker's group deals its damage (and asks its replacement choices) before the next
     // group assigns its own
+    // powers as the step starts: Java doesn't apply continuous effects again between groups, so a creature's
+    // damage is what its power was before any was dealt (Righteous Valkyrie keeps its +2/+2 though the life it
+    // needs is gone)
+    let powers: Vec<(ObjId, i32)> = game
+        .battlefield
+        .iter()
+        .filter(|o| game.obj(**o).attacking.is_some() || !game.obj(**o).blocking.is_empty())
+        .map(|o| (*o, game.power_toughness(*o).0))
+        .collect();
+    let power_of = |game: &Game, o: ObjId| match powers.iter().find(|(p, _)| *p == o) {
+        Some((_, n)) => *n,
+        None => game.power_toughness(o).0,
+    };
     for a in attackers(game) {
         let mut hits: Vec<(ObjId, Target, i32)> = Vec::new();
         if !deals_damage_in(game, a, first) {
             continue;
         }
-        let (power, _) = game.power_toughness(a);
+        let power = power_of(game, a);
         let damage = power.max(0);
         let defender = match game.obj(a).attacking {
             Some(s) => s,
@@ -13393,8 +13426,9 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
         if blocking.is_empty() || !deals_damage_in(game, b, first) {
             continue;
         }
-        let (power, _) = game.power_toughness(b);
-        if let Some(a) = blocking.first() {
+        let power = power_of(game, b);
+        // not an attacker that left the battlefield (bounced and cast again, it's the same object here)
+        if let Some(a) = blocking.first().filter(|a| game.obj(**a).blocked_by.contains(&b)) {
             hits.push((b, Target::Obj(*a), power));
         }
     }
