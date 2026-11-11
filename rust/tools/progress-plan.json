@@ -1,6 +1,6 @@
 {
   "_about": "The hand-kept half of the site's Rust tracker (site/rust/). rust/tools/progress.py adds the counted half and writes site/rust/progress.json. Status is one of: done, live, active, next, parked, later.",
-  "updated": "2026-11-07",
+  "updated": "2026-11-11",
   "goal": "games against the AI that cost a fraction of the server's CPU: one-on-one games against the AI with Pioneer and Standard decks, decided in milliseconds.",
   "phases": [
     {
@@ -16,8 +16,8 @@
     {
       "n": "1",
       "name": "Rust gateway",
-      "status": "live",
-      "text": "playmat-gateway sits in front of the Java server and routes each group of calls to Java, Rust, or both to compare. Running on the public server since 4 Nov 2026.",
+      "status": "done",
+      "text": "playmat-gateway sits in front of the Java server and routes each group of calls to Java, Rust, or both to compare. It has carried every connection on the public server since 4 Nov 2026.",
       "pr": [
         193
       ]
@@ -48,19 +48,24 @@
       "n": "4",
       "name": "Rules engine and card pipeline",
       "status": "active",
-      "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games.",
+      "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Next: every Pioneer-legal card.",
       "pr": [
         219,
         220,
         228,
-        233
+        233,
+        243,
+        244,
+        266,
+        268,
+        270
       ]
     },
     {
       "n": "5",
       "name": "Rust AI",
       "status": "active",
-      "text": "Whole-turn playouts on engine copies. Today it plays the AI's seat of Java's games through a copy kept in step, and hands the game back to the Java AI at any difference.",
+      "text": "Whole-turn playouts on engine copies, deciding in milliseconds. It plays the AI's seat in Java's games for listed players, and the whole game when the Rust engine hosts it.",
       "pr": [
         232,
         237,
@@ -70,9 +75,14 @@
     {
       "n": "6",
       "name": "Retire Java",
-      "status": "later",
-      "text": "Not before the Pioneer pool runs in Rust.",
-      "pr": []
+      "status": "active",
+      "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Tables between people, tournaments, drafts and solo come once the pool covers the formats people play.",
+      "pr": [
+        260,
+        263,
+        276,
+        278
+      ]
     }
   ],
   "steps": [
@@ -89,8 +99,8 @@
     {
       "n": "B",
       "name": "Fidelity",
-      "status": "active",
-      "text": "Every card of the 24 Pioneer and Standard meta decks in the engine, with shadow games for each pairing.",
+      "status": "done",
+      "text": "Every card of the 24 Pioneer and Standard meta decks in the engine, with a shadow game for each pairing: 287 of 288 match, and Java didn't finish the other.",
       "gate": "A week of production AI games that follow Java to the end",
       "pr": [
         243,
@@ -100,23 +110,45 @@
     {
       "n": "C",
       "name": "Views in Rust",
-      "status": "active",
-      "text": "Building what the client sees, compared in production against Java's.",
-      "gate": "Zero view differences on a week of real games"
+      "status": "done",
+      "text": "What the client sees (views, prompts and the game log) built by the Rust engine and compared with Java's.",
+      "gate": "Zero view differences on a week of real games",
+      "pr": [
+        245,
+        272
+      ]
     },
     {
       "n": "D",
       "name": "Human side and host",
-      "status": "later",
-      "text": "Skip settings, timers, mulligans, concede and reconnect; a Rust host for the whole game.",
-      "gate": "The live client tests pass against a Rust-hosted game"
+      "status": "done",
+      "text": "A Rust host for the whole game: skip settings, priority timers, mulligans, concede, reconnect, best-of-three, spectators, replays and the Career's pay.",
+      "gate": "The live client tests pass against a Rust-hosted game",
+      "pr": [
+        260,
+        262,
+        263,
+        264,
+        278
+      ]
     },
     {
       "n": "E",
       "name": "Rollout",
-      "status": "later",
-      "text": "Rust-hosted games for listed players first, then every AI duel whose decks qualify.",
-      "gate": "A week with no game lost to the host"
+      "status": "live",
+      "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default.",
+      "gate": "A week with no game lost to the host, then the default",
+      "pr": [
+        261,
+        276
+      ]
+    },
+    {
+      "n": "F",
+      "name": "Then",
+      "status": "next",
+      "text": "More of the Pioneer pool, and what still plays on Java only: the solo tools, advice and practice tools.",
+      "gate": "Per feature"
     }
   ],
   "measures": [
