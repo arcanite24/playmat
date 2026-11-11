@@ -2,8 +2,11 @@ name: Rust
 
 # The Rust workspace (rust/, docs/RustMigration.md): format, lints and tests for every branch and PR that touches it.
 # methods.json is generated from the Java bridge; WebClientApiDocsTest (web-bridge.yml) fails when it is stale.
+# Branch pushes are covered by their PR (push runs only on master, so a PR doesn't run this twice).
+# Run the same checks locally before pushing: ops/ci/check.sh (the .githooks/pre-push hook does).
 on:
   push:
+    branches: [ "master" ]
     paths:
       - "rust/**"
       - "Mage.Web.Client/src/core/rpc/__fixtures__/gameStatePatches.json"
@@ -30,14 +33,11 @@ jobs:
       - uses: actions/checkout@v5
       - name: Toolchain
         run: rustup toolchain install stable --profile minimal --component rustfmt,clippy && rustup default stable
-      - uses: actions/cache@v4
+      # keyed on the toolchain and Cargo.lock, saved after every run and pruned of stale artifacts (a plain
+      # actions/cache keyed on Cargo.lock alone never refreshed rust/target until the lock file changed)
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            rust/target
-          key: rust-${{ runner.os }}-${{ hashFiles('rust/Cargo.lock') }}
-          restore-keys: rust-${{ runner.os }}-
+          workspaces: rust
       - name: Format
         run: cargo fmt --all --check
       - name: Lints
