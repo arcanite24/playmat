@@ -572,6 +572,10 @@ fn stops_in(step: Step) -> bool {
 /// the stack resolves and priority starts again with the active player, or the step ends.
 fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
     let active = game.active.unwrap_or(0);
+    if !resume {
+        // `GameImpl.playPriority` starts the loop count again
+        game.loop_count = 0;
+    }
     loop {
         let mut seat = active;
         if std::mem::take(&mut resume) {
@@ -605,12 +609,96 @@ fn priority_round(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
         if game.stack.is_empty() {
             return;
         }
+        let source = game.stack.last().map(|i| i.card);
         resolve_top(game, d);
+        if let Some(source) = source {
+            check_infinite_loop(game, d, source);
+            if game.over || d.stopped() {
+                return;
+            }
+        }
         traced(game, d);
         if d.stopped() {
             return;
         }
     }
+}
+
+/// How many times in a row the players may decline to call a detected loop a draw before the engine calls it one
+/// without asking (Java asks forever; a hosted game must end)
+const LOOP_DECLINES: u32 = 10;
+
+/// `GameImpl.checkInfiniteLoop`, after each resolution: the same source resolving again (one of the last four) with
+/// the stack no smaller than after the last resolution, more than 15 times in one priority round with no player
+/// losing life, is a loop. Each player, the source's controller first, is asked "Draw game because of infinite
+/// looping?"; if all agree the game is a draw (104.4b), and one "no" starts the count again.
+fn check_infinite_loop(game: &mut Game, d: &mut dyn Decider, source: ObjId) {
+    if game.loop_sources.contains(&source) && game.stack.len() >= game.loop_stack {
+        let lives: Vec<i32> = game.players.iter().map(|p| p.life).collect();
+        match &game.loop_lives {
+            // a player losing life isn't a loop (Java keeps the first list otherwise)
+            Some(last) if last.len() == lives.len() => {
+                if lives.iter().zip(last).any(|(now, then)| now < then) {
+                    game.loop_lives = None;
+                    game.loop_count = 0;
+                    game.loop_declined = 0;
+                }
+            }
+            _ => game.loop_lives = Some(lives),
+        }
+        game.loop_count += 1;
+        if game.loop_count > 15 {
+            let controller = game.obj(source).controller;
+            let seats: Vec<Seat> = (0..game.seats()).map(|k| (controller + k) % game.seats()).collect();
+            let forced = game.loop_declined >= LOOP_DECLINES;
+            for &seat in &seats {
+                if forced {
+                    break;
+                }
+                let q = Query::YesNo { message: "Draw game because of infinite looping?".into() };
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(true) => {
+                        if log::kept(game) {
+                            let line = format!(
+                                "{} has confirmed that the game is a draw because of infinite looping.",
+                                log::player(controller)
+                            );
+                            log::inform(game, line);
+                        }
+                    }
+                    Answer::Stop => return,
+                    _ => {
+                        if log::kept(game) {
+                            let line = format!(
+                                "{} has NOT confirmed that the game is a draw because of infinite looping.",
+                                log::player(controller)
+                            );
+                            log::inform(game, line);
+                        }
+                        game.loop_count = 0;
+                        game.loop_declined += 1;
+                        return;
+                    }
+                }
+            }
+            for seat in seats {
+                if !game.player(seat).lost {
+                    game.player_mut(seat).drew = true;
+                    if log::kept(game) {
+                        let line = format!("For {} the game is a draw.", log::player(seat));
+                        log::inform(game, line);
+                    }
+                }
+            }
+            game.over = true;
+        }
+    } else {
+        game.loop_sources.push(source);
+        if game.loop_sources.len() > 4 {
+            game.loop_sources.remove(0);
+        }
+    }
+    game.loop_stack = game.stack.len();
 }
 
 /// Devourer of Destiny's delayed trigger: "at the beginning of your first upkeep, look at the top four cards of your
@@ -13423,5 +13511,45 @@ mod tests {
         let mut d = PriorityLog(Vec::new());
         play_from_priority(&mut game, &mut d, 2);
         assert!(d.0.iter().all(|(st, _)| *st != Step::Cleanup));
+    }
+
+    #[test]
+    fn a_loop_of_one_source_is_offered_as_a_draw() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let bear = on_battlefield(&mut game, &db, "Bear Cub", 1);
+        let mut d = SaysYes(Vec::new());
+        for _ in 0..16 {
+            check_infinite_loop(&mut game, &mut d, bear);
+        }
+        assert!(d.0.is_empty() && !game.over);
+        check_infinite_loop(&mut game, &mut d, bear);
+        // the source's controller is asked first
+        let asked = "Draw game because of infinite looping?";
+        assert_eq!(d.0, vec![format!("1: {asked}"), format!("0: {asked}")]);
+        assert!(game.over && game.player(0).drew && game.player(1).drew);
+        assert!(!game.player(0).lost && !game.player(1).lost);
+    }
+
+    #[test]
+    fn a_declined_loop_counts_again_and_ends_in_the_end() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let bear = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        let mut n = 0;
+        while !game.over {
+            check_infinite_loop(&mut game, &mut Passer, bear);
+            n += 1;
+            assert!(n < 1000);
+        }
+        // the first detection after one resolution to remember the source and 16 to count, then 16 more each time
+        assert_eq!(n, 1 + 16 * (LOOP_DECLINES as usize + 1));
+        // a player losing life isn't looping
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        for k in 0..40 {
+            check_infinite_loop(&mut game, &mut Passer, bear);
+            game.player_mut(k % 2).life -= 1;
+        }
+        assert!(!game.over && game.loop_declined == 0);
     }
 }

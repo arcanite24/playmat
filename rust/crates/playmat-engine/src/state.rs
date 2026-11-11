@@ -331,6 +331,8 @@ pub struct Player {
     pub graveyard: Vec<ObjId>,
     pub lost: bool,
     pub won: bool,
+    /// the game is a draw for them (`Player.drew`: an infinite loop they agreed to call a draw)
+    pub drew: bool,
     pub lands_played: u32,
     pub mana_pool: Mana,
     /// how much of the pool's {R} lasts until end of combat (firebending)
@@ -595,6 +597,14 @@ pub struct Game {
     pub attach_clock: u64,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
     pub step_start: bool,
+    /// `GameImpl.checkInfiniteLoop`'s state: the sources of the last resolved stack objects (up to four), the stack's
+    /// size after the last resolution, the players' life when the count started, the count (reset at each priority
+    /// round) and how many times in a row the players declined to call it a draw
+    pub loop_sources: Vec<ObjId>,
+    pub loop_stack: usize,
+    pub loop_lives: Option<Vec<i32>>,
+    pub loop_count: u32,
+    pub loop_declined: u32,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
@@ -744,6 +754,11 @@ impl Game {
             revealed: Vec::new(),
             attach_clock: 0,
             step_start: false,
+            loop_sources: Vec::new(),
+            loop_stack: 0,
+            loop_lives: None,
+            loop_count: 0,
+            loop_declined: 0,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
             any_time: std::cell::Cell::new(false),
