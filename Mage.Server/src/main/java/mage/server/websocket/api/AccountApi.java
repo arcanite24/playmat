@@ -52,6 +52,8 @@ final class AccountApi {
         public boolean deckSync;
         /** the optional single-player Career is offered (accounts on, and not switched off) */
         public boolean career;
+        /** players can opt in to games the Rust engine plays (XMAGE_RUST_OPT_IN; docs/rust/GameHost.md) */
+        public boolean rustEngine;
         /** open, or allowlist: a contributors server, where only listed or invited accounts get in */
         public String access;
         /** what staff want everyone to know, shown on sign-in and Home; empty when there is nothing */
@@ -209,6 +211,7 @@ final class AccountApi {
             info.maintenanceMessage = maintenance.message;
         }
         info.career = mage.server.career.CareerService.enabled(info.accounts);
+        info.rustEngine = mage.server.RustHost.optIn();
         try {
             AccessPolicy access = AccessPolicy.get();
             info.access = info.accounts ? access.mode() : AccessPolicy.OPEN;

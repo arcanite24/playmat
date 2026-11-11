@@ -42,13 +42,18 @@ struct Bot {
     concede_at: u64,
     /// never answers at priority (the game's priority timer runs out)
     silent: bool,
+    /// casts what it can from hand in its main phases, as well as playing lands
+    casts: bool,
+    /// holds priority (HOLD_PRIORITY) for each card it plays
+    holds: bool,
 }
 
 impl Bot {
     fn answer(&mut self, e: &Event) -> Option<Call> {
         let d = &e.data;
         let view = &d["gameView"];
-        let turn = view["turn"].as_u64().unwrap_or(0);
+        // (an update's view is its data: only a question's view says the turn)
+        let turn = view["turn"].as_u64().unwrap_or(self.turn);
         if turn != self.turn {
             self.turn = turn;
             self.tried.clear();
@@ -84,6 +89,15 @@ impl Bot {
                                 return Some(Call::Uuid(Some(id.clone())));
                             }
                         }
+                        let playable = view["canPlayObjects"]["objects"].as_object();
+                        for id in hand.keys() {
+                            if self.casts
+                                && playable.is_some_and(|p| p.contains_key(id))
+                                && self.tried.insert(id.clone())
+                            {
+                                return Some(Call::Uuid(Some(id.clone())));
+                            }
+                        }
                     }
                 }
                 Call::Bool(false)
@@ -99,6 +113,22 @@ impl Bot {
                     .collect::<Vec<_>>()
                     .join(" "),
             ),
+            // an untapped land of its own pays, when it casts; else the payment is cancelled
+            "GAME_PLAY_MANA" if self.casts => {
+                let me = view["myPlayerId"].as_str().unwrap_or("");
+                let lands = view["players"].as_array()?.iter().find(|p| p["playerId"] == me)?["battlefield"]
+                    .as_object()?
+                    .iter()
+                    .filter(|(_, c)| {
+                        c["tapped"] != true && c["cardTypes"].as_array().is_some_and(|t| t.iter().any(|x| x == "LAND"))
+                    })
+                    .map(|(id, _)| id.clone())
+                    .next();
+                match lands {
+                    Some(id) => Call::Uuid(Some(id)),
+                    None => Call::Bool(false),
+                }
+            }
             "GAME_PLAY_MANA" | "GAME_PLAY_XMANA" => Call::Bool(false),
             _ => return None,
         })
@@ -124,9 +154,12 @@ fn play_timed(
 }
 
 fn play_start(start: Start, concede_at: u64, silent: bool) -> (playmat_host::Ended, Vec<Event>) {
+    play_with(start, Bot { tried: HashSet::new(), turn: 0, concede_at, silent, casts: false, holds: false })
+}
+
+fn play_with(start: Start, mut bot: Bot) -> (playmat_host::Ended, Vec<Event>) {
     let game = HostedGame::start(start, Arc::new(playmat_engine::cards())).unwrap();
     game.call(Call::Join);
-    let mut bot = Bot { tried: HashSet::new(), turn: 0, concede_at, silent };
     let mut events = Vec::new();
     loop {
         let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers within a minute");
@@ -138,6 +171,9 @@ fn play_start(start: Start, concede_at: u64, silent: bool) -> (playmat_host::End
             assert!(uuid(&id), "{} offers {id}, not an id the client can send", e.method);
         }
         if let Some(call) = bot.answer(&e) {
+            if bot.holds && e.method == "GAME_SELECT" && matches!(call, Call::Uuid(Some(_))) {
+                game.call(Call::Action("HOLD_PRIORITY".into(), None));
+            }
             game.call(call);
         }
         assert!(events.len() < 50_000, "the game doesn't end");
@@ -171,6 +207,9 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
         chooser: chooser.map(str::to_string),
         record: None,
         log_to: None,
+        drop_stale: false,
+        replay: None,
+        rules: playmat_host::TableRules::default(),
     }
 }
 
@@ -319,6 +358,23 @@ fn a_record_replays_the_game() {
 /// The views carry the game's events (`GameEventView`) for the client's effects: combat damage to the human, each
 /// draw (the AI's without its card), in order; and a spell's `cardId` is its card's id, never "?"
 #[test]
+fn players_carry_their_avatar() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.seats[0].user_data = Some(serde_json::json!({"avatarId": 12, "passPriorityCast": false}));
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let init = loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "GAME_INIT" {
+            break e;
+        }
+    };
+    assert_eq!(init.data["players"][0]["userData"]["avatarId"], 12);
+    assert_eq!(init.data["players"][1]["userData"]["avatarId"], 0, "the AI's is the default");
+    game.call(Call::Action("CONCEDE".into(), None));
+}
+
+#[test]
 fn views_carry_the_games_events() {
     let (_, events) = play(&deck("gw-company.txt"), &deck("b-zombies.txt"), 0, u64::MAX);
     let mut seen = Vec::new();
@@ -342,4 +398,236 @@ fn views_carry_the_games_events() {
     assert!(draws(HUMAN).count() > 0 && draws(HUMAN).all(|e| e["targetId"].as_str().is_some_and(uuid)));
     assert!(draws(AI).count() > 0 && draws(AI).all(|e| e.get("targetId").is_none()), "the AI's draws are hidden");
     assert!(seen.iter().any(|e| e["kind"] == "LIFE_LOSS" && e["playerId"] == HUMAN));
+}
+
+#[test]
+fn the_end_carries_the_humans_career_tally() {
+    let (ended, _) = play(&deck("gw-company.txt"), &deck("b-zombies.txt"), 0, u64::MAX);
+    let tally = &ended.summary["tally"];
+    let counters = &tally["counters"];
+    let n = |k: &str| counters[k].as_i64().unwrap_or(0);
+    assert!(n("my_turns") > 0, "turns counted: {tally}");
+    assert!(n("lands_played") > 0, "lands counted: {tally}");
+    assert!(n("cards_drawn") > 0, "draws counted: {tally}");
+    // (the test's player casts little and loses to the damage)
+    let life = tally["life"].as_i64().unwrap();
+    assert_eq!(n("damage_taken"), 20 - life + n("life_gained"), "damage counted: {tally}");
+    assert_eq!(tally["startingLife"], 20);
+    assert_eq!(ended.summary["players"].as_array().map(Vec::len), Some(2));
+    assert_eq!(tally["life"], ended.summary["players"][0]["life"], "the human's life, seat 0");
+    assert!(tally["lowestLife"].as_i64().unwrap() <= tally["life"].as_i64().unwrap());
+}
+
+#[test]
+fn a_tables_starting_life_and_free_mulligans_are_played() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.rules = playmat_host::TableRules { starting_life: 30, free_mulligans: 1, ai_skill: Some(3), rollback: false };
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut asked = 0;
+    let mut log = Vec::new();
+    loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "CHATMESSAGE" {
+            log.push(e.data["message"].as_str().unwrap_or("").to_string());
+        }
+        if e.method == "GAME_INIT" {
+            assert_eq!(e.data["players"][0]["life"], 30, "the table's starting life");
+        }
+        if e.method == "GAME_ASK" {
+            // a mulligan: once for free, then keep
+            asked += 1;
+            let size_text = e.data["message"].as_str().unwrap_or("").to_string();
+            let size = if asked == 1 { "7" } else { "6" };
+            assert!(size_text.contains(size), "mulligan {asked} goes down to {size}: {size_text}");
+            game.call(Call::Bool(asked == 1));
+            if asked == 2 {
+                break;
+            }
+        }
+    }
+    assert!(log.iter().any(|l| l.contains("mulligans for free")), "{log:?}");
+    game.call(Call::Action("CONCEDE".into(), None));
+}
+
+#[test]
+fn a_hosted_game_writes_its_replay() {
+    use std::io::BufRead;
+    let path = std::env::temp_dir().join(format!("playmat-replay-{}.ndjson.gz.part", std::process::id()));
+    let s = Start { replay: Some(path.clone()), ..start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 0, None) };
+    let (ended, _) = play_start(s, u64::MAX, false);
+    let events = ended.summary["replayEvents"].as_u64().unwrap();
+    let file = std::fs::File::open(&path).unwrap();
+    let lines: Vec<serde_json::Value> = std::io::BufReader::new(flate2::read::GzDecoder::new(file))
+        .lines()
+        .map(|l| serde_json::from_str(&l.unwrap()).unwrap())
+        .collect();
+    std::fs::remove_file(&path).ok();
+    assert_eq!(lines.len() as u64, events);
+    let frames: Vec<_> = lines.iter().filter(|l| l.get("view").is_some()).collect();
+    assert!(frames.len() > 10, "board snapshots");
+    for f in &frames {
+        assert!(f["view"].get("myHand").is_none(), "a spectator's view");
+        assert!(f["hands"]["tester"].is_object(), "the human's hand beside it");
+        assert!(f["t"].is_u64());
+    }
+    assert!(lines.iter().any(|l| l["log"]["message"].is_string()), "the game log");
+    assert!(frames.windows(2).all(|w| w[0]["view"] != w[1]["view"]), "no snapshot twice");
+}
+
+/// Priority questions the human was asked with only their own spells and abilities on the stack
+fn asked_over_own_stack(events: &[Event]) -> usize {
+    events
+        .iter()
+        .filter(|e| e.method == "GAME_SELECT")
+        .filter(|e| {
+            let stack = e.data["gameView"]["stack"].as_object().cloned().unwrap_or_default();
+            !stack.is_empty() && stack.values().all(|c| c["controllerId"] == HUMAN)
+        })
+        .count()
+}
+
+#[test]
+fn pass_priority_after_casting_passes_unless_held() {
+    let deck_h = deck("gw-company.txt");
+    let deck_a = deck("b-zombies.txt");
+    let mut total = (0, 0, 0);
+    for seed in 0..4 {
+        let caster =
+            || Bot { tried: HashSet::new(), turn: 0, concede_at: 12, silent: false, casts: true, holds: false };
+        let (_, plain) = play_with(start(&deck_h, &deck_a, seed, None), caster());
+        let mut s = start(&deck_h, &deck_a, seed, None);
+        s.seats[0].user_data = Some(serde_json::json!({"passPriorityCast": true, "passPriorityActivation": true}));
+        let (_, passing) = play_with(s.clone(), caster());
+        let (_, held) = play_with(s, Bot { holds: true, ..caster() });
+        total.0 += asked_over_own_stack(&plain);
+        total.1 += asked_over_own_stack(&passing);
+        total.2 += asked_over_own_stack(&held);
+    }
+    assert!(total.0 > 0, "the player is asked again after casting by default");
+    assert_eq!(total.1, 0, "never with pass priority after casting on (asked {} times without it)", total.0);
+    assert!(total.2 > 0, "holding priority asks again");
+}
+
+/// The human's untapped lands in a question's view
+fn my_untapped_lands(view: &Value) -> Vec<String> {
+    let me = view["myPlayerId"].as_str().unwrap_or("");
+    view["players"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|p| p["playerId"] == me)
+        .flat_map(|p| {
+            p["battlefield"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .filter(|(_, c)| {
+                    c["tapped"] != true && c["cardTypes"].as_array().is_some_and(|t| t.iter().any(|x| x == "LAND"))
+                })
+                .map(|(id, _)| id.clone())
+                .collect::<Vec<_>>()
+        })
+        .collect()
+}
+
+fn my_pool(view: &Value) -> i64 {
+    let me = view["myPlayerId"].as_str().unwrap_or("");
+    let p = view["players"].as_array().unwrap().iter().find(|p| p["playerId"] == me).unwrap();
+    ["red", "green", "blue", "white", "black", "colorless"].iter().map(|c| p["manaPool"][c].as_i64().unwrap_or(0)).sum()
+}
+
+fn me_of(view: &Value) -> Value {
+    let me = view["myPlayerId"].as_str().unwrap_or("").to_string();
+    view["players"].as_array().unwrap().iter().find(|p| p["playerId"] == me.as_str()).unwrap().clone()
+}
+
+#[test]
+fn undo_tap_and_rollback_take_the_game_back() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 2, None);
+    s.rules.rollback = true;
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut bot =
+        Bot { tried: HashSet::new(), turn: 0, concede_at: u64::MAX, silent: false, casts: false, holds: false };
+    // 0: playing to a main phase of the human's with an untapped land; 1: tapped it; 2: undone; 3: rolled back
+    let mut stage = 0;
+    let mut turn_at = 0;
+    let mut log = Vec::new();
+    for _ in 0..20_000 {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "CHATMESSAGE" {
+            log.push(e.data["message"].as_str().unwrap_or("").to_string());
+        }
+        assert_ne!(e.method, "GAME_OVER", "the test is done before the game is");
+        let v = &e.data["gameView"];
+        let priority = e.method == "GAME_SELECT" && e.data["message"].as_str().is_some_and(|m| m.starts_with("Play"));
+        if !priority {
+            if let Some(c) = bot.answer(&e) {
+                game.call(c);
+            }
+            continue;
+        }
+        let mine = v["activePlayerId"] == v["myPlayerId"];
+        let main = v["step"].as_str().is_some_and(|s| s.contains("MAIN"));
+        let empty = v["stack"].as_object().is_none_or(|m| m.is_empty());
+        match stage {
+            0 if mine && main && empty && v["turn"].as_u64().unwrap() >= 3 && !my_untapped_lands(v).is_empty() => {
+                assert_eq!(me_of(v)["statesSavedSize"], 0);
+                assert_eq!(v["rollbackTurnsAllowed"], true);
+                stage = 1;
+                game.call(Call::Uuid(Some(my_untapped_lands(v)[0].clone())));
+            }
+            1 => {
+                assert!(my_pool(v) > 0, "the land made mana");
+                assert_eq!(me_of(v)["statesSavedSize"], 1, "it can be undone");
+                stage = 2;
+                game.call(Call::Action("UNDO".into(), None));
+            }
+            2 => {
+                assert_eq!(my_pool(v), 0, "the mana is gone");
+                assert_eq!(me_of(v)["statesSavedSize"], 0);
+                turn_at = v["turn"].as_u64().unwrap();
+                stage = 3;
+                game.call(Call::Action("ROLLBACK_TURNS".into(), Some(serde_json::json!(0))));
+            }
+            3 => {
+                assert_eq!(v["turn"].as_u64().unwrap(), turn_at, "back to the start of the turn");
+                assert!(log.iter().any(|l| l.contains(&format!("Rolling back to start of turn {turn_at}"))), "{log:?}");
+                game.call(Call::Action("CONCEDE".into(), None));
+                return;
+            }
+            _ => {
+                if let Some(c) = bot.answer(&e) {
+                    game.call(c);
+                }
+            }
+        }
+    }
+    panic!("never got to stage 3 (stage {stage})");
+}
+
+#[test]
+fn a_late_answer_is_dropped_not_given_to_the_next_question() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.drop_stale = true;
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    // the questions asked: an answer that doesn't fit one would ask it again
+    let mut asked = Vec::new();
+    loop {
+        let wait = Duration::from_millis(if asked.len() < 2 { 60_000 } else { 1_500 });
+        let Ok(e) = game.events.recv_timeout(wait) else { break };
+        if matches!(e.method.as_str(), "GAME_INIT" | "GAME_UPDATE" | "CHATMESSAGE") {
+            continue;
+        }
+        asked.push(e.method.clone());
+        if asked.len() == 1 {
+            // a double click on "Mulligan": the second is for the question that's gone
+            game.call(Call::Bool(true));
+            game.call(Call::Bool(true));
+        }
+    }
+    assert_eq!(asked, ["GAME_ASK", "GAME_TARGET"], "the card to put on the bottom is asked once");
+    game.call(Call::Action("CONCEDE".into(), None));
 }

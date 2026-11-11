@@ -636,18 +636,42 @@ fn hosted_call(app: &App, shared: &Shared, send_client: &impl Fn(String) -> bool
     // the game's chat: its log comes from the host, and nobody else is in it
     if matches!(method, "chatJoin" | "chatLeave" | "chatSendMessage") {
         let chat = request.params.first().and_then(Value::as_str)?;
-        app.hosts.game_of_chat(chat)?;
+        let game_id = app.hosts.game_of_chat(chat)?;
+        if method == "chatSendMessage" {
+            // the player's line, back to them as Java's chat sends it (MageServerImpl.chatSendMessage)
+            let user = shared.caller.lock().unwrap().user.clone();
+            let message = request.params.get(2).and_then(Value::as_str).unwrap_or("");
+            if let (Some(user), Some(hosted)) = (user, app.hosts.get(&game_id)) {
+                if !message.trim().is_empty() {
+                    hosted.say(crate::host::talk(chat, &user, message));
+                }
+            }
+        }
         return Some(Value::Bool(true));
     }
     let at = crate::host::game_param(method)?;
     let game_id = request.params.get(at).and_then(Value::as_str)?;
     let hosted = app.hosts.get(game_id)?;
+    let connection = shared.caller.lock().unwrap().connection;
+    match method {
+        // a spectator: the game is the host's, so Java has no game to watch (`GameManager.watchGame`)
+        "gameWatchStart" => {
+            let Some(user) = shared.caller.lock().unwrap().user.clone() else { return Some(Value::Bool(false)) };
+            let subscriber = crate::host::Subscriber { connection, events: shared.host_events.clone() };
+            return Some(Value::Bool(hosted.watch(game_id, subscriber, user)));
+        }
+        "gameWatchStop" => {
+            hosted.unwatch(connection);
+            shared.states.lock().unwrap().forget(game_id);
+            return Some(Value::Bool(true));
+        }
+        "gameWatchers" => return Some(json!(hosted.watcher_names())),
+        _ => {}
+    }
     match method {
         "chatFindByGame" => return Some(Value::from(hosted.chat_id.clone())),
-        "gameEmote" => return Some(Value::Bool(true)),
         "gameJoin" => {
-            // this connection gets the game's callbacks from now on (a reconnect moves it)
-            let connection = shared.caller.lock().unwrap().connection;
+            // this connection gets the game's callbacks from now on, as do the human's other tabs
             hosted.subscribe(crate::host::Subscriber { connection, events: shared.host_events.clone() });
         }
         "gameStateResync" => {

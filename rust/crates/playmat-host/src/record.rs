@@ -4,13 +4,13 @@
 //! are made from the game's id and the engine's objects, so the recorded calls name the same objects.
 //!
 //! ```text
-//! {"start": {"gameId", "seed", "seats": [{"playerId", "name", "human", "deck", "userData"}], "timer", "chooser"}}
+//! {"start": {"gameId", "seed", "seats": [{"playerId", "name", "human", "deck", "userData"}], "timer", "chooser", "rules"}}
 //! {"call": {"uuid": "…"}, "turn": 3, "ref": "H0.4"}
 //! {"log": "<font …>A</font> casts Fatal Push targeting …", "turn": 3}
 //! {"end": {"winner": 0, "turns": 9, "reason": "over"}}
 //! ```
 
-use crate::game::{Call, Ended, HostedGame, SeatStart, Start};
+use crate::game::{Call, Ended, HostedGame, SeatStart, Start, TableRules};
 use crate::timer::Timer;
 use playmat_engine::card::CardDb;
 use serde_json::{json, Value};
@@ -63,6 +63,7 @@ fn start_json(s: &Start) -> Value {
         })).collect::<Vec<_>>(),
         "timer": {"prioritySecs": s.timer.priority_secs, "bufferSecs": s.timer.buffer_secs, "left": s.timer.left},
         "chooser": s.chooser,
+        "rules": s.rules.json(),
     })
 }
 
@@ -96,8 +97,11 @@ fn start_of(v: &Value) -> Option<Start> {
             left: [left(0), left(1)],
         },
         chooser: v["chooser"].as_str().map(str::to_string),
+        rules: TableRules::of(&v["rules"]),
         record: None,
+        replay: None,
         log_to: None,
+        drop_stale: false,
     })
 }
 

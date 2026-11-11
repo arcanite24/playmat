@@ -48,7 +48,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "activePlayerId": game.active.map(|a| format!("P{}", a)),
         "activePlayerName": name(game.active),
         "priorityPlayerName": name(game.priority),
-        "special": false,
+        "special": game.special_mana && game.priority == Some(seat),
         "rollbackTurnsAllowed": false,
         "attackOption": "LEFT",
         "rangeOfInfluence": "ALL",
@@ -60,7 +60,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "exiles": exiles_view(game),
         "combat": combat_view(game, names),
         "revealed": revealed_view(game),
-        "lookedAt": [],
+        "lookedAt": looked_at_view(game, seat),
         "companion": [],
     });
     if let (Some(_), true) = (game.step, game.priority == Some(seat)) {
@@ -271,6 +271,44 @@ fn phase_of(step: Step) -> &'static str {
         Step::PostcombatMain => "POSTCOMBAT_MAIN",
         Step::EndTurn | Step::Cleanup => "END",
     }
+}
+
+/// `GameView.lookedAt` (`LookedAtView`): what this seat looked at, each titled as a reveal is (Mishra's Bauble's by
+/// its id name alone), its cards as `SimpleCardView`s
+fn looked_at_view(game: &Game, seat: Seat) -> Vec<Value> {
+    let stack = view_stack(game);
+    game.looked_at
+        .iter()
+        .filter(|l| l.viewer == seat)
+        .map(|l| {
+            let at =
+                stack.iter().rev().position(|(i, _)| i.card == l.source && i.ability.is_none() && i.delayed.is_none());
+            let source = match at {
+                Some(i) => format!("S{}", i),
+                None => reference(game, l.source),
+            };
+            let name = if l.bare {
+                format!("{} [{}]", game.obj(l.source).def.name, source)
+            } else {
+                format!("{} [{}] [{}]", game.obj(l.source).def.name, source, l.zcc + 1)
+            };
+            let mut cards = Map::new();
+            for c in &l.cards {
+                let rf = reference(game, *c);
+                let full = card_view(game, *c, &rf, true);
+                let mut v = Map::new();
+                v.insert("id".into(), json!(rf));
+                for k in ["expansionSetCode", "cardNumber", "usesVariousArt"] {
+                    v.insert(k.into(), full.get(k).cloned().unwrap_or(Value::Null));
+                }
+                v.insert("gameObject".into(), json!(false));
+                v.insert("isChoosable".into(), json!(false));
+                v.insert("isSelected".into(), json!(false));
+                cards.insert(rf, Value::Object(v));
+            }
+            json!({"name": name, "cards": cards})
+        })
+        .collect()
 }
 
 /// `GameView.revealed` (`RevealedView`): each reveal titled by its source's id name and zone change count
@@ -648,25 +686,9 @@ fn characteristics(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
         let subtypes: Vec<Value> = o.def.subtypes.iter().map(|s| json!(subtype_name(s))).collect();
         m.insert("subTypes".into(), Value::Array(subtypes));
     }
-    // a static `AddCardSubTypeSourceEffect` (Skyknight Squire's Knight while it has three counters)
-    let mut added: Vec<&str> = Vec::new();
-    for a in &o.def.abilities {
-        if let crate::card::AbilityDef::SimpleStaticAbility { effects, .. } = a {
-            for e in effects {
-                let (e, holds) = match e {
-                    crate::card::EffectDef::ConditionalContinuousEffect { effect, condition } => {
-                        (&**effect, game.condition_holds(Some(condition), o.controller, id))
-                    }
-                    e => (e, true),
-                };
-                if let (crate::card::EffectDef::AddCardSubTypeSourceEffect { subtype }, true) = (e, holds) {
-                    if !subtype.is_empty() {
-                        added.push(subtype);
-                    }
-                }
-            }
-        }
-    }
+    // `AddCardSubTypeSourceEffect`: Skyknight Squire's Knight while it has three counters, Sarkhan's Dragon until
+    // end of turn (`Game::added_subtypes`, which the rules read too)
+    let added = game.added_subtypes(id);
     if let (false, Some(Value::Array(subtypes))) = (added.is_empty(), m.get_mut("subTypes")) {
         for t in added {
             let t = json!(subtype_name(t));

@@ -73,9 +73,29 @@ pub struct Settings {
     pub pass_after_cast: bool,
     pub pass_after_activation: bool,
     pub confirm_empty_mana_pool: bool,
+    /// `manaPoolAutomatic`: the pool pays by itself
+    pub pool_automatic: bool,
+    /// `manaPoolAutomaticRestricted`: only once mana was made for the payment
+    pub pool_restricted: bool,
+    /// `useFirstManaAbility`: a land with several mana abilities uses its first
+    pub use_first_mana_ability: bool,
 }
 
 impl Settings {
+    /// A `MANA_AUTO_PAYMENT_*` or `USE_FIRST_MANA_ABILITY_*` action; false for another
+    pub fn press(&mut self, action: &str) -> bool {
+        match action {
+            "MANA_AUTO_PAYMENT_ON" => self.pool_automatic = true,
+            "MANA_AUTO_PAYMENT_OFF" => self.pool_automatic = false,
+            "MANA_AUTO_PAYMENT_RESTRICTED_ON" => self.pool_restricted = true,
+            "MANA_AUTO_PAYMENT_RESTRICTED_OFF" => self.pool_restricted = false,
+            "USE_FIRST_MANA_ABILITY_ON" => self.use_first_mana_ability = true,
+            "USE_FIRST_MANA_ABILITY_OFF" => self.use_first_mana_ability = false,
+            _ => return false,
+        }
+        true
+    }
+
     pub fn parse(user_data: Option<&Value>) -> Settings {
         let u = user_data.cloned().unwrap_or(Value::Null);
         let skips = u.get("userSkipPrioritySteps");
@@ -90,6 +110,9 @@ impl Settings {
             pass_after_cast: b(Some(&u), "passPriorityCast", false),
             pass_after_activation: b(Some(&u), "passPriorityActivation", false),
             confirm_empty_mana_pool: b(Some(&u), "confirmEmptyManaPool", true),
+            pool_automatic: b(Some(&u), "manaPoolAutomatic", true),
+            pool_restricted: b(Some(&u), "manaPoolAutomaticRestricted", true),
+            use_first_mana_ability: b(Some(&u), "useFirstManaAbility", false),
         }
     }
 }

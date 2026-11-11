@@ -37,19 +37,77 @@ pub struct SeatStart {
     pub user_data: Option<Value>,
 }
 
+/// The table's options the game plays by (`MatchOptions`); Java keeps the games whose other options the host
+/// doesn't play (`RustHost.host`)
+#[derive(Clone, Debug, PartialEq)]
+pub struct TableRules {
+    /// each player's starting life (`Game.getStartingLife`)
+    pub starting_life: i32,
+    /// mulligans that don't cost a card (`Mulligan.getFreeMulligans`)
+    pub free_mulligans: u32,
+    /// the AI seat's skill, 1 to 10 (`TableController.skillOf`); none: the AI's full search
+    pub ai_skill: Option<u32>,
+    /// players may roll back to the start of a turn (`GameOptions.rollbackTurnsAllowed`)
+    pub rollback: bool,
+}
+
+impl Default for TableRules {
+    fn default() -> Self {
+        TableRules { starting_life: 20, free_mulligans: 0, ai_skill: None, rollback: false }
+    }
+}
+
+impl TableRules {
+    /// The JSON `HOST_GAME` carries them as (`startingLife`, `freeMulligans`, `aiSkill`); a missing one is the default
+    pub fn of(v: &Value) -> TableRules {
+        let d = TableRules::default();
+        TableRules {
+            starting_life: v["startingLife"].as_i64().map(|n| n as i32).unwrap_or(d.starting_life),
+            free_mulligans: v["freeMulligans"].as_u64().map(|n| n as u32).unwrap_or(d.free_mulligans),
+            ai_skill: v["aiSkill"].as_u64().map(|n| n as u32),
+            rollback: v["rollbackTurns"].as_bool().unwrap_or(d.rollback),
+        }
+    }
+
+    pub fn json(&self) -> Value {
+        json!({"startingLife": self.starting_life, "freeMulligans": self.free_mulligans, "aiSkill": self.ai_skill,
+               "rollbackTurns": self.rollback})
+    }
+
+    /// The AI's search for its skill: Java's AI looks less far at a lower skill (`ComputerPlayer6.maxDepth`); the
+    /// lowest skills play the quick answers only
+    pub fn ai_config(&self) -> Option<Config> {
+        let full = Config::default();
+        match self.ai_skill {
+            None => Some(full),
+            Some(0..=1) => None,
+            Some(2..=3) => Some(Config { budget: full.budget / 5, width: 5, ..full }),
+            Some(4..=5) => Some(Config { budget: full.budget / 2, width: 8, ..full }),
+            Some(_) => Some(full),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Start {
     pub game_id: String,
     pub seed: i64,
     pub seats: Vec<SeatStart>,
+    /// starting life, free mulligans, the AI's skill
+    pub rules: TableRules,
     /// the table's priority timer
     pub timer: Timer,
     /// the player id of who chooses who plays first: in a match, the previous game's loser; none for a random seat
     pub chooser: Option<String>,
     /// where the game's record goes (`record.rs`): its start, the human's calls, the log and the end
     pub record: Option<std::path::PathBuf>,
+    /// where the game's replay goes (`replay.rs`), for the web client's History
+    pub replay: Option<std::path::PathBuf>,
     /// the game log's lines as they're written, with their turn (a replay compares them with the record's)
     pub log_to: Option<LogSink>,
+    /// a live game: answers the client sent before a question was asked are for an earlier one (a double click, an
+    /// answer that crossed the AI's move) and are dropped. Off for a record's replay, whose calls are all queued at once.
+    pub drop_stale: bool,
 }
 
 /// What a client sends during the game (`GameApi`)
@@ -95,6 +153,9 @@ pub struct Ended {
     pub reason: String,
     /// each seat's priority time left in seconds, for the match's next game; none without a timer
     pub time_left: [Option<u32>; 2],
+    /// what Java needs of the game's end besides the result: each seat's life and poison (`players`, by seat) and the
+    /// human's Career tally (`tally`, `tally.rs`); null when the game never started
+    pub summary: Value,
 }
 
 pub struct HostedGame {
@@ -144,6 +205,12 @@ impl HostedGame {
                             .cloned()
                             .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
                             .unwrap_or_default();
+                        // as Java's `GameController.handleGameException`: the error, then the end
+                        let error = format!(
+                            "The game stopped on an error.\n\n{why}\nEngine: Rust host {}",
+                            env!("CARGO_PKG_VERSION")
+                        );
+                        host.send("GAME_ERROR", &host.game_id.clone(), Value::String(error));
                         host.over(None, &format!("The game stopped on an error and ends as a draw. ({why})"));
                         Ended {
                             winner: None,
@@ -189,7 +256,13 @@ const IDLE: Duration = Duration::from_secs(30 * 60);
 struct Host {
     game: Game,
     record: Option<crate::record::Recorder>,
+    replay: Option<crate::replay::ReplayWriter>,
     log_to: Option<LogSink>,
+    drop_stale: bool,
+    /// each seat's `UserData` as Java's `PlayerView.userData` shows it (the avatar); the AI's is the default
+    user_data: Vec<Value>,
+    /// the calls other than answers that came in before a question, played at its start (`drop_stale`)
+    held: std::collections::VecDeque<Call>,
     game_id: String,
     chat_id: String,
     names: Vec<String>,
@@ -227,6 +300,22 @@ struct Host {
     asking: Option<Seat>,
     /// the seat whose time ran out (it lost)
     timed_out: Option<Seat>,
+    /// the game before the mana the human made at priority since they last did anything else, for "Undo tap"
+    /// (`PlayerImpl.storedBookmark`)
+    undo_point: Option<Game>,
+    /// each turn's game at its first priority, for a rollback (`GameImpl.gameStatesRollBack`, the last few)
+    turn_starts: std::collections::BTreeMap<u32, Game>,
+    rollback: bool,
+    /// the game the engine plays on from instead (an undo, a rollback): the question being asked is dropped
+    restart: Option<Game>,
+    /// the human is being asked at priority
+    at_priority: bool,
+    /// what the human last did at priority (`PlayerImpl.justActivatedType`): the object they played and the stack's
+    /// size then, for "pass priority after casting / activating"
+    just_played: Option<(ObjId, usize)>,
+    /// the events the client was sent (or that it had no use for) so far, as the engine recorded them
+    events_sent: Vec<playmat_engine::state::GameEvent>,
+    free_mulligans: u32,
 }
 
 impl Host {
@@ -234,6 +323,10 @@ impl Host {
         let human = start.seats.iter().position(|s| s.human).unwrap_or(0);
         let ai = 1 - human;
         let mut game = Game::new(2, JavaRandom::new(start.seed).state());
+        game.starting_life = start.rules.starting_life;
+        for seat in 0..2 {
+            game.player_mut(seat).life = start.rules.starting_life;
+        }
         for (seat, s) in start.seats.iter().enumerate() {
             let mut library = Vec::new();
             for (i, name) in s.deck.iter().enumerate() {
@@ -254,8 +347,9 @@ impl Host {
         // the host decides when the human is asked
         game.player_mut(human).every_priority = true;
         game.player_mut(human).no_pool_check = !settings.confirm_empty_mana_pool;
+        pool_payment(&game, human, &settings);
         let mut ai_seats = vec![None, None];
-        ai_seats[ai] = Some(Config::default());
+        ai_seats[ai] = start.rules.ai_config();
         let record = start.record.as_ref().and_then(|path| match crate::record::Recorder::create(path, &start) {
             Ok(r) => Some(r),
             Err(e) => {
@@ -263,10 +357,25 @@ impl Host {
                 None
             }
         });
+        let replay = start.replay.as_ref().and_then(|path| match crate::replay::ReplayWriter::create(path) {
+            Ok(r) => Some(r),
+            Err(e) => {
+                eprintln!("host {}: no replay at {}: {e}", start.game_id, path.display());
+                None
+            }
+        });
         Host {
             game,
             record,
+            replay,
             log_to: start.log_to.clone(),
+            drop_stale: start.drop_stale,
+            user_data: start
+                .seats
+                .iter()
+                .map(|s| s.user_data.clone().filter(Value::is_object).unwrap_or_else(|| json!({"avatarId": 0})))
+                .collect(),
+            held: Default::default(),
             game_id: start.game_id,
             chat_id,
             names: start.seats.iter().map(|s| s.name.clone()).collect(),
@@ -293,6 +402,14 @@ impl Host {
             clock: Clock::new(start.timer),
             asking: None,
             timed_out: None,
+            events_sent: Vec::new(),
+            just_played: None,
+            undo_point: None,
+            turn_starts: std::collections::BTreeMap::new(),
+            rollback: start.rules.rollback,
+            restart: None,
+            at_priority: false,
+            free_mulligans: start.rules.free_mulligans,
         }
     }
 
@@ -304,6 +421,8 @@ impl Host {
         let names: Vec<&str> = self.names.iter().map(String::as_str).collect();
         let v = game_view(&self.game, self.human, &names);
         let mut v = self.ids.map(&self.game, v);
+        // which engine plays the game (Java's views have none): the client shows that the Rust engine does
+        v["engine"] = json!("rust");
         // a spell's card is the card it was in hand (the engine leaves it unnamed for the comparison with Java's,
         // whose spell has an id of its own): the client follows the card from hand to stack by it
         if let Some(Value::Object(stack)) = v.get_mut("stack") {
@@ -316,15 +435,29 @@ impl Host {
         if let Some(Value::Array(players)) = v.get_mut("players") {
             for (seat, p) in players.iter_mut().enumerate() {
                 p["isHuman"] = json!(seat == self.human);
+                if let Some(u) = self.user_data.get(seat) {
+                    p["userData"] = u.clone();
+                }
+            }
+            // "Undo tap" (`PlayerView.statesSavedSize`): mana made at priority can be taken back
+            if let Some(p) = players.get_mut(self.human) {
+                p["statesSavedSize"] = json!(usize::from(self.undo_point.is_some()));
             }
         }
+        v["rollbackTurnsAllowed"] = json!(self.rollback);
         v
     }
 
     /// The game's events since the last view, as `GameEventView`s for the human (`GameEventFeed.since`): a card
     /// that moved between zones they can't see (another player's draw) carries no identity. None: no new events
     fn take_events(&mut self) -> Option<Value> {
-        let events = self.game.events.as_mut().map(std::mem::take).unwrap_or_default();
+        // the engine's game keeps every event (the host's game is a copy of it as it asks): what's new is what
+        // follows the events sent already; an action taken back took its events back too
+        let all = self.game.events.clone().unwrap_or_default();
+        let same = self.events_sent.iter().zip(&all).take_while(|(a, b)| a == b).count();
+        let mut events = all[same..].to_vec();
+        self.events_sent = all;
+        events.retain(|e| e.kind.shown());
         if events.is_empty() {
             return None;
         }
@@ -349,6 +482,7 @@ impl Host {
                 EventKind::LifeLoss => "LIFE_LOSS",
                 EventKind::Draw => "DRAW",
                 EventKind::Zone => "ZONE",
+                _ => continue,
             };
             let seen = match e.kind {
                 EventKind::Draw => e.player == Some(self.human),
@@ -438,12 +572,12 @@ impl Host {
                 l.lock().unwrap().push((self.game.turn, line.clone()));
             }
             let message = self.ids.text(&self.game, &line);
-            self.send(
-                "CHATMESSAGE",
-                &self.chat_id.clone(),
-                json!({"username": "", "message": message, "time": now_ms(), "turnInfo": turn,
-                       "color": "BLACK", "messageType": "GAME"}),
-            );
+            let data = json!({"username": "", "message": message, "time": now_ms(), "turnInfo": turn,
+                   "color": "BLACK", "messageType": "GAME"});
+            if let Some(r) = self.replay.as_mut() {
+                r.log(&data);
+            }
+            self.send("CHATMESSAGE", &self.chat_id.clone(), data);
         }
     }
 
@@ -478,12 +612,20 @@ impl Host {
         // (events with no change to show wait for the next view; an action taken back takes its events back too)
         if self.last_view.as_ref() != Some(&view) {
             let events = self.take_events();
+            self.replay_frame(&view);
             self.last_view = Some(view.clone());
             let mut v = self.timed(view);
             if let Some(e) = events {
                 v["events"] = e;
             }
             self.send("GAME_UPDATE", &self.game_id.clone(), v);
+        }
+    }
+
+    /// The board as it is now, in the replay
+    fn replay_frame(&mut self, view: &Value) {
+        if let Some(r) = self.replay.as_mut() {
+            r.frame(view, &self.names[self.human]);
         }
     }
 
@@ -542,6 +684,7 @@ impl Host {
             }
             d.insert("gameView".into(), v);
         }
+        self.replay_frame(&view);
         self.last_view = Some(view);
         if debug() {
             eprintln!(
@@ -554,12 +697,30 @@ impl Host {
             );
         }
         let event = Event { method, object_id: self.game_id.clone(), data };
+        if self.drop_stale {
+            self.drop_stale_answers();
+        }
         self.open = Some(event.clone());
         let _ = self.events.send(event);
         let answer = self.wait(accept);
         self.clock.pause(Instant::now());
         self.asking = None;
         answer
+    }
+
+    /// The answers already sent, before the question about to be asked: for an earlier one, so dropped (Java's
+    /// `HumanPlayer` drops a response nobody waits for). The other calls wait for the question.
+    fn drop_stale_answers(&mut self) {
+        while let Ok(call) = self.calls.try_recv() {
+            match call {
+                Call::Uuid(_) | Call::Bool(_) | Call::Int(_) | Call::Str(_) | Call::ManaType(_) => {
+                    if debug() {
+                        eprintln!("host {} dropped a late answer {:?}", self.game_id, call);
+                    }
+                }
+                other => self.held.push_back(other),
+            }
+        }
     }
 
     /// The human's answer to the open question; `None` when they left, or their time ran out
@@ -569,7 +730,11 @@ impl Host {
                 Some(left) => left.min(IDLE),
                 None => IDLE,
             };
-            let call = match self.calls.recv_timeout(wait) {
+            let next = match self.held.pop_front() {
+                Some(c) => Ok(c),
+                None => self.calls.recv_timeout(wait),
+            };
+            let call = match next {
                 Ok(c) => c,
                 Err(RecvTimeoutError::Timeout) if self.clock.expired(self.human, Instant::now()) => {
                     self.time_out(self.human);
@@ -631,12 +796,33 @@ impl Host {
                         self.conceded = Some(self.human);
                         return None;
                     }
+                    "UNDO" => {
+                        // `GameImpl.undo`: the mana made since the last action is taken back
+                        if self.at_priority {
+                            if let Some(g) = self.undo_point.take() {
+                                self.restart = Some(g);
+                                return None;
+                            }
+                        }
+                        continue;
+                    }
+                    "ROLLBACK_TURNS" => {
+                        if self.at_priority && self.roll_back(data.as_ref()) {
+                            return None;
+                        }
+                        continue;
+                    }
                     a if a.starts_with("REQUEST_AUTO_ANSWER_") => {
                         self.auto_answer(a, data.as_ref());
                         continue;
                     }
                     a if a.starts_with("TRIGGER_AUTO_ORDER_") => {
                         self.trigger_order(a, data.as_ref());
+                        continue;
+                    }
+                    a if self.settings.press(a) => {
+                        // `GameImpl.setManaPaymentMode` (the engine's game shares it with this copy)
+                        pool_payment(&self.game, self.human, &self.settings);
                         continue;
                     }
                     a => {
@@ -659,6 +845,32 @@ impl Host {
             // an answer that doesn't fit: the question again (as Java re-asks)
             self.send_open();
         }
+    }
+
+    /// `GameController`'s `ROLLBACK_TURNS` against the AI (nobody else to ask): back to the start of the turn the data
+    /// says, so many turns ago (0: this one); true when the game goes back
+    fn roll_back(&mut self, data: Option<&Value>) -> bool {
+        let back = data.and_then(Value::as_u64).unwrap_or(0) as u32;
+        let turn = self.game.turn.saturating_sub(back);
+        let state = if self.rollback && turn > 0 { self.turn_starts.get(&turn).cloned() } else { None };
+        let Some(state) = state else {
+            self.inform_human("That turn is not available for rollback.");
+            return false;
+        };
+        // `GameImpl.rollbackTurnsExecution`
+        self.inform(format!("<font color='#FF8C00'>Player request: Rolling back to start of turn {turn}</font>"));
+        self.turn_starts.split_off(&(turn + 1));
+        self.undo_point = None;
+        self.restart = Some(state);
+        true
+    }
+
+    /// A line in the human's game log only (`Game.informPlayer`)
+    fn inform_human(&mut self, line: &str) {
+        let turn = format!("T{}.{}", self.game.turn, self.game.step.map(|s| s.name().to_string()).unwrap_or_default());
+        let data = json!({"username": "", "message": line, "time": now_ms(), "turnInfo": turn,
+               "color": "BLACK", "messageType": "GAME"});
+        self.send("CHATMESSAGE", &self.chat_id.clone(), data);
     }
 
     /// `PlayerImpl.timerTimeout`: the seat's time ran out, it loses
@@ -756,12 +968,24 @@ impl Host {
                 rules::play_from_priority(&mut game, &mut d, 0);
             }
         }
+        // an undo or a rollback: the engine plays on from the game it goes back to, from its priority question
+        while let Some(back) = self.restart.take() {
+            if self.conceded.is_some() {
+                break;
+            }
+            game = back;
+            self.game = game.clone();
+            self.update();
+            let mut d = HostDecider { host: self };
+            rules::play_from_priority_question(&mut game, &mut d, 0);
+        }
         self.game = game;
         self.finish()
     }
 
     /// The game's end: who won, `GAME_OVER`
     fn finish(&mut self) -> Ended {
+        let summary = self.summary();
         self.log();
         let (winner, reason) = if let Some(loser) = self.conceded {
             self.inform(format!("<font color='#20B2AA'>{}</font> has conceded.", self.names[loser]));
@@ -789,12 +1013,30 @@ impl Host {
         let now = Instant::now();
         self.clock.pause(now);
         let time_left = [self.clock.left_secs(0, now), self.clock.left_secs(1, now)];
-        Ended { winner, turns: self.game.turn, reason, time_left }
+        let mut summary = summary;
+        // the replay is complete: Java lists it
+        summary["replayEvents"] = json!(self.replay.as_mut().map(|r| r.finish()).unwrap_or(0));
+        Ended { winner, turns: self.game.turn, reason, time_left, summary }
+    }
+
+    /// The end's `summary` (`Ended`), the tally counted from the game's whole history
+    fn summary(&mut self) -> Value {
+        let mut tally = crate::tally::Tally::new(self.human, self.game.starting_life);
+        tally.watch(&self.game, self.game.events.as_deref().unwrap_or_default());
+        let players: Vec<Value> = (0..2)
+            .map(|s| {
+                let p = self.game.player(s);
+                let poison: i32 = p.counters.iter().filter(|(n, _)| n == "poison").map(|(_, k)| *k).sum();
+                json!({"life": p.life, "poison": poison})
+            })
+            .collect();
+        json!({"players": players, "tally": tally.report(&self.game)})
     }
 
     fn over(&mut self, _winner: Option<Seat>, message: &str) {
         self.ids.clear();
         let view = self.view();
+        self.replay_frame(&view);
         let view = self.timed(view);
         self.send("GAME_OVER", &self.game_id.clone(), json!({"gameView": view, "message": message}));
     }
@@ -836,14 +1078,17 @@ impl Host {
     fn mulligans(&mut self, first: Seat) -> bool {
         let mut kept = [false, false];
         let mut taken = [0usize, 0usize];
+        // `LondonMulligan`: the first free ones keep the hand's size
+        let free = self.free_mulligans as usize;
+        let size_after = |taken: usize| 7usize.saturating_sub(taken.saturating_sub(free));
         while !(kept[0] && kept[1]) {
             let mut going = Vec::new();
             for seat in [first, 1 - first] {
                 if kept[seat] {
                     continue;
                 }
-                let size = 7usize.saturating_sub(taken[seat] + 1);
-                let wants = if taken[seat] >= 6 {
+                let size = size_after(taken[seat] + 1);
+                let wants = if size_after(taken[seat]) == 0 {
                     false
                 } else if seat == self.human {
                     match self.ask(prompts::mulligan(size), &|_, c| match c {
@@ -854,7 +1099,7 @@ impl Host {
                         _ => return false,
                     }
                 } else {
-                    ai_mulligans(&self.game, seat, taken[seat])
+                    ai_mulligans(&self.game, seat, taken[seat].saturating_sub(free))
                 };
                 let name = self.names[seat].clone();
                 if wants {
@@ -867,7 +1112,8 @@ impl Host {
             }
             for seat in going {
                 taken[seat] += 1;
-                let size = 7 - taken[seat];
+                let size = size_after(taken[seat]);
+                let for_free = taken[seat] <= free;
                 let hand = std::mem::take(&mut self.game.player_mut(seat).hand);
                 for id in &hand {
                     self.game.obj_mut(*id).zone = Zone::Library;
@@ -878,7 +1124,12 @@ impl Host {
                 self.game.player_mut(seat).library = library;
                 rules::draw(&mut self.game, seat, 7);
                 let name = self.names[seat].clone();
-                self.inform(format!("<font color='#20B2AA'>{name}</font> mulligans down to {size} cards"));
+                if for_free {
+                    self.inform(format!("<font color='#20B2AA'>{name}</font> mulligans for free."));
+                } else {
+                    let cards = if size == 1 { "card" } else { "cards" };
+                    self.inform(format!("<font color='#20B2AA'>{name}</font> mulligans down to {size} {cards}"));
+                }
                 // the cards over the new size go to the bottom, one at a time
                 while self.game.player(seat).hand.len() > size {
                     let more = self.game.player(seat).hand.len() - size;
@@ -917,8 +1168,15 @@ struct HostDecider<'a> {
 impl Decider for HostDecider<'_> {
     fn answer(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
         let h = &mut *self.host;
-        if h.conceded.is_some() {
+        if h.conceded.is_some() || h.restart.is_some() {
             return Answer::Stop;
+        }
+        // each turn's first priority, for a rollback (`GameImpl.saveRollBackGameState`, the last four turns)
+        if h.rollback && matches!(q, Query::Priority { .. }) && !h.turn_starts.contains_key(&game.turn) {
+            h.turn_starts.insert(game.turn, game.clone());
+            while h.turn_starts.len() > 5 {
+                h.turn_starts.pop_first();
+            }
         }
         // a turn another player controls (Emrakul, the Promised End): the controller has the player do nothing it
         // needn't; what it must answer, the quick policy answers
@@ -946,9 +1204,38 @@ impl Decider for HostDecider<'_> {
         // the host's game is the engine's game while it asks
         h.game = game.clone();
         if let Query::Priority { .. } = q {
+            // `HumanPlayer.priority`: a spell just cast (an ability just activated) passes at once when the player's
+            // settings say so, unless they held priority for it
+            if let Some((obj, before)) = h.just_played.take() {
+                let item = game.stack.iter().skip(before).find(|i| i.card == obj && i.controller == seat);
+                let pass = match item {
+                    Some(i) if i.ability.is_none() && i.delayed.is_none() => h.settings.pass_after_cast,
+                    Some(_) => h.settings.pass_after_activation,
+                    None => false,
+                };
+                if pass && !h.passing.holding {
+                    h.passing.holding = false;
+                    h.table.record(game, q, &Answer::Bool(false));
+                    return Answer::Bool(false);
+                }
+            }
+            // held for one action: the next priority asks again
+            h.passing.holding = false;
             if h.passing.passes(game, seat, &h.settings) {
                 h.table.record(game, q, &Answer::Bool(false));
                 return Answer::Bool(false);
+            }
+        }
+        // `useFirstManaAbility`: a permanent with several mana abilities uses its first
+        if let Query::ChooseAbility { source, abilities } = q {
+            let def = &game.obj(*source).def;
+            if h.settings.use_first_mana_ability
+                && abilities.len() > 1
+                && abilities.iter().all(|i| def.abilities.get(*i).is_some_and(is_mana_ability))
+            {
+                let a = Answer::Ability(*source, abilities[0]);
+                h.table.record(game, q, &a);
+                return a;
             }
         }
         if let Query::YesNo { message } = q {
@@ -1001,10 +1288,24 @@ impl Decider for HostDecider<'_> {
         }
         let prompt = prompts::prompt(game, seat, q);
         let q2 = q.clone();
+        h.at_priority = matches!(q, Query::Priority { .. });
         let answer = h.ask(prompt, &|h, c| h.answer_of(&q2, c));
+        h.at_priority = false;
         match answer {
             Some(a) => {
                 h.table.record(game, q, &a);
+                if let Query::Priority { playable } = q {
+                    if let Answer::Obj(o) | Answer::Ability(o, _) = &a {
+                        h.just_played = Some((*o, game.stack.len()));
+                    }
+                    // a permanent clicked for its mana: undoable until the player does anything else
+                    let mana = matches!(a, Answer::Obj(o) if !playable.contains(&o) && game.battlefield.contains(&o));
+                    if !mana {
+                        h.undo_point = None;
+                    } else if h.undo_point.is_none() {
+                        h.undo_point = Some(game.clone());
+                    }
+                }
                 a
             }
             None => Answer::Stop,
@@ -1019,8 +1320,20 @@ impl Decider for HostDecider<'_> {
     }
 
     fn stopped(&self) -> bool {
-        self.host.conceded.is_some()
+        self.host.conceded.is_some() || self.host.restart.is_some()
     }
+}
+
+/// Whether an ability is a mana ability (its variant's name: `…ManaAbility`)
+fn is_mana_ability(a: &playmat_engine::card::AbilityDef) -> bool {
+    let name = format!("{a:?}");
+    name.split(|c: char| !c.is_alphanumeric()).next().is_some_and(|v| v.ends_with("ManaAbility"))
+}
+
+/// How the player's pool pays (`ManaPool.autoPayment`, `autoPaymentRestricted`): never by itself, by itself once mana
+/// was made for the payment (the engine's stock), or always
+fn pool_payment(game: &Game, seat: Seat, settings: &Settings) {
+    game.set_pool_mode(seat, !settings.pool_automatic, settings.pool_automatic && !settings.pool_restricted);
 }
 
 /// The AI's keep (the Java AI's rule of thumb): two to five lands in seven, fewer cards keep looser

@@ -13,6 +13,8 @@ import { DEFAULT_CARD_BACK, type CardBackId } from '../ui/cardBack';
 import type { MatchSize } from '../match/matchLayout';
 
 export interface PlaySettings {
+  /** AI games run on the Rust engine when the server allows it and the decks qualify (beta; sent to the server) */
+  rustEngine: boolean;
   /** tap lands automatically when the payment is unambiguous */
   autoPayMana: boolean;
   /** leave mana already in the pool for manual payment (the inverse of Use floating mana automatically) */
@@ -139,6 +141,7 @@ export const FULL_CONTROL: Partial<PlaySettings> = {
 };
 
 export const DEFAULT_SETTINGS: PlaySettings = {
+  rustEngine: false,
   autoPayMana: true,
   autoPayRestricted: true,
   confirmEmptyManaPool: true,
@@ -236,6 +239,7 @@ export function toUserData(settings: PlaySettings, fullControl = false): UserDat
     useSameSettingsForReplacementEffects: true,
     useFirstManaAbility: false,
     confirmEmptyManaPool: settings.confirmEmptyManaPool,
+    useRustEngine: settings.rustEngine,
     userIdStr: '',
   };
 }

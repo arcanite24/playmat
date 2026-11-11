@@ -291,6 +291,7 @@ starts, it hands the game to the gateway, which plays it and reports the result 
 | Variable | Default | Meaning |
 |---|---|---|
 | `XMAGE_RUST_HOST_USERS` | none | Comma-separated user names (any case), or `*` for everyone: whose qualifying games the Rust engine hosts. Empty: nobody's. Setting it also turns hosting on in the gateway (`XMAGE_RUST_HOST=on`). |
+| `XMAGE_RUST_OPT_IN` | off | `on`: every player can turn the Rust engine on for themselves in Settings → Gameplay ("Play on the Rust engine", marked beta). Their qualifying games are then hosted as a listed player's are. The board shows a "Rust engine" chip, and the first view of each such game a short note. Setting it also turns hosting on in the gateway. |
 | `XMAGE_RUST_HOST_RECORDS_KEEP` | `500` | How many hosted games' records the gateway keeps in `saved/host-games` (the `xmage-saved` volume); the oldest go first. |
 | `XMAGE_ENGINE` | | `java` keeps every game on Java. |
 
@@ -301,10 +302,14 @@ game's loser chooses who plays first, and a game whose deck gains a card the eng
 Java.
 The log says `Rust host: plays …'s game` when it hosts one, `Rust host: game … ended after n turns` at its end, and,
 for a listed player's game that doesn't qualify, why. The table's priority timer and buffer time work as on Java: a
-player whose time runs out loses the match, and each game of a match keeps the time left from the earlier ones. Not
-there yet: spectators, the solo tools
-(saves, undo), advice, and the Career's quests and stats for these games, which pay nothing for now. If the host
-fails mid-game, the game ends as a draw. Conceding a game ends that game; leaving the match, or no answer for 30
+player whose time runs out loses the match, and each game of a match keeps the time left from the earlier ones. The
+table's options are played too (starting life, free mulligans, the AI's skill, rollbacks); a table the host can't
+play as set (another game type or mulligan, a hand size other than 7, a companion) stays on Java. Hosted games pay
+the Career as Java's do (XP, quests, stats), have replays in History when `REPLAYS=true` (the gateway writes them to
+`saved/replays`, `XMAGE_RUST_HOST_REPLAYS`), and take undo, rollbacks, pass-after-cast and the mana payment modes.
+Spectators can watch them, and a player can have the game open in more than one tab. Not there yet: the solo tools
+(saves, "Try this turn again") and advice, which the client hides on these games. If the host fails mid-game, the
+client shows the error and the game ends as a draw. Conceding a game ends that game; leaving the match, or no answer for 30
 minutes, ends the match. If a player stays away (or the gateway is gone) for 35 minutes, the game ends as their loss
 and they leave the match.
 

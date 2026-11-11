@@ -84,7 +84,7 @@ impl Table {
     /// Notes an answer given by someone else (a mirrored game's other seat), so later searches can replay it.
     pub fn record(&mut self, game: &Game, q: &Query, a: &Answer) {
         if matches!(q, Query::Priority { .. }) {
-            self.snapshot = Some(game.clone());
+            self.snapshot = Some(playout_copy(game));
             self.since.clear();
         }
         self.since.push(a.clone());
@@ -93,7 +93,7 @@ impl Table {
     /// The AI's answer for `seat` (searched when the seat has a config), without recording it.
     pub fn decide(&mut self, game: &Game, seat: Seat, q: &Query) -> Answer {
         if matches!(q, Query::Priority { .. }) {
-            self.snapshot = Some(game.clone());
+            self.snapshot = Some(playout_copy(game));
             self.since.clear();
         }
         let filtered;
@@ -358,4 +358,12 @@ pub(crate) fn candidates(game: &Game, seat: Seat, q: &Query, quick: &Answer, wid
     }
     out.truncate(width.max(1));
     out
+}
+
+/// The game a search plays out from: without the game log and the events, which only the real game keeps
+fn playout_copy(game: &Game) -> Game {
+    let mut g = game.clone();
+    g.events = None;
+    g.log = None;
+    g
 }

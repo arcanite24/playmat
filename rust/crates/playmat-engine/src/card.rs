@@ -1204,7 +1204,8 @@ pub enum EffectDef {
     },
     /// if the target would die this turn, it's exiled instead
     ExileTargetIfDiesEffect,
-    /// adds a subtype to the source (subtypes aren't in the fingerprint, and no rule reads them yet; views show it)
+    /// adds a subtype to the source: as a static ability while it holds, resolving until end of turn
+    /// (`Game::added_subtypes`; subtypes aren't in the fingerprint)
     AddCardSubTypeSourceEffect {
         #[serde(default)]
         subtype: String,
@@ -2691,7 +2692,8 @@ pub enum AbilityDef {
     },
     OmenCardSpellAbility,
     /// Delve and Convoke: Java counts the graveyard's cards, or the untapped creatures, as mana when it works out
-    /// whether the spell can be cast; paying with them is a special action the shadow games' players never take
+    /// whether the spell can be cast; paying with them is a special action ("special" while paying,
+    /// `rules::special_mana_payment`) the shadow games' players never take
     DelveAbility,
     ConvokeAbility,
     /// improvise: each untapped artifact you control can pay {1}

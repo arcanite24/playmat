@@ -331,6 +331,8 @@ pub struct Player {
     pub graveyard: Vec<ObjId>,
     pub lost: bool,
     pub won: bool,
+    /// the game is a draw for them (`Player.drew`: an infinite loop they agreed to call a draw)
+    pub drew: bool,
     pub lands_played: u32,
     pub mana_pool: Mana,
     /// how much of the pool's {R} lasts until end of combat (firebending)
@@ -391,6 +393,17 @@ pub struct Revealed {
     pub zcc: u32,
     pub paren: bool,
     pub cards: Vec<(ObjId, Zone)>,
+}
+
+/// Cards a player looked at while an object resolves (`GameState.lookedAt`, `Player.lookAtCards`): who looked, the
+/// source and its zone change count (in the title unless `bare`: Mishra's Bauble's is its id name alone), the cards
+#[derive(Clone, Debug)]
+pub struct LookedAt {
+    pub viewer: Seat,
+    pub source: ObjId,
+    pub zcc: u32,
+    pub bare: bool,
+    pub cards: Vec<ObjId>,
 }
 
 /// A combat group as views show it (`Combat.groups`): an attacker, in the order they attacked, and once it's left the
@@ -522,6 +535,43 @@ pub enum EventKind {
     LifeLoss,
     Draw,
     Zone,
+    // what only the Career's tally counts (`CareerTally.Recorder`): the client gets none of these
+    /// a turn begins: `player` is the active player (`BEGIN_TURN`)
+    Turn,
+    /// `player` cast `target` (`SPELL_CAST`)
+    Cast,
+    /// `source`'s effect countered `target`, `player`'s spell (`COUNTERED`)
+    Countered,
+    /// `player` activated `source`'s loyalty ability (`ACTIVATED_ABILITY` of a planeswalker)
+    Loyalty,
+    /// `source` became attached to `target` (`ATTACHED`)
+    Attached,
+    /// `player` sacrificed `target` (`SACRIFICED_PERMANENT`)
+    Sacrificed,
+    /// `player` discarded `target` (`DISCARDED_CARD`)
+    Discarded,
+    /// `player` milled `amount` cards (`MILLED_CARD`)
+    Milled,
+    /// `player` made `amount` mana (`MANA_ADDED`)
+    Mana,
+    /// `player` played a land (`LAND_PLAYED`)
+    Land,
+    /// `source` attacks (`ATTACKER_DECLARED`)
+    Attack,
+    /// `source` blocks (`BLOCKER_DECLARED`)
+    Block,
+    /// `player` put `amount` counters on `target` (`COUNTERS_ADDED`)
+    Counters,
+}
+
+impl EventKind {
+    /// whether the client gets it (`GameEventView`): the others are the Career tally's
+    pub fn shown(self) -> bool {
+        matches!(
+            self,
+            EventKind::Damage | EventKind::LifeGain | EventKind::LifeLoss | EventKind::Draw | EventKind::Zone
+        )
+    }
 }
 
 /// One game event (`GameEventView`): damage dealt, life gained or lost, a card drawn, a zone change
@@ -535,11 +585,23 @@ pub struct GameEvent {
     pub from: Option<Zone>,
     pub to: Option<Zone>,
     pub combat: bool,
+    /// the turn it happened on (`Game::record` sets it)
+    pub turn: u32,
 }
 
 impl GameEvent {
     pub fn new(kind: EventKind) -> GameEvent {
-        GameEvent { kind, target: None, source: None, player: None, amount: 0, from: None, to: None, combat: false }
+        GameEvent {
+            kind,
+            target: None,
+            source: None,
+            player: None,
+            amount: 0,
+            from: None,
+            to: None,
+            combat: false,
+            turn: 0,
+        }
     }
 }
 
@@ -549,6 +611,12 @@ pub struct Game {
     pub rng: JavaRandom,
     /// each starting card's printing (`SET:number`), by object id, for its view (docs/rust/Views.md)
     pub printings: Arc<Vec<String>>,
+    /// each player's life as the game began (`Game.getStartingLife`): 20, or the table's
+    pub starting_life: i32,
+    /// how each seat's pool pays (`ManaPool.autoPayment`, `autoPaymentRestricted`), two bits a seat: manual (only the
+    /// type the player unlocks pays), unrestricted (all of the pool pays). Shared by the game's copies, so a player
+    /// who changes it mid-game changes it for the game being played (the host's copy of it, as it asks, sets it)
+    pub pool_modes: Arc<std::sync::atomic::AtomicU32>,
     pub turn: u32,
     /// day (true) or night (false), once a daybound or nightbound permanent appeared
     pub day: Option<bool>,
@@ -591,10 +659,27 @@ pub struct Game {
     pub combat_groups: Vec<CombatGroup>,
     /// cards revealed while the object resolving resolves, for views
     pub revealed: Vec<Revealed>,
+    /// cards looked at while the object resolving resolves, for the viewer's views
+    pub looked_at: Vec<LookedAt>,
     /// counts attachments, for their order
     pub attach_clock: u64,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
     pub step_start: bool,
+    /// `GameImpl.checkInfiniteLoop`'s state: the sources of the last resolved stack objects (up to four), the stack's
+    /// size after the last resolution, the players' life when the count started, the count (reset at each priority
+    /// round) and how many times in a row the players declined to call it a draw
+    pub loop_sources: Vec<ObjId>,
+    /// while a mana payment is asked: the spell can be paid with a special action (delve, convoke, improvise), the
+    /// "Special" button (`GameView.special`)
+    pub special_mana: bool,
+    /// while a library is searched (`TargetCardInLibrary.choose`): the whole library as the client is shown it,
+    /// sorted by name, and the cards chosen so far. The question's cards are the ones that can still be picked
+    /// (Java's `possibleTargets`).
+    pub searching: Option<(Vec<ObjId>, Vec<ObjId>)>,
+    pub loop_stack: usize,
+    pub loop_lives: Option<Vec<i32>>,
+    pub loop_count: u32,
+    pub loop_declined: u32,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
@@ -654,6 +739,9 @@ pub struct Game {
     pub events: Option<Vec<GameEvent>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
+    /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
+    /// its zone change count, the subtype
+    pub subtypes_until_eot: Vec<(ObjId, u32, String)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
     /// permanents sacrificed together: where in `pending` the next one's sacrifice triggers go (before what their
@@ -718,6 +806,8 @@ impl Game {
         rng.set_state(seed_state);
         Game {
             rng,
+            starting_life: 20,
+            pool_modes: Arc::new(std::sync::atomic::AtomicU32::new(0)),
             turn: 0,
             step: None,
             active: None,
@@ -742,8 +832,16 @@ impl Game {
             mana_paid: None,
             combat_groups: Vec::new(),
             revealed: Vec::new(),
+            looked_at: Vec::new(),
             attach_clock: 0,
             step_start: false,
+            loop_sources: Vec::new(),
+            special_mana: false,
+            searching: None,
+            loop_stack: 0,
+            loop_lives: None,
+            loop_count: 0,
+            loop_declined: 0,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
             any_time: std::cell::Cell::new(false),
@@ -771,6 +869,7 @@ impl Game {
             log: None,
             events: None,
             exile_if_dies: Vec::new(),
+            subtypes_until_eot: Vec::new(),
             triggered_this_turn: Vec::new(),
             sac_insert: None,
             entering_together: Vec::new(),
@@ -1016,8 +1115,44 @@ impl Game {
     }
 
     /// Whether an object has a subtype now.
+    /// The subtypes effects add to a permanent (`AddCardSubTypeSourceEffect`): its own static ones whose condition
+    /// holds (Skyknight Squire's Knight while it has three counters), and those until end of turn.
+    pub fn added_subtypes(&self, id: ObjId) -> Vec<&str> {
+        let o = self.obj(id);
+        let mut added: Vec<&str> = Vec::new();
+        if o.zone != Zone::Battlefield {
+            return added;
+        }
+        for a in &o.def.abilities {
+            let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+            for e in effects {
+                let (e, holds) = match e {
+                    EffectDef::ConditionalContinuousEffect { effect, condition } => (&**effect, Some(condition)),
+                    e => (e, None),
+                };
+                if let EffectDef::AddCardSubTypeSourceEffect { subtype } = e {
+                    if !subtype.is_empty()
+                        && !added.contains(&subtype.as_str())
+                        && (holds.is_none() || self.condition_holds(holds, o.controller, id))
+                    {
+                        added.push(subtype);
+                    }
+                }
+            }
+        }
+        for (x, zcc, t) in &self.subtypes_until_eot {
+            if *x == id && *zcc == o.zcc && !added.contains(&t.as_str()) {
+                added.push(t);
+            }
+        }
+        added
+    }
+
     pub fn has_subtype(&self, id: ObjId, s: &str) -> bool {
         let o = self.obj(id);
+        if o.zone == Zone::Battlefield && self.added_subtypes(id).contains(&s) {
+            return true;
+        }
         let def = &o.def;
         if let Some(types) = o.creature_types.as_ref().filter(|_| o.zone == Zone::Battlefield) {
             return types.iter().any(|x| x == s)
@@ -1218,6 +1353,15 @@ impl Game {
         let o = self.obj_mut(id);
         o.attached_to = Some((to, zcc));
         o.attached_at = at;
+        if self.events.is_some() {
+            let player = Some(self.obj(id).controller);
+            self.record(GameEvent {
+                source: Some(id),
+                target: Some(Target::Obj(to)),
+                player,
+                ..GameEvent::new(EventKind::Attached)
+            });
+        }
     }
 
     pub fn attached(&self, aura: ObjId) -> Option<ObjId> {
@@ -1244,7 +1388,23 @@ impl Game {
 
     /// Whether a static ability's effect on the battlefield matches (for effects that apply to the whole game).
     /// Keeps a game event, while they're kept
-    pub fn record(&mut self, event: GameEvent) {
+    /// `seat`'s pool payment: (manual, unrestricted); see `pool_modes`
+    pub fn pool_mode(&self, seat: Seat) -> (bool, bool) {
+        let bits = self.pool_modes.load(std::sync::atomic::Ordering::Relaxed) >> (2 * seat);
+        (bits & 1 != 0, bits & 2 != 0)
+    }
+
+    pub fn set_pool_mode(&self, seat: Seat, manual: bool, unrestricted: bool) {
+        use std::sync::atomic::Ordering;
+        let mask = 3u32 << (2 * seat);
+        let bits = (u32::from(manual) | (u32::from(unrestricted) << 1)) << (2 * seat);
+        // the seat's two bits: cleared, then set (only the host's thread writes them)
+        self.pool_modes.fetch_and(!mask, Ordering::Relaxed);
+        self.pool_modes.fetch_or(bits, Ordering::Relaxed);
+    }
+
+    pub fn record(&mut self, mut event: GameEvent) {
+        event.turn = self.turn;
         if let Some(events) = self.events.as_mut() {
             events.push(event);
         }
@@ -2281,6 +2441,7 @@ impl Game {
         if self.events.is_some() {
             self.record(GameEvent {
                 target: Some(Target::Obj(id)),
+                source: self.resolving.map(|(_, card)| card),
                 player: Some(owner),
                 from: Some(from),
                 to: Some(zone),

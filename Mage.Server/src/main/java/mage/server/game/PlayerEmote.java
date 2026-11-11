@@ -17,7 +17,7 @@ public class PlayerEmote implements Serializable {
     public PlayerEmote() {
     }
 
-    PlayerEmote(String gameId, String player, String emote) {
+    public PlayerEmote(String gameId, String player, String emote) {
         this.gameId = gameId;
         this.player = player;
         this.emote = emote;

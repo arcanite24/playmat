@@ -24,7 +24,14 @@ pub struct Subscriber {
 
 pub struct Hosted {
     calls: Mutex<Sender<Call>>,
-    subscriber: Mutex<Option<Subscriber>>,
+    /// the human's connections that joined: every tab of theirs gets the game (a closed one drops off)
+    subscribers: Mutex<Vec<Subscriber>>,
+    /// the spectators' connections (`gameWatchStart`), by user name; they get the board without the human's secrets
+    watchers: Mutex<Vec<(Subscriber, String)>>,
+    /// the last board as spectators see it, for one who starts watching
+    watched: Mutex<Option<Value>>,
+    /// the human's player id, whose draws a spectator doesn't see
+    human: String,
     pub chat_id: String,
 }
 
@@ -33,8 +40,104 @@ impl Hosted {
         let _ = self.calls.lock().unwrap().send(call);
     }
 
+    /// a callback for the human's tabs
+    pub fn echo(&self, event: Value) {
+        self.subscribers.lock().unwrap().retain(|s| s.events.send(event.clone()).is_ok());
+    }
+
+    /// a chat line, to everyone in the game's chat: the human's tabs and the spectators
+    pub fn say(&self, event: Value) {
+        self.to_watchers(event.clone());
+        self.echo(event);
+    }
+
+    /// a callback for the spectators
+    fn to_watchers(&self, event: Value) {
+        self.watchers.lock().unwrap().retain(|(s, _)| s.events.send(event.clone()).is_ok());
+    }
+
+    /// A host callback: to the human's tabs as it is, and as spectators see it to them
+    fn forward(&self, game_id: &str, e: Value) {
+        if let Some(w) = watcher_event(game_id, &self.human, &e) {
+            if w["method"] != "CHATMESSAGE" && w["method"] != "GAME_OVER" {
+                *self.watched.lock().unwrap() = Some(w["data"].clone());
+            }
+            self.to_watchers(w);
+        }
+        self.echo(e);
+    }
+
+    /// `gameJoin` from a connection: it gets the game's callbacks from now on, beside the human's other tabs
     pub fn subscribe(&self, s: Subscriber) {
-        *self.subscriber.lock().unwrap() = Some(s);
+        let mut subscribers = self.subscribers.lock().unwrap();
+        subscribers.retain(|t| t.connection != s.connection && !t.events.is_closed());
+        subscribers.push(s);
+    }
+
+    /// `gameWatchStart`: a spectator, sent the board at once. False when the game has no board yet.
+    pub fn watch(&self, game_id: &str, s: Subscriber, user: String) -> bool {
+        let Some(view) = self.watched.lock().unwrap().clone() else { return false };
+        let _ = s.events.send(json!({"objectId": game_id, "method": "GAME_INIT", "data": view}));
+        let mut watchers = self.watchers.lock().unwrap();
+        watchers.retain(|(t, _)| t.connection != s.connection && !t.events.is_closed());
+        watchers.push((s, user));
+        true
+    }
+
+    pub fn unwatch(&self, connection: u64) {
+        self.watchers.lock().unwrap().retain(|(t, _)| t.connection != connection);
+    }
+
+    /// `gameWatchers`: the spectators' names
+    pub fn watcher_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = self.watchers.lock().unwrap().iter().map(|(_, u)| u.clone()).collect();
+        names.sort();
+        names.dedup();
+        names
+    }
+}
+
+/// The board as a spectator sees it (`GameSessionWatcher`: a view for no player): no hand, nothing to play, nothing
+/// looked at, and the human's draws hidden
+fn watcher_view(human: &str, mut view: Value) -> Value {
+    if let Some(v) = view.as_object_mut() {
+        v.insert("myHand".into(), json!({}));
+        v.insert("myPlayerId".into(), Value::Null);
+        v.insert("special".into(), json!(false));
+        v.insert("lookedAt".into(), json!([]));
+        v.remove("canPlayObjects");
+        if let Some(Value::Array(events)) = v.get_mut("events") {
+            for e in events.iter_mut() {
+                if e["kind"] == "DRAW" && e["playerId"] == human {
+                    if let Some(e) = e.as_object_mut() {
+                        e.remove("targetId");
+                    }
+                }
+            }
+        }
+        if let Some(Value::Array(players)) = v.get_mut("players") {
+            for p in players {
+                p["controlled"] = json!(false);
+            }
+        }
+    }
+    view
+}
+
+/// A host callback as spectators get it: the board (a question's too, as an update), the log and the end; none for
+/// what's only the human's (the questions, their own log lines)
+fn watcher_event(game_id: &str, human: &str, e: &Value) -> Option<Value> {
+    let method = e["method"].as_str()?;
+    let data = &e["data"];
+    match method {
+        "GAME_INIT" | "GAME_UPDATE" => {
+            Some(json!({"objectId": game_id, "method": method, "data": watcher_view(human, data.clone())}))
+        }
+        "CHATMESSAGE" | "GAME_OVER" | "GAME_ERROR" => Some(e.clone()),
+        _ => {
+            let view = data.get("gameView").filter(|v| v.is_object())?;
+            Some(json!({"objectId": game_id, "method": "GAME_UPDATE", "data": watcher_view(human, view.clone())}))
+        }
     }
 }
 
@@ -50,6 +153,9 @@ pub struct Hosts {
     /// records are kept (`XMAGE_RUST_HOST_RECORDS_KEEP`, 500 by default; the oldest go first)
     records: Option<PathBuf>,
     keep: usize,
+    /// where each game's replay goes (`XMAGE_RUST_HOST_REPLAYS`: Java's `xmage.replays.dir`; playmat-host's
+    /// `replay.rs`); none: hosted games have no replay
+    replays: Option<PathBuf>,
     ended: Mutex<BTreeMap<&'static str, u64>>,
 }
 
@@ -100,7 +206,8 @@ impl Hosts {
         if let (true, Some(dir)) = (enabled, &records) {
             info!("Rust host: game records in {} (the last {keep})", dir.display());
         }
-        Hosts { enabled, records, keep, ..Hosts::default() }
+        let replays = std::env::var_os("XMAGE_RUST_HOST_REPLAYS").filter(|v| !v.is_empty()).map(PathBuf::from);
+        Hosts { enabled, records, keep, replays, ..Hosts::default() }
     }
 
     pub fn get(&self, game_id: &str) -> Option<Arc<Hosted>> {
@@ -178,13 +285,36 @@ impl Hosts {
             prune(dir, self.keep.saturating_sub(1));
             dir.join(format!("{game_id}.jsonl"))
         });
-        let start = Start { game_id: game_id.clone(), seed, seats, timer, chooser, record, log_to: None };
+        let rules = playmat_host::TableRules::of(data);
+        // the replay goes where Java keeps its games' (XMAGE_HOST_REPLAYS: its xmage.replays.dir), listed at the end
+        let replay = self.replays.as_ref().map(|dir| dir.join(format!("{game_id}.ndjson.gz.part")));
+        let start = Start {
+            game_id: game_id.clone(),
+            seed,
+            seats,
+            rules,
+            timer,
+            chooser,
+            record,
+            replay,
+            log_to: None,
+            drop_stale: true,
+        };
         // known before the game starts, so its calls (the client joins at once) wait for it
         let chat_id = playmat_host::ids::Ids::new(&game_id, players.clone()).chat();
         let (calls, calls_in) = std::sync::mpsc::channel();
+        let human = data["seats"]
+            .as_array()
+            .and_then(|a| a.iter().find(|s| s["human"] == true))
+            .and_then(|s| s["playerId"].as_str())
+            .unwrap_or("")
+            .to_string();
         let hosted = Arc::new(Hosted {
             calls: Mutex::new(calls.clone()),
-            subscriber: Mutex::new(Some(subscriber.clone())),
+            subscribers: Mutex::new(vec![subscriber.clone()]),
+            watchers: Mutex::new(Vec::new()),
+            watched: Mutex::new(None),
+            human,
             chat_id: chat_id.clone(),
         });
         self.games.lock().unwrap().insert(game_id.clone(), hosted.clone());
@@ -206,7 +336,14 @@ impl Hosts {
                             "data": {"message": format!("The game couldn't start on the Rust host: {why}")}});
                         let _ = subscriber.events.send(over);
                         hosts.ended("error: can't start");
-                        handle.spawn(report(java_url, game_id, token, None, 0, format!("error: {why}"), Value::Null));
+                        let end = Report {
+                            winner: None,
+                            turns: 0,
+                            reason: format!("error: {why}"),
+                            time_left: Value::Null,
+                            summary: Value::Null,
+                        };
+                        handle.spawn(report(java_url, game_id, token, end));
                         return;
                     }
                 };
@@ -214,10 +351,7 @@ impl Hosts {
                 info!("Rust host: game {game_id} started");
                 while let Ok(e) = events.recv() {
                     let e: Event = e;
-                    let to = hosted.subscriber.lock().unwrap().clone();
-                    if let Some(to) = to {
-                        let _ = to.events.send(e.json());
-                    }
+                    hosted.forward(&game_id, e.json());
                 }
                 let ended = thread.join().unwrap_or(playmat_host::Ended {
                     reason: "panic: the host's thread".into(),
@@ -229,7 +363,9 @@ impl Hosts {
                 info!("Rust host: game {game_id} ended after {} turns: {}", ended.turns, ended.reason);
                 hosts.ended(&ended.reason);
                 let time_left = time_left(&players, &ended.time_left);
-                handle.spawn(report(java_url, game_id, token, winner, ended.turns, ended.reason, time_left));
+                let end =
+                    Report { winner, turns: ended.turns, reason: ended.reason, time_left, summary: ended.summary };
+                handle.spawn(report(java_url, game_id, token, end));
             })
             .expect("a thread");
     }
@@ -246,19 +382,21 @@ fn time_left(players: &[String], left: &[Option<u32>; 2]) -> Value {
     }
 }
 
-/// `hostGameEnded` to Java, on a connection of its own (the player's may be gone); a few tries
-async fn report(
-    java_url: url::Url,
-    game_id: String,
-    token: String,
+/// How a hosted game ended, for Java (`hostGameEnded`'s params after the game and the token)
+struct Report {
     winner: Option<String>,
     turns: u32,
     reason: String,
     time_left: Value,
-) {
+    summary: Value,
+}
+
+/// `hostGameEnded` to Java, on a connection of its own (the player's may be gone); a few tries
+async fn report(java_url: url::Url, game_id: String, token: String, end: Report) {
     use futures_util::{SinkExt, StreamExt};
+    let Report { winner, turns, reason, time_left, summary } = end;
     let request = json!({"jsonrpc": "2.0", "id": 1, "method": "hostGameEnded",
-        "params": [game_id, token, winner.unwrap_or_default(), turns, reason, time_left]});
+        "params": [game_id, token, winner.unwrap_or_default(), turns, reason, time_left, summary]});
     for attempt in 0..5u64 {
         if attempt > 0 {
             tokio::time::sleep(std::time::Duration::from_secs(2 * attempt)).await;
@@ -284,11 +422,31 @@ async fn report(
     warn!("Rust host: couldn't tell Java game {} ended", request["params"][0]);
 }
 
+/// A player's chat line as Java's `CHATMESSAGE` (`TALK`, blue, HTML escaped, as `HtmlEscape.escapeHtml4`)
+pub fn talk(chat_id: &str, user: &str, message: &str) -> Value {
+    let mut escaped = String::with_capacity(message.len());
+    for c in message.chars() {
+        match c {
+            '&' => escaped.push_str("&amp;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            '"' => escaped.push_str("&quot;"),
+            '\'' => escaped.push_str("&#39;"),
+            c => escaped.push(c),
+        }
+    }
+    let time =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+    json!({"objectId": chat_id, "method": "CHATMESSAGE", "data": {"username": user, "message": escaped, "time": time,
+        "color": "BLUE", "messageType": "TALK"}})
+}
+
 /// The game a call is about, and where in its params the game id is, for the calls the host takes
 pub fn game_param(method: &str) -> Option<usize> {
     Some(match method {
         "gameJoin" | "gameResync" | "gameStateResync" | "matchQuit" | "sendPlayerUUID" | "sendPlayerString"
-        | "sendPlayerBoolean" | "sendPlayerInteger" | "sendPlayerManaType" | "gameEmote" | "chatFindByGame" => 0,
+        | "sendPlayerBoolean" | "sendPlayerInteger" | "sendPlayerManaType" | "chatFindByGame" | "gameWatchStart"
+        | "gameWatchStop" | "gameWatchers" => 0,
         "sendPlayerAction" => 1,
         _ => return None,
     })
@@ -362,5 +520,32 @@ mod tests {
         assert!(out.contains("playmat_gateway_host_games_ended_total{how=\"error\"} 1"));
         assert!(out.contains("playmat_gateway_host_games_ended_total{how=\"panic\"} 0"));
         assert!(out.contains("playmat_gateway_host_games_open 0"));
+    }
+
+    #[test]
+    fn a_chat_line_is_escaped_as_javas() {
+        let e = talk("c", "ann", "<b>hi</b> & 'bye'");
+        assert_eq!(e["method"], "CHATMESSAGE");
+        assert_eq!(e["data"]["message"], "&lt;b&gt;hi&lt;/b&gt; &amp; &#39;bye&#39;");
+        assert_eq!(e["data"]["messageType"], "TALK");
+        assert_eq!(game_param("gameEmote"), None);
+    }
+
+    #[test]
+    fn a_spectator_sees_no_hand() {
+        let view = json!({"myHand": {"c1": {}}, "myPlayerId": "h", "canPlayObjects": {"objects": {}}, "lookedAt": [{}],
+            "players": [{"playerId": "h", "controlled": true}],
+            "events": [{"kind": "DRAW", "playerId": "h", "targetId": "c2"}, {"kind": "DRAW", "playerId": "a"}]});
+        let ask = json!({"objectId": "g", "method": "GAME_TARGET", "data": {"message": "?", "gameView": view}});
+        let w = watcher_event("g", "h", &ask).unwrap();
+        assert_eq!(w["method"], "GAME_UPDATE", "a question is an update to a spectator");
+        let v = &w["data"];
+        assert_eq!(v["myHand"], json!({}));
+        assert!(v.get("canPlayObjects").is_none());
+        assert_eq!(v["myPlayerId"], Value::Null);
+        assert_eq!(v["players"][0]["controlled"], false);
+        assert!(v["events"][0].get("targetId").is_none(), "the human's draw is hidden");
+        let only_human = json!({"objectId": "g", "method": "GAME_INFORM_PERSONAL", "data": {"message": "x"}});
+        assert!(watcher_event("g", "h", &only_human).is_none());
     }
 }

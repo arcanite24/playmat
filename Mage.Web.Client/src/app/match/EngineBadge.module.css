@@ -1,0 +1,142 @@
+/* A game the Rust engine plays: a chip beside the game menu, and the note as the game starts (stage pixels) */
+.chip {
+  position: absolute;
+  top: 32px;
+  right: 92px;
+  z-index: var(--z-vfx);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 6px 0 10px;
+  border-radius: 999px;
+  background: rgb(var(--mat-rgb) / 0.6);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--brass-rgb) / 0.45);
+  color: var(--brass-ink);
+  font-family: var(--font-print);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.beta {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(var(--brass-rgb) / 0.18);
+  color: var(--brass);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+/* a cog drawn with a mask, so it takes the text's color */
+.gear,
+.gearLarge {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: var(--gear) center / contain no-repeat;
+  mask: var(--gear) center / contain no-repeat;
+  --gear: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M10.3 2h3.4l.5 2.6c.6.2 1.2.5 1.7.8l2.2-1.5 2.4 2.4-1.5 2.2c.3.5.6 1.1.8 1.7l2.6.5v3.4l-2.6.5c-.2.6-.5 1.2-.8 1.7l1.5 2.2-2.4 2.4-2.2-1.5c-.5.3-1.1.6-1.7.8l-.5 2.6h-3.4l-.5-2.6c-.6-.2-1.2-.5-1.7-.8l-2.2 1.5-2.4-2.4 1.5-2.2c-.3-.5-.6-1.1-.8-1.7L2 13.7v-3.4l2.6-.5c.2-.6.5-1.2.8-1.7L3.9 5.9l2.4-2.4 2.2 1.5c.5-.3 1.1-.6 1.7-.8zM12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z'/%3E%3C/svg%3E");
+}
+
+.gearLarge {
+  width: 44px;
+  height: 44px;
+  color: var(--brass);
+}
+
+.notice {
+  position: absolute;
+  top: 120px;
+  left: 50%;
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 640px;
+  padding: 26px 30px 24px;
+  border-radius: 18px;
+  background-color: var(--mat-700);
+  background-image: var(--mat-grain);
+  box-shadow: inset 0 0 0 2px rgb(var(--brass-rgb) / 0.4), var(--shadow-held);
+  color: var(--ink-soft);
+  transform: translateX(-50%);
+  animation: arrive var(--dur-place) var(--ease-place) both;
+}
+
+.noticeHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.kicker {
+  margin: 0;
+  color: var(--brass);
+  font-family: var(--font-print);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-print);
+  font-size: 36px;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+
+.body {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.4;
+}
+
+.hint {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 18px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.dontShow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink-dim);
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.dontShow input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--brass);
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice {
+    animation: none;
+  }
+}
