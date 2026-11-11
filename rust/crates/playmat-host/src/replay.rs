@@ -1,5 +1,5 @@
 //! A hosted game's replay, for the web client's History (`ReplayStore`): the file Java's `ReplayRecorder` writes for
-//! the games it plays, `<gameId>.ndjson.gz.part`, one event a line: a board snapshot as a spectator sees it with the
+//! the games it plays, `<gameId>.ndjson.gz.part`, one event a line: a board snapshot as a spectator sees it with each
 //! human's hand beside it (`{"view", "hands": {name: hand}, "t"}`), or a game log line (`{"t", "log"}`). At the end
 //! Java lists it (`RustHost.ended`, `ReplayStore.completeHosted`), as it does the replays of its own games.
 
@@ -49,21 +49,24 @@ impl ReplayWriter {
         self.events += 1;
     }
 
-    /// A board snapshot: the human's view, its hand moved beside it (a spectator's view has none); the same board
-    /// again isn't written
-    pub fn frame(&mut self, view: &Value, human: &str) {
+    /// A board snapshot: the first human's view, every human's hand beside it by name (a spectator's view has
+    /// none); the same board again isn't written
+    pub fn frame(&mut self, view: &Value, hands: &[(String, Value)]) {
         let mut view = view.clone();
-        let hand = view.as_object_mut().and_then(|v| v.remove("myHand")).unwrap_or_else(|| json!({}));
         if let Some(v) = view.as_object_mut() {
+            v.remove("myHand");
             v.remove("events");
         }
-        if self.last.as_ref() == Some(&view) {
+        let mut all = serde_json::Map::new();
+        for (name, hand) in hands {
+            all.insert(name.clone(), hand.clone());
+        }
+        let frame = json!({"view": view, "hands": all});
+        if self.last.as_ref() == Some(&frame) {
             return;
         }
-        self.last = Some(view.clone());
-        let mut hands = serde_json::Map::new();
-        hands.insert(human.to_string(), hand);
-        self.write(json!({"view": view, "hands": hands}));
+        self.last = Some(frame.clone());
+        self.write(frame);
     }
 
     /// A game log line, the `ChatMessage` the client was sent

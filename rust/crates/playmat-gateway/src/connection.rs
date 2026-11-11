@@ -208,7 +208,8 @@ pub async fn run(app: Arc<App>, client: HttpWebSocket, peer: IpAddr, headers: He
         let caps = Request {
             id: Some(Value::from(CAPS_ID)),
             method: "setCapabilities".into(),
-            params: vec![json!(["gameHost"])],
+            // with this gateway's own id: Java hosts a game between people only when both come through one gateway
+            params: vec![json!(["gameHost", format!("gameHost:{}", app.hosts.instance)])],
         };
         let _ = to_java.send(Frame::text(Bytes::from(caps.to_text())));
     }
@@ -368,13 +369,27 @@ fn on_java_text(
     if let Some(id) = message_id(&text) {
         shared.states.lock().unwrap().sent(id);
     }
-    if app.hosts.enabled && text.contains("\"HOST_GAME\"") {
+    if app.hosts.enabled && text.contains("\"HOST_GAME") {
         if let Ok(event) = serde_json::from_str::<Value>(&text) {
             if event["method"] == "HOST_GAME" {
-                let connection = shared.caller.lock().unwrap().connection;
+                let (connection, user) = {
+                    let caller = shared.caller.lock().unwrap();
+                    (caller.connection, caller.user.clone())
+                };
                 let subscriber = crate::host::Subscriber { connection, events: shared.host_events.clone() };
-                app.hosts.start(&event, subscriber, app.config.java_url.clone());
+                app.hosts.start(&event, subscriber, user, app.config.java_url.clone());
                 // the client never sees it
+                return true;
+            }
+            if event["method"] == "HOST_GAME_QUIT" {
+                // Java leaves a hosted game for its player (a solo save, "Try this turn again"): the host ends it as
+                // their quit
+                let user = shared.caller.lock().unwrap().user.clone();
+                if let Some(hosted) = event["objectId"].as_str().and_then(|g| app.hosts.get(g)) {
+                    if let Some(seat) = hosted.seat_of(user.as_deref()) {
+                        hosted.call(seat, playmat_host::Call::Quit);
+                    }
+                }
                 return true;
             }
         }
@@ -552,8 +567,26 @@ async fn handle_request<S: Fn(String) -> bool + Clone + Send + Sync + 'static>(
             return;
         }
         if let Some(reply) = hosted_call(app, shared, send_client, &request) {
-            if let Some(id) = &request.id {
-                send_client(json!({"jsonrpc": "2.0", "id": id, "result": reply}).to_string());
+            let Some(id) = request.id.clone() else { return };
+            match reply {
+                HostReply::Now(result) => {
+                    send_client(json!({"jsonrpc": "2.0", "id": id, "result": result}).to_string());
+                }
+                HostReply::Later(answer) => {
+                    // the host answers at its next look at the player's calls (advice can think for seconds)
+                    let send_client = send_client.clone();
+                    tokio::task::spawn_blocking(move || {
+                        let reply = match answer.recv_timeout(std::time::Duration::from_secs(30)) {
+                            Ok(Ok(result)) => json!({"jsonrpc": "2.0", "id": id, "result": result}),
+                            Ok(Err(why)) => {
+                                json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32602, "message": why}})
+                            }
+                            Err(_) => json!({"jsonrpc": "2.0", "id": id, "error": {"code": -32602,
+                                "message": "Ask when the game waits for you to act."}}),
+                        };
+                        send_client(reply.to_string());
+                    });
+                }
             }
             return;
         }
@@ -564,10 +597,15 @@ async fn handle_request<S: Fn(String) -> bool + Clone + Send + Sync + 'static>(
             let wanted_diffs = gateway_diffs && asked.iter().any(|c| c.as_str() == Some("stateDiffs"));
             let mut rest: Vec<Value> = asked
                 .into_iter()
-                .filter(|c| !(gateway_diffs && c.as_str() == Some("stateDiffs")) && c.as_str() != Some("gameHost"))
+                .filter(|c| {
+                    let ours = c.as_str().is_some_and(|c| c == "gameHost" || c.starts_with("gameHost:"));
+                    let diffs = gateway_diffs && c.as_str() == Some("stateDiffs");
+                    !ours && !diffs
+                })
                 .collect();
             if app.hosts.enabled {
                 rest.push(Value::from("gameHost"));
+                rest.push(Value::from(format!("gameHost:{}", app.hosts.instance)));
             }
             match &request.id {
                 Some(id) => {
@@ -630,8 +668,21 @@ async fn handle_request<S: Fn(String) -> bool + Clone + Send + Sync + 'static>(
     }
 }
 
-/// A call about a game the Rust host plays: passed to the host, and its reply. None: not such a call.
-fn hosted_call(app: &App, shared: &Shared, send_client: &impl Fn(String) -> bool, request: &Request) -> Option<Value> {
+/// A hosted game call's reply: now, or the host's answer to come (or why not)
+enum HostReply {
+    Now(Value),
+    Later(std::sync::mpsc::Receiver<Result<Value, String>>),
+}
+
+/// A call about a game the Rust host plays: passed to the host as its user's seat's, and its reply. None: not such a
+/// call.
+fn hosted_call(
+    app: &App,
+    shared: &Shared,
+    send_client: &impl Fn(String) -> bool,
+    request: &Request,
+) -> Option<HostReply> {
+    use HostReply::Now;
     let method = request.method.as_str();
     // the game's chat: its log comes from the host, and nobody else is in it
     if matches!(method, "chatJoin" | "chatLeave" | "chatSendMessage") {
@@ -647,7 +698,7 @@ fn hosted_call(app: &App, shared: &Shared, send_client: &impl Fn(String) -> bool
                 }
             }
         }
-        return Some(Value::Bool(true));
+        return Some(Now(Value::Bool(true)));
     }
     let at = crate::host::game_param(method)?;
     let game_id = request.params.get(at).and_then(Value::as_str)?;
@@ -656,23 +707,56 @@ fn hosted_call(app: &App, shared: &Shared, send_client: &impl Fn(String) -> bool
     match method {
         // a spectator: the game is the host's, so Java has no game to watch (`GameManager.watchGame`)
         "gameWatchStart" => {
-            let Some(user) = shared.caller.lock().unwrap().user.clone() else { return Some(Value::Bool(false)) };
+            let Some(user) = shared.caller.lock().unwrap().user.clone() else { return Some(Now(Value::Bool(false))) };
             let subscriber = crate::host::Subscriber { connection, events: shared.host_events.clone() };
-            return Some(Value::Bool(hosted.watch(game_id, subscriber, user)));
+            return Some(Now(Value::Bool(hosted.watch(game_id, subscriber, user))));
         }
         "gameWatchStop" => {
             hosted.unwatch(connection);
             shared.states.lock().unwrap().forget(game_id);
-            return Some(Value::Bool(true));
+            return Some(Now(Value::Bool(true)));
         }
-        "gameWatchers" => return Some(json!(hosted.watcher_names())),
+        "gameWatchers" => return Some(Now(json!(hosted.watcher_names()))),
+        "chatFindByGame" => return Some(Now(Value::from(hosted.chat_id.clone()))),
         _ => {}
     }
+    // the rest are a player's: their seat's, by their user name
+    let user = shared.caller.lock().unwrap().user.clone();
+    let Some(seat) = hosted.seat_of(user.as_deref()) else {
+        // not a player of the game: nothing of theirs to send it
+        return Some(Now(Value::Bool(false)));
+    };
     match method {
-        "chatFindByGame" => return Some(Value::from(hosted.chat_id.clone())),
         "gameJoin" => {
-            // this connection gets the game's callbacks from now on, as do the human's other tabs
-            hosted.subscribe(crate::host::Subscriber { connection, events: shared.host_events.clone() });
+            // this connection gets the seat's callbacks from now on, as do the player's other tabs
+            hosted.subscribe(seat, crate::host::Subscriber { connection, events: shared.host_events.clone() });
+        }
+        "gameAdvise" => {
+            let skill = request.params.get(2).and_then(Value::as_u64).unwrap_or(6) as u32;
+            let (tx, rx) = std::sync::mpsc::channel();
+            let (out, answer) = std::sync::mpsc::channel();
+            hosted.call(seat, playmat_host::Call::Advise(skill.clamp(1, 10), tx));
+            std::thread::spawn(move || {
+                if let Ok(advice) = rx.recv_timeout(std::time::Duration::from_secs(30)) {
+                    let _ = out.send(Ok(advice));
+                }
+            });
+            return Some(HostReply::Later(answer));
+        }
+        "gamePractice" => {
+            let p = |i: usize| request.params.get(i).cloned().unwrap_or(Value::Null);
+            let tool = p(2).as_str().unwrap_or("").to_string();
+            let card = p(3).as_str().map(str::to_string);
+            let amount = p(4).as_i64().unwrap_or(1) as i32;
+            let (tx, rx) = std::sync::mpsc::channel();
+            let (out, answer) = std::sync::mpsc::channel();
+            hosted.call(seat, playmat_host::Call::Practice(tool, card, amount, Some(tx)));
+            std::thread::spawn(move || {
+                if let Ok(problem) = rx.recv_timeout(std::time::Duration::from_secs(30)) {
+                    let _ = out.send(if problem.is_empty() { Ok(Value::Bool(true)) } else { Err(problem) });
+                }
+            });
+            return Some(HostReply::Later(answer));
         }
         "gameStateResync" => {
             let state = shared.states.lock().unwrap().resync(game_id);
@@ -683,9 +767,9 @@ fn hosted_call(app: &App, shared: &Shared, send_client: &impl Fn(String) -> bool
         _ => {}
     }
     if let Some(call) = crate::host::call_of(method, &request.params) {
-        hosted.call(call);
+        hosted.call(seat, call);
     }
-    Some(Value::Bool(true))
+    Some(Now(Value::Bool(true)))
 }
 
 /// a call routed `rust` or `shadow`

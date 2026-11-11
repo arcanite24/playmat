@@ -84,6 +84,12 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
     public GameSnapshot resumeFrom = null;
 
     /**
+     * A game the Rust host played, carried on from the start of one of its turns (a resumed or forked game): its line
+     * as the host wrote it (JSON, docs/rust/GameHost.md "Saves"); the host plays it, Java never does. Null for none.
+     */
+    public String hostedLine = null;
+
+    /**
      * Receives the game as it stands at the start of every turn (on the game thread), to save it or fork it later;
      * null for none. Not part of a saved game.
      */
@@ -126,6 +132,7 @@ public class GameOptions implements Serializable, Copyable<GameOptions> {
         this.setup = options.setup;
         this.seed = options.seed;
         this.resumeFrom = options.resumeFrom;
+        this.hostedLine = options.hostedLine;
         this.turnSnapshots = options.turnSnapshots;
         this.trace = options.trace;
         this.decisions = options.decisions;

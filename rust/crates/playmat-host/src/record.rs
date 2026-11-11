@@ -10,7 +10,7 @@
 //! {"end": {"winner": 0, "turns": 9, "reason": "over"}}
 //! ```
 
-use crate::game::{Call, Ended, HostedGame, SeatStart, Start, TableRules};
+use crate::game::{Call, Ended, HostedGame, Prelude, SeatStart, Start, TableRules};
 use crate::timer::Timer;
 use playmat_engine::card::CardDb;
 use serde_json::{json, Value};
@@ -41,8 +41,8 @@ impl Recorder {
         let _ = self.file.flush();
     }
 
-    pub fn call(&mut self, call: &Call, turn: u32, reference: Option<&str>) {
-        let mut v = json!({"call": call_json(call), "turn": turn});
+    pub fn call(&mut self, seat: usize, call: &Call, turn: u32, reference: Option<&str>) {
+        let mut v = json!({"call": call_json(call), "turn": turn, "seat": seat});
         if let Some(r) = reference {
             v["ref"] = json!(r);
         }
@@ -54,8 +54,9 @@ impl Recorder {
     }
 }
 
-fn start_json(s: &Start) -> Value {
-    json!({
+/// A start as the record (and a game's line) writes it
+pub fn start_json(s: &Start) -> Value {
+    let mut v = json!({
         "gameId": s.game_id,
         "seed": s.seed,
         "seats": s.seats.iter().map(|p| json!({
@@ -64,10 +65,30 @@ fn start_json(s: &Start) -> Value {
         "timer": {"prioritySecs": s.timer.priority_secs, "bufferSecs": s.timer.buffer_secs, "left": s.timer.left},
         "chooser": s.chooser,
         "rules": s.rules.json(),
-    })
+    });
+    if let Some(p) = &s.prelude {
+        v["prelude"] = prelude_json(p);
+    }
+    v
 }
 
-fn start_of(v: &Value) -> Option<Start> {
+/// A prelude (a game's line to a turn's start), as `HOST_TURN` sends it and `HOST_GAME` brings it back
+pub fn prelude_json(p: &Prelude) -> Value {
+    let calls: Vec<Value> = p.calls.iter().map(|(s, c)| json!({"seat": s, "call": call_json(c)})).collect();
+    json!({"start": start_json(&p.start), "calls": calls, "turn": p.turn})
+}
+
+/// A line read back (`HOST_GAME`'s `prelude`, `HOST_TURN`'s `line`)
+pub fn prelude_of(v: &Value) -> Option<Prelude> {
+    let start = start_of(&v["start"])?;
+    let mut calls = Vec::new();
+    for c in v["calls"].as_array()? {
+        calls.push((c["seat"].as_u64()? as usize, call_of(&c["call"])?));
+    }
+    Some(Prelude { start: Box::new(start), calls, turn: v["turn"].as_u64()? as u32 })
+}
+
+pub fn start_of(v: &Value) -> Option<Start> {
     let t = &v["timer"];
     let left = |i: usize| t["left"][i].as_u64().map(|n| n as u32);
     Some(Start {
@@ -102,6 +123,11 @@ fn start_of(v: &Value) -> Option<Start> {
         replay: None,
         log_to: None,
         drop_stale: false,
+        prelude: match v.get("prelude").filter(|p| !p.is_null()) {
+            Some(p) => Some(prelude_of(p)?),
+            None => None,
+        },
+        lines: false,
     })
 }
 
@@ -116,6 +142,8 @@ pub fn call_json(c: &Call) -> Value {
         Call::Action(a, d) => json!({"action": a, "data": d}),
         Call::Resync => json!({"resync": true}),
         Call::Quit => json!({"quit": true}),
+        Call::Advise(skill, _) => json!({"advise": skill}),
+        Call::Practice(tool, card, amount, _) => json!({"practice": tool, "card": card, "amount": amount}),
     }
 }
 
@@ -139,6 +167,13 @@ pub fn call_of(v: &Value) -> Option<Call> {
         Call::Resync
     } else if o.contains_key("quit") {
         Call::Quit
+    } else if let Some(t) = o.get("practice") {
+        Call::Practice(
+            t.as_str()?.to_string(),
+            o.get("card").and_then(Value::as_str).map(str::to_string),
+            o.get("amount").and_then(Value::as_i64).unwrap_or(1) as i32,
+            None,
+        )
     } else {
         return None;
     })
@@ -147,7 +182,8 @@ pub fn call_of(v: &Value) -> Option<Call> {
 /// A record read back
 pub struct Recorded {
     pub start: Start,
-    pub calls: Vec<Call>,
+    /// by seat (a record from before games between people names none: the human's)
+    pub calls: Vec<(usize, Call)>,
     /// the game log's lines, with the turn each was written in
     pub log: Vec<(u32, String)>,
     /// `{winner, turns, reason}`; none when the record stops before the end
@@ -169,14 +205,20 @@ pub fn read(path: &Path) -> Result<Recorded, String> {
         if let Some(s) = v.get("start") {
             start = Some(start_of(s).ok_or(format!("line {}: a start without its fields", i + 1))?);
         } else if let Some(c) = v.get("call") {
-            calls.push(call_of(c).ok_or(format!("line {}: an unknown call", i + 1))?);
+            let call = call_of(c).ok_or(format!("line {}: an unknown call", i + 1))?;
+            if !matches!(call, Call::Advise(..)) {
+                calls.push((v["seat"].as_u64().map(|s| s as usize), call));
+            }
         } else if let Some(l) = v.get("log").and_then(Value::as_str) {
             log.push((v["turn"].as_u64().unwrap_or(0) as u32, l.to_string()));
         } else if let Some(e) = v.get("end") {
             end = Some(e.clone());
         }
     }
-    Ok(Recorded { start: start.ok_or("no start line")?, calls, log, end })
+    let start: Start = start.ok_or("no start line")?;
+    let human = start.seats.iter().position(|s| s.human).unwrap_or(0);
+    let calls = calls.into_iter().map(|(s, c)| (s.unwrap_or(human), c)).collect();
+    Ok(Recorded { start, calls, log, end })
 }
 
 /// What a replay played: the log, how it ended, and the first log line that differs from the record's
@@ -197,8 +239,8 @@ pub fn replay(rec: &Recorded, db: Arc<CardDb>) -> Result<Replayed, String> {
     start.log_to = Some(replay_log.clone());
     let game = HostedGame::start(start, db)?;
     let (calls, events, thread) = game.split();
-    for c in &rec.calls {
-        let _ = calls.send(c.clone());
+    for (seat, c) in &rec.calls {
+        let _ = calls.send((*seat, c.clone()));
     }
     drop(calls);
     // nobody reads the client's events: drain them so the host never waits on them

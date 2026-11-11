@@ -261,6 +261,11 @@ public class User {
         return isConnected() && managerFactory.sessionManager().getSession(sessionId).map(Session::hostsGames).orElse(false);
     }
 
+    /** the gateway hosting this user's games, or null, see {@link Session#gameHostId()} */
+    public String gameHostId() {
+        return !isConnected() ? null : managerFactory.sessionManager().getSession(sessionId).map(Session::gameHostId).orElse(null);
+    }
+
     public void fireCallback(final ClientCallback call) {
         if (isConnected()) {
             managerFactory.sessionManager().getSession(sessionId).ifPresent(session

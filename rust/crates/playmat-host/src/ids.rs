@@ -62,9 +62,15 @@ impl Ids {
         self.uuid(("obj", id.0))
     }
 
-    /// The game's chat id (the game log's lines are chat messages)
+    /// The game's chat id (the game log's lines are chat messages), when the ids are the game's own
     pub fn chat(&self) -> String {
         self.uuid("chat")
+    }
+
+    /// A game's chat id: made from its own id, whatever its objects' ids are made from (a game carrying on an earlier
+    /// one's line names its objects as that one did)
+    pub fn chat_of(game_id: &str) -> String {
+        Ids::new(game_id, Vec::new()).chat()
     }
 
     /// Forgets the last render's references (a new question is rendered)

@@ -658,6 +658,11 @@ public class Session {
         return channel != null && channel.hostsGames();
     }
 
+    /** the id of the gateway hosting this session's games, or null (see {@link ClientChannel#gameHostId()}) */
+    public String gameHostId() {
+        return channel == null || !channel.hostsGames() ? null : channel.gameHostId();
+    }
+
     public void fireCallback(final ClientCallback call) {
         List<ClientCallback> droppedAsOverflow = new ArrayList<>();
         List<ClientCallback> droppedAsOutdated = new ArrayList<>();

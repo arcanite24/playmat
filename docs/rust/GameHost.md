@@ -2,7 +2,8 @@
 
 Plan, 7 Nov 2026. Next step of migration phases 4 and 6 ([../RustMigration.md](../RustMigration.md)): one-on-one games
 against the AI run on the Rust engine, with no Java game behind them. Status: steps C and D built; step D's gate waits
-on games played by hand ([Step D](#step-d-the-host)).
+on games played by hand ([Step D](#step-d-the-host)). Phase 6 (11 Nov 2026): games between people and the solo tools
+([below](#phase-6-games-between-people-and-the-solo-tools)).
 
 ## Where it stands
 
@@ -231,8 +232,9 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
     `gameWatchStart` on a hosted game makes the connection a spectator: the gateway sends it the board without
     the human's hand, playables, looked-at cards or draws, the questions as updates, and the log; `gameWatchers`
     and `gameWatchStop` work too. A face-down permanent of the human's still shows its card to a spectator.
-  - *Client.* The practice tools, Ask the AI and the solo items (saves, "Try this turn again") are hidden on a
-    hosted game, since they need Java's game.
+  - *Client.* Ask the AI, the practice tools and the solo items (saves, "Try this turn again") work on hosted games
+    since phase 6 ([below](#phase-6-games-between-people-and-the-solo-tools)). The Career's assists stay hidden:
+    Career tables aren't hosted.
 
 Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI, and the chooser of a match's next
 game, the Career tally, table options, replays, pass-after-cast, undo and rollback, late answers, avatars), `rustAi.live.test.ts` (16 games
@@ -271,6 +273,50 @@ reports each player's time left with the end (`hostGameEnded`'s `timeLeft`) and 
 `HOST_GAME` (each seat's `priorityTimeLeft`). Running out of time loses the match, as in Java. The end summary's
 player views come from Java's unplayed copy of the game, so they show no life totals or zones from the hosted game;
 the client shows the result and the score from them.
+
+## Phase 6: games between people, and the solo tools
+
+Built 11 Nov 2026 (#189). Tournaments and drafts are left out: their decks come from limited card pools, which need
+more cards ported first.
+
+- **Games between people.** A one-on-one table of two people is hosted when both qualify as a player against the AI
+  does (listed in `XMAGE_RUST_HOST_USERS`, or opted in), every card of both decks is in the engine, and both are
+  connected through **the same** gateway: the gateway asks Java for `gameHost:<id>` as well as `gameHost`, with an
+  id of its own made at start, and `RustHost.host` compares the two players' ids (`User.gameHostId`). Java sends
+  `HOST_GAME` on both players' connections, and the gateway starts the game once (the first to arrive) and maps
+  each connection to its seat by user name. Each seat has its own settings, skips, F-keys, trigger orders, undo
+  point and events; the views and questions go to that seat's connections, and a call from a seat that isn't being
+  asked waits for its turn, except concede, quit and the rollback answers. Best-of-three, timers, reconnect,
+  spectators (who see one seat's side), replays (the first seat's view, with every player's hand) and records work
+  as for games against the AI. Leaving or a 35-minute absence loses the game for that player; both gone is a draw.
+- **Rollbacks between people.** `ROLLBACK_TURNS` asks the other player (`USER_REQUEST_DIALOG` with
+  `ADD_PERMISSION_TO_ROLLBACK_TURN` / `DENY_PERMISSION_TO_ROLLBACK_TURN`), as Java's `GameController` does; the
+  game waits for the answer, then goes back or carries on.
+- **Saves and "Try this turn again".** A game against the AI (a solo table, `SoloGames.isSolo`) emits each turn's
+  *line* at its start: the game's start and every call taken so far, with the turn. The gateway sends it to Java
+  (`hostGameTurn(gameId, token, turn, activePlayerId, line)`), and `SoloGames.hostedTurn` stores it as the turn's
+  save, as bytes `PLAYMAT-HOSTED-LINE\n` plus the JSON, where Java's games store a `GameSnapshot`. Resuming, forking
+  or a what-if from such a save sets `GameOptions.hostedLine`, and `RustHost.host` then hosts the new game with the
+  line as its `prelude`: the host replays the line silently (no views, no clock), and goes live at the saved turn's
+  first priority with "The game carries on from the start of turn N." The new game's object ids are made from the
+  line's first game id, so the line's calls still name the same objects; player ids in the calls are renamed to the
+  new game's. A saved line can only carry on on the Rust host: `soloResume` refuses one when no hosting gateway or
+  engine is there (`RustHost.canCarryOn`). Leaving for a fork or a save goes through the gateway
+  (`HOST_GAME_QUIT`), which ends the hosted game as a quit.
+- **Advice.** `gameAdvise` on a hosted game is answered by the gateway: a fresh AI search at the open question, in the
+  player's place, given as Java's `Advice` (what to play, attack or block).
+- **Practice tools.** `gamePractice` (HAND, BATTLEFIELD, DRAW, UNTAP_ALL, LIFE) queues the tool; it runs at the
+  player's next priority, or at once when they hold priority, and is announced in the log. Games against the AI only.
+
+Not there: the Career's assists (hints and take-backs; Career tables stay on Java), "Request to see hand cards",
+and a replay of a carried-on game starts at the turn it carried on from.
+
+Checked by the `games` test (`two_people_play_a_game_to_its_end`, `a_player_not_asked_can_concede`,
+`a_rollback_between_people_waits_for_the_others_consent`, `a_line_carries_the_game_on_from_a_turns_start`,
+`practice_tools_and_advice_against_the_ai`, the record of a game between people replayed), the gateway's
+`calls_go_to_their_users_seat`, and `rustHostPeople.live.test.ts`: two people play a best-of-three while a third
+watches, and a game against the AI is tried again from turn 3, saved and resumed, each carried-on game hosted, with
+advice and the practice tools.
 
 ## Decisions needed
 

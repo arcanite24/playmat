@@ -355,7 +355,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // Career matches come back through their rewards (the return path); any other counted game shows what it paid on
   // the way out too, unless the player hid progression (B265, B312)
   const career = !!returnPath?.startsWith('/career');
-  // the Rust host plays its games itself: Java's practice tools and solo saves can't reach them
+  // the Rust host plays its games itself, with its own practice tools, advice and saves; a Career game never goes
+  // to it, so its counted hints and take-back stay Java's
   const rustGame = engineOf(view) === 'rust';
   const vsAi = board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false);
   useOpponentVoice(state, myId, career);
@@ -709,8 +710,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             <GameMenu
               gameId={state.gameId}
               quests={mode === 'play' && !state.gameOver}
-              practice={mode === 'play' && !state.gameOver && !career && !rustGame && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
-              solo={mode === 'play' && !state.gameOver && !career && !rustGame && !eventId && vsAi && (view?.turn ?? 0) > 0}
+              practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
+              solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
               careerAssists={mode === 'play' && !state.gameOver && career && !rustGame && !eventId && vsAi && (view?.turn ?? 0) > 0}
               vsAi={vsAi}
               onSaved={() => exit(false)}

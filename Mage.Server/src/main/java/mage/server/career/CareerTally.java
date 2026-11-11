@@ -203,9 +203,9 @@ public final class CareerTally {
             }
         }
         tally.hostEnd = end;
-        Map<UUID, CareerTally> seats = new java.util.LinkedHashMap<>();
-        seats.put(playerId, tally);
-        TALLIES.put(gameId, java.util.Collections.synchronizedMap(seats));
+        // each human's of a game between people, beside the other's
+        TALLIES.computeIfAbsent(gameId, id -> java.util.Collections.synchronizedMap(new java.util.LinkedHashMap<>()))
+                .put(playerId, tally);
         return tally;
     }
 

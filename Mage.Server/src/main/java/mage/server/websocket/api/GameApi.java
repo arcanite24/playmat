@@ -55,6 +55,16 @@ final class GameApi {
                                 call.integer(3), call.string(4), call.has(5) ? call.jsonObject(5) : null,
                                 call.has(6) ? call.jsonObject(6) : null)),
 
+                RpcMethod.named("hostGameTurn")
+                        .publicAccess()
+                        .params(gameId(), of("token", STRING), of("turn", INT), optional("activePlayerId", STRING),
+                                of("line", OBJECT))
+                        .doc("The gateway only: a solo table's game the Rust host plays is at the start of a turn "
+                                + "(docs/rust/GameHost.md, Saves); line is the game to that point (its first start and every call "
+                                + "since), which the solo saves keep. Returns false for a game that isn't hosted.")
+                        .handler(call -> mage.server.RustHost.turn(call.uuid(0), call.string(1), call.integer(2),
+                                call.optString(3, ""), call.jsonObject(4))),
+
                 RpcMethod.named("gameResync")
                         .session(1)
                         .params(gameId(), of("sessionId", STRING))

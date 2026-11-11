@@ -20,6 +20,12 @@ public interface ClientChannel {
         return false;
     }
 
+    /** the id of the gateway that hosts this connection's games, or null: a game between people goes to the Rust host
+     * only when both players' connections come through the same one */
+    default String gameHostId() {
+        return null;
+    }
+
     final class Closed extends Exception {
 
         public Closed(String message) {
