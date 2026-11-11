@@ -120,10 +120,18 @@ const MIN_TURN_FOR_REWARD: i64 = 3;
 const NEMESIS_LIFE: i64 = 3;
 const NEMESIS_BOUNTY: i64 = 40;
 /// `CareerProgress.MAX_COUNTERS`
-const MAX_COUNTERS: [&str; 7] =
-    ["biggest_hit", "max_attacker_power", "most_spells_in_a_turn", "most_mana_in_a_turn", "turns", "life_at_end", "my_turns"];
+const MAX_COUNTERS: [&str; 7] = [
+    "biggest_hit",
+    "max_attacker_power",
+    "most_spells_in_a_turn",
+    "most_mana_in_a_turn",
+    "turns",
+    "life_at_end",
+    "my_turns",
+];
 /// `CareerService.FORMATS`
-const FORMATS: [&str; 9] = ["standard", "pioneer", "modern", "legacy", "vintage", "pauper", "commander", "brawl", "limited"];
+const FORMATS: [&str; 9] =
+    ["standard", "pioneer", "modern", "legacy", "vintage", "pauper", "commander", "brawl", "limited"];
 
 /// The nemesis, Java's solo.db (`career.nemesis`, by the name as signed in), or the copy shadow replays on
 pub enum Nemeses {
@@ -144,9 +152,10 @@ impl Nemeses {
             }
         };
         // Gson reads "null" as no nemesis
-        Ok(value.and_then(|text| serde_json::from_str::<Value>(&text).ok()).filter(|v| v.is_object()).and_then(
-            |v| v.get("opponentId").and_then(Value::as_str).map(str::to_owned),
-        ))
+        Ok(value
+            .and_then(|text| serde_json::from_str::<Value>(&text).ok())
+            .filter(|v| v.is_object())
+            .and_then(|v| v.get("opponentId").and_then(Value::as_str).map(str::to_owned)))
     }
 
     async fn put(&mut self, user: &str, value: &str, now: i64) -> Result<(), Stop> {
@@ -329,15 +338,7 @@ pub(crate) async fn pay(
     }
     let millis = days_from_iso(&event.day).ok_or(Stop::Decline)? * 86_400_000;
     let (day, week) = career::utc_day_and_week(millis);
-    let mut pay = Pay {
-        db,
-        book,
-        nemeses,
-        day,
-        week,
-        xp_percent: event.xp_percent,
-        coin_percent: event.coin_percent,
-    };
+    let mut pay = Pay { db, book, nemeses, day, week, xp_percent: event.xp_percent, coin_percent: event.coin_percent };
     if event.event == "matchEnded" {
         pay.match_ended(event).await
     } else {
@@ -414,8 +415,10 @@ impl Pay<'_, '_> {
 
     async fn stats(&mut self, user: &str) -> Result<HashMap<String, i64>, Stop> {
         let mut stats = HashMap::new();
-        for row in
-            sqlx::query("SELECT counter, value FROM stats WHERE user = ?").bind(key(user)).fetch_all(&mut *self.db).await?
+        for row in sqlx::query("SELECT counter, value FROM stats WHERE user = ?")
+            .bind(key(user))
+            .fetch_all(&mut *self.db)
+            .await?
         {
             stats.insert(row.try_get::<String, _>(0)?, row.try_get::<i64, _>(1)?);
         }
@@ -544,7 +547,8 @@ impl Pay<'_, '_> {
             .unwrap_or_default();
         if won {
             let nth = today[0] + 1;
-            let coins = if nth < 1 || nth as usize > ladder.len() { 0 } else { self.scale_coins(ladder[nth as usize - 1]) };
+            let coins =
+                if nth < 1 || nth as usize > ladder.len() { 0 } else { self.scale_coins(ladder[nth as usize - 1]) };
             if coins > 0 {
                 self.add_coins(user, coins).await?;
                 result.coins += coins;
@@ -573,7 +577,12 @@ impl Pay<'_, '_> {
             "INSERT INTO daily (user, day, wins, games, person_games) VALUES (?, ?, ?, 1, ?) \
              ON CONFLICT (user, day) DO UPDATE SET wins = wins + excluded.wins, games = games + 1, \
              person_games = person_games + excluded.person_games",
-            &[Bind::Text(&key(user)), Bind::Text(&self.day.clone()), Bind::Int(i64::from(won)), Bind::Int(i64::from(person))],
+            &[
+                Bind::Text(&key(user)),
+                Bind::Text(&self.day.clone()),
+                Bind::Int(i64::from(won)),
+                Bind::Int(i64::from(person)),
+            ],
         )
         .await?;
         Ok(())
@@ -749,9 +758,13 @@ impl Pay<'_, '_> {
 
     /// `CareerProgress.masteryCosmetic`: the catalog's, or at the top the track's master title
     fn mastery_cosmetic(&self, track: &str, rank: i64, top: i64) -> Option<Value> {
-        let found = self.book.cosmetics.as_array().into_iter().flatten().find(|item| {
-            item["mastery"].as_str() == Some(track) && item["rank"].as_i64().unwrap_or(0) == rank
-        });
+        let found = self
+            .book
+            .cosmetics
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|item| item["mastery"].as_str() == Some(track) && item["rank"].as_i64().unwrap_or(0) == rank);
         if let Some(item) = found {
             return Some(json!({"kind": item["kind"], "id": item["id"]}));
         }
@@ -875,9 +888,7 @@ impl Pay<'_, '_> {
                 };
                 self.add_profile_int(user, column, 1).await?;
             }
-            if let (Some(kind), Some(id)) =
-                (reward["cosmetic"]["kind"].as_str(), reward["cosmetic"]["id"].as_str())
-            {
+            if let (Some(kind), Some(id)) = (reward["cosmetic"]["kind"].as_str(), reward["cosmetic"]["id"].as_str()) {
                 self.add_unlock(user, kind, id, now).await?;
             }
             if tokens > 0 {
@@ -973,7 +984,13 @@ impl Pay<'_, '_> {
         }
         self.exec(
             "UPDATE profile SET coins = coins + ?, xp = xp + ?, wins = wins + ?, losses = losses + ? WHERE user = ?",
-            &[Bind::Int(coins), Bind::Int(xp), Bind::Int(i64::from(won)), Bind::Int(i64::from(!won)), Bind::Text(&key(user))],
+            &[
+                Bind::Int(coins),
+                Bind::Int(xp),
+                Bind::Int(i64::from(won)),
+                Bind::Int(i64::from(!won)),
+                Bind::Text(&key(user)),
+            ],
         )
         .await?;
         self.claim_game(&event.key, user, now).await?;
@@ -1068,10 +1085,8 @@ impl Pay<'_, '_> {
         let now = event.at;
         let day = self.day.clone();
         let capped = finished.kind == "person" || finished.kind == "pod";
-        let (floor, cap) = (
-            self.turn_floor(),
-            self.rewards().get("pairCapPerDay").and_then(Value::as_i64).unwrap_or(5),
-        );
+        let (floor, cap) =
+            (self.turn_floor(), self.rewards().get("pairCapPerDay").and_then(Value::as_i64).unwrap_or(5));
         let humans = &finished.seats;
         let mut paid = false;
         for (index, seat) in humans.iter().enumerate() {
@@ -1157,8 +1172,11 @@ impl Pay<'_, '_> {
         reason: &str,
     ) -> Result<(), Stop> {
         let text = details.to_string();
-        self.exec("UPDATE progress_games SET details = ? WHERE game_key = ?", &[Bind::Text(&text), Bind::Text(game_key)])
-            .await?;
+        self.exec(
+            "UPDATE progress_games SET details = ? WHERE game_key = ?",
+            &[Bind::Text(&text), Bind::Text(game_key)],
+        )
+        .await?;
         self.exec(
             "UPDATE progress_games SET kind = ?, won = ?, coins = ?, xp = ?, reason = ? WHERE game_key = ?",
             &[
@@ -1318,7 +1336,11 @@ pub(crate) async fn refresh_quests(
         if let Some(quest) = pick_quest(book, &present, true, &format!("weekly/{user}/{week}")) {
             put(db, WEEKLY_SLOT, &quest).await?;
         }
-        sqlx::query("UPDATE profile SET quest_week = ? WHERE user = ?").bind(week).bind(&user).execute(&mut *db).await?;
+        sqlx::query("UPDATE profile SET quest_week = ? WHERE user = ?")
+            .bind(week)
+            .bind(&user)
+            .execute(&mut *db)
+            .await?;
     }
     let last = text(db, "quest_day").await?;
     if last.as_deref() == Some(day) {
@@ -1367,7 +1389,7 @@ const PAYOUT_TABLES: [&str; 9] =
     ["profile", "stats", "quests", "achievements", "unlocks", "weekly", "daily", "payouts", "progress_games"];
 
 /// a row as Java's `getObject` and Gson write it: whole numbers, text or null
-fn row_json(row: &sqlx::sqlite::SqliteRow) -> Value {
+pub(crate) fn row_json(row: &sqlx::sqlite::SqliteRow) -> Value {
     use sqlx::{Column, ValueRef};
     let mut out = Map::new();
     for (index, column) in row.columns().iter().enumerate() {
@@ -1387,7 +1409,11 @@ fn row_json(row: &sqlx::sqlite::SqliteRow) -> Value {
 }
 
 /// the payout's rows for these accounts and the day's pair games, as Java's snapshot holds them
-pub(crate) async fn snapshot(db: &mut SqliteConnection, users: &[String], day: &str) -> Result<Map<String, Value>, Stop> {
+pub(crate) async fn snapshot(
+    db: &mut SqliteConnection,
+    users: &[String],
+    day: &str,
+) -> Result<Map<String, Value>, Stop> {
     let mut keys: Vec<String> = Vec::new();
     for user in users {
         if !keys.contains(&key(user)) {
@@ -1398,7 +1424,8 @@ pub(crate) async fn snapshot(db: &mut SqliteConnection, users: &[String], day: &
     for table in PAYOUT_TABLES {
         let mut rows = Vec::new();
         for user in &keys {
-            for row in sqlx::query(&format!("SELECT * FROM {table} WHERE user = ?")).bind(user).fetch_all(&mut *db).await?
+            for row in
+                sqlx::query(&format!("SELECT * FROM {table} WHERE user = ?")).bind(user).fetch_all(&mut *db).await?
             {
                 rows.push(row_json(&row));
             }
@@ -1420,10 +1447,21 @@ pub(crate) async fn snapshot(db: &mut SqliteConnection, users: &[String], day: &
 pub(crate) async fn copy(schema: &[String], secret: &str, rows: &Map<String, Value>) -> Result<SqliteConnection, Stop> {
     use sqlx::ConnectOptions;
     let mut db = sqlx::sqlite::SqliteConnectOptions::new().in_memory(true).connect().await?;
+    fill(&mut db, schema, secret, rows).await?;
+    Ok(db)
+}
+
+/// Java's schema, its secret and these rows, into an empty career.db
+pub(crate) async fn fill(
+    db: &mut SqliteConnection,
+    schema: &[String],
+    secret: &str,
+    rows: &Map<String, Value>,
+) -> Result<(), Stop> {
     for sql in schema {
-        sqlx::query(sql).execute(&mut db).await?;
+        sqlx::query(sql).execute(&mut *db).await?;
     }
-    sqlx::query("INSERT OR REPLACE INTO meta (key, value) VALUES ('secret', ?)").bind(secret).execute(&mut db).await?;
+    sqlx::query("INSERT OR REPLACE INTO meta (key, value) VALUES ('secret', ?)").bind(secret).execute(&mut *db).await?;
     for (table, list) in rows {
         if table == "nemesis" {
             continue;
@@ -1452,10 +1490,10 @@ pub(crate) async fn copy(schema: &[String], secret: &str, rows: &Map<String, Val
                     _ => return Err(Stop::Decline),
                 };
             }
-            query.execute(&mut db).await?;
+            query.execute(&mut *db).await?;
         }
     }
-    Ok(db)
+    Ok(())
 }
 
 /// The differences between Java's rows after a payout and Rust's: by table, rows matched as sets, a game's result
@@ -1530,6 +1568,9 @@ pub(crate) async fn replay(
 // ---- the outbox (payout_events)
 
 /// `XMAGE_ROUTE_CAREERPAYOUTS`: who pays a finished game
+/// how a pass tells each comparison: (`matchEnded` or `gameEnded`, the same?)
+pub type Report = std::sync::Arc<dyn Fn(&str, bool) + Send + Sync>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PayoutRoute {
     /// Java pays; the gateway does nothing
@@ -1549,7 +1590,7 @@ pub struct Pass {
 
 impl crate::admin::AdminStores {
     /// career.db's secret (`CareerStore.secret`), made here when Java hasn't yet
-    async fn secret(db: &mut SqliteConnection) -> Result<String, Stop> {
+    pub(crate) async fn career_secret(db: &mut SqliteConnection) -> Result<String, Stop> {
         let found: Option<String> =
             sqlx::query_scalar("SELECT value FROM meta WHERE key = 'secret'").fetch_optional(&mut *db).await?;
         if let Some(secret) = found {
@@ -1586,7 +1627,7 @@ impl crate::admin::AdminStores {
         if ready.is_none() {
             return pass;
         }
-        let Ok(secret) = Self::secret(&mut db).await else { return pass };
+        let Ok(secret) = Self::career_secret(&mut db).await else { return pass };
         let book = Book {
             content,
             quests: &quests,
@@ -1678,7 +1719,10 @@ impl crate::admin::AdminStores {
                                         "same".to_owned()
                                     }
                                     Ok(Some(difference)) => {
-                                        tracing::warn!("Career payout {key} ({}): Rust differs: {difference}", event.event);
+                                        tracing::warn!(
+                                            "Career payout {key} ({}): Rust differs: {difference}",
+                                            event.event
+                                        );
                                         pass.compared.push((event.event.clone(), false));
                                         format!("different: {difference}")
                                     }

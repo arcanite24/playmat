@@ -324,6 +324,18 @@ public final class CareerStore implements AutoCloseable {
         return rows;
     }
 
+    /** an account's rows of these tables, as {@link #snapshot} keeps them (the call parity fixtures) */
+    synchronized Map<String, List<Map<String, Object>>> rowsOf(String user, String... tables) throws SQLException {
+        Map<String, List<Map<String, Object>>> rows = new java.util.LinkedHashMap<>();
+        for (String table : tables) {
+            try (PreparedStatement select = connection.prepareStatement("SELECT * FROM " + table + " WHERE user = ?")) {
+                select.setString(1, key(user));
+                rows.put(table, rows(select));
+            }
+        }
+        return rows;
+    }
+
     private static List<Map<String, Object>> rows(PreparedStatement select) throws SQLException {
         List<Map<String, Object>> list = new ArrayList<>();
         try (ResultSet result = select.executeQuery()) {

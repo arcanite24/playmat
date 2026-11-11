@@ -47,10 +47,14 @@ public final class CareerPayouts {
         routeForTests = route;
     }
 
-    /** whether Rust pays this event on the rust route: roster duels and every game outside Career tables */
+    /**
+     * whether Rust pays this event on the rust route: roster duels and every game outside Career tables, when every
+     * name is ASCII (Rust lowers other names differently, so Java keeps those)
+     */
     static boolean rustPays(CareerPayoutEvent event) {
-        return CareerPayoutEvent.GAME_ENDED.equals(event.event)
+        boolean kind = CareerPayoutEvent.GAME_ENDED.equals(event.event)
                 || (event.career != null && "duel".equals(event.career.kind));
+        return kind && event.users().stream().allMatch(user -> user != null && user.chars().allMatch(c -> c < 128));
     }
 
     /** whether the route leaves this event to Rust */

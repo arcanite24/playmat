@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use sqlx::sqlite::SqliteConnection;
 use sqlx::Row;
 
-pub const CAREER_METHODS: [&str; 14] = [
+pub const CAREER_METHODS: [&str; 18] = [
     "careerCollection",
     "careerDeck",
     "careerGameResult",
@@ -24,6 +24,10 @@ pub const CAREER_METHODS: [&str; 14] = [
     "careerCraft",
     "careerStart",
     "careerSaveDeck",
+    "careerRerollQuest",
+    "careerMachines",
+    "careerBuyTokens",
+    "careerPull",
 ];
 
 /// `CareerRules.START_COINS`
@@ -312,21 +316,87 @@ impl AdminStores {
                 }
                 Ok(Value::Array(views))
             }
-            "careerQuests" => {
+            "careerQuests" | "careerRerollQuest" => {
                 let Some(templates) = self.career_views.as_ref().and_then(|views| views.view("quests")) else {
                     return Err(Stop::Decline);
                 };
-                let row = sqlx::query("SELECT quest_day, quest_week, reroll_day FROM profile WHERE user = ?")
-                    .bind(&user)
-                    .fetch_optional(&mut *db)
-                    .await?;
-                let Some(row) = row else { return Ok(Value::Null) };
+                let slot = if request.method == "careerRerollQuest" {
+                    // `call.integer(0)`
+                    let Some(slot) =
+                        request.params.first().and_then(Value::as_i64).filter(|s| i32::try_from(*s).is_ok())
+                    else {
+                        return Err(Stop::Decline);
+                    };
+                    Some(slot)
+                } else {
+                    None
+                };
+                let reroll_day: Option<Option<String>> =
+                    sqlx::query_scalar("SELECT reroll_day FROM profile WHERE user = ?")
+                        .bind(&user)
+                        .fetch_optional(&mut *db)
+                        .await?;
+                let Some(reroll_day) = reroll_day else {
+                    return match slot {
+                        Some(_) => Err(crate::admin::invalid("Open a Career first.")),
+                        None => Ok(Value::Null),
+                    };
+                };
                 let (today, week) = utc_day_and_week(crate::admin::now_millis());
-                let (quest_day, quest_week, reroll_day): (Option<String>, Option<String>, Option<String>) =
-                    (row.try_get(0)?, row.try_get(1)?, row.try_get(2)?);
-                // a new day or week picks quests at random: Java does that, Rust answers once they're picked
-                if quest_day.as_deref() != Some(today.as_str()) || quest_week.as_deref() != Some(week.as_str()) {
-                    return Err(Stop::Decline);
+                let secret = crate::admin::AdminStores::career_secret(db).await?;
+                let book = crate::payouts::Book {
+                    content: self.career_content.as_ref().ok_or(Stop::Decline)?,
+                    quests: &templates,
+                    achievements: &Value::Null,
+                    roster: &Value::Null,
+                    cosmetics: &Value::Null,
+                    secret: &secret,
+                };
+                let mut reroll_day = reroll_day;
+                match slot {
+                    // a new day or week picks quests with the seeded dice, as Java does (`refreshQuests`)
+                    None => crate::payouts::refresh_quests(db, &book, &user, &today, &week).await?,
+                    // `CareerProgress.reroll`
+                    Some(slot) => {
+                        if reroll_day.as_deref() == Some(today.as_str()) {
+                            return Err(crate::admin::invalid("You've already swapped a quest today."));
+                        }
+                        let rows: Vec<(i64, String)> =
+                            sqlx::query_as("SELECT slot, quest FROM quests WHERE user = ? ORDER BY slot")
+                                .bind(&user)
+                                .fetch_all(&mut *db)
+                                .await?;
+                        if !rows.iter().any(|(s, _)| *s == slot) {
+                            return Err(crate::admin::invalid("There's no quest in that slot."));
+                        }
+                        if slot == 3 {
+                            return Err(crate::admin::invalid("The weekly quest can't be swapped."));
+                        }
+                        let present = rows.into_iter().map(|(_, quest)| quest).collect();
+                        let Some(next) = crate::payouts::pick_quest(
+                            &book,
+                            &present,
+                            false,
+                            &format!("reroll/{user}/{today}/{slot}"),
+                        ) else {
+                            return Err(crate::admin::invalid("There's no other quest to swap in."));
+                        };
+                        sqlx::query(
+                            "INSERT OR REPLACE INTO quests (user, slot, quest, progress, assigned) VALUES (?, ?, ?, 0, ?)",
+                        )
+                        .bind(&user)
+                        .bind(slot)
+                        .bind(&next)
+                        .bind(&today)
+                        .execute(&mut *db)
+                        .await?;
+                        sqlx::query("UPDATE profile SET reroll_day = ? WHERE user = ?")
+                            .bind(&today)
+                            .bind(&user)
+                            .execute(&mut *db)
+                            .await?;
+                        reroll_day = Some(today.clone());
+                    }
                 }
                 let mut quests = Vec::new();
                 for row in sqlx::query("SELECT slot, quest, progress FROM quests WHERE user = ? ORDER BY slot")
@@ -345,6 +415,14 @@ impl AdminStores {
                 Ok(
                     json!({"quests": quests, "canReroll": reroll_day.as_deref() != Some(today.as_str()), "today": today}),
                 )
+            }
+            "careerMachines" | "careerBuyTokens" | "careerPull" => {
+                let (Some(content), Some(machines)) =
+                    (&self.career_content, self.career_views.as_ref().and_then(|views| views.view("machines")))
+                else {
+                    return Err(Stop::Decline);
+                };
+                self.capsules(request, &user, content, &machines, db).await
             }
             "careerEquipStyle" => {
                 let Some(styles) = self.career_views.as_ref().and_then(|views| views.view("styles")) else {
@@ -620,7 +698,11 @@ impl AdminStores {
 }
 
 /// `CareerStore.profile`, as Gson writes a `CareerProfile`; None without one
-pub(crate) async fn profile(db: &mut SqliteConnection, user: &str, content: &CareerContent) -> Result<Option<Value>, Stop> {
+pub(crate) async fn profile(
+    db: &mut SqliteConnection,
+    user: &str,
+    content: &CareerContent,
+) -> Result<Option<Value>, Stop> {
     let Some(row) = sqlx::query("SELECT * FROM profile WHERE user = ?").bind(user).fetch_optional(&mut *db).await?
     else {
         return Ok(None);
@@ -821,7 +903,7 @@ pub(crate) async fn totals(
 
 /// `CareerProgress.achievementsIn` outside a game (no game counters, no result to fill): every lifetime achievement
 /// and tier the totals now reach is recorded and paid, its coins, XP, cosmetic and capsule tokens
-async fn achievements_in(
+pub(crate) async fn achievements_in(
     db: &mut SqliteConnection,
     user: &str,
     content: &CareerContent,
@@ -942,7 +1024,11 @@ pub(crate) async fn wins_by_opponent(
 /// `CareerProgress.view`: an achievement as the player sees it, from Java's template (`achievementTemplates`). With
 /// tiers, the target, pay and text are the next tier's (the top one's once all are earned); names and texts of a
 /// secret one show once it's earned. Fields in `CareerAchievement`'s order, nulls left out as Gson does.
-pub(crate) fn achievement(template: &Value, earned: &std::collections::HashMap<String, i64>, value: i64) -> Option<Value> {
+pub(crate) fn achievement(
+    template: &Value,
+    earned: &std::collections::HashMap<String, i64>,
+    value: i64,
+) -> Option<Value> {
     let id = template["id"].as_str()?;
     let secret = template["secret"].as_bool().unwrap_or(false);
     let int = |value: &Value, field: &str| value[field].as_i64().unwrap_or(0);
@@ -1053,7 +1139,11 @@ pub(crate) async fn nemesis(solo: &std::path::Path, user: &str) -> Result<Option
 
 /// `CareerService.opponents`: Java's roster (as a player without wins sees it, and as their nemesis) with this
 /// player's wins, the tiers and rival chapters they opened, and their nemesis
-pub(crate) fn opponents(roster: Value, wins: &std::collections::HashMap<String, i64>, nemesis: Option<&str>) -> Option<Value> {
+pub(crate) fn opponents(
+    roster: Value,
+    wins: &std::collections::HashMap<String, i64>,
+    nemesis: Option<&str>,
+) -> Option<Value> {
     let roster = roster.as_array()?;
     let won = |id: &str| wins.get(id).copied().unwrap_or(0);
     let mut by_tier = std::collections::HashMap::<i64, i64>::new();
@@ -1126,6 +1216,7 @@ mod tests {
             "CREATE TABLE cards (user TEXT NOT NULL, set_code TEXT NOT NULL, card_number TEXT NOT NULL, name TEXT NOT NULL, \
              rarity TEXT NOT NULL, count INTEGER NOT NULL, PRIMARY KEY (user, set_code, card_number))",
             "CREATE TABLE decks (user TEXT PRIMARY KEY, deck TEXT NOT NULL, updated INTEGER NOT NULL)",
+            "CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
             "CREATE TABLE profile (user TEXT PRIMARY KEY, created INTEGER NOT NULL, starter TEXT NOT NULL, \
              coins INTEGER NOT NULL DEFAULT 0, xp INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0, \
              losses INTEGER NOT NULL DEFAULT 0, wc_common INTEGER NOT NULL DEFAULT 0, wc_uncommon INTEGER NOT NULL DEFAULT 0, \
@@ -1236,7 +1327,6 @@ mod tests {
         ]);
         std::thread::sleep(std::time::Duration::from_millis(20));
         std::fs::write(&views, with_quests.to_string()).unwrap();
-        assert!(matches!(stores.call(&neri, &request("careerQuests", json!([])), true).await, Outcome::Declined));
         let (today, week) = utc_day_and_week(crate::admin::now_millis());
         sqlx::query("UPDATE profile SET quest_day = ?, quest_week = ?, reroll_day = ? WHERE user = 'neri'")
             .bind(&today)
@@ -1253,6 +1343,14 @@ mod tests {
                  "target": 10, "coins": 50, "xp": 90},
             ], "canReroll": false, "today": today})
         );
+        // a new day: Rust picks the day's quests with the seeded dice, as Java does
+        sqlx::query("UPDATE profile SET quest_day = '2000-01-01', quest_week = '2000-W01' WHERE user = 'neri'")
+            .execute(&mut db)
+            .await
+            .unwrap();
+        let fresh = call("careerQuests", json!([])).await;
+        let picked: Vec<_> = fresh["quests"].as_array().unwrap().iter().map(|q| q["id"].clone()).collect();
+        assert!(picked.contains(&json!("win3")) && picked.contains(&json!("week")), "{fresh}");
         // card styles: only one owned, on its own card
         sqlx::query(
             "INSERT INTO unlocks VALUES ('neri', 'cardstyle', 'm21-zap', 6), ('neri', 'cardstyle', 'm21-arrow', 7)",

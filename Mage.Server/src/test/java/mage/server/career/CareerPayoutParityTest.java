@@ -200,6 +200,86 @@ public class CareerPayoutParityTest {
         }
     }
 
+    /** what an economy call reads or writes: the account's rows of these tables */
+    private static final String[] CALL_TABLES = {"profile", "stats", "quests", "achievements", "unlocks", "token_log",
+            "pulls", "card_styles"};
+    private final List<Map<String, Object>> calls = new ArrayList<>();
+
+    interface Call {
+        Object run() throws Exception;
+    }
+
+    /** a call the gateway can answer in Rust, with the rows before and after and Java's answer or refusal */
+    private void call(String name, String method, List<Object> params, Call call) throws Exception {
+        Gson gson = new Gson();
+        Map<String, Object> one = new LinkedHashMap<>();
+        one.put("name", name);
+        one.put("method", method);
+        one.put("params", params);
+        one.put("before", JsonParser.parseString(gson.toJson(store.rowsOf("Ana", CALL_TABLES))));
+        try {
+            one.put("result", JsonParser.parseString(gson.toJson(call.run())));
+        } catch (CareerService.CareerException e) {
+            one.put("error", e.getMessage());
+        }
+        one.put("after", JsonParser.parseString(gson.toJson(store.rowsOf("Ana", CALL_TABLES))));
+        calls.add(one);
+    }
+
+    @Test
+    public void callsRustReplays() throws Exception {
+        // the calls run on today, as Rust's do
+        CareerProgress.get().useClock(() -> LocalDate.now(java.time.ZoneOffset.UTC), null);
+        store.createProfile("Ana", "test", CareerRules.START_COINS, 1L);
+        CareerCapsules capsules = CareerCapsules.get();
+        CareerCapsules.CareerMachine small = capsules.machines().stream()
+                .min(java.util.Comparator.comparingInt(m -> m.sets.stream().mapToInt(set -> set.items.size()).sum()))
+                .orElseThrow(IllegalStateException::new);
+        int size = small.sets.stream().mapToInt(set -> set.items.size()).sum();
+
+        call("the shop", "careerMachines", java.util.Collections.emptyList(), () -> capsules.shop("Ana"));
+        call("not a bundle", "careerBuyTokens", java.util.Arrays.<Object>asList(3), () -> capsules.buyTokens("Ana", 3));
+        call("too few coins", "careerBuyTokens", java.util.Arrays.<Object>asList(10), () -> capsules.buyTokens("Ana", 10));
+        store.addProfileInt("Ana", "coins", 50_000);
+        call("a token", "careerBuyTokens", java.util.Arrays.<Object>asList(1), () -> capsules.buyTokens("Ana", 1));
+        call("no such machine", "careerPull", java.util.Arrays.<Object>asList("nope", 1), () -> capsules.pull("Ana", "nope", 1));
+        call("too many", "careerPull", java.util.Arrays.<Object>asList(small.id, 11), () -> capsules.pull("Ana", small.id, 11));
+        call("one pull", "careerPull", java.util.Arrays.<Object>asList(small.id, 1), () -> capsules.pull("Ana", small.id, 1));
+        call("no tokens", "careerPull", java.util.Arrays.<Object>asList(small.id, 3), () -> capsules.pull("Ana", small.id, 3));
+        // pulls until the machine is done: sets finish, then the machine, with its achievements
+        for (int i = 0; i * 10 < size; i++) {
+            call("ten tokens " + i, "careerBuyTokens", java.util.Arrays.<Object>asList(10), () -> capsules.buyTokens("Ana", 10));
+            call("ten pulls " + i, "careerPull", java.util.Arrays.<Object>asList(small.id, 10), () -> capsules.pull("Ana", small.id, 10));
+        }
+        call("every capsule", "careerPull", java.util.Arrays.<Object>asList(small.id, 1), () -> capsules.pull("Ana", small.id, 1));
+        call("the shop after", "careerMachines", java.util.Collections.emptyList(), () -> capsules.shop("Ana"));
+
+        // quests: the day's are picked with the dice, a reroll too, once a day
+        call("quests", "careerQuests", java.util.Collections.emptyList(), () -> CareerProgress.get().quests("Ana"));
+        call("a reroll", "careerRerollQuest", java.util.Arrays.<Object>asList(1), () -> CareerProgress.get().reroll("Ana", 1));
+        call("a second reroll", "careerRerollQuest", java.util.Arrays.<Object>asList(2), () -> CareerProgress.get().reroll("Ana", 2));
+        store.setProfileText("Ana", "reroll_day", null);
+        call("no such slot", "careerRerollQuest", java.util.Arrays.<Object>asList(9), () -> CareerProgress.get().reroll("Ana", 9));
+        call("the weekly", "careerRerollQuest", java.util.Arrays.<Object>asList(3), () -> CareerProgress.get().reroll("Ana", 3));
+        assertTrue(calls.size() > 15);
+
+        if ("write".equals(System.getProperty("playmat.payoutFixtures"))) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+            Map<String, Object> views = new LinkedHashMap<>();
+            views.put("quests", new ArrayList<>(CareerProgress.get().questTemplates().values()));
+            views.put("achievements", CareerProgress.get().achievementExport());
+            views.put("opponents", mage.server.platform.CareerViewsExport.opponents(CareerContent.get()));
+            views.put("machines", capsules.machines());
+            JsonObject all = new JsonObject();
+            all.addProperty("secret", SECRET);
+            all.add("schema", gson.toJsonTree(store.schema()));
+            all.add("views", gson.toJsonTree(views));
+            all.add("calls", gson.toJsonTree(calls));
+            Files.createDirectories(FIXTURES);
+            Files.write(FIXTURES.resolve("calls.json"), (gson.toJson((JsonElement) all) + "\n").getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
     private void write() throws Exception {
         Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
         Files.createDirectories(FIXTURES);

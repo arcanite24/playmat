@@ -8,6 +8,7 @@
 //! (`deckImport*`).
 
 pub mod admin;
+pub mod capsules;
 pub mod career;
 pub mod catalog;
 pub mod deckimport;
@@ -68,7 +69,7 @@ impl Platform {
         self: Arc<Platform>,
         route: payouts::PayoutRoute,
         shadow_users: Option<Vec<String>>,
-        report: Arc<dyn Fn(&str, bool) + Send + Sync>,
+        report: payouts::Report,
     ) {
         let Some(admin) = &self.admin else { return };
         info!("Career payouts: {route:?}");
