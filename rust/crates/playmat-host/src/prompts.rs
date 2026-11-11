@@ -80,7 +80,11 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
         }
         Query::ChooseMode { modes } => {
             let item = game.unpaid.and_then(|at| game.stack.get(at)).or(game.resolving_item.as_ref());
-            let r = item.map(|i| playmat_engine::view::stack_ref(game, i.card)).unwrap_or_else(|| "S0".into());
+            // a triggered ability going on the stack chooses its mode before it's there: named by its source
+            let (item, r) = match (item, game.moding.as_ref()) {
+                (None, Some(t)) => (Some(t), playmat_engine::replay::reference(game, t.card)),
+                (i, _) => (i, i.map(|i| playmat_engine::view::stack_ref(game, i.card)).unwrap_or_else(|| "S0".into())),
+            };
             let texts = item.map(|i| playmat_engine::view::mode_texts(game, i)).unwrap_or_default();
             let mut choices = Map::new();
             for k in modes {
@@ -190,5 +194,28 @@ mod tests {
         assert_eq!(p["data"]["targets"].as_array().unwrap().len(), 2);
         let first = &cards["T0.0"];
         assert_eq!(first["rules"][0], format!("When {} enters, draw a card.", game.obj(a).name()));
+    }
+
+    /// A triggered ability choosing its mode isn't on the stack yet (Territorial Kavu's attack trigger): the prompt
+    /// shows its modes' texts, and each choice names its source, which the answer maps back to
+    #[test]
+    fn a_triggers_modes_are_named_by_its_source() {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Plains\n40 Territorial Kavu");
+        let mut game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let kavu = game.players[0].library[0];
+        game.move_to(kavu, playmat_engine::state::Zone::Battlefield);
+        let k = game.obj(kavu).def.abilities.iter().position(|a| a.trigger_modes().len() == 2).unwrap();
+        let zcc = game.obj(kavu).zcc;
+        game.moding = Some(playmat_engine::state::StackItem {
+            ability: Some((k, zcc)),
+            ..playmat_engine::state::StackItem::spell(kavu, 0)
+        });
+        let p = prompt(&game, 0, &Query::ChooseMode { modes: vec![0, 1] });
+        let choices = p["data"]["choices"].as_object().unwrap();
+        let r = playmat_engine::replay::reference(&game, kavu);
+        assert_eq!(choices[&format!("{r}sm0")], "discard a card. If you do, draw a card.");
+        assert_eq!(choices[&format!("{r}sm1")], "exile up to one target card from a graveyard.");
+        assert!(crate::ids::is_ref(&format!("{r}sm1")));
     }
 }

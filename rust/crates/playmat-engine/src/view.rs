@@ -360,6 +360,22 @@ fn player_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
     })
 }
 
+/// A card view's printing (and its other face's, which shares it): set code, collector number, image number
+fn set_printing(v: &mut Value, set: &str, number: &str, image: Option<u32>) {
+    let Value::Object(m) = v else { return };
+    for face in ["secondCardFace", "leftSplitCard", "rightSplitCard"] {
+        if let Some(Value::Object(f)) = m.get_mut(face) {
+            f.insert("expansionSetCode".into(), json!(set));
+            f.insert("cardNumber".into(), json!(number));
+        }
+    }
+    m.insert("expansionSetCode".into(), json!(set));
+    m.insert("cardNumber".into(), json!(number));
+    if let Some(n) = image {
+        m.insert("imageNumber".into(), json!(n));
+    }
+}
+
 /// A zone's cards (`CardsView`), by reference
 pub fn cards_view(game: &Game, ids: &[ObjId]) -> Value {
     let mut m = Map::new();
@@ -397,6 +413,10 @@ fn card_view(game: &Game, id: ObjId, r: &str, game_object: bool) -> Value {
         .or_else(|| if game_object { room_view(game, id) } else { room_card(game, id) })
         .unwrap_or_else(|| json!({"name": o.def.name}));
     place_ids(&mut v, r, &format!("P{}", o.owner), &format!("P{}", o.controller), game_object);
+    // the printing the card is in its deck as (a hosted game's deck): its picture
+    if let (false, Some((set, number, image))) = (o.token, game.printing(id)) {
+        set_printing(&mut v, set, number, image);
+    }
     if let Value::Object(m) = &mut v {
         m.insert("id".into(), json!(r));
         m.entry("cardId").or_insert_with(|| json!(r));
@@ -2091,5 +2111,37 @@ mod tests {
         let java = json!({"combat": [{"id": "B1", "x": 1}, {"id": "B2", "x": 2}]});
         let rust = json!({"combat": [{"id": "B2", "x": 2}, {"id": "B1", "x": 1}]});
         assert!(compare(&java, &rust).is_empty());
+    }
+
+    /// A hosted game's deck printing shows in the card's views; a card without one keeps its template's
+    #[test]
+    fn a_cards_printing_shows_in_its_view() {
+        let db = crate::cards();
+        let mut game = crate::state::Game::new(2, 1);
+        let a = game.create_obj(db.get("Forest").unwrap(), 0, crate::state::Zone::Hand);
+        let b = game.create_obj(db.get("Forest").unwrap(), 0, crate::state::Zone::Hand);
+        game.set_printing(a, "UNF:240:2");
+        let va = cards_view(&game, &[a]);
+        let vb = cards_view(&game, &[b]);
+        let va = va.as_object().unwrap().values().next().unwrap();
+        let vb = vb.as_object().unwrap().values().next().unwrap();
+        assert_eq!((va["expansionSetCode"].as_str(), va["cardNumber"].as_str()), (Some("UNF"), Some("240")));
+        assert_eq!(va["imageNumber"], 2);
+        assert_ne!(vb["expansionSetCode"].as_str(), Some("UNF"));
+    }
+
+    /// Without its template a card's view is its name alone (no rules, types, P/T or printing): every card in the
+    /// engine needs one. Regenerate with `CardFactsTest` and `rust/tools/view_templates.py` (docs/rust/Views.md).
+    #[test]
+    fn every_card_has_a_view_template() {
+        let db = crate::cards();
+        let mut missing: Vec<&str> = db
+            .iter()
+            .map(|c| c.name.as_str())
+            .filter(|n| !n.starts_with("token:") && !n.starts_with("emblem:"))
+            .filter(|n| !super::templates().contains_key(*n))
+            .collect();
+        missing.sort();
+        assert!(missing.is_empty(), "{} cards have no view template: {:?}", missing.len(), missing);
     }
 }

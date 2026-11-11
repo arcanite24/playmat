@@ -8,7 +8,7 @@ use crate::card::{
 };
 use crate::decide::{Answer, Decider, Query};
 use crate::log;
-use crate::state::{Boost, Delayed, Game, Grant, ObjId, Seat, StackItem, Step, Target, Zone};
+use crate::state::{Boost, Delayed, EventKind, Game, GameEvent, Grant, ObjId, Seat, StackItem, Step, Target, Zone};
 use std::sync::Arc;
 
 const MAX_HAND: usize = 7;
@@ -480,6 +480,13 @@ fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
             Some(id) => {
                 game.player_mut(seat).drawn += 1;
                 game.move_to(id, Zone::Hand);
+                game.record(GameEvent {
+                    target: Some(Target::Obj(id)),
+                    player: Some(seat),
+                    from: Some(Zone::Library),
+                    to: Some(Zone::Hand),
+                    ..GameEvent::new(EventKind::Draw)
+                });
                 let sources: Vec<ObjId> = game.trigger_sources();
                 let drawn = game.player(seat).drawn;
                 let fired = game.triggers(sources, |_, _, you, t| match t {
@@ -11736,7 +11743,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                         if available.is_empty() || asked > 100 {
                             break None;
                         }
-                        match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
+                        game.moding = Some(t.clone());
+                        let answer = ask(game, d, seat, &Query::ChooseMode { modes: available.clone() });
+                        game.moding = None;
+                        match answer {
                             Answer::Mode(k) if available.contains(&k) => break Some(k),
                             Answer::Stop => return,
                             _ => {}
@@ -11997,6 +12007,13 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility));
     match to {
         Target::Player(s) => {
+            game.record(GameEvent {
+                target: Some(to),
+                source: Some(source),
+                amount,
+                combat,
+                ..GameEvent::new(EventKind::Damage)
+            });
             lose_life_by(game, s, amount, Some(source), combat);
             if !combat {
                 damaged_opponent_triggers(game, s);
@@ -12018,6 +12035,13 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 let line = format!("{} deals {} damage to {}", log::object(game, source), amount, log::object(game, o));
                 log::inform(game, line);
             }
+            game.record(GameEvent {
+                target: Some(to),
+                source: Some(source),
+                amount,
+                combat,
+                ..GameEvent::new(EventKind::Damage)
+            });
             let turn = game.turn;
             let t = game.obj_mut(o);
             t.damaged_by = if t.damaged_by.0 == turn { (turn, t.damaged_by.1 | (1 << you)) } else { (turn, 1 << you) };
@@ -12136,6 +12160,14 @@ fn lose_life_by(game: &mut Game, seat: Seat, amount: i32, source: Option<ObjId>,
         }
         log::inform(game, line);
     }
+    if amount > 0 {
+        game.record(GameEvent {
+            target: Some(Target::Player(seat)),
+            player: Some(seat),
+            amount,
+            ..GameEvent::new(EventKind::LifeLoss)
+        });
+    }
     let p = game.player_mut(seat);
     p.life -= amount;
     if amount > 0 {
@@ -12185,6 +12217,12 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
         log::inform(game, line);
     }
     game.player_mut(seat).life += amount;
+    game.record(GameEvent {
+        target: Some(Target::Player(seat)),
+        player: Some(seat),
+        amount,
+        ..GameEvent::new(EventKind::LifeGain)
+    });
     game.player_mut(seat).life_gains += 1;
     game.player_mut(seat).life_gained += amount;
     let first = game.player(seat).life_gains == 1;

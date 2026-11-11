@@ -253,11 +253,7 @@ impl ShadowGame {
 
 fn set_printing(game: &mut Game, id: ObjId, printing: Option<&String>) {
     if let Some(p) = printing {
-        let all = Arc::make_mut(&mut game.printings);
-        if all.len() <= id.0 as usize {
-            all.resize(id.0 as usize + 1, String::new());
-        }
-        all[id.0 as usize] = p.clone();
+        game.set_printing(id, p);
     }
 }
 
