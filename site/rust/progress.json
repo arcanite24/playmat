@@ -68,7 +68,8 @@
    "pr": [
     232,
     237,
-    238
+    238,
+    284
    ]
   },
   {
@@ -995,11 +996,11 @@
    "checked_in": 412
   },
   "rust": {
-   "lines": 41843,
+   "lines": 41874,
    "crates": [
     {
      "crate": "playmat-ai",
-     "lines": 3038
+     "lines": 3069
     },
     {
      "crate": "playmat-engine",
@@ -1028,6 +1029,6 @@
    ]
   }
  },
- "commit": "350843600c2dbe8e95ba56e21544ebfd9a3a362d",
+ "commit": "89fe3c403ffdd89f7789307e9f3d3b85adfc038b",
  "generated": "2026-11-11"
 }
