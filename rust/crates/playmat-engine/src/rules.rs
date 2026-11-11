@@ -596,8 +596,8 @@ pub fn devourer_first_upkeep(game: &mut Game, card: ObjId, seat: Seat) {
 }
 
 /// The opening hands' actions after the mulligans (`GameImpl.init`, 103.6), the starting player first: a card to act
-/// on when there are several, then whether to (Devourer of Destiny's reveal, Gemstone Caverns for the player going
-/// second). False: the decider stopped.
+/// on when there are several, then whether to (Devourer of Destiny's reveal, a leyline, Gemstone Caverns for the
+/// player going second). False: the decider stopped.
 pub fn opening_hand_actions(game: &mut Game, d: &mut dyn Decider, first: Seat) -> bool {
     for seat in [first, game.opponent(first)] {
         let mut cards: Vec<ObjId> = game
@@ -607,7 +607,9 @@ pub fn opening_hand_actions(game: &mut Game, d: &mut dyn Decider, first: Seat) -
             .copied()
             .filter(|c| {
                 let def = &game.obj(*c).def;
-                def.has(&AbilityDef::ChancellorAbility) || seat != first && def.has(&AbilityDef::GemstoneCavernsAbility)
+                def.has(&AbilityDef::ChancellorAbility)
+                    || def.has(&AbilityDef::LeylineAbility)
+                    || seat != first && def.has(&AbilityDef::GemstoneCavernsAbility)
             })
             .collect();
         while !cards.is_empty() {
@@ -625,6 +627,14 @@ pub fn opening_hand_actions(game: &mut Game, d: &mut dyn Decider, first: Seat) -
             if game.obj(card).def.has(&AbilityDef::ChancellorAbility) {
                 match ask(game, d, seat, &Query::YesNo { message: format!("Reveal {name}?") }) {
                     Answer::Bool(true) => devourer_first_upkeep(game, card, seat),
+                    Answer::Stop => return false,
+                    _ => {}
+                }
+            }
+            // a leyline (`LeylineAbility`): begin the game with it on the battlefield
+            if game.obj(card).def.has(&AbilityDef::LeylineAbility) && game.obj(card).zone == Zone::Hand {
+                match ask(game, d, seat, &Query::YesNo { message: format!("Put {name} on the battlefield?") }) {
+                    Answer::Bool(true) => enter_battlefield(game, d, card, seat, false),
                     Answer::Stop => return false,
                     _ => {}
                 }
@@ -13111,6 +13121,34 @@ mod tests {
         game.step = Some(Step::Upkeep);
         game.active = Some(0);
         game
+    }
+
+    /// Says yes to every yes/no question and keeps what it was asked.
+    struct SaysYes(Vec<String>);
+
+    impl Decider for SaysYes {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            match query {
+                Query::YesNo { message } => {
+                    self.0.push(format!("{seat}: {message}"));
+                    Answer::Bool(true)
+                }
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    #[test]
+    fn a_leyline_in_the_opening_hand_is_offered_at_the_start() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let leyline = game.create_obj(db.get("Leyline of the Guildpact").unwrap(), 1, Zone::Hand);
+        game.player_mut(1).hand.push(leyline);
+        let mut d = SaysYes(Vec::new());
+        assert!(opening_hand_actions(&mut game, &mut d, 0));
+        assert_eq!(d.0, vec!["1: Put Leyline of the Guildpact on the battlefield?".to_string()]);
+        assert_eq!(game.obj(leyline).zone, Zone::Battlefield);
+        assert!(!game.player(1).hand.contains(&leyline));
     }
 
     #[test]
