@@ -12,6 +12,7 @@ import type { TableView } from '../../protocol/generated/views';
 import { Button, IconButton } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { Field } from '../ui/Field';
+import { warmDeck } from '../ui/imageCache';
 import { Zone } from '../ui/Zone';
 import { formatMenu, formatRules, gameTypesFor, isCommanderFormat } from '../../core/decks/formats';
 import { DEFAULT_ADVANCED, matchOptions, type TableAdvanced } from '../../core/game/tableSetup';
@@ -290,6 +291,8 @@ function HostDialog({ open, onOpenChange, deckId }: { open: boolean; onOpenChang
     setError(null);
     try {
       const { deck } = await loadForPlay(deckId);
+      // the pictures download while the table fills, so the first hand lands with its art
+      warmDeck(deck);
       const playerTypes = Array.from({ length: seatCount }, (_, index) => (index > 0 && index <= aiSeats ? 'COMPUTER_MAD' : 'HUMAN'));
       const table = await api.roomCreateTable(roomId, matchOptions({
         name: name.trim() || `${userName}'s table`,
@@ -311,6 +314,7 @@ function HostDialog({ open, onOpenChange, deckId }: { open: boolean; onOpenChang
       if (aiSeats > 0) {
         // the AI brings the format's own decks, or starter decks of the right kind; a deck that doesn't fit gets a copy of yours
         const rivals = await (await import('../stores/aiDecks')).aiDecks([], aiSeats, commander, { format: deckType }).catch(() => []);
+        rivals.forEach(warmDeck);
         for (let seat = 1; seat <= aiSeats; seat++) {
           const rival = rivals[seat - 1] ? toWire(rivals[seat - 1]) : wire;
           const joined = await api.roomJoinTable(roomId, table.tableId, `AI ${seat}`, 'COMPUTER_MAD', 4, rival, password);

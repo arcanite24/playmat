@@ -3,6 +3,7 @@ import type { DeckView, DraftPickView, DraftView, SimpleCardView, TournamentView
 import { api, events } from '../connection';
 import { attention } from './attention';
 import { notify } from './toasts';
+import { warmDeck } from '../ui/imageCache';
 
 /**
  * Drafts, deck construction and tournaments the server has put the player in. The server drives every step
@@ -97,6 +98,8 @@ export const useEvents = create<EventsState>((set, get) => ({
     if (!construct) return false;
     try {
       // a refused deck comes back false; the server explains why in a user message
+      // the built deck's pictures download while the other players finish building
+      warmDeck(deck);
       if (!await api.submitDeck(construct.tableId, deck)) return false;
       set({ construct: { ...construct, submitted: true } });
       return true;

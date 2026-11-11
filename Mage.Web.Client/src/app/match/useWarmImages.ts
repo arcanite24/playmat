@@ -24,7 +24,8 @@ function cardsIn(view: GameView): CardView[] {
 }
 
 /**
- * Keeps the pictures of every card in play downloaded and decoded at board and zoom size, so hovering a card or
+ * Keeps the pictures of every card in play downloaded and decoded at every size the match shows them (small board
+ * cards and piles, normal, zoom), ahead of decks warmed before the match, so hovering a card or
  * moving it between zones never waits on the network. New cards are warmed as they appear.
  */
 export function useWarmImages(view: GameView | null) {

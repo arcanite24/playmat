@@ -18,6 +18,7 @@ import { notify } from '../stores/toasts';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { Field } from '../ui/Field';
+import { warmDeck } from '../ui/imageCache';
 import { Zone } from '../ui/Zone';
 import styles from './EventsScreen.module.css';
 
@@ -84,6 +85,7 @@ export function EventsScreen() {
         return;
       }
       deck = toWire((await useDecks.getState().loadForPlay(selected)).deck);
+      warmDeck(deck);
     }
     const ok = await api.roomJoinTournament(roomId, table.tableId, userName, 'HUMAN', 1, deck).catch((error) => {
       notify(translate('events.joinFailed'), error instanceof Error ? error.message : String(error), 'error');
@@ -303,6 +305,7 @@ function HostDialog({ open, initialKind, onOpenChange }: { open: boolean; initia
       if (!limited) {
         if (!chosenDeckId) throw new Error(translate('events.pickDeckToPlay'));
         deck = toWire((await useDecks.getState().loadForPlay(chosenDeckId)).deck);
+        warmDeck(deck);
       }
       if (!await api.roomJoinTournament(roomId, tableId, userName, 'HUMAN', 1, deck)) throw new Error(translate('events.yourSeatRefused'));
       if (fillAi) {
