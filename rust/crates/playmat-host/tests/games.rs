@@ -155,6 +155,7 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
                 name: "tester".into(),
                 human: true,
                 deck: human_deck.cards.clone(),
+                printings: Vec::new(),
                 user_data: None,
             },
             SeatStart {
@@ -162,6 +163,7 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
                 name: "Computer".into(),
                 human: false,
                 deck: ai_deck.cards.clone(),
+                printings: Vec::new(),
                 user_data: None,
             },
         ],
@@ -312,4 +314,32 @@ fn a_record_replays_the_game() {
     assert_eq!(replayed.first_difference, None, "the replay's log differs from the record's");
     assert_eq!((replayed.ended.winner, replayed.ended.turns), (ended.winner, ended.turns));
     assert_eq!(replayed.ended.reason, ended.reason);
+}
+
+/// The views carry the game's events (`GameEventView`) for the client's effects: combat damage to the human, each
+/// draw (the AI's without its card), in order; and a spell's `cardId` is its card's id, never "?"
+#[test]
+fn views_carry_the_games_events() {
+    let (_, events) = play(&deck("gw-company.txt"), &deck("b-zombies.txt"), 0, u64::MAX);
+    let mut seen = Vec::new();
+    for e in &events {
+        let view = if e.method == "GAME_UPDATE" || e.method == "GAME_INIT" { &e.data } else { &e.data["gameView"] };
+        seen.extend(view["events"].as_array().cloned().unwrap_or_default());
+        for card in view["stack"].as_object().into_iter().flat_map(|s| s.values()) {
+            assert_ne!(card["cardId"], "?", "a spell's cardId");
+        }
+    }
+    let seqs: Vec<u64> = seen.iter().map(|e| e["seq"].as_u64().unwrap()).collect();
+    assert!(seqs.windows(2).all(|w| w[0] < w[1]), "events in order, each once");
+    assert!(
+        seen.iter().any(|e| e["kind"] == "DAMAGE"
+            && e["combat"] == true
+            && e["targetId"] == HUMAN
+            && e["sourceId"].as_str().is_some_and(uuid)),
+        "combat damage to the human"
+    );
+    let draws = |p: &'static str| seen.iter().filter(move |e| e["kind"] == "DRAW" && e["playerId"] == p);
+    assert!(draws(HUMAN).count() > 0 && draws(HUMAN).all(|e| e["targetId"].as_str().is_some_and(uuid)));
+    assert!(draws(AI).count() > 0 && draws(AI).all(|e| e.get("targetId").is_none()), "the AI's draws are hidden");
+    assert!(seen.iter().any(|e| e["kind"] == "LIFE_LOSS" && e["playerId"] == HUMAN));
 }

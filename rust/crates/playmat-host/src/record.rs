@@ -59,7 +59,7 @@ fn start_json(s: &Start) -> Value {
         "gameId": s.game_id,
         "seed": s.seed,
         "seats": s.seats.iter().map(|p| json!({
-            "playerId": p.player_id, "name": p.name, "human": p.human, "deck": p.deck, "userData": p.user_data,
+            "playerId": p.player_id, "name": p.name, "human": p.human, "deck": p.deck, "printings": p.printings, "userData": p.user_data,
         })).collect::<Vec<_>>(),
         "timer": {"prioritySecs": s.timer.priority_secs, "bufferSecs": s.timer.buffer_secs, "left": s.timer.left},
         "chooser": s.chooser,
@@ -80,6 +80,10 @@ fn start_of(v: &Value) -> Option<Start> {
                 name: p["name"].as_str().unwrap_or("").to_string(),
                 human: p["human"].as_bool().unwrap_or(false),
                 deck: p["deck"]
+                    .as_array()
+                    .map(|d| d.iter().filter_map(|c| c.as_str().map(str::to_string)).collect())
+                    .unwrap_or_default(),
+                printings: p["printings"]
                     .as_array()
                     .map(|d| d.iter().filter_map(|c| c.as_str().map(str::to_string)).collect())
                     .unwrap_or_default(),

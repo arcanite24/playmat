@@ -152,6 +152,10 @@ impl Hosts {
                             .as_array()
                             .map(|d| d.iter().filter_map(|c| c.as_str().map(str::to_string)).collect())
                             .unwrap_or_default(),
+                        printings: s["printings"]
+                            .as_array()
+                            .map(|d| d.iter().filter_map(|c| c.as_str().map(str::to_string)).collect())
+                            .unwrap_or_default(),
                         user_data: s.get("userData").cloned(),
                     })
                     .collect()

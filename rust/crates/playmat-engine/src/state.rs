@@ -514,6 +514,35 @@ pub struct Boost {
     pub until_end_of_turn: bool,
 }
 
+/// What a game event is (`GameEventKind`, what the web client's effects play from)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EventKind {
+    Damage,
+    LifeGain,
+    LifeLoss,
+    Draw,
+    Zone,
+}
+
+/// One game event (`GameEventView`): damage dealt, life gained or lost, a card drawn, a zone change
+#[derive(Clone, Debug, PartialEq)]
+pub struct GameEvent {
+    pub kind: EventKind,
+    pub target: Option<Target>,
+    pub source: Option<ObjId>,
+    pub player: Option<Seat>,
+    pub amount: i32,
+    pub from: Option<Zone>,
+    pub to: Option<Zone>,
+    pub combat: bool,
+}
+
+impl GameEvent {
+    pub fn new(kind: EventKind) -> GameEvent {
+        GameEvent { kind, target: None, source: None, player: None, amount: 0, from: None, to: None, combat: false }
+    }
+}
+
 /// A game: everything the rules look at. Cloning one is cheap (see the module docs).
 #[derive(Clone, Debug)]
 pub struct Game {
@@ -621,6 +650,8 @@ pub struct Game {
     /// the game log's lines as Java writes them (`informPlayers`), while it's kept (replays and the AI's copy compare
     /// it with Java's; docs/rust/Views.md)
     pub log: Option<Vec<String>>,
+    /// the game's events since they were last taken, while they're kept (a hosted game's views carry them)
+    pub events: Option<Vec<GameEvent>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
@@ -738,6 +769,7 @@ impl Game {
             lost_until_eot: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
+            events: None,
             exile_if_dies: Vec::new(),
             triggered_this_turn: Vec::new(),
             sac_insert: None,
@@ -1211,6 +1243,31 @@ impl Game {
     }
 
     /// Whether a static ability's effect on the battlefield matches (for effects that apply to the whole game).
+    /// Keeps a game event, while they're kept
+    pub fn record(&mut self, event: GameEvent) {
+        if let Some(events) = self.events.as_mut() {
+            events.push(event);
+        }
+    }
+
+    /// The printing a card was put in its deck as (`SET:number`, optionally `:imageNumber`): its views show it
+    pub fn set_printing(&mut self, id: ObjId, printing: &str) {
+        let all = Arc::make_mut(&mut self.printings);
+        if all.len() <= id.0 as usize {
+            all.resize(id.0 as usize + 1, String::new());
+        }
+        all[id.0 as usize] = printing.to_string();
+    }
+
+    /// The printing set with `set_printing`: its set code, collector number and image number, if any
+    pub fn printing(&self, id: ObjId) -> Option<(&str, &str, Option<u32>)> {
+        let p = self.printings.get(id.0 as usize).filter(|p| !p.is_empty())?;
+        let mut parts = p.splitn(3, ':');
+        let set = parts.next()?;
+        let number = parts.next()?;
+        Some((set, number, parts.next().and_then(|n| n.parse().ok())))
+    }
+
     pub fn any_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
         self.battlefield.iter().any(|src| {
             self.obj(*src).def.abilities.iter().any(|a| match a {
@@ -2220,6 +2277,15 @@ impl Game {
             }
             o.zone = zone;
             o.zcc += 1;
+        }
+        if self.events.is_some() {
+            self.record(GameEvent {
+                target: Some(Target::Obj(id)),
+                player: Some(owner),
+                from: Some(from),
+                to: Some(zone),
+                ..GameEvent::new(EventKind::Zone)
+            });
         }
         for mut t in dies {
             // a dead permanent's own trigger is its graveyard card's
