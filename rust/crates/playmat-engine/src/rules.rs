@@ -13683,6 +13683,62 @@ mod tests {
         }
     }
 
+    /// Logs every question and picks the first card offered
+    struct CardLog(Vec<String>);
+
+    impl Decider for CardLog {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            self.0.push(format!("{seat}: {query:?}"));
+            match query {
+                Query::Cards { objs, .. } => objs.first().map(|o| Answer::Obj(*o)).unwrap_or(Answer::Stop),
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    #[test]
+    fn kavus_discard_mode_asks_which_card() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let kavu = game.create_obj(db.get("Territorial Kavu").unwrap(), 0, Zone::Hand);
+        game.move_to(kavu, Zone::Battlefield);
+        let hand: Vec<ObjId> = (0..3).map(|_| game.create_obj(db.get("Forest").unwrap(), 0, Zone::Hand)).collect();
+        game.player_mut(0).hand.extend(hand.iter().copied());
+        let k = game.obj(kavu).def.abilities.iter().position(|a| a.trigger_modes().len() == 2).unwrap();
+        let zcc = game.obj(kavu).zcc;
+        Arc::make_mut(&mut game.stack).push(StackItem {
+            ability: Some((k, zcc)),
+            modes: vec![0],
+            ..StackItem::spell(kavu, 0)
+        });
+        let mut d = CardLog(Vec::new());
+        resolve_top(&mut game, &mut d);
+        assert!(d.0.iter().any(|q| q.contains("Cards")), "the player picks the card to discard: {:?}", d.0);
+    }
+
+    #[test]
+    fn a_fetchland_under_leyline_names_its_any_color_ability() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let leyline = game.create_obj(db.get("Leyline of the Guildpact").unwrap(), 0, Zone::Hand);
+        game.move_to(leyline, Zone::Battlefield);
+        let strand = game.create_obj(db.get("Flooded Strand").unwrap(), 0, Zone::Hand);
+        game.move_to(strand, Zone::Battlefield);
+        game.update_guildpact();
+        let rules = crate::view::ability_rules(&game, strand).unwrap();
+        assert_eq!(rules.len(), game.obj(strand).def.abilities.len());
+        assert!(
+            rules.iter().any(|r| r.contains("Sacrifice Flooded Strand") || r.contains("Sacrifice {this}")),
+            "{rules:?}"
+        );
+        assert_eq!(rules.last().unwrap(), "{T}: Add one mana of any color.");
+        let all: Vec<usize> = (0..rules.len()).collect();
+        let p = crate::prompt::prompt_view(&game, 0, &Query::ChooseAbility { source: strand, abilities: all }).unwrap();
+        for (_, text) in p["data"]["choices"].as_object().unwrap() {
+            assert!(text.as_str().unwrap().len() > 4, "every choice has its rule: {text}");
+        }
+    }
+
     #[test]
     fn a_leyline_in_the_opening_hand_is_offered_at_the_start() {
         let db = crate::cards();

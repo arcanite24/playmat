@@ -1745,7 +1745,23 @@ pub(crate) fn ability_rules(game: &Game, id: ObjId) -> Option<Vec<String>> {
         None => format!("abilities:{}", o.def.name),
     };
     let rules = templates().get(&key)?.as_array()?;
-    Some(rules.iter().map(|r| r.as_str().unwrap_or("").to_string()).collect())
+    let rules: Vec<String> = rules.iter().map(|r| r.as_str().unwrap_or("").to_string()).collect();
+    // a land under Leyline of the Guildpact: its basic mana abilities gone, one of any color added last
+    // (`Game::update_guildpact`): each ability's rule by the place it had on its own card
+    let Some(own) = &o.pre_guildpact else { return Some(rules) };
+    Some(
+        o.def
+            .abilities
+            .iter()
+            .map(|a| match own.abilities.iter().position(|b| b == a) {
+                Some(k) => rules.get(k).cloned().unwrap_or_default(),
+                None => match a {
+                    crate::card::AbilityDef::AnyColorManaAbility { rule, .. } => rule.clone(),
+                    _ => String::new(),
+                },
+            })
+            .collect(),
+    )
 }
 
 const STACK_ABILITY: &str = r#"{"name":"Ability","rules":[],"power":"","toughness":"","loyalty":"","defense":"","cardTypes":[],"subTypes":[],"superTypes":[],"color":{"white":false,"blue":false,"black":false,"red":false,"green":false},"manaCostLeftStr":[],"manaCostRightStr":[],"manaValue":0,"mageObjectType":"ABILITY_STACK_FROM_CARD","isAbility":false,"abilityType":"TRIGGERED_NONMANA","isToken":false,"imageFileName":"","imageNumber":0,"extraDeckCard":false,"transformable":false,"transformed":false,"backFace":false,"flipCard":false,"faceDown":false,"isSplitCard":false,"isDoubleFacedCard":false,"artRect":"NORMAL","paid":true,"controlledByOwner":true,"rotate":false,"hideInfo":false,"canAttack":false,"canBlock":false,"inViewerOnly":false,"cardIcons":[],"originalIsCopy":false,"id":"?","expansionSetCode":"","cardNumber":"0","usesVariousArt":false,"gameObject":true,"isChoosable":false,"isSelected":false,"playableStats":{"basicManaAbilities":[],"basicPlayAbilities":[],"basicCastAbilities":[],"other":[]}}"#;

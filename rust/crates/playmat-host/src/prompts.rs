@@ -188,9 +188,14 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
                 "options": {"title": title, "header": header, "canCancel": false,
                             "queryType": "MULTI_AMOUNT"}}})
         }
-        Query::Choice { message: m, choices } => json!({"method": "GAME_CHOOSE_CHOICE", "data": {
-            "choice": {"message": m, "choices": choices, "required": true, "searchEnabled": false},
-            "message": m, "options": {"queryType": "CHOOSE_CHOICE"}}}),
+        Query::Choice { message: m, choices } => {
+            // a color for mana being made (`ChoiceColor`): the client's auto-pay answers it with the color it tapped for
+            let mana_color = m.starts_with("Select a color of mana");
+            json!({"method": "GAME_CHOOSE_CHOICE", "data": {
+                "choice": {"message": m, "choices": choices, "required": true, "searchEnabled": false,
+                           "manaColorChoice": mana_color},
+                "message": m, "options": {"queryType": "CHOOSE_CHOICE"}}})
+        }
         Query::ChooseAbility { .. }
         | Query::Priority { .. }
         | Query::PlayMana { .. }
@@ -276,6 +281,19 @@ mod tests {
         assert_eq!(choices[&format!("{r}sm0")], "discard a card. If you do, draw a card.");
         assert_eq!(choices[&format!("{r}sm1")], "exile up to one target card from a graveyard.");
         assert!(crate::ids::is_ref(&format!("{r}sm1")));
+    }
+
+    /// The color of mana being made is a mana color choice, which the client's auto-pay answers
+    #[test]
+    fn a_mana_color_question_is_marked_as_one() {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Plains");
+        let game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let colors: Vec<String> = ["White", "Blue", "Black", "Red", "Green"].iter().map(|c| c.to_string()).collect();
+        let q = Query::Choice { message: "Select a color of mana to add 1 of it".into(), choices: colors.clone() };
+        assert_eq!(prompt(&game, 0, &q)["data"]["choice"]["manaColorChoice"], true);
+        let q = Query::Choice { message: "Choose a color".into(), choices: colors };
+        assert_eq!(prompt(&game, 0, &q)["data"]["choice"]["manaColorChoice"], false);
     }
 
     /// A target question says what it targets, from what it can pick
