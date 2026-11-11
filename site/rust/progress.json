@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-07",
+ "updated": "2026-11-11",
  "goal": "games against the AI that cost a fraction of the server's CPU: one-on-one games against the AI with Pioneer and Standard decks, decided in milliseconds.",
  "phases": [
   {
@@ -15,8 +15,8 @@
   {
    "n": "1",
    "name": "Rust gateway",
-   "status": "live",
-   "text": "playmat-gateway sits in front of the Java server and routes each group of calls to Java, Rust, or both to compare. Running on the public server since 4 Nov 2026.",
+   "status": "done",
+   "text": "playmat-gateway sits in front of the Java server and routes each group of calls to Java, Rust, or both to compare. It has carried every connection on the public server since 4 Nov 2026.",
    "pr": [
     193
    ]
@@ -47,19 +47,24 @@
    "n": "4",
    "name": "Rules engine and card pipeline",
    "status": "active",
-   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games.",
+   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Next: every Pioneer-legal card.",
    "pr": [
     219,
     220,
     228,
-    233
+    233,
+    243,
+    244,
+    266,
+    268,
+    270
    ]
   },
   {
    "n": "5",
    "name": "Rust AI",
    "status": "active",
-   "text": "Whole-turn playouts on engine copies. Today it plays the AI's seat of Java's games through a copy kept in step, and hands the game back to the Java AI at any difference.",
+   "text": "Whole-turn playouts on engine copies, deciding in milliseconds. It plays the AI's seat in Java's games for listed players, and the whole game when the Rust engine hosts it.",
    "pr": [
     232,
     237,
@@ -69,9 +74,14 @@
   {
    "n": "6",
    "name": "Retire Java",
-   "status": "later",
-   "text": "Not before the Pioneer pool runs in Rust.",
-   "pr": []
+   "status": "active",
+   "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Tables between people, tournaments, drafts and solo come once the pool covers the formats people play.",
+   "pr": [
+    260,
+    263,
+    276,
+    278
+   ]
   }
  ],
  "steps": [
@@ -88,8 +98,8 @@
   {
    "n": "B",
    "name": "Fidelity",
-   "status": "active",
-   "text": "Every card of the 24 Pioneer and Standard meta decks in the engine, with shadow games for each pairing.",
+   "status": "done",
+   "text": "Every card of the 24 Pioneer and Standard meta decks in the engine, with a shadow game for each pairing: 287 of 288 match, and Java didn't finish the other.",
    "gate": "A week of production AI games that follow Java to the end",
    "pr": [
     243,
@@ -99,23 +109,45 @@
   {
    "n": "C",
    "name": "Views in Rust",
-   "status": "active",
-   "text": "Building what the client sees, compared in production against Java's.",
-   "gate": "Zero view differences on a week of real games"
+   "status": "done",
+   "text": "What the client sees (views, prompts and the game log) built by the Rust engine and compared with Java's.",
+   "gate": "Zero view differences on a week of real games",
+   "pr": [
+    245,
+    272
+   ]
   },
   {
    "n": "D",
    "name": "Human side and host",
-   "status": "later",
-   "text": "Skip settings, timers, mulligans, concede and reconnect; a Rust host for the whole game.",
-   "gate": "The live client tests pass against a Rust-hosted game"
+   "status": "done",
+   "text": "A Rust host for the whole game: skip settings, priority timers, mulligans, concede, reconnect, best-of-three, spectators, replays and the Career's pay.",
+   "gate": "The live client tests pass against a Rust-hosted game",
+   "pr": [
+    260,
+    262,
+    263,
+    264,
+    278
+   ]
   },
   {
    "n": "E",
    "name": "Rollout",
-   "status": "later",
-   "text": "Rust-hosted games for listed players first, then every AI duel whose decks qualify.",
-   "gate": "A week with no game lost to the host"
+   "status": "live",
+   "text": "Rust-hosted games for listed players, and for every player who turns on \"Play on the Rust engine\" in Settings, live since 11 Nov 2026. Then every AI duel whose decks qualify, by default.",
+   "gate": "A week with no game lost to the host, then the default",
+   "pr": [
+    261,
+    276
+   ]
+  },
+  {
+   "n": "F",
+   "name": "Then",
+   "status": "next",
+   "text": "More of the Pioneer pool, and what still plays on Java only: the solo tools, advice and practice tools.",
+   "gate": "Per feature"
   }
  ],
  "measures": [
@@ -194,7 +226,7 @@
   ]
  },
  "counted": {
-  "engine_cards": 579,
+  "engine_cards": 881,
   "java_card_files": 32749,
   "school": {
    "label": "Pioneer and Standard school decks",
@@ -874,28 +906,102 @@
     "note": "56 of 56 match (10 checked in)",
     "checked_in": 10,
     "decks": 5
+   },
+   {
+    "tier": 34,
+    "what": "five Modern meta decks (Domain Zoo, Mono-Black Rats, Boros Burn, Mono-White Soul Sisters, Mono-Blue Merfolk): domain, fetch lands, dash, suspend, Force of Negation's alternative cost, reveal-from-hand costs (\"any number\" asked in rounds, as TargetImpl.choose), Pack Rat's and Territorial Kavu's power and toughness, Scion of Draco's keywords by color, Searing Blaze's target that player controls and landfall, Skullcrack's no lifegain this turn, islandwalk, Tide Shaper's Island, Aether Vial, Ranger-Captain's noncreature lock, vigilance granted by a static when attacking, Leyline of the Guildpact's land change keeping a waiting trigger's ability",
+    "matched": 90,
+    "played": 90,
+    "timeouts": 0,
+    "note": "90 of 90 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 5
+   },
+   {
+    "tier": 35,
+    "what": "Modern Mono-Green Elves, against Domain Zoo and Mono-Black Rats: Heritage Druid's mana from three untapped Elves (counted for each three while checking what's playable), Castle Garenbrig's mana ability with a mana cost paid by the others, first strike gained after first-strike damage (702.7c)",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 1
+   },
+   {
+    "tier": 36,
+    "what": "Modern Affinity and Izzet Prowess, against Domain Zoo and Bogles: affinity and metalcraft, improvise, sunburst (Engineered Explosives), Urza's Saga, Pithing Needle, Emry's cast from the graveyard, flashback through its own picker (Lava Dart), phyrexian mana paid with life before X and targets",
+    "matched": 60,
+    "played": 60,
+    "timeouts": 0,
+    "note": "60 of 60 match (10 checked in)",
+    "checked_in": 10,
+    "decks": 2
+   },
+   {
+    "tier": 37,
+    "what": "Modern Eldrazi Tron and Eldrazi Ramp: Devourer of Destiny's and Gemstone Caverns' opening-hand actions, Ugin's Labyrinth, Eldrazi Temple's colorless mana for Eldrazi only, Kozilek's Command, energy, crew and \"becomes tapped\" triggers, Emrakul's controlled turn (replayed as Java plays it; in hosted games the controlled player passes and the quick policy answers what it must)",
+    "matched": 28,
+    "played": 28,
+    "timeouts": 0,
+    "note": "28 of 28 match, 2 skipped (10 checked in)",
+    "checked_in": 10,
+    "decks": 2
+   },
+   {
+    "tier": 38,
+    "what": "Modern Esper Blink and Selesnya Bogles: evoke (Solitude), rebound (Ephemerate), Prismatic Ending, Spirit Mantle's granted protection, umbras",
+    "matched": 27,
+    "played": 30,
+    "timeouts": 0,
+    "note": "27 of 30 Esper Blink games match (the other three differed before this tier) and 30 of 30 Bogles games (10 checked in)",
+    "checked_in": 10,
+    "decks": 2
+   },
+   {
+    "tier": 39,
+    "what": "the nine starter decks that aren't commander decks (the planeswalker decks the AI picks when it has no format deck): aftermath split cards (Spring // Mind, Reason // Believe: the left half cast from hand, the right from the graveyard and then exiled, each through the half's picker), Nissa's Encouragement, Quicksmith Spy's granted \"{T}: Draw a card\", tap-X-artifacts costs with X announced before the mana (Merchant's Dockhand), divided targets asked again until \"done\", combat damage triggers with the damage dealt, boosts on a Vehicle counted only once it's a creature, mana abilities that remove a counter, Natural Obsolescence's artifact to the library",
+    "matched": 36,
+    "played": 36,
+    "timeouts": 4,
+    "note": "36 of 36 finished games match, 4 Java timeouts (10 checked in)",
+    "checked_in": 10,
+    "decks": 9
+   },
+   {
+    "tier": 40,
+    "what": "a player's own Modern decks (Domain Zoo, Esper Goryos, Izzet Prowess), and shadow-decks/probe40's Goryo's splice deck: splice onto Arcane (asked before the other costs, each spliced card's targets after the payment, each part resolving in turn), Goryo's Vengeance's end-step exile, Atraxa's one card of each type, Teferi, Time Raveler's sorcery-speed lock and flash until your next turn, exert costs, Arena of Glory's haste for creature spells it pays for, Leyline of the Guildpact's land types after it leaves, delayed triggers with different fixed targets ordered by hand",
+    "matched": 30,
+    "played": 30,
+    "timeouts": 0,
+    "note": "30 of 30 match; probes 12 of 12 (14 checked in)",
+    "checked_in": 14,
+    "decks": 3
    }
   ],
   "shadow": {
-   "played": 1056,
-   "matched": 1056,
-   "java_timeouts": 24,
-   "checked_in": 338
+   "played": 1360,
+   "matched": 1357,
+   "java_timeouts": 28,
+   "checked_in": 412
   },
   "rust": {
-   "lines": 28655,
+   "lines": 41035,
    "crates": [
     {
      "crate": "playmat-ai",
-     "lines": 1786
+     "lines": 2230
     },
     {
      "crate": "playmat-engine",
-     "lines": 16587
+     "lines": 24024
     },
     {
      "crate": "playmat-gateway",
-     "lines": 1497
+     "lines": 2219
+    },
+    {
+     "crate": "playmat-host",
+     "lines": 3777
     },
     {
      "crate": "playmat-platform",
@@ -912,6 +1018,6 @@
    ]
   }
  },
- "commit": "08afcdbc77e9a973527771eda3e62b545f2f9a39",
- "generated": "2026-11-07"
+ "commit": "d384bdb2499ed99e3e3ada33cebb43aa92075bdc",
+ "generated": "2026-11-11"
 }
