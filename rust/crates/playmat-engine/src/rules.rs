@@ -5915,6 +5915,13 @@ fn room_face(full: &CardDef, doors: [bool; 2]) -> CardDef {
 fn set_room_face(game: &mut Game, id: ObjId) {
     let Some(full) = game.obj(id).printed_def.clone().filter(|f| !f.room.is_empty()) else { return };
     let doors = game.obj(id).doors;
+    // its abilities already waiting or on the stack keep the face they came from
+    let old = game.obj(id).def.clone();
+    for t in Arc::make_mut(&mut game.stack).iter_mut().chain(game.pending.iter_mut()) {
+        if t.card == id && t.ability.is_some() && t.def.is_none() {
+            t.def = Some(old.clone());
+        }
+    }
     game.obj_mut(id).def = Arc::new(room_face(&full, doors));
 }
 

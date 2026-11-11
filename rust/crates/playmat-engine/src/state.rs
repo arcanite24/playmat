@@ -1305,8 +1305,10 @@ impl Game {
                         && self.condition_holds(a.intervening_if(), o.controller, src)
                         && self.condition_holds(a.trigger_condition(), o.controller, src)
                     {
-                        // a copy until end of turn (Shifting Woodland) keeps what it copied once it has left
-                        let def = o.until_end_of_turn_def.as_ref().map(|_| o.def.clone());
+                        // a copy until end of turn (Shifting Woodland) keeps what it copied once it has left; a Room's
+                        // keeps the face it came from (the face is rebuilt as doors unlock)
+                        let room = o.printed_def.as_ref().is_some_and(|f| !f.room.is_empty());
+                        let def = (o.until_end_of_turn_def.is_some() || room).then(|| o.def.clone());
                         fired.push(StackItem { ability: Some((i, o.zcc)), def, ..StackItem::spell(src, o.controller) });
                     }
                 }
