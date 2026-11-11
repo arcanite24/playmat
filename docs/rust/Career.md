@@ -3,8 +3,10 @@
 Phase 3 (docs/RustMigration.md) moves the Career economy to the platform service. The first part answers the
 Career's records that need nothing but Java's `db/career.db` and the content: `careerCollection`, `careerDeck`,
 `careerStarters` and `careerOpponents` (the `Career` group, `XMAGE_ROUTE_CAREER`), `careerGameResult`, `careerShowProgress`,
-`careerLevels`, `careerCosmetics`, `careerAchievements`, `careerQuests` and `careerEquipStyle` (`CareerProgress`, `XMAGE_ROUTE_CAREERPROGRESS`). The code is
-`rust/crates/playmat-platform/src/career.rs`.
+`careerLevels`, `careerCosmetics`, `careerAchievements`, `careerQuests`, `careerRerollQuest`, the capsule shop
+(`careerMachines`, `careerBuyTokens`, `careerPull`) and `careerEquipStyle` (`CareerProgress`,
+`XMAGE_ROUTE_CAREERPROGRESS`). The code is `rust/crates/playmat-platform/src/career.rs` and `capsules.rs`; what a
+finished game pays is in Payouts.md.
 
 ## The content
 
@@ -15,8 +17,16 @@ commit. From it Rust takes the level track (`levels.json`, with a capsule token 
 writes for Java's (checked 4 Nov 2026).
 
 The quests are in the file as Java's templates. A player's first `careerQuests` of a UTC day or ISO week picks new
-quests at random, so Rust leaves that call to Java and answers the rest of the day from the `quests` rows, as
-`questsView` builds them; a reroll stays with Java too.
+quests, and a reroll picks another; both sides roll the same seeded dice (Payouts.md, "Dice"), so Rust picks what
+Java would, keeps an unfinished daily quest as Java does, and answers from the `quests` rows as `questsView` builds
+them. A reroll checks the slot, the weekly quest and once a day with Java's messages.
+
+The capsule shop is the views file's `machines` (newest wave first). `careerMachines` answers the shop: tokens,
+coins, a token's price from `rewards.json`, the bundles, the machines, the capsules pulled and the styles worn.
+`careerBuyTokens` sells a bundle of 1, 5 or 10 for coins. `careerPull` takes a token a capsule and draws from what the
+player doesn't have yet with the dice (`pull/<user>/<machine>/<pulls so far>`), so Java and Rust draw the same
+capsules; it pays a set's sleeve and a machine's rewards and title when they're done, counts `capsules_pulled`,
+`capsule_sets` and `capsule_machines`, and pays the lifetime achievements those reach.
 
 The first write is `careerEquipStyle`, which has no chance in it: the file lists every card style with its card and
 its machine's kind, and Rust checks the card, the style and that the player pulled it, with Java's messages, then
@@ -68,11 +78,11 @@ all 124 achievements, earned, not earned and with every tier earned, Rust's JSON
 
 ## Left to Java
 
-The rest of the Career: the rest of its content (rewards, campaigns, puzzles), the shop
-and packs (`createBooster` is the engine's), capsule pulls, quests and rerolls (unseeded `Random`), the gauntlet and
-limited runs, every call that starts a game, the live quest tracker, and the payouts at the end of a game. They move
-in this order: the content and its read calls, the deterministic writes, then payouts from a `matchEnded` event Java
-sends with the game's counters.
+- The pack shop and limited drafts: `createBooster` is the engine's (the card database and each set's booster rules),
+  so they wait for the engine in Rust.
+- The modes: campaigns, trials, puzzles, challenges, hordes, the gauntlet and limited runs, their calls and their
+  payouts.
+- Every call that starts a game, and the live quest tracker during one.
 
 ## Checks
 
@@ -81,5 +91,7 @@ file as it changes and the roster with wins and a nemesis, achievements with tie
 UTC day and ISO week, card styles with their refusals, and (with `PLAYMAT_TEST_CATALOG` naming
 a catalog export) crafting with its refusals, wildcards, coins and the achievements it pays, starting a Career on a
 progression profile and saving a deck with its refusals, check the
-level and renown math against `CareerRules`, and the Career turned off. On a server with
-accounts, `shadow` compares the answers for the listed accounts (`XMAGE_SHADOW_USERS`).
+level and renown math against `CareerRules`, and the Career turned off. `calls_match_java` (capsules.rs) replays 23 calls Java answered
+(`CareerPayoutParityTest`): the shop, bundles and their refusals, pulls until the machine is done, quests and rerolls,
+with the same answers and the same rows after. On a server with accounts, `shadow` compares the answers for the
+listed accounts (`XMAGE_SHADOW_USERS`).

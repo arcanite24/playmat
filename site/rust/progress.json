@@ -36,8 +36,8 @@
   {
    "n": "3",
    "name": "Career economy",
-   "status": "parked",
-   "text": "The Career's records and level track are built and compared; payouts wait until the AI work lands.",
+   "status": "active",
+   "text": "Unparked 11 Nov 2026. The Career's records, quests, rerolls, the capsule shop and pulls are in Rust, and payouts run off an outbox Java writes: Rust pays duels and every game outside Career tables, Rust-hosted ones included. Quests and pulls roll the same seeded dice on both sides. Next: two weeks of identical payouts in shadow.",
    "pr": [
     211,
     213
@@ -985,7 +985,7 @@
    "checked_in": 412
   },
   "rust": {
-   "lines": 41035,
+   "lines": 43464,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -997,7 +997,7 @@
     },
     {
      "crate": "playmat-gateway",
-     "lines": 2219
+     "lines": 2230
     },
     {
      "crate": "playmat-host",
@@ -1005,11 +1005,11 @@
     },
     {
      "crate": "playmat-platform",
-     "lines": 7902
+     "lines": 10290
     },
     {
      "crate": "playmat-protocol",
-     "lines": 543
+     "lines": 573
     },
     {
      "crate": "playmat-statediff",
@@ -1018,6 +1018,6 @@
    ]
   }
  },
- "commit": "d384bdb2499ed99e3e3ada33cebb43aa92075bdc",
+ "commit": "6743c23152cf09b3adb43d1caaa7a43a2f859e62",
  "generated": "2026-11-11"
 }
