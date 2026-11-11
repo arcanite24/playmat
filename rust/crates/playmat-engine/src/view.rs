@@ -648,25 +648,9 @@ fn characteristics(game: &Game, id: ObjId, m: &mut Map<String, Value>) {
         let subtypes: Vec<Value> = o.def.subtypes.iter().map(|s| json!(subtype_name(s))).collect();
         m.insert("subTypes".into(), Value::Array(subtypes));
     }
-    // a static `AddCardSubTypeSourceEffect` (Skyknight Squire's Knight while it has three counters)
-    let mut added: Vec<&str> = Vec::new();
-    for a in &o.def.abilities {
-        if let crate::card::AbilityDef::SimpleStaticAbility { effects, .. } = a {
-            for e in effects {
-                let (e, holds) = match e {
-                    crate::card::EffectDef::ConditionalContinuousEffect { effect, condition } => {
-                        (&**effect, game.condition_holds(Some(condition), o.controller, id))
-                    }
-                    e => (e, true),
-                };
-                if let (crate::card::EffectDef::AddCardSubTypeSourceEffect { subtype }, true) = (e, holds) {
-                    if !subtype.is_empty() {
-                        added.push(subtype);
-                    }
-                }
-            }
-        }
-    }
+    // `AddCardSubTypeSourceEffect`: Skyknight Squire's Knight while it has three counters, Sarkhan's Dragon until
+    // end of turn (`Game::added_subtypes`, which the rules read too)
+    let added = game.added_subtypes(id);
     if let (false, Some(Value::Array(subtypes))) = (added.is_empty(), m.get_mut("subTypes")) {
         for t in added {
             let t = json!(subtype_name(t));

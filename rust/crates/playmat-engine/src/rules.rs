@@ -10429,6 +10429,14 @@ fn apply_each_effect(
                     game.move_to(spell, if *exile { Zone::Exile } else { Zone::Graveyard });
                 }
             }
+            // resolving, "{this} becomes a Dragon until end of turn" (Sarkhan, Dragon Ascendant: the pool's only one
+            // that resolves); as a static ability it's `Game::added_subtypes`'
+            EffectDef::AddCardSubTypeSourceEffect { subtype } => {
+                let (src, zcc) = source;
+                if !subtype.is_empty() && game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    game.subtypes_until_eot.push((src, zcc, subtype.clone()));
+                }
+            }
             // resolving, "{this} gains … until end of turn"; as a static ability it's `Game::has_ability`'s
             EffectDef::GainAbilitySourceEffect { ability, duration } => {
                 if *duration == Duration::EndOfTurn
@@ -10453,7 +10461,6 @@ fn apply_each_effect(
             | EffectDef::SetBasePowerToughnessSourceEffect { .. }
             | EffectDef::SetBasePowerToughnessAmountSourceEffect { .. }
             | EffectDef::CantBeCounteredSourceEffect
-            | EffectDef::AddCardSubTypeSourceEffect { .. }
             | EffectDef::NowhereToRunHexproofEffect
             | EffectDef::NowhereToRunWardEffect
             | EffectDef::TenaciousUnderdogEffect
@@ -13042,6 +13049,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     }
     game.must_block_from.clear();
     game.exile_if_dies.clear();
+    game.subtypes_until_eot.clear();
     for id in Arc::clone(&game.battlefield).iter().copied() {
         if game.obj(id).loyalty_used {
             game.obj_mut(id).loyalty_used = false;
@@ -13601,5 +13609,29 @@ mod tests {
         assert!(found.iter().all(|c| game.obj(*c).name() == "Bear Cub"));
         assert_eq!(d.0, vec![(library, 0), (library, 1)]);
         assert!(game.searching.is_none());
+    }
+
+    #[test]
+    fn subtypes_from_effects_count_in_the_rules() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let squire = on_battlefield(&mut game, &db, "Skyknight Squire", 0);
+        game.obj_mut(squire).add_counters("+1/+1", 2);
+        assert!(!game.has_subtype(squire, "Knight"));
+        game.obj_mut(squire).add_counters("+1/+1", 1);
+        assert!(game.has_subtype(squire, "Knight"));
+        let knights = crate::card::Filter(vec![crate::card::Pred::Subtype { s: "Knight".into() }]);
+        assert!(game.filter_matches(&knights, 0, None, squire));
+        // Sarkhan's "becomes a Dragon" until end of turn
+        let sarkhan = on_battlefield(&mut game, &db, "Sarkhan, Dragon Ascendant", 0);
+        let k = game.obj(sarkhan).def.abilities.iter().rposition(|a| a.trigger().is_some()).unwrap();
+        let zcc = game.obj(sarkhan).zcc;
+        Arc::make_mut(&mut game.stack).push(StackItem { ability: Some((k, zcc)), ..StackItem::spell(sarkhan, 0) });
+        assert!(!game.has_subtype(sarkhan, "Dragon"));
+        resolve_top(&mut game, &mut Passer);
+        assert!(game.has_subtype(sarkhan, "Dragon"));
+        assert!(game.has_ability(sarkhan, &AbilityDef::FlyingAbility));
+        cleanup(&mut game, &mut Passer, 0);
+        assert!(!game.has_subtype(sarkhan, "Dragon"));
     }
 }

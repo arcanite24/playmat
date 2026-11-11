@@ -1204,7 +1204,8 @@ pub enum EffectDef {
     },
     /// if the target would die this turn, it's exiled instead
     ExileTargetIfDiesEffect,
-    /// adds a subtype to the source (subtypes aren't in the fingerprint, and no rule reads them yet; views show it)
+    /// adds a subtype to the source: as a static ability while it holds, resolving until end of turn
+    /// (`Game::added_subtypes`; subtypes aren't in the fingerprint)
     AddCardSubTypeSourceEffect {
         #[serde(default)]
         subtype: String,
