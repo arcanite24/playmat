@@ -589,6 +589,8 @@ fn stops_in(step: Step) -> bool {
             | Step::FirstCombatDamage
             | Step::CombatDamage
             | Step::PostcombatMain
+            // `SkipPrioritySteps.isStepSkipped` has no setting for it (there's priority only under 514.3a)
+            | Step::Cleanup
     )
 }
 
@@ -4162,9 +4164,15 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         CostDef::TapTargetCost { filter, amount } => {
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
-            let Some(chosen) = choose_cards(game, d, seat, &possible, &possible, *amount, *amount, "tap") else {
+            // `TapTargetCost`: its target isn't required: done before enough are chosen cancels the ability
+            // (Shacklegeist with one other Spirit)
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, "tap", true)
+            else {
                 return false;
             };
+            if chosen.len() < *amount {
+                return false;
+            }
             for o in chosen {
                 game.obj_mut(o).tapped = true;
             }
@@ -12459,6 +12467,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     let permanent = game.obj(source).zone == Zone::Battlefield || game.lookback.contains(&source);
     // Valley Flamecaller: a Lizard, Mouse, Otter or Raccoon of yours deals that much damage plus 1
     let mut amount = amount;
+    let mut flamecallers = 0;
     if permanent && ["Lizard", "Mouse", "Otter", "Raccoon"].iter().any(|t| game.obj(source).def.has_subtype(t)) {
         let n = game
             .battlefield
@@ -12474,6 +12483,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             })
             .count();
         amount += n as i32;
+        flamecallers = n;
     }
     // a shield counter: removed, and the damage prevented (unless damage can't be prevented this turn, or it's combat
     // damage of yours that can't be)
@@ -12518,6 +12528,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         }
     }
     // Artist's Talent: noncombat damage from your source to an opponent or their permanent, plus 2
+    let mut talents: usize = 0;
     if !combat {
         let opponent = match to {
             Target::Player(p) => p != you,
@@ -12534,6 +12545,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 false
             });
             amount += n;
+            talents = (n / 2) as usize;
         }
     }
     // Twinflame Tyrant: damage from your source to an opponent or a permanent of theirs is doubled, once per Tyrant
@@ -12552,14 +12564,16 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         for _ in 0..tyrants {
             amount = amount.saturating_mul(2);
         }
-        // two or more: the damaged player orders them (`chooseReplacementEffect`)
-        let chooser = match to {
-            Target::Player(p) => p,
-            Target::Obj(o) => game.obj(o).controller,
-        };
-        for _ in 1..tyrants {
-            game.owed_choices.push(chooser);
-        }
+        talents += tyrants;
+    }
+    // two or more of these (Flamecallers, Talents, Tyrants): the damaged player (or the permanent's controller)
+    // orders them (`chooseReplacementEffect`; two of one card differ by their object's name and id)
+    let chooser = match to {
+        Target::Player(p) => p,
+        Target::Obj(o) => game.obj(o).controller,
+    };
+    for _ in 1..flamecallers + talents {
+        game.owed_choices.push(chooser);
     }
     // Soul-Scar Mage: noncombat damage from your source to an opponent's creature is -1/-1 counters instead
     if let Target::Obj(o) = to {
@@ -13712,6 +13726,14 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                         if !game.filter_matches(filter, o.controller, Some(*id), to) {
                             return true;
                         }
+                    }
+                    // a Role token (no spell to carry its target) enchants a creature: one on a land whose
+                    // animation ended goes (Restless Anchorage at cleanup)
+                    if o.def.spell.targets.is_empty()
+                        && o.def.has_subtype("Role")
+                        && !game.has_type(to, CardType::Creature)
+                    {
+                        return true;
                     }
                 }
                 if !o.is(CardType::Creature) {

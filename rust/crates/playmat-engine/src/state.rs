@@ -2119,10 +2119,12 @@ impl Game {
             })
             .count();
         // Valgavoth: a card (not a token) you didn't control, going to an opponent's graveyard, exiled with it
+        // (one sacrificed earlier in the same action too: Java's short-living LKI, Liliana's "each player sacrifices")
         let valgavoths: Vec<ObjId> = if zone == Zone::Graveyard && !self.obj(id).token {
             self.battlefield
                 .iter()
                 .copied()
+                .chain(self.short_lki.iter().copied().filter(|o| *o != id && !self.battlefield.contains(o)))
                 .filter(|src| {
                     let s = self.obj(*src);
                     let o = self.obj(id);
