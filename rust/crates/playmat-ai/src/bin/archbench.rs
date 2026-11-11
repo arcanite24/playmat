@@ -111,7 +111,11 @@ fn main() {
         playable.len(),
         deals,
         names.join(", "),
-        if changed.is_empty() { String::new() } else { format!(", DECKS CHANGED FROM THE LOCK: {}", changed.join(", ")) }
+        if changed.is_empty() {
+            String::new()
+        } else {
+            format!(", DECKS CHANGED FROM THE LOCK: {}", changed.join(", "))
+        }
     );
 
     // every game: (deal, entrant on seat 0, entrant on seat 1)
@@ -250,7 +254,13 @@ fn pairing(i: usize, n: usize) -> (usize, usize) {
 
 /// One game: the winning seat (`None` for a draw) and each seat's (worst decision ns, decisions), or `None` when
 /// the game failed (an engine panic, or cut off)
-fn play(db: &CardDb, decks: [&Deck; 2], deal: usize, who: [&Entrant; 2], turns: u32) -> Option<(Option<usize>, [(u128, u64); 2])> {
+fn play(
+    db: &CardDb,
+    decks: [&Deck; 2],
+    deal: usize,
+    who: [&Entrant; 2],
+    turns: u32,
+) -> Option<(Option<usize>, [(u128, u64); 2])> {
     let mut game = new_duel(db, decks, deal as i64, deal % 2).ok()?;
     let mut table = Table::new(vec![who[0].config.clone(), who[1].config.clone()]);
     let run = catch_unwind(AssertUnwindSafe(|| rules::play_from_priority(&mut game, &mut table, turns)));

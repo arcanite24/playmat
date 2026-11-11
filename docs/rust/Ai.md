@@ -26,14 +26,72 @@ copy to the end of the turn with a quick policy for both seats, and keeps the an
 - **Answers.** With options, a target is always a concrete pick: Java's dialogs read "done" differently from the
   engine (a required target is asked again, a cast is cancelled), so the AI never sends one.
 
-`Config` (`budget` search nodes per decision, `width`, `extra_turns`, `playout_cap`) is per seat.
+`Config` (`budget` search nodes per decision, `width`, `extra_turns`, `playout_cap`, `policy`, `threads`) is per seat.
+
+## One decision at a time: policies
+
+Every question with two or more candidates goes to the seat's `DecisionPolicy` (`decision.rs`). It gets a `Decision`:
+the game, the seat, the question, the quick answer, the candidates (the quick one first), the seat's `Config`, and a
+`Root` that plays any candidate out on a copy (`Root::play_out`). It answers with a `Choice` (an answer and the nodes it
+spent), or `None` for the quick answer; an answer the question doesn't accept falls back to the quick one, and the
+`Repeats` guard still applies after it.
+
+| `PLAYMAT_AI_POLICY` | Policy | |
+|---|---|---|
+| `playouts` (default) | `search::Playouts` | each candidate played once to the end of the turn, the best end of turn kept (above) |
+| `mcts` | `decision::Mcts` | Monte Carlo tree search at the root, below |
+| `quick` | `decision::Quick` | the quick answers alone, no search |
+| `random` | `decision::Random` | a seeded random candidate, Archbench's anchor |
+
+The setting is read by `Config::default()`, so it applies wherever a config is made from the defaults: the bridge
+(`playmat-ai-bridge`) and Rust-hosted games. `PLAYMAT_AI_THREADS` (default: the processors, at most 4) caps the
+threads a search may use. Another decider (Jev, an LLM, an ONNX net run through `ort`) is one more implementation of
+the trait, set on a seat with `Table::set_policy(seat, Box::new(…))`; the seat keeps its config for the budget and
+width. None is built in: nothing calls a paid API.
+
+## MCTS
+
+`Mcts` runs UCB1 over the candidates on `threads` threads, each with `budget / threads` nodes, and pools their
+counts. Each candidate's first sample is the plain playout `Playouts` makes, on one thread; the others shuffle both
+libraries first (the AI can't know their order), reseed the game's random numbers, and make one quick answer in 16 a
+random candidate instead (`PLAYMAT_AI_MCTS_NOISE`, a tuning knob: `0` turns it off). A playout is scored with `eval`,
+squashed to 0..1 around the score at the question (`0.5 + 0.5 tanh(Δ / 2500)`); the candidate with the best mean is
+played. Copies can move to another thread but not be shared (the engine's `Cell`s), so each thread gets its own root.
+The same seed and thread count play the same game.
+
+Measured 11 Nov 2026 on an M-series Mac shared with other builds (so all times run high), the 84 `ai-bench` duels
+one at a time, MCTS on one seat and the default search on the other:
+
+| | playouts, 6000 nodes (default) | MCTS, 6000 nodes, 4 threads | MCTS, skill 4 (3000 nodes, 8 candidates) |
+|---|---|---|---|
+| CPU per game (both seats) | 0.04 s | 5.3 s | 2.8 s |
+| 99th percentile / worst decision | 2 ms / 9 ms | 70 ms / 158 ms | 39 ms / 73 ms |
+| games won of 168 against playouts, seats swapped | 81 (itself) | 72 (88 lost) | |
+
+Strength, Archbench `constructed-1` at skill 4 (duplicate pairing, so the luck of the deal cancels): MCTS against
+playouts 81–5–82 over all 84 deals; on 42 deals, 41–2–41 looking one turn further (`extra_turns` 1) and 36–3–45 without
+the random answers. Against a random seat through the bridge (`RustAiGameTest`, 48 games): 42/4/2 for MCTS, 41/6/1
+for playouts. As strong, at 30 to 120 times the CPU, so the default stays `playouts` and MCTS is opt-in. The cards
+decide most of these games (a deal goes about the same way whichever AI plays it); a better evaluation, or a tree that
+goes deeper than the root in combat, is where search could still pay.
+
+## Archbench
+
+The versioned benchmark ([archbench/README.md](../../archbench/README.md)) runs on the Rust AI first:
+`cargo run --release -p playmat-ai --bin archbench -- --entrants rust-playouts@s4,rust-mcts@s4,rust-quick,random
+--record`. Suite `constructed-1`: the 84 bench deals, each played twice per pair of entrants with seats swapped,
+Bradley–Terry ratings with `random` at 1000. First run, 11 Nov 2026: `rust-mcts@s4` 1377, `rust-playouts@s4` 1376,
+`rust-quick` 1175, `random` 1000. Java's AI can't play on the Rust engine, so its row comes from `RustAiGameTest`
+against a random seat (below): Java skill 4 won 37, drew 9, lost 2 of 48; the Rust AI through the bridge 41/6/1
+(8 of its games finished by the Java AI).
+Results: [archbench/constructed-1/results.md](../../archbench/constructed-1/results.md).
 
 ## Speed
 
 `cargo run --release -p playmat-ai --bin ai-bench -- --games 84` plays the same pairings as Java's `AiSpeedBenchTest`
 (the 42 Pioneer and Standard school decks, each deck on each seat) with the Rust AI on both seats. Options: `--games`,
-`--first`, `--only`, `--turns`, `--budget`, `--width`, `--extra-turns`, `--playout-cap`, the same with `--b-` for seat B,
-and `--swap`.
+`--first`, `--only`, `--turns`, `--budget`, `--width`, `--extra-turns`, `--playout-cap`, `--policy`, `--threads`, the
+same with `--b-` for seat B, and `--swap`. It prints the process's CPU per game too (all threads).
 
 Measured 6 Nov 2026, M-series Mac, one thread:
 
@@ -57,6 +115,9 @@ The bridge (below) can't put the two AIs against each other, so both play the sa
 | games played start to finish | 48 | 41 (7 went back to the Java AI partway) |
 | won / drawn / lost | 36 / 7 / 4 | 36 / 5 / 0 (of the 41) |
 | wall time per game (Java's game included) | 21 s | 14 s |
+
+Rerun 11 Nov 2026 (Archbench's Java row): Java 37 / 9 / 2 of 48; the Rust AI 41 / 6 / 1 of the 48 counting the 8
+games the Java AI finished, and with `PLAYMAT_AI_POLICY=mcts` 42 / 4 / 2 (7 finished by Java).
 
 A random opponent is a low bar: it says the Rust AI isn't weaker than Java's at the basics, not that it's as strong
 against people. Playtests are the next measure.

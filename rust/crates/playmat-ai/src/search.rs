@@ -163,7 +163,15 @@ impl Table {
         }
         let decider = &mut slot.as_mut().unwrap().1;
         let start = Instant::now();
-        let d = Decision { game, seat, query: q, quick: &quick, candidates: &candidates, config: &cfg, root: root.as_ref() };
+        let d = Decision {
+            game,
+            seat,
+            query: q,
+            quick: &quick,
+            candidates: &candidates,
+            config: &cfg,
+            root: root.as_ref(),
+        };
         let choice = decider.decide(&d);
         let nodes = choice.as_ref().map_or(0, |c| c.nodes);
         self.stats.push(DecisionStat {

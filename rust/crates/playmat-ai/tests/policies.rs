@@ -69,8 +69,11 @@ impl DecisionPolicy for Last {
 #[test]
 fn a_set_policy_answers_its_seat() {
     let calls = Arc::new(AtomicUsize::new(0));
-    let (game, table) =
-        play([Some(config(PolicyKind::Playouts)), Some(config(PolicyKind::Playouts))], 4, Some(Box::new(Last(calls.clone()))));
+    let (game, table) = play(
+        [Some(config(PolicyKind::Playouts)), Some(config(PolicyKind::Playouts))],
+        4,
+        Some(Box::new(Last(calls.clone()))),
+    );
     assert!(ended(&game) && !table.stopped_early());
     assert!(calls.load(Ordering::Relaxed) > 5, "asked {} times", calls.load(Ordering::Relaxed));
     assert_eq!(table.policy_name(0).as_deref(), Some("last"));
@@ -81,7 +84,13 @@ fn a_set_policy_answers_its_seat() {
 fn mcts_replays_the_same_game_from_the_same_seed() {
     let run = || {
         let (game, table) = play([Some(config(PolicyKind::Mcts)), Some(config(PolicyKind::Playouts))], 7, None);
-        (game.turn, game.player(0).life, game.player(1).life, table.answers, table.stats.iter().map(|s| s.nodes).sum::<u64>())
+        (
+            game.turn,
+            game.player(0).life,
+            game.player(1).life,
+            table.answers,
+            table.stats.iter().map(|s| s.nodes).sum::<u64>(),
+        )
     };
     assert_eq!(run(), run());
 }

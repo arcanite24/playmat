@@ -209,7 +209,13 @@ impl Decider for Playout {
 fn noise_rate() -> u64 {
     static RATE: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
     *RATE.get_or_init(|| {
-        std::env::var("PLAYMAT_AI_MCTS_NOISE").ok().and_then(|v| v.parse().ok()).map_or(16, |v: u64| if v == 0 { u64::MAX } else { v })
+        std::env::var("PLAYMAT_AI_MCTS_NOISE").ok().and_then(|v| v.parse().ok()).map_or(16, |v: u64| {
+            if v == 0 {
+                u64::MAX
+            } else {
+                v
+            }
+        })
     })
 }
 
@@ -309,12 +315,10 @@ impl DecisionPolicy for Mcts {
                 value[i] += r.value[i];
             }
         }
-        let best = (0..k)
-            .filter(|i| visits[*i] > 0)
-            .max_by(|a, b| {
-                let (ma, mb) = (value[*a] / visits[*a] as f64, value[*b] / visits[*b] as f64);
-                ma.total_cmp(&mb).then(visits[*a].cmp(&visits[*b])).then(b.cmp(a))
-            })?;
+        let best = (0..k).filter(|i| visits[*i] > 0).max_by(|a, b| {
+            let (ma, mb) = (value[*a] / visits[*a] as f64, value[*b] / visits[*b] as f64);
+            ma.total_cmp(&mb).then(visits[*a].cmp(&visits[*b])).then(b.cmp(a))
+        })?;
         Some(Choice { answer: d.candidates[best].clone(), nodes })
     }
 }
