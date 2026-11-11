@@ -11,7 +11,7 @@ import { usePlay } from '../stores/play';
 import { readJson, writeJson } from '../stores/persist';
 import { useSession } from '../stores/session';
 import { useSettings } from '../stores/settings';
-import { warmCards } from '../ui/imageCache';
+import { MATCH_SIZES, warmCards, warmDeck } from '../ui/imageCache';
 import { saveCareerDeck, fetchStarterDeck } from './careerDeck';
 import { rewardsPath } from './progressModel';
 
@@ -123,7 +123,7 @@ export async function buyPack(setCode: string): Promise<OpenedPack> {
   const before = await queryClient.fetchQuery({ queryKey: KEY.collection, queryFn: () => api.careerCollection(), staleTime: 30_000 }).catch(() => null);
   const result = await api.careerBuyPack(setCode);
   // the pictures start downloading while the pack is still face down
-  warmCards((result.cards ?? []).map((card) => ({ name: card.name ?? '', setCode: card.setCode, cardNumber: card.cardNumber })));
+  warmCards((result.cards ?? []).map((card) => ({ name: card.name ?? '', setCode: card.setCode, cardNumber: card.cardNumber })), ['normal', 'large']);
   setProfile(result.profile);
   void queryClient.invalidateQueries({ queryKey: KEY.collection });
   void queryClient.invalidateQueries({ queryKey: KEY.sets });
@@ -136,7 +136,7 @@ export async function buyPack(setCode: string): Promise<OpenedPack> {
 
 /** The opponent's pictures start downloading while the table is set, so their cards land with their art. */
 export function warmMatch(match: CareerMatch | null | undefined): void {
-  warmCards((match?.warm ?? []).filter((card) => !!card.name).map((card) => ({ name: card.name!, setCode: card.setCode, cardNumber: card.cardNumber })));
+  warmCards((match?.warm ?? []).filter((card) => !!card.name).map((card) => ({ name: card.name!, setCode: card.setCode, cardNumber: card.cardNumber })), MATCH_SIZES, 'low');
 }
 
 export async function craftCard(setCode: string, cardNumber: string): Promise<void> {
@@ -178,7 +178,7 @@ export async function playCareer(opponentId: string, deck: DeckCardLists, voice:
   useEvents.setState({ currentTournamentId: null });
   useCareerVoice.getState().speak(voice);
   usePlay.setState({ phase: 'waitingForGame', error: null, deckId: null, returnPath: '/career' });
-  warmCards([...deck.cards, ...deck.sideboard].map((card) => ({ name: card.cardName, setCode: card.setCode ?? undefined, cardNumber: card.cardNumber ?? undefined })));
+  warmDeck(deck);
   try {
     // adaptive: the server fits the opponent to the player's measured skill (S043)
     const match = await api.careerPlay(opponentId, toWire(deck), adaptive || null);

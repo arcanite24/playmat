@@ -8,9 +8,23 @@ import { DEVICE_PICTURES, storePictures } from '../nativePictures';
  */
 const decoded = new Set<string>();
 const pending = new Map<string, Promise<void>>();
-/** keep decoded bitmaps referenced so the browser keeps them warm */
+/** keep decoded bitmaps referenced so the browser keeps them warm; two 75-card decks at three sizes fit */
 const held: HTMLImageElement[] = [];
-const MAX_HELD = 600;
+export const MAX_HELD = 1200;
+
+/**
+ * Warming waits its turn: at most this many pictures download at once, at low fetch priority, so a whole deck being
+ * warmed never holds up the pictures the screen is showing right now (those load through their own <img>).
+ */
+export const MAX_WARMING = 4;
+export type WarmPriority = 'high' | 'low';
+interface Waiting {
+  src: string;
+  priority: WarmPriority;
+  start: () => void;
+}
+const waiting: Waiting[] = [];
+let active = 0;
 
 export function isDecoded(src: string): boolean {
   return decoded.has(src);
@@ -20,43 +34,118 @@ export function markDecoded(src: string) {
   decoded.add(src);
 }
 
-/** Download and decode a picture ahead of time. */
-export function warmImage(src: string): Promise<void> {
+/**
+ * Download and decode a picture ahead of time. High priority (cards in play) goes ahead of low priority (decks warmed
+ * before a match), which only downloads while the browser has nothing better to do.
+ */
+export function warmImage(src: string, priority: WarmPriority = 'high'): Promise<void> {
   if (decoded.has(src)) return Promise.resolve();
   const existing = pending.get(src);
-  if (existing) return existing;
-  const image = new Image();
-  image.decoding = 'async';
-  image.src = src;
-  const done = image.decode()
-    .then(() => {
-      decoded.add(src);
-      held.push(image);
-      if (held.length > MAX_HELD) held.shift();
-    })
-    .catch(() => undefined)
-    .finally(() => pending.delete(src));
+  if (existing) {
+    if (priority === 'high') promote(src);
+    return existing;
+  }
+  const done = new Promise<void>((resolve) => {
+    const entry: Waiting = { src, priority, start: () => void load(src, priority).finally(resolve) };
+    if (priority === 'high') waiting.splice(firstLow(), 0, entry);
+    else waiting.push(entry);
+  }).finally(() => pending.delete(src));
   pending.set(src, done);
+  pump();
   return done;
+}
+
+function firstLow(): number {
+  const index = waiting.findIndex((entry) => entry.priority === 'low');
+  return index < 0 ? waiting.length : index;
+}
+
+/** A queued low-priority picture that the board now wants moves up with the other high-priority ones. */
+function promote(src: string) {
+  const index = waiting.findIndex((entry) => entry.src === src && entry.priority === 'low');
+  if (index < 0) return;
+  const [entry] = waiting.splice(index, 1);
+  entry.priority = 'high';
+  waiting.splice(firstLow(), 0, entry);
+}
+
+function pump() {
+  while (active < MAX_WARMING && waiting.length > 0) {
+    const entry = waiting.shift()!;
+    active++;
+    entry.start();
+  }
+}
+
+async function load(src: string, priority: WarmPriority): Promise<void> {
+  try {
+    // the board may have shown it while it waited
+    if (decoded.has(src)) return;
+    const image = new Image();
+    image.decoding = 'async';
+    if (priority === 'low') (image as HTMLImageElement & { fetchPriority?: string }).fetchPriority = 'low';
+    image.src = src;
+    await image.decode();
+    decoded.add(src);
+    held.push(image);
+    if (held.length > MAX_HELD) held.shift();
+  } catch {
+    // a picture that fails here is tried again by the card face that shows it
+  } finally {
+    active--;
+    pump();
+  }
 }
 
 /** Every size the app shows a card at: the device's picture store keeps them all (board, zoom, deck boxes). */
 const STORED_SIZES: ImageSize[] = ['small', 'normal', 'large', 'art_crop'];
 
 /**
+ * The sizes a match shows a card at, in the order they are warmed: `small` for narrow permanents, piles and reveals,
+ * `normal` for the hand, wide permanents and the stack, `large` for zoom and card detail.
+ */
+export const MATCH_SIZES: ImageSize[] = ['small', 'normal', 'large'];
+
+/**
  * Warm every picture of these cards at the sizes the match shows (board and zoom). Links that are still being looked
  * up are warmed as soon as the resolver learns them. In the Android app every size is also stored on the device.
+ * Each size is warmed for every card before the next size, so the board's pictures come before the zoom's.
  */
-export function warmCards(cards: Iterable<CardImageRef>, sizes: ImageSize[] = ['normal', 'large']) {
-  watchLinks(cards, sizes, (src) => void warmImage(src));
+export function warmCards(cards: Iterable<CardImageRef>, sizes: ImageSize[] = MATCH_SIZES, priority: WarmPriority = 'high') {
+  watchLinks(cards, sizes, (src) => void warmImage(src, priority));
+}
+
+/** A deck list entry, as stored (DeckCardInfo) or as sent to the server (WireDeck). */
+interface DeckEntry {
+  cardName?: string;
+  setCode?: string | null;
+  cardNumber?: string | null;
+}
+
+/** The cards of a deck (main deck and sideboard), as picture lookups. */
+export function deckPictures(deck: { cards?: DeckEntry[]; sideboard?: DeckEntry[] } | null | undefined): CardImageRef[] {
+  if (!deck) return [];
+  return [...(deck.cards ?? []), ...(deck.sideboard ?? [])]
+    .filter((card) => !!card.cardName)
+    .map((card) => ({ name: card.cardName, setCode: card.setCode ?? undefined, cardNumber: card.cardNumber ?? undefined }));
 }
 
 /**
- * Keep these cards' pictures on the device (the Android app) without decoding them now: a deck the player is
- * looking at, likely to be played next. Nothing happens on the web.
+ * Warm a deck that is about to be played (yours or a known opponent's) at the match's sizes, at low priority: it
+ * downloads while the table is set up, and gives way to whatever the screen is showing.
+ */
+export function warmDeck(deck: Parameters<typeof deckPictures>[0]) {
+  const cards = deckPictures(deck);
+  if (cards.length > 0) warmCards(cards, MATCH_SIZES, 'low');
+}
+
+/**
+ * A deck the player is looking at, likely to be played next: its picture links are looked up now, so the match only
+ * has to download them. The Android app also keeps the pictures on the device, without decoding them now.
  */
 export function storeCards(cards: Iterable<CardImageRef>) {
   if (DEVICE_PICTURES) watchLinks(cards, [], () => undefined);
+  else imageResolver().prefetch(cards);
 }
 
 /** Calls `onLink` with each card's link at each size as the resolver learns them; device storage rides along. */
@@ -68,17 +157,20 @@ function watchLinks(cards: Iterable<CardImageRef>, sizes: ImageSize[], onLink: (
   const wanted = DEVICE_PICTURES ? [...new Set([...sizes, ...STORED_SIZES])] : sizes;
   const tryWarm = () => {
     const store: string[] = [];
+    const found: string[][] = sizes.map(() => []);
     for (const card of remaining) {
       let resolved = true;
       for (const size of wanted) {
         const src = resolver.resolve(card, 'front', size);
         if (typeof src === 'string') {
-          if (sizes.includes(size)) onLink(src);
+          const index = sizes.indexOf(size);
+          if (index >= 0) found[index].push(src);
           if (DEVICE_PICTURES) store.push(src);
         } else if (src === null) resolved = false;
       }
       if (resolved) remaining.delete(card);
     }
+    for (const links of found) links.forEach(onLink);
     storePictures(store);
     return remaining.size === 0;
   };
