@@ -1398,7 +1398,9 @@ impl Game {
         use std::sync::atomic::Ordering;
         let mask = 3u32 << (2 * seat);
         let bits = (u32::from(manual) | (u32::from(unrestricted) << 1)) << (2 * seat);
-        let _ = self.pool_modes.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| Some((v & !mask) | bits));
+        // the seat's two bits: cleared, then set (only the host's thread writes them)
+        self.pool_modes.fetch_and(!mask, Ordering::Relaxed);
+        self.pool_modes.fetch_or(bits, Ordering::Relaxed);
     }
 
     pub fn record(&mut self, mut event: GameEvent) {
