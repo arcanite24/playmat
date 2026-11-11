@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { api } from '../connection';
 import { useDecks, META_PREFIX, RANDOM_META_PREFIX, STARTER_PREFIX } from './decks';
 import { useEvents } from './events';
-import { warmCards } from '../ui/imageCache';
+import { warmDeck } from '../ui/imageCache';
 import { useSession } from './session';
 import { readJson, writeJson } from './persist';
 import { toWire } from '../decks/deckModel';
@@ -167,7 +167,7 @@ export const usePlay = create<PlayState>((set, get) => ({
       if (meta && deckId.startsWith(RANDOM_META_PREFIX)) notify(t('solo.metaDeck.dealt', { name: meta.name }), t('solo.metaDeck.dealtNote', { format: formatRules(meta.format).label }));
       // both decks' pictures download while the table is set up, before the first card is drawn: nothing either
       // player casts should wait on the network
-      warmCards([...deck.cards, ...deck.sideboard].map((card) => ({ name: card.cardName, setCode: card.setCode ?? undefined, cardNumber: card.cardNumber ?? undefined })));
+      warmDeck(deck);
       const rules = formatRules(deck.format);
       const commander = rules.commandZone !== null;
       const size = cardCount(deck.cards) + (commander ? cardCount(deck.sideboard) : 0);
@@ -195,6 +195,8 @@ export const usePlay = create<PlayState>((set, get) => ({
           commander,
           { format, avoid: meta?.file ?? null, pool: options.randomPool, own: deckId },
         )).map(toWire)];
+      // the AI's decks download as soon as they are known (one that turns out illegal gives way to a copy of yours)
+      rivalDecks.forEach(warmDeck);
       // adaptive: the AI plays at the skill the player's recent results call for
       const adaptiveFormat = !practice && options.adaptive ? adaptiveFormatFor(commander) : null;
       const skill = adaptiveFormat ? adaptiveSkill((await api.soloAdaptive(adaptiveFormat).catch(() => null))?.skill, options.skill) : options.skill;
@@ -208,9 +210,6 @@ export const usePlay = create<PlayState>((set, get) => ({
         }
         return wire;
       }));
-      for (const rival of rivals) {
-        warmCards([...(rival.cards ?? []), ...(rival.sideboard ?? [])].map((card) => ({ name: card.cardName, setCode: card.setCode, cardNumber: card.cardNumber })));
-      }
       // table setup is only needed here; keep it out of the entry chunk
       const { matchOptions } = await import('../../core/game/tableSetup');
       const table = await api.roomCreateTable(roomId, matchOptions({
