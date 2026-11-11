@@ -749,6 +749,9 @@ pub struct Game {
     pub subtypes_until_eot: Vec<(ObjId, u32, String)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
+    /// while triggered abilities go on the stack: what their targets trigger (ward, valiant), which Java's
+    /// `addSimultaneousEvent` holds until every player's are on (`GameImpl.checkTriggered`)
+    pub targeted_later: Option<Vec<StackItem>>,
     /// permanents sacrificed together: where in `pending` the next one's sacrifice triggers go (before what their
     /// leaving triggers)
     pub sac_insert: Option<usize>,
@@ -876,6 +879,7 @@ impl Game {
             exile_if_dies: Vec::new(),
             subtypes_until_eot: Vec::new(),
             triggered_this_turn: Vec::new(),
+            targeted_later: None,
             sac_insert: None,
             entering_together: Vec::new(),
             any_color_made: None,

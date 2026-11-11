@@ -3772,7 +3772,7 @@ fn ward(game: &mut Game) {
         }
     }
     let fired = game.triggers(first.clone(), |_, src, _, t| matches!(t, Trigger::Valiant) && first.contains(&src));
-    game.pending.extend(fired);
+    targeted(game, fired);
     let mut fired = Vec::new();
     for t in top.targets.iter().flatten() {
         let Target::Obj(o) = *t else { continue };
@@ -3820,7 +3820,15 @@ fn ward(game: &mut Game) {
     }
     // one event's triggers wait in registration order
     fired.sort_by_key(|t| game.trigger_key(t));
-    game.pending.extend(fired);
+    targeted(game, fired);
+}
+
+/// What a TARGETED event triggered: waiting, or held while triggered abilities go on the stack
+fn targeted(game: &mut Game, fired: Vec<StackItem>) {
+    match game.targeted_later.as_mut() {
+        Some(later) => later.extend(fired),
+        None => game.pending.extend(fired),
+    }
 }
 /// `PlayerImpl.playAbility`: the ability goes on the stack, then its targets, then mana, then other costs.
 /// False: cancelled.
@@ -12197,6 +12205,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
         counters_added_triggers(game);
         game.update_guildpact();
         unattach_equipment(game);
+        // what the last triggers' targets triggered, now that they're all on the stack
+        if let Some(later) = game.targeted_later.take() {
+            game.pending.extend(later);
+        }
         happened |= state_based_actions(game);
         state_triggers(game);
         if game.over || d.stopped() {
@@ -12215,6 +12227,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
         let pending = std::mem::take(&mut game.pending);
         let mut pending = waiting(game, pending);
         let active = game.active.unwrap_or(0);
+        game.targeted_later = Some(Vec::new());
         for k in 0..game.seats() {
             let seat = (active + k) % game.seats();
             // `GameImpl.checkTriggered` fetches each player's list as their turn comes: what triggered since
