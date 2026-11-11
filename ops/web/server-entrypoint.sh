@@ -402,6 +402,8 @@ if [ "$GATEWAY" = on ]; then
     if { [ -n "${XMAGE_RUST_HOST_USERS:-}" ] || [ -n "$rust_opt_in" ]; } && [ "${XMAGE_ENGINE:-}" != java ]; then export XMAGE_RUST_HOST=on; fi
     # each hosted game's record (its start, the player's answers, the log), to replay a reported game; the last 500
     export XMAGE_RUST_HOST_RECORDS=${XMAGE_RUST_HOST_RECORDS:-$APP/saved/host-games}
+    # hosted games' replays go where Java keeps its own (XMAGE_REPLAYS), for the History
+    if [ "$REPLAYS" = true ]; then export XMAGE_RUST_HOST_REPLAYS=$APP/saved/replays; fi
     while true; do
       playmat-gateway || echo "xmage-server: the gateway stopped ($?); starting it again"
       sleep 2

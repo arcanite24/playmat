@@ -46,6 +46,10 @@ public final class RustHost {
         /** the human's user and player ids */
         final UUID userId;
         final UUID playerId;
+        /** when the host was handed the game, for its replay */
+        final long startedAt = System.currentTimeMillis();
+        /** what the host recorded of the game for its replay (summary.replayEvents) */
+        volatile int replayEvents;
         /** when the sweep last found the human gone or connected without a hosting gateway, or 0 */
         volatile long goneSince;
 
@@ -323,6 +327,9 @@ public final class RustHost {
      */
     static void summarize(Hosted hosted, JsonObject summary) {
         try {
+            if (summary.has("replayEvents")) {
+                hosted.replayEvents = summary.get("replayEvents").getAsInt();
+            }
             if (summary.has("tally") && summary.get("tally").isJsonObject()
                     && !Main.isTestMode()
                     && mage.server.career.CareerService.enabled(hosted.managers.configSettings().isAuthenticationActivated())) {
@@ -407,6 +414,10 @@ public final class RustHost {
         }
         logger.info("Rust host: game " + gameId + " ended after " + turns + " turns, " + reason + ", winner "
                 + (winnerId == null ? "none (a draw)" : hosted.game.getPlayer(winnerId).getName()));
+        // its replay, which the host wrote where Java keeps its games' (GameImpl.getWinner's result)
+        String result = winnerId == null ? "Game is a draw" : "Player " + hosted.game.getPlayer(winnerId).getName() + " is the winner";
+        mage.server.replay.ReplayRecorder.hosted(hosted.game, hosted.managers.tableManager().getTable(hosted.tableId),
+                hosted.startedAt, result, turns, hosted.replayEvents);
         hosted.managers.tableManager().endGameOnGameThread(hosted.tableId);
         return true;
     }

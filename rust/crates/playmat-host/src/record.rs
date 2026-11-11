@@ -99,6 +99,7 @@ fn start_of(v: &Value) -> Option<Start> {
         chooser: v["chooser"].as_str().map(str::to_string),
         rules: TableRules::of(&v["rules"]),
         record: None,
+        replay: None,
         log_to: None,
     })
 }

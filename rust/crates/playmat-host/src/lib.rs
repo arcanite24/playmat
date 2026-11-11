@@ -5,6 +5,7 @@ pub mod game;
 pub mod ids;
 pub mod prompts;
 pub mod record;
+pub mod replay;
 pub mod skips;
 pub mod tally;
 pub mod timer;

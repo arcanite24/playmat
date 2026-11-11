@@ -50,6 +50,9 @@ pub struct Hosts {
     /// records are kept (`XMAGE_RUST_HOST_RECORDS_KEEP`, 500 by default; the oldest go first)
     records: Option<PathBuf>,
     keep: usize,
+    /// where each game's replay goes (`XMAGE_RUST_HOST_REPLAYS`: Java's `xmage.replays.dir`; playmat-host's
+    /// `replay.rs`); none: hosted games have no replay
+    replays: Option<PathBuf>,
     ended: Mutex<BTreeMap<&'static str, u64>>,
 }
 
@@ -100,7 +103,8 @@ impl Hosts {
         if let (true, Some(dir)) = (enabled, &records) {
             info!("Rust host: game records in {} (the last {keep})", dir.display());
         }
-        Hosts { enabled, records, keep, ..Hosts::default() }
+        let replays = std::env::var_os("XMAGE_RUST_HOST_REPLAYS").filter(|v| !v.is_empty()).map(PathBuf::from);
+        Hosts { enabled, records, keep, replays, ..Hosts::default() }
     }
 
     pub fn get(&self, game_id: &str) -> Option<Arc<Hosted>> {
@@ -179,7 +183,9 @@ impl Hosts {
             dir.join(format!("{game_id}.jsonl"))
         });
         let rules = playmat_host::TableRules::of(data);
-        let start = Start { game_id: game_id.clone(), seed, seats, rules, timer, chooser, record, log_to: None };
+        // the replay goes where Java keeps its games' (XMAGE_HOST_REPLAYS: its xmage.replays.dir), listed at the end
+        let replay = self.replays.as_ref().map(|dir| dir.join(format!("{game_id}.ndjson.gz.part")));
+        let start = Start { game_id: game_id.clone(), seed, seats, rules, timer, chooser, record, replay, log_to: None };
         // known before the game starts, so its calls (the client joins at once) wait for it
         let chat_id = playmat_host::ids::Ids::new(&game_id, players.clone()).chat();
         let (calls, calls_in) = std::sync::mpsc::channel();

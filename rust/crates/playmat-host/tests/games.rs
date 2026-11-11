@@ -171,6 +171,7 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
         chooser: chooser.map(str::to_string),
         record: None,
         log_to: None,
+        replay: None,
         rules: playmat_host::TableRules::default(),
     }
 }
@@ -393,4 +394,29 @@ fn a_tables_starting_life_and_free_mulligans_are_played() {
     }
     assert!(log.iter().any(|l| l.contains("mulligans for free")), "{log:?}");
     game.call(Call::Action("CONCEDE".into(), None));
+}
+
+#[test]
+fn a_hosted_game_writes_its_replay() {
+    use std::io::BufRead;
+    let path = std::env::temp_dir().join(format!("playmat-replay-{}.ndjson.gz.part", std::process::id()));
+    let s = Start { replay: Some(path.clone()), ..start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 0, None) };
+    let (ended, _) = play_start(s, u64::MAX, false);
+    let events = ended.summary["replayEvents"].as_u64().unwrap();
+    let file = std::fs::File::open(&path).unwrap();
+    let lines: Vec<serde_json::Value> = std::io::BufReader::new(flate2::read::GzDecoder::new(file))
+        .lines()
+        .map(|l| serde_json::from_str(&l.unwrap()).unwrap())
+        .collect();
+    std::fs::remove_file(&path).ok();
+    assert_eq!(lines.len() as u64, events);
+    let frames: Vec<_> = lines.iter().filter(|l| l.get("view").is_some()).collect();
+    assert!(frames.len() > 10, "board snapshots");
+    for f in &frames {
+        assert!(f["view"].get("myHand").is_none(), "a spectator's view");
+        assert!(f["hands"]["tester"].is_object(), "the human's hand beside it");
+        assert!(f["t"].is_u64());
+    }
+    assert!(lines.iter().any(|l| l["log"]["message"].is_string()), "the game log");
+    assert!(frames.windows(2).all(|w| w[0]["view"] != w[1]["view"]), "no snapshot twice");
 }

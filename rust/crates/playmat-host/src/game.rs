@@ -97,6 +97,8 @@ pub struct Start {
     pub chooser: Option<String>,
     /// where the game's record goes (`record.rs`): its start, the human's calls, the log and the end
     pub record: Option<std::path::PathBuf>,
+    /// where the game's replay goes (`replay.rs`), for the web client's History
+    pub replay: Option<std::path::PathBuf>,
     /// the game log's lines as they're written, with their turn (a replay compares them with the record's)
     pub log_to: Option<LogSink>,
 }
@@ -241,6 +243,7 @@ const IDLE: Duration = Duration::from_secs(30 * 60);
 struct Host {
     game: Game,
     record: Option<crate::record::Recorder>,
+    replay: Option<crate::replay::ReplayWriter>,
     log_to: Option<LogSink>,
     game_id: String,
     chat_id: String,
@@ -322,9 +325,17 @@ impl Host {
                 None
             }
         });
+        let replay = start.replay.as_ref().and_then(|path| match crate::replay::ReplayWriter::create(path) {
+            Ok(r) => Some(r),
+            Err(e) => {
+                eprintln!("host {}: no replay at {}: {e}", start.game_id, path.display());
+                None
+            }
+        });
         Host {
             game,
             record,
+            replay,
             log_to: start.log_to.clone(),
             game_id: start.game_id,
             chat_id,
@@ -508,12 +519,12 @@ impl Host {
                 l.lock().unwrap().push((self.game.turn, line.clone()));
             }
             let message = self.ids.text(&self.game, &line);
-            self.send(
-                "CHATMESSAGE",
-                &self.chat_id.clone(),
-                json!({"username": "", "message": message, "time": now_ms(), "turnInfo": turn,
-                       "color": "BLACK", "messageType": "GAME"}),
-            );
+            let data = json!({"username": "", "message": message, "time": now_ms(), "turnInfo": turn,
+                   "color": "BLACK", "messageType": "GAME"});
+            if let Some(r) = self.replay.as_mut() {
+                r.log(&data);
+            }
+            self.send("CHATMESSAGE", &self.chat_id.clone(), data);
         }
     }
 
@@ -548,12 +559,20 @@ impl Host {
         // (events with no change to show wait for the next view; an action taken back takes its events back too)
         if self.last_view.as_ref() != Some(&view) {
             let events = self.take_events();
+            self.replay_frame(&view);
             self.last_view = Some(view.clone());
             let mut v = self.timed(view);
             if let Some(e) = events {
                 v["events"] = e;
             }
             self.send("GAME_UPDATE", &self.game_id.clone(), v);
+        }
+    }
+
+    /// The board as it is now, in the replay
+    fn replay_frame(&mut self, view: &Value) {
+        if let Some(r) = self.replay.as_mut() {
+            r.frame(view, &self.names[self.human]);
         }
     }
 
@@ -612,6 +631,7 @@ impl Host {
             }
             d.insert("gameView".into(), v);
         }
+        self.replay_frame(&view);
         self.last_view = Some(view);
         if debug() {
             eprintln!(
@@ -860,6 +880,9 @@ impl Host {
         let now = Instant::now();
         self.clock.pause(now);
         let time_left = [self.clock.left_secs(0, now), self.clock.left_secs(1, now)];
+        let mut summary = summary;
+        // the replay is complete: Java lists it
+        summary["replayEvents"] = json!(self.replay.as_mut().map(|r| r.finish()).unwrap_or(0));
         Ended { winner, turns: self.game.turn, reason, time_left, summary }
     }
 
@@ -880,6 +903,7 @@ impl Host {
     fn over(&mut self, _winner: Option<Seat>, message: &str) {
         self.ids.clear();
         let view = self.view();
+        self.replay_frame(&view);
         let view = self.timed(view);
         self.send("GAME_OVER", &self.game_id.clone(), json!({"gameView": view, "message": message}));
     }
