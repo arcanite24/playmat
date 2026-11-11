@@ -11736,7 +11736,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                         if available.is_empty() || asked > 100 {
                             break None;
                         }
-                        match ask(game, d, seat, &Query::ChooseMode { modes: available.clone() }) {
+                        game.moding = Some(t.clone());
+                        let answer = ask(game, d, seat, &Query::ChooseMode { modes: available.clone() });
+                        game.moding = None;
+                        match answer {
                             Answer::Mode(k) if available.contains(&k) => break Some(k),
                             Answer::Stop => return,
                             _ => {}
