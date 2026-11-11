@@ -41,8 +41,10 @@ fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: 
         if game.over || d.stopped() {
             break;
         }
-        // untap has no priority; cleanup only when 514.3a applies (nothing in the engine yet makes it)
-        if step != Step::Untap && step != Step::Cleanup {
+        // untap has no priority; cleanup only when 514.3a applies
+        if step == Step::Cleanup {
+            cleanup_priority(game, d, std::mem::take(&mut resume));
+        } else if step != Step::Untap {
             priority_round(game, d, std::mem::take(&mut resume));
         }
         if game.over || d.stopped() {
@@ -105,6 +107,44 @@ fn next_step(game: &Game, step: Step) -> Option<Step> {
         Step::EndTurn => Step::Cleanup,
         Step::Cleanup => return None,
     })
+}
+
+/// 514.3a (`EndPhase.playStep`): after the cleanup actions, if state-based actions were performed or triggers were
+/// put on the stack, the active player gets priority, and once all pass with the stack empty another cleanup step
+/// begins (Java's extra `CleanupStep` turn mod), which checks again. `resume`: a copy taken while a seat was asked at
+/// this priority plays on from it.
+fn cleanup_priority(game: &mut Game, d: &mut dyn Decider, mut resume: bool) {
+    loop {
+        if !std::mem::take(&mut resume) {
+            if !check_state_and_triggered(game, d) || game.over || d.stopped() {
+                return;
+            }
+            if log::kept(game) {
+                log::inform(
+                    game,
+                    "State-based actions or triggers happened on cleanup step, so players get priority due 514.3a"
+                        .into(),
+                );
+            }
+            priority_round(game, d, false);
+        } else {
+            priority_round(game, d, true);
+        }
+        if game.over || d.stopped() {
+            return;
+        }
+        end_step(game, Step::Cleanup);
+        if log::kept(game) {
+            let line = format!("{} takes an extra Cleanup step", log::player(game.active.unwrap_or(0)));
+            log::inform(game, line);
+        }
+        game.step_start = true;
+        begin_step(game, d, Step::Cleanup);
+        game.step_start = false;
+        if game.over || d.stopped() {
+            return;
+        }
+    }
 }
 
 /// The turn-based actions at the start of a step.
@@ -11634,7 +11674,9 @@ fn state_triggers(game: &mut Game) {
     }
 }
 
-fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
+/// True: state-based actions were performed or triggers were put on the stack (`GameImpl.checkStateAndTriggered`).
+fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
+    let mut happened = false;
     loop {
         if !game.batch_pending.is_empty() {
             let batch = std::mem::take(&mut game.batch_pending);
@@ -11659,18 +11701,20 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
         counters_added_triggers(game);
         game.update_guildpact();
         unattach_equipment(game);
-        state_based_actions(game);
+        happened |= state_based_actions(game);
         state_triggers(game);
         if game.over || d.stopped() {
-            return;
+            return happened;
         }
         if legend_rule(game, d) {
+            happened = true;
             continue;
         }
         if d.stopped() || (game.pending.is_empty() && game.returning.is_empty()) {
-            return;
+            return happened;
         }
         // something triggered: `checkStateAndTriggered` processes the action
+        happened = true;
         game.short_lki.clear();
         let pending = std::mem::take(&mut game.pending);
         let mut pending = waiting(game, pending);
@@ -11718,7 +11762,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                     game.pending.extend(fired);
                 }
                 if d.stopped() {
-                    return;
+                    return happened;
                 }
                 refetch = !mine.is_empty();
             }
@@ -11737,7 +11781,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                     let triggers = mine.iter().map(|t| (t.card, crate::view::item_rule(game, t))).collect();
                     match ask(game, d, seat, &Query::PickTrigger { count: mine.len(), triggers }) {
                         Answer::Trigger(i) if i < mine.len() => i,
-                        Answer::Stop => return,
+                        Answer::Stop => return happened,
                         _ => continue,
                     }
                 } else {
@@ -11766,7 +11810,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                         game.moding = None;
                         match answer {
                             Answer::Mode(k) if available.contains(&k) => break Some(k),
-                            Answer::Stop => return,
+                            Answer::Stop => return happened,
                             _ => {}
                         }
                     };
@@ -11785,7 +11829,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                 if let Some((rule, targets)) = reflexive {
                     if !choose_targets(game, d, seat, &targets, None, &rule, false) {
                         if d.stopped() {
-                            return;
+                            return happened;
                         }
                         Arc::make_mut(&mut game.stack).pop();
                     }
@@ -11796,7 +11840,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) {
                     if !targets.is_empty() {
                         if !choose_targets(game, d, seat, targets, None, rule, false) {
                             if d.stopped() {
-                                return;
+                                return happened;
                             }
                             Arc::make_mut(&mut game.stack).pop();
                         } else {
@@ -13000,9 +13044,11 @@ fn day_night(game: &mut Game) {
     }
 }
 
-pub fn state_based_actions(game: &mut Game) {
+/// True: one was performed.
+pub fn state_based_actions(game: &mut Game) -> bool {
     refresh_becomes(game);
     day_night(game);
+    let mut happened = false;
     loop {
         let mut any = false;
         // 704.5e: a copy of a card outside the stack and battlefield ceases to exist (one that may be cast stays)
@@ -13082,7 +13128,7 @@ pub fn state_based_actions(game: &mut Game) {
                 log::inform(game, line);
             }
             game.over = true;
-            return;
+            return true;
         }
         let dying: Vec<ObjId> = game
             .battlefield
@@ -13159,8 +13205,9 @@ pub fn state_based_actions(game: &mut Game) {
             any = true;
         }
         game.lookback.clear();
+        happened |= any;
         if !any {
-            return;
+            return happened;
         }
     }
 }
@@ -13324,5 +13371,57 @@ mod tests {
         state_based_actions(&mut game);
         assert!(game.player(1).lost && game.over);
         assert!(!game.player(0).lost);
+    }
+
+    /// Passes, and keeps the step of every priority it was asked at.
+    struct PriorityLog(Vec<(Step, Seat)>);
+
+    impl Decider for PriorityLog {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            if matches!(query, Query::Priority { .. }) {
+                self.0.push((game.step.unwrap(), seat));
+            }
+            Passer.answer(game, seat, query)
+        }
+    }
+
+    #[test]
+    fn a_creature_dying_in_cleanup_gives_priority_and_another_cleanup() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        for s in 0..2 {
+            game.player_mut(s).every_priority = true;
+        }
+        let bear = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        game.obj_mut(bear).add_counters("-1/-1", 2);
+        let zcc = game.obj(bear).zcc;
+        Arc::make_mut(&mut game.boosts).push(Boost {
+            target: bear,
+            zcc,
+            power: 0,
+            toughness: 2,
+            until_end_of_turn: true,
+        });
+        game.step = Some(Step::EndTurn);
+        let mut d = PriorityLog(Vec::new());
+        play_from_priority(&mut game, &mut d, 2);
+        assert_eq!(game.obj(bear).zone, Zone::Graveyard);
+        // 514.3a: priority for both in the cleanup step the boost ended in; the next cleanup gives none
+        let cleanup: Vec<Seat> = d.0.iter().filter(|(st, _)| *st == Step::Cleanup).map(|(_, s)| *s).collect();
+        assert_eq!(cleanup, vec![0, 1]);
+    }
+
+    #[test]
+    fn a_quiet_cleanup_gives_no_priority() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        for s in 0..2 {
+            game.player_mut(s).every_priority = true;
+        }
+        on_battlefield(&mut game, &db, "Bear Cub", 0);
+        game.step = Some(Step::EndTurn);
+        let mut d = PriorityLog(Vec::new());
+        play_from_priority(&mut game, &mut d, 2);
+        assert!(d.0.iter().all(|(st, _)| *st != Step::Cleanup));
     }
 }
