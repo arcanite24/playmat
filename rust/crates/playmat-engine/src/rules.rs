@@ -5980,7 +5980,13 @@ fn lose_all_abilities(game: &mut Game, id: ObjId, src: ObjId, zcc: u32) {
     let mut def = (*old).clone();
     def.abilities.clear();
     ob.def = Arc::new(def);
-    ob.lost_abilities = Some((src, zcc, old));
+    ob.lost_abilities = Some((src, zcc, old.clone()));
+    // its abilities already waiting or on the stack are independent of it (113.7a): they keep theirs
+    for t in Arc::make_mut(&mut game.stack).iter_mut().chain(game.pending.iter_mut()) {
+        if t.card == id && t.ability.is_some() && t.def.is_none() {
+            t.def = Some(old.clone());
+        }
+    }
 }
 
 /// 704.5n: an Equipment attached to what isn't a creature (or is gone) becomes unattached
@@ -12357,13 +12363,14 @@ fn waiting(game: &mut Game, mut pending: Vec<StackItem>) -> Vec<StackItem> {
             && game.condition_holds(t.delayed.as_ref().and_then(|dl| dl.condition.as_ref()), t.controller, t.card)
     });
     pending.retain(|t| {
-        let Some((i, _)) = t.ability else { return true };
+        let Some((i, zcc)) = t.ability else { return true };
         let Some(AbilityDef::TriggeredAbility { limit_per_turn: Some(n), .. }) = game.item_def(t).abilities.get(i)
         else {
             return true;
         };
-        // `TriggeredAbilityImpl.checkTriggeredLimit`: counted per object, so the source changing zones starts afresh
-        let key = (t.card, game.obj(t.card).zcc, i);
+        // `TriggeredAbilityImpl.checkTriggeredLimit`: counted per object, so the source changing zones starts afresh;
+        // the object it was when it triggered (Bloombrute's lifelink gain as it dies in combat)
+        let key = (t.card, zcc, i);
         let seen = game.triggered_this_turn.iter().filter(|x| **x == key).count() as u32;
         if seen >= *n {
             return false;
@@ -12751,6 +12758,11 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
             _ => false,
         })
         .count() as i32;
+    // two or more (each one's text names its object, so they differ): the player picks which applies first, and
+    // again while two are left (`HumanPlayer.chooseReplacementEffect`)
+    for _ in 1..plus {
+        game.owed_choices.push(seat);
+    }
     let amount = amount + plus;
     if log::kept(game) {
         let mut line = format!("{} gains {} life", log::player(seat), amount);

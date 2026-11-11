@@ -2273,6 +2273,10 @@ impl Game {
             if t.card == id && t.lki_power.is_none() {
                 t.lki_power = Some(power);
             }
+            // a copy's (Mockingbird as Greedy Freebooter): the ability is the copied one, whatever the card is after
+            if t.card == id && t.ability.is_some() && t.def.is_none() && self.obj(id).copied_def.is_some() {
+                t.def = Some(self.obj(id).def.clone());
+            }
         }
         // earthbend's delayed trigger (delayed triggers are checked before the others)
         if from == Zone::Battlefield && matches!(zone, Zone::Graveyard | Zone::Exile) {
