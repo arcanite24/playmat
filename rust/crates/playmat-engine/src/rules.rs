@@ -5604,10 +5604,12 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     game.resolving_item = game.stack.last().cloned();
     game.resolving_controller = game.stack.last().filter(|i| i.ability.is_none()).map(|i| (i.card, i.controller));
     game.revealed.clear();
+    game.looked_at.clear();
     resolve_popped(game, d);
     // `processAction` applies the effects as it resolves: Leyline of the Guildpact's land types end with it
     game.update_guildpact();
     game.revealed.clear();
+    game.looked_at.clear();
     game.resolving = None;
     game.resolving_item = None;
     game.resolving_controller = None;
@@ -9207,6 +9209,18 @@ fn apply_each_effect(
                 };
                 let cards: Vec<ObjId> =
                     game.player(controller).library.iter().take(n.max(0) as usize).copied().collect();
+                // `LookLibraryControllerEffect`: `lookAtCards`, titled by the source
+                if !cards.is_empty() {
+                    let zcc = game.obj(source.0).zcc;
+                    let look = crate::state::LookedAt {
+                        viewer: controller,
+                        source: source.0,
+                        zcc,
+                        bare: false,
+                        cards: cards.clone(),
+                    };
+                    game.looked_at.push(look);
+                }
                 let fitting: Vec<ObjId> = cards
                     .iter()
                     .copied()
@@ -10125,7 +10139,16 @@ fn apply_each_effect(
                 game.at_next_upkeep
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
             }
-            EffectDef::LookLibraryTopCardTargetPlayerEffect => {}
+            // Mishra's Bauble: its controller looks at the top card of the target player's library
+            EffectDef::LookLibraryTopCardTargetPlayerEffect => {
+                let Some(Target::Player(p)) = target else { continue };
+                let cards: Vec<ObjId> = game.player(p).library.iter().take(1).copied().collect();
+                if !cards.is_empty() {
+                    let zcc = game.obj(source.0).zcc;
+                    let look = crate::state::LookedAt { viewer: controller, source: source.0, zcc, bare: true, cards };
+                    game.looked_at.push(look);
+                }
+            }
             EffectDef::ExpressiveIterationEffect => {
                 let mut cards: Vec<ObjId> = game.player(controller).library.iter().take(3).copied().collect();
                 if cards.is_empty() {
@@ -13377,7 +13400,9 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             Arc::make_mut(&mut game.exile).retain(|c| !gone.contains(c));
         }
         for s in 0..game.seats() {
-            // the game is over once one player is left: the others at 0 life aren't marked (a draw)
+            // the game is over once one player is left (`PlayerImpl.lostForced` concedes the loser, and
+            // `checkIfGameIsOver` makes the one left the winner): when both are at 0 life the first in seat order
+            // loses and the other wins, as in Java, though 704.5a and 104.4a would make it a draw
             if (0..game.seats()).filter(|t| !game.player(*t).lost).count() <= 1 {
                 break;
             }
@@ -13927,5 +13952,37 @@ mod tests {
         assert!(game.obj(swamp).tapped);
         assert!(baubles.iter().all(|b| game.obj(*b).tapped));
         assert_eq!(game.obj(hauler).zone, Zone::Stack);
+    }
+
+    /// Keeps the looked-at cards each seat's view shows when it's asked to pick cards.
+    struct LookWatcher(Vec<serde_json::Value>);
+
+    impl Decider for LookWatcher {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            if matches!(query, Query::Cards { .. } | Query::Target { .. }) {
+                self.0.push(crate::view::game_view(game, seat, &["a", "b"])["lookedAt"].clone());
+                self.0.push(crate::view::game_view(game, 1 - seat, &["a", "b"])["lookedAt"].clone());
+            }
+            Passer.answer(game, seat, query)
+        }
+    }
+
+    #[test]
+    fn looked_at_cards_show_in_the_lookers_view_while_it_resolves() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Island", 10)]);
+        let sleight = game.create_obj(db.get("Sleight of Hand").unwrap(), 0, Zone::Stack);
+        Arc::make_mut(&mut game.stack).push(StackItem::spell(sleight, 0));
+        let top: Vec<ObjId> = game.player(0).library.iter().take(2).copied().collect();
+        let mut d = LookWatcher(Vec::new());
+        resolve_top(&mut game, &mut d);
+        assert!(d.0.len() >= 2);
+        let mine = d.0[0].as_array().unwrap();
+        assert_eq!(mine.len(), 1);
+        assert!(mine[0]["name"].as_str().unwrap().starts_with("Sleight of Hand ["));
+        assert_eq!(mine[0]["cards"].as_object().unwrap().len(), 2);
+        assert_eq!(d.0[1], serde_json::json!([]));
+        assert!(game.looked_at.is_empty());
+        assert!(game.player(0).hand.contains(&top[0]) || game.player(0).hand.contains(&top[1]));
     }
 }

@@ -60,7 +60,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "exiles": exiles_view(game),
         "combat": combat_view(game, names),
         "revealed": revealed_view(game),
-        "lookedAt": [],
+        "lookedAt": looked_at_view(game, seat),
         "companion": [],
     });
     if let (Some(_), true) = (game.step, game.priority == Some(seat)) {
@@ -271,6 +271,44 @@ fn phase_of(step: Step) -> &'static str {
         Step::PostcombatMain => "POSTCOMBAT_MAIN",
         Step::EndTurn | Step::Cleanup => "END",
     }
+}
+
+/// `GameView.lookedAt` (`LookedAtView`): what this seat looked at, each titled as a reveal is (Mishra's Bauble's by
+/// its id name alone), its cards as `SimpleCardView`s
+fn looked_at_view(game: &Game, seat: Seat) -> Vec<Value> {
+    let stack = view_stack(game);
+    game.looked_at
+        .iter()
+        .filter(|l| l.viewer == seat)
+        .map(|l| {
+            let at =
+                stack.iter().rev().position(|(i, _)| i.card == l.source && i.ability.is_none() && i.delayed.is_none());
+            let source = match at {
+                Some(i) => format!("S{}", i),
+                None => reference(game, l.source),
+            };
+            let name = if l.bare {
+                format!("{} [{}]", game.obj(l.source).def.name, source)
+            } else {
+                format!("{} [{}] [{}]", game.obj(l.source).def.name, source, l.zcc + 1)
+            };
+            let mut cards = Map::new();
+            for c in &l.cards {
+                let rf = reference(game, *c);
+                let full = card_view(game, *c, &rf, true);
+                let mut v = Map::new();
+                v.insert("id".into(), json!(rf));
+                for k in ["expansionSetCode", "cardNumber", "usesVariousArt"] {
+                    v.insert(k.into(), full.get(k).cloned().unwrap_or(Value::Null));
+                }
+                v.insert("gameObject".into(), json!(false));
+                v.insert("isChoosable".into(), json!(false));
+                v.insert("isSelected".into(), json!(false));
+                cards.insert(rf, Value::Object(v));
+            }
+            json!({"name": name, "cards": cards})
+        })
+        .collect()
 }
 
 /// `GameView.revealed` (`RevealedView`): each reveal titled by its source's id name and zone change count

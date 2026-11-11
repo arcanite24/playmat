@@ -395,6 +395,17 @@ pub struct Revealed {
     pub cards: Vec<(ObjId, Zone)>,
 }
 
+/// Cards a player looked at while an object resolves (`GameState.lookedAt`, `Player.lookAtCards`): who looked, the
+/// source and its zone change count (in the title unless `bare`: Mishra's Bauble's is its id name alone), the cards
+#[derive(Clone, Debug)]
+pub struct LookedAt {
+    pub viewer: Seat,
+    pub source: ObjId,
+    pub zcc: u32,
+    pub bare: bool,
+    pub cards: Vec<ObjId>,
+}
+
 /// A combat group as views show it (`Combat.groups`): an attacker, in the order they attacked, and once it's left the
 /// battlefield what its group was then (Java keeps the group: its defender, blocked, and blockers)
 #[derive(Clone, Debug)]
@@ -593,6 +604,8 @@ pub struct Game {
     pub combat_groups: Vec<CombatGroup>,
     /// cards revealed while the object resolving resolves, for views
     pub revealed: Vec<Revealed>,
+    /// cards looked at while the object resolving resolves, for the viewer's views
+    pub looked_at: Vec<LookedAt>,
     /// counts attachments, for their order
     pub attach_clock: u64,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
@@ -762,6 +775,7 @@ impl Game {
             mana_paid: None,
             combat_groups: Vec::new(),
             revealed: Vec::new(),
+            looked_at: Vec::new(),
             attach_clock: 0,
             step_start: false,
             loop_sources: Vec::new(),
