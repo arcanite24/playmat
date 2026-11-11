@@ -193,9 +193,13 @@ mvn_offline_first() {
   return "$status"
 }
 
-FAILED=() RESULTS=()
+FAILED=() RESULTS=() BROKEN_AREA=""
 for s in "${STEPS[@]}"; do
   IFS='|' read -r area label dir cmd <<<"$s"
+  if [ "$area" = "$BROKEN_AREA" ]; then
+    RESULTS+=("${YELLOW}skip${RESET} [$area] $label ${DIM}(npm ci failed)${RESET}")
+    continue
+  fi
   say ""
   say "${BOLD}==> [$area] $label${RESET} ${DIM}($dir)${RESET}"
   start=$(date +%s)
@@ -210,7 +214,11 @@ for s in "${STEPS[@]}"; do
     RESULTS+=("${GREEN}ok  ${RESET} [$area] $label ${DIM}${secs}s${RESET}")
   else
     RESULTS+=("${RED}FAIL${RESET} [$area] $label ${DIM}${secs}s${RESET}")
-    FAILED+=("[$area] $label: (cd $dir && ${cmd/__mvn/mvn -o})")
+    rerun=${cmd/__mvn/mvn -o}
+    rerun=${rerun/__npm_ci_if_needed/npm ci}
+    FAILED+=("[$area] $label: (cd $dir && $rerun)")
+    # the other web steps can't run without node_modules
+    [ "$cmd" = __npm_ci_if_needed ] && BROKEN_AREA=$area
   fi
 done
 
