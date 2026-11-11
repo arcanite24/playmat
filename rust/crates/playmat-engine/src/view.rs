@@ -48,7 +48,7 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         "activePlayerId": game.active.map(|a| format!("P{}", a)),
         "activePlayerName": name(game.active),
         "priorityPlayerName": name(game.priority),
-        "special": false,
+        "special": game.special_mana && game.priority == Some(seat),
         "rollbackTurnsAllowed": false,
         "attackOption": "LEFT",
         "rangeOfInfluence": "ALL",

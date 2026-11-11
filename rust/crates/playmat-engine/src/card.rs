@@ -2692,7 +2692,8 @@ pub enum AbilityDef {
     },
     OmenCardSpellAbility,
     /// Delve and Convoke: Java counts the graveyard's cards, or the untapped creatures, as mana when it works out
-    /// whether the spell can be cast; paying with them is a special action the shadow games' players never take
+    /// whether the spell can be cast; paying with them is a special action ("special" while paying,
+    /// `rules::special_mana_payment`) the shadow games' players never take
     DelveAbility,
     ConvokeAbility,
     /// improvise: each untapped artifact you control can pay {1}

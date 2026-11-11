@@ -4888,6 +4888,7 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
     }
     let mut unlocked = Mana::default();
     let mut fresh_conditional = 0;
+    let mut special_used = false;
     loop {
         pay_from_pool(game, seat, &mut unpaid, &mut stock, &mut unlocked, &mut fresh_conditional);
         game.player_mut(seat).mana_stock = stock;
@@ -4904,8 +4905,22 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                     && o.def.abilities.iter().any(|a| a.mana().is_some() && (!o.tapped || !a.taps_source()))
             })
             .collect();
+        // after a special payment the spell's mana abilities can't be activated (`ActivationManaAbilityStep.AFTER`)
+        let sources = if special_used { Vec::new() } else { sources };
+        let specials = special_mana_actions(game, seat, &unpaid);
         let q = Query::PlayMana { cost: unpaid_text(&unpaid), sources };
-        match ask(game, d, seat, &q) {
+        game.special_mana = !specials.is_empty();
+        let answer = ask(game, d, seat, &q);
+        game.special_mana = false;
+        match answer {
+            Answer::Text(t) if t == "special" && !specials.is_empty() => {
+                match special_mana_payment(game, d, seat, &specials, &unpaid) {
+                    Some(true) => special_used = true,
+                    Some(false) => {}
+                    None => return false,
+                }
+            }
+            Answer::Obj(_) if special_used => {}
             Answer::Obj(id) => {
                 // a payment offers a source's conditional mana too, even what it can't spend
                 let paying = game.paying_for.get();
@@ -5017,6 +5032,194 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
             Answer::Bool(_) | Answer::Stop => return false,
             _ => {}
         }
+    }
+}
+
+/// The spell being paid for, if a spell is (not an ability, not a playable check)
+fn spell_paid_for(game: &Game) -> Option<ObjId> {
+    let id = game.paying_for.get().filter(|id| *id != ANY_SPELL)?;
+    (!game.paying_ability.get() && game.obj(id).zone == Zone::Stack).then_some(id)
+}
+
+/// `AlternateManaPaymentAbility.addSpecialAction`: the special actions that can pay part of what's unpaid of the
+/// spell being paid for, as the indices of its delve, convoke and improvise abilities
+fn special_mana_actions(game: &Game, seat: Seat, unpaid: &ManaCost) -> Vec<usize> {
+    let Some(spell) = spell_paid_for(game) else { return Vec::new() };
+    let def = &game.obj(spell).def;
+    let mut out = Vec::new();
+    for (i, a) in def.abilities.iter().enumerate() {
+        let usable = match a {
+            AbilityDef::DelveAbility => unpaid.generic > 0 && !game.player(seat).graveyard.is_empty(),
+            AbilityDef::ImproviseAbility => unpaid.generic > 0 && !improvise_artifacts(game, seat).is_empty(),
+            AbilityDef::ConvokeAbility => !convoke_creatures(game, seat, unpaid).is_empty(),
+            _ => false,
+        };
+        if usable {
+            out.push(i);
+        }
+    }
+    out
+}
+
+fn improvise_artifacts(game: &Game, seat: Seat) -> Vec<ObjId> {
+    game.battlefield
+        .iter()
+        .copied()
+        .filter(|c| game.obj(*c).controller == seat && !game.obj(*c).tapped && game.has_type(*c, CardType::Artifact))
+        .collect()
+}
+
+/// The untapped creatures that can convoke: any while generic mana is unpaid, otherwise those of an unpaid color
+fn convoke_creatures(game: &Game, seat: Seat, unpaid: &ManaCost) -> Vec<ObjId> {
+    game.battlefield
+        .iter()
+        .copied()
+        .filter(|c| {
+            let o = game.obj(*c);
+            o.controller == seat
+                && !o.tapped
+                && game.has_type(*c, CardType::Creature)
+                && (unpaid.generic > 0 || game.colors(*c).iter().any(|col| unpaid.colored[col.index()] > 0))
+        })
+        .collect()
+}
+
+/// Picks up to `max` of `objs` (PICK_TARGET each, `HumanPlayer.chooseTarget`): a pick again takes it back; done once
+/// at least `min` are picked. With exactly `min` to pick and `min` required, they're picked for the player
+/// (`tryToAutoChoose`). None: stopped; an empty pick with `min` above 0 is a cancel.
+fn pick_objects(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    objs: &[ObjId],
+    min: usize,
+    max: usize,
+) -> Option<Vec<ObjId>> {
+    if min > 0 && objs.len() == min {
+        return Some(objs.to_vec());
+    }
+    let mut chosen: Vec<ObjId> = Vec::new();
+    loop {
+        let required = chosen.len() < min;
+        let q = Query::Target { players: Vec::new(), objs: objs.to_vec(), required };
+        match ask(game, d, seat, &q) {
+            Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
+            Answer::Obj(o) if objs.contains(&o) => {
+                chosen.push(o);
+                if chosen.len() >= max {
+                    return Some(chosen);
+                }
+            }
+            Answer::Stop => return None,
+            Answer::Bool(_) if chosen.len() >= min => return Some(chosen),
+            Answer::Bool(_) => return Some(Vec::new()),
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
+        }
+    }
+}
+
+/// `HumanPlayer.activateSpecialAction` while paying mana: the special actions to choose from (CHOOSE_ABILITY, asked
+/// even for one), then the chosen one: delve exiles cards from the graveyard (`ExileFromGraveCost`, up to the generic
+/// mana unpaid), improvise taps artifacts (up to the generic mana unpaid), convoke taps one creature, its color asked
+/// when it could pay more than one kind. Each adds its mana to the pool, spent at once. Some(true): something was
+/// paid; None: stopped.
+fn special_mana_payment(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    specials: &[usize],
+    unpaid: &ManaCost,
+) -> Option<bool> {
+    let Some(spell) = spell_paid_for(game) else { return Some(false) };
+    let q = Query::ChooseAbility { source: spell, abilities: specials.to_vec() };
+    let k = match ask(game, d, seat, &q) {
+        Answer::Ability(o, i) if o == spell && specials.contains(&i) => i,
+        Answer::Stop => return None,
+        _ => return Some(false),
+    };
+    let add = |game: &mut Game, m: Mana| {
+        let p = game.player_mut(seat);
+        for c in 0..5 {
+            p.mana_pool.colored[c] += m.colored[c];
+        }
+        p.mana_pool.colorless += m.colorless;
+    };
+    match game.obj(spell).def.abilities[k] {
+        AbilityDef::DelveAbility => {
+            let cards: Vec<ObjId> = game.player(seat).graveyard.clone();
+            let max = cards.len().min(unpaid.generic as usize);
+            let chosen = pick_objects(game, d, seat, &cards, 0, max)?;
+            for c in &chosen {
+                game.move_to(*c, Zone::Exile);
+            }
+            add(game, Mana { colorless: chosen.len() as u32, ..Mana::default() });
+            Some(!chosen.is_empty())
+        }
+        AbilityDef::ImproviseAbility => {
+            let artifacts = improvise_artifacts(game, seat);
+            let chosen = pick_objects(game, d, seat, &artifacts, 1, unpaid.generic as usize)?;
+            for c in &chosen {
+                game.obj_mut(*c).tapped = true;
+                if log::kept(game) {
+                    let line = format!("Improvise: {} taps {} to pay {{1}}", log::player(seat), log::object(game, *c));
+                    log::inform(game, line);
+                }
+                add(game, Mana { colorless: 1, ..Mana::default() });
+            }
+            Some(!chosen.is_empty())
+        }
+        AbilityDef::ConvokeAbility => {
+            let creatures = convoke_creatures(game, seat, unpaid);
+            let chosen = pick_objects(game, d, seat, &creatures, 1, 1)?;
+            let Some(c) = chosen.first().copied() else { return Some(false) };
+            game.obj_mut(c).tapped = true;
+            // `ConvokeEffect.buildChoice`: its colors that are unpaid, and Colorless beside more than one
+            let names = ["White", "Blue", "Black", "Red", "Green"];
+            let mut choices: Vec<String> = Vec::new();
+            for col in [Color::B, Color::U, Color::G, Color::R, Color::W] {
+                if game.colors(c).contains(&col) && unpaid.colored[col.index()] > 0 {
+                    choices.push(names[col.index()].to_string());
+                }
+            }
+            let pick = match choices.len() {
+                0 => "Colorless".to_string(),
+                1 => choices[0].clone(),
+                _ => {
+                    choices.push("Colorless".into());
+                    let message = format!("Choose mana color to reduce from {}", game.obj(c).name());
+                    let q = Query::Choice { message, choices: choices.clone() };
+                    loop {
+                        match ask(game, d, seat, &q) {
+                            Answer::Text(t) if choices.contains(&t) => break t,
+                            Answer::Stop => return None,
+                            _ => {}
+                        }
+                        if d.stopped() {
+                            return None;
+                        }
+                    }
+                }
+            };
+            let m = match names.iter().position(|n| *n == pick) {
+                Some(i) => Mana::of(Color::ALL[i], 1),
+                None => Mana { colorless: 1, ..Mana::default() },
+            };
+            add(game, m);
+            if log::kept(game) {
+                let line = format!(
+                    "Convoke: {} taps {} to pay one {} mana",
+                    log::player(seat),
+                    log::object(game, c),
+                    pick.to_lowercase()
+                );
+                log::inform(game, line);
+            }
+            Some(true)
+        }
+        _ => Some(false),
     }
 }
 
@@ -13633,5 +13836,96 @@ mod tests {
         assert!(game.has_ability(sarkhan, &AbilityDef::FlyingAbility));
         cleanup(&mut game, &mut Passer, 0);
         assert!(!game.has_subtype(sarkhan, "Dragon"));
+    }
+
+    /// Taps its mana sources first, then pays the rest with the spell's special action, picking every card or
+    /// permanent offered; keeps the special actions it was offered.
+    struct SpecialPayer {
+        picked: Vec<ObjId>,
+        offered: Vec<bool>,
+    }
+
+    impl Decider for SpecialPayer {
+        fn answer(&mut self, game: &Game, seat: Seat, query: &Query) -> Answer {
+            match query {
+                Query::PlayMana { sources, .. } => {
+                    self.offered.push(game.special_mana);
+                    let untapped = sources.iter().find(|s| !game.obj(**s).tapped);
+                    match untapped {
+                        Some(s) => Answer::Obj(*s),
+                        None if game.special_mana => Answer::Text("special".into()),
+                        None => Answer::Bool(false),
+                    }
+                }
+                Query::ChooseAbility { source, abilities } => Answer::Ability(*source, abilities[0]),
+                Query::Target { objs, .. } => match objs.iter().find(|o| !self.picked.contains(o)) {
+                    Some(o) => {
+                        self.picked.push(*o);
+                        Answer::Obj(*o)
+                    }
+                    None => Answer::Bool(false),
+                },
+                _ => Passer.answer(game, seat, query),
+            }
+        }
+    }
+
+    #[test]
+    fn delve_pays_with_the_graveyard_after_the_lands() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Island", 10)]);
+        game.step = Some(Step::PrecombatMain);
+        game.priority = Some(0);
+        let island = on_battlefield(&mut game, &db, "Island", 0);
+        for _ in 0..7 {
+            let c = game.create_obj(db.get("Island").unwrap(), 0, Zone::Graveyard);
+            game.player_mut(0).graveyard.push(c);
+        }
+        let cruise = game.create_obj(db.get("Treasure Cruise").unwrap(), 0, Zone::Hand);
+        game.player_mut(0).hand.push(cruise);
+        let mut d = SpecialPayer { picked: Vec::new(), offered: Vec::new() };
+        assert!(cast(&mut game, &mut d, 0, cruise));
+        assert_eq!(game.obj(cruise).zone, Zone::Stack);
+        assert!(game.obj(island).tapped);
+        assert!(game.player(0).graveyard.is_empty());
+        assert_eq!(game.exile.len(), 7);
+        assert_eq!(d.picked.len(), 7);
+        // offered as the payment started and after the land
+        assert_eq!(d.offered, vec![true, true]);
+        assert!(!game.special_mana);
+    }
+
+    #[test]
+    fn convoke_taps_creatures_for_mana() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Mountain", 10)]);
+        game.step = Some(Step::PrecombatMain);
+        game.priority = Some(0);
+        let mountains: Vec<ObjId> = (0..2).map(|_| on_battlefield(&mut game, &db, "Mountain", 0)).collect();
+        let bears: Vec<ObjId> = (0..2).map(|_| on_battlefield(&mut game, &db, "Bear Cub", 0)).collect();
+        let stoke = game.create_obj(db.get("Stoke the Flames").unwrap(), 0, Zone::Hand);
+        game.player_mut(0).hand.push(stoke);
+        let mut d = SpecialPayer { picked: Vec::new(), offered: Vec::new() };
+        // its target (the first thing offered), then {R}{R} from the lands and {2} from the two Bears
+        assert!(cast(&mut game, &mut d, 0, stoke));
+        assert!(mountains.iter().all(|m| game.obj(*m).tapped));
+        assert!(bears.iter().all(|b| game.obj(*b).tapped));
+    }
+
+    #[test]
+    fn improvise_taps_artifacts_for_generic_mana() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Swamp", 10)]);
+        game.step = Some(Step::PrecombatMain);
+        game.priority = Some(0);
+        let swamp = on_battlefield(&mut game, &db, "Swamp", 0);
+        let baubles: Vec<ObjId> = (0..6).map(|_| on_battlefield(&mut game, &db, "Mishra's Bauble", 0)).collect();
+        let hauler = game.create_obj(db.get("Fen Hauler").unwrap(), 0, Zone::Hand);
+        game.player_mut(0).hand.push(hauler);
+        let mut d = SpecialPayer { picked: Vec::new(), offered: Vec::new() };
+        assert!(cast(&mut game, &mut d, 0, hauler));
+        assert!(game.obj(swamp).tapped);
+        assert!(baubles.iter().all(|b| game.obj(*b).tapped));
+        assert_eq!(game.obj(hauler).zone, Zone::Stack);
     }
 }

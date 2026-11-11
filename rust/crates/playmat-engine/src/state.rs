@@ -601,6 +601,9 @@ pub struct Game {
     /// size after the last resolution, the players' life when the count started, the count (reset at each priority
     /// round) and how many times in a row the players declined to call it a draw
     pub loop_sources: Vec<ObjId>,
+    /// while a mana payment is asked: the spell can be paid with a special action (delve, convoke, improvise), the
+    /// "Special" button (`GameView.special`)
+    pub special_mana: bool,
     /// while a library is searched (`TargetCardInLibrary.choose`): the whole library as the client is shown it,
     /// sorted by name, and the cards chosen so far. The question's cards are the ones that can still be picked
     /// (Java's `possibleTargets`).
@@ -762,6 +765,7 @@ impl Game {
             attach_clock: 0,
             step_start: false,
             loop_sources: Vec::new(),
+            special_mana: false,
             searching: None,
             loop_stack: 0,
             loop_lives: None,
