@@ -15,11 +15,17 @@
 //!
 //! `XMAGE_ROUTE_<GROUP>=java|rust|shadow` (group in capitals, e.g. `XMAGE_ROUTE_CATALOG`) and
 //! `XMAGE_ROUTE_DEFAULT` override the file. A method with no Rust handler always goes to Java.
+//!
+//! Event groups ([`EVENT_GROUPS`]) route something other than calls (`CareerPayouts`: who pays a finished game,
+//! docs/rust/Payouts.md). They are set by name only: the default and rollouts never move them off Java.
 
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
+
+/// Groups that route events, not calls; Java reads the same setting (`XMAGE_ROUTE_CAREERPAYOUTS`)
+pub const EVENT_GROUPS: [&str; 1] = ["CareerPayouts"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -83,6 +89,9 @@ impl RouteTable {
         let file: RoutesFile = toml::from_str(text).map_err(|e| e.to_string())?;
         let known = crate::groups();
         for group in file.groups.keys().chain(file.rollout.keys()) {
+            if EVENT_GROUPS.contains(&group.as_str()) && !file.rollout.contains_key(group) {
+                continue;
+            }
             if !known.contains(&group.as_str()) {
                 return Err(format!("unknown group '{group}' (known: {})", known.join(", ")));
             }
@@ -119,6 +128,7 @@ impl RouteTable {
             }
             let group = groups
                 .iter()
+                .chain(EVENT_GROUPS.iter())
                 .find(|g| g.to_ascii_uppercase() == name)
                 .ok_or_else(|| format!("{key}: no group {name} (known: {})", groups.join(", ")))?;
             self.groups.insert(group.to_string(), route);
@@ -135,6 +145,11 @@ impl RouteTable {
             Some(percent) if route != Route::Java && bucket >= *percent => Route::Java,
             _ => route,
         }
+    }
+
+    /// An event group's route: only as set for it by name, Java otherwise
+    pub fn event_route(&self, group: &str) -> Route {
+        self.groups.get(group).copied().unwrap_or(Route::Java)
     }
 
     /// one line per group that isn't on Java, for the startup log
@@ -194,5 +209,20 @@ mod tests {
         assert!(RouteTable::from_toml("[groups]\nNope = \"rust\"\n").is_err());
         assert!(RouteTable::from_toml("[methods]\nnope = \"rust\"\n").is_err());
         assert!(RouteTable::from_toml("[rollout]\nCatalog = 101\n").is_err());
+    }
+
+    #[test]
+    fn event_groups_are_set_by_name_only() {
+        let all_rust = RouteTable::default()
+            .with_env(vec![("XMAGE_ROUTE_DEFAULT".to_string(), "rust".to_string())].into_iter())
+            .unwrap();
+        assert_eq!(all_rust.event_route("CareerPayouts"), Route::Java);
+        let shadow = RouteTable::default()
+            .with_env(vec![("XMAGE_ROUTE_CAREERPAYOUTS".to_string(), "shadow".to_string())].into_iter())
+            .unwrap();
+        assert_eq!(shadow.event_route("CareerPayouts"), Route::Shadow);
+        let file = RouteTable::from_toml("[groups]\nCareerPayouts = \"rust\"\n").unwrap();
+        assert_eq!(file.event_route("CareerPayouts"), Route::Rust);
+        assert!(RouteTable::from_toml("[rollout]\nCareerPayouts = 50\n").is_err());
     }
 }

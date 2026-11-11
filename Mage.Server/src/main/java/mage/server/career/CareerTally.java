@@ -249,6 +249,11 @@ public final class CareerTally {
         }
     }
 
+    /** a feat as a payout event kept it (already chosen as the game's biggest of its kind) */
+    synchronized void restore(String id, int value, int turn) {
+        moments.put(id, new Moment(id, value, turn));
+    }
+
     /** the game's feats, in the order they first happened */
     public synchronized List<Moment> moments() {
         return new ArrayList<>(moments.values());

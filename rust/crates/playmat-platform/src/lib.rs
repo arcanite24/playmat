@@ -12,6 +12,8 @@ pub mod career;
 pub mod catalog;
 pub mod deckimport;
 pub mod decks;
+pub mod dice;
+pub mod payouts;
 pub mod search;
 pub mod support;
 pub mod validate;
@@ -58,6 +60,31 @@ impl Platform {
 
     pub fn catalog(&self) -> Option<Arc<Catalog>> {
         self.catalog.read().unwrap().clone()
+    }
+
+    /// Career payouts from Java's `payout_events` (docs/rust/Payouts.md): on `rust` pays what Java leaves pending, on
+    /// `shadow` replays what Java paid and reports each comparison (`matchEnded` or `gameEnded`, same?).
+    pub async fn pay_careers(
+        self: Arc<Platform>,
+        route: payouts::PayoutRoute,
+        shadow_users: Option<Vec<String>>,
+        report: Arc<dyn Fn(&str, bool) + Send + Sync>,
+    ) {
+        let Some(admin) = &self.admin else { return };
+        info!("Career payouts: {route:?}");
+        let pause = match route {
+            payouts::PayoutRoute::Java => return,
+            // the rewards screen waits for it
+            payouts::PayoutRoute::Rust => Duration::from_millis(250),
+            payouts::PayoutRoute::Shadow => Duration::from_secs(2),
+        };
+        loop {
+            let pass = admin.payouts_pass(route, shadow_users.as_deref()).await;
+            for (method, same) in pass.compared {
+                report(&method, same);
+            }
+            tokio::time::sleep(pause).await;
+        }
     }
 
     /// Opens the catalog, and opens it again whenever the server writes a new one (it replaces the file whole).

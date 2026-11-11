@@ -122,7 +122,7 @@ pub struct AdminStores {
     /// db/support.db and the accounts (db/authorized_user.db), for the support calls
     support: Option<(SqlitePool, PathBuf)>,
     /// db/career.db, for the Career's records
-    career: Option<SqlitePool>,
+    pub(crate) career: Option<SqlitePool>,
     /// the Career's content, for the calls that need it
     pub(crate) career_content: Option<crate::career::CareerContent>,
     /// the content views Java writes

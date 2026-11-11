@@ -62,7 +62,7 @@ fn career_rarity(rarity: &str, name: &str, basic: bool) -> &'static str {
 }
 
 /// `CareerRules.WINS_TO_UNLOCK_NEXT_TIER`
-const WINS_TO_UNLOCK_NEXT_TIER: i64 = 3;
+pub(crate) const WINS_TO_UNLOCK_NEXT_TIER: i64 = 3;
 
 /// The content views Java writes (`CareerViewsExport`, `XMAGE_CAREER_EXPORT`): read again when the file changes,
 /// as it does when staff reload the content packs.
@@ -77,7 +77,7 @@ impl CareerViews {
     }
 
     /// one view, or None while Java hasn't written the file (Java answers then)
-    fn view(&self, name: &str) -> Option<Value> {
+    pub(crate) fn view(&self, name: &str) -> Option<Value> {
         let modified = std::fs::metadata(&self.path).and_then(|m| m.modified()).ok()?;
         let mut loaded = self.loaded.lock().unwrap();
         if loaded.as_ref().is_none_or(|(at, _)| *at != modified) {
@@ -89,15 +89,17 @@ impl CareerViews {
 }
 
 /// `CareerRules.MAX_LEVEL`
-const MAX_LEVEL: i64 = 100;
+pub(crate) const MAX_LEVEL: i64 = 100;
 
 /// The Career's content Java ships in its jar (`resources/career`), read from the copy beside it
 /// (`XMAGE_PLATFORM_CAREER_CONTENT`): the level track and the renown step.
 pub struct CareerContent {
     /// `CareerProgress.levels`, as Gson writes each `CareerLevelReward`
-    levels: Vec<Value>,
+    pub(crate) levels: Vec<Value>,
     /// `CareerRewards.renownXp`
-    renown_xp: i64,
+    pub(crate) renown_xp: i64,
+    /// rewards.json as it is (`CareerRewards.File`), for payouts
+    pub(crate) rewards: Value,
 }
 
 impl CareerContent {
@@ -151,17 +153,17 @@ impl CareerContent {
                 None => levels.push(Value::Object(reward)),
             }
         }
-        Ok(CareerContent { levels, renown_xp })
+        Ok(CareerContent { levels, renown_xp, rewards })
     }
 }
 
 /// `CareerRules.xpForLevel`
-fn xp_for_level(level: i64) -> i64 {
+pub(crate) fn xp_for_level(level: i64) -> i64 {
     250 + 50 * (level - 1)
 }
 
 /// `CareerProgress.xpIntoLevel`: the level, the XP into it, and what the next takes (0 at the top)
-fn xp_into_level(xp: i64) -> (i64, i64, i64) {
+pub(crate) fn xp_into_level(xp: i64) -> (i64, i64, i64) {
     let (mut level, mut left) = (1, xp);
     while level < MAX_LEVEL && left >= xp_for_level(level) {
         left -= xp_for_level(level);
@@ -171,7 +173,7 @@ fn xp_into_level(xp: i64) -> (i64, i64, i64) {
 }
 
 /// `CareerRules.renownFor`: a star for every renownXp past the top level
-fn renown_for(xp: i64, renown_xp: i64) -> i64 {
+pub(crate) fn renown_for(xp: i64, renown_xp: i64) -> i64 {
     let top: i64 = (1..MAX_LEVEL).map(xp_for_level).sum();
     let past = xp - top;
     if past <= 0 {
@@ -618,7 +620,7 @@ impl AdminStores {
 }
 
 /// `CareerStore.profile`, as Gson writes a `CareerProfile`; None without one
-async fn profile(db: &mut SqliteConnection, user: &str, content: &CareerContent) -> Result<Option<Value>, Stop> {
+pub(crate) async fn profile(db: &mut SqliteConnection, user: &str, content: &CareerContent) -> Result<Option<Value>, Stop> {
     let Some(row) = sqlx::query("SELECT * FROM profile WHERE user = ?").bind(user).fetch_optional(&mut *db).await?
     else {
         return Ok(None);
@@ -671,7 +673,7 @@ pub fn difference(java: &Value, rust: &Value) -> Option<String> {
 
 /// `CareerApi.career`: the signed-in account's Career key (`CareerStore.key`), when the server offers Career
 /// `CareerQuest`, in its fields' order, nulls left out
-fn quest(template: &Value, slot: i64, progress: i64) -> Value {
+pub(crate) fn quest(template: &Value, slot: i64, progress: i64) -> Value {
     let mut view = serde_json::Map::new();
     view.insert("slot".into(), json!(slot));
     for field in ["id", "text", "counts"] {
@@ -688,7 +690,7 @@ fn quest(template: &Value, slot: i64, progress: i64) -> Value {
 }
 
 /// `CareerProgress.day` and `week` (UTC): "2026-11-04" and the ISO week, "2026-W45"
-fn utc_day_and_week(millis: i64) -> (String, String) {
+pub(crate) fn utc_day_and_week(millis: i64) -> (String, String) {
     let days = millis.div_euclid(86_400_000);
     let (year, month, day) = crate::support::civil(days);
     // ISO weeks start on Monday and belong to the year of their Thursday
@@ -772,7 +774,7 @@ fn gson_deck(deck: &Value) -> Option<Value> {
 }
 
 /// `CareerStore.addStat`
-async fn add_stat(db: &mut SqliteConnection, user: &str, counter: &str, amount: i64) -> Result<(), Stop> {
+pub(crate) async fn add_stat(db: &mut SqliteConnection, user: &str, counter: &str, amount: i64) -> Result<(), Stop> {
     sqlx::query(
         "INSERT INTO stats (user, counter, value) VALUES (?, ?, ?) \
          ON CONFLICT (user, counter) DO UPDATE SET value = value + excluded.value",
@@ -786,7 +788,7 @@ async fn add_stat(db: &mut SqliteConnection, user: &str, counter: &str, amount: 
 }
 
 /// `CareerProgress.totals`: the stats, the level, opponents beaten and the highest tier open
-async fn totals(
+pub(crate) async fn totals(
     db: &mut SqliteConnection,
     user: &str,
     content: &CareerContent,
@@ -884,7 +886,7 @@ async fn achievements_in(
 }
 
 /// `CareerStore.addAchievement`: true when it's new
-async fn add_achievement(db: &mut SqliteConnection, user: &str, id: &str, now: i64) -> Result<bool, Stop> {
+pub(crate) async fn add_achievement(db: &mut SqliteConnection, user: &str, id: &str, now: i64) -> Result<bool, Stop> {
     let done = sqlx::query("INSERT OR IGNORE INTO achievements (user, id, at) VALUES (?, ?, ?)")
         .bind(user)
         .bind(id)
@@ -895,7 +897,7 @@ async fn add_achievement(db: &mut SqliteConnection, user: &str, id: &str, now: i
 }
 
 /// `CareerProgress.pay`: an achievement's (or tier's) coins, XP and cosmetic
-async fn pay(db: &mut SqliteConnection, user: &str, reward: &Value, now: i64) -> Result<(), Stop> {
+pub(crate) async fn pay(db: &mut SqliteConnection, user: &str, reward: &Value, now: i64) -> Result<(), Stop> {
     let (coins, xp) = (reward["coins"].as_i64().unwrap_or(0), reward["xp"].as_i64().unwrap_or(0));
     if coins > 0 {
         sqlx::query("UPDATE profile SET coins = coins + ? WHERE user = ?")
@@ -920,7 +922,7 @@ async fn pay(db: &mut SqliteConnection, user: &str, reward: &Value, now: i64) ->
 }
 
 /// `CareerStore.winsByOpponent`
-async fn wins_by_opponent(
+pub(crate) async fn wins_by_opponent(
     db: &mut SqliteConnection,
     user: &str,
 ) -> Result<std::collections::HashMap<String, i64>, Stop> {
@@ -940,7 +942,7 @@ async fn wins_by_opponent(
 /// `CareerProgress.view`: an achievement as the player sees it, from Java's template (`achievementTemplates`). With
 /// tiers, the target, pay and text are the next tier's (the top one's once all are earned); names and texts of a
 /// secret one show once it's earned. Fields in `CareerAchievement`'s order, nulls left out as Gson does.
-fn achievement(template: &Value, earned: &std::collections::HashMap<String, i64>, value: i64) -> Option<Value> {
+pub(crate) fn achievement(template: &Value, earned: &std::collections::HashMap<String, i64>, value: i64) -> Option<Value> {
     let id = template["id"].as_str()?;
     let secret = template["secret"].as_bool().unwrap_or(false);
     let int = |value: &Value, field: &str| value[field].as_i64().unwrap_or(0);
@@ -1033,7 +1035,7 @@ fn achievement(template: &Value, earned: &std::collections::HashMap<String, i64>
 }
 
 /// the nemesis's opponent id, from solo.db's `career.nemesis` state; no solo.db, no nemesis
-async fn nemesis(solo: &std::path::Path, user: &str) -> Result<Option<String>, Stop> {
+pub(crate) async fn nemesis(solo: &std::path::Path, user: &str) -> Result<Option<String>, Stop> {
     let Some(mut db) = crate::support::open_read_only(solo).await else { return Ok(None) };
     let value: Option<String> =
         sqlx::query_scalar("SELECT value FROM user_state WHERE user = ? AND key = 'career.nemesis'")
@@ -1051,7 +1053,7 @@ async fn nemesis(solo: &std::path::Path, user: &str) -> Result<Option<String>, S
 
 /// `CareerService.opponents`: Java's roster (as a player without wins sees it, and as their nemesis) with this
 /// player's wins, the tiers and rival chapters they opened, and their nemesis
-fn opponents(roster: Value, wins: &std::collections::HashMap<String, i64>, nemesis: Option<&str>) -> Option<Value> {
+pub(crate) fn opponents(roster: Value, wins: &std::collections::HashMap<String, i64>, nemesis: Option<&str>) -> Option<Value> {
     let roster = roster.as_array()?;
     let won = |id: &str| wins.get(id).copied().unwrap_or(0);
     let mut by_tier = std::collections::HashMap::<i64, i64>::new();
@@ -1074,7 +1076,7 @@ fn opponents(roster: Value, wins: &std::collections::HashMap<String, i64>, nemes
     Some(Value::Array(views))
 }
 
-async fn career_user(caller: &Caller, admin: &mut SqliteConnection) -> Result<String, Stop> {
+pub(crate) async fn career_user(caller: &Caller, admin: &mut SqliteConnection) -> Result<String, Stop> {
     // without accounts Java says there's no Career; names outside ASCII lower differently in Rust
     let (true, false, Some(user)) = (caller.account, caller.admin, &caller.user) else { return Err(Stop::Decline) };
     if !user.is_ascii() || std::env::var("XMAGE_CAREER").is_ok_and(|v| v.trim().eq_ignore_ascii_case("off")) {
@@ -1091,7 +1093,7 @@ async fn career_user(caller: &Caller, admin: &mut SqliteConnection) -> Result<St
 }
 
 /// a record Java keeps as Gson's JSON and answers as read back: the same JSON, or null
-fn stored(json: Option<String>) -> Answer {
+pub(crate) fn stored(json: Option<String>) -> Answer {
     match json {
         None => Ok(Value::Null),
         Some(text) => serde_json::from_str(&text).map_err(|_| Stop::Decline),

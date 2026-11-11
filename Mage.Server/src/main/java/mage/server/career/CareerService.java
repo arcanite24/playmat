@@ -569,7 +569,6 @@ public final class CareerService {
             // test mode pays nothing, Career tables included (B270)
             return null;
         }
-        CareerRules.Reward reward = assistedReward(modeReward(table.kind, table.tier, won, turns), table.assisted);
         CareerStore store = CareerStore.get();
         try {
             long now = System.currentTimeMillis();
@@ -580,44 +579,12 @@ public final class CareerService {
             } else {
                 counted.finish(game, won, turns);
             }
-            final CareerTally played = counted;
-            CareerProgress.CareerGameResult result = store.transaction(() -> {
-                CareerProfile before = store.profile(table.user);
-                if (before == null || !store.payoutIn(tableId.toString(), table.user, table.opponentId, won,
-                        reward.coins, reward.xp, reward.note, now)) {
-                    return null;
-                }
-                store.claimGame(tableId.toString(), table.user, now);
-                CareerProgress.CareerGameResult paid = new CareerProgress.CareerGameResult();
-                paid.gameKey = tableId.toString();
-                paid.kind = CareerRewards.CAREER;
-                paid.career = true;
-                paid.won = won;
-                paid.opponent = table.opponentId;
-                paid.coins = reward.coins;
-                paid.xp = reward.xp;
-                paid.note = reward.note;
-                paid.assisted = table.assisted;
-                paid.xpBefore = before.xp;
-                Set<Integer> tiersBefore = openTiers(table.user);
-                finishMode(store, table, won, turns, played, paid, now);
-                if (!"puzzle".equals(table.kind) && !"trial".equals(table.kind) && turns >= CareerRewards.get().turnFloor()) {
-                    dailyBonuses(store, table.user, CareerRewards.CAREER, won, paid);
-                }
-                CareerProgress.get().apply(store, table.user, played, paid, before.xp, now);
-                for (CareerOpponent opponent : opponents(table.user)) {
-                    if (opponent.unlocked && !tiersBefore.contains(opponent.tier) && !paid.opened.contains(opponent.tierName)) {
-                        paid.opened.add(opponent.tierName);
-                    }
-                }
-                store.setGameDetails(paid.gameKey, new Gson().toJson(paid));
-                store.setGameRecord(paid.gameKey, CareerRewards.CAREER, won, paid.coins, paid.xp,
-                        paid.note != null ? paid.note : table.kind + " " + table.opponentId);
-                return paid;
-            });
-            if (result == null) {
+            CareerPayoutEvent event = CareerPayoutEvent.match(tableId, table, won, turns, counted, now);
+            CareerProgress.CareerGameResult result = payMatch(store, event);
+            if (result == null && !CareerPayouts.waitsForRust(event)) {
                 return null;
             }
+            CareerRules.Reward reward = matchReward(event);
             CareerPayout payout = new CareerPayout();
             payout.matchKey = tableId.toString();
             payout.at = now;
@@ -631,6 +598,63 @@ public final class CareerService {
             logger.error("Career payout failed for " + table.user + " on table " + tableId, e);
             return null;
         }
+    }
+
+    /** what a Career match pays itself, before the mode, quests and the rest */
+    private static CareerRules.Reward matchReward(CareerPayoutEvent event) {
+        CareerPayoutEvent.Career table = event.career;
+        return assistedReward(modeReward(table.kind, table.tier, event.won, event.turns), table.assisted);
+    }
+
+    /**
+     * Pays a Career match from its event, once, as the payouts route says (CareerPayouts): Java pays it here, or the
+     * event waits for the gateway.
+     *
+     * @return what the match paid; null when it was paid before or waits for Rust
+     */
+    CareerProgress.CareerGameResult payMatch(CareerStore store, CareerPayoutEvent event) throws SQLException {
+        return CareerPayouts.pay(store, event, paying -> payMatchIn(store, paying));
+    }
+
+    private CareerProgress.CareerGameResult payMatchIn(CareerStore store, CareerPayoutEvent event) throws SQLException {
+        CareerPayoutEvent.Career table = event.career;
+        boolean won = event.won;
+        int turns = event.turns;
+        long now = event.at;
+        CareerRules.Reward reward = matchReward(event);
+        CareerTally played = CareerPayoutEvent.tally(event.counters, event.moments);
+        CareerProfile before = store.profile(table.user);
+        if (before == null || !store.payoutIn(event.key, table.user, table.opponent, won,
+                reward.coins, reward.xp, reward.note, now)) {
+            return null;
+        }
+        store.claimGame(event.key, table.user, now);
+        CareerProgress.CareerGameResult paid = new CareerProgress.CareerGameResult();
+        paid.gameKey = event.key;
+        paid.kind = CareerRewards.CAREER;
+        paid.career = true;
+        paid.won = won;
+        paid.opponent = table.opponent;
+        paid.coins = reward.coins;
+        paid.xp = reward.xp;
+        paid.note = reward.note;
+        paid.assisted = table.assisted;
+        paid.xpBefore = before.xp;
+        Set<Integer> tiersBefore = openTiers(table.user);
+        finishMode(store, table, won, turns, played, paid, now);
+        if (!"puzzle".equals(table.kind) && !"trial".equals(table.kind) && turns >= CareerRewards.get().turnFloor()) {
+            dailyBonuses(store, table.user, CareerRewards.CAREER, won, paid);
+        }
+        CareerProgress.get().apply(store, table.user, played, paid, before.xp, now);
+        for (CareerOpponent opponent : opponents(table.user)) {
+            if (opponent.unlocked && !tiersBefore.contains(opponent.tier) && !paid.opened.contains(opponent.tierName)) {
+                paid.opened.add(opponent.tierName);
+            }
+        }
+        store.setGameDetails(paid.gameKey, new Gson().toJson(paid));
+        store.setGameRecord(paid.gameKey, CareerRewards.CAREER, won, paid.coins, paid.xp,
+                paid.note != null ? paid.note : table.kind + " " + table.opponent);
+        return paid;
     }
 
     /** an assisted game pays half, and says why */
@@ -657,7 +681,7 @@ public final class CareerService {
         }
     }
 
-    private void finishMode(CareerStore store, CareerTable table, boolean won, int turns, CareerTally tally,
+    private void finishMode(CareerStore store, CareerPayoutEvent.Career table, boolean won, int turns, CareerTally tally,
                             CareerProgress.CareerGameResult result, long now) throws SQLException {
         switch (table.kind) {
             case "campaign":
@@ -680,7 +704,7 @@ public final class CareerService {
                 CareerHordes.get().finished(store, table.user, table.ref, won, tally, result, now);
                 break;
             case "duel":
-                CareerLadder.finished(store, table.user, table.opponentId, won, result, now);
+                CareerLadder.finished(store, table.user, table.opponent, won, result, now);
                 break;
             default:
                 break;
@@ -825,80 +849,106 @@ public final class CareerService {
         if (mage.server.Main.isTestMode()) {
             return results;
         }
-        CareerRewards rewards = CareerRewards.get();
         CareerStore store = CareerStore.get();
-        long now = System.currentTimeMillis();
-        String day = CareerProgress.get().day();
-        List<Seat> humans = finished.seats;
-        boolean capped = CareerRewards.PERSON.equals(finished.kind) || CareerRewards.POD.equals(finished.kind);
         try {
-            store.transaction(() -> {
-                for (Seat seat : humans) {
-                    if (seat.tally == null || seat.tally.taint() != null) {
-                        continue;
-                    }
-                    String key = gameKey(finished.gameId, seat.user);
-                    ensureProfile(store, seat.user, now);
-                    if (!store.claimGame(key, seat.user, now)) {
-                        continue;
-                    }
-                    CareerProgress.CareerGameResult result = new CareerProgress.CareerGameResult();
-                    result.gameKey = key;
-                    result.kind = finished.kind;
-                    result.won = seat.won;
-                    if (CareerRewards.PERSON.equals(finished.kind) && humans.size() == 2) {
-                        // a duel between two people: the results name the other one
-                        result.opponent = humans.get(humans.get(0) == seat ? 1 : 0).user;
-                    }
-                    CareerProfile before = store.profile(seat.user);
-                    result.xpBefore = before.xp;
-                    String reason = null;
-                    if (finished.turns < rewards.turnFloor()) {
-                        reason = "The game ended before turn " + rewards.turnFloor() + ", so it paid nothing.";
-                    } else if (capped) {
-                        for (Seat other : humans) {
-                            if (other != seat && store.pairGames(day, pair(seat.user, other.user)) >= rewards.pairCapPerDay()) {
-                                reason = "You've played " + other.user + " " + rewards.pairCapPerDay()
-                                        + " times today; more games together pay nothing until tomorrow.";
-                                break;
-                            }
-                        }
-                    }
-                    if (reason != null) {
-                        result.note = reason;
-                        CareerProgress.get().levelsIn(store, seat.user, before.xp, result, now);
-                        store.setGameDetails(key, new Gson().toJson(result));
-                        store.setGameRecord(key, finished.kind, seat.won, 0, 0, reason);
-                        results.put(seat.user, result);
-                        continue;
-                    }
-                    int xp = rewards.gameXp(finished.kind, seat.won, finished.players, finished.aiSkill);
-                    if (finished.bo3 && seat.matchWon && rewards.bo3MatchWinXp() > 0) {
-                        xp += rewards.bo3MatchWinXp();
-                        result.bonuses.add(new CareerProgress.CareerBonus("You won the match", rewards.bo3MatchWinXp(), 0));
-                    }
-                    store.addProfileInt(seat.user, "xp", xp);
-                    result.xp = xp;
-                    dailyBonuses(store, seat.user, finished.kind, seat.won, result);
-                    seat.tally.context(finished.kind, finished.format, seat.colors, seat.won, finished.bo3 && seat.matchWon);
-                    seat.tally.finish(finished.game, seat.won, finished.turns);
-                    CareerProgress.get().apply(store, seat.user, seat.tally, result, before.xp, now);
-                    store.setGameDetails(key, new Gson().toJson(result));
-                    store.setGameRecord(key, finished.kind, seat.won, result.coins, result.xp,
-                            finished.kind + (seat.won ? " win" : " loss") + " on turn " + finished.turns);
-                    results.put(seat.user, result);
-                }
-                if (capped && finished.turns >= rewards.turnFloor()) {
-                    for (int i = 0; i < humans.size(); i++) {
-                        for (int j = i + 1; j < humans.size(); j++) {
-                            store.addPairGame(day, pair(humans.get(i).user, humans.get(j).user));
-                        }
+            CareerPayoutEvent event = CareerPayoutEvent.game(finished, System.currentTimeMillis());
+            Map<String, CareerProgress.CareerGameResult> paid = payGame(store, event);
+            if (paid != null) {
+                results.putAll(paid);
+            } else if (CareerPayouts.waitsForRust(event)) {
+                // Rust pays in a moment: the players hear the keys their rewards will be under
+                for (CareerPayoutEvent.Seat seat : event.finished.seats) {
+                    if (seat.counted) {
+                        CareerProgress.CareerGameResult waiting = new CareerProgress.CareerGameResult();
+                        waiting.gameKey = gameKey(finished.gameId, seat.user);
+                        waiting.kind = finished.kind;
+                        waiting.won = seat.won;
+                        results.put(seat.user, waiting);
                     }
                 }
-                return null;
-            });
+            }
         } catch (SQLException | RuntimeException e) {
             logger.error("Career progress failed for game " + finished.gameId, e);
+        }
+        return results;
+    }
+
+    /**
+     * Pays a game outside Career tables from its event, as the payouts route says (CareerPayouts).
+     *
+     * @return what each seat got, by account name; null when the event waits for Rust
+     */
+    Map<String, CareerProgress.CareerGameResult> payGame(CareerStore store, CareerPayoutEvent event) throws SQLException {
+        return CareerPayouts.pay(store, event, paying -> payGameIn(store, paying));
+    }
+
+    private Map<String, CareerProgress.CareerGameResult> payGameIn(CareerStore store, CareerPayoutEvent event) throws SQLException {
+        Map<String, CareerProgress.CareerGameResult> results = new LinkedHashMap<>();
+        CareerPayoutEvent.Finished finished = event.finished;
+        CareerRewards rewards = CareerRewards.get();
+        long now = event.at;
+        String day = CareerProgress.get().day();
+        List<CareerPayoutEvent.Seat> humans = finished.seats;
+        boolean capped = CareerRewards.PERSON.equals(finished.kind) || CareerRewards.POD.equals(finished.kind);
+        for (CareerPayoutEvent.Seat seat : humans) {
+            if (!seat.counted) {
+                continue;
+            }
+            String key = event.key + "/" + CareerStore.key(seat.user);
+            ensureProfile(store, seat.user, now);
+            if (!store.claimGame(key, seat.user, now)) {
+                continue;
+            }
+            CareerProgress.CareerGameResult result = new CareerProgress.CareerGameResult();
+            result.gameKey = key;
+            result.kind = finished.kind;
+            result.won = seat.won;
+            if (CareerRewards.PERSON.equals(finished.kind) && humans.size() == 2) {
+                // a duel between two people: the results name the other one
+                result.opponent = humans.get(humans.get(0) == seat ? 1 : 0).user;
+            }
+            CareerProfile before = store.profile(seat.user);
+            result.xpBefore = before.xp;
+            String reason = null;
+            if (finished.turns < rewards.turnFloor()) {
+                reason = "The game ended before turn " + rewards.turnFloor() + ", so it paid nothing.";
+            } else if (capped) {
+                for (CareerPayoutEvent.Seat other : humans) {
+                    if (other != seat && store.pairGames(day, pair(seat.user, other.user)) >= rewards.pairCapPerDay()) {
+                        reason = "You've played " + other.user + " " + rewards.pairCapPerDay()
+                                + " times today; more games together pay nothing until tomorrow.";
+                        break;
+                    }
+                }
+            }
+            if (reason != null) {
+                result.note = reason;
+                CareerProgress.get().levelsIn(store, seat.user, before.xp, result, now);
+                store.setGameDetails(key, new Gson().toJson(result));
+                store.setGameRecord(key, finished.kind, seat.won, 0, 0, reason);
+                results.put(seat.user, result);
+                continue;
+            }
+            int xp = rewards.gameXp(finished.kind, seat.won, finished.players, finished.aiSkill);
+            if (finished.bo3 && seat.matchWon && rewards.bo3MatchWinXp() > 0) {
+                xp += rewards.bo3MatchWinXp();
+                result.bonuses.add(new CareerProgress.CareerBonus("You won the match", rewards.bo3MatchWinXp(), 0));
+            }
+            store.addProfileInt(seat.user, "xp", xp);
+            result.xp = xp;
+            dailyBonuses(store, seat.user, finished.kind, seat.won, result);
+            CareerProgress.get().apply(store, seat.user, CareerPayoutEvent.tally(seat.counters, seat.moments), result, before.xp, now);
+            store.setGameDetails(key, new Gson().toJson(result));
+            store.setGameRecord(key, finished.kind, seat.won, result.coins, result.xp,
+                    finished.kind + (seat.won ? " win" : " loss") + " on turn " + finished.turns);
+            results.put(seat.user, result);
+        }
+        if (capped && finished.turns >= rewards.turnFloor()) {
+            for (int i = 0; i < humans.size(); i++) {
+                for (int j = i + 1; j < humans.size(); j++) {
+                    store.addPairGame(day, pair(humans.get(i).user, humans.get(j).user));
+                }
+            }
         }
         return results;
     }
@@ -1097,6 +1147,10 @@ public final class CareerService {
     /** what a game paid, for the rewards screen; the latest game when the key is null */
     public CareerProgress.CareerGameResult gameResult(String user, String gameKey) throws SQLException {
         CareerStore store = CareerStore.get();
+        if (gameKey != null && !gameKey.isEmpty()) {
+            // a payout the gateway makes (XMAGE_ROUTE_CAREERPAYOUTS=rust) lands a moment after the game
+            CareerPayouts.awaitPayout(store, gameKey);
+        }
         String json = gameKey == null || gameKey.isEmpty() ? store.latestGameDetails(user) : store.gameDetailsFor(gameKey, user);
         return json == null ? null : new Gson().fromJson(json, CareerProgress.CareerGameResult.class);
     }

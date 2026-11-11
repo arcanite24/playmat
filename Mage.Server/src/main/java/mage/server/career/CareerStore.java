@@ -113,6 +113,14 @@ public final class CareerStore implements AutoCloseable {
                     "CREATE TABLE pulls (user TEXT NOT NULL, machine TEXT NOT NULL, item TEXT NOT NULL, at INTEGER NOT NULL,"
                             + " PRIMARY KEY (user, item))",
                     "CREATE TABLE card_styles (user TEXT NOT NULL, card TEXT NOT NULL, item TEXT NOT NULL, PRIMARY KEY (user, card))"
+            },
+            {
+                    // phase 3 of the Rust migration (docs/rust/Payouts.md): every finished game as a payout event, the
+                    // outbox Rust pays (or replays in shadow) from. state: pending (Rust pays it) or paid; before and
+                    // after: the payout's rows around Java's payout, for shadow; checked: what Rust's replay made of it
+                    "CREATE TABLE payout_events (key TEXT PRIMARY KEY, at INTEGER NOT NULL, event TEXT NOT NULL, state TEXT NOT NULL,"
+                            + " paid_by TEXT, paid_at INTEGER, before TEXT, after TEXT, checked TEXT)",
+                    "CREATE INDEX payout_events_by_state ON payout_events (state, at)"
             }
     };
 
@@ -207,6 +215,141 @@ public final class CareerStore implements AutoCloseable {
         } finally {
             connection.setAutoCommit(auto);
         }
+    }
+
+    // ---- payout events (docs/rust/Payouts.md)
+
+    /** a payout event's row: pending (Rust pays it) or paid, by whom */
+    synchronized boolean addPayoutEvent(String key, long at, String event, String state, String paidBy, String before, String after)
+            throws SQLException {
+        try (PreparedStatement insert = connection.prepareStatement(
+                "INSERT OR IGNORE INTO payout_events (key, at, event, state, paid_by, paid_at, before, after) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+            insert.setString(1, key);
+            insert.setLong(2, at);
+            insert.setString(3, event);
+            insert.setString(4, state);
+            insert.setString(5, paidBy);
+            if (paidBy == null) {
+                insert.setNull(6, java.sql.Types.INTEGER);
+            } else {
+                insert.setLong(6, System.currentTimeMillis());
+            }
+            insert.setString(7, before);
+            insert.setString(8, after);
+            return insert.executeUpdate() == 1;
+        }
+    }
+
+    /** marks a pending event paid; false when it isn't pending (someone paid it already) */
+    synchronized boolean markPayoutPaid(String key, String paidBy, String after) throws SQLException {
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE payout_events SET state = 'paid', paid_by = ?, paid_at = ?, after = ? WHERE key = ? AND state = 'pending'")) {
+            update.setString(1, paidBy);
+            update.setLong(2, System.currentTimeMillis());
+            update.setString(3, after);
+            update.setString(4, key);
+            return update.executeUpdate() == 1;
+        }
+    }
+
+    /** the events waiting for a payout, oldest first: key to the event's JSON */
+    synchronized Map<String, String> pendingPayouts() throws SQLException {
+        Map<String, String> pending = new java.util.LinkedHashMap<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT key, event FROM payout_events WHERE state = 'pending' ORDER BY at, key");
+             ResultSet rows = select.executeQuery()) {
+            while (rows.next()) {
+                pending.put(rows.getString(1), rows.getString(2));
+            }
+        }
+        return pending;
+    }
+
+    /** whether the event a game key belongs to (the key, or the game id before "/user") waits for its payout */
+    synchronized boolean payoutPending(String gameKey) throws SQLException {
+        String key = gameKey.contains("/") ? gameKey.substring(0, gameKey.indexOf('/')) : gameKey;
+        try (PreparedStatement select = connection.prepareStatement("SELECT 1 FROM payout_events WHERE key = ? AND state = 'pending'")) {
+            select.setString(1, key);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next();
+            }
+        }
+    }
+
+    /** the event's row as Rust's shadow left it: state, paid_by, checked */
+    synchronized String[] payoutEvent(String key) throws SQLException {
+        try (PreparedStatement select = connection.prepareStatement("SELECT state, paid_by, checked, event, before, after FROM payout_events WHERE key = ?")) {
+            select.setString(1, key);
+            try (ResultSet rows = select.executeQuery()) {
+                return rows.next() ? new String[]{rows.getString(1), rows.getString(2), rows.getString(3), rows.getString(4),
+                        rows.getString(5), rows.getString(6)} : null;
+            }
+        }
+    }
+
+    /** drops paid events older than the given time; pending ones wait however long it takes */
+    synchronized int prunePayoutEvents(long before) throws SQLException {
+        try (PreparedStatement delete = connection.prepareStatement("DELETE FROM payout_events WHERE state = 'paid' AND at < ?")) {
+            delete.setLong(1, before);
+            return delete.executeUpdate();
+        }
+    }
+
+    /** the tables a payout reads or writes for an account, as Rust's shadow replay copies them */
+    static final String[] PAYOUT_TABLES = {"profile", "stats", "quests", "achievements", "unlocks", "weekly", "daily", "payouts",
+            "progress_games"};
+
+    /**
+     * The rows a payout reads or writes, as JSON-ready maps: each account's rows of {@link #PAYOUT_TABLES} and the
+     * day's pair games. Shadow keeps them with the event so Rust can replay the payout on a copy (docs/rust/Payouts.md).
+     */
+    synchronized Map<String, List<Map<String, Object>>> snapshot(List<String> users, String day) throws SQLException {
+        Map<String, List<Map<String, Object>>> rows = new java.util.LinkedHashMap<>();
+        java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+        users.forEach(user -> keys.add(key(user)));
+        for (String table : PAYOUT_TABLES) {
+            List<Map<String, Object>> list = new ArrayList<>();
+            for (String user : keys) {
+                try (PreparedStatement select = connection.prepareStatement("SELECT * FROM " + table + " WHERE user = ?")) {
+                    select.setString(1, user);
+                    list.addAll(rows(select));
+                }
+            }
+            rows.put(table, list);
+        }
+        try (PreparedStatement select = connection.prepareStatement("SELECT * FROM pair_games WHERE day = ?")) {
+            select.setString(1, day);
+            rows.put("pair_games", rows(select));
+        }
+        return rows;
+    }
+
+    private static List<Map<String, Object>> rows(PreparedStatement select) throws SQLException {
+        List<Map<String, Object>> list = new ArrayList<>();
+        try (ResultSet result = select.executeQuery()) {
+            java.sql.ResultSetMetaData meta = result.getMetaData();
+            while (result.next()) {
+                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                for (int column = 1; column <= meta.getColumnCount(); column++) {
+                    row.put(meta.getColumnName(column), result.getObject(column));
+                }
+                list.add(row);
+            }
+        }
+        return list;
+    }
+
+    /** the schema, as sqlite_master holds it, for Rust's shadow replay to build its copy */
+    synchronized List<String> schema() throws SQLException {
+        List<String> sql = new ArrayList<>();
+        try (PreparedStatement select = connection.prepareStatement(
+                "SELECT sql FROM sqlite_master WHERE sql IS NOT NULL AND name NOT LIKE 'sqlite_%' ORDER BY type DESC, name");
+             ResultSet rows = select.executeQuery()) {
+            while (rows.next()) {
+                sql.add(rows.getString(1));
+            }
+        }
+        return sql;
     }
 
     // ---- meta
