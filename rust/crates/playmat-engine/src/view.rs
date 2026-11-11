@@ -2092,4 +2092,19 @@ mod tests {
         let rust = json!({"combat": [{"id": "B2", "x": 2}, {"id": "B1", "x": 1}]});
         assert!(compare(&java, &rust).is_empty());
     }
+
+    /// Without its template a card's view is its name alone (no rules, types, P/T or printing): every card in the
+    /// engine needs one. Regenerate with `CardFactsTest` and `rust/tools/view_templates.py` (docs/rust/Views.md).
+    #[test]
+    fn every_card_has_a_view_template() {
+        let db = crate::cards();
+        let mut missing: Vec<&str> = db
+            .iter()
+            .map(|c| c.name.as_str())
+            .filter(|n| !n.starts_with("token:") && !n.starts_with("emblem:"))
+            .filter(|n| !super::templates().contains_key(*n))
+            .collect();
+        missing.sort();
+        assert!(missing.is_empty(), "{} cards have no view template: {:?}", missing.len(), missing);
+    }
 }

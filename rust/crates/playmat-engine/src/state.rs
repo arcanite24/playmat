@@ -592,6 +592,8 @@ pub struct Game {
     pub resolving: Option<(usize, ObjId)>,
     /// the stack object resolving, off the stack while it resolves (a view shows it where it was)
     pub resolving_item: Option<StackItem>,
+    /// a triggered ability choosing its mode as it's put on the stack (not on it yet): the prompt's modes are its
+    pub moding: Option<StackItem>,
     /// a card entering the battlefield from a hand while its as-enters choices are asked: Java moves it after
     /// them, so it's still in the hand, at this index (`ZonesHandler.moveCard`)
     pub entering_from_hand: Option<(ObjId, Seat, usize)>,
@@ -723,6 +725,7 @@ impl Game {
             flash_until_next_turn: Vec::new(),
             resolving: None,
             resolving_item: None,
+            moding: None,
             entering_from_hand: None,
             exile_by_creation: false,
             creature_died: false,
