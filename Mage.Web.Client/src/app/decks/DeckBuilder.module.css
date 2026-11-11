@@ -200,6 +200,9 @@
 
 .tile {
   position: relative;
+  /* the card face sizes to its width: inside .tileWrap a bare button shrinks to fit and the face collapses to nothing (#277) */
+  display: block;
+  width: 100%;
   padding: 0;
   border: 0;
   border-radius: var(--card-radius);
