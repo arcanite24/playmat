@@ -331,6 +331,8 @@ pub struct Player {
     pub graveyard: Vec<ObjId>,
     pub lost: bool,
     pub won: bool,
+    /// the game is a draw for them (`Player.drew`: an infinite loop they agreed to call a draw)
+    pub drew: bool,
     pub lands_played: u32,
     pub mana_pool: Mana,
     /// how much of the pool's {R} lasts until end of combat (firebending)
@@ -391,6 +393,17 @@ pub struct Revealed {
     pub zcc: u32,
     pub paren: bool,
     pub cards: Vec<(ObjId, Zone)>,
+}
+
+/// Cards a player looked at while an object resolves (`GameState.lookedAt`, `Player.lookAtCards`): who looked, the
+/// source and its zone change count (in the title unless `bare`: Mishra's Bauble's is its id name alone), the cards
+#[derive(Clone, Debug)]
+pub struct LookedAt {
+    pub viewer: Seat,
+    pub source: ObjId,
+    pub zcc: u32,
+    pub bare: bool,
+    pub cards: Vec<ObjId>,
 }
 
 /// A combat group as views show it (`Combat.groups`): an attacker, in the order they attacked, and once it's left the
@@ -646,10 +659,27 @@ pub struct Game {
     pub combat_groups: Vec<CombatGroup>,
     /// cards revealed while the object resolving resolves, for views
     pub revealed: Vec<Revealed>,
+    /// cards looked at while the object resolving resolves, for the viewer's views
+    pub looked_at: Vec<LookedAt>,
     /// counts attachments, for their order
     pub attach_clock: u64,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
     pub step_start: bool,
+    /// `GameImpl.checkInfiniteLoop`'s state: the sources of the last resolved stack objects (up to four), the stack's
+    /// size after the last resolution, the players' life when the count started, the count (reset at each priority
+    /// round) and how many times in a row the players declined to call it a draw
+    pub loop_sources: Vec<ObjId>,
+    /// while a mana payment is asked: the spell can be paid with a special action (delve, convoke, improvise), the
+    /// "Special" button (`GameView.special`)
+    pub special_mana: bool,
+    /// while a library is searched (`TargetCardInLibrary.choose`): the whole library as the client is shown it,
+    /// sorted by name, and the cards chosen so far. The question's cards are the ones that can still be picked
+    /// (Java's `possibleTargets`).
+    pub searching: Option<(Vec<ObjId>, Vec<ObjId>)>,
+    pub loop_stack: usize,
+    pub loop_lives: Option<Vec<i32>>,
+    pub loop_count: u32,
+    pub loop_declined: u32,
     /// the spell whose mana cost is being paid (or checked): conditional mana can be spent only on some spells
     pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
@@ -709,6 +739,9 @@ pub struct Game {
     pub events: Option<Vec<GameEvent>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
+    /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
+    /// its zone change count, the subtype
+    pub subtypes_until_eot: Vec<(ObjId, u32, String)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
     /// permanents sacrificed together: where in `pending` the next one's sacrifice triggers go (before what their
@@ -799,8 +832,16 @@ impl Game {
             mana_paid: None,
             combat_groups: Vec::new(),
             revealed: Vec::new(),
+            looked_at: Vec::new(),
             attach_clock: 0,
             step_start: false,
+            loop_sources: Vec::new(),
+            special_mana: false,
+            searching: None,
+            loop_stack: 0,
+            loop_lives: None,
+            loop_count: 0,
+            loop_declined: 0,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
             any_time: std::cell::Cell::new(false),
@@ -828,6 +869,7 @@ impl Game {
             log: None,
             events: None,
             exile_if_dies: Vec::new(),
+            subtypes_until_eot: Vec::new(),
             triggered_this_turn: Vec::new(),
             sac_insert: None,
             entering_together: Vec::new(),
@@ -1073,8 +1115,44 @@ impl Game {
     }
 
     /// Whether an object has a subtype now.
+    /// The subtypes effects add to a permanent (`AddCardSubTypeSourceEffect`): its own static ones whose condition
+    /// holds (Skyknight Squire's Knight while it has three counters), and those until end of turn.
+    pub fn added_subtypes(&self, id: ObjId) -> Vec<&str> {
+        let o = self.obj(id);
+        let mut added: Vec<&str> = Vec::new();
+        if o.zone != Zone::Battlefield {
+            return added;
+        }
+        for a in &o.def.abilities {
+            let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+            for e in effects {
+                let (e, holds) = match e {
+                    EffectDef::ConditionalContinuousEffect { effect, condition } => (&**effect, Some(condition)),
+                    e => (e, None),
+                };
+                if let EffectDef::AddCardSubTypeSourceEffect { subtype } = e {
+                    if !subtype.is_empty()
+                        && !added.contains(&subtype.as_str())
+                        && (holds.is_none() || self.condition_holds(holds, o.controller, id))
+                    {
+                        added.push(subtype);
+                    }
+                }
+            }
+        }
+        for (x, zcc, t) in &self.subtypes_until_eot {
+            if *x == id && *zcc == o.zcc && !added.contains(&t.as_str()) {
+                added.push(t);
+            }
+        }
+        added
+    }
+
     pub fn has_subtype(&self, id: ObjId, s: &str) -> bool {
         let o = self.obj(id);
+        if o.zone == Zone::Battlefield && self.added_subtypes(id).contains(&s) {
+            return true;
+        }
         let def = &o.def;
         if let Some(types) = o.creature_types.as_ref().filter(|_| o.zone == Zone::Battlefield) {
             return types.iter().any(|x| x == s)
