@@ -1,12 +1,12 @@
 name: Desktop app
 
 # Playmat for one computer: installers for Windows, macOS and Linux that bring their own Java, start the server and
-# open the game in the browser (ops/desktop). Every push and PR that touches the kit builds all of them; a v* tag
+# open the game in the browser (ops/desktop). Every PR and master push that touches the kit builds all of them; a v* tag
 # (or a manual run with a version) publishes them as a GitHub release.
 on:
   push:
-    # tag pushes ignore the paths below; branch pushes build when the kit changes
-    branches: [ "**" ]
+    # tag pushes ignore the paths below; master pushes build when the kit changes (other branches: their PR does)
+    branches: [ "master" ]
     tags: [ "v*" ]
     paths:
       - "ops/desktop/**"

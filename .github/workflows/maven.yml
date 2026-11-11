@@ -1,11 +1,35 @@
 name: Build and run tests (github)
 
+# Pushes and PRs that only touch Rust, the web client, the site, docs, art or ops skip this (those have their own
+# workflows); the nightly schedule and manual runs always build everything. Before pushing: ops/ci/check.sh.
 on:
   push:
     branches: [ "master", "main" ]
+    paths: &java-paths
+      - "**"
+      # areas with their own workflows, which mvn test doesn't build
+      - "!rust/**"
+      - "!Mage.Web.Client/**"
+      - "!site/**"
+      - "!docs/**"
+      - "!art/**"
+      - "!brand/**"
+      - "!ops/**"
+      - "!*.md"
+      - "!.github/**"
+      # ...except the files the Java tests read from them (WebClientApiDocsTest, StateDiffTest, CareerCapsulesTest,
+      # WebClientImageLinksExportTest)
+      - "rust/crates/playmat-protocol/methods.json"
+      - "Mage.Web.Client/src/protocol/generated/**"
+      - "Mage.Web.Client/src/core/rpc/__fixtures__/**"
+      - "Mage.Web.Client/public/career-art/**"
+      - "Mage.Web.Client/public/data/**"
+      - "docs/WebSocketAPI.md"
+      - ".github/workflows/maven.yml"
   pull_request:
     branches: [ "master", "main" ]
     types: ["opened", "ready_for_review", "reopened", "synchronize"]
+    paths: *java-paths
   schedule:
     - cron: '0 1 * * *'
 
@@ -20,6 +44,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -45,5 +70,7 @@ jobs:
         distribution: ${{ matrix.distribution }}
         java-package: ${{ matrix.package }}
         cache: maven
+    # -T 1C: one thread per core, so modules that don't depend on each other build and test side by side (Mage.Client
+    # beside Mage.Sets, Mage.Verify beside Mage.Tests); each module's tests still run in their own JVM and folder
     - name: Build and test
-      run: mvn test -B -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:${GITHUB_WORKSPACE}/.travis/log4j.properties
+      run: mvn test -B -T 1C -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration="file:${GITHUB_WORKSPACE}/.travis/log4j.properties"
