@@ -155,6 +155,7 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
                 name: "tester".into(),
                 human: true,
                 deck: human_deck.cards.clone(),
+                printings: Vec::new(),
                 user_data: None,
             },
             SeatStart {
@@ -162,6 +163,7 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
                 name: "Computer".into(),
                 human: false,
                 deck: ai_deck.cards.clone(),
+                printings: Vec::new(),
                 user_data: None,
             },
         ],

@@ -31,6 +31,8 @@ pub struct SeatStart {
     pub human: bool,
     /// the main deck's card names, one per card
     pub deck: Vec<String>,
+    /// each deck card's printing (`SET:number:imageNumber`), in the deck's order; empty: the engine's own
+    pub printings: Vec<String>,
     /// the player's `UserData` as JSON (skip settings, pass after casting…)
     pub user_data: Option<Value>,
 }
@@ -232,9 +234,13 @@ impl Host {
         let mut game = Game::new(2, JavaRandom::new(start.seed).state());
         for (seat, s) in start.seats.iter().enumerate() {
             let mut library = Vec::new();
-            for name in &s.deck {
+            for (i, name) in s.deck.iter().enumerate() {
                 let def = db.get(name).expect("checked");
-                library.push(game.create_obj(def, seat, Zone::Library));
+                let id = game.create_obj(def, seat, Zone::Library);
+                if let Some(p) = s.printings.get(i).filter(|p| !p.is_empty()) {
+                    game.set_printing(id, p);
+                }
+                library.push(id);
             }
             game.rng.shuffle(&mut library);
             game.player_mut(seat).library = library;

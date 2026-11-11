@@ -1211,6 +1211,24 @@ impl Game {
     }
 
     /// Whether a static ability's effect on the battlefield matches (for effects that apply to the whole game).
+    /// The printing a card was put in its deck as (`SET:number`, optionally `:imageNumber`): its views show it
+    pub fn set_printing(&mut self, id: ObjId, printing: &str) {
+        let all = Arc::make_mut(&mut self.printings);
+        if all.len() <= id.0 as usize {
+            all.resize(id.0 as usize + 1, String::new());
+        }
+        all[id.0 as usize] = printing.to_string();
+    }
+
+    /// The printing set with `set_printing`: its set code, collector number and image number, if any
+    pub fn printing(&self, id: ObjId) -> Option<(&str, &str, Option<u32>)> {
+        let p = self.printings.get(id.0 as usize).filter(|p| !p.is_empty())?;
+        let mut parts = p.splitn(3, ':');
+        let set = parts.next()?;
+        let number = parts.next()?;
+        Some((set, number, parts.next().and_then(|n| n.parse().ok())))
+    }
+
     pub fn any_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
         self.battlefield.iter().any(|src| {
             self.obj(*src).def.abilities.iter().any(|a| match a {

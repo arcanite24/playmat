@@ -157,11 +157,15 @@ public final class RustHost {
                     seat.addProperty("priorityTimeLeft", Math.max(0, player.getPriorityTimeLeft()));
                 }
                 JsonArray deck = new JsonArray();
+                // and each card's printing, the picture its views show (the engine's own otherwise)
+                JsonArray printings = new JsonArray();
                 for (Card c : p.getDeck().getCards()) {
                     deck.add(c.getName());
+                    printings.add(c.getExpansionSetCode() + ":" + c.getCardNumber() + ":" + c.getImageNumber());
                     names.add(c.getName());
                 }
                 seat.add("deck", deck);
+                seat.add("printings", printings);
                 if (isHuman) {
                     seat.add("userData", JsonCodec.GSON.toJsonTree(user.get().getUserData()));
                 }
