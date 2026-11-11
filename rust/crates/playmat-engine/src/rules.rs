@@ -12256,7 +12256,7 @@ pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
         && !o.tapped
         && o.attacking.is_none()
         && (!o.sick || game.has_ability(id, &AbilityDef::HasteAbility))
-        && !o.has(&AbilityDef::DefenderAbility)
+        && !game.has_ability(id, &AbilityDef::DefenderAbility)
         && !game.cant_attack_or_block(id)
         && !game.cant_attack_alone(id)
         && !game.has_ability(id, &AbilityDef::CantAttackAbility)
@@ -12649,11 +12649,12 @@ fn live_blockers(game: &Game, a: ObjId) -> Vec<ObjId> {
         .collect()
 }
 
-/// Damage that's lethal to `blocker` from `attacker` (`Permanent.getLethalDamage`).
+/// Damage that's lethal to `blocker` from `attacker` (`Permanent.getLethalDamage`: the attacker's current abilities,
+/// granted deathtouch too).
 fn lethal_damage(game: &Game, blocker: ObjId, attacker: ObjId) -> i32 {
     let (_, t) = game.power_toughness(blocker);
     let lethal = (t - game.obj(blocker).damage).max(0);
-    if game.obj(attacker).has(&AbilityDef::DeathtouchAbility) {
+    if game.has_ability(attacker, &AbilityDef::DeathtouchAbility) {
         lethal.min(1)
     } else {
         lethal
@@ -13251,5 +13252,35 @@ mod tests {
         assert_eq!(game.power_toughness(colony), (4, 4));
         assert!(game.has_ability(colony, &AbilityDef::TrampleAbility));
         assert!(!game.has_ability(bear, &AbilityDef::TrampleAbility));
+    }
+
+    fn on_battlefield(game: &mut Game, db: &crate::card::CardDb, name: &str, seat: Seat) -> ObjId {
+        let id = game.create_obj(db.get(name).unwrap(), seat, Zone::Hand);
+        game.move_to(id, Zone::Battlefield);
+        game.obj_mut(id).sick = false;
+        id
+    }
+
+    #[test]
+    fn granted_deathtouch_makes_one_damage_lethal() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let bear = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        let sentry = on_battlefield(&mut game, &db, "Magnigoth Sentry", 1);
+        assert_eq!(lethal_damage(&game, sentry, bear), game.power_toughness(sentry).1);
+        grant(&mut game, bear, &AbilityDef::DeathtouchAbility);
+        assert_eq!(lethal_damage(&game, sentry, bear), 1);
+    }
+
+    #[test]
+    fn granted_defender_stops_an_attack() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let bear = on_battlefield(&mut game, &db, "Bear Cub", 0);
+        let wall = on_battlefield(&mut game, &db, "Wall of Omens", 0);
+        assert!(can_attack(&game, 0, bear));
+        assert!(!can_attack(&game, 0, wall));
+        grant(&mut game, bear, &AbilityDef::DefenderAbility);
+        assert!(!can_attack(&game, 0, bear));
     }
 }
