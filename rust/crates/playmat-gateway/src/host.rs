@@ -286,7 +286,7 @@ impl Hosts {
             dir.join(format!("{game_id}.jsonl"))
         });
         let rules = playmat_host::TableRules::of(data);
-        // the replay goes where Java keeps its games' (XMAGE_HOST_REPLAYS: its xmage.replays.dir), listed at the end
+        // the replay goes where Java keeps its games' (XMAGE_RUST_HOST_REPLAYS: its xmage.replays.dir), listed at the end
         let replay = self.replays.as_ref().map(|dir| dir.join(format!("{game_id}.ndjson.gz.part")));
         let start = Start {
             game_id: game_id.clone(),
