@@ -214,7 +214,7 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
     at 6 or more, half at 4 to 5, a fifth at 2 to 3, quick answers below) and `rollbackTurns`. `RustHost` keeps on
     Java what the host can't play: game types other than a two-player duel, mulligans other than London, a hand
     size other than 7, planechase, emblems and companions.
-  - *Replays.* With `XMAGE_RUST_HOST_REPLAYS` (the entrypoint sets it to `saved/replays` when `REPLAYS=true`) the
+  - *Replays.* With `XMAGE_RUST_HOST_REPLAYS` (the entrypoint sets it to `saved/replays` when `XMAGE_REPLAYS` is on, the default) the
     host writes `<game>.ndjson.gz.part` (frames with the human's hand, and log lines); Java's
     `ReplayRecorder.hosted` lists it at the end.
   - *Priority.* Pass-after-cast and -activation (`passPriorityCast`/`Activation`) unless the player holds; "Undo

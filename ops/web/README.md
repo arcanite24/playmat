@@ -305,7 +305,7 @@ for a listed player's game that doesn't qualify, why. The table's priority timer
 player whose time runs out loses the match, and each game of a match keeps the time left from the earlier ones. The
 table's options are played too (starting life, free mulligans, the AI's skill, rollbacks); a table the host can't
 play as set (another game type or mulligan, a hand size other than 7, a companion) stays on Java. Hosted games pay
-the Career as Java's do (XP, quests, stats), have replays in History when `REPLAYS=true` (the gateway writes them to
+the Career as Java's do (XP, quests, stats), have replays in History when `XMAGE_REPLAYS` is on, the default (the gateway writes them to
 `saved/replays`, `XMAGE_RUST_HOST_REPLAYS`), and take undo, rollbacks, pass-after-cast and the mana payment modes.
 Spectators can watch them, and a player can have the game open in more than one tab. Not there yet: the solo tools
 (saves, "Try this turn again") and advice, which the client hides on these games. If the host fails mid-game, the
