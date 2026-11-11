@@ -21,6 +21,7 @@ import { predict, withPredictedAttack, withPrediction } from '../../core/game/pr
 import type { CardView, ChatMessage, GameView, PlayerLook, PlayerView } from '../../protocol/generated/views';
 import { rosterOf, sleeveFor, SLEEVE_COLORS, useDecks } from '../stores/decks';
 import { EngineBadge } from './EngineBadge';
+import { engineOf } from './engine';
 import { useT } from '../i18n';
 import { useEvents } from '../stores/events';
 import { useGames } from '../stores/games';
@@ -354,6 +355,8 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   // Career matches come back through their rewards (the return path); any other counted game shows what it paid on
   // the way out too, unless the player hid progression (B265, B312)
   const career = !!returnPath?.startsWith('/career');
+  // the Rust host plays its games itself: Java's practice tools and solo saves can't reach them
+  const rustGame = engineOf(view) === 'rust';
   const vsAi = board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false);
   useOpponentVoice(state, myId, career);
   const rewardsAfter = mode === 'play' && !!state.gameOver && !eventId && !career
@@ -706,9 +709,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
             <GameMenu
               gameId={state.gameId}
               quests={mode === 'play' && !state.gameOver}
-              practice={mode === 'play' && !state.gameOver && !career && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
-              solo={mode === 'play' && !state.gameOver && !career && !eventId && vsAi && (view?.turn ?? 0) > 0}
-              careerAssists={mode === 'play' && !state.gameOver && career && !eventId && vsAi && (view?.turn ?? 0) > 0}
+              practice={mode === 'play' && !state.gameOver && !career && !rustGame && board.opponents.length > 0 && board.opponents.every((opponent) => opponent.player.isHuman === false)}
+              solo={mode === 'play' && !state.gameOver && !career && !rustGame && !eventId && vsAi && (view?.turn ?? 0) > 0}
+              careerAssists={mode === 'play' && !state.gameOver && career && !rustGame && !eventId && vsAi && (view?.turn ?? 0) > 0}
               vsAi={vsAi}
               onSaved={() => exit(false)}
               canConcede={canAct}

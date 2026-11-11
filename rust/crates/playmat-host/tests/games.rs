@@ -207,6 +207,7 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
         chooser: chooser.map(str::to_string),
         record: None,
         log_to: None,
+        drop_stale: false,
         replay: None,
         rules: playmat_host::TableRules::default(),
     }
@@ -356,6 +357,23 @@ fn a_record_replays_the_game() {
 
 /// The views carry the game's events (`GameEventView`) for the client's effects: combat damage to the human, each
 /// draw (the AI's without its card), in order; and a spell's `cardId` is its card's id, never "?"
+#[test]
+fn players_carry_their_avatar() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.seats[0].user_data = Some(serde_json::json!({"avatarId": 12, "passPriorityCast": false}));
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let init = loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "GAME_INIT" {
+            break e;
+        }
+    };
+    assert_eq!(init.data["players"][0]["userData"]["avatarId"], 12);
+    assert_eq!(init.data["players"][1]["userData"]["avatarId"], 0, "the AI's is the default");
+    game.call(Call::Action("CONCEDE".into(), None));
+}
+
 #[test]
 fn views_carry_the_games_events() {
     let (_, events) = play(&deck("gw-company.txt"), &deck("b-zombies.txt"), 0, u64::MAX);
@@ -587,4 +605,29 @@ fn undo_tap_and_rollback_take_the_game_back() {
         }
     }
     panic!("never got to stage 3 (stage {stage})");
+}
+
+#[test]
+fn a_late_answer_is_dropped_not_given_to_the_next_question() {
+    let mut s = start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None);
+    s.drop_stale = true;
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    // the questions asked: an answer that doesn't fit one would ask it again
+    let mut asked = Vec::new();
+    loop {
+        let wait = Duration::from_millis(if asked.len() < 2 { 60_000 } else { 1_500 });
+        let Ok(e) = game.events.recv_timeout(wait) else { break };
+        if matches!(e.method.as_str(), "GAME_INIT" | "GAME_UPDATE" | "CHATMESSAGE") {
+            continue;
+        }
+        asked.push(e.method.clone());
+        if asked.len() == 1 {
+            // a double click on "Mulligan": the second is for the question that's gone
+            game.call(Call::Bool(true));
+            game.call(Call::Bool(true));
+        }
+    }
+    assert_eq!(asked, ["GAME_ASK", "GAME_TARGET"], "the card to put on the bottom is asked once");
+    game.call(Call::Action("CONCEDE".into(), None));
 }

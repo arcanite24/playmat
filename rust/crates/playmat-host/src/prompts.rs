@@ -25,6 +25,47 @@ fn about(game: &Game) -> String {
     }
 }
 
+/// What a target question picks, from what it can pick (the engine's targets carry no text of their own; Java's say
+/// `target.getMessage`): "any target", "target creature", "target player", …
+fn target_kind(game: &Game, players: &[Seat], objs: &[ObjId]) -> &'static str {
+    use playmat_engine::card::CardType;
+    let all = |f: &dyn Fn(ObjId) -> bool| !objs.is_empty() && objs.iter().all(|o| f(*o));
+    let on_field = |o: ObjId| game.obj(o).zone == Zone::Battlefield;
+    let creature = |o: ObjId| on_field(o) && game.has_type(o, CardType::Creature);
+    if objs.is_empty() {
+        return if players.is_empty() { "a target" } else { "target player" };
+    }
+    if !players.is_empty() {
+        return if objs
+            .iter()
+            .all(|o| creature(*o) || game.has_type(*o, CardType::Planeswalker) || game.has_type(*o, CardType::Battle))
+        {
+            "any target"
+        } else {
+            "a target"
+        };
+    }
+    if all(&creature) {
+        "target creature"
+    } else if all(&|o| on_field(o) && game.has_type(o, CardType::Land)) {
+        "target land"
+    } else if all(&|o| on_field(o) && game.has_type(o, CardType::Artifact)) {
+        "target artifact"
+    } else if all(&|o| on_field(o) && game.has_type(o, CardType::Enchantment)) {
+        "target enchantment"
+    } else if all(&|o| on_field(o) && game.has_type(o, CardType::Planeswalker)) {
+        "target planeswalker"
+    } else if all(&on_field) {
+        "target permanent"
+    } else if all(&|o| game.obj(o).zone == Zone::Stack) {
+        "target spell"
+    } else if all(&|o| game.obj(o).zone == Zone::Graveyard) {
+        "target card in a graveyard"
+    } else {
+        "a target"
+    }
+}
+
 /// `{method, data}` for a question, ids as references
 pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
     if let Some(p) = prompt_view(game, seat, q) {
@@ -41,7 +82,7 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
                 .filter(|o| !matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Stack))
                 .collect();
             json!({"method": "GAME_TARGET", "data": {
-                "message": format!("Select a target{}", about(game)), "flag": required,
+                "message": format!("Select {}{}", target_kind(game, players, objs), about(game)), "flag": required,
                 "cardsView1": cards_view(game, &off), "targets": targets, "min": 0, "max": 0,
                 "options": {"queryType": "PICK_TARGET", "possibleTargets": targets.clone()}}})
         }
@@ -80,9 +121,11 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
                 let r = format!("T{seat}.{i}");
                 let name = game.obj(*source).name();
                 let rule = rule.replace("{this}", name);
+                // the source's card, for its art (`AbilityView.sourceCard`)
+                let source_card = cards_view(game, &[*source]).as_object().and_then(|m| m.values().next().cloned());
                 cards.insert(
                     r.clone(),
-                    json!({"id": r, "name": name, "sourceName": name,
+                    json!({"id": r, "name": name, "sourceName": name, "sourceCard": source_card,
                            "rules": [rule], "cardTypes": [], "superTypes": [], "subTypes": [], "manaCost": [],
                            "power": "", "toughness": "", "expansionSetCode": "", "cardNumber": ""}),
                 );
@@ -209,6 +252,7 @@ mod tests {
         assert_eq!(p["data"]["targets"].as_array().unwrap().len(), 2);
         let first = &cards["T0.0"];
         assert_eq!(first["rules"][0], format!("When {} enters, draw a card.", game.obj(a).name()));
+        assert_eq!(first["sourceCard"]["name"], game.obj(a).name(), "the source's card, for its art");
     }
 
     /// A triggered ability choosing its mode isn't on the stack yet (Territorial Kavu's attack trigger): the prompt
@@ -232,6 +276,28 @@ mod tests {
         assert_eq!(choices[&format!("{r}sm0")], "discard a card. If you do, draw a card.");
         assert_eq!(choices[&format!("{r}sm1")], "exile up to one target card from a graveyard.");
         assert!(crate::ids::is_ref(&format!("{r}sm1")));
+    }
+
+    /// A target question says what it targets, from what it can pick
+    #[test]
+    fn a_target_question_names_its_kind() {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Plains\n20 Llanowar Elves");
+        let mut game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let lib = game.players[0].library.clone();
+        let elf = *lib.iter().find(|c| game.obj(**c).name() == "Llanowar Elves").unwrap();
+        let land = *lib.iter().find(|c| game.obj(**c).name() == "Plains").unwrap();
+        game.move_to(elf, Zone::Battlefield);
+        game.move_to(land, Zone::Battlefield);
+        let text = |game: &Game, players: Vec<Seat>, objs: Vec<ObjId>| {
+            let p = prompt(game, 0, &Query::Target { players, objs, required: true });
+            p["data"]["message"].as_str().unwrap().to_string()
+        };
+        assert_eq!(text(&game, vec![0, 1], vec![elf]), "Select any target");
+        assert_eq!(text(&game, vec![], vec![elf]), "Select target creature");
+        assert_eq!(text(&game, vec![1], vec![]), "Select target player");
+        assert_eq!(text(&game, vec![], vec![elf, land]), "Select target permanent");
+        assert_eq!(text(&game, vec![], vec![land]), "Select target land");
     }
 
     /// A library search shows the whole library, with only the cards of the filter to pick

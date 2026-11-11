@@ -101,6 +101,7 @@ fn start_of(v: &Value) -> Option<Start> {
         record: None,
         replay: None,
         log_to: None,
+        drop_stale: false,
     })
 }
 

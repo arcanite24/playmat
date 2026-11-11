@@ -50,6 +50,8 @@ public final class RustHost {
         final long startedAt = System.currentTimeMillis();
         /** what the host recorded of the game for its replay (summary.replayEvents) */
         volatile int replayEvents;
+        /** when the human last sent an emote, for the rate limit (GameController.EMOTE_GAP_MS) */
+        volatile long lastEmote;
         /** when the sweep last found the human gone or connected without a hosting gateway, or 0 */
         volatile long goneSince;
 
@@ -358,6 +360,28 @@ public final class RustHost {
         logger.warn("Rust host: game " + gameId + " isn't on its host any more (" + (quit ? "quit" : "joined")
                 + " through Java), ending it");
         end(gameId, h, winner, 0, quit ? "quit, its host is gone" : "its host is gone");
+        return true;
+    }
+
+    /**
+     * An emote in a hosted game (gameEmote): the host has no Java GameController, so the emote goes to its human
+     * here, as GameController.emote sends it (the AI has no client).
+     *
+     * @return null when the game isn't hosted; otherwise whether it was sent
+     */
+    public static Boolean emote(UUID gameId, UUID userId, String emote, long now) {
+        Hosted h = HOSTED.get(gameId);
+        if (h == null) {
+            return null;
+        }
+        if (!h.userId.equals(userId) || now - h.lastEmote < mage.server.game.GameController.EMOTE_GAP_MS) {
+            return false;
+        }
+        h.lastEmote = now;
+        mage.players.Player player = h.game.getPlayer(h.playerId);
+        mage.server.game.PlayerEmote sent = new mage.server.game.PlayerEmote(gameId.toString(), player == null ? "" : player.getName(), emote);
+        h.managers.userManager().getUser(userId).ifPresent(user -> user.fireCallback(new mage.interfaces.callback.ClientCallback(
+                mage.interfaces.callback.ClientCallbackMethod.GAME_EMOTE, gameId, sent)));
         return true;
     }
 

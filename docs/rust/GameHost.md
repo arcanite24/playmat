@@ -167,7 +167,7 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
   `HostedGame` on its own thread. The game's calls go to it, not to Java: `gameJoin`, the resyncs, `matchQuit`,
   `sendPlayerUUID/String/Boolean/Integer/ManaType`, `sendPlayerAction`, `chatFindByGame`, and the game chat's calls.
   Its callbacks are numbered after Java's and patched like Java's (`GAME_INIT`, `GAME_UPDATE`, the prompts,
-  `CHATMESSAGE` for the log, `GAME_OVER`). A `gameJoin` from a new connection moves the callbacks there.
+  `CHATMESSAGE` for the log, `GAME_OVER`). A `gameJoin` from another connection gets the callbacks too (below).
 - **Trust.** Java grants the `gameHost` capability only to a connection from a trusted proxy address. The gateway asks
   for it itself when it connects to Java, and hides it from the client.
 - **Play.** Ids are the decision log's references, mapped to fixed UUIDs per game. The host shuffles, asks for the
@@ -206,8 +206,36 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
   it with the next game (each seat's `priorityTimeLeft`). The match ends at `winsNeeded` wins, or when a player
   leaves it or runs out of time.
 
+- **Parity with Java's games (10 Nov 2026).**
+  - *Career.* The host tallies the human's game as `CareerTally.Recorder` does (`tally.rs`) and sends it as
+    `hostGameEnded`'s `summary` (with each seat's life and poison); `CareerTally.fromHost` registers it, so the
+    table's `payCareer` pays XP, quests and stats as for a Java game.
+  - *Table options.* `HOST_GAME` carries `startingLife`, `freeMulligans`, `aiSkill` (the AI's search budget: full
+    at 6 or more, half at 4 to 5, a fifth at 2 to 3, quick answers below) and `rollbackTurns`. `RustHost` keeps on
+    Java what the host can't play: game types other than a two-player duel, mulligans other than London, a hand
+    size other than 7, planechase, emblems and companions.
+  - *Replays.* With `XMAGE_RUST_HOST_REPLAYS` (the entrypoint sets it to `saved/replays` when `REPLAYS=true`) the
+    host writes `<game>.ndjson.gz.part` (frames with the human's hand, and log lines); Java's
+    `ReplayRecorder.hosted` lists it at the end.
+  - *Priority.* Pass-after-cast and -activation (`passPriorityCast`/`Activation`) unless the player holds; "Undo
+    tap" (`UNDO`, the game before the mana made since the last action); `ROLLBACK_TURNS` to a turn's first priority
+    (the last five kept); the mana payment modes and `USE_FIRST_MANA_ABILITY_*` (a shared `pool_modes` the
+    engine's game reads while paying).
+  - *Calls.* Answers sent before a question is asked (a double click) are dropped, not given to the next question
+    (`Start.drop_stale`; off for a record's replay). A host panic sends `GAME_ERROR` before the draw's `GAME_OVER`.
+    Chat lines are echoed as Java's (`TALK`, escaped); `gameEmote` goes to Java, which checks the emote and sends
+    it to the human (`RustHost.emote`).
+  - *Views.* Players carry `userData` (the avatar; the AI's is the default), trigger picks carry `sourceCard`, and
+    target questions name what they target ("any target", "target creature", …).
+  - *Tabs and spectators.* Every connection that joins gets the callbacks (a closed one drops off).
+    `gameWatchStart` on a hosted game makes the connection a spectator: the gateway sends it the board without
+    the human's hand, playables, looked-at cards or draws, the questions as updates, and the log; `gameWatchers`
+    and `gameWatchStop` work too. A face-down permanent of the human's still shows its card to a spectator.
+  - *Client.* The practice tools, Ask the AI and the solo items (saves, "Try this turn again") are hidden on a
+    hosted game, since they need Java's game.
+
 Checked by `playmat-host`'s `games` test (seeded games of a bot against the AI, and the chooser of a match's next
-game), `rustAi.live.test.ts` (16 games
+game, the Career tally, table options, replays, pass-after-cast, undo and rollback, late answers, avatars), `rustAi.live.test.ts` (16 games
 against a local server through the gateway), the conformance suite with `MAGE_CONFORMANCE_DECK` set to a deck the
 engine knows, `rustHost.live.test.ts` (a dropped connection and a reconnect), and `rustHostSoak.live.test.ts`: random deck pairs
 from `shadow-decks/`, the app's default settings, and a bot that also mulligans, blocks and takes blocks back, sets

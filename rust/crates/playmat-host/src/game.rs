@@ -105,6 +105,9 @@ pub struct Start {
     pub replay: Option<std::path::PathBuf>,
     /// the game log's lines as they're written, with their turn (a replay compares them with the record's)
     pub log_to: Option<LogSink>,
+    /// a live game: answers the client sent before a question was asked are for an earlier one (a double click, an
+    /// answer that crossed the AI's move) and are dropped. Off for a record's replay, whose calls are all queued at once.
+    pub drop_stale: bool,
 }
 
 /// What a client sends during the game (`GameApi`)
@@ -202,6 +205,12 @@ impl HostedGame {
                             .cloned()
                             .or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string()))
                             .unwrap_or_default();
+                        // as Java's `GameController.handleGameException`: the error, then the end
+                        let error = format!(
+                            "The game stopped on an error.\n\n{why}\nEngine: Rust host {}",
+                            env!("CARGO_PKG_VERSION")
+                        );
+                        host.send("GAME_ERROR", &host.game_id.clone(), Value::String(error));
                         host.over(None, &format!("The game stopped on an error and ends as a draw. ({why})"));
                         Ended {
                             winner: None,
@@ -249,6 +258,11 @@ struct Host {
     record: Option<crate::record::Recorder>,
     replay: Option<crate::replay::ReplayWriter>,
     log_to: Option<LogSink>,
+    drop_stale: bool,
+    /// each seat's `UserData` as Java's `PlayerView.userData` shows it (the avatar); the AI's is the default
+    user_data: Vec<Value>,
+    /// the calls other than answers that came in before a question, played at its start (`drop_stale`)
+    held: std::collections::VecDeque<Call>,
     game_id: String,
     chat_id: String,
     names: Vec<String>,
@@ -355,6 +369,13 @@ impl Host {
             record,
             replay,
             log_to: start.log_to.clone(),
+            drop_stale: start.drop_stale,
+            user_data: start
+                .seats
+                .iter()
+                .map(|s| s.user_data.clone().filter(Value::is_object).unwrap_or_else(|| json!({"avatarId": 0})))
+                .collect(),
+            held: Default::default(),
             game_id: start.game_id,
             chat_id,
             names: start.seats.iter().map(|s| s.name.clone()).collect(),
@@ -414,6 +435,9 @@ impl Host {
         if let Some(Value::Array(players)) = v.get_mut("players") {
             for (seat, p) in players.iter_mut().enumerate() {
                 p["isHuman"] = json!(seat == self.human);
+                if let Some(u) = self.user_data.get(seat) {
+                    p["userData"] = u.clone();
+                }
             }
             // "Undo tap" (`PlayerView.statesSavedSize`): mana made at priority can be taken back
             if let Some(p) = players.get_mut(self.human) {
@@ -673,12 +697,30 @@ impl Host {
             );
         }
         let event = Event { method, object_id: self.game_id.clone(), data };
+        if self.drop_stale {
+            self.drop_stale_answers();
+        }
         self.open = Some(event.clone());
         let _ = self.events.send(event);
         let answer = self.wait(accept);
         self.clock.pause(Instant::now());
         self.asking = None;
         answer
+    }
+
+    /// The answers already sent, before the question about to be asked: for an earlier one, so dropped (Java's
+    /// `HumanPlayer` drops a response nobody waits for). The other calls wait for the question.
+    fn drop_stale_answers(&mut self) {
+        while let Ok(call) = self.calls.try_recv() {
+            match call {
+                Call::Uuid(_) | Call::Bool(_) | Call::Int(_) | Call::Str(_) | Call::ManaType(_) => {
+                    if debug() {
+                        eprintln!("host {} dropped a late answer {:?}", self.game_id, call);
+                    }
+                }
+                other => self.held.push_back(other),
+            }
+        }
     }
 
     /// The human's answer to the open question; `None` when they left, or their time ran out
@@ -688,7 +730,11 @@ impl Host {
                 Some(left) => left.min(IDLE),
                 None => IDLE,
             };
-            let call = match self.calls.recv_timeout(wait) {
+            let next = match self.held.pop_front() {
+                Some(c) => Ok(c),
+                None => self.calls.recv_timeout(wait),
+            };
+            let call = match next {
                 Ok(c) => c,
                 Err(RecvTimeoutError::Timeout) if self.clock.expired(self.human, Instant::now()) => {
                     self.time_out(self.human);

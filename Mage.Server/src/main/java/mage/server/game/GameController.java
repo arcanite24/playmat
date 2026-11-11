@@ -329,7 +329,7 @@ public class GameController implements GameCallback {
 
     /** last emote per player, for the rate limit */
     private final Map<UUID, Long> lastEmote = new ConcurrentHashMap<>();
-    static final long EMOTE_GAP_MS = 2500;
+    public static final long EMOTE_GAP_MS = 2500;
 
     /**
      * Sends a player's emote to everyone at the table, players and watchers (B298).

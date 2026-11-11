@@ -244,7 +244,12 @@ final class CareerProgressApi {
                             mage.server.game.GameController controller = ctx.managers.gameManager().getGameController().get(gameId);
                             java.util.UUID userId = ctx.managers.sessionManager().getSession(call.sessionId())
                                     .map(mage.server.Session::getUserId).orElse(null);
-                            return controller != null && controller.emote(userId, emote, System.currentTimeMillis());
+                            long now = System.currentTimeMillis();
+                            if (controller == null) {
+                                // a game the Rust host plays has no controller here
+                                return Boolean.TRUE.equals(mage.server.RustHost.emote(gameId, userId, emote, now));
+                            }
+                            return controller.emote(userId, emote, now);
                         })
         );
     }
