@@ -57,7 +57,8 @@
     244,
     266,
     268,
-    270
+    270,
+    294
    ]
   },
   {
@@ -1015,7 +1016,7 @@
    "checked_in": 464
   },
   "rust": {
-   "lines": 47137,
+   "lines": 47160,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1031,7 +1032,7 @@
     },
     {
      "crate": "playmat-host",
-     "lines": 4726
+     "lines": 4749
     },
     {
      "crate": "playmat-platform",
@@ -1048,6 +1049,6 @@
    ]
   }
  },
- "commit": "3feb91a528dfb95a8eb82f5991647266ad95f125",
+ "commit": "3cf93bafc4a90535594c5759661215b5d6984319",
  "generated": "2026-11-12"
 }
