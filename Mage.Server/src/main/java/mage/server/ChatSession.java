@@ -233,6 +233,11 @@ public class ChatSession {
         return chatId;
     }
 
+    /** a room's chat (the lobby), as opposed to a table's, an event's or a game's */
+    public boolean isRoomChat() {
+        return roomId != null;
+    }
+
     public boolean hasUser(UUID userId, boolean useHistory) {
         return useHistory ? usersHistory.contains(userId) : users.containsKey(userId);
     }
