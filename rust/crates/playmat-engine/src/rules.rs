@@ -6322,6 +6322,7 @@ fn token_copy_with(
     let o = game.obj(of);
     let mut def = (*o.copiable()).clone();
     if let Some((p, t)) = pt {
+        def.remove_pt_cda();
         def.power = p;
         def.toughness = t;
     }
@@ -7012,6 +7013,7 @@ fn apply_each_effect(
                 let Some(card) = objs.first().copied() else { return };
                 game.move_to(card, Zone::Exile);
                 let mut def = (*game.obj(card).copiable()).clone();
+                def.remove_pt_cda();
                 def.power = 4;
                 def.toughness = 4;
                 def.subtypes = vec!["Zombie".into()];
