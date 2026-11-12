@@ -92,8 +92,12 @@ struct Outcome {
 }
 
 /// Tests whose game Java changes from outside the script, which the export can't carry
-const JAVA_SETUP: &[(&str, &str)] =
-    &[("GameSetupTest.theSetupChangesTheStartOnce", "its game options carry a Java setup (`gameOptions.setup`)")];
+const JAVA_SETUP: &[(&str, &str)] = &[
+    ("GameSetupTest.theSetupChangesTheStartOnce", "its game options carry a Java setup (`gameOptions.setup`)"),
+    // `addEmblem(playerA, new EmblemOfCard(...))` builds the emblem in Java; the export has no zone for it
+    ("EmblemOfCardTest.testEmblemOfGriselbrand", "its emblem is made in Java (`addEmblem`), not in the export"),
+    ("EmblemOfCardTest.testEmblemOfYurlok", "its emblem is made in Java (`addEmblem`), not in the export"),
+];
 
 /// Why a test can't be run here, if it can't
 fn unrunnable(e: &Export, db: &CardDb) -> Option<String> {
@@ -430,8 +434,12 @@ impl<'a> Decider for Scripted<'a> {
                 },
                 None if *required => {
                     self.unscripted(game, seat, query);
+                    // Java's AI (`PossibleTargetsSelector`) targets an opponent for a harmful effect, the usual case;
+                    // a test where it picked otherwise ends differently and is skipped below
                     players
-                        .first()
+                        .iter()
+                        .find(|p| **p != seat)
+                        .or(players.first())
                         .map(|p| Answer::Player(*p))
                         .or(objs.first().map(|o| Answer::Obj(*o)))
                         .unwrap_or(Answer::Bool(false))

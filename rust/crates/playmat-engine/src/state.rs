@@ -165,6 +165,8 @@ pub struct Obj {
     pub printed_def: Option<Arc<CardDef>>,
     /// a land's card as it was before Leyline of the Guildpact made it every basic land type
     pub pre_guildpact: Option<Arc<CardDef>>,
+    /// under it, each ability's index in `pre_guildpact` (None: the any-color one it added)
+    pub guildpact_order: Vec<Option<usize>>,
     /// what it entered as a copy of (Mockingbird): its copiable values, which a copy of it copies
     pub copied_def: Option<Arc<CardDef>>,
     /// the permanent (and its zone change count) this Aura is attached to
@@ -187,6 +189,8 @@ pub struct Obj {
     pub chosen: Option<(ObjId, u32)>,
     /// a Class's level (1 until it gains another)
     pub class_level: u32,
+    /// the level it had as it last left the battlefield (its look-back: Scavenger's Talent sacrificed with others)
+    pub lki_class_level: u32,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
     /// its power-up ability was activated (once each game, for this object)
@@ -724,6 +728,9 @@ pub struct Game {
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
+    /// a card entering whose replacement effects see it as it was (Enduring Glimmer's return: Java's type effect
+    /// applies once it's there, so "creatures enter tapped" still taps it)
+    pub enters_as: Option<(ObjId, Arc<CardDef>)>,
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
     /// Emrakul, the Promised End: (player, controller) for a player's next turn, controlled by another
@@ -782,6 +789,12 @@ pub struct Game {
     pub returning: Vec<(Seat, ObjId)>,
     /// damage permanents were dealt since triggers were last checked, in order (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
     pub damaged_batch: Vec<(ObjId, i32)>,
+    /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
+    pub mana_batch: u64,
+    /// double-faced permanents whose triggers Java registered as they entered, in that order (`trigger_order`)
+    pub dfc_registered: u64,
+    /// "opponents are dealt noncombat damage" sources that triggered, with the mana batch they triggered in
+    pub noncombat_fired: Vec<(ObjId, u64)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
     /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
@@ -867,6 +880,7 @@ impl Game {
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
+            enters_as: None,
             extra_turns: Vec::new(),
             control_next_turn: Vec::new(),
             controlled_by: Vec::new(),
@@ -895,6 +909,9 @@ impl Game {
             returning: Vec::new(),
             day: None,
             damaged_batch: Vec::new(),
+            mana_batch: 0,
+            dfc_registered: 0,
+            noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
             exiled_batch: false,
             life_batch: Vec::new(),
@@ -979,6 +996,7 @@ impl Game {
             uncounterable: false,
             printed_def: None,
             pre_guildpact: None,
+            guildpact_order: Vec::new(),
             copied_def: None,
             cast_x: 0,
             attached_to: None,
@@ -990,6 +1008,7 @@ impl Game {
             ninjutsu_pw: None,
             chosen: None,
             class_level: 1,
+            lki_class_level: 1,
             exerted: false,
             powered_up: false,
             creature_types: None,
@@ -1567,63 +1586,96 @@ impl Game {
     }
 
     /// `BecomesAllBasicsControlledEffect`: the lands of a player with it are every basic land type, their basic mana
-    /// abilities replaced by one of any color (added last); undone when it's gone
+    /// abilities replaced by one of any color; undone when it's gone. The any-color one comes after the land's own
+    /// abilities and before what layer 6 gave it (an Aura's granted ones, refresh_land_types); basic land types
+    /// another static gave (Urborg) keep their mana ability, after the any-color one, when that static came later than
+    /// the Leyline (Java applies layer 4 by timestamp: the Leyline's removal ran before Urborg added its ability)
     pub fn update_guildpact(&mut self) {
-        // a basic mana ability with no other costs or effects, which the any-color one replaces
-        fn basic(a: &AbilityDef) -> bool {
-            matches!(
-                a,
-                AbilityDef::WhiteManaAbility { effects, cost }
-                | AbilityDef::BlueManaAbility { effects, cost }
-                | AbilityDef::BlackManaAbility { effects, cost }
-                | AbilityDef::RedManaAbility { effects, cost }
-                | AbilityDef::GreenManaAbility { effects, cost }
-                    if effects.is_empty() && cost.is_empty()
-            )
-        }
         let lands: Vec<ObjId> = self.battlefield.iter().copied().filter(|l| self.obj(*l).is(CardType::Land)).collect();
         for l in lands {
             let on = self.guildpact(self.obj(l).controller, true);
-            // the abilities kept, by their index in the land's own card: an ability on the stack or waiting to be
-            // put there keeps pointing at its ability as the list changes
-            let own = self.obj(l).pre_guildpact.clone().unwrap_or_else(|| self.obj(l).def.clone());
-            let kept: Vec<usize> = (0..own.abilities.len()).filter(|i| !basic(&own.abilities[*i])).collect();
-            let o = self.obj_mut(l);
-            match (on, o.pre_guildpact.is_some()) {
-                (true, false) => {
-                    let map: Vec<Option<usize>> =
-                        (0..own.abilities.len()).map(|i| kept.iter().position(|k| *k == i)).collect();
-                    self.remap_abilities(l, &map);
-                    let o = self.obj_mut(l);
-                    let mut def = (*o.def).clone();
-                    for t in ["Plains", "Island", "Swamp", "Mountain", "Forest"] {
-                        if !def.subtypes.iter().any(|s| s == t) {
-                            def.subtypes.push(t.to_string());
-                        }
-                    }
-                    def.abilities.retain(|a| !basic(a));
-                    if !def.abilities.iter().any(|a| {
-                        matches!(a, AbilityDef::AnyColorManaAbility { amount: 1, effects, cost, .. }
-                            if effects.is_empty() && cost.is_empty())
-                    }) {
-                        def.abilities.push(AbilityDef::AnyColorManaAbility {
-                            amount: 1,
-                            effects: Vec::new(),
-                            cost: Vec::new(),
-                            rule: "{T}: Add one mana of any color.".into(),
-                        });
-                    }
-                    o.pre_guildpact = Some(std::mem::replace(&mut o.def, Arc::new(def)));
-                }
-                (false, true) => {
-                    o.def = o.pre_guildpact.take().unwrap();
-                    let n = self.obj(l).def.abilities.len() + 1;
-                    let map: Vec<Option<usize>> = (0..n).map(|k| kept.get(k).copied()).collect();
-                    self.remap_abilities(l, &map);
-                }
+            match (on, self.obj(l).pre_guildpact.is_some()) {
+                (true, false) => self.apply_guildpact(l),
+                (false, true) => self.unapply_guildpact(l),
                 _ => {}
             }
         }
+    }
+
+    /// The Leyline whose land part applies to `seat`'s lands, by its place on the battlefield (its timestamp)
+    fn guildpact_at(&self, seat: Seat) -> Option<usize> {
+        self.battlefield.iter().position(|src| {
+            let s = self.obj(*src);
+            s.controller == seat
+                && s.def.abilities.iter().any(|a| {
+                    matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                        if effects.contains(&EffectDef::BecomesAllBasicsControlledEffect))
+                })
+        })
+    }
+
+    fn apply_guildpact(&mut self, l: ObjId) {
+        let o = self.obj(l);
+        let own = o.def.clone();
+        let len = own.abilities.len();
+        // what refresh_land_types added at the end: the given types' mana abilities, then layer 6's
+        let (given_n, gained_n) = match &o.land_type_base {
+            Some((base, _, gained)) => {
+                let gained_n = gained.len().min(len);
+                (len.saturating_sub(gained_n).saturating_sub(base.abilities.len()), gained_n)
+            }
+            None => (0, 0),
+        };
+        let leyline = self.guildpact_at(o.controller).unwrap_or(0);
+        let later_types = self.battlefield.iter().position(|src| {
+            self.obj(*src).def.abilities.iter().any(|a| {
+                matches!(a, AbilityDef::SimpleStaticAbility { effects, .. }
+                    if effects.iter().any(|e| matches!(e, EffectDef::AddBasicLandTypeAllLandsEffect { .. })))
+            })
+        });
+        let keep_given = later_types.is_some_and(|t| t > leyline);
+        let head_end = len - gained_n - given_n;
+        let any = AbilityDef::AnyColorManaAbility {
+            amount: 1,
+            effects: Vec::new(),
+            cost: Vec::new(),
+            rule: "{T}: Add one mana of any color.".into(),
+        };
+        let has_any = own.abilities.iter().any(|a| {
+            matches!(a, AbilityDef::AnyColorManaAbility { amount: 1, effects, cost, .. }
+                if effects.is_empty() && cost.is_empty())
+        });
+        // the new list, each by its old index (None: the any-color one)
+        let mut order: Vec<Option<usize>> =
+            (0..head_end).filter(|i| !guildpact_basic(&own.abilities[*i])).map(Some).collect();
+        if !has_any {
+            order.push(None);
+        }
+        order.extend(
+            (head_end..head_end + given_n).filter(|i| keep_given || !guildpact_basic(&own.abilities[*i])).map(Some),
+        );
+        order.extend((head_end + given_n..len).map(Some));
+        let map: Vec<Option<usize>> = (0..len).map(|i| order.iter().position(|k| *k == Some(i))).collect();
+        self.remap_abilities(l, &map);
+        let mut def = (*own).clone();
+        for t in ["Plains", "Island", "Swamp", "Mountain", "Forest"] {
+            if !def.subtypes.iter().any(|s| s == t) {
+                def.subtypes.push(t.to_string());
+            }
+        }
+        def.abilities =
+            order.iter().map(|k| k.map(|i| own.abilities[i].clone()).unwrap_or_else(|| any.clone())).collect();
+        let o = self.obj_mut(l);
+        o.guildpact_order = order;
+        o.pre_guildpact = Some(std::mem::replace(&mut o.def, Arc::new(def)));
+    }
+
+    /// Takes Leyline of the Guildpact's types and mana ability off a land, back to what it was without them.
+    pub fn unapply_guildpact(&mut self, l: ObjId) {
+        let Some(own) = self.obj_mut(l).pre_guildpact.take() else { return };
+        let order = std::mem::take(&mut self.obj_mut(l).guildpact_order);
+        self.obj_mut(l).def = own;
+        self.remap_abilities(l, &order);
     }
 
     /// every object whose `p1p1_added` is set
@@ -1788,7 +1840,10 @@ impl Game {
                 o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0
             }
             Condition::SacrificedThisTurn { n } => self.player(you).sacrificed as i32 >= *n,
-            Condition::ClassLevel { n } => self.obj(source).class_level >= *n,
+            Condition::ClassLevel { n } => {
+                let o = self.obj(source);
+                (if o.zone == Zone::Battlefield { o.class_level } else { o.lki_class_level }) >= *n
+            }
             Condition::CardsInGraveyard { filter, n } => {
                 let g = &self.player(you).graveyard;
                 g.iter().filter(|c| self.filter_matches(filter, you, Some(source), **c)).count() as i32 >= *n
@@ -2440,11 +2495,15 @@ impl Game {
                 o.copied_def = None;
                 if let Some(def) = o.pre_guildpact.take() {
                     o.def = def;
+                    o.guildpact_order.clear();
                 }
                 if let Some(def) = o.printed_def.take() {
                     o.def = def;
                 }
                 o.cast_x = 0;
+                if from == Zone::Battlefield {
+                    o.lki_class_level = o.class_level;
+                }
                 o.class_level = 1;
                 o.class_gained.clear();
                 o.blocking.clear();
@@ -2517,4 +2576,17 @@ fn given_ability(e: &EffectDef) -> Option<&AbilityDef> {
         EffectDef::ConditionalContinuousEffect { effect, .. } => given_ability(effect),
         _ => None,
     }
+}
+
+/// a basic mana ability with no other costs or effects, which Leyline of the Guildpact's any-color one replaces
+fn guildpact_basic(a: &AbilityDef) -> bool {
+    matches!(
+        a,
+        AbilityDef::WhiteManaAbility { effects, cost }
+        | AbilityDef::BlueManaAbility { effects, cost }
+        | AbilityDef::BlackManaAbility { effects, cost }
+        | AbilityDef::RedManaAbility { effects, cost }
+        | AbilityDef::GreenManaAbility { effects, cost }
+            if effects.is_empty() && cost.is_empty()
+    )
 }
