@@ -11195,7 +11195,8 @@ fn distinct_card_types(game: &Game, cards: &[ObjId]) -> bool {
 /// Moves a card to the top or bottom of its owner's library.
 fn to_library(game: &mut Game, id: ObjId, top: bool) {
     game.move_to(id, Zone::Library);
-    if top {
+    // (a token isn't put there: it ceases to exist)
+    if top && !game.obj(id).token {
         let owner = game.obj(id).owner;
         let lib = &mut game.player_mut(owner).library;
         lib.retain(|x| *x != id);
