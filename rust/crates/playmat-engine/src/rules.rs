@@ -6153,6 +6153,17 @@ fn refresh_land_types(game: &mut Game) {
     }
     let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
     for id in ids {
+        // its def replaced by one from before the types applied (Mutavault animated before Urborg came, back to its
+        // land at the end of the turn): that one is its base now, and the types apply again, as Java's layers would
+        let o = game.obj(id);
+        let stale = o.land_type_base.as_ref().is_some_and(|(_, t, g)| {
+            !t.iter().any(|x| x.starts_with('='))
+                && (t.iter().any(|x| !o.def.abilities.contains(&land_type_mana(x)))
+                    || g.iter().any(|a| !o.def.abilities.contains(a)))
+        });
+        if stale {
+            game.obj_mut(id).land_type_base = None;
+        }
         let o = game.obj(id);
         let base = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
         let mut given: Vec<String> = if base.types.contains(&CardType::Land) { types.clone() } else { Vec::new() };
@@ -6171,7 +6182,29 @@ fn refresh_land_types(game: &mut Game) {
         }
         if given.is_empty() && gained.is_empty() {
             let o = game.obj_mut(id);
-            o.def = o.land_type_base.take().unwrap().0;
+            let (base, types, gave) = o.land_type_base.take().unwrap();
+            if types.iter().any(|t| t.starts_with('=')) {
+                o.def = base;
+                continue;
+            }
+            // what the types and effects gave it goes, what it became since stays (Mutavault animated after Urborg
+            // came, when Urborg leaves)
+            let mut def = (*o.def).clone();
+            for t in &types {
+                let a = land_type_mana(t);
+                if !base.abilities.contains(&a) {
+                    def.abilities.retain(|x| *x != a);
+                }
+                if !base.subtypes.contains(t) {
+                    def.subtypes.retain(|x| x != t);
+                }
+            }
+            for a in &gave {
+                if let Some(k) = def.abilities.iter().rposition(|x| x == a) {
+                    def.abilities.remove(k);
+                }
+            }
+            o.def = Arc::new(def);
             continue;
         }
         let mut land = (*base).clone();
@@ -6188,14 +6221,7 @@ fn refresh_land_types(game: &mut Game) {
             if !land.subtypes.contains(t) {
                 land.subtypes.push(t.clone());
             }
-            let (effects, cost) = (Vec::new(), Vec::new());
-            let ability = match t.as_str() {
-                "Plains" => AbilityDef::WhiteManaAbility { effects, cost },
-                "Island" => AbilityDef::BlueManaAbility { effects, cost },
-                "Swamp" => AbilityDef::BlackManaAbility { effects, cost },
-                "Mountain" => AbilityDef::RedManaAbility { effects, cost },
-                _ => AbilityDef::GreenManaAbility { effects, cost },
-            };
+            let ability = land_type_mana(t);
             if !land.abilities.contains(&ability) {
                 match at.as_mut() {
                     Some(n) => {
@@ -6210,6 +6236,18 @@ fn refresh_land_types(game: &mut Game) {
         let o = game.obj_mut(id);
         o.land_type_base = Some((base, given, gained));
         o.def = Arc::new(land);
+    }
+}
+
+/// A basic land type's mana ability
+fn land_type_mana(t: &str) -> AbilityDef {
+    let (effects, cost) = (Vec::new(), Vec::new());
+    match t {
+        "Plains" => AbilityDef::WhiteManaAbility { effects, cost },
+        "Island" => AbilityDef::BlueManaAbility { effects, cost },
+        "Swamp" => AbilityDef::BlackManaAbility { effects, cost },
+        "Mountain" => AbilityDef::RedManaAbility { effects, cost },
+        _ => AbilityDef::GreenManaAbility { effects, cost },
     }
 }
 
