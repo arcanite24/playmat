@@ -43,7 +43,7 @@ import { AlwaysAnswerMenu, TriggerOrderOptions } from './AutoAnswer';
 import { BetweenGames } from './BetweenGames';
 import { Arrows } from './Arrows';
 import { stackLeads } from './attackArrows';
-import { buildBoard, fitRow, type PermanentGroup, type PlayerBoard } from './boardModel';
+import { buildBoard, cardKey, fitRow, type PermanentGroup, type PlayerBoard } from './boardModel';
 import { CardDetail } from './CardDetail';
 import { Coach } from './Coach';
 import { LessonCoach } from './LessonCoach';
@@ -234,6 +234,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const offZone = useMemo(() => offZonePlayables(view, offZoneHold.ids), [view, offZoneHold]);
   const handAndPlayables = useMemo(() => (offZone.length > 0 ? [...hand, ...offZone.map((entry) => entry.card)] : hand), [hand, offZone]);
   const fromZone = useMemo(() => new Map(offZone.map((entry) => [entry.card.id!, entry.zone])), [offZone]);
+  const offZoneInHand = useMemo(() => new Set(offZone.map((entry) => cardKey(entry.card))), [offZone]);
   // watching: the seat's hand, if its player lets us see it, and only backs while hands are hidden for the broadcast
   // (a replay of one's own game shows the hand that was held, as before)
   const seatHand = useMemo(
@@ -618,6 +619,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                     commanders={myId ? commanders.get(myId) : undefined}
                     clickable={canAct ? clickable : undefined}
                     onCast={onClick}
+                    inHand={offZoneInHand}
                   />
                 </div>
               </>

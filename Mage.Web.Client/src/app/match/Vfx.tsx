@@ -6,6 +6,7 @@ import { lastPlacement, motionAllowed } from './flip';
 import { SignatureVfx } from './SignatureVfx';
 import { lifetimeOf, type Point, type SignatureEffect } from './signatureShapes';
 import { eventVisuals } from './vfxEvents';
+import { fighterOf } from '../../core/game/combatPreview';
 import { matchLayout } from './matchLayout';
 import { TriggerSignals } from './TriggerSignals';
 import { useObjectCenter, useStage } from './stageContext';
@@ -260,6 +261,11 @@ export function Vfx({ view, myPlayerId, sparks }: {
         const target = Object.keys(group.blockers ?? {})[0] ?? group.defenderId;
         const to = target ? center(target) : null;
         for (const attacker of Object.keys(group.attackers ?? {})) {
+          // first strike deals its damage in the first step only, double strike in both
+          const card = group.attackers?.[attacker] ?? now.permanents.get(attacker);
+          const fighter = card ? fighterOf(card, attacker) : null;
+          if (now.step === 'FIRST_COMBAT_DAMAGE' && !fighter?.first) continue;
+          if (now.step === 'COMBAT_DAMAGE' && before.step === 'FIRST_COMBAT_DAMAGE' && fighter?.first && !fighter.double) continue;
           const from = center(attacker);
           if (from && to) lunge(elementOf(attacker), from, to, 1);
           // servers without events: the sparks land where the attacker strikes
