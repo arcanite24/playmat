@@ -167,15 +167,13 @@ pub fn call_of(v: &Value) -> Option<Call> {
         Call::Resync
     } else if o.contains_key("quit") {
         Call::Quit
-    } else if let Some(t) = o.get("practice") {
+    } else {
         Call::Practice(
-            t.as_str()?.to_string(),
+            o.get("practice")?.as_str()?.to_string(),
             o.get("card").and_then(Value::as_str).map(str::to_string),
             o.get("amount").and_then(Value::as_i64).unwrap_or(1) as i32,
             None,
         )
-    } else {
-        return None;
     })
 }
 
