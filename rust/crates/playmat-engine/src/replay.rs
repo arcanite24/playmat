@@ -554,6 +554,15 @@ impl<'a> Decider for ReplayDecider<'a> {
                     .map(|(i, o)| format!("E{}={}:{}{:?}", i, o.0, game.obj(*o).name(), game.obj(*o).prepared_for))
                     .collect();
                 eprintln!("  {}", exile.join(" "));
+                for (seat, p) in game.players.iter().enumerate() {
+                    let hand: Vec<String> = p
+                        .hand
+                        .iter()
+                        .enumerate()
+                        .map(|(i, o)| format!("H{}.{}={}", seat, i, game.obj(*o).name()))
+                        .collect();
+                    eprintln!("  {}", hand.join(" "));
+                }
             }
         }
         self.next += 1;
