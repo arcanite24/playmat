@@ -145,7 +145,7 @@ for (const method of ['DRAFT_INIT', 'DRAFT_PICK'] as const) {
     if (message?.draftPickView) {
       applyPickView(draftId, message.draftPickView);
       if (method === 'DRAFT_PICK' && message.draftPickView.picking) {
-        attention('Your draft pick', 'A new pack is waiting for you.', { tag: 'draft' });
+        attention('Your draft pick', 'A new pack is waiting for you.', { kind: 'draft', tag: 'draft' });
       }
     }
     // the server waits for the client to show the booster before the pick clock runs

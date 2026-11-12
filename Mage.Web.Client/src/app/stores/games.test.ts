@@ -174,7 +174,7 @@ describe('games store', () => {
     try {
       const { useGames, fake } = await load();
       startGame(fake, { gameId: 'g1', playerId: 'p1', currentTableId: 't1' });
-      expect(attention).toHaveBeenCalledWith('Your game is starting', expect.any(String), { tag: 'game:g1' });
+      expect(attention).toHaveBeenCalledWith('Your game is starting', expect.any(String), { kind: 'gameStart', tag: 'game:g1' });
       const game = session(useGames, 'g1');
 
       // auto-pass answers this one before the delay
@@ -186,7 +186,7 @@ describe('games store', () => {
 
       game.store.setState({ prompt: { text: 'Declare attackers' }, awaitingServer: false, view: { activePlayerId: 'p1' } });
       vi.advanceTimersByTime(2000);
-      expect(attention).toHaveBeenLastCalledWith('Your turn', 'Declare attackers', { tag: 'game:g1' });
+      expect(attention).toHaveBeenLastCalledWith('Your turn', 'Declare attackers', { kind: 'turn', tag: 'game:g1' });
 
       // a closed game stops watching
       useGames.getState().forget('g1');

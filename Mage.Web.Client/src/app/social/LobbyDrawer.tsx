@@ -3,8 +3,9 @@ import { Ban, Flag as FlagIcon, MessageCircle, MoreHorizontal, Send, Star, StarO
 import { useEffect, useMemo } from 'react';
 import { inviteLink, toChatLines, type ChatLine } from '../../core/social/chatLine';
 import type { TableView, UsersView } from '../../protocol/generated/views';
-import { useTables } from '../queries';
-import { useLobby, type LobbyMessage } from '../stores/lobby';
+import { useServerInfo, useTables } from '../queries';
+import { useLobby, type LobbyMessage, type LobbyTab } from '../stores/lobby';
+import { PRESENCE_STATUSES, usePresence, type PresenceStatus } from '../stores/presence';
 import { useSession } from '../stores/session';
 import { isFriend, isIgnored, useSocial } from '../stores/social';
 import { notify } from '../stores/toasts';
@@ -12,6 +13,7 @@ import { IconButton } from '../ui/Button';
 import { Avatar, Flag } from './Avatar';
 import { ChatPanel } from './ChatPanel';
 import { LevelBadge, NameLevel } from './LevelBadge';
+import { PlayerDirectory } from './PlayerDirectory';
 import { Flair } from '../support/Flair';
 import { useLook } from '../support/supportData';
 import { THANK_YOU } from '../support/thankYou';
@@ -24,6 +26,7 @@ export function LobbyDrawer() {
   const open = useLobby((state) => state.open);
   const setOpen = useLobby((state) => state.setOpen);
   const tab = useLobby((state) => state.tab);
+  const accounts = useServerInfo().data?.accounts === true;
 
   useEffect(() => {
     if (!open) return;
@@ -35,23 +38,28 @@ export function LobbyDrawer() {
   }, [open, setOpen]);
 
   if (!open) return null;
+  // registered players are only listed where there are accounts
+  const shown: LobbyTab = tab === 'directory' && !accounts ? 'players' : tab;
   return (
     <aside className={styles.drawer} aria-label="Lobby">
       <header className={styles.head}>
         <div className={styles.tabs} role="tablist" aria-label="Lobby">
           <Tab id="chat" label="Chat" />
           <Tab id="players" label="Players" />
+          {accounts && <Tab id="directory" label="Find" />}
         </div>
         <IconButton label="Close lobby" icon={<X size={18} />} onClick={() => setOpen(false)} />
       </header>
-      <div className={styles.body} role="tabpanel" aria-label={tab === 'chat' ? 'Lobby chat' : 'Players online'}>
-        {tab === 'chat' ? <LobbyChat /> : <PlayerList />}
+      <div className={styles.body} role="tabpanel" aria-label={PANEL_LABEL[shown]}>
+        {shown === 'chat' ? <LobbyChat /> : shown === 'players' ? <PlayerList /> : <PlayerDirectory />}
       </div>
     </aside>
   );
 }
 
-function Tab({ id, label }: { id: 'chat' | 'players'; label: string }) {
+const PANEL_LABEL: Record<LobbyTab, string> = { chat: 'Lobby chat', players: 'Players online', directory: 'Registered players' };
+
+function Tab({ id, label }: { id: LobbyTab; label: string }) {
   const tab = useLobby((state) => state.tab);
   const setOpen = useLobby((state) => state.setOpen);
   const count = useLobby((state) => (id === 'players' ? state.users.length : 0));
@@ -127,6 +135,7 @@ function PlayerList() {
 
   return (
     <div className={styles.players}>
+      <PresencePicker />
       <ul className={styles.list} aria-label="Players online">
         {sorted.map((user) => <PlayerRow key={user.userName} user={user} me={me} myTables={myTables} />)}
       </ul>
@@ -145,6 +154,33 @@ function PlayerList() {
         </>
       )}
     </div>
+  );
+}
+
+const PRESENCE_LABEL: Record<PresenceStatus, string> = { online: 'Online', looking: 'Looking to play', hidden: 'Appear offline' };
+
+/** The player's own status (#229): kept by the server across sessions until changed. */
+function PresencePicker() {
+  const status = usePresence((state) => state.status);
+  const supported = usePresence((state) => state.supported);
+  const busy = usePresence((state) => state.busy);
+  if (!supported) return null;
+  return (
+    <label className={styles.presence}>
+      <span>
+        {status === 'hidden' ? 'Others see you offline' : status === 'looking' ? 'Others see you looking to play' : 'Your status'}
+      </span>
+      <select
+        value={status}
+        disabled={busy}
+        onChange={(event) => {
+          usePresence.getState().set(event.target.value as PresenceStatus)
+            .catch((error: unknown) => notify("Couldn't change your status", error instanceof Error ? error.message : String(error), 'error'));
+        }}
+      >
+        {PRESENCE_STATUSES.map((value) => <option key={value} value={value}>{PRESENCE_LABEL[value]}</option>)}
+      </select>
+    </label>
   );
 }
 
@@ -170,6 +206,8 @@ function PlayerRow({ user, me, myTables }: { user: UsersView; me: string; myTabl
         <Avatar name={name} avatarId={user.avatarId} size="sm" ring={look?.frame === THANK_YOU.frame} frame={look?.frame} />
         <span className={styles.playerName}>
           {name}<LevelBadge level={look?.level} /><Flair name={name} />{isMe ? ' (you)' : ''} <Flag flagName={user.flagName} />
+          {user.status === 'looking' && <span className={[styles.badge, styles.looking].join(' ')}>Looking to play</span>}
+          {user.status === 'hidden' && <span className={styles.badge} title="Others don't see this player online">Hidden</span>}
         </span>
         {friend && <Star className={styles.star} size={14} aria-label="Friend" />}
       </button>

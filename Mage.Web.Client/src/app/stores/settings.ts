@@ -88,6 +88,10 @@ export interface PlaySettings {
   triggerSounds: boolean;
   /** browser notifications while the tab is in the background: your move, a draft pick, a game starting, a whisper */
   notifications: boolean;
+  /** which of those notify (with notifications on), one switch per kind (#208; local only) */
+  notifyOn: NotifyOn;
+  /** a chime when someone sits down at a table you host (#209; local only) */
+  tableJoinSound: boolean;
   /** profile: the sigil shown for the player (server avatar ids 10 to 32; 10 shows the initial) */
   avatarId: number;
   /** profile: a country code ("de") or "world" */
@@ -125,6 +129,11 @@ export interface PlaySettings {
    * pictures (a Career sleeve's back still wins; local only) */
   cardBack: CardBackId;
 }
+
+/** The kinds of browser notification a player can turn off one by one (#208). */
+export type NotificationKind = 'whispers' | 'turn' | 'gameStart' | 'draft' | 'tableJoins';
+export type NotifyOn = Record<NotificationKind, boolean>;
+export const DEFAULT_NOTIFY_ON: NotifyOn = { whispers: true, turn: true, gameStart: true, draft: true, tableJoins: true };
 
 const SETTINGS_KEY = 'playmat.settings';
 
@@ -176,6 +185,8 @@ export const DEFAULT_SETTINGS: PlaySettings = {
   importantCuesOnly: false,
   triggerSounds: true,
   notifications: false,
+  notifyOn: DEFAULT_NOTIFY_ON,
+  tableJoinSound: true,
   avatarId: 10,
   flag: 'world',
   locale: 'auto',

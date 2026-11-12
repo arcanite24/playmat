@@ -10,6 +10,7 @@ import type { ReleaseNotes } from '../core/util/releaseNotes';
 import { useServerInfo } from './queries';
 import { Avatar } from './social/Avatar';
 import { LobbyButton } from './social/LobbyButton';
+import { TableJoinWatch } from './social/TableJoinWatch';
 import { useImportSheet } from './stores/importSheet';
 import { useLobby } from './stores/lobby';
 import { useSettings } from './stores/settings';
@@ -215,6 +216,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <SocialHost />
+      <TableJoinWatch />
       <SettingsHost open={settingsOpen} onOpenChange={setSettingsOpen} />
       <FeedbackHost />
       <WhatsNewHost />

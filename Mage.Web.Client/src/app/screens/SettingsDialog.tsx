@@ -11,7 +11,9 @@ import { resetCommand, type AutoRule, type AutoRuleKind } from '../../core/game/
 import { notificationsSupported, requestNotifications } from '../stores/attention';
 import { useAutoAnswers } from '../stores/autoAnswers';
 import { useGames } from '../stores/games';
-import { DEFAULT_SETTINGS, FULL_CONTROL, STREAMLINED, useSettings, type PlaySettings } from '../stores/settings';
+import { DEFAULT_NOTIFY_ON, DEFAULT_SETTINGS, FULL_CONTROL, STREAMLINED, useSettings, type NotificationKind, type PlaySettings } from '../stores/settings';
+
+const NOTIFICATION_KINDS: readonly NotificationKind[] = ['whispers', 'turn', 'gameStart', 'draft', 'tableJoins'];
 import { APP_NAME, APP_VERSION, PUBLIC_ORIGIN } from '../brand';
 import { WhatsNewLink } from '../WhatsNewLink';
 import { clearPictureStore, DEVICE_PICTURES, pictureStoreStats } from '../nativePictures';
@@ -71,6 +73,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
     if (open) onOpenChange(false);
   }, [path, open, onOpenChange]);
 
+  const notifyOn = { ...DEFAULT_NOTIFY_ON, ...settings.notifyOn };
   const toggle = (key: keyof PlaySettings) => (
     <Switch checked={!!settings[key]} onChange={(value) => update({ [key]: value } as Partial<PlaySettings>)} />
   );
@@ -262,6 +265,20 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
               }}
             />
           </Row>
+          {settings.notifications && notificationsSupported() && (
+            <>
+              <h3 className={styles.groupHeading}>{t('settings.notifications.kinds')}</h3>
+              {NOTIFICATION_KINDS.map((kind) => (
+                <Row key={kind} label={t(`settings.notify.${kind}`)} detail={t(`settings.notify.${kind}.detail`)}>
+                  <Switch
+                    checked={notifyOn[kind]}
+                    onChange={(value) => update({ notifyOn: { ...notifyOn, [kind]: value } })}
+                  />
+                </Row>
+              ))}
+            </>
+          )}
+          <Row label={t('settings.tableJoinSound')} detail={t('settings.tableJoinSound.detail')}>{toggle('tableJoinSound')}</Row>
         </Tabs.Content>
 
         <Tabs.Content value="sound" className={styles.panel}>

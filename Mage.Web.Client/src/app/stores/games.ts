@@ -77,7 +77,7 @@ function watchForAttention(session: GameSession): () => void {
       const now = session.getState();
       if (now.prompt !== prompt || now.awaitingServer || now.gameOver) return;
       const myTurn = !!now.playerId && now.view?.activePlayerId === now.playerId;
-      attention(myTurn ? 'Your turn' : 'Your move', stripMarkup(prompt.text) || 'The game is waiting for you.', { tag: `game:${now.gameId}` });
+      attention(myTurn ? 'Your turn' : 'Your move', stripMarkup(prompt.text) || 'The game is waiting for you.', { kind: 'turn', tag: `game:${now.gameId}` });
     }, ATTENTION_DELAY_MS);
   });
   return () => {
@@ -175,7 +175,7 @@ events.on('START_GAME', (message) => {
       && !!message.currentTableId && tables[previousId]?.tableId === message.currentTableId)
     .map(([previousId]) => previousId);
   if (finished.length > 0) setTimeout(() => finished.forEach((previousId) => useGames.getState().forget(previousId)), 2000);
-  attention('Your game is starting', 'Come back to the table: your opponents are here.', { tag: `game:${gameId}` });
+  attention('Your game is starting', 'Come back to the table: your opponents are here.', { kind: 'gameStart', tag: `game:${gameId}` });
   useGames.getState().open(gameId, message.playerId ?? null, 'play', {
     tableId: message.currentTableId ?? null,
     parentTableId: message.parentTableId ?? null,
