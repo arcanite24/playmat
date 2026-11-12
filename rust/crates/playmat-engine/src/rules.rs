@@ -3951,6 +3951,19 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
 /// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
 /// the payment; anything short of paying counters. None: stopped.
 fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef]) -> Option<bool> {
+    // ward—sacrifice three nonland permanents: `canPay` first, so a player without them isn't asked
+    for c in cost {
+        if let CostDef::SacrificeTargetCost { filter, amount } = c {
+            let have = game
+                .battlefield
+                .iter()
+                .filter(|p| game.obj(**p).controller == payer && game.filter_matches(filter, payer, None, **p))
+                .count();
+            if have < *amount {
+                return Some(false);
+            }
+        }
+    }
     // ward—discard a card: a non-mana cost's message has no "Pay " (`DiscardTargetCost` text "discard a card")
     if let Some(CostDef::DiscardCardCost { filter, .. }) =
         cost.iter().find(|c| matches!(c, CostDef::DiscardCardCost { .. }))
