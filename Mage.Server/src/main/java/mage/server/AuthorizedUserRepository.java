@@ -409,7 +409,7 @@ public class AuthorizedUserRepository {
         com.j256.ormlite.stmt.Where<AuthorizedUser, Object> where = qb.where().eq("active", true);
         if (text != null && !text.trim().isEmpty()) {
             String like = "%" + text.trim().toLowerCase(java.util.Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-            where.and().raw("LOWER(name) LIKE ?", new SelectArg(com.j256.ormlite.field.SqlType.STRING, like));
+            where.and().raw("LOWER(name) LIKE ? ESCAPE '\\'", new SelectArg(com.j256.ormlite.field.SqlType.STRING, like));
         }
     }
 
@@ -418,7 +418,7 @@ public class AuthorizedUserRepository {
             return;
         }
         String like = "%" + text.trim().toLowerCase(java.util.Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-        qb.where().raw("(LOWER(name) LIKE ? OR LOWER(email) LIKE ?)",
+        qb.where().raw("(LOWER(name) LIKE ? ESCAPE '\\' OR LOWER(email) LIKE ? ESCAPE '\\')",
                 new SelectArg(com.j256.ormlite.field.SqlType.STRING, like), new SelectArg(com.j256.ormlite.field.SqlType.STRING, like));
     }
 

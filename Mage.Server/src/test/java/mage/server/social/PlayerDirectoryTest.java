@@ -120,4 +120,17 @@ public class PlayerDirectoryTest {
         String longSearch = new String(new char[200]).replace('\0', 'a');
         assertThat(PlayerDirectory.page(accounts, longSearch, 0, "bob", false, name -> false, null).players).isEmpty();
     }
+
+    @Test
+    void searchTreatsUnderscoreAndPercentAsTextOnSqlite() throws Exception {
+        // the accounts file is SQLite, which has no default LIKE escape: the query must declare it
+        AuthorizedUserRepository sqlite = new AuthorizedUserRepository("jdbc:sqlite:" + dir.resolve("accounts.db"));
+        sqlite.add("bob_x", "secret12", "bobx@example.test");
+        sqlite.add("bobax", "secret12", "bobax@example.test");
+        sqlite.add("half%off", "secret12", "half@example.test");
+        PlayerDirectory.DirectoryPage underscore = PlayerDirectory.page(sqlite, "b_x", 0, "bob_x", false, name -> false, null);
+        assertThat(names(underscore)).containsExactly("bob_x");
+        PlayerDirectory.DirectoryPage percent = PlayerDirectory.page(sqlite, "f%o", 0, "bob_x", false, name -> false, null);
+        assertThat(names(percent)).containsExactly("half%off");
+    }
 }
