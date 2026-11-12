@@ -122,7 +122,7 @@ import { gzipSync } from 'node:zlib';
 // both on master together 2026-11-08: the match-feel batch, Match size and the UI and Gauntlet fixes, measured app 821.6 kB
 // app raised 2026-11-11 from 824 kB for notifications and presence (#208, #209, #229, #195): notification kinds in
 // Settings, the table-join watch in the shell, the status picker and the player directory in the lazy lobby drawer,
-// with their English and Spanish messages. Measured initial 212.0 kB, app 827.2 kB
+// with their English and Spanish messages. Measured initial 212.0 kB, app 827.4 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
