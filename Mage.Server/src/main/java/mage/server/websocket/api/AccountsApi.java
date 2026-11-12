@@ -372,6 +372,8 @@ final class AccountsApi {
         out.put("oidcName", oidcLink == null ? null : (oidcLink.displayName != null && !oidcLink.displayName.isEmpty() ? oidcLink.displayName : oidcLink.sub));
         // support for the server: the code, payments (without the providers' payloads), perks and the look
         out.put("support", SupportApi.export(name));
+        // the status the player chose: online, hidden or looking (to play)
+        out.put("presence", mage.server.social.Presence.statusOf(name));
         Gson gson = new GsonBuilder().setPrettyPrinting().serializeNulls().create();
         return gson.toJson(out);
     }
@@ -393,6 +395,10 @@ final class AccountsApi {
             logger.warn("Saved games and scores of " + name + " couldn't be deleted", e);
         }
         ReportStore.get().forget(name);
+        mage.server.social.PresenceStore presence = mage.server.social.PresenceStore.get();
+        if (presence != null) {
+            presence.forget(name);
+        }
         try {
             // the ledger keeps the amounts, for the months' totals, without anything that names the payer
             mage.server.support.Support.get().forget(name);

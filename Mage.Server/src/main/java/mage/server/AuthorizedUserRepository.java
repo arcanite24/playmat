@@ -375,6 +375,44 @@ public class AuthorizedUserRepository {
         }
     }
 
+    /**
+     * Names of the accounts that can sign in whose name (never the email) contains the text, any case, by name, a page
+     * at a time: the player directory's list, which must not let anyone look accounts up by email.
+     */
+    public List<String> listActiveNames(String text, long offset, long limit) {
+        try {
+            QueryBuilder<AuthorizedUser, Object> qb = usersDao.queryBuilder().selectColumns("name").orderByRaw("LOWER(name)").offset(offset).limit(limit);
+            activeNamed(qb, text);
+            List<String> names = new java.util.ArrayList<>();
+            for (AuthorizedUser user : usersDao.query(qb.prepare())) {
+                names.add(user.getName());
+            }
+            return names;
+        } catch (SQLException ex) {
+            LOGGER.error("Error listing authorized_user names - ", ex);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    public long countActiveNames(String text) {
+        try {
+            QueryBuilder<AuthorizedUser, Object> qb = usersDao.queryBuilder().setCountOf(true);
+            activeNamed(qb, text);
+            return usersDao.countOf(qb.prepare());
+        } catch (SQLException ex) {
+            LOGGER.error("Error counting authorized_user names - ", ex);
+            return 0;
+        }
+    }
+
+    private static void activeNamed(QueryBuilder<AuthorizedUser, Object> qb, String text) throws SQLException {
+        com.j256.ormlite.stmt.Where<AuthorizedUser, Object> where = qb.where().eq("active", true);
+        if (text != null && !text.trim().isEmpty()) {
+            String like = "%" + text.trim().toLowerCase(java.util.Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+            where.and().raw("LOWER(name) LIKE ?", new SelectArg(com.j256.ormlite.field.SqlType.STRING, like));
+        }
+    }
+
     private static void matching(QueryBuilder<AuthorizedUser, Object> qb, String text) throws SQLException {
         if (text == null || text.trim().isEmpty()) {
             return;

@@ -61,7 +61,7 @@ final class SettingsApi {
                 RpcMethod.named("adminSettings")
                         .returns("ServerSettings")
                         .doc("Staff (admin): settings that change without a restart (registration, Career, AI opponents, batch games, time to "
-                                + "answer, Discord posts), each with where its value comes from; the Discord webhooks; planned maintenance.")
+                                + "answer, the player directory, Discord posts), each with where its value comes from; the Discord webhooks; planned maintenance.")
                         .handler(call -> {
                             Staff.require(ctx, call, StaffRole.ADMIN);
                             return AccessApi.store(() -> settings(ctx));
@@ -175,10 +175,13 @@ final class SettingsApi {
                 String.valueOf(RuntimeSettings.BATCH_GAMES_PER_DAY_DEFAULT), null));
         result.settings.add(setting(runtime, RuntimeSettings.PROGRESS_XP_PERCENT, String.valueOf(runtime.progressXpPercent()), "100", null));
         result.settings.add(setting(runtime, RuntimeSettings.PROGRESS_COIN_PERCENT, String.valueOf(runtime.progressCoinPercent()), "100", null));
+        result.settings.add(setting(runtime, RuntimeSettings.DIRECTORY, runtime.directoryOn() ? "on" : "off", "on",
+                config != null && !config.isAuthenticationActivated() ? "This server has no accounts" : null));
         for (String kind : Arrays.asList(RuntimeSettings.DISCORD_TABLES, RuntimeSettings.DISCORD_EVENTS, RuntimeSettings.DISCORD_MATCHES,
                 RuntimeSettings.DISCORD_STAFF)) {
             result.settings.add(setting(runtime, kind, runtime.discord(kind) ? "on" : "off", "on", null));
         }
+        result.settings.add(setting(runtime, RuntimeSettings.DISCORD_JOINS, runtime.discord(RuntimeSettings.DISCORD_JOINS) ? "on" : "off", "off", null));
         result.settings.add(setting(runtime, RuntimeSettings.SUPPORT_ENABLED, runtime.supportOn() ? "on" : "off", "on", null));
         result.settings.add(setting(runtime, RuntimeSettings.SUPPORT_GOAL_CENTS, String.valueOf(runtime.supportGoalCents()),
                 String.valueOf(RuntimeSettings.DEFAULT_GOAL_CENTS), null));

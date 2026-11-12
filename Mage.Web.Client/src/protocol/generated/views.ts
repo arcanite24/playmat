@@ -1314,6 +1314,21 @@ export interface DeckView extends Serializable {
     sideboard?: { [index: string]: SimpleCardView };
 }
 
+export interface DirectoryPage {
+    enabled?: boolean;
+    offset?: number;
+    pageSize?: number;
+    players?: DirectoryPlayer[];
+    total?: number;
+}
+
+export interface DirectoryPlayer {
+    level?: number;
+    name?: string;
+    online?: boolean;
+    status?: string;
+}
+
 export interface DraftClientMessage extends Serializable {
     draftPickView?: DraftPickView;
     draftView?: DraftView;
@@ -1921,6 +1936,10 @@ export interface PlayerView extends Serializable {
     winsNeeded?: number;
 }
 
+export interface PresenceStatus {
+    status?: string;
+}
+
 export interface Puzzle extends Serializable {
     firstTurn?: string;
     hint?: string;
@@ -2440,6 +2459,7 @@ export interface UsersView extends Serializable {
     limitedRating?: number;
     matchHistory?: string;
     matchQuitRatio?: number;
+    status?: string;
     tourneyHistory?: string;
     tourneyQuitRatio?: number;
     userName?: string;

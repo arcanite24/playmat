@@ -27,6 +27,7 @@ import mage.server.game.GameFactory;
 import mage.server.game.PlayerFactory;
 import mage.server.managers.ManagerFactory;
 import mage.server.notify.DiscordNotifier;
+import mage.server.social.Presence;
 import mage.server.record.TableRecorderImpl;
 import mage.server.tournament.TournamentFactory;
 import mage.server.util.ServerMessagesUtil;
@@ -421,9 +422,23 @@ public class TableController {
             }
             user.ccJoinedTable(table.getRoomId(), table.getId(), table.getParentTableId(), false);
             userPlayerMap.put(userId, player.getId());
+            announceJoin(userId, user.getName(), table.getMatch().getOptions().getPassword());
         }
 
         return true;
+    }
+
+    /** A guest sat down at a public table of the main lobby: the Discord channel may hear of it (not of hidden players). */
+    private void announceJoin(UUID userId, String name, String password) {
+        try {
+            if (isOwner(userId) || table.isTournament() || !table.getRoomId().equals(managerFactory.gamesRoomManager().getMainRoomId())
+                    || Presence.isHidden(name)) {
+                return;
+            }
+            DiscordNotifier.instance().playerJoined(table, password, name);
+        } catch (RuntimeException e) {
+            logger.warn("Join announcement failed: " + e.getMessage());
+        }
     }
 
     public void addPlayer(UUID userId, Player player, PlayerType playerType, Deck deck) throws GameException {

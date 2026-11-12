@@ -12,6 +12,7 @@ import mage.server.RoomImpl;
 import mage.server.User;
 import mage.server.managers.ManagerFactory;
 import mage.server.notify.DiscordNotifier;
+import mage.server.social.Presence;
 import mage.util.ThreadUtils;
 import mage.util.XmageThreadFactory;
 import mage.view.MatchView;
@@ -99,7 +100,8 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
                             user.getMatchHistory(), user.getMatchQuitRatio(), user.getTourneyHistory(),
                             user.getTourneyQuitRatio(), user.getGameInfo(), user.getPingInfo(),
                             user.getUserData().getGeneralRating(), user.getUserData().getConstructedRating(),
-                            user.getUserData().getLimitedRating(), user.getUserData().getAvatarId()));
+                            user.getUserData().getLimitedRating(), user.getUserData().getAvatarId())
+                            .withStatus(Presence.statusOf(user.getName())));
                 } catch (Exception ex) {
                     LOGGER.fatal("User update exception: " + user.getName() + " - " + ex.toString(), ex);
                     users.add(new UsersView(
@@ -113,7 +115,8 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
                             user.getPingInfo() != null ? user.getPingInfo() : "<no ping>",
                             user.getUserData() != null ? user.getUserData().getGeneralRating() : 0,
                             user.getUserData() != null ? user.getUserData().getConstructedRating() : 0,
-                            user.getUserData() != null ? user.getUserData().getLimitedRating() : 0));
+                            user.getUserData() != null ? user.getUserData().getLimitedRating() : 0)
+                            .withStatus(Presence.statusOf(user.getName())));
                 }
             }
         }
@@ -208,6 +211,7 @@ public class GamesRoomImpl extends RoomImpl implements GamesRoom, Serializable {
         return managerFactory.tableManager().watchTable(userId, tableId);
     }
 
+    /** Everyone online, hidden players included (each marked with their status): filter with Presence.visible. */
     @Override
     public List<RoomUsersView> getRoomUsersInfo() {
         return lobbyUsers;

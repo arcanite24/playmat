@@ -438,6 +438,8 @@
                                 <class>mage.server.admin.ClientErrorGroup</class>
                                 <class>mage.server.websocket.api.SettingsApi$ServerSetting</class>
                                 <class>mage.server.websocket.api.SettingsApi$ServerSettings</class>
+                                <class>mage.server.websocket.api.LobbyApi$PresenceStatus</class>
+                                <class>mage.server.social.PlayerDirectory$DirectoryPage</class>
                                 <class>mage.server.Maintenance$MaintenancePlan</class>
                                 <class>mage.server.BackupStatus$BackupRun</class>
                                 <class>mage.server.UpdateCheck$UpdateStatus</class>

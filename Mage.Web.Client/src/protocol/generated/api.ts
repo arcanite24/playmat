@@ -81,6 +81,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('deckImportSources'),
     roomGetUsers: (roomId: UUID) =>
       rpc.call('roomGetUsers', roomId),
+    presenceGet: () =>
+      rpc.call('presenceGet'),
+    presenceSet: (status: string) =>
+      rpc.call('presenceSet', status),
+    playerDirectory: (query?: string | null, offset?: number | null) =>
+      rpc.call('playerDirectory', query, offset),
     roomGetAllTables: (roomId: UUID) =>
       rpc.call('roomGetAllTables', roomId),
     roomGetTableById: (roomId: UUID, tableId: UUID) =>

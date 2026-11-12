@@ -23,6 +23,8 @@ public class UsersView implements Serializable {
     private final int constructedRating;
     private final int limitedRating;
     private final int avatarId;
+    /** the status the player chose (Playmat, #229): "online", "hidden" (only staff and the player see them listed) or "looking" (to play) */
+    private String status = "online";
 
     public UsersView(String flagName, String userName, String matchHistory, int matchQuitRatio,
             String tourneyHistory, int tourneyQuitRatio, String infoGames, String infoPing,
@@ -94,5 +96,14 @@ public class UsersView implements Serializable {
 
     public int getLimitedRating() {
         return limitedRating;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public UsersView withStatus(String status) {
+        this.status = status;
+        return this;
     }
 }
