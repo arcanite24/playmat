@@ -63,12 +63,13 @@
   {
    "n": "5",
    "name": "Rust AI",
-   "status": "active",
-   "text": "Whole-turn playouts on engine copies, deciding in milliseconds. It plays the AI's seat in Java's games for listed players, and the whole game when the Rust engine hosts it.",
+   "status": "live",
+   "text": "Whole-turn playouts on engine copies, deciding in milliseconds. It plays the AI's seat in Java's games for listed players, and the whole game when the Rust engine hosts it. Any decider answers through one decision interface (playouts by default; MCTS on parallel threads is opt-in: as strong, far more CPU), and Archbench rates them on fixed seeded duels.",
    "pr": [
     232,
     237,
-    238
+    238,
+    284
    ]
   },
   {
@@ -178,6 +179,16 @@
    "unit": "ms",
    "date": "2026-11-06",
    "source": "docs/rust/Ai.md"
+  },
+  {
+   "id": "random",
+   "label": "AI games won against a random seat, of 48",
+   "java": 37,
+   "rust": 41,
+   "unit": "games",
+   "date": "2026-11-11",
+   "source": "archbench/constructed-1/results.md",
+   "note": "RustAiGameTest: the school decks against a RandomDriver seat, 20-turn cap. Java also drew 9 and lost 2; the Rust AI drew 6 and lost 1."
   },
   {
    "id": "replay",
@@ -996,11 +1007,11 @@
    "checked_in": 412
   },
   "rust": {
-   "lines": 42341,
+   "lines": 43186,
    "crates": [
     {
      "crate": "playmat-ai",
-     "lines": 2230
+     "lines": 3075
     },
     {
      "crate": "playmat-engine",
@@ -1029,6 +1040,6 @@
    ]
   }
  },
- "commit": "1f03a031bea65c59e9d202343254e80938993b69",
+ "commit": "464b489829a337ba407c6acd32b22387bca15179",
  "generated": "2026-11-11"
 }
