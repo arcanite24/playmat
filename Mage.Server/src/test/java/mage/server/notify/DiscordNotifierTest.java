@@ -4,6 +4,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import mage.game.Table;
 import mage.players.PlayerType;
+import mage.server.admin.AdminStore;
+import mage.server.admin.RuntimeSettings;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -149,5 +151,39 @@ public class DiscordNotifierTest {
         assertThat(off.isEnabled()).isFalse();
         off.tableOpened(table("open", PlayerType.HUMAN, PlayerType.HUMAN), null);
         assertThat(posted).isEmpty();
+    }
+
+    @Test
+    public void aJoinIsPostedOnlyWhenStaffTurnedItOn(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        RuntimeSettings settings = RuntimeSettings.create(new AdminStore("jdbc:sqlite:" + dir.resolve("admin.db")));
+        RuntimeSettings.use(settings);
+        try {
+            DiscordNotifier notifier = notifier("https://play.example.com");
+            Table table = table("Friday night", PlayerType.HUMAN, PlayerType.HUMAN, PlayerType.HUMAN);
+            notifier.playerJoined(table, null, "bob");
+            assertThat(posted).as("off by default").isEmpty();
+
+            settings.set(RuntimeSettings.DISCORD_JOINS, "on", "ana", 1000);
+            notifier.playerJoined(table, "secret", "bob");
+            assertThat(posted).as("never password-protected tables").isEmpty();
+
+            notifier.playerJoined(table, "", "bob");
+            String content = parse(posted.get(0)).get("content").getAsString();
+            assertThat(content).startsWith("bob joined alice's table **Friday night**")
+                    .contains("0/3 seats", "https://play.example.com/join/" + table.getId());
+        } finally {
+            RuntimeSettings.use(null);
+        }
+    }
+
+    @Test
+    public void aJoinNamesTheHostAndDropsTheLinkOnceTheTableIsFull() {
+        assertThat(DiscordNotifier.host("alice, bob")).isEqualTo("alice");
+        assertThat(DiscordNotifier.host("alice")).isEqualTo("alice");
+        String full = DiscordNotifier.playerJoinedMessage("b*b", "alice", "Duel", "Modern", 2, 2, "https://play.example.com/join/1");
+        JsonObject json = parse(full);
+        assertThat(json.get("content").getAsString()).isEqualTo("b\\*b joined alice's table **Duel** (Modern, 2/2 seats)");
+        assertThat(json.getAsJsonArray("embeds").get(0).getAsJsonObject().has("url")).isFalse();
+        assertThat(json.getAsJsonObject("allowed_mentions").getAsJsonArray("parse")).isEmpty();
     }
 }

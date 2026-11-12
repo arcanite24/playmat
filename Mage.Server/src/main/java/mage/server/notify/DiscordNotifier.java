@@ -29,7 +29,7 @@ import java.util.function.LongSupplier;
 
 /**
  * Posts lobby news to a Discord channel through a webhook: a public table opening, an event (tournament) starting,
- * and a match starting. Off unless {@code xmage.discordWebhook} is set; {@code xmage.publicUrl} (the web client's
+ * a match starting, and (when staff turn it on) someone joining a public table. Off unless {@code xmage.discordWebhook} is set; {@code xmage.publicUrl} (the web client's
  * address, e.g. https://play.example.com) adds join links.
  * <p>
  * What is announced:
@@ -177,6 +177,35 @@ public final class DiscordNotifier {
         submit(matchStartedMessage(table.getName(), table.getGameType(), table.getDeckType(), names));
     }
 
+    /**
+     * A person sat down at a public table of the main lobby that someone else hosts (#209), so the host and the
+     * channel hear about it. Off unless staff turn {@link RuntimeSettings#DISCORD_JOINS} on: busy servers would flood
+     * the channel.
+     */
+    public void playerJoined(Table table, String password, String player) {
+        if (!isEnabled() || !on(RuntimeSettings.DISCORD_JOINS) || table.isTournament() || table.isTournamentSubTable()
+                || (password != null && !password.isEmpty())) {
+            return;
+        }
+        int taken = 0;
+        for (Seat seat : table.getSeats()) {
+            if (seat != null && seat.getPlayer() != null) {
+                taken++;
+            }
+        }
+        submit(playerJoinedMessage(player, host(table.getControllerName()), table.getName(), table.getDeckType(), taken,
+                table.getNumberOfSeats(), link("/join/" + table.getId())));
+    }
+
+    /** the host of a table: its controller name lists the host first ("Ann, Bob") */
+    static String host(String controllerName) {
+        if (controllerName == null) {
+            return "";
+        }
+        int comma = controllerName.indexOf(", ");
+        return comma < 0 ? controllerName : controllerName.substring(0, comma);
+    }
+
     /** Someone asked to be let in to a contributors-only server; staff decide in /admin. */
     public void accessRequested(String name, String note) {
         if (!isEnabled() || !on(RuntimeSettings.DISCORD_STAFF)) {
@@ -272,6 +301,22 @@ public final class DiscordNotifier {
         fields.add(field(event ? "Event" : "Game", gameType));
         fields.add(field("Host", escape(host)));
         fields.add(field("Seats", String.valueOf(seats)));
+        embed.add("fields", fields);
+        return payload(content.toString(), embed);
+    }
+
+    static String playerJoinedMessage(String player, String host, String name, String format, int taken, int seats, String link) {
+        StringBuilder content = new StringBuilder()
+                .append(escape(player)).append(" joined ").append(escape(host)).append("'s table **").append(escape(name))
+                .append("** (").append(format).append(", ").append(taken).append('/').append(seats).append(" seats)");
+        if (taken < seats && link != null) {
+            content.append(" Join: ").append(link);
+        }
+        JsonObject embed = embed("Joined: " + escape(name), taken < seats ? link : null);
+        JsonArray fields = new JsonArray();
+        fields.add(field("Format", format));
+        fields.add(field("Host", escape(host)));
+        fields.add(field("Seats", taken + "/" + seats));
         embed.add("fields", fields);
         return payload(content.toString(), embed);
     }

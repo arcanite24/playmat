@@ -514,7 +514,8 @@ The Settings tab (admins) changes these at once, without a restart; they are kep
 | Time to answer | 30 to 3600 seconds, or the config's `maxSecondsIdle` |
 | Batch games at once | 0 to 16 AI-against-AI games running together for players' batches (default 1); 0 stops the runner |
 | Batch games per player a day | 0 to 100000 (default 200) |
-| Discord posts | tables, events, matches and staff news, each on or off |
+| Player directory | on (default) or off: the lobby's Find tab, every account's name, level and whether it's online, for signed-in players (see [Player directory and presence](#player-directory-and-presence)); always off without accounts |
+| Discord posts | tables, events, matches and staff news, each on or off; players joining tables, off until turned on |
 | Support (owner only) | on or off; the monthly goal in cents (default 4000, $40); the Ko-fi page; the GitHub Sponsors page; what support pays for; whether the Discord thank-you says the amount. See [Support and the monthly goal](#support-and-the-monthly-goal) |
 
 The Discord part also says whether each webhook is set (the address stays on the server) and posts a test message on request.
@@ -624,9 +625,17 @@ With `XMAGE_DISCORD_WEBHOOK` set (Discord: channel settings, Integrations, Webho
 - an event (tournament) starts,
 - a standalone match starts: the players are seated and the first game is dealt. An event's own matches are not posted.
 
+- someone sits down at a public table in the lobby that someone else hosts ("Bob joined Ann's table", with the seats taken and a join link while seats are left). Off until staff turn **Players joining tables** on in Settings, since a busy server would flood the channel; players who appear offline are never posted.
+
 Only tables with at least two human seats are posted: AI-only tables and one player against the AI are practice, not news. Password-protected tables are never posted. Posts never mention anyone (`allowed_mentions` is empty), and player-chosen names are shown as typed, without Discord formatting.
 
 Posting never holds up a game: posts wait in a small queue (20) for one background thread, with a 5-second timeout each. At most 30 go out per minute, Discord's limit for one webhook; anything over the limit or the queue is dropped with a warning in the server log (logger `mage.server.notify.DiscordNotifier`). The log never contains the webhook address.
+
+## Player directory and presence
+
+**Directory.** On a server with accounts, signed-in players find every account that can sign in in the lobby's Find tab (`playerDirectory`), 50 at a time by name: the name, the Career level when Career is on, and whether the player is online. The search matches names only, never emails, and nothing else about an account is listed. Deactivated accounts are left out. Turn it off with **Player directory** in Settings. Friends stay a list kept in each browser; there are no server-side friend requests.
+
+**Appear offline.** A player picks Online, Looking to play or Appear offline above the lobby's player list (`presenceSet`); the choice is kept per account in `db/web_presence.db` until they change it. A hidden player is left out of `roomGetUsers` for everyone but themselves and staff (staff see them marked hidden, in the directory too), so friends see them offline; their joining and leaving the lobby chat isn't announced; whispers to them are refused like whispers to someone offline, except from players they whispered first in that session; and their table joins are never posted to Discord. What they do in public still shows: their seat at a table, their lobby chat. Looking to play shows beside the name in the player list. Deleting an account drops its status; the data download includes it.
 
 ## Support and the monthly goal
 
@@ -694,7 +703,7 @@ Caddy allows one address 30 new `/ws` connections a minute (`WS_RATE_LIMIT`). A 
 
 | Volume | Mounted at | Holds | Back up? |
 |---|---|---|---|
-| `xmage-db` | `/opt/xmage/db` | `authorized_user.db` (accounts; `authorized_user.h2` before Nov 2026), `feedback.h2`, `user_stats.db` (player stats), `table_record.db` (finished tables), `web_decks.db` (decks synced to accounts), `web_reports.db` (player reports), `career.db` (Career collections and progress), `web_admin.db` (/admin), `support.db` (support ledger, perks, looks), `solo.db` (single player: saved games, ghosts, AI batches, scores), `content-packs/` (packs staff added) | yes, nightly |
+| `xmage-db` | `/opt/xmage/db` | `authorized_user.db` (accounts; `authorized_user.h2` before Nov 2026), `feedback.h2`, `user_stats.db` (player stats), `table_record.db` (finished tables), `web_decks.db` (decks synced to accounts), `web_reports.db` (player reports), `career.db` (Career collections and progress), `web_admin.db` (/admin), `support.db` (support ledger, perks, looks), `solo.db` (single player: saved games, ghosts, AI batches, scores), `web_presence.db` (players' chosen status), `content-packs/` (packs staff added) | yes, nightly |
 | `xmage-cards` | `/opt/xmage/cards-db` | `cards.h2`, the card database | no: a cache built from the image |
 | `xmage-saved` | `/opt/xmage/saved` | saved games (`XMAGE_SAVE_GAMES`) and web client replays (`saved/replays`) | optional |
 | `xmage-logs` | `/opt/xmage/logs` | `mageserver.log*` | no |
@@ -709,7 +718,7 @@ XMage opens every database under `./db`. Only user data stays on `xmage-db`. The
 The `backup` service runs daily at `BACKUP_AT` and writes `/backups/<UTC timestamp>/` into the `xmage-backups` volume:
 
 - `authorized_user.h2.sql.gz` and `feedback.h2.sql.gz`: H2 SQL dumps. They're taken online by joining the running server's database through H2's auto-server mode, so each dump is consistent.
-- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db` and `solo.db`: SQLite copies made with SQLite's online backup API.
+- `authorized_user.db` (the accounts, see [Accounts and moderation](#accounts-and-moderation)), `user_stats.db`, `table_record.db`, `web_decks.db`, `web_reports.db`, `career.db`, `web_admin.db`, `support.db`, `solo.db` and `web_presence.db`: SQLite copies made with SQLite's online backup API.
 - `content-packs.tar.gz`: the `db/content-packs` folder, when there is one.
 
 Every run writes `db/backup-status.json` (when, whether it worked, its size and the last good one). The admin Overview shows it, and once an hour the server checks it: a failed run, or no good backup for 36 hours, is posted to the staff channel (once a day at most).

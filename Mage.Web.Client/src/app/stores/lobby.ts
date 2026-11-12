@@ -11,6 +11,8 @@ import { notify } from './toasts';
 const MAX_LINES = 300;
 export const PRESENCE_POLL_MS = 10_000;
 
+export type LobbyTab = 'chat' | 'players' | 'directory';
+
 /** A lobby chat message as received; the drawer turns these into lines when it is opened. */
 export interface LobbyMessage {
   key: string;
@@ -29,7 +31,8 @@ interface LobbyState {
   users: UsersView[];
   /** the drawer is open, on this tab */
   open: boolean;
-  tab: 'chat' | 'players';
+  /** chat, who is online, or every registered player (the directory, #195) */
+  tab: LobbyTab;
   /** text to put in the chat box (a whisper started from the player list); the box takes it and clears it */
   draft: string | null;
   /** the player whose profile is open */
@@ -134,7 +137,7 @@ events.on('CHATMESSAGE', (message, event) => {
     if (!(open && tab === 'chat')) {
       notify(`Whisper from ${who}`, text, 'info', { label: 'Reply', run: () => useLobby.getState().whisper(who) });
     }
-    attention(`Whisper from ${who}`, text, { tag: `whisper:${who}`, onClick: () => useLobby.getState().whisper(who) });
+    attention(`Whisper from ${who}`, text, { kind: 'whispers', tag: `whisper:${who}`, onClick: () => useLobby.getState().whisper(who) });
   }
 });
 

@@ -134,6 +134,22 @@
           guide</a> and the
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#sign-in-with-an-identity-provider">deployment guide</a>.</p>
 
+        <h2 id="players">Player directory and presence</h2>
+        <p>On servers with accounts, the lobby has a <strong>Find</strong> tab listing every account that can sign in:
+          its name, its level when Career is on, and whether it's online. The search matches names only, and nothing
+          else about an account is shown, emails included. To keep your players' names to yourselves, set
+          <strong>Player directory</strong> to off in <strong>Settings</strong>.</p>
+        <p>Players can also choose to <strong>appear offline</strong>. They drop out of the online list (friends see
+          them offline), their arrival in the lobby isn't announced, and whispers reach them only from people they
+          whispered first. Staff still see them in the list, marked hidden, and in the directory. Tables and lobby chat
+          still show them. The choice is kept per account in <code>db/web_presence.db</code> until they change it.</p>
+
+        <h2 id="discord-joins">Discord: someone joined a table</h2>
+        <p>With the Discord webhook set, <strong>Settings</strong> has a <strong>Players joining tables</strong> switch,
+          off by default: on, the lobby channel gets a post when someone sits down at a public table in the lobby
+          ("Bob joined Ann's table"). Password-protected tables, events and players who appear offline are never
+          posted. Hosts get a browser notification for their own tables either way.</p>
+
         <h2 id="audit">The audit log</h2>
         <p>Every staff action that changes something goes in the <strong>Audit</strong> tab, with who did it and the
           reason they gave: mutes, locks, role changes, maintenance, updates, rollbacks and progression taken back.</p>

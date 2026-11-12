@@ -9,6 +9,7 @@ import mage.game.tournament.Tournament;
 import mage.server.game.GameController;
 import mage.server.managers.ChatManager;
 import mage.server.managers.ManagerFactory;
+import mage.server.social.Presence;
 import mage.util.GameLog;
 import mage.utils.SystemUtil;
 import mage.view.ChatMessage.MessageColor;
@@ -353,6 +354,8 @@ public class ChatManagerImpl implements ChatManager {
                 -> getChatSessions()
                 .stream()
                 .filter(chat -> chat.hasUser(userId, true))
+                // a hidden player's return stays out of the lobby (Presence)
+                .filter(chat -> !chat.isRoomChat() || !Presence.isHidden(user.getName()))
                 .forEach(chatSession -> chatSession.broadcast(null, user.getName() + " has reconnected", MessageColor.BLUE, true, null, MessageType.STATUS, null))));
     }
 

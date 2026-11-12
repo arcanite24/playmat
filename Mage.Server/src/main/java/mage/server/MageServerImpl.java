@@ -29,6 +29,7 @@ import mage.server.game.GamesRoom;
 import mage.server.game.PlayerFactory;
 import mage.server.managers.ManagerFactory;
 import mage.server.services.impl.FeedbackServiceImpl;
+import mage.server.social.Presence;
 import mage.server.tournament.TournamentFactory;
 import mage.server.util.ServerMessagesUtil;
 import mage.util.DebugUtil;
@@ -358,7 +359,8 @@ public class MageServerImpl implements MageServer {
         try {
             Optional<GamesRoom> room = managerFactory.gamesRoomManager().getRoom(roomId);
             if (room.isPresent()) {
-                return room.get().getRoomUsersInfo();
+                // no session here (the old clients' call): hidden players stay out of it
+                return Presence.visibleRooms(room.get().getRoomUsersInfo(), null, false);
             } else {
                 return new ArrayList<>();
             }

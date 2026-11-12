@@ -57,4 +57,16 @@ public class RuntimeSettingsTest {
         assertThatThrownBy(() -> settings.set(RuntimeSettings.MAX_SECONDS_IDLE, "5", "ana", 1)).hasMessageContaining("30 to 3600");
         assertThatThrownBy(() -> settings.set(RuntimeSettings.MAX_AI_OPPONENTS, "lots", "ana", 1)).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void joinPostsWaitToBeTurnedOnAndTheDirectoryIsOn() throws Exception {
+        assertThat(settings.discord(RuntimeSettings.DISCORD_JOINS)).as("a busy server would flood the channel").isFalse();
+        assertThat(settings.directoryOn()).isTrue();
+
+        settings.set(RuntimeSettings.DISCORD_JOINS, "on", "ana", 1000);
+        settings.set(RuntimeSettings.DIRECTORY, "off", "ana", 1000);
+        assertThat(settings.discord(RuntimeSettings.DISCORD_JOINS)).isTrue();
+        assertThat(settings.directoryOn()).isFalse();
+        assertThatThrownBy(() -> settings.set(RuntimeSettings.DIRECTORY, "hidden", "ana", 1)).isInstanceOf(IllegalArgumentException.class);
+    }
 }

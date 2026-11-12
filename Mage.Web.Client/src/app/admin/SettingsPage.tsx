@@ -40,6 +40,16 @@ const ABOUT: Record<string, { label: string; help: string; choices?: { value: st
   discordEvents: { label: 'Events starting', help: 'Tournaments, when they start.', choices: [{ value: 'on', label: 'Post' }, { value: 'off', label: 'Off' }] },
   discordMatches: { label: 'Matches starting', help: 'Standalone matches between people.', choices: [{ value: 'on', label: 'Post' }, { value: 'off', label: 'Off' }] },
   discordStaff: { label: 'Staff news', help: 'Access requests, reports, staff changes, maintenance and backup trouble.', choices: [{ value: 'on', label: 'Post' }, { value: 'off', label: 'Off' }] },
+  discordJoins: {
+    label: 'Players joining tables',
+    help: '"Bob joined Ann\u2019s table", for public tables in the lobby. Busy servers may want it off. Players who appear offline are never posted.',
+    choices: [{ value: 'on', label: 'Post' }, { value: 'off', label: 'Off' }],
+  },
+  directory: {
+    label: 'Player directory',
+    help: 'The lobby\u2019s Find tab: every account\u2019s name, level and whether it\u2019s online, for signed-in players. Never emails.',
+    choices: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }],
+  },
   'support.enabled': {
     label: 'Support',
     help: 'The month’s goal on Home, sign-in and the support page. It shows only once a Ko-fi or GitHub Sponsors page is set.',
@@ -56,7 +66,9 @@ const ABOUT: Record<string, { label: string; help: string; choices?: { value: st
   },
 };
 
-const DISCORD = new Set(['discordTables', 'discordEvents', 'discordMatches', 'discordStaff']);
+const DISCORD = new Set(['discordTables', 'discordEvents', 'discordMatches', 'discordStaff', 'discordJoins']);
+/** Discord posts that stay off until staff turn them on */
+const DISCORD_OPT_IN = new Set(['discordJoins']);
 const isSupport = (name: string | undefined) => !!name?.startsWith('support.');
 
 /** Settings that change without a restart, the Discord channels, and planned maintenance. */
@@ -112,7 +124,7 @@ function SettingRow({ api, setting, now, readOnly = false }: { api: AdminApi; se
   });
   const source = setting.changed
     ? `Changed by ${setting.changedBy} ${describeAge(setting.changedAt ?? 0, now) || formatDate(setting.changedAt ?? 0)}`
-    : DISCORD.has(name) ? 'On unless turned off here' : isSupport(name) ? 'The default' : 'From the config';
+    : DISCORD_OPT_IN.has(name) ? 'Off unless turned on here' : DISCORD.has(name) ? 'On unless turned off here' : isSupport(name) || name === 'directory' ? 'The default' : 'From the config';
   const locked = !!setting.locked || readOnly;
   const id = `setting-${name}`;
   return (
