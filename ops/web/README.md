@@ -282,6 +282,7 @@ step, and whenever the copy differs from Java's game, the Java AI takes the seat
 | `XMAGE_RUST_AI_USERS` | none | Comma-separated user names (any case), or `*` for everyone: whose games against the AI it plays. Empty: nobody's. |
 | `XMAGE_RUST_VIEWS_EVERY` | `10` | Every n-th question to the player, the Rust copy also renders the player's view and compares it with the one Java sent ([docs/rust/Views.md](../../docs/rust/Views.md)). `0` turns it off. It never changes the game. |
 | `XMAGE_RUST_PROMPTS` | `1` | The Rust copy also renders the player's prompts (the question's message, buttons and choices) and writes the game log, and compares both with Java's ([docs/rust/Views.md](../../docs/rust/Views.md#prompts-and-the-game-log)). `0` turns it off. It never changes the game. |
+| `PLAYMAT_AI_POLICY` | `playouts` | Who answers the Rust AI's decisions, here and in Rust-hosted games: `playouts` (the default search), `mcts` (Monte Carlo tree search on up to 4 threads, `PLAYMAT_AI_THREADS`: as strong in the benchmarks, far more CPU), `quick` (no search, weakest) or `random`. See [docs/rust/Ai.md](../../docs/rust/Ai.md#one-decision-at-a-time-policies). |
 | `XMAGE_ENGINE` | | `java` turns every Rust part off. |
 
 It plays a game when it's one player against one AI from opening hands, and the Rust engine has every card in both
