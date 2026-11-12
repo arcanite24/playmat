@@ -12458,7 +12458,15 @@ fn same_trigger(game: &Game, a: &StackItem, b: &StackItem) -> bool {
 fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
     t.delayed
         .as_ref()
-        .map(|dl| dl.fixed.iter().filter(|(o, z)| game.obj(*o).zcc == *z).map(|(o, _)| *o).collect())
+        // blitz's sacrifice is a `FixedTarget` too
+        .map(|dl| {
+            dl.fixed
+                .iter()
+                .chain(dl.sacrifice.iter())
+                .filter(|(o, z)| game.obj(*o).zcc == *z)
+                .map(|(o, _)| *o)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
