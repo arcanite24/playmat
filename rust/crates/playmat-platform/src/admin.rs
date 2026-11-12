@@ -122,7 +122,7 @@ pub struct AdminStores {
     /// db/support.db and the accounts (db/authorized_user.db), for the support calls
     support: Option<(SqlitePool, PathBuf)>,
     /// db/career.db, for the Career's records
-    career: Option<SqlitePool>,
+    pub(crate) career: Option<SqlitePool>,
     /// the Career's content, for the calls that need it
     pub(crate) career_content: Option<crate::career::CareerContent>,
     /// the content views Java writes
@@ -730,7 +730,17 @@ pub fn difference(method: &str, java: &Value, rust: &Value) -> Option<String> {
     compare::difference(java, &Value::Object(rust))
 }
 
+#[cfg(test)]
+thread_local! {
+    /// a test's fixed clock for `now_millis`, on its own thread
+    pub(crate) static TEST_CLOCK: std::cell::Cell<Option<i64>> = const { std::cell::Cell::new(None) };
+}
+
 pub(crate) fn now_millis() -> i64 {
+    #[cfg(test)]
+    if let Some(at) = TEST_CLOCK.with(std::cell::Cell::get) {
+        return at;
+    }
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 

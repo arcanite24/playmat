@@ -107,6 +107,17 @@ async fn main() {
     }
     connection::log_start(&app);
     tokio::spawn(watch_server_info(app.clone()));
+    // who pays finished games (XMAGE_ROUTE_CAREERPAYOUTS, docs/rust/Payouts.md)
+    let payouts = match app.config.routes.event_route("CareerPayouts") {
+        playmat_protocol::routes::Route::Java => playmat_platform::payouts::PayoutRoute::Java,
+        playmat_protocol::routes::Route::Shadow => playmat_platform::payouts::PayoutRoute::Shadow,
+        playmat_protocol::routes::Route::Rust => playmat_platform::payouts::PayoutRoute::Rust,
+    };
+    if payouts != playmat_platform::payouts::PayoutRoute::Java {
+        let reporter = app.clone();
+        let report = Arc::new(move |method: &str, same: bool| reporter.metrics.shadow(method, same));
+        tokio::spawn(platform.clone().pay_careers(payouts, app.config.shadow_users.clone(), report));
+    }
 
     let router = Router::new()
         .route("/healthz", get(health))

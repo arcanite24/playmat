@@ -57,7 +57,7 @@ public final class CareerViewsExport {
      * nemesis, and the opponent whose win opens a rival chapter ({@code CareerLadder.rivalOpen}). Rust adds the
      * player's wins, the unlocks and the nemesis.
      */
-    static List<Map<String, Object>> opponents(CareerContent content) {
+    public static List<Map<String, Object>> opponents(CareerContent content) {
         Map<String, Integer> none = Collections.emptyMap();
         Map<Integer, Integer> noTiers = Collections.emptyMap();
         List<Map<String, Object>> roster = new ArrayList<>();
@@ -65,6 +65,10 @@ public final class CareerViewsExport {
             Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("view", CareerService.opponentView(content, opponent, none, noTiers, false));
             entry.put("nemesis", CareerService.opponentView(content, opponent, none, noTiers, true));
+            if (opponent.rival != null) {
+                // what the rival says after a win, for payouts in Rust (CareerLadder.finished)
+                entry.put("rivalAfter", opponent.rival.after);
+            }
             if (opponent.rival != null && opponent.rival.chapter > 1) {
                 for (CareerContent.Opponent other : content.opponents()) {
                     if (other.rival != null && other.rival.chapter == opponent.rival.chapter - 1) {
@@ -87,6 +91,8 @@ public final class CareerViewsExport {
         views.put("starterCards", CareerService.get().starterCardsExport());
         views.put("styles", mage.server.career.CareerCapsules.get().styleExport());
         views.put("quests", new ArrayList<>(mage.server.career.CareerProgress.get().questTemplates().values()));
+        // the capsule machines, newest wave first, for pulls in Rust (docs/rust/Career.md)
+        views.put("machines", mage.server.career.CareerCapsules.get().machines());
         File parent = file.getAbsoluteFile().getParentFile();
         if (parent != null) {
             parent.mkdirs();

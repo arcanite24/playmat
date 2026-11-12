@@ -170,6 +170,8 @@ Each move transfers the single writer of its database file; Java gets a thin cli
 - Java keeps match setup and publishes `matchEnded` with a DTO (players, decks, result, stats); payouts, XP, ratings (Glicko), table records, user stats and Discord notices run in Rust off that event.
 - Solo stays in Java until the engine moves, since it saves and forks live games.
 
+**Status (11 Nov 2026, unparked):** built behind routes, all `java` by default. The Career's reads and writes are in Rust ([rust/Career.md](rust/Career.md)): the records, the views, crafting, starting a Career, decks, quests and rerolls, the capsule shop, tokens and pulls. Payouts run off a `payout_events` outbox in `career.db` (`XMAGE_ROUTE_CAREERPAYOUTS`, [rust/Payouts.md](rust/Payouts.md)): Rust pays roster duels and every game outside Career tables; shadow replays each Java payout on a copy of the rows before it and compares the rows after. Quests and pulls roll the same seeded dice on both sides. Parity fixtures written by Java (14 payouts, 23 calls) are replayed in `cargo test`. Left in Java, with reasons: packs and limited drafts (the engine's boosters), the Career's modes, and ratings, table records and user stats, which are XMage's own table pipeline, not the Career's. There is no Discord notice at a game's end.
+
 **Gate:** payouts identical in shadow for two weeks of real play; Java's server layer reduced to tables, games, tournaments and solo.
 
 ### Phase 4: Rust rules engine (the long one: 6–9 months to a playable core, then a long card tail)
@@ -254,6 +256,6 @@ Decided 3 Nov: the fork may stop merging upstream Java, but it keeps following u
 ## Decisions (5 Nov 2026)
 
 1. **Target:** AI performance in one-on-one games against the AI with decks up to Pioneer (Pioneer and Standard). Speed first: CPU per game and the time a player waits on a decision, then AI strength.
-2. **Order:** the rules engine (Phase 4) and the Rust AI (Phase 5) are next, built together for two-player duels. Phases 1 and 2 keep their shadow weeks; Phase 3 (the Career) is parked with what's built in `shadow`, and payouts wait.
+2. **Order:** the rules engine (Phase 4) and the Rust AI (Phase 5) are next, built together for two-player duels. Phases 1 and 2 keep their shadow weeks; Phase 3 (the Career) was parked with what's built in `shadow`; it was unparked on 11 Nov 2026 with payouts and the economy calls built.
 3. **First card pool:** the Pioneer and Standard Career school decks (42 decks, 410 distinct cards), then every Pioneer-legal card. The upstream ledger ports Pioneer-legal cards first.
 4. **The bar:** Java keeps improving (#217), so each gate compares against Java at the time, measured with `AiSpeedBenchTest` and `npm run perf -- ai` on the 42 decks.
