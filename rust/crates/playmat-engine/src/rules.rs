@@ -12230,8 +12230,16 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             game.pending.extend(fired);
         }
         if !game.life_batch.is_empty() {
+            // `LOST_LIFE_BATCH_FOR_ONE_PLAYER` fires after the effect: a source that left the battlefield meanwhile
+            // (Feed the Swarm's life loss, then its destroy) doesn't trigger
             let batch = std::mem::take(&mut game.life_batch);
-            game.pending.extend(batch.into_iter().map(|(_, t)| t));
+            let sources = game.trigger_sources();
+            let live: Vec<StackItem> = batch
+                .into_iter()
+                .map(|(_, t)| t)
+                .filter(|t| sources.contains(&t.card) && t.ability.is_none_or(|(_, zcc)| game.obj(t.card).zcc == zcc))
+                .collect();
+            game.pending.extend(live);
         }
         if !game.damaged_batch.is_empty() {
             damaged_batch_triggers(game);
