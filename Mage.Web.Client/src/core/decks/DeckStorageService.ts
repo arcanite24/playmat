@@ -26,6 +26,10 @@ export interface DeckSummary {
     source?: DeckImportSource;
     /** the deck's own token pictures (ui/tokenArt.ts) */
     tokenArt?: Record<string, string>;
+    /** the player's labels (#200) */
+    tags?: string[];
+    /** still being worked on (#200) */
+    draft?: boolean;
 }
 
 export interface IDeckStorage {
@@ -71,6 +75,10 @@ interface DeckMeta {
     source?: DeckImportSource;
     /** the deck's own token pictures (ui/tokenArt.ts) */
     tokenArt?: Record<string, string>;
+    /** the player's labels (#200) */
+    tags?: string[];
+    /** still being worked on (#200) */
+    draft?: boolean;
 }
 
 export class LocalDeckStorage implements IDeckStorage {
@@ -128,6 +136,8 @@ export class LocalDeckStorage implements IDeckStorage {
             colors: deck.colors,
             source: deck.source,
             tokenArt: deck.tokenArt,
+            tags: deck.tags,
+            draft: deck.draft,
         };
         const newMeta = meta.filter(m => m.id !== deck.id);
         newMeta.push(newMetaItem);
@@ -227,6 +237,8 @@ export class LocalDeckStorage implements IDeckStorage {
             colors: m.colors,
             source: m.source,
             tokenArt: m.tokenArt,
+            tags: m.tags,
+            draft: m.draft,
         })).sort((a, b) => b.updatedAt - a.updatedAt);
     }
 

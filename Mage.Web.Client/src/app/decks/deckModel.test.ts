@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CardView } from '../../protocol/generated/views';
 import type { DeckCardLists } from '../../core/decks/types';
 import { manaColumns } from './manaColumnLayout';
-import { addCard, changePrinting, copiesByName, copyLimit, countZone, entryKey, groupDeck, manaCurve, moveCard, removeCard } from './deckModel';
+import { addCard, changePrinting, chooseCover, copiesByName, copyLimit, countZone, entryKey, finalizeDeck, groupDeck, manaCurve, moveCard, removeCard } from './deckModel';
 
 const empty: DeckCardLists = { name: 'Test', cards: [], sideboard: [] };
 const bolt = { cardName: 'Lightning Bolt', setCode: 'M10', cardNumber: '146' };
@@ -90,5 +90,63 @@ describe('mana value columns', () => {
     expect(columns.map((column) => [column.key, column.count])).toEqual([['0-1', 3], ['2', 3], ['3', 0], ['4', 0], ['5', 0], ['6+', 1], ['lands', 16]]);
     expect(columns[0].rows.map((row) => row.entry.cardName)).toEqual(['Ornithopter', 'Bolt']);
     expect(manaColumns([{ cardName: 'X', amount: 1 }], new Map()).at(-1)?.key).toBe('unknown');
+  });
+});
+
+describe('deck cover (#167)', () => {
+  const titan = { cardName: 'Inferno Titan', setCode: 'M11', cardNumber: '146' };
+  const card = (name: string, manaValue: number, types = ['INSTANT']) => ({ name, manaValue, cardTypes: types } as unknown as CardView);
+  const info = new Map<string, CardView>([
+    [entryKey(bolt), card('Lightning Bolt', 1)],
+    [entryKey(boltAlt), card('Lightning Bolt', 1)],
+    [entryKey(titan), card('Inferno Titan', 6, ['CREATURE'])],
+    [entryKey(mountain), card('Mountain', 0, ['LAND'])],
+  ]);
+  const burn: DeckCardLists = { name: 'Burn', cards: [{ ...bolt, amount: 4 }, { ...titan, amount: 1 }, { ...mountain, amount: 20 }], sideboard: [] };
+
+  it('picks the costliest nonland card on its own', () => {
+    const deck = finalizeDeck(burn, info);
+    expect(deck.coverCard).toEqual({ setCode: 'M11', cardNumber: '146', name: 'Inferno Titan' });
+    expect(deck.coverPinned).toBeUndefined();
+  });
+
+  it("follows a printing change when the cover is automatic (the bug in #167's comments)", () => {
+    const auto = finalizeDeck({ ...burn, cards: [{ ...bolt, amount: 4 }] }, info);
+    expect(auto.coverCard?.setCode).toBe('M10');
+    const reprinted = finalizeDeck(changePrinting(auto, 'cards', entryKey(bolt), boltAlt), info);
+    expect(reprinted.coverCard).toEqual({ setCode: '2XM', cardNumber: '129', name: 'Lightning Bolt' });
+  });
+
+  it("keeps the player's choice, printing and all, while its card is in the deck", () => {
+    const chosen = chooseCover(burn, bolt, info);
+    expect(chosen.coverCard).toEqual({ setCode: 'M10', cardNumber: '146', name: 'Lightning Bolt' });
+    expect(chosen.coverPinned).toBe(true);
+    // a costlier card doesn't take over
+    expect(finalizeDeck(addCard(chosen, 'cards', { cardName: 'Big', setCode: 'X', cardNumber: '1' }), info).coverCard?.name).toBe('Lightning Bolt');
+    // another printing for the cover than the deck plays stays too
+    const otherArt = chooseCover(burn, boltAlt, info);
+    expect(finalizeDeck(otherArt, info).coverCard).toEqual({ setCode: '2XM', cardNumber: '129', name: 'Lightning Bolt' });
+    // the deck switching printings leaves the chosen one alone
+    expect(finalizeDeck(changePrinting(chosen, 'cards', entryKey(bolt), boltAlt), info).coverCard?.setCode).toBe('M10');
+  });
+
+  it('falls back to an automatic cover when the chosen card leaves the deck', () => {
+    const chosen = chooseCover(burn, bolt, info);
+    const without = finalizeDeck(removeCard(chosen, 'cards', entryKey(bolt), 4), info);
+    expect(without.coverCard?.name).toBe('Inferno Titan');
+    expect(without.coverPinned).toBeUndefined();
+  });
+
+  it('goes back to automatic on request', () => {
+    const chosen = chooseCover(burn, bolt, info);
+    const auto = chooseCover(chosen, null, info);
+    expect(auto.coverCard?.name).toBe('Inferno Titan');
+    expect(auto.coverPinned).toBeUndefined();
+  });
+
+  it('a cover in the command zone counts as in the deck', () => {
+    const commander = { cardName: 'Krenko, Mob Boss', setCode: 'M13', cardNumber: '139' };
+    const deck = chooseCover({ ...burn, sideboard: [{ ...commander, amount: 1 }] }, commander, info);
+    expect(finalizeDeck(deck, info).coverCard?.name).toBe('Krenko, Mob Boss');
   });
 });

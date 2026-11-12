@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Columns3, Coins, Crown, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
+import { ArrowLeftRight, BarChart3, Check, ChevronLeft, ClipboardPaste, Columns3, Coins, Crown, Image as ImageIcon, Images, ListPlus, Minus, Mountain, Plus, Replace, Sparkles, TriangleAlert } from 'lucide-react';
 import { useMyCardStyles } from '../ui/cardStyles';
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { createPortal } from 'react-dom';
@@ -20,6 +20,7 @@ import { CardFace } from '../ui/CardFace';
 import { ManaCost } from '../ui/ManaCost';
 import { useCardInfo, useCardInfoStore } from './cardInfo';
 import { CardInspect } from './CardInspect';
+import { CoverDialog } from './CoverDialog';
 import { Collection } from './Collection';
 import { DeckInsights } from './DeckInsights';
 import { SideboardPlansDialog } from './SideboardPlansDialog';
@@ -318,6 +319,7 @@ function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, s
   const [insightsOpen, setInsightsOpen] = useState(false);
   const [plansOpen, setPlansOpen] = useState(false);
   const [tokensOpen, setTokensOpen] = useState(false);
+  const [coverOpen, setCoverOpen] = useState(false);
   const commandZone = rules.commandZone;
   const listed = formats.some((group) => group.types.includes(format));
   // a commander deck counts its command zone; other decks count the main deck only
@@ -500,6 +502,7 @@ function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, s
         <Button variant="print" size="sm" icon={<BarChart3 size={16} />} onClick={() => setInsightsOpen(true)} disabled={mainCount === 0}>Numbers</Button>
         <Button variant="print" size="sm" icon={<ArrowLeftRight size={16} />} onClick={() => setPlansOpen(true)} disabled={mainCount === 0}>Sideboard plans</Button>
         <Button variant="print" size="sm" icon={<Coins size={16} />} onClick={() => setTokensOpen(true)}>Token art</Button>
+        {!fixedFormat && <Button variant="print" size="sm" icon={<ImageIcon size={16} />} onClick={() => setCoverOpen(true)} disabled={mainCount + sideCount === 0}>Cover</Button>}
         <Button variant="decision" onClick={onPlay} disabled={mainCount === 0}>Play this deck</Button>
       </footer>
       <PrintingPicker
@@ -514,6 +517,12 @@ function DeckPanel({ deck, zone, view, onView, info, formats, rules, identity, s
       <DeckInsights open={insightsOpen} onOpenChange={setInsightsOpen} deck={deck} info={info} />
       <SideboardPlansDialog open={plansOpen} onOpenChange={setPlansOpen} deck={deck} onChange={onChange} />
       <TokenArtDialog open={tokensOpen} onOpenChange={setTokensOpen} deck={deck} onChange={onChange} />
+      <CoverDialog
+        open={coverOpen}
+        onOpenChange={setCoverOpen}
+        deck={deck}
+        onChange={(next) => onChange((current) => ({ ...current, coverCard: next.coverCard, coverPinned: next.coverPinned }))}
+      />
     </aside>
   );
 }

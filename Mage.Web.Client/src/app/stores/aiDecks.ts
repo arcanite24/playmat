@@ -4,6 +4,7 @@ import { pickMetaDeck } from '../../core/decks/metaDecks';
 import type { DeckCardLists } from '../../core/decks/types';
 import { META_PREFIX, rosterOf, STARTER_PREFIX, useDecks } from './decks';
 import { cardCount, MIN_DECK_SIZE, type RandomPool } from './play';
+import { loadSharedDeck, SHARED_PREFIX } from './sharedDecks';
 
 /** The AI's decks for a table, loaded on demand: the deck files and the picking stay out of the entry chunk. */
 
@@ -58,8 +59,14 @@ export async function aiDecks(chosenIds: readonly (string | null)[], count: numb
       const starter = state.starters.find((deck) => STARTER_PREFIX + deck.file === id);
       return starter && fits(starter.format, inFormat) ? starterDeck(starter.file, starter.name) : null;
     }
+    if (id.startsWith(SHARED_PREFIX)) {
+      // a deck shared on the server (#137): its owner's latest version
+      const shared = await loadSharedDeck(id).catch(() => null);
+      return shared && fits(shared.format, inFormat) ? shared : null;
+    }
     const saved = await deckStorage.loadDeck(id);
-    return saved && fits(saved.format, inFormat) && (!random || complete(saved, commander)) ? saved : null;
+    // a draft stays out of random picks: it's still being built
+    return saved && fits(saved.format, inFormat) && (!random || (complete(saved, commander) && !saved.draft)) ? saved : null;
   }
 
   async function randomStarter(): Promise<DeckCardLists> {

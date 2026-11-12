@@ -5,7 +5,7 @@ import { DEFAULT_SETTINGS, useSettings } from './settings';
 import { useDeckRoster } from './useDeckRoster';
 
 const starter = { file: 'red.dck', name: 'Red Starter', cards: 60, cover: { setCode: 'M19', cardNumber: '156', name: 'Shock' } };
-const saved: RosterDeck = { id: 'mine', name: 'Burn', note: '', cardCount: 60, cover: null, colors: ['R'], starter: null };
+const saved: RosterDeck = { id: 'mine', name: 'Burn', note: '', cardCount: 60, cover: null, colors: ['R'], starter: null, tags: [], draft: false };
 
 beforeEach(() => {
   localStorage.clear();

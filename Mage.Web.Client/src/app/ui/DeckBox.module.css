@@ -110,6 +110,17 @@
   font-size: 12px;
 }
 
+/* a deck still being built (#200) */
+.draft {
+  flex: none;
+  padding: 0 6px;
+  border: 1px dashed currentColor;
+  border-radius: 4px;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-print-wide);
+  text-transform: uppercase;
+}
+
 
 .initial {
   font-family: var(--font-print);
