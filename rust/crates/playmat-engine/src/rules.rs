@@ -3959,7 +3959,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
 
 /// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
 /// the payment; anything short of paying counters. None: stopped.
-fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef]) -> Option<bool> {
+fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost: &[CostDef]) -> Option<bool> {
     // ward—discard a card: a non-mana cost's message has no "Pay " (`DiscardTargetCost` text "discard a card")
     if let Some(CostDef::DiscardCardCost { filter, .. }) =
         cost.iter().find(|c| matches!(c, CostDef::DiscardCardCost { .. }))
@@ -3990,6 +3990,27 @@ fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef
             game.move_to(*o, Zone::Graveyard);
         }
         return Some(!chosen.is_empty());
+    }
+    // ward—sacrifice three nonland permanents: `canPay` first (too few: countered, nothing asked), then "<cost>?"
+    if let Some(c @ CostDef::SacrificeTargetCost { amount, .. }) =
+        cost.iter().find(|c| matches!(c, CostDef::SacrificeTargetCost { .. }))
+    {
+        if !can_pay_cost(game, payer, id, c) {
+            return Some(false);
+        }
+        let q = Query::YesNo { message: format!("sacrifice {} permanents?", amount) };
+        let yes = loop {
+            match ask(game, d, payer, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return None,
+                _ => {}
+            }
+        };
+        let paid = yes && pay_cost(game, d, payer, id, c);
+        if d.stopped() {
+            return None;
+        }
+        return Some(paid);
     }
     let life: i32 = cost.iter().map(|c| if let CostDef::PayLifeCost { amount } = c { *amount } else { 0 }).sum();
     let mana = ability_mana_cost(cost);
@@ -10801,7 +10822,8 @@ fn apply_each_effect(
                     continue;
                 };
                 let payer = game.stack[at].controller;
-                let Some(paid) = pay_unless(game, d, payer, cost) else { return };
+                let paying = game.stack[at].card;
+                let Some(paid) = pay_unless(game, d, payer, paying, cost) else { return };
                 if !paid {
                     Arc::make_mut(&mut game.stack).remove(at);
                 }
@@ -10818,7 +10840,7 @@ fn apply_each_effect(
                 }
                 let payer = game.stack.iter().find(|i| i.card == spell && i.ability.is_none()).map(|i| i.controller);
                 let Some(payer) = payer else { continue };
-                let Some(paid) = pay_unless(game, d, payer, cost) else { return };
+                let Some(paid) = pay_unless(game, d, payer, spell, cost) else { return };
                 if !paid && !cant_be_countered(game, spell) {
                     note_countered(game, spell, item.card);
                     Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
@@ -11818,7 +11840,12 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f)
     if !cast && def.has_subtype("Aura") {
         if let Some(t) = def.spell.targets.first() {
-            let rule = format!("attach {} to", def.name);
+            // `TargetImpl.tryToAutoChoose` reads the source ability's rule for its feel-bad words (Old-Growth Troll's
+            // "Sacrifice this land" keeps its one Forest asked)
+            let rule = match game.resolving_item.clone() {
+                Some(item) => crate::view::item_rule(game, &item),
+                None => format!("attach {} to", def.name),
+            };
             if let Some(chosen) = choose_target(game, d, controller, t, Some(id), &rule, false) {
                 if let Some(Target::Obj(to)) = chosen.first().copied() {
                     let zcc = game.obj(to).zcc;
