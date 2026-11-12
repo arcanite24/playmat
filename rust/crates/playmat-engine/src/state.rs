@@ -785,6 +785,10 @@ pub struct Game {
     pub returning: Vec<(Seat, ObjId)>,
     /// damage permanents were dealt since triggers were last checked, in order (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
     pub damaged_batch: Vec<(ObjId, i32)>,
+    /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
+    pub mana_batch: u64,
+    /// "opponents are dealt noncombat damage" sources that triggered, with the mana batch they triggered in
+    pub noncombat_fired: Vec<(ObjId, u64)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
     /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
@@ -899,6 +903,8 @@ impl Game {
             returning: Vec::new(),
             day: None,
             damaged_batch: Vec::new(),
+            mana_batch: 0,
+            noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
             exiled_batch: false,
             life_batch: Vec::new(),

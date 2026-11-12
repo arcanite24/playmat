@@ -5320,6 +5320,7 @@ fn activate_mana(
     let made = activate_mana_paying(game, d, seat, id, i, m, k, unpaid);
     // `processManaAction` once it's resolved
     game.short_lki.clear();
+    game.mana_batch += 1;
     made
 }
 
@@ -12808,11 +12809,16 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
 /// (a resolution's damage is one batch: a trigger already waiting isn't added again).
 fn damaged_opponent_triggers(game: &mut Game, seat: Seat) {
     let sources: Vec<ObjId> = game.trigger_sources();
+    let batch = game.mana_batch;
+    // a mana ability's damage (a painland's) is a batch of its own: one waiting from an earlier one still adds
     let fired = game.triggers(sources, |g, src, you, t| {
         matches!(t, Trigger::OpponentsDealtNoncombatDamage)
             && you != seat
-            && !g.pending.iter().any(|p| p.card == src && same_ability(g, p, t))
+            && !(g.pending.iter().any(|p| p.card == src && same_ability(g, p, t))
+                && g.noncombat_fired.contains(&(src, batch)))
     });
+    game.noncombat_fired.retain(|(_, b)| *b == batch);
+    game.noncombat_fired.extend(fired.iter().map(|t| (t.card, batch)));
     game.pending.extend(fired);
 }
 
