@@ -724,6 +724,9 @@ pub struct Game {
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
+    /// a card entering whose replacement effects see it as it was (Enduring Glimmer's return: Java's type effect
+    /// applies once it's there, so "creatures enter tapped" still taps it)
+    pub enters_as: Option<(ObjId, Arc<CardDef>)>,
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
     /// Emrakul, the Promised End: (player, controller) for a player's next turn, controlled by another
@@ -782,6 +785,12 @@ pub struct Game {
     pub returning: Vec<(Seat, ObjId)>,
     /// damage permanents were dealt since triggers were last checked, in order (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
     pub damaged_batch: Vec<(ObjId, i32)>,
+    /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
+    pub mana_batch: u64,
+    /// double-faced permanents whose triggers Java registered as they entered, in that order (`trigger_order`)
+    pub dfc_registered: u64,
+    /// "opponents are dealt noncombat damage" sources that triggered, with the mana batch they triggered in
+    pub noncombat_fired: Vec<(ObjId, u64)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
     pub batch_pending: Vec<StackItem>,
     /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
@@ -867,6 +876,7 @@ impl Game {
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
+            enters_as: None,
             extra_turns: Vec::new(),
             control_next_turn: Vec::new(),
             controlled_by: Vec::new(),
@@ -895,6 +905,9 @@ impl Game {
             returning: Vec::new(),
             day: None,
             damaged_batch: Vec::new(),
+            mana_batch: 0,
+            dfc_registered: 0,
+            noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
             exiled_batch: false,
             life_batch: Vec::new(),

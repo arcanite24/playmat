@@ -3949,6 +3949,19 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
 /// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
 /// the payment; anything short of paying counters. None: stopped.
 fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef]) -> Option<bool> {
+    // ward—sacrifice three nonland permanents: `canPay` first, so a player without them isn't asked
+    for c in cost {
+        if let CostDef::SacrificeTargetCost { filter, amount } = c {
+            let have = game
+                .battlefield
+                .iter()
+                .filter(|p| game.obj(**p).controller == payer && game.filter_matches(filter, payer, None, **p))
+                .count();
+            if have < *amount {
+                return Some(false);
+            }
+        }
+    }
     // ward—discard a card: a non-mana cost's message has no "Pay " (`DiscardTargetCost` text "discard a card")
     if let Some(CostDef::DiscardCardCost { filter, .. }) =
         cost.iter().find(|c| matches!(c, CostDef::DiscardCardCost { .. }))
@@ -5305,6 +5318,7 @@ fn activate_mana(
     let made = activate_mana_paying(game, d, seat, id, i, m, k, unpaid);
     // `processManaAction` once it's resolved
     game.short_lki.clear();
+    game.mana_batch += 1;
     made
 }
 
@@ -6278,7 +6292,22 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
         let Some(old) = original.targets.get(k).cloned() else { continue };
         let total = old.len();
         let mut new: Vec<Target> = Vec::new();
+        // a spell or ability target that left the stack: Java finds nothing by its id (`getNameOftarget`), so it
+        // keeps it without asking
+        let stack_target = matches!(
+            tdef,
+            TargetDef::TargetSpell { .. }
+                | TargetDef::TargetStackAbility { .. }
+                | TargetDef::TargetTriggeredAbilityOrColorlessSpell
+        );
         for (n, t) in old.iter().enumerate() {
+            if let Target::Obj(o) = t {
+                let on_stack = game.stack.iter().any(|i| i.card == *o) || game.resolving.map(|(_, c)| c) == Some(*o);
+                if stack_target && !on_stack {
+                    new.push(*t);
+                    continue;
+                }
+            }
             let q = Query::YesNo { message: format!("Change this {} of {} target?", n + 1, total) };
             let change = loop {
                 match ask(game, d, controller, &q) {
@@ -10162,8 +10191,10 @@ fn apply_each_effect(
                 def.subtypes.clear();
                 let o = game.obj_mut(card);
                 o.def = Arc::new(def);
-                o.printed_def = Some(old);
+                o.printed_def = Some(old.clone());
+                game.enters_as = Some((card, old));
                 enter_battlefield(game, d, card, controller, false);
+                game.enters_as = None;
             }
             EffectDef::AddExtraTurnControllerEffect => game.extra_turns.push(controller),
             EffectDef::ExileSpellEffect => {
@@ -10377,7 +10408,6 @@ fn apply_each_effect(
                 let yours: Vec<ObjId> =
                     tapped.iter().copied().filter(|b| game.obj(*b).controller == controller).collect();
                 let mut chosen: Vec<ObjId> = Vec::new();
-                let mut selected = false;
                 if yours.len() <= *amount {
                     let q = Query::YesNo { message: "Include your tapped lands to untap?".into() };
                     let yes = loop {
@@ -10387,28 +10417,48 @@ fn apply_each_effect(
                             _ => {}
                         }
                     };
-                    if yes && !yours.is_empty() {
+                    if yes {
                         chosen = yours.clone();
-                        selected = true;
                     }
                 }
-                // `HumanPlayer.choose`: a choice already complete isn't asked, and untaps nothing
-                if selected && (chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t))) {
-                    continue;
-                }
+                // `TargetImpl.choose` starts with `chosen` false, so even a full preselection is asked
+                // (`isChoiceSelected`); a pick past the maximum adds nothing. It asks again while the player keeps
+                // adding, until the choice is complete
+                let mut selected = false;
                 loop {
-                    let q = Query::Target { players: Vec::new(), objs: tapped.clone(), required: false };
-                    match ask(game, d, controller, &q) {
-                        Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
-                        Answer::Obj(o) if tapped.contains(&o) => {
-                            chosen.push(o);
-                            if chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t)) {
-                                break;
+                    let prev = chosen.len();
+                    let complete =
+                        |chosen: &Vec<ObjId>| chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t));
+                    let mut picked = false;
+                    if !(selected && complete(&chosen)) {
+                        loop {
+                            let q = Query::Target { players: Vec::new(), objs: tapped.clone(), required: false };
+                            match ask(game, d, controller, &q) {
+                                Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
+                                Answer::Obj(o) if tapped.contains(&o) => {
+                                    if chosen.len() < *amount {
+                                        chosen.push(o);
+                                        if complete(&chosen) {
+                                            picked = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                Answer::Bool(_) => {
+                                    picked = !chosen.is_empty();
+                                    break;
+                                }
+                                Answer::Stop => return,
+                                _ => {}
                             }
                         }
-                        Answer::Bool(_) => break,
-                        Answer::Stop => return,
-                        _ => {}
+                    }
+                    if !picked {
+                        break;
+                    }
+                    selected = true;
+                    if complete(&chosen) || prev == chosen.len() {
+                        break;
                     }
                 }
                 for o in chosen {
@@ -11560,6 +11610,9 @@ pub fn put_onto_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, con
     enter_battlefield(game, d, id, controller, false);
 }
 
+/// where double-faced permanents' triggers start in the order (`Game::dfc_registered`)
+const DFC_ORDER: u64 = 1 << 24;
+
 fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
     // a token of the class last made takes its image
     if game.obj(id).token && game.obj(id).token_image.is_none() {
@@ -11595,6 +11648,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // permanent's static abilities already apply (`AbilityImpl.isInUseableZone`), so a Giada moved before this
     // Angel gives it counters, one moved after doesn't
     let mut more_counters = more_counters;
+    // Giadas whose replacement effect applies (`GiadaFontOfHopeEntersBattlefieldEffect.applies`), counters or not
+    let mut giada_effects = 0;
     if game.obj(id).def.subtypes.iter().any(|t| t == "Angel") {
         let together = |o: &ObjId| game.entering_together.contains(o);
         let mine = game.entering_together.iter().position(|o| *o == id);
@@ -11617,8 +11672,12 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                         if effects.contains(&EffectDef::GiadaFontOfHopeEntersBattlefieldEffect))
                     })
             });
-        more_counters += giadas.count() as i32 * angels;
+        giada_effects = giadas.count();
+        more_counters += giada_effects as i32 * angels;
     }
+    // the characteristics its replacement effects see (`Game::enters_as`)
+    let entering_as = game.enters_as.clone().filter(|(o, _)| *o == id).map(|(_, def)| def);
+    let real_def = entering_as.as_ref().map(|def| std::mem::replace(&mut game.obj_mut(id).def, def.clone()));
     // replacement effects on its entering, more than one: the player picks the order (`chooseReplacementEffect`):
     // Gev's counters for another creature, the next creature spell's counters, and the creature's own "enters"
     // abilities (`EntersBattlefieldEffect`s: one whether its condition holds or not, an `EscapesWithAbility` whether
@@ -11674,11 +11733,25 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             })
             .count();
         game.obj_mut(id).controller = was;
-        let others = gevs + counter_effects + tappers;
+        let others = gevs + counter_effects + tappers + giada_effects;
         if others > 0 {
             for _ in 1..others + own {
                 game.owed_choices.push(controller);
             }
+        }
+    }
+    if let Some(def) = real_def.clone() {
+        game.obj_mut(id).def = def;
+    }
+    // a double-faced card's triggers: Java registers its halves as it loads, but the permanent's under new keys as it
+    // first enters, so they wait after every other card's (`TriggeredAbilities` is a LinkedHashMap)
+    {
+        let o = game.obj(id);
+        let dfc = o.printed_def.as_ref().unwrap_or(&o.def);
+        if !o.token && (dfc.transform_back.is_some() || dfc.back.is_some()) && o.trigger_order < DFC_ORDER {
+            let k = DFC_ORDER + game.dfc_registered;
+            game.dfc_registered += 1;
+            game.obj_mut(id).trigger_order = k;
         }
     }
     let turn = game.turn;
@@ -11712,12 +11785,18 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // state-based check transforms it
     let def = game.obj(id).def.clone();
     game.obj_mut(id).controller = controller;
+    if let Some(def) = entering_as.clone() {
+        game.obj_mut(id).def = def;
+    }
     let tapped_by_static = game.any_static(|g, src, e| match e {
         EffectDef::PermanentsEnterBattlefieldTappedEffect { filter } => {
             g.filter_matches(filter, g.obj(src).controller, Some(src), id)
         }
         _ => false,
     });
+    if let Some(def) = real_def {
+        game.obj_mut(id).def = def;
+    }
     let zcc = {
         let o = game.obj_mut(id);
         o.controller = controller;
@@ -12487,9 +12566,17 @@ fn same_trigger(game: &Game, a: &StackItem, b: &StackItem) -> bool {
 }
 
 fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
+    // what it sacrifices is a `FixedTargets` pointer too (the tokens a mobilize made)
     t.delayed
         .as_ref()
-        .map(|dl| dl.fixed.iter().filter(|(o, z)| game.obj(*o).zcc == *z).map(|(o, _)| *o).collect())
+        .map(|dl| {
+            dl.fixed
+                .iter()
+                .chain(dl.sacrifice.iter())
+                .filter(|(o, z)| game.obj(*o).zcc == *z)
+                .map(|(o, _)| *o)
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -12785,11 +12872,16 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
 /// (a resolution's damage is one batch: a trigger already waiting isn't added again).
 fn damaged_opponent_triggers(game: &mut Game, seat: Seat) {
     let sources: Vec<ObjId> = game.trigger_sources();
+    let batch = game.mana_batch;
+    // a mana ability's damage (a painland's) is a batch of its own: one waiting from an earlier one still adds
     let fired = game.triggers(sources, |g, src, you, t| {
         matches!(t, Trigger::OpponentsDealtNoncombatDamage)
             && you != seat
-            && !g.pending.iter().any(|p| p.card == src && same_ability(g, p, t))
+            && !(g.pending.iter().any(|p| p.card == src && same_ability(g, p, t))
+                && g.noncombat_fired.contains(&(src, batch)))
     });
+    game.noncombat_fired.retain(|(_, b)| *b == batch);
+    game.noncombat_fired.extend(fired.iter().map(|t| (t.card, batch)));
     game.pending.extend(fired);
 }
 
