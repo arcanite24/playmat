@@ -2021,8 +2021,16 @@ fn mana_options(
     options.extend(extra);
     // conditional mana left in the pool (counted for any spell, as Java's playable check does)
     if game.paying_for.get() == Some(ANY_SPELL) {
+        // (a source for each mana: Sunken Citadel's {U}{U} pays both of Nykthos's {2})
         for (m, _, _) in &game.player(seat).conditional_pool {
-            options.push(vec![*m]);
+            for c in Color::ALL {
+                for _ in 0..m.colored[c.index()] {
+                    options.push(vec![Mana::of(c, 1)]);
+                }
+            }
+            for _ in 0..m.colorless {
+                options.push(vec![Mana { colorless: 1, ..Mana::default() }]);
+            }
         }
     }
     let pool = game.player(seat).mana_pool;
