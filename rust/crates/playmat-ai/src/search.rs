@@ -61,13 +61,16 @@ pub struct DecisionStat {
     pub permanents: usize,
 }
 
+/// A seat's decider and the config kind it was built from (`None` when set with `set_policy`).
+type SeatDecider = (Option<PolicyKind>, Box<dyn DecisionPolicy>);
+
 /// Answers both seats of a game: searched for AI seats, quick for the others (`ai[seat] == None`).
 pub struct Table {
     pub ai: Vec<Option<Config>>,
     policy: Vec<Policy>,
     repeats: Repeats,
     /// each seat's decider, built from its config's `policy` (or set with `set_policy`)
-    deciders: Vec<Option<(Option<PolicyKind>, Box<dyn DecisionPolicy>)>>,
+    deciders: Vec<Option<SeatDecider>>,
     /// the game at the last priority question, and the answers since
     snapshot: Option<Game>,
     since: Vec<Answer>,

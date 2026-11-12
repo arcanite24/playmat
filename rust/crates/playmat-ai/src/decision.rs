@@ -188,7 +188,7 @@ impl Decider for Playout {
         let mut a = self.policy[seat.min(1)].answer(game, seat, q);
         if let Some(state) = self.noise.as_mut() {
             let r = xorshift(state);
-            if r % noise_rate() == 0 && !matches!(q, Query::PlayMana { .. }) {
+            if r.is_multiple_of(noise_rate()) && !matches!(q, Query::PlayMana { .. }) {
                 let options = candidates(game, seat, q, &a, usize::MAX);
                 a = options[(r >> 8) as usize % options.len()].clone();
             }

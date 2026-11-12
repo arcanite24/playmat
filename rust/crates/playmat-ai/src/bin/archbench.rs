@@ -252,6 +252,9 @@ fn pairing(i: usize, n: usize) -> (usize, usize) {
     (a, (a + 1 + (i / n) % (n - 1)) % n)
 }
 
+/// A seat's worst decision (ns) and its number of decisions
+type SeatTiming = (u128, u64);
+
 /// One game: the winning seat (`None` for a draw) and each seat's (worst decision ns, decisions), or `None` when
 /// the game failed (an engine panic, or cut off)
 fn play(
@@ -260,7 +263,7 @@ fn play(
     deal: usize,
     who: [&Entrant; 2],
     turns: u32,
-) -> Option<(Option<usize>, [(u128, u64); 2])> {
+) -> Option<(Option<usize>, [SeatTiming; 2])> {
     let mut game = new_duel(db, decks, deal as i64, deal % 2).ok()?;
     let mut table = Table::new(vec![who[0].config.clone(), who[1].config.clone()]);
     let run = catch_unwind(AssertUnwindSafe(|| rules::play_from_priority(&mut game, &mut table, turns)));
