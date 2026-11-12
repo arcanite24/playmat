@@ -105,6 +105,22 @@ public final class DecisionLog {
         return new DecisionLog(true, new ArrayList<>(decisions));
     }
 
+    /**
+     * The abilities the last ability picker offered ({@link Game#fireGetChoiceEvent}), by id. An ability a continuous
+     * effect grants is added again with a new id each time the effects apply (Urborg's {T}: Add {B} on a Mutavault),
+     * so by the time the answer is logged its id can be gone: it's named by its source and its place among the
+     * source's abilities instead ({@link #ref}).
+     */
+    private Map<UUID, Ability> offered = new HashMap<>();
+
+    public synchronized void offer(List<? extends Ability> abilities) {
+        Map<UUID, Ability> now = new HashMap<>();
+        for (Ability ability : abilities) {
+            now.put(ability.getId(), ability);
+        }
+        offered = now;
+    }
+
     public void setStartOrder(Map<UUID, Integer> startOrder) {
         this.startOrder = startOrder;
     }
@@ -146,7 +162,14 @@ public final class DecisionLog {
         if (replay) {
             return;
         }
-        decisions.add(new Decision(seat(game, playerId), ref(game, target), bool, integer, string,
+        String targetRef = ref(game, target);
+        if (targetRef != null && targetRef.startsWith("?") && offered.containsKey(target)) {
+            String granted = grantedRef(game, offered.get(target));
+            if (granted != null) {
+                targetRef = granted;
+            }
+        }
+        decisions.add(new Decision(seat(game, playerId), targetRef, bool, integer, string,
                 manaType == null ? null : manaType.name(), ref(game, manaPlayer)));
     }
 
@@ -219,6 +242,27 @@ public final class DecisionLog {
                     + (o == null ? "no object" : o.getClass().getSimpleName() + " " + o.getName()) + where);
         }
         return found[0] != null ? found[0] : "?" + id;
+    }
+
+    /**
+     * An offered ability whose id is gone: its source's reference and the place of the source's ability that is the
+     * same now (same class and rule), as {@link #object} numbers them; null when there's none.
+     */
+    private static String grantedRef(Game game, Ability ability) {
+        String source = ref(game, ability.getSourceId());
+        MageObject object = game.getObject(ability.getSourceId());
+        if (source == null || source.startsWith("?") || object == null) {
+            return null;
+        }
+        Iterable<? extends Ability> abilities = object instanceof Card ? ((Card) object).getAbilities(game) : object.getAbilities();
+        int j = 0;
+        for (Ability a : abilities) {
+            if (a.getClass().equals(ability.getClass()) && a.getRule().equals(ability.getRule())) {
+                return source + "a" + j;
+            }
+            j++;
+        }
+        return null;
     }
 
     public static UUID resolve(Game game, String ref) {

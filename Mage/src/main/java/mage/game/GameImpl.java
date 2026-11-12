@@ -3485,6 +3485,9 @@ public abstract class GameImpl implements Game {
         if (object != null) {
             objectName = object.getName();
         }
+        if (gameOptions != null && gameOptions.decisions != null) {
+            gameOptions.decisions.offer(choices);
+        }
         playerQueryEventSource.chooseAbility(playerId, message + getControllingPlayerHint(playerId), objectName, choices);
     }
 
