@@ -8,8 +8,8 @@
 
 use playmat_engine::card::CardDb;
 use playmat_host::{Call, Event, HostedGame, SeatStart, Start, Timer};
-use std::collections::HashSet;
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
@@ -253,7 +253,9 @@ impl Hosts {
         let instance = format!("{:016x}", {
             use std::hash::{BuildHasher, Hasher};
             let mut h = std::collections::hash_map::RandomState::new().build_hasher();
-            h.write_u128(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+            h.write_u128(
+                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos(),
+            );
             h.write_u32(std::process::id());
             h.finish()
         });

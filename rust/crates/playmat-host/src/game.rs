@@ -1332,11 +1332,8 @@ impl Host {
         if self.replaying.is_some() {
             return;
         }
-        let calls: Vec<Value> = self
-            .line_calls
-            .iter()
-            .map(|(s, c)| json!({"seat": s, "call": crate::record::call_json(c)}))
-            .collect();
+        let calls: Vec<Value> =
+            self.line_calls.iter().map(|(s, c)| json!({"seat": s, "call": crate::record::call_json(c)})).collect();
         let line = json!({"start": start, "calls": calls, "turn": self.game.turn});
         let data = json!({"turn": self.game.turn, "activePlayerId": active.and_then(|s| self.players.get(s)),
             "line": line});

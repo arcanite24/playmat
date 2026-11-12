@@ -711,8 +711,11 @@ fn two_people_play_a_game_to_its_end() {
 /// Between people, a concede or a quit from the player who isn't being asked ends the game as their loss
 #[test]
 fn a_player_not_asked_can_concede() {
-    let game = HostedGame::start(people(&deck("gw-company.txt"), &deck("b-zombies.txt"), 6), Arc::new(playmat_engine::cards()))
-        .unwrap();
+    let game = HostedGame::start(
+        people(&deck("gw-company.txt"), &deck("b-zombies.txt"), 6),
+        Arc::new(playmat_engine::cards()),
+    )
+    .unwrap();
     game.call_as(0, Call::Join);
     game.call_as(1, Call::Join);
     // the first question goes to one of them; the other concedes
@@ -875,8 +878,11 @@ fn a_line_carries_the_game_on_from_a_turns_start() {
 /// Practice tools and advice against the AI: life set, a card into the hand, and the AI's pick at a question
 #[test]
 fn practice_tools_and_advice_against_the_ai() {
-    let game = HostedGame::start(start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None), Arc::new(playmat_engine::cards()))
-        .unwrap();
+    let game = HostedGame::start(
+        start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None),
+        Arc::new(playmat_engine::cards()),
+    )
+    .unwrap();
     game.call(Call::Join);
     let mut b = bot(u64::MAX);
     let mut stage = 0;
