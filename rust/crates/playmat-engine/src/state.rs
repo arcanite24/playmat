@@ -724,6 +724,9 @@ pub struct Game {
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
+    /// a card entering whose replacement effects see it as it was (Enduring Glimmer's return: Java's type effect
+    /// applies once it's there, so "creatures enter tapped" still taps it)
+    pub enters_as: Option<(ObjId, Arc<CardDef>)>,
     /// extra turns to take, the last added first (`TurnMod`)
     pub extra_turns: Vec<Seat>,
     /// Emrakul, the Promised End: (player, controller) for a player's next turn, controlled by another
@@ -867,6 +870,7 @@ impl Game {
             exile_by_creation: false,
             creature_died: false,
             owed_choices: Vec::new(),
+            enters_as: None,
             extra_turns: Vec::new(),
             control_next_turn: Vec::new(),
             controlled_by: Vec::new(),

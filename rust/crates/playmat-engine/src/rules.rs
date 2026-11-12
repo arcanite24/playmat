@@ -10124,8 +10124,10 @@ fn apply_each_effect(
                 def.subtypes.clear();
                 let o = game.obj_mut(card);
                 o.def = Arc::new(def);
-                o.printed_def = Some(old);
+                o.printed_def = Some(old.clone());
+                game.enters_as = Some((card, old));
                 enter_battlefield(game, d, card, controller, false);
+                game.enters_as = None;
             }
             EffectDef::AddExtraTurnControllerEffect => game.extra_turns.push(controller),
             EffectDef::ExileSpellEffect => {
@@ -11580,6 +11582,9 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             });
         more_counters += giadas.count() as i32 * angels;
     }
+    // the characteristics its replacement effects see (`Game::enters_as`)
+    let entering_as = game.enters_as.clone().filter(|(o, _)| *o == id).map(|(_, def)| def);
+    let real_def = entering_as.as_ref().map(|def| std::mem::replace(&mut game.obj_mut(id).def, def.clone()));
     // replacement effects on its entering, more than one: the player picks the order (`chooseReplacementEffect`):
     // Gev's counters for another creature, the next creature spell's counters, and the creature's own "enters"
     // abilities (`EntersBattlefieldEffect`s: one whether its condition holds or not, an `EscapesWithAbility` whether
@@ -11642,6 +11647,9 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             }
         }
     }
+    if let Some(def) = real_def.clone() {
+        game.obj_mut(id).def = def;
+    }
     let turn = game.turn;
     let owner = game.obj(id).owner;
     let from_hand = game.player(owner).hand.iter().position(|x| *x == id);
@@ -11673,12 +11681,18 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // state-based check transforms it
     let def = game.obj(id).def.clone();
     game.obj_mut(id).controller = controller;
+    if let Some(def) = entering_as.clone() {
+        game.obj_mut(id).def = def;
+    }
     let tapped_by_static = game.any_static(|g, src, e| match e {
         EffectDef::PermanentsEnterBattlefieldTappedEffect { filter } => {
             g.filter_matches(filter, g.obj(src).controller, Some(src), id)
         }
         _ => false,
     });
+    if let Some(def) = real_def {
+        game.obj_mut(id).def = def;
+    }
     let zcc = {
         let o = game.obj_mut(id);
         o.controller = controller;
