@@ -279,6 +279,8 @@ mod tests {
         let fixture: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
         let schema: Vec<String> = serde_json::from_value(fixture["schema"].clone()).unwrap();
         let secret = fixture["secret"].as_str().unwrap();
+        // the day Java ran the calls on: quests are picked by day
+        crate::admin::TEST_CLOCK.with(|clock| clock.set(fixture["at"].as_i64()));
         let content =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../Mage.Server/src/main/resources/career");
         let calls = fixture["calls"].as_array().unwrap();

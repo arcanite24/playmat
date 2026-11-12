@@ -730,7 +730,17 @@ pub fn difference(method: &str, java: &Value, rust: &Value) -> Option<String> {
     compare::difference(java, &Value::Object(rust))
 }
 
+#[cfg(test)]
+thread_local! {
+    /// a test's fixed clock for `now_millis`, on its own thread
+    pub(crate) static TEST_CLOCK: std::cell::Cell<Option<i64>> = const { std::cell::Cell::new(None) };
+}
+
 pub(crate) fn now_millis() -> i64 {
+    #[cfg(test)]
+    if let Some(at) = TEST_CLOCK.with(std::cell::Cell::get) {
+        return at;
+    }
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 

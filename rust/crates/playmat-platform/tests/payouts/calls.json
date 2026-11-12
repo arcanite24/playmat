@@ -1,5 +1,6 @@
 {
   "secret": "parity-secret",
+  "at": 1794398400000,
   "schema": [
     "CREATE TABLE achievements (user TEXT NOT NULL, id TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (user, id))",
     "CREATE TABLE campaign_nodes (user TEXT NOT NULL, campaign TEXT NOT NULL, node TEXT NOT NULL, done_at INTEGER NOT NULL, choice TEXT, PRIMARY KEY (user, campaign, node))",

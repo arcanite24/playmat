@@ -204,6 +204,9 @@ public class CareerPayoutParityTest {
     private static final String[] CALL_TABLES = {"profile", "stats", "quests", "achievements", "unlocks", "token_log",
             "pulls", "card_styles"};
     private final List<Map<String, Object>> calls = new ArrayList<>();
+    /** the day the economy calls run on, and noon of it in epoch millis (calls.json "at") */
+    private static final LocalDate CALLS_DAY = LocalDate.of(2026, 11, 11);
+    private static final long CALLS_AT = CALLS_DAY.atTime(12, 0).toInstant(java.time.ZoneOffset.UTC).toEpochMilli();
 
     interface Call {
         Object run() throws Exception;
@@ -228,8 +231,8 @@ public class CareerPayoutParityTest {
 
     @Test
     public void callsRustReplays() throws Exception {
-        // the calls run on today, as Rust's do
-        CareerProgress.get().useClock(() -> LocalDate.now(java.time.ZoneOffset.UTC), null);
+        // the calls run on a fixed day, which the fixture records for Rust's replay
+        CareerProgress.get().useClock(() -> CALLS_DAY, null);
         store.createProfile("Ana", "test", CareerRules.START_COINS, 1L);
         CareerCapsules capsules = CareerCapsules.get();
         CareerCapsules.CareerMachine small = capsules.machines().stream()
@@ -272,6 +275,7 @@ public class CareerPayoutParityTest {
             views.put("machines", capsules.machines());
             JsonObject all = new JsonObject();
             all.addProperty("secret", SECRET);
+            all.addProperty("at", CALLS_AT);
             all.add("schema", gson.toJsonTree(store.schema()));
             all.add("views", gson.toJsonTree(views));
             all.add("calls", gson.toJsonTree(calls));
