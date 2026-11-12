@@ -24,6 +24,11 @@ const ABOUT: Record<string, { label: string; help: string; choices?: { value: st
     help: 'Career and progression: levels, quests and achievements from every game, and Career\u2019s own modes. Off hides it; progress is kept for when it comes back.',
     choices: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }],
   },
+  sharedDecks: {
+    label: 'Shared decks',
+    help: 'Players can share decks with everyone on this server, to copy them or give them to the AI. Off hides sharing; shares are kept for when it comes back.',
+    choices: [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }],
+  },
   maxAiOpponents: { label: 'AI opponents per table', help: 'Empty: as many as the table has seats.', unit: 'opponents' },
   batchConcurrency: { label: 'Batch games at once', help: 'AI-against-AI games the batch runner plays at the same time. 0 stops it.', unit: 'games' },
   batchGamesPerDay: { label: 'Batch games per player', help: 'How many AI-against-AI games one player may ask for in a day.', unit: 'games a day' },

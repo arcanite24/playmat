@@ -24,6 +24,15 @@ Java's store takes one call at a time. The journal mode stays Java's.
 - Gson leaves nulls out: a list entry has no `name` for a deck deleted before the server saw it, and `deckSyncGet` of
   no deck is a reply without `result`.
 
+## Shared decks stay with Java
+
+`deckShareSet`, `deckSharedList` and `deckSharedGet` (#137) are in the same `Account` group but Rust doesn't know
+them, so the gateway sends them to Java whatever the route says. Java keeps the shares in its own table,
+`web_deck_share`, in the same file, and reads the shared decks from `web_deck` as it is; Rust's deck sync never
+touches that table. A deck Rust marks deleted drops out of the shared list the next time Java builds it (and its share
+goes), so the two writers can't disagree about what is shared. Porting the three calls would mean reading that table
+and the deck JSON summary (`SharedDeck`) the same way.
+
 ## Shadow
 
 In `shadow` the gateway asks Rust first, then sends the call to Java. Rust's transaction is rolled back, so it answers

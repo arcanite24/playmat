@@ -1,7 +1,8 @@
 import { ClipboardPaste, Cloud, CloudOff, Copy, Download, PencilLine, PencilRuler, RefreshCw, Trash2 } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState, type FormEvent } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { siteById } from '../../core/deckImport/sites';
+import { DeckOrganizer, SharedDecksButton, ShelfFilterBar } from '../decks/DeckShelf';
 import { ExportMenu } from '../decks/ExportMenu';
 import { SourceLine } from '../decks/import/SourceLine';
 import { UpdateDialog } from '../decks/import/UpdateDialog';
@@ -10,6 +11,7 @@ import { useDegradedSites } from '../decks/import/useImportFlow';
 import { PASTE_KEYS } from '../decks/import/text';
 import { deckStorage } from '../../core/decks/DeckStorageService';
 import { applyUpdate } from '../../core/deckImport/diff';
+import { filterShelf } from '../../core/decks/tags';
 import { t as translate, useT } from '../i18n';
 import { RichText } from '../i18n/RichText';
 import { SLEEVE_COLORS, chosenSleeve, sleeveFor, useDecks, type RosterDeck } from '../stores/decks';
@@ -41,6 +43,12 @@ export function DecksScreen() {
   const decks = useDecks();
   const t = useT();
   const roster = useDeckRoster();
+  // the shelf under its tag and drafts filter (#200); the chosen deck's panel stays put even when filtered out
+  const shelfFilter = useDecks((state) => state.shelfFilter);
+  const shelf = useMemo(() => {
+    const known = shelfFilter.tag && roster.some((deck) => deck.tags.some((tag) => tag.toLowerCase() === shelfFilter.tag!.toLowerCase()));
+    return filterShelf(roster, { ...shelfFilter, tag: known ? shelfFilter.tag : null });
+  }, [roster, shelfFilter]);
   const [removing, setRemoving] = useState<RosterDeck | null>(null);
   const [updating, setUpdating] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<RosterDeck | null>(null);
@@ -105,6 +113,7 @@ export function DecksScreen() {
         aside={
           <>
             <SyncNote />
+            <SharedDecksButton />
             <Button size="sm" icon={<Download size={16} />} onClick={() => openImport()}>{t('decks.import')}</Button>
             <Button size="sm" icon={<PencilRuler size={16} />} onClick={() => navigate('/decks/new')}>{t('decks.build')}</Button>
           </>
@@ -116,13 +125,17 @@ export function DecksScreen() {
             <span>{t('decks.dropHint')}</span>
           </div>
         )}
+        <ShelfFilterBar decks={roster} />
         <div className={styles.grid} role="list">
           {decks.loaded && decks.saved.length === 0 && (
             <p role="listitem" className={styles.emptyShelf}>
               <RichText text={t('decks.empty')} parts={{ keys: <kbd>{PASTE_KEYS}</kbd> }} />
             </p>
           )}
-          {roster.map((deck) => (
+          {decks.loaded && roster.length > 0 && shelf.length === 0 && (
+            <p role="listitem" className={styles.emptyShelf}>{t('decks.filter.none')}</p>
+          )}
+          {shelf.map((deck) => (
             <div key={deck.id} role="listitem" className={[styles.cell, deck.id === arrivedId ? styles.arrived : ''].join(' ')}>
               <div onDoubleClick={() => navigate(`/decks/${encodeURIComponent(deck.id)}`)}>
                 <DeckBox deck={deck} sleeve={sleeveFor(decks.sleeves, deck)} selected={deck.id === decks.selectedId} onSelect={() => selectDeck(deck.id)} />
@@ -194,6 +207,7 @@ export function DecksScreen() {
                 <GhostActions deckId={selected.id} deckName={selected.name} />
               </Suspense>
             </div>
+            {!selected.starter && <DeckOrganizer key={selected.id} deck={selected} />}
             {!selected.starter && (
               <Button variant="danger" size="sm" className={styles.remove} icon={<Trash2 size={16} />} onClick={() => setRemoving(selected)}>{t('decks.remove')}</Button>
             )}

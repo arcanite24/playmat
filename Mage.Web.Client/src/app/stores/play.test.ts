@@ -25,7 +25,7 @@ describe('goldfishDeck', () => {
 const COMMANDER = 'Variant Magic - Commander';
 const starter = (file: string, format?: string): StarterDeck => ({ file, name: file, cards: 100, cover: { name: '', setCode: '', cardNumber: '' }, format });
 const meta = (file: string, format: string): MetaDeck => ({ file, name: file, format, tier: 'meta', share: 1, cards: 100, cover: { name: '', setCode: '', cardNumber: '' }, source: '' });
-const saved = (id: string): RosterDeck => ({ id, name: id, note: '', cardCount: 100, cover: null, colors: [], starter: null });
+const saved = (id: string): RosterDeck => ({ id, name: id, note: '', cardCount: 100, cover: null, colors: [], starter: null, tags: [], draft: false });
 const commanderDeck = (name: string): DeckCardLists => ({ name, format: COMMANDER, cards: [{ cardName: 'Forest', amount: 99 }], sideboard: [{ cardName: 'Ghalta, Primal Hunger', amount: 1 }] });
 
 /** The shipped decks (starter and format files) and the player's saved ones, with every .dck file a list of Forests. */

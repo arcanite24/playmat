@@ -400,6 +400,8 @@ function PreviewStep({ flow, draft, onDone }: { flow: Flow; draft: ImportDraft; 
     cover: finished.coverCard ?? null,
     colors,
     starter: null,
+    tags: [],
+    draft: false,
   };
 
   async function save(then: 'stay' | 'play' | 'build') {

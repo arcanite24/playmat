@@ -163,6 +163,8 @@ final class SettingsApi {
         boolean envOff = CareerService.offByEnvironment();
         result.settings.add(setting(runtime, RuntimeSettings.CAREER, !envOff && runtime.careerOn() ? "on" : "off", envOff ? "off" : "on",
                 envOff ? "Off in the server's environment (XMAGE_CAREER=off)" : null));
+        result.settings.add(setting(runtime, RuntimeSettings.SHARED_DECKS, runtime.sharedDecksOn() ? "on" : "off", "on",
+                config != null && !config.isAuthenticationActivated() ? "This server has no accounts" : null));
         String aiConfig = config == null ? null : config.getMaxAiOpponents();
         String ai = runtime.maxAiOpponents(aiConfig);
         result.settings.add(setting(runtime, RuntimeSettings.MAX_AI_OPPONENTS, ai == null ? "" : ai, aiConfig == null ? "" : aiConfig, null));

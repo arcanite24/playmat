@@ -47,7 +47,7 @@ export function CardFilterBar({ filters, onChange, toggles, sets }: {
   // on a phone the filters fold away behind a button (the CSS shows them everywhere else): only the search stays out
   const [open, setOpen] = useState(false);
   const bodyId = useId();
-  const active = filters.colors.length + (filters.manaValue !== null ? 1 : 0) + (filters.type ? 1 : 0) + (filters.rarity ? 1 : 0) + (filters.set ? 1 : 0) + (filters.anyText ? 1 : 0);
+  const active = filters.colors.length + (filters.onlyColors && filters.colors.length > 0 ? 1 : 0) + (filters.manaValue !== null ? 1 : 0) + (filters.type ? 1 : 0) + (filters.rarity ? 1 : 0) + (filters.set ? 1 : 0) + (filters.anyText ? 1 : 0);
   return (
     <div className={styles.filters}>
       <label className={styles.search}>
@@ -90,6 +90,10 @@ export function CardFilterBar({ filters, onChange, toggles, sets }: {
           );
         })}
       </div>
+      <label className={styles.toggle} title="Only cards inside the chosen colors: no other color in their cost or color identity, and colorless cards only when colorless is chosen">
+        <input type="checkbox" checked={filters.onlyColors} onChange={(event) => set({ onlyColors: event.target.checked })} />
+        Only these colors
+      </label>
       <div className={styles.costs} role="group" aria-label="Mana value">
         {[0, 1, 2, 3, 4, 5, 6, 7].map((value) => {
           const on = filters.manaValue === value;

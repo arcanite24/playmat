@@ -27,6 +27,10 @@ public final class DeckStore {
 
     public static final int MAX_DECKS = 500;
     public static final int MAX_DECK_CHARS = 256 * 1024;
+    /** decks one account can share with the server at a time (#137) */
+    public static final int MAX_SHARED = 50;
+    /** shared decks the shared list shows, newest change first */
+    public static final int MAX_SHARED_LIST = 1000;
     static final long TOMBSTONE_MILLIS = 90L * 24 * 60 * 60 * 1000;
     private static final Pattern DECK_ID = Pattern.compile("[A-Za-z0-9_:.-]{1,64}");
     private static final String DEFAULT_URL = "jdbc:sqlite:./db/web_decks.db";
@@ -34,6 +38,7 @@ public final class DeckStore {
     private static volatile DeckStore instance;
 
     private final Dao<StoredDeck, String> dao;
+    private final Dao<StoredDeckShare, String> shares;
 
     /**
      * What a write did: stored, or refused because the server already has a newer version (then updatedAt is that).
@@ -51,7 +56,9 @@ public final class DeckStore {
     public DeckStore(String jdbcUrl) throws SQLException {
         ConnectionSource source = new JdbcConnectionSource(jdbcUrl);
         TableUtils.createTableIfNotExists(source, StoredDeck.class);
+        TableUtils.createTableIfNotExists(source, StoredDeckShare.class);
         dao = DaoManager.createDao(source, StoredDeck.class);
+        shares = DaoManager.createDao(source, StoredDeckShare.class);
     }
 
     public static DeckStore get() {
@@ -94,6 +101,9 @@ public final class DeckStore {
      */
     /** Every deck of the account, tombstones too, gone for good. */
     public synchronized int deleteAll(String owner) throws SQLException {
+        DeleteBuilder<StoredDeckShare, String> unshare = shares.deleteBuilder();
+        unshare.where().eq("owner", new SelectArg(key(owner)));
+        unshare.delete();
         DeleteBuilder<StoredDeck, String> delete = dao.deleteBuilder();
         delete.where().eq("owner", new SelectArg(key(owner)));
         return delete.delete();
@@ -161,7 +171,82 @@ public final class DeckStore {
         deck.deleted = true;
         deck.data = null;
         dao.createOrUpdate(deck);
+        shares.deleteById(deck.key);
         return new DeckPutResult(true, deletedAt);
+    }
+
+    // --- decks shared with the server (#137)
+
+    /**
+     * Shares one of the account's decks with everyone on the server, or stops sharing it. The deck must be on the
+     * server (deck sync) and not deleted.
+     *
+     * @param ownerName the account name as its owner writes it, shown in the shared list
+     * @return whether the deck is shared now
+     */
+    public synchronized boolean setShared(String ownerName, String deckId, boolean shared, long now) throws SQLException {
+        String id = key(ownerName) + '/' + checkId(deckId);
+        if (!shared) {
+            shares.deleteById(id);
+            return false;
+        }
+        StoredDeck deck = dao.queryForId(id);
+        if (deck == null || deck.deleted) {
+            throw new IllegalArgumentException("That deck isn't saved to your account yet. Try again in a moment.");
+        }
+        StoredDeckShare existing = shares.queryForId(id);
+        if (existing == null && shares.queryBuilder().where().eq("owner", new SelectArg(key(ownerName))).countOf() >= MAX_SHARED) {
+            throw new IllegalArgumentException("An account can share up to " + MAX_SHARED + " decks");
+        }
+        StoredDeckShare share = existing != null ? existing : new StoredDeckShare();
+        share.key = id;
+        share.owner = key(ownerName);
+        share.ownerName = ownerName;
+        share.deckId = deckId;
+        if (existing == null) {
+            share.sharedAt = now;
+        }
+        shares.createOrUpdate(share);
+        return true;
+    }
+
+    /**
+     * Every deck shared with the server, newest change first, without the data; decks deleted since they were shared
+     * are left out, and their shares dropped.
+     *
+     * @param viewer the account asking, for each entry's "mine"
+     */
+    public synchronized List<SharedDeck> sharedList(String viewer) throws SQLException {
+        List<SharedDeck> entries = new ArrayList<>();
+        String me = viewer == null ? null : key(viewer);
+        for (StoredDeckShare share : shares.queryForAll()) {
+            StoredDeck deck = dao.queryForId(share.key);
+            if (deck != null && !deck.deleted) {
+                entries.add(new SharedDeck(share, deck, me, false));
+            } else {
+                // deleted (by Java or by Rust's deck sync, which doesn't know about shares): no longer shared, even
+                // if the deck comes back from another device
+                shares.delete(share);
+            }
+        }
+        entries.sort((a, b) -> Long.compare(b.updatedAt, a.updatedAt));
+        return entries.size() > MAX_SHARED_LIST ? new ArrayList<>(entries.subList(0, MAX_SHARED_LIST)) : entries;
+    }
+
+    /**
+     * @return a shared deck with its data, or null when that deck isn't shared (or was deleted)
+     */
+    public synchronized SharedDeck sharedGet(String viewer, String owner, String deckId) throws SQLException {
+        if (owner == null || owner.isEmpty()) {
+            throw new IllegalArgumentException("Whose deck?");
+        }
+        String id = key(owner) + '/' + checkId(deckId);
+        StoredDeckShare share = shares.queryForId(id);
+        if (share == null) {
+            return null;
+        }
+        StoredDeck deck = dao.queryForId(id);
+        return deck == null || deck.deleted ? null : new SharedDeck(share, deck, viewer == null ? null : key(viewer), true);
     }
 
     private static String key(String owner) {

@@ -103,3 +103,28 @@ describe('deck library', () => {
     expect(await deckStorage.listDecks()).toHaveLength(1);
   });
 });
+
+describe('organising decks (#200)', () => {
+  test('tags and the draft mark live in the deck itself, and reach the roster', async () => {
+    const id = await deckStorage.saveDeck(BURN, { forceNew: true });
+    await useDecks.getState().setTags(id, ['Burn', ' burn ', 'Budget']);
+    await useDecks.getState().setDraft(id, true);
+    const saved = await deckStorage.loadDeck(id);
+    expect(saved).toMatchObject({ tags: ['Burn', 'Budget'], draft: true });
+    // what deck sync sends carries them
+    expect(JSON.parse((await deckStorage.exportForSync(id))!.data)).toMatchObject({ tags: ['Burn', 'Budget'], draft: true });
+    expect(useDecks.getState().saved[0]).toMatchObject({ id, tags: ['Burn', 'Budget'], draft: true });
+
+    await useDecks.getState().setTags(id, []);
+    await useDecks.getState().setDraft(id, false);
+    expect(await deckStorage.loadDeck(id)).not.toHaveProperty('tags');
+    expect(useDecks.getState().saved[0]).toMatchObject({ tags: [], draft: false });
+  });
+
+  test('the shelf filter is remembered in this browser', () => {
+    useDecks.getState().setShelfFilter({ tag: 'Burn' });
+    useDecks.getState().setShelfFilter({ hideDrafts: true });
+    expect(useDecks.getState().shelfFilter).toEqual({ tag: 'Burn', hideDrafts: true });
+    expect(JSON.parse(localStorage.getItem('playmat.deckShelfFilter')!)).toEqual({ tag: 'Burn', hideDrafts: true });
+  });
+});
