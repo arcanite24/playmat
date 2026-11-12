@@ -787,6 +787,8 @@ pub struct Game {
     pub damaged_batch: Vec<(ObjId, i32)>,
     /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
     pub mana_batch: u64,
+    /// double-faced permanents whose triggers Java registered as they entered, in that order (`trigger_order`)
+    pub dfc_registered: u64,
     /// "opponents are dealt noncombat damage" sources that triggered, with the mana batch they triggered in
     pub noncombat_fired: Vec<(ObjId, u64)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
@@ -904,6 +906,7 @@ impl Game {
             day: None,
             damaged_batch: Vec::new(),
             mana_batch: 0,
+            dfc_registered: 0,
             noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
             exiled_batch: false,

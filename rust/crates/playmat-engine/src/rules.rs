@@ -10389,7 +10389,8 @@ fn apply_each_effect(
                 let mut selected = false;
                 loop {
                     let prev = chosen.len();
-                    let complete = |chosen: &Vec<ObjId>| chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t));
+                    let complete =
+                        |chosen: &Vec<ObjId>| chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t));
                     let mut picked = false;
                     if !(selected && complete(&chosen)) {
                         loop {
@@ -10399,7 +10400,6 @@ fn apply_each_effect(
                                 Answer::Obj(o) if tapped.contains(&o) => {
                                     if chosen.len() < *amount {
                                         chosen.push(o);
-                                        selected = true;
                                         if complete(&chosen) {
                                             picked = true;
                                             break;
@@ -11571,6 +11571,9 @@ pub fn put_onto_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, con
     enter_battlefield(game, d, id, controller, false);
 }
 
+/// where double-faced permanents' triggers start in the order (`Game::dfc_registered`)
+const DFC_ORDER: u64 = 1 << 24;
+
 fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
     // a token of the class last made takes its image
     if game.obj(id).token && game.obj(id).token_image.is_none() {
@@ -11700,6 +11703,17 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     }
     if let Some(def) = real_def.clone() {
         game.obj_mut(id).def = def;
+    }
+    // a double-faced card's triggers: Java registers its halves as it loads, but the permanent's under new keys as it
+    // first enters, so they wait after every other card's (`TriggeredAbilities` is a LinkedHashMap)
+    {
+        let o = game.obj(id);
+        let dfc = o.printed_def.as_ref().unwrap_or(&o.def);
+        if !o.token && (dfc.transform_back.is_some() || dfc.back.is_some()) && o.trigger_order < DFC_ORDER {
+            let k = DFC_ORDER + game.dfc_registered;
+            game.dfc_registered += 1;
+            game.obj_mut(id).trigger_order = k;
+        }
     }
     let turn = game.turn;
     let owner = game.obj(id).owner;
@@ -12517,7 +12531,12 @@ fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
     t.delayed
         .as_ref()
         .map(|dl| {
-            dl.fixed.iter().chain(dl.sacrifice.iter()).filter(|(o, z)| game.obj(*o).zcc == *z).map(|(o, _)| *o).collect()
+            dl.fixed
+                .iter()
+                .chain(dl.sacrifice.iter())
+                .filter(|(o, z)| game.obj(*o).zcc == *z)
+                .map(|(o, _)| *o)
+                .collect()
         })
         .unwrap_or_default()
 }
