@@ -86,6 +86,8 @@ export class ImageResolver {
   private draining = false;
   private lastRequestAt = 0;
   private version = 0;
+  /** Settles once the stored links are in memory (at once without a store): see {@link hydrate}. */
+  readonly ready: Promise<void>;
 
   constructor(options: ImageResolverOptions = {}) {
     this.options = {
@@ -99,17 +101,17 @@ export class ImageResolver {
       now: options.now ?? (() => Date.now()),
       imageProxy: 'imageProxy' in options ? options.imageProxy : configuredImageProxy(),
     };
-    this.hydrate();
+    this.ready = this.hydrate();
   }
 
   /**
    * Reads every stored link into memory once. Until then each printing is read from the store on its own, which takes
    * a turn of the event loop: long enough for a card to show its text frame before its picture.
    */
-  private hydrate(): void {
+  private hydrate(): Promise<void> {
     const all = this.options.store?.getAll?.();
-    if (!all) return;
-    all.then((entries) => {
+    if (!all) return Promise.resolve();
+    return all.then((entries) => {
       const keys: string[] = [];
       for (const [key, entry] of entries) {
         if (this.memory.has(key) || this.isStale(entry)) continue;

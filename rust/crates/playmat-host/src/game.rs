@@ -470,9 +470,10 @@ impl Host {
                 Zone::Hand => "HAND",
                 Zone::Library => "LIBRARY",
                 Zone::Command => "COMMAND",
+                Zone::Outside => "OUTSIDE",
             })
         };
-        let public = |z: Option<Zone>| !matches!(z, Some(Zone::Hand | Zone::Library) | None);
+        let public = |z: Option<Zone>| !matches!(z, Some(Zone::Hand | Zone::Library | Zone::Outside) | None);
         let mut out = Vec::new();
         for e in events {
             self.event_seq += 1;

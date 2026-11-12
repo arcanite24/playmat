@@ -26,8 +26,32 @@ interface Waiting {
 const waiting: Waiting[] = [];
 let active = 0;
 
+/** pictures already asked of the browser's cache, so a card re-rendering doesn't ask again */
+const probed = new Set<string>();
+
+/**
+ * Whether a picture can show on the first frame: decoded earlier this session, or ready in the browser's image cache
+ * (an earlier visit, another tab). An image the browser has in memory reports `complete` as soon as its src is set;
+ * one it doesn't is let go at once, so probing never downloads a picture the card face would load lazily.
+ */
 export function isDecoded(src: string): boolean {
-  return decoded.has(src);
+  if (decoded.has(src)) return true;
+  if (probed.has(src) || typeof Image === 'undefined') return false;
+  probed.add(src);
+  const image = new Image();
+  image.src = src;
+  if (image.complete && image.naturalWidth > 0) {
+    decoded.add(src);
+    hold(image);
+    return true;
+  }
+  image.src = '';
+  return false;
+}
+
+function hold(image: HTMLImageElement) {
+  held.push(image);
+  if (held.length > MAX_HELD) held.shift();
 }
 
 export function markDecoded(src: string) {
@@ -87,8 +111,7 @@ async function load(src: string, priority: WarmPriority): Promise<void> {
     image.src = src;
     await image.decode();
     decoded.add(src);
-    held.push(image);
-    if (held.length > MAX_HELD) held.shift();
+    hold(image);
   } catch {
     // a picture that fails here is tried again by the card face that shows it
   } finally {

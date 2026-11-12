@@ -24,6 +24,7 @@ In `RustAiGameTest` a game takes 12 to 14 s of wall time, but little of that is 
 | A player's own Modern decks the AI draws from with "every deck" (Domain Zoo, Esper Goryos, Izzet Prowess; main decks) | 3 of 3 fully covered (tier 40) |
 | Starter decks the AI picks when it has no format deck (`public/starter-decks`, the nine that aren't commander decks) | 9 of 9 fully covered (tier 39) |
 | Shadow games of the meta decks against each other (`shadow-decks/meta`, each pairing) | 287 of 288 match; Java didn't finish the other |
+| Phase 4's 10,000 shadow games of the pool (11 Nov, [Engine.md](Engine.md#the-10000-game-gate-run-11-nov-2026)) | 9,901 match, 54 differ ([#289](https://github.com/arcanite24/playmat/issues/289)), 45 Java didn't finish |
 | Games the copy follows to the end (test, debug off) | 40 of 40 Company vs Zombies, 22 of 24 school-deck games |
 
 ## Step A: what a game costs now (measured 7 Nov 2026)
@@ -73,6 +74,31 @@ once #238 is deployed: a week of cost lines is step A's baseline.
 A Java-only quick win the numbers point at, which would help every game while the host is built: recording the replay
 costs 17% of the game thread. Recording only the decisions would be far cheaper, but Java doesn't always replay a seeded
 game the same way twice, so that needs a fix or a check first.
+
+### A game on the host (measured 11 Nov 2026)
+
+Since 11 Nov production hosts AI games on the Rust engine for listed players (step E). Each leaves a record
+([Game records](#game-records)), and `host-replay` plays a record again: the engine, the AI's search and the views and
+log the client gets, but no network and no gateway. Production had 18 records on 11 Nov (one-on-one games against
+the AI). 12 replay to the record's log line for line; the other 6, the oldest (9 and 10 Nov), part from it with
+master's build too, since the engine has changed since they were played, and end early, so they're left out. User
+plus system CPU per game, the 12:
+
+| | CPU per game |
+|---|---|
+| Java alone, Java's AI (Step A's baseline) | 8.6 to 12 s |
+| Java hosting, the Rust AI in the copy (rounds 3 and 4 above) | 0.54 to 0.8 s |
+| Rust hosting (`host-replay`), mean | 0.56 s |
+| median, worst | 0.53 s, 0.90 s |
+| of which starting the process and loading the cards | about 0.06 s |
+
+That's 15 to 21 times less than Java with its own AI: phase 4's first gate asks for 5. It's about what Java spends
+hosting a game the Rust AI plays, so the saving over today's Rust AI games is the JVM's heap and threads, not CPU
+yet. Left out: the gateway's share (the socket, patches and JSON for each call). Measured on a Mac mini while another
+job used most cores, so a quiet server should do no worse.
+
+To measure again: copy the records out (above), then for each run
+`/usr/bin/time -p target/release/host-replay <record> --quiet` and add `user` and `sys`.
 
 ## Target
 

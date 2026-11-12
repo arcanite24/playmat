@@ -30,6 +30,11 @@ public final class PreparedSpellCopy extends CardImpl {
         this.preparedPermanentId = card.preparedPermanentId;
     }
 
+    /** the permanent whose prepared copy this is */
+    public UUID getPreparedPermanentId() {
+        return preparedPermanentId;
+    }
+
     @Override
     public PreparedSpellCopy copy() {
         return new PreparedSpellCopy(this);

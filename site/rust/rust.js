@@ -162,6 +162,11 @@
         el('span', { 'class': 'rp-cost-solid', style: 'width:' + pct(cost.rust_ai_game, hi) + '%' }),
         el('span', { 'class': 'rp-cost-rust', style: 'left:' + pct(cost.rust_ai_game, hi) + '%;width:' + pct(cost.rust_copy, hi) + '%' })
       ], rustTotal.toFixed(2) + ' s'));
+      if (cost.rust_host_game) {
+        box.appendChild(row('Rust AI, Rust hosting', 'the whole game on the Rust engine (step E)', [
+          el('span', { 'class': 'rp-cost-rust', style: 'width:' + pct(cost.rust_host_game, hi) + '%' })
+        ], cost.rust_host_game.toFixed(2) + ' s'));
+      }
       var colors = ['#f0b13d', '#c98f2e', '#8fc19a', '#5f8f78', '#3a5a51', '#e9e4d6'];
       var splitBar = el('div', { 'class': 'rp-split-bar', role: 'img',
         'aria-label': cost.split.map(function (s) { return s.label + ' ' + s.share + '%'; }).join(', ') });
