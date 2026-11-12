@@ -3277,6 +3277,36 @@ pub struct CardDef {
 }
 
 impl CardDef {
+    /// Drops its power/toughness-defining abilities (layer 7a), as a copy "except it's N/N" does (707.9d,
+    /// `MageObjectImpl.removePTCDA`)
+    pub fn remove_pt_cda(&mut self) {
+        let cda = |a: &AbilityDef| {
+            matches!(a, AbilityDef::SimpleStaticAbility { effects, .. } if effects.iter().any(|e| matches!(e,
+                EffectDef::SetBasePowerSourceEffect { .. }
+                    | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
+                    | EffectDef::SetBasePowerToughnessAmountSourceEffect { .. }
+                    | EffectDef::SetBasePowerToughnessSourceEffect { .. })))
+        };
+        let removed: Vec<usize> = (0..self.abilities.len()).filter(|i| cda(&self.abilities[*i])).collect();
+        if removed.is_empty() {
+            return;
+        }
+        // the hints go with their abilities, and the others' indices close up
+        let mut hints = Vec::new();
+        let mut of = Vec::new();
+        for (i, h) in self.hints.iter().enumerate() {
+            match self.hint_abilities.get(i).copied() {
+                Some(k) if removed.contains(&k) => continue,
+                Some(k) => of.push(k - removed.iter().filter(|r| **r < k).count()),
+                None => {}
+            }
+            hints.push(h.clone());
+        }
+        self.hints = hints;
+        self.hint_abilities = of;
+        self.abilities.retain(|a| !cda(a));
+    }
+
     /// The printed mana cost (not an alternative cost it's being cast for)
     pub fn printed(&self) -> &ManaCost {
         self.printed_cost.as_ref().unwrap_or(&self.cost)
