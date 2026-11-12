@@ -48,7 +48,7 @@
       "n": "4",
       "name": "Rules engine and card pipeline",
       "status": "active",
-      "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Next: every Pioneer-legal card.",
+      "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Gate run (11 Nov): 9,901 of 10,000 shadow games match, 54 differ (#289), 45 Java didn't finish; 50 of 65 exported card tests pass, none differ. Next: the 54, then every Pioneer-legal card.",
       "pr": [
         219,
         220,
@@ -198,6 +198,16 @@
       "unit": "ms",
       "date": "2026-11-06",
       "source": "docs/rust/GameHost.md"
+    },
+    {
+      "id": "host",
+      "label": "CPU per AI game, hosted on the Rust engine",
+      "java": 8.6,
+      "rust": 0.56,
+      "unit": "s",
+      "date": "2026-11-11",
+      "source": "docs/rust/GameHost.md",
+      "note": "Java: an AI game with Java's AI (8.6 to 12 s). Rust: 12 production games replayed with host-replay (median 0.53 s, worst 0.90 s), about 0.06 s of it process start and loading the cards. The gateway's share isn't in it."
     }
   ],
   "cost": {
@@ -209,7 +219,7 @@
     ],
     "rust_ai_game": 0.54,
     "rust_copy": 0.05,
-    "note": "CPU seconds per AI game with real decks. Java alone: its own AI. With the Rust AI: the AI's thinking moves to the Rust copy, and what's left is Java hosting the game.",
+    "note": "CPU seconds per AI game with real decks. Java alone: its own AI. With the Rust AI: the AI's thinking moves to the Rust copy, and what's left is Java hosting the game. Rust hosting (11 Nov): the whole game on the Rust engine, 12 production games replayed with host-replay, user+sys CPU, process start included.",
     "split": [
       {
         "label": "Building views",
@@ -235,6 +245,7 @@
         "label": "Trace and fingerprints",
         "share": 2
       }
-    ]
+    ],
+    "rust_host_game": 0.56
   }
 }

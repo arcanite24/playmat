@@ -2,7 +2,8 @@
 //! to the Java bridge or to a Rust handler by the routing table, and makes the game-state patches.
 //!
 //! HTTP on the same port: any path upgrades to the game connection (Caddy sends `/ws*` here); `GET /healthz` says
-//! whether the Java bridge answers; `GET /metrics` gives the counters in Prometheus text format.
+//! whether the Java bridge answers; `GET /metrics` gives the counters in Prometheus text format; `GET /totals` the
+//! counters kept across restarts, by day (`XMAGE_GATEWAY_TOTALS`, `totals.rs`).
 
 mod config;
 mod connection;
@@ -10,6 +11,7 @@ mod host;
 mod metrics;
 mod net;
 mod states;
+mod totals;
 
 use axum::extract::{ConnectInfo, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -34,6 +36,23 @@ pub struct App {
     pub accounts: AtomicBool,
     /// the games the Rust host plays (`XMAGE_RUST_HOST`)
     pub hosts: Arc<host::Hosts>,
+    /// the counters kept across restarts (`XMAGE_GATEWAY_TOTALS`, a file), when set
+    pub totals: Option<(std::path::PathBuf, std::sync::Mutex<totals::Totals>)>,
+}
+
+impl App {
+    /// Writes the kept counters to their file, with what grew since the last write in today's bucket
+    fn save_totals(&self) {
+        let Some((path, totals)) = &self.totals else { return };
+        let mut counts = totals::Counts::default();
+        self.metrics.counts(&mut counts);
+        self.hosts.counts(&mut counts);
+        let mut totals = totals.lock().unwrap();
+        totals.update(counts, totals::now());
+        if let Err(e) = totals.save(path) {
+            warn!("Can't write the totals to {}: {e}", path.display());
+        }
+    }
 }
 
 #[tokio::main]
@@ -58,19 +77,41 @@ async fn main() {
     let platform = playmat_platform::Platform::new(app_catalog(), app_decks().await, app_admin().await);
     tokio::spawn(platform.clone().watch());
     let hosts = Arc::new(host::Hosts::new(config.rust_host));
+    let counters = Metrics::default();
+    let totals = std::env::var_os("XMAGE_GATEWAY_TOTALS").filter(|v| !v.is_empty()).map(|path| {
+        let path = std::path::PathBuf::from(path);
+        let totals = totals::Totals::load(&path);
+        counters.restore(&totals.total);
+        hosts.restore(&totals.total);
+        info!("Counters kept in {} (since {})", path.display(), totals::day(totals.since));
+        (path, std::sync::Mutex::new(totals))
+    });
     let app = Arc::new(App {
         hosts,
         config,
-        metrics: Metrics::default(),
+        metrics: counters,
         handlers: platform.clone(),
         accounts: AtomicBool::new(false),
+        totals,
     });
+    if app.totals.is_some() {
+        let app = app.clone();
+        tokio::spawn(async move {
+            let mut every = tokio::time::interval(Duration::from_secs(30));
+            loop {
+                every.tick().await;
+                let app = app.clone();
+                let _ = tokio::task::spawn_blocking(move || app.save_totals()).await;
+            }
+        });
+    }
     connection::log_start(&app);
     tokio::spawn(watch_server_info(app.clone()));
 
     let router = Router::new()
         .route("/healthz", get(health))
         .route("/metrics", get(metrics))
+        .route("/totals", get(totals_report))
         .fallback(upgrade)
         .with_state(app.clone());
     let listener = match tokio::net::TcpListener::bind(app.config.listen).await {
@@ -85,6 +126,7 @@ async fn main() {
     if let Err(e) = server.await {
         error!("Server stopped: {e}");
     }
+    app.save_totals();
     info!("Stopped; {}", app.metrics.render().lines().filter(|l| !l.starts_with('#')).collect::<Vec<_>>().join(", "));
 }
 
@@ -234,6 +276,19 @@ async fn metrics(State(app): State<Arc<App>>) -> Response {
         app.hosts.render(&mut text);
     }
     ([(axum::http::header::CONTENT_TYPE, "text/plain; version=0.0.4")], text).into_response()
+}
+
+/// `GET /totals`: the counters kept across restarts, by day, with the last seven days summed
+async fn totals_report(State(app): State<Arc<App>>) -> Response {
+    match &app.totals {
+        Some(_) => {
+            app.save_totals();
+            let (_, totals) = app.totals.as_ref().expect("checked");
+            let report = totals.lock().unwrap().report(totals::now());
+            ([(axum::http::header::CONTENT_TYPE, "application/json")], report.to_string()).into_response()
+        }
+        None => (StatusCode::NOT_FOUND, "XMAGE_GATEWAY_TOTALS isn't set\n").into_response(),
+    }
 }
 
 /// keeps `accounts` in step with the server (it can change with the admin console's settings)

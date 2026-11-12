@@ -47,18 +47,15 @@ export function createIndexedDbImageStore(): ImageLinkStore {
       if (!db) return [];
       return new Promise((resolve) => {
         try {
-          const entries: [string, PrintingImages][] = [];
-          const request = db.transaction(STORE, 'readonly').objectStore(STORE).openCursor();
-          request.onsuccess = () => {
-            const cursor = request.result;
-            if (!cursor) {
-              resolve(entries);
-              return;
-            }
-            entries.push([String(cursor.key), cursor.value as PrintingImages]);
-            cursor.continue();
+          // two bulk reads instead of a cursor: one event per store, not one per printing
+          const store = db.transaction(STORE, 'readonly').objectStore(STORE);
+          const keys = store.getAllKeys();
+          const values = store.getAll();
+          values.onsuccess = () => {
+            const found = values.result as PrintingImages[];
+            resolve((keys.result ?? []).map((key, index): [string, PrintingImages] => [String(key), found[index]]));
           };
-          request.onerror = () => resolve(entries);
+          values.onerror = () => resolve([]);
         } catch {
           resolve([]);
         }

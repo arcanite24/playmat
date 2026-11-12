@@ -55,7 +55,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * mvn -pl Mage.Tests test -Dtest=ShadowGamesTest -Dxmage.shadowGames=$PWD/shadow \
  *     -Dxmage.dataCollectors.printGameLogs=false -Dlog4j.configuration=file:$PWD/.travis/log4j.properties
  * </pre>
- * Options: xmage.shadowGames.games (default 20), .first (first game, default 0), .turns (default 20),
+ * Options: xmage.shadowGames.games (default 20), .first (first game, default 0), .seeds (comma separated games to
+ * record instead of .first and .games), .turns (default 20),
  * .schools (default pioneer,standard: folders of Mage.Server/career-src), .decks (comma separated folders of deck
  * files to use instead, such as the engine's tiers in rust/crates/playmat-engine/shadow-decks), .views (record the
  * asked player's view at every n-th answer, default 0: none; docs/rust/Views.md).
@@ -99,7 +100,19 @@ public class ShadowGamesTest {
         out.mkdirs();
         Gson gson = new GsonBuilder().disableHtmlEscaping().create();
         int n = decks.size();
-        for (int i = first; i < first + games; i++) {
+        // .seeds=a,b,c: those games only, instead of .first and .games (recording a few of a run again)
+        List<Integer> seeds = new ArrayList<>();
+        String only = System.getProperty(PREFIX + ".seeds", "");
+        if (only.isEmpty()) {
+            for (int i = first; i < first + games; i++) {
+                seeds.add(i);
+            }
+        } else {
+            for (String seed : only.split(",")) {
+                seeds.add(Integer.parseInt(seed.trim()));
+            }
+        }
+        for (int i : seeds) {
             int a = i % n;
             int b = (a + 1 + (i / n) % (n - 1)) % n;
             Map<String, Object> record = play(i, names.get(a), decks.get(a), names.get(b), decks.get(b), turns, null);

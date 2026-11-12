@@ -8,6 +8,7 @@ import mage.cards.Card;
 import mage.cards.CardWithSpellOption;
 import mage.cards.SplitCard;
 import mage.cards.DoubleFacedCard;
+import mage.cards.PreparedSpellCopy;
 import mage.constants.ManaType;
 import mage.game.Game;
 import mage.game.permanent.Permanent;
@@ -289,7 +290,21 @@ public final class DecisionLog {
         DecisionLog log = game.getOptions() == null ? null : game.getOptions().decisions;
         if (log != null && log.startOrder != null) {
             Map<UUID, Integer> order = log.startOrder;
-            exiled.sort(Comparator.comparingInt(c -> order.getOrDefault(c.getId(), Integer.MAX_VALUE)));
+            // a prepared copy isn't a start card: it goes after them, in its permanent's start order (the exile zones
+            // are a HashMap, so two copies would otherwise come in any order)
+            exiled.sort(Comparator.comparingInt(c -> {
+                Integer at = order.get(c.getId());
+                if (at != null) {
+                    return at;
+                }
+                if (c instanceof PreparedSpellCopy) {
+                    Integer of = order.get(((PreparedSpellCopy) c).getPreparedPermanentId());
+                    if (of != null) {
+                        return order.size() + of;
+                    }
+                }
+                return Integer.MAX_VALUE;
+            }));
         }
         for (Card card : exiled) {
             if (object(game, "E" + i++, card, visitor)) {
@@ -314,6 +329,13 @@ public final class DecisionLog {
                 if (ability(ability, "T" + s + "." + i++, visitor)) {
                     return true;
                 }
+            }
+        }
+        // cards outside the game (Learn's Lessons): each player's sideboard, in its order
+        for (int s = 0; s < seats.size(); s++) {
+            Player player = game.getPlayer(seats.get(s));
+            if (player != null && cards(game, "O" + s + ".", player.getSideboard(), visitor)) {
+                return true;
             }
         }
         return false;

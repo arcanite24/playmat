@@ -79,6 +79,12 @@ public final class ShadowStart {
             seat.put("handPrintings", handPrintings);
             // for Learn's hint, which counts it
             seat.put("sideboard", player.getSideboard().size());
+            // the sideboard's cards, in the order answers name them (`O<seat>.<index>`): Learn's Lessons
+            List<String> sideboard = new ArrayList<>();
+            for (UUID id : player.getSideboard()) {
+                sideboard.add(game.getCard(id).getName());
+            }
+            seat.put("sideboardCards", sideboard);
             seats.add(seat);
         }
         start.put("seats", seats);

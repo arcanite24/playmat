@@ -102,6 +102,9 @@ pub struct ShadowSeat {
     /// how many cards its sideboard has (newer games), for Learn's hint
     #[serde(default)]
     pub sideboard: usize,
+    /// the sideboard's cards (newer games), named by answers as `O<seat>.<index>`: Learn's Lessons
+    #[serde(default, rename = "sideboardCards")]
+    pub sideboard_cards: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, serde::Serialize, PartialEq)]
@@ -232,6 +235,14 @@ impl ShadowGame {
                 }
             }
         }
+        // the sideboards, after every card in the game (Java made them with the decks; none of them is listed)
+        for (seat, s) in self.start.seats.iter().enumerate() {
+            for name in &s.sideboard_cards {
+                let def = db.get(name).ok_or_else(|| format!("card not in the engine: {}", name))?;
+                let id = game.create_obj(def, seat, Zone::Outside);
+                game.player_mut(seat).outside.push(id);
+            }
+        }
         let header = self.start.fingerprint.lines().nth(1).ok_or("no fingerprint")?;
         // turn <n> step <STEP> active <seat> priority <seat>
         let words: Vec<&str> = header.split(' ').collect();
@@ -341,6 +352,11 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
             };
             zone.get(index).copied().map(Answer::Obj)
         }
+        "O" => {
+            let (seat, index) = rest.split_once('.')?;
+            let player = game.players.get(seat.parse::<Seat>().ok()?)?;
+            player.outside.get(index.parse::<usize>().ok()?).copied().map(Answer::Obj)
+        }
         "B" => game.battlefield.get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
         "S" => {
             // Java's stack, with what's resolving still on it
@@ -366,7 +382,12 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
 pub fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
     let mut exile = game.exile.to_vec();
     if game.exile_by_creation {
-        exile.sort_by_key(|o| o.0);
+        // start cards in their order, then prepared copies in their permanents' (`DecisionLog.visit`), then the rest
+        exile.sort_by_key(|o| match game.obj(*o).prepared_for {
+            Some((p, _)) => (1, p.0),
+            None if game.obj(*o).token => (2, o.0),
+            None => (0, o.0),
+        });
     }
     exile
 }
@@ -515,9 +536,24 @@ impl<'a> Decider for ReplayDecider<'a> {
                     .battlefield
                     .iter()
                     .enumerate()
-                    .map(|(i, o)| format!("B{}={}:{}", i, o.0, game.obj(*o).name()))
+                    .map(|(i, o)| {
+                        format!(
+                            "B{}={}:{}{}",
+                            i,
+                            o.0,
+                            game.obj(*o).name(),
+                            if game.obj(*o).until_end_of_turn_def.is_some() { "*" } else { "" }
+                        )
+                    })
                     .collect();
                 eprintln!("  {}", bf.join(" "));
+                let exile: Vec<String> = game
+                    .exile
+                    .iter()
+                    .enumerate()
+                    .map(|(i, o)| format!("E{}={}:{}{:?}", i, o.0, game.obj(*o).name(), game.obj(*o).prepared_for))
+                    .collect();
+                eprintln!("  {}", exile.join(" "));
             }
         }
         self.next += 1;

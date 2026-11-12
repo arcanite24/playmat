@@ -36,6 +36,10 @@
   height: 100%;
   object-fit: cover;
   opacity: 0;
+}
+
+/* only a picture that kept the card waiting fades in; a cached one is simply there */
+[data-fade] :is(.image, .landBand, .styleOverlay) {
   transition: opacity var(--dur-place) linear;
 }
 
@@ -55,7 +59,6 @@
   justify-content: center;
   container-type: inline-size;
   opacity: 0;
-  transition: opacity var(--dur-place) linear;
   pointer-events: none;
 }
 
@@ -171,7 +174,6 @@
   inset: 0;
   container-type: inline-size;
   opacity: 0;
-  transition: opacity var(--dur-place) linear;
   pointer-events: none;
 }
 

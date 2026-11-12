@@ -66,6 +66,8 @@ services:
       XMAGE_RUST_OPT_IN: ${XMAGE_RUST_OPT_IN:-}
       # how many hosted games' records the gateway keeps in saved/host-games (docs/rust/GameHost.md, "Game records")
       XMAGE_RUST_HOST_RECORDS_KEEP: ${XMAGE_RUST_HOST_RECORDS_KEEP:-500}
+      # where the gateway keeps its shadow and hosted-game counters across deploys (default saved/gateway-totals.json)
+      XMAGE_GATEWAY_TOTALS: ${XMAGE_GATEWAY_TOTALS:-}
       XMAGE_ENGINE: ${XMAGE_ENGINE:-}
       # where the gateway sends each group of calls: java (default), shadow or rust (ops/web/README.md "Rust gateway")
       XMAGE_ROUTE_DEFAULT: ${XMAGE_ROUTE_DEFAULT:-}
