@@ -8,7 +8,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -130,7 +129,8 @@ public final class CareerCapsules {
     private final Map<String, CareerMachineItem> items = new LinkedHashMap<>();
     private final Map<String, CareerMachineSet> setOf = new LinkedHashMap<>();
     private final Map<String, CareerMachine> machineOf = new LinkedHashMap<>();
-    private Random random = new SecureRandom();
+    /** tests' fixed draw; null rolls {@link CareerDice} by account, machine and pulls so far, as Rust does */
+    private Random random;
 
     CareerCapsules(List<CareerMachine> machines) {
         this.machines = machines;
@@ -369,9 +369,11 @@ public final class CareerCapsules {
                 throw new SQLException(new CareerService.CareerException(
                         (pulls == 1 ? "A pull takes a token" : pulls + " pulls take " + pulls + " tokens") + "; you have " + tokens + "."));
             }
+            Random draw = random != null ? random
+                    : CareerDice.roll(store, "pull/" + CareerStore.key(user) + "/" + machine.id + "/" + store.pulls(user, machine.id).size());
             addTokens(store, user, -pulls, "pull " + machine.id, now);
             for (int index = 0; index < pulls; index++) {
-                CareerMachineItem item = left.remove(random.nextInt(left.size()));
+                CareerMachineItem item = left.remove(draw.nextInt(left.size()));
                 store.addUnlock(user, machine.kind, item.id, now);
                 store.addPull(user, machine.id, item.id, now);
                 owned.add(item.id);

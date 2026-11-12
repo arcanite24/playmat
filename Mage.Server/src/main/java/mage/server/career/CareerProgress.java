@@ -388,7 +388,9 @@ public final class CareerProgress {
     private final Map<String, AchievementTemplate> achievements = new LinkedHashMap<>();
     private final Map<Integer, CareerLevelReward> levels = new LinkedHashMap<>();
     private Supplier<LocalDate> today = () -> LocalDate.now(ZoneOffset.UTC);
-    private Random random = new Random();
+    /** tests' fixed draws; null rolls {@link CareerDice}, seeded by account, day and slot, as Rust does */
+    private Random random;
+
 
     private CareerProgress() throws IOException {
         Gson gson = new Gson();
@@ -500,11 +502,17 @@ public final class CareerProgress {
     }
 
     String day() {
-        return today.get().toString();
+        return date().toString();
+    }
+
+    /** today, or the day of the payout being paid on this thread (an event pays for the day it was played) */
+    private LocalDate date() {
+        CareerPayoutEvent paying = CareerPayouts.paying();
+        return paying != null && paying.day != null ? LocalDate.parse(paying.day) : today.get();
     }
 
     String week() {
-        LocalDate date = today.get();
+        LocalDate date = date();
         return date.get(IsoFields.WEEK_BASED_YEAR) + "-W" + String.format("%02d", date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR));
     }
 
@@ -535,7 +543,7 @@ public final class CareerProgress {
             while (used.contains(slot)) {
                 slot++;
             }
-            String quest = pickQuest(present, false);
+            String quest = pickQuest(present, false, roll(store, "quest/" + CareerStore.key(user) + "/" + day + "/" + slot));
             if (quest == null) {
                 break;
             }
@@ -556,14 +564,19 @@ public final class CareerProgress {
         for (CareerStore.QuestRow row : store.quests(user)) {
             present.add(row.quest);
         }
-        String quest = pickQuest(present, true);
+        String quest = pickQuest(present, true, roll(store, "weekly/" + CareerStore.key(user) + "/" + week));
         if (quest != null) {
             store.putQuest(user, WEEKLY_SLOT, quest, 0, day());
         }
         store.setProfileText(user, "quest_week", week);
     }
 
-    private String pickQuest(Set<String> exclude, boolean weekly) {
+    /** the draw for one pick: the test's, or the seeded roll */
+    private Random roll(CareerStore store, String purpose) throws SQLException {
+        return random != null ? random : CareerDice.roll(store, purpose);
+    }
+
+    private String pickQuest(Set<String> exclude, boolean weekly, Random random) {
         List<String> choices = new ArrayList<>();
         for (String id : quests.keySet()) {
             if (!exclude.contains(id) && quests.get(id).weekly == weekly) {
@@ -685,7 +698,7 @@ public final class CareerProgress {
                 if (slot == WEEKLY_SLOT) {
                     throw new SQLException(new CareerService.CareerException("The weekly quest can't be swapped."));
                 }
-                String next = pickQuest(present, false);
+                String next = pickQuest(present, false, roll(store, "reroll/" + CareerStore.key(user) + "/" + day() + "/" + slot));
                 if (next == null) {
                     throw new SQLException(new CareerService.CareerException("There's no other quest to swap in."));
                 }

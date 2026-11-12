@@ -299,6 +299,8 @@ public final class Main {
             // Career tables from before a restart still pay when their saved games resume (B270)
             if (mage.server.career.CareerService.enabled(config.isAuthenticationActivated())) {
                 int restored = mage.server.career.CareerService.get().restoreTables();
+                // payouts the gateway left pending when the route went back to java (docs/rust/Payouts.md)
+                mage.server.career.CareerPayouts.payPending();
                 if (restored > 0) {
                     logger.info("Career: " + restored + " tables kept from before the restart");
                 }

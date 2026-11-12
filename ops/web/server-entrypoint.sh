@@ -148,6 +148,11 @@ case "$GATEWAY" in
   on|off) ;;
   *) die "XMAGE_GATEWAY must be on or off (got '$GATEWAY')" ;;
 esac
+CAREER_PAYOUTS=${XMAGE_ROUTE_CAREERPAYOUTS:-java}
+case "$CAREER_PAYOUTS" in
+  java|shadow|rust) ;;
+  *) die "XMAGE_ROUTE_CAREERPAYOUTS must be java, shadow or rust (got '$CAREER_PAYOUTS')" ;;
+esac
 
 # --- access (contributors server) -------------------------------------------------------------
 # XMAGE_ACCESS=allowlist starts the server closed: only the owner, staff and the people on the
@@ -308,6 +313,9 @@ args=$(mktemp /tmp/xmage-jvm.XXXXXX)
   # with the gateway on, the server keeps its card catalog current (it rewrites it when its cards change)
   if [ "$GATEWAY" = on ]; then
     echo "-Dxmage.catalog.export=$CARDS_DIR/catalog.sqlite"
+    # who pays the Career's finished games: java, shadow (the gateway checks Java's) or rust (docs/rust/Payouts.md);
+    # without the gateway nobody would pay what Java leaves to Rust, so Java always pays
+    echo "-Dxmage.career.payouts=$CAREER_PAYOUTS"
   fi
   echo "-Dxmage.ai.threads=$AI_THREADS"
   [ -z "${XMAGE_AI_NODE_SCALE:-}" ] || echo "-Dxmage.ai.nodeScale=$XMAGE_AI_NODE_SCALE"

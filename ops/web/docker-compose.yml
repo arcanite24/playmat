@@ -81,6 +81,8 @@ services:
       XMAGE_ROUTE_SUPPORT: ${XMAGE_ROUTE_SUPPORT:-}
       XMAGE_ROUTE_CAREER: ${XMAGE_ROUTE_CAREER:-}
       XMAGE_ROUTE_CAREERPROGRESS: ${XMAGE_ROUTE_CAREERPROGRESS:-}
+      # who pays finished games in the Career: java, shadow or rust (docs/rust/Payouts.md); set by name only
+      XMAGE_ROUTE_CAREERPAYOUTS: ${XMAGE_ROUTE_CAREERPAYOUTS:-}
       XMAGE_ACCOUNTS_DB: ${XMAGE_ACCOUNTS_DB:-}
       XMAGE_SHADOW_USERS: ${XMAGE_SHADOW_USERS:-}
       XMAGE_MONTE_CARLO: ${XMAGE_MONTE_CARLO:-}

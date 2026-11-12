@@ -157,13 +157,16 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           game-state updates itself, which takes work off Java. <code>XMAGE_GATEWAY=on</code> in <code>.env</code>
           turns it on, then run <code>up -d</code>. If the gateway stops, Caddy sends players straight to the Java
           server until it's back. It's <code>off</code> by default while it's new. With it on, card lookups, card
-          search, deck checks, deck sync, deck imports by link, parts of the staff console, support's records and the Career's collection and catalogs can be answered in Rust too
+          search, deck checks, deck sync, deck imports by link, parts of the staff console, support's records and most of the Career can be answered in Rust too
           (<code>XMAGE_ROUTE_CATALOG</code>, <code>XMAGE_ROUTE_ACCOUNT</code>, <code>XMAGE_ROUTE_DECKIMPORT</code>,
           <code>XMAGE_ROUTE_ACCESS</code>, <code>XMAGE_ROUTE_STAFF</code>, <code>XMAGE_ROUTE_ADMIN</code>,
           <code>XMAGE_ROUTE_ACCOUNTS</code>, <code>XMAGE_ROUTE_SUPPORT</code>, <code>XMAGE_ROUTE_CAREER</code>,
-          <code>XMAGE_ROUTE_CAREERPROGRESS</code>); they stay
-          with Java unless you set them. <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few
-          accounts while you try it. The gateway keeps its <code>shadow</code> and hosted-game counts across updates
+          <code>XMAGE_ROUTE_CAREERPROGRESS</code>, which also covers quests and the capsule shop); they stay
+          with Java unless you set them. <code>XMAGE_ROUTE_CAREERPAYOUTS</code> moves what a finished game pays in the
+          Career: <code>shadow</code> has Java pay and the gateway check each payout against its own, and
+          <code>rust</code> has the gateway pay duels and games outside the Career's tables. Setting it back to
+          <code>java</code> is safe: Java pays anything left waiting the next time it starts.
+          <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few accounts while you try it. The gateway keeps its <code>shadow</code> and hosted-game counts across updates
           in <code>saved/gateway-totals.json</code> (<code>XMAGE_GATEWAY_TOTALS</code>), by day, so a week of them can be
           read from <code>/totals</code> on port 17180 even after a deploy. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
