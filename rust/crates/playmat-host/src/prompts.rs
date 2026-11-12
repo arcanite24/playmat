@@ -107,6 +107,15 @@ pub fn prompt(game: &Game, seat: Seat, q: &Query) -> Value {
                     "message": text, "flag": required, "cardsView1": cards_view(game, shown),
                     "targets": refs(game, &possible), "min": 0, "max": 0, "options": options}});
             }
+            // cards in the asker's own hand are picked in the hand, not shown in a chooser (`TargetCardInHand` goes
+            // through `HumanPlayer.chooseTarget`: no cards, the target's zone)
+            let hand = &game.player(seat).hand;
+            if !objs.is_empty() && objs.iter().all(|o| hand.contains(o)) {
+                let targets = refs(game, objs);
+                return json!({"method": "GAME_TARGET", "data": {
+                    "message": text, "flag": required, "targets": targets, "min": 0, "max": 0,
+                    "options": {"queryType": "PICK_TARGET", "targetZone": "HAND", "possibleTargets": targets.clone()}}});
+            }
             json!({"method": "GAME_TARGET", "data": {
                 "message": text, "flag": required, "cardsView1": cards_view(game, objs),
                 "targets": refs(game, objs), "min": 0, "max": 0, "options": {"queryType": "PICK_TARGET"}}})
@@ -331,5 +340,19 @@ mod tests {
         assert_eq!(p["data"]["cardsView1"].as_object().unwrap().len(), library.len());
         assert_eq!(p["data"]["options"]["possibleTargets"].as_array().unwrap().len(), plains.len());
         assert_eq!(p["data"]["options"]["chosenTargets"], json!([reference(&game, plains[0])]));
+    }
+
+    /// Cards in the asker's hand are picked in the hand (`TargetCardInHand`): no chooser
+    #[test]
+    fn a_discard_is_picked_in_the_hand() {
+        let db = playmat_engine::cards();
+        let deck = Deck::parse("d", "20 Plains\n20 Llanowar Elves");
+        let game = new_duel(&db, [&deck, &deck], 1, 0).unwrap();
+        let hand = game.players[0].hand.clone();
+        assert!(!hand.is_empty());
+        let p = prompt(&game, 0, &Query::Cards { objs: hand.clone(), required: true });
+        assert!(p["data"].get("cardsView1").is_none(), "{p}");
+        assert_eq!(p["data"]["options"]["targetZone"], "HAND");
+        assert_eq!(p["data"]["targets"], json!(refs(&game, &hand)));
     }
 }

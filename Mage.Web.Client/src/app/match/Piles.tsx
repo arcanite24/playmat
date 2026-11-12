@@ -16,10 +16,12 @@ export interface CommandProps {
   /** ids that can be clicked now: a commander in the command zone that can be cast */
   clickable?: ReadonlySet<string>;
   onCast?(id: string): void;
+  /** cards the hand shows while they can be played from here (an adventurer in exile, flashback): see PileTop */
+  inHand?: ReadonlySet<string>;
 }
 
 /** Library, graveyard, exile and command zone of one player, as piles on the mat. */
-export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast }: { player: PlayerView; sleeve: string; isMe: boolean } & CommandProps) {
+export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast, inHand }: { player: PlayerView; sleeve: string; isMe: boolean } & CommandProps) {
   const t = useT();
   const openViewer = useMatchUi((state) => state.openViewer);
   const libraryRef = useRef<HTMLButtonElement>(null);
@@ -47,9 +49,9 @@ export function Piles({ player, sleeve, isMe, commanders = [], clickable, onCast
         <span className={styles.label}>Library</span>
       </button>
 
-      <PileOfCards title={`${name} graveyard`} label="Graveyard" cards={graveyard} sleeve={sleeve} onOpen={() => openViewer({ title: `${name} graveyard`, cards: [...graveyard].reverse() })} />
+      <PileOfCards title={`${name} graveyard`} label="Graveyard" cards={graveyard} sleeve={sleeve} inHand={inHand} onOpen={() => openViewer({ title: `${name} graveyard`, cards: [...graveyard].reverse() })} />
       {exile.length > 0 && (
-        <PileOfCards title={`${name} exile`} label="Exile" cards={exile} sleeve={sleeve} onOpen={() => openViewer({ title: `${name} exile`, cards: exile })} />
+        <PileOfCards title={`${name} exile`} label="Exile" cards={exile} sleeve={sleeve} inHand={inHand} onOpen={() => openViewer({ title: `${name} exile`, cards: exile })} />
       )}
       {waiting.map((commander) => (
         <CommanderPile key={commander.id} commander={commander} sleeve={sleeve} castable={!!clickable?.has(commander.id)} onCast={onCast} owner={name} />
@@ -110,23 +112,26 @@ function usePileZoom(card: CardView | undefined, sleeve: string) {
   };
 }
 
-function PileOfCards({ title, label, cards, sleeve, onOpen }: { title: string; label: string; cards: CardView[]; sleeve: string; onOpen(): void }) {
+function PileOfCards({ title, label, cards, sleeve, onOpen, inHand }: { title: string; label: string; cards: CardView[]; sleeve: string; onOpen(): void; inHand?: ReadonlySet<string> }) {
   const t = useT();
   const top = cards[cards.length - 1];
   const zoom = usePileZoom(top, sleeve);
   return (
     <button type="button" className={styles.pile} aria-label={t('match.cards', { label: title, count: cards.length })} onClick={onOpen} disabled={cards.length === 0} {...zoom}>
       {/* a new top card is a new element: it lands on the pile from wherever that card was */}
-      <PileTop key={top ? cardKey(top) : 'empty'} top={top} count={cards.length} sleeve={sleeve} />
+      <PileTop key={top ? cardKey(top) : 'empty'} top={top} count={cards.length} sleeve={sleeve} inHand={!!top && !!inHand?.has(cardKey(top))} />
       <span className={styles.count}>{cards.length}</span>
       <span className={styles.label}>{label}</span>
     </button>
   );
 }
 
-function PileTop({ top, count, sleeve }: { top: CardView | undefined; count: number; sleeve: string }) {
+function PileTop({ top, count, sleeve, inHand }: { top: CardView | undefined; count: number; sleeve: string; inHand: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  useFlip(top ? cardKey(top) : undefined, ref);
+  // a top card the hand also shows is the hand's to fly: two elements measured under one card would each fly from
+  // the other's place on every render, and the card would bounce between the hand and the pile. It lands back here
+  // from the hand once the hand lets it go.
+  useFlip(top && !inHand ? cardKey(top) : undefined, ref);
   return (
     <div ref={ref} className={[styles.stack, count === 0 ? styles.empty : ''].join(' ')} style={{ ['--depth' as string]: Math.min(4, count) }}>
       {top && <CardFace card={top} sleeve={sleeve} size="small" />}
