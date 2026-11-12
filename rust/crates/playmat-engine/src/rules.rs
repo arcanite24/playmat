@@ -12512,9 +12512,12 @@ fn same_trigger(game: &Game, a: &StackItem, b: &StackItem) -> bool {
 }
 
 fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
+    // what it sacrifices is a `FixedTargets` pointer too (the tokens a mobilize made)
     t.delayed
         .as_ref()
-        .map(|dl| dl.fixed.iter().filter(|(o, z)| game.obj(*o).zcc == *z).map(|(o, _)| *o).collect())
+        .map(|dl| {
+            dl.fixed.iter().chain(dl.sacrifice.iter()).filter(|(o, z)| game.obj(*o).zcc == *z).map(|(o, _)| *o).collect()
+        })
         .unwrap_or_default()
 }
 
