@@ -2667,28 +2667,18 @@ fn cast_free(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> boo
 /// A cast an effect allows (paying its costs): the game is as it was before when it's cancelled
 fn cast_allowed(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     let before = game.clone();
-    // `chooseAbilityForCast`: an adventurer card, the adventure (a0) or the creature (a1), asked with both castable
-    if let Some(adventure) = game.obj(id).def.adventure.clone() {
-        let mut options = Vec::new();
-        // (both callers cast while an effect resolves, where timing doesn't apply)
-        game.any_time.set(true);
-        if castable(game, seat, id, &adventure) {
-            options.push(0);
-        }
-        if castable(game, seat, id, &game.obj(id).def.clone()) {
-            options.push(1);
-        }
-        game.any_time.set(false);
-        let pick = if options.len() > 1 {
-            match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
-                Answer::Ability(o, k) if o == id && options.contains(&k) => k,
-                Answer::Stop => return false,
-                _ => 1,
-            }
-        } else {
-            options.first().copied().unwrap_or(1)
+    // `chooseAbilityForCast`: an adventurer card, the adventure (a0) or the creature (a1). Both callers cast with
+    // `playCard`, which allows every spell ability of the card (`PlayFromNotOwnHandZone`), so
+    // `getCastableSpellAbilities` offers both whatever they cost: one the player can't pay is cancelled while paying
+    if game.obj(id).def.adventure.is_some() {
+        let options = vec![0, 1];
+        let pick = match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+            Answer::Ability(o, k) if o == id && options.contains(&k) => k,
+            Answer::Stop => return false,
+            _ => 1,
         };
-        if pick == 0 {
+        let adventure = game.obj(id).def.adventure.clone();
+        if let Some(adventure) = adventure.filter(|_| pick == 0) {
             let full = game.obj(id).def.clone();
             let o = game.obj_mut(id);
             o.adventurer = Some(full);
