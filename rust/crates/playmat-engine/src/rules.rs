@@ -6242,7 +6242,22 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
         let Some(old) = original.targets.get(k).cloned() else { continue };
         let total = old.len();
         let mut new: Vec<Target> = Vec::new();
+        // a spell or ability target that left the stack: Java finds nothing by its id (`getNameOftarget`), so it
+        // keeps it without asking
+        let stack_target = matches!(
+            tdef,
+            TargetDef::TargetSpell { .. }
+                | TargetDef::TargetStackAbility { .. }
+                | TargetDef::TargetTriggeredAbilityOrColorlessSpell
+        );
         for (n, t) in old.iter().enumerate() {
+            if let Target::Obj(o) = t {
+                let on_stack = game.stack.iter().any(|i| i.card == *o) || game.resolving.map(|(_, c)| c) == Some(*o);
+                if stack_target && !on_stack {
+                    new.push(*t);
+                    continue;
+                }
+            }
             let q = Query::YesNo { message: format!("Change this {} of {} target?", n + 1, total) };
             let change = loop {
                 match ask(game, d, controller, &q) {
@@ -11558,6 +11573,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // permanent's static abilities already apply (`AbilityImpl.isInUseableZone`), so a Giada moved before this
     // Angel gives it counters, one moved after doesn't
     let mut more_counters = more_counters;
+    // Giadas whose replacement effect applies (`GiadaFontOfHopeEntersBattlefieldEffect.applies`), counters or not
+    let mut giada_effects = 0;
     if game.obj(id).def.subtypes.iter().any(|t| t == "Angel") {
         let together = |o: &ObjId| game.entering_together.contains(o);
         let mine = game.entering_together.iter().position(|o| *o == id);
@@ -11580,7 +11597,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                         if effects.contains(&EffectDef::GiadaFontOfHopeEntersBattlefieldEffect))
                     })
             });
-        more_counters += giadas.count() as i32 * angels;
+        giada_effects = giadas.count();
+        more_counters += giada_effects as i32 * angels;
     }
     // the characteristics its replacement effects see (`Game::enters_as`)
     let entering_as = game.enters_as.clone().filter(|(o, _)| *o == id).map(|(_, def)| def);
@@ -11640,7 +11658,7 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             })
             .count();
         game.obj_mut(id).controller = was;
-        let others = gevs + counter_effects + tappers;
+        let others = gevs + counter_effects + tappers + giada_effects;
         if others > 0 {
             for _ in 1..others + own {
                 game.owed_choices.push(controller);
