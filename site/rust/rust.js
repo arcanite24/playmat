@@ -104,8 +104,15 @@
         'down from ' + time(m.worst.java, m.worst.unit) + ' in Java'));
     }
     var sh = c.shadow;
-    stats.appendChild(stat(num(sh.matched) + '<em>/</em>' + num(sh.played), 'shadow games match Java',
-      num(sh.checked_in) + ' of them replayed on every change'));
+    // the latest gate run (progress-plan.json), when there is one; the tiers' own tally otherwise
+    var g = d.gate;
+    if (g) {
+      stats.appendChild(stat(num(g.matched) + '<em>/</em>' + num(g.played), 'shadow games match Java',
+        'gate run of ' + day(g.date) + '; ' + num(sh.checked_in) + ' games replayed on every change'));
+    } else {
+      stats.appendChild(stat(num(sh.matched) + '<em>/</em>' + num(sh.played), 'shadow games match Java',
+        num(sh.checked_in) + ' of them replayed on every change'));
+    }
     stats.appendChild(stat(num(c.engine_cards), 'cards in the Rust engine',
       'all ' + num(c.school.cards_in) + ' cards of the ' + c.school.decks + ' school decks'));
 
@@ -218,8 +225,13 @@
     // shadow games
     var sum = $('shadow-sum');
     function fig(big, sub) { return el('div', {}, [el('strong', { text: big }), el('span', { text: sub })]); }
-    sum.appendChild(fig(num(sh.played), 'shadow games finished by Java and replayed in Rust'));
-    sum.appendChild(fig(num(sh.matched), 'reached the same state at every step'));
+    if (g) {
+      sum.appendChild(fig(num(g.played), 'shadow games finished by Java and replayed in Rust (' + g.what + ')'));
+      sum.appendChild(fig(num(g.matched), 'reached the same state at every step' + (g.note ? ' (' + g.note + ')' : '')));
+    } else {
+      sum.appendChild(fig(num(sh.played), 'shadow games finished by Java and replayed in Rust'));
+      sum.appendChild(fig(num(sh.matched), 'reached the same state at every step'));
+    }
     sum.appendChild(fig(String(c.tiers.length), 'tiers of decks'));
     sum.appendChild(fig(num(c.rust.lines), 'lines of Rust across ' + c.rust.crates.length + ' crates'));
     var tiers = $('tiers');

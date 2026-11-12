@@ -401,6 +401,13 @@ pub fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
 
 /// Where an object is, as `DecisionLog.ref` writes it.
 pub fn reference(game: &Game, id: ObjId) -> String {
+    // a hand card while one enters from a hand: its place in Java's hand, which still holds the entering card (as
+    // `resolve` reads `H` refs)
+    if game.obj(id).zone == Zone::Hand {
+        if let Some(g) = crate::view::as_java(game) {
+            return reference(&g, id);
+        }
+    }
     for (s, p) in game.players.iter().enumerate() {
         for (prefix, zone) in [("H", &p.hand), ("L", &p.library), ("G", &p.graveyard)] {
             if let Some(i) = zone.iter().position(|x| *x == id) {
