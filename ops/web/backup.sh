@@ -14,6 +14,7 @@
 #   web_admin.db                                    SQLite copy (/admin: access, staff, audit log, settings)
 #   support.db                                      SQLite copy (support ledger, sponsorships, perks, looks)
 #   solo.db                                         SQLite copy (single player: saved games, ghosts, batches, scores)
+#   web_presence.db                                 SQLite copy (the status each player chose: hidden, looking to play)
 #   content-packs.tar.gz                            the content packs folder (campaigns, puzzles, opponents staff added)
 # H2 dumps are taken online: AUTO_SERVER lets this process join the running server's database.
 # SQLite copies use the online backup API. The newest $BACKUP_KEEP (default 14) backups are kept.
@@ -25,7 +26,7 @@ BACKUP_DIR=${BACKUP_DIR:-/backups}
 BACKUP_AT=${BACKUP_AT:-03:30}
 BACKUP_KEEP=${BACKUP_KEEP:-14}
 H2_DBS=(authorized_user.h2 feedback.h2)
-SQLITE_DBS=(authorized_user.db user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db support.db solo.db)
+SQLITE_DBS=(authorized_user.db user_stats.db table_record.db web_decks.db web_reports.db career.db web_admin.db support.db solo.db web_presence.db)
 PACKS=content-packs
 STATUS=$DB_DIR/backup-status.json
 
