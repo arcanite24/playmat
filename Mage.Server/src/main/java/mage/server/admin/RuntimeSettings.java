@@ -22,6 +22,8 @@ public final class RuntimeSettings {
     public static final String REGISTRATION = "registration";
     /** "on" or "off"; the environment's XMAGE_CAREER=off still turns Career off for good */
     public static final String CAREER = "career";
+    /** on (the default) or off: players can share decks with everyone on the server (#137) */
+    public static final String SHARED_DECKS = "sharedDecks";
     /** how many AI opponents one table may seat */
     public static final String MAX_AI_OPPONENTS = "maxAiOpponents";
     /** how long a player may take to answer before they lose the game */
@@ -63,7 +65,7 @@ public final class RuntimeSettings {
     static final int MAX_COSTS = 600;
     static final int MAX_URL = 200;
 
-    public static final List<String> NAMES = Collections.unmodifiableList(Arrays.asList(REGISTRATION, CAREER, MAX_AI_OPPONENTS, MAX_SECONDS_IDLE,
+    public static final List<String> NAMES = Collections.unmodifiableList(Arrays.asList(REGISTRATION, CAREER, SHARED_DECKS, MAX_AI_OPPONENTS, MAX_SECONDS_IDLE,
             BATCH_CONCURRENCY, BATCH_GAMES_PER_DAY, ARCHMAGE_DAILY_CENTS, PROGRESS_XP_PERCENT, PROGRESS_COIN_PERCENT,
             DISCORD_TABLES, DISCORD_EVENTS, DISCORD_MATCHES, DISCORD_STAFF, SUPPORT_ENABLED, SUPPORT_GOAL_CENTS, SUPPORT_KOFI_URL,
             SUPPORT_SPONSORS_URL, SUPPORT_COSTS, SUPPORT_DISCORD_AMOUNTS));
@@ -174,6 +176,7 @@ public final class RuntimeSettings {
                 }
                 throw new IllegalArgumentException("Registration is open or invite");
             case CAREER:
+            case SHARED_DECKS:
             case DISCORD_TABLES:
             case DISCORD_EVENTS:
             case DISCORD_MATCHES:
@@ -217,6 +220,11 @@ public final class RuntimeSettings {
 
     public boolean careerOn() {
         return !"off".equals(stored(CAREER));
+    }
+
+    /** players can share decks with the server (on until staff turn it off) */
+    public boolean sharedDecksOn() {
+        return !"off".equals(stored(SHARED_DECKS));
     }
 
     /** whether one kind of Discord post is on (they all are until staff turn one off) */

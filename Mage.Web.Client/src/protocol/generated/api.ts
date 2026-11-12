@@ -319,6 +319,12 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('deckSyncPut', deckId, name, updatedAt, data),
     deckSyncDelete: (deckId: string, deletedAt: number) =>
       rpc.call('deckSyncDelete', deckId, deletedAt),
+    deckShareSet: (deckId: string, shared: boolean) =>
+      rpc.call('deckShareSet', deckId, shared),
+    deckSharedList: () =>
+      rpc.call('deckSharedList'),
+    deckSharedGet: (owner: string, deckId: string) =>
+      rpc.call('deckSharedGet', owner, deckId),
     reportPlayer: (userName: string, reason: string, details: string, gameId?: string | null) =>
       rpc.call('reportPlayer', userName, reason, details, gameId),
     clientReportError: (report: ClientError) =>

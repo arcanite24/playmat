@@ -6,6 +6,7 @@ import mage.server.admin.AccessPolicy;
 import mage.server.admin.RuntimeSettings;
 import mage.server.decks.DeckStore;
 import mage.server.decks.DeckSyncEntry;
+import mage.server.decks.SharedDeck;
 import mage.server.managers.ConfigSettings;
 import mage.server.notify.DiscordNotifier;
 import mage.server.moderation.ClientErrors;
@@ -20,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadPoolExecutor;
 
+import static mage.server.websocket.rpc.RpcParam.Type.BOOLEAN;
 import static mage.server.websocket.rpc.RpcParam.Type.INT;
 import static mage.server.websocket.rpc.RpcParam.Type.STRING;
 import static mage.server.websocket.rpc.RpcParam.object;
@@ -50,6 +52,8 @@ final class AccountApi {
         public int maxPasswordLength;
         /** decks are kept on the server for each account */
         public boolean deckSync;
+        /** players can share decks with everyone on the server (deckShareSet, deckSharedList; #137) */
+        public boolean sharedDecks;
         /** the optional single-player Career is offered (accounts on, and not switched off) */
         public boolean career;
         /** players can opt in to games the Rust engine plays (XMAGE_RUST_OPT_IN; docs/rust/GameHost.md) */
@@ -145,6 +149,37 @@ final class AccountApi {
                             return decks(() -> DeckStore.get().delete(owner, call.string(0), deletedAt));
                         }),
 
+                RpcMethod.named("deckShareSet")
+                        .params(of("deckId", STRING), of("shared", BOOLEAN))
+                        .returns("boolean")
+                        .doc("Share one of the signed-in account's decks with everyone on the server, or stop sharing it. The deck "
+                                + "must be saved to the account (deck sync); others always get its latest version. Up to "
+                                + DeckStore.MAX_SHARED + " shared decks per account. Returns whether it is shared now.")
+                        .handler(call -> {
+                            String owner = sharing(ctx, call);
+                            boolean shared = call.bool(1);
+                            return decks(() -> DeckStore.get().setShared(owner, call.string(0), shared, System.currentTimeMillis()));
+                        }),
+
+                RpcMethod.named("deckSharedList")
+                        .returns("SharedDeck[]")
+                        .doc("Every deck shared on this server, newest change first, without the deck data: owner, name, format, "
+                                + "colors, card counts and cover. Deleted decks drop out.")
+                        .handler(call -> {
+                            String viewer = sharing(ctx, call);
+                            return decks(() -> DeckStore.get().sharedList(viewer));
+                        }),
+
+                RpcMethod.named("deckSharedGet")
+                        .params(of("owner", STRING), of("deckId", STRING))
+                        .returns("SharedDeck | null")
+                        .doc("One shared deck with its data (the deck's JSON as its owner's client keeps it), or null when that "
+                                + "deck isn't shared.")
+                        .handler(call -> {
+                            String viewer = sharing(ctx, call);
+                            return decks(() -> DeckStore.get().sharedGet(viewer, call.string(0), call.string(1)));
+                        }),
+
                 RpcMethod.named("reportPlayer")
                         .params(of("userName", STRING), of("reason", STRING), of("details", STRING), optional("gameId", STRING))
                         .returns("number")
@@ -191,6 +226,7 @@ final class AccountApi {
             info.maxPasswordLength = config.getMaxPasswordLength();
         }
         info.deckSync = info.accounts;
+        info.sharedDecks = info.accounts && sharedDecksOn();
         mage.server.TrustedHeaderAuth signOn = mage.server.TrustedHeaderAuth.get();
         if (info.accounts && signOn.isEnabled()) {
             info.signOn = connection == null ? null : connection.getSignedOnUser();
@@ -256,6 +292,23 @@ final class AccountApi {
                 .orElseThrow(() -> RpcException.notAuthorized("Sign in first"));
         if (ctx.managers == null || !ctx.managers.configSettings().isAuthenticationActivated()) {
             throw RpcException.notAuthorized("This server has no accounts, so decks stay in your browser");
+        }
+        return userName;
+    }
+
+    private static boolean sharedDecksOn() {
+        try {
+            return RuntimeSettings.get().sharedDecksOn();
+        } catch (IllegalStateException e) {
+            return true;
+        }
+    }
+
+    /** The signed-in account's name, on a server where staff haven't turned deck sharing off. */
+    private static String sharing(ApiContext ctx, RpcCall call) throws RpcException {
+        String userName = account(ctx, call);
+        if (!sharedDecksOn()) {
+            throw RpcException.notAuthorized("Deck sharing is off on this server");
         }
         return userName;
     }
