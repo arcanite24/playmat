@@ -56,17 +56,18 @@ PLAYMAT_EXPORTS=<export folder> cargo test --release -p playmat-engine --test ex
 `PLAYMAT_EXPORTS` takes a folder or a file listing exports; add `PLAYMAT_EXPORTS_STRICT=1` to fail on a difference.
 The checked-in set, `playmat-engine/exported/`, holds the exports that pass, with the trace removed.
 
-Measured 11 Nov 2026 on a full export (3,877 tests): 65 use only cards of the engine's pool. 50 pass, none differ, and
-15 are skipped:
+Measured 11–12 Nov 2026 on a full export (3,877 tests): 65 use only cards of the engine's pool. 51 pass, none differ,
+and 14 are skipped. Without strict choose mode, a target player the script leaves open goes to an opponent, as Java's AI
+picks for a harmful effect (`PossibleTargetsSelector`); that's how `GatekeeperOfMalakir` passes. A test where the AI picked
+otherwise ends differently and is skipped. The 14 can't pass outside Java:
 
 | Skipped | Tests |
 |---|---|
 | not `complete` (Java code in the script) | 7: `MadAdvisor` ×2, `TimedTwists`, `ExtraTurns` (Emrakul), `PlayerUnderControl`, `TestFrameworkCanPlayAI` ×2 |
 | `ai:` commands (Java's AI plays) | 3 |
-| cheat commands (`EmblemOfCard`) | 2 |
+| the emblem is made in Java (`addEmblem(new EmblemOfCard(...))`), and the export has no zone for it | 2: `EmblemOfCard` Griselbrand, Yurlok |
 | the game set up from Java (`GameSetupTest`) | 1 |
 | Java's AI plays the loop it tests (`RepeatedActionsCapAI`, Broodscale) | 1 |
-| a target Java's AI picked, outside strict choose mode (`GatekeeperOfMalakir`) | 1 |
 
 Most of the 3,877 use filler cards that aren't in the pool (Silvercoat Lion, Grizzly Bears and the like), so the pool's
 own cards are mostly checked by shadow games ([Engine.md](Engine.md)).

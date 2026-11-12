@@ -94,23 +94,61 @@ to line it up with the facts.
 Classes a card file declares for itself (Kavaron Harrier's effect, Master of Barbs' trigger) are written by hand in
 the transpiler's `CUSTOM` table as the engine classes that do the same.
 
-## The 10,000-game gate run (11 Nov 2026)
+## The 10,000-game gate run (11–12 Nov 2026)
 
 Phase 4's gate asks for 10,000 shadow games of the pool. `ShadowGamesTest` recorded seeds 100000–109999 with the 42
 school decks and the 24 meta decks (`Mage.Server/career-src/pioneer`, `standard`, `shadow-decks/meta`), each game a
 pair picked from the seed (the pairing is in [#289](https://github.com/arcanite24/playmat/issues/289)), in 12
 parallel workers; `-Dxmage.shadowGames.seeds=a,b,c` records chosen seeds again.
 
-| | Games |
-|---|---|
-| Match | 9,901 |
-| Differ | 54, each filed with its first differing trace entry in [#289](https://github.com/arcanite24/playmat/issues/289) |
-| Skipped | 45: Java didn't finish them (44 timeouts, 1 executor error); no game has a card the engine lacks |
+| | First pass (11 Nov) | After #289's fixes (12 Nov) |
+|---|---|---|
+| Match | 9,901 | 9,949 |
+| Differ | 54 ([#289](https://github.com/arcanite24/playmat/issues/289)) | 6, each a Java bug (below) |
+| Skipped | 45: Java didn't finish them (44 timeouts, 1 executor error) | 45, the same |
 
-Twelve games the run's fixes made match are checked in under `shadow/gate10k` (trace texts stripped). The 54 left are
-mostly a handful of causes: Fatehold Charm targeting itself (a Java bug against 115.5), Urborg's granted mana on
-manlands, Nykthos's devotion mana in the playable check, March of Otherworldly Light's exile-from-hand cost, and a
-recorder that names a card not in the game.
+The 12 Nov count replays the same recordings, except the five Urborg-and-manland seeds (100961, 103300, 104823, 107492,
+109828), recorded again once `DecisionLog` could name their mana ability (below). 37 games of the run are checked in
+under `shadow/gate10k` (trace texts stripped), one for each fix.
+
+What the 54 were:
+
+- **Engine bugs, fixed:** Nykthos's devotion and Sunken Citadel's mana in the playable check (a conditional pool entry
+  is a source per mana); Urborg's land types on a Mutavault that turned back into a land, and Leyline of the Guildpact
+  under Urborg or an Aura's grant; a token copy "except it's a 4/4" keeps no ability that sets its power and toughness
+  (Tarmogoyf under The Scarab God, 707.9d); a token put into a library ceases to exist (Floodpits Drowner); "whenever an
+  opponent loses life" needs its source still on the battlefield; an Aura goes to the graveyard right after the
+  creature before it; a Class keeps its level after it leaves; ward's "sacrifice three" is checked before the player is
+  asked; Authority of the Consuls and Giada are both replacement effects, so the player orders them; Teferi's untaps;
+  Master of Barbs counts each painland's damage on its own; mobilize and blitz sacrifices are fixed targets, so their
+  triggers aren't merged; double-faced cards' triggers go after the other cards'; an effect that lets you cast a card
+  offers both halves of an adventurer; a token's token takes its image from the source token's set (no random draw for
+  Fable's Treasures, the five "random draws part" games).
+- **Recorder:** Urborg gives a land its {T}: Add {B} again, with a new id, each time effects apply, so the id Java
+  picked was gone by the time `DecisionLog` named it (`?uuid`). `GameImpl.fireGetChoiceEvent` now tells `DecisionLog`
+  what was offered, and a pick it can't place is named by its source and that ability's place (`B13a3`). The "Select a
+  Jace card" refs were right: Java keeps Theorist's Sanctum in the hand while its behold is asked, and the replay now
+  reads hand refs that way.
+- **Java bugs, Rust keeps the rules (6 games):**
+  - Fatehold Charm targeting itself (101145, 103122). "Return target spell or creature to its owner's hand" lets Java
+    pick the charm: in 103122 answer 70 picks `S0`, and the only spell on the stack then (trace entry 121) is Fatehold
+    Charm, which resolves by returning itself. 101145 does the same at answer 238. Rule 115.5 says a spell can't target
+    itself, so Rust doesn't offer it: with one other target there is nothing to ask, Rust picks that one and the
+    games part there. (When Java's prompt also had other targets, Rust still asks and takes Java's click on the
+    charm, which is how tier 21's games match.)
+  - A back face with mana value 0 (101918, 105704, 106208). Esper Origins put onto the battlefield transformed keeps
+    `transformed=false` in Java's `PermanentCard` (its front is a sorcery), so `getManaValue` reads the back face's
+    empty cost: Summon: Esper Maduin is 0, and March of Otherworldly Light with X=0 can exile it. Rule 712.8e makes it
+    the front's 2. `PermanentToken.getManaValue` has the same bug for a copy token's back face (Graveyard Trespasser
+    under The Scarab God, which Fatal Push kills in the first recording of 109828).
+  - The hand's order after Accumulate Wisdom (106683). `Target.java` collects the cards to choose from with
+    `Collectors.toSet()`, so the three cards go to the hand in the order of their random ids; answer 298 names `H1.3`,
+    a different card in each engine. `LinkedHashSet` there would fix Java.
+
+  These are the owner's call: if Rust should copy Java in any of them, it's a small change in Rust.
+- **Java recording differently each time.** Recording a seed twice can part (100961 split at answer 201, a
+  PICK_TARGET): the driver picks among random UUIDs, whose order changes between runs. A recording replays the same
+  every time, but a seed recorded again is a new game.
 
 ## State
 
