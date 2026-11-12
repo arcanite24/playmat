@@ -112,6 +112,7 @@ final class ConnectionState implements RpcConnection {
         }
         WebSocketCallbackHandler handler = new WebSocketCallbackHandler(conn, gameStates, sender);
         handler.setHostsGames(() -> gameHost);
+        handler.setGameHostId(() -> gameHost ? gameHostId : null);
         callbackHandler = handler;
         return handler;
     }
@@ -124,6 +125,13 @@ final class ConnectionState implements RpcConnection {
         }
         // the gateway hosts games (docs/rust/GameHost.md): believed only from a trusted proxy's address
         gameHost = requested.contains(GAME_HOST) && trustedPeer;
+        // and the gateway's own id, so the two players of a game between people can be found on one gateway
+        gameHostId = null;
+        for (String c : requested) {
+            if (gameHost && c != null && c.startsWith(GAME_HOST + ":") && c.length() > GAME_HOST.length() + 1) {
+                gameHostId = c.substring(GAME_HOST.length() + 1);
+            }
+        }
         List<String> granted = new java.util.ArrayList<>();
         if (stateDiffs) {
             granted.add(GameStates.CAPABILITY);
@@ -137,6 +145,7 @@ final class ConnectionState implements RpcConnection {
     /** the capability of a gateway that plays games on the Rust host */
     static final String GAME_HOST = "gameHost";
     private volatile boolean gameHost;
+    private volatile String gameHostId;
     /** the connection comes from a trusted proxy (the gateway), whose capabilities are believed */
     private volatile boolean trustedPeer;
 

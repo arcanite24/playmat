@@ -84,6 +84,9 @@ public final class SoloGames {
         final UUID tableId;
         final SavedTable info;
         volatile GameSnapshot latest;
+        /** a game the Rust host plays: its line to the latest turn's start (JSON), and that turn, instead of a snapshot */
+        volatile String latestLine;
+        volatile int latestLineTurn;
         volatile UUID gameId;
         /** kept on purpose: no more writes, and the game ending doesn't remove it */
         volatile boolean kept;
@@ -96,18 +99,55 @@ public final class SoloGames {
         }
     }
 
-    /** A resume waiting for its new table to start: the saved table and the save it came from. */
+    /**
+     * A resume waiting for its new table to start: the saved table and the save it came from: a Java game's snapshot,
+     * or a Rust-hosted game's line (which only the host can carry on, docs/rust/GameHost.md "Saves").
+     */
     public static final class Resume {
         public final SavedTable info;
         public final GameSnapshot snapshot;
         /** the save to remove once the game is running again; null for a fork */
         public final String saveId;
+        /** a hosted game's line to the turn, or null */
+        public final String line;
 
         public Resume(SavedTable info, GameSnapshot snapshot, String saveId) {
+            this(info, snapshot, saveId, null);
+        }
+
+        public Resume(SavedTable info, GameSnapshot snapshot, String saveId, String line) {
             this.info = info;
             this.snapshot = snapshot;
             this.saveId = saveId;
+            this.line = line;
         }
+    }
+
+    /** what a hosted game's saved turn starts with, before its line (a Java game's is a serialized snapshot) */
+    static final String LINE_MAGIC = "PLAYMAT-HOSTED-LINE\n";
+
+    static byte[] lineBytes(String line) {
+        return (LINE_MAGIC + line).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /** a hosted game's line, when the saved bytes are one; null for a Java snapshot */
+    static String lineOf(byte[] bytes) {
+        byte[] magic = LINE_MAGIC.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        if (bytes == null || bytes.length < magic.length) {
+            return null;
+        }
+        for (int i = 0; i < magic.length; i++) {
+            if (bytes[i] != magic[i]) {
+                return null;
+            }
+        }
+        return new String(bytes, magic.length, bytes.length - magic.length, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /** a saved turn read back: a snapshot or a hosted game's line */
+    private static Resume resumeOf(SavedTable info, byte[] bytes, String saveId) throws IOException, ClassNotFoundException {
+        String line = lineOf(bytes);
+        return line != null ? new Resume(info, null, saveId, line) : new Resume(info, GameSnapshot.fromBytes(bytes), saveId);
     }
 
     private final Map<UUID, Live> live = new ConcurrentHashMap<>();
@@ -208,13 +248,18 @@ public final class SoloGames {
             return "Career games save themselves, but can't be kept: a save is a free take-back.";
         }
         GameSnapshot snapshot = entry.latest;
-        if (snapshot == null) {
+        String line = entry.latestLine;
+        if (snapshot == null && line == null) {
             return "The game saves at the start of each turn; there's nothing to keep before the first turn.";
         }
         entry.kept = true;
         dirty.remove(tableId);
         try {
-            write(entry, snapshot, KEPT);
+            if (line != null) {
+                write(entry, lineBytes(line), entry.latestLineTurn, KEPT);
+            } else {
+                write(entry, snapshot.toBytes(), snapshot.getTurnNum(), KEPT);
+            }
         } catch (SQLException | IOException | RuntimeException e) {
             entry.kept = false;
             logger.warn("Solo: a save couldn't be kept", e);
@@ -247,7 +292,8 @@ public final class SoloGames {
             }
         }
         GameSnapshot snapshot = entry.latest;
-        if (snapshot == null) {
+        String line = entry.latestLine;
+        if (snapshot == null && line == null) {
             throw new IllegalArgumentException("There's no turn to go back to yet.");
         }
         if (career != null) {
@@ -255,7 +301,7 @@ public final class SoloGames {
             // the old table stops playing for anything: the new one carries on for it
             CareerService.get().forget(tableId);
         }
-        return new Resume(entry.info, snapshot, null);
+        return line != null ? new Resume(entry.info, null, null, line) : new Resume(entry.info, snapshot, null);
     }
 
     /** what the player of a running solo game may still ask for: hints and take-backs (S010, S011) */
@@ -269,7 +315,7 @@ public final class SoloGames {
         CareerService.CareerTable career = entry.info.career;
         if (career == null) {
             assists.hints = true;
-            assists.takeBack = entry.latest != null;
+            assists.takeBack = entry.latest != null || entry.latestLine != null;
             return assists;
         }
         assists.career = true;
@@ -281,7 +327,7 @@ public final class SoloGames {
         assists.hintsLeft = Math.max(0, CareerService.HINTS_PER_GAME - career.hintsUsed);
         assists.hints = assists.hintsLeft > 0;
         assists.takeBacksLeft = Math.max(0, CareerService.TAKE_BACKS_PER_GAME - career.takeBacks);
-        assists.takeBack = assists.takeBacksLeft > 0 && entry.latest != null;
+        assists.takeBack = assists.takeBacksLeft > 0 && (entry.latest != null || entry.latestLine != null);
         return assists;
     }
 
@@ -313,8 +359,7 @@ public final class SoloGames {
         }
         try {
             SavedTable info = (SavedTable) readObject(row[0]);
-            GameSnapshot snapshot = GameSnapshot.fromBytes(row[1]);
-            return new Resume(info, snapshot, saveId);
+            return resumeOf(info, row[1], saveId);
         } catch (IOException | ClassNotFoundException | ClassCastException e) {
             logger.warn("Solo: save " + saveId + " can't be read", e);
             throw new IllegalArgumentException("That save can't be read on this server version.");
@@ -354,7 +399,7 @@ public final class SoloGames {
                 // a what-if is free play: take-backs as usual
                 info.options.setRollbackTurnsAllowed(true);
             }
-            return new Resume(info, GameSnapshot.fromBytes(row[1]), null);
+            return resumeOf(info, row[1], null);
         } catch (IOException | ClassNotFoundException | ClassCastException e) {
             logger.warn("Solo: turn " + turn + " of game " + gameId + " can't be read", e);
             throw new IllegalArgumentException("That turn can't be read on this server version.");
@@ -463,9 +508,14 @@ public final class SoloGames {
                 }
             }
         }
-        gameOptions.resumeFrom = resume.snapshot.withPlayers(savedToNew);
-        // the snapshot carries its own random state
-        gameOptions.seed = null;
+        if (resume.line != null) {
+            // a hosted game's: the host plays its line again to the turn, and carries on (RustHost.host)
+            gameOptions.hostedLine = resume.line;
+        } else {
+            gameOptions.resumeFrom = resume.snapshot.withPlayers(savedToNew);
+            // the snapshot carries its own random state
+            gameOptions.seed = null;
+        }
         if (resume.saveId != null) {
             String saveId = resume.saveId;
             INSTANCE.writer.submit(() -> {
@@ -478,10 +528,39 @@ public final class SoloGames {
         }
     }
 
+    /**
+     * A Rust-hosted game at a solo table is at a turn's start (RustHost.turn): its line, kept as a Java game's turn
+     * snapshot is (the latest for "save and leave" and "try this turn again", every turn for what-ifs).
+     */
+    public void hostedTurn(UUID tableId, UUID gameId, int turn, UUID activePlayerId, String line) {
+        Live entry = tableId == null ? null : live.get(tableId);
+        if (entry == null || entry.kept) {
+            return;
+        }
+        if (gameId != null && !gameId.equals(entry.gameId)) {
+            entry.gameId = gameId;
+        }
+        turnTaken(entry, turn, activePlayerId, () -> lineBytes(line), () -> {
+            entry.latestLine = line;
+            entry.latestLineTurn = turn;
+            entry.latest = null;
+        });
+    }
+
     private void snapshotTaken(Live entry, GameSnapshot snapshot) {
         if (entry.kept) {
             return;
         }
+        turnTaken(entry, snapshot.getTurnNum(), snapshot.getActivePlayerId(), snapshot::toBytes, () -> entry.latest = snapshot);
+    }
+
+    /** a saved turn's bytes, made on the writer's thread */
+    private interface TurnBytes {
+        byte[] get() throws IOException;
+    }
+
+    /** a turn's save (a snapshot or a hosted game's line): every turn for what-ifs, the latest as the save */
+    private void turnTaken(Live entry, int turn, UUID activePlayerId, TurnBytes bytes, Runnable latest) {
         UUID gameId = entry.gameId;
         if (gameId != null) {
             // every turn is kept for what-if lines; the save below keeps only the latest
@@ -491,14 +570,13 @@ public final class SoloGames {
                         SoloStore.get().putLine(gameId.toString(), entry.info.user, writeObject(entry.info));
                         entry.lined = true;
                     }
-                    SoloStore.get().putTurn(gameId.toString(), snapshot.getTurnNum(), seatName(entry.info, snapshot.getActivePlayerId()),
-                            snapshot.toBytes());
+                    SoloStore.get().putTurn(gameId.toString(), turn, seatName(entry.info, activePlayerId), bytes.get());
                 } catch (SQLException | IOException | RuntimeException e) {
                     logger.warn("Solo: a turn couldn't be kept for what-ifs", e);
                 }
             });
         }
-        entry.latest = snapshot;
+        latest.run();
         if (dirty.put(entry.tableId, entry) == null) {
             writer.submit(() -> {
                 Live next = dirty.remove(entry.tableId);
@@ -506,7 +584,13 @@ public final class SoloGames {
                     return;
                 }
                 try {
-                    write(next, next.latest, AUTO);
+                    String line = next.latestLine;
+                    GameSnapshot snapshot = next.latest;
+                    if (line != null) {
+                        write(next, lineBytes(line), next.latestLineTurn, AUTO);
+                    } else if (snapshot != null) {
+                        write(next, snapshot.toBytes(), snapshot.getTurnNum(), AUTO);
+                    }
                 } catch (SQLException | IOException | RuntimeException e) {
                     logger.warn("Solo: a turn couldn't be saved", e);
                 }
@@ -523,7 +607,7 @@ public final class SoloGames {
         return "";
     }
 
-    private void write(Live entry, GameSnapshot snapshot, String kind) throws SQLException, IOException {
+    private void write(Live entry, byte[] bytes, int turn, String kind) throws SQLException, IOException {
         SavedTable info = entry.info;
         StringBuilder opponents = new StringBuilder();
         for (SavedSeat seat : info.seats) {
@@ -534,10 +618,10 @@ public final class SoloGames {
                 opponents.append(seat.name);
             }
         }
-        SoloStore.get().saveGame(entry.tableId.toString(), info.user, kind, info.career != null, snapshot.getTurnNum(),
+        SoloStore.get().saveGame(entry.tableId.toString(), info.user, kind, info.career != null, turn,
                 info.title == null ? "" : info.title, opponents.toString(),
                 info.options.getGameType() == null ? "" : info.options.getGameType(),
-                writeObject(info), snapshot.toBytes());
+                writeObject(info), bytes);
     }
 
     private void prune() {

@@ -56,6 +56,7 @@
   "chatFindByRoom": {"group": "Lobby", "access": "session"},
   "gameJoin": {"group": "Game", "access": "session"},
   "hostGameEnded": {"group": "Game", "access": "public"},
+  "hostGameTurn": {"group": "Game", "access": "public"},
   "gameResync": {"group": "Game", "access": "session"},
   "gameStateResync": {"group": "Game", "access": "session"},
   "matchQuit": {"group": "Game", "access": "session"},

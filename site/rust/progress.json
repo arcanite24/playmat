@@ -76,7 +76,7 @@
    "n": "6",
    "name": "Retire Java",
    "status": "active",
-   "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Tables between people, tournaments, drafts and solo come once the pool covers the formats people play.",
+   "text": "Started with AI games: since 11 Nov a one-on-one game against the AI can run on the Rust engine with no Java game behind it, for players who turn it on in Settings. Also built: one-on-one tables between people (best-of-three, timers, spectators), and the solo tools on hosted games (saves, \"Try this turn again\", advice, practice tools). Tournaments and drafts come once the pool covers limited card pools.",
    "pr": [
     260,
     263,
@@ -147,7 +147,7 @@
    "n": "F",
    "name": "Then",
    "status": "next",
-   "text": "More of the Pioneer pool, and what still plays on Java only: the solo tools, advice and practice tools.",
+   "text": "More of the Pioneer pool, and what still plays on Java only: the Career's games and assists, tournaments and drafts. The solo tools, advice, practice tools and games between people are built (phase 6).",
    "gate": "Per feature"
   }
  ],
@@ -1007,7 +1007,7 @@
    "checked_in": 412
   },
   "rust": {
-   "lines": 45627,
+   "lines": 46809,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1015,15 +1015,15 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 24990
+     "lines": 24996
     },
     {
      "crate": "playmat-gateway",
-     "lines": 2569
+     "lines": 2797
     },
     {
      "crate": "playmat-host",
-     "lines": 3778
+     "lines": 4726
     },
     {
      "crate": "playmat-platform",
@@ -1040,6 +1040,6 @@
    ]
   }
  },
- "commit": "9319aacc92753a0426115da7842c3974623f3e7a",
+ "commit": "3ceea45e261f67997532b0809c76294bff772c43",
  "generated": "2026-11-11"
 }

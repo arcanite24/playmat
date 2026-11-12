@@ -210,6 +210,8 @@ fn start(human_deck: &Deck, ai_deck: &Deck, seed: i64, chooser: Option<&str>) ->
         drop_stale: false,
         replay: None,
         rules: playmat_host::TableRules::default(),
+        prelude: None,
+        lines: false,
     }
 }
 
@@ -630,4 +632,310 @@ fn a_late_answer_is_dropped_not_given_to_the_next_question() {
     }
     assert_eq!(asked, ["GAME_ASK", "GAME_TARGET"], "the card to put on the bottom is asked once");
     game.call(Call::Action("CONCEDE".into(), None));
+}
+
+const OTHER: &str = "33333333-3333-4333-8333-333333333333";
+
+/// Two people: both seats human, each its own player id and name
+fn people(a: &Deck, b: &Deck, seed: i64) -> Start {
+    let mut s = start(a, b, seed, None);
+    s.seats[1] = SeatStart {
+        player_id: OTHER.into(),
+        name: "other".into(),
+        human: true,
+        deck: b.cards.clone(),
+        printings: Vec::new(),
+        user_data: None,
+    };
+    s
+}
+
+fn bot(concede_at: u64) -> Bot {
+    Bot { tried: HashSet::new(), turn: 0, concede_at, silent: false, casts: true, holds: false }
+}
+
+/// A game between two people plays to its end: each seat gets its own board and questions, never the other's hand
+#[test]
+fn two_people_play_a_game_to_its_end() {
+    let path = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("host-records/people-5.jsonl");
+    let s = Start { record: Some(path.clone()), ..people(&deck("gw-company.txt"), &deck("b-zombies.txt"), 5) };
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call_as(0, Call::Join);
+    game.call_as(1, Call::Join);
+    let mut bots = [bot(u64::MAX), bot(u64::MAX)];
+    let ids = [HUMAN, OTHER];
+    let mut over = [false, false];
+    let mut asked = [0, 0];
+    let mut log = 0;
+    for _ in 0..100_000 {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers within a minute");
+        let Some(seat) = e.to else {
+            assert_eq!(e.method, "CHATMESSAGE", "only the log goes to both");
+            log += 1;
+            continue;
+        };
+        let view = if matches!(e.method.as_str(), "GAME_INIT" | "GAME_UPDATE") { &e.data } else { &e.data["gameView"] };
+        if view.is_object() {
+            assert_eq!(view["myPlayerId"], ids[seat], "{}'s board is theirs", ids[seat]);
+            let players = view["players"].as_array().unwrap();
+            assert!(players.iter().all(|p| p["isHuman"] == true), "both players are human");
+        }
+        if e.method == "GAME_OVER" {
+            over[seat] = true;
+            if over == [true, true] {
+                break;
+            }
+            continue;
+        }
+        if let Some(c) = bots[seat].answer(&e) {
+            asked[seat] += 1;
+            game.call_as(seat, c);
+        }
+    }
+    let ended = game.join();
+    assert_eq!(over, [true, true], "both players see the end");
+    assert!(asked[0] > 10 && asked[1] > 10, "both were asked: {asked:?}");
+    assert!(log > 0);
+    assert_eq!(ended.reason, "over");
+    assert!(ended.winner.is_some());
+    let tallies = ended.summary["tallies"].as_object().unwrap();
+    assert!(tallies.contains_key(HUMAN) && tallies.contains_key(OTHER), "each player's tally");
+    // its record plays the same game again, each call from its seat
+    let rec = playmat_host::record::read(&path).unwrap();
+    assert!(rec.calls.iter().any(|(s, _)| *s == 1) && rec.calls.iter().any(|(s, _)| *s == 0));
+    let replayed = playmat_host::record::replay(&rec, Arc::new(playmat_engine::cards())).unwrap();
+    assert_eq!(replayed.first_difference, None, "the replay's log differs from the record's");
+    assert_eq!((replayed.ended.winner, replayed.ended.turns), (ended.winner, ended.turns));
+}
+
+/// Between people, a concede or a quit from the player who isn't being asked ends the game as their loss
+#[test]
+fn a_player_not_asked_can_concede() {
+    let game = HostedGame::start(
+        people(&deck("gw-company.txt"), &deck("b-zombies.txt"), 6),
+        Arc::new(playmat_engine::cards()),
+    )
+    .unwrap();
+    game.call_as(0, Call::Join);
+    game.call_as(1, Call::Join);
+    // the first question goes to one of them; the other concedes
+    let asked = loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if !matches!(e.method.as_str(), "GAME_INIT" | "GAME_UPDATE" | "CHATMESSAGE") {
+            break e.to.unwrap();
+        }
+    };
+    game.call_as(1 - asked, Call::Quit);
+    while let Ok(e) = game.events.recv_timeout(Duration::from_secs(60)) {
+        if e.method == "GAME_OVER" && e.to == Some(asked) {
+            break;
+        }
+    }
+    let ended = game.join();
+    assert_eq!(ended.winner, Some(asked));
+    assert_eq!(ended.reason, "quit");
+}
+
+/// Between people a rollback needs the other player's consent (`GameController.requestPermissionToRollback`)
+#[test]
+fn a_rollback_between_people_waits_for_the_others_consent() {
+    let mut s = people(&deck("gw-company.txt"), &deck("b-zombies.txt"), 2);
+    s.rules.rollback = true;
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call_as(0, Call::Join);
+    game.call_as(1, Call::Join);
+    let mut bots = [bot(u64::MAX), bot(u64::MAX)];
+    let mut asked_for = None;
+    let mut log = Vec::new();
+    for _ in 0..50_000 {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "CHATMESSAGE" {
+            log.push(e.data["message"].as_str().unwrap_or("").to_string());
+            if log.iter().any(|l| l.contains("Rolling back to start of turn 3")) {
+                game.call_as(0, Call::Action("CONCEDE".into(), None));
+                return;
+            }
+            continue;
+        }
+        assert_ne!(e.method, "GAME_OVER", "the rollback comes before the end");
+        let Some(seat) = e.to else { continue };
+        if e.method == "USER_REQUEST_DIALOG" {
+            assert_eq!(Some(1 - seat), asked_for, "the other player is asked");
+            assert_eq!(e.data["button1Action"], "ADD_PERMISSION_TO_ROLLBACK_TURN");
+            game.call_as(seat, Call::Action("ADD_PERMISSION_TO_ROLLBACK_TURN".into(), None));
+            continue;
+        }
+        let v = &e.data["gameView"];
+        let priority = e.method == "GAME_SELECT" && e.data["message"].as_str().is_some_and(|m| m.starts_with("Play"));
+        if asked_for.is_none() && priority && v["turn"] == 3 {
+            asked_for = Some(seat);
+            game.call_as(seat, Call::Action("ROLLBACK_TURNS".into(), Some(serde_json::json!(0))));
+            continue;
+        }
+        if let Some(c) = bots[seat].answer(&e) {
+            game.call_as(seat, c);
+        }
+    }
+    panic!("no rollback: {log:?}");
+}
+
+/// What a seat holds and what's on the battlefield, by card name, as a view shows it
+fn board(view: &Value) -> (Vec<String>, Vec<String>, Vec<i64>) {
+    let names = |m: &Value| {
+        let mut v: Vec<String> =
+            m.as_object().into_iter().flatten().map(|(_, c)| c["name"].as_str().unwrap_or("").to_string()).collect();
+        v.sort();
+        v
+    };
+    let players = view["players"].as_array().unwrap();
+    let field: Vec<String> = players.iter().flat_map(|p| names(&p["battlefield"])).collect();
+    (names(&view["myHand"]), field, players.iter().map(|p| p["life"].as_i64().unwrap()).collect())
+}
+
+/// A game's line (`HOST_TURN`) carries it on in another game from that turn's start: the same board, the same cards
+/// to come, played to its end (a save, "Try this turn again", a what-if)
+#[test]
+fn a_line_carries_the_game_on_from_a_turns_start() {
+    let (company, zombies) = (deck("gw-company.txt"), deck("b-zombies.txt"));
+    let mut s = start(&company, &zombies, 4, None);
+    s.lines = true;
+    s.rules.rollback = true;
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut b = bot(u64::MAX);
+    let mut line = None;
+    let mut turns = Vec::new();
+    let saved = loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        assert_ne!(e.method, "GAME_OVER");
+        if e.method == "HOST_TURN" {
+            assert_eq!(e.to, None);
+            turns.push(e.data["turn"].as_u64().unwrap());
+            if e.data["turn"] == 4 {
+                line = Some(e.data["line"].clone());
+            }
+            continue;
+        }
+        let view = if matches!(e.method.as_str(), "GAME_INIT" | "GAME_UPDATE") { &e.data } else { &e.data["gameView"] };
+        // the board at turn 4's start, before anyone acted in it
+        if line.is_some() && view.is_object() {
+            break board(view);
+        }
+        if let Some(c) = b.answer(&e) {
+            game.call(c);
+        }
+    };
+    game.call(Call::Action("CONCEDE".into(), None));
+    let _ = game.join();
+    assert_eq!(turns[..4], [1, 2, 3, 4], "a line at each turn's start");
+    let line = line.unwrap();
+    let prelude = playmat_host::record::prelude_of(&line).expect("the line reads back");
+    assert_eq!(prelude.turn, 4);
+    // a new table: its own game and player ids, the same seats and decks
+    let mut s = start(&company, &zombies, 99, None);
+    s.game_id = "game-carried-on".into();
+    s.seats[0].player_id = "44444444-4444-4444-8444-444444444444".into();
+    s.seats[1].player_id = "55555555-5555-4555-8555-555555555555".into();
+    s.prelude = Some(prelude);
+    s.lines = true;
+    let path = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("host-records/carried-on.jsonl");
+    s.record = Some(path.clone());
+    let game = HostedGame::start(s, Arc::new(playmat_engine::cards())).unwrap();
+    game.call(Call::Join);
+    let mut first = None;
+    let mut log = Vec::new();
+    let mut b = bot(8);
+    loop {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the carried-on game answers");
+        if e.method == "CHATMESSAGE" {
+            log.push(e.data["message"].as_str().unwrap_or("").to_string());
+        }
+        if e.method == "GAME_INIT" {
+            assert_eq!(e.data["turn"], 4, "the game carries on at turn 4");
+            assert_eq!(e.data["myPlayerId"], "44444444-4444-4444-8444-444444444444", "with the new table's ids");
+            first = Some(board(&e.data));
+        }
+        if e.method == "GAME_OVER" {
+            break;
+        }
+        if let Some(c) = b.answer(&e) {
+            game.call(c);
+        }
+    }
+    let ended = game.join();
+    assert_eq!(first.as_ref(), Some(&saved), "the same board as at the turn's start");
+    assert!(log.iter().any(|l| l.contains("carries on from the start of turn 4")), "{log:?}");
+    assert!(!log.iter().any(|l| l.contains("keeps hand")), "the earlier game's log isn't sent again");
+    assert!(ended.turns >= 4);
+    // the carried-on game's record (its start holds the line) plays it again too
+    let rec = playmat_host::record::read(&path).unwrap();
+    assert!(rec.start.prelude.is_some());
+    let replayed = playmat_host::record::replay(&rec, Arc::new(playmat_engine::cards())).unwrap();
+    assert_eq!(replayed.first_difference, None, "the replay's log differs from the record's");
+    assert_eq!((replayed.ended.winner, replayed.ended.turns), (ended.winner, ended.turns));
+}
+
+/// Practice tools and advice against the AI: life set, a card into the hand, and the AI's pick at a question
+#[test]
+fn practice_tools_and_advice_against_the_ai() {
+    let game = HostedGame::start(
+        start(&deck("gw-company.txt"), &deck("b-zombies.txt"), 3, None),
+        Arc::new(playmat_engine::cards()),
+    )
+    .unwrap();
+    game.call(Call::Join);
+    let mut b = bot(u64::MAX);
+    let mut stage = 0;
+    let mut log = Vec::new();
+    for _ in 0..20_000 {
+        let e = game.events.recv_timeout(Duration::from_secs(60)).expect("the host answers");
+        if e.method == "CHATMESSAGE" {
+            log.push(e.data["message"].as_str().unwrap_or("").to_string());
+            continue;
+        }
+        assert_ne!(e.method, "GAME_OVER");
+        let v = &e.data["gameView"];
+        let priority = e.method == "GAME_SELECT" && e.data["message"].as_str().is_some_and(|m| m.starts_with("Play"));
+        if !priority || v["turn"].as_u64().unwrap_or(0) < 2 {
+            if let Some(c) = b.answer(&e) {
+                game.call(c);
+            }
+            continue;
+        }
+        match stage {
+            0 => {
+                let (tx, rx) = std::sync::mpsc::channel();
+                game.call(Call::Advise(4, tx));
+                let advice = rx.recv_timeout(Duration::from_secs(30)).expect("advice");
+                assert!(advice["kind"].as_str().is_some_and(|k| k != "NONE"), "{advice}");
+                assert!(advice["text"].as_str().is_some_and(|t| !t.is_empty()));
+                let (tx, rx) = std::sync::mpsc::channel();
+                game.call(Call::Practice("LIFE".into(), None, 7, Some(tx)));
+                assert_eq!(rx.recv_timeout(Duration::from_secs(30)).unwrap(), "");
+                stage = 1;
+            }
+            1 => {
+                assert_eq!(me_of(v)["life"], 7, "the life the tool set");
+                assert!(log.iter().any(|l| l.contains("Practice:") && l.contains("sets their life to 7")), "{log:?}");
+                let hand = v["myHand"].as_object().unwrap().len();
+                let (tx, rx) = std::sync::mpsc::channel();
+                game.call(Call::Practice("HAND".into(), Some("Llanowar Elves".into()), 2, Some(tx)));
+                assert_eq!(rx.recv_timeout(Duration::from_secs(30)).unwrap(), "");
+                stage = 2;
+                // (checked at the next question)
+                let _ = hand;
+            }
+            2 => {
+                let elves = v["myHand"].as_object().unwrap().values().filter(|c| c["name"] == "Llanowar Elves").count();
+                assert!(elves >= 2, "two more Llanowar Elves in hand");
+                let (tx, rx) = std::sync::mpsc::channel();
+                game.call(Call::Practice("TELEPORT".into(), None, 1, Some(tx)));
+                assert!(rx.recv_timeout(Duration::from_secs(30)).unwrap().contains("Unknown"));
+                game.call(Call::Action("CONCEDE".into(), None));
+                return;
+            }
+            _ => unreachable!(),
+        }
+    }
+    panic!("stopped at stage {stage}");
 }

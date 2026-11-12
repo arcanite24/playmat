@@ -54,6 +54,8 @@ public enum ClientCallbackMethod {
     START_GAME(ClientCallbackType.TABLE_CHANGE, "startGame"),
     // to the gateway only (it never reaches the client): the Rust host plays this game (docs/rust/GameHost.md)
     HOST_GAME(ClientCallbackType.TABLE_CHANGE, "hostGame"),
+    // to the gateway only: the player leaves a hosted game (a solo save, "Try this turn again"), as matchQuit
+    HOST_GAME_QUIT(ClientCallbackType.TABLE_CHANGE, "hostGameQuit"),
     GAME_INIT(ClientCallbackType.TABLE_CHANGE, "gameInit"),
     GAME_UPDATE_AND_INFORM(ClientCallbackType.UPDATE, "gameInform"), // update game and feedback panel with current status (e.g. on non our priority)
     GAME_INFORM_PERSONAL(ClientCallbackType.MESSAGE, "gameInformPersonal"),

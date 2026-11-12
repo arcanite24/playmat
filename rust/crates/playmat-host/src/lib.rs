@@ -10,5 +10,5 @@ pub mod skips;
 pub mod tally;
 pub mod timer;
 
-pub use game::{Call, Ended, Event, HostedGame, SeatStart, Start, TableRules};
+pub use game::{Call, Calls, Ended, Event, HostedGame, Prelude, SeatStart, Start, TableRules};
 pub use timer::Timer;

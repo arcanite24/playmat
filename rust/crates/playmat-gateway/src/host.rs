@@ -1,12 +1,15 @@
 //! Games the Rust host plays (docs/rust/GameHost.md, step D). Java sends `HOST_GAME` instead of starting a game of
 //! its own; the gateway starts it on the host and takes the game's calls from then on (`gameJoin`, `sendPlayer*`,
-//! `sendPlayerAction`, `matchQuit`, the game chat's). The host's callbacks go to the connection that joined last,
-//! numbered and patched as Java's are. At the end the gateway tells Java (`hostGameEnded`), which ends the game and
-//! carries on with the table.
+//! `sendPlayerAction`, `matchQuit`, `gameAdvise`, `gamePractice`, the game chat's), each from the seat of the user who
+//! sent it. The host's callbacks go to the connections of the seat they're for (every tab of that player's), numbered
+//! and patched as Java's are; the game log goes to both players. At each turn's start of a solo table's game the
+//! gateway passes Java the game's line (`hostGameTurn`), which its saves keep. At the end the gateway tells Java
+//! (`hostGameEnded`), which ends the game and carries on with the table.
 
 use playmat_engine::card::CardDb;
 use playmat_host::{Call, Event, HostedGame, SeatStart, Start, Timer};
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
@@ -22,33 +25,61 @@ pub struct Subscriber {
     pub events: UnboundedSender<Value>,
 }
 
+/// A seat as the gateway knows it: whose calls are its
+#[derive(Clone, Debug)]
+pub struct SeatInfo {
+    pub player_id: String,
+    pub name: String,
+    pub human: bool,
+}
+
 pub struct Hosted {
-    calls: Mutex<Sender<Call>>,
-    /// the human's connections that joined: every tab of theirs gets the game (a closed one drops off)
-    subscribers: Mutex<Vec<Subscriber>>,
+    calls: Mutex<Sender<(usize, Call)>>,
+    seats: Vec<SeatInfo>,
+    /// each human's connections that joined, with their seat: every tab of theirs gets the game (a closed one drops
+    /// off)
+    subscribers: Mutex<Vec<(usize, Subscriber)>>,
     /// the spectators' connections (`gameWatchStart`), by user name; they get the board without the human's secrets
     watchers: Mutex<Vec<(Subscriber, String)>>,
     /// the last board as spectators see it, for one who starts watching
     watched: Mutex<Option<Value>>,
-    /// the human's player id, whose draws a spectator doesn't see
+    /// the seat spectators see the board as (the first human's), and its player id, whose draws they don't see
+    watch: usize,
     human: String,
     pub chat_id: String,
+    /// what `hostGameTurn` and `hostGameEnded` carry to Java
+    token: String,
 }
 
 impl Hosted {
-    pub fn call(&self, call: Call) {
-        let _ = self.calls.lock().unwrap().send(call);
+    /// A call from a seat's player
+    pub fn call(&self, seat: usize, call: Call) {
+        let _ = self.calls.lock().unwrap().send((seat, call));
     }
 
-    /// a callback for the human's tabs
-    pub fn echo(&self, event: Value) {
-        self.subscribers.lock().unwrap().retain(|s| s.events.send(event.clone()).is_ok());
+    /// The seat of a user's player: the human seat of that name. A connection whose user isn't known yet (it calls
+    /// right after its login) is the only human's, in a game with one.
+    pub fn seat_of(&self, user: Option<&str>) -> Option<usize> {
+        let humans: Vec<usize> = (0..self.seats.len()).filter(|s| self.seats[*s].human).collect();
+        match user {
+            Some(u) => humans.into_iter().find(|s| self.seats[*s].name.eq_ignore_ascii_case(u)),
+            None if humans.len() == 1 => Some(humans[0]),
+            None => None,
+        }
     }
 
-    /// a chat line, to everyone in the game's chat: the human's tabs and the spectators
+    /// a callback for a seat's tabs; none: every player's
+    pub fn echo(&self, seat: Option<usize>, event: Value) {
+        self.subscribers
+            .lock()
+            .unwrap()
+            .retain(|(s, t)| (seat.is_some() && seat != Some(*s)) || t.events.send(event.clone()).is_ok());
+    }
+
+    /// a chat line, to everyone in the game's chat: the players' tabs and the spectators
     pub fn say(&self, event: Value) {
         self.to_watchers(event.clone());
-        self.echo(event);
+        self.echo(None, event);
     }
 
     /// a callback for the spectators
@@ -56,22 +87,29 @@ impl Hosted {
         self.watchers.lock().unwrap().retain(|(s, _)| s.events.send(event.clone()).is_ok());
     }
 
-    /// A host callback: to the human's tabs as it is, and as spectators see it to them
-    fn forward(&self, game_id: &str, e: Value) {
-        if let Some(w) = watcher_event(game_id, &self.human, &e) {
-            if w["method"] != "CHATMESSAGE" && w["method"] != "GAME_OVER" {
-                *self.watched.lock().unwrap() = Some(w["data"].clone());
+    /// A host callback: to its seat's tabs as it is (every player's for the log), and as spectators see it to them
+    /// when it's the seat they watch
+    fn forward(&self, game_id: &str, e: &Event) {
+        let json = e.json();
+        if e.to.is_none() || e.to == Some(self.watch) {
+            if let Some(w) = watcher_event(game_id, &self.human, &json) {
+                if w["method"] != "CHATMESSAGE" && w["method"] != "GAME_OVER" {
+                    *self.watched.lock().unwrap() = Some(w["data"].clone());
+                }
+                // a player's own log lines (a rollback that isn't available) aren't the spectators'
+                if e.to.is_none() || w["method"] != "CHATMESSAGE" {
+                    self.to_watchers(w);
+                }
             }
-            self.to_watchers(w);
         }
-        self.echo(e);
+        self.echo(e.to, json);
     }
 
-    /// `gameJoin` from a connection: it gets the game's callbacks from now on, beside the human's other tabs
-    pub fn subscribe(&self, s: Subscriber) {
+    /// `gameJoin` from a connection: it gets its seat's callbacks from now on, beside that player's other tabs
+    pub fn subscribe(&self, seat: usize, s: Subscriber) {
         let mut subscribers = self.subscribers.lock().unwrap();
-        subscribers.retain(|t| t.connection != s.connection && !t.events.is_closed());
-        subscribers.push(s);
+        subscribers.retain(|(_, t)| t.connection != s.connection && !t.events.is_closed());
+        subscribers.push((seat, s));
     }
 
     /// `gameWatchStart`: a spectator, sent the board at once. False when the game has no board yet.
@@ -144,7 +182,12 @@ fn watcher_event(game_id: &str, human: &str, e: &Value) -> Option<Value> {
 #[derive(Default)]
 pub struct Hosts {
     pub enabled: bool,
+    /// this gateway's id, which Java compares for the two players of a game between people (`gameHost:<id>`)
+    pub instance: String,
     games: Mutex<HashMap<String, Arc<Hosted>>>,
+    /// the games started here: a game between people comes in a `HOST_GAME` on each player's connection, and starts
+    /// once
+    seen: Mutex<HashSet<String>>,
     /// each hosted game's chat id, to its game
     chats: Mutex<HashMap<String, String>>,
     /// games started, and ended by how (`end_kind`): step E's gate is a week with no `error` or `panic`
@@ -207,7 +250,16 @@ impl Hosts {
             info!("Rust host: game records in {} (the last {keep})", dir.display());
         }
         let replays = std::env::var_os("XMAGE_RUST_HOST_REPLAYS").filter(|v| !v.is_empty()).map(PathBuf::from);
-        Hosts { enabled, records, keep, replays, ..Hosts::default() }
+        let instance = format!("{:016x}", {
+            use std::hash::{BuildHasher, Hasher};
+            let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+            h.write_u128(
+                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos(),
+            );
+            h.write_u32(std::process::id());
+            h.finish()
+        });
+        Hosts { enabled, instance, records, keep, replays, ..Hosts::default() }
     }
 
     pub fn get(&self, game_id: &str) -> Option<Arc<Hosted>> {
@@ -255,10 +307,26 @@ impl Hosts {
         }
     }
 
-    /// Java's `HOST_GAME`: starts the game; its callbacks go to `subscriber`. The end is reported to Java at
-    /// `java_url`.
-    pub fn start(self: &Arc<Self>, event: &Value, subscriber: Subscriber, java_url: url::Url) {
+    /// Java's `HOST_GAME`, on the connection of `user` (each human player's in a game between people): starts the
+    /// game once; its callbacks for that user's seat go to `subscriber`. The game's lines and its end are reported to
+    /// Java at `java_url`.
+    pub fn start(self: &Arc<Self>, event: &Value, subscriber: Subscriber, user: Option<String>, java_url: url::Url) {
         let Some(game_id) = event["objectId"].as_str().map(str::to_string) else { return };
+        {
+            let mut seen = self.seen.lock().unwrap();
+            if seen.len() > 10_000 {
+                seen.clear();
+            }
+            if !seen.insert(game_id.clone()) {
+                // the other player's copy: their connection joins it with gameJoin
+                if let Some(hosted) = self.get(&game_id) {
+                    if let Some(seat) = hosted.seat_of(user.as_deref()) {
+                        hosted.subscribe(seat, subscriber);
+                    }
+                }
+                return;
+            }
+        }
         let data = &event["data"];
         let token = data["token"].as_str().unwrap_or("").to_string();
         let seed = data["seed"].as_i64().unwrap_or(0);
@@ -303,6 +371,21 @@ impl Hosts {
         let rules = playmat_host::TableRules::of(data);
         // the replay goes where Java keeps its games' (XMAGE_RUST_HOST_REPLAYS: its xmage.replays.dir), listed at the end
         let replay = self.replays.as_ref().map(|dir| dir.join(format!("{game_id}.ndjson.gz.part")));
+        // a saved game carried on: the earlier game's line to the turn
+        let prelude = match data.get("prelude").filter(|p| p.is_object()) {
+            Some(p) => match playmat_host::record::prelude_of(p) {
+                Some(p) => Some(p),
+                None => {
+                    warn!("Rust host: game {game_id}'s saved line can't be read");
+                    None
+                }
+            },
+            None => None,
+        };
+        let infos: Vec<SeatInfo> = seats
+            .iter()
+            .map(|s| SeatInfo { player_id: s.player_id.clone(), name: s.name.clone(), human: s.human })
+            .collect();
         let start = Start {
             game_id: game_id.clone(),
             seed,
@@ -314,24 +397,29 @@ impl Hosts {
             replay,
             log_to: None,
             drop_stale: true,
+            prelude,
+            lines: data["lines"].as_bool().unwrap_or(false),
         };
         // known before the game starts, so its calls (the client joins at once) wait for it
-        let chat_id = playmat_host::ids::Ids::new(&game_id, players.clone()).chat();
+        let chat_id = playmat_host::ids::Ids::chat_of(&game_id);
         let (calls, calls_in) = std::sync::mpsc::channel();
-        let human = data["seats"]
-            .as_array()
-            .and_then(|a| a.iter().find(|s| s["human"] == true))
-            .and_then(|s| s["playerId"].as_str())
-            .unwrap_or("")
-            .to_string();
-        let hosted = Arc::new(Hosted {
+        let watch = infos.iter().position(|s| s.human).unwrap_or(0);
+        let human = infos.get(watch).map(|s| s.player_id.clone()).unwrap_or_default();
+        let mut hosted = Hosted {
             calls: Mutex::new(calls.clone()),
-            subscribers: Mutex::new(vec![subscriber.clone()]),
+            seats: infos,
+            subscribers: Mutex::new(Vec::new()),
             watchers: Mutex::new(Vec::new()),
             watched: Mutex::new(None),
+            watch,
             human,
             chat_id: chat_id.clone(),
-        });
+            token: token.clone(),
+        };
+        if let Some(seat) = hosted.seat_of(user.as_deref()) {
+            hosted.subscribers = Mutex::new(vec![(seat, subscriber.clone())]);
+        }
+        let hosted = Arc::new(hosted);
         self.games.lock().unwrap().insert(game_id.clone(), hosted.clone());
         *self.started.lock().unwrap() += 1;
         self.chats.lock().unwrap().insert(chat_id.clone(), game_id.clone());
@@ -349,7 +437,8 @@ impl Hosts {
                         warn!("Rust host: game {game_id} can't start: {why}");
                         let over = json!({"objectId": game_id, "method": "GAME_OVER",
                             "data": {"message": format!("The game couldn't start on the Rust host: {why}")}});
-                        let _ = subscriber.events.send(over);
+                        let _ = subscriber.events.send(over.clone());
+                        hosted.echo(None, over);
                         hosts.ended("error: can't start");
                         let end = Report {
                             winner: None,
@@ -366,7 +455,12 @@ impl Hosts {
                 info!("Rust host: game {game_id} started");
                 while let Ok(e) = events.recv() {
                     let e: Event = e;
-                    hosted.forward(&game_id, e.json());
+                    if e.method == "HOST_TURN" {
+                        // the gateway's own: the game's line to this turn, for Java's saves
+                        handle.spawn(turn(java_url.clone(), game_id.clone(), hosted.token.clone(), e.data));
+                        continue;
+                    }
+                    hosted.forward(&game_id, &e);
                 }
                 let ended = thread.join().unwrap_or(playmat_host::Ended {
                     reason: "panic: the host's thread".into(),
@@ -408,11 +502,24 @@ struct Report {
 
 /// `hostGameEnded` to Java, on a connection of its own (the player's may be gone); a few tries
 async fn report(java_url: url::Url, game_id: String, token: String, end: Report) {
-    use futures_util::{SinkExt, StreamExt};
     let Report { winner, turns, reason, time_left, summary } = end;
     let request = json!({"jsonrpc": "2.0", "id": 1, "method": "hostGameEnded",
         "params": [game_id, token, winner.unwrap_or_default(), turns, reason, time_left, summary]});
-    for attempt in 0..5u64 {
+    tell_java(java_url, request, 5).await;
+}
+
+/// `hostGameTurn` to Java: a solo table's game is at a turn's start, its line to it (the host's `HOST_TURN`)
+async fn turn(java_url: url::Url, game_id: String, token: String, data: Value) {
+    let request = json!({"jsonrpc": "2.0", "id": 1, "method": "hostGameTurn",
+        "params": [game_id, token, data["turn"], data["activePlayerId"], data["line"]]});
+    tell_java(java_url, request, 2).await;
+}
+
+/// A call of the gateway's own to Java, on a connection of its own; a few tries
+async fn tell_java(java_url: url::Url, request: Value, tries: u64) {
+    use futures_util::{SinkExt, StreamExt};
+    let method = request["method"].as_str().unwrap_or("").to_string();
+    for attempt in 0..tries {
         if attempt > 0 {
             tokio::time::sleep(std::time::Duration::from_secs(2 * attempt)).await;
         }
@@ -427,14 +534,14 @@ async fn report(java_url: url::Url, game_id: String, token: String, end: Report)
             let Ok(reply) = serde_json::from_str::<Value>(frame.as_str()) else { continue };
             if reply.get("id") == Some(&json!(1)) {
                 if reply.get("result") != Some(&Value::Bool(true)) {
-                    warn!("Rust host: Java didn't take game {}'s end: {reply}", request["params"][0]);
+                    warn!("Rust host: Java didn't take game {}'s {method}: {reply}", request["params"][0]);
                 }
                 let _ = ws.close().await;
                 return;
             }
         }
     }
-    warn!("Rust host: couldn't tell Java game {} ended", request["params"][0]);
+    warn!("Rust host: couldn't tell Java game {}'s {method}", request["params"][0]);
 }
 
 /// A player's chat line as Java's `CHATMESSAGE` (`TALK`, blue, HTML escaped, as `HtmlEscape.escapeHtml4`)
@@ -461,7 +568,7 @@ pub fn game_param(method: &str) -> Option<usize> {
     Some(match method {
         "gameJoin" | "gameResync" | "gameStateResync" | "matchQuit" | "sendPlayerUUID" | "sendPlayerString"
         | "sendPlayerBoolean" | "sendPlayerInteger" | "sendPlayerManaType" | "chatFindByGame" | "gameWatchStart"
-        | "gameWatchStop" | "gameWatchers" => 0,
+        | "gameWatchStop" | "gameWatchers" | "gameAdvise" | "gamePractice" => 0,
         "sendPlayerAction" => 1,
         _ => return None,
     })
@@ -544,6 +651,43 @@ mod tests {
         assert_eq!(e["data"]["message"], "&lt;b&gt;hi&lt;/b&gt; &amp; &#39;bye&#39;");
         assert_eq!(e["data"]["messageType"], "TALK");
         assert_eq!(game_param("gameEmote"), None);
+    }
+
+    fn hosted(seats: Vec<SeatInfo>) -> Hosted {
+        Hosted {
+            calls: Mutex::new(std::sync::mpsc::channel().0),
+            seats,
+            subscribers: Mutex::new(Vec::new()),
+            watchers: Mutex::new(Vec::new()),
+            watched: Mutex::new(None),
+            watch: 0,
+            human: String::new(),
+            chat_id: String::new(),
+            token: String::new(),
+        }
+    }
+
+    #[test]
+    fn calls_go_to_their_users_seat() {
+        let seat = |name: &str, human: bool| SeatInfo { player_id: format!("p-{name}"), name: name.into(), human };
+        let people = hosted(vec![seat("Ann", true), seat("bob", true)]);
+        assert_eq!(people.seat_of(Some("ann")), Some(0), "names match as XMage's do, case aside");
+        assert_eq!(people.seat_of(Some("Bob")), Some(1));
+        assert_eq!(people.seat_of(Some("eve")), None, "a spectator is nobody's seat");
+        assert_eq!(people.seat_of(None), None, "an unknown user isn't guessed between two");
+        let solo = hosted(vec![seat("Computer", false), seat("ann", true)]);
+        assert_eq!(solo.seat_of(Some("Computer")), None, "nobody plays the AI's seat");
+        assert_eq!(solo.seat_of(None), Some(1), "right after a login, the only human's");
+        // a seat's callbacks go to its tabs only; the log to both
+        let (a, mut a_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (b, mut b_rx) = tokio::sync::mpsc::unbounded_channel();
+        people.subscribe(0, Subscriber { connection: 1, events: a });
+        people.subscribe(1, Subscriber { connection: 2, events: b });
+        let e = |to| Event { method: "GAME_UPDATE".into(), object_id: "g".into(), data: json!({}), to };
+        people.forward("g", &e(Some(1)));
+        assert!(a_rx.try_recv().is_err() && b_rx.try_recv().is_ok());
+        people.forward("g", &Event { method: "CHATMESSAGE".into(), ..e(None) });
+        assert!(a_rx.try_recv().is_ok() && b_rx.try_recv().is_ok());
     }
 
     #[test]

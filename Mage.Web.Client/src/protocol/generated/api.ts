@@ -129,6 +129,8 @@ export function createApi(rpc: RpcCaller) {
       rpc.call('gameJoin', gameId, SESSION),
     hostGameEnded: (gameId: UUID, token: string, winnerId: string | null, turns: number, reason: string, timeLeft?: unknown | null, summary?: unknown | null) =>
       rpc.call('hostGameEnded', gameId, token, winnerId, turns, reason, timeLeft, summary),
+    hostGameTurn: (gameId: UUID, token: string, turn: number, activePlayerId: string | null, line: unknown) =>
+      rpc.call('hostGameTurn', gameId, token, turn, activePlayerId, line),
     gameResync: (gameId: UUID) =>
       rpc.call('gameResync', gameId, SESSION),
     gameStateResync: (gameId: UUID) =>

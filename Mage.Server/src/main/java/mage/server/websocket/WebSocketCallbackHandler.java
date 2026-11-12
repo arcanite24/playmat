@@ -91,6 +91,18 @@ public class WebSocketCallbackHandler implements ClientChannel {
         return hostsGames.getAsBoolean();
     }
 
+    /** the hosting gateway's own id (its {@code gameHost:<id>} capability) */
+    private volatile java.util.function.Supplier<String> gameHostId = () -> null;
+
+    void setGameHostId(java.util.function.Supplier<String> gameHostId) {
+        this.gameHostId = gameHostId;
+    }
+
+    @Override
+    public String gameHostId() {
+        return gameHostId.get();
+    }
+
     /**
      * The player answered (or passed): the question is no longer open.
      */

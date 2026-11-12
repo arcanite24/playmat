@@ -296,7 +296,7 @@ staff first, e.g.
 
 ### Rust-hosted games
 
-The Rust engine can also play a whole game against the AI, with no Java game behind it
+The Rust engine can also play a whole game, against the AI or between two people, with no Java game behind it
 ([docs/rust/GameHost.md](../../docs/rust/GameHost.md), step D). Java still makes the table and the match; when the game
 starts, it hands the game to the gateway, which plays it and reports the result back. It needs the gateway
 (`XMAGE_GATEWAY=on`); it's off by default and still being tried.
@@ -308,8 +308,10 @@ starts, it hands the game to the gateway, which plays it and reports the result 
 | `XMAGE_RUST_HOST_RECORDS_KEEP` | `500` | How many hosted games' records the gateway keeps in `saved/host-games` (the `xmage-saved` volume); the oldest go first. |
 | `XMAGE_ENGINE` | | `java` keeps every game on Java. |
 
-A game qualifies when it's one player against one AI, not a Career game and not a setup or resumed game, the player is
-connected through the gateway, and the Rust engine has every card in both decks. In a match of more than one game
+A game qualifies when it's one player against one AI, or two people, not a Career game, a tournament or a draft, and
+not a setup game, every human player is listed or opted in and connected through the gateway (both through the same
+one, for a game between people), and the Rust engine has every card in both decks. A game resumed from a save made on
+the Rust engine carries on there. In a match of more than one game
 (best-of-three), each game is checked and hosted on its own: Java keeps the score and runs sideboarding, the last
 game's loser chooses who plays first, and a game whose deck gains a card the engine lacks after sideboarding plays on
 Java.
@@ -320,8 +322,11 @@ table's options are played too (starting life, free mulligans, the AI's skill, r
 play as set (another game type or mulligan, a hand size other than 7, a companion) stays on Java. Hosted games pay
 the Career as Java's do (XP, quests, stats), have replays in History when `XMAGE_REPLAYS` is on, the default (the gateway writes them to
 `saved/replays`, `XMAGE_RUST_HOST_REPLAYS`), and take undo, rollbacks, pass-after-cast and the mana payment modes.
-Spectators can watch them, and a player can have the game open in more than one tab. Not there yet: the solo tools
-(saves, "Try this turn again") and advice, which the client hides on these games. If the host fails mid-game, the
+Spectators can watch them, and a player can have the game open in more than one tab. Against the AI the solo tools
+work too: each turn's start is saved (Java stores the game's calls so far, which the host plays again silently to
+carry the game on), so saves, "Try this turn again" and what-ifs work, and so do advice and the practice tools. A
+save made on the Rust engine can only be resumed while hosting is on. Between people, a rollback asks the other
+player first, as on Java. Not there yet: the Career's assists (Career tables stay on Java), tournaments and drafts. If the host fails mid-game, the
 client shows the error and the game ends as a draw. Conceding a game ends that game; leaving the match, or no answer for 30
 minutes, ends the match. If a player stays away (or the gateway is gone) for 35 minutes, the game ends as their loss
 and they leave the match.

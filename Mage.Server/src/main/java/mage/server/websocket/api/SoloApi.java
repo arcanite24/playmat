@@ -94,7 +94,7 @@ final class SoloApi {
                             if (problem != null) {
                                 throw RpcException.invalidParams(problem);
                             }
-                            ctx.server.matchQuit(gameId, call.sessionId());
+                            leave(ctx, call, gameId);
                             return true;
                         }),
                 RpcMethod.named("soloFork")
@@ -125,7 +125,7 @@ final class SoloApi {
                                 throw e;
                             }
                             try {
-                                ctx.server.matchQuit(gameId, call.sessionId());
+                                leave(ctx, call, gameId);
                             } catch (Exception e) {
                                 logger.warn("Solo: the forked game couldn't be left", e);
                             }
@@ -175,7 +175,7 @@ final class SoloApi {
                             SoloViews.SoloTable table = start(ctx, call, user, line);
                             if (liveTable != null) {
                                 try {
-                                    ctx.server.matchQuit(gameId, call.sessionId());
+                                    leave(ctx, call, gameId);
                                 } catch (Exception e) {
                                     logger.warn("Solo: the game a what-if branched from couldn't be left", e);
                                 }
@@ -535,6 +535,14 @@ final class SoloApi {
             throw RpcException.notAuthorized("That isn't your game.");
         }
         String sessionId = call.sessionId();
+        if (resume.line != null) {
+            // a game the Rust host played: only the host can carry it on
+            mage.server.User player = ctx.managers.sessionManager().getSession(sessionId)
+                    .flatMap(s -> ctx.managers.userManager().getUser(s.getUserId())).orElse(null);
+            if (!mage.server.RustHost.canCarryOn(player)) {
+                throw RpcException.invalidParams("This game was played on the Rust engine, which isn't hosting games for you right now.");
+            }
+        }
         UUID roomId = ctx.managers.gamesRoomManager().getMainRoomId();
         MatchOptions options = info.options;
         options.setPassword("");
@@ -573,6 +581,14 @@ final class SoloApi {
         SoloViews.SoloTable result = new SoloViews.SoloTable();
         result.tableId = tableId.toString();
         return result;
+    }
+
+    /** leaves a game for its player: a hosted one through its host (which ends it as their quit), else as matchQuit */
+    private static void leave(ApiContext ctx, RpcCall call, UUID gameId) throws Exception {
+        UUID userId = ctx.managers.sessionManager().getSession(call.sessionId()).map(mage.server.Session::getUserId).orElse(null);
+        if (!mage.server.RustHost.leave(gameId, userId)) {
+            ctx.server.matchQuit(gameId, call.sessionId());
+        }
     }
 
     private static void abandon(ApiContext ctx, String sessionId, UUID roomId, UUID tableId) {

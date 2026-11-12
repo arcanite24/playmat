@@ -67,6 +67,7 @@ export interface RpcMethods {
   chatFindByRoom: { params: [roomId: UUID]; result: UUID | null };
   gameJoin: { params: [gameId: UUID, sessionId: string]; result: boolean };
   hostGameEnded: { params: [gameId: UUID, token: string, winnerId: string | null, turns: number, reason: string, timeLeft?: unknown | null, summary?: unknown | null]; result: boolean };
+  hostGameTurn: { params: [gameId: UUID, token: string, turn: number, activePlayerId: string | null, line: unknown]; result: boolean };
   gameResync: { params: [gameId: UUID, sessionId: string]; result: boolean };
   gameStateResync: { params: [gameId: UUID, sessionId: string]; result: boolean };
   matchQuit: { params: [gameId: UUID, sessionId: string]; result: boolean };
@@ -333,6 +334,7 @@ export const RPC_METHODS: { readonly [M in RpcMethodName]: { readonly access: Rp
   chatFindByRoom: { access: 'session', sessionParam: -1 },
   gameJoin: { access: 'session', sessionParam: 1 },
   hostGameEnded: { access: 'public', sessionParam: -1 },
+  hostGameTurn: { access: 'public', sessionParam: -1 },
   gameResync: { access: 'session', sessionParam: 1 },
   gameStateResync: { access: 'session', sessionParam: 1 },
   matchQuit: { access: 'session', sessionParam: 1 },
@@ -565,6 +567,7 @@ export interface CallbackPayloads {
   GAME_REDRAW_GUI: null;
   START_GAME: TableClientMessage;
   HOST_GAME: unknown;
+  HOST_GAME_QUIT: unknown;
   GAME_INIT: GameView;
   GAME_UPDATE_AND_INFORM: GameClientMessage;
   GAME_INFORM_PERSONAL: GameClientMessage;
@@ -619,6 +622,7 @@ export const CALLBACK_DELIVERY: { readonly [M in CallbackMethodName]: CallbackDe
   GAME_REDRAW_GUI: 'CLIENT_SIDE_EVENT',
   START_GAME: 'TABLE_CHANGE',
   HOST_GAME: 'TABLE_CHANGE',
+  HOST_GAME_QUIT: 'TABLE_CHANGE',
   GAME_INIT: 'TABLE_CHANGE',
   GAME_UPDATE_AND_INFORM: 'UPDATE',
   GAME_INFORM_PERSONAL: 'MESSAGE',

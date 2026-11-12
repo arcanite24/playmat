@@ -192,6 +192,7 @@ Generated from the server's method registry (`mage.server.websocket.api`). Do no
 | `chatFindByRoom` | `roomId: UUID` | `UUID \| null` | session | Chat of a room. |
 | `gameJoin` | `gameId: UUID`, `sessionId: string` | `boolean` | session | Join a started game as a player (after START_GAME). Also used to resync after a reconnect. |
 | `hostGameEnded` | `gameId: UUID`, `token: string`, `winnerId?: string`, `turns: number`, `reason: string`, `timeLeft?: unknown`, `summary?: unknown` | `boolean` | public | The gateway only: a game the Rust host played ended (docs/rust/GameHost.md). The token is the one the game's HOST_GAME carried; timeLeft is each player's priority time left in seconds, by player id, for a timed match's next game; summary is each seat's life and poison and the human's Career tally. Returns false for a game that isn't hosted. |
+| `hostGameTurn` | `gameId: UUID`, `token: string`, `turn: number`, `activePlayerId?: string`, `line: unknown` | `boolean` | public | The gateway only: a solo table's game the Rust host plays is at the start of a turn (docs/rust/GameHost.md, Saves); line is the game to that point (its first start and every call since), which the solo saves keep. Returns false for a game that isn't hosted. |
 | `gameResync` | `gameId: UUID`, `sessionId: string` | `boolean` | session | Send this connection the game's open question again, when a reply or the question seems lost. Returns false when nothing is waiting for the player's answer. |
 | `gameStateResync` | `gameId: UUID`, `sessionId: string` | `boolean` | session | With state patches on (setCapabilities): the client could not apply a patch, so the server sends the game's last state complete (as GAME_UPDATE or REPLAY_UPDATE), then its open question. Returns false when it has none; the next state is sent complete anyway. |
 | `matchQuit` | `gameId: UUID`, `sessionId: string` | `boolean` | session | Concede the whole match. |
@@ -429,6 +430,7 @@ Generated from `ClientCallbackMethod`. Do not edit the table by hand.
 | `GAME_REDRAW_GUI` | `null` | CLIENT_SIDE_EVENT (may be dropped when outdated) | Not sent by the server. |
 | `START_GAME` | `TableClientMessage` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |
 | `HOST_GAME` | `unknown` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |
+| `HOST_GAME_QUIT` | `unknown` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |
 | `GAME_INIT` | `GameView` | TABLE_CHANGE (ordered) | Lifecycle event: open, switch or close a screen. |
 | `GAME_UPDATE_AND_INFORM` | `GameClientMessage` | UPDATE (may be dropped when outdated) | State snapshot; newer ones replace older ones. |
 | `GAME_INFORM_PERSONAL` | `GameClientMessage` | MESSAGE (may be dropped when outdated) | Message for the player or a log. |

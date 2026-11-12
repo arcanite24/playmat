@@ -24,13 +24,15 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Games the Rust host plays instead of Java (docs/rust/GameHost.md, step D): a duel of one listed user against the AI,
- * every card in the Rust engine, connected through the gateway. A hosted solo game doesn't save itself (it can't be
- * resumed), and one resumed from a save stays on Java. Java keeps the table and the match: at each game's
- * start it sends the gateway the seats and decks ({@code HOST_GAME}, which the client never sees) instead of starting
- * its own game, and the gateway reports the end ({@code hostGameEnded}), which ends the game here as if Java had
- * played it. A match of more than one game is a hosted game at a time: Java records each result, runs sideboarding,
- * and hands the next game to the host again, with the last game's loser choosing who plays first.
+ * Games the Rust host plays instead of Java (docs/rust/GameHost.md): a duel of a player against the AI, or of two
+ * players, every card in the Rust engine, each player listed or opted in and connected through the gateway (both
+ * through the same one, for two). Java keeps the table and the match: at each game's start it sends the gateway the
+ * seats and decks ({@code HOST_GAME}, on each human's connection, which the client never sees) instead of starting
+ * its own game, and the gateway reports the end ({@code hostGameEnded}), which ends the game here as if Java had played
+ * it. A match of more than one game is a hosted game at a time: Java records each result, runs sideboarding, and hands
+ * the next game to the host again, with the last game's loser choosing who plays first. At a solo table the host sends
+ * the game's line at each turn's start ({@code hostGameTurn}), which the solo saves keep, and a save carried on goes
+ * back to the host with it ({@link GameOptions#hostedLine}).
  */
 public final class RustHost {
 
@@ -43,34 +45,47 @@ public final class RustHost {
         final Game game;
         final String token;
         final ManagerFactory managers;
-        /** the human's user and player ids */
-        final UUID userId;
-        final UUID playerId;
+        /** each human's user id, and their player ids in the same order */
+        final List<UUID> userIds;
+        final List<UUID> playerIds;
         /** when the host was handed the game, for its replay */
         final long startedAt = System.currentTimeMillis();
         /** what the host recorded of the game for its replay (summary.replayEvents) */
         volatile int replayEvents;
-        /** when the human last sent an emote, for the rate limit (GameController.EMOTE_GAP_MS) */
-        volatile long lastEmote;
-        /** when the sweep last found the human gone or connected without a hosting gateway, or 0 */
+        /** when each player last sent an emote, for the rate limit (GameController.EMOTE_GAP_MS) */
+        final Map<UUID, Long> lastEmote = new ConcurrentHashMap<>();
+        /** when the sweep last found a human gone or connected without a hosting gateway, or 0 */
         volatile long goneSince;
 
-        Hosted(UUID tableId, Match match, Game game, String token, ManagerFactory managers, UUID userId, UUID playerId) {
+        Hosted(UUID tableId, Match match, Game game, String token, ManagerFactory managers, List<UUID> userIds,
+               List<UUID> playerIds) {
             this.tableId = tableId;
             this.match = match;
             this.game = game;
             this.token = token;
             this.managers = managers;
-            this.userId = userId;
-            this.playerId = playerId;
+            this.userIds = userIds;
+            this.playerIds = playerIds;
+        }
+
+        /** the player id of a user of the game, or null */
+        UUID playerOf(UUID userId) {
+            int i = userIds.indexOf(userId);
+            return i < 0 ? null : playerIds.get(i);
+        }
+
+        /** the other seat's player id */
+        UUID otherThan(UUID playerId) {
+            return game.getPlayers().keySet().stream().filter(id -> !id.equals(playerId)).findFirst().orElse(null);
         }
     }
 
     private static final Map<UUID, Hosted> HOSTED = new ConcurrentHashMap<>();
 
     /**
-     * A game whose human has been gone, or connected without a hosting gateway, this long ends as their loss: its
-     * host (and the gateway with it) is gone, or would have ended it itself (the host waits 30 minutes for an answer).
+     * A game whose human has been gone, or connected without a hosting gateway, this long ends as their loss (as a
+     * draw when both players of a game between people are): its host (and the gateway with it) is gone, or would have
+     * ended it itself (the host waits 30 minutes for an answer).
      */
     private static final long GONE_MS = 35 * 60 * 1000L;
     private static final java.util.concurrent.ScheduledExecutorService SWEEP =
@@ -100,6 +115,14 @@ public final class RustHost {
         return ("on".equalsIgnoreCase(v) || "true".equalsIgnoreCase(v)) && !"java".equalsIgnoreCase(env("XMAGE_ENGINE"));
     }
 
+    /**
+     * Whether a game the Rust host played can be carried on now (a save or a fork of it): the host is on and the
+     * player connects through a gateway that hosts games. A hosted game's save can only be played on the host.
+     */
+    public static boolean canCarryOn(User user) {
+        return enabled() && user != null && user.hostsGames();
+    }
+
     /** a listed player ({@code XMAGE_RUST_HOST_USERS}), or one who opted in where the server allows it */
     static boolean forUser(User user) {
         return forUser(user.getName()) || optIn() && user.getUserData() != null && user.getUserData().isUseRustEngine();
@@ -120,6 +143,11 @@ public final class RustHost {
         return v == null ? "" : v.trim();
     }
 
+    private static boolean isTournamentTable(ManagerFactory managers, UUID tableId) {
+        mage.game.Table table = managers.tableManager().getTable(tableId);
+        return table != null && (table.isTournament() || table.isTournamentSubTable());
+    }
+
     public static boolean isHosted(UUID gameId) {
         return gameId != null && HOSTED.containsKey(gameId);
     }
@@ -135,14 +163,24 @@ public final class RustHost {
                         GameOptions options, UUID chooser, java.util.function.Function<UUID, Integer> skillOf) {
         try {
             Game game = match.getGame();
-            if (!enabled() || game == null || userPlayerMap.size() != 1) {
+            if (!enabled() || game == null || userPlayerMap.isEmpty() || userPlayerMap.size() > 2) {
                 return false;
             }
-            Map.Entry<UUID, UUID> human = userPlayerMap.entrySet().iterator().next();
-            Optional<User> user = managers.userManager().getUser(human.getKey());
-            if (!user.isPresent() || !forUser(user.get())) {
-                return false;
+            // a saved hosted game carried on goes to the host whoever plays it: Java has no game to carry on
+            JsonObject line = parseLine(options.hostedLine);
+            List<User> users = new ArrayList<>();
+            List<UUID> userIds = new ArrayList<>();
+            List<UUID> playerIds = new ArrayList<>();
+            for (Map.Entry<UUID, UUID> e : userPlayerMap.entrySet()) {
+                Optional<User> user = managers.userManager().getUser(e.getKey());
+                if (!user.isPresent() || (line == null && !forUser(user.get()))) {
+                    return false;
+                }
+                users.add(user.get());
+                userIds.add(e.getKey());
+                playerIds.add(e.getValue());
             }
+            String names = users.stream().map(User::getName).reduce((a, b) -> a + " and " + b).orElse("");
             String why = null;
             if (match.getPlayers().size() != 2) {
                 why = "not a duel";
@@ -150,24 +188,31 @@ public final class RustHost {
                 why = "it starts from a setup or a save";
             } else if (mage.server.career.CareerService.get().isCareerTable(tableId)) {
                 why = "a Career table";
-            } else if (!user.get().hostsGames()) {
-                why = "the player isn't connected through a gateway that hosts games";
+            } else if (isTournamentTable(managers, tableId)) {
+                // tournaments and drafts play limited pools, which need more cards in the engine first
+                why = "a tournament's table";
+            } else if (users.stream().anyMatch(u -> !u.hostsGames())) {
+                why = "a player isn't connected through a gateway that hosts games";
+            } else if (users.size() == 2 && (users.get(0).gameHostId() == null
+                    || !users.get(0).gameHostId().equals(users.get(1).gameHostId()))) {
+                why = "the players aren't connected through the same gateway";
             } else {
                 why = unplayedOption(match, game);
             }
             if (why != null) {
-                logger.info("Rust host: " + user.get().getName() + "'s game stays on Java: " + why);
+                logger.info("Rust host: " + names + "'s game stays on Java: " + why);
                 return false;
             }
-            List<String> names = new ArrayList<>();
-            JsonArray seats = new JsonArray();
+            List<String> cards = new ArrayList<>();
+            List<JsonObject> seatList = new ArrayList<>();
             Integer aiSkill = null;
             for (MatchPlayer p : match.getPlayers()) {
                 Player player = game.getPlayer(p.getPlayer().getId());
                 if (p.getDeck() == null || player == null) {
                     return false;
                 }
-                boolean isHuman = p.getPlayer().getId().equals(human.getValue());
+                int human = playerIds.indexOf(p.getPlayer().getId());
+                boolean isHuman = human >= 0;
                 if (!isHuman && p.getPlayer().isHuman()) {
                     return false;
                 }
@@ -185,13 +230,12 @@ public final class RustHost {
                 for (Card c : p.getDeck().getCards()) {
                     deck.add(c.getName());
                     printings.add(c.getExpansionSetCode() + ":" + c.getCardNumber() + ":" + c.getImageNumber());
-                    names.add(c.getName());
+                    cards.add(c.getName());
                 }
                 seat.add("deck", deck);
                 for (Card c : p.getDeck().getSideboard()) {
                     if (c.getAbilities().stream().anyMatch(a -> a instanceof mage.abilities.keyword.CompanionAbility)) {
-                        logger.info("Rust host: " + user.get().getName() + "'s game stays on Java: a companion ("
-                                + c.getName() + ")");
+                        logger.info("Rust host: " + names + "'s game stays on Java: a companion (" + c.getName() + ")");
                         return false;
                     }
                 }
@@ -200,13 +244,23 @@ public final class RustHost {
                 }
                 seat.add("printings", printings);
                 if (isHuman) {
-                    seat.add("userData", JsonCodec.GSON.toJsonTree(user.get().getUserData()));
+                    seat.add("userData", JsonCodec.GSON.toJsonTree(users.get(human).getUserData()));
                 }
-                seats.add(seat);
+                seatList.add(seat);
             }
-            Set<String> missing = RustAiBridge.missing(names);
+            if (line != null) {
+                // the seats in the line's order (the host plays the line's game again, seat for seat)
+                List<String> order = new ArrayList<>();
+                for (com.google.gson.JsonElement s : line.getAsJsonObject("start").getAsJsonArray("seats")) {
+                    order.add(s.getAsJsonObject().get("name").getAsString());
+                }
+                seatList.sort(java.util.Comparator.comparingInt(s -> order.indexOf(s.get("name").getAsString())));
+            }
+            JsonArray seats = new JsonArray();
+            seatList.forEach(seats::add);
+            Set<String> missing = RustAiBridge.missing(cards);
             if (!missing.isEmpty()) {
-                logger.info("Rust host: " + user.get().getName() + "'s game doesn't qualify, the Rust engine lacks "
+                logger.info("Rust host: " + names + "'s game doesn't qualify, the Rust engine lacks "
                         + missing.size() + " card" + (missing.size() == 1 ? "" : "s") + ": " + String.join(", ", missing));
                 return false;
             }
@@ -230,7 +284,12 @@ public final class RustHost {
             // the match's priority timer, which the host runs as GameController does (0: none)
             data.addProperty("priorityTime", match.getOptions().getMatchTimeLimit().getPrioritySecs());
             data.addProperty("bufferTime", match.getOptions().getMatchBufferTime().getBufferSecs());
-            Hosted hosted = new Hosted(tableId, match, game, token, managers, human.getKey(), human.getValue());
+            // a solo table's game saves itself at each turn's start: the host sends its line (hostGameTurn)
+            data.addProperty("lines", mage.server.solo.SoloGames.get().isSolo(tableId));
+            if (line != null) {
+                data.add("prelude", line);
+            }
+            Hosted hosted = new Hosted(tableId, match, game, token, managers, userIds, playerIds);
             // the game's end summary (the match's score, what the client shows between games), as GameController
             // sends it for a game Java plays: MatchImpl.endGame fires it once the result is in
             game.addTableEventListener(event -> {
@@ -239,12 +298,28 @@ public final class RustHost {
                 }
             });
             HOSTED.put(game.getId(), hosted);
-            user.get().fireCallback(new ClientCallback(ClientCallbackMethod.HOST_GAME, game.getId(), data));
-            logger.info("Rust host: plays " + user.get().getName() + "'s game " + game.getId() + " (seed " + seed + ")");
+            // on each player's connection: the gateway starts the game once, and each knows it before its START_GAME
+            for (User user : users) {
+                user.fireCallback(new ClientCallback(ClientCallbackMethod.HOST_GAME, game.getId(), data));
+            }
+            logger.info("Rust host: plays " + names + "'s game " + game.getId() + " (seed " + seed
+                    + (line != null ? ", carried on from turn " + line.get("turn") : "") + ")");
             return true;
         } catch (RuntimeException e) {
             logger.warn("Rust host: the game stays on Java: " + e, e);
             return false;
+        }
+    }
+
+    private static JsonObject parseLine(String line) {
+        if (line == null || line.isEmpty()) {
+            return null;
+        }
+        try {
+            return com.google.gson.JsonParser.parseString(line).getAsJsonObject();
+        } catch (RuntimeException e) {
+            logger.warn("Rust host: a saved game's line can't be read: " + e);
+            return null;
         }
     }
 
@@ -279,14 +354,49 @@ public final class RustHost {
     static void reconnect(User user) {
         for (Map.Entry<UUID, Hosted> e : HOSTED.entrySet()) {
             Hosted h = e.getValue();
-            if (!h.userId.equals(user.getId())) {
+            UUID playerId = h.playerOf(user.getId());
+            if (playerId == null) {
                 continue;
             }
             mage.game.Table table = h.managers.tableManager().getTable(h.tableId);
             if (table != null) {
-                user.ccGameStarted(table.getId(), table.getParentTableId(), e.getKey(), h.playerId);
+                user.ccGameStarted(table.getId(), table.getParentTableId(), e.getKey(), playerId);
             }
         }
+    }
+
+    /**
+     * Leaves a hosted game for a player (a solo save, "Try this turn again"): the gateway has the host end it as their
+     * quit, which it then reports. False when the game isn't hosted, or not theirs.
+     */
+    public static boolean leave(UUID gameId, UUID userId) {
+        Hosted h = gameId == null ? null : HOSTED.get(gameId);
+        if (h == null || h.playerOf(userId) == null) {
+            return false;
+        }
+        h.managers.userManager().getUser(userId).ifPresent(user ->
+                user.fireCallback(new ClientCallback(ClientCallbackMethod.HOST_GAME_QUIT, gameId, null)));
+        return true;
+    }
+
+    /**
+     * The host's line of a solo table's game at a turn's start ({@code hostGameTurn}): the solo saves keep it, as they
+     * keep a Java game's turn snapshots.
+     *
+     * @return false when the game isn't hosted or the token is wrong
+     */
+    public static boolean turn(UUID gameId, String token, int turn, String activePlayerId, JsonObject line) {
+        Hosted h = HOSTED.get(gameId);
+        if (h == null || token == null || !h.token.equals(token) || line == null) {
+            return false;
+        }
+        UUID active = null;
+        try {
+            active = activePlayerId == null || activePlayerId.isEmpty() ? null : UUID.fromString(activePlayerId);
+        } catch (IllegalArgumentException ignore) {
+        }
+        mage.server.solo.SoloGames.get().hostedTurn(h.tableId, gameId, turn, active, line.toString());
+        return true;
     }
 
     /**
@@ -295,8 +405,9 @@ public final class RustHost {
      *
      * @param timeLeft each player's priority time left in seconds, by player id, for the match's next game; null
      *                 without a timer
-     * @param summary  each seat's life and poison at the end ({@code players}, by seat) and the human's Career tally
-     *                 ({@code tally}); null when the game never started
+     * @param summary  each seat's life and poison at the end ({@code players}, by seat) and each human's Career tally
+     *                 ({@code tallies}, by player id; {@code tally}, the first human's); null when the game never
+     *                 started
      * @return false when the game isn't hosted or the token is wrong
      */
     public static boolean ended(UUID gameId, String token, String winner, int turns, String reason,
@@ -324,7 +435,7 @@ public final class RustHost {
     }
 
     /**
-     * The host's end summary: the human's Career tally, kept for the game's end as the game's watcher would have left
+     * The host's end summary: each human's Career tally, kept for the game's end as the game's watcher would have left
      * it, so the table pays the game as one Java played. (Java's copy of the game isn't touched: its life totals are
      * the start's, which nothing reads at the end; the Career reads the tally's own.)
      */
@@ -333,10 +444,24 @@ public final class RustHost {
             if (summary.has("replayEvents")) {
                 hosted.replayEvents = summary.get("replayEvents").getAsInt();
             }
-            if (summary.has("tally") && summary.get("tally").isJsonObject()
-                    && !Main.isTestMode()
-                    && mage.server.career.CareerService.enabled(hosted.managers.configSettings().isAuthenticationActivated())) {
-                mage.server.career.CareerTally.fromHost(hosted.game.getId(), hosted.playerId, summary.getAsJsonObject("tally"));
+            if (Main.isTestMode()
+                    || !mage.server.career.CareerService.enabled(hosted.managers.configSettings().isAuthenticationActivated())) {
+                return;
+            }
+            JsonObject tallies = summary.has("tallies") && summary.get("tallies").isJsonObject()
+                    ? summary.getAsJsonObject("tallies") : null;
+            for (UUID playerId : hosted.playerIds) {
+                JsonObject tally = null;
+                if (tallies != null && tallies.has(playerId.toString()) && tallies.get(playerId.toString()).isJsonObject()) {
+                    tally = tallies.getAsJsonObject(playerId.toString());
+                } else if (tallies == null && playerId.equals(hosted.playerIds.get(0)) && summary.has("tally")
+                        && summary.get("tally").isJsonObject()) {
+                    // a host from before games between people: the one human's
+                    tally = summary.getAsJsonObject("tally");
+                }
+                if (tally != null) {
+                    mage.server.career.CareerTally.fromHost(hosted.game.getId(), playerId, tally);
+                }
             }
         } catch (RuntimeException e) {
             logger.warn("Rust host: game " + hosted.game.getId() + "'s end summary: " + e, e);
@@ -352,11 +477,12 @@ public final class RustHost {
      */
     public static boolean orphaned(UUID gameId, UUID userId, boolean quit) {
         Hosted h = HOSTED.get(gameId);
-        if (h == null || !h.userId.equals(userId) || !HOSTED.remove(gameId, h)) {
+        UUID playerId = h == null ? null : h.playerOf(userId);
+        if (playerId == null || !HOSTED.remove(gameId, h)) {
             return false;
         }
-        String winner = !quit ? null : h.game.getPlayers().keySet().stream().filter(id -> !id.equals(h.playerId))
-                .findFirst().map(UUID::toString).orElse(null);
+        UUID other = h.otherThan(playerId);
+        String winner = !quit || other == null ? null : other.toString();
         logger.warn("Rust host: game " + gameId + " isn't on its host any more (" + (quit ? "quit" : "joined")
                 + " through Java), ending it");
         end(gameId, h, winner, 0, quit ? "quit, its host is gone" : "its host is gone");
@@ -364,8 +490,8 @@ public final class RustHost {
     }
 
     /**
-     * An emote in a hosted game (gameEmote): the host has no Java GameController, so the emote goes to its human
-     * here, as GameController.emote sends it (the AI has no client).
+     * An emote in a hosted game (gameEmote): the host has no Java GameController, so the emote goes to the game's
+     * players here, as GameController.emote sends it (the AI has no client).
      *
      * @return null when the game isn't hosted; otherwise whether it was sent
      */
@@ -374,33 +500,42 @@ public final class RustHost {
         if (h == null) {
             return null;
         }
-        if (!h.userId.equals(userId) || now - h.lastEmote < mage.server.game.GameController.EMOTE_GAP_MS) {
+        UUID playerId = h.playerOf(userId);
+        Long last = h.lastEmote.get(userId);
+        if (playerId == null || last != null && now - last < mage.server.game.GameController.EMOTE_GAP_MS) {
             return false;
         }
-        h.lastEmote = now;
-        mage.players.Player player = h.game.getPlayer(h.playerId);
+        h.lastEmote.put(userId, now);
+        mage.players.Player player = h.game.getPlayer(playerId);
         mage.server.game.PlayerEmote sent = new mage.server.game.PlayerEmote(gameId.toString(), player == null ? "" : player.getName(), emote);
-        h.managers.userManager().getUser(userId).ifPresent(user -> user.fireCallback(new mage.interfaces.callback.ClientCallback(
-                mage.interfaces.callback.ClientCallbackMethod.GAME_EMOTE, gameId, sent)));
+        for (UUID to : h.userIds) {
+            h.managers.userManager().getUser(to).ifPresent(user -> user.fireCallback(new mage.interfaces.callback.ClientCallback(
+                    mage.interfaces.callback.ClientCallbackMethod.GAME_EMOTE, gameId, sent)));
+        }
         return true;
     }
 
-    /** ends the hosted games whose human is gone (above) as their loss */
+    /** ends the hosted games whose humans are gone (above): as the gone one's loss, or a draw when both are */
     static void sweep() {
         long now = System.currentTimeMillis();
         for (Map.Entry<UUID, Hosted> e : HOSTED.entrySet()) {
             try {
                 Hosted h = e.getValue();
-                boolean here = h.managers.userManager().getUser(h.userId).map(User::hostsGames).orElse(false);
-                if (here) {
+                List<UUID> gone = new ArrayList<>();
+                for (int i = 0; i < h.userIds.size(); i++) {
+                    boolean here = h.managers.userManager().getUser(h.userIds.get(i)).map(User::hostsGames).orElse(false);
+                    if (!here) {
+                        gone.add(h.playerIds.get(i));
+                    }
+                }
+                if (gone.isEmpty()) {
                     h.goneSince = 0;
                 } else if (h.goneSince == 0) {
                     h.goneSince = now;
                 } else if (now - h.goneSince > GONE_MS && HOSTED.remove(e.getKey(), h)) {
-                    String winner = h.game.getPlayers().keySet().stream().filter(id -> !id.equals(h.playerId))
-                            .findFirst().map(UUID::toString).orElse(null);
+                    UUID winner = gone.size() == 1 ? h.otherThan(gone.get(0)) : null;
                     logger.warn("Rust host: game " + e.getKey() + " lost its host, ending it");
-                    end(e.getKey(), h, winner, 0, "quit, its host is gone");
+                    end(e.getKey(), h, winner == null ? null : winner.toString(), 0, "quit, its host is gone");
                 }
             } catch (RuntimeException ex) {
                 logger.warn("Rust host: sweep: " + ex, ex);
@@ -424,17 +559,19 @@ public final class RustHost {
             hosted.game.getState().setTurnNum(turns);
         }
         if (quitsMatch(reason)) {
-            // the player left the match, not only this game, or ran out of time, which loses it: no next game
-            // (MatchImpl.checkIfMatchEnds)
-            UUID quitterId = hosted.playerId;
-            if (reason.equals("timed out") && winnerId != null) {
-                final UUID won = winnerId;
-                quitterId = hosted.game.getPlayers().keySet().stream().filter(id -> !id.equals(won)).findFirst()
-                        .orElse(hosted.playerId);
+            // the loser left the match, not only this game, or ran out of time, which loses it: no next game
+            // (MatchImpl.checkIfMatchEnds). In a draw (a host gone with both players), both left.
+            List<UUID> quitters = new ArrayList<>();
+            if (winnerId != null) {
+                quitters.add(hosted.otherThan(winnerId));
+            } else {
+                quitters.addAll(hosted.playerIds);
             }
-            mage.game.match.MatchPlayer quitter = hosted.match.getPlayer(quitterId);
-            if (quitter != null) {
-                quitter.setQuit(true);
+            for (UUID quitterId : quitters) {
+                mage.game.match.MatchPlayer quitter = quitterId == null ? null : hosted.match.getPlayer(quitterId);
+                if (quitter != null) {
+                    quitter.setQuit(true);
+                }
             }
         }
         logger.info("Rust host: game " + gameId + " ended after " + turns + " turns, " + reason + ", winner "
@@ -448,7 +585,7 @@ public final class RustHost {
     }
 
     /**
-     * Whether a hosted game's end reason means the human left the match, not only the game: {@code matchQuit}, no
+     * Whether a hosted game's end reason means the loser left the match, not only the game: {@code matchQuit}, no
      * answer for 30 minutes, or a host that's gone with them ({@code quit}), and running out of time, which loses the
      * match as in Java ({@code timed out}); a concede ends only the game.
      */
@@ -456,16 +593,19 @@ public final class RustHost {
         return reason != null && (reason.equals("quit") || reason.startsWith("quit,") || reason.equals("timed out"));
     }
 
-    /** the human's {@code END_GAME_INFO}: the game's result and the match's score */
+    /** each human's {@code END_GAME_INFO}: the game's result and the match's score */
     private static void endGameInfo(Hosted hosted) {
         try {
             mage.game.Table table = hosted.managers.tableManager().getTable(hosted.tableId);
             if (table == null) {
                 return;
             }
-            mage.view.GameEndView view = new mage.view.GameEndView(hosted.game.getState(), hosted.game, hosted.playerId, table);
-            hosted.managers.userManager().getUser(hosted.userId).ifPresent(user -> user.fireCallback(
-                    new ClientCallback(ClientCallbackMethod.END_GAME_INFO, hosted.game.getId(), view)));
+            for (int i = 0; i < hosted.userIds.size(); i++) {
+                UUID playerId = hosted.playerIds.get(i);
+                mage.view.GameEndView view = new mage.view.GameEndView(hosted.game.getState(), hosted.game, playerId, table);
+                hosted.managers.userManager().getUser(hosted.userIds.get(i)).ifPresent(user -> user.fireCallback(
+                        new ClientCallback(ClientCallbackMethod.END_GAME_INFO, hosted.game.getId(), view)));
+            }
         } catch (RuntimeException e) {
             logger.warn("Rust host: game " + hosted.game.getId() + "'s end summary: " + e, e);
         }

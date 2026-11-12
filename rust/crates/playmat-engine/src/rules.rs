@@ -11515,6 +11515,12 @@ fn enter_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller
     }
 }
 
+/// A card put onto the battlefield from outside the game (the game host's practice tools, Java's
+/// `PracticeTools.addCards`): it enters as any permanent does, its "enters" abilities and triggers with it
+pub fn put_onto_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat) {
+    enter_battlefield(game, d, id, controller, false);
+}
+
 fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
     // a token of the class last made takes its image
     if game.obj(id).token && game.obj(id).token_image.is_none() {

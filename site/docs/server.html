@@ -190,17 +190,20 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           weakest; <code>random</code> plays random moves. Set it, then run <code>up -d</code>. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/docs/rust/Ai.md#one-decision-at-a-time-policies">docs/rust/Ai.md</a>.</p>
         <h3 id="rust-host">What is <code>XMAGE_RUST_HOST_USERS</code>?</h3>
-        <p>It lets the Rust engine play whole games against the AI, with no Java game behind them. It's new and still
+        <p>It lets the Rust engine play whole games, with no Java game behind them. It's new and still
           being tried, so it's off by default. It needs the gateway (<code>XMAGE_GATEWAY=on</code>). List the players
           whose games it should host (user names separated by commas, or <code>*</code> for everyone), then run
-          <code>up -d</code>. It only hosts one-on-one games against the AI, outside the Career, whose decks it knows
-          every card of; other games play on Java as before. In a best-of-three, each game is hosted on its own and
+          <code>up -d</code>. It only hosts one-on-one games, against the AI or between two people, outside the Career
+          and outside tournaments and drafts, whose decks it knows every card of; other games play on Java as before.
+          A game between people is hosted when both players are listed (or opted in) and connected through the same
+          gateway. In a best-of-three, each game is hosted on its own and
           Java keeps the score and the sideboarding. The table's priority timer works as on Java: each game of a match
           keeps the time left from the earlier ones, and a player whose time runs out loses the match. The table's
           starting life, free mulligans, AI skill and rollbacks are played; a table set up some other way (another
           mulligan, a hand size other than 7, a companion) stays on Java. These games pay the Career like any other,
-          show up in History when replays are on, and can be watched. The solo tools (saves, "Try this turn again")
-          and advice aren't there yet and are hidden on them. <code>XMAGE_ENGINE=java</code> turns it off. The gateway's <code>/metrics</code>
+          show up in History when replays are on, and can be watched. Against the AI, the solo tools work on them too: saves,
+          "Try this turn again", advice and the practice tools. A save made on the Rust engine can only be resumed
+          while the Rust engine is on. <code>XMAGE_ENGINE=java</code> turns it off. The gateway's <code>/metrics</code>
           counts hosted games and how they ended (<code>playmat_gateway_host_games_ended_total</code>). Each hosted
           game also leaves a record in <code>saved/host-games</code> (the last 500, <code>XMAGE_RUST_HOST_RECORDS_KEEP</code>),
           so a game a player reports can be played again exactly. Details are in
