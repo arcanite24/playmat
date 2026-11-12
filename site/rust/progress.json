@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-11",
+ "updated": "2026-11-12",
  "goal": "games against the AI that cost a fraction of the server's CPU: one-on-one games against the AI with Pioneer and Standard decks, decided in milliseconds.",
  "phases": [
   {
@@ -47,7 +47,7 @@
    "n": "4",
    "name": "Rules engine and card pipeline",
    "status": "active",
-   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Gate run (11 Nov): 9,901 of 10,000 shadow games match, 54 differ (#289), 45 Java didn't finish; 50 of 65 exported card tests pass, none differ. Next: the 54, then every Pioneer-legal card.",
+   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Gate run (11–12 Nov): 9,949 of 10,000 shadow games match and Java didn't finish 45. The 6 that differ are Java bugs Rust doesn't copy (#289), accepted as such on 12 Nov. 51 of 65 exported card tests pass and none differ; the other 14 can't run outside Java. Next: every Pioneer-legal card.",
    "pr": [
     219,
     220,
@@ -57,7 +57,8 @@
     244,
     266,
     268,
-    270
+    270,
+    294
    ]
   },
   {
@@ -246,6 +247,14 @@
    }
   ],
   "rust_host_game": 0.56
+ },
+ "gate": {
+  "what": "the phase 4 gate run, seeds 100000–109999",
+  "date": "2026-11-12",
+  "played": 9955,
+  "matched": 9949,
+  "note": "the other 6 are Java bugs, 45 more Java didn't finish",
+  "source": "docs/rust/Engine.md"
  },
  "counted": {
   "engine_cards": 881,
@@ -1004,10 +1013,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 412
+   "checked_in": 464
   },
   "rust": {
-   "lines": 46809,
+   "lines": 47160,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1015,7 +1024,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 24996
+     "lines": 25324
     },
     {
      "crate": "playmat-gateway",
@@ -1023,7 +1032,7 @@
     },
     {
      "crate": "playmat-host",
-     "lines": 4726
+     "lines": 4749
     },
     {
      "crate": "playmat-platform",
@@ -1040,6 +1049,6 @@
    ]
   }
  },
- "commit": "3ceea45e261f67997532b0809c76294bff772c43",
- "generated": "2026-11-11"
+ "commit": "2e7c82580efcdd6537a499def603ed47c75da87d",
+ "generated": "2026-11-12"
 }

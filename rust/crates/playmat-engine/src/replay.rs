@@ -338,6 +338,13 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
         }
     }
     let (kind, rest) = r.split_at(1);
+    // a card entering from a hand while its as-enters choices are asked is still in that hand in Java, at its place
+    // (Theorist's Sanctum's behold: the hand's cards are shown, the land among them)
+    if kind == "H" {
+        if let Some(g) = crate::view::as_java(game) {
+            return resolve(&g, r);
+        }
+    }
     match kind {
         "P" => rest.parse::<Seat>().ok().filter(|s| *s < game.seats()).map(Answer::Player),
         "H" | "L" | "G" => {
@@ -394,6 +401,13 @@ pub fn exile_order(game: &Game) -> Vec<crate::state::ObjId> {
 
 /// Where an object is, as `DecisionLog.ref` writes it.
 pub fn reference(game: &Game, id: ObjId) -> String {
+    // a hand card while one enters from a hand: its place in Java's hand, which still holds the entering card (as
+    // `resolve` reads `H` refs)
+    if game.obj(id).zone == Zone::Hand {
+        if let Some(g) = crate::view::as_java(game) {
+            return reference(&g, id);
+        }
+    }
     for (s, p) in game.players.iter().enumerate() {
         for (prefix, zone) in [("H", &p.hand), ("L", &p.library), ("G", &p.graveyard)] {
             if let Some(i) = zone.iter().position(|x| *x == id) {
@@ -554,6 +568,15 @@ impl<'a> Decider for ReplayDecider<'a> {
                     .map(|(i, o)| format!("E{}={}:{}{:?}", i, o.0, game.obj(*o).name(), game.obj(*o).prepared_for))
                     .collect();
                 eprintln!("  {}", exile.join(" "));
+                for (seat, p) in game.players.iter().enumerate() {
+                    let hand: Vec<String> = p
+                        .hand
+                        .iter()
+                        .enumerate()
+                        .map(|(i, o)| format!("H{}.{}={}", seat, i, game.obj(*o).name()))
+                        .collect();
+                    eprintln!("  {}", hand.join(" "));
+                }
             }
         }
         self.next += 1;

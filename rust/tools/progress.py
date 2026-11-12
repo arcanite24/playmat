@@ -136,7 +136,8 @@ def build():
         'meta': coverage(meta, have, 'Pioneer and Standard meta decks'),
         'tiers': t,
         'shadow': {'played': played, 'matched': matched, 'java_timeouts': timeouts,
-                   'checked_in': sum(r['checked_in'] for r in t)},
+                   # every game under shadow/ is replayed by the tests: the tiers' and the gate run's (gate10k)
+                   'checked_in': len(glob.glob(os.path.join(ENGINE, 'shadow', '*', '*.json')))},
         'rust': rust_lines(),
     })
 
