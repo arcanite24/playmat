@@ -10369,7 +10369,6 @@ fn apply_each_effect(
                 let yours: Vec<ObjId> =
                     tapped.iter().copied().filter(|b| game.obj(*b).controller == controller).collect();
                 let mut chosen: Vec<ObjId> = Vec::new();
-                let mut selected = false;
                 if yours.len() <= *amount {
                     let q = Query::YesNo { message: "Include your tapped lands to untap?".into() };
                     let yes = loop {
@@ -10379,28 +10378,48 @@ fn apply_each_effect(
                             _ => {}
                         }
                     };
-                    if yes && !yours.is_empty() {
+                    if yes {
                         chosen = yours.clone();
-                        selected = true;
                     }
                 }
-                // `HumanPlayer.choose`: a choice already complete isn't asked, and untaps nothing
-                if selected && (chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t))) {
-                    continue;
-                }
+                // `TargetImpl.choose` starts with `chosen` false, so even a full preselection is asked
+                // (`isChoiceSelected`); a pick past the maximum adds nothing. It asks again while the player keeps
+                // adding, until the choice is complete
+                let mut selected = false;
                 loop {
-                    let q = Query::Target { players: Vec::new(), objs: tapped.clone(), required: false };
-                    match ask(game, d, controller, &q) {
-                        Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
-                        Answer::Obj(o) if tapped.contains(&o) => {
-                            chosen.push(o);
-                            if chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t)) {
-                                break;
+                    let prev = chosen.len();
+                    let complete = |chosen: &Vec<ObjId>| chosen.len() >= *amount || tapped.iter().all(|t| chosen.contains(t));
+                    let mut picked = false;
+                    if !(selected && complete(&chosen)) {
+                        loop {
+                            let q = Query::Target { players: Vec::new(), objs: tapped.clone(), required: false };
+                            match ask(game, d, controller, &q) {
+                                Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
+                                Answer::Obj(o) if tapped.contains(&o) => {
+                                    if chosen.len() < *amount {
+                                        chosen.push(o);
+                                        selected = true;
+                                        if complete(&chosen) {
+                                            picked = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                Answer::Bool(_) => {
+                                    picked = !chosen.is_empty();
+                                    break;
+                                }
+                                Answer::Stop => return,
+                                _ => {}
                             }
                         }
-                        Answer::Bool(_) => break,
-                        Answer::Stop => return,
-                        _ => {}
+                    }
+                    if !picked {
+                        break;
+                    }
+                    selected = true;
+                    if complete(&chosen) || prev == chosen.len() {
+                        break;
                     }
                 }
                 for o in chosen {
