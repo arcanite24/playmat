@@ -58,6 +58,8 @@ services:
       # rust: the Rust AI plays the AI's seat for XMAGE_RUST_AI_USERS (docs/rust/Ai.md); XMAGE_ENGINE=java turns it off
       XMAGE_AI_BACKEND: ${XMAGE_AI_BACKEND:-java}
       XMAGE_RUST_AI_USERS: ${XMAGE_RUST_AI_USERS:-}
+      # who answers the Rust AI's decisions: playouts (default), mcts, quick or random (docs/rust/Ai.md)
+      PLAYMAT_AI_POLICY: ${PLAYMAT_AI_POLICY:-playouts}
       # the Rust engine hosts these users' qualifying AI duels, through the gateway (docs/rust/GameHost.md, step D)
       XMAGE_RUST_HOST_USERS: ${XMAGE_RUST_HOST_USERS:-}
       # on: players can turn the Rust engine on for themselves in Settings (docs/rust/GameHost.md)
