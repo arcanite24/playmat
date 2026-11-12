@@ -163,7 +163,9 @@ IMGCACHE_FALLBACK=on                                     <span class="c"># Scryf
           <code>XMAGE_ROUTE_ACCOUNTS</code>, <code>XMAGE_ROUTE_SUPPORT</code>, <code>XMAGE_ROUTE_CAREER</code>,
           <code>XMAGE_ROUTE_CAREERPROGRESS</code>); they stay
           with Java unless you set them. <code>XMAGE_SHADOW_USERS</code> limits <code>shadow</code> to a few
-          accounts while you try it. Details are in
+          accounts while you try it. The gateway keeps its <code>shadow</code> and hosted-game counts across updates
+          in <code>saved/gateway-totals.json</code> (<code>XMAGE_GATEWAY_TOTALS</code>), by day, so a week of them can be
+          read from <code>/totals</code> on port 17180 even after a deploy. Details are in
           <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#rust-gateway">the README</a>.</p>
         <h3 id="rust-ai">What is <code>XMAGE_AI_BACKEND</code>?</h3>
         <p>A new AI written in Rust can play against people instead of the Java AI. It decides in milliseconds instead

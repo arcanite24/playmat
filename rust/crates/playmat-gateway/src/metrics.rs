@@ -56,6 +56,24 @@ impl Metrics {
         *self.declined_by_method.lock().unwrap().entry(method.to_string()).or_default() += 1;
     }
 
+    /// the counters `totals.rs` keeps across restarts
+    pub fn counts(&self, into: &mut crate::totals::Counts) {
+        into.shadow = self.shadow_by_method.lock().unwrap().clone();
+        into.declined = self.declined_by_method.lock().unwrap().clone();
+        into.requests_shadow = self.requests_shadow.load(Ordering::Relaxed);
+    }
+
+    /// Starts the kept counters from what an earlier run counted
+    pub fn restore(&self, counts: &crate::totals::Counts) {
+        let (same, different) = counts.shadow.values().fold((0, 0), |(s, d), (s1, d1)| (s + s1, d + d1));
+        self.shadow_same.store(same, Ordering::Relaxed);
+        self.shadow_different.store(different, Ordering::Relaxed);
+        self.declined.store(counts.declined.values().sum(), Ordering::Relaxed);
+        self.requests_shadow.store(counts.requests_shadow, Ordering::Relaxed);
+        *self.shadow_by_method.lock().unwrap() = counts.shadow.clone();
+        *self.declined_by_method.lock().unwrap() = counts.declined.clone();
+    }
+
     pub fn render(&self) -> String {
         let mut out = String::new();
         let mut line = |name: &str, kind: &str, value: &AtomicU64| {
@@ -108,6 +126,24 @@ impl Metrics {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn restored_counters_keep_counting() {
+        let metrics = Metrics::default();
+        metrics.shadow("deckValidate", true);
+        metrics.shadow("deckValidate", false);
+        metrics.declined("searchCards");
+        let mut counts = crate::totals::Counts::default();
+        metrics.counts(&mut counts);
+        let again = Metrics::default();
+        again.restore(&counts);
+        again.shadow("deckValidate", true);
+        let text = again.render();
+        assert!(text.contains("playmat_gateway_shadow_same_total 2"));
+        assert!(text.contains("playmat_gateway_shadow_different_total 1"));
+        assert!(text.contains("playmat_gateway_declined_total 1"));
+        assert!(text.contains("playmat_gateway_shadow_method_total{method=\"deckValidate\",result=\"same\"} 2"));
+    }
 
     #[test]
     fn declined_by_method() {

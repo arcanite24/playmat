@@ -252,11 +252,22 @@ and the container restarts the gateway. `off`, the default, leaves things as the
 | `XMAGE_ROUTE_ACCOUNTS`, `XMAGE_ROUTE_SUPPORT` | `java` | The same for staff's feedback inbox (`adminFeedback`, `adminFeedbackMark`) and support's records: `supportPerks`, `supportNoticeSeen`, `supportSetWall`, `adminSupportLedger`, `adminSupportLink`, `adminSupportRevoke`, `adminSupportGrant` and `adminContributorGrant` ([docs/rust/Support.md](../../docs/rust/Support.md)). The support status, players' looks and the Ko-fi and GitHub hooks stay with Java. |
 | `XMAGE_ROUTE_CAREER`, `XMAGE_ROUTE_CAREERPROGRESS` | `java` | The same for the Career's records in `db/career.db`: `careerCollection`, `careerDeck`, `careerGameResult`, `careerShowProgress`, `careerLevels`, and `careerStarters`, `careerCosmetics`, `careerOpponents`, `careerAchievements`, `careerQuests`, `careerEquipStyle`, `careerCraft` (with the card catalog), `careerStart` and `careerSaveDeck` from the views Java writes to `XMAGE_CAREER_EXPORT` (`db/career-views.json`) ([docs/rust/Career.md](../../docs/rust/Career.md)). Everything else in the Career, packs, quests, payouts and the games it starts, stays with Java. |
 | `XMAGE_ROUTE_DEFAULT`, `XMAGE_ROUTES_FILE` | `java` | The route for every other group, and a file with routes by group, by method and rollout percentages (`rust/crates/playmat-protocol/src/routes.rs`). |
+| `XMAGE_GATEWAY_TOTALS` | `saved/gateway-totals.json` | A file where the gateway keeps its shadow counters (by method), declined calls and hosted games (started, and ended by how) across restarts and deploys, with what each day added (UTC, the last 90 days). Written every 30 seconds and when the gateway stops; `/metrics` counts on from it. |
 | `XMAGE_GATEWAY_LOG` | `info` | Log level, e.g. `debug`. |
 
 The gateway trusts `X-Forwarded-For` from `XMAGE_TRUSTED_PROXIES` only, and passes the bridge nothing else that
 sets who a client is. Its counters (connections, calls by route, patches and the bytes they saved) are at `/metrics` on
 port 17180, which only the Compose network reaches. `docker compose exec xmage playmat-gateway health` checks it.
+
+`/metrics` starts again from zero only for the counters that don't matter across a restart. The shadow comparisons,
+declined calls and hosted games count on from `XMAGE_GATEWAY_TOTALS`, and `/totals` gives that file as JSON: `since`
+(when counting started), `total`, `days` (what each day added) and `last7` (the last seven days, today's included). A
+group is ready for `rust` after a week of `shadow` with no difference, which is `last7.shadow` with `0` as every
+method's second number:
+
+```bash
+docker compose exec xmage sh -c 'wget -qO- localhost:17180/totals' | jq '.last7'
+```
 
 ### Rust AI
 
@@ -317,6 +328,8 @@ The gateway's `/metrics` counts the hosted games: `playmat_gateway_host_games_op
 `playmat_gateway_host_games_started_total`, and `playmat_gateway_host_games_ended_total` by `how`: `over` (played
 out), `conceded` (the game or the match), `timed out` (a player's priority timer ran out, which loses the match),
 `stopped`, `error` and `panic`. The last two are games the host lost, which end as draws; step E widens hosting after a week without them.
+These counters survive deploys (`XMAGE_GATEWAY_TOTALS`), and `/totals` has them by day: `last7.host_games_ended` is step
+E's week.
 
 Each hosted game leaves a record in `saved/host-games/<game id>.jsonl`: its start, the player's answers, the game log
 and the end. It holds the player's name, decks and plays, and stays on the server. The game log alone is often
