@@ -1978,7 +1978,16 @@ fn mana_options(
 ) -> (Vec<Vec<Mana>>, Vec<(Color, u32)>) {
     let mut devotions = Vec::new();
     let mut options: Vec<Vec<Mana>> = Vec::new();
-    for (id, a) in mana_sources(game, seat) {
+    let sources = mana_sources(game, seat);
+    // `ManaOptions.addManaWithCost` pays Nykthos's {2} from the options before it, its own mana among them: with
+    // nothing else to make mana, its devotion ability can't be paid
+    let pool = game.player(seat).mana_pool;
+    let more = sources.len() > 1
+        || !extra.is_empty()
+        || pool.colorless > 0
+        || pool.colored.iter().any(|n| *n > 0)
+        || !game.player(seat).conditional_pool.is_empty();
+    for (id, a) in sources {
         // the mana its tapping triggers: one more source each
         for k in tap_for_mana_extra(game, seat, id) {
             options.push(vec![Mana::of(Color::ALL[k], 1)]);
@@ -1993,7 +2002,7 @@ fn mana_options(
                 devotions.extend(Color::ALL.iter().map(|c| (*c, m.colored[c.index()])).filter(|(_, n)| *n > 0));
                 continue;
             }
-            if let Some(c) = Color::ALL.iter().copied().max_by_key(|c| m.colored[c.index()]) {
+            if let Some(c) = Color::ALL.iter().copied().max_by_key(|c| m.colored[c.index()]).filter(|_| more) {
                 for _ in 3..m.colored[c.index()] {
                     options.push(vec![Mana::of(c, 1)]);
                 }
@@ -2021,7 +2030,7 @@ fn mana_options(
     options.extend(extra);
     // conditional mana left in the pool (counted for any spell, as Java's playable check does)
     if game.paying_for.get() == Some(ANY_SPELL) {
-        // (a source for each mana: Sunken Citadel's {U}{U} pays both of Nykthos's {2})
+        // each mana its own source (Nykthos's or Sunken Citadel's two are one entry)
         for (m, _, _) in &game.player(seat).conditional_pool {
             for c in Color::ALL {
                 for _ in 0..m.colored[c.index()] {
@@ -3948,20 +3957,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
 
 /// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
 /// the payment; anything short of paying counters. None: stopped.
-fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef]) -> Option<bool> {
-    // ward—sacrifice three nonland permanents: `canPay` first, so a player without them isn't asked
-    for c in cost {
-        if let CostDef::SacrificeTargetCost { filter, amount } = c {
-            let have = game
-                .battlefield
-                .iter()
-                .filter(|p| game.obj(**p).controller == payer && game.filter_matches(filter, payer, None, **p))
-                .count();
-            if have < *amount {
-                return Some(false);
-            }
-        }
-    }
+fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost: &[CostDef]) -> Option<bool> {
     // ward—discard a card: a non-mana cost's message has no "Pay " (`DiscardTargetCost` text "discard a card")
     if let Some(CostDef::DiscardCardCost { filter, .. }) =
         cost.iter().find(|c| matches!(c, CostDef::DiscardCardCost { .. }))
@@ -3992,6 +3988,27 @@ fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, cost: &[CostDef
             game.move_to(*o, Zone::Graveyard);
         }
         return Some(!chosen.is_empty());
+    }
+    // ward—sacrifice three nonland permanents: `canPay` first (too few: countered, nothing asked), then "<cost>?"
+    if let Some(c @ CostDef::SacrificeTargetCost { amount, .. }) =
+        cost.iter().find(|c| matches!(c, CostDef::SacrificeTargetCost { .. }))
+    {
+        if !can_pay_cost(game, payer, id, c) {
+            return Some(false);
+        }
+        let q = Query::YesNo { message: format!("sacrifice {} permanents?", amount) };
+        let yes = loop {
+            match ask(game, d, payer, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return None,
+                _ => {}
+            }
+        };
+        let paid = yes && pay_cost(game, d, payer, id, c);
+        if d.stopped() {
+            return None;
+        }
+        return Some(paid);
     }
     let life: i32 = cost.iter().map(|c| if let CostDef::PayLifeCost { amount } = c { *amount } else { 0 }).sum();
     let mana = ability_mana_cost(cost);
@@ -6156,14 +6173,17 @@ fn refresh_land_types(game: &mut Game) {
         game.land_becomes = kept;
     }
     let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
+    let mut reapply = false;
     for id in ids {
         // its def replaced by one from before the types applied (Mutavault animated before Urborg came, back to its
         // land at the end of the turn): that one is its base now, and the types apply again, as Java's layers would
+        // (read under Leyline of the Guildpact's types, which go on top of these)
         let o = game.obj(id);
+        let own = o.pre_guildpact.as_ref().unwrap_or(&o.def);
         let stale = o.land_type_base.as_ref().is_some_and(|(_, t, g)| {
             !t.iter().any(|x| x.starts_with('='))
-                && (t.iter().any(|x| !o.def.abilities.contains(&land_type_mana(x)))
-                    || g.iter().any(|a| !o.def.abilities.contains(a)))
+                && (t.iter().any(|x| !own.abilities.contains(&land_type_mana(x)))
+                    || g.iter().any(|a| !own.abilities.contains(a)))
         });
         if stale {
             game.obj_mut(id).land_type_base = None;
@@ -6184,6 +6204,13 @@ fn refresh_land_types(game: &mut Game) {
         if given == applied && gained == applied_gained {
             continue;
         }
+        // Leyline of the Guildpact's types go on top of these: taken off while the land is rebuilt, put back after
+        if o.pre_guildpact.is_some() {
+            game.unapply_guildpact(id);
+            reapply = true;
+        }
+        let o = game.obj(id);
+        let base = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
         if given.is_empty() && gained.is_empty() {
             let o = game.obj_mut(id);
             let (base, types, gave) = o.land_type_base.take().unwrap();
@@ -6240,6 +6267,9 @@ fn refresh_land_types(game: &mut Game) {
         let o = game.obj_mut(id);
         o.land_type_base = Some((base, given, gained));
         o.def = Arc::new(land);
+    }
+    if reapply {
+        game.update_guildpact();
     }
 }
 
@@ -10869,7 +10899,8 @@ fn apply_each_effect(
                     continue;
                 };
                 let payer = game.stack[at].controller;
-                let Some(paid) = pay_unless(game, d, payer, cost) else { return };
+                let paying = game.stack[at].card;
+                let Some(paid) = pay_unless(game, d, payer, paying, cost) else { return };
                 if !paid {
                     Arc::make_mut(&mut game.stack).remove(at);
                 }
@@ -10886,7 +10917,7 @@ fn apply_each_effect(
                 }
                 let payer = game.stack.iter().find(|i| i.card == spell && i.ability.is_none()).map(|i| i.controller);
                 let Some(payer) = payer else { continue };
-                let Some(paid) = pay_unless(game, d, payer, cost) else { return };
+                let Some(paid) = pay_unless(game, d, payer, spell, cost) else { return };
                 if !paid && !cant_be_countered(game, spell) {
                     note_countered(game, spell, item.card);
                     Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
@@ -11916,7 +11947,12 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // an Aura put onto the battlefield without being cast: its controller picks what it enchants (303.4f)
     if !cast && def.has_subtype("Aura") {
         if let Some(t) = def.spell.targets.first() {
-            let rule = format!("attach {} to", def.name);
+            // `TargetImpl.tryToAutoChoose` reads the source ability's rule for its feel-bad words (Old-Growth Troll's
+            // "Sacrifice this land" keeps its one Forest asked)
+            let rule = match game.resolving_item.clone() {
+                Some(item) => crate::view::item_rule(game, &item),
+                None => format!("attach {} to", def.name),
+            };
             if let Some(chosen) = choose_target(game, d, controller, t, Some(id), &rule, false) {
                 if let Some(Target::Obj(to)) = chosen.first().copied() {
                     let zcc = game.obj(to).zcc;
@@ -12348,8 +12384,16 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             game.pending.extend(fired);
         }
         if !game.life_batch.is_empty() {
+            // `LOST_LIFE_BATCH_FOR_ONE_PLAYER` fires after the effect: a source that left the battlefield meanwhile
+            // (Feed the Swarm's life loss, then its destroy) doesn't trigger
             let batch = std::mem::take(&mut game.life_batch);
-            game.pending.extend(batch.into_iter().map(|(_, t)| t));
+            let sources = game.trigger_sources();
+            let live: Vec<StackItem> = batch
+                .into_iter()
+                .map(|(_, t)| t)
+                .filter(|t| sources.contains(&t.card) && t.ability.is_none_or(|(_, zcc)| game.obj(t.card).zcc == zcc))
+                .collect();
+            game.pending.extend(live);
         }
         if !game.damaged_batch.is_empty() {
             damaged_batch_triggers(game);
@@ -12569,6 +12613,7 @@ fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
     // what it sacrifices is a `FixedTargets` pointer too (the tokens a mobilize made)
     t.delayed
         .as_ref()
+        // blitz's sacrifice is a `FixedTarget` too
         .map(|dl| {
             dl.fixed
                 .iter()
@@ -13887,8 +13932,22 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                         && (o.damage >= t || (o.deathtouched && o.damage > 0)))
             })
             .collect();
+        // `GameImpl.checkStateBasedActions` moves each permanent as it comes to it: an Aura after the creature it
+        // enchants, which went for 0 toughness, already enchants nothing (its card follows the creature's)
+        let bf: Vec<ObjId> = game.battlefield.to_vec();
+        let gone_before = |aura: ObjId| {
+            let Some(to) = game.attached(aura) else { return false };
+            let (Some(a), Some(t)) = (bf.iter().position(|x| *x == aura), bf.iter().position(|x| *x == to)) else {
+                return false;
+            };
+            t < a
+                && dying.contains(&to)
+                && game.has_type(to, CardType::Creature)
+                && game.power_toughness(to).1 <= 0
+                && game.obj(aura).def.has_subtype("Aura")
+        };
+        let mut dying: Vec<ObjId> = bf.iter().copied().filter(|id| dying.contains(id) || gone_before(*id)).collect();
         // 704.5y: of the Roles one player controls on one permanent, only the newest stays
-        let mut dying = dying;
         let roles: Vec<ObjId> = game
             .battlefield
             .iter()
