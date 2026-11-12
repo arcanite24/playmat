@@ -347,6 +347,7 @@ fn zone_name(z: Zone) -> &'static str {
         Zone::Stack => "STACK",
         Zone::Exile => "EXILED",
         Zone::Command => "COMMAND",
+        Zone::Outside => "OUTSIDE",
     }
 }
 

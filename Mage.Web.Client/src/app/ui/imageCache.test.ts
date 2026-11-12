@@ -143,3 +143,44 @@ describe('storeCards', () => {
     expect(loads).toHaveLength(0);
   });
 });
+
+describe('isDecoded', () => {
+  /** A browser image cache holding `cached`: those report complete as soon as their src is set. */
+  function cacheHolding(cached: string[]) {
+    const created: { src: string }[] = [];
+    vi.stubGlobal('Image', class {
+      private value = '';
+      constructor() {
+        created.push(this);
+      }
+      get src() {
+        return this.value;
+      }
+      set src(value: string) {
+        this.value = value;
+      }
+      get complete() {
+        return cached.includes(this.value);
+      }
+      get naturalWidth() {
+        return cached.includes(this.value) ? 488 : 0;
+      }
+    });
+    return created;
+  }
+
+  it('shows a picture the browser already has on the first frame', async () => {
+    cacheHolding(['/img/cached.jpg']);
+    const { isDecoded } = await freshCache();
+    expect(isDecoded('/img/cached.jpg')).toBe(true);
+  });
+
+  it('lets go of a picture the browser lacks at once, and asks only once', async () => {
+    const created = cacheHolding([]);
+    const { isDecoded } = await freshCache();
+    expect(isDecoded('/img/new.jpg')).toBe(false);
+    expect(created[0].src).toBe('');
+    expect(isDecoded('/img/new.jpg')).toBe(false);
+    expect(created).toHaveLength(1);
+  });
+});

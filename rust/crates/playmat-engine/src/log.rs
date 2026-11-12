@@ -42,6 +42,7 @@ pub fn zone(z: Zone) -> &'static str {
         Zone::Stack => "stack",
         Zone::Exile => "exile zone",
         Zone::Command => "command",
+        Zone::Outside => "outside",
     }
 }
 

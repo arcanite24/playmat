@@ -25,6 +25,7 @@ import './stores/social';
 import './stores/toasts';
 import './career/progressionEvents';
 import { NATIVE_APP } from './brand';
+import { imageResolver } from '../core/images/useCardImage';
 
 /** Screens that need a signed-in player; also opens games when the server starts them. */
 function SignedIn() {
@@ -151,8 +152,13 @@ const router = createBrowserRouter([
   { path: '*', element: <Navigate to="/" replace /> },
 ]);
 
-// a Spanish (or other non-English) player's catalog loads first, so the first paint is already in their language
-void i18nReady.then(() => createRoot(document.getElementById('root')!).render(
+/** How long the first paint waits for the stored picture links; past it, cards learn their pictures as they arrive. */
+const PICTURE_LINKS_WAIT_MS = 400;
+const pictureLinks = Promise.race([imageResolver().ready, new Promise<void>((resolve) => setTimeout(resolve, PICTURE_LINKS_WAIT_MS))]);
+
+// a Spanish (or other non-English) player's catalog loads first, so the first paint is already in their language; and
+// the picture links stored on this device, so a card already seen shows its picture on the first frame, not a blank
+void Promise.all([i18nReady, pictureLinks]).then(() => createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <Tooltip.Provider delayDuration={300}>

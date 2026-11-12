@@ -278,6 +278,21 @@ impl Hosts {
         *self.ended.lock().unwrap().entry(end_kind(reason)).or_default() += 1;
     }
 
+    /// the counters `totals.rs` keeps across restarts
+    pub fn counts(&self, into: &mut crate::totals::Counts) {
+        into.host_games_started = *self.started.lock().unwrap();
+        into.host_games_ended = self.ended.lock().unwrap().iter().map(|(k, v)| (k.to_string(), *v)).collect();
+    }
+
+    /// Starts the counters from what an earlier run counted
+    pub fn restore(&self, counts: &crate::totals::Counts) {
+        *self.started.lock().unwrap() = counts.host_games_started;
+        let mut ended = self.ended.lock().unwrap();
+        for (how, n) in &counts.host_games_ended {
+            ended.insert(end_kind(how), *n);
+        }
+    }
+
     /// The counters for `/metrics`: games playing, started, and ended by how
     pub fn render(&self, out: &mut String) {
         let _ = writeln!(out, "# TYPE playmat_gateway_host_games_open gauge");

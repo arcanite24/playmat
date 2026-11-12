@@ -94,6 +94,24 @@ to line it up with the facts.
 Classes a card file declares for itself (Kavaron Harrier's effect, Master of Barbs' trigger) are written by hand in
 the transpiler's `CUSTOM` table as the engine classes that do the same.
 
+## The 10,000-game gate run (11 Nov 2026)
+
+Phase 4's gate asks for 10,000 shadow games of the pool. `ShadowGamesTest` recorded seeds 100000–109999 with the 42
+school decks and the 24 meta decks (`Mage.Server/career-src/pioneer`, `standard`, `shadow-decks/meta`), each game a
+pair picked from the seed (the pairing is in [#289](https://github.com/arcanite24/playmat/issues/289)), in 12
+parallel workers; `-Dxmage.shadowGames.seeds=a,b,c` records chosen seeds again.
+
+| | Games |
+|---|---|
+| Match | 9,901 |
+| Differ | 54, each filed with its first differing trace entry in [#289](https://github.com/arcanite24/playmat/issues/289) |
+| Skipped | 45: Java didn't finish them (44 timeouts, 1 executor error); no game has a card the engine lacks |
+
+Twelve games the run's fixes made match are checked in under `shadow/gate10k` (trace texts stripped). The 54 left are
+mostly a handful of causes: Fatehold Charm targeting itself (a Java bug against 115.5), Urborg's granted mana on
+manlands, Nykthos's devotion mana in the playable check, March of Otherworldly Light's exile-from-hand cost, and a
+recorder that names a card not in the game.
+
 ## State
 
 `Game` is a set of copy-on-write parts (`Arc` + `Arc::make_mut`): players, objects, zones, the stack, combat, effects.

@@ -21,6 +21,8 @@ pub enum Zone {
     Exile,
     /// emblems
     Command,
+    /// outside the game: a sideboard's cards (Learn's Lessons)
+    Outside,
 }
 
 /// The steps of a turn, named as Java's `PhaseStep`.
@@ -323,6 +325,9 @@ pub struct Player {
     pub no_stock: bool,
     /// the cards in its sideboard (only counted: `OpenSideboardHint`)
     pub sideboard: usize,
+    /// the sideboard's cards, when the game knows them (shadow games' `sideboardCards`), in Java's order: what
+    /// Learn can reveal
+    pub outside: Vec<ObjId>,
     pub life: i32,
     pub counters: Vec<(String, i32)>,
     pub hand: Vec<ObjId>,
@@ -744,6 +749,9 @@ pub struct Game {
     pub subtypes_until_eot: Vec<(ObjId, u32, String)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
+    /// while triggered abilities go on the stack: what their targets trigger (ward, valiant), which Java's
+    /// `addSimultaneousEvent` holds until every player's are on (`GameImpl.checkTriggered`)
+    pub targeted_later: Option<Vec<StackItem>>,
     /// permanents sacrificed together: where in `pending` the next one's sacrifice triggers go (before what their
     /// leaving triggers)
     pub sac_insert: Option<usize>,
@@ -871,6 +879,7 @@ impl Game {
             exile_if_dies: Vec::new(),
             subtypes_until_eot: Vec::new(),
             triggered_this_turn: Vec::new(),
+            targeted_later: None,
             sac_insert: None,
             entering_together: Vec::new(),
             any_color_made: None,
@@ -1300,8 +1309,10 @@ impl Game {
                         && self.condition_holds(a.intervening_if(), o.controller, src)
                         && self.condition_holds(a.trigger_condition(), o.controller, src)
                     {
-                        // a copy until end of turn (Shifting Woodland) keeps what it copied once it has left
-                        let def = o.until_end_of_turn_def.as_ref().map(|_| o.def.clone());
+                        // a copy until end of turn (Shifting Woodland) keeps what it copied once it has left; a Room's
+                        // keeps the face it came from (the face is rebuilt as doors unlock)
+                        let room = o.printed_def.as_ref().is_some_and(|f| !f.room.is_empty());
+                        let def = (o.until_end_of_turn_def.is_some() || room).then(|| o.def.clone());
                         fired.push(StackItem { ability: Some((i, o.zcc)), def, ..StackItem::spell(src, o.controller) });
                     }
                 }
@@ -2045,6 +2056,11 @@ impl Game {
             Zone::Battlefield => Arc::make_mut(&mut self.battlefield).retain(|x| *x != id),
             Zone::Exile => Arc::make_mut(&mut self.exile).retain(|x| *x != id),
             Zone::Command => Arc::make_mut(&mut self.command).retain(|x| *x != id),
+            Zone::Outside => {
+                let p = self.player_mut(owner);
+                p.outside.retain(|x| *x != id);
+                p.sideboard = p.sideboard.saturating_sub(1);
+            }
             Zone::Stack => Arc::make_mut(&mut self.stack).retain(|x| x.card != id || x.ability.is_some()),
         }
     }
@@ -2103,10 +2119,12 @@ impl Game {
             })
             .count();
         // Valgavoth: a card (not a token) you didn't control, going to an opponent's graveyard, exiled with it
+        // (one sacrificed earlier in the same action too: Java's short-living LKI, Liliana's "each player sacrifices")
         let valgavoths: Vec<ObjId> = if zone == Zone::Graveyard && !self.obj(id).token {
             self.battlefield
                 .iter()
                 .copied()
+                .chain(self.short_lki.iter().copied().filter(|o| *o != id && !self.battlefield.contains(o)))
                 .filter(|src| {
                     let s = self.obj(*src);
                     let o = self.obj(id);
@@ -2262,6 +2280,10 @@ impl Game {
             // its own leave triggers remember its power as it last was (`SourcePermanentPowerValue`)
             if t.card == id && t.lki_power.is_none() {
                 t.lki_power = Some(power);
+            }
+            // a copy's (Mockingbird as Greedy Freebooter): the ability is the copied one, whatever the card is after
+            if t.card == id && t.ability.is_some() && t.def.is_none() && self.obj(id).copied_def.is_some() {
+                t.def = Some(self.obj(id).def.clone());
             }
         }
         // earthbend's delayed trigger (delayed triggers are checked before the others)
@@ -2480,6 +2502,7 @@ impl Game {
             Zone::Exile => Arc::make_mut(&mut self.exile).push(id),
             Zone::Command => Arc::make_mut(&mut self.command).push(id),
             Zone::Stack => {}
+            Zone::Outside => self.player_mut(owner).outside.push(id),
         }
     }
 }
