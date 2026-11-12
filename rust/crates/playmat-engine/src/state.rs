@@ -189,6 +189,8 @@ pub struct Obj {
     pub chosen: Option<(ObjId, u32)>,
     /// a Class's level (1 until it gains another)
     pub class_level: u32,
+    /// the level it had as it last left the battlefield (its look-back: Scavenger's Talent sacrificed with others)
+    pub lki_class_level: u32,
     /// exerted: doesn't untap during its controller's next untap step
     pub exerted: bool,
     /// its power-up ability was activated (once each game, for this object)
@@ -993,6 +995,7 @@ impl Game {
             ninjutsu_pw: None,
             chosen: None,
             class_level: 1,
+            lki_class_level: 1,
             exerted: false,
             powered_up: false,
             creature_types: None,
@@ -1824,7 +1827,10 @@ impl Game {
                 o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0
             }
             Condition::SacrificedThisTurn { n } => self.player(you).sacrificed as i32 >= *n,
-            Condition::ClassLevel { n } => self.obj(source).class_level >= *n,
+            Condition::ClassLevel { n } => {
+                let o = self.obj(source);
+                (if o.zone == Zone::Battlefield { o.class_level } else { o.lki_class_level }) >= *n
+            }
             Condition::CardsInGraveyard { filter, n } => {
                 let g = &self.player(you).graveyard;
                 g.iter().filter(|c| self.filter_matches(filter, you, Some(source), **c)).count() as i32 >= *n
@@ -2482,6 +2488,9 @@ impl Game {
                     o.def = def;
                 }
                 o.cast_x = 0;
+                if from == Zone::Battlefield {
+                    o.lki_class_level = o.class_level;
+                }
                 o.class_level = 1;
                 o.class_gained.clear();
                 o.blocking.clear();
