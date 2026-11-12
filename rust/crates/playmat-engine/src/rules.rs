@@ -12447,7 +12447,12 @@ fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
 /// `TokenImpl.generateTokenInfo`: creating tokens (or an emblem) picks an image with the game's random when there are
 /// two or more to pick from.
 fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
-    let set = game.obj(source).def.set.clone();
+    // a token's set is the one its image came from (`token.setExpansionSetCode(tokenInfo.getSetCode())`): a
+    // Treasure from Fable's Goblin Shaman looks in NEO's Treasures, one image, so no random number
+    let set = match &game.obj(source).token_image {
+        Some((_, set, _)) if game.obj(source).token => set.clone(),
+        _ => game.obj(source).def.set.clone(),
+    };
     let n = token.image_choices(&set);
     let pick = if n >= 2 { game.rng.next_int_bound(n as i32) as u32 } else { 0 };
     game.token_made = Some((token.name.clone(), token.class.clone(), set, pick));
