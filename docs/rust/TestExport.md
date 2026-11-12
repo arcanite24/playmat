@@ -40,3 +40,33 @@ Each player script:
 An exported test passes when the engine, given the script, ends with the same fingerprint. The JUnit assertions themselves stay in Java; the end state stands in for them, since it holds what they read (life, zones, permanents, power and toughness, counters, tapped). A test with `complete: false` passes in another engine only as far as its end state goes.
 
 The action vocabulary is the test player's: see `TestPlayer.priority` and the `CardTestPlayerAPIImpl` methods that build each string. A second engine implements the same parser.
+
+## On the Rust engine
+
+`rust/crates/playmat-engine/tests/exported.rs` plays exports on the engine. A test passes when the game ends with
+Java's end fingerprint. It runs only the tests it can play honestly: `complete`, a two-player duel, every card in the
+engine, no `ai:` or `run:` commands and no cheat commands. It skips the others and says why.
+
+```sh
+cd rust
+cargo test --release -p playmat-engine --test exported   # the checked-in ones: all must pass
+PLAYMAT_EXPORTS=<export folder> cargo test --release -p playmat-engine --test exported -- --nocapture   # a folder, report only
+```
+
+`PLAYMAT_EXPORTS` takes a folder or a file listing exports; add `PLAYMAT_EXPORTS_STRICT=1` to fail on a difference.
+The checked-in set, `playmat-engine/exported/`, holds the exports that pass, with the trace removed.
+
+Measured 11 Nov 2026 on a full export (3,877 tests): 65 use only cards of the engine's pool. 50 pass, none differ, and
+15 are skipped:
+
+| Skipped | Tests |
+|---|---|
+| not `complete` (Java code in the script) | 7: `MadAdvisor` ×2, `TimedTwists`, `ExtraTurns` (Emrakul), `PlayerUnderControl`, `TestFrameworkCanPlayAI` ×2 |
+| `ai:` commands (Java's AI plays) | 3 |
+| cheat commands (`EmblemOfCard`) | 2 |
+| the game set up from Java (`GameSetupTest`) | 1 |
+| Java's AI plays the loop it tests (`RepeatedActionsCapAI`, Broodscale) | 1 |
+| a target Java's AI picked, outside strict choose mode (`GatekeeperOfMalakir`) | 1 |
+
+Most of the 3,877 use filler cards that aren't in the pool (Silvercoat Lion, Grizzly Bears and the like), so the pool's
+own cards are mostly checked by shadow games ([Engine.md](Engine.md)).
