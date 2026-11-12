@@ -47,7 +47,7 @@
    "n": "4",
    "name": "Rules engine and card pipeline",
    "status": "active",
-   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Gate run (11–12 Nov): 9,949 of 10,000 shadow games match and Java didn't finish 45. The 6 that differ are Java bugs Rust doesn't copy (#289), and they wait on the owner's call. 51 of 65 exported card tests pass and none differ; the other 14 can't run outside Java. Next: every Pioneer-legal card.",
+   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Gate run (11–12 Nov): 9,949 of 10,000 shadow games match and Java didn't finish 45. The 6 that differ are Java bugs Rust doesn't copy (#289), accepted as such on 12 Nov. 51 of 65 exported card tests pass and none differ; the other 14 can't run outside Java. Next: every Pioneer-legal card.",
    "pr": [
     219,
     220,
@@ -1049,6 +1049,6 @@
    ]
   }
  },
- "commit": "3cf93bafc4a90535594c5759661215b5d6984319",
+ "commit": "2e7c82580efcdd6537a499def603ed47c75da87d",
  "generated": "2026-11-12"
 }

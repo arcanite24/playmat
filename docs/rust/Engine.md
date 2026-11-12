@@ -145,7 +145,8 @@ What the 54 were:
     `Collectors.toSet()`, so the three cards go to the hand in the order of their random ids; answer 298 names `H1.3`,
     a different card in each engine. `LinkedHashSet` there would fix Java.
 
-  These are the owner's call: if Rust should copy Java in any of them, it's a small change in Rust.
+  Accepted as Java bugs on 12 Nov: Rust keeps the rules and the gate counts these 6 as Java's. If Rust ever had to
+  copy Java in any of them, it's a small change in Rust.
 - **Java recording differently each time.** Recording a seed twice can part (100961 split at answer 201, a
   PICK_TARGET): the driver picks among random UUIDs, whose order changes between runs. A recording replays the same
   every time, but a seed recorded again is a new game.
