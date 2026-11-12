@@ -2600,6 +2600,16 @@ class Translator:
         """`Effect effect = new X(…)`: what kind of thing the right side is decides how it's read"""
         self.sources = getattr(self, 'sources', {})
         self.sources[var] = expr
+        self.failed = getattr(self, 'failed', set()) - {var}
+        try:
+            self._assign(var, expr)
+        except Unsupported:
+            self.vars.pop(var, None)
+            # its later uses fail only because of this; the report names this one (PLAYMAT_ALL_ERRORS)
+            self.failed = getattr(self, 'failed', set()) | {var}
+            raise
+
+    def _assign(self, var, expr):
         if re.search(r'\.withInterveningIf\(\w+(?:\.instance|\.ONCE)?\)\s*$', self.strip_setters(expr)):
             self.vars[var] = self.ability(expr)
             return
@@ -2714,10 +2724,13 @@ def translate(card_name, subtypes, facts):
                 return
             card_statement(t, st, card, added, spell, modes, subtypes)
         if ALL_ERRORS:
+            failed = set(getattr(t, 'failed', ()))
             try:
                 one(st)
             except Unsupported as e:
-                errors.append(str(e))
+                # a statement that uses a local whose own statement failed: that failure is the blocker
+                if not any(re.search(r'(?<![\w.])' + v + r'\b', st) for v in failed):
+                    errors.append(str(e))
             continue
         one(st)
     if errors:
