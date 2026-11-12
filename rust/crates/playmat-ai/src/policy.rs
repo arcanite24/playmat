@@ -287,8 +287,8 @@ fn pay(game: &Game, seat: Seat, cost: &str, sources: &[ObjId]) -> Answer {
     };
     let mine: Vec<ObjId> = sources.iter().copied().filter(|s| game.obj(*s).controller == seat).collect();
     // a color owed: the source making the fewest other colors, so flexible lands stay for later
-    for k in 0..5 {
-        if owed.colored[k] > 0 {
+    for (k, n) in owed.colored.iter().enumerate() {
+        if *n > 0 {
             if let Some(s) =
                 mine.iter().filter(|s| makes(s)[k] > 0).min_by_key(|s| makes(s).iter().filter(|n| **n > 0).count())
             {

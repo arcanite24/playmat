@@ -5599,8 +5599,8 @@ fn pay_from_pool(
         }
         paid
     };
-    for k in 0..5 {
-        unpaid.colored[k] -= spend(&mut pool, stock, unlocked, k, unpaid.colored[k]);
+    for (k, owed) in unpaid.colored.iter_mut().enumerate() {
+        *owed -= spend(&mut pool, stock, unlocked, k, *owed);
     }
     unpaid.colorless -= spend(&mut pool, stock, unlocked, 5, unpaid.colorless);
     // `HybridManaCost.assignPayment`: its first color, else its second
