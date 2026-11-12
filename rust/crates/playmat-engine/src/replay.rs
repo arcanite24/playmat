@@ -338,6 +338,13 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
         }
     }
     let (kind, rest) = r.split_at(1);
+    // a card entering from a hand while its as-enters choices are asked is still in that hand in Java, at its place
+    // (Theorist's Sanctum's behold: the hand's cards are shown, the land among them)
+    if kind == "H" {
+        if let Some(g) = crate::view::as_java(game) {
+            return resolve(&g, r);
+        }
+    }
     match kind {
         "P" => rest.parse::<Seat>().ok().filter(|s| *s < game.seats()).map(Answer::Player),
         "H" | "L" | "G" => {
