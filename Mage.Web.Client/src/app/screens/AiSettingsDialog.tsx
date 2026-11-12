@@ -6,12 +6,13 @@ import { metaDecksFor } from '../../core/decks/metaDecks';
 import { api } from '../connection';
 import { META_PREFIX, useDecks, type RosterDeck } from '../stores/decks';
 import { useDeckRoster } from '../stores/useDeckRoster';
+import { sharedDeckId, useSharedDecks } from '../stores/sharedDecks';
 import { registerMessages, useT } from '../i18n';
 import messages from '../i18n/en/career';
 import {
   adaptiveSentence, adaptiveFormatFor, ghostOpponentId, ghostRecord, MIRROR_OPPONENT_ID, normalizeGhostCode, opponentSource,
 } from '../solo/freePlay';
-import type { GhostOpponent } from '../../protocol/generated/views';
+import type { GhostOpponent, SharedDeck } from '../../protocol/generated/views';
 import type { MetaDeck } from '../../core/decks/metaDecks';
 import { DEFAULT_AI_OPTIONS, usePlay } from '../stores/play';
 import { AI_TYPES, DIFFICULTIES, difficultyOf, offeredAiTypes } from './aiSetup';
@@ -56,6 +57,8 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
   const setOptions = usePlay((state) => state.setAiOptions);
   const decks = useDecks();
   const roster = useDeckRoster();
+  // decks other players share on this server (#137)
+  const shared = (useSharedDecks(open).data ?? []).filter((deck) => !deck.mine);
   const difficulty = difficultyOf(options.skill);
   const t = useT();
   // a server can leave the Monte Carlo AI out
@@ -122,7 +125,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
             <option value="">{t('ai.deck.random')}</option>
             <option value={MIRROR_OPPONENT_ID}>{t('solo.mirror.option')}</option>
             <option value={GHOST_CHOICE}>{t('solo.ghost.option')}</option>
-            <DeckGroups roster={roster} metaDecks={decks.metaDecks} />
+            <DeckGroups roster={roster} metaDecks={decks.metaDecks} shared={shared} />
           </select>
           {!ghostPicked && <p className={styles.detail}>{t(source.kind === 'mirror' ? 'solo.mirror.detail' : 'ai.deck.detail')}</p>}
           {ghostPicked && (
@@ -209,7 +212,7 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
                 }}
               >
                 <option value="">{t('ai.deck.random')}</option>
-                <DeckGroups roster={roster} metaDecks={decks.metaDecks} commanderOnly />
+                <DeckGroups roster={roster} metaDecks={decks.metaDecks} shared={shared} commanderOnly />
               </select>
             </div>
           ))}
@@ -223,13 +226,15 @@ export function AiSettingsDialog({ open, onOpenChange }: { open: boolean; onOpen
 const POD_SEATS = ['ai.pod.seat2', 'ai.pod.seat3'] as const;
 
 /**
- * The decks the AI can be given, grouped: starters, commander starters, each format's decks, the player's own.
- * `commanderOnly` (a pod's seats) leaves out the starters and format decks that aren't commander decks.
+ * The decks the AI can be given, grouped: starters, commander starters, each format's decks, the player's own, and
+ * the decks others share on the server. `commanderOnly` (a pod's seats) leaves out the starters, format decks and
+ * shared decks that aren't commander decks.
  */
-function DeckGroups({ roster, metaDecks, commanderOnly = false }: { roster: RosterDeck[]; metaDecks: MetaDeck[]; commanderOnly?: boolean }) {
+function DeckGroups({ roster, metaDecks, shared = [], commanderOnly = false }: { roster: RosterDeck[]; metaDecks: MetaDeck[]; shared?: SharedDeck[]; commanderOnly?: boolean }) {
   const t = useT();
   const starters = roster.filter((deck) => deck.starter);
   const mine = roster.filter((deck) => !deck.starter);
+  const sharedHere = shared.filter((deck) => deck.owner && deck.deckId && (!commanderOnly || isCommanderFormat(deck.format)));
   // the AI's format decks, one group per format, in the order the index lists the formats
   const metaFormats = useMemo(
     () => [...new Set(metaDecks.map((deck) => deck.format))].filter((format) => !commanderOnly || isCommanderFormat(format)),
@@ -255,6 +260,15 @@ function DeckGroups({ roster, metaDecks, commanderOnly = false }: { roster: Rost
       {mine.length > 0 && (
         <optgroup label={t('ai.deck.yours')}>
           {mine.map((deck) => <option key={deck.id} value={deck.id}>{deck.name}</option>)}
+        </optgroup>
+      )}
+      {sharedHere.length > 0 && (
+        <optgroup label={t('ai.deck.shared')}>
+          {sharedHere.map((deck) => (
+            <option key={`${deck.owner}/${deck.deckId}`} value={sharedDeckId(deck.owner ?? '', deck.deckId ?? '')}>
+              {t('ai.deck.sharedBy', { name: deck.name ?? '', owner: deck.owner ?? '' })}
+            </option>
+          ))}
         </optgroup>
       )}
     </>

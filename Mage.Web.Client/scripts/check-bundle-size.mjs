@@ -120,13 +120,17 @@ import { gzipSync } from 'node:zlib';
 // and its magnifier, the log's pin and outside-click close, the Gauntlet map's legend, with their English and Spanish
 // messages; all lazy with their screens. Measured app 820.1 kB
 // both on master together 2026-11-08: the match-feel batch, Match size and the UI and Gauntlet fixes, measured app 821.6 kB
+// app raised 2026-11-11 from 824 kB (master measured 824.0) for deck management (#167 cover picker, #200 tags and
+// drafts, #198 only-these-colors, #137 shared decks): the cover dialog, the shelf filter and organizer, the shared
+// decks list, with their English and Spanish messages; the dialogs are lazy with the deck screens. Measured app 830.8 kB
 // app raised 2026-11-11 from 824 kB for notifications and presence (#208, #209, #229, #195): notification kinds in
 // Settings, the table-join watch in the shell, the status picker and the player directory in the lazy lobby drawer,
 // with their English and Spanish messages. Measured initial 212.0 kB, app 827.4 kB
+// both on master together 2026-11-12: deck management and notifications and presence, measured initial 213.3 kB, app 834.2 kB
 const BUDGET_KB = {
   entry: 86,
   initial: 221,
-  app: 830,
+  app: 837,
 };
 
 const dist = new URL('../dist/', import.meta.url).pathname;

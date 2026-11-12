@@ -58,6 +58,12 @@ export interface DeckCardLists {
   cardLayout?: DeckCardLayout;
   sideboardLayout?: DeckCardLayout;
   coverCard?: DeckCoverCard;
+  /** the player chose the cover: it stays while its card is in the deck; otherwise the cover follows the deck (#167) */
+  coverPinned?: boolean;
+  /** the player's own labels, to sort the deck shelf by (#200) */
+  tags?: string[];
+  /** a deck still being worked on, which the shelf can hide (#200) */
+  draft?: boolean;
   /** the deck website this deck was imported from, so it can be updated later */
   source?: DeckImportSource;
   colors?: {

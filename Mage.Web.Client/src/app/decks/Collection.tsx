@@ -7,7 +7,7 @@ import { CardFilterBar } from './CardFilterBar';
 import { InspectButton } from './CardInspect';
 import { useCardInfoStore } from './cardInfo';
 import styles from './DeckBuilder.module.css';
-import { EMPTY_FILTERS, type CardFilters } from './filters';
+import { EMPTY_FILTERS, intersectIdentity, onlyColorsIdentity, type CardFilters } from './filters';
 
 const PAGE = 60;
 
@@ -64,8 +64,10 @@ export function Collection({ format, identity, counts, limitOf, onAdd, onRemove,
   const [allSets, setAllSets] = useState(false);
   // a commander deck shows what its commander allows, unless the player asks for everything
   const [anyIdentity, setAnyIdentity] = useState(false);
-  const colorIdentity = identity && !anyIdentity ? identity.join('') : null;
   const query = useDebounced(filters, 250);
+  // "only these colors" is an identity limit too, on top of the commander's (both run on the server, Java and Rust alike)
+  const allowed = intersectIdentity(identity && !anyIdentity ? identity : null, onlyColorsIdentity(query.colors, query.onlyColors));
+  const colorIdentity = allowed === null ? null : allowed.join('');
   const remember = useCardInfoStore((state) => state.remember);
   const sets = useQuery({ queryKey: ['expansionSets'], queryFn: () => api.getExpansionSets(), staleTime: Infinity });
   const ignoreSets = useMemo(

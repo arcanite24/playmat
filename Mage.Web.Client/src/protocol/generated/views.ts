@@ -2052,6 +2052,7 @@ export interface ServerInfo {
     registration?: string;
     rustEngine?: boolean;
     serverName?: string;
+    sharedDecks?: boolean;
     signOn?: string;
     signOnOnly?: boolean;
     support?: boolean;
@@ -2106,6 +2107,23 @@ export interface ServerStats {
     uptimeMillis?: number;
     usersOnline?: number;
     version?: string;
+}
+
+export interface SharedDeck {
+    cardCount?: number;
+    colors?: string;
+    coverCardNumber?: string;
+    coverName?: string;
+    coverSetCode?: string;
+    data?: string;
+    deckId?: string;
+    format?: string;
+    mine?: boolean;
+    name?: string;
+    owner?: string;
+    sharedAt?: number;
+    sideboardCount?: number;
+    updatedAt?: number;
 }
 
 export interface SimpleCardView extends Serializable, SelectableObjectView {

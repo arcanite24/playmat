@@ -110,6 +110,15 @@
           See the <a href="https://github.com/arcanite24/playmat/blob/master/ops/web/README.md#progression">full
           reference</a>.</p>
 
+        <h2 id="shared-decks">Shared decks</h2>
+        <p>On a server with accounts, players can tick <strong>Share with this server</strong> on any of their decks.
+          Everyone signed in then finds it under <strong>Shared decks</strong> on the Decks screen, where they can copy
+          it into their own decks, and in the AI settings as the AI's deck. Others always get the owner's latest
+          version, and a deleted deck stops being shared. An account can share up to 50 decks. To turn sharing off,
+          set <strong>Shared decks</strong> to Off in <strong>Settings</strong>: the buttons go away, and the shares are
+          kept for when it comes back on. Shares live in <code>db/web_decks.db</code> with the decks, so the nightly
+          backup has them.</p>
+
         <h2 id="contributors">Thanking contributors</h2>
         <p>People who keep reporting bugs, asking for features or sending pull requests can get the
           <strong>debug duck</strong>, a pet that sits by their side of the battlefield. It's never sold and doesn't

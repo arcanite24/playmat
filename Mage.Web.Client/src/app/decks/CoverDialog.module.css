@@ -1,0 +1,108 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px 12px;
+  max-height: min(64dvh, 720px);
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.option {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: rgb(var(--ink-rgb) / 0.06);
+}
+
+.on {
+  box-shadow: inset 0 0 0 2px var(--sage);
+}
+
+.option:focus-visible,
+.pick:focus-visible,
+.printings:focus-visible {
+  outline: 2px solid var(--ink-strong);
+  outline-offset: 2px;
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.art,
+.auto {
+  display: block;
+  aspect-ratio: 626 / 457;
+  width: 100%;
+  border-radius: 8px;
+  background: rgb(var(--ink-rgb) / 0.08) center / cover no-repeat;
+}
+
+.auto {
+  display: grid;
+  place-items: center;
+  color: var(--ink-dim);
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: var(--text-sm);
+}
+
+.caption b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.caption small {
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.printings {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  cursor: pointer;
+}
+
+.printings:hover {
+  background: rgb(0 0 0 / 0.75);
+}
+
+.note {
+  color: var(--ink-dim);
+}

@@ -56,7 +56,7 @@ public class WebClientApiContractTest {
             "setCapabilities", "gameStateResync", // bridge protocol options and game state patches
             "chatSetIgnored", "gameWatchers", // user and game managers (social/UserRelations, watcher names)
             "replayList", "replayPage", // replay store (replay/ReplayStoreTest)
-            "serverInfo", "deckSyncList", "deckSyncGet", "deckSyncPut", "deckSyncDelete", // config and deck store (decks/DeckStoreTest)
+            "serverInfo", "deckSyncList", "deckSyncGet", "deckSyncPut", "deckSyncDelete", "deckShareSet", "deckSharedList", "deckSharedGet", // config and deck store (decks/DeckStoreTest)
             "reportPlayer", "clientReportError", "adminGetReports", "adminCloseReport", "adminClientErrors", // moderation stores
             "adminServerStats", // bridge metrics
             "adminUpdateStatus", "adminUpdateApply", "adminUpdateRollback", // the registry and GitHub, the updater's files

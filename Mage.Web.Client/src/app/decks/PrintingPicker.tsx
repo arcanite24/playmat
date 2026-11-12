@@ -9,13 +9,15 @@ import { entryKey, printingOf, type PrintingRef } from './deckModel';
 import styles from './PrintingPicker.module.css';
 
 /** Every printing of a card, newest set first; picking one switches the deck entry (and its picture) to it. */
-export function PrintingPicker({ name, current, onPick, onClose }: {
+export function PrintingPicker({ name, current, onPick, onClose, description = 'The deck uses the printing you pick, picture and all.' }: {
   /** the card whose printings are shown; null closes the picker */
   name: string | null;
   /** the entry's printing key (see entryKey) */
   current: string | null;
   onPick(printing: PrintingRef): void;
   onClose(): void;
+  /** what picking does, under the title */
+  description?: string;
 }) {
   const remember = useCardInfoStore((state) => state.remember);
   const sets = useQuery({ queryKey: ['expansionSets'], queryFn: () => api.getExpansionSets(), staleTime: Infinity });
@@ -43,7 +45,7 @@ export function PrintingPicker({ name, current, onPick, onClose }: {
       open={name !== null}
       onOpenChange={(open) => !open && onClose()}
       title={name ? `${name}: printings` : 'Printings'}
-      description="The deck uses the printing you pick, picture and all."
+      description={description}
       width="xl"
     >
       {printings.isPending ? (

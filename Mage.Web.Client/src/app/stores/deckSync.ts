@@ -60,6 +60,14 @@ async function upload(id: string): Promise<void> {
   rememberKnown([id]);
 }
 
+/** One deck to the account now, without waiting for the usual delay (sharing a deck needs it on the server). */
+export async function uploadNow(id: string): Promise<void> {
+  if (!enabled) throw new Error('Decks are not saved to your account on this server.');
+  clearTimeout(pending.get(id));
+  pending.delete(id);
+  await upload(id);
+}
+
 /** A full two-way sync with the account. */
 export async function syncNow(): Promise<void> {
   if (!enabled) return;

@@ -1,5 +1,5 @@
 import type { CardView, DeckCardLists as WireDeck } from '../../protocol/generated/views';
-import type { DeckCardInfo, DeckCardLists } from '../../core/decks/types';
+import type { DeckCardInfo, DeckCardLists, DeckCoverCard } from '../../core/decks/types';
 
 /**
  * Pure deck editing: entries are counted by printing (set + collector number), zones are main and side.
@@ -163,16 +163,44 @@ export function deckColors(entries: DeckCardInfo[], info: ReadonlyMap<string, Ca
   return COLOR_KEYS.map(([, letter]) => letter).filter((letter) => used.has(letter));
 }
 
-/** The deck as stored, with its derived colors and a cover card. */
+/** The deck as stored, with its derived colors and a cover card (see coverFor). */
 export function finalizeDeck(deck: DeckCardLists, info: ReadonlyMap<string, CardView>): DeckCardLists {
   const colors = deckColors(deck.cards, info);
   const has = (letter: string) => colors.includes(letter);
-  const cover = deck.coverCard ?? pickCover(deck.cards, info);
+  const { cover, pinned } = coverFor(deck, info);
   return {
     ...deck,
     colors: { white: has('W'), blue: has('U'), black: has('B'), red: has('R'), green: has('G') },
     coverCard: cover ?? undefined,
+    coverPinned: pinned || undefined,
   };
+}
+
+/**
+ * The deck's cover (#167). One the player chose stays, printing and all, while its card is in the deck. An automatic
+ * one keeps its card while the deck has it but follows the deck's printing of it. A cover whose card left the deck
+ * gives way to an automatic pick: the most expensive nonland card.
+ */
+export function coverFor(deck: DeckCardLists, info: ReadonlyMap<string, CardView>): { cover: DeckCoverCard | null; pinned: boolean } {
+  const current = deck.coverCard;
+  if (current) {
+    const entries = [...deck.cards, ...deck.sideboard].filter((entry) => entry.setCode && entry.cardNumber);
+    const exact = entries.find((entry) => entry.setCode === current.setCode && entry.cardNumber === current.cardNumber);
+    const name = (current.name ?? exact?.cardName ?? '').toLowerCase();
+    const named = name ? entries.filter((entry) => entry.cardName.toLowerCase() === name) : [];
+    if (deck.coverPinned && (exact || named.length > 0)) return { cover: { ...current, name: current.name ?? exact?.cardName }, pinned: true };
+    const kept = exact ?? named[0];
+    if (kept) return { cover: { setCode: kept.setCode!, cardNumber: kept.cardNumber!, name: kept.cardName }, pinned: false };
+  }
+  return { cover: pickCover(deck.cards, info), pinned: false };
+}
+
+/** The deck with the player's own cover, or back to an automatic one (null). */
+export function chooseCover(deck: DeckCardLists, cover: PrintingRef | null, info: ReadonlyMap<string, CardView>): DeckCardLists {
+  const next: DeckCardLists = cover
+    ? { ...deck, coverCard: { setCode: cover.setCode, cardNumber: cover.cardNumber, name: cover.cardName }, coverPinned: true }
+    : { ...deck, coverCard: undefined, coverPinned: undefined };
+  return finalizeDeck(next, info);
 }
 
 function pickCover(entries: DeckCardInfo[], info: ReadonlyMap<string, CardView>) {

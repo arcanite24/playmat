@@ -508,6 +508,7 @@ The Settings tab (admins) changes these at once, without a restart; they are kep
 |---|---|
 | New accounts | anyone can register, or invite only: an invite link, a place on the allowlist, or an approved access request |
 | Career | on or off; `XMAGE_CAREER=off` turns it off for good |
+| Shared decks | on (the default) or off: players can share decks with everyone on the server, to copy or give to the AI (`deckShareSet`, `deckSharedList`, `deckSharedGet`; up to 50 per account, kept in `web_deck_share` in `db/web_decks.db`). Off hides sharing and keeps the shares |
 | Progression XP / coins | 0 to 500 percent (default 100): scales the XP and coins every game pays (see [Progression](#progression)) |
 | AI opponents per table | 0 to 15, or empty for the config's `maxAiOpponents` |
 | Time to answer | 30 to 3600 seconds, or the config's `maxSecondsIdle` |
