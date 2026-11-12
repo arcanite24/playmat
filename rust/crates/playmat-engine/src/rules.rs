@@ -1978,7 +1978,16 @@ fn mana_options(
 ) -> (Vec<Vec<Mana>>, Vec<(Color, u32)>) {
     let mut devotions = Vec::new();
     let mut options: Vec<Vec<Mana>> = Vec::new();
-    for (id, a) in mana_sources(game, seat) {
+    let sources = mana_sources(game, seat);
+    // `ManaOptions.addManaWithCost` pays Nykthos's {2} from the options before it, its own mana among them: with
+    // nothing else to make mana, its devotion ability can't be paid
+    let pool = game.player(seat).mana_pool;
+    let more = sources.len() > 1
+        || !extra.is_empty()
+        || pool.colorless > 0
+        || pool.colored.iter().any(|n| *n > 0)
+        || !game.player(seat).conditional_pool.is_empty();
+    for (id, a) in sources {
         // the mana its tapping triggers: one more source each
         for k in tap_for_mana_extra(game, seat, id) {
             options.push(vec![Mana::of(Color::ALL[k], 1)]);
@@ -1993,7 +2002,7 @@ fn mana_options(
                 devotions.extend(Color::ALL.iter().map(|c| (*c, m.colored[c.index()])).filter(|(_, n)| *n > 0));
                 continue;
             }
-            if let Some(c) = Color::ALL.iter().copied().max_by_key(|c| m.colored[c.index()]) {
+            if let Some(c) = Color::ALL.iter().copied().max_by_key(|c| m.colored[c.index()]).filter(|_| more) {
                 for _ in 3..m.colored[c.index()] {
                     options.push(vec![Mana::of(c, 1)]);
                 }
