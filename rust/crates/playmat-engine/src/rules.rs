@@ -6144,6 +6144,7 @@ fn refresh_land_types(game: &mut Game) {
         game.land_becomes = kept;
     }
     let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
+    let mut reapply = false;
     for id in ids {
         let o = game.obj(id);
         let base = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
@@ -6161,6 +6162,13 @@ fn refresh_land_types(game: &mut Game) {
         if given == applied && gained == applied_gained {
             continue;
         }
+        // Leyline of the Guildpact's types go on top of these: taken off while the land is rebuilt, put back after
+        if o.pre_guildpact.is_some() {
+            game.unapply_guildpact(id);
+            reapply = true;
+        }
+        let o = game.obj(id);
+        let base = o.land_type_base.as_ref().map(|(b, _, _)| b.clone()).unwrap_or_else(|| o.def.clone());
         if given.is_empty() && gained.is_empty() {
             let o = game.obj_mut(id);
             o.def = o.land_type_base.take().unwrap().0;
@@ -6202,6 +6210,9 @@ fn refresh_land_types(game: &mut Game) {
         let o = game.obj_mut(id);
         o.land_type_base = Some((base, given, gained));
         o.def = Arc::new(land);
+    }
+    if reapply {
+        game.update_guildpact();
     }
 }
 
@@ -13767,8 +13778,22 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                         && (o.damage >= t || (o.deathtouched && o.damage > 0)))
             })
             .collect();
+        // `GameImpl.checkStateBasedActions` moves each permanent as it comes to it: an Aura after the creature it
+        // enchants, which went for 0 toughness, already enchants nothing (its card follows the creature's)
+        let bf: Vec<ObjId> = game.battlefield.to_vec();
+        let gone_before = |aura: ObjId| {
+            let Some(to) = game.attached(aura) else { return false };
+            let (Some(a), Some(t)) = (bf.iter().position(|x| *x == aura), bf.iter().position(|x| *x == to)) else {
+                return false;
+            };
+            t < a
+                && dying.contains(&to)
+                && game.has_type(to, CardType::Creature)
+                && game.power_toughness(to).1 <= 0
+                && game.obj(aura).def.has_subtype("Aura")
+        };
+        let mut dying: Vec<ObjId> = bf.iter().copied().filter(|id| dying.contains(id) || gone_before(*id)).collect();
         // 704.5y: of the Roles one player controls on one permanent, only the newest stays
-        let mut dying = dying;
         let roles: Vec<ObjId> = game
             .battlefield
             .iter()
