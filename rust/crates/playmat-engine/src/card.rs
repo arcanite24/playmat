@@ -548,6 +548,12 @@ pub enum Trigger {
     },
     /// you cycle a card (`CycleControllerTriggeredAbility`, `ACTIVATED_ABILITY`)
     YouCycle,
+    /// your first spell during each opponent's turn (`FirstSpellOpponentsTurnTriggeredAbility`)
+    FirstSpellOpponentsTurn,
+    /// this enters untapped (`EntersBattlefieldUntappedTriggeredAbility`)
+    EntersUntapped,
+    /// you scry or surveil (`ScryOrSurveilTriggeredAbility`, `SCRIED`/`SURVEILED`): X is the amount
+    YouScryOrSurveil,
     /// one or more cards of the filter leave your graveyard (`CardsLeaveGraveyardTriggeredAbility`, once for each
     /// `ZONE_CHANGE_BATCH`)
     CardsLeaveGraveyard {

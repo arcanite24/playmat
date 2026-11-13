@@ -3731,6 +3731,9 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         Trigger::CommittedCrime => you == seat && crime,
         Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
         Trigger::CastSecondSpell { who } => Game::whose(who, you, seat) && g.player(seat).spells_cast == 2,
+        Trigger::FirstSpellOpponentsTurn => {
+            you == seat && g.active.is_some_and(|a| a != you) && g.player(seat).spells_cast == 1
+        }
         _ => false,
     });
     let mut fired = fired;
@@ -5370,13 +5373,25 @@ pub fn add_poison(game: &mut Game, seat: Seat, n: i32) {
 fn scry(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32, rule: &str) -> bool {
     let cards: Vec<ObjId> = game.player(seat).library.iter().take(amount.max(0) as usize).copied().collect();
     if cards.is_empty() {
+        scried(game, seat, amount);
         return true;
     }
     let Some(bottom) = choose_cards(game, d, seat, &cards, &cards, 0, cards.len(), rule) else {
         return false;
     };
     let top: Vec<ObjId> = cards.iter().copied().filter(|c| !bottom.contains(c)).collect();
-    put_on_library(game, d, seat, &bottom, false, true) && put_on_library(game, d, seat, &top, true, true)
+    let done = put_on_library(game, d, seat, &bottom, false, true) && put_on_library(game, d, seat, &top, true, true);
+    if done {
+        scried(game, seat, amount);
+    }
+    done
+}
+
+/// `SCRIED` / `SURVEILED`: fired after the cards move, with the amount asked for, even from an empty library
+fn scried(game: &mut Game, seat: Seat, amount: i32) {
+    let sources: Vec<ObjId> = game.trigger_sources();
+    let fired = game.triggers(sources, |_, _, you, t| you == seat && matches!(t, Trigger::YouScryOrSurveil));
+    game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
 }
 
 /// How many objects a target takes: at least, at most.
@@ -10152,6 +10167,9 @@ fn apply_each_effect(
                         return;
                     }
                 }
+                if *amount >= 1 {
+                    scried(game, controller, *amount);
+                }
             }
             EffectDef::LookLibraryAndPickControllerEffect {
                 look,
@@ -13408,6 +13426,7 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         | Trigger::EntersOrAttacks
         | Trigger::TransformsOrEnters
         | Trigger::EntersOrUpkeep => src == id && g.obj(src).zone == Zone::Battlefield,
+        Trigger::EntersUntapped => src == id && g.obj(src).zone == Zone::Battlefield && !g.obj(src).tapped,
         Trigger::EntersAll { filter, include_self, graveyard, .. } => {
             *graveyard == (g.obj(src).zone == Zone::Graveyard)
                 && ((src == id && *include_self) || g.filter_matches(filter, you, Some(src), id))

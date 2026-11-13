@@ -444,6 +444,8 @@ CUSTOM = {
 # abilities with arguments: class -> (field name, kind) per argument; optional trailing arguments may be left out
 ABILITIES = {
     'EntersBattlefieldTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'EntersBattlefieldUntappedTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'ScryOrSurveilTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'CastSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'CrewsVehicleSourceTriggeredAbility': [('effect', 'effect')],
     'BecomesTappedSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
@@ -542,7 +544,8 @@ def triggered(a):
     return out
 
 
-SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'CrewsVehicleSourceTriggeredAbility': 'crews_vehicle',
+SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlefieldUntappedTriggeredAbility': 'enters_untapped',
+                   'ScryOrSurveilTriggeredAbility': 'you_scry_or_surveil', 'CrewsVehicleSourceTriggeredAbility': 'crews_vehicle',
                    'BecomesTappedSourceTriggeredAbility': 'becomes_tapped', 'CastSourceTriggeredAbility': 'cast_this', 'AttacksTriggeredAbility': 'attacks',
                    'DiesSourceTriggeredAbility': 'dies', 'PutIntoGraveFromBattlefieldSourceTriggeredAbility': 'dies',
                    'EntersBattlefieldOrDiesSourceTriggeredAbility':
@@ -3163,6 +3166,8 @@ class Translator:
     def wave2_triggers(self, cls, args, flag, out):
         """More trigger classes (wave 2), read by shape; None if `cls` isn't one of them"""
         n = len(args)
+        if cls == 'FirstSpellOpponentsTurnTriggeredAbility' and n == 2:
+            return out({'e': 'first_spell_opponents_turn'}, args[0], flag(args[1]))
         # "when this dies, return it …": its target is the card in the graveyard
         if cls == 'DiesSourceTriggeredAbility' and n == 3 and args[2] in ('SetTargetPointer.CARD', 'SetTargetPointer.NONE'):
             return out({'e': 'dies'}, args[0], flag(args[1]), args[2] == 'SetTargetPointer.CARD')
