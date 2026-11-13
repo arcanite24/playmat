@@ -4048,10 +4048,16 @@ def granted_rules(card):
                                       card_source(card.get('name'))):
                 g['rule'] = re.sub(r': (?:This (?:artifact|creature|permanent)|It) (gains|deals) ', r': {this} \1 ',
                                    g['rule'], count=1)
+            # `new RegenerateSourceEffect()` writes "Regenerate {this}" (Molting Snakeskin's "Regenerate this creature")
+            if effects == ['RegenerateSourceEffect'] and 'new RegenerateSourceEffect()' in card_source(card.get('name')):
+                g['rule'] = re.sub(r': Regenerate this (?:artifact|creature|permanent)\.', ': Regenerate {this}.',
+                                   g['rule'], count=1)
         elif g.get('class') == 'TriggeredAbility' and quoted:
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
             # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
-            phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', card_source(card.get('name')))
+            # (a token's too: the Sorcerer Role's "Whenever this creature attacks, ")
+            phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', card_source(card.get('name')) + ''.join(
+                open(os.path.join(TOKENS, cls + '.java')).read() for cls in token_classes([card.get('name')])))
             if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
                 g['rule'] = quoted.group(1)
             else:
