@@ -15762,8 +15762,9 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         o.kicked = kicked;
         o.cast = cast;
         o.entered_turn = turn;
-        // `EscapesWithAbility`
-        if std::mem::take(&mut o.escaped) {
+        // `EscapesWithAbility` (the flag stays while it's on the battlefield: `EscapeAbility.wasCastedWithEscape`,
+        // Kroxa's "sacrifice it unless it escaped"; leaving clears it)
+        if o.escaped {
             for a in &def.abilities {
                 if let AbilityDef::EscapesWithAbility { counters, .. } = a {
                     o.add_counters("+1/+1", *counters);

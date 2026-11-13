@@ -230,7 +230,7 @@ pub struct Obj {
     pub flashback: bool,
     /// harmonize: the creature chosen to tap for the cost, while this is cast
     pub harmonize_tap: Option<ObjId>,
-    /// cast with its escape cost (until it enters, or leaves the stack another way)
+    /// cast with its escape cost: on the stack, and on the battlefield as the permanent it became (cleared as it leaves)
     pub escaped: bool,
     /// the player the attacker this ninja's ninjutsu returned was attacking
     pub ninjutsu_defender: Option<Seat>,
