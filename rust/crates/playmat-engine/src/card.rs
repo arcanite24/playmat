@@ -1212,6 +1212,11 @@ pub enum EffectDef {
         effect: Box<EffectDef>,
         condition: Condition,
     },
+    /// `effect` on each of the ability's targets in turn (`EachTargetPointer`: Dragonspark Reactor's damage to the
+    /// player, then to the creature)
+    EachTargetEffect {
+        effect: Box<EffectDef>,
+    },
     /// `effect` on the ability's target number `target` (0 the first; `SecondTargetPointer` is 1)
     TargetPointerEffect {
         target: usize,

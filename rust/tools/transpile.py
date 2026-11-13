@@ -1426,6 +1426,13 @@ class Translator:
         if re.fullmatch(r'new Return(?:FromGraveyard)?ToHandTargetEffect\(\)\.setTargetPointer\(new EachTargetPointer\(\)\)',
                         canonical(expr.strip())):
             return {'class': 'ReturnToHandEachTargetEffect'}
+        # damage to each of the ability's targets (Dragonspark Reactor's player and creature)
+        m = re.fullmatch(r'(new DamageTargetEffect\((?:[^()]|\([^()]*\))*\))((?:\.setText\(.*\))?)'
+                         r'\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip()), re.S)
+        if m:
+            e = self.effect(m.group(1) + m.group(2))
+            if e.get('class') == 'DamageTargetEffect':
+                return {'class': 'EachTargetEffect', 'effect': e}
         # every target (the one target a duel's "for each opponent" adjuster leaves)
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
         # the ability's second target (`SecondTargetPointer`): counters put on it
@@ -4031,6 +4038,14 @@ def granted_rules(card):
             if any(c.get('class') == 'SacrificeSourceCost' for c in g.get('cost', [])):
                 g['rule'] = re.sub(r'\b([Ss])acrifice this (?:artifact|creature|permanent|land|enchantment)\b',
                                    r'\1acrifice {this}', g['rule'], count=1)
+            # the effect writes its own sentence, where the source is {this}: "{this} gains flying" (Lunarch Mantle's
+            # "this creature gains"), "{this} deals 1 damage" (Mask of Immolation's "it deals")
+            effects = [e.get('class') for e in g.get('effects', [])]
+            if len(effects) == 1 and effects[0] in ('GainAbilitySourceEffect', 'DamageTargetEffect') \
+                    and not re.search(r'new %s\((?:[^;()]|\((?:[^;()]|\([^;()]*\))*\))*\)\s*\.setText' % effects[0],
+                                      card_source(card.get('name'))):
+                g['rule'] = re.sub(r': (?:This (?:artifact|creature|permanent)|It) (gains|deals) ', r': {this} \1 ',
+                                   g['rule'], count=1)
         elif g.get('class') == 'TriggeredAbility' and quoted:
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
             # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written

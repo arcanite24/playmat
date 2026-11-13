@@ -1804,10 +1804,12 @@ impl Game {
                     .max()
                     .unwrap_or(0),
                 Value::SourceCounters { counter } => {
-                    if self.obj(source).zone == Zone::Battlefield {
-                        self.obj(source).counter(counter)
+                    let o = self.obj(source);
+                    if o.zone == Zone::Battlefield {
+                        o.counter(counter)
                     } else {
-                        0
+                        // `CountersSourceCount` looks back at it (Dragonspark Reactor sacrificed for its damage)
+                        o.lki_counters.iter().filter(|(c, _)| c == counter).map(|c| c.1).sum()
                     }
                 }
                 Value::AurasAttached => self

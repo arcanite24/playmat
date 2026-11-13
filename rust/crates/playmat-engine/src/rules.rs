@@ -7074,6 +7074,12 @@ fn apply_each_effect(
                 let only = vec![legal.get(*target).cloned().unwrap_or_default()];
                 apply_each_effect(game, d, item, std::slice::from_ref(&**effect), &only, source);
             }
+            EffectDef::EachTargetEffect { effect } => {
+                for ts in legal.iter() {
+                    let only = vec![ts.clone()];
+                    apply_each_effect(game, d, item, std::slice::from_ref(&**effect), &only, source);
+                }
+            }
             EffectDef::DamageTargetEffect { amount } => {
                 let amount = &v!(amount);
                 for t in legal.first().cloned().unwrap_or_default() {
