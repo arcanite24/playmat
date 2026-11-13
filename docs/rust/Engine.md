@@ -286,6 +286,12 @@ Being in the engine and being trusted are kept apart.
   reads "{this}" (Dragon Mantle, Burning Anger). Replayed on master bf0977f, 1,464 games match and 43 differ; 1,361
   more cards are verified, added in two PRs, the used ones first: 7,997, then 8,677. Left: a daybound card cast at
   night numbers its abilities as one that entered transformed in Java (Fangblade Brigand), and single games.
+  A second round (454 games) took the 449 cards still unverified after those, the ones #305, #306, #308 and #312
+  added among them. Its fixes, each with a game under `shadow/factory/`: a step trigger's "that player" is the
+  active player (`BeginningOfUpkeepTriggeredAbility`'s target pointer: Manic Scribe, Gibbering Fiend); an Aura
+  sacrificed for its own ability exiles what it enchanted (Path to Redemption). 430 of 452 games match and 341
+  more cards are verified: 9,018. Java's nondeterminism, not copied: `ShuffleIntoLibraryTargetEffect` shuffles each
+  owner's library in `HashMap` order, so Turn the Earth with cards from both graveyards parts there.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
