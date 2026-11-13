@@ -250,6 +250,20 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     if was && !o.tapped {
                         fire_untapped(game, id);
                     }
+                } else if has_static(game, id, |e| {
+                    matches!(e, EffectDef::UntapSourceDuringEachOtherPlayersUntapStepEffect)
+                }) || game.any_static(|g, src, e| {
+                    matches!(e, EffectDef::UntapAllDuringEachOtherPlayersUntapStepEffect { filter }
+                            if g.obj(src).controller != active
+                                && g.obj(id).controller == g.obj(src).controller
+                                && g.filter_matches(filter, g.obj(src).controller, Some(src), id))
+                }) {
+                    // "untap this during each other player's untap step" (a rules effect, once each untap step)
+                    let was = game.obj(id).tapped;
+                    untap(game.obj_mut(id));
+                    if was && !game.obj(id).tapped {
+                        fire_untapped(game, id);
+                    }
                 }
             }
         }
@@ -1425,6 +1439,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
                 >= *amount
         }
         CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
+        CostDef::MillCardsCost { amount } => game.player(seat).library.len() >= *amount,
         CostDef::PayEnergyCost { amount } => energy(game, seat) >= *amount,
         CostDef::RevealTargetFromHandCost { filter, min, .. } => {
             game.player(seat)
@@ -1535,12 +1550,27 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         || sorcery_speed(game, seat)
         || {
             game.any_static(|g, src, e| match e {
+                // checked against the face being cast (an adventure's sorcery is a noncreature spell)
                 EffectDef::CastAsThoughItHadFlashAllEffect { filter } => {
-                    g.obj(src).controller == seat && g.filter_matches(filter, seat, Some(src), id)
+                    g.obj(src).controller == seat && face_matches(g, filter, seat, src, id, def)
+                }
+                EffectDef::ConditionalAsThoughEffect { effect, condition } => {
+                    matches!(&**effect, EffectDef::CastAsThoughItHadFlashAllEffect { filter }
+                        if g.obj(src).controller == seat && face_matches(g, filter, seat, src, id, def))
+                        && g.condition_holds(Some(condition), seat, src)
                 }
                 _ => false,
             })
         }
+        // the card's own "as though it had flash" while a condition holds (Swift Reckoning)
+        || def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| {
+                matches!(e, EffectDef::ConditionalAsThoughEffect { effect, condition }
+                    if matches!(**effect, EffectDef::CastAsThoughItHadFlashSourceEffect)
+                        && game.condition_holds(Some(condition), seat, id))
+            }),
+            _ => false,
+        })
         || game
             .flash_until_next_turn
             .iter()
@@ -1816,7 +1846,10 @@ fn activations_forbidden(game: &Game, id: ObjId) -> bool {
     game.obj(id).zone == Zone::Battlefield
         && ([CardType::Artifact, CardType::Creature, CardType::Planeswalker].iter().any(|t| game.has_type(id, *t))
             && game.any_static(|_, _, e| matches!(e, EffectDef::ClarionConquerorEffect))
-            || game.has_ability(id, &AbilityDef::CantActivateAbilitiesAbility))
+            || game.has_ability(id, &AbilityDef::CantActivateAbilitiesAbility)
+            || game.any_static(|g, src, e| {
+                matches!(e, EffectDef::CantBlockAttackActivateAttachedEffect) && g.attached(src) == Some(id)
+            }))
 }
 
 thread_local! {
@@ -4759,6 +4792,13 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
         }
         CostDef::PayLifeCost { amount } => lose_life(game, seat, *amount),
+        CostDef::MillCardsCost { amount } => {
+            let top: Vec<ObjId> = game.player(seat).library.iter().take(*amount).copied().collect();
+            note(game, EventKind::Milled, Some(seat), None, None, top.len() as i32);
+            for c in top {
+                game.move_to(c, Zone::Graveyard);
+            }
+        }
         CostDef::PayEnergyCost { amount } => add_energy(game, seat, -*amount),
         CostDef::RevealTargetFromHandCost { filter, min, max } => {
             let hand = game.player(seat).hand.clone();
@@ -6403,6 +6443,10 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             }
         }
         if let Some(legal) = legal_targets(game, &item, targets) {
+            // `RESOLVING_ABILITY`, which `AbilityResolvedWatcher` counts (each turn)
+            let (turn, now) = (game.turn, game.obj(id).zcc);
+            game.abilities_resolved.retain(|r| r.3 == turn);
+            game.abilities_resolved.push((id, index, now, turn));
             let effects = effects.to_vec();
             apply_effects(game, d, &item, &effects, &legal, (id, zcc));
         }
@@ -8442,9 +8486,11 @@ fn apply_each_effect(
                 for c in cards {
                     enter_battlefield(game, d, c, controller, false);
                     if game.obj(c).zone == Zone::Battlefield {
+                        let at = game.timestamp();
                         let o = game.obj_mut(c);
                         o.add_counters("flying", 1);
                         o.base_pt = Some((1, 1));
+                        o.base_pt_at = at;
                         let mut types = o.def.subtypes.clone();
                         types.push("Spirit".into());
                         o.creature_types = Some(types);
@@ -9094,19 +9140,20 @@ fn apply_each_effect(
                 }
             }
             // asked only when the cost can be paid; a cancelled payment is undone
-            EffectDef::DoWhenCostPaid { cost, message, rule, targets, effects } => {
+            EffectDef::DoWhenCostPaid { cost, message, rule, targets, effects, optional } => {
                 let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
                 if !others.iter().all(|c| can_pay_cost(game, controller, source.0, c)) {
                     return;
                 }
                 let q = Query::YesNo { message: message.clone() };
-                let pay = loop {
-                    match ask(game, d, controller, &q) {
-                        Answer::Bool(b) => break b,
-                        Answer::Stop => return,
-                        _ => {}
-                    }
-                };
+                let pay = !*optional
+                    || loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
                 if pay {
                     let before = game.clone();
                     if others.iter().all(|c| pay_cost(game, d, controller, source.0, c))
@@ -9238,6 +9285,8 @@ fn apply_each_effect(
             | EffectDef::CantGainLifeAllEffect
             | EffectDef::AttacksIfAbleSourceEffect { .. }
             | EffectDef::DontUntapInControllersUntapStepSourceEffect
+            | EffectDef::UntapSourceDuringEachOtherPlayersUntapStepEffect
+            | EffectDef::UntapAllDuringEachOtherPlayersUntapStepEffect { .. }
             | EffectDef::ClarionConquerorEffect
             | EffectDef::CastAsThoughItHadFlashAllEffect { .. }
             | EffectDef::NarsetParterOfVeilsEffect
@@ -10070,25 +10119,6 @@ fn apply_each_effect(
                         .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
                 }
             }
-            EffectDef::GainsChoiceOfAbilitiesEffect { abilities, names } => {
-                let (me, zcc) = source;
-                if game.obj(me).zone != Zone::Battlefield || game.obj(me).zcc != zcc {
-                    continue;
-                }
-                let q = Query::Choice { message: "Choose an ability to gain".into(), choices: names.clone() };
-                let k = loop {
-                    match ask(game, d, controller, &q) {
-                        Answer::Text(t) => {
-                            if let Some(k) = names.iter().position(|n| *n == t) {
-                                break k;
-                            }
-                        }
-                        Answer::Stop => return,
-                        _ => {}
-                    }
-                };
-                grant(game, me, &abilities[k]);
-            }
             EffectDef::CreateXXTokenEffect { token, amount } => {
                 let n = v!(amount).max(0);
                 let def = Arc::new(CardDef { power: n, toughness: n, ..token.card() });
@@ -10357,6 +10387,12 @@ fn apply_each_effect(
                                 )
                             });
                         }
+                    }
+                    // its base power and toughness are a layer 7b effect with its own timestamp (an Aura's "has
+                    // base power and toughness 0/2" from before gives way to it)
+                    if *duration == Duration::EndOfTurn {
+                        let (zcc, at) = (game.obj(*o).zcc, game.timestamp());
+                        game.base_pt_until_eot.push((*o, zcc, token.power, token.toughness, at));
                     }
                     let ob = game.obj_mut(*o);
                     if *duration == Duration::EndOfTurn && ob.until_end_of_turn_def.is_none() {
@@ -11344,7 +11380,9 @@ fn apply_each_effect(
             EffectDef::SetBasePowerToughnessUntilLeavesEffect { power, toughness } => {
                 let (src, zcc) = source;
                 if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    let at = game.timestamp();
                     game.obj_mut(src).base_pt = Some((*power, *toughness));
+                    game.obj_mut(src).base_pt_at = at;
                 }
             }
             EffectDef::EvolvedSleeperClericEffect => {
@@ -11356,9 +11394,11 @@ fn apply_each_effect(
                     continue;
                 }
                 game.obj_mut(src).add_counters("deathtouch", 1);
+                let at = game.timestamp();
                 let o = game.obj_mut(src);
                 o.creature_types = Some(["Phyrexian", "Human", "Cleric"].map(String::from).to_vec());
                 o.base_pt = Some((3, 3));
+                o.base_pt_at = at;
             }
             EffectDef::EvolvedSleeperPhyrexianEffect => {
                 let (src, zcc) = source;
@@ -12155,7 +12195,266 @@ fn apply_each_effect(
             | EffectDef::TheWanderingEmperorEffect
             | EffectDef::LoseCreatureTypeSourceEffect { .. }
             | EffectDef::AttacksIfAbleAllEffect { .. }
-            | EffectDef::SoulScarMageDamageReplacementEffect => {}
+            | EffectDef::SoulScarMageDamageReplacementEffect
+            | EffectDef::ConditionalAsThoughEffect { .. }
+            | EffectDef::CastAsThoughItHadFlashSourceEffect
+            | EffectDef::CantBlockAttackActivateAttachedEffect
+            | EffectDef::CantBeBlockedByMoreThanOneSourceEffect
+            | EffectDef::CantBlockCreaturesSourceEffect { .. }
+            | EffectDef::SetBasePowerToughnessAttachedEffect { .. } => {}
+            // resolving, until end of turn (as statics they're `can_block`'s, `prevented`'s and
+            // `Game::power_toughness`'s)
+            EffectDef::CantBlockAllEffect { duration, .. }
+            | EffectDef::CantBeBlockedAllEffect { duration, .. }
+            | EffectDef::PreventAllDamageToAllEffect { duration, .. }
+            | EffectDef::PreventCombatDamageToSourceEffect { duration, .. } => {
+                if *duration == Duration::EndOfTurn {
+                    game.eot_effects.push((e.clone(), controller, source.0));
+                }
+            }
+            EffectDef::LoseAbilityAttachedEffect { .. } | EffectDef::AddCardSubtypeAttachedEffect { .. } => {}
+            EffectDef::PutSourceCountersOnTargetEffect { counter } => {
+                // `getSourcePermanentOrLKI`: its counters on the battlefield, else the ones it had as it left
+                let s = game.obj(source.0);
+                let counters = if s.zone == Zone::Battlefield && s.zcc == source.1 {
+                    s.counters.clone()
+                } else {
+                    s.lki_counters.clone()
+                };
+                if let Some(o) = objs.first() {
+                    for (name, n) in counters {
+                        if n > 0 && counter.as_ref().is_none_or(|c| *c == name) {
+                            put_counters(game, *o, &name, n, controller);
+                        }
+                    }
+                }
+            }
+            EffectDef::DoubleCounterOnEachPermanentEffect { name, filter } => {
+                for o in Arc::clone(&game.battlefield).iter().copied() {
+                    if game.filter_matches(filter, controller, Some(source.0), o) {
+                        let n = game.obj(o).counter(name);
+                        if n > 0 {
+                            put_counters(game, o, name, n, controller);
+                        }
+                    }
+                }
+            }
+            EffectDef::DoubleCountersTargetEffect { name } => {
+                for o in &objs {
+                    let n = game.obj(*o).counter(name);
+                    if n > 0 {
+                        put_counters(game, *o, name, n, controller);
+                    }
+                }
+            }
+            EffectDef::IfAbilityHasResolvedXTimesEffect { n, or_more, effects } => {
+                let Some((index, _)) = item.ability else { continue };
+                let (turn, now) = (game.turn, game.obj(item.card).zcc);
+                let times = game
+                    .abilities_resolved
+                    .iter()
+                    .filter(|r| r.0 == item.card && r.1 == index && r.2 == now && r.3 == turn)
+                    .count() as u32;
+                if times == *n || *or_more && times > *n {
+                    apply_effects(game, d, item, effects, legal, source);
+                }
+            }
+            EffectDef::BoostEquippedUntilEndOfTurnEffect { power, toughness } => {
+                let (p, t) = (v!(power), v!(toughness));
+                let (src, zcc) = source;
+                if game.obj(src).zcc == zcc {
+                    if let Some(c) = game.attached(src) {
+                        boost(game, c, p, t, Duration::EndOfTurn);
+                    }
+                }
+            }
+            EffectDef::LoseAbilityTargetEffect { ability } | EffectDef::LoseAbilitySourceEffect { ability } => {
+                let turn = game.turn;
+                let hit: Vec<ObjId> = if matches!(e, EffectDef::LoseAbilitySourceEffect { .. }) {
+                    let (src, zcc) = source;
+                    if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                        vec![src]
+                    } else {
+                        Vec::new()
+                    }
+                } else {
+                    objs.clone()
+                };
+                game.lost_until_eot.retain(|(_, _, _, t)| *t == turn);
+                for o in hit {
+                    let zcc = game.obj(o).zcc;
+                    game.lost_until_eot.push((o, zcc, (**ability).clone(), turn));
+                }
+            }
+            // `GainProtectionFromColorTargetEffect.init`: the color is chosen as it resolves
+            EffectDef::GainProtectionFromColorTargetEffect => {
+                let names = ["White", "Blue", "Black", "Red", "Green"];
+                let choices: Vec<String> = names.iter().map(|n| n.to_string()).collect();
+                let q = Query::Choice { message: "Choose a color to gain protection against it".into(), choices };
+                let color = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Text(t) => {
+                            if let Some(i) = names.iter().position(|n| *n == t) {
+                                break Color::ALL[i];
+                            }
+                        }
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                    if d.stopped() {
+                        return;
+                    }
+                };
+                let ability = AbilityDef::ProtectionFromColorAbility { c: color };
+                for o in &objs {
+                    grant(game, *o, &ability);
+                }
+            }
+            // `GainsChoiceOfAbilitiesEffect`: no choice without a permanent to gain it
+            EffectDef::GainsChoiceOfAbilitiesEffect { abilities, names, source: own, target } => {
+                let mut to = Vec::new();
+                let (src, zcc) = source;
+                if *own && game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                    to.push(src);
+                }
+                if *target {
+                    to.extend(objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield));
+                }
+                if to.is_empty() {
+                    continue;
+                }
+                let q = Query::Choice { message: "Choose an ability to gain".into(), choices: names.clone() };
+                let chosen = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Text(t) => {
+                            if let Some(i) = names.iter().position(|n| *n == t) {
+                                break i;
+                            }
+                        }
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                    if d.stopped() {
+                        return;
+                    }
+                };
+                for o in to {
+                    grant(game, o, &abilities[chosen]);
+                }
+            }
+            EffectDef::AddCardTypeTargetEffect { types, duration } => {
+                for o in &objs {
+                    let old = game.obj(*o).def.clone();
+                    let mut def = (*old).clone();
+                    for t in types {
+                        if !def.types.contains(t) {
+                            def.types.push(*t);
+                        }
+                    }
+                    let ob = game.obj_mut(*o);
+                    if *duration == Duration::EndOfTurn {
+                        if ob.until_end_of_turn_def.is_none() {
+                            ob.until_end_of_turn_def = Some(old);
+                        }
+                    } else if ob.printed_def.is_none() {
+                        ob.printed_def = Some(ob.until_end_of_turn_def.clone().unwrap_or(old));
+                    }
+                    ob.def = Arc::new(def);
+                }
+            }
+            EffectDef::GainLifeTargetEffect { amount } => {
+                let amount = v!(amount);
+                for s in &players {
+                    gain_life(game, *s, amount);
+                }
+            }
+            EffectDef::LoseLifeAllPlayersEffect { amount } => {
+                let amount = v!(amount);
+                let n = game.seats();
+                for i in 0..n {
+                    lose_life(game, (controller + i) % n, amount);
+                }
+            }
+            EffectDef::LoseLifeDefendingPlayerEffect { amount } => {
+                let amount = v!(amount);
+                // `Combat.getDefendingPlayerId`: the attacker's group, also once it has left the battlefield
+                let defender = game.obj(source.0).attacking.or_else(|| {
+                    game.combat_groups
+                        .iter()
+                        .rev()
+                        .find(|g| g.attacker == source.0)
+                        .and_then(|g| g.left.as_ref())
+                        .map(|l| l.0)
+                });
+                if let Some(p) = defender {
+                    lose_life(game, p, amount);
+                }
+            }
+            EffectDef::RemoveCounterSourceEffect { counter } => {
+                let (src, zcc) = source;
+                if game.obj(src).zcc == zcc {
+                    let n = counter.amount.min(game.obj(src).counter(&counter.name));
+                    if n > 0 {
+                        let o = game.obj_mut(src);
+                        o.add_counters(&counter.name, -n);
+                        o.counters.retain(|(_, k)| *k > 0);
+                    }
+                }
+            }
+            EffectDef::CantGainLifeOpponentsEffect | EffectDef::CantBeBlockedByMoreThanOneAllEffect { .. } => {}
+            EffectDef::PreventAllDamageByAllPermanentsEffect { .. } => {
+                game.eot_effects.push((e.clone(), controller, source.0));
+            }
+            EffectDef::PreventDamageToTargetEffect { amount, combat_only } => {
+                for t in legal.first().cloned().unwrap_or_default() {
+                    let zcc = match t {
+                        Target::Obj(o) => game.obj(o).zcc,
+                        Target::Player(_) => 0,
+                    };
+                    game.prevent_to_target.push((t, zcc, amount.unwrap_or(i32::MAX), *combat_only, source.0));
+                }
+            }
+            EffectDef::SetBasePowerToughnessTargetEffect { power, toughness, permanent } => {
+                let (p, t) = (v!(power), v!(toughness));
+                let at = game.timestamp();
+                for o in &objs {
+                    if *permanent {
+                        let ob = game.obj_mut(*o);
+                        ob.base_pt = Some((p, t));
+                        ob.base_pt_at = at;
+                    } else {
+                        let zcc = game.obj(*o).zcc;
+                        game.base_pt_until_eot.push((*o, zcc, p, t, at));
+                    }
+                }
+            }
+            EffectDef::SetBasePowerToughness7bSourceEffect { power, toughness, duration } => {
+                let (src, zcc) = source;
+                if *duration == Duration::EndOfTurn
+                    && game.obj(src).zone == Zone::Battlefield
+                    && game.obj(src).zcc == zcc
+                {
+                    let at = game.timestamp();
+                    game.base_pt_until_eot.push((src, zcc, *power, *toughness, at));
+                }
+            }
+            // the permanents there as it resolves (`affectedObjectList`), with the numbers worked out then
+            EffectDef::SetBasePowerToughnessAllEffect { power, toughness, duration, filter } => {
+                if *duration == Duration::EndOfTurn {
+                    let (p, t) = (v!(power), v!(toughness));
+                    let hit: Vec<ObjId> = game
+                        .battlefield
+                        .iter()
+                        .copied()
+                        .filter(|b| game.filter_matches(filter, controller, Some(source.0), *b))
+                        .collect();
+                    let at = game.timestamp();
+                    for o in hit {
+                        let zcc = game.obj(o).zcc;
+                        game.base_pt_until_eot.push((o, zcc, p, t, at));
+                    }
+                }
+            }
         }
     }
 }
@@ -13993,6 +14292,77 @@ fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
     game.token_made = Some((token.name.clone(), token.class.clone(), set, pick));
 }
 
+/// What's left of `amount` damage from `source` to `to` after the prevention effects that apply. With two or more,
+/// the damaged player (the permanent's controller) is asked which applies first (`chooseReplacementEffect`); the
+/// ones that prevent all of it make that answer change nothing.
+fn prevented(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
+    let on_battlefield = |g: &Game, o: ObjId| g.obj(o).zone == Zone::Battlefield;
+    let applies = |g: &Game, e: &EffectDef, you: Seat, src: ObjId| match e {
+        EffectDef::PreventAllDamageByAllPermanentsEffect { filter, combat_only } => {
+            (combat || !combat_only)
+                && filter
+                    .as_ref()
+                    .is_none_or(|f| on_battlefield(g, source) && g.filter_matches(f, you, Some(src), source))
+        }
+        EffectDef::PreventAllDamageToAllEffect { filter, combat_only, noncombat_only, and_to_you, .. } => {
+            (combat || !combat_only)
+                && !(combat && *noncombat_only)
+                && match to {
+                    Target::Obj(o) => on_battlefield(g, o) && g.filter_matches(filter, you, Some(src), o),
+                    Target::Player(p) => *and_to_you && p == you,
+                }
+        }
+        EffectDef::PreventCombatDamageToSourceEffect { by: false, .. } => combat && to == Target::Obj(src),
+        EffectDef::PreventCombatDamageToSourceEffect { by: true, .. } => combat && source == src,
+        _ => false,
+    };
+    let mut all = game.eot_effects.iter().filter(|(e, you, src)| applies(game, e, *you, *src)).count();
+    game.any_static(|g, src, e| {
+        if matches!(
+            e,
+            EffectDef::PreventAllDamageToAllEffect { duration: Duration::WhileOnBattlefield, .. }
+                | EffectDef::PreventCombatDamageToSourceEffect { duration: Duration::WhileOnBattlefield, .. }
+        ) && applies(g, e, g.obj(src).controller, src)
+        {
+            all += 1;
+        }
+        false
+    });
+    let zcc_of = |g: &Game, t: Target| match t {
+        Target::Obj(o) => g.obj(o).zcc,
+        Target::Player(_) => 0,
+    };
+    let shields: Vec<usize> = (0..game.prevent_to_target.len())
+        .filter(|i| {
+            let (t, z, left, combat_only, _) = game.prevent_to_target[*i];
+            t == to && z == zcc_of(game, to) && left > 0 && (combat || !combat_only)
+        })
+        .collect();
+    if all + shields.len() >= 2 {
+        let chooser = match to {
+            Target::Player(p) => p,
+            Target::Obj(o) => game.obj(o).controller,
+        };
+        game.owed_choices.push(chooser);
+    }
+    if all > 0 {
+        return 0;
+    }
+    let mut amount = amount;
+    for i in shields {
+        let left = &mut game.prevent_to_target[i].2;
+        let n = amount.min(*left);
+        if *left != i32::MAX {
+            *left -= n;
+        }
+        amount -= n;
+        if amount <= 0 {
+            return 0;
+        }
+    }
+    amount
+}
+
 /// Damage from `source`: to a player it's life lost, to a creature it's marked. Lifelink gains its controller life.
 /// Returns combat lifelink's life, which `combat_damage` gains once per source; outside combat, the damage dealt.
 fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
@@ -14047,6 +14417,18 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     if let Target::Obj(o) = to {
         let (zcc, turn) = (game.obj(o).zcc, game.turn);
         if game.prevent_all_to.contains(&(o, zcc, turn)) && game.no_prevention_turn != Some(turn) {
+            return 0;
+        }
+    }
+    // prevention effects (`PreventionEffectImpl`): until end of turn, statics, shields on targets
+    let unpreventable = game.no_prevention_turn == Some(game.turn)
+        || combat
+            && game.any_static(|g, src, e| {
+                matches!(e, EffectDef::DamageCantBePreventedEffect { .. }) && g.obj(src).controller == you
+            });
+    if !unpreventable {
+        amount = prevented(game, source, to, amount, combat);
+        if amount <= 0 {
             return 0;
         }
     }
@@ -14409,7 +14791,10 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
     if amount <= 0
         || game.player(seat).cant_gain_life
         || game.no_lifegain_turn == Some(game.turn)
-        || game.any_static(|_, _, e| matches!(e, EffectDef::CantGainLifeAllEffect))
+        || game.any_static(|g, src, e| {
+            matches!(e, EffectDef::CantGainLifeAllEffect)
+                || matches!(e, EffectDef::CantGainLifeOpponentsEffect) && g.obj(src).controller != seat
+        })
     {
         return;
     }
@@ -14478,7 +14863,8 @@ pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
         && !o.tapped
         && o.attacking.is_none()
         && (!o.sick || game.has_ability(id, &AbilityDef::HasteAbility))
-        && !game.has_ability(id, &AbilityDef::DefenderAbility)
+        && (!game.has_ability(id, &AbilityDef::DefenderAbility)
+            || game.has_ability(id, &AbilityDef::CanAttackAsThoughNoDefenderAbility))
         && !game.cant_attack_or_block(id)
         && !game.cant_attack_alone(id)
         && !game.has_ability(id, &AbilityDef::CantAttackAbility)
@@ -14656,6 +15042,30 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     {
         return false;
     }
+    // "creatures of the filter can't block" / "… can't be blocked" (statics, or until end of turn), and a blocker's
+    // own "can't block creatures of the filter"
+    let all = |e: &EffectDef, you: Seat, src: ObjId| match e {
+        EffectDef::CantBlockAllEffect { filter, .. } => game.filter_matches(filter, you, Some(src), blocker),
+        EffectDef::CantBeBlockedAllEffect { filter, .. } => game.filter_matches(filter, you, Some(src), attacker),
+        _ => false,
+    };
+    if game.eot_effects.iter().any(|(e, you, src)| all(e, *you, *src))
+        || game.any_static(|g, src, e| {
+            matches!(
+                e,
+                EffectDef::CantBlockAllEffect { duration: Duration::WhileOnBattlefield, .. }
+                    | EffectDef::CantBeBlockedAllEffect { duration: Duration::WhileOnBattlefield, .. }
+            ) && all(e, g.obj(src).controller, src)
+        })
+        || has_static(game, blocker, |e| match e {
+            EffectDef::CantBlockCreaturesSourceEffect { filter } => {
+                game.filter_matches(filter, game.obj(blocker).controller, Some(blocker), attacker)
+            }
+            _ => false,
+        })
+    {
+        return false;
+    }
     // skulk: not by a creature with greater power
     if game.has_ability(attacker, &AbilityDef::SkulkAbility)
         && game.power_toughness(blocker).0 > game.power_toughness(attacker).0
@@ -14667,6 +15077,13 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
         && !game.has_type(blocker, CardType::Artifact)
         && !game.colors(blocker).iter().any(|c| game.colors(attacker).contains(c))
     {
+        return false;
+    }
+    // creatures of a filter can't block it: until end of turn (Gingerbrute), or given by an Aura or Equipment
+    if game.granted_abilities(attacker).iter().any(|g| {
+        matches!(g, AbilityDef::CantBeBlockedByAbility { filter }
+            if game.filter_matches(filter, game.obj(attacker).controller, Some(attacker), blocker))
+    }) {
         return false;
     }
     // Gingerbrute: creatures of a filter can't block it this turn
@@ -14769,7 +15186,8 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         // "must be blocked if able": unblocked though one of the player's creatures could block it, asked again
         if legal && tries < 100 {
             for a in attackers(game) {
-                if has_static(game, a, |e| matches!(e, EffectDef::MustBeBlockedByAtLeastOneSourceEffect))
+                if (has_static(game, a, |e| matches!(e, EffectDef::MustBeBlockedByAtLeastOneSourceEffect))
+                    || game.has_ability(a, &AbilityDef::MustBeBlockedIfAbleAbility))
                     && live_blockers(game, a).is_empty()
                     && game.battlefield.iter().any(|b| {
                         let o = game.obj(*b);
@@ -14896,6 +15314,9 @@ fn block_triggers(game: &mut Game) {
 fn max_blocked_by_one(game: &Game, a: ObjId) -> bool {
     game.any_static(|g, src, e| {
         matches!(e, EffectDef::CantBeBlockedByMoreThanOneAttachedEffect) && g.attached(src) == Some(a)
+            || matches!(e, EffectDef::CantBeBlockedByMoreThanOneSourceEffect) && src == a
+            || matches!(e, EffectDef::CantBeBlockedByMoreThanOneAllEffect { filter }
+                if g.filter_matches(filter, g.obj(src).controller, Some(src), a))
     })
 }
 
@@ -15303,6 +15724,9 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     if game.grants.iter().any(|g| g.until_end_of_turn) {
         Arc::make_mut(&mut game.grants).retain(|g| !g.until_end_of_turn);
     }
+    game.eot_effects.clear();
+    game.base_pt_until_eot.clear();
+    game.prevent_to_target.clear();
     game.must_block_from.clear();
     game.exile_if_dies.clear();
     game.damaged_by_source.clear();

@@ -181,7 +181,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (8,418 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
+  can express (8,736 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -248,6 +248,13 @@ Being in the engine and being trusted are kept apart.
   card left out again) match 333 and verify 342 more: 6,629. Two rounds on the cards the wave-2 trigger classes
   brought in (415 games over 351 candidates) verified 340 more, for 6,969; 407 games match, 8 differ and Java
   didn't finish 2.
+
+  Static and continuous effects (13 Nov): two rounds over 267 cards they brought in (278 games; Java finished 271).
+  Their fixes, each with a game under `shadow/factory/`: an end-of-turn "becomes a creature" sets its base power and
+  toughness with its own timestamp (Secret Identity on a creature under Illusory Wrappings); "cast as though it had
+  flash" sees adventure faces; the defending player is still known after the attacker left; a conditional static
+  whose condition reads power no longer recurses. 266 games match and 247 cards are verified, 231 of them new:
+  7,200.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the

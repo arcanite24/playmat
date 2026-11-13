@@ -659,6 +659,14 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               # descend 4 / 8: that many permanent cards in your graveyard
               'DescendCondition.FOUR': {'c': 'cards_in_graveyard', 'n': 4, 'filter': [{'p': 'permanent_card'}]},
               'DescendCondition.EIGHT': {'c': 'cards_in_graveyard', 'n': 8, 'filter': [{'p': 'permanent_card'}]}}
+# conditions the restriction and as-though effects read
+CONDITIONS.update({
+    'SourceHasCountersCondition.instance': {'c': 'source_has_counters'},
+    'new EnchantedSourceCondition()': {'c': 'source_attached'},
+    'EnchantedOrEquippedSourceCondition.instance': {'c': 'source_attached', 'equipment': True},
+    'SourceAttackingAloneCondition.instance': {'c': 'source_attacking_alone'},
+    'LessonsInGraveCondition.ONE': {'c': 'cards_in_graveyard', 'n': 1, 'filter': [{'p': 'subtype', 's': 'Lesson'}]},
+})
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
 
 # an emblem's static effect lasts the game: as long as its source is there, like a permanent's
@@ -1017,9 +1025,13 @@ def canonical(text):
 
 
 def split_args(text):
-    out, depth, start, quote = [], 0, 0, False
+    out, depth, start, quote, escaped = [], 0, 0, False, False
     for i, c in enumerate(text):
-        if c == '"':
+        if escaped:
+            escaped = False
+        elif quote and c == '\\':
+            escaped = True
+        elif c == '"':
             quote = not quote
         elif quote:
             continue
@@ -1067,7 +1079,7 @@ class Translator:
             return self.amount(self.values[arg])
         # the life a "whenever you gain life" trigger saw is its X (The Ooze: the +1/+1 counters on what left)
         if arg in ('GetXValue.instance', 'ManacostVariableValue.REGULAR', 'ManacostVariableValue.ETB',
-                   'SavedGainedLifeValue.MUCH', 'TheOozeValue.instance', 'SavedDamageValue.MUCH', 'SavedDamageValue.MANY',
+                   'SavedGainedLifeValue.MUCH', 'SavedGainedLifeValue.MANY', 'TheOozeValue.instance', 'SavedDamageValue.MUCH', 'SavedDamageValue.MANY',
                    'SavedLifeLossValue.MUCH', 'SavedDiscardValue.MANY', 'SavedDiscardValue.MUCH'):
             return {'v': 'x'}
         if (m := re.fullmatch(r'new CountersSourceCount\((CounterType\.\w+)\)', arg)) and m.group(1) in COUNTERS:
@@ -1192,6 +1204,8 @@ class Translator:
             if m.group(1) == 'PermanentsOnTheBattlefieldCondition' and args[-1] == 'false' and len(args) in (2, 4):
                 out['all'] = True
             return out
+        if (m := re.fullmatch(r'new EnchantedCreatureSubtypeCondition\(SubType\.(\w+)\)', arg)) and m.group(1) in self.subtypes:
+            return {'c': 'attached_matches', 'filter': [CREATURE, {'p': 'subtype', 's': self.subtypes[m.group(1)]}]}
         if (m := re.fullmatch(r'new LifeCompareCondition\(TargetController\.(YOU|OPPONENT),ComparisonType\.(\w+),(\d+)\)', arg)) \
                 and m.group(2) in COMPARISONS:
             return {'c': 'life_compare', 'who': m.group(1).lower(), 'cmp': m.group(2), 'n': int(m.group(3))}
@@ -1354,7 +1368,7 @@ class Translator:
             return self.filter(arg)
         elif kind == 'string':
             # a literal, or a constant of the card's (`rule`)
-            if re.fullmatch(r'"[^"]*"(?:\s*\+\s*"[^"]*")*', arg) or arg == 'null' or re.fullmatch(r'[a-z]\w*', arg):
+            if re.fullmatch(r'"(?:[^"\\]|\\.)*"(?:\s*\+\s*"(?:[^"\\]|\\.)*")*', arg) or arg == 'null' or re.fullmatch(r'[a-z]\w*', arg):
                 return None
         elif kind == 'effect':
             return None if arg == 'null' else self.effect(arg)
@@ -1511,6 +1525,8 @@ class Translator:
             return {'class': cls, 'subtype': subtype_names()[m.group(1)]}
         if cls == 'PayEnergyCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': cls, 'amount': int(args[0])}
+        if cls == 'MillCardsCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
+            return {'class': cls, 'amount': int(args[0])}
         if cls == 'PayLifeCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': cls, 'amount': int(args[0])}
         raise Unsupported('cost ' + expr)
@@ -1665,6 +1681,8 @@ class Translator:
         if isinstance(obj, dict):
             return obj
         cls, args = obj
+        if (e := self.static_continuous(cls, [a.strip() for a in args])) is not None:
+            return e
         # `new ConditionalOneShotEffect(…).addEffect(e)`: e too, when it holds
         m = re.fullmatch(r'(new ConditionalOneShotEffect\(.*\))\s*\.addEffect\((.*)\)', expr.strip(), re.S)
         if m and balanced(m.group(1)) and balanced(m.group(2)):
@@ -1684,6 +1702,16 @@ class Translator:
             # by `in_java_order`)
             return {'class': cls, 'cost': [self.cost(args[1])], 'message': args[2].strip()[1:-1],
                     'rule': r.get('rule', WHEN_YOU_DO), 'targets': r['targets'], 'effects': r['effects']}
+        # `new DoWhenCostPaid(reflexive, cost, message|null|"", optional)`: its rule is read from the card's text
+        # after "When you do, " (`fill_when_you_do`)
+        if cls == 'DoWhenCostPaid' and len(args) == 4 and args[3].strip() in ('true', 'false') \
+                and re.fullmatch(r'null|"[^"]*"', args[2].strip()):
+            r = self.vars.get(args[0].strip()) or self.ability(args[0])
+            if r.get('class') != 'Reflexive':
+                raise Unsupported('reflexive ability ' + args[0])
+            msg = args[2].strip()[1:-1] if args[2].strip() != 'null' else ''
+            return {'class': cls, 'cost': [self.cost(args[1])], 'message': msg, 'rule': WHEN_YOU_DO,
+                    'targets': r['targets'], 'effects': r['effects'], 'optional': args[3].strip() == 'true'}
         # `new DoIfCostPaid(null, otherwise, cost)`: only what's done when it isn't paid
         # `new DoIfCostPaid(effect, null, cost, optional)`
         if cls == 'DoIfCostPaid' and len(args) == 4 and args[1].strip() == 'null' and args[3].strip() in ('true', 'false'):
@@ -1691,6 +1719,19 @@ class Translator:
                     'optional': args[3].strip() == 'true'}
         if cls == 'DoIfCostPaid' and len(args) == 3 and args[0].strip() == 'null':
             return {'class': cls, 'cost': [self.cost(args[2])], 'otherwise': [self.effect(args[1])]}
+        # `new DoIfCostPaid(effect, cost, message|null[, optional])`
+        if cls == 'DoIfCostPaid' and (len(args) == 4 and args[3].strip() in ('true', 'false') or len(args) == 3) \
+                and re.fullmatch(r'null|"[^"]*"(?:\+"[^"]*")*', args[2].strip()) and args[0].strip() != 'null':
+            return {'class': cls, 'effect': self.effect(args[0]), 'cost': [self.cost(args[1])],
+                    'optional': len(args) == 3 or args[3].strip() == 'true'}
+        # `new DoIfCostPaid(effect|null, otherwise, cost[, optional])`
+        if cls == 'DoIfCostPaid' and len(args) in (3, 4) and args[1].strip() != 'null' \
+                and not re.fullmatch(r'null|"[^"]*"(?:\+"[^"]*")*', args[2].strip()) and (len(args) == 3 or args[3].strip() in ('true', 'false')):
+            e = {'class': cls, 'cost': [self.cost(args[2])], 'otherwise': [self.effect(args[1])],
+                 'optional': len(args) == 3 or args[3].strip() == 'true'}
+            if args[0].strip() != 'null':
+                e['effect'] = self.effect(args[0])
+            return e
         # Skyclave Apparition: an X/X token for the cards its source exiled
         if cls == 'CreateXXTokenExiledEffectManaValueEffect' and len(args) == 2 \
                 and args[0].strip() == 'CustomIllusionToken::new':
@@ -1804,7 +1845,8 @@ class Translator:
                     'condition': self.condition(args[2])}
         # a spell's "+2/+2, or +4/+4 instead if …": worked out as it resolves (`LockedInCondition`)
         if cls == 'ConditionalContinuousEffect' and len(args) == 4 \
-                and all(re.fullmatch(r'new Boost(Target|Source)Effect\(-?\d+,-?\d+,Duration\.EndOfTurn\)', a.strip()) for a in args[:2]):
+                and (all(re.fullmatch(r'new Boost(Target|Source)Effect\(-?\d+,-?\d+,Duration\.EndOfTurn\)', a.strip()) for a in args[:2])
+                     or all(re.fullmatch(r'new GainAbilityTargetEffect\(\w+Ability\.getInstance\(\),Duration\.EndOfTurn\)', canonical(a.strip())) for a in args[:2])):
             c = args[2].strip()
             if (l := re.fullmatch(r'new LockedInCondition\((.*)\)', c, re.S)):
                 c = l.group(1)
@@ -1820,7 +1862,7 @@ class Translator:
         if cls == 'AddCardTypeSourceEffect' and len(args) >= 2 and args[0].strip() == 'Duration.EndOfTurn' \
                 and all(re.fullmatch(r'CardType\.[A-Z]+', a.strip()) for a in args[1:]):
             return {'class': cls, 'types': [a.strip()[9:] for a in args[1:]], 'duration': 'EndOfTurn'}
-        if cls == 'GainAbilityTargetEffect' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[2].strip()):
+        if cls == 'GainAbilityTargetEffect' and len(args) == 3 and re.fullmatch(r'"[^"]*"(?:\+"[^"]*")*', args[2].strip()):
             return self.effect('new GainAbilityTargetEffect(' + args[0] + ',' + args[1] + ')')
         if cls in ('UntapAllControllerEffect', 'UntapAllEffect') and 1 <= len(args) <= 2:
             f = self.filter(args[0])
@@ -2114,6 +2156,207 @@ class Translator:
         if cls not in EFFECTS:
             raise Unsupported('effect ' + cls)
         return self.build(cls, args, EFFECTS[cls], 'effect')
+
+    def static_continuous(self, cls, args):
+        """Restriction, as-though and power-and-toughness-setting effects; None when it isn't one of these forms.
+        A restriction on one permanent is a pseudo-ability it has (`CantBlockAbility`), as elsewhere here."""
+        def text(a):
+            return re.fullmatch(r'"(?:[^"\\]|\\.)*"(\s*\+\s*"(?:[^"\\]|\\.)*")*', a, re.S) is not None
+
+        def plain(a):
+            return text(a) or a == 'null'
+
+        def gains(kind, ability, duration='WhileOnBattlefield'):
+            return {'class': kind, 'ability': ability} if kind == 'GainAbilityAttachedEffect' else \
+                {'class': kind, 'ability': ability, 'duration': duration}
+        attachment = ('AttachmentType.AURA', 'AttachmentType.EQUIPMENT')
+        # `GainAbilityAttachedEffect(ability, AURA, WhileOnBattlefield, null, "land")`: the last only names what's
+        # enchanted in its text
+        if cls == 'GainAbilityAttachedEffect' and len(args) == 5 and args[1] in attachment \
+                and args[2] == 'Duration.WhileOnBattlefield' and args[3] == 'null' and text(args[4]):
+            return gains('GainAbilityAttachedEffect', self.ability(args[0]))
+        # "{this} can attack (this turn) as though it didn't have defender"
+        if cls == 'CanAttackAsThoughItDidntHaveDefenderSourceEffect' and len(args) in (1, 2) \
+                and args[0] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield') and (len(args) == 1 or text(args[1])):
+            return gains('GainAbilitySourceEffect', {'class': 'CanAttackAsThoughNoDefenderAbility'}, DURATIONS[args[0]])
+        # "as long as …, {this} can attack as though it didn't have defender" / "you may cast … as though they had flash"
+        if cls == 'ConditionalAsThoughEffect' and len(args) == 2:
+            inner = self.effect(args[0])
+            if inner.get('class') == 'GainAbilitySourceEffect' and inner['duration'] == 'WhileOnBattlefield':
+                return {'class': 'ConditionalContinuousEffect', 'effect': inner, 'condition': self.condition(args[1])}
+            if inner.get('class') in ('CastAsThoughItHadFlashAllEffect', 'CastAsThoughItHadFlashSourceEffect'):
+                return {'class': 'ConditionalAsThoughEffect', 'effect': inner, 'condition': self.condition(args[1])}
+            raise Unsupported('conditional as-though ' + inner.get('class', ''))
+        if cls == 'CastAsThoughItHadFlashSourceEffect' and args == ['Duration.EndOfGame']:
+            return {'class': cls}
+        if cls == 'CastAsThoughItHadFlashAllEffect' and len(args) == 2 and args[0] == 'Duration.WhileOnBattlefield':
+            return {'class': cls, 'filter': self.filter(args[1])}
+        # restrictions on the source or what it's attached to
+        if cls == 'CantBeBlockedSourceEffect' and args in ([], ['Duration.WhileOnBattlefield']):
+            return gains('GainAbilitySourceEffect', {'class': 'CantBeBlockedSourceAbility'})
+        if cls == 'CantAttackSourceEffect' and args == ['Duration.WhileOnBattlefield']:
+            return gains('GainAbilitySourceEffect', {'class': 'CantAttackAbility'})
+        if cls == 'CantBeBlockedAttachedEffect' and args and args[0] in attachment and all(plain(a) for a in args[1:]):
+            return gains('GainAbilityAttachedEffect', {'class': 'CantBeBlockedSourceAbility'})
+        if cls == 'CantBlockAttachedEffect' and args and args[0] in attachment and all(plain(a) for a in args[1:]):
+            return gains('GainAbilityAttachedEffect', {'class': 'CantBlockAbility'})
+        if cls == 'CantActivateAbilitiesAttachedEffect' and not args:
+            return gains('GainAbilityAttachedEffect', {'class': 'CantActivateAbilitiesAbility'})
+        if cls == 'CantBeBlockedByCreaturesAttachedEffect' and len(args) == 3 and args[0] == 'Duration.WhileOnBattlefield' \
+                and args[2] in attachment:
+            return gains('GainAbilityAttachedEffect', {'class': 'CantBeBlockedByAbility', 'filter': self.filter(args[1])})
+        if cls == 'CantBlockAttackActivateAttachedEffect' and len(args) <= 1 and all(text(a) for a in args):
+            return {'class': cls}
+        if cls == 'CantBeBlockedByMoreThanOneSourceEffect' and args in ([], ['1']):
+            return {'class': cls}
+        if cls == 'CantBlockCreaturesSourceEffect' and len(args) == 1:
+            return {'class': cls, 'filter': self.filter(args[0])}
+        # "target creature can't be blocked by <filter> this turn"
+        if cls == 'CantBeBlockedTargetEffect' and len(args) == 2 and args[1] == 'Duration.EndOfTurn':
+            return gains('GainAbilityTargetEffect', {'class': 'CantBeBlockedByAbility', 'filter': self.filter(args[0])},
+                         'EndOfTurn')
+        # every permanent of a filter, looked at each time (not locked in as it resolves)
+        if cls in ('CantBlockAllEffect', 'CantBeBlockedAllEffect') and len(args) in (2, 3) \
+                and args[1] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield') and all(text(a) for a in args[2:]):
+            return {'class': cls, 'filter': self.filter(args[0]), 'duration': DURATIONS[args[1]]}
+        # (effect, condition[, text]), or a spell's (duration, effect, condition, otherwise)
+        if cls == 'ConditionalRestrictionEffect' and len(args) in (2, 3) and (len(args) == 2 or text(args[2])):
+            inner = self.effect(args[0])
+            if inner.get('class') in ('CantBlockAllEffect', 'CantBeBlockedAllEffect') and inner['duration'] == 'EndOfTurn':
+                return {'class': 'ConditionalOneShotEffect', 'effect': inner, 'condition': self.condition(args[1])}
+            return {'class': 'ConditionalContinuousEffect', 'effect': inner, 'condition': self.condition(args[1])}
+        if cls == 'ConditionalRestrictionEffect' and len(args) == 4 and args[0] == 'Duration.EndOfTurn' and args[3] == 'null':
+            c = args[2]
+            if (l := re.fullmatch(r'new LockedInCondition\((.*)\)', c, re.S)):
+                c = l.group(1)
+            return {'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[1]), 'condition': self.condition(c)}
+        # plain forms of other effects, with a text override or a default
+        if cls == 'TapTargetEffect' and len(args) == 1 and text(args[0]):
+            return {'class': cls}
+        if cls == 'GainLifeEffect' and len(args) == 2 and text(args[1]):
+            return {'class': cls, 'amount': self.amount(args[0])}
+        if cls == 'DamageAllEffect' and len(args) == 3 and text(args[1]):
+            return {'class': cls, 'amount': self.amount(args[0]), 'filter': self.filter(args[2])}
+        if cls == 'DamagePlayersEffect' and len(args) == 1:
+            return {'class': cls, 'amount': self.amount(args[0]), 'controller': 'any'}
+        if cls == 'GainLifeTargetEffect' and len(args) == 1:
+            return {'class': cls, 'amount': self.amount(args[0])}
+        if cls == 'LoseLifeAllPlayersEffect' and len(args) in (1, 2) and all(text(a) for a in args[1:]):
+            return {'class': cls, 'amount': self.amount(args[0])}
+        if cls == 'LoseLifeDefendingPlayerEffect' and len(args) == 2 and args[1] == 'true':
+            return {'class': cls, 'amount': self.amount(args[0])}
+        if cls == 'CantGainLifeAllEffect' and args == ['Duration.WhileOnBattlefield', 'TargetController.OPPONENT']:
+            return {'class': 'CantGainLifeOpponentsEffect'}
+        if cls == 'RemoveCounterSourceEffect' and len(args) == 1:
+            return {'class': cls, 'counter': self.value('counter', args[0])}
+        if cls == 'CantBeBlockedByMoreThanOneAllEffect' and len(args) == 1:
+            return {'class': cls, 'filter': self.filter(args[0])}
+        # (n, effect), or (outcome, n[, orMore], effects…)
+        if cls == 'IfAbilityHasResolvedXTimesEffect' and len(args) >= 2:
+            rest = args[1:] if args[0].startswith('Outcome.') else args
+            if rest and re.fullmatch(r'\d+', rest[0]):
+                n, rest = int(rest[0]), rest[1:]
+                or_more = bool(rest) and rest[0] == 'true'
+                if rest and rest[0] in ('true', 'false'):
+                    rest = rest[1:]
+                if rest:
+                    return {'class': cls, 'n': n, 'or_more': or_more, 'effects': [self.effect(a) for a in rest]}
+        if cls == 'MustBeBlockedByAtLeastOneTargetEffect' and args in ([], ['Duration.EndOfTurn']):
+            return gains('GainAbilityTargetEffect', {'class': 'MustBeBlockedIfAbleAbility'}, 'EndOfTurn')
+        if cls == 'PutSourceCountersOnTargetEffect' and (not args or len(args) == 1 and args[0] in COUNTERS):
+            return {'class': cls, **({'counter': COUNTERS[args[0]]} if args else {})}
+        # "… gains your choice of A or B until end of turn": Java's choices are the abilities' rules
+        if cls == 'GainsChoiceOfAbilitiesEffect':
+            rest = args
+            affects = 'Target'
+            if rest and (m := re.fullmatch(r'GainsChoiceOfAbilitiesEffect\.TargetType\.(\w+)', rest[0])):
+                affects, rest = m.group(1), rest[1:]
+                if len(rest) > 2 and plain(rest[0]) and rest[1] in ('true', 'false'):
+                    rest = rest[2:]
+            names = {'FlyingAbility': 'flying', 'DeathtouchAbility': 'deathtouch', 'LifelinkAbility': 'lifelink',
+                     'FirstStrikeAbility': 'first strike', 'DoubleStrikeAbility': 'double strike',
+                     'TrampleAbility': 'trample', 'VigilanceAbility': 'vigilance', 'MenaceAbility': 'menace',
+                     'HasteAbility': 'haste', 'ReachAbility': 'reach', 'HexproofAbility': 'hexproof',
+                     'IndestructibleAbility': 'indestructible'}
+            ks = [re.fullmatch(r'(\w+)\.getInstance\(\)|new (MenaceAbility)\((?:true|false)?\)', a) for a in rest]
+            if len(rest) >= 2 and affects in ('Target', 'Both') and all(k and (k.group(1) or k.group(2)) in names for k in ks):
+                ks = [k.group(1) or k.group(2) for k in ks]
+                return {'class': cls, 'abilities': [{'class': k} for k in ks], 'names': [names[k] for k in ks],
+                        'source': affects == 'Both', 'target': True}
+        if cls == 'UntapSourceDuringEachOtherPlayersUntapStepEffect' and not args:
+            return {'class': cls}
+        if cls == 'UntapAllDuringEachOtherPlayersUntapStepEffect' and len(args) == 1:
+            return {'class': cls, 'filter': self.filter(args[0])}
+        if cls == 'DoubleCounterOnEachPermanentEffect' and len(args) == 2 and args[0] in COUNTERS:
+            return {'class': cls, 'name': COUNTERS[args[0]], 'filter': self.filter(args[1])}
+        if cls == 'DoubleCountersTargetEffect' and len(args) == 1 and args[0] in COUNTERS:
+            return {'class': cls, 'name': COUNTERS[args[0]]}
+        if cls == 'BoostEquippedEffect' and len(args) == 3 and args[2] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield'):
+            out = {'power': self.amount(args[0]), 'toughness': self.amount(args[1])}
+            return dict(out, **{'class': 'BoostEquippedUntilEndOfTurnEffect' if args[2] == 'Duration.EndOfTurn' else 'BoostEnchantedEffect'})
+        if cls in ('LoseAbilityTargetEffect', 'LoseAbilitySourceEffect') and len(args) == 2 and args[1] == 'Duration.EndOfTurn':
+            return {'class': cls, 'ability': self.ability(args[0])}
+        if cls == 'LoseAbilityAttachedEffect' and len(args) == 2 and args[1] in attachment:
+            return {'class': cls, 'ability': self.ability(args[0])}
+        if cls == 'GainProtectionFromColorTargetEffect' and args == ['Duration.EndOfTurn']:
+            return {'class': cls}
+        if cls == 'AddCardTypeTargetEffect' and len(args) >= 2 and args[0] in ('Duration.EndOfTurn', 'Duration.EndOfGame') \
+                and all(re.fullmatch(r'CardType\.[A-Z]+', a) for a in args[1:]):
+            return {'class': cls, 'types': [a[9:] for a in args[1:]], 'duration': DURATIONS[args[0]]}
+        if cls == 'AddCardSubtypeAttachedEffect' and len(args) == 2 and re.fullmatch(r'SubType\.\w+', args[0]) \
+                and args[1] in attachment:
+            return {'class': cls, 'subtype': subtype_names()[args[0][8:]]}
+        # prevention
+        flag = ('true', 'false')
+        if cls == 'PreventAllDamageByAllPermanentsEffect' and len(args) in (1, 2, 3) and 'Duration.EndOfTurn' in args[:2]:
+            rest = args[args.index('Duration.EndOfTurn') + 1:]
+            if all(a in flag for a in rest) and args.index('Duration.EndOfTurn') <= 1:
+                out = {'class': cls, 'combat_only': rest == ['true']}
+                if args[0] != 'Duration.EndOfTurn':
+                    out['filter'] = self.filter(args[0])
+                return out
+        if cls in ('PreventAllDamageToAllEffect', 'PreventAllNonCombatDamageToAllEffect') and len(args) in (2, 3) \
+                and args[0] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield') and all(a in flag for a in args[2:]):
+            out = {'class': 'PreventAllDamageToAllEffect', 'filter': self.filter(args[1]), 'duration': DURATIONS[args[0]]}
+            if cls == 'PreventAllNonCombatDamageToAllEffect':
+                out.update(noncombat_only=True, and_to_you=args[2:] == ['true'])
+            else:
+                out['combat_only'] = args[2:] == ['true']
+            return out
+        if cls in ('PreventCombatDamageToSourceEffect', 'PreventCombatDamageBySourceEffect') and len(args) == 1 \
+                and args[0] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield'):
+            out = {'class': 'PreventCombatDamageToSourceEffect', 'duration': DURATIONS[args[0]]}
+            if cls == 'PreventCombatDamageBySourceEffect':
+                out['by'] = True
+            return out
+        if cls == 'PreventDamageToTargetEffect' and args and args[0] == 'Duration.EndOfTurn' and len(args) <= 3:
+            rest = args[1:]
+            out = {'class': cls}
+            if rest and re.fullmatch(r'\d+', rest[0]):
+                out['amount'] = int(rest[0])
+                rest = rest[1:]
+            elif rest and rest[0] == 'Integer.MAX_VALUE':
+                rest = rest[1:]
+            if len(rest) <= 1 and all(a in flag for a in rest):
+                out['combat_only'] = rest == ['true']
+                return out
+        # layer 7b: base power and toughness
+        pt = r'-?\d+'
+        if cls == 'SetBasePowerToughnessTargetEffect' and len(args) == 3 and args[2] in ('Duration.EndOfTurn', 'Duration.EndOfGame'):
+            return {'class': cls, 'power': self.amount(args[0]), 'toughness': self.amount(args[1]),
+                    **({'permanent': True} if args[2] == 'Duration.EndOfGame' else {})}
+        if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 3 and re.fullmatch(pt, args[0]) \
+                and re.fullmatch(pt, args[1]) and args[2] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield'):
+            return {'class': 'SetBasePowerToughness7bSourceEffect', 'power': int(args[0]), 'toughness': int(args[1]),
+                    'duration': DURATIONS[args[2]]}
+        if cls == 'SetBasePowerToughnessAttachedEffect' and len(args) == 3 and re.fullmatch(pt, args[0]) \
+                and re.fullmatch(pt, args[1]) and args[2] in attachment:
+            return {'class': cls, 'power': int(args[0]), 'toughness': int(args[1])}
+        if cls == 'SetBasePowerToughnessAllEffect' and len(args) in (3, 4) \
+                and args[2] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield'):
+            return {'class': cls, 'power': self.amount(args[0]), 'toughness': self.amount(args[1]),
+                    'duration': DURATIONS[args[2]], 'filter': self.filter(args[3]) if len(args) == 4 else [CREATURE]}
+        return None
 
     def library_target(self, expr):
         """`new TargetCardInLibrary([[min,] max,] [filter])` -> filter, min, max"""
@@ -2422,6 +2665,16 @@ class Translator:
             return {'class': cls}
         if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and 'CantBeCounteredSourceEffect' in args[1])):
             args = args[1:]
+        # "… as long as …. Otherwise, …" (`ConditionalContinuousEffect(effect, otherwise, condition, text)`): each
+        # effect under its side of the condition
+        if cls == 'SimpleStaticAbility' and len(args) == 1 \
+                and (g := re.fullmatch(r'new ConditionalContinuousEffect\((.*)\)', self.strip_setters(args[0].strip()), re.S)):
+            parts = split_args(g.group(1))
+            if len(parts) == 4 and parts[1].strip() != 'null' and re.fullmatch(r'"(?:[^"\\]|\\.)*"(?:\+"(?:[^"\\]|\\.)*")*', parts[3].strip()):
+                c = self.condition(parts[2])
+                return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [
+                    {'class': 'ConditionalContinuousEffect', 'effect': self.effect(parts[0]), 'condition': c},
+                    {'class': 'ConditionalContinuousEffect', 'effect': self.effect(parts[1]), 'condition': {'c': 'not', 'x': c}}]}
         # a Class: its levels, gained as a sorcery one after another, and the abilities each level adds
         # casualty N: as you cast it, you may sacrifice a creature with power N or greater; when you do, copy it
         if cls == 'CasualtyAbility' and len(args) == 1 and args[0].strip().isdigit():
@@ -4792,7 +5045,8 @@ def granted_rules(card):
             if g.get('hint'):
                 g['rule'] += (' <i>(Whenever this creature becomes the target of a spell or ability an opponent'
                               ' controls, counter it unless that player pays %d life.)</i>' % life[0]['amount'])
-        elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility') and quoted:
+        elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility',
+                             'LoyaltyAbility') and quoted:
             # an activated ability's rule ends with its effect's sentence; its costs read as the cost classes
             # write them (`SacrificeSourceCost`: "Sacrifice {this}")
             g['rule'] = quoted.group(1).rstrip('.') + '.'
@@ -4845,7 +5099,8 @@ def granted_rules(card):
             if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
                 g['rule'] += (' <i>(Create a Clue token. It\'s an artifact with "{2}, Sacrifice this artifact: Draw a'
                               ' card.")</i>')
-        elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility', 'TriggeredAbility', 'SimpleStaticAbility'):
+        elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
+                                'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
 
     def walk(x, rule):

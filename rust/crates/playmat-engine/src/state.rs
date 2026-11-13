@@ -1,7 +1,9 @@
 //! The game state. Each part sits behind an `Arc` and is copied only when changed (`Arc::make_mut`), so copying a
 //! `Game` for an AI search node bumps a few reference counts.
 
-use crate::card::{AbilityDef, Amount, CardDef, CardType, Condition, EffectDef, Filter, Mana, Pred, Trigger, Value};
+use crate::card::{
+    AbilityDef, Amount, CardDef, CardType, Condition, Duration, EffectDef, Filter, Mana, Pred, Trigger, Value,
+};
 use crate::rng::JavaRandom;
 use std::sync::Arc;
 
@@ -210,6 +212,10 @@ pub struct Obj {
     /// "becomes" replaces its creature types)
     pub creature_types: Option<Vec<String>>,
     pub base_pt: Option<(i32, i32)>,
+    /// when `base_pt` was set (`Game::timestamp`): layer 7b applies in timestamp order
+    pub base_pt_at: u64,
+    /// when it last entered the battlefield (`Game::timestamp`): its static abilities' effects' timestamp
+    pub entered_at: u64,
     /// regeneration shields until end of turn
     pub regen_shields: u32,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
@@ -707,8 +713,20 @@ pub struct Game {
     pub revealed: Vec<Revealed>,
     /// cards looked at while the object resolving resolves, for the viewer's views
     pub looked_at: Vec<LookedAt>,
-    /// counts attachments, for their order
+    /// counts attachments, for their order; also the timestamp of permanents entering and of base power and
+    /// toughness set as an effect resolves (`Game::timestamp`)
     pub attach_clock: u64,
+    /// continuous effects that started as a spell or ability resolved and last until end of turn, with no object
+    /// locked in (Java's `RestrictionEffect`s): the effect, its controller, its source
+    pub eot_effects: Vec<(EffectDef, Seat, ObjId)>,
+    /// layer 7b until end of turn: the permanent, its zone change count, the base power and toughness, the timestamp
+    pub base_pt_until_eot: Vec<(ObjId, u32, i32, i32, u64)>,
+    /// "prevent the next N damage that would be dealt to target …" this turn: the target, its zone change count,
+    /// what's left to prevent (`i32::MAX`: all), combat damage only, the effect's source
+    pub prevent_to_target: Vec<(Target, u32, i32, bool, ObjId)>,
+    /// abilities that resolved (`AbilityResolvedWatcher`): the source, the ability's index, the source's zone change
+    /// count then, the turn
+    pub abilities_resolved: Vec<(ObjId, usize, u32, u32)>,
     /// the step's start, before its priority round (Java's `StepPart.PRE`): declaring attackers shows nothing playable
     pub step_start: bool,
     /// `GameImpl.checkInfiniteLoop`'s state: the sources of the last resolved stack objects (up to four), the stack's
@@ -913,6 +931,10 @@ impl Game {
             revealed: Vec::new(),
             looked_at: Vec::new(),
             attach_clock: 0,
+            eot_effects: Vec::new(),
+            base_pt_until_eot: Vec::new(),
+            prevent_to_target: Vec::new(),
+            abilities_resolved: Vec::new(),
             step_start: false,
             loop_sources: Vec::new(),
             special_mana: false,
@@ -1084,6 +1106,8 @@ impl Game {
             marks: Vec::new(),
             creature_types: None,
             base_pt: None,
+            base_pt_at: 0,
+            entered_at: 0,
             regen_shields: 0,
             exile_instead_of_dying: false,
             damaged_by: (0, 0),
@@ -1260,6 +1284,21 @@ impl Game {
                 }
             }
         }
+        for src in self.battlefield.iter() {
+            if self.attached(*src) != Some(id) {
+                continue;
+            }
+            for a in &self.obj(*src).def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    if let EffectDef::AddCardSubtypeAttachedEffect { subtype } = e {
+                        if !added.contains(&subtype.as_str()) {
+                            added.push(subtype);
+                        }
+                    }
+                }
+            }
+        }
         for (x, zcc, t) in self.subtypes_until_eot.iter().chain(&self.subtypes_while_there) {
             if *x == id && *zcc == o.zcc && !added.contains(&t.as_str()) {
                 added.push(t);
@@ -1369,6 +1408,15 @@ impl Game {
         let o = self.obj(id);
         if !self.lost_until_eot.is_empty()
             && self.lost_until_eot.iter().any(|(x, z, a, t)| *x == id && *z == o.zcc && a == ability && *t == self.turn)
+        {
+            return false;
+        }
+        // an Aura or Equipment's "enchanted creature loses …"
+        if o.zone == Zone::Battlefield
+            && self.any_static(|g, src, e| {
+                matches!(e, EffectDef::LoseAbilityAttachedEffect { ability: lost } if **lost == *ability)
+                    && g.attached(src) == Some(id)
+            })
         {
             return false;
         }
@@ -1513,9 +1561,14 @@ impl Game {
     /// `who` ("you", "opponent", "any") of a trigger, for its controller `you` and the player `seat` it's about.
     /// The permanent an Aura is attached to, while it's still that object on the battlefield.
     /// `Permanent.addAttachment`: attached, after what's attached already
-    pub fn attach_to(&mut self, id: ObjId, to: ObjId, zcc: u32) {
+    /// The next timestamp (Java's `ContinuousEffects.setOrder`)
+    pub fn timestamp(&mut self) -> u64 {
         self.attach_clock += 1;
-        let at = self.attach_clock;
+        self.attach_clock
+    }
+
+    pub fn attach_to(&mut self, id: ObjId, to: ObjId, zcc: u32) {
+        let at = self.timestamp();
         let o = self.obj_mut(id);
         o.attached_to = Some((to, zcc));
         o.attached_at = at;
@@ -1666,9 +1719,12 @@ impl Game {
         self.battlefield.iter().any(|src| {
             self.attached(*src) == Some(id)
                 && self.obj(*src).def.abilities.iter().any(|a| match a {
-                    AbilityDef::SimpleStaticAbility { effects, .. } => {
-                        effects.iter().any(|e| matches!(e, EffectDef::CantAttackBlockAttachedEffect))
-                    }
+                    AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| {
+                        matches!(
+                            e,
+                            EffectDef::CantAttackBlockAttachedEffect | EffectDef::CantBlockAttackActivateAttachedEffect
+                        )
+                    }),
                     _ => false,
                 })
         })
@@ -2111,6 +2167,15 @@ impl Game {
                 let turn = format!("attacked{}", self.turn);
                 self.obj(source).marks.contains(&turn)
             }
+            Condition::SourceHasCounters => self.obj(source).counters.iter().any(|(_, n)| *n > 0),
+            Condition::SourceAttached { equipment } => self.battlefield.iter().any(|b| {
+                self.attached(*b) == Some(source)
+                    && (self.has_type(*b, CardType::Enchantment) || *equipment && self.has_subtype(*b, "Equipment"))
+            }),
+            Condition::SourceAttackingAlone => {
+                self.obj(source).attacking.is_some()
+                    && self.battlefield.iter().filter(|b| self.obj(**b).attacking.is_some()).count() == 1
+            }
             Condition::AttackedOrBlockedThisCombat => {
                 let o = self.obj(source);
                 o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0
@@ -2264,7 +2329,7 @@ impl Game {
                 **given == *ability && self.attached(src) == Some(id)
             }
             EffectDef::ConditionalContinuousEffect { effect, condition } => {
-                self.condition_holds(Some(condition), you, src) && self.static_gives(effect, src, you, id, ability)
+                self.static_gives(effect, src, you, id, ability) && self.condition_holds(Some(condition), you, src)
             }
             _ => false,
         }
@@ -2341,8 +2406,31 @@ impl Game {
                 }
             }
         }
-        // layer 7b
-        if let Some((bp, bt)) = o.base_pt {
+        // layer 7b, in timestamp order: the last one sets them
+        let mut set: Option<(u64, i32, i32)> = o.base_pt.map(|(bp, bt)| (o.base_pt_at, bp, bt));
+        let mut later = |at: u64, bp: i32, bt: i32| {
+            if set.is_none_or(|(s, _, _)| at >= s) {
+                set = Some((at, bp, bt));
+            }
+        };
+        for (x, z, bp, bt, at) in self.base_pt_until_eot.iter() {
+            if *x == id && *z == o.zcc {
+                later(*at, *bp, *bt);
+            }
+        }
+        for src in self.battlefield.iter() {
+            let s = self.obj(*src);
+            for a in &s.def.abilities {
+                if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                    for e in effects {
+                        if let Some((at, bp, bt)) = self.static_base_pt(e, *src, s.controller, id) {
+                            later(at, bp, bt);
+                        }
+                    }
+                }
+            }
+        }
+        if let Some((_, bp, bt)) = set {
             (p, t) = (bp, bt);
         }
         if !boosts {
@@ -2377,6 +2465,33 @@ impl Game {
         (p, t)
     }
 
+    /// A static ability's layer 7b effect on `id`: its timestamp (its source's, or an Aura's as it was attached) and
+    /// the base power and toughness
+    fn static_base_pt(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId) -> Option<(u64, i32, i32)> {
+        match e {
+            EffectDef::SetBasePowerToughness7bSourceEffect {
+                power,
+                toughness,
+                duration: Duration::WhileOnBattlefield,
+            } if src == id => Some((self.obj(src).entered_at, *power, *toughness)),
+            EffectDef::SetBasePowerToughnessAttachedEffect { power, toughness } if self.attached(src) == Some(id) => {
+                Some((self.obj(src).attached_at, *power, *toughness))
+            }
+            EffectDef::SetBasePowerToughnessAllEffect {
+                power,
+                toughness,
+                duration: Duration::WhileOnBattlefield,
+                filter,
+            } if self.filter_matches(filter, you, Some(src), id) => {
+                Some((self.obj(src).entered_at, self.value(power, you, src, 0), self.value(toughness, you, src, 0)))
+            }
+            EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                self.static_base_pt(effect, src, you, id).filter(|_| self.condition_holds(Some(condition), you, src))
+            }
+            _ => None,
+        }
+    }
+
     /// What a static ability's effect, from `src` controlled by `you`, adds to `id`'s power and toughness.
     fn static_boost(&self, e: &EffectDef, src: ObjId, you: Seat, id: ObjId) -> (i32, i32) {
         match e {
@@ -2392,10 +2507,15 @@ impl Game {
             {
                 (self.value(power, you, src, 0), self.value(toughness, you, src, 0))
             }
-            EffectDef::ConditionalContinuousEffect { effect, condition }
-                if self.condition_holds(Some(condition), you, src) =>
-            {
-                self.static_boost(effect, src, you, id)
+            // what the effect would add first: its condition (Drowsing Tyrannodon's "a creature with power 4 or
+            // greater") only for one that adds something, as Java checks it only in that effect's layer
+            EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                let boost = self.static_boost(effect, src, you, id);
+                if boost != (0, 0) && self.condition_holds(Some(condition), you, src) {
+                    boost
+                } else {
+                    (0, 0)
+                }
             }
             // a static "this gets +N/+N" (inside a conditional one)
             EffectDef::BoostSourceEffect { power, toughness, .. } if src == id => {
@@ -3023,7 +3143,10 @@ impl Game {
                     let c = self.obj(id).controller;
                     self.player_mut(c).nonlands_entered += 1;
                 }
-                self.obj_mut(id).sick = true;
+                let at = self.timestamp();
+                let o = self.obj_mut(id);
+                o.sick = true;
+                o.entered_at = at;
                 Arc::make_mut(&mut self.battlefield).push(id)
             }
             Zone::Exile => Arc::make_mut(&mut self.exile).push(id),
