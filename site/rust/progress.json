@@ -47,7 +47,7 @@
    "n": "4",
    "name": "Rules engine and card pipeline",
    "status": "active",
-   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Gate run (11–12 Nov): 9,949 of 10,000 shadow games match and Java didn't finish 45. The 6 that differ are Java bugs Rust doesn't copy (#289), accepted as such on 12 Nov. 51 of 65 exported card tests pass and none differ; the other 14 can't run outside Java. The pool now covers Pioneer: 8,418 cards are in the engine, and 6,969 are verified (13 Nov), each by three or more matching shadow games that played it. Only verified cards reach Rust games. Next: the rest of the Pioneer pool.",
+   "text": "A Rust rules engine with cheap copies, and a transpiler that turns XMage's Java card files into data. Every card is checked against Java with shadow games. The first pool is in: all 42 Pioneer and Standard school decks and the 24 meta decks the AI plays, plus the Modern meta decks and the starter decks. Gate run (11–12 Nov): 9,949 of 10,000 shadow games match and Java didn't finish 45. The 6 that differ are Java bugs Rust doesn't copy (#289), accepted as such on 12 Nov. 51 of 65 exported card tests pass and none differ; the other 14 can't run outside Java. The pool now covers Pioneer: 8,736 cards are in the engine, and 7,200 are verified (13 Nov), each by three or more matching shadow games that played it. Only verified cards reach Rust games. Next: the rest of the Pioneer pool.",
    "pr": [
     219,
     220,
@@ -257,12 +257,12 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 8418,
-  "verified_cards": 6969,
+  "engine_cards": 8736,
+  "verified_cards": 7200,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 8331,
-   "verified": 6882
+   "in_engine": 8649,
+   "verified": 7113
   },
   "java_card_files": 32749,
   "school": {
@@ -1019,10 +1019,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 610
+   "checked_in": 618
   },
   "rust": {
-   "lines": 49985,
+   "lines": 50719,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1030,7 +1030,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 28130
+     "lines": 28864
     },
     {
      "crate": "playmat-gateway",
@@ -1055,6 +1055,6 @@
    ]
   }
  },
- "commit": "b4408a39cdb138a0c3db3098b9f2d60e36b2b54e",
+ "commit": "64655fe3d2d10e568be40aa01697afe62fdaf971",
  "generated": "2026-11-13"
 }
