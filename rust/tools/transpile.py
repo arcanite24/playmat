@@ -119,7 +119,7 @@ EFFECTS = {
     'ReduceCostEquipTargetSourceEffect': [(None, 'int')],
     'PermanentsEnterBattlefieldTappedEffect': [('filter', 'filter')],
     'CantGainLifeAllEffect': [],
-    'ReturnSourceFromGraveyardToBattlefieldEffect': [(None, 'false'), (None, 'false')],
+    'ReturnSourceFromGraveyardToBattlefieldEffect': [('tapped', 'bool'), (None, 'false')],
     'GainPlusOneLifeReplacementEffect': [],
     'ReturnToHandFromBattlefieldAllEffect': [('filter', 'filter')],
     'CantBeCounteredControlledEffect': [('filter', 'filter'), ('duration', 'duration')],
@@ -566,6 +566,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'CastFromEverywhereSourceCondition.instance': {'c': 'cast_from_everywhere'},
               'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}},
               'StartingTownCondition.instance': {'c': 'starting_town'},
+              # threshold: seven or more cards in your graveyard
+              'ThresholdCondition.instance': {'c': 'cards_in_graveyard', 'n': 7, 'filter': []},
               'LessonsInGraveCondition.THREE': {'c': 'cards_in_graveyard', 'n': 3,
                                                  'filter': [{'p': 'subtype', 's': 'Lesson'}]}}
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
@@ -614,6 +616,7 @@ FILTER_CLASSES = {
     'FilterInstantOrSorceryCard': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}],
     'FilterBasicLandCard': [LAND, {'p': 'supertype', 's': 'BASIC'}],
     'FilterStackObject': [], 'FilterCreatureCards': [CREATURE],
+    'FilterEnchantmentCard': [type_pred('ENCHANTMENT')], 'FilterBasicCard': [{'p': 'supertype', 's': 'BASIC'}],
 }
 
 COMPARISONS = {'FEWER_THAN', 'MORE_THAN', 'EQUAL_TO', 'OR_LESS', 'OR_GREATER'}
@@ -636,6 +639,9 @@ def predicate(text, subtypes):
         return {'p': m.group(2).lower(), 'who': 'you' if m.group(1) == 'YOU' else 'opponent'}
     if text == 'ChosenNamePredicate.instance':
         return {'p': 'chosen_name'}
+    # historic: an artifact, a legendary or a Saga (`MageObject.isHistoric`)
+    if text == 'HistoricPredicate.instance':
+        return {'p': 'or', 'xs': [type_pred('ARTIFACT'), {'p': 'supertype', 's': 'LEGENDARY'}, {'p': 'subtype', 's': 'Saga'}]}
     if text == 'AnotherPredicate.instance':
         return {'p': 'another'}
     if text == 'MulticoloredPredicate.instance':
@@ -930,6 +936,8 @@ class Translator:
                    'SavedGainedLifeValue.MUCH', 'TheOozeValue.instance', 'SavedDamageValue.MUCH', 'SavedDamageValue.MANY',
                    'SavedLifeLossValue.MUCH'):
             return {'v': 'x'}
+        if (m := re.fullmatch(r'new CountersSourceCount\((CounterType\.\w+)\)', arg)) and m.group(1) in COUNTERS:
+            return {'v': 'source_counters', 'counter': COUNTERS[m.group(1)]}
         if arg == 'UnlicensedHearseValue.instance':
             return {'v': 'exiled_with_source'}
         if arg == 'IntrepidAdversaryValue.instance':
@@ -1899,6 +1907,11 @@ class Translator:
         return out
 
     def ability(self, expr):
+        # protection from one or more colors
+        m = re.fullmatch(r'ProtectionAbility\.from\((ObjectColor\.(?:WHITE|BLUE|BLACK|RED|GREEN)(?:,ObjectColor\.\w+)*)\)', canonical(expr.strip()))
+        if m and all(c.split('.')[1] in COLORS for c in m.group(1).split(',')):
+            cs = [{'p': 'color', 'c': COLORS[c.split('.')[1]]} for c in m.group(1).split(',')]
+            return {'class': 'ProtectionAbility', 'filter': cs if len(cs) == 1 else [{'p': 'or', 'xs': cs}]}
         # an evasion static is a static
         m = re.fullmatch(r'new SimpleEvasionAbility\((.*)\)', expr.strip(), re.S)
         if m:
@@ -3444,21 +3457,28 @@ def token(cls):
         if not m:
             raise Unsupported('token constructor ' + cls)
         m = re.match(r'(.*)', re.sub(r'\b' + m.group(1) + r'\b', n.group(1), m.group(2)), re.S)
+    # `this((String) null)`: the set-code constructor, whose code is only the image
+    if re.fullmatch(r'\s*this\(\(String\)\s*null\);\s*', m.group(1)):
+        m = re.search(r'public ' + cls + r'\(String \w+\)\s*\{(.*?)\n    \}', source, re.S)
+        if not m:
+            raise Unsupported('token constructor ' + cls)
     out = {'types': [], 'colors': [], 'subtypes': [], 'abilities': []}
     subtypes = subtype_names()
     colors = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes)
     added = []
     for st in statements(m.group(1)):
-        st = re.sub(r'^this\.(?=(?:cardType|color|subtype|power|toughness|startingLoyalty)\b)', '', st)
+        st = re.sub(r'^this\.(?=(?:cardType|color|subtype|supertype|power|toughness|startingLoyalty)\b)', '', st)
         if (n := re.fullmatch(r'super\("([^"]+)",".*"\)', st)):
             out['name'] = n.group(1)
         elif (n := re.fullmatch(r'(?:this\.)?cardType\.add\(CardType\.(\w+)\)', st)):
             out['types'].append(n.group(1))
         elif (n := re.fullmatch(r'color\.set(\w+)\(true\)', st)):
             out['colors'].append(colors[n.group(1)])
-        elif (n := re.fullmatch(r'subtype\.add\(SubType\.(\w+)\)', st)):
-            out['subtypes'].append(subtypes[n.group(1)])
+        elif (n := re.fullmatch(r'subtype\.add\((SubType\.\w+(?:,SubType\.\w+)*)\)', st)):
+            out['subtypes'].extend(subtypes[x.split('.')[1]] for x in n.group(1).split(','))
+        elif (n := re.fullmatch(r'supertype\.add\(SuperType\.(\w+)\)', st)):
+            out.setdefault('supertypes', []).append(n.group(1))
         elif (n := re.fullmatch(r'(power|toughness)=new MageInt\((\d+)\)', st)):
             out[n.group(1)] = int(n.group(2))
         elif (n := re.fullmatch(r'(?:this\.)?startingLoyalty=(\d+)', st)):

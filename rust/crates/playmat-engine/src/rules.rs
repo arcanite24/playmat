@@ -8466,10 +8466,13 @@ fn apply_each_effect(
                     to_library(game, o, *top);
                 }
             }
-            EffectDef::ReturnSourceFromGraveyardToBattlefieldEffect => {
+            EffectDef::ReturnSourceFromGraveyardToBattlefieldEffect { tapped } => {
                 let (o, zcc) = source;
                 if game.obj(o).zone == Zone::Graveyard && game.obj(o).zcc == zcc {
                     enter_battlefield(game, d, o, controller, false);
+                    if *tapped {
+                        game.obj_mut(o).tapped = true;
+                    }
                 }
             }
             EffectDef::DamageCantBePreventedEffect { .. } => game.no_prevention_turn = Some(game.turn),

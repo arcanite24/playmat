@@ -1756,8 +1756,11 @@ pub enum EffectDef {
     CantGainLifeAllEffect,
     /// players can't gain life this turn (`CantGainLifeAllEffect(Duration.EndOfTurn)` as a spell's effect)
     CantGainLifeThisTurnEffect,
-    /// return the source from its graveyard to the battlefield
-    ReturnSourceFromGraveyardToBattlefieldEffect,
+    /// return the source from its graveyard to the battlefield (`tapped`: Reassembling Skeleton)
+    ReturnSourceFromGraveyardToBattlefieldEffect {
+        #[serde(default)]
+        tapped: bool,
+    },
     /// put the source card (a dies trigger's graveyard card) on top of or under its owner's library
     PutOnLibrarySourceEffect {
         top: bool,
