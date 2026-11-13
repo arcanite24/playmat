@@ -1767,6 +1767,13 @@ impl Game {
                     .map(|b| self.obj(*b).def.mana_value() as i32)
                     .max()
                     .unwrap_or(0),
+                Value::GreatestPower { filter } => self
+                    .battlefield
+                    .iter()
+                    .filter(|b| self.filter_matches(filter, you, Some(source), **b))
+                    .map(|b| self.power_toughness(*b).0)
+                    .max()
+                    .unwrap_or(0),
                 Value::SourceCounters { counter } => {
                     if self.obj(source).zone == Zone::Battlefield {
                         self.obj(source).counter(counter)

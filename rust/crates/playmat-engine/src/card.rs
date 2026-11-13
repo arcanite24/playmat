@@ -1010,6 +1010,8 @@ pub enum Value {
     ExiledWithSource,
     /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
     GreatestManaValue { filter: Filter },
+    /// the greatest power among permanents of the filter, 0 if there are none (`GreatestAmongPermanentsValue`)
+    GreatestPower { filter: Filter },
     /// cards the controller drew this turn
     CardsDrawn,
     /// life the controller gained this turn (`ControllerGainedLifeCount`)
@@ -1217,6 +1219,13 @@ pub enum EffectDef {
     /// as it enters, its controller may behold a `subtype`; if they don't, it enters tapped
     TapSourceUnlessBeholdEffect {
         subtype: String,
+    },
+    /// as it enters, its controller may reveal a card of the filter from their hand (`message`, the filter's text);
+    /// if they don't, it enters tapped (the snarls and check lands' `RevealTargetFromHandCost`)
+    TapSourceUnlessRevealsEffect {
+        #[serde(default)]
+        filter: Filter,
+        message: String,
     },
     /// the first target deals damage equal to its power to the second (Bite Down)
     DamageWithPowerFromOneToAnotherTargetEffect,
@@ -1749,8 +1758,11 @@ pub enum EffectDef {
     CantGainLifeAllEffect,
     /// players can't gain life this turn (`CantGainLifeAllEffect(Duration.EndOfTurn)` as a spell's effect)
     CantGainLifeThisTurnEffect,
-    /// return the source from its graveyard to the battlefield
-    ReturnSourceFromGraveyardToBattlefieldEffect,
+    /// return the source from its graveyard to the battlefield (`tapped`: Reassembling Skeleton)
+    ReturnSourceFromGraveyardToBattlefieldEffect {
+        #[serde(default)]
+        tapped: bool,
+    },
     /// put the source card (a dies trigger's graveyard card) on top of or under its owner's library
     PutOnLibrarySourceEffect {
         top: bool,
@@ -2387,6 +2399,9 @@ pub enum AbilityDef {
     CleaveAbility {
         cost: String,
         effects: Vec<EffectDef>,
+        /// the cleaved spell's own targets, when they aren't the spell's (the words in brackets restrict them)
+        #[serde(default)]
+        targets: Option<Vec<TargetDef>>,
         rule: String,
     },
     /// cast for `mana` and `cost` instead: it gains haste and "when this creature dies, draw a card", and it's
@@ -3502,9 +3517,12 @@ impl CardDef {
     /// The cleave ability's index and the card with its cleave cost and effects.
     pub fn cleave(&self) -> Option<(usize, CardDef)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
-            AbilityDef::CleaveAbility { cost, effects, .. } => {
+            AbilityDef::CleaveAbility { cost, effects, targets, .. } => {
                 let mut spell = self.spell.clone();
                 spell.effects = effects.clone();
+                if let Some(targets) = targets {
+                    spell.targets = targets.clone();
+                }
                 Some((
                     k,
                     CardDef {

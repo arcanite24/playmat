@@ -945,6 +945,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || plot(game, seat, *id).is_some()
             || suspend(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
+            || o.def.back.as_ref().is_some_and(|b| b.is(CardType::Land) && can_play_land(game, seat))
         {
             out.push(*id);
         }
@@ -957,7 +958,8 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
     for id in p.graveyard.iter() {
         let def = &game.obj(*id).def;
         if def.is(CardType::Land) {
-            if lands {
+            // played from it (Crucible of Worlds), or a graveyard ability of its own (Drownyard Temple)
+            if lands || !activatable(game, seat, *id).is_empty() {
                 out.push(*id);
             }
             continue;
@@ -1063,7 +1065,15 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     }
                 }
                 if o.is(CardType::Land) {
-                    if let Some(k) = index(def, &AbilityDef::PlayLandAbility).filter(|_| can_play_land(game, seat)) {
+                    // from a graveyard only with Crucible of Worlds' effect
+                    let from_graveyard = o.zone != Zone::Graveyard
+                        || game.any_static(|g, src, e| {
+                            matches!(e, EffectDef::PlayLandsFromGraveyardControllerEffect)
+                                && g.obj(src).controller == seat
+                        });
+                    if let Some(k) =
+                        index(def, &AbilityDef::PlayLandAbility).filter(|_| from_graveyard && can_play_land(game, seat))
+                    {
                         out.push((id, k, PlayKind::Land, face));
                     }
                 } else {
@@ -2357,12 +2367,29 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &blitz {
             options.push(*k);
         }
-        if !options.is_empty() {
+        // a modal double-faced card with a spell front and a land back (Malakir Rebirth): its back's play ability,
+        // after the front's abilities
+        let land_back = (zone == Zone::Hand && !game.obj(id).def.is(CardType::Land))
+            .then(|| game.obj(id).def.back.clone())
+            .flatten()
+            .filter(|b| b.is(CardType::Land) && can_play_land(game, seat))
+            .and_then(|b| b.abilities.iter().position(|a| *a == AbilityDef::PlayLandAbility))
+            .map(|k| game.obj(id).def.abilities.len() + k);
+        if let Some(k) = land_back {
+            options.push(k);
+        }
+        // its front cast, or its back played: Java shows the picker for either, even with one choice
+        let mdfc = zone == Zone::Hand && !game.obj(id).def.is(CardType::Land) && game.obj(id).def.back.is_some();
+        if !options.is_empty() || mdfc {
             let def = game.obj(id).def.clone();
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
                 options.insert(0, 0);
             }
-            let index = if options.len() == 1 {
+            // (a modal double-faced card's faces always show the picker, one choice or two)
+            if options.is_empty() {
+                return;
+            }
+            let index = if options.len() == 1 && !mdfc {
                 options[0]
             } else {
                 match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
@@ -2439,7 +2466,14 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 }
                 return;
             }
-            if index != 0 {
+            if land_back == Some(index) {
+                // played as its back: the land below
+                let full = game.obj(id).def.clone();
+                let back = full.back.clone().expect("a land back");
+                let o = game.obj_mut(id);
+                o.front = Some(full);
+                o.def = back;
+            } else if index != 0 {
                 let before = game.clone();
                 if !activate(game, d, seat, id, index) {
                     *game = before;
@@ -2448,7 +2482,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
         }
     }
-    if game.obj(id).is(CardType::Land) {
+    // a land in a graveyard with an ability of its own there (Drownyard Temple): that ability, below
+    let graveyard_ability = game.obj(id).zone == Zone::Graveyard && !activatable(game, seat, id).is_empty();
+    if game.obj(id).is(CardType::Land) && !graveyard_ability {
         // a modal double-faced land: the picker, with its front's and its back's play abilities (the back's come
         // after the front's)
         if let Some(back) = game.obj(id).def.back.clone() {
@@ -8466,10 +8502,13 @@ fn apply_each_effect(
                     to_library(game, o, *top);
                 }
             }
-            EffectDef::ReturnSourceFromGraveyardToBattlefieldEffect => {
+            EffectDef::ReturnSourceFromGraveyardToBattlefieldEffect { tapped } => {
                 let (o, zcc) = source;
                 if game.obj(o).zone == Zone::Graveyard && game.obj(o).zcc == zcc {
                     enter_battlefield(game, d, o, controller, false);
+                    if *tapped {
+                        game.obj_mut(o).tapped = true;
+                    }
                 }
             }
             EffectDef::DamageCantBePreventedEffect { .. } => game.no_prevention_turn = Some(game.turn),
@@ -10988,6 +11027,7 @@ fn apply_each_effect(
             | EffectDef::PetrifiedHamletCostEffect
             | EffectDef::PithingNeedleEffect
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
+            | EffectDef::TapSourceUnlessRevealsEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect
             | EffectDef::AttachEffect
@@ -12110,6 +12150,33 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                         }
                     };
                     let cost = CostDef::BeholdCost { subtype: subtype.clone() };
+                    if !(paid && pay_cost(game, d, controller, id, &cost)) {
+                        if d.stopped() {
+                            return;
+                        }
+                        game.obj_mut(id).tapped = true;
+                    }
+                }
+                // `TapSourceUnlessPaysEffect` with a `RevealTargetFromHandCost`: asked only when a card can be revealed
+                if let EffectDef::TapSourceUnlessRevealsEffect { filter, message } = e {
+                    let cost = CostDef::RevealTargetFromHandCost { filter: filter.clone(), min: 1, max: 1 };
+                    let can = game
+                        .player(controller)
+                        .hand
+                        .iter()
+                        .any(|c| *c != id && game.filter_matches(filter, controller, Some(id), *c));
+                    let paid = can && {
+                        let q = Query::YesNo {
+                            message: format!("reveal {}? (otherwise {} becomes tapped)", message, def.name),
+                        };
+                        loop {
+                            match ask(game, d, controller, &q) {
+                                Answer::Bool(b) => break b,
+                                Answer::Stop => return,
+                                _ => {}
+                            }
+                        }
+                    };
                     if !(paid && pay_cost(game, d, controller, id, &cost)) {
                         if d.stopped() {
                             return;
