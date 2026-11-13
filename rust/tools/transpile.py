@@ -6246,6 +6246,8 @@ def token_classes(names):
             out.add('JacePlaneswalkerToken')
         for role in re.findall(r'RoleType\.(\w+)', source):
             out.add(role.title().replace('_', '') + 'RoleToken')
+    # the tokens per-card handlers declare (`.tokens(&[…])`: Quartzwood Crasher's `new DinosaurBeastToken(x)`)
+    out.update(t for h in card_handlers.handlers().values() for t in h['tokens'])
     return sorted(out)
 
 

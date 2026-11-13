@@ -331337,6 +331337,20 @@
     "abilities": []
   },
   {
+    "name": "token:DinosaurBeastToken",
+    "images": {
+      "IKO": 1,
+      "LCC": 1
+    },
+    "abilities": [
+      {
+        "class": "TrampleAbility",
+        "type": "STATIC",
+        "rule": "trample"
+      }
+    ]
+  },
+  {
     "name": "token:DinosaurEggToken",
     "images": {
       "LCI": 1
