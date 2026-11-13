@@ -1,0 +1,15 @@
+# Probe: {S} costs paid only with snow mana (Frost Augur, Faceless Haven, Pilfering Hawk, Icehide Troll), snow and non-snow lands mixed
+4 Frost Augur
+4 Pilfering Hawk
+4 Icehide Troll
+4 Frostpeak Yeti
+4 Icebind Pillar
+4 Sculptor of Winter
+4 Llanowar Elves
+4 Opt
+4 Faceless Haven
+4 Rimewood Falls
+4 Woodland Chasm
+4 Highland Forest
+6 Island
+6 Forest

@@ -395,6 +395,10 @@ pub struct Player {
     pub drew: bool,
     pub lands_played: u32,
     pub mana_pool: Mana,
+    /// the pool's mana one by one in the order it was made (kind 0-4 WUBRG, 5 colorless), and whether a snow
+    /// permanent made it: Java's `ManaPoolItem`s, which a payment takes from the first that has the kind, and whose
+    /// source a snow symbol's filter checks. Kept in line with `mana_pool` by `sync_pool_units`
+    pub pool_units: Vec<(u8, bool)>,
     /// how much of the pool's {R} lasts until end of combat (firebending)
     pub combat_red: u32,
     /// conditional mana made for a payment that couldn't spend it: (the mana, its source, the ability's index); a
@@ -439,6 +443,41 @@ pub struct Player {
     pub nonlands_entered: u32,
     /// permanent cards put into their graveyard this turn (`DescendedWatcher`)
     pub descended: u32,
+}
+
+impl Player {
+    /// `pool_units` in line with `mana_pool`: mana added without a unit (an effect's) comes last and isn't snow;
+    /// mana gone without one (undone, emptied) leaves from the last units of its kind
+    pub fn sync_pool_units(&mut self) {
+        for k in 0..6u8 {
+            let have = if k < 5 { self.mana_pool.colored[k as usize] } else { self.mana_pool.colorless } as usize;
+            let mut n = self.pool_units.iter().filter(|u| u.0 == k).count();
+            while n > have {
+                if let Some(at) = self.pool_units.iter().rposition(|u| u.0 == k) {
+                    self.pool_units.remove(at);
+                }
+                n -= 1;
+            }
+            for _ in n..have {
+                self.pool_units.push((k, false));
+            }
+        }
+    }
+
+    /// mana made by a source, snow or not, into the pool
+    pub fn add_pool_mana(&mut self, m: Mana, snow: bool) {
+        self.sync_pool_units();
+        for k in 0..6u8 {
+            let n = if k < 5 { m.colored[k as usize] } else { m.colorless };
+            for _ in 0..n {
+                self.pool_units.push((k, snow));
+            }
+        }
+        for c in 0..5 {
+            self.mana_pool.colored[c] += m.colored[c];
+        }
+        self.mana_pool.colorless += m.colorless;
+    }
 }
 
 /// What a target is.
@@ -737,6 +776,8 @@ pub struct Game {
     pub revealed: Vec<Revealed>,
     /// cards looked at while the object resolving resolves, for the viewer's views
     pub looked_at: Vec<LookedAt>,
+    /// the piles (`Cards` locals) of the card's own effect resolving now, by slot name (`EffectDef::Effects`)
+    pub piles: Vec<(String, Vec<ObjId>)>,
     /// counts attachments, for their order; also the timestamp of permanents entering and of base power and
     /// toughness set as an effect resolves (`Game::timestamp`)
     pub attach_clock: u64,
@@ -923,6 +964,11 @@ pub struct Game {
 }
 
 impl Game {
+    /// a snow permanent (`SuperType.SNOW`): its mana pays snow symbols
+    pub fn is_snow(&self, id: ObjId) -> bool {
+        self.obj(id).def.supertypes.iter().any(|s| s == "SNOW")
+    }
+
     pub fn new(seats: usize, seed_state: i64) -> Game {
         let mut rng = JavaRandom::new(0);
         rng.set_state(seed_state);
@@ -956,6 +1002,7 @@ impl Game {
             combat_groups: Vec::new(),
             revealed: Vec::new(),
             looked_at: Vec::new(),
+            piles: Vec::new(),
             attach_clock: 0,
             eot_effects: Vec::new(),
             base_pt_until_eot: Vec::new(),

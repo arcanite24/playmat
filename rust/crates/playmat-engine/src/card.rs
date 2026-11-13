@@ -53,6 +53,10 @@ pub struct ManaCost {
     pub phyrexian: [u32; 5],
     /// hybrid symbols (`{G/W}`): each paid with either color, the first tried first
     pub hybrid: Vec<(usize, usize)>,
+    /// snow symbols (`{S}`, `SnowManaCost`): one generic mana each, from a snow source only. The playable check
+    /// counts them as generic (`SnowManaCost.testPay`); the payment takes them after hybrid and before generic
+    /// (`ManaCostsImpl.assignPayment`), from mana a snow permanent made (its source filter)
+    pub snow: u32,
     pub text: String,
 }
 
@@ -73,6 +77,7 @@ impl ManaCost {
                 "R" => cost.colored[3] += 1,
                 "G" => cost.colored[4] += 1,
                 "C" => cost.colorless += 1,
+                "S" => cost.snow += 1,
                 "X" => cost.x += 1,
                 p if p.len() == 3 && &p[1..2] == "/" && "WUBRG".contains(&p[..1]) && "WUBRG".contains(&p[2..]) => {
                     cost.hybrid.push(("WUBRG".find(&p[..1]).unwrap(), "WUBRG".find(&p[2..]).unwrap()));
@@ -92,7 +97,16 @@ impl ManaCost {
     }
 
     pub fn mana_value(&self) -> u32 {
-        self.generic + self.colored.iter().sum::<u32>() + self.colorless + self.hybrid.len() as u32
+        self.generic + self.colored.iter().sum::<u32>() + self.colorless + self.hybrid.len() as u32 + self.snow
+    }
+
+    /// the cost with its snow symbols as generic ones: what the playable check tests (`SnowManaCost`'s options are
+    /// one generic mana)
+    pub fn snow_as_generic(&self) -> ManaCost {
+        let mut c = self.clone();
+        c.generic += c.snow;
+        c.snow = 0;
+        c
     }
 
     pub fn colors(&self) -> Vec<Color> {
@@ -135,6 +149,7 @@ impl ManaCost {
             c.phyrexian[i] += other.phyrexian[i];
         }
         c.hybrid.extend(other.hybrid.iter().copied());
+        c.snow += other.snow;
         c.text.push_str(&other.text);
         c
     }
@@ -1166,6 +1181,8 @@ pub enum PutCards {
     TopAny,
     BottomAny,
     BottomRandom,
+    /// on top of the library in a random order (`putCardsOnTopOfLibrary(cards, game, source, false)`)
+    TopRandom,
 }
 
 /// A number an effect uses: fixed, or Java's `DynamicValue` worked out as the effect happens.
@@ -2953,7 +2970,7 @@ pub enum EffectDef {
         #[serde(default)]
         otherwise: Vec<EffectDef>,
         #[serde(default)]
-        bind: Option<Bind>,
+        bind: Option<Box<Bind>>,
         #[serde(default)]
         require: Vec<Require>,
         #[serde(default)]
@@ -2976,6 +2993,38 @@ pub enum EffectDef {
     MoveTargetCardsEffect {
         zone: String,
     },
+    /// the target cards (a pile, pointed with `to`) together to a zone, as `player.moveCards(cards, zone, …)`,
+    /// `putCardsOnTopOfLibrary` and `putCardsOnBottomOfLibrary` (in any order, or a random one) do
+    PutTargetCardsEffect {
+        put: PutCards,
+    },
+    /// `player.revealCards(source, cards, game)`: the target cards are shown to everyone while the object resolves
+    RevealTargetCardsEffect,
+    /// `player.lookAtCards(source, cards, game)`: the target cards are shown to the controller
+    LookAtTargetCardsEffect,
+    /// `pile.addAll(slot)` / `pile.add(card)`: a sequence's pile gets the slot's objects (in an `Effects`
+    /// sequence only)
+    PileAddEffect {
+        pile: String,
+        slot: String,
+    },
+    /// `pile.removeAll(slot)` / `pile.remove(card)`
+    PileRemoveEffect {
+        pile: String,
+        slot: String,
+    },
+    /// `pile.retainZone(zone, game)`: only the pile's cards now in that zone ("LIBRARY", "HAND", "GRAVEYARD",
+    /// "EXILED", "BATTLEFIELD") stay in it
+    PileRetainZoneEffect {
+        pile: String,
+        zone: String,
+    },
+    /// `controller.shuffleLibrary(source, game)`
+    ShuffleLibrarySourceEffect,
+    /// its controller sacrifices each target permanent (`SacrificeTargetEffect`, `permanent.sacrifice(source, game)`)
+    SacrificeTargetEffect,
+    /// the target player shuffles their library (`ShuffleLibraryTargetEffect`)
+    ShuffleLibraryTargetEffect,
 }
 
 /// A number an `Effects` sequence works out before its effects
@@ -2995,9 +3044,28 @@ pub enum Quantity {
     ManaValue {
         of: String,
     },
+    /// how many objects the slot has (`cards.size()`), or of them match `filter` (`cards.count(filter, game)`)
+    Count {
+        of: String,
+        #[serde(default)]
+        filter: Option<Filter>,
+    },
 }
 
-/// A slot an `Effects` sequence names: `what` ("top_card", the top card of the library of the player in `of`)
+/// A slot an `Effects` sequence names. `what`:
+/// - "top_card": the top card of the library of the player in `of` (the controller when it's none)
+/// - a pile (Java's `Cards`, kept in insertion order and changed by `PileAddEffect` and `PileRemoveEffect` while the
+///   object resolves): "top_cards" (the top `n` of `of`'s library, `getTopCards`), "mill" (the cards `of` mills,
+///   `n` of them, `millCards`), "hand" and "graveyard" (`of`'s), "targets" (the first target's objects,
+///   `getTargetPointer().getTargets`), "all_targets" (every target of the ability), "empty"
+///   (`new CardsImpl()`), "copy" (the slot `from` as it is now), "filtered" (the cards of `from` matching `filter`,
+///   `cards.getCards(filter, game)`)
+/// - "choose": the cards `who` chooses (`player.choose(outcome, cards, target, source, game)`, or `chooseTarget`):
+///   between `min` and `max` of `filter`, from the pile `from`, or from `zone` when there's no pile ("hand" and
+///   "graveyard" of `of`, "graveyards": every player's, "battlefield": the permanents, "library": `who` searches
+///   their library, `searchLibrary`); a pile itself. Java shows the whole pile and lets only the matching cards be picked; an empty
+///   pile isn't asked about, and a zone with nothing to pick isn't asked about when one must be picked
+/// - "first": the first card of the pile `from` (`target.getFirstTarget()`), or nothing
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Bind {
@@ -3005,6 +3073,23 @@ pub struct Bind {
     pub what: String,
     #[serde(default)]
     pub of: Option<String>,
+    #[serde(default)]
+    pub n: Option<Amount>,
+    #[serde(default)]
+    pub from: Option<String>,
+    #[serde(default)]
+    pub zone: Option<String>,
+    #[serde(default)]
+    pub filter: Option<Filter>,
+    #[serde(default)]
+    pub min: usize,
+    #[serde(default)]
+    pub max: Option<Amount>,
+    #[serde(default)]
+    pub who: Option<String>,
+    /// "choose" from a zone with `chooseTarget`: nothing to pick isn't asked about, even when none must be
+    #[serde(default)]
+    pub quiet: bool,
 }
 
 /// A Java null check: the slot has something (`is` ""), a permanent still on the battlefield ("permanent"), or a
@@ -3019,8 +3104,8 @@ pub struct Require {
 }
 
 /// What an `Effects` sequence is done for, one at a time, each named `name`: "opponents" (`getOpponents`),
-/// "players" (`getPlayersInRange`, in seat order) or "permanents" of the filter (`getActivePermanents`, battlefield
-/// order)
+/// "players" (`getPlayersInRange`, in seat order), "permanents" of the filter (`getActivePermanents`, battlefield
+/// order) or "cards", the objects of the slot `from` (a pile's, in its order)
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Each {
@@ -3031,14 +3116,24 @@ pub struct Each {
     /// "permanents" only: those the slot's player controls (`getAllActivePermanents(filter, playerId, game)`)
     #[serde(default)]
     pub controller: Option<String>,
+    #[serde(default)]
+    pub from: Option<String>,
 }
 
-/// "if the slot's object matches the filter" (`card.isLand(game)`)
+/// "if the slot's object matches the filter" (`card.isLand(game)`); `any`: if any of the slot's objects does
+/// (`!cards.getCards(filter, game).isEmpty()`, and with no filter `!cards.isEmpty()`); `cmp`: if the number of the
+/// slot's objects that do compares so with `n` ("==", "!=", "<", "<=", ">", ">=": `cards.size() == 2`, a `switch`)
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct When {
     pub slot: String,
     pub filter: Filter,
+    #[serde(default)]
+    pub any: bool,
+    #[serde(default)]
+    pub cmp: Option<String>,
+    #[serde(default)]
+    pub n: i32,
 }
 
 /// `player.chooseUse(…)`: the slot's player is asked (the controller when it's none)
@@ -4666,6 +4761,9 @@ mod tests {
         let h = ManaCost::parse("{1}{W/U}").unwrap();
         assert_eq!(h.mana_value(), 2);
         assert!(ManaCost::parse("{W/X}").is_err());
+        let s = ManaCost::parse("{1}{S}").unwrap();
+        assert_eq!((s.generic, s.snow, s.mana_value()), (1, 1, 2));
+        assert_eq!(s.snow_as_generic().generic, 2);
     }
 
     #[test]

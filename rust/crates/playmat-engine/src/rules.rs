@@ -2065,6 +2065,9 @@ pub fn devotion(game: &Game, seat: Seat, c: Color) -> u32 {
 
 /// `can_pay`, with more sources (each a list of the mana it could make; none: generic only).
 fn can_pay_extra(game: &Game, seat: Seat, cost: &ManaCost, extra: Vec<Vec<Mana>>) -> bool {
+    if cost.snow > 0 {
+        return can_pay_extra(game, seat, &cost.snow_as_generic(), extra);
+    }
     // a phyrexian symbol can be paid with 2 life
     if game.player(seat).life >= 2 && cost.phyrexian.iter().any(|n| *n > 0) {
         let mut c = cost.clone();
@@ -2320,6 +2323,8 @@ fn options_pay(options: &[Vec<Mana>], cost: &ManaCost) -> bool {
 /// still owed (a color, or a hybrid symbol one of its colors pays); with no symbol owed and generic left, the first
 /// (the first that only taps, when nothing colored is owed at all); otherwise all of them (the player picks).
 fn auto_pay_abilities(abilities: &[(usize, Mana, ManaKind)], unpaid: &ManaCost) -> Vec<(usize, Mana, ManaKind)> {
+    // (a snow symbol's mana is generic mana: `SnowManaCost`'s cost)
+    let unpaid = &unpaid.snow_as_generic();
     if abilities.iter().any(|a| a.2 == ManaKind::Other) {
         return abilities.to_vec();
     }
@@ -3576,7 +3581,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     }
     game.mana_paid = game.unpaid;
     game.obj_mut(id).mana_spent =
-        cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless + cost.hybrid.len() as u32;
+        cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless + cost.hybrid.len() as u32 + cost.snow;
     let mut spent = [0; 5];
     for (k, n) in spent.iter_mut().enumerate() {
         *n = game.spent_tally[k] - tally[k];
@@ -6086,11 +6091,8 @@ fn activate_mana_paying(
         };
     }
     mana_spent_riders(game, id, i, Some(unpaid));
-    let pool = &mut game.player_mut(seat).mana_pool;
-    for c in Color::ALL {
-        pool.colored[c.index()] += m.colored[c.index()];
-    }
-    pool.colorless += m.colorless;
+    let snow = game.is_snow(id);
+    game.player_mut(seat).add_pool_mana(m, snow);
     let extra = tap_for_mana_extra(game, seat, id);
     let made = m.total() as i32 + extra.len() as i32;
     for k in extra {
@@ -6211,7 +6213,9 @@ fn pay_from_pool(
     unlocked: &mut Mana,
     fresh_conditional: &mut u32,
 ) {
+    game.player_mut(seat).sync_pool_units();
     let mut pool = game.player(seat).mana_pool;
+    let mut units = std::mem::take(&mut game.player_mut(seat).pool_units);
     let (manual, unrestricted) = game.pool_mode(seat);
     if unrestricted {
         // (all of the pool pays, what was there before too)
@@ -6219,7 +6223,8 @@ fn pay_from_pool(
     }
     let mut conditional = std::mem::take(&mut game.player_mut(seat).conditional_pool);
     let mut tally = [0u32; 6];
-    let mut spend = |pool: &mut Mana, stock: &mut Mana, unlocked: &mut Mana, k: usize, want: u32| -> u32 {
+    // `snow`: a snow symbol's source filter, only mana a snow permanent made pays it
+    let mut spend = |pool: &mut Mana, stock: &mut Mana, unlocked: &mut Mana, k: usize, want: u32, snow: bool| -> u32 {
         let mut paid = 0;
         while paid < want {
             // (`ManaPool.pay`: with automatic payment off, only an unlocked type pays)
@@ -6227,10 +6232,23 @@ fn pay_from_pool(
             let usable = fresh
                 .then(|| {
                     conditional.iter().position(|(m, src, j)| {
-                        (if k < 5 { m.colored[k] } else { m.colorless }) > 0 && conditional_usable(game, seat, *src, *j)
+                        (if k < 5 { m.colored[k] } else { m.colorless }) > 0
+                            && conditional_usable(game, seat, *src, *j)
+                            && (!snow || game.is_snow(*src))
                     })
                 })
                 .flatten();
+            // the `ManaPoolItem` it's taken from: the first unit of the kind (a snow one for a snow symbol) made since
+            // the stock was set (the kind's oldest units are the stock), or any once the kind is unlocked
+            let stale = *kind(stock, k) as usize;
+            let fresh_unit = units
+                .iter()
+                .enumerate()
+                .filter(|(_, u)| u.0 as usize == k)
+                .skip(stale)
+                .find(|(_, u)| !snow || u.1)
+                .map(|(i, _)| i);
+            let any_unit = units.iter().position(|u| u.0 as usize == k && (!snow || u.1));
             if let Some(c) = usable {
                 // one mana of it (Sunken Citadel's two are one entry; one of any color is all of them)
                 let m = &mut conditional[c].0;
@@ -6248,12 +6266,18 @@ fn pay_from_pool(
                     }
                     conditional.remove(c);
                 }
-            } else if fresh && *kind(pool, k) > *kind(stock, k) {
+            } else if fresh && (!snow || fresh_unit.is_some()) && *kind(pool, k) > *kind(stock, k) {
                 *kind(pool, k) -= 1;
-            } else if *kind(unlocked, k) > 0 && *kind(pool, k) > 0 {
+                if let Some(u) = fresh_unit {
+                    units.remove(u);
+                }
+            } else if (!snow || any_unit.is_some()) && *kind(unlocked, k) > 0 && *kind(pool, k) > 0 {
                 *kind(unlocked, k) -= 1;
                 *kind(stock, k) = kind(stock, k).saturating_sub(1);
                 *kind(pool, k) -= 1;
+                if let Some(u) = any_unit {
+                    units.remove(u);
+                }
             } else {
                 break;
             }
@@ -6263,21 +6287,28 @@ fn pay_from_pool(
         paid
     };
     for (k, need) in unpaid.colored.iter_mut().enumerate() {
-        *need -= spend(&mut pool, stock, unlocked, k, *need);
+        *need -= spend(&mut pool, stock, unlocked, k, *need, false);
     }
-    unpaid.colorless -= spend(&mut pool, stock, unlocked, 5, unpaid.colorless);
+    unpaid.colorless -= spend(&mut pool, stock, unlocked, 5, unpaid.colorless, false);
     // `HybridManaCost.assignPayment`: its first color, else its second
     let mut left = Vec::new();
     for (a, b) in std::mem::take(&mut unpaid.hybrid) {
-        if spend(&mut pool, stock, unlocked, a, 1) == 0 && spend(&mut pool, stock, unlocked, b, 1) == 0 {
+        if spend(&mut pool, stock, unlocked, a, 1, false) == 0 && spend(&mut pool, stock, unlocked, b, 1, false) == 0 {
             left.push((a, b));
         }
     }
     unpaid.hybrid = left;
+    // `SnowManaCost.assignPayment`: as generic, from snow mana only
+    while unpaid.snow > 0 {
+        if ![5, 2, 1, 0, 4, 3].into_iter().any(|k| spend(&mut pool, stock, unlocked, k, 1, true) == 1) {
+            break;
+        }
+        unpaid.snow -= 1;
+    }
     // `ManaCostImpl.assignGeneric`: one mana at a time, {C} then {B}{U}{W}{G}{R}, each time from the first that pays
     // (whether the pool has fresh mana, which lets conditional mana pay, can change after each)
     while unpaid.generic > 0 {
-        if ![5, 2, 1, 0, 4, 3].into_iter().any(|k| spend(&mut pool, stock, unlocked, k, 1) == 1) {
+        if ![5, 2, 1, 0, 4, 3].into_iter().any(|k| spend(&mut pool, stock, unlocked, k, 1, false) == 1) {
             break;
         }
         unpaid.generic -= 1;
@@ -6287,6 +6318,7 @@ fn pay_from_pool(
     }
     let p = game.player_mut(seat);
     p.mana_pool = pool;
+    p.pool_units = units;
     p.conditional_pool = conditional;
 }
 
@@ -6328,6 +6360,9 @@ fn unpaid_text(c: &ManaCost) -> String {
         let l = ["W", "U", "B", "R", "G"];
         s.push_str(&format!("{{{}/{}}}", l[*a], l[*b]));
     }
+    for _ in 0..c.snow {
+        s.push_str("{S}");
+    }
     for _ in 0..c.colorless {
         s.push_str("{C}");
     }
@@ -6343,6 +6378,7 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     game.resolving_controller = game.stack.last().filter(|i| i.ability.is_none()).map(|i| (i.card, i.controller));
     game.revealed.clear();
     game.looked_at.clear();
+    game.piles.clear();
     resolve_popped(game, d);
     // `processAction` applies the effects as it resolves: Leyline of the Guildpact's land types end with it
     game.update_guildpact();
@@ -7381,6 +7417,118 @@ fn slot_player(slots: &Slots, name: &str) -> Option<Seat> {
     slot(slots, name).and_then(|ts| ts.first()).and_then(|t| if let Target::Player(p) = t { Some(*p) } else { None })
 }
 
+/// The slots that name a pile (`Game::piles`) as the pile is now
+fn refresh_piles(game: &Game, slots: &mut Slots) {
+    if game.piles.is_empty() {
+        return;
+    }
+    for (n, ts) in slots.iter_mut() {
+        if let Some((_, p)) = game.piles.iter().find(|(m, _)| m == n) {
+            *ts = p.iter().map(|o| Target::Obj(*o)).collect();
+        }
+    }
+}
+
+/// What a sequence's `bind` names (`card::Bind`); a pile is kept in `Game::piles` under the slot's name. None: the
+/// decider stopped, or a kind the engine doesn't have.
+fn bind_slot(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    item: &StackItem,
+    b: &crate::card::Bind,
+    slots: &Slots,
+    source: (ObjId, u32),
+) -> Option<Vec<Target>> {
+    let of = b.of.as_deref().and_then(|s| slot_player(slots, s)).unwrap_or(item.controller);
+    let objs_of = |s: &Option<String>| -> Vec<ObjId> {
+        s.as_deref()
+            .and_then(|s| slot(slots, s))
+            .map(|ts| ts.iter().filter_map(|t| if let Target::Obj(o) = t { Some(*o) } else { None }).collect())
+            .unwrap_or_default()
+    };
+    let n = |game: &Game| b.n.as_ref().map_or(1, |a| game.value(a, item.controller, source.0, item.x).max(0) as usize);
+    let pile: Vec<ObjId> = match b.what.as_str() {
+        "top_card" => {
+            return Some(game.player(of).library.first().map(|c| Target::Obj(*c)).into_iter().collect());
+        }
+        "first" => return Some(objs_of(&b.from).first().map(|o| Target::Obj(*o)).into_iter().collect()),
+        "top_cards" => game.player(of).library.iter().take(n(game)).copied().collect(),
+        "mill" => {
+            let top: Vec<ObjId> = game.player(of).library.iter().take(n(game)).copied().collect();
+            note(game, EventKind::Milled, Some(of), None, None, top.len() as i32);
+            for c in &top {
+                game.move_to(*c, Zone::Graveyard);
+            }
+            top
+        }
+        "hand" => game.player(of).hand.clone(),
+        "graveyard" => game.player(of).graveyard.clone(),
+        "targets" => item
+            .targets
+            .first()
+            .into_iter()
+            .flatten()
+            .filter_map(|t| if let Target::Obj(o) = t { Some(*o) } else { None })
+            .collect(),
+        "all_targets" => {
+            item.targets.iter().flatten().filter_map(|t| if let Target::Obj(o) = t { Some(*o) } else { None }).collect()
+        }
+        "empty" => Vec::new(),
+        "copy" => objs_of(&b.from),
+        "filtered" => {
+            let f = b.filter.clone().unwrap_or_default();
+            objs_of(&b.from)
+                .into_iter()
+                .filter(|o| game.filter_matches(&f, item.controller, Some(source.0), *o))
+                .collect()
+        }
+        "choose" => {
+            let who = b.who.as_deref().and_then(|s| slot_player(slots, s)).unwrap_or(item.controller);
+            let from_pile = b.from.is_some();
+            let f = b.filter.clone().unwrap_or_default();
+            let max = b.max.as_ref().map_or(1, |a| game.value(a, item.controller, source.0, item.x).max(0) as usize);
+            if b.zone.as_deref() == Some("library") {
+                // `searchLibrary`: what the searcher finds (at least what's there to find)
+                let chosen = search_library(game, d, who, &f, b.min, max, source.0)?;
+                let name = b.name.clone();
+                game.piles.retain(|(n, _)| *n != name);
+                game.piles.push((name, chosen.clone()));
+                return Some(chosen.into_iter().map(Target::Obj).collect());
+            }
+            let shown: Vec<ObjId> = if from_pile {
+                objs_of(&b.from)
+            } else {
+                match b.zone.as_deref() {
+                    Some("hand") => game.player(of).hand.clone(),
+                    Some("graveyard") => game.player(of).graveyard.clone(),
+                    // `TargetCardInGraveyard`: each player's, from the chooser on
+                    Some("graveyards") => (0..game.seats())
+                        .flat_map(|i| game.player((who + i) % game.seats()).graveyard.clone())
+                        .collect(),
+                    Some("battlefield") => game.battlefield.to_vec(),
+                    _ => return None,
+                }
+            };
+            let possible: Vec<ObjId> =
+                shown.iter().copied().filter(|o| game.filter_matches(&f, who, Some(source.0), *o)).collect();
+            let min = b.min.min(max);
+            // `HumanPlayer.choose` with cards: an empty pile isn't asked about; with a target alone, nothing to
+            // pick when one must be picked isn't either
+            if shown.is_empty() || (!from_pile && (min > 0 || b.quiet) && possible.is_empty()) || max == 0 {
+                Vec::new()
+            } else {
+                let rule = item_rule(game, item);
+                choose_cards(game, d, who, &shown, &possible, min, max, &rule)?
+            }
+        }
+        _ => return None,
+    };
+    let name = b.name.clone();
+    game.piles.retain(|(n, _)| *n != name);
+    game.piles.push((name, pile.clone()));
+    Some(pile.into_iter().map(Target::Obj).collect())
+}
+
 /// An `Effects` sequence (a card's own `apply` body, `EffectDef::Effects`)
 fn apply_sequence(
     game: &mut Game,
@@ -7393,15 +7541,10 @@ fn apply_sequence(
 ) {
     let EffectDef::Effects { effects, otherwise, bind, require, x, to, each, when, may } = e else { return };
     let mut slots = slots.clone();
+    refresh_piles(game, &mut slots);
     let source_here = |g: &Game| g.obj(source.0).zone == Zone::Battlefield && g.obj(source.0).zcc == source.1;
     if let Some(b) = bind {
-        let got: Vec<Target> = match b.what.as_str() {
-            "top_card" => {
-                let p = b.of.as_deref().and_then(|s| slot_player(&slots, s)).unwrap_or(item.controller);
-                game.player(p).library.first().map(|c| Target::Obj(*c)).into_iter().collect()
-            }
-            _ => return,
-        };
+        let Some(got) = bind_slot(game, d, item, b, &slots, source) else { return };
         slots.push((b.name.clone(), got));
     }
     let holds = require.iter().all(|r| match r.slot.as_str() {
@@ -7433,6 +7576,14 @@ fn apply_sequence(
             Quantity::Power { of: s } => of(s).map_or(0, |o| game.power_toughness(o).0),
             Quantity::Toughness { of: s } => of(s).map_or(0, |o| game.power_toughness(o).1),
             Quantity::ManaValue { of: s } => of(s).map_or(0, |o| game.obj(o).def.mana_value() as i32),
+            Quantity::Count { of: s, filter } => slot(&slots, s).map_or(0, |ts| {
+                ts.iter()
+                    .filter(|t| match (t, filter) {
+                        (Target::Obj(o), Some(f)) => game.filter_matches(f, item.controller, Some(source.0), *o),
+                        _ => true,
+                    })
+                    .count() as i32
+            }),
         };
     }
     // one run, or one for each player or permanent (named, with a permanent's controller)
@@ -7452,6 +7603,15 @@ fn apply_sequence(
                     .map(|s| named(Target::Player(s), game))
                     .collect(),
                 ("players", _) => (0..game.seats()).map(|s| named(Target::Player(s), game)).collect(),
+                ("cards", _) => each
+                    .from
+                    .as_deref()
+                    .and_then(|s| slot(&slots, s))
+                    .cloned()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|t| vec![(each.name.clone(), vec![t])])
+                    .collect(),
                 ("permanents", Some(filter)) => {
                     let only = match each.controller.as_deref() {
                         None => None,
@@ -7494,8 +7654,35 @@ fn apply_sequence(
         };
         let mut does = true;
         if let Some(w) = when {
-            does = slot_obj(&slots, &w.slot)
-                .is_some_and(|o| game.filter_matches(&w.filter, item.controller, Some(source.0), o));
+            let count = |g: &Game| {
+                slot(&slots, &w.slot).map_or(0, |ts| {
+                    ts.iter()
+                        .filter(|t| {
+                            matches!(t, Target::Obj(o) if g.filter_matches(&w.filter, item.controller, Some(source.0), *o))
+                        })
+                        .count() as i32
+                })
+            };
+            does = if let Some(cmp) = &w.cmp {
+                let c = count(game);
+                match cmp.as_str() {
+                    "==" => c == w.n,
+                    "!=" => c != w.n,
+                    "<" => c < w.n,
+                    "<=" => c <= w.n,
+                    ">" => c > w.n,
+                    _ => c >= w.n,
+                }
+            } else if w.any {
+                slot(&slots, &w.slot).is_some_and(|ts| {
+                    ts.iter().any(|t| {
+                        matches!(t, Target::Obj(o) if game.filter_matches(&w.filter, item.controller, Some(source.0), *o))
+                    })
+                })
+            } else {
+                slot_obj(&slots, &w.slot)
+                    .is_some_and(|o| game.filter_matches(&w.filter, item.controller, Some(source.0), o))
+            };
         }
         if does {
             if let Some(m) = may {
@@ -7526,10 +7713,50 @@ fn apply_sequence(
             }
         }
         for e in if does { effects } else { otherwise } {
-            if matches!(e, EffectDef::Effects { .. }) {
-                apply_sequence(game, d, &it, e, &pointed, source, &slots);
-            } else {
-                apply_effects(game, d, &it, std::slice::from_ref(e), &pointed, source);
+            match e {
+                EffectDef::Effects { .. } => {
+                    refresh_piles(game, &mut slots);
+                    apply_sequence(game, d, &it, e, &pointed, source, &slots);
+                }
+                EffectDef::PileRetainZoneEffect { pile, zone } => {
+                    let keep = match zone.as_str() {
+                        "LIBRARY" => Zone::Library,
+                        "HAND" => Zone::Hand,
+                        "GRAVEYARD" => Zone::Graveyard,
+                        "EXILED" => Zone::Exile,
+                        _ => Zone::Battlefield,
+                    };
+                    let zones: Vec<(ObjId, Zone)> = game
+                        .piles
+                        .iter()
+                        .filter(|(n, _)| n == pile)
+                        .flat_map(|(_, p)| p.iter().map(|o| (*o, game.obj(*o).zone)))
+                        .collect();
+                    if let Some((_, p)) = game.piles.iter_mut().find(|(n, _)| n == pile) {
+                        p.retain(|o| zones.iter().any(|(c, z)| c == o && *z == keep));
+                    }
+                    refresh_piles(game, &mut slots);
+                }
+                EffectDef::PileAddEffect { pile, slot: s } | EffectDef::PileRemoveEffect { pile, slot: s } => {
+                    refresh_piles(game, &mut slots);
+                    let objs: Vec<ObjId> = slot(&slots, s)
+                        .map(|ts| {
+                            ts.iter().filter_map(|t| if let Target::Obj(o) = t { Some(*o) } else { None }).collect()
+                        })
+                        .unwrap_or_default();
+                    let add = matches!(e, EffectDef::PileAddEffect { .. });
+                    if let Some((_, p)) = game.piles.iter_mut().find(|(n, _)| n == pile) {
+                        for o in objs {
+                            if !add {
+                                p.retain(|c| *c != o);
+                            } else if !p.contains(&o) {
+                                p.push(o);
+                            }
+                        }
+                    }
+                    refresh_piles(game, &mut slots);
+                }
+                _ => apply_effects(game, d, &it, std::slice::from_ref(e), &pointed, source),
             }
         }
     }
@@ -9094,6 +9321,52 @@ fn apply_each_effect(
             EffectDef::Effects { .. } => {
                 let slots = first_slots(game, item, legal);
                 apply_sequence(game, d, item, e, legal, source, &slots);
+            }
+            EffectDef::PutTargetCardsEffect { put } => {
+                // (cards still where the pile found them: one moved meanwhile isn't moved again)
+                let cards: Vec<ObjId> = objs.iter().copied().filter(|o| game.obj(*o).zone != Zone::Stack).collect();
+                if !put_cards(game, d, controller, &cards, *put) {
+                    return;
+                }
+            }
+            EffectDef::RevealTargetCardsEffect => {
+                if !objs.is_empty() {
+                    let zcc = game.obj(source.0).zcc;
+                    let cards = objs.iter().map(|c| (*c, game.obj(*c).zone)).collect();
+                    game.revealed.push(crate::state::Revealed { source: source.0, zcc, paren: false, cards });
+                }
+            }
+            EffectDef::LookAtTargetCardsEffect => {
+                if !objs.is_empty() {
+                    let zcc = game.obj(source.0).zcc;
+                    let look = crate::state::LookedAt {
+                        viewer: controller,
+                        source: source.0,
+                        zcc,
+                        bare: false,
+                        cards: objs.clone(),
+                    };
+                    game.looked_at.push(look);
+                }
+            }
+            EffectDef::PileAddEffect { .. }
+            | EffectDef::PileRemoveEffect { .. }
+            | EffectDef::PileRetainZoneEffect { .. } => {}
+            EffectDef::SacrificeTargetEffect => {
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        sacrifice(game, *o);
+                    }
+                }
+            }
+            EffectDef::ShuffleLibrarySourceEffect | EffectDef::ShuffleLibraryTargetEffect => {
+                let who =
+                    if matches!(e, EffectDef::ShuffleLibrarySourceEffect) { vec![controller] } else { players.clone() };
+                for p in who {
+                    let mut library = game.player(p).library.clone();
+                    game.rng.shuffle(&mut library);
+                    game.player_mut(p).library = library;
+                }
             }
             EffectDef::MoveTargetCardsEffect { zone } => {
                 for o in &objs {
@@ -13503,6 +13776,7 @@ fn put_cards(game: &mut Game, d: &mut dyn Decider, seat: Seat, cards: &[ObjId], 
         P::TopAny => put_on_library(game, d, seat, cards, true, true),
         P::BottomAny => put_on_library(game, d, seat, cards, false, true),
         P::BottomRandom => put_on_library(game, d, seat, cards, false, false),
+        P::TopRandom => put_on_library(game, d, seat, cards, true, false),
         P::Hand => {
             for c in cards {
                 game.move_to(*c, Zone::Hand);
