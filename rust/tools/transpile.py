@@ -1426,12 +1426,13 @@ class Translator:
         if re.fullmatch(r'new Return(?:FromGraveyard)?ToHandTargetEffect\(\)\.setTargetPointer\(new EachTargetPointer\(\)\)',
                         canonical(expr.strip())):
             return {'class': 'ReturnToHandEachTargetEffect'}
-        # damage to each of the ability's targets (Dragonspark Reactor's player and creature)
-        m = re.fullmatch(r'(new DamageTargetEffect\((?:[^()]|\([^()]*\))*\))((?:\.setText\(.*\))?)'
+        # damage to each of the ability's targets (Dragonspark Reactor's player and creature), or each destroyed
+        # (Spiteful Blow's creature and land)
+        m = re.fullmatch(r'(new (?:Damage|Destroy)TargetEffect\((?:[^()]|\([^()]*\))*\))((?:\.setText\(.*\))?)'
                          r'\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip()), re.S)
         if m:
             e = self.effect(m.group(1) + m.group(2))
-            if e.get('class') == 'DamageTargetEffect':
+            if e.get('class') in ('DamageTargetEffect', 'DestroyTargetEffect'):
                 return {'class': 'EachTargetEffect', 'effect': e}
         # every target (the one target a duel's "for each opponent" adjuster leaves)
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
@@ -4051,6 +4052,11 @@ def granted_rules(card):
             # `new RegenerateSourceEffect()` writes "Regenerate {this}" (Molting Snakeskin's "Regenerate this creature")
             if effects == ['RegenerateSourceEffect'] and 'new RegenerateSourceEffect()' in card_source(card.get('name')):
                 g['rule'] = re.sub(r': Regenerate this (?:artifact|creature|permanent)\.', ': Regenerate {this}.',
+                                   g['rule'], count=1)
+            # `new UntapSourceEffect()` writes "untap {this}" (Singing Bell Strike's "Untap this creature")
+            if effects == ['UntapSourceEffect'] and not re.search(r'new UntapSourceEffect\(\)\s*\.setText',
+                                                                  card_source(card.get('name'))):
+                g['rule'] = re.sub(r': Untap this (?:artifact|creature|permanent)\.', ': Untap {this}.',
                                    g['rule'], count=1)
         elif g.get('class') == 'TriggeredAbility' and quoted:
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the

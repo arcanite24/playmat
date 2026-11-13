@@ -2513,6 +2513,14 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             cast_free(game, d, seat, id);
             return;
         }
+        // a foretell cost of {0} doesn't suppress the picker either (Scorn Effigy)
+        if def.cost.mana_value() == 0 {
+            let k = game.obj(id).def.abilities.len();
+            match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
+                Answer::Ability(o, i) if o == id && i == k => {}
+                _ => return,
+            }
+        }
         let before = game.clone();
         let full = game.obj(id).def.clone();
         let o = game.obj_mut(id);
@@ -6642,10 +6650,10 @@ fn refresh_land_types(game: &mut Game) {
                             }
                         }
                         // Bootleggers' Stash: lands you control have "{T}: Create a Treasure token."
+                        // Phenax: creatures you control have "{T}: Target player mills X cards, …"
                         // Constricting Sliver: Slivers you control have "When this creature enters, …"
                         EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. }
                             if matches!(**ability, AbilityDef::SimpleActivatedAbility { .. })
-                                && filter.0.iter().any(|p| matches!(p, Pred::Type { t: CardType::Land }))
                                 || matches!(**ability, AbilityDef::TriggeredAbility { .. })
                                 // Great Divide Guide: each land and Ally you control has "{T}: Add one mana of any color."
                                 || ability.mana().is_some() =>
@@ -6680,9 +6688,10 @@ fn refresh_land_types(game: &mut Game) {
         }
     }
     // a triggered ability a resolved effect gave until end of turn (Herd Heirloom's "Whenever this creature deals
-    // combat damage to a player, draw a card"): Java adds it to the permanent, so it triggers like its own
+    // combat damage to a player, draw a card"): Java adds it to the permanent, so it triggers like its own (an
+    // activated one too, activated like its own: Retraction Helix's "{T}: Return target nonland permanent …")
     for g in game.grants.iter() {
-        if matches!(g.ability, AbilityDef::TriggeredAbility { .. })
+        if matches!(g.ability, AbilityDef::TriggeredAbility { .. } | AbilityDef::SimpleActivatedAbility { .. })
             && game.obj(g.target).zone == Zone::Battlefield
             && game.obj(g.target).zcc == g.zcc
         {
@@ -10220,7 +10229,8 @@ fn apply_each_effect(
                     o.def = Arc::new(def);
                 }
             }
-            EffectDef::EquipEffect => {
+            // a triggered "attach {this} to it" attaches the Equipment as equip does (Stormrider Rig, Hero's Blade)
+            EffectDef::EquipEffect | EffectDef::AttachEffect => {
                 let (src, zcc) = source;
                 if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
                     if let Some(&to) = objs.first() {
@@ -11734,7 +11744,6 @@ fn apply_each_effect(
             | EffectDef::TapSourceUnlessRevealsEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect
-            | EffectDef::AttachEffect
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
             | EffectDef::CantBeBlockedByMoreThanOneAttachedEffect
@@ -13323,12 +13332,19 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 let mut t = mine.remove(pick);
                 picked += 1;
                 let ability = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i).cloned());
-                // a modal one: `HumanPlayer.chooseMode` among the modes whose targets can be chosen
+                // a modal one: `HumanPlayer.chooseMode` among the modes whose targets can be chosen (Java chooses with
+                // the trigger already on the stack, so "target activated or triggered ability" always has itself:
+                // Subcommander T'Pol)
                 let modes = ability.as_ref().map(|a| a.trigger_modes()).unwrap_or_default();
                 let mut mode_targets = None;
                 if !modes.is_empty() {
                     let available: Vec<usize> = (0..modes.len())
-                        .filter(|k| modes[*k].1.iter().all(|x| target_possible(game, seat, x, Some(t.card))))
+                        .filter(|k| {
+                            modes[*k].1.iter().all(|x| {
+                                matches!(x, TargetDef::TargetStackAbility { .. })
+                                    || target_possible(game, seat, x, Some(t.card))
+                            })
+                        })
                         .collect();
                     let mut asked = 0;
                     let k = loop {
