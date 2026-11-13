@@ -14770,7 +14770,7 @@ fn apply_each_effect(
                     game.move_to(c, Zone::Graveyard);
                 }
             }
-            EffectDef::MillThenPutInHandEffect { amount, filter, optional, otherwise } => {
+            EffectDef::MillThenPutInHandEffect { amount, filter, optional, otherwise, max } => {
                 let amount = &v!(amount);
                 let n = (*amount).max(0) as usize;
                 let milled: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
@@ -14785,9 +14785,9 @@ fn apply_each_effect(
                 // `HumanPlayer.choose(cards)` shows the milled cards even when none of them can be chosen
                 let mut returned = false;
                 if !milled.is_empty() {
-                    let min = if *optional || possible.is_empty() { 0 } else { 1 };
+                    let min = if *optional || possible.is_empty() { 0 } else { (*max).min(possible.len()) };
                     let rule_text = item_rule(game, item);
-                    match choose_cards(game, d, controller, &milled, &possible, min, 1, &rule_text) {
+                    match choose_cards(game, d, controller, &milled, &possible, min, *max, &rule_text) {
                         Some(chosen) => {
                             returned = !chosen.is_empty();
                             for c in chosen {
