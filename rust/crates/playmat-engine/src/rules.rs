@@ -3466,18 +3466,6 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         *n = game.spent_tally[k] - tally[k];
     }
     game.obj_mut(id).spent_colors = spent;
-    // expend: the spell's mana is counted one by one; the 4th, 6th or 8th fires "whenever you expend N"
-    let before = game.player(seat).expended;
-    let after = before + (0..6).map(|k| game.spent_tally[k] - tally[k]).sum::<u32>();
-    game.player_mut(seat).expended = after;
-    if after > before {
-        let sources = game.trigger_sources();
-        let fired = game.triggers(
-            sources,
-            |_, _, you, t| matches!(t, Trigger::Expend { n } if you == seat && before < *n && *n <= after),
-        );
-        game.pending.extend(fired);
-    }
     // 601.2g: then the other costs
     for c in &alternative_costs {
         if !pay_cost(game, d, seat, id, c) {
@@ -3496,6 +3484,18 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         if !pay_cost(game, d, seat, id, c) {
             return false;
         }
+    }
+    // expend: the spell's mana, an additional cost's too (Silvergill Adept's {3}), is counted one by one; the 4th, 6th or 8th fires "whenever you expend N"
+    let before = game.player(seat).expended;
+    let after = before + (0..6).map(|k| game.spent_tally[k] - tally[k]).sum::<u32>();
+    game.player_mut(seat).expended = after;
+    if after > before {
+        let sources = game.trigger_sources();
+        let fired = game.triggers(
+            sources,
+            |_, _, you, t| matches!(t, Trigger::Expend { n } if you == seat && before < *n && *n <= after),
+        );
+        game.pending.extend(fired);
     }
     if let Some((cards, n)) = exile_from_hand {
         let cards: Vec<ObjId> = cards.into_iter().filter(|c| game.obj(*c).zone == Zone::Hand).collect();
