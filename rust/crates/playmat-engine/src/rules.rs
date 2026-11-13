@@ -6464,7 +6464,9 @@ fn refresh_land_types(game: &mut Game) {
                         EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. }
                             if matches!(**ability, AbilityDef::SimpleActivatedAbility { .. })
                                 && filter.0.iter().any(|p| matches!(p, Pred::Type { t: CardType::Land }))
-                                || matches!(**ability, AbilityDef::TriggeredAbility { .. }) =>
+                                || matches!(**ability, AbilityDef::TriggeredAbility { .. })
+                                // Great Divide Guide: each land and Ally you control has "{T}: Add one mana of any color."
+                                || ability.mana().is_some() =>
                         {
                             let you = game.obj(*id).controller;
                             for to in game.battlefield.iter() {
