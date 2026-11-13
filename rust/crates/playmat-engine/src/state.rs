@@ -1861,7 +1861,8 @@ impl Game {
             Condition::Raid => self.player(you).attacked,
             Condition::Revolt => self.player(you).permanent_left,
             Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
-            Condition::SourceTargets { filter } => self.stack.iter().any(|i| {
+            // `getStackObject`: the spell is still on the stack as it resolves, and its targets are as they last were
+            Condition::SourceTargets { filter } => self.stack.iter().chain(self.resolving_item.iter()).any(|i| {
                 i.card == source
                     && i.ability.is_none()
                     && i.targets.iter().flatten().any(|t| match t {

@@ -8020,10 +8020,10 @@ fn apply_each_effect(
                 token_copy(game, d, source.0, controller, None);
             }
             EffectDef::CreateTokenCopyTargetEffect => {
+                // `getPermanentOrLKIBattlefield`: a target that left as the spell resolved is copied as it last was
+                // (Supplant Form returns it to hand first)
                 for o in &objs {
-                    if game.obj(*o).zone == Zone::Battlefield {
-                        token_copy(game, d, *o, controller, None);
-                    }
+                    token_copy(game, d, *o, controller, None);
                 }
             }
             EffectDef::GhostVacuumEffect => {
@@ -13424,8 +13424,11 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             let fired = game.triggers(sources, |g, src, you, t| {
                 matches!(t, Trigger::CombatDamageToPlayerAll { filter } if g.filter_matches(filter, you, Some(src), source))
             });
-            // one damage event: Java checks every trigger in its load order
-            own.extend(fired);
+            // one damage event: Java checks every trigger in its load order; "that many" is the damage (Starwinder)
+            own.extend(fired.into_iter().map(|mut t| {
+                t.x = amount;
+                t
+            }));
             own.sort_by_key(|t| game.trigger_key(t));
             game.pending.extend(own);
         }
