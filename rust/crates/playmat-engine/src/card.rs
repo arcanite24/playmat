@@ -936,6 +936,10 @@ pub enum Condition {
     /// the source, a spell being cast, targets something of the filter (`SourceTargetsPermanentCondition`)
     SourceTargets {
         filter: Filter,
+        /// only its first target (`TargetHasCardTypeCondition`, `TargetHasSuperTypeCondition`,
+        /// `TargetHasCounterCondition`: `source.getFirstTarget()`)
+        #[serde(default)]
+        first: bool,
     },
     /// `MyTurnCondition`
     MyTurn,
