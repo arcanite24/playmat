@@ -1007,7 +1007,11 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
     for id in &p.hand {
         let o = game.obj(*id);
         if o.is(CardType::Land) {
-            if can_play_land(game, seat) || !activatable(game, seat, *id).is_empty() {
+            // a land with an adventure (Jidoor's Overture): its spell, with or without a land to play
+            if can_play_land(game, seat)
+                || !activatable(game, seat, *id).is_empty()
+                || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
+            {
                 out.push(*id);
             }
         } else if (o.def.room.is_empty() && castable(game, seat, *id, &o.def))
@@ -2802,13 +2806,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             } else {
                 return;
             };
-            let k = if options.len() == 1 {
-                options[0]
-            } else {
-                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
-                    Answer::Ability(o, k) if o == id && options.contains(&k) => k,
-                    _ => return,
-                }
+            // `suppressAbilityPicker` never hides it for a card with a spell option, even with one choice
+            let k = match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                Answer::Ability(o, k) if o == id && options.contains(&k) => k,
+                _ => return,
             };
             if k == 0 && on_adventure {
                 return;
@@ -9426,7 +9427,11 @@ fn apply_each_effect(
                 for o in gone {
                     if game.obj(o).zone == Zone::Exile && !game.obj(o).token {
                         let to = if *your_control { controller } else { game.obj(o).owner };
-                        let how = if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
+                        let how = if *tapped {
+                            crate::card::PutCards::BattlefieldTapped
+                        } else {
+                            crate::card::PutCards::Battlefield
+                        };
                         if !put_cards(game, d, to, &[o], how) {
                             return;
                         }
@@ -9435,22 +9440,27 @@ fn apply_each_effect(
             }
             EffectDef::PutCardFromHandOntoBattlefieldEffect { filter, tapped, attacking } => {
                 // asked first, whatever the hand holds
-                let Some(yes) = choose_use(game, d, controller, "Put a card from your hand onto the battlefield?") else {
+                let Some(yes) = choose_use(game, d, controller, "Put a card from your hand onto the battlefield?")
+                else {
                     return;
                 };
                 if !yes {
                     continue;
                 }
                 let hand = game.player(controller).hand.clone();
-                let possible: Vec<ObjId> =
-                    hand.iter().copied().filter(|c| game.filter_matches(filter, controller, Some(source.0), *c)).collect();
+                let possible: Vec<ObjId> = hand
+                    .iter()
+                    .copied()
+                    .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
+                    .collect();
                 if possible.is_empty() {
                     continue;
                 }
                 let rule = item_rule(game, item);
                 let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, &rule) else { return };
                 let Some(&c) = chosen.first() else { continue };
-                let how = if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
+                let how =
+                    if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
                 if !put_cards(game, d, controller, &[c], how) {
                     return;
                 }
@@ -9525,11 +9535,20 @@ fn apply_each_effect(
                     .filter(|o| game.obj(**o).zone == Zone::Exile && !game.obj(**o).token)
                     .map(|o| (*o, game.obj(*o).zcc))
                     .collect();
+                // (`ReturnToBattlefieldUnder…ControlTargetEffect`'s static text)
+                let rule = format!(
+                    "At the beginning of the next end step, return that card to the battlefield {}under {} control.",
+                    if *tapped { "tapped " } else { "" },
+                    if *your_control { "your" } else { "its owner's" }
+                );
                 let delayed = Delayed {
-                    rule: "At the beginning of the next end step, return the exiled card to the battlefield.".into(),
+                    rule,
                     sacrifice: Vec::new(),
                     warp_exile: Vec::new(),
-                    effects: vec![EffectDef::ReturnToBattlefieldTargetEffect { your_control: *your_control, tapped: *tapped }],
+                    effects: vec![EffectDef::ReturnToBattlefieldTargetEffect {
+                        your_control: *your_control,
+                        tapped: *tapped,
+                    }],
                     source_zcc: source.1,
                     fixed,
                     return_tapped: Vec::new(),
@@ -9544,7 +9563,8 @@ fn apply_each_effect(
                 if cards.is_empty() {
                     continue;
                 }
-                let how = if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
+                let how =
+                    if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
                 let owner = game.obj(cards[0]).owner;
                 if *your_control || cards.iter().all(|c| game.obj(*c).owner == owner) {
                     let to = if *your_control { controller } else { owner };
@@ -9578,20 +9598,33 @@ fn apply_each_effect(
                         }
                         continue;
                     }
-                    let how = if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
+                    let how = if *tapped {
+                        crate::card::PutCards::BattlefieldTapped
+                    } else {
+                        crate::card::PutCards::Battlefield
+                    };
                     if !put_cards(game, d, to, &[o], how) {
                         return;
                     }
                 }
             }
             EffectDef::ShuffleIntoLibraryTargetEffect { optional } => {
-                let cards: Vec<ObjId> =
-                    objs.iter().copied().filter(|o| matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Graveyard | Zone::Stack | Zone::Exile | Zone::Hand)).collect();
+                let cards: Vec<ObjId> = objs
+                    .iter()
+                    .copied()
+                    .filter(|o| {
+                        matches!(
+                            game.obj(*o).zone,
+                            Zone::Battlefield | Zone::Graveyard | Zone::Stack | Zone::Exile | Zone::Hand
+                        )
+                    })
+                    .collect();
                 if cards.is_empty() {
                     continue;
                 }
                 if *optional {
-                    let message = format!("Shuffle the target card{} into your library?", if cards.len() > 1 { "s" } else { "" });
+                    let message =
+                        format!("Shuffle the target card{} into your library?", if cards.len() > 1 { "s" } else { "" });
                     match choose_use(game, d, controller, &message) {
                         Some(true) => {}
                         Some(false) => continue,
@@ -9648,14 +9681,80 @@ fn apply_each_effect(
                     let cards = hand.iter().map(|c| (*c, Zone::Hand)).collect();
                     game.revealed.push(crate::state::Revealed { source: source.0, zcc, paren: true, cards });
                 }
-                let possible: Vec<ObjId> =
-                    hand.iter().copied().filter(|c| game.filter_matches(filter, controller, Some(source.0), *c)).collect();
+                let possible: Vec<ObjId> = hand
+                    .iter()
+                    .copied()
+                    .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
+                    .collect();
                 if possible.is_empty() {
                     continue;
                 }
                 let rule = item_rule(game, item);
                 let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, &rule) else { return };
                 for c in chosen {
+                    game.move_to(c, Zone::Exile);
+                }
+            }
+            EffectDef::RevealLibraryPutIntoHandEffect { amount, filter, graveyard, any_order } => {
+                let n = v!(amount).max(0) as usize;
+                let cards: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
+                if !cards.is_empty() {
+                    let zcc = game.obj(source.0).zcc;
+                    let shown = cards.iter().map(|c| (*c, Zone::Library)).collect();
+                    game.revealed.push(crate::state::Revealed { source: source.0, zcc, paren: false, cards: shown });
+                }
+                let (to_hand, rest): (Vec<ObjId>, Vec<ObjId>) =
+                    cards.iter().partition(|c| game.filter_matches(filter, controller, Some(source.0), **c));
+                for c in &to_hand {
+                    game.move_to(*c, Zone::Hand);
+                }
+                if *graveyard {
+                    for c in rest {
+                        game.move_to(c, Zone::Graveyard);
+                    }
+                } else if !put_on_library(game, d, controller, &rest, false, *any_order) {
+                    return;
+                }
+            }
+            EffectDef::ShuffleIntoLibrarySourceEffect => {
+                let (o, zcc) = source;
+                if game.obj(o).zcc != zcc
+                    || !matches!(game.obj(o).zone, Zone::Battlefield | Zone::Graveyard | Zone::Hand | Zone::Exile)
+                {
+                    continue;
+                }
+                let owner = game.obj(o).owner;
+                to_library(game, o, true);
+                let mut library = game.player(owner).library.clone();
+                game.rng.shuffle(&mut library);
+                game.player_mut(owner).library = library;
+            }
+            EffectDef::ShuffleYourGraveyardIntoLibraryEffect => {
+                let cards = game.player(controller).graveyard.clone();
+                if cards.is_empty() {
+                    continue;
+                }
+                for c in cards {
+                    to_library(game, c, true);
+                }
+                let mut library = game.player(controller).library.clone();
+                game.rng.shuffle(&mut library);
+                game.player_mut(controller).library = library;
+            }
+            EffectDef::CreateTokenAllEffect { who, effect } => {
+                for k in 0..game.seats() {
+                    let p = (controller + k) % game.seats();
+                    if Game::whose(who, controller, p) {
+                        let theirs = StackItem { controller: p, ..item.clone() };
+                        apply_each_effect(game, d, &theirs, std::slice::from_ref(&**effect), legal, source);
+                    }
+                }
+            }
+            EffectDef::ExileCardsFromTopOfLibraryTargetEffect { amount } => {
+                let n = v!(amount).max(0) as usize;
+                let Some(Target::Player(p)) = target else { continue };
+                let top: Vec<ObjId> = game.player(p).library.iter().take(n).copied().collect();
+                for c in top {
                     game.move_to(c, Zone::Exile);
                 }
             }

@@ -2407,6 +2407,31 @@ pub enum EffectDef {
     ExileCardYouChooseTargetOpponentEffect {
         filter: Filter,
     },
+    /// `RevealLibraryPutIntoHandEffect`: reveal the top `amount`, put every card of the filter into your hand and
+    /// the rest on the bottom of your library (in any order, or a random one) or into your graveyard
+    RevealLibraryPutIntoHandEffect {
+        amount: Amount,
+        filter: Filter,
+        #[serde(default)]
+        graveyard: bool,
+        #[serde(default)]
+        any_order: bool,
+    },
+    /// `ShuffleIntoLibrarySourceEffect`: this object, while it's still the same one, is shuffled into its owner's
+    /// library
+    ShuffleIntoLibrarySourceEffect,
+    /// `ShuffleYourGraveyardIntoLibraryEffect`
+    ShuffleYourGraveyardIntoLibraryEffect,
+    /// `CreateTokenAllEffect`: each player of `who`, from you in turn order, creates the tokens of `effect` (a
+    /// `CreateTokenEffect`)
+    CreateTokenAllEffect {
+        who: String,
+        effect: Box<EffectDef>,
+    },
+    /// `ExileCardsFromTopOfLibraryTargetEffect`: the target player exiles the top `amount` cards of their library
+    ExileCardsFromTopOfLibraryTargetEffect {
+        amount: Amount,
+    },
     /// `ExileFromZoneTargetEffect(Zone.HAND, filter, amount, false)`: the target player exiles `amount` cards of the
     /// filter from their hand
     ExileFromHandTargetEffect {

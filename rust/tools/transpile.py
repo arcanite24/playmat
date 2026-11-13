@@ -2437,6 +2437,27 @@ class Translator:
                 raise Unsupported('effect ' + x)
             return {'class': 'ExileFromHandTargetEffect', 'filter': self.filter(mid[0]) if mid else [],
                     'amount': int(mid[1]) if len(mid) == 2 else 1}
+        # `RevealLibraryPutIntoHandEffect(amount, filter, zone[, anyOrder])`
+        if cls == 'RevealLibraryPutIntoHandEffect' and len(args) in (3, 4) and args[2] in ('Zone.LIBRARY', 'Zone.GRAVEYARD') \
+                and (len(args) == 3 or args[3] in ('true', 'false')):
+            return {'class': cls, 'amount': self.amount(args[0]), 'filter': self.filter(args[1]),
+                    'graveyard': args[2] == 'Zone.GRAVEYARD', 'any_order': len(args) == 3 or args[3] == 'true'}
+        if cls in ('ShuffleIntoLibrarySourceEffect', 'ShuffleYourGraveyardIntoLibraryEffect') and not args:
+            return {'class': cls}
+        if cls == 'CreateTokenAllEffect' and len(args) in (2, 3):
+            who = {'TargetController.OPPONENT': 'opponent', 'TargetController.ANY': 'any',
+                   'TargetController.EACH_PLAYER': 'any'}.get(args[-1])
+            if who is None:
+                raise Unsupported('effect ' + x)
+            e = self.effect('new CreateTokenEffect(' + ','.join(args[:-1]) + ')')
+            return {'class': cls, 'who': who, 'effect': e}
+        if cls == 'ExileCardsFromTopOfLibraryTargetEffect' and len(args) == 1:
+            return {'class': cls, 'amount': self.amount(args[0])}
+        # a text for the target (rule texts come from the facts)
+        if cls == 'ExileTargetIfDiesEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0]):
+            return {'class': cls}
+        if cls == 'ReturnFromGraveyardToBattlefieldTargetEffect' and len(args) == 2 and args[1] == 'false':
+            return {'class': cls, 'tapped': self.value('bool', args[0])}
         # `DiscardEachPlayerEffect(amount, false, who)`
         if cls == 'DiscardEachPlayerEffect' and len(args) == 3 and args[1] == 'false' and args[2] in TARGET_CONTROLLERS:
             return {'class': cls, 'amount': self.amount(args[0]), 'who': TARGET_CONTROLLERS[args[2]]}
