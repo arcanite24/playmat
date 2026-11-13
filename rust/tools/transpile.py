@@ -2762,6 +2762,11 @@ class Translator:
             if applier and applier != 'new EmptyCopyApplier()':
                 out.update(self.copy_applier(applier))
             return out
+        # `CopyPermanentEffect(applier)`: a creature, with what the applier changes
+        if cls == 'CopyPermanentEffect' and len(args) == 1 and re.fullmatch(r'new \w*Applier\(.*\)', args[0].strip(), re.S):
+            out = {'class': cls, 'filter': [{'p': 'type', 't': 'CREATURE'}]}
+            out.update(self.copy_applier(args[0]))
+            return out
         # an Aura's "enchanted creature loses all abilities and is a blue Frog …" (`LoseType`, Frogify)
         if cls == 'BecomesCreatureAttachedEffect' and len(args) in (4, 5) and args[2].strip() == 'Duration.WhileOnBattlefield':
             m = re.fullmatch(r'BecomesCreatureAttachedEffect\.LoseType\.(ALL|ALL_BUT_COLOR|ABILITIES|ABILITIES_SUBTYPE|COLOR|SUBTYPE|NONE)',
@@ -3994,8 +3999,16 @@ class Translator:
 
     def copy_applier(self, expr):
         """a card's own `CopyApplier` whose `apply` only adds subtypes (`blueprint.addSubType(SubType.SPIRIT)`,
-        Mirrorhall Mimic): the subtypes the copy gets"""
+        Mirrorhall Mimic): the subtypes the copy gets; `AbilityCopyApplier(ability)` and the appliers in
+        `COPY_APPLIERS`: what they change (`CopyApplierDef`)"""
+        m = re.fullmatch(r'new AbilityCopyApplier\((.*)\)', expr.strip(), re.S)
+        if m and len(split_args(m.group(1))) == 1:
+            ab = self.ability(m.group(1))
+            ab.pop('java', None)
+            return {'applier': {'abilities': [ab]}}
         m = re.fullmatch(r'new (\w+)\(\)', expr.strip())
+        if m and m.group(1) in COPY_APPLIERS and re.search(r'class ' + m.group(1) + r' extends CopyApplier\b', self.source or ''):
+            return {'applier': COPY_APPLIERS[m.group(1)]}
         body = m and re.search(r'class ' + m.group(1) + r' extends CopyApplier\s*\{(.*?)\n\}', self.source or '', re.S)
         apply = body and re.search(r'public boolean apply\([^)]*\)\s*\{(.*?)\n    \}', body.group(1), re.S)
         if not apply or re.search(r'public \w+ (?!apply\b|getText\b)\w+\(', body.group(1)):
@@ -4981,6 +4994,28 @@ class Translator:
 
 
 # spells whose effects work across their targets in ways the statements can't say: their spell, by card name
+# card-declared `CopyApplier`s, read by hand: what `apply` does to the blueprint (`CopyApplierDef`)
+COPY_APPLIERS = {
+    # it isn't legendary; unless it copies a copy, +1/+1 counter if a creature, loyalty counter if a planeswalker
+    'SparkDoubleCopyApplier': {
+        'remove_supertypes': ['LEGENDARY'],
+        'counters': [{'counter': {'name': '+1/+1', 'amount': 1}, 'if_type': 'CREATURE',
+                      'rule': 'with an additional +1/+1 counter on it'},
+                     {'counter': {'name': 'loyalty', 'amount': 1}, 'if_type': 'PLANESWALKER',
+                      'rule': 'with an additional loyalty counter on it'}]},
+    # legendary and snow; unless it copies a copy, a creature has changeling and two +1/+1 counters
+    'MoritteOfTheFrostCopyApplier': {
+        'add_supertypes': ['LEGENDARY', 'SNOW'],
+        'creature_abilities': [{'class': 'ChangelingAbility'}],
+        'counters': [{'counter': {'name': '+1/+1', 'amount': 2}, 'if_type': 'CREATURE'}]},
+    # unless it copies a copy, X +1/+1 counters (the X it was cast with)
+    'AlteredEgoCopyApplier': {'counters': [{'counter': {'name': '+1/+1', 'amount': 0}, 'x': True}]},
+    # unless it copies a copy, a shield counter if you control the copied creature
+    'UndercoverOperativeApplier': {
+        'counters': [{'counter': {'name': 'shield', 'amount': 1}, 'if_controlled': True,
+                      'rule': 'with a shield counter on it'}]},
+}
+
 SPELL_OVERRIDES = {
     'Dark Salvation': lambda: {
         'effects': [{'class': 'DarkSalvationEffect', 'token': token('ZombieToken')}],
@@ -6635,6 +6670,17 @@ def granted_rules(card):
         if isinstance(x, dict):
             if 'rule' in x:
                 rule, seen = x['rule'], [0]
+            # (the abilities a copy applier gives: Progenitor Mimic's "except it has \"…\"", the quoted text as
+            # written, but for the effects that write their own: `ReturnToHandSourceEffect`'s "return {this}")
+            for g in (x.get('applier') or {}).get('abilities', []) if isinstance(x.get('applier'), dict) else []:
+                if isinstance(g, dict) and 'rule' not in g:
+                    quotes = re.findall(r'"([^"]*)"', rule or '')
+                    if seen[0] >= len(quotes):
+                        raise Unsupported('copy applier ability without its rule text')
+                    g['rule'] = quotes[seen[0]]
+                    if [e.get('class') for e in g.get('effects', [])] == ['ReturnToHandSourceEffect']:
+                        g['rule'] = re.sub(r'\b([Rr])eturn this creature\b', r'\1eturn {this}', g['rule'])
+                    seen[0] += 1
             g = x.get('ability')
             if isinstance(g, dict) and 'rule' not in g:
                 one(g, rule, seen[0])

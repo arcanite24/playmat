@@ -1129,6 +1129,44 @@ pub enum Condition {
 }
 
 /// Which objects a filter takes: those every predicate holds for. An empty filter takes everything.
+/// What a `CopyApplier` does to the copy's blueprint (`CopyPermanentEffect`): types added or taken away and abilities
+/// added, which stay part of what's copied (707.9b), and its "enters with" counters, which a copy of the copy doesn't
+/// get again (`isCopyOfCopy`, 707.9e: Spark Double, Altered Ego)
+#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CopyApplierDef {
+    #[serde(default)]
+    pub add_supertypes: Vec<String>,
+    #[serde(default)]
+    pub remove_supertypes: Vec<String>,
+    /// abilities the copy has (`AbilityCopyApplier`)
+    #[serde(default)]
+    pub abilities: Vec<AbilityDef>,
+    /// unless it copies a copy: these if it's a creature (Moritte's changeling)
+    #[serde(default)]
+    pub creature_abilities: Vec<AbilityDef>,
+    /// unless it copies a copy: it enters with these counters (`EntersBattlefieldAbility(AddCountersSourceEffect)`)
+    #[serde(default)]
+    pub counters: Vec<CopyCounterDef>,
+}
+
+/// An applier's "enters with" counters: `counter` (or the X it was cast with of them), if the copy is of
+/// `if_type` and (with `if_controlled`) the copied permanent was the copier's controller's
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CopyCounterDef {
+    pub counter: CounterDef,
+    /// the X it was cast with in place of the counter's count
+    #[serde(default)]
+    pub x: bool,
+    #[serde(default)]
+    pub if_type: Option<CardType>,
+    #[serde(default)]
+    pub if_controlled: bool,
+    #[serde(default)]
+    pub rule: String,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 #[serde(transparent)]
 pub struct Filter(pub Vec<Pred>);
@@ -1862,6 +1900,9 @@ pub enum EffectDef {
         filter: Filter,
         #[serde(default)]
         subtypes: Vec<String>,
+        /// what its `CopyApplier` changes in the copy (`CopyApplierDef`)
+        #[serde(default)]
+        applier: Option<Box<CopyApplierDef>>,
     },
     /// until your next turn, creatures attacking your opponents get +2/+2 and trample
     GarrukCurseBreakerEffect,

@@ -16742,6 +16742,9 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
                 copy.subtypes.push(s);
             }
         }
+        if let Some((EffectDef::CopyPermanentEffect { applier: Some(ap), .. }, _)) = &copy_of {
+            apply_copy_applier(game, &mut copy, ap, of, controller, id);
+        }
         if copy_of.is_none() && !copy.abilities.contains(&AbilityDef::FlyingAbility) {
             copy.abilities.push(AbilityDef::FlyingAbility);
         }
@@ -16765,6 +16768,54 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
                 }
             }
         }
+    }
+}
+
+/// A `CopyApplier` on the copy's blueprint (`CopyApplierDef`), as `GameImpl.copyPermanent` applies it: its types and
+/// abilities always; its creature abilities and "enters with" counters only when what it copies isn't itself a copy
+/// (`isCopyOfCopy`: a copy of a Spark Double has the counter ability Spark Double's copy got, not a second one)
+fn apply_copy_applier(
+    game: &Game,
+    copy: &mut CardDef,
+    ap: &crate::card::CopyApplierDef,
+    of: ObjId,
+    controller: Seat,
+    id: ObjId,
+) {
+    for t in &ap.remove_supertypes {
+        copy.supertypes.retain(|x| x != t);
+    }
+    for t in &ap.add_supertypes {
+        if !copy.supertypes.contains(t) {
+            copy.supertypes.push(t.clone());
+        }
+    }
+    copy.abilities.extend(ap.abilities.iter().cloned());
+    if game.obj(of).copied_def.is_some() {
+        return;
+    }
+    if copy.types.contains(&CardType::Creature) {
+        copy.abilities.extend(ap.creature_abilities.iter().cloned());
+    }
+    for c in &ap.counters {
+        if c.if_type.is_some_and(|t| !copy.types.contains(&t))
+            || (c.if_controlled && game.obj(of).controller != controller)
+        {
+            continue;
+        }
+        let mut counter = c.counter.clone();
+        if c.x {
+            // (`checkSourceCostsTagExists`: none when it wasn't cast with an X)
+            counter.amount = game.obj(id).cast_x;
+            if counter.amount <= 0 {
+                continue;
+            }
+        }
+        copy.abilities.push(AbilityDef::EntersBattlefieldAbility {
+            effects: vec![EffectDef::AddCountersSourceEffect { counter, amount: None }],
+            condition: None,
+            rule: c.rule.clone(),
+        });
     }
 }
 
