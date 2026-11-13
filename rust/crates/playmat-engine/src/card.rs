@@ -413,6 +413,8 @@ pub enum Pred {
     PowerLessThanSource,
     /// attacking or blocking
     InCombat,
+    /// face down (`FaceDownPredicate`): a face-down permanent or spell
+    FaceDown,
     /// `TokenPredicate.TRUE` (true) or `.FALSE`
     Token {
         v: bool,
@@ -488,6 +490,15 @@ pub enum Trigger {
     SiegeDefeated,
     /// this enters or transforms into this face (`TransformsOrEntersTriggeredAbility`)
     TransformsOrEnters,
+    /// this is turned face up (`TurnedFaceUpSourceTriggeredAbility`, `TURNED_FACE_UP`)
+    TurnedFaceUp,
+    /// this enters face up or is turned face up (`EntersBattlefieldOrTurnedFaceUpTriggeredAbility`)
+    EntersOrTurnedFaceUp,
+    /// a permanent of the filter is turned face up (`TurnedFaceUpAllTriggeredAbility`): not while this is face down,
+    /// unless it's this one
+    TurnedFaceUpAll {
+        filter: Filter,
+    },
     /// this attacks (`AttacksTriggeredAbility`)
     Attacks,
     /// this attacks alone (`AttacksAloneSourceTriggeredAbility`)
@@ -663,6 +674,8 @@ pub enum Trigger {
     Valiant,
     /// you forage (`ForageTriggeredAbility`)
     Forage,
+    /// this card was discarded into exile by its madness (`MadnessTriggeredAbility`, from exile)
+    MadnessExiled,
     /// this enters or leaves the battlefield (`EntersBattlefieldOrLeavesSourceTriggeredAbility`)
     EntersOrLeaves,
     /// you spend your `n`th total mana on spells this turn (`ExpendTriggeredAbility`)
@@ -770,6 +783,9 @@ pub enum Trigger {
     CombatDamageToPlayer,
     /// this deals combat damage to a player or planeswalker (`DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility`)
     CombatDamageToPlayerOrPlaneswalker,
+    /// this deals combat damage to a player or battle (`DealsCombatDamageToAPlayerOrBattleTriggeredAbility`), X the
+    /// damage
+    CombatDamageToPlayerOrBattle,
     /// a permanent of the filter deals combat damage to a player (`DealsDamageToAPlayerAllTriggeredAbility`): `who`
     /// is whose (empty: any player); a player pointer is the permanent's controller, or the damaged player when
     /// `damaged`
@@ -1411,6 +1427,10 @@ pub enum EffectDef {
         amount: i32,
     },
     /// puts counters on the source
+    /// "as this is turned face up, put these counters on it" (`AsTurnedFaceUpEffect`, a static that works face down)
+    AsTurnedFaceUpEffect {
+        counter: CounterDef,
+    },
     AddCountersSourceEffect {
         counter: CounterDef,
         /// a number of counters worked out as it happens (the counter's own count when it's one); none when it's 0
@@ -2396,6 +2416,36 @@ pub enum EffectDef {
     },
     /// exiles the targets
     ExileTargetEffect,
+    /// madness's trigger: its owner may cast it from exile by paying `cost` (and `life` life) rather than its mana
+    /// cost; if they don't, it goes to the graveyard (`MadnessCastEffect`, `MadnessTriggeredAbility.resolve`)
+    MadnessCastEffect {
+        cost: String,
+        #[serde(default)]
+        life: i32,
+    },
+    /// awaken's: the spell's last target (a land you control) becomes a 0/0 Elemental creature with haste for good,
+    /// still a land, and gets `amount` +1/+1 counters (`AwakenEffect`)
+    AwakenEffect {
+        amount: i32,
+    },
+    /// discover N: exile cards from the top of your library until a nonland card with mana value N or less; cast it
+    /// without paying its mana cost or put it into your hand; the rest on the bottom in a random order
+    DiscoverEffect {
+        amount: i32,
+    },
+    /// a static: this assigns combat damage equal to its toughness rather than its power
+    CombatDamageByToughnessSourceEffect {
+        duration: Duration,
+    },
+    /// backup: +1/+1 counters on the target creature; another creature gains these abilities until end of turn
+    BackupEffect {
+        amount: i32,
+        #[serde(default)]
+        abilities: Vec<AbilityDef>,
+    },
+    /// unearth: this card from your graveyard onto the battlefield; it gains haste, it's exiled at the beginning of
+    /// the next end step or if it would leave the battlefield (`UnearthAbility`'s three effects)
+    UnearthEffect,
     /// the source gains the ability for as long as it's on the battlefield (`GainAbilitySourceEffect`, `Custom`)
     GainAbilityPermanentlyEffect {
         ability: Box<AbilityDef>,
@@ -2893,6 +2943,19 @@ pub enum EffectDef {
     MillCardsControllerEffect {
         amount: Amount,
     },
+    /// manifest (or cloak) the top cards of your library: each onto the battlefield face down, a 2/2 creature
+    /// (`ManifestEffect`)
+    ManifestEffect {
+        amount: Amount,
+        #[serde(default)]
+        cloak: bool,
+    },
+    /// manifest dread: look at the top two cards, manifest one, the other into your graveyard; then these counters
+    /// on it (`ManifestDreadEffect`)
+    ManifestDreadEffect {
+        #[serde(default)]
+        counters: Vec<CounterDef>,
+    },
     /// a static effect on a spell: it can't be countered
     CantBeCounteredSourceEffect,
     /// `SearchLibraryPutIn…Effect`: the controller (or the target's controller) searches their library for cards of
@@ -3256,6 +3319,65 @@ impl SpellDef {
 pub enum AbilityDef {
     /// casting the card (every nonland card has one)
     SpellAbility,
+    /// morph, megamorph or disguise: cast the card face down as a 2/2 creature for {3} (`MorphAbility`,
+    /// `DisguiseAbility`, both `SpellAbility`s); turned face up for these costs. The `FaceDownAbility` its card lists
+    /// after it is its face-down effect
+    /// madness: discarded, this card goes to exile instead of the graveyard (`MadnessReplacementEffect`); its
+    /// trigger comes after it
+    MadnessAbility {
+        cost: String,
+        #[serde(default)]
+        life: i32,
+        #[serde(default)]
+        rule: String,
+    },
+    /// awaken: the spell cast for `cost` instead, also targeting a land you control, which gets `amount` +1/+1
+    /// counters and becomes a 0/0 Elemental creature with haste (`AwakenAbility`, a spell ability of its own)
+    AwakenAbility {
+        amount: i32,
+        cost: String,
+        #[serde(default)]
+        rule: String,
+    },
+    /// strive: the spell costs `cost` more for each target of its "any number of" target beyond the first
+    /// (`StriveAbility`, a cost increase on the stack)
+    StriveAbility {
+        cost: String,
+        #[serde(default)]
+        rule: String,
+    },
+    /// prototype: a spell ability of its own, cast with another mana cost (its colors too) and size; the permanent
+    /// keeps them (`PrototypeAbility`, its `PrototypeEffect` static listed after it)
+    PrototypeAbility {
+        mana: String,
+        power: i32,
+        toughness: i32,
+        #[serde(default)]
+        rule: String,
+    },
+    MorphAbility {
+        costs: Vec<CostDef>,
+        #[serde(default)]
+        megamorph: bool,
+        #[serde(default)]
+        disguise: bool,
+        #[serde(default)]
+        rule: String,
+    },
+    /// "{this} becomes a 2/2 face-down creature, with no text, no name, no subtypes, and no mana cost" (the hidden
+    /// static of morph and disguise, `BecomesFaceDownCreatureEffect`): it works face down, so a face-down permanent
+    /// keeps it
+    FaceDownAbility {
+        #[serde(default)]
+        rule: String,
+    },
+    /// the special action that turns a face-down permanent face up, paying these costs (`TurnFaceUpAbility`); with
+    /// megamorph, a +1/+1 counter on it too
+    TurnFaceUpAbility {
+        costs: Vec<CostDef>,
+        #[serde(default)]
+        megamorph: bool,
+    },
     /// a Room entering unlocks the door of the half cast (`RoomCard`'s `EntersBattlefieldAbility`)
     RoomEnterUnlockAbility,
     /// a Room's shared type line: only its unlocked doors' names, costs and abilities (`RoomAbility`)
@@ -3993,11 +4115,24 @@ impl AbilityDef {
                 Some((rule, effects, targets, cost, false))
             }
             AbilityDef::NinjutsuAbility { effects, cost, rule } => Some((rule, effects, &[], cost, false)),
+            // a special action (no stack): `rules::play` turns it face up
+            AbilityDef::TurnFaceUpAbility { costs, .. } => Some(("", &[], &[], costs, false)),
             AbilityDef::GraveyardActivatedAbility { effects, cost, targets, rule, sorcery, .. } => {
                 Some((rule, effects, targets, cost, *sorcery))
             }
             _ => None,
         }
+    }
+
+    /// It works while its permanent is face down (`Ability.getWorksFaceDown`)
+    pub fn works_face_down(&self) -> bool {
+        matches!(self, AbilityDef::FaceDownAbility { .. })
+            || matches!(self, AbilityDef::SimpleStaticAbility { effects, .. }
+                if effects.iter().any(|e| matches!(e, EffectDef::AsTurnedFaceUpEffect { .. })))
+            || matches!(
+                self.trigger(),
+                Some(Trigger::TurnedFaceUp | Trigger::EntersOrTurnedFaceUp | Trigger::TurnedFaceUpAll { .. })
+            )
     }
 
     /// what a stack object of this ability resolves: rule text, effects, targets, whether it asks first
@@ -4663,6 +4798,36 @@ impl CardDef {
         })
     }
 
+    /// Awaken: its ability index, and the card cast for its awaken cost, with the land target and the awaken effect
+    pub fn awaken(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::AwakenAbility { amount, cost, .. } => {
+                let mut spell = self.spell.clone();
+                spell.targets.push(TargetDef::TargetPermanent {
+                    filter: Filter(vec![
+                        Pred::Type { t: CardType::Land },
+                        Pred::Controller { who: "you".into() },
+                    ]),
+                    min: 1,
+                    max: 1,
+                    distribute: None,
+                    x_count: false,
+                });
+                spell.effects.push(EffectDef::AwakenEffect { amount: *amount });
+                Some((
+                    k,
+                    CardDef {
+                        cost: ManaCost::parse(cost).ok()?,
+                        printed_cost: Some(self.printed().clone()),
+                        spell,
+                        ..self.clone()
+                    },
+                ))
+            }
+            _ => None,
+        })
+    }
+
     /// The spectacle ability's index and the card with its spectacle cost.
     pub fn spectacle(&self) -> Option<(usize, CardDef)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
@@ -4742,6 +4907,85 @@ impl CardDef {
         })
     }
 
+    /// Prototype: its ability index, and the card as it's cast that way (and stays on the battlefield)
+    pub fn prototype(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::PrototypeAbility { mana, power, toughness, .. } => {
+                let cost = ManaCost::parse(mana).ok()?;
+                Some((
+                    k,
+                    CardDef {
+                        colors: cost.colors(),
+                        cost,
+                        printed_cost: None,
+                        power: *power,
+                        toughness: *toughness,
+                        ..self.clone()
+                    },
+                ))
+            }
+            _ => None,
+        })
+    }
+
+    /// Morph or disguise: its ability index, and the face-down spell it's cast as (a 2/2 creature for {3}, its mana
+    /// value 0)
+    pub fn morph(&self) -> Option<(usize, CardDef)> {
+        let k = self.abilities.iter().position(|a| matches!(a, AbilityDef::MorphAbility { .. }))?;
+        let AbilityDef::MorphAbility { disguise, .. } = &self.abilities[k] else { return None };
+        let mut def = self.face_down(if *disguise { FaceDown::Disguise } else { FaceDown::Morph });
+        def.cost = ManaCost::parse("{3}").ok()?;
+        def.printed_cost = Some(ManaCost::default());
+        Some((k, def))
+    }
+
+    /// This card face down (`BecomesFaceDownCreatureEffect.makeFaceDownObject`): a 2/2 colorless creature with no
+    /// name, subtypes or mana cost. It keeps the abilities that work face down (its face-down static, its "turned
+    /// face up" triggers), then gets the special actions to turn it face up: its morph or disguise's (with
+    /// disguise's ward {2}), then, manifested or cloaked, a creature card's for its mana cost (and cloak's ward)
+    pub fn face_down(&self, how: FaceDown) -> CardDef {
+        let mut abilities: Vec<AbilityDef> = self.abilities.iter().filter(|a| a.works_face_down()).cloned().collect();
+        for a in &self.abilities {
+            if let AbilityDef::MorphAbility { costs, megamorph, disguise, .. } = a {
+                abilities.push(AbilityDef::TurnFaceUpAbility { costs: costs.clone(), megamorph: *megamorph });
+                abilities.extend(face_down_info(*disguise));
+            }
+        }
+        if matches!(how, FaceDown::Manifest | FaceDown::Cloak) && self.is(CardType::Creature) {
+            let cost = if self.cost.text.is_empty() { "{0}".to_string() } else { self.cost.text.clone() };
+            abilities.push(AbilityDef::TurnFaceUpAbility { costs: vec![CostDef::ManaCost { cost }], megamorph: false });
+        }
+        if how == FaceDown::Cloak {
+            abilities.extend(face_down_info(true));
+        }
+        CardDef {
+            name: String::new(),
+            set: self.set.clone(),
+            cost: ManaCost::default(),
+            types: vec![CardType::Creature],
+            subtypes: Vec::new(),
+            supertypes: Vec::new(),
+            colors: Vec::new(),
+            power: 2,
+            toughness: 2,
+            abilities,
+            spell: SpellDef::default(),
+            loyalty: None,
+            defense: None,
+            all_creature_types: false,
+            adventure: None,
+            back: None,
+            transform_back: None,
+            omen: false,
+            aftermath: false,
+            prepare: None,
+            room: Vec::new(),
+            printed_cost: None,
+            hints: Vec::new(),
+            hint_abilities: Vec::new(),
+        }
+    }
+
     /// The warp ability's index and the card with its warp cost.
     pub fn warp(&self) -> Option<(usize, CardDef)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
@@ -4786,6 +5030,42 @@ impl CardDef {
         };
         Some(def)
     }
+}
+
+/// How a permanent came to be face down (`BecomesFaceDownCreatureEffect.FaceDownType`)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FaceDown {
+    Morph,
+    Disguise,
+    Manifest,
+    Cloak,
+}
+
+/// The rules a face-down permanent shows for its way to turn face up (`BecomesFaceDownCreatureEffect`'s
+/// `InfoEffect`s); disguised or cloaked, the info, then ward {2} and its info
+fn face_down_info(disguise: bool) -> Vec<AbilityDef> {
+    let info = |rule: &str| AbilityDef::SimpleStaticAbility { effects: Vec::new(), rule: rule.to_string() };
+    if !disguise {
+        return vec![info("Turn it face up any time for its morph cost.")];
+    }
+    vec![
+        info("Turn it face up any time for its disguise/cloaked cost."),
+        AbilityDef::WardAbility {
+            effects: vec![EffectDef::CounterUnlessPaysEffect {
+                cost: vec![CostDef::ManaCost { cost: "{2}".into() }],
+                generic: None,
+                exile: false,
+            }],
+            rule: "ward {2} <i>(Whenever this creature becomes the target of a spell or ability an opponent controls, \
+                   counter it unless that player pays {2}.)</i>"
+                .into(),
+        },
+        info(
+            "A face-down creature that was cloaked or cast with disguise has ward {2}. <i>(Whenever that creature \
+             becomes the target of a spell or ability an opponent controls, counter it unless that player pays \
+             {2}.)</i>",
+        ),
+    ]
 }
 
 /// The cards the engine has, by name.
