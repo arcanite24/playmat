@@ -2480,6 +2480,21 @@ fn mana_options(
 /// Whether the sources pay the cost: each symbol from a different source, generic from what's left.
 fn options_pay(options: &[Vec<Mana>], cost: &ManaCost) -> bool {
     // a monocolored hybrid symbol: its color, or two generic (`MonoHybridManaCost.getManaOptions`)
+    if !cost.mono_half.is_empty() {
+        let n = cost.mono_half.len().min(8);
+        return (0..1u32 << n).any(|mask| {
+            let mut c = cost.clone();
+            c.mono_half.clear();
+            for (b, k) in cost.mono_half.iter().enumerate() {
+                if mask & (1 << b) != 0 {
+                    c.colored[*k] += 1;
+                } else {
+                    c.generic += 1;
+                }
+            }
+            options_pay(options, &c)
+        });
+    }
     if !cost.mono.is_empty() {
         let n = cost.mono.len().min(8);
         return (0..1u32 << n).any(|mask| {
@@ -2542,10 +2557,25 @@ fn auto_pay_abilities(abilities: &[(usize, Mana, ManaKind)], unpaid: &ManaCost) 
         return abilities.to_vec();
     }
     let hybrid: Vec<(usize, usize)> = unpaid.hybrid.iter().map(|(a, b)| ((*a).min(*b), (*a).max(*b))).collect();
-    let single = |k: usize| k < 5 && (unpaid.colored[k] > 0 || unpaid.mono.contains(&k));
+    // (`ManaSymbols.buildFromManaCost` has no monocolored hybrid symbols: those count in the unpaid mana, as their
+    // color and two generic)
+    let single = |k: usize| k < 5 && unpaid.colored[k] > 0;
+    let monos: Vec<usize> = unpaid.mono.iter().chain(&unpaid.mono_half).copied().collect();
+    let basic_color = |(_, m, k): &(usize, Mana, ManaKind)| {
+        (*k == ManaKind::Basic)
+            .then(|| (0..5).find(|c| m.colored[*c] > 0 && m.colored.iter().sum::<u32>() == m.colored[*c]))
+            .flatten()
+    };
     if (0..5).all(|k| !single(k)) && hybrid.is_empty() {
-        // `getManaAbilitiesUsingMana`
-        if unpaid.generic > 0 {
+        // `getManaAbilitiesUsingMana`: the one ability of a color owed ({2/B}'s black), else generic
+        let colorful: Vec<&(usize, Mana, ManaKind)> =
+            abilities.iter().filter(|a| basic_color(a).is_some_and(|c| monos.contains(&c))).collect();
+        match colorful.len() {
+            0 => {}
+            1 => return vec![*colorful[0]],
+            _ => return abilities.to_vec(),
+        }
+        if unpaid.generic > 0 || !monos.is_empty() {
             let no_colors = unpaid.colorless == 0;
             let plain = abilities.iter().find(|a| a.2 == ManaKind::Basic).filter(|_| no_colors);
             return vec![*plain.unwrap_or(&abilities[0])];
@@ -2581,7 +2611,7 @@ fn auto_pay_abilities(abilities: &[(usize, Mana, ManaKind)], unpaid: &ManaCost) 
         }
     }
     match count.len() {
-        0 if unpaid.generic > 0 => vec![abilities[0]],
+        0 if unpaid.generic > 0 || !monos.is_empty() => vec![abilities[0]],
         0 => abilities.to_vec(),
         1 => chosen.into_iter().collect(),
         _ => {
@@ -5044,6 +5074,25 @@ fn waterbend(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: u32) -> O
 /// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
 /// the payment; anything short of paying counters. None: stopped.
 fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost: &[CostDef]) -> Option<bool> {
+    // ward—discard a card or pay {2} (Titania, Rugged Rumbler): "<cost>?", then `OrCost.pay` asks which
+    if let [c @ CostDef::OrCost { .. }] = cost {
+        if !can_pay_cost(game, payer, id, c) {
+            return Some(false);
+        }
+        let q = Query::YesNo { message: "pay the or-cost?".into() };
+        let yes = loop {
+            match ask(game, d, payer, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return None,
+                _ => {}
+            }
+        };
+        let paid = yes && pay_cost(game, d, payer, id, c);
+        if d.stopped() {
+            return None;
+        }
+        return Some(paid);
+    }
     // ward—discard a card: a non-mana cost's message has no "Pay " (`DiscardTargetCost` text "discard a card")
     if let Some(CostDef::DiscardCardCost { filter, .. }) =
         cost.iter().find(|c| matches!(c, CostDef::DiscardCardCost { .. }))
@@ -5162,11 +5211,30 @@ fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, co
     let mut cost = ability_mana_cost(costs);
     // power-up the turn it entered: less its own mana cost
     if matches!(a, AbilityDef::PowerUpAbility { .. }) && game.obj(id).entered_turn == game.turn {
+        // `CardUtil.adjustCost(ability, permanent.getManaCost(), false)`: its own colored and hybrid symbols
+        // (a hybrid counts as both its colors) take off colored symbols; a hybrid symbol of the cost goes once
+        // either of its colors is taken off (black, red, blue, green, white first); generic takes off generic only
         let own = &game.obj(id).def.cost;
-        for k in 0..5 {
-            cost.colored[k] = cost.colored[k].saturating_sub(own.colored[k]);
+        let mut reduce = own.colored;
+        for &(a, b) in &own.hybrid {
+            reduce[a] += 1;
+            reduce[b] += 1;
         }
-        cost.generic = cost.generic.saturating_sub(own.generic);
+        for k in 0..5 {
+            let r = reduce[k].min(cost.colored[k]);
+            cost.colored[k] -= r;
+            reduce[k] -= r;
+        }
+        cost.hybrid.retain(|&(a, b)| {
+            for k in [2, 3, 1, 4, 0] {
+                if (a == k || b == k) && reduce[k] > 0 {
+                    reduce[k] -= 1;
+                    return false;
+                }
+            }
+            true
+        });
+        cost.generic = cost.generic.saturating_sub(own.generic + 2 * own.mono.len() as u32);
     }
     // Ghostfire Blade: {2} less if it can target a colorless creature (`inCheckPlayableState`); `activate` adds it
     // back once the target turns out not to be colorless
@@ -5265,7 +5333,8 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         CostDef::RemoveCountersFromAmongCost { filter, counter, amount, max } => {
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
-            let Some(chosen) = choose_in_rounds(game, d, seat, &possible, 1, *max) else {
+            let rule = cost_source_rule(game, id);
+            let Some(chosen) = choose_in_rounds(game, d, seat, &possible, 1, *max, &rule) else {
                 return false;
             };
             let mut removed = 0;
@@ -7070,11 +7139,24 @@ fn pay_from_pool(
         }
     }
     unpaid.hybrid = left;
-    // `MonoHybridManaCost`: its color first, then (each in turn) its two generic
+    // `MonoHybridManaCost`: its color first, then (each in turn) its two generic; one with one generic paid is
+    // still paid by its color (the ones partly paid come first: the generic goes to them in order)
+    let mut half = Vec::new();
+    for k in std::mem::take(&mut unpaid.mono_half) {
+        if spend(&mut pool, stock, unlocked, k, 1, false) == 0 {
+            half.push(k);
+        }
+    }
     let mut left = Vec::new();
     for k in std::mem::take(&mut unpaid.mono) {
         if spend(&mut pool, stock, unlocked, k, 1, false) == 0 {
             left.push(k);
+        }
+    }
+    let mut halves = Vec::new();
+    for k in half {
+        if ![5, 2, 1, 0, 4, 3].into_iter().any(|g| spend(&mut pool, stock, unlocked, g, 1, false) == 1) {
+            halves.push(k);
         }
     }
     let mut still = Vec::new();
@@ -7085,11 +7167,12 @@ fn pay_from_pool(
         }
         match paid {
             0 => still.push(k),
-            1 => unpaid.generic += 1,
+            1 => halves.push(k),
             _ => {}
         }
     }
     unpaid.mono = still;
+    unpaid.mono_half = halves;
     // `SnowManaCost.assignPayment`: as generic, from snow mana only
     while unpaid.snow > 0 {
         if ![5, 2, 1, 0, 4, 3].into_iter().any(|k| spend(&mut pool, stock, unlocked, k, 1, true) == 1) {
@@ -7166,7 +7249,7 @@ fn unpaid_text(c: &ManaCost) -> String {
             s.push_str(&format!("{{{}}}", l));
         }
     }
-    for k in &c.mono {
+    for k in c.mono_half.iter().chain(&c.mono) {
         s.push_str(&format!("{{2/{}}}", ["W", "U", "B", "R", "G"][*k]));
     }
     for (a, b) in &c.hybrid {
@@ -8034,8 +8117,10 @@ fn refresh_land_types(game: &mut Game) {
     // a triggered ability a resolved effect gave until end of turn (Herd Heirloom's "Whenever this creature deals
     // combat damage to a player, draw a card"): Java adds it to the permanent, so it triggers like its own (an
     // activated one too, activated like its own: Retraction Helix's "{T}: Return target nonland permanent …")
+    // (a mana ability too: Song of Freyalise's "{T}: Add one mana of any color" until your next turn)
     for g in game.grants.iter() {
-        if matches!(g.ability, AbilityDef::TriggeredAbility { .. } | AbilityDef::SimpleActivatedAbility { .. })
+        if (matches!(g.ability, AbilityDef::TriggeredAbility { .. } | AbilityDef::SimpleActivatedAbility { .. })
+            || g.ability.mana().is_some())
             && game.obj(g.target).zone == Zone::Battlefield
             && game.obj(g.target).zcc == g.zcc
         {
@@ -8476,6 +8561,16 @@ fn fresh_targets(game: &Game, item: &StackItem, i: usize, group: &[Target]) -> V
         .collect()
 }
 
+/// `o`, a target of `item`, was a permanent when chosen and isn't that object now
+fn left_since_targeted(game: &Game, item: &StackItem, o: ObjId) -> bool {
+    game.obj(o).zone != Zone::Battlefield
+        && item
+            .targets
+            .iter()
+            .zip(item.target_zcc.iter())
+            .any(|(ts, zs)| ts.iter().zip(zs.iter()).any(|(t, z)| *t == Target::Obj(o) && *z != game.obj(o).zcc))
+}
+
 fn slot<'a>(slots: &'a Slots, name: &str) -> Option<&'a Vec<Target>> {
     slots.iter().rev().find(|(n, _)| n == name).map(|(_, t)| t)
 }
@@ -8645,8 +8740,16 @@ fn apply_sequence(
                 (Amount::Of(crate::card::Value::SourcePower), Some(p)) => p,
                 (a, _) => game.value(a, item.controller, source.0, item.x),
             },
-            Quantity::Power { of: s } => of(s).map_or(0, |o| game.power_toughness(o).0),
-            Quantity::Toughness { of: s } => of(s).map_or(0, |o| game.power_toughness(o).1),
+            // a target that left the battlefield since it was chosen: its last known power (Grisly Spectacle's
+            // destroyed token)
+            Quantity::Power { of: s } => of(s).map_or(0, |o| match left_since_targeted(game, item, o) {
+                true => game.obj(o).power_lki.unwrap_or_else(|| game.power_toughness(o).0),
+                false => game.power_toughness(o).0,
+            }),
+            Quantity::Toughness { of: s } => of(s).map_or(0, |o| match left_since_targeted(game, item, o) {
+                true => game.obj(o).toughness_lki.unwrap_or_else(|| game.power_toughness(o).1),
+                false => game.power_toughness(o).1,
+            }),
             Quantity::ManaValue { of: s } => of(s).map_or(0, |o| game.obj(o).def.mana_value() as i32),
             Quantity::Count { of: s, filter } => slot(&slots, s).map_or(0, |ts| {
                 ts.iter()
@@ -13985,10 +14088,20 @@ fn apply_each_effect(
                 }
             }
             EffectDef::PutOnLibraryTargetEffect { top } => {
-                for o in &objs {
-                    // a card from a graveyard, or a permanent (Natural Obsolescence's artifact; a token ceases to exist)
-                    if matches!(game.obj(*o).zone, Zone::Graveyard | Zone::Battlefield) {
-                        to_library(game, *o, *top);
+                // cards from a graveyard or exile first, then permanents (Natural Obsolescence's artifact; a token
+                // ceases to exist); each owner's together, in any order (`putCardsOnTopOfLibrary(.., true)`: Forever
+                // Young's owner orders them)
+                for zones in [&[Zone::Graveyard, Zone::Exile][..], &[Zone::Battlefield][..]] {
+                    let mut group: Vec<ObjId> =
+                        objs.iter().copied().filter(|o| zones.contains(&game.obj(*o).zone)).collect();
+                    while let Some(first) = group.first().copied() {
+                        let owner = game.obj(first).owner;
+                        let theirs: Vec<ObjId> =
+                            group.iter().copied().filter(|o| game.obj(*o).owner == owner).collect();
+                        group.retain(|o| game.obj(*o).owner != owner);
+                        if !put_on_library(game, d, owner, &theirs, *top, true) {
+                            return;
+                        }
                     }
                 }
             }
@@ -14898,6 +15011,25 @@ fn apply_each_effect(
 fn item_rule(game: &Game, item: &StackItem) -> String {
     let def = game.item_def(item);
     match item.ability {
+        // a triggered ability's `getRule(true)` is `AbilityImpl`'s: its effects' text, without the trigger phrase or
+        // an intervening "if" (Trail of Crumbs' "Whenever you sacrifice a Food" doesn't keep its card from being
+        // picked by itself)
+        Some((i, _)) if matches!(def.abilities.get(i), Some(AbilityDef::TriggeredAbility { .. })) => {
+            let rule = def.abilities[i].on_stack().map(|(r, ..)| r).unwrap_or_default();
+            let low = rule.to_lowercase();
+            let mut rest = rule;
+            if ["when", "whenever", "at "].iter().any(|w| low.starts_with(w)) {
+                if let Some(k) = rest.find(", ") {
+                    rest = &rest[k + 2..];
+                    if rest.starts_with("if ") {
+                        if let Some(k) = rest.find(", ") {
+                            rest = &rest[k + 2..];
+                        }
+                    }
+                }
+            }
+            rest.to_string()
+        }
         Some((i, _)) => {
             def.abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r.to_string()).unwrap_or_default()
         }
@@ -15050,7 +15182,8 @@ fn choose_cards_with(
 }
 
 /// `TargetImpl.choose` (a cost's target, RemoveCounterCost): it asks the player again after each round that added a
-/// target and didn't complete the choice, so "done" with a target picked is asked twice
+/// target and didn't complete the choice, so "done" with a target picked is asked twice. Auto-choice as
+/// `TargetImpl.tryToAutoChoose`, reading `rule` (Sunstar Chaplain's one creature is picked by itself, counter or not)
 fn choose_in_rounds(
     game: &mut Game,
     d: &mut dyn Decider,
@@ -15058,13 +15191,26 @@ fn choose_in_rounds(
     possible: &[ObjId],
     min: usize,
     max: usize,
+    rule: &str,
 ) -> Option<Vec<ObjId>> {
+    let rule = rule.to_lowercase();
+    let feel_bad = ["discard", "sacrifice", "destroy", "exile"].iter().any(|w| rule.contains(w));
     let mut chosen: Vec<ObjId> = Vec::new();
     loop {
         let before = chosen.len();
         // one `HumanPlayer.choose`: picks until the target is complete or "done"
         loop {
             let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
+            if min == max && left.len() == min - chosen.len() && !left.is_empty() && !rule.contains("search") {
+                let all = game.player(seat).auto_target_all;
+                if let Some(c) = left.iter().copied().find(|c| all || !(feel_bad && owns_target(game, seat, *c))) {
+                    chosen.push(c);
+                    if chosen.len() >= max {
+                        return Some(chosen);
+                    }
+                    continue;
+                }
+            }
             let required = chosen.len() < min && !left.is_empty();
             match ask(game, d, seat, &Query::Cards { objs: left.clone(), required }) {
                 Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),

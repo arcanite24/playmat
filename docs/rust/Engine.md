@@ -431,6 +431,24 @@ Being in the engine and being trusted are kept apart.
   death order (Goreclaw); the index of an activated ability granted after granted keywords (Hagra Constrictor with Snapping Gnarlid);
   and single games where Java and Rust part on who gets priority next.
 
+  Round 8 (13 Nov, after the wave-3, static-effect and per-card handler PRs): three rounds over the 88 translating but unverified
+  cards, used ones first (192 games), and the rounds 6 and 7 games replayed on the new engine. The fixes, each with a
+  game under `shadow/factory/`: becomes-the-target triggers fire on abilities too (Tenured Concocter, Cactarantula);
+  power-up's discount the turn it entered follows `CardUtil.adjustCost` (a hybrid symbol of its own cost takes off a
+  hybrid symbol of the power-up, so Abomination pays {2}); a ward that's an `OrCost` asks which cost (Titania);
+  `PutOnLibraryTargetEffect` lets each owner order the cards (Forever Young, Gravepurge); a {2/R} with one generic
+  paid is still paid by red, and monocolored hybrid symbols aren't among `ManaSymbols` when a source's mana ability
+  is picked (Reigning Victor, Temur Tawnyback); a triggered ability's auto-choice text is `getRule(true)`, its
+  effects without the trigger phrase (Trail of Crumbs); mana abilities granted until your next turn (Song of
+  Freyalise); RemoveCounterCost's creature is auto-chosen (Sunstar Chaplain); a target gone since it was chosen is
+  read with its last known power (Grisly Spectacle). 154 more cards are verified: 9,863 of 9,895.
+
+  Left: Pearl Lake Ancient and Volt Charge games where the lands reach the hand in `HashSet<Card>` order (identity
+  hashes, so it changes from run to run: Java nondeterminism, like Cyclonic Rift above); Turn the Earth's
+  `HashMap` order; two Food activations (Summoned Dromedary, You Hear Something on Watch); and single games
+  (Profound Journey, Akoum Warrior, Depth Charge Colossus, Copper Host Crusher, Clone Legion, Refurbish, Spell
+  Blast).
+
   Java's nondeterminism, not copied: tokens created together with `withAdditionalTokens` (Forbidden Friendship's
   Dragon and Human) enter in `CreateTokenEvent`'s `HashMap` order, which changes from run to run, so the games where
   that order matters (Barrier of Bones, Hellkite Whelp, Dimension X) part there. They're left as differing, and those
