@@ -199,6 +199,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 let p = game.player_mut(s);
                 p.lands_played = 0;
                 p.attacked = false;
+                p.attackers_this_turn = 0;
                 p.life_lost = 0;
                 p.drawn = 0;
                 p.drawn_in_draw_step = 0;
@@ -297,6 +298,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             if !attackers(game).is_empty() {
                 game.player_mut(active).attacked = true;
             }
+            let declared = attackers(game).len() as u32;
+            game.player_mut(active).attackers_this_turn += declared;
             // boast: each attacker attacked this turn (`AttackedThisTurnWatcher`)
             let turn = format!("attacked{}", game.turn);
             for a in attackers(game) {

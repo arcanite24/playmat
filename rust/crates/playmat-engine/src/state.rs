@@ -438,6 +438,8 @@ pub struct Player {
     pub cant_gain_life: bool,
     /// declared an attacker this turn (`PlayerAttackedWatcher`)
     pub attacked: bool,
+    /// the attackers declared this turn, over every combat (`PlayerAttackedWatcher.getNumberOfAttackersCurrentTurn`)
+    pub attackers_this_turn: u32,
     /// life lost this turn
     pub life_lost: i32,
     /// cards drawn this turn
