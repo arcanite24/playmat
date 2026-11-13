@@ -205,6 +205,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.sacrificed = 0;
                 p.expended = 0;
                 p.lands_entered = 0;
+                p.nonlands_entered = 0;
+                p.descended = 0;
             }
             // "until your next turn" ends as it begins
             game.attacks_opponent.retain(|(s, _)| *s != active);
@@ -217,6 +219,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             }
             game.triggered_this_turn.clear();
             game.creature_died = false;
+            game.creatures_died = 0;
+            game.void_this_turn = false;
             game.activated_this_turn.clear();
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {
@@ -1351,8 +1355,13 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         }
         CostDef::SacrificeSourceCost | CostDef::ExileSourceCost => true,
         CostDef::ExileSourceFromGraveCost => o.zone == Zone::Graveyard,
-        CostDef::ExileFromGraveCost { amount } => {
-            game.player(seat).graveyard.iter().filter(|c| **c != id).count() >= *amount
+        CostDef::ExileFromGraveCost { amount, filter } => {
+            game.player(seat)
+                .graveyard
+                .iter()
+                .filter(|c| **c != id && game.filter_matches(filter, seat, Some(id), **c))
+                .count()
+                >= *amount
         }
         CostDef::ReturnAttackerToHandTargetCost => !unblocked_attackers(game, seat).is_empty(),
         CostDef::PayLoyaltyCost { amount } => !o.loyalty_used && o.counter("loyalty") + amount >= 0,
@@ -1422,7 +1431,7 @@ fn forage_rule(game: &Game, id: ObjId) -> String {
 fn forage_cost() -> CostDef {
     CostDef::OrCost {
         costs: vec![
-            CostDef::ExileFromGraveCost { amount: 3 },
+            CostDef::ExileFromGraveCost { amount: 3, filter: crate::card::Filter::default() },
             CostDef::SacrificeTargetCost {
                 filter: crate::card::Filter(vec![Pred::Subtype { s: "Food".into() }]),
                 amount: 1,
@@ -1881,9 +1890,20 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                             .any(|(s, z, c)| *s == *id && *z == zcc && game.obj(*c).zone == Zone::Exile);
                         (i, Mana { colorless: if exiled { 2 } else { 1 }, ..Mana::default() }, a.mana_kind())
                     }
-                    AbilityDef::ConditionalColorManaAbility { color, otherwise, condition, .. } => {
-                        let c = if game.condition_holds(Some(condition), seat, *id) { color } else { otherwise };
-                        (i, Mana::of(*c, 1), a.mana_kind())
+                    AbilityDef::ConditionalColorManaAbility {
+                        color,
+                        otherwise,
+                        condition,
+                        amount,
+                        otherwise_amount,
+                        ..
+                    } => {
+                        let (c, n) = if game.condition_holds(Some(condition), seat, *id) {
+                            (color, amount)
+                        } else {
+                            (otherwise, otherwise_amount)
+                        };
+                        (i, Mana::of(*c, *n), a.mana_kind())
                     }
                     AbilityDef::NykthosShrineToNyxManaAbility { .. } => {
                         let mut m = Mana::default();
@@ -2631,6 +2651,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     return;
                 }
                 game.obj_mut(id).warped = warped;
+                if warped {
+                    game.void_this_turn = true;
+                }
                 return;
             }
             if let Some((_, def)) = blitz.filter(|(k, _)| *k == index) {
@@ -4784,8 +4807,14 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             game.obj_mut(id).ninjutsu_pw = pw;
             game.move_to(attacker, Zone::Hand);
         }
-        CostDef::ExileFromGraveCost { amount } => {
-            let possible: Vec<ObjId> = game.player(seat).graveyard.iter().copied().filter(|c| *c != id).collect();
+        CostDef::ExileFromGraveCost { amount, filter } => {
+            let possible: Vec<ObjId> = game
+                .player(seat)
+                .graveyard
+                .iter()
+                .copied()
+                .filter(|c| *c != id && game.filter_matches(filter, seat, Some(id), *c))
+                .collect();
             let rule = game.obj(id).def.abilities.iter().find_map(|a| match a {
                 AbilityDef::EscapeAbility { rule, .. } => Some(rule.clone()),
                 _ => None,

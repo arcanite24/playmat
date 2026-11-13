@@ -395,6 +395,27 @@ pub enum Pred {
     },
     /// `PermanentPredicate`: a permanent card (not an instant or sorcery)
     PermanentCard,
+    /// `MonocoloredPredicate`: exactly one color
+    Monocolored,
+    /// `CounterAnyPredicate`: a counter of any kind on it
+    CounterAny,
+    /// `EnteredThisTurnPredicate`
+    EnteredThisTurn,
+    /// `EquippedPredicate`: an Equipment is attached to it
+    Equipped,
+    /// `EnchantedPredicate`: an Aura is attached to it
+    Enchanted,
+    /// `ModifiedPredicate`: a counter on it, an Equipment attached, or an Aura its controller controls
+    Modified,
+    /// `WasDealtDamageThisTurnPredicate`
+    DamagedThisTurn,
+    /// `BlockingPredicate`
+    Blocking,
+    /// `ManaSpentToCastPredicate`: the mana spent to cast it compared with `n`
+    ManaSpent {
+        cmp: Cmp,
+        n: i32,
+    },
     Not {
         x: Box<Pred>,
     },
@@ -755,6 +776,41 @@ pub enum Condition {
     },
     /// it's your first, second or third turn of the game (two players: your turns alternate)
     StartingTown,
+    /// a value compared with `n` (`FormidableCondition`: your creatures' total power, eight or more)
+    Value {
+        of: Amount,
+        cmp: Cmp,
+        n: i32,
+    },
+    /// the source spell was cast from the zone ("graveyard", "hand"), or the source permanent entered as a spell
+    /// cast from there (`CastFromGraveyardSourceCondition`, `CastFromHandSourcePermanentCondition`)
+    CastFrom {
+        zone: String,
+    },
+    /// an opponent has `n` or more poison counters (`CorruptedCondition`)
+    OpponentPoison {
+        n: i32,
+    },
+    /// an opponent has `n` or more cards in their graveyard (`CardsInOpponentGraveyardCondition`)
+    OpponentGraveyard {
+        n: usize,
+    },
+    /// a nonland permanent left the battlefield this turn or a spell was warped this turn (`VoidCondition`)
+    Void,
+    /// an Equipment is attached to the source (`EquippedSourceCondition`)
+    SourceEquipped,
+    /// the source permanent is tapped (`v`) or untapped (`SourceTappedCondition`)
+    SourceTapped {
+        v: bool,
+    },
+    /// the source (or it as it last was on the battlefield) passes the filter (`SourceMatchesFilterCondition`)
+    SourceMatches {
+        filter: Filter,
+    },
+    /// the permanent the source is attached to passes the filter (`AttachedToMatchesFilterCondition`)
+    AttachedMatches {
+        filter: Filter,
+    },
 }
 
 /// Which objects a filter takes: those every predicate holds for. An empty filter takes everything.
@@ -914,9 +970,11 @@ pub enum CostDef {
     },
     /// return an unblocked attacker you control to its owner's hand (ninjutsu)
     ReturnAttackerToHandTargetCost,
-    /// exile this many other cards from your graveyard (escape)
+    /// exile this many other cards of the filter from your graveyard (escape; `ExileFromGraveCost`)
     ExileFromGraveCost {
         amount: usize,
+        #[serde(default)]
+        filter: Filter,
     },
     /// one of these, the player's choice when both can be paid
     OrCost {
@@ -1064,8 +1122,27 @@ pub enum Value {
     Domain,
     /// Auras attached to the source (`AuraAttachedCount`)
     AurasAttached,
+    /// Equipment attached to the source (`EquipmentAttachedCount`)
+    EquipmentAttached,
     /// card types among cards in the controller's graveyard (`CardTypesInGraveyardCount.YOU`)
     CardTypesInYourGraveyard,
+    /// creatures that died this turn, anyone's (`CreaturesDiedThisTurnCount`)
+    CreaturesDied,
+    /// the controller's party: Clerics, Rogues, Warriors and Wizards they control, one of each, a creature counted
+    /// for one type only (`PartyCount`)
+    Party,
+    /// colors among permanents of the filter (`ColorsAmongControlledPermanentsCount`)
+    ColorsAmong { filter: Filter },
+    /// counters of every kind on the source, or on it as it last was on the battlefield (`CountersSourceCount.ANY`)
+    SourceCountersAny,
+    /// these values added up (`AdditiveDynamicValue`)
+    Sum { xs: Vec<Amount> },
+    /// different powers among permanents of the filter (coven)
+    DifferentPowers { filter: Filter },
+    /// nonland permanents that entered under the controller's control this turn (celebration)
+    NonlandsEntered,
+    /// permanent cards put into the controller's graveyard this turn (descend, `DescendedWatcher`)
+    Descended,
 }
 
 /// One-shot effects, named after the Java effect classes.
@@ -2982,6 +3059,11 @@ pub enum AbilityDef {
         color: Color,
         otherwise: Color,
         condition: Condition,
+        /// how much of `color` (Leafkin Druid's {G}{G}), and of `otherwise`
+        #[serde(default = "one_u32")]
+        amount: u32,
+        #[serde(default = "one_u32")]
+        otherwise_amount: u32,
         #[serde(default)]
         rule: String,
     },
@@ -3203,7 +3285,9 @@ impl AbilityDef {
             // at least one, as far as this can tell (the game counts the rest)
             AbilityDef::DynamicManaAbility { color, .. } => Some(Mana::of(*color, 1)),
             // (the game picks which as it lists the sources)
-            AbilityDef::ConditionalColorManaAbility { otherwise, .. } => Some(Mana::of(*otherwise, 1)),
+            AbilityDef::ConditionalColorManaAbility { otherwise, otherwise_amount, .. } => {
+                Some(Mana::of(*otherwise, *otherwise_amount))
+            }
             // one of each: whichever is needed
             AbilityDef::AnyColorManaAbility { amount, .. } => Some(Mana { colored: [*amount; 5], ..Mana::default() }),
             AbilityDef::ActivateIfConditionManaAbility { color, .. } => Some(Mana::of(*color, 1)),
@@ -3792,7 +3876,7 @@ impl CardDef {
         self.abilities.iter().find_map(|a| match a {
             AbilityDef::EscapeAbility { cost, exile, .. } => {
                 let mut spell = self.spell.clone();
-                spell.costs.push(CostDef::ExileFromGraveCost { amount: *exile });
+                spell.costs.push(CostDef::ExileFromGraveCost { amount: *exile, filter: Filter::default() });
                 Some(CardDef {
                     cost: ManaCost::parse(cost).ok()?,
                     printed_cost: Some(self.printed().clone()),

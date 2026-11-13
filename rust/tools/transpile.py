@@ -609,7 +609,43 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               # threshold: seven or more cards in your graveyard
               'ThresholdCondition.instance': {'c': 'cards_in_graveyard', 'n': 7, 'filter': []},
               'LessonsInGraveCondition.THREE': {'c': 'cards_in_graveyard', 'n': 3,
-                                                 'filter': [{'p': 'subtype', 's': 'Lesson'}]}}
+                                                 'filter': [{'p': 'subtype', 's': 'Lesson'}]},
+              # formidable: creatures you control with total power 8 or greater
+              'FormidableCondition.instance': {'c': 'value', 'cmp': 'OR_GREATER', 'n': 8, 'of': {
+                  'v': 'total_power', 'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'controller', 'who': 'you'}]}},
+              # coven: three or more different powers among creatures you control
+              'CovenCondition.instance': {'c': 'value', 'cmp': 'OR_GREATER', 'n': 3, 'of': {
+                  'v': 'different_powers', 'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'controller', 'who': 'you'}]}},
+              'CelebrationCondition.instance': {'c': 'value', 'cmp': 'OR_GREATER', 'n': 2, 'of': {'v': 'nonlands_entered'}},
+              'DescendedThisTurnCondition.instance': {'c': 'value', 'cmp': 'OR_GREATER', 'n': 1, 'of': {'v': 'descended'}},
+              'CorruptedCondition.instance': {'c': 'opponent_poison', 'n': 3},
+              'VoidCondition.instance': {'c': 'void'},
+              'CastFromGraveyardSourceCondition.instance': {'c': 'cast_from', 'zone': 'graveyard'},
+              'CastFromHandSourcePermanentCondition.instance': {'c': 'cast_from', 'zone': 'hand'},
+              'EquippedSourceCondition.instance': {'c': 'source_equipped'},
+              'SourceTappedCondition.TAPPED': {'c': 'source_tapped', 'v': True},
+              'SourceTappedCondition.UNTAPPED': {'c': 'source_tapped', 'v': False},
+              'CardsInOpponentGraveyardCondition.EIGHT': {'c': 'opponent_graveyard', 'n': 8},
+              # a duel: the opponents' turns are the turns that aren't yours
+              'OpponentsTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}},
+              # a player (either: two players, both in range) has 13 or less life
+              'APlayerHas13LifeCondition.instance': {'c': 'or', 'xs': [
+                  {'c': 'life_compare', 'who': 'you', 'cmp': 'OR_LESS', 'n': 13},
+                  {'c': 'life_compare', 'who': 'opponent', 'cmp': 'OR_LESS', 'n': 13}]},
+              'YouControlTwoOrMoreGatesCondition.instance': {'c': 'permanents', 'cmp': 'OR_GREATER', 'n': 2, 'filter': [
+                  {'p': 'subtype', 's': 'Gate'}]},
+              'DesertControlledOrGraveyardCondition.instance': {'c': 'or', 'xs': [
+                  {'c': 'permanents', 'cmp': 'OR_GREATER', 'n': 1, 'filter': [{'p': 'subtype', 's': 'Desert'}]},
+                  {'c': 'cards_in_graveyard', 'n': 1, 'filter': [{'p': 'subtype', 's': 'Desert'}]}]},
+              'TwoTappedCreaturesCondition.instance': {'c': 'permanents', 'cmp': 'OR_GREATER', 'n': 2, 'filter': [
+                  {'p': 'type', 't': 'CREATURE'}, {'p': 'tapped', 'v': True}]},
+              'ControlArtifactAndEnchantmentCondition.instance': {'c': 'and', 'xs': [
+                  {'c': 'permanents', 'cmp': 'OR_GREATER', 'n': 1, 'filter': [{'p': 'type', 't': 'ARTIFACT'}]},
+                  {'c': 'permanents', 'cmp': 'OR_GREATER', 'n': 1, 'filter': [{'p': 'type', 't': 'ENCHANTMENT'}]}]},
+              'SourceModifiedCondition.instance': {'c': 'source_matches', 'filter': [{'p': 'modified'}]},
+              # descend 4 / 8: that many permanent cards in your graveyard
+              'DescendCondition.FOUR': {'c': 'cards_in_graveyard', 'n': 4, 'filter': [{'p': 'permanent_card'}]},
+              'DescendCondition.EIGHT': {'c': 'cards_in_graveyard', 'n': 8, 'filter': [{'p': 'permanent_card'}]}}
 TOKENS = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'game', 'permanent', 'token')
 
 # an emblem's static effect lasts the game: as long as its source is there, like a permanent's
@@ -657,6 +693,11 @@ FILTER_CLASSES = {
     'FilterBasicLandCard': [LAND, {'p': 'supertype', 's': 'BASIC'}],
     'FilterStackObject': [], 'FilterCreatureCards': [CREATURE],
     'FilterEnchantmentCard': [type_pred('ENCHANTMENT')], 'FilterBasicCard': [{'p': 'supertype', 's': 'BASIC'}],
+    'FilterBlockingCreature': [CREATURE, {'p': 'blocking'}],
+    'FilterAttackingOrBlockingCreature': [CREATURE, {'p': 'in_combat'}],
+    'FilterArtifactOrEnchantmentCard': [{'p': 'or', 'xs': [type_pred('ARTIFACT'), type_pred('ENCHANTMENT')]}],
+    'FilterPlaneswalkerCard': [type_pred('PLANESWALKER')],
+    'FilterBattlePermanent': [type_pred('BATTLE')],
 }
 
 COMPARISONS = {'FEWER_THAN', 'MORE_THAN', 'EQUAL_TO', 'OR_LESS', 'OR_GREATER'}
@@ -694,6 +735,8 @@ def predicate(text, subtypes):
         return {'p': 'colorless'}
     if text == 'new ManaSpentToCastPredicate(ComparisonType.EQUAL_TO,0)':
         return {'p': 'no_mana_spent'}
+    if (m := re.fullmatch(r'new ManaSpentToCastPredicate\(ComparisonType\.(\w+),(\d+)\)', text)) and m.group(1) in COMPARISONS:
+        return {'p': 'mana_spent', 'cmp': m.group(1), 'n': int(m.group(2))}
     # with another Aura attached to it
     if text == 'AuraAttachedPredicate.instance':
         return {'p': 'aura_attached'}
@@ -726,6 +769,16 @@ def predicate(text, subtypes):
         return {'p': 'attacking'}
     if text == 'AttackingOrBlockingPredicate.instance':
         return {'p': 'in_combat'}
+    if text == 'BlockingPredicate.instance':
+        return {'p': 'blocking'}
+    simple = {'MonocoloredPredicate.instance': 'monocolored', 'CounterAnyPredicate.instance': 'counter_any',
+              'EnteredThisTurnPredicate.instance': 'entered_this_turn', 'EquippedPredicate.instance': 'equipped',
+              'EnchantedPredicate.instance': 'enchanted', 'ModifiedPredicate.instance': 'modified',
+              'WasDealtDamageThisTurnPredicate.instance': 'damaged_this_turn', 'KickedSpellPredicate.instance': 'kicked_spell',
+              # a permanent card (an object on the battlefield is always a permanent)
+              'PermanentPredicate.instance': 'permanent_card'}
+    if text in simple:
+        return {'p': simple[text]}
     if (m := re.fullmatch(r'TokenPredicate\.(TRUE|FALSE)', text)):
         return {'p': 'token', 'v': m.group(1) == 'TRUE'}
     if (m := re.fullmatch(r'(CounterType\.\w+)\.getPredicate\(\)', text)) and m.group(1) in COUNTERS:
@@ -847,6 +900,7 @@ TARGET_CLASSES = {
     'TargetArtifactPermanent': ('TargetPermanent', [type_pred('ARTIFACT')]),
     'TargetEnchantmentPermanent': ('TargetPermanent', [type_pred('ENCHANTMENT')]),
     'TargetLandPermanent': ('TargetPermanent', [LAND]),
+    'TargetNonBasicLandPermanent': ('TargetPermanent', [LAND, {'p': 'not', 'x': {'p': 'supertype', 's': 'BASIC'}}]),
     'TargetControlledLandPermanent': ('TargetPermanent', [LAND, YOU]),
     'TargetPlaneswalkerPermanent': ('TargetPermanent', [type_pred('PLANESWALKER')]),
     'TargetCreatureOrPlaneswalker': ('TargetPermanent', [{'p': 'or', 'xs': [CREATURE, type_pred('PLANESWALKER')]}]),
@@ -1033,6 +1087,21 @@ class Translator:
             return {'v': 'sacrificed_this_turn'}
         if arg == 'CardsInControllerHandCount.ANY':
             return {'v': 'cards_in_hand'}
+        if arg == 'ControllerGainedLifeCount.instance':
+            return {'v': 'life_gained'}
+        if arg in ('GateYouControlCount.instance', 'ShrinesYouControlCount.WHERE_X', 'ShrinesYouControlCount.FOR_EACH'):
+            return {'v': 'permanents', 'filter': [{'p': 'subtype', 's': 'Gate' if arg.startswith('Gate') else 'Shrine'}, YOU]}
+        # a duel: one opponent
+        if arg == 'OpponentsCount.instance':
+            return 1
+        if arg == 'CreaturesDiedThisTurnCount.instance':
+            return {'v': 'creatures_died'}
+        if arg == 'PartyCount.instance':
+            return {'v': 'party'}
+        if arg == 'ColorsAmongControlledPermanentsCount.ALL_PERMANENTS':
+            return {'v': 'colors_among', 'filter': [YOU]}
+        if arg == 'CountersSourceCount.ANY':
+            return {'v': 'source_counters_any'}
         obj = self.new_expr(arg)
         if isinstance(obj, tuple):
             cls, args = obj
@@ -1048,6 +1117,25 @@ class Translator:
                 return {'v': 'times', 'of': v, 'n': int(args[0])} if args else v
             if cls == 'CardsInControllerGraveyardCount' and len(args) <= 1:
                 return {'v': 'cards_in_graveyard', 'filter': self.filter(args[0]) if args else []}
+            # (filter, multiplier): null is 1
+            if cls == 'CardsInControllerGraveyardCount' and len(args) == 2 and re.fullmatch(r'null|-?\d+', args[1].strip()):
+                v = {'v': 'cards_in_graveyard', 'filter': self.filter(args[0])}
+                return v if args[1].strip() in ('null', '1') else {'v': 'times', 'of': v, 'n': int(args[1])}
+            # attackers (of the filter)
+            if cls == 'AttackingCreatureCount' and len(args) <= 2:
+                rest = [a for a in args if not re.fullmatch(r'"[^"]*"', a.strip())]
+                if len(rest) <= 1:
+                    return {'v': 'permanents', 'filter': (self.filter(rest[0]) if rest else [CREATURE]) + [{'p': 'attacking'}]}
+            if cls == 'EquipmentAttachedCount' and len(args) <= 1:
+                v = {'v': 'equipment_attached'}
+                return {'v': 'times', 'of': v, 'n': int(args[0])} if args else v
+            if cls == 'AdditiveDynamicValue' and len(args) >= 2:
+                xs = [self.amount(a) for a in args]
+                fixed = [x for x in xs if isinstance(x, int)]
+                rest = [x for x in xs if not isinstance(x, int)]
+                if len(rest) == 1:
+                    return {'v': 'plus', 'of': rest[0], 'n': sum(fixed)}
+                return {'v': 'sum', 'xs': xs}
             if cls == 'IntPlusDynamicValue' and len(args) == 2 and re.fullmatch(r'-?\d+', args[0].strip()):
                 return {'v': 'plus', 'of': self.amount(args[1]), 'n': int(args[0])}
             if cls == 'SignInversionDynamicValue' and len(args) == 1:
@@ -1093,6 +1181,24 @@ class Translator:
             return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2) or 1)}
         if (m := re.fullmatch(r'new TargetHasCardTypeCondition\(CardType\.([A-Z]+)\)', arg)):
             return {'c': 'source_targets', 'filter': [{'p': 'type', 't': m.group(1)}]}
+        if (m := re.fullmatch(r'new TargetHasSuperTypeCondition\(SuperType\.(\w+)\)', arg)):
+            return {'c': 'source_targets', 'filter': [{'p': 'supertype', 's': m.group(1)}]}
+        if (m := re.fullmatch(r'new TargetHasCounterCondition\((CounterType\.\w+)\)', arg)) and m.group(1) in COUNTERS:
+            return {'c': 'source_targets', 'filter': [{'p': 'counter', 'name': COUNTERS[m.group(1)]}]}
+        if (m := re.fullmatch(r'new OpponentControlsPermanentCondition\((.*)\)', arg)) and split_args(m.group(1)) == [m.group(1)]:
+            return {'c': 'permanents', 'filter': self.filter(m.group(1)) + [OPPONENT], 'cmp': 'OR_GREATER', 'n': 1, 'all': True}
+        if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+),ComparisonType\.MORE_THAN,(\d+)\)', arg)) \
+                and m.group(1) in COUNTERS:
+            return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2)) + 1}
+        if (m := re.fullmatch(r'new TargetHasSubtypeCondition\(SubType\.(\w+)\)', arg)) and m.group(1) in self.subtypes:
+            return {'c': 'source_targets', 'filter': [{'p': 'subtype', 's': self.subtypes[m.group(1)]}]}
+        if (m := re.fullmatch(r'new SourceMatchesFilterCondition\((?:"[^"]*",)?(.*)\)', arg)):
+            return {'c': 'source_matches', 'filter': self.filter(m.group(1))}
+        if (m := re.fullmatch(r'new AttachedToMatchesFilterCondition\((.*)\)', arg)):
+            return {'c': 'attached_matches', 'filter': self.filter(m.group(1))}
+        if (m := re.fullmatch(r'new CardsInHandCondition\(ComparisonType\.(\w+),(\d+)(?:,TargetController\.YOU)?\)', arg)) \
+                and m.group(1) in COMPARISONS:
+            return {'c': 'value', 'of': {'v': 'cards_in_hand'}, 'cmp': m.group(1), 'n': int(m.group(2))}
         if (m := re.fullmatch(r'new SourceTargetsPermanentCondition\((.*)\)', arg)):
             return {'c': 'source_targets', 'filter': self.filter(m.group(1))}
         if (m := re.fullmatch(r'new OpponentControlsMoreCondition\((.*)\)', arg)):
@@ -1292,6 +1398,17 @@ class Translator:
         if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((\d+)\)\)(?:\.withSourceExileZone\(false\))?',
                               canonical(expr))):
             return {'class': 'ExileFromGraveCost', 'amount': int(m.group(1))}
+        # "exile N cards of the filter from your graveyard" ((n, n, filter): exactly n)
+        if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((?:(\d+),(?:(\d+),)?)?(.*?)\)\)'
+                              r'(?:\.withSourceExileZone\((?:true|false)\))?', canonical(expr))) \
+                and (m.group(2) is None or m.group(2) == m.group(1)) and not re.fullmatch(r'\d+', m.group(3)):
+            out = {'class': 'ExileFromGraveCost', 'amount': int(m.group(1) or 1)}
+            if m.group(3):
+                out['filter'] = [p for p in self.filter(m.group(3)) if p != {'p': 'owner', 'who': 'you'}]
+            return out
+        # "discard a card (of the filter)"
+        if (m := re.fullmatch(r'new DiscardTargetCost\(new TargetCardInHand\((?!\d)(.*)\)\)', canonical(expr))):
+            return {'class': 'DiscardCardCost', 'filter': self.filter(m.group(1)) if m.group(1) else []}
         cls, args = self.new_expr(expr)
         if cls == 'ManaCostsImpl' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0]):
             return {'class': 'ManaCost', 'cost': args[0][1:-1]}
@@ -1305,6 +1422,16 @@ class Translator:
                 and (n := re.fullmatch(r'new TargetControlledCreaturePermanent\(1,(\d+)\)', canonical(args[0]))):
             return {'class': 'RemoveCountersFromAmongCost', 'filter': [CREATURE], 'counter': COUNTERS[args[1].strip()],
                     'amount': int(args[2]), 'max': int(n.group(1))}
+        # remove a counter of the kind from a creature you control (a cost is never targeted)
+        if cls == 'RemoveCounterCost' and len(args) == 2 and args[1].strip() in COUNTERS \
+                and re.fullmatch(r'new TargetControlledCreaturePermanent\(\)(?:\.withNotTarget\(true\))?', canonical(args[0])):
+            return {'class': 'RemoveCountersFromAmongCost', 'filter': [CREATURE], 'counter': COUNTERS[args[1].strip()],
+                    'amount': 1, 'max': 1}
+        # remove `amount` counters of the kind from among up to `max` permanents of the filter
+        if cls == 'RemoveCounterCost' and len(args) == 3 and args[1].strip() in COUNTERS and args[2].strip().isdigit() \
+                and (n := re.fullmatch(r'new TargetPermanent\(1,(\d+),(.*)\)', canonical(args[0]))):
+            return {'class': 'RemoveCountersFromAmongCost', 'filter': self.filter(n.group(2)),
+                    'counter': COUNTERS[args[1].strip()], 'amount': int(args[2]), 'max': int(n.group(1))}
         if cls == 'PutCountersSourceCost' and len(args) == 1:
             return {'class': cls, 'counter': self.value('counter', args[0].strip())}
         if cls == 'RemoveCountersSourceCost' and len(args) == 1:
@@ -2163,6 +2290,10 @@ class Translator:
         if cls == 'SimpleActivatedAbility' and len(args) == 3 and args[0].strip() == 'Zone.GRAVEYARD':
             return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [self.effect(args[1])],
                     'cost': [self.cost(args[2])]}
+        # "{cost}: … Activate only as a sorcery", from your graveyard
+        if cls == 'ActivateAsSorceryActivatedAbility' and len(args) == 3 and args[0].strip() == 'Zone.GRAVEYARD':
+            return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [self.effect(args[1])],
+                    'cost': [self.cost(args[2])], 'sorcery': True}
         # "{cost}: … Activate only if …", from your graveyard
         if cls == 'ActivateIfConditionActivatedAbility' and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD':
             return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [self.effect(args[1])],
@@ -2416,7 +2547,7 @@ class Translator:
         if cls == 'AnyColorManaAbility' and [a.strip() for a in args] == ['new TapSourceCost()']:
             return {'class': cls, 'java': cls}
         # "{T}: Add {G} for each …"
-        if cls == 'DynamicManaAbility' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[2].strip()):
+        if cls == 'DynamicManaAbility' and len(args) == 3 and re.fullmatch(r'"[^"]*"(?:\s*\+\s*[\w.]+\(\))?', args[2].strip()):
             args = args[:2]
         if cls == 'DynamicManaAbility' and len(args) == 2 \
                 and (n := re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green)Mana\(1\)', args[0].strip())):
@@ -2431,6 +2562,18 @@ class Translator:
         if cls == 'ConditionalColoredManaAbility' and [a.strip() for a in args] == \
                 ['new TapSourceCost()', 'Mana.GreenMana(2)', 'new ElfhameDruidManaBuilder()']:
             return {'class': 'ConditionalManaAbility', 'java': cls, 'color': 'G', 'amount': 2, 'filter': [{'p': 'kicked_spell'}]}
+        # "{T}: Add {G}. If <condition>, add {G}{G} instead" (Leafkin Druid)
+        if cls == 'SimpleManaAbility' and len(args) in (2, 3) and args[-1].strip() == 'new TapSourceCost()' \
+                and (len(args) == 2 or args[0].strip() == 'Zone.BATTLEFIELD') \
+                and (n := re.fullmatch(r'new ConditionalManaEffect\(new BasicManaEffect\(Mana\.(White|Blue|Black|Red|Green)Mana\((\d+)\)\),'
+                                       r'new BasicManaEffect\(Mana\.(White|Blue|Black|Red|Green)Mana\((\d+)\)\),(.*?),"[^"]*"(?:\+"[^"]*")*\)',
+                                       canonical(args[-2]))):
+            return {'class': 'ConditionalColorManaAbility', 'java': cls, 'color': COLOR_LETTERS[n.group(1)],
+                    'amount': int(n.group(2)), 'otherwise': COLOR_LETTERS[n.group(3)], 'otherwise_amount': int(n.group(4)),
+                    'condition': self.condition(n.group(5))}
+        # "{T}: Add one mana of the chosen color"
+        if cls == 'SimpleManaAbility' and [a.strip() for a in args] == ['new AddManaChosenColorEffect()', 'new TapSourceCost()']:
+            return {'class': 'ChosenColorManaAbility', 'java': cls, 'amount': 1}
         # "{T}: Add N mana of any one color"
         if cls == 'SimpleManaAbility' and len(args) == 2 and args[1].strip() == 'new TapSourceCost()' \
                 and (n := re.fullmatch(r'new AddManaOfAnyColorEffect\((\d+)\)', args[0].strip())):
@@ -2974,6 +3117,10 @@ class Translator:
         if re.search(r'\.withInterveningIf\(\w+(?:\.instance|\.ONCE)?\)\s*$', self.strip_setters(expr)):
             self.vars[var] = self.ability(expr)
             return
+        # a `DynamicValue` constant (`DynamicValue xValue = GetXValue.instance`): read where it's used
+        if re.fullmatch(r'[A-Z]\w*(?:Count|Value)\.[A-Z_a-z]\w*', expr.strip()):
+            self.values[var] = expr.strip()
+            return
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             self.vars[var] = obj
@@ -3029,9 +3176,13 @@ def translate(card_name, subtypes, facts):
     if 'extends RoomCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
         return room_card(card_name, subtypes, facts, cls, source)
     if 'extends SplitCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0) \
-            and 'SpellAbilityType.SPLIT_AFTERMATH' in source:
+            and re.search(r'SpellAbilityType\.SPLIT(?:_AFTERMATH)?\)', source):
         return aftermath_card(card_name, subtypes, facts, cls, source)
     if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b|PrepareCard\b)\w+', re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0)):
+        if 'SpellAbilityType.SPLIT_FUSED' in source:
+            raise Unsupported('fused split card')
+        if 'extends MeldCard' in source:
+            raise Unsupported('meld card')
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
     # each filter's own text (`new FilterCard("a Plains or Swamp card from your hand")`)
@@ -3146,23 +3297,28 @@ def translate(card_name, subtypes, facts):
 
 
 def aftermath_card(card_name, subtypes, facts, cls, source):
-    """An aftermath split card (`SplitCard`, `SPLIT_AFTERMATH`): its halves (`room`, left then right) are each a spell,
-    the left cast from hand and the right only from the graveyard, then exiled (`aftermath`); in other zones the card
-    has both halves' types and mana cost"""
+    """A split card (`SplitCard`, `SPLIT`) or an aftermath one (`SPLIT_AFTERMATH`): its halves (`room`, left then
+    right) are each a spell; a split card's are cast from hand (as a Room's), an aftermath card's left from hand and
+    its right only from the graveyard, then exiled (`aftermath`); in other zones the card has both halves' types and
+    mana cost. Fused split cards (`SPLIT_FUSED`) aren't read yet"""
     halves = EXTRA.get(card_name, {}).get('halves')
     if not halves or len(halves) != 2:
         raise Unsupported('split card without its halves\' facts')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
-    card = {'name': card_name, 'aftermath': True, 'abilities': []}
+    t.source = source
+    # a split card (`SpellAbilityType.SPLIT`): either half is cast from hand, the way a Room's are
+    card = {'name': card_name, 'abilities': []}
+    if 'SpellAbilityType.SPLIT_AFTERMATH' in source:
+        card['aftermath'] = True
     faces = [{'name': halves[0]['name']}, {'name': halves[1]['name']}]
     spells = [{'effects': [], 'targets': []}, {'effects': [], 'targets': []}]
     modes = [[], []]
     types = lambda g: [x.strip().split('.')[-1] for x in g.split(',') if x.strip()]
     for st in statements(constructor_body(source, cls)):
-        m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},new CardType\[\]\{([^}]*)\},'
-                         r'"(.*?)","(.*?)",SpellAbilityType\.SPLIT_AFTERMATH\)', st)
+        m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},(?:new CardType\[\]\{([^}]*)\},)?'
+                         r'"(.*?)","(.*?)",SpellAbilityType\.SPLIT(?:_AFTERMATH)?\)', st)
         if m:
-            faces[0]['types'], faces[1]['types'] = types(m.group(1)), types(m.group(2))
+            faces[0]['types'], faces[1]['types'] = types(m.group(1)), types(m.group(2) or m.group(1))
             faces[0]['cost'], faces[1]['cost'] = m.group(3), m.group(4)
             continue
         if re.fullmatch(r'(?:this\.)?getRightHalfCard\(\)\.addAbility\(new AftermathAbility\(\)(?:\.setRuleAtTheTop\(true\))?\)', st):
@@ -3256,11 +3412,18 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
             face = back if m.group(1) == 'Right' else front
             face['power'], face['toughness'] = int(m.group(2)), int(m.group(3))
             continue
-        # a sorcery front (Esper Origins): its spell's effects
-        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.getSpellAbility\(\)\.addEffect\((.*)\)', st)
+        # a sorcery or Aura front (Esper Origins, Journey to Eternity): its spell's effects and targets
+        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.(getSpellAbility\(\)\.add(?:Effect|Target)\(.*\))', st)
         if m:
             front.setdefault('spell', {'effects': [], 'targets': [], 'rule': java_abilities[0].get('rule', '')})
-            front['spell']['effects'].append(t.effect(m.group(1)))
+            modes = []
+            card_statement(t, 'this.' + m.group(1), front, [], front['spell'], modes, subtypes)
+            if modes:
+                raise Unsupported('transforming double-faced card statement ' + st)
+            continue
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.setStartingLoyalty\((\d+)\)', st)
+        if m:
+            (back if m.group(1) == 'Right' else front)['loyalty'] = int(m.group(2))
             continue
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(addAbility\(.*\))', st)
         if m:
@@ -3287,61 +3450,79 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
 
 
 def modal_double_faced(card_name, subtypes, facts, cls, source):
-    """A modal double-faced card whose back is a land: a land front (the pathways) or a spell or creature front (the
-    Zendikar Rising spell lands). Each face is a card of its own; the card's abilities are the front's, then the
-    back's (from its play-land ability on)"""
+    """A modal double-faced card: a land front with a land back (the pathways), a spell or creature front with a land
+    back (the Zendikar Rising spell lands), or two faces that are each cast (Kaldheim's gods, the Strixhaven deans).
+    Each face is a card of its own; the card's abilities are the front's, then the back's (from its play-land or its
+    second spell ability on)"""
     java_abilities = facts[card_name]
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
     t.filter_texts = {m.group(1): m.group(2) for m in re.finditer(r'\bFilter\w* (\w+)\s*=\s*new Filter\w*(?:<>)?\("((?:[^"\\]|\\.)*)"', source)}
+    t.source = source
     faces = [{'name': card_name}, {}]
     added = [[], []]
-    spell, modes = {'effects': [], 'targets': []}, []
+    spells = [{'effects': [], 'targets': []}, {'effects': [], 'targets': []}]
+    modes = [[], []]
     types = lambda g: [x.strip().split('.')[-1] for x in g.split(',') if x.strip()]
+    sup = r'(?:new SuperType\[\]\{([^}]*)\},)?'
     for st in statements(constructor_body(source, cls)):
-        m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},new SubType\[\]\{([^}]*)\},"(.*?)","(.*?)",'
-                         r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{\},""\)', st)
+        m = re.fullmatch(r'super\(ownerId,setInfo,' + sup + r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{([^}]*)\},"(.*?)","(.*?)",'
+                         + sup + r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{([^}]*)\},"(.*?)"\)', st)
         if m:
-            faces[0]['types'], faces[1]['types'] = types(m.group(1)), types(m.group(5))
-            faces[0]['cost'], faces[1]['cost'] = m.group(3), ''
-            faces[1]['name'] = m.group(4)
-            for x in types(m.group(2)):
-                if x not in subtypes:
-                    raise Unsupported('subtype ' + x)
-                faces[0].setdefault('subtypes', []).append(subtypes[x])
-            if faces[1]['types'] != ['LAND'] or (faces[0]['types'] == ['LAND']) != (faces[0]['cost'] == ''):
-                raise Unsupported('modal double-faced card with a back that is not a land')
+            faces[1]['name'] = m.group(5)
+            for face, (su, ty, sb, cost) in ((faces[0], m.group(1, 2, 3, 4)), (faces[1], m.group(6, 7, 8, 9))):
+                face['types'], face['cost'] = types(ty), cost
+                if su and types(su):
+                    face['supertypes'] = types(su)
+                for x in types(sb):
+                    if x not in subtypes:
+                        raise Unsupported('subtype ' + x)
+                    face.setdefault('subtypes', []).append(subtypes[x])
+            if (faces[0]['types'] == ['LAND']) != (faces[0]['cost'] == '') or (faces[1]['types'] == ['LAND']) != (faces[1]['cost'] == '') \
+                    or (faces[0]['types'] == ['LAND'] and faces[1]['types'] != ['LAND']):
+                raise Unsupported('modal double-faced card faces')
             continue
-        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.setPT\((?:new MageInt\()?(-?\d+)\)?,(?:new MageInt\()?(-?\d+)\)?\)', st)
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.setPT\((?:new MageInt\()?(-?\d+)\)?,(?:new MageInt\()?(-?\d+)\)?\)', st)
         if m:
-            faces[0]['power'], faces[0]['toughness'] = int(m.group(1)), int(m.group(2))
+            face = faces[m.group(1) == 'Right']
+            face['power'], face['toughness'] = int(m.group(2)), int(m.group(3))
             continue
-        # the front's spell: its effects, targets and modes
-        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.(getSpellAbility\(\)\..*)', st)
+        # a face's spell: its effects, targets and modes
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(getSpellAbility\(\)\..*)', st)
         if m:
-            card_statement(t, 'this.' + m.group(1), faces[0], [], spell, modes, subtypes)
+            k = m.group(1) == 'Right'
+            card_statement(t, 'this.' + m.group(2), faces[k], [], spells[k], modes[k], subtypes)
             continue
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(addAbility\(.*\))', st)
-        if m and ability_statement(t, 'this.' + m.group(2).replace('this.getLeftHalfCard()', 'this'), added[m.group(1) == 'Right']):
+        if m and ability_statement(t, 'this.' + m.group(2).replace('this.getLeftHalfCard()', 'this').replace('this.getRightHalfCard()', 'this'),
+                                   added[m.group(1) == 'Right']):
             continue
         if ability_statement(t, st, added[0]):
             continue
         raise Unsupported('modal double-faced card statement ' + st)
     if 'types' not in faces[0]:
         raise Unsupported('modal double-faced card without its faces')
-    split = [i for i, f in enumerate(java_abilities) if f['class'] == 'PlayLandAbility']
-    if faces[0]['types'] != ['LAND']:
-        split = [0] + split
+    if faces[1]['types'] == ['LAND']:
+        split = [i for i, f in enumerate(java_abilities) if f['class'] == 'PlayLandAbility']
+        if faces[0]['types'] != ['LAND']:
+            split = [0] + split
+    else:
+        split = [i for i, f in enumerate(java_abilities) if f['class'] == 'SpellAbility']
     if len(split) != 2:
         raise Unsupported('modal double-faced card abilities')
-    if faces[0]['types'] != ['LAND']:
-        if java_abilities[0]['class'] != 'SpellAbility':
+    for k, face in enumerate(faces):
+        if face['types'] == ['LAND']:
+            continue
+        if java_abilities[split[k] if k else 0]['class'] != 'SpellAbility':
             raise Unsupported('modal double-faced card without its spell')
-        if modes or spell.get('costs') or 'first_mode_cost' in spell:
+        if modes[k] or spells[k].get('costs') or 'first_mode_cost' in spells[k]:
             raise Unsupported('modal double-faced card with a modal spell')
-        if spell['effects'] or spell['targets']:
-            faces[0]['spell'] = dict(spell, rule=java_abilities[0].get('rule', ''))
+        if spells[k]['effects'] or spells[k]['targets']:
+            face['spell'] = dict(spells[k], rule=java_abilities[split[k] if k else 0].get('rule', ''))
     faces[0]['abilities'] = in_java_order(java_abilities[:split[1]], added[0])
     faces[1]['abilities'] = in_java_order(java_abilities[split[1]:], added[1])
+    # the engine casts only a front (a back that is a spell or a permanent card isn't cast yet)
+    if faces[1]['types'] != ['LAND']:
+        raise Unsupported('modal double-faced card with a back that is not a land')
     faces[0]['back'] = faces[1]
     return faces[0]
 

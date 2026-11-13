@@ -405,6 +405,10 @@ pub struct Player {
     pub no_noncreature_turn: Option<u32>,
     /// a permanent they controlled left the battlefield this turn (`RevoltWatcher`)
     pub permanent_left: bool,
+    /// nonland permanents that entered under their control this turn (celebration)
+    pub nonlands_entered: u32,
+    /// permanent cards put into their graveyard this turn (`DescendedWatcher`)
+    pub descended: u32,
 }
 
 /// What a target is.
@@ -751,6 +755,10 @@ pub struct Game {
     pub exile_by_creation: bool,
     /// a creature died this turn (`MorbidWatcher`)
     pub creature_died: bool,
+    /// how many creatures died this turn (`CreaturesDiedWatcher`)
+    pub creatures_died: u32,
+    /// a nonland permanent left the battlefield or a spell was warped this turn (`VoidWatcher`)
+    pub void_this_turn: bool,
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
@@ -914,6 +922,8 @@ impl Game {
             entering_from_hand: None,
             exile_by_creation: false,
             creature_died: false,
+            creatures_died: 0,
+            void_this_turn: false,
             owed_choices: Vec::new(),
             enters_as: None,
             extra_turns: Vec::new(),
@@ -1167,6 +1177,21 @@ impl Game {
             Pred::Ability { a } => self.has_ability(id, a),
             Pred::Name { n } => o.name() == n,
             Pred::PermanentCard => o.def.is_permanent_card(),
+            Pred::Monocolored => self.colors(id).len() == 1,
+            Pred::CounterAny => o.counters.iter().any(|(_, n)| *n > 0),
+            Pred::EnteredThisTurn => o.zone == Zone::Battlefield && o.entered_turn == self.turn,
+            Pred::Equipped => self.attachments(id).any(|a| self.has_subtype(a, "Equipment")),
+            Pred::Enchanted => self.attachments(id).any(|a| self.has_subtype(a, "Aura")),
+            Pred::Modified => {
+                o.counters.iter().any(|(_, n)| *n > 0)
+                    || self.attachments(id).any(|a| {
+                        self.has_subtype(a, "Equipment")
+                            || (self.has_subtype(a, "Aura") && self.obj(a).controller == o.controller)
+                    })
+            }
+            Pred::DamagedThisTurn => o.damaged_by.0 == self.turn && o.damaged_by.1 != 0,
+            Pred::Blocking => !o.blocking.is_empty(),
+            Pred::ManaSpent { cmp, n } => cmp.holds(o.mana_spent as i32, *n),
             Pred::Not { x } => !self.pred_holds(x, you, source, id),
             Pred::Or { xs } => xs.iter().any(|x| self.pred_holds(x, you, source, id)),
             Pred::And { xs } => xs.iter().all(|x| self.pred_holds(x, you, source, id)),
@@ -1449,6 +1474,11 @@ impl Game {
                 ..GameEvent::new(EventKind::Attached)
             });
         }
+    }
+
+    /// the permanents attached to `id`
+    pub fn attachments(&self, id: ObjId) -> impl Iterator<Item = ObjId> + '_ {
+        self.battlefield.iter().copied().filter(move |a| self.attached(*a) == Some(id))
     }
 
     pub fn attached(&self, aura: ObjId) -> Option<ObjId> {
@@ -1867,6 +1897,55 @@ impl Game {
                         })
                     })
                     .count() as i32,
+                Value::CreaturesDied => self.creatures_died as i32,
+                Value::EquipmentAttached => {
+                    self.attachments(source).filter(|a| self.has_subtype(*a, "Equipment")).count() as i32
+                }
+                Value::NonlandsEntered => self.player(you).nonlands_entered as i32,
+                Value::Descended => self.player(you).descended as i32,
+                Value::DifferentPowers { filter } => {
+                    let mut powers: Vec<i32> = Vec::new();
+                    for b in self.battlefield.iter() {
+                        if self.filter_matches(filter, you, Some(source), *b) {
+                            let p = self.power_toughness(*b).0;
+                            if !powers.contains(&p) {
+                                powers.push(p);
+                            }
+                        }
+                    }
+                    powers.len() as i32
+                }
+                Value::Party => {
+                    let mine: Vec<ObjId> = self
+                        .battlefield
+                        .iter()
+                        .copied()
+                        .filter(|b| self.obj(*b).controller == you && self.has_type(*b, CardType::Creature))
+                        .collect();
+                    self.party_size(&mine)
+                }
+                Value::ColorsAmong { filter } => {
+                    let mut colors: Vec<crate::card::Color> = Vec::new();
+                    for b in self.battlefield.iter() {
+                        if self.filter_matches(filter, you, Some(source), *b) {
+                            for c in self.colors(*b) {
+                                if !colors.contains(&c) {
+                                    colors.push(c);
+                                }
+                            }
+                        }
+                    }
+                    colors.len() as i32
+                }
+                Value::SourceCountersAny => {
+                    let o = self.obj(source);
+                    if o.zone == Zone::Battlefield {
+                        o.counters.iter().map(|(_, n)| *n).sum()
+                    } else {
+                        o.lki_counters.iter().map(|(_, n)| *n).sum()
+                    }
+                }
+                Value::Sum { xs } => xs.iter().map(|a| self.value(a, you, source, x)).sum(),
                 Value::Devotion { c, c2 } => self
                     .battlefield
                     .iter()
@@ -1885,6 +1964,39 @@ impl Game {
                     .sum(),
             },
         }
+    }
+
+    /// The most of Cleric, Rogue, Warrior and Wizard these creatures can fill, each creature filling one
+    /// (`PartyCount`'s `RoleAssignment`)
+    pub fn party_size(&self, creatures: &[ObjId]) -> i32 {
+        const ROLES: [&str; 4] = ["Cleric", "Rogue", "Warrior", "Wizard"];
+        let fits: Vec<Vec<usize>> = creatures
+            .iter()
+            .map(|c| (0..ROLES.len()).filter(|r| self.has_subtype(*c, ROLES[*r])).collect())
+            .filter(|r: &Vec<usize>| !r.is_empty())
+            .collect();
+        // the largest set of roles some creatures can fill one each: try every subset of roles, biggest first
+        fn fill(fits: &[Vec<usize>], roles: &[usize], used: &mut Vec<bool>) -> bool {
+            let Some((&r, rest)) = roles.split_first() else { return true };
+            for (i, f) in fits.iter().enumerate() {
+                if !used[i] && f.contains(&r) {
+                    used[i] = true;
+                    if fill(fits, rest, used) {
+                        return true;
+                    }
+                    used[i] = false;
+                }
+            }
+            false
+        }
+        let mut best = 0;
+        for mask in 0u32..16 {
+            let roles: Vec<usize> = (0..4).filter(|r| mask & (1 << r) != 0).collect();
+            if roles.len() as i32 > best && fill(&fits, &roles, &mut vec![false; fits.len()]) {
+                best = roles.len() as i32;
+            }
+        }
+        best
     }
 
     pub fn condition_holds(&self, condition: Option<&Condition>, you: Seat, source: ObjId) -> bool {
@@ -2005,6 +2117,41 @@ impl Game {
             Condition::SourceCounter { name, n } => {
                 let o = self.obj(source);
                 o.zone == Zone::Battlefield && o.counter(name) >= *n
+            }
+            Condition::Value { of, cmp, n } => cmp.holds(self.value(of, you, source, 0), *n),
+            Condition::CastFrom { zone } => {
+                let z = match zone.as_str() {
+                    "graveyard" => Zone::Graveyard,
+                    "exile" => Zone::Exile,
+                    _ => Zone::Hand,
+                };
+                let o = self.obj(source);
+                o.cast_from == Some(z)
+                    && match o.zone {
+                        Zone::Stack => true,
+                        Zone::Battlefield => o.cast,
+                        _ => o.cast_lki,
+                    }
+            }
+            Condition::OpponentPoison { n } => (0..self.seats()).any(|p| {
+                p != you
+                    && self.player(p).counters.iter().filter(|(k, _)| k == "poison").map(|(_, c)| *c).sum::<i32>() >= *n
+            }),
+            Condition::OpponentGraveyard { n } => {
+                (0..self.seats()).any(|p| p != you && self.player(p).graveyard.len() >= *n)
+            }
+            Condition::Void => self.void_this_turn,
+            Condition::SourceEquipped => {
+                self.obj(source).zone == Zone::Battlefield
+                    && self.attachments(source).any(|a| self.has_subtype(a, "Equipment"))
+            }
+            Condition::SourceTapped { v } => {
+                self.obj(source).zone == Zone::Battlefield && self.obj(source).tapped == *v
+            }
+            Condition::SourceMatches { filter } => self.filter_matches(filter, you, Some(source), source),
+            Condition::AttachedMatches { filter } => {
+                self.obj(source).zone == Zone::Battlefield
+                    && self.attached(source).is_some_and(|a| self.filter_matches(filter, you, Some(source), a))
             }
             Condition::Not { x } => !self.condition_holds(Some(x), you, source),
             Condition::And { xs } => xs.iter().all(|x| self.condition_holds(Some(x), you, source)),
@@ -2410,6 +2557,7 @@ impl Game {
         }
         if from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) {
             self.creature_died = true;
+            self.creatures_died += 1;
         }
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
             let mut sources: Vec<ObjId> =
@@ -2517,6 +2665,9 @@ impl Game {
         if from == Zone::Battlefield && zone != Zone::Battlefield {
             let c = self.obj(id).controller;
             self.player_mut(c).permanent_left = true;
+            if !self.has_type(id, CardType::Land) {
+                self.void_this_turn = true;
+            }
         }
         // what lost its abilities while this was on the battlefield gets them back
         if from == Zone::Battlefield {
@@ -2719,8 +2870,17 @@ impl Game {
         match zone {
             Zone::Library => self.player_mut(owner).library.push(id),
             Zone::Hand => self.player_mut(owner).hand.push(id),
-            Zone::Graveyard => self.player_mut(owner).graveyard.push(id),
+            Zone::Graveyard => {
+                if self.obj(id).def.is_permanent_card() {
+                    self.player_mut(owner).descended += 1;
+                }
+                self.player_mut(owner).graveyard.push(id)
+            }
             Zone::Battlefield => {
+                if !self.has_type(id, CardType::Land) {
+                    let c = self.obj(id).controller;
+                    self.player_mut(c).nonlands_entered += 1;
+                }
                 self.obj_mut(id).sick = true;
                 Arc::make_mut(&mut self.battlefield).push(id)
             }
