@@ -13,8 +13,14 @@ second argument), with the Java class as `OuterCardClass.InnerClass` (or the bar
 name for one in the framework), and optionally `.tokens(&[…])`, `.effects(&[…])`, `.filters(&[…])`: Java for the
 transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order; and
 `.args(&[…])`, one kind per constructor argument ("text" as is, "library_target": a `TargetCardInLibrary`, as
-"min max" with its filter after the declared ones). The
-strings are plain or raw Rust string literals.
+"min max" with its filter after the declared ones, "filter" and "ability": translated, after the declared filters
+and abilities, "while_on_battlefield": only `Duration.WhileOnBattlefield`, "one_of:a|b": only one of these texts).
+The strings are plain or raw Rust string literals.
+
+The static kinds (src/card_statics.rs) are `Handler::continuous`, `::replacement`, `::cost`, `::restriction`, `::rule`
+and `::as_though`, with any arguments after the name (no string literals among them), and `.abilities(&[…])` too.
+A class with one becomes `{"class": "CardStatic", "handler": …}`, wherever an effect can be: in a static ability, it
+lasts while its source is on the battlefield; resolving, until the turn's cleanup.
 """
 import glob
 import os
@@ -23,9 +29,11 @@ import re
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
-_DECL = re.compile(r'Handler::(effect|condition|value|trigger)\(\s*"([\w.]+)"\s*,')
+STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_though')
+_DECL = re.compile(r'Handler::(effect|condition|value|trigger|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
 _FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
-_PART = re.compile(r'\s*\.(tokens|effects|filters|args)\(\s*&\[')
+_PART = re.compile(r'\s*\.(tokens|effects|filters|args|abilities)\(\s*&\[')
+_ANY_ZONE = re.compile(r'\s*\.in_any_zone\(\)')
 _STR = re.compile(r'\s*(?:"((?:[^"\\]|\\.)*)"|r(#*)"(.*?)"\2)\s*,?', re.S)
 
 _cache = None
@@ -50,7 +58,7 @@ def _parse(text, path):
     out = {}
     for m in _DECL.finditer(text):
         h = {'kind': m.group(1), 'file': os.path.relpath(path, ROOT), 'tokens': [], 'effects': [], 'filters': [],
-             'args': [], 'base': None}
+             'args': [], 'abilities': [], 'base': None}
         i = m.end()
         if m.group(1) == 'trigger':
             # `Handler::trigger("X", "<framework trigger in Java>", f)`
@@ -59,11 +67,26 @@ def _parse(text, path):
                 raise SyntaxError(f'{path}: Handler::trigger takes its base trigger as a string literal')
             h['base'] = _unescape(b.group(1)) if b.group(1) is not None else b.group(3)
             i = b.end()
-        f = _FN.match(text, i)
-        if not f:
-            raise SyntaxError(f'{path}: Handler::{m.group(1)}("{m.group(2)}", ...) not understood')
-        i = f.end()
-        while (p := _PART.match(text, i)):
+        if m.group(1) in STATIC_KINDS:
+            # the rest of the arguments, to the closing parenthesis
+            depth = 1
+            while depth and i < len(text):
+                if text[i] == '"':
+                    raise SyntaxError(f'{path}: Handler::{m.group(1)}("{m.group(2)}", ...) takes no string literals')
+                depth += {'(': 1, ')': -1}.get(text[i], 0)
+                i += 1
+            if depth:
+                raise SyntaxError(f'{path}: Handler::{m.group(1)}("{m.group(2)}", ...) not closed')
+        else:
+            f = _FN.match(text, i)
+            if not f:
+                raise SyntaxError(f'{path}: Handler::{m.group(1)}("{m.group(2)}", ...) not understood')
+            i = f.end()
+        while (p := _PART.match(text, i)) or (z := _ANY_ZONE.match(text, i)):
+            if not p:
+                # `.in_any_zone()`: the engine's business only
+                i = z.end()
+                continue
             i = p.end()
             while (s := _STR.match(text, i)) and s.group(0).strip():
                 h[p.group(1)].append(_unescape(s.group(1)) if s.group(1) is not None else s.group(3))
@@ -98,28 +121,31 @@ def outer_class(source):
     return m and m.group(1)
 
 
-def find(source, cls, kind):
-    """the handler's name for a class the card file `source` uses, of this kind, or None"""
+def find(source, cls, kind, own_only=False):
+    """the handler's name for a class the card file `source` uses, of this kind ('effect': a one-shot or a static
+    kind), or None. `own_only`: only one named for this card (`OuterCardClass.Class`)."""
     hs = handlers()
     outer = outer_class(source)
-    for name in ([f'{outer}.{cls}'] if outer else []) + [cls]:
+    for name in ([f'{outer}.{cls}'] if outer else []) + ([] if own_only else [cls]):
         h = hs.get(name)
         if h:
-            if h['kind'] != kind:
+            if h['kind'] != kind and not (kind == 'effect' and h['kind'] in STATIC_KINDS):
                 raise _unsupported(f'{kind} {cls}: its handler is a {h["kind"]}')
             return name
     return None
 
 
-def effect(t, cls, args):
-    """`{"class": "CardEffect", …}` for a class with an effect handler, or None. `t` is transpile's Translator."""
-    name = find(getattr(t, 'source', None), cls, 'effect')
+def effect(t, cls, args, own_only=False):
+    """`{"class": "CardEffect", …}` for a class with an effect handler (`{"class": "CardStatic", …}` for a static
+    one), or None. `t` is transpile's Translator. `own_only`: only a handler named for this card's class."""
+    name = find(getattr(t, 'source', None), cls, 'effect', own_only)
     if not name:
         return None
     h = handlers()[name]
-    out = {'class': 'CardEffect', 'handler': name}
+    out = {'class': 'CardStatic' if h['kind'] in STATIC_KINDS else 'CardEffect', 'handler': name}
     args = [a.strip() for a in args if a.strip()]
     filters = [t.filter(x) for x in h['filters']]
+    abilities = [t.ability(x) for x in h['abilities']]
     # constructor arguments the handler asked to have translated (`.args(&[…])`, one kind per argument):
     # a "library_target" (`TargetCardInLibrary`) becomes "min max" in `args` and its filter goes after the
     # declared filters
@@ -128,8 +154,24 @@ def effect(t, cls, args):
             filt, lo, hi = t.library_target(args[i])
             filters.append(filt)
             args[i] = f'{lo} {hi}'
-        elif kind != 'text':
+        elif kind == 'filter' and i < len(args):
+            filters.append(t.filter(args[i]))
+        elif kind == 'ability' and i < len(args):
+            abilities.append(t.ability(args[i]))
+        elif kind == 'while_on_battlefield' and i < len(args):
+            # a static class the handler writes only as a static ability's (`Duration.WhileOnBattlefield`)
+            if args[i] != 'Duration.WhileOnBattlefield':
+                raise _unsupported(f'effect {cls}: duration {args[i]}')
+        elif kind.startswith('one_of:') and i < len(args):
+            # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
+            if args[i] not in kind[len('one_of:'):].split('|'):
+                raise _unsupported(f'effect {cls}: argument {args[i]}')
+        elif kind not in ('text', 'filter', 'ability', 'while_on_battlefield') and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
+    # a static handler for a framework class is written for its constructors with up to as many arguments as it
+    # declares kinds for
+    if h['kind'] in STATIC_KINDS and len(args) > len(h['args']):
+        raise _unsupported(f'effect {cls}: {len(args)} arguments, its handler takes {len(h["args"])}')
     if args:
         out['args'] = args
     if h['tokens']:
@@ -138,6 +180,10 @@ def effect(t, cls, args):
         out['effects'] = [t.effect(x) for x in h['effects']]
     if filters:
         out['filters'] = filters
+    if abilities:
+        if out['class'] != 'CardStatic':
+            raise _unsupported(f'effect {cls}: abilities for a one-shot handler')
+        out['abilities'] = abilities
     return out
 
 

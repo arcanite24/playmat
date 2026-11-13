@@ -120,6 +120,14 @@ pub(crate) enum Hook {
     Condition(ConditionFn),
     Value(ValueFn),
     Trigger(TriggerFn),
+    /// the static kinds (`card_statics.rs`): a continuous effect in a layer, a replacement effect, a cost change, a
+    /// restriction, a rule-modifying effect, an as-though effect
+    Continuous(Continuous),
+    Replacement(Replacement),
+    Cost(CostMod),
+    Restriction(Restriction),
+    Rule(Rule),
+    AsThough(AsThough),
 }
 
 /// One Java class written in Rust
@@ -138,15 +146,31 @@ pub(crate) struct Handler {
     /// a trigger handler's framework trigger, as Java (`"new EntersBattlefieldAllTriggeredAbility(…)"`): the
     /// transpiler translates it and adds the handler as its `check`
     pub base: &'static str,
-    /// how the transpiler passes each constructor argument (`card_handlers.py`): "text" as written, or
-    /// "library_target" (a `TargetCardInLibrary`: "min max" in `cx.args`, its filter after the declared `filters`)
+    /// how the transpiler passes each constructor argument (`card_handlers.py`): "text" as written,
+    /// "library_target" (a `TargetCardInLibrary`: "min max" in `cx.args`, its filter after the declared `filters`),
+    /// "filter" (translated, after the declared `filters`) or "ability" (translated, after the declared `abilities`)
     pub args: &'static [&'static str],
+    /// abilities in Java for a static handler (`"FirstStrikeAbility.getInstance()"`): `StaticCx::abilities`
+    pub abilities: &'static [&'static str],
+    /// a static handler whose ability works in every zone (`new SimpleStaticAbility(Zone.ALL, …)`: "this spell costs
+    /// {2} less", "you can't cast this spell unless …"), so its card's own spell sees it from the hand too
+    pub any_zone: bool,
 }
 
 #[allow(dead_code)]
 impl Handler {
     const fn new(java: &'static str, hook: Hook) -> Handler {
-        Handler { java, hook, tokens: &[], effects: &[], filters: &[], base: "", args: &[] }
+        Handler {
+            java,
+            hook,
+            tokens: &[],
+            effects: &[],
+            filters: &[],
+            base: "",
+            args: &[],
+            abilities: &[],
+            any_zone: false,
+        }
     }
 
     pub const fn effect(java: &'static str, f: EffectFn) -> Handler {
@@ -187,7 +211,59 @@ impl Handler {
         self.args = args;
         self
     }
+
+    pub const fn abilities(mut self, abilities: &'static [&'static str]) -> Handler {
+        self.abilities = abilities;
+        self
+    }
+
+    /// its static ability works in every zone (`Handler::any_zone`)
+    pub const fn in_any_zone(mut self) -> Handler {
+        self.any_zone = true;
+        self
+    }
+
+    /// a `ContinuousEffect` in a layer: the objects it `affects`, and what it does to them there
+    pub const fn continuous(java: &'static str, affects: AffectsFn, layer: Layer) -> Handler {
+        Handler::new(java, Hook::Continuous(Continuous { affects, layer }))
+    }
+
+    /// a `ReplacementEffect`: the events it checks (`checksEventType`), its `applies` and its `replaceEvent`
+    pub const fn replacement(
+        java: &'static str,
+        events: &'static [EventType],
+        applies: ReplacesFn,
+        replace: ReplaceFn,
+    ) -> Handler {
+        Handler::new(java, Hook::Replacement(Replacement { events, applies, replace }))
+    }
+
+    /// a `CostModificationEffect` of a `CostModificationType`: its `applies` to a spell or ability, and its `apply`,
+    /// which changes the mana cost
+    pub const fn cost(java: &'static str, kind: CostKind, applies: CostAppliesFn, apply: CostApplyFn) -> Handler {
+        Handler::new(java, Hook::Cost(CostMod { kind, applies, apply }))
+    }
+
+    /// a `RestrictionEffect`: the permanents it `applies` to, and what they can't do
+    pub const fn restriction(java: &'static str, applies: AffectsFn, restrict: &'static [Restrict]) -> Handler {
+        Handler::new(java, Hook::Restriction(Restriction { applies, restrict }))
+    }
+
+    /// a `ContinuousRuleModifyingEffect`: what it stops
+    pub const fn rule(java: &'static str, rule: Rule) -> Handler {
+        Handler::new(java, Hook::Rule(rule))
+    }
+
+    /// an `AsThoughEffect`
+    pub const fn as_though(java: &'static str, as_though: AsThough) -> Handler {
+        Handler::new(java, Hook::AsThough(as_though))
+    }
 }
+
+// (outside `src/cards/`, where every file is a card's)
+#[path = "../card_statics.rs"]
+mod statics;
+pub(crate) use statics::*;
 
 include!(concat!(env!("OUT_DIR"), "/card_handlers.rs"));
 
