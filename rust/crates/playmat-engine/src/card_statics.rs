@@ -261,6 +261,14 @@ impl<'de> serde::Deserialize<'de> for StaticHandler {
 
 // ------------------------------------------------------------------------------------------------- the statics in play
 
+fn has_card_static(e: &EffectDef) -> bool {
+    match e {
+        EffectDef::CardStatic { .. } => true,
+        EffectDef::ConditionalContinuousEffect { effect, .. } => has_card_static(effect),
+        _ => false,
+    }
+}
+
 /// One `CardStatic` and the static ability it's in: `f(hook, cx, effect)`
 fn visit(
     game: &Game,
@@ -275,8 +283,9 @@ fn visit(
             let cx = StaticCx { source, controller, timestamp, args, effects, filters, abilities };
             f(handler.hook(), &cx, e);
         }
+        // the condition only for a handler's effect: a condition can ask the queries the handlers answer
         EffectDef::ConditionalContinuousEffect { effect, condition }
-            if game.condition_holds(Some(condition), controller, source) =>
+            if has_card_static(effect) && game.condition_holds(Some(condition), controller, source) =>
         {
             visit(game, effect, source, controller, timestamp, f);
         }
