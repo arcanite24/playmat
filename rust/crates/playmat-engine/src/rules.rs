@@ -7147,6 +7147,7 @@ fn apply_each_effect(
                 let toughness = &v!(toughness);
                 for o in &objs {
                     boost(game, *o, *power, *toughness, *duration);
+                    until_next_turn(game, *duration, controller);
                 }
             }
             EffectDef::BoostSourceEffect { power, toughness, duration } => {
@@ -7157,6 +7158,7 @@ fn apply_each_effect(
                 let (o, _) = source;
                 if game.obj(o).zone == Zone::Battlefield {
                     boost(game, o, *power, *toughness, *duration);
+                    until_next_turn(game, *duration, controller);
                 }
             }
             EffectDef::AddCountersSourceEffect { counter, amount } => {
@@ -12282,6 +12284,15 @@ fn token_copies(game: &Game, seat: Seat) -> usize {
         false
     });
     n
+}
+
+/// The boost just made, "until your next turn": it ends as `controller`'s turn begins (Mu Yanling's -5/-0)
+fn until_next_turn(game: &mut Game, duration: Duration, controller: Seat) {
+    if duration == Duration::UntilYourNextTurn {
+        if let Some(b) = Arc::make_mut(&mut game.boosts).last_mut() {
+            b.until_turn_of = Some(controller);
+        }
+    }
 }
 
 fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: Duration) {
