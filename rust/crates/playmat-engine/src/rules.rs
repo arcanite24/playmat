@@ -11322,6 +11322,14 @@ fn apply_each_effect(
                     grant(game, source.0, ability);
                 }
             }
+            // a spell's (Energybending): the controller's lands gain all basic land types until end of turn (a
+            // static one, Leyline of the Guildpact, is `Game::guildpact`)
+            EffectDef::BecomesAllBasicsControlledEffect => {
+                if !game.all_basics_until_eot.contains(&item.controller) {
+                    game.all_basics_until_eot.push(item.controller);
+                }
+                game.update_guildpact();
+            }
             EffectDef::ExileTargetIfDiesEffect => {
                 if let Some(Target::Obj(o)) = target {
                     let zcc = game.obj(o).zcc;
@@ -11370,7 +11378,6 @@ fn apply_each_effect(
             | EffectDef::LeylineOfTheGuildpactEffect
             | EffectDef::BecomesCreatureAttachedEffect { .. }
             | EffectDef::InfoEffect
-            | EffectDef::BecomesAllBasicsControlledEffect
             | EffectDef::GiadaFontOfHopeEntersBattlefieldEffect
             | EffectDef::AddBasicLandTypeAllLandsEffect { .. }
             | EffectDef::AddCardSubtypeAllEffect { .. }
@@ -14218,6 +14225,10 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.must_block_from.clear();
     game.exile_if_dies.clear();
     game.damaged_by_source.clear();
+    if !game.all_basics_until_eot.is_empty() {
+        game.all_basics_until_eot.clear();
+        game.update_guildpact();
+    }
     game.subtypes_until_eot.clear();
     for id in Arc::clone(&game.battlefield).iter().copied() {
         if game.obj(id).loyalty_used {

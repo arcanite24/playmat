@@ -754,6 +754,8 @@ pub struct Game {
     /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
     /// count (Anger of the Gods exiles each one it damaged)
     pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
+    /// the players whose lands have all basic land types until end of turn (Energybending)
+    pub all_basics_until_eot: Vec<Seat>,
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
     /// its zone change count, the subtype
     pub subtypes_until_eot: Vec<(ObjId, u32, String)>,
@@ -899,6 +901,7 @@ impl Game {
             events: None,
             exile_if_dies: Vec::new(),
             damaged_by_source: Vec::new(),
+            all_basics_until_eot: Vec::new(),
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
             skip_next_untap: Vec::new(),
@@ -1575,6 +1578,9 @@ impl Game {
 
     /// whether a Leyline of the Guildpact (or the like) is on the battlefield under `seat`'s control, with this effect
     pub fn guildpact(&self, seat: Seat, land_part: bool) -> bool {
+        if land_part && self.all_basics_until_eot.contains(&seat) {
+            return true;
+        }
         self.battlefield.iter().any(|src| {
             let s = self.obj(*src);
             s.controller == seat
