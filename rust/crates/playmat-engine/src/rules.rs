@@ -14304,6 +14304,30 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                 game.owed_choices.push(controller);
             }
         }
+    } else {
+        // a noncreature: only the "enter tapped" statics (two Manglehorns for an artifact)
+        let was = game.obj(id).controller;
+        game.obj_mut(id).controller = controller;
+        let tappers = game
+            .battlefield
+            .iter()
+            .flat_map(|src| {
+                game.obj(*src).def.abilities.iter().filter_map(move |a| match a {
+                    AbilityDef::SimpleStaticAbility { effects, .. } => Some((*src, effects)),
+                    _ => None,
+                })
+            })
+            .filter(|(src, effects)| {
+                effects.iter().any(|e| {
+                    matches!(e, EffectDef::PermanentsEnterBattlefieldTappedEffect { filter }
+                        if game.filter_matches(filter, game.obj(*src).controller, Some(*src), id))
+                })
+            })
+            .count();
+        game.obj_mut(id).controller = was;
+        for _ in 1..tappers.max(1) {
+            game.owed_choices.push(controller);
+        }
     }
     if let Some(def) = real_def.clone() {
         game.obj_mut(id).def = def;

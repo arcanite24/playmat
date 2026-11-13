@@ -1690,6 +1690,13 @@ impl Game {
                 }
             }
         }
+        // a transformed permanent's abilities are its back face's, added again under new ids each time the game
+        // resets its permanents, so they wait after every other card's, in battlefield order (`PermanentCard.reset`)
+        if o.front.is_some() && !o.token {
+            if let Some(i) = self.battlefield.iter().position(|b| *b == t.card) {
+                return (3 << 32) + i as u64;
+            }
+        }
         o.trigger_order
     }
 

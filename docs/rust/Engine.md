@@ -93,7 +93,8 @@ A full game replays in about 2.5 ms (release build). Cleanup gives priority only
 Triggers that fire on the same event wait in Java's `TriggeredAbilities` order, which is the order cards were loaded
 into the game (tokens after every card), not the order they entered. Shadow games record each card's place in it
 (`libraryTriggerOrder`, `handTriggerOrder`); a player orders their own waiting triggers with PICK_ABILITY by their
-place in that list.
+place in that list. A transformed permanent's abilities are its back face's, added again under new ids each time Java
+resets the battlefield (`PermanentCard.reset`), so its triggers wait after every other card's, in battlefield order.
 
 Triggered abilities are one engine class, `TriggeredAbility`, with what it triggers on (`on`: enters, attacks, dies,
 a permanent of a filter entering, dying or attacking, attacking with N creatures, leaving the battlefield, the
