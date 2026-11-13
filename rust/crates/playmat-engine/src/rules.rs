@@ -7152,8 +7152,10 @@ fn apply_each_effect(
             EffectDef::BoostSourceEffect { power, toughness, duration } => {
                 let power = &v!(power);
                 let toughness = &v!(toughness);
-                let (o, zcc) = source;
-                if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                // the permanent its source is now (`new MageObjectReference(source.getSourceId(), game)`): one that
+                // left and came back gets it (Barrow Naughty flickered by Ephemerate in response)
+                let (o, _) = source;
+                if game.obj(o).zone == Zone::Battlefield {
                     boost(game, o, *power, *toughness, *duration);
                 }
             }
