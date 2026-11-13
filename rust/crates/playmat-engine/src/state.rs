@@ -131,6 +131,9 @@ pub struct Obj {
     /// deathtouch and lifelink it had as it last left the battlefield, granted ones too (Vial Smasher's lifelink
     /// from Eternal Thirst, put into the graveyard by the legend rule)
     pub lki_keywords: Vec<AbilityDef>,
+    /// what it was attached to as it last left the battlefield (Path to Redemption's "Sacrifice this: Exile enchanted
+    /// creature")
+    pub lki_attached_to: Option<(ObjId, u32)>,
     /// its abilities as it last left the battlefield, when effects gave it some (land_type_base): what it triggers
     /// on from the others leaving with it (Eternal Thirst's "Whenever a creature an opponent controls dies" on a
     /// creature dying in the same combat)
@@ -1129,6 +1132,7 @@ impl Game {
             counters: Vec::new(),
             lki_counters: Vec::new(),
             lki_keywords: Vec::new(),
+            lki_attached_to: None,
             lki_def: None,
             face_down: false,
             attacking: None,
@@ -3103,6 +3107,7 @@ impl Game {
                 o.loyalty_used = false;
                 o.kicked = false;
                 o.cast = false;
+                o.lki_attached_to = if from == Zone::Battlefield { o.attached_to } else { None };
                 o.attached_to = None;
                 o.uncounterable = false;
                 o.foretold_turn = None;

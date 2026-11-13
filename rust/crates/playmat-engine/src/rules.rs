@@ -504,6 +504,22 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     game.pending.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(card, owner) });
                 }
             }
+            // `BeginningOfStepTriggeredAbility` points at the active player: "that player mills three cards" (Manic
+            // Scribe), "deals 1 damage to that player" (Gibbering Fiend), with no target of its own
+            let mut fired = fired;
+            for t in fired.iter_mut() {
+                let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
+                if let Some(AbilityDef::TriggeredAbility { on: Trigger::StepBegins { .. }, effects, targets, .. }) = a {
+                    if targets.is_empty()
+                        && effects.iter().any(|e| {
+                            matches!(e, EffectDef::MillCardsTargetEffect { .. } | EffectDef::DamageTargetEffect { .. })
+                        })
+                    {
+                        t.targets = vec![vec![Target::Player(active)]];
+                        t.target_zcc = vec![vec![0]];
+                    }
+                }
+            }
             // the delayed ones (the next upkeep's, rebound) before the others, as at the end step
             game.pending.extend(fired);
         }
@@ -10251,7 +10267,10 @@ fn apply_each_effect(
                 }
             }
             EffectDef::ExileAttachedEffect => {
-                if let Some((o, zcc)) = game.obj(source.0).attached_to {
+                // (a source sacrificed as its cost: what it was attached to, Path to Redemption)
+                let src = game.obj(source.0);
+                let attached = if src.zcc == source.1 { src.attached_to } else { src.lki_attached_to };
+                if let Some((o, zcc)) = attached {
                     if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
                         game.move_to(o, Zone::Exile);
                     }
