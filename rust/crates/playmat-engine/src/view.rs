@@ -1683,12 +1683,22 @@ pub fn item_rule(game: &Game, item: &crate::state::StackItem) -> String {
     match (&item.delayed, item.ability) {
         (Some(d), _) => d.rule.clone(),
         // its own rule, or its card's at its index when it has none (an effect's def can reorder them)
-        (None, Some((k, _))) => ability
-            .and_then(|a| a.triggered().map(|t| t.0).or_else(|| a.activated().map(|t| t.0)))
-            .filter(|r| !r.is_empty())
-            .map(str::to_string)
-            .or_else(|| ability_rules(game, item.card).and_then(|r| r.get(k).cloned()))
-            .unwrap_or_default(),
+        (None, Some((k, _))) => {
+            let rule = ability
+                .and_then(|a| a.triggered().map(|t| t.0).or_else(|| a.activated().map(|t| t.0)))
+                .filter(|r| !r.is_empty())
+                .map(str::to_string)
+                .or_else(|| ability_rules(game, item.card).and_then(|r| r.get(k).cloned()))
+                .unwrap_or_default();
+            // `ThatPlayerControlsTargetAdjuster`: the target's name gains the player it's about (in a duel, the
+            // controller's opponent)
+            if matches!(ability, Some(AbilityDef::TriggeredAbility { that_player_controls: true, .. })) {
+                let them = (item.controller + 1) % game.seats();
+                let named = format!("that player controls (controlled by {})", crate::log::player(them));
+                return rule.replacen("that player controls", &named, 1);
+            }
+            rule
+        }
         _ => String::new(),
     }
 }

@@ -2397,6 +2397,10 @@ pub enum AbilityDef {
         /// a modal ability ("choose one"): its other modes, mode 0 being its own effects and targets
         #[serde(default)]
         modes: Vec<ModeDef>,
+        /// its target is "… that player controls" (`ThatPlayerControlsTargetAdjuster`): on the stack its text names
+        /// the player, "(controlled by B)"
+        #[serde(default)]
+        that_player_controls: bool,
         rule: String,
     },
     EntersBattlefieldTappedAbility {

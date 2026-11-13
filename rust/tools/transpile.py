@@ -3425,6 +3425,7 @@ def ability_statement(t, st, added):
         target = t.vars[m.group(1)]['targets'][0]
         target['filter'] = [dict(p) for p in target['filter']] + [dict(OPPONENT)]
         t.vars[m.group(1)]['set_target_pointer'] = False
+        t.vars[m.group(1)]['that_player_controls'] = True
         return True
     # "target card from that player's graveyard": in a duel, the opponent's graveyard
     m = re.fullmatch(r'(\w+)\.setTargetAdjuster\(new ThatPlayerControlsTargetAdjuster\(true\)\)', st)
