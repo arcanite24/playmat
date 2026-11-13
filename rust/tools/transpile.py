@@ -622,7 +622,7 @@ COUNTERS = {'CounterType.FINALITY': 'finality', 'CounterType.FLYING': 'flying', 
 _TALLIES = ('GOLD', 'BLOODLINE', 'MUSTER', 'QUEST', 'ICE', 'WISH', 'REVIVAL', 'NEST', 'REV', 'UNITY', 'STORAGE', 'PLAGUE', 'SPORE',
             'FUNGUS', 'VERSE', 'OMEN', 'OIL', 'CORPSE', 'EGG', 'TIDE', 'LUCK', 'KI', 'DEPLETION', 'FLOOD', 'STUDY', 'VOID',
             'BOUNTY', 'SOUL', 'POINT', 'PLAN', 'HOUR', 'STASH', 'SLIME', 'GROWTH', 'BOOK', 'UNLOCK', 'LOOT', 'HONE', 'FIRE',
-            'FILM', 'FATE', 'CRYSTAL', 'TASK', 'SUPPLY', 'SKEWER', 'SIN', 'DIVINITY', 'FORESHADOW')
+            'FILM', 'FATE', 'CRYSTAL', 'TASK', 'SUPPLY', 'SKEWER', 'SIN', 'DIVINITY', 'FORESHADOW', 'CHORUS', 'EMBER')
 for _m in re.finditer(r'^    (\w+)\("([a-z][a-z -]*)"\)', open(os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'counters',
                                                                  'CounterType.java')).read(), re.M):
     if _m.group(1) in _TALLIES:
@@ -3024,6 +3024,9 @@ class Translator:
         cls, args = m.group(1), [a.strip() for a in split_args(m.group(2))] if m.group(2).strip() else []
         if cls == 'ReturnSourceFromGraveyardToHandEffect' and not args:
             return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': False}
+        # `returnFromNextZone`: the source in the zone it went to (a leaves trigger's source is that object already)
+        if cls == 'ReturnToHandSourceEffect' and len(args) == 2 and args[0] in ('true', 'false') and args[1] == 'true':
+            return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': args[0] == 'true'}
         if cls == 'PutCardFromHandOntoBattlefieldEffect' and len(args) <= 4:
             filt = self.filter(args[0]) if args else [{'p': 'permanent_card'}]
             flags = [self.value('bool', a) for a in args[1:]]
@@ -5783,7 +5786,11 @@ def ability_statement(t, st, added):
                                                            {'c': 'not', 'x': {'c': 'solved'}}]},
                           'effects': [{'class': 'SolveEffect'}]})
             solved = t.ability(parts[2])
-            if solved.get('condition') != {'c': 'solved'}:
+            # (a static solved ability: each of its effects conditional on being solved, Case of the Gateway Express)
+            static_solved = solved.get('class') == 'SimpleStaticAbility' and solved.get('effects') and all(
+                e.get('class') == 'ConditionalContinuousEffect' and e.get('condition') == {'c': 'solved'}
+                for e in solved['effects'])
+            if solved.get('condition') != {'c': 'solved'} and not static_solved:
                 raise Unsupported('a solved ability without the solved condition')
             added.append(solved)
             return True
@@ -6239,6 +6246,8 @@ def token_classes(names):
             out.add('JacePlaneswalkerToken')
         for role in re.findall(r'RoleType\.(\w+)', source):
             out.add(role.title().replace('_', '') + 'RoleToken')
+    # the tokens per-card handlers declare (`.tokens(&[…])`: Quartzwood Crasher's `new DinosaurBeastToken(x)`)
+    out.update(t for h in card_handlers.handlers().values() for t in h['tokens'])
     return sorted(out)
 
 

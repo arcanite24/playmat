@@ -306,6 +306,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 if !game.obj(a).marks.contains(&turn) {
                     game.obj_mut(a).marks.push(turn.clone());
                 }
+                let at = (a, game.obj(a).zcc);
+                if !game.attacked_this_turn.contains(&at) {
+                    game.attacked_this_turn.push(at);
+                }
             }
             // ATTACKER_DECLARED's replacement: "you may exert this as it attacks", asked for each attacker in turn,
             // and its "when you do" trigger
@@ -18968,6 +18972,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.exile_if_dies.clear();
     game.damaged_by_source.clear();
     game.combat_damaged_players.clear();
+    game.attacked_this_turn.clear();
     if !game.all_basics_until_eot.is_empty() {
         game.all_basics_until_eot.clear();
         game.update_guildpact();

@@ -327,7 +327,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,385 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,426 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -557,6 +557,15 @@ Being in the engine and being trusted are kept apart.
   at first when clicked, which the engine doesn't model; its handler was dropped), Desecration Demon and Nylea's
   Huntmaster (their games part on other cards: Make Disappear's casualty copy, Grim Javelineer's surveil reminder
   text).
+
+  Claim 6's handlers (13 Nov): 39 handler files for the cards' own classes, plus a Case's static solved ability,
+  `ReturnToHandSourceEffect` from the next zone (Angelic Destiny) and the tokens handlers declare in the facts pool
+  (Quartzwood Crasher's `DinosaurBeastToken`), brought 41 cards in (10,426 in the engine). Engine fix, with a game
+  under `shadow/factory/`: the creatures that attacked this turn are kept (`AttackedThisTurnWatcher`, Case of the
+  Gateway Express). Four factory rounds (88 games, 87 matching, replayed again on the engine with claims 1, 2, 4
+  and 5) verified 38 more: 10,310; 13 games under `shadow/handlers/` cover them. Left: Hadana's Climb (Java offers
+  Winged Temple's mana ability through its "choose ability" list when the other ability can't be paid), and Eerie
+  Ultimatum, Gishath and Zacama pending (not cast often enough yet).
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
