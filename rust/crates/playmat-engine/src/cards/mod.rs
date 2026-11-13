@@ -109,12 +109,17 @@ pub(crate) type EffectFn = fn(&mut Game, &mut dyn Decider, &EffectCx) -> Option<
 pub(crate) type ConditionFn = fn(&Game, Seat, ObjId) -> bool;
 /// A `DynamicValue.calculate`, for the source's controller `you`, with the ability's X
 pub(crate) type ValueFn = fn(&Game, Seat, ObjId, i32) -> i32;
+/// A triggered ability class's own check (`checkTrigger` beyond its event, or `checkInterveningIfClause`), on the
+/// waiting trigger: its source, controller, and what the event set (`targets` for a target pointer, `entering`).
+/// Checked as it goes on the stack and again as it resolves.
+pub(crate) type TriggerFn = fn(&Game, &StackItem) -> bool;
 
 #[allow(dead_code)]
 pub(crate) enum Hook {
     Effect(EffectFn),
     Condition(ConditionFn),
     Value(ValueFn),
+    Trigger(TriggerFn),
 }
 
 /// One Java class written in Rust
@@ -130,6 +135,9 @@ pub(crate) struct Handler {
     pub tokens: &'static [&'static str],
     pub effects: &'static [&'static str],
     pub filters: &'static [&'static str],
+    /// a trigger handler's framework trigger, as Java (`"new EntersBattlefieldAllTriggeredAbility(…)"`): the
+    /// transpiler translates it and adds the handler as its `check`
+    pub base: &'static str,
     /// how the transpiler passes each constructor argument (`card_handlers.py`): "text" as written, or
     /// "library_target" (a `TargetCardInLibrary`: "min max" in `cx.args`, its filter after the declared `filters`)
     pub args: &'static [&'static str],
@@ -138,7 +146,7 @@ pub(crate) struct Handler {
 #[allow(dead_code)]
 impl Handler {
     const fn new(java: &'static str, hook: Hook) -> Handler {
-        Handler { java, hook, tokens: &[], effects: &[], filters: &[], args: &[] }
+        Handler { java, hook, tokens: &[], effects: &[], filters: &[], base: "", args: &[] }
     }
 
     pub const fn effect(java: &'static str, f: EffectFn) -> Handler {
@@ -151,6 +159,13 @@ impl Handler {
 
     pub const fn value(java: &'static str, f: ValueFn) -> Handler {
         Handler::new(java, Hook::Value(f))
+    }
+
+    /// a triggered ability class: `base` is the framework trigger it extends, in Java (`Handler::base`)
+    pub const fn trigger(java: &'static str, base: &'static str, f: TriggerFn) -> Handler {
+        let mut h = Handler::new(java, Hook::Trigger(f));
+        h.base = base;
+        h
     }
 
     pub const fn tokens(mut self, tokens: &'static [&'static str]) -> Handler {
@@ -236,6 +251,7 @@ macro_rules! handler_ref {
 handler_ref!(EffectHandler, Effect, EffectFn, "an effect");
 handler_ref!(ConditionHandler, Condition, ConditionFn, "a condition");
 handler_ref!(ValueHandler, Value, ValueFn, "a value");
+handler_ref!(TriggerHandler, Trigger, TriggerFn, "a trigger");
 
 #[cfg(test)]
 mod tests {

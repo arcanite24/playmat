@@ -1742,6 +1742,15 @@ impl Game {
 
     /// Pelt Collector's intervening "if": the creature's power is greater than its source's (still on the
     /// battlefield)
+    /// A card's own trigger class's check (`src/cards/`, `Handler::trigger`), on a waiting or resolving trigger
+    /// whose event details (`entering`, its target pointer) are set
+    pub fn trigger_check_holds(&self, t: &StackItem) -> bool {
+        match t.ability.and_then(|(i, _)| self.item_def(t).abilities.get(i)) {
+            Some(AbilityDef::TriggeredAbility { check: Some(h), .. }) => h.f()(self, t),
+            _ => true,
+        }
+    }
+
     pub fn pelt_holds(&self, t: &StackItem) -> bool {
         if self.trigger_of(t) != Some(&Trigger::PeltCollector) {
             return true;

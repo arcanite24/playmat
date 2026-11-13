@@ -3659,6 +3659,9 @@ class Translator:
         if (m := self.mana_ability(cls, args)) is not None:
             m['java'] = cls
             return m
+        # a trigger class written by hand in Rust (src/cards/, card_handlers.py)
+        if cls not in ABILITIES and (h := card_handlers.trigger(self, cls, args)) is not None:
+            return h
         if cls not in ABILITIES:
             raise Unsupported('ability ' + cls)
         a = self.build(cls, args, ABILITIES[cls], 'ability')

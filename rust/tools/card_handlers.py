@@ -8,7 +8,8 @@ A handler file declares its classes as
         Handler::effect("RapidHybridization.RapidHybridizationEffect", apply).tokens(&["FrogLizardToken"]),
     ];
 
-`Handler::effect`, `::condition` or `::value`, with the Java class as `OuterCardClass.InnerClass` (or the bare class
+`Handler::effect`, `::condition`, `::value` or `::trigger` (with the framework trigger it extends, in Java, as its
+second argument), with the Java class as `OuterCardClass.InnerClass` (or the bare class
 name for one in the framework), and optionally `.tokens(&[…])`, `.effects(&[…])`, `.filters(&[…])`: Java for the
 transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order; and
 `.args(&[…])`, one kind per constructor argument ("text" as is, "library_target": a `TargetCardInLibrary`, as
@@ -22,7 +23,8 @@ import re
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
-_DECL = re.compile(r'Handler::(effect|condition|value)\(\s*"([\w.]+)"\s*,\s*[\w:]+\s*,?\s*\)')
+_DECL = re.compile(r'Handler::(effect|condition|value|trigger)\(\s*"([\w.]+)"\s*,')
+_FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
 _PART = re.compile(r'\s*\.(tokens|effects|filters|args)\(\s*&\[')
 _STR = re.compile(r'\s*(?:"((?:[^"\\]|\\.)*)"|r(#*)"(.*?)"\2)\s*,?', re.S)
 
@@ -48,8 +50,19 @@ def _parse(text, path):
     out = {}
     for m in _DECL.finditer(text):
         h = {'kind': m.group(1), 'file': os.path.relpath(path, ROOT), 'tokens': [], 'effects': [], 'filters': [],
-             'args': []}
+             'args': [], 'base': None}
         i = m.end()
+        if m.group(1) == 'trigger':
+            # `Handler::trigger("X", "<framework trigger in Java>", f)`
+            b = _STR.match(text, i)
+            if not b or not b.group(0).strip():
+                raise SyntaxError(f'{path}: Handler::trigger takes its base trigger as a string literal')
+            h['base'] = _unescape(b.group(1)) if b.group(1) is not None else b.group(3)
+            i = b.end()
+        f = _FN.match(text, i)
+        if not f:
+            raise SyntaxError(f'{path}: Handler::{m.group(1)}("{m.group(2)}", ...) not understood')
+        i = f.end()
         while (p := _PART.match(text, i)):
             i = p.end()
             while (s := _STR.match(text, i)) and s.group(0).strip():
@@ -140,3 +153,21 @@ def value(t, expr):
     m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance', expr.strip())
     name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2), 'value')
     return {'v': 'card', 'handler': name} if name else None
+
+
+def trigger(t, cls, args):
+    """A triggered ability class with a trigger handler: its base trigger, translated, with the handler as its
+    `check`; or None"""
+    name = find(getattr(t, 'source', None), cls, 'trigger')
+    if not name:
+        return None
+    if [a for a in args if a.strip()]:
+        raise _unsupported(f'ability {cls}: a trigger handler takes no constructor arguments')
+    a = t.ability(handlers()[name]['base'])
+    if a.get('class') != 'TriggeredAbility':
+        a = T.triggered(a)
+    if a.get('class') != 'TriggeredAbility':
+        raise _unsupported(f'ability {cls}: its base trigger is a {a.get("class")}')
+    a['java'] = cls
+    a['check'] = name
+    return a

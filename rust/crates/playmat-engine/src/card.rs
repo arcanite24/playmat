@@ -3581,6 +3581,10 @@ pub enum AbilityDef {
         /// the target's name there when the rule doesn't say "that player controls" (its filter's message)
         #[serde(default)]
         that_player_name: Option<String>,
+        /// a card's own trigger class (`src/cards/`): its `checkTrigger` beyond the event `on` names, or its
+        /// intervening "if" about the event, checked as it triggers and as it resolves
+        #[serde(default)]
+        check: Option<crate::rules::cards::TriggerHandler>,
         rule: String,
     },
     EntersBattlefieldTappedAbility {
