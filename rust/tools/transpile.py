@@ -3627,6 +3627,12 @@ class Translator:
         if cls == 'MadnessAbility' and n in (1, 2) and (m := re.fullmatch(r'new ManaCostsImpl<>\("((\{[^"]*\})+)"\)', args[0].strip())) \
                 and (n == 1 or args[1].strip().isdigit()):
             return {'class': cls, 'java': cls, 'cost': m.group(1), 'life': int(args[1]) if n == 2 else 0}
+        # disturb: the card's back face cast from the graveyard for this cost (`SpellTransformedAbility`)
+        if cls == 'DisturbAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1].strip()):
+            return {'class': cls, 'java': cls, 'cost': args[1].strip()[1:-1]}
+        # sneak: a spell ability of its own, for its sneak cost and an unblocked attacker returned to hand
+        if cls == 'SneakAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1].strip()):
+            return {'class': cls, 'java': cls, 'cost': args[1].strip()[1:-1]}
         # awaken: a spell ability of its own, for its awaken cost, with a target land you control too
         if cls == 'AwakenAbility' and n == 3 and args[0] == 'this' and args[1].strip().isdigit() \
                 and re.fullmatch(r'"(\{[^"]*\})+"', args[2].strip()):
@@ -4228,6 +4234,17 @@ def translate(card_name, subtypes, facts):
             raise Unsupported('tiered without mode costs')
     elif 'first_mode_cost' in spell or any('cost' in m for m in modes):
         raise Unsupported('mode costs without spree')
+    for a in card['abilities']:
+        if a.get('class') in ('SneakAbility', 'AwakenAbility') and 'spell_effects' in a:
+            made = a.pop('modes')
+            if made and made != len(modes):
+                raise Unsupported(a['class'] + ' between the modes')
+            # made before the modes were: a spell of none of them (Karai's Technique's sneak)
+            if made == 0 and modes:
+                a['no_modes'] = True
+            # (all of it there already: nothing to leave out)
+            if (a['spell_effects'], a['spell_targets']) == (len(spell['effects']), len(spell['targets'])):
+                del a['spell_effects'], a['spell_targets']
     if modes:
         # "choose one": the spell ability's own effects and targets are its first mode
         first = {'effects': spell['effects'], 'targets': spell['targets']}
@@ -4389,11 +4406,14 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
             face['power'], face['toughness'] = int(m.group(2)), int(m.group(3))
             continue
         # a sorcery or Aura front (Esper Origins, Journey to Eternity): its spell's effects and targets
-        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.(getSpellAbility\(\)\.add(?:Effect|Target)\(.*\))', st)
+        # (or an Aura back's, cast with disturb: Ancestor's Embrace's "enchant creature")
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(getSpellAbility\(\)\.add(?:Effect|Target)\(.*\))', st)
         if m:
-            front.setdefault('spell', {'effects': [], 'targets': [], 'rule': java_abilities[0].get('rule', '')})
+            face = back if m.group(1) == 'Right' else front
+            face.setdefault('spell', {'effects': [], 'targets': [],
+                                      'rule': '' if face is back else java_abilities[0].get('rule', '')})
             modes = []
-            card_statement(t, 'this.' + m.group(1), front, [], front['spell'], modes, subtypes)
+            card_statement(t, 'this.' + m.group(2), face, [], face['spell'], modes, subtypes)
             if modes:
                 raise Unsupported('transforming double-faced card statement ' + st)
             continue
@@ -4405,8 +4425,16 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
         if m:
             # (a face given as the card: `new FlashbackAbility(this.getLeftHalfCard(), …)`)
             body = m.group(2).replace('this.getLeftHalfCard()', 'this').replace('this.getRightHalfCard()', 'this')
-            if not ability_statement(t, 'this.' + body, added[m.group(1) == 'Right']):
+            into = added[m.group(1) == 'Right']
+            before = len(into)
+            if not ability_statement(t, 'this.' + body, into):
                 raise Unsupported('transforming double-faced card statement ' + st)
+            # disturb copies the back's spell ability as it is when it's made (Twinblade Geist's comes before its
+            # back's "enchant creature" target, so its Twinblade Invocation is cast with no target)
+            for a in into[before:]:
+                if a.get('class') == 'DisturbAbility':
+                    a['back_targets'] = len(back.get('spell', {}).get('targets', []))
+                    a['back_effects'] = len(back.get('spell', {}).get('effects', []))
             continue
         # a watcher is the engine's own bookkeeping
         if re.fullmatch(r'\w+\.addWatcher\(new \w+Watcher\(\)\)', st):
@@ -4421,6 +4449,15 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
     split = 1 + len(added[0])
     front['abilities'] = in_java_order(java_abilities[:split], added[0])
     back['abilities'] = in_java_order(java_abilities[split:], added[1])
+    for a in front['abilities']:
+        if a.get('class') == 'DisturbAbility' and 'back_targets' in a:
+            if (a['back_targets'], a['back_effects']) == (len(back.get('spell', {}).get('targets', [])),
+                                                          len(back.get('spell', {}).get('effects', []))):
+                del a['back_targets'], a['back_effects']
+            # an Aura back without its target (Twinblade Invocation): Java casts it and, as it resolves, puts the
+            # game back to before the cast, which the engine doesn't do
+            elif 'Aura' in back.get('subtypes', []):
+                raise Unsupported("disturb made before its Aura back's target")
     front['transform_back'] = back
     return front
 
@@ -4554,7 +4591,14 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if m:
             card[m.group(1)] = int(m.group(2))
             return
+        before = len(added)
         if ability_statement(t, st, added):
+            # sneak and awaken copy the spell ability as it is when they're made: what the card adds to it after
+            # isn't theirs (Leonardo's Technique's sneak has no effects or targets)
+            for a in added[before:]:
+                if a.get('class') in ('SneakAbility', 'AwakenAbility'):
+                    a['spell_effects'], a['spell_targets'] = len(spell['effects']), len(spell['targets'])
+                    a['modes'] = len(modes)
             return
         st = re.sub(r'^getSpellAbility\(\)', 'this.getSpellAbility()', st)
         st = re.sub(r'^this\.getSpellAbility\(\)\.get(Effect|Target)s\(\)\.add\(', r'this.getSpellAbility().add\1(', st)
@@ -5051,6 +5095,10 @@ def ability_statement(t, st, added):
             if solved.get('condition') != {'c': 'solved'}:
                 raise Unsupported('a solved ability without the solved condition')
             added.append(solved)
+            return True
+        # a disturbed back face's "if this would be put into a graveyard from anywhere, exile it instead"
+        if ','.join(args).strip() == 'DisturbAbility.makeBackAbility()':
+            added.append({'class': 'DisturbExileAbility', 'java': 'PutIntoGraveFromAnywhereSourceAbility'})
             return True
         # exert: the static ability, then its "when you do" trigger
         if (e := re.fullmatch(r'new ExertAbility\((\w+|new BecomesExertSourceTriggeredAbility\(.*\))\)', ','.join(args).strip(), re.S)):
@@ -5570,6 +5618,15 @@ def granted_rules(card):
                                                                   card_source(card.get('name'))):
                 g['rule'] = re.sub(r': Untap this (?:artifact|creature|permanent)\.', ': Untap {this}.',
                                    g['rule'], count=1)
+            # `DiscoverEffect(n)` writes its reminder text after "discover n." (Swashbuckler's Whip's "{8}, {T}:
+            # Discover 10.")
+            effects = g.get('effects', [])
+            m = re.search(r'[Dd]iscover (\d+)\.$', g['rule'])
+            if m and effects and effects[-1].get('class') == 'DiscoverEffect' and \
+                    effects[-1].get('amount') == int(m.group(1)):
+                g['rule'] += (' <i>(Exile cards from the top of your library until you exile a nonland card with mana'
+                              ' value %s or less. Cast it without paying its mana cost or put it into your hand. Put'
+                              ' the rest on the bottom in a random order.)</i>' % m.group(1))
         elif g.get('class') == 'TriggeredAbility' and quoted:
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
             # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
@@ -5597,6 +5654,12 @@ def granted_rules(card):
             if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
                 g['rule'] += (' <i>(Create a Clue token. It\'s an artifact with "{2}, Sacrifice this artifact: Draw a'
                               ' card.")</i>')
+            # `ManifestEffect(1)` writes its reminder text after "manifest the top card of your library."
+            # (Whisperwood Elemental's granted dies trigger)
+            if g['rule'].endswith('manifest the top card of your library.') and \
+                    [(e.get('class'), e.get('amount')) for e in g.get('effects', [])] == [('ManifestEffect', 1)]:
+                g['rule'] += (' <i>(Put it onto the battlefield face down as a 2/2 creature. Turn it face up at any'
+                              ' time for its mana cost if it\'s a creature card.)</i>')
         elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
                                 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')

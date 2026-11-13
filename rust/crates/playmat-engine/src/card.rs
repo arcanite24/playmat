@@ -3331,11 +3331,50 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+    /// disturb: the card's back face cast from its owner's graveyard for `cost` (`DisturbAbility`)
+    DisturbAbility {
+        cost: String,
+        /// the back's spell targets and effects as the ability was made (`super(card.getSecondFaceSpellAbility())`):
+        /// ones the card adds to the back after aren't the disturbed spell's
+        #[serde(default)]
+        back_targets: Option<usize>,
+        #[serde(default)]
+        back_effects: Option<usize>,
+        #[serde(default)]
+        rule: String,
+    },
+    /// a disturbed back face's: put into a graveyard from anywhere, it's exiled instead
+    /// (`PutIntoGraveFromAnywhereSourceAbility` with `ExileSourceEffect`)
+    DisturbExileAbility {
+        #[serde(default)]
+        rule: String,
+    },
+    /// sneak: the spell cast for `cost` instead, returning an unblocked attacker you control to hand, any time it
+    /// could be cast at instant speed but only during the declare blockers step (`SneakAbility`, a spell ability)
+    SneakAbility {
+        cost: String,
+        /// the spell ability's effects and targets as it was made (`super(card.getSpellAbility())`): the ones the
+        /// card adds after aren't the sneak spell's
+        #[serde(default)]
+        spell_effects: Option<usize>,
+        #[serde(default)]
+        spell_targets: Option<usize>,
+        /// made before the card's modes were added: the sneak spell has none of them
+        #[serde(default)]
+        no_modes: bool,
+        #[serde(default)]
+        rule: String,
+    },
     /// awaken: the spell cast for `cost` instead, also targeting a land you control, which gets `amount` +1/+1
     /// counters and becomes a 0/0 Elemental creature with haste (`AwakenAbility`, a spell ability of its own)
     AwakenAbility {
         amount: i32,
         cost: String,
+        /// as sneak's
+        #[serde(default)]
+        spell_effects: Option<usize>,
+        #[serde(default)]
+        spell_targets: Option<usize>,
         #[serde(default)]
         rule: String,
     },
@@ -4798,16 +4837,76 @@ impl CardDef {
         })
     }
 
+    /// Disturb: its ability index, and the back face cast for its disturb cost
+    pub fn disturb(&self) -> Option<(usize, CardDef)> {
+        let back = self.transform_back.as_ref()?;
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::DisturbAbility { cost, back_targets, back_effects, .. } => {
+                let mut spell = back.spell.clone();
+                if let Some(n) = back_targets {
+                    spell.targets.truncate(*n);
+                }
+                if let Some(n) = back_effects {
+                    spell.effects.truncate(*n);
+                }
+                Some((
+                    k,
+                    CardDef {
+                        cost: ManaCost::parse(cost).ok()?,
+                        printed_cost: Some(back.printed().clone()),
+                        spell,
+                        ..(**back).clone()
+                    },
+                ))
+            }
+            _ => None,
+        })
+    }
+
+    /// Sneak: its ability index, and the card cast for its sneak cost (and an unblocked attacker returned)
+    pub fn sneak(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::SneakAbility { cost, spell_effects, spell_targets, no_modes, .. } => {
+                let mut spell = self.spell.clone();
+                if *no_modes {
+                    spell.modes.clear();
+                    spell.min_modes = 1;
+                    spell.max_modes = 1;
+                }
+                if let Some(n) = spell_effects {
+                    spell.effects.truncate(*n);
+                }
+                if let Some(n) = spell_targets {
+                    spell.targets.truncate(*n);
+                }
+                spell.costs.push(CostDef::ReturnAttackerToHandTargetCost);
+                Some((
+                    k,
+                    CardDef {
+                        cost: ManaCost::parse(cost).ok()?,
+                        printed_cost: Some(self.printed().clone()),
+                        spell,
+                        ..self.clone()
+                    },
+                ))
+            }
+            _ => None,
+        })
+    }
+
     /// Awaken: its ability index, and the card cast for its awaken cost, with the land target and the awaken effect
     pub fn awaken(&self) -> Option<(usize, CardDef)> {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
-            AbilityDef::AwakenAbility { amount, cost, .. } => {
+            AbilityDef::AwakenAbility { amount, cost, spell_effects, spell_targets, .. } => {
                 let mut spell = self.spell.clone();
+                if let Some(n) = spell_effects {
+                    spell.effects.truncate(*n);
+                }
+                if let Some(n) = spell_targets {
+                    spell.targets.truncate(*n);
+                }
                 spell.targets.push(TargetDef::TargetPermanent {
-                    filter: Filter(vec![
-                        Pred::Type { t: CardType::Land },
-                        Pred::Controller { who: "you".into() },
-                    ]),
+                    filter: Filter(vec![Pred::Type { t: CardType::Land }, Pred::Controller { who: "you".into() }]),
                     min: 1,
                     max: 1,
                     distribute: None,
@@ -4931,12 +5030,18 @@ impl CardDef {
     /// Morph or disguise: its ability index, and the face-down spell it's cast as (a 2/2 creature for {3}, its mana
     /// value 0)
     pub fn morph(&self) -> Option<(usize, CardDef)> {
+        self.morph_as().map(|(k, def, _)| (k, def))
+    }
+
+    /// Morph or disguise: its ability index, the face-down card cast that way and which of the two it is
+    pub fn morph_as(&self) -> Option<(usize, CardDef, FaceDown)> {
         let k = self.abilities.iter().position(|a| matches!(a, AbilityDef::MorphAbility { .. }))?;
         let AbilityDef::MorphAbility { disguise, .. } = &self.abilities[k] else { return None };
-        let mut def = self.face_down(if *disguise { FaceDown::Disguise } else { FaceDown::Morph });
+        let how = if *disguise { FaceDown::Disguise } else { FaceDown::Morph };
+        let mut def = self.face_down(how);
         def.cost = ManaCost::parse("{3}").ok()?;
         def.printed_cost = Some(ManaCost::default());
-        Some((k, def))
+        Some((k, def, how))
     }
 
     /// This card face down (`BecomesFaceDownCreatureEffect.makeFaceDownObject`): a 2/2 colorless creature with no
@@ -4978,6 +5083,7 @@ impl CardDef {
             transform_back: None,
             omen: false,
             aftermath: false,
+            fused: false,
             prepare: None,
             room: Vec::new(),
             printed_cost: None,
@@ -5039,6 +5145,18 @@ pub enum FaceDown {
     Disguise,
     Manifest,
     Cloak,
+}
+
+impl FaceDown {
+    /// The name everyone sees, and its image's (`TokenRepository.XMAGE_IMAGE_NAME_FACE_DOWN_*`)
+    pub fn name(self) -> &'static str {
+        match self {
+            FaceDown::Morph => "Morph",
+            FaceDown::Disguise => "Disguise",
+            FaceDown::Manifest => "Manifest",
+            FaceDown::Cloak => "Cloak",
+        }
+    }
 }
 
 /// The rules a face-down permanent shows for its way to turn face up (`BecomesFaceDownCreatureEffect`'s

@@ -1035,6 +1035,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
             || spectacle(game, seat, *id).is_some()
             || awaken(game, seat, *id).is_some()
+            || sneak(game, seat, *id).is_some()
             || warp(game, seat, *id).is_some()
             || cleave(game, seat, *id).is_some()
             || overload(game, seat, *id).is_some()
@@ -1076,6 +1077,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
                 && castable(game, seat, *id, def))
             || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
             || blitz(game, seat, *id).is_some()
+            || disturb(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
         {
             out.push(*id);
@@ -1235,6 +1237,8 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     let alternatives = [
                         spectacle(game, seat, id).map(|x| x.0),
                         awaken(game, seat, id).map(|x| x.0),
+                        sneak(game, seat, id).map(|x| x.0),
+                        disturb(game, seat, id).map(|x| x.0),
                         warp(game, seat, id).map(|x| x.0),
                         cleave(game, seat, id).map(|x| x.0),
                         overload(game, seat, id).map(|x| x.0),
@@ -1865,6 +1869,30 @@ fn overload(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
 
 /// Spectacle: the card's ability index and the card with its spectacle cost, if an opponent lost life this turn and
 /// it can be cast that way.
+/// Disturb: from its owner's graveyard, its back face for its disturb cost, when its front could be cast
+/// (`DisturbAbility.canActivate`)
+fn disturb(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    let o = game.obj(id);
+    if o.zone != Zone::Graveyard || o.owner != seat {
+        return None;
+    }
+    let (k, def) = o.def.disturb()?;
+    let front = CardDef { cost: def.cost.clone(), ..(*o.def).clone() };
+    (castable(game, seat, id, &def) && castable(game, seat, id, &front)).then_some((k, def))
+}
+
+/// Sneak: from hand, at instant speed, with an unblocked attacker to return (`SneakAbility`)
+fn sneak(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    if game.obj(id).zone != Zone::Hand || unblocked_attackers(game, seat).is_empty() {
+        return None;
+    }
+    let (k, def) = game.obj(id).def.sneak()?;
+    let any_time = game.any_time.replace(true);
+    let can = castable(game, seat, id, &def);
+    game.any_time.set(any_time);
+    can.then_some((k, def))
+}
+
 /// Awaken: from hand, for its awaken cost (`AwakenAbility`, zone HAND)
 fn awaken(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     if game.obj(id).zone != Zone::Hand {
@@ -2772,6 +2800,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &awaken {
             options.push(*k);
         }
+        let sneak = if zone == Zone::Hand { sneak(game, seat, id) } else { None };
+        if let Some((k, _)) = &sneak {
+            options.push(*k);
+        }
         let warp = warp(game, seat, id);
         if let Some((k, _)) = &warp {
             options.push(*k);
@@ -2854,6 +2886,18 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 cast_blitzed(game, d, seat, id, def);
                 return;
             }
+            // `SneakAbility.activate`: cast (costs paid) and then undone outside the declare blockers step
+            if let Some((_, def)) = sneak.filter(|(k, _)| *k == index) {
+                let before = game.clone();
+                let full = game.obj(id).def.clone();
+                let o = game.obj_mut(id);
+                o.adventurer = Some(full);
+                o.def = Arc::new(def);
+                if !cast(game, d, seat, id) || game.step != Some(Step::DeclareBlockers) {
+                    *game = before;
+                }
+                return;
+            }
             if let Some((_, def)) = prototype.filter(|(k, _)| *k == index) {
                 let before = game.clone();
                 let full = game.obj(id).def.clone();
@@ -2869,6 +2913,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 let before = game.clone();
                 let full = game.obj(id).def.clone();
                 let o = game.obj_mut(id);
+                o.face_down_as = full.morph_as().map(|(_, _, how)| how);
                 o.face_up = Some(full);
                 o.face_down = true;
                 o.def = Arc::new(def);
@@ -3070,6 +3115,17 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
         if let Some((_, def)) = blitz(game, seat, id) {
             cast_blitzed(game, d, seat, id, def);
+            return;
+        }
+        // disturb: its back face cast (it enters transformed; its front again anywhere else)
+        if let Some((_, def)) = disturb(game, seat, id) {
+            let full = game.obj(id).def.clone();
+            let o = game.obj_mut(id);
+            o.front = Some(full);
+            o.def = Arc::new(def);
+            if !cast(game, d, seat, id) {
+                *game = before;
+            }
             return;
         }
         // a card you may cast from your graveyard (Case of the Uneaten Feast): cast as from hand
@@ -3726,7 +3782,6 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     }
     // strive (`StriveCostIncreasingEffect`): its cost again for each target beyond the first of the first "any
     // number of" target
-    let mut cost = cost;
     if let Some(more) = def.abilities.iter().find_map(|a| match a {
         AbilityDef::StriveAbility { cost, .. } => ManaCost::parse(cost).ok(),
         _ => None,
@@ -10309,7 +10364,12 @@ fn apply_each_effect(
                         if *life > 0 {
                             spell.costs.push(CostDef::PayLifeCost { amount: *life });
                         }
-                        let def = CardDef { cost: mana, printed_cost: Some(full.printed().clone()), spell, ..(*full).clone() };
+                        let def = CardDef {
+                            cost: mana,
+                            printed_cost: Some(full.printed().clone()),
+                            spell,
+                            ..(*full).clone()
+                        };
                         let o = game.obj_mut(card);
                         o.adventurer = Some(full);
                         o.def = Arc::new(def);
@@ -16331,7 +16391,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         let fired = game.triggers([source], |_, _, _, t| matches!(t, Trigger::CombatDamageToPlayerOrPlaneswalker));
         game.pending.extend(fired);
     }
-    if combat && (matches!(to, Target::Player(_)) || matches!(to, Target::Obj(o) if game.has_type(o, CardType::Battle))) {
+    if combat && (matches!(to, Target::Player(_)) || matches!(to, Target::Obj(o) if game.has_type(o, CardType::Battle)))
+    {
         let fired = game.triggers([source], |_, _, _, t| matches!(t, Trigger::CombatDamageToPlayerOrBattle));
         for mut t in fired {
             t.x = amount;
@@ -17557,7 +17618,7 @@ pub fn turn_face_up(game: &mut Game, id: ObjId, megamorph: bool) {
         remove_from_combat(game, id);
     }
     if log::kept(game) {
-        let line = format!("{} turns {} face up",log::player(game.obj(id).controller), log::object(game, id));
+        let line = format!("{} turns {} face up", log::player(game.obj(id).controller), log::object(game, id));
         log::inform(game, line);
     }
     let mut sources = vec![id];
@@ -17608,7 +17669,29 @@ fn discover(game: &mut Game, d: &mut dyn Decider, seat: Seat, n: i32) -> bool {
                 }
             };
             if yes {
-                cast_free(game, d, seat, card);
+                let full = game.obj(card).def.clone();
+                if full.room.is_empty() {
+                    cast_free(game, d, seat, card);
+                } else {
+                    // a Room: the half to cast for free, of those with mana value `n` or less
+                    // (`CardUtil.castSpellWithAttributesForFree`'s "Choose ability to cast for FREE")
+                    let options: Vec<usize> =
+                        (0..full.room.len()).filter(|k| full.room[*k].mana_value() as i32 <= n).collect();
+                    match ask(game, d, seat, &Query::ChooseAbility { source: card, abilities: options.clone() }) {
+                        Answer::Ability(o, k) if o == card && options.contains(&k) => {
+                            let before = game.clone();
+                            let o = game.obj_mut(card);
+                            o.adventurer = Some(full.clone());
+                            o.def = full.room[k].clone();
+                            o.room_cast = Some(k);
+                            if !cast_free(game, d, seat, card) {
+                                *game = before;
+                            }
+                        }
+                        Answer::Stop => return false,
+                        _ => {}
+                    }
+                }
                 if d.stopped() {
                     return false;
                 }
@@ -17628,10 +17711,12 @@ fn manifest(game: &mut Game, d: &mut dyn Decider, seat: Seat, cards: &[ObjId], c
     let mut out = Vec::new();
     for &c in cards {
         let full = game.obj(c).def.clone();
-        let def = full.face_down(if cloak { crate::card::FaceDown::Cloak } else { crate::card::FaceDown::Manifest });
+        let how = if cloak { crate::card::FaceDown::Cloak } else { crate::card::FaceDown::Manifest };
+        let def = full.face_down(how);
         let o = game.obj_mut(c);
         o.face_up = Some(full);
         o.face_down = true;
+        o.face_down_as = Some(how);
         o.def = Arc::new(def);
         enter_battlefield(game, d, c, seat, false);
         if game.obj(c).zone == Zone::Battlefield {

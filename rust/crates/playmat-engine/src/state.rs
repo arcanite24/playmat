@@ -139,6 +139,8 @@ pub struct Obj {
     /// creature dying in the same combat)
     pub lki_def: Option<Arc<CardDef>>,
     pub face_down: bool,
+    /// how it came to be face down: the name and image its views show (`BecomesFaceDownCreatureEffect.FaceDownType`)
+    pub face_down_as: Option<crate::card::FaceDown>,
     /// face down (cast with morph or disguise, manifested, cloaked) or prototyped: the card it is, while `def` is the
     /// 2/2 face-down creature (`CardDef::face_down`) or the prototype; its card again when it's turned face up or
     /// leaves the stack or the battlefield
@@ -1150,6 +1152,7 @@ impl Game {
             lki_attached_to: None,
             lki_def: None,
             face_down: false,
+            face_down_as: None,
             face_up: None,
             attacking: None,
             attacking_pw: None,
@@ -1759,7 +1762,9 @@ impl Game {
                     })
                     .map(|s| self.obj(s).attached_key)
                     .min();
-                if let Some(k) = given.filter(|_| o.land_type_base.as_ref().is_some_and(|(b, _, _)| !b.abilities.contains(a))) {
+                if let Some(k) =
+                    given.filter(|_| o.land_type_base.as_ref().is_some_and(|(b, _, _)| !b.abilities.contains(a)))
+                {
                     return k;
                 }
             }
@@ -2790,6 +2795,19 @@ impl Game {
             && zone == Zone::Graveyard
             && self.obj(id).def.abilities.iter().any(|a| matches!(a, AbilityDef::MadnessAbility { .. }));
         let zone = if madness { Zone::Exile } else { zone };
+        // a disturb card's back face's "if this would be put into a graveyard from anywhere, exile it instead": the
+        // back face's, on the battlefield or the stack; Java's card in a hand or library has both faces' abilities,
+        // so it applies there too (Galedrifter discarded is exiled; dying as itself, it isn't)
+        let disturb_exile =
+            |d: &CardDef| d.abilities.iter().any(|a| matches!(a, AbilityDef::DisturbExileAbility { .. }));
+        let zone = if zone == Zone::Graveyard
+            && (disturb_exile(&self.obj(id).def)
+                || (from != Zone::Battlefield && self.obj(id).def.transform_back.as_deref().is_some_and(disturb_exile)))
+        {
+            Zone::Exile
+        } else {
+            zone
+        };
         self.obj_mut(id).flashback = false;
         if !(from == Zone::Stack && zone == Zone::Battlefield) {
             self.obj_mut(id).escaped = false;
@@ -3154,6 +3172,7 @@ impl Game {
         self.remove_from_zone(id);
         // a transformed permanent's front, its card again after the effects that changed its back are undone
         let mut left_front = None;
+        let mut left_face_up = None;
         {
             let o = self.obj_mut(id);
             o.toughness_lki = pt_lki.map(|p| p.1);
@@ -3162,7 +3181,8 @@ impl Game {
             // the battlefield)
             if (from == Zone::Stack && zone != Zone::Battlefield) || from == Zone::Battlefield {
                 if let Some(def) = o.face_up.take() {
-                    o.def = def;
+                    o.def = def.clone();
+                    left_face_up = Some(def);
                 }
                 o.face_down = false;
             }
@@ -3267,6 +3287,10 @@ impl Game {
                 }
                 // (Aetherwing crewed: its back as it was before it became a creature)
                 if let Some(def) = left_front.take() {
+                    o.def = def;
+                }
+                // a face-down one's card, whatever was given to its face-down 2/2 (backup's ability)
+                if let Some(def) = left_face_up.take() {
                     o.def = def;
                 }
                 o.cast_x = 0;

@@ -67,7 +67,178 @@ pub fn game_view(game: &Game, seat: Seat, names: &[&str]) -> Value {
         v["canPlayObjects"] = can_play_objects(game, seat);
     }
     face_down_exiles(game, seat, &mut v);
+    face_down_objects(game, seat, &mut v);
     v
+}
+
+/// A face-down permanent or spell (`BecomesFaceDownCreatureEffect`, `CardView` with `showFaceDown`): to everyone a
+/// nameless 2/2 named for how it got there ("Morph", "Manifest"…), with only the face-down rules; to its controller
+/// (not in the combat view) "Morph: Name", the card as its other face (and, a permanent, as its original)
+fn face_down_objects(game: &Game, seat: Seat, v: &mut Value) {
+    let ids: Vec<ObjId> = game
+        .battlefield
+        .iter()
+        .copied()
+        .chain(game.stack.iter().map(|t| t.card))
+        .filter(|c| {
+            let o = game.obj(*c);
+            o.face_down && matches!(o.zone, Zone::Battlefield | Zone::Stack) && o.face_up.is_some()
+        })
+        .collect();
+    for id in ids {
+        let o = game.obj(id);
+        let Some(card) = o.face_up.clone() else { continue };
+        let kind = o.face_down_as.unwrap_or(crate::card::FaceDown::Morph).name();
+        let r = reference(game, id);
+        let on_stack = o.zone == Zone::Stack;
+        // the card as it is, for its controller: its view with the face-down def swapped back
+        let mut real = game.clone();
+        real.obj_mut(id).def = card.clone();
+        // (a spell's other face has no id: "?"; a permanent's is the permanent's)
+        let face = card_view(&real, id, if on_stack { "?" } else { &r }, false);
+        let original = card_view(&real, id, &r, false);
+        // the face-down rules: its morph or disguise's "becomes a 2/2", then (a permanent) the infos
+        let mut rules: Vec<Value> = Vec::new();
+        if card.abilities.iter().any(|a| matches!(a, crate::card::AbilityDef::MorphAbility { .. })) {
+            rules.push(json!(
+                "{this} becomes a 2/2 face-down creature, with no text, no name, no subtypes, and no mana cost."
+            ));
+        }
+        if !on_stack {
+            for a in &o.def.abilities {
+                if let crate::card::AbilityDef::SimpleStaticAbility { effects, rule } = a {
+                    if effects.is_empty() && !rule.is_empty() {
+                        rules.push(json!(rule));
+                    }
+                }
+            }
+        }
+        let patch = |x: &mut Value, own: bool| {
+            let Value::Object(m) = x else { return };
+            let name = if own { format!("{kind}: {}", card.name) } else { kind.to_string() };
+            let none = json!({"white": false, "blue": false, "black": false, "red": false, "green": false});
+            for (k, val) in [
+                ("name", json!(name)),
+                ("displayName", json!(name)),
+                ("displayFullName", json!(name)),
+                ("alternateName", json!(if own { card.name.as_str() } else { kind })),
+                ("rules", Value::Array(rules.clone())),
+                ("cardTypes", json!(["CREATURE"])),
+                ("subTypes", json!([])),
+                ("superTypes", json!([])),
+                ("color", none.clone()),
+                ("frameColor", none),
+                ("frameStyle", json!("M15_NORMAL")),
+                ("manaCostLeftStr", json!([])),
+                ("manaCostRightStr", json!([])),
+                ("manaValue", json!(0)),
+                ("rarity", json!("SPECIAL")),
+                ("imageFileName", json!(kind)),
+                // (Java picks among the images from the object's UUID)
+                ("imageNumber", json!(1)),
+                ("expansionSetCode", json!("XMAGE")),
+                ("cardNumber", json!("0")),
+                ("usesVariousArt", json!(false)),
+                ("faceDown", json!(true)),
+                ("transformable", json!(own)),
+                ("isToken", json!(false)),
+            ] {
+                m.insert(k.into(), val);
+            }
+            for k in ["originalPower", "originalToughness", "originalColorIdentity"] {
+                m.remove(k);
+            }
+            if own {
+                m.insert("secondCardFace".into(), face.clone());
+            } else {
+                m.remove("secondCardFace");
+            }
+            // a face-down spell is shown as a card, not a spell (`CardView(Spell)` of its face-down card)
+            if on_stack {
+                for (k, val) in [
+                    ("artRect", json!("NORMAL")),
+                    ("backFace", json!(false)),
+                    ("canAttack", json!(false)),
+                    ("canBlock", json!(false)),
+                    ("controlledByOwner", json!(o.controller == o.owner)),
+                    ("defense", json!("")),
+                    ("extraDeckCard", json!(false)),
+                    ("flipCard", json!(false)),
+                    ("hideInfo", json!(false)),
+                    ("inViewerOnly", json!(false)),
+                    ("isAbility", json!(false)),
+                    ("isChoosable", json!(false)),
+                    ("isDoubleFacedCard", json!(false)),
+                    ("isSelected", json!(false)),
+                    ("isSplitCard", json!(false)),
+                    ("loyalty", json!("")),
+                    ("originalIsCopy", json!(false)),
+                    (
+                        "playableStats",
+                        json!({"basicCastAbilities": [], "basicManaAbilities": [], "basicPlayAbilities": [], "other": []}),
+                    ),
+                    ("power", json!("2")),
+                    ("rotate", json!(false)),
+                    ("startingDefense", json!("")),
+                    ("startingLoyalty", json!("")),
+                    ("toughness", json!("2")),
+                    ("transformed", json!(false)),
+                ] {
+                    m.entry(k.to_string()).or_insert(val);
+                }
+                m.insert("mageObjectType".into(), json!("CARD"));
+            }
+            if !on_stack {
+                let how = o.face_down_as.unwrap_or(crate::card::FaceDown::Morph);
+                // a manifested or cloaked card with morph (disguise) is morphed (disguised) too, to be turned up
+                // for that cost (`ManifestEffect`'s `setMorphed`, `setDisguised`)
+                let morph = card.abilities.iter().find_map(|a| match a {
+                    crate::card::AbilityDef::MorphAbility { disguise, .. } => Some(*disguise),
+                    _ => None,
+                });
+                for (k, f) in [
+                    ("morphed", crate::card::FaceDown::Morph),
+                    ("disguised", crate::card::FaceDown::Disguise),
+                    ("manifested", crate::card::FaceDown::Manifest),
+                    ("cloaked", crate::card::FaceDown::Cloak),
+                ] {
+                    let also = match (f, morph) {
+                        (crate::card::FaceDown::Morph, Some(false)) | (crate::card::FaceDown::Disguise, Some(true)) => {
+                            matches!(how, crate::card::FaceDown::Manifest | crate::card::FaceDown::Cloak)
+                        }
+                        _ => false,
+                    };
+                    m.insert(k.into(), json!(how == f || also));
+                }
+                if own {
+                    m.insert("original".into(), original.clone());
+                } else {
+                    m.remove("original");
+                }
+            }
+        };
+        let own = o.controller == seat;
+        if let Some(Value::Array(players)) = v.get_mut("players") {
+            for p in players {
+                if let Some(x) = p.get_mut("battlefield").and_then(|b| b.get_mut(&r)) {
+                    patch(x, own);
+                }
+            }
+        }
+        if let Some(x) = v.get_mut("stack").and_then(|s| s.get_mut(&r)) {
+            patch(x, own);
+        }
+        // the combat view is everyone's
+        if let Some(Value::Array(groups)) = v.get_mut("combat") {
+            for g in groups {
+                for side in ["attackers", "blockers"] {
+                    if let Some(x) = g.get_mut(side).and_then(|s| s.get_mut(&r)) {
+                        patch(x, false);
+                    }
+                }
+            }
+        }
+    }
 }
 
 const FORETOLD: &str = r#"{"rules":[],"power":"","toughness":"","loyalty":"","defense":"","startingLoyalty":"","startingDefense":"","cardTypes":[],"subTypes":[],"superTypes":[],"color":{"white":false,"blue":false,"black":false,"red":false,"green":false},"frameColor":{"white":false,"blue":false,"black":false,"red":false,"green":false},"frameStyle":"M15_NORMAL","manaCostLeftStr":[],"manaCostRightStr":[],"manaValue":0,"rarity":"SPECIAL","mageObjectType":"CARD","isAbility":false,"isToken":false,"imageFileName":"Foretell","imageNumber":1,"extraDeckCard":false,"transformable":false,"transformed":false,"backFace":false,"flipCard":false,"faceDown":true,"isSplitCard":false,"isDoubleFacedCard":false,"artRect":"NORMAL","paid":false,"controlledByOwner":true,"rotate":false,"hideInfo":false,"canAttack":false,"canBlock":false,"inViewerOnly":false,"cardIcons":[],"originalIsCopy":false,"expansionSetCode":"XMAGE","cardNumber":"0","usesVariousArt":false,"gameObject":true,"isChoosable":false,"isSelected":false,"playableStats":{"basicManaAbilities":[],"basicPlayAbilities":[],"basicCastAbilities":[],"other":[]}}"#;
@@ -172,6 +343,62 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
             }
             PlayKind::Other if matches!(o.def.abilities.get(k), Some(crate::card::AbilityDef::WarpAbility { .. })) => {
                 format!("Cast {} with Warp", name)
+            }
+            // an alternative cast's spell ability is named for its cast mode (`SpellAbility.setSpellName`: "Cast
+            // Name using Morph") or its own card name (`AwakenAbility`'s "Name with awaken")
+            PlayKind::Other
+                if matches!(
+                    o.def.abilities.get(k),
+                    Some(
+                        crate::card::AbilityDef::MorphAbility { .. }
+                            | crate::card::AbilityDef::PrototypeAbility { .. }
+                            | crate::card::AbilityDef::DisturbAbility { .. }
+                            | crate::card::AbilityDef::AwakenAbility { .. }
+                            | crate::card::AbilityDef::SneakAbility { .. }
+                    )
+                ) =>
+            {
+                match o.def.abilities.get(k) {
+                    Some(crate::card::AbilityDef::MorphAbility { disguise: true, .. }) => {
+                        format!("Cast {} using Disguise", name)
+                    }
+                    Some(crate::card::AbilityDef::MorphAbility { .. }) => format!("Cast {} using Morph", name),
+                    Some(crate::card::AbilityDef::PrototypeAbility { .. }) => format!("Cast {} using Prototype", name),
+                    // (the back's spell ability, with the back's name)
+                    Some(crate::card::AbilityDef::DisturbAbility { .. }) => format!(
+                        "Cast {} using Disturb",
+                        o.def.transform_back.as_ref().map_or(name.as_str(), |b| b.name.as_str())
+                    ),
+                    Some(crate::card::AbilityDef::AwakenAbility { .. }) => format!("Cast {} with awaken", name),
+                    _ => format!("Cast {} with Sneak", name),
+                }
+            }
+            // `TurnFaceUpAbility`'s rule: "{costs}: Turn this face-down permanent face up."
+            PlayKind::Other
+                if matches!(o.def.abilities.get(k), Some(crate::card::AbilityDef::TurnFaceUpAbility { .. })) =>
+            {
+                let mega = matches!(
+                    o.def.abilities.get(k),
+                    Some(crate::card::AbilityDef::TurnFaceUpAbility { megamorph: true, .. })
+                );
+                let costs = match o.def.abilities.get(k) {
+                    Some(crate::card::AbilityDef::TurnFaceUpAbility { costs, .. }) => costs
+                        .iter()
+                        .map(|c| match c {
+                            crate::card::CostDef::ManaCost { cost } => Some(cost.clone()),
+                            _ => None,
+                        })
+                        .collect::<Option<Vec<String>>>(),
+                    _ => None,
+                };
+                match costs {
+                    Some(c) => format!(
+                        "{}: Turn this face-down permanent face up{}.",
+                        c.concat(),
+                        if mega { " and put a +1/+1 counter on it" } else { "" }
+                    ),
+                    None => text.unwrap_or_default(),
+                }
             }
             PlayKind::Land => text.unwrap_or_else(|| format!("Play {}", name)),
             _ => text.unwrap_or_default(),
