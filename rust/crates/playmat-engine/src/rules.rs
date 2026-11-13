@@ -5713,7 +5713,10 @@ fn activate_mana_paying(
         AbilityDef::ConditionalManaAbility { color: None, colorless: false, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }
     );
-    if k == ManaKind::AnyColor || conditional_any {
+    if k == ManaKind::AnyColor
+        || conditional_any
+        || matches!(game.obj(id).def.abilities[i], AbilityDef::AnyColorManaAbility { .. })
+    {
         let n = match &game.obj(id).def.abilities[i] {
             AbilityDef::AnyColorManaAbility { amount, .. } | AbilityDef::ConditionalManaAbility { amount, .. } => {
                 *amount

@@ -3131,6 +3131,8 @@ impl AbilityDef {
     /// what `ManaUtil.tryToAutoPay` sees in a mana ability
     pub fn mana_kind(&self) -> ManaKind {
         match self {
+            // "two mana of any one color" is a `SimpleManaAbility` with an `AddManaOfAnyColorEffect` (Gift of Paradise)
+            AbilityDef::AnyColorManaAbility { amount, .. } if *amount != 1 => ManaKind::Other,
             AbilityDef::AnyColorManaAbility { .. } => ManaKind::AnyColor,
             AbilityDef::ActivateIfConditionManaAbility { .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }
