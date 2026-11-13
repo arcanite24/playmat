@@ -2329,6 +2329,22 @@ impl Game {
                     }
                     types.len() as i32
                 }
+                Value::CardTypesInOpponentsGraveyards => {
+                    let mut types: Vec<CardType> = Vec::new();
+                    for (seat, p) in self.players.iter().enumerate() {
+                        if seat == you {
+                            continue;
+                        }
+                        for c in p.graveyard.iter() {
+                            for t in &self.obj(*c).def.types {
+                                if !types.contains(t) {
+                                    types.push(*t);
+                                }
+                            }
+                        }
+                    }
+                    types.len() as i32
+                }
                 Value::GreatestManaValue { filter } => self
                     .battlefield
                     .iter()

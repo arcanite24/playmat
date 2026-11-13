@@ -1407,6 +1407,8 @@ pub enum Value {
     },
     /// card types among cards in all graveyards (`CardTypesInGraveyardCount.ALL`)
     CardTypesInGraveyards,
+    /// card types among cards in the controller's opponents' graveyards (`CardTypesInGraveyardCount.OPPONENTS`)
+    CardTypesInOpponentsGraveyards,
     /// cards exiled with the source while it's on the battlefield (`UnlicensedHearseValue`)
     ExiledWithSource,
     /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
