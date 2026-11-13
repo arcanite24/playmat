@@ -942,7 +942,7 @@ TARGET_CLASSES = {
 PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPlayerOrPlaneswalker', 'TargetOpponentOrPlaneswalker'}
 
 # chained calls that only change texts, hints or the AI's view
-TEXT_SETTERS = {'setText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
+TEXT_SETTERS = {'setText', 'withTextThatCard', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
                 'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier', 'withForceQuotes'}
 
@@ -1677,6 +1677,8 @@ class Translator:
             return {'class': 'AttacksIfAbleSourceEffect'}
         if expr.strip() == 'PlayFromGraveyardControllerEffect.playLands()':
             return {'class': 'PlayLandsFromGraveyardControllerEffect'}
+        if (e := self.zones_effect(expr)) is not None:
+            return e
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
             return obj
@@ -2356,6 +2358,88 @@ class Translator:
                 and args[2] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield'):
             return {'class': cls, 'power': self.amount(args[0]), 'toughness': self.amount(args[1]),
                     'duration': DURATIONS[args[2]], 'filter': self.filter(args[3]) if len(args) == 4 else [CREATURE]}
+        return None
+
+    def zones_effect(self, expr):
+        """Library, graveyard and exile effects (wave 2's zones-library bucket), with their builder setters; None
+        when the expression isn't one of them"""
+        x = canonical(self.strip_setters(expr))
+        # `ExileReturnBattlefieldNextEndStepTargetEffect()` and its setters (`withTextThatCard` is only text)
+        m = re.fullmatch(r'new ExileReturnBattlefieldNextEndStepTargetEffect\(\)((?:\.\w+\((?:true|false)\))*)', x)
+        if m:
+            sets = dict(re.findall(r'\.(\w+)\((true|false)\)', m.group(1)))
+            if set(sets) - {'withTextThatCard', 'withTapped', 'underYourControl'}:
+                raise Unsupported('effect ' + x)
+            return {'class': 'ExileReturnBattlefieldNextEndStepTargetEffect',
+                    'your_control': sets.get('underYourControl') == 'true', 'tapped': sets.get('withTapped') == 'true'}
+        m = re.fullmatch(r'new (\w+)\((.*)\)', x, re.S)
+        if not m or not balanced(x):
+            return None
+        cls, args = m.group(1), [a.strip() for a in split_args(m.group(2))] if m.group(2).strip() else []
+        if cls == 'ReturnSourceFromGraveyardToHandEffect' and not args:
+            return {'class': 'ReturnToHandSourceEffect', 'battlefield_only': False}
+        if cls == 'PutCardFromHandOntoBattlefieldEffect' and len(args) <= 4:
+            filt = self.filter(args[0]) if args else [{'p': 'permanent_card'}]
+            flags = [self.value('bool', a) for a in args[1:]]
+            if flags[:1] == [True]:
+                raise Unsupported('effect ' + x)
+            return {'class': cls, 'filter': filt, 'tapped': flags[1:2] == [True], 'attacking': flags[2:3] == [True]}
+        if cls == 'MillCardsEachPlayerEffect' and len(args) == 2:
+            who = {'TargetController.OPPONENT': 'opponent', 'TargetController.ANY': 'any',
+                   'TargetController.EACH_PLAYER': 'any'}.get(args[1])
+            if who is None:
+                raise Unsupported('effect ' + x)
+            return {'class': cls, 'amount': self.amount(args[0]), 'who': who}
+        if cls == 'DrawCardAllEffect' and len(args) in (1, 2):
+            who = {'TargetController.OPPONENT': 'opponent', 'TargetController.ANY': 'any'}.get(args[1] if len(args) == 2 else 'TargetController.ANY')
+            if who is None:
+                raise Unsupported('effect ' + x)
+            return {'class': cls, 'amount': self.amount(args[0]), 'who': who}
+        if cls == 'MillHalfLibraryTargetEffect' and len(args) == 1:
+            return {'class': cls, 'round_up': self.value('bool', args[0])}
+        if cls == 'PutOnTopOrBottomLibraryTargetEffect' and len(args) in (1, 2):
+            if len(args) == 2 and not re.fullmatch(r'\d+', args[0]):
+                raise Unsupported('effect ' + x)
+            self.value('bool', args[-1])
+            return {'class': cls, 'n': int(args[0]) if len(args) == 2 else 1}
+        if cls == 'SearchLibraryPutOnLibraryEffect' and len(args) == 2 and args[1] in ('true', 'false'):
+            filt, lo, hi = self.library_target(args[0])
+            return {'class': cls, 'filter': filt, 'min': lo, 'max': hi}
+        # `ExileThenReturnTargetEffect(yourControl, textThatCard[, putCards])`: the second is only text
+        if cls == 'ExileThenReturnTargetEffect' and len(args) in (2, 3) and args[0] in ('true', 'false') \
+                and args[1] in ('true', 'false'):
+            put = args[2] if len(args) == 3 else 'PutCards.BATTLEFIELD'
+            if put not in ('PutCards.BATTLEFIELD', 'PutCards.BATTLEFIELD_TAPPED'):
+                raise Unsupported('effect ' + x)
+            if args[0] == 'false' and put == 'PutCards.BATTLEFIELD':
+                return {'class': cls}
+            return {'class': 'ExileThenReturnUnderTargetEffect', 'your_control': args[0] == 'true',
+                    'tapped': put == 'PutCards.BATTLEFIELD_TAPPED'}
+        # `ExileAndReturnSourceEffect(putCards[, pronoun[, yourControl]])`
+        if cls == 'ExileAndReturnSourceEffect' and 1 <= len(args) <= 3 \
+                and args[0] in ('PutCards.BATTLEFIELD', 'PutCards.BATTLEFIELD_TAPPED', 'PutCards.BATTLEFIELD_TRANSFORMED') \
+                and (len(args) < 2 or args[1].startswith('Pronoun.')) and (len(args) < 3 or args[2] in ('true', 'false')):
+            return {'class': cls, 'your_control': len(args) == 3 and args[2] == 'true',
+                    'tapped': args[0] == 'PutCards.BATTLEFIELD_TAPPED',
+                    'transformed': args[0] == 'PutCards.BATTLEFIELD_TRANSFORMED'}
+        if cls == 'ShuffleIntoLibraryTargetEffect' and len(args) <= 1:
+            return {'class': cls, 'optional': bool(args) and self.value('bool', args[0])}
+        if cls == 'ExileAllEffect' and len(args) == 1:
+            return {'class': cls, 'filter': self.filter(args[0])}
+        if cls == 'ExileAttachedEffect' and not args:
+            return {'class': cls}
+        if cls == 'ExileCardYouChooseTargetOpponentEffect' and len(args) == 1:
+            return {'class': cls, 'filter': self.filter(args[0])}
+        # `ExileFromZoneTargetEffect(Zone.HAND, [filter, [amount,]] false)`
+        if cls == 'ExileFromZoneTargetEffect' and 2 <= len(args) <= 4 and args[0] == 'Zone.HAND' and args[-1] == 'false':
+            mid = args[1:-1]
+            if len(mid) == 2 and not re.fullmatch(r'\d+', mid[1]):
+                raise Unsupported('effect ' + x)
+            return {'class': 'ExileFromHandTargetEffect', 'filter': self.filter(mid[0]) if mid else [],
+                    'amount': int(mid[1]) if len(mid) == 2 else 1}
+        # `DiscardEachPlayerEffect(amount, false, who)`
+        if cls == 'DiscardEachPlayerEffect' and len(args) == 3 and args[1] == 'false' and args[2] in TARGET_CONTROLLERS:
+            return {'class': cls, 'amount': self.amount(args[0]), 'who': TARGET_CONTROLLERS[args[2]]}
         return None
 
     def library_target(self, expr):

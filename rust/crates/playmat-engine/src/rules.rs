@@ -6397,7 +6397,8 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
                 .iter()
                 // a permanent, the spell that set it off (Kumano's "your next creature spell"), or a card that died
                 .filter(|(o, z)| {
-                    matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Stack | Zone::Graveyard)
+                    // (or a card exiled until the next end step)
+                    matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Stack | Zone::Graveyard | Zone::Exile)
                         && game.obj(*o).zcc == *z
                 })
                 .map(|(o, _)| Target::Obj(*o))
@@ -9413,6 +9414,264 @@ fn apply_each_effect(
                         let owner = game.obj(o).owner;
                         enter_battlefield(game, d, o, owner, false);
                     }
+                }
+            }
+            EffectDef::ExileThenReturnUnderTargetEffect { your_control, tapped } => {
+                // `ExileThenReturnTargetEffect`: exiled together, then each card returned in turn (`PutCards.moveCard`)
+                let gone: Vec<ObjId> =
+                    objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect();
+                for o in &gone {
+                    game.move_to(*o, Zone::Exile);
+                }
+                for o in gone {
+                    if game.obj(o).zone == Zone::Exile && !game.obj(o).token {
+                        let to = if *your_control { controller } else { game.obj(o).owner };
+                        let how = if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
+                        if !put_cards(game, d, to, &[o], how) {
+                            return;
+                        }
+                    }
+                }
+            }
+            EffectDef::PutCardFromHandOntoBattlefieldEffect { filter, tapped, attacking } => {
+                // asked first, whatever the hand holds
+                let Some(yes) = choose_use(game, d, controller, "Put a card from your hand onto the battlefield?") else {
+                    return;
+                };
+                if !yes {
+                    continue;
+                }
+                let hand = game.player(controller).hand.clone();
+                let possible: Vec<ObjId> =
+                    hand.iter().copied().filter(|c| game.filter_matches(filter, controller, Some(source.0), *c)).collect();
+                if possible.is_empty() {
+                    continue;
+                }
+                let rule = item_rule(game, item);
+                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, &rule) else { return };
+                let Some(&c) = chosen.first() else { continue };
+                let how = if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
+                if !put_cards(game, d, controller, &[c], how) {
+                    return;
+                }
+                if *attacking && game.obj(c).zone == Zone::Battlefield && game.obj(c).is(CardType::Creature) {
+                    let defender = game.opponent(controller);
+                    let Some(pw) = choose_defender(game, d, controller, defender) else { return };
+                    let o = game.obj_mut(c);
+                    o.attacking = Some(defender);
+                    o.attacking_pw = pw;
+                    join_combat(game, c);
+                }
+            }
+            EffectDef::MillCardsEachPlayerEffect { amount, who } => {
+                for k in 0..game.seats() {
+                    let p = (controller + k) % game.seats();
+                    if !Game::whose(who, controller, p) {
+                        continue;
+                    }
+                    let n = v!(amount).max(0) as usize;
+                    let top: Vec<ObjId> = game.player(p).library.iter().take(n).copied().collect();
+                    note(game, EventKind::Milled, Some(p), None, None, top.len() as i32);
+                    for c in top {
+                        game.move_to(c, Zone::Graveyard);
+                    }
+                }
+            }
+            EffectDef::MillHalfLibraryTargetEffect { round_up } => {
+                for p in &players {
+                    let count = game.player(*p).library.len();
+                    let n = count / 2 + if *round_up { count % 2 } else { 0 };
+                    let top: Vec<ObjId> = game.player(*p).library.iter().take(n).copied().collect();
+                    note(game, EventKind::Milled, Some(*p), None, None, top.len() as i32);
+                    for c in top {
+                        game.move_to(c, Zone::Graveyard);
+                    }
+                }
+            }
+            EffectDef::PutOnTopOrBottomLibraryTargetEffect { n } => {
+                let Some(Target::Obj(first)) = target else { continue };
+                let owner = game.obj(first).owner;
+                let message = "Put the targeted object on the top or bottom of your library?";
+                let Some(top) = choose_use(game, d, owner, message) else { return };
+                let then = if top && *n > 1 {
+                    EffectDef::PutIntoLibraryNFromTopTargetEffect { n: *n }
+                } else {
+                    EffectDef::PutOnLibraryTargetEffect { top }
+                };
+                apply_each_effect(game, d, item, std::slice::from_ref(&then), legal, source);
+            }
+            EffectDef::SearchLibraryPutOnLibraryEffect { filter, min, max } => {
+                let Some(found) = search_library(game, d, controller, filter, *min, *max, source.0) else { return };
+                let mut library = game.player(controller).library.clone();
+                game.rng.shuffle(&mut library);
+                game.player_mut(controller).library = library;
+                // (`putCardsOnTopOfLibrary`: in any order when they were revealed)
+                if !put_on_library(game, d, controller, &found, true, true) {
+                    return;
+                }
+            }
+            EffectDef::ExileReturnBattlefieldNextEndStepTargetEffect { your_control, tapped } => {
+                let gone: Vec<ObjId> =
+                    objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect();
+                if gone.is_empty() {
+                    continue;
+                }
+                for o in &gone {
+                    game.move_to(*o, Zone::Exile);
+                }
+                // the cards that left (a token ceased to exist)
+                let fixed: Vec<(ObjId, u32)> = gone
+                    .iter()
+                    .filter(|o| game.obj(**o).zone == Zone::Exile && !game.obj(**o).token)
+                    .map(|o| (*o, game.obj(*o).zcc))
+                    .collect();
+                let delayed = Delayed {
+                    rule: "At the beginning of the next end step, return the exiled card to the battlefield.".into(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::ReturnToBattlefieldTargetEffect { your_control: *your_control, tapped: *tapped }],
+                    source_zcc: source.1,
+                    fixed,
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.at_next_end_step
+                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+            }
+            EffectDef::ReturnToBattlefieldTargetEffect { your_control, tapped } => {
+                let cards: Vec<ObjId> = objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Exile).collect();
+                if cards.is_empty() {
+                    continue;
+                }
+                let how = if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
+                let owner = game.obj(cards[0]).owner;
+                if *your_control || cards.iter().all(|c| game.obj(*c).owner == owner) {
+                    let to = if *your_control { controller } else { owner };
+                    if !put_cards(game, d, to, &cards, how) {
+                        return;
+                    }
+                } else {
+                    for c in cards {
+                        let to = game.obj(c).owner;
+                        if !put_cards(game, d, to, &[c], how) {
+                            return;
+                        }
+                    }
+                }
+            }
+            EffectDef::ExileAndReturnSourceEffect { your_control, tapped, transformed } => {
+                let (o, zcc) = source;
+                if game.obj(o).zone != Zone::Battlefield || game.obj(o).zcc != zcc {
+                    continue;
+                }
+                let owner = game.obj(o).owner;
+                game.move_to(o, Zone::Exile);
+                if game.obj(o).zone == Zone::Exile && !game.obj(o).token {
+                    let to = if *your_control { controller } else { owner };
+                    // (as `ExileSagaAndReturnTransformedEffect`: a card with no back face stays in exile)
+                    if *transformed {
+                        if let Some(back) = game.obj(o).def.transform_back.clone() {
+                            let ob = game.obj_mut(o);
+                            ob.front = Some(std::mem::replace(&mut ob.def, back));
+                            enter_battlefield(game, d, o, to, false);
+                        }
+                        continue;
+                    }
+                    let how = if *tapped { crate::card::PutCards::BattlefieldTapped } else { crate::card::PutCards::Battlefield };
+                    if !put_cards(game, d, to, &[o], how) {
+                        return;
+                    }
+                }
+            }
+            EffectDef::ShuffleIntoLibraryTargetEffect { optional } => {
+                let cards: Vec<ObjId> =
+                    objs.iter().copied().filter(|o| matches!(game.obj(*o).zone, Zone::Battlefield | Zone::Graveyard | Zone::Stack | Zone::Exile | Zone::Hand)).collect();
+                if cards.is_empty() {
+                    continue;
+                }
+                if *optional {
+                    let message = format!("Shuffle the target card{} into your library?", if cards.len() > 1 { "s" } else { "" });
+                    match choose_use(game, d, controller, &message) {
+                        Some(true) => {}
+                        Some(false) => continue,
+                        None => return,
+                    }
+                }
+                // each owner shuffles the cards they own (`shuffleCardsToLibrary`)
+                let mut owners: Vec<Seat> = Vec::new();
+                for c in &cards {
+                    let owner = game.obj(*c).owner;
+                    if !owners.contains(&owner) {
+                        owners.push(owner);
+                    }
+                }
+                for owner in owners {
+                    let theirs: Vec<ObjId> = cards.iter().copied().filter(|c| game.obj(*c).owner == owner).collect();
+                    for c in theirs {
+                        if game.obj(c).zone == Zone::Stack {
+                            Arc::make_mut(&mut game.stack).retain(|i| i.card != c || i.ability.is_some());
+                        }
+                        to_library(game, c, true);
+                    }
+                    let mut library = game.player(owner).library.clone();
+                    game.rng.shuffle(&mut library);
+                    game.player_mut(owner).library = library;
+                }
+            }
+            EffectDef::ExileAllEffect { filter } => {
+                for o in matching(game, filter, controller, source.0) {
+                    game.move_to(o, Zone::Exile);
+                }
+            }
+            EffectDef::ExileAttachedEffect => {
+                if let Some((o, zcc)) = game.obj(source.0).attached_to {
+                    if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                        game.move_to(o, Zone::Exile);
+                    }
+                }
+            }
+            EffectDef::DrawCardAllEffect { amount, who } => {
+                for k in 0..game.seats() {
+                    let p = (controller + k) % game.seats();
+                    if Game::whose(who, controller, p) {
+                        let n = v!(amount).max(0) as usize;
+                        draw(game, p, n);
+                    }
+                }
+            }
+            EffectDef::ExileCardYouChooseTargetOpponentEffect { filter } => {
+                let Some(Target::Player(p)) = target else { continue };
+                let hand = game.player(p).hand.clone();
+                if !hand.is_empty() {
+                    let zcc = game.obj(source.0).zcc;
+                    let cards = hand.iter().map(|c| (*c, Zone::Hand)).collect();
+                    game.revealed.push(crate::state::Revealed { source: source.0, zcc, paren: true, cards });
+                }
+                let possible: Vec<ObjId> =
+                    hand.iter().copied().filter(|c| game.filter_matches(filter, controller, Some(source.0), *c)).collect();
+                if possible.is_empty() {
+                    continue;
+                }
+                let rule = item_rule(game, item);
+                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 1, 1, &rule) else { return };
+                for c in chosen {
+                    game.move_to(c, Zone::Exile);
+                }
+            }
+            EffectDef::ExileFromHandTargetEffect { filter, amount } => {
+                let Some(Target::Player(p)) = target else { continue };
+                let hand = game.player(p).hand.clone();
+                let possible: Vec<ObjId> =
+                    hand.iter().copied().filter(|c| game.filter_matches(filter, p, Some(source.0), *c)).collect();
+                let n = (*amount).min(possible.len());
+                if n == 0 {
+                    continue;
+                }
+                let rule = item_rule(game, item);
+                let Some(chosen) = choose_cards(game, d, p, &hand, &possible, n, n, &rule) else { return };
+                for c in chosen {
+                    game.move_to(c, Zone::Exile);
                 }
             }
             EffectDef::ReturnToHandTargetEffect => {
@@ -12479,6 +12738,20 @@ fn count(game: &Game, name: &str, you: Seat) -> i32 {
         "creatures_you_control" => mine(CardType::Creature),
         "lands_you_control" => mine(CardType::Land),
         _ => 0,
+    }
+}
+
+/// `HumanPlayer.chooseUse`: ASK until a yes or a no. None: the decider stopped.
+fn choose_use(game: &mut Game, d: &mut dyn Decider, seat: Seat, message: &str) -> Option<bool> {
+    loop {
+        match ask(game, d, seat, &Query::YesNo { message: message.into() }) {
+            Answer::Bool(b) => return Some(b),
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
+        }
     }
 }
 
