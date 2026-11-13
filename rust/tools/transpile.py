@@ -1068,7 +1068,7 @@ class Translator:
         # the life a "whenever you gain life" trigger saw is its X (The Ooze: the +1/+1 counters on what left)
         if arg in ('GetXValue.instance', 'ManacostVariableValue.REGULAR', 'ManacostVariableValue.ETB',
                    'SavedGainedLifeValue.MUCH', 'TheOozeValue.instance', 'SavedDamageValue.MUCH', 'SavedDamageValue.MANY',
-                   'SavedLifeLossValue.MUCH'):
+                   'SavedLifeLossValue.MUCH', 'SavedDiscardValue.MANY', 'SavedDiscardValue.MUCH'):
             return {'v': 'x'}
         if (m := re.fullmatch(r'new CountersSourceCount\((CounterType\.\w+)\)', arg)) and m.group(1) in COUNTERS:
             return {'v': 'source_counters', 'counter': COUNTERS[m.group(1)]}
@@ -3166,6 +3166,39 @@ class Translator:
     def wave2_triggers(self, cls, args, flag, out):
         """More trigger classes (wave 2), read by shape; None if `cls` isn't one of them"""
         n = len(args)
+        # "whenever a creature you control deals combat damage to a player": the permanent (PERMANENT), its
+        # controller (PLAYER) or, with affectsDefendingPlayer, the damaged player is the pointer; X is the damage
+        if cls == 'DealsDamageToAPlayerAllTriggeredAbility' and n in (5, 6, 7) and not args[0].startswith('Zone.') \
+                and args[4] == 'true':
+            pointer = args[3]
+            damaged = n >= 6 and args[5] == 'true'
+            who = 'opponent' if n == 7 and args[6] == 'TargetController.OPPONENT' else ''
+            if n == 7 and args[6] not in ('TargetController.OPPONENT', 'TargetController.ANY'):
+                raise Unsupported(cls + ' ' + args[6])
+            if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+                raise Unsupported(cls + ' ' + pointer)
+            on = {'e': 'combat_damage_to_player_all', 'filter': self.filter(args[1])}
+            if who:
+                on['who'] = who
+            if damaged:
+                on['damaged'] = True
+            a = out(on, args[0], flag(args[2]), pointer == 'SetTargetPointer.PERMANENT' and not damaged)
+            if damaged or pointer == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
+        # "whenever a land card is put into your graveyard from anywhere"
+        if cls == 'PutCardIntoGraveFromAnywhereAllTriggeredAbility' and n in (3, 4, 5) \
+                and (n < 5 or args[4] == 'SetTargetPointer.NONE') and args[n - 1 if n < 5 else 3] in TARGET_CONTROLLERS:
+            tc = args[n - 1 if n < 5 else 3]
+            return out({'e': 'put_into_graveyard_all', 'filter': self.filter(args[2]) if n >= 4 else [],
+                        'who': TARGET_CONTROLLERS[tc]}, args[0], flag(args[1]))
+        # "whenever you discard one or more cards": once per discard, X the cards of the filter
+        if cls == 'DiscardOneOrMoreCardsTriggeredAbility' and n in (1, 2, 4):
+            if n == 4 and args[0] != 'Zone.BATTLEFIELD':
+                raise Unsupported(cls + ' ' + args[0])
+            filt = self.filter(args[3]) if n == 4 else []
+            return out({'e': 'discards_one_or_more', 'filter': filt}, args[1] if n == 4 else args[0],
+                       n > 1 and flag(args[2] if n == 4 else args[1]))
         if cls == 'FirstSpellOpponentsTurnTriggeredAbility' and n == 2:
             return out({'e': 'first_spell_opponents_turn'}, args[0], flag(args[1]))
         # "when this dies, return it …": its target is the card in the graveyard
@@ -4107,6 +4140,7 @@ def ability_statement(t, st, added):
         target = t.vars[m.group(1)]['targets'][0]
         target['filter'] = [dict(p) for p in target['filter']] + [dict(OPPONENT)]
         t.vars[m.group(1)]['set_target_pointer'] = False
+        t.vars[m.group(1)].pop('set_target_pointer_player', None)
         t.vars[m.group(1)]['that_player_controls'] = True
         return True
     # "target card from that player's graveyard": in a duel, the opponent's graveyard
@@ -4720,6 +4754,25 @@ def token_classes(names):
     return sorted(out)
 
 
+def that_player_names(card):
+    """`ThatPlayerControlsTargetAdjuster` names the target after its filter's message, "(controlled by B)" added:
+    when the rule doesn't say "that player controls", that message is the card's filter whose text the rule has"""
+    def walk(x):
+        if isinstance(x, dict):
+            if x.get('that_player_controls') and 'that player controls' not in x.get('rule', ''):
+                msgs = [m for m in re.findall(r'new Filter\w*\("([^"]+)"', card_source(card.get('name')))
+                        if 'target ' + m in x.get('rule', '')]
+                if not msgs:
+                    raise Unsupported('a that-player target without its name')
+                x['that_player_name'] = max(msgs, key=len)
+            for v in x.values():
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(card)
+
+
 def granted_rules(card):
     """a granted ability without its own rule text: the quoted part of the granting ability's or spell's (a ward,
     "ward {N}"), wherever it is (a spell, a face, a token's ability); one it can't be read from blocks the card"""
@@ -4877,6 +4930,7 @@ def main():
             # a creature type chosen as a spell resolves: the engine asks only as a permanent enters (Crippling Fear)
             if 'ChooseCreatureTypeEffect' in json.dumps(card.get('spell')):
                 raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
+            that_player_names(card)
             # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
             if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
                 raise Unsupported('mana symbol ' + m.group(0))

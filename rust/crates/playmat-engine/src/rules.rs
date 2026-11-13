@@ -4351,6 +4351,10 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             return false;
         }
     }
+    // a discard cost's `DISCARDED_CARDS` came as it was paid
+    if !game.discarded.is_empty() {
+        game.discarded_cards();
+    }
     // `ACTIVATED_ABILITY`: "when you cycle this card" (`CycleTriggeredAbility`), with the cycling's X
     if matches!(def.abilities[index], AbilityDef::CyclingAbility { .. }) {
         let x = game.stack.last().map_or(0, |t| t.x);
@@ -4936,6 +4940,7 @@ fn discard(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32) -> Vec
     for c in &chosen {
         discard_card(game, seat, *c);
     }
+    game.discarded_cards();
     chosen
 }
 
@@ -10312,7 +10317,8 @@ fn apply_each_effect(
             }
             EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters, owner } => {
                 for o in &objs {
-                    if game.obj(*o).zone == Zone::Graveyard {
+                    // a token that died isn't a card to return (`game.getCard` finds none)
+                    if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).token {
                         let under = if *owner { game.obj(*o).owner } else { controller };
                         enter_battlefield(game, d, *o, under, false);
                         if let Some(c) = counters {
@@ -13688,6 +13694,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             let batch = std::mem::take(&mut game.batch_pending);
             game.pending.extend(batch);
         }
+        // a discard made elsewhere (a cost): its `DISCARDED_CARDS` once it's done
+        if !game.discarded.is_empty() {
+            game.discarded_cards();
+        }
         if game.exiled_batch || !game.left_graveyard.is_empty() {
             let exiled = std::mem::take(&mut game.exiled_batch);
             let left = std::mem::take(&mut game.left_graveyard);
@@ -14283,7 +14293,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| match t {
-                Trigger::CombatDamageToPlayerAll { filter } => g.filter_matches(filter, you, Some(src), source),
+                Trigger::CombatDamageToPlayerAll { filter, who, .. } => {
+                    Game::whose(who, you, p) && g.filter_matches(filter, you, Some(src), source)
+                }
                 Trigger::AttachedDealsDamageToPlayer { who, .. } => {
                     Game::whose(who, you, p) && g.attached(src) == Some(source)
                 }
@@ -14297,6 +14309,20 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 {
                     t.targets = vec![vec![Target::Player(p)]];
                     t.target_zcc = vec![vec![0]];
+                }
+                let all = match game.trigger_of(&t) {
+                    Some(Trigger::CombatDamageToPlayerAll { damaged, .. }) => Some(*damaged),
+                    _ => None,
+                };
+                if let Some(damaged) = all {
+                    if set_target_pointer(game, &t) {
+                        t.targets = vec![vec![Target::Obj(source)]];
+                        t.target_zcc = vec![vec![game.obj(source).zcc]];
+                    } else if set_target_pointer_player(game, &t) {
+                        let to = if damaged { p } else { game.obj(source).controller };
+                        t.targets = vec![vec![Target::Player(to)]];
+                        t.target_zcc = vec![vec![0]];
+                    }
                 }
                 t
             }));
@@ -15269,6 +15295,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         for id in chosen {
             discard_card(game, seat, id);
         }
+        game.discarded_cards();
     }
     if game.boosts.iter().any(|b| b.until_end_of_turn) {
         Arc::make_mut(&mut game.boosts).retain(|b| !b.until_end_of_turn);

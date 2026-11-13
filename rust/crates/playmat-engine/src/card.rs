@@ -528,6 +528,18 @@ pub enum Trigger {
         #[serde(default)]
         filter: Filter,
     },
+    /// a card of the filter is put into `who`'s graveyard from anywhere (`PutCardIntoGraveFromAnywhereAllTriggeredAbility`)
+    PutIntoGraveyardAll {
+        #[serde(default)]
+        filter: Filter,
+        who: String,
+    },
+    /// you discard one or more cards of the filter (`DiscardOneOrMoreCardsTriggeredAbility`, `DISCARDED_CARDS`): X is
+    /// how many
+    DiscardsOneOrMore {
+        #[serde(default)]
+        filter: Filter,
+    },
     /// the creature this is attached to deals (combat) damage to a player of `who` ("you", "opponent", "any")
     /// (`DealsDamageToAPlayerAttachedTriggeredAbility`); with a target pointer, at that player; the damage is its X
     AttachedDealsDamageToPlayer {
@@ -707,9 +719,15 @@ pub enum Trigger {
     CombatDamageToPlayer,
     /// this deals combat damage to a player or planeswalker (`DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility`)
     CombatDamageToPlayerOrPlaneswalker,
-    /// a permanent of the filter deals combat damage to a player
+    /// a permanent of the filter deals combat damage to a player (`DealsDamageToAPlayerAllTriggeredAbility`): `who`
+    /// is whose (empty: any player); a player pointer is the permanent's controller, or the damaged player when
+    /// `damaged`
     CombatDamageToPlayerAll {
         filter: Filter,
+        #[serde(default)]
+        who: String,
+        #[serde(default)]
+        damaged: bool,
     },
     /// one or more opponents are dealt noncombat damage (Master of Barbs)
     OpponentsDealtNoncombatDamage,
@@ -2695,6 +2713,9 @@ pub enum AbilityDef {
         /// the player, "(controlled by B)"
         #[serde(default)]
         that_player_controls: bool,
+        /// the target's name there when the rule doesn't say "that player controls" (its filter's message)
+        #[serde(default)]
+        that_player_name: Option<String>,
         rule: String,
     },
     EntersBattlefieldTappedAbility {
