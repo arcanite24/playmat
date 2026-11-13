@@ -173,6 +173,8 @@ pub struct Obj {
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
     /// a static "as long as …, it's a creature" applied: the card as it is without it
     pub becomes_base: Option<Arc<CardDef>>,
+    /// the Auras whose "enchanted … is a …" (`BecomesCreatureAttachedEffect`) `def` has, in timestamp order
+    pub becomes_auras: Vec<ObjId>,
     /// lands given basic land types by a static (Urborg): the land without them, and the types given
     pub land_type_base: Option<(Arc<CardDef>, Vec<String>, Vec<AbilityDef>)>,
     /// the creature type chosen as it entered (Cavern of Souls)
@@ -347,9 +349,12 @@ impl Obj {
 
     /// Its copiable values: what it's a copy of, or its card before other effects changed it
     pub fn copiable(&self) -> Arc<CardDef> {
+        // (an Aura's or a static's "is a …" isn't copiable: Frogify's creature is copied as it's printed)
         self.copied_def
             .clone()
             .or_else(|| self.printed_def.clone())
+            .or_else(|| self.until_end_of_turn_def.clone().filter(|_| self.becomes_base.is_none()))
+            .or_else(|| self.becomes_base.clone())
             .or_else(|| self.until_end_of_turn_def.clone())
             .unwrap_or_else(|| self.def.clone())
     }
@@ -443,6 +448,8 @@ pub struct Player {
     /// spells they cast this turn, and how many of them were instants or sorceries
     pub spells_cast: u32,
     pub instants_sorceries_cast: u32,
+    /// spells they cast last turn (`CastSpellLastTurnWatcher.getAmountOfSpellsCastOnPrevTurn`)
+    pub spells_cast_last_turn: u32,
     /// permanents sacrificed this turn (`PermanentsSacrificedWatcher`)
     pub sacrificed: u32,
     /// mana spent on spells this turn (`ExpendWatcher`)
@@ -949,8 +956,6 @@ pub struct Game {
     pub player_damage_batch: Vec<(ObjId, Seat, i32, bool)>,
     /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
     pub mana_batch: u64,
-    /// double-faced permanents whose triggers Java registered as they entered, in that order (`trigger_order`)
-    pub dfc_registered: u64,
     /// "opponents are dealt noncombat damage" sources that triggered, with the mana batch they triggered in
     pub noncombat_fired: Vec<(ObjId, u64)>,
     /// "one or more … enter" triggers since triggers were last checked, after the others (`ZONE_CHANGE_BATCH`)
@@ -1093,7 +1098,6 @@ impl Game {
             damaged_batch: Vec::new(),
             player_damage_batch: Vec::new(),
             mana_batch: 0,
-            dfc_registered: 0,
             noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
             exiled_batch: false,
@@ -1170,6 +1174,7 @@ impl Game {
             solved: false,
             until_end_of_turn_def: None,
             becomes_base: None,
+            becomes_auras: Vec::new(),
             land_type_base: None,
             chosen_type: None,
             info: Vec::new(),
@@ -1514,8 +1519,12 @@ impl Game {
         for g in self.grants.iter().filter(|g| g.target == id && g.zcc == o.zcc) {
             add(&g.ability, &mut out);
         }
+        let lost_at = self.abilities_lost_at(id);
         for src in self.battlefield.iter().chain(self.command.iter()) {
             let s = self.obj(*src);
+            if lost_at.is_some_and(|at| self.static_at(*src) < at) {
+                continue;
+            }
             for a in &s.def.abilities {
                 let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
                 for e in effects {
@@ -1581,15 +1590,50 @@ impl Game {
         if self.grants.iter().any(|g| g.target == id && g.zcc == o.zcc && g.ability == *ability) {
             return true;
         }
+        let lost_at = self.abilities_lost_at(id);
         self.battlefield.iter().chain(self.command.iter()).any(|src| {
             let s = self.obj(*src);
-            s.def.abilities.iter().any(|a| match a {
-                AbilityDef::SimpleStaticAbility { effects, .. } => {
-                    effects.iter().any(|e| self.static_gives(e, *src, s.controller, id, ability))
-                }
-                _ => false,
-            })
+            !lost_at.is_some_and(|at| self.static_at(*src) < at)
+                && s.def.abilities.iter().any(|a| match a {
+                    AbilityDef::SimpleStaticAbility { effects, .. } => {
+                        effects.iter().any(|e| self.static_gives(e, *src, s.controller, id, ability))
+                    }
+                    _ => false,
+                })
         })
+    }
+
+    /// The timestamp of the newest attached Aura's "enchanted creature loses all abilities and is a …"
+    /// (`BecomesCreatureAttachedEffect`): layer 6 abilities older static abilities give it are lost with the rest
+    pub fn abilities_lost_at(&self, id: ObjId) -> Option<u64> {
+        let o = self.obj(id);
+        if o.becomes_auras.is_empty() {
+            return None;
+        }
+        o.becomes_auras
+            .iter()
+            .filter(|a| self.attached(**a) == Some(id))
+            .filter(|a| {
+                self.obj(**a).def.abilities.iter().any(|b| match b {
+                    AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| {
+                        matches!(e, EffectDef::BecomesCreatureAttachedEffect { lose: Some(l), .. }
+                            if matches!(l.as_str(), "ALL" | "ALL_BUT_COLOR" | "ABILITIES" | "ABILITIES_SUBTYPE"))
+                    }),
+                    _ => false,
+                })
+            })
+            .map(|a| self.obj(*a).attached_at)
+            .max()
+    }
+
+    /// A permanent's static abilities' timestamp: when it was attached, for an attachment, else when it entered
+    pub fn static_at(&self, src: ObjId) -> u64 {
+        let s = self.obj(src);
+        if self.attached(src).is_some() {
+            s.attached_at
+        } else {
+            s.entered_at
+        }
     }
 
     /// Whether a condition holds for `you`, the controller of `source`. `Kicked` holds only where the kicked spell is
@@ -2323,6 +2367,10 @@ impl Game {
                 o.cast || (o.zone != Zone::Battlefield && o.cast_lki)
             }
             Condition::Raid => self.player(you).attacked,
+            // the werewolves' "if no spells were cast last turn" (not on the first turn) and "if a player cast two
+            // or more spells last turn"
+            Condition::NoSpellsLastTurn => self.turn >= 2 && self.players.iter().all(|p| p.spells_cast_last_turn == 0),
+            Condition::TwoSpellsLastTurn => self.players.iter().any(|p| p.spells_cast_last_turn >= 2),
             Condition::Revolt => self.player(you).permanent_left,
             Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
             // `getStackObject`: the spell is still on the stack as it resolves, and its targets are as they last were
@@ -2664,6 +2712,10 @@ impl Game {
             } if src == id => Some((self.obj(src).entered_at, *power, *toughness)),
             EffectDef::SetBasePowerToughnessAttachedEffect { power, toughness } if self.attached(src) == Some(id) => {
                 Some((self.obj(src).attached_at, *power, *toughness))
+            }
+            // an Aura's "enchanted … is a 1/1 Frog": its base power and toughness in timestamp order with the others
+            EffectDef::BecomesCreatureAttachedEffect { token, .. } if self.attached(src) == Some(id) => {
+                Some((self.obj(src).attached_at, token.power, token.toughness))
             }
             EffectDef::SetBasePowerToughnessAllEffect {
                 power,
@@ -3276,6 +3328,7 @@ impl Game {
                 if let Some(def) = o.becomes_base.take() {
                     o.def = def;
                 }
+                o.becomes_auras.clear();
                 if let Some(def) = o.until_end_of_turn_def.take() {
                     o.def = def;
                 }
