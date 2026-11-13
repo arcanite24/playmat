@@ -196,7 +196,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,132 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
+  can express (9,166 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -235,8 +235,8 @@ Being in the engine and being trusted are kept apart.
   any colors in any combination (Hermitic Herbalist); a creature's own "can't be blocked by"; "done" on harmonize's
   creature; the text a tap-another or forage cost's auto-choice reads; targeting a triggered ability doesn't target
   its source permanent (valiant, ward); a mana ability that sacrifices its source (Lotus Ring's creature, which made
-  the engine panic). Snow mana costs (`{S}`) aren't in the engine yet: the transpiler leaves out the 8 cards that use
-  them. Replayed together, 4,192 games match, 132 differ and Java didn't finish 42; 650 more cards are verified:
+  the engine panic). Snow mana costs (`{S}`) weren't in the engine yet, so the transpiler left out the cards that use
+  them; they're in now (probe-snow above). Replayed together, 4,192 games match, 132 differ and Java didn't finish 42; 650 more cards are verified:
   4,504.
 
   A fifth round (13 Nov, 1,188 games) and the fixes its mismatches and those left from the first four led to, each
@@ -274,7 +274,8 @@ Being in the engine and being trusted are kept apart.
   Card-specific effects (13 Nov, `custom_effects.py`): two rounds over the cards it brought in (120 games recorded;
   replayed on this base, 106 of 108 match). Their fixes, each with a game under `shadow/factory/`: an effect pointed
   at a target skips one an earlier effect moved (Badlands Revival); a return inside a nested if stops only that path
-  (Matter Reshaper). 84 more cards are verified: 7,284.
+  (Matter Reshaper). 84 more cards are verified: 7,284. A probe round for snow mana and the pile and choice
+  effects (88 games, 84 of the 85 Java finished match) verified 32 more: 7,316.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
