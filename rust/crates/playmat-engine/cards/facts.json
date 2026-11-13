@@ -332966,6 +332966,21 @@
     ]
   },
   {
+    "name": "token:IncubatorToken",
+    "images": {
+      "EOC": 1,
+      "FRC": 1,
+      "MOM": 1
+    },
+    "abilities": [
+      {
+        "class": "SimpleActivatedAbility",
+        "type": "ACTIVATED_NONMANA",
+        "rule": "{2}: Transform this artifact."
+      }
+    ]
+  },
+  {
     "name": "token:InexorableBlobOozeToken",
     "images": {
       "SOI": 1
@@ -334124,6 +334139,15 @@
         "rule": "deathtouch"
       }
     ]
+  },
+  {
+    "name": "token:Phyrexian00Token",
+    "images": {
+      "EOC": 1,
+      "FRC": 1,
+      "MOM": 3
+    },
+    "abilities": []
   },
   {
     "name": "token:PhyrexianBeastToxicToken",

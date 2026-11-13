@@ -40,6 +40,9 @@ KEYWORDS = {
     'IslandwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility',
     'UmbraArmorAbility',
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility',
+    # what a creature crews or saddles with (`CrewAbility.getCrewPower`, `SaddleCost.getSaddlePower`)
+    'CrewIncreasedPowerAbility', 'CrewSaddleIncreasedPowerAbility', 'CrewWithToughnessAbility',
+    'CrewSaddleWithToughnessAbility',
 }
 
 def affinity_filter(kind):
@@ -2694,6 +2697,8 @@ class Translator:
             args = args[:3]
         if (k := self.keyword_effect(cls, [a.strip() for a in args])) is not None:
             return k
+        if (k := self.wave4_effect(cls, [a.strip() for a in args])) is not None:
+            return k
         # a class written by hand in Rust (src/cards/, card_handlers.py)
         if cls not in EFFECTS and (h := card_handlers.effect(self, cls, args)) is not None:
             return h
@@ -3683,6 +3688,9 @@ class Translator:
         t = self.keyword_ability(cls, [x.strip() for x in args])
         if t is not None:
             return t
+        t = self.wave4_ability(cls, [x.strip() for x in args])
+        if t is not None:
+            return t
         t = self.more_triggers(cls, [x.strip() for x in args])
         if t is not None:
             return t
@@ -3808,6 +3816,22 @@ class Translator:
             return {'class': cls, 'amount': k, 'token': token(spirit)}
         return None
 
+    def wave4_effect(self, cls, args):
+        """Named mechanics' effects (wave 4), read by shape; None if `cls` isn't one"""
+        n = len(args)
+        # "you may cast a card of the filter from your hand without paying its mana cost"
+        # (`CardUtil.castSpellWithAttributesForFree` over the hand)
+        if cls == 'CastFromHandForFreeEffect' and n == 1:
+            return {'class': cls, 'filter': self.filter(args[0])}
+        # roll a dN: its table's rows come from `effect.addTableEntry(min, max, effects…)` statements
+        if cls == 'RollDieWithResultTableEffect' and (n == 0 or (n in (1, 2) and args[0].isdigit())) \
+                and (n < 2 or re.fullmatch(r'"[^"]*"(?:\+"[^"]*")*', args[1])):
+            return {'class': cls, 'sides': int(args[0]) if n else 20, 'table': []}
+        # incubate N: an Incubator token with N +1/+1 counters ("{2}: Transform this artifact": a 0/0 Phyrexian)
+        if cls == 'IncubateEffect' and n == 1 and args[0].isdigit():
+            return {'class': cls, 'amount': int(args[0]), 'token': token('IncubatorToken')}
+        return None
+
     def keyword_ability(self, cls, args):
         """Named keyword abilities (wave 2's keyword mechanics), read by shape; None if `cls` isn't one"""
         n = len(args)
@@ -3914,6 +3938,76 @@ class Translator:
         # eerie: whenever an enchantment you control enters and whenever you fully unlock a Room
         if cls == 'EerieAbility' and n in (1, 2):
             return trig({'e': 'eerie'}, [self.effect(args[0])], n == 2 and flag(args[1]))
+        return None
+
+    def wave4_ability(self, cls, args):
+        """Named mechanics (wave 4): saddle, embalm and eternalize, scavenge, ingest, pack tactics, job select …, read
+        by shape; None if `cls` isn't one"""
+        n = len(args)
+
+        def flag(x):
+            if x not in ('true', 'false'):
+                raise Unsupported(cls + ' argument ' + x)
+            return x == 'true'
+
+        def trig(on, effects, optional=False, **more):
+            out = {'class': 'TriggeredAbility', 'java': cls, 'on': on, 'effects': effects, 'optional': optional,
+                   'targets': []}
+            out.update(more)
+            return out
+        # saddle N: tap other creatures with total power N or more: this becomes saddled until end of turn, as a
+        # sorcery (`SaddleAbility`)
+        if cls == 'SaddleAbility' and n == 1 and args[0].isdigit():
+            return {'class': 'ActivateAsSorceryActivatedAbility', 'java': cls, 'effects': [{'class': 'SaddleEventEffect'}],
+                    'cost': [{'class': 'SaddleCost', 'value': int(args[0])}], 'targets': []}
+        # "whenever this attacks while saddled": an attack trigger, only if it was saddled this turn (checked as it
+        # triggers, `checkTrigger`)
+        if cls == 'AttacksWhileSaddledTriggeredAbility' and n == 1 and args[0] != 'null':
+            a = self.ability('new AttacksTriggeredAbility(' + args[0] + ')')
+            a['java'] = cls
+            a['trigger_condition'] = {'c': 'source_saddled'}
+            return a
+        # embalm and eternalize: {cost}, exile this from your graveyard: a token copy, as a sorcery
+        if cls in ('EmbalmAbility', 'EternalizeAbility') and n in (2, 3) and args[1] == 'this':
+            cost = self.cost(args[0])
+            if cost.get('class') != 'ManaCost':
+                raise Unsupported(cls + ' cost ' + args[0])
+            e = {'class': 'EmbalmEffect'}
+            if cls == 'EternalizeAbility':
+                e['eternalize'] = True
+            return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [e],
+                    'cost': [cost, {'class': 'ExileSourceFromGraveCost'}], 'sorcery': True, 'targets': []}
+        # scavenge: {cost}, exile this from your graveyard: +1/+1 counters equal to its power on target creature
+        if cls == 'ScavengeAbility' and n == 1:
+            cost = self.cost(args[0])
+            if cost.get('class') != 'ManaCost':
+                raise Unsupported(cls + ' cost ' + args[0])
+            return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [{'class': 'ScavengeEffect'}],
+                    'cost': [cost, {'class': 'ExileSourceFromGraveCost'}], 'sorcery': True,
+                    'targets': [{'class': 'TargetPermanent', 'filter': [CREATURE]}]}
+        # ingest: whenever this deals combat damage to a player, that player exiles the top card of their library
+        if cls == 'IngestAbility' and n == 0:
+            return trig({'e': 'combat_damage_to_player'}, [{'class': 'ExileCardsFromTopOfLibraryTargetEffect', 'amount': 1}],
+                        set_target_pointer=True)
+        # pack tactics: whenever this attacks, if the attackers' total power is 6 or more (checked as it triggers)
+        if cls == 'PackTacticsAbility' and n == 1:
+            return trig({'e': 'attacker_declared'}, [self.effect(args[0])],
+                        trigger_condition={'c': 'attacking_power', 'n': 6})
+        # repartee: whenever you cast an instant or sorcery spell that targets a creature
+        if cls == 'ReparteeAbility' and n in (1, 2):
+            return trig({'e': 'spell_cast', 'who': 'you', 'filter': [
+                {'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]},
+                {'p': 'targets_permanent', 'filter': [CREATURE]}]}, [self.effect(args[0])], n == 2 and flag(args[1]))
+        # emerge: a spell ability of its own, sacrificing a creature (or the filter's permanent) for less
+        if cls == 'EmergeAbility' and n in (2, 4) and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
+            out = {'class': cls, 'java': cls, 'cost': args[1][1:-1]}
+            if n == 4:
+                out['filter'] = self.filter(args[2])
+            return out
+        # job select: when this Equipment enters, a 1/1 Hero, then attach this to it
+        if cls == 'JobSelectAbility' and n == 0:
+            return trig({'e': 'enters'}, [{'class': 'CreateTokenEffect', 'token': token('HeroToken'), 'amount': 1,
+                                           'attach_source': False}])
         return None
 
     def more_triggers(self, cls, args):
@@ -4035,6 +4129,14 @@ class Translator:
                     'effects': [{'class': 'FirebendingEffect', 'amount': int(args[0])}]}
         if cls == 'AlternativeCostSourceAbility' and n == 3 and args[2].strip().startswith('"'):
             return {'class': cls, 'java': cls, 'costs': [self.cost(args[0])], 'condition': self.condition(args[1])}
+        # "you may pay {cost} rather than pay this spell's mana cost" (if the condition holds); costs added to it with
+        # `addCost` are paid with it
+        if cls == 'AlternativeCostSourceAbility' and n in (1, 2) and args[0].startswith('new ') \
+                and not re.match(r'new \w+Condition\b', args[0]):
+            out = {'class': cls, 'java': cls, 'costs': [self.cost(args[0])]}
+            if n == 2:
+                out['condition'] = self.condition(args[1])
+            return out
         if cls == 'GoblinGuideTriggeredAbility' and args == ['new GoblinGuideEffect()', 'false']:
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'attacks'}, 'optional': False,
                     'effects': [{'class': 'GoblinGuideEffect'}]}
@@ -5282,6 +5384,17 @@ def ability_statement(t, st, added):
                           'effects': effects, 'targets': targets})
         t.vars[m.group(1)]['max'] = max(t.vars[m.group(1)]['max'], chapters[1])
         return True
+    # a die-roll table's row (`effect.addTableEntry(1, 9, new DrawCardSourceControllerEffect(1))`)
+    m = re.fullmatch(r'(\w+)\.addTableEntry\((.*)\)', st, re.S)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'RollDieWithResultTableEffect':
+        args = split_args(m.group(2))
+        bound = {'Integer.MAX_VALUE': str(2 ** 31 - 1)}
+        lo, hi = (bound.get(a.strip(), a.strip()) for a in args[:2])
+        if len(args) < 3 or not lo.isdigit() or not hi.isdigit():
+            raise Unsupported('die table entry ' + st)
+        t.vars[m.group(1)]['table'].append({'min': int(lo), 'max': int(hi),
+                                            'effects': [t.effect(a) for a in args[2:]]})
+        return True
     # an `Effects` local a Saga's chapter takes (`effects.add(…)` adds to it)
     m = re.fullmatch(r'Effects (\w+)=new Effects\(\)', st)
     if m:
@@ -5354,7 +5467,7 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.setTargetTag\(\d+\)', st)
     if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class', '').startswith('Target'):
         return True
-    m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withFirstModeFlavorWord'
+    m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withTargetDescription|withFirstModeFlavorWord'
                      r'|getModes\(\)\.getMode\(\)\.withFlavorWord)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
@@ -5424,6 +5537,8 @@ def ability_statement(t, st, added):
             holder.setdefault('also' if holder.get('class') == 'DoIfCostPaid' else 'effects', []).append(t.effect(m.group(3)))
         elif m.group(2) == 'Target':
             holder.setdefault('targets', []).append(t.target(m.group(3)))
+        elif holder['class'] == 'AlternativeCostSourceAbility':
+            holder['costs'].append(t.cost(m.group(3)))
         else:
             if not isinstance(holder.setdefault('cost', []), list):
                 # a keyword's own mana cost (flashback "{2}{R}") with another cost added
@@ -5493,6 +5608,22 @@ def ability_statement(t, st, added):
             added.append({'class': 'TriggeredAbility', 'java': 'EntersBattlefieldTriggeredAbility',
                           'on': {'e': 'enters'}, 'condition': {'c': 'evoked'},
                           'effects': [{'class': 'SacrificeSourceEffect'}]})
+            return True
+        # impending N: an alternative cost (`AlternativeSourceCostsImpl`), then its sub-abilities: it enters with N time
+        # counters, isn't a creature while it has one, and loses one at the beginning of your end step (all only if it
+        # was cast for its impending cost; that trigger keeps coming after the last counter, `ImpendingCondition`)
+        if (e := re.fullmatch(r'new ImpendingAbility\((\d+),"(\{[^"]*\})"\)', ','.join(args).strip())):
+            k = int(e.group(1))
+            added.append({'class': 'EvokeAbility', 'java': 'ImpendingAbility', 'cost': e.group(2),
+                          'keyword': 'Impending ' + e.group(1)})
+            added.append({'class': 'EntersBattlefieldAbility', 'java': 'EntersBattlefieldAbility', 'effects': [
+                {'class': 'ConditionalOneShotEffect', 'condition': {'c': 'impending'},
+                 'effect': {'class': 'AddCountersSourceEffect', 'counter': {'name': 'time', 'amount': k}}}]})
+            added.append({'class': 'SimpleStaticAbility', 'java': 'SimpleStaticAbility',
+                          'effects': [{'class': 'ImpendingTypeEffect'}]})
+            added.append({'class': 'TriggeredAbility', 'java': 'BeginningOfEndStepTriggeredAbility', 'optional': False,
+                          'on': {'e': 'step_begins', 'step': 'end', 'who': 'you'}, 'condition': {'c': 'impending'},
+                          'effects': [{'class': 'RemoveCounterSourceEffect', 'counter': {'name': 'time', 'amount': 1}}]})
             return True
         if (e := re.fullmatch(r'new EvokeAbility\(("\{[^"]*\}")\)', ','.join(args).strip())):
             added.append({'class': 'EvokeAbility', 'java': 'EvokeAbility', 'cost': e.group(1)[1:-1]})
@@ -5681,6 +5812,9 @@ def token(cls):
             out[n.group(1)] = int(n.group(2))
         elif (n := re.fullmatch(r'(?:this\.)?startingLoyalty=(\d+)', st)):
             out['loyalty'] = int(n.group(1))
+        # a double-faced token's back face (the Incubator's Phyrexian)
+        elif (n := re.fullmatch(r'(?:this\.)?backFace=new (\w+Token)\(\)', st)):
+            out['back'] = token(n.group(1))
         elif not ability_statement(t, st, added):
             raise Unsupported('token statement ' + st)
     if added:
@@ -5960,6 +6094,10 @@ def token_classes(names):
             out.add('WhiteBlackSpiritToken')
         if 'FabricateAbility' in source:
             out.add('ServoToken')
+        if 'JobSelectAbility' in source:
+            out.add('HeroToken')
+        if 'IncubateEffect' in source:
+            out.update(('IncubatorToken', 'Phyrexian00Token'))
         if 'EndureSourceEffect' in source:
             out.update(('NoFlyingSpiritWhite11Token', 'NoFlyingSpiritWhite22Token', 'NoFlyingSpiritWhite33Token',
                         'SpiritXXToken'))
@@ -6068,12 +6206,20 @@ def granted_rules(card):
                 # `.setText("this creature gets +1/+1 until end of turn")`)
                 kept = [t for t in re.findall(r'\.setText\("([^"]*)"\)', card_source(card.get('name')))
                         if 'this creature' in t and t in quoted.group(1)]
+                # so does a damage effect named "this creature" (Black Mage's Rod's `DamagePlayersEffect`)
+                kept += ['this creature deals %s damage to each opponent' % m.group(1) for m in re.finditer(
+                    r'new DamagePlayersEffect\((\d+),\s*TargetController\.OPPONENT,\s*"this creature"\)',
+                    card_source(card.get('name')))]
                 text = quoted.group(1)
                 for k, t in enumerate(kept):
                     text = text.replace(t, '\x00%d\x00' % k)
                 text = re.sub(r'\b[Tt]his creature\b', '{this}', text)
                 for k, t in enumerate(kept):
                     text = text.replace('\x00%d\x00' % k, t)
+                # the trigger's own text ends its sentence (White Mage's Staff's quote ends with a comma, Red Mage's
+                # Rapier's with none); a card verified before this was found keeps its text as verified (Sygg)
+                if not text.endswith(('.', '!', ')', '>', '"')) and card.get('name') not in verified_names():
+                    text = text.rstrip(',') + '.'
                 g['rule'] = text
                 # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it")
                 if [e.get('class') for e in g.get('effects', [])] == ['AddCountersSourceEffect']:
@@ -6130,6 +6276,19 @@ def reflexive_rules(card):
             for v in x:
                 walk(v, rule)
     walk(card.get('abilities', []), '')
+
+
+_VERIFIED = None
+
+
+def verified_names():
+    """the cards in `cards/verified.txt`, whose translations stay as they were verified"""
+    global _VERIFIED
+    if _VERIFIED is None:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'crates', 'playmat-engine', 'cards',
+                            'verified.txt')
+        _VERIFIED = {l.strip() for l in open(path)} if os.path.exists(path) else set()
+    return _VERIFIED
 
 
 def card_source(name):
