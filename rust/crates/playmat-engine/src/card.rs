@@ -369,6 +369,8 @@ pub enum Pred {
     },
     /// `AttackingPredicate`
     Attacking,
+    /// mentor: power less than the source's (`MentorAbilityPredicate`)
+    PowerLessThanSource,
     /// attacking or blocking
     InCombat,
     /// `TokenPredicate.TRUE` (true) or `.FALSE`
@@ -601,6 +603,15 @@ pub enum Trigger {
     Chapter {
         n: u32,
     },
+    /// battalion: this and at least two other creatures attack (`BattalionAbility`)
+    Battalion,
+    /// inspired: this becomes untapped (`InspiredAbility`, the `UNTAPPED` event)
+    BecomesUntapped,
+    /// this becomes blocked (`BecomesBlockedSourceTriggeredAbility`); with a target pointer to the player, at the
+    /// defending player (afflict)
+    BecomesBlocked,
+    /// eerie: an enchantment you control enters, or you fully unlock a Room (`EerieAbility`)
+    Eerie,
 }
 
 /// Mana abilities as `ManaUtil.tryToAutoPay` tells them apart: a basic one (`{T}: Add {G}`, pain lands too), one of
@@ -705,6 +716,12 @@ pub enum Condition {
     SourceEnteredThisTurn,
     /// `SourceAttackingCondition`
     SourceAttacking,
+    /// renown's intervening "if": the source is renowned (`Permanent.isRenowned`)
+    SourceRenowned,
+    /// survival's intervening "if": the source is tapped
+    SourceTapped,
+    /// boast: the source attacked this turn (`BoastCondition`)
+    SourceAttackedThisTurn,
     /// `AttackedOrBlockedThisCombatSourceCondition` (checked at end of combat, before it's removed from combat)
     AttackedOrBlockedThisCombat,
     /// `CardsInControllerGraveyardCondition`, spell mastery: at least `n` cards of the filter in your graveyard
@@ -1642,6 +1659,34 @@ pub enum EffectDef {
     DontUntapInControllersNextUntapStepTargetEffect,
     /// you win the game: each opponent loses it (`PlayerImpl.won`)
     WinGameSourceControllerEffect,
+    /// bolster: `amount` +1/+1 counters on the creature you control with the least toughness (chosen among ties)
+    BolsterEffect {
+        amount: Amount,
+    },
+    /// renown: `amount` +1/+1 counters on the source, which becomes renowned (`BecomesRenownedSourceEffect`)
+    BecomesRenownedSourceEffect {
+        amount: i32,
+    },
+    /// read ahead: a Saga enters with the number of lore counters its controller chooses, 1 to `max`
+    /// (`SagaLoreCountersEffect`)
+    SagaReadAheadEffect {
+        max: u32,
+    },
+    /// riot: the creature enters with a +1/+1 counter or, the controller's choice, haste (`RiotReplacementEffect`)
+    RiotEffect,
+    /// fabricate: `amount` +1/+1 counters on the source or, the controller's choice, `amount` Servo tokens
+    FabricateEffect {
+        amount: i32,
+        token: TokenDef,
+    },
+    /// endure: `amount` +1/+1 counters on the source while it's still there or, the controller's choice, an
+    /// `amount`/`amount` Spirit `token` (`EndureSourceEffect.doEndure`)
+    EndureSourceEffect {
+        amount: Amount,
+        token: TokenDef,
+    },
+    /// decayed's "sacrifice it at end of combat" (`AtTheEndOfCombatDelayedTriggeredAbility`)
+    SacrificeSourceAtEndOfCombatEffect,
     /// Blade of the Bloodchief: a +1/+1 counter on the equipped creature, two if it's a Vampire
     BladeOfTheBloodchiefEffect,
     /// Edifice of Authority: until your next turn, the target can't attack or block and its activated abilities
@@ -2737,6 +2782,24 @@ pub enum AbilityDef {
         targets: Vec<TargetDef>,
         rule: String,
     },
+    /// exhaust: an activated ability each object can activate only once (`ExhaustAbility`)
+    ExhaustAbility {
+        effects: Vec<EffectDef>,
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        targets: Vec<TargetDef>,
+        #[serde(default)]
+        sorcery: bool,
+        rule: String,
+    },
+    /// read ahead: a Saga's chapters skipped as it enters don't trigger (`ReadAheadAbility`)
+    ReadAheadAbility,
+    /// skulk: can't be blocked by creatures with greater power
+    SkulkAbility,
+    /// intimidate: can be blocked only by artifact creatures and creatures that share a color with it
+    IntimidateAbility,
+    /// decayed: can't block (its attack trigger is listed on its own)
+    DecayedAbility,
     /// this spell can't be countered
     CantBeCounteredSourceAbility,
     FlyingAbility,
@@ -3060,6 +3123,9 @@ impl AbilityDef {
             AbilityDef::SimpleActivatedAbility { effects, cost, targets, rule, .. }
             | AbilityDef::PowerUpAbility { effects, cost, targets, rule } => {
                 Some((rule, effects, targets, cost, false))
+            }
+            AbilityDef::ExhaustAbility { effects, cost, targets, rule, sorcery } => {
+                Some((rule, effects, targets, cost, *sorcery))
             }
             AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),
             AbilityDef::EquipAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, true)),

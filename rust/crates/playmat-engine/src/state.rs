@@ -204,6 +204,8 @@ pub struct Obj {
     pub exerted: bool,
     /// its power-up ability was activated (once each game, for this object)
     pub powered_up: bool,
+    /// keyword statuses a permanent has while it stays (renowned, an exhaust ability activated), by name
+    pub marks: Vec<String>,
     /// creature types and base power and toughness it has until it leaves the battlefield (Evolved Sleeper: each
     /// "becomes" replaces its creature types)
     pub creature_types: Option<Vec<String>>,
@@ -1051,6 +1053,7 @@ impl Game {
             lki_class_level: 1,
             exerted: false,
             powered_up: false,
+            marks: Vec::new(),
             creature_types: None,
             base_pt: None,
             regen_shields: 0,
@@ -1155,6 +1158,9 @@ impl Game {
                 })
             }
             Pred::Attacking => o.attacking.is_some(),
+            Pred::PowerLessThanSource => {
+                source.is_some_and(|src| self.power_toughness(id).0 < self.power_toughness(src).0)
+            }
             Pred::InCombat => o.attacking.is_some() || !o.blocking.is_empty(),
             Pred::Token { v } => o.token == *v,
             Pred::Counter { name } => o.counter(name) > 0,
@@ -1915,6 +1921,12 @@ impl Game {
                     })
             }),
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
+            Condition::SourceRenowned => self.obj(source).marks.iter().any(|m| m == "renowned"),
+            Condition::SourceTapped => self.obj(source).tapped,
+            Condition::SourceAttackedThisTurn => {
+                let turn = format!("attacked{}", self.turn);
+                self.obj(source).marks.iter().any(|m| *m == turn)
+            }
             Condition::AttackedOrBlockedThisCombat => {
                 let o = self.obj(source);
                 o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0
@@ -2587,6 +2599,7 @@ impl Game {
             o.play_tax = 0;
             o.exerted = false;
             o.powered_up = false;
+            o.marks.clear();
             o.creature_types = None;
             o.base_pt = None;
             o.regen_shields = 0;

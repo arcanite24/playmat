@@ -34,10 +34,16 @@ KEYWORDS = {
     'CantBeCounteredSourceAbility', 'DoubleStrikeAbility', 'LifelinkAbility', 'DeathtouchAbility', 'DefenderAbility', 'MenaceAbility', 'FlashAbility', 'ReboundAbility', 'ImproviseAbility', 'DevoidAbility',
     'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
-    'IslandwalkAbility',
+    'IslandwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility',
     'UmbraArmorAbility',
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility',
 }
+
+# landcycling's land card filters (`BasicLandcyclingAbility`, `MountaincyclingAbility`, …)
+LANDCYCLING = {'BasicLandcyclingAbility': [{'p': 'type', 't': 'LAND'}, {'p': 'supertype', 's': 'BASIC'}]}
+for _land in ('Plains', 'Island', 'Swamp', 'Mountain', 'Forest'):
+    LANDCYCLING[_land + 'cyclingAbility'] = [{'p': 'type', 't': 'LAND'}, {'p': 'subtype', 's': _land}]
+LANDCYCLING['LandcyclingAbility'] = [{'p': 'type', 't': 'LAND'}]
 
 # effects: class -> its constructor arguments, each (field name, kind); a kind of None means the argument is ignored
 # (a text override: rule texts come from the card facts)
@@ -134,6 +140,7 @@ EFFECTS = {
     'LoseCreatureTypeSourceEffect': [('amount', 'amount'), ('less_than', 'int')],
     'PopulateEffect': [(None, 'string')],
     'ProliferateEffect': [(None, 'bool')],
+    'BolsterEffect': [('amount', 'amount')],
     'DoubleCountersSourceEffect': [('name', 'counter_type')],
     'DamageCantBePreventedEffect': [('duration', 'duration')],
     'ReturnFromGraveyardToBattlefieldTargetEffect': [('tapped', 'bool')],
@@ -1916,6 +1923,8 @@ class Translator:
             return {'class': cls, 'filter': self.filter(args[1])}
         if cls == 'GainAbilityAllEffect' and len(args) == 4 and args[3].strip().startswith('"'):
             args = args[:3]
+        if (k := self.keyword_effect(cls, [a.strip() for a in args])) is not None:
+            return k
         if cls not in EFFECTS:
             raise Unsupported('effect ' + cls)
         return self.build(cls, args, EFFECTS[cls], 'effect')
@@ -2496,6 +2505,9 @@ class Translator:
                 and args[0].strip() == 'new UntapLandsEffect(2)':
             return {'class': 'NextEndStepDelayed', 'effects': [self.effect(args[0])],
                     'rule': 'At the beginning of the next end step, untap up to two lands.'}
+        t = self.keyword_ability(cls, [x.strip() for x in args])
+        if t is not None:
+            return t
         t = self.more_triggers(cls, [x.strip() for x in args])
         if t is not None:
             return t
@@ -2564,6 +2576,103 @@ class Translator:
             else:
                 raise Unsupported('creature token ' + call + ' ' + arg)
         return out
+
+    def keyword_effect(self, cls, args):
+        """Keyword effects (wave 2's keyword mechanics), read by shape; None if `cls` isn't one"""
+        n = len(args)
+        # detain: until your next turn, can't attack or block and its activated abilities can't be activated
+        if cls == 'DetainTargetEffect' and n == 0:
+            return {'class': 'EdificeOfAuthorityEffect'}
+        # endure N: N +1/+1 counters on it, or an N/N white Spirit
+        if cls == 'EndureSourceEffect' and n in (1, 2) and args[0].isdigit() \
+                and (n == 1 or re.fullmatch(r'"[^"]*"', args[1])):
+            k = int(args[0])
+            spirit = {1: 'NoFlyingSpiritWhite11Token', 2: 'NoFlyingSpiritWhite22Token',
+                      3: 'NoFlyingSpiritWhite33Token'}.get(k, 'SpiritXXToken')
+            return {'class': cls, 'amount': k, 'token': token(spirit)}
+        return None
+
+    def keyword_ability(self, cls, args):
+        """Named keyword abilities (wave 2's keyword mechanics), read by shape; None if `cls` isn't one"""
+        n = len(args)
+
+        def flag(x):
+            if x not in ('true', 'false'):
+                raise Unsupported(cls + ' argument ' + x)
+            return x == 'true'
+
+        def trig(on, effects, optional=False, **more):
+            out = {'class': 'TriggeredAbility', 'java': cls, 'on': on, 'effects': effects, 'optional': optional,
+                   'targets': []}
+            out.update(more)
+            return out
+        # landcycling: cycling that searches for a land card of the kind, revealed, into your hand
+        if cls in LANDCYCLING and n == 1:
+            cost = self.cost(args[0])
+            if cost.get('class') != 'ManaCost':
+                raise Unsupported(cls + ' cost ' + args[0])
+            return {'class': 'CyclingAbility', 'java': cls, 'cost': [cost, {'class': 'DiscardSourceCost'}],
+                    'effects': [{'class': 'SearchLibraryEffect', 'filter': LANDCYCLING[cls], 'min': 1, 'max': 1,
+                                 'to': 'HAND'}]}
+        # exhaust: an activated ability each object activates once
+        if cls == 'ExhaustAbility' and n in (2, 3, 4):
+            if n == 4 and args[3] not in ('true', 'false') or n >= 3 and args[2] not in ('true', 'false'):
+                raise Unsupported(cls + ' overload')
+            return {'class': 'ExhaustAbility', 'java': cls, 'effects': [self.effect(args[0])], 'cost': [self.cost(args[1])],
+                    'targets': [], 'sorcery': n == 4 and args[3] == 'true'}
+        # outlast: {cost}, {T}: a +1/+1 counter on this, as a sorcery
+        if cls == 'OutlastAbility' and n == 1:
+            return {'class': 'ActivateAsSorceryActivatedAbility', 'java': cls, 'cost': [self.cost(args[0]), {'class': 'TapSourceCost'}],
+                    'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': '+1/+1', 'amount': 1}}], 'targets': []}
+        # afterlife N: when this dies, N 1/1 white and black flying Spirits
+        if cls == 'AfterlifeAbility' and n == 1 and args[0].isdigit():
+            return trig({'e': 'dies'}, [{'class': 'CreateTokenEffect', 'token': token('WhiteBlackSpiritToken'), 'amount': int(args[0]),
+                                         'tapped': False, 'attacking': False}])
+        # battalion: whenever this and at least two other creatures attack
+        if cls == 'BattalionAbility' and n == 1:
+            return trig({'e': 'battalion'}, [self.effect(args[0])])
+        # inspired: whenever this becomes untapped
+        if cls == 'InspiredAbility' and n in (1, 2):
+            return trig({'e': 'becomes_untapped'}, [self.effect(args[0])], n == 2 and flag(args[1]))
+        # renown N: combat damage to a player, if it isn't renowned: N +1/+1 counters, and it's renowned
+        if cls == 'RenownAbility' and n == 1 and args[0].isdigit():
+            return trig({'e': 'combat_damage_to_player'}, [{'class': 'BecomesRenownedSourceEffect', 'amount': int(args[0])}],
+                        condition={'c': 'not', 'x': {'c': 'source_renowned'}})
+        # mentor: whenever this attacks, a +1/+1 counter on target attacking creature with lesser power
+        if cls == 'MentorAbility' and n == 0:
+            return trig({'e': 'attacks'}, [{'class': 'AddCountersTargetEffect', 'counter': {'name': '+1/+1', 'amount': 1}}],
+                        targets=[{'class': 'TargetPermanent', 'filter': [CREATURE, {'p': 'attacking'}, {'p': 'power_less_than_source'}]}])
+        # afflict N: whenever this becomes blocked, the defending player loses N life
+        if cls == 'AfflictAbility' and n == 1 and args[0].isdigit():
+            return trig({'e': 'becomes_blocked'}, [{'class': 'LoseLifeTargetEffect', 'amount': int(args[0])}],
+                        set_target_pointer_player=True)
+        # riot: enters with a +1/+1 counter or haste
+        if cls == 'RiotAbility' and n == 0:
+            return {'class': 'EntersBattlefieldAbility', 'java': cls, 'effects': [{'class': 'RiotEffect'}]}
+        # extort: whenever you cast a spell, you may pay {W/B}; if you do, drain 1
+        if cls == 'ExtortAbility' and n == 0:
+            return trig({'e': 'spell_cast', 'filter': [], 'who': 'you'},
+                        [self.effect('new DoIfCostPaid(new LoseLifeOpponentsYouGainLifeLostEffect(1),new ManaCostsImpl<>("{W/B}"))')])
+        # survival: at the beginning of your second main phase, if this is tapped
+        if cls == 'SurvivalAbility' and n in (1, 2):
+            return trig({'e': 'step_begins', 'step': 'main2', 'who': 'you'}, [self.effect(args[0])], n == 2 and flag(args[1]),
+                        condition={'c': 'source_tapped'})
+        # fabricate N: as it enters, N +1/+1 counters or N Servos
+        if cls == 'FabricateAbility' and n == 1 and args[0].isdigit():
+            return trig({'e': 'enters'}, [{'class': 'FabricateEffect', 'amount': int(args[0]), 'token': token('ServoToken')}])
+        # boast: once each turn, only if this attacked this turn
+        if cls == 'BoastAbility' and n == 2:
+            cost = self.cost(args[1]) if not re.fullmatch(r'"[^"]*"', args[1]) else {'class': 'ManaCost', 'cost': args[1][1:-1]}
+            return {'class': 'LimitedTimesPerTurnActivatedAbility', 'java': cls, 'effects': [self.effect(args[0])],
+                    'cost': [cost], 'limit': 1, 'condition': {'c': 'source_attacked_this_turn'}, 'targets': []}
+        # "when this Equipment enters, attach it to target creature you control" (`AttachEffect`, as equip's)
+        if cls == 'EntersBattlefieldAttachToTarget' and n in (0, 1):
+            return trig({'e': 'enters'}, [{'class': 'EquipEffect'}],
+                        targets=[{'class': 'TargetPermanent', 'filter': self.filter(args[0]) if n else [CREATURE, YOU]}])
+        # eerie: whenever an enchantment you control enters and whenever you fully unlock a Room
+        if cls == 'EerieAbility' and n in (1, 2):
+            return trig({'e': 'eerie'}, [self.effect(args[0])], n == 2 and flag(args[1]))
+        return None
 
     def more_triggers(self, cls, args):
         """Trigger classes whose overloads differ by argument type, read by shape; None if `cls` isn't one"""
@@ -3113,7 +3222,7 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
         if re.fullmatch(r'\w+\.addWatcher\(new \w+Watcher\(\)\)', st):
             continue
         # a Saga front: its lore counter and chapters are the front's abilities
-        saga = re.search(r'new SagaAbility\(this\.get(Left|Right)HalfCard\(\)\)|\.addChapterEffect\(this\.get(Left|Right)HalfCard\(\),', st)
+        saga = re.search(r'new SagaAbility\((?:this\.)?get(Left|Right)HalfCard\(\)\)|\.addChapterEffect\((?:this\.)?get(Left|Right)HalfCard\(\),', st)
         side = added[(saga.group(1) or saga.group(2)) == 'Right'] if saga else []
         if not ability_statement(t, st, side):
             raise Unsupported('transforming double-faced card statement ' + st)
@@ -3406,13 +3515,19 @@ def ability_statement(t, st, added):
         return ability_statement(t, rest, added) if rest else True
     """A constructor statement that builds or adds an ability (cards and tokens alike); False if it isn't one"""
     # a Saga: its lore counter as it enters (added to the card first), then a chapter ability per chapter
-    m = re.fullmatch(r'SagaAbility (\w+)=new SagaAbility\(this(?:\.get(?:Left|Right)HalfCard\(\))?\)', st)
+    # (`SagaAbility(this, maxChapter[, readAhead])`: read ahead enters with the lore counters chosen)
+    m = re.fullmatch(r'SagaAbility (\w+)=new SagaAbility\((?:this|(?:this\.)?get(?:Left|Right)HalfCard\(\))(?:,SagaChapter\.CHAPTER_(\w+)(?:,(true|false))?)?\)', st)
     if m:
         t.vars[m.group(1)] = {'class': 'SagaAbility', 'java': 'SagaAbility', 'max': 0}
+        if m.group(3) == 'true':
+            added.append({'class': 'EntersBattlefieldAbility', 'java': 'EntersBattlefieldAbility',
+                          'effects': [{'class': 'SagaReadAheadEffect', 'max': CHAPTERS[m.group(2)]}]})
+            added.append({'class': 'ReadAheadAbility'})
+            return True
         added.append({'class': 'EntersBattlefieldAbility', 'java': 'EntersBattlefieldAbility',
                       'effects': [{'class': 'AddCountersSourceEffect', 'counter': {'name': 'lore', 'amount': 1}}]})
         return True
-    m = re.fullmatch(r'(\w+)\.addChapterEffect\(this(?:\.get(?:Left|Right)HalfCard\(\))?,(.*)\)', st)
+    m = re.fullmatch(r'(\w+)\.addChapterEffect\((?:this|(?:this\.)?get(?:Left|Right)HalfCard\(\)),(.*)\)', st)
     if m and t.vars.get(m.group(1), {}).get('class') == 'SagaAbility':
         args = split_args(m.group(2))
         chapters = []
@@ -3427,11 +3542,26 @@ def ability_statement(t, st, added):
         if args[-1].strip().startswith('new Target'):
             targets = [t.target(args[-1])]
             args = args[:-1]
-        effects = [t.effect(a) for a in args]
+        # `new Effects(a, b)`, or an `Effects` local: each effect
+        if len(args) == 1 and (e := re.fullmatch(r'new Effects\((.*)\)', args[0].strip(), re.S)):
+            args = split_args(e.group(1))
+        if len(args) == 1 and t.vars.get(args[0].strip(), {}).get('class') == 'Effects':
+            effects = list(t.vars[args[0].strip()]['effects'])
+        else:
+            effects = [t.effect(a) for a in args]
         for n in range(chapters[0], chapters[1] + 1):
             added.append({'class': 'TriggeredAbility', 'java': 'ChapterTriggeredAbility', 'on': {'e': 'chapter', 'n': n},
                           'effects': effects, 'targets': targets})
         t.vars[m.group(1)]['max'] = max(t.vars[m.group(1)]['max'], chapters[1])
+        return True
+    # an `Effects` local a Saga's chapter takes (`effects.add(…)` adds to it)
+    m = re.fullmatch(r'Effects (\w+)=new Effects\(\)', st)
+    if m:
+        t.vars[m.group(1)] = {'class': 'Effects', 'effects': []}
+        return True
+    m = re.fullmatch(r'(\w+)\.add\((.*)\)', st, re.S)
+    if m and t.vars.get(m.group(1), {}).get('class') == 'Effects':
+        t.vars[m.group(1)]['effects'].append(t.effect(m.group(2)))
         return True
     m = re.fullmatch(r'(?:final )?\w+ (\w+)=(.*)', st) or re.fullmatch(r'(\w+)=(new .*)', st)
     if m:
@@ -3637,6 +3767,10 @@ def ability_statement(t, st, added):
             added.append(t.ability(e.group(1)))
             return True
         added.append(t.ability(','.join(args)))
+        # decayed: its "when this attacks, sacrifice it at end of combat", listed on its own
+        if added[-1].get('class') == 'DecayedAbility':
+            added.append({'class': 'TriggeredAbility', 'java': 'AttacksTriggeredAbility', 'on': {'e': 'attacks'},
+                          'effects': [{'class': 'SacrificeSourceAtEndOfCombatEffect'}], 'targets': []})
         # blitz: its "as it enters" part, listed on its own
         if added[-1].get('class') == 'BlitzAbility':
             added.append({'class': 'BlitzEntersAbility', 'java': 'EntersBattlefieldAbility'})
@@ -4013,6 +4147,13 @@ def token_classes(names):
         # tokens a keyword makes
         if 'MobilizeAbility' in source:
             out.add('RedWarriorToken')
+        if 'AfterlifeAbility' in source:
+            out.add('WhiteBlackSpiritToken')
+        if 'FabricateAbility' in source:
+            out.add('ServoToken')
+        if 'EndureSourceEffect' in source:
+            out.update(('NoFlyingSpiritWhite11Token', 'NoFlyingSpiritWhite22Token', 'NoFlyingSpiritWhite33Token',
+                        'SpiritXXToken'))
         if 'EmpowerJaceEffect' in source:
             out.add('JacePlaneswalkerToken')
         for role in re.findall(r'RoleType\.(\w+)', source):
