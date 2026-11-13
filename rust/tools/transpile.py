@@ -743,7 +743,7 @@ def declared_filters(source, subtypes):
     # first, the card's, wins)
     starts = [m.start() for m in re.finditer(r'^(?:public |final |abstract )*(?:class|enum) ', source, re.M)] + [len(source)]
     whole = source
-    for m in re.finditer(r'static (?:final )?(?:\w+) (\w+)\s*=\s*new (Filter\w+)\((.*?)\);', whole, re.S):
+    for m in re.finditer(r'static (?:final |private |public |protected )*(?:\w+) (\w+)\s*=\s*new (Filter\w+)\((.*?)\);', whole, re.S):
         name, cls, args = m.group(1), m.group(2), split_args(canonical(m.group(3)))
         if name in out:
             continue
@@ -1899,6 +1899,9 @@ class Translator:
             raise Unsupported('target ' + expr)
         kind, preds = TARGET_CLASSES[cls]
         out = {'class': kind, 'filter': [dict(p) for p in preds]}
+        # "any number of": (0, Integer.MAX_VALUE), the engine's 99
+        if len(args) >= 2 and re.fullmatch(r'\d+', args[0].strip()) and args[1].strip() == 'Integer.MAX_VALUE':
+            args = [args[0], '99'] + args[2:]
         ints = [int(a) for a in args if re.fullmatch(r'\d+', a.strip())]
         rest = [a for a in args if not re.fullmatch(r'\d+', a.strip())]
         if rest and rest[-1].strip() == 'false':
@@ -3062,6 +3065,10 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if re.fullmatch(r'this\.addAbility\(new DevoidAbility\(this\.color\)\)', st):
             card['colors'] = []
             added.append({'class': 'DevoidAbility'})
+            return
+        # a color its mana cost already gives (Diregraf Ghoul's `color.setBlack(true)`)
+        m = re.fullmatch(r'this\.color\.set(White|Blue|Black|Red|Green)\(true\)', st)
+        if m and COLOR_LETTERS[m.group(1)] in re.sub(r'\{[^}]*/[^}]*\}', '', card.get('cost', '')):
             return
         # the frame's colors are only the card's look
         if re.fullmatch(r'this\.frameColor=new ObjectColor\("[WUBRG]*"\)', st):
