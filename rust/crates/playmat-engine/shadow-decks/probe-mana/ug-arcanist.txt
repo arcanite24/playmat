@@ -1,0 +1,18 @@
+# Probe: snarls, {1},{T} any-color lands, Ally lands, instant-or-sorcery colorless mana, creature-spell mana, tap-two-creatures mana
+4 Vineglimmer Snarl
+2 Conduit Pylons
+2 Hidden Grotto
+2 Crystal Grotto
+2 Jasmine Dragon Tea Shop
+2 Ally Encampment
+5 Island
+5 Forest
+4 Vodalian Arcanist
+4 Herd Heirloom
+4 Canopy Tactician
+4 Elvish Mystic
+4 Supportive Parents
+4 Tajuru Pathwarden
+4 Rootrider Faun
+4 Opt
+4 Consider
