@@ -97,6 +97,23 @@ impl EffectCx<'_> {
         super::apply_each_effect(game, d, &item, effects, self.legal, self.source);
     }
 
+    /// `token.putOntoBattlefield(amount, game, source, controller)`: `CreateTokenEffect` for the controller
+    pub fn create_tokens(&self, game: &mut Game, d: &mut dyn Decider, token: &TokenDef, amount: i32) {
+        let e = EffectDef::CreateTokenEffect {
+            token: token.clone(),
+            amount: crate::card::Amount::Fixed(amount),
+            tapped_and_attacking: false,
+            tapped: false,
+            attacking: false,
+            sacrifice_at_end_of_combat: false,
+            sacrifice_at_next_end_step: false,
+            haste_until_end_of_turn: false,
+            also: None,
+            attach_source: None,
+        };
+        self.run(game, d, &[e]);
+    }
+
     /// `run` with other target groups (a `FixedTarget`: the effect acts on these instead of the ability's targets)
     pub fn run_on(&self, game: &mut Game, d: &mut dyn Decider, effects: &[EffectDef], targets: Vec<Target>) {
         super::apply_each_effect(game, d, self.item, effects, &[targets], self.source);

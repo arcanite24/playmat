@@ -13,9 +13,10 @@ second argument), with the Java class as `OuterCardClass.InnerClass` (or the bar
 name for one in the framework), and optionally `.tokens(&[…])`, `.effects(&[…])`, `.filters(&[…])`: Java for the
 transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order; and
 `.args(&[…])`, one kind per constructor argument ("text" as is, "library_target": a `TargetCardInLibrary`, as
-"min max" with its filter after the declared ones, "filter" and "ability": translated, after the declared filters
-and abilities, "while_on_battlefield": only `Duration.WhileOnBattlefield`, "one_of:a|b": only one of these texts).
-The strings are plain or raw Rust string literals.
+"min max" with its filter after the declared ones; "filter", "effect" and "ability": translated, after the declared
+filters, effects or abilities; "counter": a `Counter` as "name amount"; "put_cards": a `PutCards` constant's name;
+"while_on_battlefield": only `Duration.WhileOnBattlefield`; "one_of:a|b": only one of these texts). The strings are
+plain or raw Rust string literals.
 
 The static kinds (src/card_statics.rs) are `Handler::continuous`, `::replacement`, `::cost`, `::restriction`, `::rule`
 and `::as_though`, with any arguments after the name (no string literals among them), and `.abilities(&[…])` too.
@@ -149,24 +150,43 @@ def effect(t, cls, args, own_only=False):
     # constructor arguments the handler asked to have translated (`.args(&[…])`, one kind per argument):
     # a "library_target" (`TargetCardInLibrary`) becomes "min max" in `args` and its filter goes after the
     # declared filters
+    effects = [t.effect(x) for x in h['effects']]
     for i, kind in enumerate(h['args']):
-        if kind == 'library_target' and i < len(args):
+        if i >= len(args):
+            break
+        if kind == 'library_target':
             filt, lo, hi = t.library_target(args[i])
             filters.append(filt)
             args[i] = f'{lo} {hi}'
-        elif kind == 'filter' and i < len(args):
+        elif kind == 'filter':
+            # a filter argument: translated, after the declared filters (and earlier filter arguments)
             filters.append(t.filter(args[i]))
-        elif kind == 'ability' and i < len(args):
+        elif kind == 'effect':
+            effects.append(t.effect(args[i]))
+        elif kind == 'counter':
+            # `CounterType.X.createInstance(n)`: "name n" in `args`
+            c = t.value('counter', args[i])
+            if not c:
+                raise _unsupported(f'counter {args[i]}')
+            args[i] = f"{c['name']} {c['amount']}"
+        elif kind == 'put_cards':
+            # `PutCards.X`: its engine name (`BATTLEFIELD_TAPPED`)
+            m = re.fullmatch(r'PutCards\.(\w+)', args[i])
+            if not m:
+                raise _unsupported(f'argument {args[i]}')
+            args[i] = m.group(1)
+        elif kind == 'ability':
             abilities.append(t.ability(args[i]))
-        elif kind == 'while_on_battlefield' and i < len(args):
+        elif kind == 'while_on_battlefield':
             # a static class the handler writes only as a static ability's (`Duration.WhileOnBattlefield`)
             if args[i] != 'Duration.WhileOnBattlefield':
                 raise _unsupported(f'effect {cls}: duration {args[i]}')
-        elif kind.startswith('one_of:') and i < len(args):
+        elif kind.startswith('one_of:'):
             # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
-        elif kind not in ('text', 'filter', 'ability', 'while_on_battlefield') and not kind.startswith('one_of:'):
+        elif kind not in ('text', 'filter', 'effect', 'counter', 'put_cards', 'ability', 'while_on_battlefield') \
+                and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
     # a static handler for a framework class is written for its constructors with up to as many arguments as it
     # declares kinds for
@@ -176,8 +196,8 @@ def effect(t, cls, args, own_only=False):
         out['args'] = args
     if h['tokens']:
         out['tokens'] = [T.token(x) for x in h['tokens']]
-    if h['effects']:
-        out['effects'] = [t.effect(x) for x in h['effects']]
+    if effects:
+        out['effects'] = effects
     if filters:
         out['filters'] = filters
     if abilities:
