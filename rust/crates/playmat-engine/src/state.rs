@@ -134,6 +134,9 @@ pub struct Obj {
     /// what it was attached to as it last left the battlefield (Path to Redemption's "Sacrifice this: Exile enchanted
     /// creature")
     pub lki_attached_to: Option<(ObjId, u32)>,
+    /// the permanents attached to it as it last left the battlefield, with their zone-change counts (Zack Fair's
+    /// "attach an Equipment that was attached to {this}")
+    pub lki_attachments: Vec<(ObjId, u32)>,
     /// its abilities as it last left the battlefield, when effects gave it some (land_type_base): what it triggers
     /// on from the others leaving with it (Eternal Thirst's "Whenever a creature an opponent controls dies" on a
     /// creature dying in the same combat)
@@ -1156,6 +1159,7 @@ impl Game {
             lki_counters: Vec::new(),
             lki_keywords: Vec::new(),
             lki_attached_to: None,
+            lki_attachments: Vec::new(),
             lki_def: None,
             face_down: false,
             face_down_as: None,
@@ -2829,6 +2833,11 @@ impl Game {
     /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
         let from = self.obj(id).zone;
+        let attachments: Vec<(ObjId, u32)> = if from == Zone::Battlefield && zone != Zone::Battlefield {
+            self.attachments(id).map(|a| (a, self.obj(a).zcc)).collect()
+        } else {
+            Vec::new()
+        };
         let requested = zone;
         // a prepared permanent's copy is kept only while it stays: it can't be cast, and the next state check
         // removes it (704.5e)
@@ -3319,6 +3328,7 @@ impl Game {
                 o.kicked = false;
                 o.cast = false;
                 o.lki_attached_to = if from == Zone::Battlefield { o.attached_to } else { None };
+                o.lki_attachments = attachments;
                 o.attached_to = None;
                 o.uncounterable = false;
                 o.foretold_turn = None;
