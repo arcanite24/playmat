@@ -345,6 +345,10 @@ impl Cmp {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "p", rename_all = "snake_case")]
 pub enum Pred {
+    /// a spell that targets a permanent of the filter (`TargetsPermanentPredicate`)
+    TargetsPermanent {
+        filter: Filter,
+    },
     /// its mana cost is one of these (Urza's Saga's "{0} or {1}")
     ManaCostIn {
         costs: Vec<String>,
@@ -511,6 +515,14 @@ pub enum Pred {
     },
 }
 
+/// A die-roll table's row: results `min` to `max`, and what's done on one (`RollDieWithResultTableEffect.TableEntry`)
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct DieTableEntry {
+    pub min: i32,
+    pub max: i32,
+    pub effects: Vec<EffectDef>,
+}
+
 /// What a triggered ability triggers on. "This" is the ability's source; "you", its controller.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "e", rename_all = "snake_case", deny_unknown_fields)]
@@ -576,6 +588,8 @@ pub enum Trigger {
     AttacksAttached,
     /// this attacks (`ATTACKER_DECLARED`) or blocks (`CREATURE_BLOCKS`) (`AttacksOrBlocksTriggeredAbility`)
     AttacksOrBlocks,
+    /// this attacks, as its own `ATTACKER_DECLARED` event, in the attackers' order (`PackTacticsAbility`)
+    AttackerDeclared,
     /// this blocks (`BlocksSourceTriggeredAbility`, `CREATURE_BLOCKS`)
     Blocks,
     /// a creature of the filter blocks (`BlocksAllTriggeredAbility`); with a target pointer, at it, or at its
@@ -876,6 +890,14 @@ pub enum Condition {
     },
     /// `SourceAttackingAloneCondition`: it's the only creature attacking
     SourceAttackingAlone,
+    /// `SaddledCondition`: the source became saddled this turn (`SaddledMountWatcher`)
+    SourceSaddled,
+    /// `ImpendingCondition`: the source was cast for its impending cost
+    Impending,
+    /// pack tactics: the attacking creatures' total power is `n` or more
+    AttackingPower {
+        n: i32,
+    },
     /// delirium: four or more card types among cards in your graveyard
     Delirium,
     /// `PlayLandCondition`: you played a land this turn
@@ -1097,6 +1119,9 @@ pub struct TokenDef {
     /// else from all of them, when there are two or more
     #[serde(default)]
     pub images: std::collections::BTreeMap<String, u32>,
+    /// a double-faced token's back face, what it transforms into (`TokenImpl.backFace`)
+    #[serde(default)]
+    pub back: Option<Box<TokenDef>>,
 }
 
 impl TokenDef {
@@ -1126,7 +1151,7 @@ impl TokenDef {
             all_creature_types: self.all_creature_types,
             adventure: None,
             back: None,
-            transform_back: None,
+            transform_back: self.back.as_ref().map(|b| Arc::new(b.card())),
             omen: false,
             aftermath: false,
             fused: false,
@@ -1183,6 +1208,11 @@ pub enum CostDef {
     },
     /// crew: tap any number of other untapped creatures you control with total power `value` or more
     CrewCost {
+        value: i32,
+    },
+    /// saddle: tap any number of other untapped creatures you control with total power `value` or more
+    /// (`SaddleCost`)
+    SaddleCost {
         value: i32,
     },
     /// exile the source
@@ -1459,6 +1489,35 @@ pub enum EffectDef {
         effects: Vec<EffectDef>,
         #[serde(default)]
         filters: Vec<Filter>,
+    },
+    /// saddle's effect: this Mount becomes saddled until end of turn, if it's still on the battlefield
+    SaddleEventEffect,
+    /// embalm (a white Zombie) or eternalize (a black 4/4 Zombie): a token copy of the source card, with no mana cost
+    EmbalmEffect {
+        #[serde(default)]
+        eternalize: bool,
+    },
+    /// scavenge: +1/+1 counters equal to the source card's power on the target creature
+    ScavengeEffect,
+    /// roll a d`sides` (`RollDieWithResultTableEffect`): the result is `RandomUtil.nextInt(sides) + 1` from the
+    /// game's random numbers, and the table's matching row's effects are done
+    RollDieWithResultTableEffect {
+        sides: i32,
+        #[serde(default)]
+        table: Vec<DieTableEntry>,
+    },
+    /// incubate: an Incubator token with `amount` +1/+1 counters (`IncubateEffect.doIncubate`)
+    IncubateEffect {
+        amount: i32,
+        token: TokenDef,
+    },
+    /// impending's static: while it has a time counter, if it was cast for its impending cost, it isn't a creature
+    /// (layer 4, `ImpendingAbilityTypeEffect`)
+    ImpendingTypeEffect,
+    /// you may cast a card of the filter from your hand without paying its mana cost
+    /// (`CastFromHandForFreeEffect`: `CardUtil.castSpellWithAttributesForFree` over the hand)
+    CastFromHandForFreeEffect {
+        filter: Filter,
     },
     /// deals `amount` damage to the ability's target
     DamageTargetEffect {
@@ -4079,6 +4138,23 @@ pub enum AbilityDef {
     CantBlockAbility,
     /// this can't be blocked by creatures with power 2 or less
     DauntAbility,
+    /// emerge: cast from hand by sacrificing a permanent of the filter (a creature) and paying `cost` reduced by its
+    /// mana value (`EmergeAbility`, a spell ability of its own)
+    EmergeAbility {
+        cost: String,
+        #[serde(default)]
+        filter: Option<Filter>,
+        #[serde(default)]
+        rule: String,
+    },
+    /// this crews Vehicles as though its power were 2 greater
+    CrewIncreasedPowerAbility,
+    /// this saddles Mounts and crews Vehicles as though its power were 2 greater
+    CrewSaddleIncreasedPowerAbility,
+    /// this crews Vehicles using its toughness rather than its power
+    CrewWithToughnessAbility,
+    /// this saddles Mounts and crews Vehicles using its toughness rather than its power
+    CrewSaddleWithToughnessAbility,
     /// this can't be blocked as long as the defending player controls an Island
     IslandwalkAbility,
     /// umbra armor: if the enchanted creature would be destroyed, its damage is removed and this Aura is destroyed
@@ -5306,6 +5382,18 @@ impl CardDef {
                     },
                 ))
             }
+            _ => None,
+        })
+    }
+
+    /// The emerge ability's index, the card with its emerge cost and what it sacrifices.
+    pub fn emerge(&self) -> Option<(usize, CardDef, Filter)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::EmergeAbility { cost, filter, .. } => Some((
+                k,
+                CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() },
+                filter.clone().unwrap_or_else(|| Filter(vec![Pred::Type { t: CardType::Creature }])),
+            )),
             _ => None,
         })
     }

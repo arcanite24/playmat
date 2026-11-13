@@ -281,6 +281,8 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its evoke cost
     pub evoked: bool,
+    /// cast for its impending cost (kept from the stack to the battlefield)
+    pub impending: bool,
     /// cast for its dash cost
     pub dashed: bool,
     /// the mana of each color spent to cast it (WUBRG)
@@ -1253,6 +1255,7 @@ impl Game {
             play_tax: 0,
             warped: false,
             evoked: false,
+            impending: false,
             dashed: false,
             spent_colors: [0; 5],
             blitzed: false,
@@ -1303,6 +1306,16 @@ impl Game {
             Pred::Colorless => self.colors(id).is_empty(),
             Pred::NoManaSpent => self.obj(id).mana_spent == 0,
             Pred::KickedSpell => self.stack.iter().any(|i| i.card == id && i.ability.is_none() && i.kicked),
+            Pred::TargetsPermanent { filter } => self.stack.iter().any(|i| {
+                i.card == id
+                    && i.ability.is_none()
+                    && i.targets.iter().flatten().any(|t| match t {
+                        Target::Obj(x) => {
+                            self.obj(*x).zone == Zone::Battlefield && self.filter_matches(filter, you, source, *x)
+                        }
+                        _ => false,
+                    })
+            }),
             Pred::ManaCostIn { costs } => costs.iter().any(|c| *c == o.def.cost.text),
             Pred::ManaValueEqualSourceCounters { counter } => source.is_some_and(|src| {
                 let s = self.obj(src);
@@ -2442,6 +2455,7 @@ impl Game {
             Condition::Opus => false,
             Condition::Offspring => self.obj(source).offspring,
             Condition::Evoked => self.obj(source).evoked,
+            Condition::Impending => self.obj(source).impending,
             Condition::ManaColorSpent { color, n } => {
                 let o = self.obj(source);
                 // (a spell resolving: what was spent to cast it, Unexplained Vision's adamant)
@@ -2476,6 +2490,19 @@ impl Game {
                 })
             }
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
+            Condition::SourceSaddled => {
+                let turn = format!("saddled{}", self.turn);
+                self.obj(source).marks.contains(&turn)
+            }
+            // `PackTacticsAbility.checkTrigger`: the attackers' power, as they are now
+            Condition::AttackingPower { n } => {
+                self.battlefield
+                    .iter()
+                    .filter(|b| self.obj(**b).attacking.is_some())
+                    .map(|b| self.power_toughness(*b).0)
+                    .sum::<i32>()
+                    >= *n
+            }
             Condition::SourceRenowned => self.obj(source).marks.iter().any(|m| m == "renowned"),
             Condition::SourceTapped => self.obj(source).tapped,
             Condition::SourceAttackedThisTurn => {
@@ -3377,6 +3404,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.evoked = false;
+                o.impending = false;
                 o.dashed = false;
                 // kept as it last was on the battlefield (Vibrance's "if {G}{G} was spent" after its evoke sacrifice)
                 if from != Zone::Stack && from != Zone::Battlefield {
