@@ -5275,11 +5275,14 @@ def granted_rules(card):
                                    r'\1acrifice {this}', g['rule'], count=1)
             # the effect writes its own sentence, where the source is {this}: "{this} gains flying" (Lunarch Mantle's
             # "this creature gains"), "{this} deals 1 damage" (Mask of Immolation's "it deals")
+            # (Burning Anger's "this creature deals damage equal to its power", Dragon Mantle's "this creature gets")
             effects = [e.get('class') for e in g.get('effects', [])]
-            if len(effects) == 1 and effects[0] in ('GainAbilitySourceEffect', 'DamageTargetEffect') \
-                    and not re.search(r'new %s\((?:[^;()]|\((?:[^;()]|\([^;()]*\))*\))*\)\s*\.setText' % effects[0],
-                                      card_source(card.get('name'))):
-                g['rule'] = re.sub(r': (?:This (?:artifact|creature|permanent)|It) (gains|deals) ', r': {this} \1 ',
+            java = {'DamageTargetSourcePowerEffect': 'DamageTargetEffect'}
+            if len(effects) == 1 and effects[0] in ('GainAbilitySourceEffect', 'DamageTargetEffect',
+                                                    'DamageTargetSourcePowerEffect', 'BoostSourceEffect') \
+                    and not re.search(r'new %s\((?:[^;()]|\((?:[^;()]|\([^;()]*\))*\))*\)\s*\.setText'
+                                      % java.get(effects[0], effects[0]), card_source(card.get('name'))):
+                g['rule'] = re.sub(r': (?:This (?:artifact|creature|permanent)|It) (gains|deals|gets) ', r': {this} \1 ',
                                    g['rule'], count=1)
             # `new RegenerateSourceEffect()` writes "Regenerate {this}" (Molting Snakeskin's "Regenerate this creature")
             if effects == ['RegenerateSourceEffect'] and 'new RegenerateSourceEffect()' in card_source(card.get('name')):
