@@ -407,6 +407,7 @@ Atarka, World Render
 Atlantean Cavalry
 Atraxa's Fall
 Atraxa, Grand Unifier
+Atris, Oracle of Half-Truths
 Atsushi, the Blazing Sky
 Attendant of Vraska
 Attended Healer
@@ -1237,6 +1238,7 @@ Cleansing Ray
 Cleansing Wildfire
 Cleanup Crew
 Clear Shot
+Clear the Mind
 Clear the Stage
 Clearwater Pathway
 Cleric of Chill Depths
@@ -1647,6 +1649,7 @@ Deathsprout
 Debilitating Injury
 Debris Beetle
 Debt to the Deathless
+Debt to the Kami
 Deceit
 Decimator Beetle
 Decision Paralysis
@@ -1690,6 +1693,7 @@ Demon of Loathing
 Demon's Disciple
 Demon's Due
 Demon's Grasp
+Demonic Bargain
 Demonic Counsel
 Demonic Ruckus
 Demystify
@@ -1754,11 +1758,13 @@ Dig Up the Body
 Diligent Excavator
 Dimensional Exile
 Diminisher Witch
+Dimir Charm
 Dimir Cluestone
 Dimir Guildgate
 Dimir Informant
 Dimir Keyrune
 Dimir Locket
+Dina's Guidance
 Dinosaur Stampede
 Dinotomaton
 Diplomacy of the Wastes
@@ -1775,6 +1781,7 @@ Diregraf Ghoul
 Diresight
 Discerning Peddler
 Disciple of the Old Ways
+Disciples of Gix
 Disciplined Duelist
 Discordant Piper
 Disdainful Stroke
@@ -1992,6 +1999,7 @@ Eager Trufflesnout
 Eagle of the Great Shelf
 Eagle of the Watch
 Eardrum Rattler
+Early Winter
 Earth King's Lieutenant
 Earth Kingdom Jailer
 Earth Kingdom Protectors
@@ -2285,6 +2293,7 @@ Ezuri, Renegade Leader
 Fable of the Mirror-Breaker
 Fabled Hero
 Fabled Passage
+Faceless Haven
 Facet Reader
 Fade into Antiquity
 Faerie Dreamthief
@@ -2404,6 +2413,7 @@ Ferocification
 Ferocious Werefox
 Ferocity of the Hunt
 Ferocity of the Wilds
+Fertile Thicket
 Fervent Champion
 Fervent Paincaster
 Fervent Strike
@@ -2575,6 +2585,7 @@ Fortifying Draught
 Fortress Crab
 Fortress Cyclops
 Fortuitous Find
+Fortune's Favor
 Forum of Amity
 Foul Orchard
 Foul Play
@@ -2621,6 +2632,7 @@ Frontier Mastodon
 Frontier Seeker
 Frontline Rebel
 Frontline Rush
+Frost Augur
 Frost Bite
 Frost Breath
 Frost Lynx
@@ -2630,6 +2642,7 @@ Frostboil Snarl
 Frostbridge Guard
 Frostburn Weird
 Frostfist Strider
+Frostpeak Yeti
 Frostveil Ambush
 Fruit of Tizerus
 Fry
@@ -2745,6 +2758,7 @@ Geyser Drake
 Geyserfield Stalker
 Ghalta the Unstoppable
 Ghalta, Primal Hunger
+Ghalta, Stampede Tyrant
 Ghastly Gloomhunter
 Ghirapur Aether Grid
 Ghirapur Gearcrafter
@@ -2969,7 +2983,9 @@ Grasping Scoundrel
 Grasping Thrull
 Grateful Apparition
 Gravblade Heavy
+Grave Birthing
 Grave Strength
+Graveblade Marauder
 Gravebreaker Lamia
 Gravedigger
 Gravel-Hide Goblin
@@ -3011,6 +3027,7 @@ Griffin Sentinel
 Griffnaut Tracker
 Grim Bauble
 Grim Bounty
+Grim Draugr
 Grim Flayer
 Grim Guardian
 Grim Initiate
@@ -3098,6 +3115,7 @@ Haazda Vigilante
 Hackrobat
 Hagra Constrictor
 Hagra Sharpshooter
+Hailstorm Valkyrie
 Hajar, Loyal Bodyguard
 Halana and Alena, Partners
 Half-Elf Monk
@@ -3136,6 +3154,7 @@ Hardy Veteran
 Hare Apparent
 Harmonious Archon
 Harmonious Grovestrider
+Harness Infinity
 Harnessed Snubhorn
 Harnesser of Storms
 Harried Artisan
@@ -3412,7 +3431,9 @@ I Am Iron Man
 Ice Out
 Ice Over
 Ice Tunnel
+Icebind Pillar
 Icecave Crasher
+Icehide Troll
 Iceridge Serpent
 Icetill Explorer
 Icewind Elemental
@@ -3426,6 +3447,7 @@ Idyllic Tutor
 Ifnir Deadlands
 Igneous Cur
 Igneous Inspiration
+Ignis Scientia
 Ignite the Beacon
 Iguana Parrot
 Il Mheg Pixie
@@ -3738,9 +3760,11 @@ Kavaron Harrier
 Kavaron Skywarden
 Kavaron Turbodrone
 Kaya's Onslaught
+Kayla's Command
 Kayla's Reconstruction
 Kazandu Mammoth
 Kazandu Nectarpot
+Kazandu Stomper
 Keen Glidemaster
 Keen-Eyed Curator
 Keening Apparition
@@ -4065,6 +4089,7 @@ Lord Skitter's Blessing
 Lord Skitter, Sewer King
 Lord of Atlantis
 Lord of the Accursed
+Lord of the Void
 Lore, Positronic Provocateur
 Lorehold Apprentice
 Lorehold Campus
@@ -4593,6 +4618,7 @@ Najal, the Storm Runner
 Namazu Trader
 Nantuko Husk
 Naomi, Pillar of Order
+Narfi, Betrayer King
 Narnam Cobra
 Narnam Renegade
 Narset's Rebuke
@@ -5017,6 +5043,7 @@ Pile On
 Pileated Provisioner
 Pilfer
 Pilfered Plans
+Pilfering Hawk
 Pilfering Imp
 Pilgrim's Eye
 Pillar Launch
@@ -5946,6 +5973,7 @@ Seal Away
 Seal from Existence
 Seam Rip
 Sear
+Search Warrant
 Searchlight Companion
 Searing Blaze
 Searing Blood
@@ -6949,11 +6977,13 @@ Tifa Lockhart
 Tightening Coils
 Tilonalli's Knight
 Timber Gorge
+Time Wipe
 Tinybones, the Pickpocket
 Tireless Tracker
 Tishana's Tidebinder
 Tishana's Wayfinder
 Titan's Strength
+Titania's Command
 Titanic Brawl
 Titanic Growth
 Toby, Beastie Befriender
@@ -6973,6 +7003,7 @@ Tormenting Voice
 Tormod's Crypt
 Torpor Orb
 Toski, Bearer of Secrets
+Town Greeter
 Toxin Analysis
 Tragic Banshee
 Tragic Trajectory
@@ -7144,6 +7175,7 @@ Void Extrapolator
 Void Rend
 Voja, Jaws of the Conclave
 Volatile Fault
+Volatile Fjord
 Volcanic Geyser
 Voldaren Epicure
 Volley Veteran

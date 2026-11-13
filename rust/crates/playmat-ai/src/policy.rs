@@ -301,6 +301,12 @@ fn pay(game: &Game, seat: Seat, cost: &str, sources: &[ObjId]) -> Answer {
             return Answer::Obj(*s);
         }
     }
+    if owed.snow > 0 {
+        // a snow symbol: only a snow permanent's mana pays it
+        if let Some(s) = mine.iter().find(|s| game.is_snow(**s)) {
+            return Answer::Obj(*s);
+        }
+    }
     if owed.generic > 0 || owed.x > 0 {
         // generic: the least useful source (colorless first, then the fewest colors)
         if let Some(s) = mine.iter().min_by_key(|s| {

@@ -78,6 +78,7 @@ to keep them small; a recording keeps them, which is what the difference report 
 | 39 | `shadow-decks/tier39`: the nine starter decks that aren't commander decks (the planeswalker decks the AI picks when it has no format deck): aftermath split cards (Spring // Mind, Reason // Believe: the left half cast from hand, the right from the graveyard and then exiled, each through the half's picker), Nissa's Encouragement, Quicksmith Spy's granted "{T}: Draw a card", tap-X-artifacts costs with X announced before the mana (Merchant's Dockhand), divided targets asked again until "done", combat damage triggers with the damage dealt, boosts on a Vehicle counted only once it's a creature, mana abilities that remove a counter, Natural Obsolescence's artifact to the library | 36 of 36 finished games match, 4 Java timeouts (10 checked in) |
 | 40 | `shadow-decks/tier40`: a player's own Modern decks (Domain Zoo, Esper Goryos, Izzet Prowess), and `shadow-decks/probe40`'s Goryo's splice deck: splice onto Arcane (asked before the other costs, each spliced card's targets after the payment, each part resolving in turn), Goryo's Vengeance's end-step exile, Atraxa's one card of each type, Teferi, Time Raveler's sorcery-speed lock and flash until your next turn, exert costs, Arena of Glory's haste for creature spells it pays for, Leyline of the Guildpact's land types after it leaves, delayed triggers with different fixed targets ordered by hand | 30 of 30 match; probes 12 of 12 (14 checked in) |
 | probe-mana | `shadow-decks/probe-mana` and `probe-mana2`: the mana abilities used Pioneer cards needed (Goblin, Dragon, Ally and legend decks): conditional any-color and colorless mana (Unclaimed Territory, Secluded Courtyard, Plaza of Heroes, Herd Heirloom, Vodalian Arcanist), `SimpleManaAbility` with costs (Transmogrant Altar, Vessel of Volatility, Skirk Prospector), any-color abilities with a {1} or tap-a-creature cost (Giant's Boulder, Relic of Legends), Mox Amber, Command Tower, the snarls' reveal-or-tapped, Reliquary Tower; a mana ability pays its other costs before its mana cost (`AbilityImpl.activate`), a nested payment asks the color, each source activated sets the pool's stock (`HumanPlayer.activateAbility`), an ability that doesn't tap its source counts as a source of its own, several mana abilities with mana costs counted together in the playable check; a triggered ability an effect grants until end of turn triggers like the permanent's own (Herd Heirloom's "draw a card") | 30 of 30 and 30 of 30 match (11 checked in) |
+| probe-snow | `shadow-decks/probe-snow`: snow and non-snow lands mixed (Frost Augur, Faceless Haven, Icehide Troll, Pilfering Hawk, the snow duals): {S} is a generic mana a snow source must pay (`SnowManaCost`), so the playable check counts it as generic; it's paid after hybrid and before generic, from the pool's mana in the order it was made, never from mana a source made before the current payment began (the stock), and a conditional mana's source must be snow too | 24 of 24 match (3 checked in) |
 | 41 | `shadow-decks/probe41`..`probe43`, keyword probes: equip with a cost and a filtered target, overload (Cyclonic Rift, Mizzium Mortars), proliferate (asked as one "up to" target round, counters in Java's HashMap order), populate, changeling and every creature type (land, artifact and planeswalker subtypes aren't creature types), Theros gods (not creatures below their devotion, two-color devotion), amass, toxic, "attacks each combat if able" for a filter, "you win the game", "doesn't untap during its controller's next untap step", a discard cost the cast card leaves nothing for (the cast is undone, as Java's) | probe41 29 of 30 (the other an overloaded Rift's Java hash order, below), probe42 30 of 30, probe43 30 of 30 (13 checked in under `shadow/keywords`) |
 | 44 | `shadow-decks/probe44`..`probe46`, wave 2's keyword mechanics: battalion (three or more attackers, this among them), inspired (it becomes untapped, in the untap step or by an effect), mentor, renown (an intervening "if" it isn't renowned), bolster (the least toughness, ties chosen), landcycling of each kind, outlast, exhaust (once per object), afterlife, afflict (once per blocked group, at the defending player), sagas with a fourth chapter and read ahead (the chosen chapter only fires on the turn it entered), extort, detain, decayed (can't block; its end-of-combat sacrifices are the same trigger, auto-ordered), eerie, boast (once a turn, only if it attacked), "attach it to target creature you control" on enter, fabricate, survival, unleash, cohort, bloodrush, support (spells and abilities), recruit, connive, skulk, intimidate | probe44 30 of 30, probe45 30 of 30, probe46 30 of 30 (12 checked in under `shadow/keywords`) |
 | triggers | `shadow-decks/trig1`..`trig5`, wave-2 trigger probes: magecraft (cast or copied), "attacks or blocks", blocks and becomes-blocked (per combat group, Java's `acceptBlockers` order), "attacks alone", an attached Equipment's attack and damage triggers, constellation, alliance, rally, "draw your Nth card", "your second spell", "one or more creatures deal combat damage to a player" (once per player, X the damage), discards (`DISCARDED_CARD`, and "one or more" once per discard), "you cycle", "cards leave your graveyard", "enters untapped", "scry or surveil", "your first spell during an opponent's turn", `OrTriggeredAbility`, a Role's granted attack trigger keeping its phrase | 30 of 30 in each (15 checked in under `shadow/triggers`); the factory's two rounds on the 351 cards these unlocked: 407 of 417 match, 340 verified |
@@ -92,7 +93,8 @@ A full game replays in about 2.5 ms (release build). Cleanup gives priority only
 Triggers that fire on the same event wait in Java's `TriggeredAbilities` order, which is the order cards were loaded
 into the game (tokens after every card), not the order they entered. Shadow games record each card's place in it
 (`libraryTriggerOrder`, `handTriggerOrder`); a player orders their own waiting triggers with PICK_ABILITY by their
-place in that list.
+place in that list. A transformed permanent's abilities are its back face's, added again under new ids each time Java
+resets the battlefield (`PermanentCard.reset`), so its triggers wait after every other card's, in battlefield order.
 
 Triggered abilities are one engine class, `TriggeredAbility`, with what it triggers on (`on`: enters, attacks, dies,
 a permanent of a filter entering, dying or attacking, attacking with N creatures, leaving the battlefield, the
@@ -105,8 +107,15 @@ table is read from its `apply` body by `rust/tools/custom_effects.py`: null chec
 `chooseUse` (also one paid for, `chooseUse(…) && cost.pay(…)`), loops over opponents, players or permanents, the top
 card of a library, and calls such as `damage`, `drawCards`, `moveCards` or `new XToken().putOntoBattlefield` become
 one `Effects` sequence of engine effects, with named slots for the locals ("target", "target.controller", "you",
-"second", a loop's permanent). A body with anything else (a `Cards` pile, a `switch`, a choice of cards, a field)
-stays unsupported. `PLAYMAT_APPLY_LOG=<file>` writes why each class did or didn't translate.
+"second", a loop's permanent). Piles of cards are named slots too: a `Cards` local, the top N cards of a library, a
+hand or a graveyard can be bound, revealed or looked at, filtered, added to and taken from, and a choice
+(`choose(outcome, cards, target, …)`, `chooseTarget`, `searchLibrary`) binds the chosen cards to a slot with the
+filter, minimum and maximum the Java target has. Each kind of choice asks only when Java's `HumanPlayer` would (an empty
+pile isn't asked about; a zone target with nothing possible and a minimum above 0 isn't either), and only the chooser
+sees the cards. The chosen and unchosen cards then go to their zones with `moveCards`, `putCardsOnTopOfLibrary`,
+`putCardsOnBottomOfLibrary` (in any order) or a random bottom order. A `switch` becomes an `if` chain (a case that falls
+through stays unsupported), and a `boolean` local set once becomes a flag. A body with anything else (a field, a
+`Map`, an exile zone of its own, a token copy) stays unsupported. `PLAYMAT_APPLY_LOG=<file>` writes why each class did or didn't translate.
 
 ## The 10,000-game gate run (11–12 Nov 2026)
 
@@ -187,7 +196,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,132 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
+  can express (9,166 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -226,8 +235,8 @@ Being in the engine and being trusted are kept apart.
   any colors in any combination (Hermitic Herbalist); a creature's own "can't be blocked by"; "done" on harmonize's
   creature; the text a tap-another or forage cost's auto-choice reads; targeting a triggered ability doesn't target
   its source permanent (valiant, ward); a mana ability that sacrifices its source (Lotus Ring's creature, which made
-  the engine panic). Snow mana costs (`{S}`) aren't in the engine yet: the transpiler leaves out the 8 cards that use
-  them. Replayed together, 4,192 games match, 132 differ and Java didn't finish 42; 650 more cards are verified:
+  the engine panic). Snow mana costs (`{S}`) weren't in the engine yet, so the transpiler left out the cards that use
+  them; they're in now (probe-snow above). Replayed together, 4,192 games match, 132 differ and Java didn't finish 42; 650 more cards are verified:
   4,504.
 
   A fifth round (13 Nov, 1,188 games) and the fixes its mismatches and those left from the first four led to, each
@@ -265,7 +274,8 @@ Being in the engine and being trusted are kept apart.
   Card-specific effects (13 Nov, `custom_effects.py`): two rounds over the cards it brought in (120 games recorded;
   replayed on this base, 106 of 108 match). Their fixes, each with a game under `shadow/factory/`: an effect pointed
   at a target skips one an earlier effect moved (Badlands Revival); a return inside a nested if stops only that path
-  (Matter Reshaper). 84 more cards are verified: 7,284.
+  (Matter Reshaper). 84 more cards are verified: 7,284. A probe round for snow mana and the pile and choice
+  effects (88 games, 84 of the 85 Java finished match) verified 32 more: 7,316.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
