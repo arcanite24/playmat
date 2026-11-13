@@ -387,6 +387,22 @@ pub enum Pred {
     ManaValueX {
         cmp: Cmp,
     },
+    /// `AnotherTargetPredicate`: not one of the ability's earlier targets (while its targets are chosen)
+    AnotherTarget,
+    /// `BlockingOrBlockedBySourcePredicate`: blocking the source (`BLOCKING`), blocked by it (`BLOCKED_BY`), or
+    /// either
+    BlockingOrBlockedBySource {
+        blocking: bool,
+        blocked_by: bool,
+    },
+    /// `PowerTargetAdjuster`: power compared with the X of the spell or ability (the filter's source's)
+    PowerX {
+        cmp: Cmp,
+    },
+    /// `ToughnessTargetAdjuster`: toughness, the same way
+    ToughnessX {
+        cmp: Cmp,
+    },
     /// `TappedPredicate.TAPPED` (true) or `.UNTAPPED`
     Tapped {
         v: bool,
@@ -415,6 +431,10 @@ pub enum Pred {
     /// `AbilityPredicate(X.class)`: has the keyword
     Ability {
         a: Box<AbilityDef>,
+    },
+    /// `AbilityPredicate(X.class)` of an ability with parameters (toxic, kicker, cycling): has one of that class
+    AbilityClass {
+        class: String,
     },
     /// `NamePredicate`
     Name {
@@ -605,6 +625,22 @@ pub enum Trigger {
     /// pointer, at that spell's controller
     BecomesTargetOfSpell {
         filter: Filter,
+        /// a `FilterStackObject`: an ability's targets count too
+        #[serde(default)]
+        abilities: bool,
+        /// `SetTargetPointer.SPELL`: its effects point at that spell
+        #[serde(default)]
+        at_spell: bool,
+    },
+    /// a permanent of `target` becomes the target of a spell (or, with `abilities`, an ability) of `filter`
+    /// (`BecomesTargetAnyTriggeredAbility`), once for each such permanent; `at` is what its effects point at:
+    /// "permanent", "player" (the targeting object's controller), "spell" or "none"
+    BecomesTargetAny {
+        target: Filter,
+        filter: Filter,
+        #[serde(default)]
+        abilities: bool,
+        at: String,
     },
     /// `who` casts their second spell this turn
     CastSecondSpell {
@@ -1036,6 +1072,7 @@ impl TokenDef {
             transform_back: None,
             omen: false,
             aftermath: false,
+            fused: false,
             prepare: None,
             room: Vec::new(),
             printed_cost: None,
@@ -1214,15 +1251,20 @@ impl From<i32> for Amount {
 pub enum Value {
     /// the X paid (`GetXValue`, `ManacostVariableValue`)
     X,
+    /// the colors of mana spent to cast the source (`ColorsOfManaSpentToCastCount`: the spell, or the permanent it
+    /// became)
+    ColorsSpent,
     /// permanents of the filter (`PermanentsOnBattlefieldCount`, `CreaturesYouControlCount`…)
     Permanents {
         filter: Filter,
     },
     /// cards in the controller's hand
     CardsInHand,
-    /// cards of the filter in the controller's graveyard
+    /// cards of the filter in the controller's graveyard (every graveyard: `CardsInAllGraveyardsCount`)
     CardsInGraveyard {
         filter: Filter,
+        #[serde(default)]
+        all: bool,
     },
     /// the source's power (`SourcePermanentPowerValue`)
     SourcePower,
@@ -1713,6 +1755,11 @@ pub enum EffectDef {
     BoostEquippedUntilEndOfTurnEffect {
         power: Amount,
         toughness: Amount,
+    },
+    /// the creature the source is attached to gains the ability until end of turn (`GainAbilityAttachedEffect`
+    /// with `Duration.EndOfTurn`: Aspect of Manticore's first strike)
+    GainAbilityAttachedUntilEndOfTurnEffect {
+        ability: Box<AbilityDef>,
     },
     /// the target permanents lose the ability until end of turn
     LoseAbilityTargetEffect {
@@ -3176,6 +3223,9 @@ pub struct SpellDef {
     /// the same, without and with the gift promised
     #[serde(default)]
     pub gift_targets: Option<(Vec<TargetDef>, Vec<TargetDef>)>,
+    /// `Modes.setMoreCondition`: up to this many modes while the condition holds as the modes are chosen
+    #[serde(default)]
+    pub more_modes: Option<(usize, Condition)>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
@@ -4161,6 +4211,9 @@ pub struct CardJson {
     /// an aftermath split card: its `room` halves are spells, the right one cast only from the graveyard
     #[serde(default)]
     pub aftermath: bool,
+    /// a fused split card: its `room` halves may also be cast together from hand
+    #[serde(default)]
+    pub fused: bool,
     /// a preparation card's prepare spell (`PrepareCard`)
     #[serde(default)]
     pub prepare: Option<Box<CardJson>>,
@@ -4406,6 +4459,9 @@ pub struct CardDef {
     /// an aftermath split card (`SplitCard`, `SPLIT_AFTERMATH`): its `room` halves are spells, the left cast from
     /// hand, the right only from the graveyard and then exiled
     pub aftermath: bool,
+    /// a fused split card (`SPLIT_FUSED`): from hand, its `room` halves may also be cast as one spell, both halves'
+    /// mana paid first, then the left half's targets and the right's, and each half resolving in turn
+    pub fused: bool,
     /// a preparation card's prepare spell: what a prepared copy of it is (`PrepareCard`)
     pub prepare: Option<Arc<CardDef>>,
     /// a Room's halves, left then right: each cast as a spell, and unlocked as a door on the battlefield (`RoomCard`)
@@ -4504,6 +4560,7 @@ impl CardDef {
             },
             omen: json.omen,
             aftermath: json.aftermath,
+            fused: json.fused,
             prepare: match json.prepare {
                 Some(a) => Some(Arc::new(CardDef::from_json(*a)?)),
                 None => None,
@@ -4702,6 +4759,32 @@ impl CardDef {
 
     pub fn is_permanent_card(&self) -> bool {
         !self.is(CardType::Instant) && !self.is(CardType::Sorcery)
+    }
+
+    /// A fused split card cast with both halves: the card, its spell the halves' as two modes both chosen, the left
+    /// then the right (`SpellAbilityType.SPLIT_FUSED`)
+    pub fn fused_spell(&self) -> Option<CardDef> {
+        if !self.fused || self.room.len() != 2 {
+            return None;
+        }
+        let mut def = self.clone();
+        def.room = Vec::new();
+        def.fused = false;
+        def.abilities = vec![AbilityDef::SpellAbility];
+        let halves = |k: usize| ModeDef {
+            effects: self.room[k].spell.effects.clone(),
+            targets: self.room[k].spell.targets.clone(),
+            cost: None,
+        };
+        def.spell = SpellDef {
+            // (" // " splits it back into the halves' rules for their targets)
+            rule: format!("{} // {}", self.room[0].spell.rule, self.room[1].spell.rule),
+            modes: vec![halves(0), halves(1)],
+            min_modes: 2,
+            max_modes: 2,
+            ..SpellDef::default()
+        };
+        Some(def)
     }
 }
 

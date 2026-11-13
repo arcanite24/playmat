@@ -147,6 +147,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
         };
         let text = match kind {
             PlayKind::Cast => format!("Cast {}", name),
+            PlayKind::RoomHalf if k == 2 && o.def.fused => format!("Cast {} fused", o.def.name),
             PlayKind::RoomHalf => format!("Cast {}", o.def.room.get(k).map_or("", |h| h.name.as_str())),
             PlayKind::Adventure => format!("Cast {}", o.def.adventure.as_ref().map_or("", |a| a.name.as_str())),
             PlayKind::Plotted => format!("Cast {} using Plot", name),
