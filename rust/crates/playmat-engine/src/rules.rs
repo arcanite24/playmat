@@ -4984,6 +4984,9 @@ fn choose_target(
     loop {
         let src = source.or_else(|| game.stack.last().map(|t| t.card));
         let (mut players, mut objs) = possible_targets(game, seat, def, src);
+        // `TargetSpellOrPermanent.possibleTargets` compares the spell's id with its card's, so it counts itself for
+        // the auto-choice (Fatehold Charm's "return target spell or creature" with one creature is asked)
+        let counts_itself = src.is_some_and(|s| clicks_itself(game, def, src, s) && !chosen.contains(&Target::Obj(s)));
         // a spell can't target itself (rule 115.5)
         objs.retain(|o| Some(*o) != source);
         if let (TargetDef::TargetCardInGraveyard { single: true, .. }, Some(Target::Obj(first))) = (def, chosen.first())
@@ -5021,7 +5024,10 @@ fn choose_target(
         if selected && players.is_empty() && objs.is_empty() && chosen.len() >= min && !(divided && added_in_prompt) {
             return Some(chosen);
         }
-        if min == max && players.len() + objs.len() == min - chosen.len() && !rule.contains("search") {
+        if min == max
+            && players.len() + objs.len() + usize::from(counts_itself) == min - chosen.len()
+            && !rule.contains("search")
+        {
             let auto = if game.player(seat).auto_target_all {
                 players.first().map(|p| Target::Player(*p)).or_else(|| objs.first().map(|o| Target::Obj(*o)))
             } else {
