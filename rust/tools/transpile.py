@@ -1355,15 +1355,15 @@ class Translator:
         if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+)(?:,(\d+))?\)', arg)) and m.group(1) in COUNTERS:
             return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2) or 1)}
         if (m := re.fullmatch(r'new TargetHasCardTypeCondition\(CardType\.([A-Z]+)\)', arg)):
-            return {'c': 'source_targets', 'filter': [{'p': 'type', 't': m.group(1)}]}
+            return {'c': 'source_targets', 'filter': [{'p': 'type', 't': m.group(1)}], 'first': True}
         if (m := re.fullmatch(r'new TargetHasSuperTypeCondition\(SuperType\.(\w+)\)', arg)):
-            return {'c': 'source_targets', 'filter': [{'p': 'supertype', 's': m.group(1)}]}
+            return {'c': 'source_targets', 'filter': [{'p': 'supertype', 's': m.group(1)}], 'first': True}
         if (m := re.fullmatch(r'new TargetHasCounterCondition\((CounterType\.\w+)\)', arg)) and m.group(1) in COUNTERS:
-            return {'c': 'source_targets', 'filter': [{'p': 'counter', 'name': COUNTERS[m.group(1)]}]}
+            return {'c': 'source_targets', 'filter': [{'p': 'counter', 'name': COUNTERS[m.group(1)]}], 'first': True}
         # "if it has N or more counters" (no upper bound)
         if (m := re.fullmatch(r'new TargetHasCounterCondition\((CounterType\.\w+),(\d+),Integer\.MAX_VALUE\)', arg)) \
                 and m.group(1) in COUNTERS and int(m.group(2)) > 0:
-            return {'c': 'source_targets', 'filter': [{'p': 'counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2))}]}
+            return {'c': 'source_targets', 'filter': [{'p': 'counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2))}], 'first': True}
         # the source's counters compared with N
         if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+),ComparisonType\.(\w+),(\d+)\)', arg)) \
                 and m.group(1) in COUNTERS and m.group(2) in COMPARISONS:
@@ -1375,7 +1375,7 @@ class Translator:
                 and m.group(1) in COUNTERS:
             return {'c': 'source_counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2)) + 1}
         if (m := re.fullmatch(r'new TargetHasSubtypeCondition\(SubType\.(\w+)\)', arg)) and m.group(1) in self.subtypes:
-            return {'c': 'source_targets', 'filter': [{'p': 'subtype', 's': self.subtypes[m.group(1)]}]}
+            return {'c': 'source_targets', 'filter': [{'p': 'subtype', 's': self.subtypes[m.group(1)]}], 'first': True}
         if (m := re.fullmatch(r'new SourceMatchesFilterCondition\((?:"[^"]*",)?(.*)\)', arg)):
             return {'c': 'source_matches', 'filter': self.filter(m.group(1))}
         if (m := re.fullmatch(r'new AttachedToMatchesFilterCondition\((.*)\)', arg)):

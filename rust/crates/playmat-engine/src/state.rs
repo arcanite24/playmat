@@ -2541,14 +2541,15 @@ impl Game {
             Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
             // `getStackObject`: the spell is still on the stack as it resolves, and its targets are as they last were
             // the resolving spell or ability's targets (Little Bear's trigger), else its spell's on the stack
-            Condition::SourceTargets { filter } => {
+            Condition::SourceTargets { filter, first } => {
                 let resolving = self.resolving_item.as_ref().filter(|i| i.card == source);
                 let mut items: Box<dyn Iterator<Item = &StackItem>> = match resolving {
                     Some(i) => Box::new(std::iter::once(i)),
                     None => Box::new(self.stack.iter().filter(|i| i.card == source && i.ability.is_none())),
                 };
                 items.any(|i| {
-                    i.targets.iter().flatten().any(|t| match t {
+                    let n = if *first { 1 } else { usize::MAX };
+                    i.targets.iter().flatten().take(n).any(|t| match t {
                         Target::Obj(o) => self.filter_matches(filter, you, Some(source), *o),
                         _ => false,
                     })
