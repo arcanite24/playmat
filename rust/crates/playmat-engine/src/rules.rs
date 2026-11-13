@@ -6460,9 +6460,11 @@ fn refresh_land_types(game: &mut Game) {
                             }
                         }
                         // Bootleggers' Stash: lands you control have "{T}: Create a Treasure token."
+                        // Constricting Sliver: Slivers you control have "When this creature enters, …"
                         EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. }
                             if matches!(**ability, AbilityDef::SimpleActivatedAbility { .. })
-                                && filter.0.iter().any(|p| matches!(p, Pred::Type { t: CardType::Land })) =>
+                                && filter.0.iter().any(|p| matches!(p, Pred::Type { t: CardType::Land }))
+                                || matches!(**ability, AbilityDef::TriggeredAbility { .. }) =>
                         {
                             let you = game.obj(*id).controller;
                             for to in game.battlefield.iter() {
