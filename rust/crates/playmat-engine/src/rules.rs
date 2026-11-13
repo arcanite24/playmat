@@ -3567,7 +3567,14 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         .stack
         .last()
         .map(|t| {
-            t.targets.iter().flatten().filter_map(|x| if let Target::Obj(o) = x { Some(*o) } else { None }).collect()
+            let stack_slots = stack_target_slots(game, t);
+            t.targets
+                .iter()
+                .enumerate()
+                .filter(|(k, _)| stack_slots.get(*k) != Some(&true))
+                .flat_map(|(_, ts)| ts.iter())
+                .filter_map(|x| if let Target::Obj(o) = x { Some(*o) } else { None })
+                .collect()
         })
         .unwrap_or_default();
     // the rest of TARGETED
@@ -4011,28 +4018,62 @@ fn distribute(
     multi_amount(game, d, seat, defaults, vec![(1, total); n], (total, total), (None, Vec::new()))
 }
 
+/// For each of a spell's targets, whether it targets a spell or ability on the stack (whose id may be a permanent's:
+/// a triggered ability's is its source's)
+fn stack_target_slots(game: &Game, item: &StackItem) -> Vec<bool> {
+    if item.ability.is_some() || item.delayed.is_some() {
+        return Vec::new();
+    }
+    spell_target_defs(&game.obj(item.card).def, item)
+        .iter()
+        .map(|t| {
+            matches!(
+                t,
+                TargetDef::TargetSpell { .. }
+                    | TargetDef::TargetStackAbility { .. }
+                    | TargetDef::TargetTriggeredAbilityOrColorlessSpell
+            )
+        })
+        .collect()
+}
+
 /// `WardAbility`: the permanents the top of the stack targets whose controller is that object's opponent, each with
 /// a ward trigger countering it
 fn ward(game: &mut Game) {
     let Some(top) = game.stack.last().cloned() else { return };
     // valiant: the first time each turn a permanent becomes a target (`NumberOfTimesPermanentTargetedATurnWatcher`)
     let mut first = Vec::new();
-    for t in top.targets.iter().flatten() {
-        let Target::Obj(o) = *t else { continue };
-        if game.obj(o).zone != Zone::Battlefield {
-            continue;
-        }
-        let turn = game.turn;
-        let o_ = game.obj_mut(o);
-        o_.targeted = if o_.targeted.0 == turn { (turn, o_.targeted.1 + 1) } else { (turn, 1) };
-        if o_.targeted.1 == 1 && o_.controller == top.controller {
-            first.push(o);
+    let stack_slots = stack_target_slots(game, &top);
+    for (k, ts) in top.targets.iter().enumerate() {
+        for t in ts {
+            let Target::Obj(o) = *t else { continue };
+            // a triggered ability targeted (Consign to Memory's) shares its source's id: not the permanent
+            if game.obj(o).zone != Zone::Battlefield || stack_slots.get(k) == Some(&true) {
+                continue;
+            }
+            let turn = game.turn;
+            let o_ = game.obj_mut(o);
+            o_.targeted = if o_.targeted.0 == turn { (turn, o_.targeted.1 + 1) } else { (turn, 1) };
+            if o_.targeted.1 == 1 && o_.controller == top.controller {
+                first.push(o);
+            }
         }
     }
     let fired = game.triggers(first.clone(), |_, src, _, t| matches!(t, Trigger::Valiant) && first.contains(&src));
     targeted(game, fired);
     let mut fired = Vec::new();
-    for t in top.targets.iter().flatten() {
+    let permanent_targets: Vec<Target> = top
+        .targets
+        .iter()
+        .enumerate()
+        .flat_map(|(k, ts)| ts.iter().map(move |t| (k, *t)))
+        .filter(|(k, t)| {
+            !(stack_slots.get(*k) == Some(&true)
+                && matches!(t, Target::Obj(o) if game.obj(*o).zone == Zone::Battlefield))
+        })
+        .map(|(_, t)| t)
+        .collect();
+    for t in permanent_targets.iter() {
         let Target::Obj(o) = *t else { continue };
         let obj = game.obj(o);
         // Surrak: a creature or creature spell of yours becomes the target of an opponent's spell or ability
