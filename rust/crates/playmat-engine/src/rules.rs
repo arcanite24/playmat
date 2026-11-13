@@ -303,18 +303,36 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
             // ATTACKER_DECLARED triggers, in the order the attackers are listed
+            let alone = attackers(game).len() == 1;
             for a in attackers(game) {
                 let sources: Vec<ObjId> = game.trigger_sources();
                 let fired = game.triggers(sources, |g, src, you, t| match t {
-                    Trigger::EntersOrAttacks => src == a,
-                    Trigger::AttacksAll { filter } => g.filter_matches(filter, you, Some(src), a),
+                    Trigger::EntersOrAttacks | Trigger::AttacksOrBlocks => src == a,
+                    Trigger::AttacksAll { filter, .. } => g.filter_matches(filter, you, Some(src), a),
+                    Trigger::AttacksAloneAll { filter } => alone && g.filter_matches(filter, you, Some(src), a),
+                    Trigger::AttacksAttached => g.attached(src) == Some(a),
                     _ => false,
                 });
                 for mut t in fired {
                     let all = t.ability.and_then(|(i, _)| game.item_def(&t).abilities[i].trigger().cloned());
-                    if matches!(all, Some(Trigger::AttacksAll { .. })) && set_target_pointer(game, &t) {
+                    let at_attacker = matches!(
+                        all,
+                        Some(Trigger::AttacksAll { .. } | Trigger::AttacksAloneAll { .. } | Trigger::AttacksAttached)
+                    );
+                    if at_attacker && set_target_pointer(game, &t) {
                         t.targets = vec![vec![Target::Obj(a)]];
                         t.target_zcc = vec![vec![game.obj(a).zcc]];
+                    }
+                    // at the defending player (in a duel, the attacker's controller's opponent), or the controller
+                    if at_attacker && set_target_pointer_player(game, &t) {
+                        let controller = game.obj(a).controller;
+                        let p = if matches!(all, Some(Trigger::AttacksAll { attacker_controller: true, .. })) {
+                            controller
+                        } else {
+                            game.opponent(controller)
+                        };
+                        t.targets = vec![vec![Target::Player(p)]];
+                        t.target_zcc = vec![vec![0]];
                     }
                     game.pending.push(t);
                 }
@@ -340,6 +358,14 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     Trigger::Battalion => all.len() >= 3 && all.contains(&src),
                     _ => false,
                 });
+                let mut fired = fired;
+                // "whenever this attacks, … defending player …"
+                for t in fired.iter_mut() {
+                    if game.trigger_of(t) == Some(&Trigger::Attacks) && set_target_pointer_player(game, t) {
+                        t.targets = vec![vec![Target::Player(game.opponent(game.obj(t.card).controller))]];
+                        t.target_zcc = vec![vec![0]];
+                    }
+                }
                 game.pending.extend(fired);
                 // DEFENDER_ATTACKED: the creatures attacking the defending player (not a planeswalker)
                 let at_player: Vec<(ObjId, u32)> = all
@@ -364,7 +390,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         Step::DeclareBlockers => {
             declare_blockers(game, d, game.opponent(active));
             if !d.stopped() {
-                becomes_blocked_triggers(game, active);
+                block_triggers(game);
             }
             if log::kept(game) && !d.stopped() {
                 // `Combat.logBlockerInfo`
@@ -605,6 +631,12 @@ fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
 fn set_target_pointer(game: &Game, t: &StackItem) -> bool {
     let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
     matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. }))
+}
+
+/// Whether a trigger's effects point at a player of its event (`SetTargetPointer.PLAYER`)
+fn set_target_pointer_player(game: &Game, t: &StackItem) -> bool {
+    let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
+    matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. }))
 }
 
 // ---------------------------------------------------------------------------------------------------------- priority
@@ -3690,7 +3722,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         .find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none())
         .is_some_and(|i| is_crime(game, seat, &i.targets));
     let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
-        Trigger::SpellCast { filter, who } => {
+        Trigger::SpellCast { filter, who } | Trigger::SpellCastOrCopied { filter, who } => {
             Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell)
         }
         Trigger::OpponentCastsOnYourTurnOrDies => {
@@ -4319,7 +4351,13 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     // `ACTIVATED_ABILITY`: "when you cycle this card" (`CycleTriggeredAbility`), with the cycling's X
     if matches!(def.abilities[index], AbilityDef::CyclingAbility { .. }) {
         let x = game.stack.last().map_or(0, |t| t.x);
-        let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::Cycled));
+        let mut sources = vec![id];
+        sources.extend(game.trigger_sources());
+        let fired = game.triggers(sources, |_, src, you, t| match t {
+            Trigger::Cycled => src == id,
+            Trigger::YouCycle => src != id && you == seat,
+            _ => false,
+        });
         game.pending.extend(fired.into_iter().map(|t| StackItem { x, ..t }));
     }
     commit_crime(game, seat);
@@ -6305,7 +6343,14 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
                 .map(|(o, _)| Target::Obj(*o))
                 .collect();
             if delayed.fixed.is_empty() || !fixed.is_empty() {
-                let legal = if fixed.is_empty() { Vec::new() } else { vec![fixed] };
+                // a player it points at ("that creature's controller")
+                let legal = if !fixed.is_empty() {
+                    vec![fixed]
+                } else if item.targets.iter().flatten().all(|t| matches!(t, Target::Player(_))) {
+                    item.targets.clone()
+                } else {
+                    Vec::new()
+                };
                 apply_effects(game, d, &item, &effects, &legal, (item.card, delayed.source_zcc));
             }
         }
@@ -7021,6 +7066,15 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
         top.targets = targets;
         top.target_zcc = zccs;
     }
+    // COPIED_STACKOBJECT: magecraft
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::SpellCastOrCopied { filter, who } => {
+            Game::whose(who, you, controller) && g.filter_matches(filter, you, Some(src), copy)
+        }
+        _ => false,
+    });
+    game.pending.extend(fired);
 }
 
 /// `CreateTokenCopyTargetEffect`: a token copy of `of`'s copiable values (its printed card), with a set power and
@@ -10238,10 +10292,11 @@ fn apply_each_effect(
                 }
                 game.move_to(id, Zone::Command);
             }
-            EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters } => {
+            EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters, owner } => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Graveyard {
-                        enter_battlefield(game, d, *o, controller, false);
+                        let under = if *owner { game.obj(*o).owner } else { controller };
+                        enter_battlefield(game, d, *o, under, false);
                         if let Some(c) = counters {
                             game.obj_mut(*o).add_counters(&c.name, c.amount);
                         }
@@ -11051,6 +11106,27 @@ fn apply_each_effect(
                     let o = game.obj_mut(c);
                     o.may_play = Some((owner, u32::MAX));
                     o.play_tax = 2;
+                }
+            }
+            EffectDef::CreateWhenTargetDiesDelayedEffect { effects, rule, to_player } => {
+                // `init`: the first target, as the object it is now
+                let first = item.targets.first().and_then(|ts| ts.first()).copied();
+                if let Some(Target::Obj(o)) = first {
+                    let delayed = Delayed {
+                        rule: rule.clone(),
+                        sacrifice: Vec::new(),
+                        warp_exile: Vec::new(),
+                        effects: effects.clone(),
+                        source_zcc: source.1,
+                        fixed: Vec::new(),
+                        return_tapped: Vec::new(),
+                        targets: Vec::new(),
+                        condition: None,
+                    };
+                    let zcc = game.obj(o).zcc;
+                    let turn = game.turn;
+                    let t = StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) };
+                    game.when_dies.push((o, zcc, turn, *to_player, t));
                 }
             }
             EffectDef::CreateNextEndStepDelayedEffect { effects, rule } => {
@@ -13486,26 +13562,6 @@ fn fire_untapped(game: &mut Game, id: ObjId) {
     game.pending.extend(fired);
 }
 
-/// `Combat.acceptBlockers`: `CREATURE_BLOCKED` for each attacker that became blocked, in combat order (afflict's
-/// trigger points at the defending player)
-fn becomes_blocked_triggers(game: &mut Game, active: Seat) {
-    for g in game.combat_groups.clone() {
-        let a = g.attacker;
-        if game.obj(a).zone != Zone::Battlefield || live_blockers(game, a).is_empty() {
-            continue;
-        }
-        let defender = game.opponent(active);
-        for mut t in game.triggers([a], |_, _, _, t| matches!(t, Trigger::BecomesBlocked)) {
-            let ab = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
-            if matches!(ab, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
-                t.targets = vec![vec![Target::Player(defender)]];
-                t.target_zcc = vec![vec![0]];
-            }
-            game.pending.push(t);
-        }
-    }
-}
-
 fn untap(o: &mut crate::state::Obj) {
     if o.tapped && o.counter("stun") > 0 {
         o.add_counters("stun", -1);
@@ -13532,6 +13588,46 @@ fn damaged_batch_triggers(game: &mut Game) {
         }
         for mut t in game.triggers([o], |_, _, _, t| matches!(t, Trigger::DealtDamage)) {
             t.x = n;
+            game.pending.push(t);
+        }
+    }
+}
+
+/// `DAMAGED_BATCH_FOR_ONE_PLAYER`: for each player dealt damage, in the order they were first dealt it, "whenever one
+/// or more … deal damage to a player" triggers once, with the total of the damage it counts as its X
+fn player_damage_batch_triggers(game: &mut Game) {
+    let batch = std::mem::take(&mut game.player_damage_batch);
+    let mut players: Vec<Seat> = Vec::new();
+    for (_, p, _, _) in &batch {
+        if !players.contains(p) {
+            players.push(*p);
+        }
+    }
+    for p in players {
+        let events: Vec<(ObjId, i32, bool)> =
+            batch.iter().filter(|e| e.1 == p).map(|(s, _, n, c)| (*s, *n, *c)).collect();
+        let total = |g: &Game, src: ObjId, you: Seat, filter: &crate::card::Filter, only_combat: bool| -> i32 {
+            events
+                .iter()
+                .filter(|(s, _, c)| {
+                    (*c || !only_combat) && g.obj(*s).controller == you && g.filter_matches(filter, you, Some(src), *s)
+                })
+                .map(|e| e.1)
+                .sum()
+        };
+        let sources = game.trigger_sources();
+        let fired = game.triggers(sources, |g, src, you, t| match t {
+            Trigger::DamagePlayerBatch { filter, only_combat } => total(g, src, you, filter, *only_combat) > 0,
+            _ => false,
+        });
+        for mut t in fired {
+            if let Some(Trigger::DamagePlayerBatch { filter, only_combat }) = game.trigger_of(&t).cloned() {
+                t.x = total(game, t.card, t.controller, &filter, only_combat);
+            }
+            if set_target_pointer_player(game, &t) {
+                t.targets = vec![vec![Target::Player(p)]];
+                t.target_zcc = vec![vec![0]];
+            }
             game.pending.push(t);
         }
     }
@@ -13573,12 +13669,18 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             let batch = std::mem::take(&mut game.batch_pending);
             game.pending.extend(batch);
         }
-        if game.exiled_batch {
-            game.exiled_batch = false;
+        if game.exiled_batch || !game.left_graveyard.is_empty() {
+            let exiled = std::mem::take(&mut game.exiled_batch);
+            let left = std::mem::take(&mut game.left_graveyard);
             let active = game.active.unwrap_or(0);
             let sources = game.trigger_sources();
-            let fired = game.triggers(sources, |_, _, you, t| {
-                matches!(t, Trigger::ExiledFromGraveyardOrBattlefieldBatch) && you == active
+            let fired = game.triggers(sources, |g, src, you, t| match t {
+                Trigger::ExiledFromGraveyardOrBattlefieldBatch => exiled && you == active,
+                // a card that left its owner's graveyard: cards are compared as they are now
+                Trigger::CardsLeaveGraveyard { filter } => {
+                    left.iter().any(|c| g.obj(*c).owner == you && g.filter_matches(filter, you, Some(src), *c))
+                }
+                _ => false,
             });
             game.pending.extend(fired);
         }
@@ -13596,6 +13698,9 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
         }
         if !game.damaged_batch.is_empty() {
             damaged_batch_triggers(game);
+        }
+        if !game.player_damage_batch.is_empty() {
+            player_damage_batch_triggers(game);
         }
         counters_added_triggers(game);
         game.update_guildpact();
@@ -14105,6 +14210,25 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         }
     }
     if let Target::Player(p) = to {
+        if amount > 0 {
+            game.player_damage_batch.push((source, p, amount, combat));
+        }
+        // noncombat damage by the creature an Equipment or Aura is attached to
+        if !combat {
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |g, src, you, t| {
+                matches!(t, Trigger::AttachedDealsDamageToPlayer { only_combat: false, who }
+                    if Game::whose(who, you, p) && g.attached(src) == Some(source))
+            });
+            for mut t in fired {
+                if set_target_pointer(game, &t) {
+                    t.targets = vec![vec![Target::Player(p)]];
+                    t.target_zcc = vec![vec![0]];
+                }
+                t.x = amount;
+                game.pending.push(t);
+            }
+        }
         let fired = game.triggers([source], |_, _, you, t| {
             matches!(t, Trigger::DealsDamageToOpponent { only_combat } if p != you && (combat || !*only_combat))
         });
@@ -14139,12 +14263,22 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 own.push(t);
             }
             let sources = game.trigger_sources();
-            let fired = game.triggers(sources, |g, src, you, t| {
-                matches!(t, Trigger::CombatDamageToPlayerAll { filter } if g.filter_matches(filter, you, Some(src), source))
+            let fired = game.triggers(sources, |g, src, you, t| match t {
+                Trigger::CombatDamageToPlayerAll { filter } => g.filter_matches(filter, you, Some(src), source),
+                Trigger::AttachedDealsDamageToPlayer { who, .. } => {
+                    Game::whose(who, you, p) && g.attached(src) == Some(source)
+                }
+                _ => false,
             });
             // one damage event: Java checks every trigger in its load order; "that many" is the damage (Starwinder)
             own.extend(fired.into_iter().map(|mut t| {
                 t.x = amount;
+                if matches!(game.trigger_of(&t), Some(Trigger::AttachedDealsDamageToPlayer { .. }))
+                    && set_target_pointer(game, &t)
+                {
+                    t.targets = vec![vec![Target::Player(p)]];
+                    t.target_zcc = vec![vec![0]];
+                }
                 t
             }));
             own.sort_by_key(|t| game.trigger_key(t));
@@ -14634,6 +14768,81 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         }
         if legal {
             return;
+        }
+    }
+}
+
+/// The block events after blockers are declared (`Combat.acceptBlockers`): for each combat group, each blocker's
+/// `BLOCKER_DECLARED` for each attacker it blocks, then the group's attacker's `CREATURE_BLOCKED`; then each blocker's
+/// `CREATURE_BLOCKS`
+fn block_triggers(game: &mut Game) {
+    let groups: Vec<ObjId> = game
+        .combat_groups
+        .iter()
+        .filter(|g| g.left.is_none() && game.obj(g.attacker).zone == Zone::Battlefield)
+        .map(|g| g.attacker)
+        .collect();
+    let mut all_blockers: Vec<ObjId> = Vec::new();
+    let point = |game: &Game, t: &mut StackItem, o: ObjId| {
+        t.targets = vec![vec![Target::Obj(o)]];
+        t.target_zcc = vec![vec![game.obj(o).zcc]];
+    };
+    for a in groups {
+        let blockers = live_blockers(game, a);
+        for b in blockers.iter().copied() {
+            if !all_blockers.contains(&b) {
+                all_blockers.push(b);
+            }
+            let sources = game.trigger_sources();
+            let fired = game.triggers(sources, |g, src, you, t| match t {
+                Trigger::BlockerDeclared { filter, blocks, blocked } => {
+                    (*blocks && src == b && g.filter_matches(filter, you, Some(src), a))
+                        || (*blocked && src == a && g.filter_matches(filter, you, Some(src), b))
+                }
+                _ => false,
+            });
+            for mut t in fired {
+                let other = if t.card == b { a } else { b };
+                point(game, &mut t, other);
+                game.pending.push(t);
+            }
+        }
+        if blockers.is_empty() {
+            continue;
+        }
+        let sources = game.trigger_sources();
+        let fired = game.triggers(sources, |g, src, you, t| match t {
+            Trigger::BecomesBlocked => src == a,
+            Trigger::BecomesBlockedAll { filter } => g.filter_matches(filter, you, Some(src), a),
+            _ => false,
+        });
+        for mut t in fired {
+            if matches!(game.trigger_of(&t), Some(Trigger::BecomesBlockedAll { .. })) && set_target_pointer(game, &t) {
+                point(game, &mut t, a);
+            }
+            if set_target_pointer_player(game, &t) {
+                t.targets = vec![vec![Target::Player(game.opponent(game.obj(a).controller))]];
+                t.target_zcc = vec![vec![0]];
+            }
+            game.pending.push(t);
+        }
+    }
+    for b in all_blockers {
+        let sources = game.trigger_sources();
+        let fired = game.triggers(sources, |g, src, you, t| match t {
+            Trigger::Blocks | Trigger::AttacksOrBlocks => src == b,
+            Trigger::BlocksAll { filter } => g.filter_matches(filter, you, Some(src), b),
+            _ => false,
+        });
+        for mut t in fired {
+            if set_target_pointer(game, &t) {
+                point(game, &mut t, b);
+            }
+            if set_target_pointer_player(game, &t) {
+                t.targets = vec![vec![Target::Player(game.obj(b).controller)]];
+                t.target_zcc = vec![vec![0]];
+            }
+            game.pending.push(t);
         }
     }
 }

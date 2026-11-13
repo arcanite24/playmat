@@ -484,6 +484,80 @@ pub enum Trigger {
     /// a creature of the filter attacks (`AttacksCreatureYouControlTriggeredAbility`); with a target pointer, at it
     AttacksAll {
         filter: Filter,
+        /// with a player target pointer: at the attacker's controller rather than the defending player
+        #[serde(default)]
+        attacker_controller: bool,
+    },
+    /// a creature of the filter attacks alone (`AttacksAloneControlledTriggeredAbility`, at `ATTACKER_DECLARED`);
+    /// with a target pointer, at it
+    AttacksAloneAll {
+        filter: Filter,
+    },
+    /// the creature this is attached to attacks (`AttacksAttachedTriggeredAbility`); with a target pointer, at it
+    AttacksAttached,
+    /// this attacks (`ATTACKER_DECLARED`) or blocks (`CREATURE_BLOCKS`) (`AttacksOrBlocksTriggeredAbility`)
+    AttacksOrBlocks,
+    /// this blocks (`BlocksSourceTriggeredAbility`, `CREATURE_BLOCKS`)
+    Blocks,
+    /// a creature of the filter blocks (`BlocksAllTriggeredAbility`); with a target pointer, at it, or at its
+    /// controller
+    BlocksAll {
+        filter: Filter,
+    },
+    /// this becomes blocked (`BecomesBlockedSourceTriggeredAbility`, `CREATURE_BLOCKED`); with a player target
+    /// pointer, at the defending player
+    BecomesBlocked,
+    /// a creature of the filter becomes blocked (`BecomesBlockedAllTriggeredAbility`); with a target pointer, at it
+    BecomesBlockedAll {
+        filter: Filter,
+    },
+    /// `BLOCKER_DECLARED`, once for each blocker and attacker it blocks: this blocks a creature of the filter
+    /// (`blocks`, `BlocksCreatureTriggeredAbility`) or is blocked by one (`blocked`,
+    /// `BecomesBlockedByCreatureTriggeredAbility`); its target is that other creature
+    BlockerDeclared {
+        filter: Filter,
+        #[serde(default)]
+        blocks: bool,
+        #[serde(default)]
+        blocked: bool,
+    },
+    /// `who` ("you", "opponent") discards a card of the filter (`DISCARDED_CARD`); with a player target pointer, at
+    /// that player
+    Discards {
+        who: String,
+        #[serde(default)]
+        filter: Filter,
+    },
+    /// the creature this is attached to deals (combat) damage to a player of `who` ("you", "opponent", "any")
+    /// (`DealsDamageToAPlayerAttachedTriggeredAbility`); with a target pointer, at that player; the damage is its X
+    AttachedDealsDamageToPlayer {
+        #[serde(default)]
+        only_combat: bool,
+        who: String,
+    },
+    /// one or more permanents of the filter you control deal (combat) damage to a player, once for each player's
+    /// batch (`OneOrMoreDamagePlayerTriggeredAbility`); with a target pointer, at that player; the total is its X
+    DamagePlayerBatch {
+        filter: Filter,
+        #[serde(default)]
+        only_combat: bool,
+    },
+    /// any of `ts` (`OrTriggeredAbility`): it triggers once for an event that any of them triggers on
+    Or {
+        ts: Vec<Trigger>,
+    },
+    /// you cycle a card (`CycleControllerTriggeredAbility`, `ACTIVATED_ABILITY`)
+    YouCycle,
+    /// one or more cards of the filter leave your graveyard (`CardsLeaveGraveyardTriggeredAbility`, once for each
+    /// `ZONE_CHANGE_BATCH`)
+    CardsLeaveGraveyard {
+        #[serde(default)]
+        filter: Filter,
+    },
+    /// `who` casts or copies a spell of the filter (`MagecraftAbility`)
+    SpellCastOrCopied {
+        filter: Filter,
+        who: String,
     },
     /// you attack with `min` or more creatures of the filter (`AttacksWithCreaturesTriggeredAbility`)
     AttacksWith {
@@ -560,7 +634,11 @@ pub enum Trigger {
         only_combat: bool,
     },
     /// the permanent this is attached to is put into a graveyard from the battlefield; its target is that card
-    DiesAttached,
+    DiesAttached {
+        /// no target pointer (`SetTargetPointer.NONE`): its target isn't the card
+        #[serde(default)]
+        no_card: bool,
+    },
     /// a permanent of the filter leaves the battlefield; the trigger's X is the +1/+1 counters it had (The Ooze)
     LeavesAll {
         filter: Filter,
@@ -644,9 +722,6 @@ pub enum Trigger {
     Battalion,
     /// inspired: this becomes untapped (`InspiredAbility`, the `UNTAPPED` event)
     BecomesUntapped,
-    /// this becomes blocked (`BecomesBlockedSourceTriggeredAbility`); with a target pointer to the player, at the
-    /// defending player (afflict)
-    BecomesBlocked,
     /// eerie: an enchantment you control enters, or you fully unlock a Room (`EerieAbility`)
     Eerie,
 }
@@ -1555,6 +1630,14 @@ pub enum EffectDef {
     RavenEagleEffect {
         then: Box<EffectDef>,
     },
+    /// "when that creature dies this turn, …" (`WhenTargetDiesDelayedTriggeredAbility`): armed on the first target
+    /// as it is now; `to_player`: its effects' target is that creature's controller as it died
+    CreateWhenTargetDiesDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+        #[serde(default)]
+        to_player: bool,
+    },
     /// "at the beginning of the next end step, …" (`CreateDelayedTriggeredAbilityEffect` with
     /// `AtTheBeginOfNextEndStepDelayedTriggeredAbility`)
     CreateNextEndStepDelayedEffect {
@@ -2298,6 +2381,9 @@ pub enum EffectDef {
     ReturnFromGraveyardToBattlefieldTargetEffect {
         #[serde(default)]
         tapped: bool,
+        /// under its owner's control (`ReturnToBattlefieldUnderOwnerControlTargetEffect`)
+        #[serde(default)]
+        owner: bool,
         /// it enters with these counters (`…WithCounterTargetEffect`)
         #[serde(default)]
         counters: Option<CounterDef>,
