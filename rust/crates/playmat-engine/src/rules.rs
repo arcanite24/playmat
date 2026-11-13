@@ -6366,6 +6366,16 @@ fn refresh_land_types(game: &mut Game) {
             }
         }
     }
+    // a triggered ability a resolved effect gave until end of turn (Herd Heirloom's "Whenever this creature deals
+    // combat damage to a player, draw a card"): Java adds it to the permanent, so it triggers like its own
+    for g in game.grants.iter() {
+        if matches!(g.ability, AbilityDef::TriggeredAbility { .. })
+            && game.obj(g.target).zone == Zone::Battlefield
+            && game.obj(g.target).zcc == g.zcc
+        {
+            granted.push((g.target, g.ability.clone()));
+        }
+    }
     // Tide Shaper's: kept while its source and the land are still those objects
     let here = |g: &Game, o: ObjId, z: u32| g.obj(o).zone == Zone::Battlefield && g.obj(o).zcc == z;
     if game.land_becomes.iter().any(|(l, lz, s, sz, _)| !here(game, *l, *lz) || !here(game, *s, *sz)) {
