@@ -41,7 +41,7 @@ fn main() {
         writeln!(code, "#[path = {:?}]\nmod {};", f.display().to_string(), name).unwrap();
         names.push(name);
     }
-    code.push_str("\n/// every handler file's `HANDLERS`\npub(crate) const ALL: &[&[Handler]] = &[\n");
+    code.push_str("\n/// every handler file's `HANDLERS`\npub(crate) static ALL: &[&[Handler]] = &[\n");
     for n in &names {
         writeln!(code, "    {}::HANDLERS,", n).unwrap();
     }
