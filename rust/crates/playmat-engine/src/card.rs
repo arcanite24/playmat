@@ -2268,7 +2268,8 @@ pub enum EffectDef {
     LoseAllAbilitiesUntilSourceLeavesEffect,
     /// firebending: adds `amount` {R} that lasts until end of combat
     FirebendingEffect {
-        amount: u32,
+        /// a number, or Firebending X's value (`FirebendingAbility(DynamicValue)`)
+        amount: Amount,
     },
     /// adds `amount` mana of one color its controller chooses (a resolving effect: always asked)
     AddManaOfAnyColorEffect {

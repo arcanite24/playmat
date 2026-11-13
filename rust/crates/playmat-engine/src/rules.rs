@@ -9591,9 +9591,10 @@ fn apply_each_effect(
                 }
             }
             EffectDef::FirebendingEffect { amount } => {
+                let amount = v!(amount).max(0) as u32;
                 let p = game.player_mut(controller);
-                p.mana_pool.colored[Color::R.index()] += *amount;
-                p.combat_red += *amount;
+                p.mana_pool.colored[Color::R.index()] += amount;
+                p.combat_red += amount;
             }
             EffectDef::AddManaOfAnyColorEffect { amount } => {
                 let names = ["White", "Blue", "Black", "Red", "Green"];
@@ -11017,7 +11018,10 @@ fn apply_each_effect(
                     cards = chosen;
                 }
                 // through the end of this turn, or of the controller's next turn
-                let until = if duration == "EndOfTurn" {
+                // ("until your next end step": this turn's, on your turn before it)
+                let before_your_end =
+                    game.active == Some(controller) && game.step.is_some_and(|s| s < crate::state::Step::EndTurn);
+                let until = if duration == "EndOfTurn" || (duration == "UntilYourNextEndStep" && before_your_end) {
                     game.turn
                 } else if game.active == Some(controller) {
                     game.turn + game.seats() as u32
@@ -11167,6 +11171,11 @@ fn apply_each_effect(
                     if others.iter().all(|c| pay_cost(game, d, controller, source.0, c))
                         && pay_mana(game, d, controller, &ability_mana_cost(cost))
                     {
+                        // a discard cost's `DISCARDED_CARDS` came as it was paid, before the reflexive trigger
+                        // (Inti, Seneschal of the Sun)
+                        if !game.discarded.is_empty() {
+                            game.discarded_cards();
+                        }
                         let delayed = Delayed {
                             rule: rule.clone(),
                             sacrifice: Vec::new(),
