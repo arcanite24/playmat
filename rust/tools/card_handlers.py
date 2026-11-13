@@ -14,7 +14,8 @@ name for one in the framework), and optionally `.tokens(&[…])`, `.effects(&[�
 transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order; and
 `.args(&[…])`, one kind per constructor argument ("text" as is, "library_target": a `TargetCardInLibrary`, as
 "min max" with its filter after the declared ones; "filter", "effect" and "ability": translated, after the declared
-filters, effects or abilities; "counter": a `Counter` as "name amount"; "put_cards": a `PutCards` constant's name;
+filters, effects or abilities; "counter": a `Counter` as "name amount"; "counter_type": `CounterType.X` as the
+engine's counter name; "put_cards": a `PutCards` constant's name;
 "while_on_battlefield": only `Duration.WhileOnBattlefield`; "one_of:a|b": only one of these texts). The strings are
 plain or raw Rust string literals.
 
@@ -169,6 +170,11 @@ def effect(t, cls, args, own_only=False):
             if not c:
                 raise _unsupported(f'counter {args[i]}')
             args[i] = f"{c['name']} {c['amount']}"
+        elif kind == 'counter_type':
+            # `CounterType.M1M1`: the engine's name for the counter ("-1/-1")
+            if args[i] not in T.COUNTERS:
+                raise _unsupported(f'argument {args[i]}')
+            args[i] = T.COUNTERS[args[i]]
         elif kind == 'put_cards':
             # `PutCards.X`: its engine name (`BATTLEFIELD_TAPPED`)
             m = re.fullmatch(r'PutCards\.(\w+)', args[i])
@@ -185,7 +191,8 @@ def effect(t, cls, args, own_only=False):
             # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
-        elif kind not in ('text', 'filter', 'effect', 'counter', 'put_cards', 'ability', 'while_on_battlefield') \
+        elif kind not in ('text', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
+                          'while_on_battlefield') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
     # a static handler for a framework class is written for its constructors with up to as many arguments as it
