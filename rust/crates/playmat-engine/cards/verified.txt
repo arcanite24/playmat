@@ -1,600 +1,3169 @@
+A Little Chat
+A Realm Reborn
+A.I.M. Labs
+A.I.M. Synthoids
+Abandon Attachments
+Abandon the Post
 Abandoned Air Temple
+Abbot of Keral Keep
+Abigale, Poet Laureate
 Abrade
+Abraded Bluffs
 Abrupt Decay
+Absorb
+Abstruse Interference
+Abyssal Gorestalker
+Abzan Ascendancy
+Abzan Banner
+Abzan Charm
+Abzan Kin-Guard
+Abzan Runemark
+Academic Ascent
 Academic Dispute
+Academy Drake
+Academy Instructor
+Academy Wall
+Access Tunnel
+Acclaimed Contender
+Accorder's Shield
 Accumulate Wisdom
+Accursed Horde
+Acolyte of Aclazotz
+Acolyte of Affliction
+Acrobatic Leap
+Act on Impulse
+Action News Crew
+Adamant Will
+Adanto Vanguard
+Adaptive Gemguard
+Adaptive Shimmerer
+Adaptive Snapjaw
 Adarkar Wastes
+Adelbert Steiner
 Adeline, Resplendent Cathar
+Adeliz, the Cinder Wind
+Adept Watershaper
+Admiral's Order
+Adult Gold Dragon
+Advent of the Wurm
+Adventurer's Airship
+Adventurer's Inn
+Adventurous Eater
+Adventurous Impulse
+Advocate of the Beast
+Aegis Angel
+Aegis Automaton
+Aegis Sculptor
+Aegis Turtle
+Aegis of the Heavens
+Aerial Assault
+Aerial Boost
+Aerial Doombot
+Aerial Engineer
 Aerial Guide
+Aerial Maneuver
 Aerial Responder
+Aerial Volley
 Aerid Konstrari
+Aeromunculus
+Aeronaut Admiral
+Aeronaut Cavalry
+Aeronaut's Wings
+Aesthir Glider
+Aether Channeler
+Aether Chaser
+Aether Herder
+Aether Hub
+Aether Inspector
+Aether Meltdown
+Aether Poisoner
+Aether Swooper
+Aether Theorist
+Aether Tradewinds
 Aether Vial
+Aetherize
+Aetherjacket
+Aethershield Artificer
+Aethersphere Harvester
 Aethersquall Ancient
+Aetherstorm Roc
+Aetherstream Leopard
+Aethertide Whale
+Aethertorch Renegade
+Aetherwind Basker
+Affa Protector
+Afterthought Sentry
+Against All Odds
+Agate Assault
+Ageless Guardian
+Agent Bishop, Man in Black
+Agent Phil Coulson
+Agent of Atlas
+Agent of Horizons
+Agent of the Fates
+Agents of HYDRA
+Aggressive Mammoth
+Aggressive Urge
+Agna Qel'a
+Agonizing Syphon
+Agoraphobia
 Ahn-Crop Crasher
+Ahn-Crop Invader
+Ahriman
 Aid from the Cowl
+Aim High
+Ainok Artillerist
+Ainok Wayfarer
+Air Elemental
+Air Marshal
+Air Nomad Legacy
+Air Response Unit
+Air Servant
+Air-Cult Elemental
 Airdrop Aeronauts
+Airlift Chaplain
+Airship Crash
+Airship Engine Room
 Ajani Resolute
 Ajani's Aid
+Ajani's Anguish
 Ajani's Comrade
+Ajani's Influence
 Ajani's Pridemate
+Ajani's Response
+Ajani's Welcome
+Ajani, Caller of the Pride
 Ajani, Valiant Protector
+Ajani, Wise Counselor
+Akki Scrapchomper
+Akoum Hellhound
+Akroan Crusader
+Akroan Hoplite
+Akroan Jailer
+Akroan Mastiff
+Akroan Phalanx
+Akroan Skyguard
+Al Bhed Salvagers
+Alabaster Host Sanctifier
+Alabaster Kirin
+Alania's Pathmaker
+Alela, Artful Provocateur
+Alert Heedbonder
+Alesha's Legacy
+Alesha's Vanguard
+All That Glitters
+All-Fates Stalker
+Alley Evasion
+Alley Strangler
+Allied Reinforcements
+Alloy Animist
+Almighty Brushwagg
+Alpharael, Dreaming Acolyte
+Alpine Grizzly
+Alpine Meadow
+Alpine Watchdog
+Alquist Proft, Master Sleuth
+Alrund's Epiphany
+Altac Bloodseeker
+Altar's Reap
+Always Watching
+Amaranthine Wall
+Amazing Acrobatics
+Ambling Stormshell
 Ambuscade
+Ambush Gigapede
+Ambush Paratrooper
 Ambush Wolf
+Amphin Pathmage
+Ampryn Tactician
+An Offer You Can't Refuse
+Anax and Cymede
+Ancestors' Aid
+Ancestral Blade
+Ancestral Reminiscence
+Ancestral Vengeance
+Anchor to the Aether
+Ancient Carp
+Ancient Crab
 Ancient Stirrings
+Andoria
+Angel of Finality
+Angel of Renewal
 Angel of Vitality
+Angel of the Dawn
+Angel of the God-Pharaoh
+Angel's Tomb
+Angelfire Ignition
+Angelheart Protector
+Angelic Accord
+Angelic Edict
+Angelic Gift
+Angelic Purge
+Angelic Quartermaster
+Angelic Wall
+Anger of the Gods
 Angler Drake
+Angrath's Ambusher
+Angrath's Rampage
+Angry Rabble
+Anguished Unmaking
+Animal Sanctuary
+Ankle Biter
+Ankle Shanker
+Annihilating Fire
+Annihilating Glare
 Annul
+Anointed Chorister
+Anointed Deacon
+Anointed Procession
+Anointer of Champions
+Antagonist Incorporator
+Antagonize
+Anthem of Champions
+Anticipate
+Anvilwrought Raptor
+Apocalypse Runner
+Apothecary Geist
+Apothecary Stomper
+Appeal to Eirdu
+Appendage Amalgam
 Appetite for the Unnatural
+Apprentice Sharpshooter
+April O'Neil, Kunoichi Trainee
+April, Reporter of the Weird
+Aquatic Incursion
+Aquus Steed
+Arabella, Abandoned Doll
+Arachnoid Adaptation
+Aradara Express
+Arahbo, the First Fang
+Arashin Cleric
+Arashin Foremost
+Arbiter of Woe
+Arbor Armament
 Arborback Stomper
+Arborea Pegasus
+Arc Lightning
+Arc Reactor
+Arcane Amphisbaena
+Arcane Encyclopedia
+Arcane Epiphany
+Arcane Flight
+Arcane Infusion
+Arcane Subtraction
+Arcanis the Omnipotent
+Archaeomancer
+Archangel of Thune
+Archenemy's Charm
+Archers of Qarsi
+Archers' Parapet
+Architect of the Untamed
+Archive Dragon
+Archmage of Runes
 Archon of Emeria
+Archway Angel
 Arclight Phoenix
+Arctic Treeline
+Ardent Elementalist
+Ardenvale Tactician
+Arena Athlete
 Arena of Glory
+Argothian Sprite
 Arid Mesa
+Arisen Gorgon
+Arlinn's Wolf
+Armada Wurm
+Armament Corps
+Armasaur Guide
 Armorcraft Judge
+Armored Armadillo
+Armory Guard
+Arni, Humble Scribe
+Arnim Zola, Bio-Fanatic
+Arnyn, Deathbloom Botanist
+Aron, Benalia's Ruin
+Arrogant Poet
+Arrows of Justice
+Artful Maneuver
+Artificer's Epiphany
+Artificial Anomaly
+Artifist Acumen
+Artillery Blast
+Artisan's Sorrow
 Artist's Talent
+Artistic Refusal
+Arvad the Cursed
+Ascendant Dustspeaker
+Ascendant Packleader
+Ascended Lawmage
+Asgardian Citadel
+Ashe, Princess of Dalmasca
+Ashiok's Adept
+Ashiok's Forerunner
+Ashiok's Skulker
+Ashling's Command
+Ashroot Animist
+Aspect of Lamprey
+Asphodel Wanderer
+Asphyxiate
+Aspiring Aeronaut
+Assassin's Ink
+Assassin's Trophy
+Assault Drone
+Assault Griffin
+Assembly Specialist
+Assert Perfection
+At Knifepoint
+Atarka Monument
+Atraxa's Fall
 Atraxa, Grand Unifier
+Atsushi, the Blazing Sky
+Attendant of Vraska
+Attended Healer
+Attentive Sunscribe
+Attercop
 Attune with Aether
+Atzocan Seer
 Audacious Infiltrator
+Audacious Thief
+Audacity
+Auger Spree
 Augmenting Automaton
+Augur of Bolas
+Augury Raven
+Auntie's Sentence
+Auramancer
+Auron's Inspiration
+Auroral Procession
+Auspicious Arrival
 Authority of the Consuls
+Automated Warfare System
+Automatic Librarian
+Autumnal Gloom
+Auxiliary Boosters
+Avabruck Caretaker
+Avaricious Dragon
+Avatar Enthusiasts
+Avatar of the Resolute
+Aven Battle Priest
+Aven Gagglemaster
 Aven Interrupter
 Aven Reedstalker
+Aven Sentry
+Aven Skirmisher
+Aven Surveyor
+Aven Wind Mage
+Aven of Enduring Hope
 Avengers Disassembled
+Avengers Hangar
+Aviation Pioneer
 Avid Reclaimer
+Awaken the Bear
+Axebane Beast
+Axgard Cavalry
 Ayara, First of Locthwain
+Azorius Charm
+Azorius Cluestone
+Azorius Guildgate
+Azorius Keyrune
+Azorius Knight-Arbiter
+Azorius Locket
+Azula Always Lies
+Azula, On the Hunt
+Azusa, Lost but Seeking
 Ba Sing Se
+Back to Nature
+Backup Agent
+Backwoods Survivalists
+Badgermole
 Badgermole Cub
+Baffling End
+Bagel and Schmear
+Bajor
 Bake into a Pie
 Bakersbane Duo
 Baleful Ammit
 Ball Lightning
+Ballista Charger
+Ballyrush Banneret
+Balmor, Battlemage Captain
 Baloth Gorger
+Baloth Null
+Baloth Pup
+Bamboo Grove Archer
+Bane Alley Blackguard
+Banehound
+Baneslayer Angel
+Banisher Priest
+Banishing Betrayal
 Banishing Light
+Bankrupt in Blood
+Barge In
+Barkchannel Pathway
+Barkhide Troll
+Baron, Airship Kingdom
+Barony Vampire
+Barrage of Expendables
 Barricade Breaker
+Barrier Breach
+Barrow Witches
+Bartizan Bats
+Bartolome del Presidio
+Basic Conjuration
+Basilica Skullbomb
 Basking Broodscale
+Basri's Solidarity
+Basri, Tomorrow's Champion
+Bastion Enforcer
 Bastion Inventor
+Bastion Mastodon
+Bastion of Remembrance
+Bat'leth
+Bathe in Dragonfire
+Batterhorn
+Battering Krasis
+Battle Mastery
+Battle Menu
+Battle Sliver
+Battle at the Bridge
+Battle-Rage Blessing
+Battle-Rattle Shaman
+Battle-Scarred Survivalist
+Battlefield Forge
+Battlefield Promotion
+Battlefield Raptor
+Battlefly Swarm
+Battlesong Berserker
+Battlewing Mystic
+Battlewise Hoplite
+Battlewise Valor
+Baxter Stockman
+Bayou Groff
+Bazaar Krovod
+Beaming Defiance
+Beamsaw Prospector
 Bear Cub
+Bear Trap
+Bear's Companion
+Bearded Axe
+Bearer of Glory
+Bearer of Memory
+Bearer of Silence
+Beast Whisperer
 Beast-Kin Ranger
+Beastbond Outcaster
+Beastcaller Savant
+Beastie Beatdown
+Beastrider Vanguard
+Beckon Apparition
+Become Brutes
+Become Immense
+Bedevil
+Bedlam Reveler
+Beetle-Headed Merchants
+Befuddle
+Behold the Multiverse
 Bejeweled Warg
+Belligerent Guest
+Belligerent Whiptail
+Bellowing Bruiser
+Bellowing Crier
+Bellowing Saddlebrute
+Bellows Lizard
+Beloved Princess
+Beluna's Gatekeeper
+Benalish Honor Guard
+Benalish Marshal
+Beneath the Sands
+Benthic Biomancer
+Benthic Criminologists
+Beskir Shieldmate
+Bespoke Bo
+Bestial Incursion
+Bestow Greatness
+Betrayer's Bargain
+Bewildering Blizzard
 Beza, the Bounding Spring
+Biblioplex Assistant
+Big Play
+Big Score
+Bigfin Bouncer
+Bilbo Baggins, Burglar
+Bilbo's Deadly Slice
+Bile-Vial Boggart
+Binding Mummy
 Binding the Old Gods
+Biogenic Ooze
+Biomathematician
+Biomechan Engineer
 Biotech Specialist
+Bird Admirer
+Birnin Zana Plaza
+Birthing Hulk
+Bishop of Rebirth
 Bishop of Wings
+Bishop of the Bloodstained
+Bishop's Soldier
 Bite Down
+Bitter Chill
+Bitter Reunion
+Bitter Revelation
 Bitter Triumph
+Bitterblade Warrior
+Bitterbloom Bearer
+Bitterbow Sharpshooters
+Black Market Tycoon
+Black Oak of Odunos
+Black Panther, Vanguard
+Black Waltz No. 3
 Blackcleave Cliffs
+Blacklance Paragon
+Blade Banish
+Blade Juggler
 Blade of the Bloodchief
+Blade-Blizzard Kitsune
+Bladebrand
+Bladestitched Skaab
+Blanchwood Armor
+Blanchwood Prowler
+Blast Zone
 Blazemire Verge
+Blazing Crescendo
+Blazing Firesinger
+Blazing Hellhound
+Blazing Volley
 Bleachbone Verge
+Blech, Loafing Pest
+Bleed Dry
+Blessed Light
+Blessed Spirits
+Blight Keeper
+Blight Pile
+Blight Rot
+Blight-Breath Catoblepas
+Blightcaster
+Blighted Bat
+Blighted Cataract
+Blighted Fen
+Blighted Gorge
+Blighted Steppe
+Blighted Woodland
+Blightstep Pathway
+Blindblast
+Blinding Drone
+Blinding Spray
+Blink of an Eye
+Blistercoil Weird
+Blisterpod
+Blisterspit Gremlin
+Blitz of the Thunder-Raptor
+Blitzball Shot
+Blizzard Brawl
+Blood Age General
+Blood Aspirant
+Blood Bairn
+Blood Burglar
 Blood Crypt
+Blood Divination
+Blood Fountain
+Blood Glutton
+Blood Host
+Blood Hustler
+Blood Hypnotist
+Blood Mist
+Blood Pact
+Blood Petal Celebrant
+Blood Price
+Blood Researcher
+Blood Servitor
+Blood-Chin Rager
+Blood-Cursed Knight
+Bloodbond Vampire
+Bloodbriar
+Bloodcrazed Socialite
+Bloodfell Caves
+Bloodfire Expert
+Bloodfire Mentor
 Bloodghast
+Bloodhunter Bat
+Bloodline Culling
+Bloodlust Inciter
+Bloodmist Infiltrator
+Bloodrage Brawler
+Bloodsoaked Altar
+Bloodsoaked Champion
 Bloodstained Mire
+Bloodtallow Candle
 Bloodthirsty Adversary
+Bloodthirsty Aerialist
 Bloodthirsty Conqueror
+Bloodthorn Flail
 Bloodtithe Collector
 Bloodtithe Harvester
+Bloodwater Entity
 Bloombrute
 Blooming Marsh
+Blooming Stinger
+Blossom Dryad
+Blossom-Blessed Angel
+Blossoming Defense
+Blossoming Sands
+Blur Sliver
+Boar-q-pine
+Body Dropper
+Bofur, Reliable Guardian
+Bog Badger
+Bog Naughty
+Bogbrew Witch
+Boggart Brute
+Boggart Cursecrafter
+Boggart Prankster
+Bogstomper
+Bogwater Lumaret
+Boiling Rock Prison
+Bold Biochemist
+Bold Impaler
+Boldwyr Aggressor
+Bolg's Company
+Bolt Hound
+Bolt of Keranos
 Boltwave
+Boltwing Marauder
 Bomat Bazaar Barge
+Bombard
+Bond of Flourishing
+Bonded Construct
+Bonded Herdbeast
 Bonded Horncrest
+Bonders' Enclave
+Bonds of Mortality
+Bone Splinters
+Bone to Ash
+Bone-Cairn Butcher
+Bonebind Orator
+Boneclad Necromancer
+Boneclub Berserker
 Bonecrusher Giant
+Bonescythe Sliver
+Bontu's Monument
+Book Devourer
 Boomerang Basics
+Boon of Emrakul
+Boon of Erebos
+Boon of Safety
+Boon of the Wish-Giver
+Boosted Sloop
+Bootleggers' Stash
+Boots of Speed
 Borderland Marauder
+Borderland Minotaur
 Boros Charm
+Boros Guildgate
+Boros Keyrune
+Boros Locket
+Boros Reckoner
+Borrowed Time
 Boseiju, Who Endures
+Bot Bashing Time
+Botanical Plaza
+Botanical Sanctum
+Boughside Wanderers
+Boulderborn Dragon
+Bounce Off
+Boundary Lands Ranger
+Bounding Krasis
+Bounding Wolf
+Bounty Agent
 Bounty of the Luxa
+Bramble Wurm
+Bramblecrush
+Brambleguard Captain
+Brambleguard Veteran
 Brambleweft Behemoth
 Branchloft Pathway
+Brass's Bounty
 Brave the Elements
+Brave-Kin Duo
+Brawl-Bash Ogre
+Brazen Blademaster
 Brazen Borrower
+Brazen Buccaneers
+Brazen Freebooter
 Brazen Scourge
+Brazen Wolves
+Breaching Hippocamp
+Break Through the Line
+Breakneck Berserker
 Breeding Pool
+Bretagard Stronghold
+Briar Hydra
+Briarbridge Tracker
+Briarpack Alpha
+Bright Reprisal
+Brightblade Stoat
 Brightclimb Pathway
+Brightglass Gearhulk
+Brightwood Tracker
+Brimstone Trebuchet
+Brindle Boar
+Brinebarrow Intruder
+Bristlebud Farmer
+Bristling Backwoods
 Bristling Hydra
+Broadcast Rambler
 Broadside Barrage
+Broken Wings
+Brokers Ascendancy
+Brokers Veteran
+Bronze Sable
+Bronze Sword
+Bronzebeak Moa
+Brood Butcher
+Brood Monitor
+Brood Weaver
+Broodheart Engine
+Broodhunter Wurm
+Broodspinner
+Brotherhood's End
+Brushfire Elemental
 Brushland
+Brushstrider
 Brutal Cathar
+Brute Strength
+Brute Suit
+Bubble Snare
+Bubbling Cauldron
+Buccaneer's Bravado
 Built to Last
+Built to Smash
+Bulette
+Bull's Strength
+Bulwark Giant
+Bumbleflower's Sharepot
+Bumi Bash
+Burlfist Oak
+Burn Bright
+Burner Rocket
+Burning Curiosity
+Burning Prophet
 Burning Sun's Avatar
+Burning Sun's Fury
+Burning-Fist Minotaur
+Burning-Tree Emissary
+Burning-Yard Trainer
+Burnished Hart
+Burrog Banemaker
+Burrog Befuddler
+Burrowguard Mentor
+Burrowing Razormaw
 Burst Lightning
+Burst of Strength
+Bury in Books
+Bushy Bodyguard
+Butcher of the Horde
+Butcher's Glee
+Buzz Bots
+Bygone Bishop
+Bygone Colossus
+Byway Courier
+Cabal Evangel
+Cabaretti Charm
+Cabaretti Initiate
 Cache Grab
+Cackling Prowler
+Cackling Slasher
+Cacophodon
+Cactarantula
+Cactusfolk Sureshot
+Caelorna, Coral Tyrant
+Caged Zombie
+Calamitous Tide
+Calculated Dismissal
+Caldaia Strongarm
+Call In a Professional
+Call of the Conclave
+Call the Cavalry
+Call the Mountain Chocobo
+Call the Scions
+Call to the Feast
+Callous Bloodmage
 Callous Inspector
 Camellia, the Seedmiser
+Campus Composer
+Campus Crier
 Can't Stay Away
+Canal Monitor
 Cancel
+Candlestick
+Candy Grapple
+Candy Trail
+Canopy Gorger
+Canopy Spider
+Canopy Vista
+Canyon Jerboa
+Canyon Slough
+Capashen Knight
+Capenna Express
 Captain America, Super-Soldier
+Captain America, Wings of Freedom
+Captain Lannery Storm
 Captain Marvel, Earth's Protector
+Captain Storm, Cosmium Raider
+Captain's Call
+Captivating Gyre
+Capture Sphere
+Cardassia Prime
+Careening Mine Cart
+Careless Celebrant
 Caretaker's Talent
 Carnage Tyrant
+Carnivorous Moss-Beast
+Carrier Thrall
+Carrion Crow
+Carrion Cruiser
+Carrion Imp
+Carrion Screecher
+Cartographer's Companion
+Cartographer's Survey
 Cartouche of Ambition
+Cartouche of Knowledge
+Cartouche of Solidarity
 Cartouche of Strength
 Cartouche of Zeal
 Case of the Uneaten Feast
+Casey Jones, Jury-Rig Justiciar
+Cast Down
+Cast Out
+Castaway's Despair
 Castle Ardenvale
+Castle Embereth
 Castle Garenbrig
 Castle Locthwain
+Castle Vantress
+Casualties of War
 Cat Collector
+Cat-Owl
+Catacomb Crocodile
+Catacomb Sifter
+Catacomb Slug
+Catalog
+Cathar Commando
+Cathar's Call
+Cathar's Companion
+Catharsis
+Cathartic Pyre
 Cathartic Reunion
+Caught in the Crossfire
 Cauldron Familiar
+Cauldron of Essence
+Caustic Caterpillar
+Caustic Exhale
 Cavalier of Thorns
+Cavalry Drillmaster
+Cavalry Pegasus
+Cave of the Frost Dragon
 Cavern of Souls
+Caves of Koilos
+Celestial Enforcer
+Celestial Messenger
+Celestial Unicorn
+Cement Shoes
+Cenote Scout
 Censor
+Centaur Battlemaster
+Centaur Courser
+Centaur Healer
+Centaur Nurturer
+Centaur's Herald
+Cephalopod Sentry
+Cerebral Confiscation
+Ceremonious Rejection
+Cetacean Ops
+Cha'DIch Investigator
+Chain to Memory
+Chainwhip Cyclops
+Champion of Arashin
+Champion of Dusk
 Champion of the Perished
+Chandra's Emberling
+Chandra's Firemaw
+Chandra's Flame Wave
+Chandra's Magmutt
 Chandra's Outburst
+Chandra's Pyrohelix
 Chandra, Bold Pyromancer
+Chandra, Novice Pyromancer
 Chandra, Pyrogenius
 Chandra, Torch of Defiance
 Change the Equation
+Channeled Dragonfire
 Channeler Initiate
+Chaplain's Blessing
+Charge
+Charge Through
+Charge the Sanctum
+Charging Badger
+Charging Hooligan
 Charging Monstrosaur
+Charging Strifeknight
+Charging War Boar
+Chariot of Victory
+Charismatic Vanguard
+Charity Extractor
+Charmed Sleep
+Charmed Stray
+Charming Scoundrel
 Chart a Course
+Chase Inspiration
+Checkpoint Officer
+Cheerful Osteomancer
+Chelonian Tackle
+Chief of the Foundry
+Chief of the Scale
+Child of Night
+Child of the Pack
+Chilling Trap
+Chimney Rabble
+Chitin Gravestalker
+Chitinous Cloak
+Choco-Comet
+Chocobo Racetrack
+Chorus of the Tides
+Chosen by Heliod
+Chrome Cat
+Chrome Prowler
+Chronicler of Heroes
+Chronostutter
+Cinder Barrens
+Cinder Elemental
+Cinder Glade
+Cinder Hellion
+Cinder Strike
+Cinderclasm
+Cindering Cutthroat
+Circle of Dreams Druid
+Circle of Power
+Circuit Mender
+Circuitous Route
+Citanul Stalwart
+Citizen's Arrest
+City Pigeon
+Citywatch Sphinx
+Citywide Bust
+Civic Gardener
+Civic Stalwart
+Civil Servant
+Clachan Festival
+Claim Jumper
+Clamorous Ironclad
+Clarion Cathars
 Clarion Conqueror
+Clash of Wills
+Claustrophobia
+Claws Out
 Claws of Gix
+Cleansing Nova
+Cleansing Wildfire
+Cleanup Crew
+Clear Shot
 Clearwater Pathway
+Cleric of Life's Bond
+Cleric of the Forward Order
+Clever Conjurer
+Cliffhaven Sell-Sword
+Cliffhaven Vampire
+Cliffside Lookout
 Clifftop Retreat
+Clinging Anemones
+Clinquant Skymage
+Clip Wings
+Cloaked Siren
+Clockwork Drawbridge
+Clockwork Percussionist
+Cloistered Telepath
+Cloud Manta
 Cloudblazer
+Cloudfin Raptor
+Cloudkin Seer
+Cloudreader Sphinx
+Cloudsculpt Technician
+Coastal Bulwark
+Coat with Venom
+Cobblebrute
 Codecracker Hound
+Codex Shredder
+Coeurl
+Cogwork Archivist
+Cogworker's Puzzleknot
+Cold Case Cracker
+Cold-Water Snapper
+Coliseum Behemoth
+Collar the Culprit
+Collateral Damage
 Collected Company
+Collective Blessing
+Collective Nightmare
+Collector's Vault
+Collision Course
 Colorstorm Stallion
+Colossadactyl
+Colossal Dreadmaw
+Colossal Majesty
+Colossal Skyturtle
+Colossapede
+Colossification
+Colossodon Yearling
+Combat Professor
+Combat Tutorial
+Combustion Technique
+Comet Crawler
+Coming In Hot
+Command Decision
+Command Subadjunct
+Command the Storm
+Commander Raffi Musiker
+Commercial District
+Common Bond
+Common Crook
+Commune with Beavers
 Commune with Dinosaurs
+Commune with Evil
+Commune with Nature
+Commune with Spirits
+Commune with the Gods
 Companion of the Trials
+Compassionate Healer
+Compelling Argument
+Complete Disregard
 Concealed Courtyard
+Conceited Witch
+Conclave Cavalier
+Conclave Guildmage
+Conclave Naturalists
+Concordia Pegasus
+Conduct Electricity
+Confirm Suspicions
+Confounding Riddle
+Confront the Unknown
+Confusticate and Bebother
+Conifer Strider
+Conscripted Infantry
 Consider
+Consider the Prime Directive
 Consign to Memory
+Constricting Sliver
+Consul's Shieldguard
+Consulate Dreadnought
+Consulate Skygate
+Consulate Turret
 Consult the Star Charts
+Consuming Blob
+Consuming Fervor
+Contaminated Aquifer
+Contingency Plan
+Contraband Kingpin
+Contract Killing
+Conviction
+Convolute
+Coordinated Assault
+Coordinated Charge
+Coordinated Maneuver
 Coppercoat Vanguard
 Copperline Gorge
+Coral Barrier
+Coral Commando
+Coral Merfolk
+Coralhelm Guide
+Cori Mountain Monastery
+Cori Mountain Stalwart
 Cori-Steel Cutter
+Cornered by Black Mages
+Corpse Blockade
+Corpse Churn
+Corpse Hauler
+Corpse Knight
 Corpseberry Cultivator
+Corridor Monitor
+Corroding Dragonstorm
+Corrupted Conviction
+Corsair Captain
+Coruscation Mage
+Cosmic Epiphany
+Cosmium Blast
+Costly Plunder
+Count on Luck
 Countersculpt
+Countless Gears Renegade
 Courageous Goblin
+Courageous Outrider
+Courier Bat
+Courier Griffin
+Courier's Briefcase
+Court Cleric
+Court Street Denizen
+Cowabunga!
+Cowl Prowler
+Crackling Cyclops
+Crackling Perimeter
+Crackling Triton
+Cradle of the Accursed
 Cragcrown Pathway
+Cragplate Baloth
+Cram Session
+Crash Through
+Crash and Burn
+Crash the Ramparts
+Crashing Drawbridge
+Crater's Claws
+Craterclaw Colossus
 Craterhoof Behemoth
+Crawl from the Cellar
+Creeping Mold
+Creeping Trailblazer
+Cremate
+Creosote Heath
+Crescent Island Temple
+Crested Herdcaller
+Crested Sunmare
+Crew Captain
+Crime Novelist
+Crimson Operative
+Crocanura
 Crocodile of the Crossing
+Crook of Condemnation
+Crooked Custodian
+Crop Sigil
+Crossbones, Malicious Mercenary
+Crossroads Consecrator
+Crossroads Watcher
+Crosstown Courier
+Crow of Dark Tidings
+Crowd's Favor
+Crowned Ceratok
+Crucible of Fire
+Crucible of Worlds
+Crude Bent Blade
+Cruel Administrator
+Cruel Celebrant
+Cruel Finality
+Cruel Truths
+Cruel Witness
 Cruelclaw's Heist
+Crumbling Vestige
 Crusader of Odric
+Crush Contraband
+Crush the Weak
+Crustacean Commando
+Crux of Fate
+Cryogen Relic
+Crypsis
 Cryptbreaker
+Cryptic Caves
+Cryptic Serpent
+Cryptolith Rite
+Crystal Carapace
+Culber and Stamets, Star-Crossed
+Culling Mark
 Culling Ritual
+Cult Guildmage
+Cultivator's Caravan
+Cunning Breezedancer
+Cunning Coyote
+Cunning Geysermage
+Cunning Maneuver
+Cunning Strike
+Curate
+Curio Vendor
+Curious Farm Animals
 Curious Forager
 Curious Obsession
+Curious Pair
+Cursed Minotaur
+Custodian of the Trove
 Cut Down
+Cut of the Profits
+Cutthroat Centurion
+Cutthroat Contender
+Cutthroat Maneuver
+Cybernetic Specialist
+Cyclops Electromancer
+Cyclops of Eternal Fury
+Cyclops of One-Eyed Pass
+Daggerdrome Imp
+Daggerfang Duo
+Daggersail Aeronaut
+Dai Li Indoctrination
+Daily Bugle Reporters
+Dain's Company
+Dalkovan Packbeasts
+Damage Control Crew
+Dampening Pulse
+Dance with Devils
+Danitha Capashen, Paragon
+Dapper Shieldmate
 Daredevil Dragster
+Daring Buccaneer
+Daring Demolition
+Daring Escape
+Daring Mechanic
+Daring Saboteur
+Daring Sleuth
+Dark Bargain
+Dark Betrayal
+Dark Deed
+Dark Favor
+Dark Fortress
+Dark Inquiry
+Dark Nourishment
+Dark Prophecy
+Dark Remedy
+Dark Revenant
 Dark Salvation
+Dark-Dweller Oracle
 Darkbore Pathway
+Darkness Descends
 Darkslick Shores
 Darksteel Citadel
+Darksteel Ingot
+Darling of the Masses
+Data, New Life
+Dathon and Picard at El-Adrel
+Dauntless Aven
 Dauntless Bodyguard
+Dauntless Onslaught
+Dauntless River Marshal
+Dauntless Survivor
 Dauntless Veteran
+David and Carol Marcus, Creators
+Davriel's Shadowfugue
+Dawn of Hope
+Dawn to Dusk
+Dawn's Light Archer
+Dawnbringer Charioteers
+Dawnfeather Eagle
+Dawnhand Eulogist
+Dawnhart Disciple
+Dawnhart Geist
+Dawnhart Rejuvenator
+Dawning Angel
+Dawnstrike Paladin
 Dawnwing Marshal
 Day of Judgment
+Daybreak Chaplain
+Daybreak Charger
+Daybreak Chimera
+Daybreak Combatants
 Daybreak Coronet
+Daysquad Marshal
 Dazzling Angel
+Dazzling Denial
+Dazzling Lights
+Dazzling Ramparts
+Dead Revels
+Dead Weight
+Deadbridge Shaman
+Deadeye Duelist
 Deadeye Harpooner
+Deadeye Plunderers
+Deadeye Quartermaster
+Deadeye Rig-Hauler
+Deadeye Tormentor
+Deadly Derision
 Deadly Dispute
+Deadly Plot
+Deadly Precision
+Deadly Recluse
+Deadly Riposte
+Deadly Visit
+Deafening Clarion
 Death Baron
+Death Wind
+Death in the Family
+Deathbellow Raider
+Deathbloom Gardener
+Deathbloom Thallid
+Deathcap Cultivator
+Deathcap Glade
+Deathcap Marionette
+Deathcult Rogue
+Deathgaze Cockatrice
+Deathmark
+Deathsprout
+Debilitating Injury
+Debris Beetle
+Debt to the Deathless
+Deceit
 Decimator Beetle
+Decisive Denial
+Decoction Module
+Decommission
+Dedicated Commons
+Deduce
+Deepchannel Duelist
+Deeproot Champion
+Deeproot Waters
+Defabricate
+Deface
+Defeat
+Defend the Campus
+Defend the Celestus
+Defenestrate
+Defiant Bloodlord
+Defiant Khenra
+Defiant Ogre
+Defiant Salvager
+Defiant Strike
+Deliberate
+Delivery Moogle
+Demand Answers
+Demogorgon's Clutches
+Demolish
 Demolition Field
+Demon Bolt
+Demon of Catastrophes
+Demon of Loathing
+Demon's Disciple
+Demon's Due
+Demon's Grasp
+Demonic Counsel
+Demonic Ruckus
+Demystify
 Den of the Bugbear
+Deny Existence
+Deny the Divine
+Depart the Realm
+Dependable Quinjet
+Depower
+Depths of Desire
+Deputy of Acquittals
+Deranged Whelp
+Desecration Plague
+Desert Cerodon
+Desert of the Fervent
+Desert of the Glorified
+Desert of the Indomitable
+Desert of the Mindful
+Desert of the True
 Deserted Beach
+Deserter's Disciple
 Desiccated Naga
+Desolation Prowler
+Despark
+Desperate Bloodseeker
+Desperate Lunge
+Desperate Sentry
+Despise
+Destroy Evil
+Destructive Digger
+Destructor Dragon
+Detention Chariot
+Devilthorn Fox
+Devkarin Dissident
 Devoted Crop-Mate
+Devoted Duelist
+Devoted Paladin
+Devotee of Strength
 Devourer of Destiny
+Devouring Light
+Devout Decree
 Dhund Operative
+Diabolic Intent
+Diabolic Tutor
+Diamond Pick-Axe
+Dictate of Erebos
+Dictate of Heliod
+Dig Site Inventory
+Dig Through Time
+Dig Up
+Dig Up the Body
+Dimensional Exile
+Dimir Cluestone
+Dimir Guildgate
+Dimir Informant
+Dimir Keyrune
+Dimir Locket
+Dinosaur Stampede
+Dinotomaton
+Diplomacy of the Wastes
+Diplomatic Relations
+Dire Fleet Captain
+Dire Fleet Hoarder
+Dire Fleet Interloper
+Dire Fleet Neckbreaker
+Dire Fleet Poisoner
+Dire Fleet Warmonger
+Dire Wolf Prowler
 Diregraf Colossus
 Diresight
+Discerning Peddler
+Disciple of the Old Ways
+Discordant Piper
 Disdainful Stroke
+Disenchant
+Disentomb
+Disfigure
 Dismal Backwater
 Dismember
+Dismissive Pyromancer
+Dispel
+Dispersal Technician
+Disperse
+Disposal Mummy
+Disruption Protocol
+Disruptor Wanderglyph
+Disruptor of Currents
+Dissenter's Deliverance
+Dissipate
+Dissolve
+District Guide
+Dive Down
+Diversion Specialist
+Diversion Unit
+Divest
+Divination
+Divine Arrow
+Divine Favor
+Divining Duelist
+Djeru's Renunciation
+Djinn of Fool's Fall
+Doc Ock's Henchmen
+Doc Ock's Tentacles
+Docent of Perfection
+Dockside Chef
+Dogged Pursuit
+Dokuchi Shadow-Walker
+Domri's Ambush
+Domri's Nodorog
+Domri, City Smasher
+Donatello, Turtle Techie
+Donatello, Way with Machines
+Doom Blade
+Doom Whisperer
+Doomed Dissenter
+Doomskar
+Doomskar Titan
+Doorkeeper
+Dori, Bearer of Friends
+Doublecast
+Douser of Lights
+Dovin's Dismissal
 Dovin's Veto
+Dowsing Device
+Draconic Disciple
+Drag Under
+Drag the Canal
+Drag to the Roots
+Drag to the Underworld
+Dragon Bell Monk
+Dragon Egg
+Dragon Fodder
+Dragon Hatchling
+Dragon Sniper
+Dragon Throne of Tarkir
+Dragon Trainer
+Dragon's Eye Sentry
 Dragon's Rage Channeler
+Dragonback Lancer
+Dragonbroods' Relic
+Dragonfly Suit
+Dragonloft Idol
+Dragonlord's Servant
+Dragonmaster Outcast
+Dragonologist
+Dragonscale Boon
 Dragonskull Summit
+Dragonstorm Forecaster
+Dragoon's Wyvern
+Drainpipe Vermin
+Drakewing Krasis
 Drakuseth, Maw of Flames
+Dramatic Finale
+Dramatic Rescue
+Dramatic Reversal
+Drana's Emissary
+Drana, Liberator of Malakir
+Draugr's Helm
+Drawn from Dreams
+Dread Presence
+Dread Shade
 Dread Wanderer
+Dreadbore
+Dreadhorde Butcher
+Dreadmalkin
+Dreadwaters
+Dreadwurm
 Dream Beavers
+Dream Trawler
+Dreamcaller Siren
+Dreamroot Cascade
+Dreams of Laguna
+Dreg Recycler
+Drider
+Drill Bit
+Drill Too Deep
+Driver of the Dead
+Drix Fatemaker
+Drogskol Shieldmate
+Dromoka Dunecaster
+Dromoka Monument
+Dromoka Warrior
+Dross Skullbomb
+Drover of the Mighty
+Drown in Filth
+Drown in Sorrow
 Drowned Catacomb
+Drowned Secrets
+Drowner of Hope
+Drownyard Amalgam
+Drownyard Explorers
+Drudge Sentinel
 Druid of the Cowl
+Druid of the Spade
+Dryad of the Ilysian Grove
+Dryad's Revival
+Dual Shot
+Dual-Sun Adepts
+Duel Tactics
+Dueling Coach
 Dukhara Peafowl
+Dundoolin Weaver
 Dune Beetle
+Dune Diviner
+Dunes of the Dead
+Durable Handicraft
 Duress
+Dusk Feaster
+Dusk Legion Dreadnought
+Dusk Legion Duelist
+Dusk Legion Zealot
+Dusk Rose Reliquary
+Duskborne Skymarcher
+Duskmantle Operative
+Duskwatch Hunter
+Dust Stalker
+Dutiful Attendant
+Dutiful Return
+Dutiful Servants
+Dutiful Thrull
+Duty Beyond Death
+Dwarven Forge-Chanter
+Dwarven Mauler
+Dwarven Priest
+Dwarven Reinforcements
+Dwarven Shortsword
 Dwynen's Elite
+Dwynen, Gilt-Leaf Daen
+Dynavolt Tower
+Eager Glyphmage
+Eager Trufflesnout
+Eagle of the Great Shelf
+Eagle of the Watch
+Eardrum Rattler
+Earth King's Lieutenant
+Earth Kingdom Jailer
+Earth Kingdom Protectors
+Earth Kingdom Soldier
+Earth Village Ruffians
+Earth's Mightiest Heroes
+Earth, Sector 001
 Earthbender Ascension
+Earthbending Lesson
+Earthshaker Dreadmaw
+Easy Prey
 Eat to Extinction
+Eaten Alive
+Eater of Hope
+Eccentric Farmer
+Echo Inspector
+Eclipsed Boggart
+Eclipsed Elf
+Eclipsed Flamekin
+Eclipsed Kithkin
+Eclipsed Merrow
+Ecologist's Terrarium
+Ecstatic Awakener
 Eddymurk Crab
+Eddytrail Hawk
+Eden, Seat of the Sanctum
+Edgar, Ancient Bloodlord
+Edgewall Innkeeper
 Edifice of Authority
+Eerie Gravestone
+Eerie Soultender
+Efficient Construction
+Eidolon of Inspiration
+Eidolon of Philosophy
+Eidolon of Rhetoric
 Eidolon of the Great Revel
 Eiganjo, Seat of the Empire
+Eject
+Elaborate Firecannon
+Elas il-Kor, Sadistic Pilgrim
+Elder Auntie
+Elderfang Disciple
+Elderfang Ritualist
+Elderleaf Mentor
+Eldrazi Aggressor
+Eldrazi Devastator
 Eldrazi Temple
+Electric Revelation
 Electrify
+Electrostatic Field
+Electrostatic Infantry
+Electrostatic Pummeler
+Elegant Parlor
+Elemental Bond
+Elemental Mascot
+Elementalist Adept
+Elenda, the Dusk Rose
 Elfhame Druid
+Elfhame Wurm
 Elfsworn Giant
+Eliminate
+Elite Arrester
+Elite Guardmage
+Elite Instructor
+Elite Interceptor
+Elite Skirmisher
 Elite Spellbinder
+Elspeth's Devotee
+Elspeth's Nightmare
 Elspeth's Smite
 Elspeth, Storm Slayer
+Elspeth, Sun's Champion
+Elspeth, Sun's Nemesis
+Elturgard Ranger
+Elusive Krasis
 Elusive Otter
+Elusive Spellfist
+Elven Ambush
+Elven Bow
 Elven Passage
+Elven Raft-Steerer
+Elvenking's Halls
+Elvenking's Harper
 Elvish Archdruid
+Elvish Archivist
+Elvish Clancaller
+Elvish Hydromancer
 Elvish Mystic
+Elvish Reclaimer
+Elvish Regrower
+Elvish Rejuvenator
+Elvish Visionary
 Elvish Warmaster
+Ember Beast
+Ember Hauler
+Ember-Eye Wolf
+Embereth Shieldbreaker
 Emberheart Challenger
+Emberhorn Minotaur
+Embodiment of Spring
+Embraal Bruiser
+Embraal Gear-Smasher
+Embrace Oblivion
+Emerge from the Cocoon
+Emergency Medical Hologram
+Emergency Phytomedic
+Emergency Weld
+Emeritus of Abundance
 Emeritus of Ideation
+Emeritus of Truce
+Emissary of Sunrise
+Emissary of the Sleepless
+Emmara, Soul of the Accord
+Emperor's Vanguard
+Emptiness
+Empty the Pits
 Empyreal Voyager
 Empyrean Eagle
+Emrakul's Influence
 Emrakul, the Promised End
 Emry, Lurker of the Loch
+Encampment Keeper
+Encase in Ice
+Enchanted Carriage
+Encroaching Dragonstorm
+End the Festivities
+End-Raze Forerunners
+Endless One
+Enduring Courage
 Enduring Curiosity
 Enduring Innocence
+Enduring Tenacity
+Enduring Vitality
+Energybending
+Enforcer Griffin
+Engine Rat
 Engineered Explosives
 Engineered Might
+Engulfing Eruption
+Enhanced Awareness
+Enigma Drake
+Enlightened Ascetic
 Enlightened Confidant
+Enlightened Maniac
+Enraged Ceratok
+Enraged Flamecaster
 Ensoul Artifact
+Enter the Enigma
+Enthusiastic Mechanaut
+Enthusiastic Study
+Entrust the Spark
+Environmental Sciences
+Environmental Scientist
+Envoy of Okinec Ahau
+Ephara's Dispersal
+Ephara's Warden
+Ephemeral Shields
 Ephemerate
+Epic Confrontation
+Epic Downfall
+Epicure of Blood
+Epiphany Storm
+Epitaph Golem
+Equilibrium Adept
+Era of Enlightenment
+Era of Innovation
+Erase
+Eriette's Lullaby
 Erode
+Eroded Canyon
+Erratic Visionary
 Escape Tunnel
+Escaped Experiment
 Esika's Chariot
 Esper Origins
+Essence Capture
+Essence Depleter
 Essence Extraction
+Essence Infusion
 Essence Scatter
+Estwald Shieldbasher
+Etched Familiar
+Eternal Isolation
+Eternal Student
+Eternal Taskmaster
+Eternal Thirst
 Ethereal Armor
+Ethereal Elk
+Ethereal Guidance
+Eumidian Terrabotanist
+Evangel of Synthesis
 Evil Reawakened
+Eviscerate
+Evolutionary Leap
 Evolved Sleeper
 Evolving Wilds
+Exalted Sunborn
+Excavated Wall
+Excavation Elephant
+Excavation Mole
+Exclusion Mage
+Excoriate
+Exdeath, Void Warlock
 Exemplar of Light
+Exorcise
+Exosuit Savior
+Expanded Anatomy
+Expedite
+Expedition Champion
+Expedition Envoy
+Expedition Healer
+Expedition Map
+Expedition Skulker
+Expel
 Experiment One
+Experimental Aviator
 Experimental Synthesizer
+Explosive Derailment
+Explosive Impact
+Explosive Vegetation
+Expose Evil
+Expose to Daylight
+Expressive Firedancer
 Expressive Iteration
+Exsanguinate
+Extended Absence
 Extinction Event
+Extinguish All Hope
+Extravagant Replication
+Extricator of Sin
+Exultant Cultist
+Exultant Skymarcher
+Eye of Vecna
+Eyeblight Assassin
+Eyeblight Massacre
+Eyeless Watcher
+Eyes of the Beholder
+Eyetwitch
+Ezekiel Sims, Spider-Totem
+Ezrim, Agency Chief
 Ezuri, Renegade Leader
 Fable of the Mirror-Breaker
+Fabled Hero
 Fabled Passage
+Facet Reader
+Fade into Antiquity
+Faerie Dreamthief
+Faerie Duelist
+Faerie Formation
+Faerie Guidemother
 Faerie Miscreant
+Failed Fording
+Failed Inspection
+Fairgrounds Warden
+Faith Unbroken
+Faithbearer Paladin
 Faithful Mending
+Falconer Adept
+Falkenrath Celebrants
+Falkenrath Forebear
+Falkenrath Pit Fighter
+Falkenrath Reaver
+Fall of the Gavel
+Fallaji Archaeologist
+Fallaji Chaindancer
+Fallaji Vanguard
+Family Reunion
+Famished Foragers
+Famished Paladin
+Fan Bearer
 Fanatical Firebrand
+Fanatical Offering
+Fancy Footwork
+Fang Guardian
+Fang of Shigeki
+Farfinder
+Farsight Adept
+Farsight Ritual
+Fatal Fumes
 Fatal Push
+Fate Forgotten
+Fate Unraveler
+Fate of the Sun-Cryst
+Fated Conflagration
+Fated Infatuation
+Fated Intervention
+Fateful Discovery
+Fateful End
 Fateful Showdown
+Fatehold Annex
 Fatehold Charm
+Fatehold Chronologist
+Fateshaper Aspirant
+Fathom Fleet Boarder
+Fathom Fleet Firebrand
+Favorable Winds
+Favored Hoplite
+Fear of Being Hunted
+Fear of Death
+Fear of Exposure
+Fear of Lost Teeth
+Fear of Surveillance
+Fear of the Dark
+Fearful Villager
+Fearless Fledgling
+Fearless Halberdier
+Feather of Flight
+Featherbrained Filcher
+Federation Probe
+Feed the Cauldron
+Feed the Clan
+Feed the Flames
+Feed the Serpent
 Feed the Swarm
+Felhide Minotaur
+Felhide Petrifier
+Felidar Cub
+Felidar Retreat
+Felidar Savior
 Fell
+Fell Flagship
+Fell Horseman
+Fell the Pheasant
+Felling Blow
 Fen Hauler
 Fencing Ace
+Feral Abomination
+Feral Invocation
+Feral Krushok
+Feral Maaka
 Feral Prowler
+Ferenginar
+Ferocification
+Ferocious Werefox
+Ferocity of the Wilds
 Fervent Champion
+Fervent Paincaster
+Fervent Strike
+Festergloom
+Festering Gulch
 Festering Mummy
+Festering Newt
+Festerleech
+Festival Crasher
+Fetid Imp
+Fetid Pools
+Field Creeper
+Field Research
+Fields of Strife
+Fiend Binder
+Fierce Empath
+Fierce Witchstalker
+Fiery Cannonade
+Fiery Conclusion
+Fiery Hellhound
 Fiery Impulse
 Fiery Intervention
 Fiery Islet
+Fight On!
+Fight as One
 Fight with Fire
+Filigree Crawler
+Filigree Familiar
+Filter Out
+Final Death
+Final Flare
+Final Payment
+Final Reward
+Final Vengeance
+Finch Formation
+Finishing Blow
 Fire Elemental
 Fire Magic
+Fire Nation Attacks
+Fire Nation Engineer
+Fire Nation Raider
+Fire Nation Warship
+Fire Shrine Keeper
+Fire Urchin
 Firebending Lesson
+Firebrand Archer
+Firecannon Blast
+Firefist Adept
+Fireforger's Puzzleknot
 Fireglass Mentor
+Firehoof Cavalry
+Firemind's Research
+Fires of Victory
+Fisk Tower
+Fissure Wizard
 Flame Lash
+Flame-Blessed Bolt
+Flame-Chain Mauler
 Flamecache Gecko
+Flamecast Wheel
+Flamekin Gildweaver
+Flames of the Firebrand
+Flamewake Phoenix
+Flashback
 Flashfreeze
+Flatten
+Flayer Drone
+Fleetfoot Dancer
+Fleeting Distraction
+Fleeting Effigy
+Fleeting Memories
 Fleetwheel Cruiser
+Flesh Burrower
+Fleshbag Marauder
+Fleshmad Steed
+Fleshpulper Giant
+Fleshtaker
+Flick a Coin
+Flicker of Fate
+Flood of Recollection
 Flooded Strand
 Floodfarm Verge
 Floodpits Drowner
+Floodwaters
+Floriferous Vinewall
 Flow State
+Flowerfoot Swordmaster
 Flowstone Infusion
+Flowstone Kavu
+Flumph
+Flutterfox
+Flying Crane Technique
+Flying Octobot
+Focus Fire
+Foggy Bottom Swamp
+Foggy Swamp Hunters
+Follow the Lumarets
+Font of Fertility
+Font of Fortunes
+Font of Ire
+Font of Return
+Font of Vigor
+Food Coma
+Food Fight
+Foot Elite
+Foot Headquarters
+Foot Mystic
+Footlight Fiend
+Force Away
 Force of Negation
+Forced Landing
+Forecasting Fortune Teller
+Forerunner of Slaughter
 Forest
+Forge Boss
+Forging the Anchor
+Forging the Tyrite Sword
+Forgotten Monument
+Forgotten Sentinel
+Forlorn Flats
+Form a Posse
+Formidable Commons
+Formidable Speaker
+Forsake the Worldly
+Forsaken Drifters
+Forsaken Sanctuary
+Fortified Rampart
+Fortify
+Fortress Crab
+Fortuitous Find
+Forum of Amity
 Foul Orchard
+Foul Play
+Foulmire Knight
 Foundry Assembler
+Foundry Champion
+Foundry Hornet
+Foundry Inspector
+Foundry Screecher
+Foundry Street Denizen
+Foundry of the Consuls
+Fountain of Renewal
 Fountainport
+Fourth Bridge Prowler
+Fractal Mascot
+Fracture
+Fragmentize
+Frantic Inventory
+Frantic Strength
+Freestrider Lookout
+Freeze in Place
+Frenzied Devils
+Frenzied Goblin
+Frenzied Rage
 Frenzied Raptor
+Frenzied Tilling
+Fresh-Faced Recruit
+Fretwork Colony
+Friendly Ghost
+Frilled Deathspitter
+Frilled Mystic
+Frilled Oculus
+Frilled Sandwalla
+Frilled Sparkshooter
+Frog Butler
+From Beyond
+Front Porch Sentries
+Frontier Bivouac
+Frontier Mastodon
+Frontier Seeker
+Frontline Rebel
+Frontline Rush
+Frost Bite
+Frostbite Pyromental
+Frostbridge Guard
+Frostfist Strider
+Fruit of Tizerus
+Fry
+Fuel the Flames
+Fugitive Listener
+Fugitive Wizard
 Fulminous Forte
 Fumigate
+Funeral Longboat
+Funeral Rites
+Fungal Infection
+Furious Bellow
+Furious Reprisal
+Furnace Whelp
+Furtive Analyst
+Futurist Forge
+Futurist Sentinel
+G'raha Tia
+Gadwick, the Wizened
+Gaea's Courser
+Gaea's Gift
+Gaea's Might
 Gaea's Protector
+Gaelicat
+Gainsay
+Galazeth Prismari
+Gale Swooper
+Galerider Sliver
+Galestrike
+Gallant Cavalry
+Gallant Citizen
+Gallant Fowlknight
+Galvanic Giant
 Galvanic Iteration
+Galvanize
+Garenbrig Carver
+Garenbrig Squire
+Garrison Cat
+Garrison Griffin
+Garrison Sergeant
+Garruk's Gorehorn
+Garruk's Packleader
 Garruk's Uprising
+Garruk's Warsteed
 Garruk, Curse Breaker
+Garruk, Cursed Huntsman
+Gatecreeper Vine
 Gatekeeper of Malakir
+Gates Ablaze
+Gates of Istfell
+Gateway Shade
+Gather Courage
+Gather the Pack
+Gather the White Lotus
+Gathering Place
+Gavony Silversmith
+Gavony Trapper
+Gavony Unhallowed
+Gearseeker Serpent
 Gearshift Ace
+Gearsmith Prodigy
+Geist of Saint Thalia
+Geist of the Archives
+Geist of the Moors
+Geist-Fueled Scarecrow
 Gemstone Caverns
 Gene Pollinator
+General Chang, Cold Warrior
+General Kudro of Drannith
+Generous Revival
+Genghis Frog
+Geothermal Bog
+Germinating Wurm
 Get Lost
 Get Out
+Get a Leg Up
+Get the Point
 Gev, Scaled Scorch
+Geyser Drake
+Geyserfield Stalker
 Ghalta, Primal Hunger
+Ghastly Gloomhunter
+Ghirapur Aether Grid
+Ghirapur Gearcrafter
 Ghirapur Guide
+Ghirapur Osprey
+Ghitu Amplifier
 Ghitu Chronicler
+Ghitu Journeymage
 Ghitu Lavarunner
 Ghost Vacuum
+Ghost, Spectral Saboteur
 Ghostfire Blade
+Ghostform
+Ghostly Sentinel
 Giada, Font of Hope
+Giant Adephage
+Giant Cindermaw
 Giant Growth
+Giant Killer
+Giant Mantis
+Giant Spectacle
 Giant Spider
+Giant-Sized Flying Ant
+Giantfall
+Gibbering Barricade
+Gibbering Fiend
+Gideon's Battle Cry
+Gideon's Company
+Gideon's Reproach
 Gideon's Resolve
+Gideon, Ally of Zendikar
 Gideon, Martial Paragon
 Gift of Growth
 Gift of Paradise
+Gift of Strength
+Gifted Aetherborn
+Gigantic Big Bear
+Gigantoad
+Gigantosaurus
 Gilded Lotus
+Gilded Sentinel
+Giltgrove Stalker
+Gingerbread Hunter
 Gingerbrute
+Giott, King of the Dwarves
+Gird for Battle
+Girder Goons
+Give In to Violence
+Gixian Infiltrator
+Glacial Floodplain
 Glacial Fortress
 Gladecover Scout
+Gladiolus Amicitia
+Glamermite
+Glare of Heresy
+Glaring Aegis
 Glaring Fleshraker
+Glass Casket
+Glass of the Guildpact
+Glassblower's Puzzleknot
+Gleam of Battle
+Gleaming Barrier
+Gleaming Bastion
+Glidedive Duo
+Glider Kids
+Glimmer of Genius
+Glimmerbell
+Glimmerburst
+Glimmerlight
+Glimpse the Future
+Glint
+Glint-Nest Crane
 Glissa Sunslayer
+Glistening Deluge
+Glittermonger
+Gloom Pangolin
 Gloomlake Verge
+Gloomwidow
+Glorifier of Dusk
 Glorious Anthem
+Glorious Decay
+Glory Bearers
+Glory Seeker
 Glory-Bound Initiate
 Glorybringer
+Gluttonous Guest
 Gnarlback Rhino
+Gnarled Professor
+Gnarled Sage
 Gnarlid Colony
+Gnarlwood Dryad
+Gnawing Vermin
+Gnawing Zombie
+Gnottvold Recluse
+Gnottvold Slumbermound
 Go Blank
+Go for Blood
 Go for the Throat
+Gobbling Ooze
+Goblin Arsonist
+Goblin Assault Team
+Goblin Bird-Grabber
+Goblin Boarders
+Goblin Boom Keg
+Goblin Chainwhirler
+Goblin Electromancer
+Goblin Firebomb
+Goblin Glasswright
 Goblin Guide
+Goblin Heelcutter
+Goblin Instigator
+Goblin Motivator
+Goblin Oriflamme
+Goblin Picker
+Goblin Rally
+Goblin Shortcutter
+Goblin Smuggler
+Goblin Surprise
+Goblin Tomb Raider
+Goblin Trailblazer
+Goblin War Paint
+Goblin Warchief
+Goblin Wizardry
+Goblin-town
+God-Pharaoh's Faithful
+God-Pharaoh's Statue
 Godless Shrine
+Gods' Hall Guardian
+Gohn, Town of Ruin
+Gold Pan
+Gold Rush
+Gold-Forged Sentinel
+Gold-Forged Thopteryx
+Golden Hind
+Golden-Tail Disciple
+Goldfury Strider
+Goldhound
+Goldmane Griffin
 Goldvein Hydra
+Golgari Cluestone
+Golgari Findbroker
+Golgari Guildgate
+Golgari Keyrune
+Golgari Locket
+Golgari Longlegs
+Gone Missing
+Gongaga, Reactor Town
+Gonti's Aether Heart
+Goobbue Gardener
+Gore Swine
+Gorehorn Raider
+Goremand
+Gorgon's Head
 Goring Ceratops
 Goryo's Vengeance
+Grabby Giant
+Graceblade Artisan
 Graceful Cat
+Graf Mole
+Grafted Growth
+Gran Pulse Ochu
+Gran-Gran
+Grand Nagus Zek
+Granitic Titan
+Grapple with Death
+Grapple with the Past
+Grappling Kraken
+Grappling Sundew
+Grasp of Darkness
+Grasping Current
 Grasping Dunes
+Grasping Longneck
+Grasping Scoundrel
+Grasping Thrull
+Gravblade Heavy
+Grave Strength
+Gravebreaker Lamia
 Gravedigger
+Gravel-Hide Goblin
+Gravelgill Scoundrel
+Graven Abomination
+Graverobber Spider
 Graveyard Trespasser
+Gravity Negator
+Gravkill
+Gravpack Monoist
 Gray Merchant of Asphodel
+Grazing Whiptail
 Greasefang, Okiba Boss
+Great Divide Guide
+Great Forest Druid
+Great Hall of Starnheim
 Great Hall of the Biblioplex
+Great Hart
+Great Teacher's Decree
+Great-Horn Krushok
+Greataxe
+Greater Sandwurm
+Greater Tanuki
 Greedy Freebooter
+Greenhouse Propagator
+Greenside Watcher
+Greenwarden of Murasa
+Greenwheel Liberator
+Greenwood Sentinel
+Greta, Sweettooth Scourge
+Griffin Aerie
+Griffin Dreamfinder
+Griffin Protector
+Griffin Sentinel
+Griffnaut Tracker
+Grim Bauble
+Grim Bounty
+Grim Flayer
+Grim Physician
+Grim Strider
+Grim Tutor
+Griptide
 Griselbrand
+Grisly Ritual
 Grisly Salvage
+Grizzled Outrider
+Grotag Night-Runner
+Grotesque Demise
+Grotesque Mutation
+Ground Assault
+Grounded for Life
+Groundskeeper
+Group Project
+Grove Rumbler
+Grove of the Guardian
+Grow Extra Arms
+Grow from the Ashes
+Growing Rites of Itlimoc
+Growth-Chamber Guardian
+Gruesome Fate
+Gruesome Realization
+Gruesome Scourger
 Grunn, the Lonely King
+Gruul Cluestone
+Gruul Guildgate
+Gruul Keyrune
+Gruul Locket
+Gruul War Chant
+Gryff Rider
+Gryffwing Cavalry
+Guadosalam, Farplane Gateway
+Guarded Heir
+Guardian Automaton
+Guardian of Pilgrims
 Guardian of the Great Conduit
+Guardian of the Great Door
+Guardian of the Halls
+Guardians of Meletis
+Guerrilla Gorilla
+Guidelight Synergist
+Guiding Hydra
+Guiding Voice
+Guild Thief
+Gundabad Opportunist
+Gurmag Swiftwing
+Guru Pathik
 Gust Walker
+Gust of Wind
+Gutless Plunderer
+Gutter Skulk
+Guttersnipe
+Guul Draz Mucklord
+Guy in the Chair
+Gysahl Greens
+HYDRA Assault Robot
+HYDRA Troopers
+Haazda Officer
+Haazda Vigilante
+Hackrobat
+Hagra Constrictor
+Hagra Sharpshooter
+Hajar, Loyal Bodyguard
+Halana and Alena, Partners
+Half-Elf Monk
+Haliya, Guided by Light
+Hall Monitor
 Hall of Storm Giants
 Hallowed Fountain
+Hallway Heckler
+Halo Hopper
+Hamato Guardian Stance
+Hamlet Vanguard
+Hammer of Purphoros
+Hammerhand
+Hampering Snare
+Hand That Feeds
+Hand of Silumgar
+Hanged Executioner
+Hanweir Militia Captain
+Hapatra, the Desert Frost
+Harald, King of Skemfar
+Harbin, Vanguard Aviator
+Harbinger of the Hunt
+Hard Cover
+Hard-Hitting Question
+Hard-Won Jitte
+Hardbristle Bandit
+Hardened Escort
+Hardened Tactician
+Hardy Veteran
 Hare Apparent
+Harmonious Grovestrider
+Harnesser of Storms
+Harried Artisan
+Harrier Naga
+Harrier Strix
+Harsh Scrutiny
+Harsh Sustenance
+Haru, Hidden Talent
+Harvester Troll
+Harvesttide Infiltrator
+Hashep Oasis
+Haughty Djinn
+Haunted Hellride
+Haunted Mire
 Haunted Ridge
+Haunter of Nightveil
+Havoc Devils
+Havoc Jester
+Havoc Sower
 Haywire Mite
+Hazel's Nocturne
 Hazoret's Favor
+Hazoret's Monument
+He's Dead, Jim
+Head of the Homestead
+Headless Rider
+Headstrong Brute
+Headwater Sentries
+Healer of the Glade
 Healer's Hawk
+Heartfire
 Heartfire Immolator
 Hearth Elemental
+Heartless Pillage
+Heartstring Puller
+Heat Ray
+Heated Debate
+Heavy Infantry
+Hecteyes
+Hedge Maze
+Hedron Archive
+Hedron Crawler
+Heir of Falkenrath
+Heir of the Wilds
+Helicarrier Strike
+Heliod's Pilgrim
+Hell's Kitchen
+Hellkite Punisher
+Hellspur Posse Boss
 Helpful Hunter
+Helping Hand
+Henchbots
 Hengegate Pathway
+Herald of Dromoka
+Herald of Faith
+Herald of Kozilek
+Herald of the Fair
+Herald of the Pantheon
+Herald of the Sun
+Hercules, Prince of Power
 Heritage Druid
+Heritage Reclamation
+Hermitic Nautilus
+Hero in Training
+Hero of Iroas
+Hero of Precinct One
+Hero of the Dunes
+Hero of the Games
+Hero of the Nyxborn
+Hero of the Pride
+Hero of the Winds
 Hero's Downfall
 Heroes' Hangout
+Heroic Charge
+Heroic Intervention
+Heroic Reinforcements
+Heron of Hope
+Heron's Grace Champion
+Hidden Herbalists
 Hidden Lair
+Hidden Stockpile
+Hieroglyphic Illumination
+Hieromancer's Cage
+Hierophant's Chalice
+High Fae Negotiator
 High Noon
+High Priest of Penance
+High Sentinels of Arashin
+High Stride
+High-Speed Hoverbike
 Highborn Vampire
+Highland Forest
+Highland Game
+Highland Lake
+Highly Illogical
+Highspire Infusion
+Highspire Mantis
+Highway Robbery
+Hill Giant Herdgorger
+Hinterland Harbor
 Hinterland Sanctifier
+Hire a Crew
+Hired Blade
 Hired Claw
+Hired Poisoner
+Hissing Quagmire
+Historian of Zhalfir
+History of Benalia
+Hit It!
+Hitchclaw Recluse
+Hive Mind Coprocessor
 Hive of the Eye Tyrant
+Hoard Robber
+Hoarding Recluse
+Hobblefiend
+Holdout Settlement
+Hollow Scavenger
+Holy Cow
+Homarid Explorer
+Homestead Courage
+Homicide Investigator
+Honest Rutstein
+Honey Mammoth
+Honeymoon Hearse
+Honor
+Honor Troll
 Honor of the Pure
+Honorbound Page
 Honored Crop-Captain
 Honored Dreyleader
+Honored Heirloom
+Honored Knight-Captain
+Hooded Brawler
+Hookhand Mariner
+Hooting Mandrills
+Hop to It
+Hope Tender
 Hopeful Initiate
+Hopeful Vigil
+Hopeless Nightmare
+Hordeling Outburst
 Horizon Canopy
+Horizon Chimera
+Horizon Scholar
+Hornet Queen
+Hornswoggle
+Horribly Awry
+Hot Dog Cart
+Hotfoot Gnome
+Hour of Promise
+Hour of Revelation
+Huatli's Final Strike
 Huatli's Snubhorn
 Huatli's Spurring
 Huatli, Dinosaur Knight
+Hulking Raptor
+Hullcarver
+Human Torch, Johnny Storm
 Hungering Puppetbeast
+Hungry Ghoul
 Hushwood Verge
 Hyena Pack
 Hyena Umbra
+Hypnotic Sprite
 Ice Out
 Icetill Explorer
+Icewind Elemental
+Icy Reception
+Idyllic Beachfront
+Imodane's Recruiter
+Impact Tremors
 Impeccable Timing
+Imperious Perfect
 Implement of Examination
+Impolite Entrance
 Impractical Joke
+Impulse
+Incinerating Blast
 Indatha Triome
+Indulgent Aristocrat
+Infernal Grasp
+Infestation Sage
+Infuriate
 Ingris Stingerquill
+Inkrise Infiltrator
+Inner Demons Gangsters
+Innovative Commons
+Insectoid Exterminator
+Insolent Neonate
+Insomnia, Crown City
+Inspiring Call
 Inspiring Overseer
 Inspiring Paladin
 Inspiring Roar
 Inspiring Vantage
 Into the Flood Maw
+Into the Roil
 Intrepid Adversary
+Intrepid Rabbit
+Invasion Reinforcements
 Invasion of Ixalan
+Invasion of Theros
+Invasion of Tolvada
+Inventors' Fair
 Invoke Despair
+Invoke the Divine
+Ipnu Rivulet
 Iridescent Vinelasher
 Iroh's Demonstration
 Ironclad Revolutionary
+Ironpaw Aspirant
+Irrigated Farmland
 Island
+Isolated Chapel
 It'll Quench Ya!
+Ivy Lane Denizen
+Izzet Charm
+Izzet Cluestone
+Izzet Guildgate
+Izzet Keyrune
+Izzet Locket
+Jace's Sanctum
+Jade Bearer
+Jade Guardian
 Jadelight Ranger
+Jadelight Spelunker
+Jagged Barrens
 Janjeet Sentry
+Jaspera Sentinel
+Jetmir's Garden
+Joined Researchers
+Jolene, Plundering Pugilist
+Joust Through
+Juggernaut
+Jumbo Cactuar
 Jungle Hollow
 Kaito, Bane of Nightmares
 Kalastria Highborn
+Kalonian Tusker
 Kappa Cannoneer
 Karplusan Forest
 Karplusan Hound
 Kavaron Harrier
+Kavaron Turbodrone
 Kayla's Reconstruction
 Keen-Eyed Curator
+Kelpie Guide
+Kessig Flamebreather
 Ketramose, the New Dawn
+Ketria Triome
+King Darien XLVIII
 Kinjalli's Caller
+Kinjalli's Sunwing
+Kiora of Fire and Ashes
+Kiora's Follower
 Kiora, Behemoth Beckoner
+Kishla Village
 Kitesail Corsair
 Kitesail Freebooter
+Knight of Autumn
+Knight of the Stampede
+Knight of the White Orchid
 Knockout Blow
+Knockout Maneuver
 Kolaghan's Command
+Koma, World-Eater
+Konstrari Annex
 Konstrari Charm
+Konstrari Improviser
+Kor Celebrant
 Kor Spiritdancer
 Koth of the Homestead
 Koth, the Geomancer
+Kozilek's Channeler
 Kozilek's Command
 Kraul Harpooner
+Krenko, Mob Boss
 Krosan Druid
 Kumano Faces Kakkazan
+Kumena, Tyrant of Orazca
 Kwia Vigorbloom
+Kyoshi Village
+Kytheon's Tactics
 Lair of the Hydra
+Lake-town
+Lampad of Death's Vigil
 Languish
+Lash of Malice
+Last Gasp
+Lathliss, Dragon Queen
+Lathril, Blade of the Elves
 Laughing Jasper Flint
+Laughing Mad
 Lava Dart
 Lava Spike
+Lead the Stampede
 Leaf-Crowned Visionary
+Leave in the Dust
 Ledger Shredder
+Legion Lieutenant
+Legion's Landing
 Leonin Vanguard
+Leonin Warleader
+Leyline Axe
 Leyline Binding
 Leyline of the Guildpact
 Leyline of the Void
 Liberating Combustion
 Lifecraft Cavalry
+Lifecrafter's Bestiary
+Lifespring Druid
 Light Up the Stage
+Light of Hope
 Lightning Axe
 Lightning Bolt
+Lightning Helix
 Lightning Strike
+Lightning-Rig Crew
+Lightshell Duo
 Liliana the Faultless
+Liliana's Devotee
 Liliana's Influence
 Liliana's Mastery
 Liliana, Death Wielder
 Liliana, Dreadhorde General
+Lindblum, Industrial Regency
+Linden, the Steadfast Queen
+Linvala, the Preserver
 Lively Dirge
 Llanowar Elves
 Llanowar Wastes
+Locke Cole
 Lofty Denial
+Long River's Pull
 Long-Finned Skywhale
 Longtusk Cub
+Loran of the Third Path
+Loran's Escape
+Lord Dregg, Insect Invader
 Lord of Atlantis
 Lord of the Accursed
+Lorehold Campus
+Lotleth Giant
+Lotus Cobra
 Lovestruck Beast
 Lumbering Worldwagon
 Luminarch Aspirant
+Luminous Rebuke
+Lurking Roper
+Lush Oasis
 Lush Portico
 Luxa River Shrine
 Lyra Dawnbringer
 Lyra, Archangel of Dawn
+M.O.D.O.K.
+Macabre Waltz
+Madame Hydra
 Maelstrom Pulse
 Maelstrom of the Spirit Dragon
 Magda, the Hoardmaster
 Magebane Lizard
+Magic Damper
 Magmatic Hellkite
 Magnigoth Sentry
+Mai, Scornful Striker
+Maja, Bretagard Protector
 Make Disappear
+Make Your Move
 Make a Stand
+Makeshift Munitions
 Malevolent Rumble
 Malfunction
+Mana Confluence
+Managorger Hydra
+Manalith
+Manaweft Sliver
+Mandible Justiciar
+Manglehorn
+Manifold Key
+Map the Frontier
+Marauding Blight-Priest
 Marauding Raptor
 March of Otherworldly Light
+March of Wretched Sorrow
+March of the Multitudes
+Mardu Ascendancy
+Mardu Scout
 Marsh Flats
 Martyr of Sands
+Marwyn, the Clearcutter
 Marwyn, the Nurturer
+Mary Jane Watson
 Massacre Wurm
+Massive Raid
+Master Splicer
 Master of Barbs
 Master of the Pearl Trident
 Mausoleum Wanderer
 Mayhem Devil
 Mazemind Tome
+Meeting of Minds
+Melded Moxite
+Meltstrider Eulogist
 Meltstrider's Resolve
+Memorial to Folly
+Memorial to Glory
 Memory Deluge
+Memory Trap
 Merchant's Dockhand
+Merciless Executioner
+Merciless Resolve
+Merfolk Branchwalker
+Merfolk Mistbinder
 Merfolk Trickster
+Metallic Rebuke
+Meteor Golem
 Meticulous Archive
+Metropolis Reformer
 Michiko's Reign of Truth
+Midgar, City of Mako
+Midnight Mayhem
 Midnight Reaper
+Might of the Masses
+Might of the Meek
 Mightform Harmonizer
+Migration Path
+Militia Bugler
+Militia Rallier
+Millstone
+Mind Sculpt
+Mind Spring
+Mindseeker Oculus
+Minotaur Sureshot
+Miscast
+Mischievous Mystic
+Mischievous Pup
 Mishra's Bauble
+Mishra's Foundry
+Mist-Cloaked Herald
+Misty Palms Oasis
 Misty Rainforest
+Mnemonic Wall
+Mocking Sprite
 Mockingbird
+Moldervine Reclamation
+Molten Tributary
 Moment of Craving
 Momo, Friendly Flier
+Momo, Playful Pet
+Monastery Mentor
 Monastery Swiftspear
+Mondrak, Glory Dominus
 Monstrous Rage
+Moogles' Valor
 Moon-Circuit Hacker
+Moonshaker Cavalry
+Moonsnare Specialist
+Morbid Opportunist
+Morcant's Loyalist
+Morlun, Devourer of Spiders
+Mortality Spear
+Mortify
+Mortuary Mire
 Mossborn Hydra
 Mountain
 Mox Opal
+Mukotai Ambusher
 Multiversal Passage
 Murder
 Murderous Rider
+Murmuring Mystic
 Mutagenic Growth
 Mutavault
+Myr Kinsmith
+Mystic Archaeologist
+Mystic Monastery
 Mystical Dispute
+Mystical Teachings
+Nadir Kraken
 Narnam Renegade
 Narset, Parter of Veils
 Natural Obsolescence
+Naturalize
+Necrobite
+Needle Spires
+Needletooth Pack
+Needletooth Raptor
 Needleverge Pathway
 Nef-Crop Entangler
 Negate
+Neighborhood Guardian
+Nessian Hornbeetle
 Nettle Sentinel
+Network Disruptor
+Nezumi Prowler
+Night of the Sweets' Revenge
+Nightmare
 Nissa's Encouragement
 Nissa, Genesis Mage
 Nissa, Nature's Artisan
+Niv-Mizzet, Parun
 No More Lies
+Nomad Outpost
+Not on My Watch
 Nova Hellkite
+Novice Inspector
 Nowhere to Run
+Nullpriest of Oblivion
+Nutrient Block
 Nykthos, Shrine to Nyx
+Nylea's Disciple
+Nyx Weaver
+Oath of Jace
 Obsessive Pursuit
+Obsessive Skinner
 Octopus Form
+Ogre Battledriver
 Old-Growth Troll
+Omashu City
+Omenspeaker
+Omnath, Locus of the Roil
+One With the Wind
 Oni-Cult Anvil
+Open the Armory
+Open the Gates
+Open the Graves
 Opt
+Opulent Palace
 Oracle's Vault
+Oran-Rief Ooze
+Orc Sureshot
+Origin of Metalbending
 Ornithopter
+Orthodoxy Enforcer
+Orzhov Guildgate
 Ossification
 Otawara, Soaring City
 Otepec Huntmaster
+Otherworldly Gaze
 Ouroboroid
+Outcaster Greenblade
 Outcaster Trailblazer
 Ovalchase Dragster
 Overgrown Farmland
 Overgrown Tomb
+Overkill
+Overprotect
+Overrun
+Ox of Agonas
 Pacifism
 Pack Rat
+Painful Lesson
+Palladium Myr
 Parhelion II
 Patchwork Automaton
+Path of Discovery
 Path of Peril
 Path to Exile
+Pathfinding Axejaw
 Pathmaker Initiate
 Pelakka Wurm
 Pelt Collector
 Pendulum of Patterns
+Pest Control
+Pet Avengers
 Petrified Hamlet
+Phalanx Leader
+Phantom General
+Phantom Interference
 Phoenix of Ash
+Phyrexian Archivist
 Phyrexian Arena
+Phyrexian Rager
+Phyrexian Vivisector
+Phyrexian Warhorse
+Pia and Kiran Nalaar
 Picklock Prankster
+Pictures of Spider-Man
 Pierce the Sky
+Pilgrim's Eye
+Pillardrop Rescuer
 Pinnacle Emissary
 Pinnacle Starcage
 Pithing Needle
+Pitiless Horde
+Pitiless Plunderer
+Plague Belcher
 Plains
+Planar Bridge
+Planar Cleansing
 Play with Fire
+Playful Shove
+Plummet
+Pointed Discussion
+Poison-Tip Archer
+Pollen-Shield Hare
 Polluted Delta
 Polukranos Reborn
+Polyraptor
 Pompous Battlemage
+Pore Over the Pages
 Portable Hole
 Pouncing Cheetah
+Prairie Stream
+Precinct Captain
+Predictive Preparations
 Preordain
+Preposterous Proportions
 Prey Upon
+Price of Freedom
+Pride Sovereign
+Prideful Parent
+Priest of Ancient Lore
 Primal Might
+Primeval Bounty
 Primordial Wurm
 Prismari Charm
 Prismari Command
 Prismatic Ending
+Prizefight
+Prodigious Growth
 Professor Dellian Fel
 Professor of Symbology
+Professor's Warning
 Proft's Eidetic Memory
+Promising Vein
 Prophesied End
+Prophetic Ravings
+Prosperous Innkeeper
+Protege's Awakening
+Provisions Merchant
+Prowler, Clawed Thief
+Prowling Serpopard
+Prying Eyes
 Psychic Frog
 Pterodon Knight
+Pugnacious Hammerskull
+Pull from Tomorrow
+Pulse of Murasa
+Puncturing Blow
+Pyroceratops
 Pyroclasm
 Pyromantic Pilgrim
+Quakestrider Ceratops
+Quandrix Campus
 Quantum Riddler
+Queen Brahne
 Questing Beast
+Queza, Augur of Agonies
 Quick Study
+Quick-Draw Katana
 Quicksmith Spy
+Rabanastre, Royal City
+Rabid Bite
+Radiant Fountain
+Radiant Grove
+Radioactive Spider
+Raffine's Tower
 Ragavan, Nimble Pilferer
+Raging Regisaur
+Raise Dead
+Raise the Alarm
+Raise the Past
+Rakdos Guildgate
+Rakish Crew
 Rallying Roar
 Ram Through
+Rampaging Baloths
+Rampaging Brontodon
 Rampaging Ferocidon
+Ramunap Excavator
 Ramunap Ruins
 Rancor
 Ranger-Captain of Eos
 Ranging Raptors
+Rank Rat
+Rapacious Dragon
 Raptor Companion
+Raptor Hatchling
+Rapturous Moment
 Rattlechains
+Raucous Theater
+Raugrin Triome
 Raven Eagle
 Ravenous Chupacabra
+Ravenous Robots
+Razaketh's Rite
+Razaketh, the Foulblooded
+Razorkin Needlehead
 Razorverge Thicket
+Read the Bones
+Reality Heist
+Realm-Cloaked Giant
 Reason // Believe
+Reckless Fireweaver
+Reckless Impulse
 Reckless Rage
+Reckless Ransacking
 Reckless Stormseeker
+Reclamation Sage
+Reconnaissance Mission
 Recruitment Officer
 Redcap Melee
 Refute
+Refute Destiny
+Regal Caracal
+Regal Imperiosaur
 Regisaur Alpha
 Release the Dogs
 Relentless Rats
@@ -603,126 +3172,289 @@ Remorseful Cleric
 Renegade Firebrand
 Renegade Freighter
 Renegade Map
+Renegade Tactics
+Renegade's Getaway
 Requiting Hex
+Resentful Revelation
 Resolute Reinforcements
+Resourceful Return
 Resplendent Angel
 Rest in Peace
 Restless Anchorage
 Restless Cottage
 Restless Reef
+Restless Ridgeline
+Restless Vents
+Restoration Magic
+Retreat to Coralhelm
+Retreat to Kazandu
+Return from the Wilds
+Return to Nature
+Revenant
+Reverent Hoplite
 Reverse Engineer
+Revitalize
+Revoke Existence
+Rewind
+Rhonas's Monument
 Ridgescale Tusker
 Rift Bolt
 Righteous Valkyrie
+Rile
 Rimrock Knight
+Rin and Seri, Inseparable
+Ring of the Lucii
 Riparian Tiger
 Ripjaw Raptor
+Riptide Gearhulk
+Rite of Oblivion
+Rite of the Dragoncaller
+River Herald Guide
+River Herald Scout
+River Heralds' Boon
 River Hoopoe
+River Sneak
 River of Tears
 Riverglide Pathway
 Riverpyre Verge
+Roadside Reliquary
 Rockface Village
 Rockfall Vale
+Rogue's Passage
+Romantic Rendezvous
 Rootbound Crag
 Rottenmouth Viper
+Rotting Regisaur
+Rowan's Grim Search
+Rowdy Snowballers
 Ruby, Daring Tracker
 Rugged Highlands
+Rule of Law
+Run Amok
 Rune-Scarred Demon
+Ruric Thar, the Unbowed
+Ruthless Deathfang
 Sacred Foundry
 Sage of Shaila's Claim
+Sagu Wildling
+Saheeli, Jewel of Avishkar
+Sai, Master Thopterist
+Salvager of Secrets
+Samut's Sprint
+Samut, Voice of Dissent
+Sanctum Seeker
+Sanctum of Ugin
+Sandsteppe Citadel
+Sanguine Bond
 Sanguine Syphoner
 Sapling Nursery
+Saproling Migration
+Sarkhan's Triumph
+Sarkhan's Unsealing
 Sarkhan, Dragon Ascendant
+Saruli Caretaker
+Saryth, the Viper's Fang
 Satyr Wayfinder
+Savage Stomp
+Savai Triome
 Savannah Lions
 Saw It Coming
 Sazh's Chocobo
 Scalding Tarn
+Scarab Feast
+Scattered Groves
+Scattered Thoughts
+Scavenger Grounds
 Scavenger's Talent
 Scavenging Ooze
+Scheming Silvertongue
+School Daze
 Scion of Draco
 Scorching Dragonfire
 Scorching Shot
+Scour for Scrap
+Scour from Existence
+Scour the Laboratory
 Scoured Barrens
 Screaming Nemesis
+Screamreach Brawler
+Screeching Soulbreaker
+Sea Gate Wreckage
 Seachrome Coast
+Seafloor Oracle
+Seal from Existence
 Seam Rip
 Sear
 Searing Blaze
 Searslicer Goblin
 Seasoned Hallowblade
+Seasoned Warrenguard
 Secret Identity
+Secret Rendezvous
+Secure the Wastes
+Seeker's Folly
+Seer's Lantern
+Seismic Sense
+Selesnya Guildgate
+Selfless Savior
 Selfless Spirit
+Semester Foreseer
+Sentinel Sliver
+Sentinel of the Nameless City
+Sentinel's Eyes
+Sephiroth's Intervention
+Sephiroth, Planet's Heir
+Serene Steward
+Serpent's Pass
 Serra Angel
 Serra Ascendant
 Servant of the Conduit
+Setessan Petitioner
+Sewer-veillance Cam
 Shacklegeist
 Shadowspear
 Shadowy Backstreet
+Shake the Foundations
+Shaman of the Pack
+Shamanic Revelation
 Shambling Ghast
+Shambling Vent
+Shardmage's Rescue
 Shared Roots
 Shark Typhoon
+Sharlayan, Nation of Scholars
+Shatter the Source
+Shattered Sanctum
+Shatterwing Pegasus
+Sheltered Thicket
 Sheltered by Ghosts
+Sheltering Light
 Sheoldred's Edict
 Sheoldred, the Apocalypse
+Sheriff of Safe Passage
 Shifting Woodland
+Shimmer Dragon
 Shining Aerosaur
+Shinra Reinforcements
+Shipwreck Marsh
+Shivan Devastator
 Shivan Dragon
 Shivan Fire
 Shivan Reef
 Shock
 Shoot the Sheriff
+Shore Up
 Shrapnel Blast
+Siege-Gang Commander
+Sift
+Sifter of Skulls
+Sign in Blood
 Silkweaver Elite
+Silverback Elder
+Silverclad Ferocidons
 Silvergill Adept
+Silverquill Campus
+Simic Guildgate
+Simulacrum Shaper
+Simulacrum Synthesizer
+Sinister Sabotage
 Sire of Seven Deaths
 Skateboard
+Skemfar Avenger
+Skemfar Elderhall
 Skewer the Critics
+Skilled Battlecarver
 Skullcrack
 Sky Skiff
+Skybridge Towers
 Skyclave Apparition
 Skyknight Squire
 Skyship Buccaneer
+Skysovereign, Consul Flagship
 Skyswirl Harrier
 Slash of Talons
 Sleight of Hand
 Slickshot Show-Off
+Slimefoot, the Stowaway
+Slip Through Space
 Slippery Bogle
+Slither Blade
+Sliver Hivelord
+Slum Reaper
+Slumbering Cerberus
 Smaug the Magnificent
+Smelt-Ward Minotaur
+Smoldering Marsh
+Snakeskin Veil
+Snapping Sailback
 Snare Thopter
 Sokenzan, Crucible of Defiance
 Solemn Recruit
+Solemn Simulacrum
 Solitude
+Solve the Equation
 Soul Warden
+Soul of New Phyrexia
+Soul of the Harvest
 Soul's Attendant
 Soul-Guide Lantern
 Soul-Scar Mage
+Soulblade Djinn
 Soulstone Sanctuary
 Sowing Mycospawn
+Spara's Headquarters
+Spark Reaper
 Sparring Mummy
+Spawning Bed
+Spectacle Summit
+Spectacular Spider-Man
+Spectacular Tactics
 Spectral Sailor
 Speedway Fanatic
 Spell Pierce
 Spell Queller
+Spell Shrivel
 Spell Snare
+Sphinx of Forgotten Lore
 Sphinx of the Final Word
+Spider Manifestation
 Spider Umbra
+Spider-Girl, Legacy Hero
+Spider-Gwen, Free Spirit
+Spinewoods Paladin
+Spinning Wheel
 Spire of Industry
 Spirebluff Canal
 Spireside Infiltrator
 Spirit Mantle
+Spirited Companion
+Spitfire Lagac
 Splendid Agony
 Split Up
+Spore Swarm
 Spring // Mind
+Springbloom Druid
 Springleaf Drum
+Sprite Dragon
 Spyglass Siren
+Sram, Senior Edificer
 Stab
+Stadium Headliner
+Starfield Shepherd
+Starnheim Aspirant
+Starscape Cleric
 Starting Town
+Starwinder
 Stasis Snare
 Steam Vents
 Steel Leaf Champion
+Steel Overseer
+Stern Dismissal
+Stimulus Package
 Stingcaster Mage
+Stingerquill Annex
 Stingerquill Charm
+Stinging Vitriol
 Stir Up Trouble
 Stitcher's Supplier
 Stock Up
@@ -730,42 +3462,107 @@ Stoke the Flames
 Stomping Ground
 Stone Quarry
 Stonecoil Serpent
+Stony Strength
 Storm the Festival
+Storm's Wrath
 Stormcarved Coast
+Stormcatch Mentor
 Stormchaser's Talent
+Stormshriek Feral
+Story Seeker
 Strategic Betrayal
+Striking Sliver
+Striped Riverwinder
 Strix Lookout
 Stromkirk Bloodthief
+Strongbox Raider
 Stubborn Denial
+Studious First-Year
+Sublime Epiphany
 Submerged Boneyard
+Suburban Sanctuary
+Sudden Breakthrough
+Sudden Strike
+Suffocating Fumes
+Suki, Kyoshi Warrior
+Sulfur Falls
 Sulfurous Springs
 Sun-Blessed Mount
+Sun-Spider, Nimble Webber
 Sunbaked Canyon
 Sunbillow Verge
 Sunderflock
+Sundown Pass
 Sunken Citadel
+Sunken Hollow
+Sunlit Marsh
+Sunpetal Grove
+Sunset Strikemaster
 Sunspine Lynx
+Super-Skrull
+Supplant Form
 Supreme Phantom
 Supreme Verdict
+Sure Strike
+Surgical Precision
+Surrak and Goreclaw
 Surrak, Elusive Hunter
+Survivors' Encampment
 Svyelun of Sea and Sky
+Swallowed by Leviathan
 Swamp
+Sweltering Suns
+Swift Warden
+Swiftblade Vindicator
+Swiftwater Cliffs
+Sword of Vengeance
+Sworn Companions
+Sylvan Caryatid
+Sylvan Scavenging
+Sylvan Scrying
+Syphon Sliver
+Syr Alin, the Lion's Claw
 Tah-Crop Elite
+Tainted Treats
 Tajuru Pathwarden
+Take Up the Shield
 Takenuma, Abandoned Mire
 Talisman of Resilience
+Tamiyo's Epiphany
+Tamiyo's Journal
 Tamiyo's Safekeeping
+Tangled Islet
+Tanufel Rimespeaker
 Tarmogoyf
+Taste of Death
 Tattered Mummy
+Tatyova, Benthic Druid
 Tear Asunder
+Tectonic Hazard
+Teferi's Tutelage
 Teferi, Hero of Dominaria
 Teferi, Time Raveler
 Temple Garden
+Temple of Abandon
+Temple of Deceit
 Temple of Enlightenment
+Temple of Epiphany
+Temple of Malady
+Temple of Malice
+Temple of Mystery
+Temple of Plenty
+Temple of Silence
+Temple of Triumph
 Temporal Trespass
 Temporary Lockdown
+Temur Ascendancy
+Temur Battle Rage
 Tenacious Underdog
+Tender Wildguide
+Tergrid's Shadow
 Terrain Elemental
+Terramorphic Expanse
+Terrian, World Tyrant
 Territorial Hammerskull
 Territorial Kavu
 Tezzeret's Betrayal
@@ -774,108 +3571,274 @@ Tezzeret's Touch
 Tezzeret, Master of Metal
 Thalia's Lieutenant
 Thalia, Guardian of Thraben
+Thalia, Heretic Cathar
+Thassa's Bounty
+The Arkenstone
+The Eldest Reborn
 The Legend of Roku
+The Locust God
 The Meathook Massacre
 The Ooze
 The Sackville-Bagginses
 The Scarab God
+The Scorpion God
 The Theorist, Jace Beleren
+The Unbeatable Squirrel Girl
 The Wandering Emperor
+The Wandering Rescuer
 The Wondrous Wasp
+Theoretical Necromancer
 Theorist's Sanctum
+Theorix Annex
 Theorix Charm
+Thermo-Alchemist
 Think Twice
+Third Path Iconoclast
+Thirst for Discovery
+Thirst for Knowledge
+This Town Ain't Big Enough
+Thopter Engineer
+Thorin's Last Stand
 Thornspire Verge
+Thornweald Archer
+Thornwood Falls
 Thoughtcast
 Thoughtseize
 Thraben Inspector
 Thrashing Brontodon
 Three Steps Ahead
+Threefold Thunderhulk
+Thrill of Possibility
 Thriving Rhino
 Thriving Turtle
+Throne of the God-Pharaoh
+Thror's Map
+Thunderherd Migration
+Thundering Broodwagon
 Thundering Falls
+Thundering Spineback
 Tide Shaper
+Tifa Lockhart
 Tilonalli's Knight
 Timber Gorge
 Tinybones, the Pickpocket
 Tireless Tracker
 Tishana's Tidebinder
+Tishana's Wayfinder
+Titan's Strength
+Titanic Brawl
+Titanic Growth
+Toby, Beastie Befriender
+Tocasia's Welcome
+Tocatli Honor Guard
 Tolarian Terror
+Tomb of the Spirit Dragon
+Tombstone, Career Criminal
+Tonberry
 Topiary Stomper
+Torch Courier
 Torch the Tower
+Tormenting Voice
 Tormod's Crypt
 Torpor Orb
+Toski, Bearer of Secrets
+Toxin Analysis
 Tragic Banshee
+Training Compound
 Tranquil Cove
 Tranquil Expanse
+Transcendent Envoy
+Transcendent Message
 Traumatic Critique
 Treasure Cruise
 Treasure Keeper
+Treasure Vault
 Treetop Snarespinner
+Trelasarra, Moon Dancer
+Treno, Dark City
 Trial of Ambition
 Trial of Zeal
 Tribal Flames
+Triton Fortune Hunter
+Trophy Mage
+Troublemaker Ouphe
+True Ancestry
 Trusty Companion
+Trygon Predator
+Tunneling Geopede
+Tura Kennerud, Skyknight
+Twinblade Assassins
+Twinblade Blessing
+Twinblade Paladin
 Twinflame Tyrant
 Twinmaw Stormbrood
+Tyvar's Stand
 Ugin's Labyrinth
+Ulvenwald Hydra
 Ulvenwald Oddity
 Umbral Collar Zealot
 Unbridled Growth
+Uncovered Clues
+Undercity Scrounger
 Undercity Sewers
+Underground Mortuary
+Underground River
+Undergrowth Leopard
+Underworld Dreams
+Unexpected Assistance
+Unexpected Windfall
 Unholy Annex // Ritual Chamber
 Unholy Heat
+United Front
 Universal Solvent
+University Campus
 Unlicensed Hearse
+Unruly Catapult
+Unstoppable Plan
 Unsummon
+Unwind
 Urborg, Tomb of Yawgmoth
 Urza's Saga
+Utter End
+Vadmir, New Blood
+Valgavoth's Lair
 Valgavoth, Terror Eater
+Valkyrie Harbinger
+Valkyrie's Sword
 Valley Flamecaller
+Valor in Akros
 Valorous Stance
+Vampire Gourmand
 Vampire Nighthawk
 Vampire Spawn
+Vampire of the Dire Moon
+Vampiric Rites
 Vanguard Seraph
+Vanquish the Horde
+Vector, Imperial Capital
+Vega, the Watcher
+Veil of Assimilation
+Vein Ripper
 Vengeful Bloodwitch
 Vengeful Tracker
+Venom Sliver
 Verdant Automaton
 Verdant Crescendo
+Verdant Force
+Verdurous Gearhulk
 Veteran Motorist
 Vexing Bauble
 Vibrance
+Vibrant Cityscape
+Victory's Herald
+Vigilant Baloth
 Vigorbloom Charm
+Vigorbloom Vanguard
 Vile Entomber
+Village Rites
 Vinereap Mentor
+Vineshaper Mystic
 Violent Urge
+Virtue of Loyalty
+Virtue of Persistence
+Virulent Emissary
+Virus Beetle
+Vision of Love
+Vito, Thorn of the Dusk Rose
+Vivien Reid
+Vivien, Nature's Avenger
 Vodalian Hexcatcher
 Voice of Resurgence
 Voice of Victory
 Voice of the Blessed
+Void Rend
+Voja, Jaws of the Conclave
+Volatile Fault
+Volcanic Geyser
 Voldaren Epicure
+Volley Veteran
+Vona, Butcher of Magan
+Voyage Home
+Voyage's End
+Vraska, Soul of Stone
+Wall of Fire
 Wall of Omens
 Wan Shi Tong, Librarian
+Wandertale Mentor
+Wardens of the Cycle
 Warg Tactics
+Warleader's Call
+Warped Landscape
+Wary Thespian
 Wastewood Verge
+Waterfront District
+Waterwind Scout
 Watery Grave
+Way of the Necromancer
 We Say Thee Nay!
 Weapons Manufacturing
+Weapons Trainer
 Weathered Runestone
 Weaver of Currents
+Web Up
+Weftstalker Ardent
+Welcome to Sweettooth
+Welcoming Vampire
 Weldfast Monitor
 Welding Jar
+Werefox Bodyguard
+Whelming Wave
+Whirler Rogue
+Whirler Virtuoso
+Whisper, Blood Liturgist
+White Auracite
 Wild Nacatl
 Wild Ride
+Willowrush Verge
+Wind Strider
 Wind-Kin Raiders
 Wind-Scarred Crag
 Windswept Heath
+Windurst, Federation Center
+Winged Words
 Winternight Stories
+Wistfulness
 Witch's Oven
+Witherbloom Command
+Withering Torment
+Wizard Class
+Wizard's Retort
+Woe Strider
+Wood Elves
 Wooded Foothills
+Wooded Ridgeline
 Woodland Cemetery
+Woodland Chasm
 Woodland Stream
+Wraith, Vicious Vigilante
+Wrath of the Bloodmane
+Wreckage Wickerfolk
+Wrecking Gecko
 Wrenn's Resolve
+Xander's Lounge
+Yahenni, Undying Partisan
+Yargle, Glutton of Urborg
+Yavimaya Coast
+Yavimaya Sapherd
 Yavimaya, Cradle of Growth
+You Meet in a Tavern
+You See a Pair of Goblins
+Young Pyromancer
+Your Fate Ends Here
 Youthful Knight
 Youthful Valkyrie
 Yuriko, Hope from the Shadows
+Zagoth Triome
+Zegana, Utopian Speaker
+Zetalpa, Primal Dawn
+Zhalfirin Void
+Ziatora's Proving Ground
 Zombify
+Zookeeper Mechan
+Zuko, Exiled Prince
+Zulaport Cutthroat
