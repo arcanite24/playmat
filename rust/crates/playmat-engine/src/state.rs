@@ -187,6 +187,8 @@ pub struct Obj {
     pub doors: [bool; 2],
     /// the half of a Room cast (0 left, 1 right): its door unlocks as the Room enters
     pub room_cast: Option<usize>,
+    /// a fused split card being cast with both halves: its mana is paid before targets (`Spell.activate`)
+    pub fused_cast: bool,
     /// the turn it was foretold (exiled face down from hand), while it stays in exile
     pub foretold_turn: Option<u32>,
     /// the turn it became plotted, while it stays in exile
@@ -904,6 +906,9 @@ pub struct Game {
     pub entering_together: Vec<ObjId>,
     /// the color the last "any color" mana was made in without asking (one color owed): Java asks it
     pub any_color_made: Option<crate::card::Color>,
+    /// combat damage's sources' deathtouch and lifelink as the step started: Java doesn't apply continuous effects
+    /// again while the damage is dealt (Skrelv's Hive's corrupted lifelink, the poison counters coming with it)
+    pub combat_keywords: Vec<(ObjId, bool, bool)>,
     /// activated abilities with a limit each turn activated this turn: source, ability index
     pub activated_this_turn: Vec<(ObjId, usize)>,
     /// the battlefield as the current action began, for the dies triggers of what it moves all at once
@@ -1060,6 +1065,7 @@ impl Game {
             sac_insert: None,
             entering_together: Vec::new(),
             any_color_made: None,
+            combat_keywords: Vec::new(),
             activated_this_turn: Vec::new(),
             lookback: Vec::new(),
             short_lki: Vec::new(),
@@ -1159,6 +1165,7 @@ impl Game {
             transformed_in_place: false,
             doors: [false; 2],
             room_cast: None,
+            fused_cast: false,
             foretold_turn: None,
             plotted_turn: None,
             suspended: false,
@@ -1279,6 +1286,20 @@ impl Game {
                     None => true,
                 }
             }
+            Pred::AnotherTarget => !self.chosen_before.contains(&Target::Obj(id)),
+            Pred::BlockingOrBlockedBySource { blocking, blocked_by } => source.is_some_and(|src| {
+                (*blocking && o.blocking.contains(&src)) || (*blocked_by && self.obj(src).blocking.contains(&id))
+            }),
+            // the same, with the X of the spell or ability whose target it is
+            Pred::PowerX { cmp } | Pred::ToughnessX { cmp } => {
+                match source.and_then(|s| self.stack.iter().rev().find(|i| i.card == s)) {
+                    Some(i) => {
+                        let (power, toughness) = self.power_toughness(id);
+                        cmp.holds(if matches!(p, Pred::PowerX { .. }) { power } else { toughness }, i.x)
+                    }
+                    None => true,
+                }
+            }
             Pred::CastFrom { zone } => {
                 let z = if o.zone == Zone::Stack { o.cast_from } else { Some(o.zone) };
                 z == Some(match zone.as_str() {
@@ -1298,6 +1319,15 @@ impl Game {
             }
             Pred::Counter { name, n } => o.counter(name) >= (*n).max(1) as i32,
             Pred::Ability { a } => self.has_ability(id, a),
+            Pred::AbilityClass { class } => {
+                let named = |a: &AbilityDef| format!("{a:?}").split([' ', '{', '(']).next() == Some(class.as_str());
+                // (its own and those resolved effects gave it: a static's would loop back here, Slaughter Singer's
+                // "creatures you control with toxic")
+                let o = self.obj(id);
+                o.def.abilities.iter().any(named)
+                    || (o.zone == Zone::Battlefield
+                        && self.grants.iter().any(|g| g.target == id && g.zcc == o.zcc && named(&g.ability)))
+            }
             Pred::Name { n } => o.name() == n,
             Pred::PermanentCard => o.def.is_permanent_card(),
             Pred::Monocolored => self.colors(id).len() == 1,
@@ -1509,6 +1539,22 @@ impl Game {
             return true;
         }
         if *ability == AbilityDef::FlyingAbility && o.counter("flying") > 0 {
+            return true;
+        }
+        // the other keyword counters (122.1b)
+        let keyword = match ability {
+            AbilityDef::LifelinkAbility => "lifelink",
+            AbilityDef::TrampleAbility => "trample",
+            AbilityDef::FirstStrikeAbility => "first strike",
+            AbilityDef::DoubleStrikeAbility => "double strike",
+            AbilityDef::MenaceAbility => "menace",
+            AbilityDef::VigilanceAbility => "vigilance",
+            AbilityDef::ReachAbility => "reach",
+            AbilityDef::HexproofAbility => "hexproof",
+            AbilityDef::HasteAbility => "haste",
+            _ => "",
+        };
+        if !keyword.is_empty() && o.counter(keyword) > 0 {
             return true;
         }
         if o.zone != Zone::Battlefield {
@@ -2016,10 +2062,9 @@ impl Game {
                 Value::OpponentsLostLife => {
                     (0..self.seats()).filter(|p| *p != you && self.player(*p).life_lost > 0).count() as i32
                 }
-                Value::CardsInGraveyard { filter } => self
-                    .player(you)
-                    .graveyard
-                    .iter()
+                Value::CardsInGraveyard { filter, all } => (0..self.seats())
+                    .filter(|s| *all || *s == you)
+                    .flat_map(|s| self.player(s).graveyard.iter())
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .count() as i32,
                 // a source gone from the battlefield: its power as it last was there
@@ -2144,6 +2189,7 @@ impl Game {
                     }
                     colors.len() as i32
                 }
+                Value::ColorsSpent => self.obj(source).spent_colors.iter().filter(|n| **n > 0).count() as i32,
                 Value::SourceCountersAny => {
                     let o = self.obj(source);
                     if o.zone == Zone::Battlefield {
@@ -2220,7 +2266,9 @@ impl Game {
             Condition::Evoked => self.obj(source).evoked,
             Condition::ManaColorSpent { color, n } => {
                 let o = self.obj(source);
-                (o.cast || (o.zone != Zone::Battlefield && o.cast_lki)) && o.spent_colors[color.index()] >= *n
+                // (a spell resolving: what was spent to cast it, Unexplained Vision's adamant)
+                (o.zone == Zone::Stack || o.cast || (o.zone != Zone::Battlefield && o.cast_lki))
+                    && o.spent_colors[color.index()] >= *n
             }
             // `CastFromEverywhereSourceCondition`: the permanent, or as it last was on the battlefield
             Condition::CastFromEverywhere => {
@@ -2526,6 +2574,14 @@ impl Game {
             let counters = o.counter("+1/+1") - o.counter("-1/-1");
             p += counters;
             t += counters;
+        }
+        // hone counters: each Equipment's give the creature it equips +1/+0 apiece (`ApplyStatusEffect`, layer 7c)
+        if self.has_type(id, CardType::Creature) {
+            for e in self.battlefield.iter() {
+                if self.attached(*e) == Some(id) && self.obj(*e).def.has_subtype("Equipment") {
+                    p += self.obj(*e).counter("hone");
+                }
+            }
         }
         for src in self.battlefield.iter().chain(self.command.iter()) {
             let s = self.obj(*src);
@@ -2916,6 +2972,26 @@ impl Game {
         let power = self.power_toughness(id).0;
         let mut dies = dies;
         for t in dies.iter_mut() {
+            // "whenever a creature dies, … that card": a fixed target pointer at the card in the graveyard
+            // (`DiesCreatureTriggeredAbility`'s setTargetPointer)
+            // (the card it becomes in the graveyard: the move comes after its triggers are found); `PLAYER`: at
+            // its controller
+            if from == Zone::Battlefield
+                && zone == Zone::Graveyard
+                && matches!(self.trigger_of(t), Some(Trigger::DiesAll { .. }))
+            {
+                match t.ability.and_then(|(i, _)| self.item_def(t).abilities.get(i)) {
+                    Some(crate::card::AbilityDef::TriggeredAbility { set_target_pointer: true, .. }) => {
+                        t.targets = vec![vec![Target::Obj(id)]];
+                        t.target_zcc = vec![vec![self.obj(id).zcc + 1]];
+                    }
+                    Some(crate::card::AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. }) => {
+                        t.targets = vec![vec![Target::Player(died_controller)]];
+                        t.target_zcc = vec![vec![0]];
+                    }
+                    _ => {}
+                }
+            }
             if matches!(self.trigger_of(t), Some(Trigger::LeavesAll { .. })) {
                 t.x = p1p1;
             }

@@ -196,7 +196,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,166 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (9,356 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -292,6 +292,15 @@ Being in the engine and being trusted are kept apart.
   sacrificed for its own ability exiles what it enchanted (Path to Redemption). 430 of 452 games match and 341
   more cards are verified: 9,018. Java's nondeterminism, not copied: `ShuffleIntoLibraryTargetEffect` shuffles each
   owner's library in `HashMap` order, so Turn the Earth with cards from both graveyards parts there.
+
+  Transpiler plumbing and targeting (13 Nov): fused split cards (both halves cast together, `h2`), becomes-target
+  triggers for abilities and for any permanent, `AbilityPredicate`, and more conditions, amounts and targets. Four
+  probe rounds (248 games): 246 match. Their fixes, each with a game under `shadow/factory/`: a target with fewer
+  choices than its fewest number cancels the spell without asking; a permanent targeted and then sacrificed as a cost
+  still triggers; an instant can't enter the battlefield; a spell that cares about the colors spent asks for them;
+  hone counters; a reflexive trigger keeps its source's target and commits a crime; a double-faced card returned
+  from the graveyard enters without counters; combat damage reads deathtouch and lifelink from the step's start; a
+  fused half's targets are required and auto-chosen by its own rule. 185 more cards are verified: 9,203.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the

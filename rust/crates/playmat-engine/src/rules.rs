@@ -1219,6 +1219,10 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                                 out.push((id, h, PlayKind::RoomHalf, None));
                             }
                         }
+                        // a fused split card's halves together (`h2`)
+                        if def.fused_spell().is_some_and(|f| castable(game, seat, id, &f)) {
+                            out.push((id, 2, PlayKind::RoomHalf, None));
+                        }
                     }
                     // (a double-faced card's front is cast with a `SpellAbility` that isn't the `BASE` one)
                     if let (true, Some(k)) = (normal, spell) {
@@ -2491,7 +2495,24 @@ fn mana_combination(game: &mut Game, d: &mut dyn Decider, seat: Seat, ability: &
 /// (CHOOSE_CHOICE). None: stopped.
 fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost, n: u32) -> Option<Color> {
     let owed: Vec<Color> = Color::ALL.iter().copied().filter(|c| unpaid.symbols_of(*c) > 0).collect();
-    match owed.len() {
+    // `HumanPlayer.choose`: not for a spell of theirs that cares about the colors spent (`caresAboutManaColor`:
+    // Unexplained Vision's adamant)
+    let cares = spell_paid_for(game).is_some_and(|s| {
+        let o = game.obj(s);
+        // (its effects' conditions: an intervening "if" isn't one, Clockwork Servant's adamant)
+        let effects = o.def.spell.effects.iter().chain(o.def.spell.modes.iter().flat_map(|m| m.effects.iter())).chain(
+            o.def.abilities.iter().flat_map(|a| match a {
+                AbilityDef::TriggeredAbility { effects, .. }
+                | AbilityDef::SimpleActivatedAbility { effects, .. }
+                | AbilityDef::SimpleStaticAbility { effects, .. } => effects.as_slice(),
+                _ => &[],
+            }),
+        );
+        o.controller == seat
+            && (o.def.abilities.contains(&AbilityDef::SunburstAbility)
+                || effects.into_iter().any(|e| format!("{e:?}").contains("ManaColorSpent")))
+    });
+    match if cares { usize::MAX } else { owed.len() } {
         0 => {
             game.any_color_made = Some(Color::W);
             return Some(Color::W);
@@ -3011,7 +3032,13 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     // a Room: the half to cast, always asked (h0, h1), even with one that can be
     if !game.obj(id).def.room.is_empty() {
         let full = game.obj(id).def.clone();
-        let options: Vec<usize> = (0..full.room.len()).filter(|k| castable(game, seat, id, &full.room[*k])).collect();
+        let mut options: Vec<usize> =
+            (0..full.room.len()).filter(|k| castable(game, seat, id, &full.room[*k])).collect();
+        // a fused split card from hand: both halves (`h2`, Java's card spell ability)
+        let fused = full.fused_spell().filter(|f| game.obj(id).zone == Zone::Hand && castable(game, seat, id, f));
+        if fused.is_some() {
+            options.push(2);
+        }
         if options.is_empty() {
             return;
         }
@@ -3021,8 +3048,16 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         };
         let o = game.obj_mut(id);
         o.adventurer = Some(full.clone());
-        o.def = full.room[k].clone();
-        o.room_cast = Some(k);
+        match fused.filter(|_| k == 2) {
+            Some(f) => {
+                o.def = Arc::new(f);
+                o.fused_cast = true;
+            }
+            None => {
+                o.def = full.room[k].clone();
+                o.room_cast = Some(k);
+            }
+        }
         if !cast(game, d, seat, id) {
             *game = before;
         }
@@ -3119,6 +3154,36 @@ fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: 
     // `processAction` once it's cast
     game.short_lki.clear();
     cast
+}
+
+/// A spell's mana payment (with the life its phyrexian symbols cost), and what was spent
+fn pay_spell_mana(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    id: ObjId,
+    cost: &ManaCost,
+    phyrexian_life: i32,
+) -> bool {
+    game.paying_for.set(Some(id));
+    let tally = game.spent_tally;
+    if phyrexian_life > 0 {
+        lose_life(game, seat, phyrexian_life);
+    }
+    let paid = pay_mana(game, d, seat, cost);
+    game.paying_for.set(None);
+    if !paid {
+        return false;
+    }
+    game.mana_paid = game.unpaid;
+    game.obj_mut(id).mana_spent =
+        cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless + cost.hybrid.len() as u32 + cost.snow;
+    let mut spent = [0; 5];
+    for (k, n) in spent.iter_mut().enumerate() {
+        *n = game.spent_tally[k] - tally[k];
+    }
+    game.obj_mut(id).spent_colors = spent;
+    true
 }
 
 fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
@@ -3437,7 +3502,13 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     let mut modes: Vec<usize> = Vec::new();
     let n = def.spell.modes.len();
     if n > 1 {
-        let (min, max) = (def.spell.min_modes, def.spell.max_modes);
+        let (min, mut max) = (def.spell.min_modes, def.spell.max_modes);
+        // `Modes.getMaxModes`: more modes while the condition holds
+        if let Some((more, c)) = &def.spell.more_modes {
+            if game.condition_holds(Some(c), seat, id) {
+                max = (*more).min(n);
+            }
+        }
         let possible =
             |game: &Game, k: usize| def.spell.modes[k].targets.iter().all(|t| target_possible(game, seat, t, Some(id)));
         if n == min {
@@ -3520,9 +3591,31 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             sacrifice_x = Some((filter.clone(), n));
         }
     }
-    if !choose_targets_of_modes(game, d, seat, &defs, &mode_ends, Some(id), &def.spell.rule, true) {
+    // a fused split card: both halves' mana is paid as the card's spell ability is activated, before the halves'
+    // targets (`Spell.activate`)
+    let fused = std::mem::take(&mut game.obj_mut(id).fused_cast);
+    let tally = game.spent_tally;
+    if fused {
+        let cost = modified_cost(game, seat, id, cost.clone());
+        if !pay_spell_mana(game, d, seat, id, &cost, phyrexian_life) {
+            return false;
+        }
+    }
+    // (a fused card's halves are activated for no mana, so their targets are required: `Targets.makeChoice`)
+    if !choose_targets_of_modes(game, d, seat, &defs, &mode_ends, Some(id), &def.spell.rule, !fused) {
         return false;
     }
+    // the permanents targeted, which still see TARGETED if a cost then moves them (Dream Strix sacrificed to Fling)
+    let targeted_before_costs: Vec<ObjId> = game.stack.last().map_or_else(Vec::new, |t| {
+        t.targets
+            .iter()
+            .flatten()
+            .filter_map(|x| if let Target::Obj(o) = x { Some(*o) } else { None })
+            .filter(|o| game.obj(*o).zone == Zone::Battlefield)
+            .collect()
+    });
+    // (and their triggers come before what the costs trigger: Dream Strix's before its dies trigger)
+    let pending_at_targets = game.pending.len();
     for s in 0..game.seats() {
         game.player_mut(s).passed = false;
     }
@@ -3586,24 +3679,9 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             }
         }
     }
-    game.paying_for.set(Some(id));
-    let tally = game.spent_tally;
-    if phyrexian_life > 0 {
-        lose_life(game, seat, phyrexian_life);
-    }
-    let paid = pay_mana(game, d, seat, &cost);
-    game.paying_for.set(None);
-    if !paid {
+    if !fused && !pay_spell_mana(game, d, seat, id, &cost, phyrexian_life) {
         return false;
     }
-    game.mana_paid = game.unpaid;
-    game.obj_mut(id).mana_spent =
-        cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless + cost.hybrid.len() as u32 + cost.snow;
-    let mut spent = [0; 5];
-    for (k, n) in spent.iter_mut().enumerate() {
-        *n = game.spent_tally[k] - tally[k];
-    }
-    game.obj_mut(id).spent_colors = spent;
     // 601.2g: then the other costs
     for c in &alternative_costs {
         if !pay_cost(game, d, seat, id, c) {
@@ -3716,7 +3794,12 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     note(game, EventKind::Cast, Some(seat), None, Some(Target::Obj(spell)), 0);
     // TARGETED's valiant, ward and Surrak triggers: `processAction` handles them before SPELL_CAST
     ward(game);
-    let sources: Vec<ObjId> = game.trigger_sources();
+    let mut sources: Vec<ObjId> = game.trigger_sources();
+    for o in targeted_before_costs {
+        if !sources.contains(&o) {
+            sources.push(o);
+        }
+    }
     let targeted: Vec<ObjId> = game
         .stack
         .last()
@@ -3733,7 +3816,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         .unwrap_or_default();
     // the rest of TARGETED
     let mut fired = game.triggers(sources.clone(), |g, src, you, t| match t {
-        Trigger::BecomesTargetOfSpell { filter } => {
+        Trigger::BecomesTargetOfSpell { filter, .. } => {
             targeted.contains(&src) && g.filter_matches(filter, you, Some(src), spell)
         }
         _ => false,
@@ -3743,8 +3826,19 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             t.targets = vec![vec![Target::Player(seat)]];
             t.target_zcc = vec![vec![0]];
         }
+        if matches!(game.trigger_of(t), Some(Trigger::BecomesTargetOfSpell { at_spell: true, .. })) {
+            t.targets = vec![vec![Target::Obj(spell)]];
+            t.target_zcc = vec![vec![game.obj(spell).zcc]];
+        }
     }
-    game.pending.extend(fired);
+    let any = becomes_target_any(game, &sources, &targeted, spell, seat, false);
+    // one TARGETED event: its triggers in Java's order (Thorn Lieutenant's and Battle Mammoth's)
+    if !any.is_empty() {
+        fired.extend(any);
+        fired.sort_by_key(|t| game.trigger_key(t));
+    }
+    let at = pending_at_targets.min(game.pending.len());
+    game.pending.splice(at..at, fired);
     // delayed triggers first: "when you next cast a creature spell this turn"
     if game.obj(spell).is(CardType::Creature) {
         let turn = game.turn;
@@ -4096,11 +4190,19 @@ fn choose_targets_of_modes(
             return false;
         }
         if matches!(t, TargetDef::TargetAnyTarget { not_first: true, .. })
-            || matches!(t, TargetDef::TargetPermanent { filter, .. } if filter.0.contains(&Pred::ControlledByFirstTarget))
+            || matches!(t, TargetDef::TargetPermanent { filter, .. } | TargetDef::TargetCardInGraveyard { filter, .. }
+                if filter.0.contains(&Pred::ControlledByFirstTarget) || filter.0.contains(&Pred::AnotherTarget))
         {
             game.chosen_before = targets.iter().flatten().copied().collect();
         }
-        let chosen = choose_target(game, d, seat, t, source, rule, cancellable);
+        // a fused split card's halves each target with their own rule (Dirty's "return" after Down's "discards")
+        let halves: Vec<&str> = rule.split(" // ").collect();
+        let rule_of = if halves.len() == mode_ends.len() && halves.len() > 1 {
+            halves[mode_ends.iter().filter(|e| **e <= i).count().min(halves.len() - 1)]
+        } else {
+            rule
+        };
+        let chosen = choose_target(game, d, seat, t, source, rule_of, cancellable);
         game.chosen_before.clear();
         if let (
             Some(ts),
@@ -4138,8 +4240,102 @@ fn choose_targets_of_modes(
     // TARGETED for an ability (a spell's, after SPELL_CAST, in `cast`)
     if game.stack.last().is_some_and(|t| t.ability.is_some()) {
         ward(game);
+        ability_targeted(game);
     }
     true
+}
+
+/// The permanents the top stack object targets (not its targets on the stack), in order
+fn targeted_permanents(game: &Game) -> Vec<ObjId> {
+    game.stack
+        .last()
+        .map(|t| {
+            let stack_slots = stack_target_slots(game, t);
+            t.targets
+                .iter()
+                .enumerate()
+                .filter(|(k, _)| stack_slots.get(*k) != Some(&true))
+                .flat_map(|(_, ts)| ts.iter())
+                .filter_map(|x| if let Target::Obj(o) = x { Some(*o) } else { None })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// TARGETED by an ability: "whenever this (a permanent of the filter) becomes the target of a spell or ability"
+/// (`FilterStackObject`s), the ability matched by its source
+fn ability_targeted(game: &mut Game) {
+    let Some(top) = game.stack.last().cloned() else { return };
+    let hit = targeted_permanents(game);
+    if hit.is_empty() {
+        return;
+    }
+    let sources: Vec<ObjId> = game.trigger_sources();
+    let mut fired = game.triggers(sources.clone(), |g, src, you, t| match t {
+        Trigger::BecomesTargetOfSpell { filter, abilities: true, .. } => {
+            hit.contains(&src) && g.filter_matches(filter, you, Some(src), top.card)
+        }
+        _ => false,
+    });
+    for t in fired.iter_mut() {
+        if set_target_pointer(game, t) {
+            t.targets = vec![vec![Target::Player(top.controller)]];
+            t.target_zcc = vec![vec![0]];
+        }
+    }
+    let any = becomes_target_any(game, &sources, &hit, top.card, top.controller, true);
+    if !any.is_empty() {
+        fired.extend(any);
+        fired.sort_by_key(|t| game.trigger_key(t));
+    }
+    targeted(game, fired);
+}
+
+/// `BecomesTargetAnyTriggeredAbility`: for each permanent targeted (once each), the triggers whose permanent filter
+/// it matches and whose stack filter the targeting spell (or ability, by its source) matches
+fn becomes_target_any(
+    game: &Game,
+    sources: &[ObjId],
+    targeted: &[ObjId],
+    by: ObjId,
+    by_controller: Seat,
+    ability: bool,
+) -> Vec<StackItem> {
+    let mut out = Vec::new();
+    let mut seen = Vec::new();
+    for p in targeted {
+        if seen.contains(p) || game.obj(*p).zone != Zone::Battlefield {
+            continue;
+        }
+        seen.push(*p);
+        let fired = game.triggers(sources.iter().copied(), |g, src, you, t| match t {
+            Trigger::BecomesTargetAny { target, filter, abilities, .. } => {
+                (!ability || *abilities)
+                    && g.filter_matches(target, you, Some(src), *p)
+                    && g.filter_matches(filter, you, Some(src), by)
+            }
+            _ => false,
+        });
+        for mut t in fired {
+            match game.trigger_of(&t) {
+                Some(Trigger::BecomesTargetAny { at, .. }) if at == "permanent" => {
+                    t.targets = vec![vec![Target::Obj(*p)]];
+                    t.target_zcc = vec![vec![game.obj(*p).zcc]];
+                }
+                Some(Trigger::BecomesTargetAny { at, .. }) if at == "player" => {
+                    t.targets = vec![vec![Target::Player(by_controller)]];
+                    t.target_zcc = vec![vec![0]];
+                }
+                Some(Trigger::BecomesTargetAny { at, .. }) if at == "spell" => {
+                    t.targets = vec![vec![Target::Obj(by)]];
+                    t.target_zcc = vec![vec![game.obj(by).zcc]];
+                }
+                _ => {}
+            }
+            out.push(t);
+        }
+    }
+    out
 }
 
 /// The total a divided target divides (the spell's X)
@@ -5194,7 +5390,9 @@ fn choose_target(
             let owner = game.obj(*first).owner;
             objs.retain(|o| game.obj(*o).owner == owner);
         }
-        if chosen.is_empty() && min > 0 && players.is_empty() && objs.is_empty() {
+        // `Target.canChooseFromPossibleTargets`: fewer choices than the fewest number isn't asked (Blood Beckoning
+        // kicked with one creature card)
+        if chosen.is_empty() && min > 0 && players.len() + objs.len() + usize::from(counts_itself) < min {
             return None;
         }
         // `chooseTargetAmount`: a divided target is asked again after each one chosen, until "done"
@@ -5484,8 +5682,10 @@ fn target_possible(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>)
     if matches!(def, TargetDef::TargetPermanent { distribute: Some(crate::card::Amount::Of(_)), .. }) {
         return true;
     }
+    // `Target.canChooseFromPossibleTargets`: as many choices as the fewest number
     let (players, objs) = possible_targets(game, seat, def, src);
-    target_counts(def).0 == 0 || !players.is_empty() || !objs.is_empty()
+    let min = target_counts(def).0;
+    min == 0 || players.len() + objs.len() >= min
 }
 
 fn target_zcc(game: &Game, t: Target) -> u32 {
@@ -6986,6 +7186,18 @@ fn refresh_land_types(game: &mut Game) {
                                     && game.filter_matches(filter, you, Some(*id), *to)
                                 {
                                     granted.push((*to, (**ability).clone()));
+                                }
+                            }
+                        }
+                        // Honored Hierarch: as long as it's renowned, it has "{T}: Add one mana of any color."
+                        EffectDef::ConditionalContinuousEffect { effect, condition }
+                            if matches!(&**effect, EffectDef::GainAbilitySourceEffect { ability, .. }
+                                if ability.mana().is_some()) =>
+                        {
+                            let you = game.obj(*id).controller;
+                            if let EffectDef::GainAbilitySourceEffect { ability, .. } = &**effect {
+                                if game.condition_holds(Some(condition), you, *id) {
+                                    granted.push((*id, (**ability).clone()));
                                 }
                             }
                         }
@@ -9781,8 +9993,17 @@ fn apply_each_effect(
                             targets: targets.clone(),
                             condition: None,
                         };
+                        // with no targets of its own, the reflexive ability's effects point where this one's do
+                        // (Biting-Palm Ninja's "that player")
+                        let (pointed, pointed_zcc) = if targets.is_empty() {
+                            (item.targets.clone(), item.target_zcc.clone())
+                        } else {
+                            (Vec::new(), Vec::new())
+                        };
                         game.pending.push(StackItem {
                             delayed: Some(Arc::new(delayed)),
+                            targets: pointed,
+                            target_zcc: pointed_zcc,
                             ..StackItem::spell(source.0, controller)
                         });
                     } else if d.stopped() {
@@ -11400,8 +11621,11 @@ fn apply_each_effect(
                     // a token that died isn't a card to return (`game.getCard` finds none)
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).token {
                         let under = if *owner { game.obj(*o).owner } else { controller };
+                        // a double-faced card enters as its face, which the counters (`setEnterWithCounters`, by the
+                        // card's id) don't find: Baneblade Scoundrel returned by Unbreakable Bond
+                        let faced = game.obj(*o).def.transform_back.is_some() || game.obj(*o).def.back.is_some();
                         enter_battlefield(game, d, *o, under, false);
-                        if let Some(c) = counters {
+                        if let Some(c) = counters.as_ref().filter(|_| !faced) {
                             game.obj_mut(*o).add_counters(&c.name, c.amount);
                         }
                         if *tapped {
@@ -13318,6 +13542,14 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::GainAbilityAttachedUntilEndOfTurnEffect { ability } => {
+                let (src, zcc) = source;
+                if game.obj(src).zcc == zcc {
+                    if let Some(c) = game.attached(src) {
+                        grant(game, c, ability);
+                    }
+                }
+            }
             EffectDef::LoseAbilityTargetEffect { ability } | EffectDef::LoseAbilitySourceEffect { ability } => {
                 let turn = game.turn;
                 let hit: Vec<ObjId> = if matches!(e, EffectDef::LoseAbilitySourceEffect { .. }) {
@@ -14209,6 +14441,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                 game.obj_mut(id).token_image = Some((class, set, pick));
             }
         }
+    }
+    // an instant or sorcery card stays where it is (`ZonesHandler.maybeRemoveFromSourceZone`: Too Evil to Stay Dead
+    // returning any card)
+    if !game.obj(id).token && !game.obj(id).def.is_permanent_card() {
+        return;
     }
     // Weathered Runestone: nonland permanent cards in graveyards and libraries can't enter (a token isn't a card:
     // Java's `game.getCard` doesn't find it)
@@ -15272,6 +15509,9 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                             return happened;
                         }
                         Arc::make_mut(&mut game.stack).pop();
+                    } else {
+                        // `TRIGGERED_ABILITY` (Lich's Relic's reflexive one targeting an opponent's creature)
+                        commit_crime(game, seat);
                     }
                 }
                 // its targets, which can't be cancelled; with no legal ones it's removed (rule 603.3d)
@@ -15627,8 +15867,10 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             src.has(a) || src.lki_keywords.contains(a)
         }
     };
-    let (src_deathtouch, src_lifelink) =
-        (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility));
+    let (src_deathtouch, src_lifelink) = match game.combat_keywords.iter().find(|k| combat && k.0 == source) {
+        Some((_, deathtouch, lifelink)) if src.zone == Zone::Battlefield => (*deathtouch, *lifelink),
+        _ => (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility)),
+    };
     match to {
         Target::Player(s) => {
             game.record(GameEvent {
@@ -16652,6 +16894,17 @@ fn multi_amount(
 /// are gone deal no damage, unless they have trample.
 fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
     let mut gains: Vec<(ObjId, Seat, i32)> = Vec::new();
+    game.combat_keywords = game
+        .battlefield
+        .iter()
+        .map(|o| {
+            (
+                *o,
+                game.has_ability(*o, &AbilityDef::DeathtouchAbility),
+                game.has_ability(*o, &AbilityDef::LifelinkAbility),
+            )
+        })
+        .collect();
     // `CombatDamageStep`: each attacker's group deals its damage (and asks its replacement choices) before the next
     // group assigns its own
     // powers as the step starts: Java doesn't apply continuous effects again between groups, so a creature's
@@ -16765,6 +17018,7 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
         }
     }
     deal_hits(game, hits, &mut gains);
+    game.combat_keywords.clear();
     // combat lifelink: each source's damage is gained at once, in the order the sources dealt it
     for (_, seat, amount) in gains {
         gain_life(game, seat, amount);

@@ -394,8 +394,12 @@ def stack_names(text, names, rules):
         if not m:
             continue
         s = m.group(1)
+        # (a split card's half is a spell of its own name)
+        halves = [n for n in names if ' // ' in n and s in n.split(' // ')]
         if s in names:
             out.append(s)
+        elif halves:
+            out.extend(halves)
         elif s.startswith('stack ability (') and s.endswith(')'):
             rule = s[len('stack ability ('):-1]
             src = rules.get(rule)

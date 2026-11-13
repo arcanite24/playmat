@@ -334,6 +334,10 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
     // an object's ability: `<object>a<index>`
     if let Some((obj, ability)) = r.rsplit_once('a') {
         if let (Some(Answer::Obj(o)), Ok(i)) = (resolve(game, obj), ability.parse::<usize>()) {
+            // a fused split card's abilities: its own spell ability (both halves, `h2`), then each half's
+            if game.obj(o).def.fused {
+                return Some(Answer::Ability(o, if i == 0 { 2 } else { i - 1 }));
+            }
             return Some(match i.checked_sub(game.obj(o).java_ability_offset()) {
                 Some(i) => Answer::Ability(o, i),
                 None => Answer::Unknown,
