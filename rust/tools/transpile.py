@@ -6217,8 +6217,9 @@ def granted_rules(card):
                 for k, t in enumerate(kept):
                     text = text.replace('\x00%d\x00' % k, t)
                 # the trigger's own text ends its sentence (White Mage's Staff's quote ends with a comma, Red Mage's
-                # Rapier's with none); a card verified before this was found keeps its text as verified (Sygg)
-                if not text.endswith(('.', '!', ')', '>', '"')) and card.get('name') not in verified_names():
+                # Rapier's with none); a card verified before this was found keeps its text as verified (a fixed
+                # list, not verified.txt, so regenerating never changes a verified card)
+                if not text.endswith(('.', '!', ')', '>', '"')) and card.get('name') not in UNENDED_GRANTED_TEXT:
                     text = text.rstrip(',') + '.'
                 g['rule'] = text
                 # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it")
@@ -6278,17 +6279,8 @@ def reflexive_rules(card):
     walk(card.get('abilities', []), '')
 
 
-_VERIFIED = None
-
-
-def verified_names():
-    """the cards in `cards/verified.txt`, whose translations stay as they were verified"""
-    global _VERIFIED
-    if _VERIFIED is None:
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'crates', 'playmat-engine', 'cards',
-                            'verified.txt')
-        _VERIFIED = {l.strip() for l in open(path)} if os.path.exists(path) else set()
-    return _VERIFIED
+# cards verified with a granted trigger's text left without its sentence end, kept as verified
+UNENDED_GRANTED_TEXT = {'Sygg, Wanderwine Wisdom'}
 
 
 def card_source(name):
