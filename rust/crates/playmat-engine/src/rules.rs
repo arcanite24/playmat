@@ -7350,6 +7350,24 @@ fn first_slots(game: &Game, item: &StackItem, legal: &[Vec<Target>]) -> Slots {
     ]
 }
 
+/// The ability's target group `i` without the objects an earlier effect moved: an effect pointed at it (Java's
+/// target pointer) skips them (Badlands Revival's creature, returned to the battlefield, isn't then its permanent
+/// card to return to hand). Reading one (its power, last known) still sees it.
+fn fresh_targets(game: &Game, item: &StackItem, i: usize, group: &[Target]) -> Vec<Target> {
+    group
+        .iter()
+        .copied()
+        .filter(|t| {
+            let Target::Obj(o) = t else { return true };
+            let chosen = item.targets.get(i).and_then(|ts| ts.iter().position(|c| c == t));
+            match chosen.and_then(|at| item.target_zcc.get(i).and_then(|zs| zs.get(at))) {
+                Some(z) => *z == game.obj(*o).zcc,
+                None => true,
+            }
+        })
+        .collect()
+}
+
 fn slot<'a>(slots: &'a Slots, name: &str) -> Option<&'a Vec<Target>> {
     slots.iter().rev().find(|(n, _)| n == name).map(|(_, t)| t)
 }
@@ -7464,9 +7482,11 @@ fn apply_sequence(
                     }
                     vec![Target::Obj(source.0)]
                 } else {
-                    match slot(&slots, s) {
-                        Some(g) => g.clone(),
-                        None => continue,
+                    match (slot(&slots, s), s) {
+                        (Some(g), "target") => fresh_targets(game, item, 0, g),
+                        (Some(g), "second") => fresh_targets(game, item, 1, g),
+                        (Some(g), _) => g.clone(),
+                        (None, _) => continue,
                     }
                 };
                 std::iter::once(group).chain(legal.iter().skip(1).cloned()).collect()
@@ -7548,7 +7568,8 @@ fn apply_each_effect(
         game.lookback = game.battlefield.to_vec();
         match e {
             EffectDef::TargetPointerEffect { target, effect } => {
-                let only = vec![legal.get(*target).cloned().unwrap_or_default()];
+                // without a target an earlier effect moved (Badlands Revival)
+                let only = vec![fresh_targets(game, item, *target, legal.get(*target).map_or(&[], |g| &g[..]))];
                 apply_each_effect(game, d, item, std::slice::from_ref(&**effect), &only, source);
             }
             EffectDef::EachTargetEffect { effect } => {

@@ -418,6 +418,8 @@ class Body:
                 if rest and not _only_returns(rest):
                     raise Unsupported('if ' + cond)
                 return self.guarded(req, then)
+            if _has_return(then) and rest and not _only_returns(rest):
+                raise Unsupported('if ' + cond)
             return self.guarded(req, then) + self.nodes(rest)
         test = self.test(cond)
         if test is None:
@@ -425,12 +427,15 @@ class Body:
         if ends(then) and not other:
             # if (!test) return;  the rest when it holds
             return self.when(_negate(test), rest, [])
-        if _ends_with_return(then) or (other and _ends_with_return(other)):
-            if other or not rest or _only_returns(rest):
-                return self.when(test, then, other)
-            # if (test) { …; return; } the rest otherwise
-            return self.when(test, then, rest)
-        return self.when(test, then, other) + self.nodes(rest)
+        if not rest or _only_returns(rest):
+            return self.when(test, then, other)
+        if not _has_return(then) and not _has_return(other):
+            return self.when(test, then, other) + self.nodes(rest)
+        # a branch that may return: the rest goes on in each branch that doesn't (`if (test) { …; return; }` the
+        # rest otherwise; a return inside a nested if stops only that path)
+        then_ = list(then) if _ends_with_return(then) else list(then) + list(rest)
+        other_ = list(other) if _ends_with_return(other) else list(other) + list(rest)
+        return self.when(test, then_, other_)
 
     def when(self, test, then, other):
         """a test (from `test`) with its two branches -> effects"""
@@ -603,6 +608,9 @@ class Body:
                 each['filter'] = each['filter'] + [{'p': 'controller', 'who': 'you'}]
         if each is None:
             raise Unsupported('loop ' + header)
+        # a return in the body ends the whole apply, not one pass
+        if _has_return(body):
+            raise Unsupported('return in a loop')
         inner = self.child()
         inner.in_loop = True
         each['name'] = self.new_slot('each')
@@ -905,6 +913,18 @@ def _returns(nodes):
 
 def _ends_with_return(nodes):
     return bool(nodes) and nodes[-1][0] == 'stmt' and bool(re.fullmatch(r'return(?: .*)?', nodes[-1][1]))
+
+
+def _has_return(nodes):
+    """a return anywhere in these statements, nested ifs and blocks too (not in a loop's body)"""
+    for n in nodes:
+        if n[0] == 'stmt' and re.fullmatch(r'return(?: .*)?', n[1]):
+            return True
+        if n[0] == 'if' and (_has_return(n[2]) or _has_return(n[3] or [])):
+            return True
+        if n[0] == 'block' and _has_return(n[1]):
+            return True
+    return False
 
 
 def _only_returns(nodes):
