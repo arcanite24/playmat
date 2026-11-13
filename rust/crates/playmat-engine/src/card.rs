@@ -2350,10 +2350,21 @@ pub enum EffectDef {
         ability: Box<AbilityDef>,
     },
     /// "when you cast your next instant or sorcery spell this turn, copy that spell. You may choose new targets for
-    /// the copy."
-    CreateCopyNextSpellDelayedEffect,
-    /// copy the spell the delayed trigger points at (new targets may be chosen)
-    CopyTargetSpellEffect,
+    /// the copy." (`CopyNextSpellDelayedTriggeredAbility`; with a filter, the next spell of it, and its rule)
+    CreateCopyNextSpellDelayedEffect {
+        #[serde(default)]
+        filter: Option<Filter>,
+        #[serde(default)]
+        rule: Option<String>,
+    },
+    /// copy the spell the target pointer points at (`CopyTargetStackObjectEffect`): new targets may be chosen unless
+    /// `keep_targets`; `not_legendary` is `RemoveTypeCopyApplier(SuperType.LEGENDARY)`
+    CopyTargetSpellEffect {
+        #[serde(default)]
+        keep_targets: bool,
+        #[serde(default)]
+        not_legendary: bool,
+    },
     /// exile your top card; you may cast it, and if you don't, 2 damage to each opponent
     ChandraTorchOfDefianceEffect,
     /// exile the target spell (into the source's exile zone)

@@ -1075,7 +1075,7 @@ TARGET_CLASSES = {
 PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPlayerOrPlaneswalker', 'TargetOpponentOrPlaneswalker'}
 
 # chained calls that only change texts, hints or the AI's view
-TEXT_SETTERS = {'setText', 'withTextThatCard', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
+TEXT_SETTERS = {'setText', 'withTextThatCard', 'withText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
                 'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier', 'withForceQuotes',
                 'withConditionText'}
@@ -1472,6 +1472,21 @@ class Translator:
         if (h := card_handlers.condition(self, arg)) is not None:
             return h
         raise Unsupported('condition ' + arg)
+
+    def filter_message(self, arg):
+        """a filter argument's message (`filter.getMessage()`): a field of the card's, a `StaticFilters` one, or a
+        `new FilterX("…")`; a filter class made without one has its default"""
+        arg = arg.strip()
+        defaults = {'FilterSpell': 'spell', 'FilterInstantOrSorcerySpell': 'instant or sorcery spell',
+                    'FilterCreatureSpell': 'creature spell'}
+        m = re.fullmatch(r'new (Filter\w+)\((?:"((?:[^"\\]|\\.)*)")?\)', arg)
+        if not m:
+            name = arg[len('StaticFilters.'):] if arg.startswith('StaticFilters.') else arg
+            text = open(STATIC_FILTERS).read() if arg.startswith('StaticFilters.') else getattr(self, 'source', '') or ''
+            m = re.search(r'\bFilter\w* ' + re.escape(name) + r'\s*=\s*new (Filter\w+)(?:<>)?\((?:"((?:[^"\\]|\\.)*)")?\)', text)
+        if not m or (m.group(2) is None and m.group(1) not in defaults):
+            raise Unsupported('filter message of ' + arg)
+        return json.loads('"' + m.group(2) + '"') if m.group(2) is not None else defaults[m.group(1)]
 
     def stack_filter_abilities(self, arg):
         """Whether a stack object filter takes abilities too: a `FilterStackObject` (not a `FilterSpell`)"""
@@ -2040,6 +2055,18 @@ class Translator:
         # its targets by `copies_spells_only`)
         if cls == 'CopyTargetStackObjectEffect' and ','.join(args) in ('', 'true', 'false', 'false,false,true'):
             return {'class': 'CopyTargetSpellEffect'}
+        # `(useController, useLKI, chooseTargets[, amount, applier])`: under your control, once, with new targets or
+        # not, the copy not legendary with `RemoveTypeCopyApplier(SuperType.LEGENDARY)`
+        if cls == 'CopyTargetStackObjectEffect' and len(args) in (3, 5) and args[0] == 'false' \
+                and args[1] in ('true', 'false') and args[2] in ('true', 'false') \
+                and (len(args) == 3 or (args[3] == '1' and args[4] in ('null', 'new RemoveTypeCopyApplier(SuperType.LEGENDARY)'))):
+            out = {'class': 'CopyTargetSpellEffect'}
+            # (an applier asks for new targets anyway: `Spell.createSingleCopy`'s `chooseNewTargets || applier != null`)
+            if args[2] == 'false' and (len(args) == 3 or args[4] == 'null'):
+                out['keep_targets'] = True
+            if len(args) == 5 and args[4] != 'null':
+                out['not_legendary'] = True
+            return out
         return None
 
     def peel_chain(self, expr):
@@ -2411,6 +2438,10 @@ class Translator:
             return {'class': cls}
         if cls in ('CreateTokenCopyTargetEffect', 'CreateTokenCopySourceEffect') and not args:
             return {'class': cls}
+        # "copy this spell" (a cast trigger of the spell itself: `getValue("spellCast")`, else the source spell)
+        if cls == 'CopySourceSpellEffect' and not args:
+            return {'class': cls}
+            return out
         # the snarls and check lands: reveal a card of the filter from your hand, or it enters tapped
         if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (
                 m := re.fullmatch(r'new RevealTargetFromHandCost\(new TargetCardInHand\((\w+)\)\)', canonical(args[0]))) \
@@ -2812,6 +2843,13 @@ class Translator:
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1:
             if args[0].strip() == 'new CopyNextSpellDelayedTriggeredAbility()':
                 return {'class': 'CreateCopyNextSpellDelayedEffect'}
+            # `CopyNextSpellDelayedTriggeredAbility(filter)`: the next spell of the filter this turn
+            m = re.fullmatch(r'new CopyNextSpellDelayedTriggeredAbility\(([^,()]+|StaticFilters\.\w+)\)', canonical(args[0].strip()))
+            if m:
+                f = m.group(1).strip()
+                return {'class': 'CreateCopyNextSpellDelayedEffect', 'filter': self.filter(f),
+                        'rule': 'When you next cast %s this turn, copy that spell. You may choose new targets for the '
+                                'copy.' % self.filter_message(f)}
             if args[0].strip() == 'new AddCounterNextSpellDelayedTriggeredAbility()':
                 return {'class': 'CreateNextCreatureSpellDelayedEffect', 'amount': 1,
                         'rule': 'When you next cast a creature spell this turn, that creature enters with an '
@@ -3937,6 +3975,11 @@ class Translator:
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 \
                 and args[0].strip() == 'new SharkTyphoonCastEffect()' and args[3].strip() == 'SetTargetPointer.SPELL':
             args = args[:3] + ['SetTargetPointer.NONE']
+        # `SetTargetPointer.SPELL`: its effects point at the spell cast ("copy that spell")
+        if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 and args[3].strip() == 'SetTargetPointer.SPELL':
+            a = self.ability('new SpellCastControllerTriggeredAbility(' + ','.join(args[:3]) + ')')
+            a['set_target_pointer'] = True
+            return a
         # "when you do, …": its targets are added after (`DoWhenCostPaid`)
         if cls == 'ReflexiveTriggeredAbility' and len(args) == 2 and args[1].strip() == 'false':
             return {'class': 'Reflexive', 'effects': [self.effect(args[0])], 'targets': []}

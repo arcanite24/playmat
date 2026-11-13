@@ -635,6 +635,8 @@ pub struct StackItem {
     /// cards spliced onto this spell: each card's spell ability resolves after the spell's own, with its targets
     /// and their zone-change counts
     pub spliced: Vec<Spliced>,
+    /// a cast trigger: the spell that was cast (Java's `getValue("spellCast")`), whatever its target pointer is
+    pub cast_spell: Option<ObjId>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -703,6 +705,7 @@ impl StackItem {
             gift_to: None,
             def: None,
             spliced: Vec::new(),
+            cast_spell: None,
         }
     }
 }
@@ -843,8 +846,9 @@ pub struct Game {
     pub rebound: Vec<(ObjId, u32, Seat)>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
     pub next_creature_spell: Vec<(Seat, u32, StackItem)>,
-    /// "when you next cast an instant or sorcery spell this turn": the player, the turn, the delayed trigger
-    pub next_instant_sorcery: Vec<(Seat, u32, StackItem)>,
+    /// "when you next cast an instant or sorcery spell this turn": the player, the turn, the delayed trigger, and the
+    /// spells it waits for when they aren't instants and sorceries (`CastNextSpellDelayedTriggeredAbility`'s filter)
+    pub next_instant_sorcery: Vec<(Seat, u32, StackItem, Option<crate::card::Filter>)>,
     /// "until your next turn, whenever one or more creatures attack one of your opponents" delayed triggers: whose,
     /// and the trigger (its `fixed` set to the attackers)
     pub attacks_opponent: Vec<(Seat, StackItem)>,
