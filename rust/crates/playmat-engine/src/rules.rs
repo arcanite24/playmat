@@ -4574,8 +4574,9 @@ fn choose_targets_of_modes(
         top.targets = targets;
         top.target_zcc = target_zcc;
     }
-    // TARGETED for an ability (a spell's, after SPELL_CAST, in `cast`)
-    if game.stack.last().is_some_and(|t| t.ability.is_some()) {
+    // TARGETED for an ability (a spell's, after SPELL_CAST, in `cast`), a reflexive trigger's too (Faebloom Trick's
+    // "when you do, tap target creature" on a creature with ward)
+    if game.stack.last().is_some_and(|t| t.ability.is_some() || t.delayed.is_some()) {
         ward(game);
         ability_targeted(game);
     }
@@ -4729,6 +4730,9 @@ fn stack_target_slots(game: &Game, item: &StackItem) -> Vec<bool> {
 
 /// `WardAbility`: the permanents the top of the stack targets whose controller is that object's opponent, each with
 /// a ward trigger countering it
+/// `StackItem::ward_of`'s ability index for ward against a delayed (reflexive) trigger
+const WARD_DELAYED: usize = usize::MAX;
+
 fn ward(game: &mut Game) {
     let Some(top) = game.stack.last().cloned() else { return };
     // valiant: the first time each turn a permanent becomes a target (`NumberOfTimesPermanentTargetedATurnWatcher`)
@@ -4798,6 +4802,9 @@ fn ward(game: &mut Game) {
                     StackItem { ability: Some((i, obj.zcc)), def: face.clone(), ..StackItem::spell(o, obj.controller) };
                 match top.ability {
                     Some(ability) => item.ward_of = Some((top.card, ability)),
+                    // a reflexive (delayed) trigger has no ability index: `WARD_DELAYED` names the latest delayed
+                    // trigger of that source on the stack
+                    None if top.delayed.is_some() => item.ward_of = Some((top.card, (WARD_DELAYED, 0))),
                     None => {
                         item.targets = vec![vec![Target::Obj(top.card)]];
                         item.target_zcc = vec![vec![game.obj(top.card).zcc]];
@@ -14400,7 +14407,10 @@ fn apply_each_effect(
             // ward against an ability: counter (remove) it unless its controller pays
             EffectDef::CounterUnlessPaysEffect { cost, .. } if item.ward_of.is_some() => {
                 let (card, ability) = item.ward_of.unwrap();
-                let Some(at) = game.stack.iter().rposition(|i| i.card == card && i.ability == Some(ability)) else {
+                let Some(at) = game.stack.iter().rposition(|i| {
+                    i.card == card
+                        && if ability.0 == WARD_DELAYED { i.delayed.is_some() } else { i.ability == Some(ability) }
+                }) else {
                     continue;
                 };
                 let payer = game.stack[at].controller;
