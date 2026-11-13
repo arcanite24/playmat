@@ -1616,6 +1616,44 @@ class Translator:
                 out[name] = v
         return out
 
+    def stack_effect(self, expr):
+        """Control, spell-copy and "its controller" effects (wave 2's stack-control-copy bucket); None when the
+        expression isn't one of them"""
+        x = canonical(self.strip_setters(expr))
+        m = re.fullmatch(r'new (\w+)\((.*)\)', x, re.S)
+        if not m or not balanced(x):
+            return None
+        cls = m.group(1)
+        args = [a.strip() for a in split_args(m.group(2))] if m.group(2).strip() else []
+        # control for as long as a condition holds (Sower of Temptation): the engine's control changes don't have it
+        if cls == 'ConditionalContinuousEffect' and args and args[0].startswith('new GainControlTargetEffect('):
+            raise Unsupported('conditional GainControlTargetEffect')
+        # `GainControlTargetEffect(duration[, fixedControl])`
+        if cls == 'GainControlTargetEffect' and (len(args) == 1 or (len(args) == 2 and args[1] in ('true', 'false'))):
+            duration = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.Custom': 'Forever', 'Duration.EndOfGame': 'Forever',
+                        'Duration.WhileControlled': 'WhileControlled',
+                        'Duration.UntilSourceLeavesBattlefield': 'UntilSourceLeaves'}.get(args[0])
+            if duration is None:
+                raise Unsupported('effect ' + x)
+            return {'class': cls, 'duration': duration}
+        # "its controller …": the first target's controller
+        if cls in ('DamageTargetControllerEffect', 'LoseLifeTargetControllerEffect', 'DrawCardTargetControllerEffect') \
+                and (len(args) == 1 or (len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1]))):
+            return {'class': cls, 'amount': self.amount(args[0])}
+        if cls == 'DamageTargetAndTargetControllerEffect' and len(args) == 2 and all(re.fullmatch(r'\d+', a) for a in args):
+            return {'class': cls, 'first': int(args[0]), 'second': int(args[1])}
+        # `SacrificeControllerEffect(filter, count, preText)`: you sacrifice
+        if cls == 'SacrificeControllerEffect' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[2]):
+            return {'class': cls, 'filter': self.filter(args[0]), 'amount': self.amount(args[1])}
+        if cls == 'ReturnToHandChosenControlledPermanentEffect' \
+                and (len(args) == 1 or (len(args) == 2 and re.fullmatch(r'\d+', args[1]))):
+            return {'class': cls, 'filter': self.filter(args[0]), 'amount': int(args[1]) if len(args) == 2 else 1}
+        # `CopyTargetStackObjectEffect` copying a spell under your control, new targets allowed (checked against
+        # its targets by `copies_spells_only`)
+        if cls == 'CopyTargetStackObjectEffect' and ','.join(args) in ('', 'true', 'false', 'false,false,true'):
+            return {'class': 'CopyTargetSpellEffect'}
+        return None
+
     def effect(self, expr):
         # untap every target's permanents (Nissa, Genesis Mage's creatures and lands)
         if re.fullmatch(r'new UntapTargetEffect\((?:"[^"]*")?\)\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip())):
@@ -1678,6 +1716,8 @@ class Translator:
         if expr.strip() == 'PlayFromGraveyardControllerEffect.playLands()':
             return {'class': 'PlayLandsFromGraveyardControllerEffect'}
         if (e := self.zones_effect(expr)) is not None:
+            return e
+        if (e := self.stack_effect(expr)) is not None:
             return e
         obj = self.new_expr(expr)
         if isinstance(obj, dict):
@@ -3819,6 +3859,37 @@ SPELL_OVERRIDES = {
 }
 
 
+def copies_spells_only(card):
+    """`CopyTargetStackObjectEffect`, read as the engine's spell copy: only where what it copies is a spell (a
+    `TargetSpell`, or the spell a cast trigger points at), not an ability"""
+    def has_copy(effects):
+        for e in effects or []:
+            if not isinstance(e, dict):
+                continue
+            if e.get('class') == 'CopyTargetSpellEffect':
+                return True
+            if has_copy([e.get('effect')]) or has_copy(e.get('also')) or has_copy(e.get('effects')):
+                return True
+        return False
+
+    def walk(x):
+        if isinstance(x, list):
+            for y in x:
+                walk(y)
+            return
+        if not isinstance(x, dict):
+            return
+        # an ability, a spell or a mode: its effects with its targets
+        if isinstance(x.get('effects'), list) and has_copy(x['effects']):
+            targets = x.get('targets') or []
+            spell_trigger = x.get('set_target_pointer') and (x.get('on') or {}).get('e') == 'spell_cast'
+            if not (targets and all(t.get('class') == 'TargetSpell' for t in targets)) and not spell_trigger:
+                raise Unsupported('copy of a stack object that may not be a spell')
+        for v in x.values():
+            walk(v)
+    walk(card)
+
+
 def translate(card_name, subtypes, facts):
     if card_name not in facts:
         raise Unsupported('no card facts')
@@ -5295,6 +5366,7 @@ def main():
             if 'ChooseCreatureTypeEffect' in json.dumps(card.get('spell')):
                 raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
             that_player_names(card)
+            copies_spells_only(card)
             # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
             if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
                 raise Unsupported('mana symbol ' + m.group(0))

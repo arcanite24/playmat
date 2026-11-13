@@ -88,6 +88,30 @@ impl Step {
     }
 }
 
+/// How long a control change (`GainControlTargetEffect`, layer 2) lasts
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ControlUntil {
+    /// for the rest of the game
+    Forever,
+    /// until the cleanup step
+    EndOfTurn,
+    /// while the new controller controls the source (`Duration.WhileControlled`)
+    WhileControlled(ObjId, u32),
+    /// until the source leaves the battlefield (`Duration.UntilSourceLeavesBattlefield`)
+    SourceLeaves(ObjId, u32),
+}
+
+/// A permanent's control change: who controls it, until when, and who controlled it before
+#[derive(Clone, Debug)]
+pub struct ControlChange {
+    pub target: ObjId,
+    /// the permanent's zone change count: the change ends when it leaves the battlefield
+    pub zcc: u32,
+    pub to: Seat,
+    pub before: Seat,
+    pub until: ControlUntil,
+}
+
 /// A card in some zone, or a permanent.
 #[derive(Clone, Debug)]
 pub struct Obj {
@@ -810,6 +834,8 @@ pub struct Game {
     pub events: Option<Vec<GameEvent>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
+    /// control changes with a duration, oldest first
+    pub control_changes: Vec<ControlChange>,
     /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
     /// count (Anger of the Gods exiles each one it damaged)
     pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
@@ -973,6 +999,7 @@ impl Game {
             log: None,
             events: None,
             exile_if_dies: Vec::new(),
+            control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             all_basics_until_eot: Vec::new(),
             subtypes_until_eot: Vec::new(),

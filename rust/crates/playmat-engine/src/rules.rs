@@ -5066,6 +5066,11 @@ fn search_library_cards(
             let fired =
                 game.triggers(sources, |_, _, you, t| matches!(t, Trigger::OpponentSearchesLibrary) && you != seat);
             game.pending.extend(fired);
+            // `HumanPlayer.choose` returns `isChosen`: done with fewer than the least it takes, nothing is found
+            // (Planar Engineering's four basic lands)
+            if chosen.len() < min {
+                chosen.clear();
+            }
             return Some(chosen);
         }
     }
@@ -6710,7 +6715,67 @@ fn unattach_equipment(game: &mut Game) -> bool {
 
 /// A static "as long as …, it's a creature" (Kaito, Bane of Nightmares): applied or removed as its condition changes.
 /// Java applies continuous effects all the time; here, before each question, trace and state check.
+/// A permanent changes controller (`PermanentImpl.checkControlChanged`): out of combat, and not under its new
+/// controller's control since their turn began
+fn set_controller(game: &mut Game, id: ObjId, to: Seat) {
+    remove_from_combat(game, id);
+    let o = game.obj_mut(id);
+    o.controller = to;
+    o.sick = true;
+}
+
+/// Ends the control changes that are over (`ContinuousEffectImpl.isInactive`; at cleanup, `end_of_turn` ends the
+/// "until end of turn" ones too): a permanent whose changes all ended goes back to whoever controlled it before the
+/// first, otherwise to the newest change still on
+fn end_control(game: &mut Game, end_of_turn: bool) {
+    if game.control_changes.is_empty() {
+        return;
+    }
+    let on = |g: &Game, o: ObjId, z: u32| g.obj(o).zone == Zone::Battlefield && g.obj(o).zcc == z;
+    let alive: Vec<bool> = game
+        .control_changes
+        .iter()
+        .map(|c| {
+            on(game, c.target, c.zcc)
+                && match c.until {
+                    crate::state::ControlUntil::Forever => true,
+                    crate::state::ControlUntil::EndOfTurn => !end_of_turn,
+                    crate::state::ControlUntil::WhileControlled(s, z) => {
+                        on(game, s, z) && game.obj(s).controller == c.to
+                    }
+                    crate::state::ControlUntil::SourceLeaves(s, z) => on(game, s, z),
+                }
+        })
+        .collect();
+    if alive.iter().all(|a| *a) {
+        return;
+    }
+    let changes = std::mem::take(&mut game.control_changes);
+    let mut ended: Vec<(ObjId, Seat)> = Vec::new();
+    let mut kept = Vec::new();
+    for (c, a) in changes.into_iter().zip(alive) {
+        if a {
+            kept.push(c);
+        } else if on(game, c.target, c.zcc) && !ended.iter().any(|(t, _)| *t == c.target) {
+            ended.push((c.target, c.before));
+        }
+    }
+    game.control_changes = kept;
+    for (target, before) in ended {
+        let to = game.control_changes.iter().rev().find(|c| c.target == target).map_or(before, |c| c.to);
+        if game.obj(target).controller != to {
+            set_controller(game, target, to);
+        }
+    }
+}
+
+/// `end_control` outside cleanup
+fn refresh_control(game: &mut Game) {
+    end_control(game, false);
+}
+
 pub(crate) fn refresh_becomes(game: &mut Game) {
+    refresh_control(game);
     let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
     for id in ids {
         let o = game.obj(id);
@@ -10113,6 +10178,86 @@ fn apply_each_effect(
                             ob.sick = true;
                         }
                     }
+                }
+            }
+            EffectDef::GainControlTargetEffect { duration } => {
+                // `GainControlTargetEffect` (layer 2): each target permanent comes under your control; Java's
+                // `checkControlChanged` then removes it from combat, and it hasn't been yours since your turn began
+                for o in objs.iter().copied() {
+                    if game.obj(o).zone != Zone::Battlefield {
+                        continue;
+                    }
+                    let until = match duration.as_str() {
+                        "EndOfTurn" => crate::state::ControlUntil::EndOfTurn,
+                        "WhileControlled" => crate::state::ControlUntil::WhileControlled(source.0, source.1),
+                        "UntilSourceLeaves" => crate::state::ControlUntil::SourceLeaves(source.0, source.1),
+                        _ => crate::state::ControlUntil::Forever,
+                    };
+                    let before = game.obj(o).controller;
+                    let zcc = game.obj(o).zcc;
+                    game.control_changes.push(crate::state::ControlChange {
+                        target: o,
+                        zcc,
+                        to: controller,
+                        before,
+                        until,
+                    });
+                    if before != controller {
+                        set_controller(game, o, controller);
+                    }
+                }
+                refresh_control(game);
+            }
+            EffectDef::DamageTargetControllerEffect { amount } => {
+                let amount = v!(amount);
+                if let Some(Target::Obj(o)) = target {
+                    let p = game.obj(o).controller;
+                    deal_damage(game, source.0, Target::Player(p), amount, false);
+                }
+            }
+            EffectDef::LoseLifeTargetControllerEffect { amount } => {
+                let amount = v!(amount);
+                if let Some(Target::Obj(o)) = target {
+                    let p = game.obj(o).controller;
+                    lose_life(game, p, amount);
+                }
+            }
+            EffectDef::DrawCardTargetControllerEffect { amount } => {
+                let n = v!(amount).max(0) as usize;
+                if let Some(Target::Obj(o)) = target {
+                    let p = game.obj(o).controller;
+                    draw(game, p, n);
+                }
+            }
+            EffectDef::DamageTargetAndTargetControllerEffect { first, second } => {
+                for o in objs.iter().copied() {
+                    if game.obj(o).zone == Zone::Battlefield {
+                        deal_damage(game, source.0, Target::Obj(o), *first, false);
+                    }
+                    let p = game.obj(o).controller;
+                    deal_damage(game, source.0, Target::Player(p), *second, false);
+                }
+            }
+            EffectDef::SacrificeControllerEffect { filter, amount } => {
+                let sac = EffectDef::SacrificeEffect { filter: filter.clone(), amount: amount.clone() };
+                apply_effects(game, d, item, &[sac], &[vec![Target::Player(controller)]], source);
+            }
+            EffectDef::ReturnToHandChosenControlledPermanentEffect { filter, amount } => {
+                // `ReturnToHandChosenPermanentEffect`: a `TargetControlledPermanent` (not targeted) of up to the
+                // number, at least as many as there are
+                let possible: Vec<ObjId> = matching(game, filter, controller, source.0)
+                    .into_iter()
+                    .filter(|o| game.obj(*o).controller == controller)
+                    .collect();
+                if possible.is_empty() {
+                    continue;
+                }
+                let min = (*amount).min(possible.len());
+                let Some(chosen) = pick_objects(game, d, controller, &possible, min, *amount) else {
+                    return;
+                };
+                for c in chosen {
+                    game.move_to(c, Zone::Hand);
                 }
             }
             EffectDef::MerchantsDockhandEffect => {
@@ -16099,6 +16244,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.eot_effects.clear();
     game.base_pt_until_eot.clear();
     game.prevent_to_target.clear();
+    end_control(game, true);
     game.must_block_from.clear();
     game.exile_if_dies.clear();
     game.damaged_by_source.clear();

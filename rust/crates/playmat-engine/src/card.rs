@@ -2130,6 +2130,37 @@ pub enum EffectDef {
     GainControlAllControlledTargetEffect {
         filter: Filter,
     },
+    /// gain control of the target permanents for `duration` (EndOfTurn, Forever, WhileControlled, UntilSourceLeaves)
+    GainControlTargetEffect {
+        duration: String,
+    },
+    /// the first target's controller (as it last was) is dealt `amount` damage
+    DamageTargetControllerEffect {
+        amount: Amount,
+    },
+    /// the first target's controller loses `amount` life
+    LoseLifeTargetControllerEffect {
+        amount: Amount,
+    },
+    /// the first target's controller draws `amount` cards
+    DrawCardTargetControllerEffect {
+        amount: Amount,
+    },
+    /// `first` damage to the target permanent and `second` to its controller
+    DamageTargetAndTargetControllerEffect {
+        first: i32,
+        second: i32,
+    },
+    /// you sacrifice `amount` permanents of the filter
+    SacrificeControllerEffect {
+        filter: Filter,
+        amount: Amount,
+    },
+    /// return `amount` permanents of the filter you control to their owner's hand
+    ReturnToHandChosenControlledPermanentEffect {
+        filter: Filter,
+        amount: usize,
+    },
     /// reveal the top two: the lands onto the battlefield, the rest into your hand
     NissaNaturesArtisanEffect,
     /// exile the top card; until end of turn you may play it without paying its mana cost
