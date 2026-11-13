@@ -334,7 +334,10 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
     // an object's ability: `<object>a<index>`
     if let Some((obj, ability)) = r.rsplit_once('a') {
         if let (Some(Answer::Obj(o)), Ok(i)) = (resolve(game, obj), ability.parse::<usize>()) {
-            return Some(Answer::Ability(o, i));
+            return Some(match i.checked_sub(game.obj(o).java_ability_offset()) {
+                Some(i) => Answer::Ability(o, i),
+                None => Answer::Unknown,
+            });
         }
     }
     let (kind, rest) = r.split_at(1);

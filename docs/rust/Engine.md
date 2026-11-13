@@ -219,8 +219,36 @@ Being in the engine and being trusted are kept apart.
   creature; the text a tap-another or forage cost's auto-choice reads; targeting a triggered ability doesn't target
   its source permanent (valiant, ward); a mana ability that sacrifices its source (Lotus Ring's creature, which made
   the engine panic). Snow mana costs (`{S}`) aren't in the engine yet: the transpiler leaves out the 8 cards that use
-  them. Replayed together, 4,192 games match, 132 differ and Java didn't finish 42; 1,282 more cards are verified,
-  added in two PRs, the used ones first: 4,504, then 5,136.
+  them. Replayed together, 4,192 games match, 132 differ and Java didn't finish 42; 650 more cards are verified:
+  4,504.
+
+  A fifth round (13 Nov, 1,188 games) and the fixes its mismatches and those left from the first four led to, each
+  with a game under `shadow/factory/`: a token's trigger phrase (the Sorcerer Role), a granted regenerate's and
+  untap's "{this}", and a granted cost or effect given its own text keeps it; a battle's back face numbers its
+  abilities after its spell ability; a legendary token is legendary; a trigger with a target it can't choose is
+  removed before its other targets are asked; enters-with counters are counted before the permanent is on the
+  battlefield; a triggered ability an effect gave keeps its text once the effect ends; a reflexive "when you do"
+  trigger's text is its own; an Aura's base power and toughness replace a characteristic-defining one, and a
+  creature made one with base power and toughness loses its own meanwhile; a source's own boost follows it as Java's
+  object reference does; boosts "until your next turn" (to all, staying on a Vehicle that stops being a creature, and
+  to a target); Weathered Runestone stops casts from graveyards, not graveyard cards' abilities; "target spell or
+  permanent" counts its own spell for the auto-choice; a source gone from the battlefield deals damage with the
+  deathtouch and lifelink it had; a creature dying with others triggers with the abilities it had; expend counts a
+  spell's additional mana costs; an "exile it instead" under Rest in Peace asks which applies; a foretell cost of
+  {0} shows the ability picker (`suppressAbilityPicker` hides it only with mana to pay); a triggered "attach {this}
+  to it" attaches (Stormrider Rig, Hero's Blade); "destroy target creature and target land" destroys each; a
+  transformed permanent's triggers keep its face once it has left; activated abilities that statics (Phenax) or
+  resolved effects (Retraction Helix) give creatures. Java lets a modal trigger's "counter target activated or
+  triggered ability" mode be chosen with only the trigger itself to target (Subcommander T'Pol counters itself);
+  Rust copies that. Replayed together, the five rounds give 5,435 matching games, 61 that differ and 58 Java didn't
+  finish; 1,783 more cards are verified, added in three PRs, the used ones first: 5,141, 5,714, then 6,287.
+
+  Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
+  share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
+  same priority still trigger (Agent Venom); the order of triggers that fire together (gained ones, Lone Rider;
+  Oketra's Monument, Mentor of the Meek, Chorus of Might's batch); Umbra
+  death order (Goreclaw); the index of an activated ability granted after granted keywords (Hagra Constrictor with Snapping Gnarlid);
+  and single games where Java and Rust part on who gets priority next.
 
   Java's nondeterminism, not copied: tokens created together with `withAdditionalTokens` (Forbidden Friendship's
   Dragon and Human) enter in `CreateTokenEvent`'s `HashMap` order, which changes from run to run, so the games where

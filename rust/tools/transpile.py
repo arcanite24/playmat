@@ -1426,6 +1426,14 @@ class Translator:
         if re.fullmatch(r'new Return(?:FromGraveyard)?ToHandTargetEffect\(\)\.setTargetPointer\(new EachTargetPointer\(\)\)',
                         canonical(expr.strip())):
             return {'class': 'ReturnToHandEachTargetEffect'}
+        # damage to each of the ability's targets (Dragonspark Reactor's player and creature), or each destroyed
+        # (Spiteful Blow's creature and land)
+        m = re.fullmatch(r'(new (?:Damage|Destroy)TargetEffect\((?:[^()]|\([^()]*\))*\))((?:\.setText\(.*\))?)'
+                         r'\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip()), re.S)
+        if m:
+            e = self.effect(m.group(1) + m.group(2))
+            if e.get('class') in ('DamageTargetEffect', 'DestroyTargetEffect'):
+                return {'class': 'EachTargetEffect', 'effect': e}
         # every target (the one target a duel's "for each opponent" adjuster leaves)
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
         # the ability's second target (`SecondTargetPointer`): counters put on it
@@ -4028,17 +4036,48 @@ def granted_rules(card):
             # an activated ability's rule ends with its effect's sentence; its costs read as the cost classes
             # write them (`SacrificeSourceCost`: "Sacrifice {this}")
             g['rule'] = quoted.group(1).rstrip('.') + '.'
-            if any(c.get('class') == 'SacrificeSourceCost' for c in g.get('cost', [])):
+            # (a cost given its own text keeps it: Compulsory Rest's `cost.setText("Sacrifice this creature")`)
+            if any(c.get('class') == 'SacrificeSourceCost' for c in g.get('cost', [])) \
+                    and not re.search(r'setText\("[Ss]acrifice this ', card_source(card.get('name'))):
                 g['rule'] = re.sub(r'\b([Ss])acrifice this (?:artifact|creature|permanent|land|enchantment)\b',
                                    r'\1acrifice {this}', g['rule'], count=1)
+            # the effect writes its own sentence, where the source is {this}: "{this} gains flying" (Lunarch Mantle's
+            # "this creature gains"), "{this} deals 1 damage" (Mask of Immolation's "it deals")
+            effects = [e.get('class') for e in g.get('effects', [])]
+            if len(effects) == 1 and effects[0] in ('GainAbilitySourceEffect', 'DamageTargetEffect') \
+                    and not re.search(r'new %s\((?:[^;()]|\((?:[^;()]|\([^;()]*\))*\))*\)\s*\.setText' % effects[0],
+                                      card_source(card.get('name'))):
+                g['rule'] = re.sub(r': (?:This (?:artifact|creature|permanent)|It) (gains|deals) ', r': {this} \1 ',
+                                   g['rule'], count=1)
+            # `new RegenerateSourceEffect()` writes "Regenerate {this}" (Molting Snakeskin's "Regenerate this creature")
+            if effects == ['RegenerateSourceEffect'] and 'new RegenerateSourceEffect()' in card_source(card.get('name')):
+                g['rule'] = re.sub(r': Regenerate this (?:artifact|creature|permanent)\.', ': Regenerate {this}.',
+                                   g['rule'], count=1)
+            # `new UntapSourceEffect()` writes "untap {this}" (Singing Bell Strike's "Untap this creature")
+            if effects == ['UntapSourceEffect'] and not re.search(r'new UntapSourceEffect\(\)\s*\.setText',
+                                                                  card_source(card.get('name'))):
+                g['rule'] = re.sub(r': Untap this (?:artifact|creature|permanent)\.', ': Untap {this}.',
+                                   g['rule'], count=1)
         elif g.get('class') == 'TriggeredAbility' and quoted:
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
             # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
-            phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', card_source(card.get('name')))
+            # (a token's too: the Sorcerer Role's "Whenever this creature attacks, ")
+            phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', card_source(card.get('name')) + ''.join(
+                open(os.path.join(TOKENS, cls + '.java')).read() for cls in token_classes([card.get('name')])))
             if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
                 g['rule'] = quoted.group(1)
             else:
-                g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
+                # an effect given its own text keeps "this creature" (Nurturing Presence's `BoostSourceEffect`
+                # `.setText("this creature gets +1/+1 until end of turn")`)
+                kept = [t for t in re.findall(r'\.setText\("([^"]*)"\)', card_source(card.get('name')))
+                        if 'this creature' in t and t in quoted.group(1)]
+                text = quoted.group(1)
+                for k, t in enumerate(kept):
+                    text = text.replace(t, '\x00%d\x00' % k)
+                text = re.sub(r'\b[Tt]his creature\b', '{this}', text)
+                for k, t in enumerate(kept):
+                    text = text.replace('\x00%d\x00' % k, t)
+                g['rule'] = text
                 # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it")
                 if [e.get('class') for e in g.get('effects', [])] == ['AddCountersSourceEffect']:
                     g['rule'] = re.sub(r'\b(counters? on) it\.$', r'\1 {this}.', g['rule'])
@@ -4061,6 +4100,23 @@ def granted_rules(card):
             for v in x:
                 walk(v, rule)
     walk(card, '')
+
+
+def reflexive_rules(card):
+    """A `DoWhenCostPaid`'s reflexive trigger's text is its own sentence of the ability's: "When you do, return target
+    creature or land card from your graveyard to your hand." (Awaken the Honored Dead), "return another target
+    permanent card" (Eden, Seat of the Sanctum)"""
+    def walk(x, rule):
+        if isinstance(x, dict):
+            if x.get('class') == 'DoWhenCostPaid' and (m := re.search(r'[Ww]hen you do, ([^.]*\.)', rule)):
+                x['rule'] = m.group(1)
+            for k, v in x.items():
+                walk(v, x['rule'] if k != 'rule' and isinstance(x.get('rule'), str) and x.get('class') != 'DoWhenCostPaid'
+                     else rule)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v, rule)
+    walk(card.get('abilities', []), '')
 
 
 def card_source(name):
@@ -4110,6 +4166,7 @@ def main():
             if EXTRA.get(card['name'], {}).get('set'):
                 card['set'] = EXTRA[card['name']]['set']
             granted_rules(card)
+            reflexive_rules(card)
             # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
             if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
                 raise Unsupported('mana symbol ' + m.group(0))

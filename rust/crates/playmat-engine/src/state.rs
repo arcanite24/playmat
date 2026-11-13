@@ -102,6 +102,13 @@ pub struct Obj {
     pub counters: Vec<(String, i32)>,
     /// its counters as it last left the battlefield
     pub lki_counters: Vec<(String, i32)>,
+    /// deathtouch and lifelink it had as it last left the battlefield, granted ones too (Vial Smasher's lifelink
+    /// from Eternal Thirst, put into the graveyard by the legend rule)
+    pub lki_keywords: Vec<AbilityDef>,
+    /// its abilities as it last left the battlefield, when effects gave it some (land_type_base): what it triggers
+    /// on from the others leaving with it (Eternal Thirst's "Whenever a creature an opponent controls dies" on a
+    /// creature dying in the same combat)
+    pub lki_def: Option<Arc<CardDef>>,
     pub face_down: bool,
     /// the player it attacks
     pub attacking: Option<Seat>,
@@ -273,6 +280,16 @@ pub struct Obj {
 }
 
 impl Obj {
+    /// Where Java's numbering of its abilities starts: a permanent that entered transformed (a battle's back face cast)
+    /// is its back face's card, whose spell ability comes first (`TransformingDoubleFacedCardHalf`)
+    pub fn java_ability_offset(&self) -> usize {
+        usize::from(
+            self.zone == Zone::Battlefield
+                && !self.transformed_in_place
+                && self.front.as_ref().is_some_and(|f| f.transform_back.is_some()),
+        )
+    }
+
     /// Sets a line of its view's rules (`Permanent.addInfo`, with `CardUtil.addToolTipMarkTags`)
     pub fn add_info(&mut self, key: &str, text: &str) {
         let line = format!("<font color = 'blue'>{}</font>", text);
@@ -536,6 +553,11 @@ pub struct Boost {
     pub toughness: i32,
     /// ends in the cleanup step (otherwise, when the object leaves the battlefield)
     pub until_end_of_turn: bool,
+    /// "until your next turn": ends as that player's turn begins
+    pub until_turn_of: Option<Seat>,
+    /// it changes the permanent even while it isn't a creature (`BoostAllEffect` boosts the objects it locked in:
+    /// a Vehicle crewed as Mouth of the Storm's trigger resolved keeps its -3/-0)
+    pub noncreature_too: bool,
 }
 
 /// What a game event is (`GameEventKind`, what the web client's effects play from)
@@ -980,6 +1002,8 @@ impl Game {
             damage: 0,
             counters: Vec::new(),
             lki_counters: Vec::new(),
+            lki_keywords: Vec::new(),
+            lki_def: None,
             face_down: false,
             attacking: None,
             attacking_pw: None,
@@ -1338,7 +1362,9 @@ impl Game {
         let mut fired = Vec::new();
         for src in sources {
             let o = self.obj(src);
-            for (i, a) in o.def.abilities.iter().enumerate() {
+            // one that left in the same action: the abilities it had
+            let lki = o.lki_def.as_ref().filter(|_| o.zone != Zone::Battlefield && self.lookback.contains(&src));
+            for (i, a) in lki.unwrap_or(&o.def).abilities.iter().enumerate() {
                 if let Some(t) = a.trigger() {
                     if fires(self, src, o.controller, t)
                         && self.condition_holds(a.intervening_if(), o.controller, src)
@@ -1347,7 +1373,16 @@ impl Game {
                         // a copy until end of turn (Shifting Woodland) keeps what it copied once it has left; a Room's
                         // keeps the face it came from (the face is rebuilt as doors unlock)
                         let room = o.printed_def.as_ref().is_some_and(|f| !f.room.is_empty());
-                        let def = (o.until_end_of_turn_def.is_some() || room).then(|| o.def.clone());
+                        // (and one an effect gave it: the ability stays when the effect ends, Infernal Scarring's
+                        // "When this creature dies, draw a card." with the Aura gone, Antagonist Incorporator's with
+                        // it gone)
+                        // (a transformed one's face: Wayward Disciple dying, its card Pious Evangel again)
+                        let def = (o.until_end_of_turn_def.is_some()
+                            || room
+                            || o.land_type_base.is_some()
+                            || (o.front.is_some() && o.zone == Zone::Battlefield))
+                            .then(|| o.def.clone())
+                            .or_else(|| lki.cloned());
                         fired.push(StackItem { ability: Some((i, o.zcc)), def, ..StackItem::spell(src, o.controller) });
                     }
                 }
@@ -1804,10 +1839,12 @@ impl Game {
                     .max()
                     .unwrap_or(0),
                 Value::SourceCounters { counter } => {
-                    if self.obj(source).zone == Zone::Battlefield {
-                        self.obj(source).counter(counter)
+                    let o = self.obj(source);
+                    if o.zone == Zone::Battlefield {
+                        o.counter(counter)
                     } else {
-                        0
+                        // `CountersSourceCount` looks back at it (Dragonspark Reactor sacrificed for its damage)
+                        o.lki_counters.iter().filter(|(c, _)| c == counter).map(|c| c.1).sum()
                     }
                 }
                 Value::AurasAttached => self
@@ -2020,8 +2057,17 @@ impl Game {
         if o.zone != Zone::Battlefield {
             return (p, t);
         }
-        // layer 7a: characteristic-defining abilities
-        for a in &o.def.abilities {
+        // layer 7a: characteristic-defining abilities (that an Aura's base power and toughness in layer 7b replace:
+        // Collective Drone enchanted by Ensoul Artifact is 5/5)
+        let ensouled = o.becomes_base.is_some()
+            && self.battlefield.iter().any(|a| {
+                self.attached(*a) == Some(id)
+                    && self.obj(*a).def.abilities.iter().any(|b| {
+                        matches!(b, AbilityDef::SimpleStaticAbility { effects, .. }
+                            if effects.iter().any(|e| matches!(e, EffectDef::BecomesCreatureAttachedEffect { .. })))
+                    })
+            });
+        for a in o.def.abilities.iter().filter(|_| !ensouled) {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 for e in effects {
                     if let EffectDef::SetBasePowerSourceEffect { amount } = e {
@@ -2092,7 +2138,7 @@ impl Game {
         // (`BoostTargetEffect` changes only a creature: a Vehicle's boost counts once it's crewed)
         let creature = self.has_type(id, CardType::Creature);
         for b in self.boosts.iter() {
-            if b.target == id && b.zcc == o.zcc && creature {
+            if b.target == id && b.zcc == o.zcc && (creature || b.noncreature_too) {
                 p += b.power;
                 t += b.toughness;
             }
@@ -2277,8 +2323,16 @@ impl Game {
             let o = self.obj(id);
             self.owed_choices.push(o.owner);
         }
+        // with an "if it would die this turn, exile it instead" too, the creature's controller chooses which applies
+        // (Snarling Gorehound under Rest in Peace)
+        let dies_exiles = if from == Zone::Battlefield && zone == Zone::Graveyard {
+            let zcc = self.obj(id).zcc;
+            self.exile_if_dies.iter().filter(|e| **e == (id, zcc)).count()
+        } else {
+            0
+        };
         let zone = if zone == Zone::Graveyard && rest_in_peace > 0 {
-            if rest_in_peace > 1 {
+            if rest_in_peace + dies_exiles > 1 {
                 let o = self.obj(id);
                 self.owed_choices.push(if from == Zone::Battlefield { o.controller } else { o.owner });
             }
@@ -2305,8 +2359,15 @@ impl Game {
         } else {
             0
         };
-        // more than one applies: Java asks the creature's controller which, though each exiles it
-        if etchings > 1 {
+        // more than one applies: Java asks the creature's controller which, though each exiles it (two "exile it
+        // instead" from Scorching Dragonfire and Shock's... the same replacement twice counts as two)
+        let exiles = if from == Zone::Battlefield && zone == Zone::Graveyard {
+            let zcc = self.obj(id).zcc;
+            self.exile_if_dies.iter().filter(|e| **e == (id, zcc)).count()
+        } else {
+            0
+        };
+        if etchings + exiles > 1 {
             let c = self.obj(id).controller;
             self.owed_choices.push(c);
         }
@@ -2472,7 +2533,22 @@ impl Game {
             }
         }
         let pt_lki = (from == Zone::Battlefield).then(|| self.power_toughness(id));
+        if from == Zone::Battlefield {
+            let kept = [AbilityDef::DeathtouchAbility, AbilityDef::LifelinkAbility]
+                .into_iter()
+                .filter(|a| self.has_ability(id, a))
+                .collect();
+            self.obj_mut(id).lki_keywords = kept;
+            let o = self.obj_mut(id);
+            o.lki_def = o.land_type_base.is_some().then(|| o.def.clone());
+        } else {
+            let o = self.obj_mut(id);
+            o.lki_keywords.clear();
+            o.lki_def = None;
+        }
         self.remove_from_zone(id);
+        // a transformed permanent's front, its card again after the effects that changed its back are undone
+        let mut left_front = None;
         {
             let o = self.obj_mut(id);
             o.toughness_lki = pt_lki.map(|p| p.1);
@@ -2491,7 +2567,8 @@ impl Game {
             if from == Zone::Battlefield {
                 o.cast_lki = o.cast;
                 if let Some(def) = o.front.take() {
-                    o.def = def;
+                    o.def = def.clone();
+                    left_front = Some(def);
                 }
                 o.damaged_by = (0, 0);
             }
@@ -2570,6 +2647,10 @@ impl Game {
                     o.guildpact_order.clear();
                 }
                 if let Some(def) = o.printed_def.take() {
+                    o.def = def;
+                }
+                // (Aetherwing crewed: its back as it was before it became a creature)
+                if let Some(def) = left_front.take() {
                     o.def = def;
                 }
                 o.cast_x = 0;

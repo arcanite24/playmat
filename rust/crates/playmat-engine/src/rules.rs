@@ -212,6 +212,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
                 Arc::make_mut(&mut game.grants).retain(|g| g.until_turn_of != Some(active));
             }
+            if game.boosts.iter().any(|b| b.until_turn_of == Some(active)) {
+                Arc::make_mut(&mut game.boosts).retain(|b| b.until_turn_of != Some(active));
+            }
             game.triggered_this_turn.clear();
             game.creature_died = false;
             game.activated_this_turn.clear();
@@ -973,7 +976,11 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             }
             continue;
         }
+        // (only casting: its abilities still activate, Halo Scarab's "Exile this card from your graveyard")
         if runestone {
+            if !activatable(game, seat, *id).is_empty() {
+                out.push(*id);
+            }
             continue;
         }
         if game.flashback_def(*id).is_some_and(|f| castable(game, seat, *id, &f))
@@ -2506,6 +2513,14 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             cast_free(game, d, seat, id);
             return;
         }
+        // a foretell cost of {0} doesn't suppress the picker either (Scorn Effigy)
+        if def.cost.mana_value() == 0 {
+            let k = game.obj(id).def.abilities.len();
+            match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: vec![k] }) {
+                Answer::Ability(o, i) if o == id && i == k => {}
+                _ => return,
+            }
+        }
         let before = game.clone();
         let full = game.obj(id).def.clone();
         let o = game.obj_mut(id);
@@ -3459,18 +3474,6 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         *n = game.spent_tally[k] - tally[k];
     }
     game.obj_mut(id).spent_colors = spent;
-    // expend: the spell's mana is counted one by one; the 4th, 6th or 8th fires "whenever you expend N"
-    let before = game.player(seat).expended;
-    let after = before + (0..6).map(|k| game.spent_tally[k] - tally[k]).sum::<u32>();
-    game.player_mut(seat).expended = after;
-    if after > before {
-        let sources = game.trigger_sources();
-        let fired = game.triggers(
-            sources,
-            |_, _, you, t| matches!(t, Trigger::Expend { n } if you == seat && before < *n && *n <= after),
-        );
-        game.pending.extend(fired);
-    }
     // 601.2g: then the other costs
     for c in &alternative_costs {
         if !pay_cost(game, d, seat, id, c) {
@@ -3489,6 +3492,18 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         if !pay_cost(game, d, seat, id, c) {
             return false;
         }
+    }
+    // expend: the spell's mana, an additional cost's too (Silvergill Adept's {3}), is counted one by one; the 4th, 6th or 8th fires "whenever you expend N"
+    let before = game.player(seat).expended;
+    let after = before + (0..6).map(|k| game.spent_tally[k] - tally[k]).sum::<u32>();
+    game.player_mut(seat).expended = after;
+    if after > before {
+        let sources = game.trigger_sources();
+        let fired = game.triggers(
+            sources,
+            |_, _, you, t| matches!(t, Trigger::Expend { n } if you == seat && before < *n && *n <= after),
+        );
+        game.pending.extend(fired);
     }
     if let Some((cards, n)) = exile_from_hand {
         let cards: Vec<ObjId> = cards.into_iter().filter(|c| game.obj(*c).zone == Zone::Hand).collect();
@@ -4977,6 +4992,9 @@ fn choose_target(
     loop {
         let src = source.or_else(|| game.stack.last().map(|t| t.card));
         let (mut players, mut objs) = possible_targets(game, seat, def, src);
+        // `TargetSpellOrPermanent.possibleTargets` compares the spell's id with its card's, so it counts itself for
+        // the auto-choice (Fatehold Charm's "return target spell or creature" with one creature is asked)
+        let counts_itself = src.is_some_and(|s| clicks_itself(game, def, src, s) && !chosen.contains(&Target::Obj(s)));
         // a spell can't target itself (rule 115.5)
         objs.retain(|o| Some(*o) != source);
         if let (TargetDef::TargetCardInGraveyard { single: true, .. }, Some(Target::Obj(first))) = (def, chosen.first())
@@ -5014,7 +5032,10 @@ fn choose_target(
         if selected && players.is_empty() && objs.is_empty() && chosen.len() >= min && !(divided && added_in_prompt) {
             return Some(chosen);
         }
-        if min == max && players.len() + objs.len() == min - chosen.len() && !rule.contains("search") {
+        if min == max
+            && players.len() + objs.len() + usize::from(counts_itself) == min - chosen.len()
+            && !rule.contains("search")
+        {
             let auto = if game.player(seat).auto_target_all {
                 players.first().map(|p| Target::Player(*p)).or_else(|| objs.first().map(|o| Target::Obj(*o)))
             } else {
@@ -6629,10 +6650,10 @@ fn refresh_land_types(game: &mut Game) {
                             }
                         }
                         // Bootleggers' Stash: lands you control have "{T}: Create a Treasure token."
+                        // Phenax: creatures you control have "{T}: Target player mills X cards, …"
                         // Constricting Sliver: Slivers you control have "When this creature enters, …"
                         EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. }
                             if matches!(**ability, AbilityDef::SimpleActivatedAbility { .. })
-                                && filter.0.iter().any(|p| matches!(p, Pred::Type { t: CardType::Land }))
                                 || matches!(**ability, AbilityDef::TriggeredAbility { .. })
                                 // Great Divide Guide: each land and Ally you control has "{T}: Add one mana of any color."
                                 || ability.mana().is_some() =>
@@ -6667,9 +6688,10 @@ fn refresh_land_types(game: &mut Game) {
         }
     }
     // a triggered ability a resolved effect gave until end of turn (Herd Heirloom's "Whenever this creature deals
-    // combat damage to a player, draw a card"): Java adds it to the permanent, so it triggers like its own
+    // combat damage to a player, draw a card"): Java adds it to the permanent, so it triggers like its own (an
+    // activated one too, activated like its own: Retraction Helix's "{T}: Return target nonland permanent …")
     for g in game.grants.iter() {
-        if matches!(g.ability, AbilityDef::TriggeredAbility { .. })
+        if matches!(g.ability, AbilityDef::TriggeredAbility { .. } | AbilityDef::SimpleActivatedAbility { .. })
             && game.obj(g.target).zone == Zone::Battlefield
             && game.obj(g.target).zcc == g.zcc
         {
@@ -7074,6 +7096,12 @@ fn apply_each_effect(
                 let only = vec![legal.get(*target).cloned().unwrap_or_default()];
                 apply_each_effect(game, d, item, std::slice::from_ref(&**effect), &only, source);
             }
+            EffectDef::EachTargetEffect { effect } => {
+                for ts in legal.iter() {
+                    let only = vec![ts.clone()];
+                    apply_each_effect(game, d, item, std::slice::from_ref(&**effect), &only, source);
+                }
+            }
             EffectDef::DamageTargetEffect { amount } => {
                 let amount = &v!(amount);
                 for t in legal.first().cloned().unwrap_or_default() {
@@ -7138,14 +7166,18 @@ fn apply_each_effect(
                 let toughness = &v!(toughness);
                 for o in &objs {
                     boost(game, *o, *power, *toughness, *duration);
+                    until_next_turn(game, *duration, controller);
                 }
             }
             EffectDef::BoostSourceEffect { power, toughness, duration } => {
                 let power = &v!(power);
                 let toughness = &v!(toughness);
-                let (o, zcc) = source;
-                if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                // the permanent its source is now (`new MageObjectReference(source.getSourceId(), game)`): one that
+                // left and came back gets it (Barrow Naughty flickered by Ephemerate in response)
+                let (o, _) = source;
+                if game.obj(o).zone == Zone::Battlefield {
                     boost(game, o, *power, *toughness, *duration);
+                    until_next_turn(game, *duration, controller);
                 }
             }
             EffectDef::AddCountersSourceEffect { counter, amount } => {
@@ -8510,6 +8542,31 @@ fn apply_each_effect(
                 for o in matching(game, filter, controller, source.0) {
                     if !(*exclude_source && o == source.0) {
                         boost(game, o, *power, *toughness, Duration::EndOfTurn);
+                    }
+                }
+            }
+            // the creatures there as it resolves, until its controller's next turn (Mouth of the Storm)
+            EffectDef::BoostAllEffect {
+                power,
+                toughness,
+                duration: Duration::UntilYourNextTurn,
+                filter,
+                exclude_source,
+            } => {
+                let power = &v!(power);
+                let toughness = &v!(toughness);
+                for o in matching(game, filter, controller, source.0) {
+                    if !(*exclude_source && o == source.0) {
+                        let zcc = game.obj(o).zcc;
+                        Arc::make_mut(&mut game.boosts).push(Boost {
+                            target: o,
+                            zcc,
+                            power: *power,
+                            toughness: *toughness,
+                            until_end_of_turn: false,
+                            until_turn_of: Some(controller),
+                            noncreature_too: true,
+                        });
                     }
                 }
             }
@@ -10115,7 +10172,22 @@ fn apply_each_effect(
                         continue;
                     }
                     let old = game.obj(*o).def.clone();
-                    let def = becomes_creature(&old, token, false);
+                    let mut def = becomes_creature(&old, token, false);
+                    // its base power and toughness (layer 7b) replace a characteristic-defining one (7a): Pack Rat
+                    // made a 1/1 Citizen by Secret Identity
+                    for a in def.abilities.iter_mut() {
+                        if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                            effects.retain(|e| {
+                                !matches!(
+                                    e,
+                                    EffectDef::SetBasePowerSourceEffect { .. }
+                                        | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
+                                        | EffectDef::SetBasePowerToughnessAmountSourceEffect { .. }
+                                        | EffectDef::SetBasePowerToughnessSourceEffect { .. }
+                                )
+                            });
+                        }
+                    }
                     let ob = game.obj_mut(*o);
                     if *duration == Duration::EndOfTurn && ob.until_end_of_turn_def.is_none() {
                         ob.until_end_of_turn_def = Some(old);
@@ -10157,7 +10229,8 @@ fn apply_each_effect(
                     o.def = Arc::new(def);
                 }
             }
-            EffectDef::EquipEffect => {
+            // a triggered "attach {this} to it" attaches the Equipment as equip does (Stormrider Rig, Hero's Blade)
+            EffectDef::EquipEffect | EffectDef::AttachEffect => {
                 let (src, zcc) = source;
                 if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
                     if let Some(&to) = objs.first() {
@@ -10204,6 +10277,7 @@ fn apply_each_effect(
                         types: vec![CardType::Creature],
                         colors: vec![Color::G],
                         subtypes: vec!["Hydra".into()],
+                        supertypes: Vec::new(),
                         power: item.x,
                         toughness: item.x,
                         abilities: Vec::new(),
@@ -11670,7 +11744,6 @@ fn apply_each_effect(
             | EffectDef::TapSourceUnlessRevealsEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect
-            | EffectDef::AttachEffect
             | EffectDef::BoostEnchantedEffect { .. }
             | EffectDef::CantAttackBlockAttachedEffect
             | EffectDef::CantBeBlockedByMoreThanOneAttachedEffect
@@ -12247,6 +12320,15 @@ fn token_copies(game: &Game, seat: Seat) -> usize {
     n
 }
 
+/// The boost just made, "until your next turn": it ends as `controller`'s turn begins (Mu Yanling's -5/-0)
+fn until_next_turn(game: &mut Game, duration: Duration, controller: Seat) {
+    if duration == Duration::UntilYourNextTurn {
+        if let Some(b) = Arc::make_mut(&mut game.boosts).last_mut() {
+            b.until_turn_of = Some(controller);
+        }
+    }
+}
+
 fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: Duration) {
     let zcc = game.obj(target).zcc;
     Arc::make_mut(&mut game.boosts).push(Boost {
@@ -12255,6 +12337,8 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
         power,
         toughness,
         until_end_of_turn: duration == Duration::EndOfTurn,
+        until_turn_of: None,
+        noncreature_too: false,
     });
 }
 
@@ -12893,7 +12977,23 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             if holds {
                 let mut item = StackItem::spell(id, controller);
                 item.x = game.obj(id).cast_x;
-                apply_effects(game, d, &item, effects, &[], (id, zcc));
+                // its counters counted the same way, without itself (Squad Captain's "for each other creature you
+                // control" counts the creatures you control)
+                let mut effects = effects.clone();
+                for e in effects.iter_mut() {
+                    if let EffectDef::AddCountersSourceEffect { amount: Some(a @ Amount::Of(_)), .. } = e {
+                        let at = game.battlefield.iter().position(|x| *x == id);
+                        if let Some(i) = at {
+                            Arc::make_mut(&mut game.battlefield).remove(i);
+                        }
+                        let n = game.value(a, controller, id, item.x);
+                        if let Some(i) = at {
+                            Arc::make_mut(&mut game.battlefield).insert(i, id);
+                        }
+                        *a = Amount::Fixed(n);
+                    }
+                }
+                apply_effects(game, d, &item, &effects, &[], (id, zcc));
             }
         }
     }
@@ -13232,12 +13332,19 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 let mut t = mine.remove(pick);
                 picked += 1;
                 let ability = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i).cloned());
-                // a modal one: `HumanPlayer.chooseMode` among the modes whose targets can be chosen
+                // a modal one: `HumanPlayer.chooseMode` among the modes whose targets can be chosen (Java chooses with
+                // the trigger already on the stack, so "target activated or triggered ability" always has itself:
+                // Subcommander T'Pol)
                 let modes = ability.as_ref().map(|a| a.trigger_modes()).unwrap_or_default();
                 let mut mode_targets = None;
                 if !modes.is_empty() {
                     let available: Vec<usize> = (0..modes.len())
-                        .filter(|k| modes[*k].1.iter().all(|x| target_possible(game, seat, x, Some(t.card))))
+                        .filter(|k| {
+                            modes[*k].1.iter().all(|x| {
+                                matches!(x, TargetDef::TargetStackAbility { .. })
+                                    || target_possible(game, seat, x, Some(t.card))
+                            })
+                        })
                         .collect();
                     let mut asked = 0;
                     let k = loop {
@@ -13279,7 +13386,12 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 // its targets, which can't be cancelled; with no legal ones it's removed (rule 603.3d)
                 if let Some((rule, _, targets, _)) = ability.as_ref().and_then(|a| a.triggered()) {
                     let targets = mode_targets.as_deref().unwrap_or(targets);
-                    if !targets.is_empty() {
+                    // (`PlayerImpl.triggerAbility`'s `canChooseTarget`: every target first, so a later "up to one"
+                    // isn't asked when an earlier one has none: Invasion of Muraganda with no creature of yours)
+                    let card = game.stack.last().map(|t| t.card);
+                    if !targets.iter().all(|x| target_possible(game, seat, x, card)) {
+                        Arc::make_mut(&mut game.stack).pop();
+                    } else if !targets.is_empty() {
                         if !choose_targets(game, d, seat, targets, None, rule, false) {
                             if d.stopped() {
                                 return happened;
@@ -13534,7 +13646,13 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     let mut lifelink = 0;
     let src = game.obj(source).clone();
     // keywords it has now (granted ones too), or had as it left
-    let keyword = |a: &AbilityDef| if src.zone == Zone::Battlefield { game.has_ability(source, a) } else { src.has(a) };
+    let keyword = |a: &AbilityDef| {
+        if src.zone == Zone::Battlefield {
+            game.has_ability(source, a)
+        } else {
+            src.has(a) || src.lki_keywords.contains(a)
+        }
+    };
     let (src_deathtouch, src_lifelink) =
         (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility));
     match to {
@@ -15186,6 +15304,8 @@ mod tests {
             power: 0,
             toughness: 2,
             until_end_of_turn: true,
+            until_turn_of: None,
+            noncreature_too: false,
         });
         game.step = Some(Step::EndTurn);
         let mut d = PriorityLog(Vec::new());
