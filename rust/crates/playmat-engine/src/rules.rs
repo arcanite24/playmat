@@ -1385,6 +1385,15 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
 }
 
 /// `ForageCost`: an `OrCost` of exiling three cards from your graveyard and sacrificing a Food.
+/// The text `tryToAutoChoose` reads while foraging: a spell's own (Feed the Cycle's "(To forage, exile three cards
+/// ...)" keeps its cards from being picked by themselves)
+fn forage_rule(game: &Game, id: ObjId) -> String {
+    match game.stack.last() {
+        Some(top) if top.card == id && top.ability.is_none() && top.delayed.is_none() => item_rule(game, top),
+        _ => "forage".to_string(),
+    }
+}
+
 fn forage_cost() -> CostDef {
     CostDef::OrCost {
         costs: vec![
@@ -4596,8 +4605,8 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
             // `SacrificeTargetCost`: its target can be cancelled
-            let rule = if game.foraging.get() { "forage" } else { "sacrifice" };
-            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, rule, true)
+            let rule = if game.foraging.get() { forage_rule(game, id) } else { "sacrifice".to_string() };
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, &rule, true)
             else {
                 return false;
             };
@@ -4745,7 +4754,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 AbilityDef::EscapeAbility { rule, .. } => Some(rule.clone()),
                 _ => None,
             });
-            let rule = if game.foraging.get() { Some("forage".to_string()) } else { rule };
+            let rule = if game.foraging.get() { Some(forage_rule(game, id)) } else { rule };
             let Some(chosen) =
                 choose_cards(game, d, seat, &possible, &possible, *amount, *amount, &rule.unwrap_or("exile".into()))
             else {
