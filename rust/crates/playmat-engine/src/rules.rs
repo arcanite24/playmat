@@ -2631,6 +2631,38 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
         }
     }
+    // a land with an adventure-like spell (Midgar, City of Mako): with a land to play, the picker offers the spell
+    // (a0) whatever it costs and the land (a1), as `playCard` does for a card with two spell abilities
+    if game.obj(id).is(CardType::Land) && game.obj(id).zone == Zone::Hand {
+        if let Some(adventure) = game.obj(id).def.adventure.clone() {
+            let options = if can_play_land(game, seat) {
+                vec![0, 1]
+            } else if castable(game, seat, id, &adventure) {
+                vec![0]
+            } else {
+                return;
+            };
+            let k = if options.len() == 1 {
+                options[0]
+            } else {
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                    Answer::Ability(o, k) if o == id && options.contains(&k) => k,
+                    _ => return,
+                }
+            };
+            if k == 0 {
+                let before = game.clone();
+                let full = game.obj(id).def.clone();
+                let o = game.obj_mut(id);
+                o.adventurer = Some(full);
+                o.def = adventure;
+                if !cast(game, d, seat, id) {
+                    *game = before;
+                }
+                return;
+            }
+        }
+    }
     // a land in a graveyard with an ability of its own there (Drownyard Temple): that ability, below
     let graveyard_ability = game.obj(id).zone == Zone::Graveyard && !activatable(game, seat, id).is_empty();
     if game.obj(id).is(CardType::Land) && !graveyard_ability {
