@@ -12058,8 +12058,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             }
         }
     }
-    // Weathered Runestone: nonland permanent cards in graveyards and libraries can't enter
+    // Weathered Runestone: nonland permanent cards in graveyards and libraries can't enter (a token isn't a card:
+    // Java's `game.getCard` doesn't find it)
     if matches!(game.obj(id).zone, Zone::Graveyard | Zone::Library)
+        && !game.obj(id).token
         && !game.obj(id).is(CardType::Land)
         && game.any_static(|_, _, e| matches!(e, EffectDef::WeatheredRunestoneEffect))
     {
