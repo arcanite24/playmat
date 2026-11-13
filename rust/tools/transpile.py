@@ -3986,8 +3986,13 @@ def granted_rules(card):
             # an activated ability's rule ends with its effect's sentence
             g['rule'] = quoted.group(1).rstrip('.') + '.'
         elif g.get('class') == 'TriggeredAbility' and quoted:
-            # Java writes the granted trigger's own text, where the creature is {this}
-            g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
+            # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
+            # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
+            phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', card_source(card.get('name')))
+            if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
+                g['rule'] = quoted.group(1)
+            else:
+                g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
         elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility', 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
 
@@ -4003,6 +4008,13 @@ def granted_rules(card):
             for v in x:
                 walk(v, rule)
     walk(card, '')
+
+
+def card_source(name):
+    try:
+        return open(card_path(name)).read()
+    except (OSError, TypeError, KeyError):
+        return ''
 
 
 def strip_java(x):

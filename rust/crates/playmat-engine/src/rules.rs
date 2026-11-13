@@ -411,12 +411,13 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         && you == active
                         && g.obj(src).zone == Zone::Battlefield)
             });
-            game.pending.extend(fired);
-            // "at the beginning of the next end step" delayed triggers, after the others
+            // "at the beginning of the next end step" delayed triggers: `GameState.handleEvent` checks the delayed
+            // ones before the others
             if step == Step::EndTurn {
                 let delayed = std::mem::take(&mut game.at_next_end_step);
                 game.pending.extend(delayed);
             }
+            game.pending.extend(fired);
             if step == Step::Upkeep {
                 let delayed = std::mem::take(&mut game.at_next_upkeep);
                 game.pending.extend(delayed);
