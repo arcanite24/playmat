@@ -2817,6 +2817,10 @@ pub enum AbilityDef {
         /// "if any of that mana is spent on a creature spell, it gains haste until end of turn" (Arena of Glory)
         #[serde(default)]
         creature_spell_haste: bool,
+        /// how many times `amount` it counts for while checking what's playable (Skirk Prospector: one per Goblin it
+        /// could sacrifice; `BasicManaEffect`'s `netAmount`)
+        #[serde(default)]
+        net: Option<Amount>,
         #[serde(default)]
         rule: String,
     },
@@ -2844,6 +2848,9 @@ pub enum AbilityDef {
         effects: Vec<EffectDef>,
         #[serde(default)]
         cost: Vec<CostDef>,
+        /// it doesn't tap its source (Relic of Legends' "Tap an untapped legendary creature you control")
+        #[serde(default)]
+        no_tap: bool,
         #[serde(default)]
         rule: String,
     },
@@ -2868,9 +2875,12 @@ pub enum AbilityDef {
         #[serde(default = "one_u32")]
         amount: u32,
         filter: Filter,
-        /// and of the source's chosen creature type, which then can't be countered (Cavern of Souls)
+        /// and of the source's chosen creature type (Unclaimed Territory)
         #[serde(default)]
         chosen_type: bool,
+        /// the spell it's spent on can't be countered (Cavern of Souls)
+        #[serde(default)]
+        cant_counter: bool,
         /// its costs besides tapping (Great Hall's 1 life)
         #[serde(default)]
         cost: Vec<CostDef>,
@@ -2886,6 +2896,18 @@ pub enum AbilityDef {
         /// spent on activated abilities of permanents of `filter` too (Eldrazi Temple)
         #[serde(default)]
         filter_abilities: bool,
+        #[serde(default)]
+        rule: String,
+    },
+    /// `{T}: Add one mana of any color in your commander's color identity` (Command Tower). Duels have no
+    /// commander: Java still lets it be activated, and it makes nothing.
+    CommanderColorIdentityManaAbility {
+        #[serde(default)]
+        rule: String,
+    },
+    /// `{T}: Add one mana of any color among` permanents of `filter` you control (Mox Amber; none: no mana)
+    AnyColorPermanentTypesManaAbility {
+        filter: Filter,
         #[serde(default)]
         rule: String,
     },
@@ -3031,6 +3053,10 @@ impl AbilityDef {
             }
             // counted by the game (devotion)
             AbilityDef::NykthosShrineToNyxManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            // no commander: no mana
+            AbilityDef::CommanderColorIdentityManaAbility { .. } => Some(Mana::default()),
+            // counted by the game (the colors among them)
+            AbilityDef::AnyColorPermanentTypesManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
             AbilityDef::ConditionalManaAbility { colorless: true, amount, .. } => {
                 Some(Mana { colorless: *amount, ..Mana::default() })
             }
@@ -3049,6 +3075,8 @@ impl AbilityDef {
             AbilityDef::ActivateIfConditionManaAbility { .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }
             | AbilityDef::NykthosShrineToNyxManaAbility { .. }
+            | AbilityDef::CommanderColorIdentityManaAbility { .. }
+            | AbilityDef::AnyColorPermanentTypesManaAbility { .. }
             | AbilityDef::ConditionalManaAbility { .. }
             | AbilityDef::ConditionalColorManaAbility { .. }
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
@@ -3068,7 +3096,9 @@ impl AbilityDef {
     pub fn taps_source(&self) -> bool {
         !matches!(
             self,
-            AbilityDef::ColoredManaAbility { no_tap: true, .. } | AbilityDef::ColorlessManaAbility { no_tap: true, .. }
+            AbilityDef::ColoredManaAbility { no_tap: true, .. }
+                | AbilityDef::ColorlessManaAbility { no_tap: true, .. }
+                | AbilityDef::AnyColorManaAbility { no_tap: true, .. }
         )
     }
 

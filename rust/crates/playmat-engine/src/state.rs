@@ -1639,6 +1639,7 @@ impl Game {
             amount: 1,
             effects: Vec::new(),
             cost: Vec::new(),
+            no_tap: false,
             rule: "{T}: Add one mana of any color.".into(),
         };
         let has_any = own.abilities.iter().any(|a| {
