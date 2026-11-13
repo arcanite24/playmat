@@ -57,6 +57,9 @@ pub struct ManaCost {
     pub hybrid: Vec<(usize, usize)>,
     /// monocolored hybrid symbols (`{2/R}`, `MonoHybridManaCost`): each paid with its color or two generic mana
     pub mono: Vec<usize>,
+    /// of a payment's unpaid part, the monocolored hybrid symbols with one generic mana paid: still paid in full by
+    /// their color, or by one more generic (a `MonoHybridManaCost` is unpaid until its color or two generic)
+    pub mono_half: Vec<usize>,
     /// snow symbols (`{S}`, `SnowManaCost`): one generic mana each, from a snow source only. The playable check
     /// counts them as generic (`SnowManaCost.testPay`); the payment takes them after hybrid and before generic
     /// (`ManaCostsImpl.assignPayment`), from mana a snow permanent made (its source filter)
@@ -110,6 +113,7 @@ impl ManaCost {
             + self.hybrid.len() as u32
             + self.snow
             + 2 * self.mono.len() as u32
+            + self.mono_half.len() as u32
     }
 
     /// the cost with its snow symbols as generic ones: what the playable check tests (`SnowManaCost`'s options are
@@ -167,6 +171,7 @@ impl ManaCost {
         }
         c.hybrid.extend(other.hybrid.iter().copied());
         c.mono.extend(other.mono.iter().copied());
+        c.mono_half.extend(other.mono_half.iter().copied());
         c.snow += other.snow;
         c.text.push_str(&other.text);
         c
