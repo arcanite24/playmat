@@ -269,6 +269,10 @@ pub struct Obj {
     pub lost_abilities: Option<(ObjId, u32, Arc<CardDef>)>,
     /// in exile: this player may play it through the end of this turn number
     pub may_play: Option<(Seat, u32)>,
+    /// `may_play` ends at the beginning of that turn's end step instead (`Duration.UntilYourNextEndStep`)
+    pub may_play_end_step: bool,
+    /// `may_play` lasts only while its player controls this permanent, as it was (`Duration.WhileControlled`)
+    pub may_play_while: Option<(ObjId, u32)>,
     /// mana of any type can be spent to cast it (while it may be played from exile)
     pub any_mana: bool,
     /// while it may be played from exile, it's cast without paying its mana cost (Oracle's Vault)
@@ -967,6 +971,12 @@ pub struct Game {
     pub events: Option<Vec<GameEvent>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
+    /// the permanents (as they were) whose "once during each of your turns, cast from your graveyard" was used, with
+    /// the turn (`CastFromGraveyardOnceWatcher`)
+    pub graveyard_once_used: Vec<(ObjId, u32, u32)>,
+    /// cards exiled instead if they would be put into a graveyard this turn (`ThatSpellGraveyardExileReplacementEffect`:
+    /// Torrential Gearhulk's instant, from anywhere)
+    pub exile_if_graveyard: Vec<ObjId>,
     /// control changes with a duration, oldest first
     pub control_changes: Vec<ControlChange>,
     /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
@@ -1218,6 +1228,8 @@ impl Game {
             log: None,
             events: None,
             exile_if_dies: Vec::new(),
+            exile_if_graveyard: Vec::new(),
+            graveyard_once_used: Vec::new(),
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
@@ -1376,6 +1388,8 @@ impl Game {
             damaged_by: (0, 0),
             lost_abilities: None,
             may_play: None,
+            may_play_end_step: false,
+            may_play_while: None,
             any_mana: false,
             play_free: false,
             cast_only: false,
@@ -1444,6 +1458,17 @@ impl Game {
                     })
             }),
             Pred::ManaCostIn { costs } => costs.iter().any(|c| *c == o.def.cost.text),
+            Pred::ManaValueAtMostSourcePower => {
+                source.is_some_and(|src| {
+                    // a dies trigger's source (Gurgling Anointer): its power as it last was on the battlefield
+                    let s = self.obj(src);
+                    let power = match s.power_lki {
+                        Some(p) if s.zone != Zone::Battlefield => p,
+                        _ => self.power_toughness(src).0,
+                    };
+                    o.def.mana_value() as i32 <= power
+                })
+            }
             Pred::ManaValueEqualSourceCounters { counter } => source.is_some_and(|src| {
                 let s = self.obj(src);
                 let n = if s.zone == Zone::Battlefield {
@@ -2118,6 +2143,20 @@ impl Game {
         let set = parts.next()?;
         let number = parts.next()?;
         Some((set, number, parts.next().and_then(|n| n.parse().ok())))
+    }
+
+    /// Whether `seat` may play `id` now by an effect that made it playable (`may_play`, with its end)
+    pub fn may_play_now(&self, id: ObjId, seat: Seat) -> bool {
+        let o = self.obj(id);
+        o.may_play.is_some_and(|(p, t)| {
+            p == seat
+                && (self.turn < t
+                    || (self.turn == t
+                        && !(o.may_play_end_step && matches!(self.step, Some(Step::EndTurn | Step::Cleanup)))))
+        }) && o.may_play_while.is_none_or(|(src, zcc)| {
+            let s = self.obj(src);
+            s.zone == Zone::Battlefield && s.zcc == zcc && s.controller == seat
+        })
     }
 
     pub fn any_static(&self, mut f: impl FnMut(&Game, ObjId, &EffectDef) -> bool) -> bool {
@@ -3240,7 +3279,10 @@ impl Game {
         } else {
             Vec::new()
         };
-        let rest_in_peace = rest_in_peace + leylines + valgavoths.len();
+        // "if that card would be put into a graveyard this turn, exile it instead"
+        let graveyard_exiles =
+            if zone == Zone::Graveyard { self.exile_if_graveyard.iter().filter(|x| **x == id).count() } else { 0 };
+        let rest_in_peace = rest_in_peace + leylines + valgavoths.len() + graveyard_exiles;
         if let Some(&v) = valgavoths.first() {
             let zcc = self.obj(v).zcc;
             self.exiled_for_source.push((v, zcc, id));
@@ -3585,6 +3627,8 @@ impl Game {
             o.exile_instead_of_dying = false;
             o.unearthed = false;
             o.may_play = None;
+            o.may_play_end_step = false;
+            o.may_play_while = None;
             o.any_mana = false;
             o.play_free = false;
             o.cast_only = false;
