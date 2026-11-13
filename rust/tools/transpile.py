@@ -181,6 +181,9 @@ EFFECTS = {
     'MayCastTargetCardEffect': [('any_mana', 'cast_adjustment'), (None, 'false')],
     'CantBeBlockedByCreaturesWithLessPowerEffect': [],
     'MillCardsControllerEffect': [('amount', 'int')],
+    'ManifestEffect': [('amount', 'amount')],
+    'DiscoverEffect': [('amount', 'int'), (None, 'bool')],
+    'CombatDamageByToughnessSourceEffect': [('duration', 'duration')],
     'DiscardHandControllerEffect': [],
     'CantBeCounteredSourceEffect': [],
     'DamageControllerEffect': [('amount', 'int'), (None, 'string')],
@@ -502,6 +505,9 @@ ABILITIES = {
     'SpellCastControllerTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('optional', 'bool'),
                                             (None, 'no_pointer')],
     'UnlockThisDoorTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), ('left', 'bool')],
+    'TurnedFaceUpSourceTriggeredAbility': [('effect', 'effect'), ('set_target_pointer', 'bool'), ('optional', 'bool')],
+    'EntersBattlefieldOrTurnedFaceUpTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'TurnedFaceUpAllTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('set_target_pointer', 'bool')],
 }
 
 COLOR_LETTERS = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}
@@ -532,6 +538,8 @@ def triggered(a):
             a['set_target_pointer'] = True
     elif cls == 'EntersBattlefieldAllTriggeredAbility':
         on = {'e': 'enters_all', 'filter': a.pop('filter')}
+    elif cls == 'TurnedFaceUpAllTriggeredAbility':
+        on = {'e': 'turned_face_up_all', 'filter': a.pop('filter')}
     elif cls == 'DiesThisOrAnotherTriggeredAbility':
         # `checkTrigger`: the source itself triggers it whatever the filter says ("this or another"); the two cards
         # that `setApplyFilterOnSource(true)` (Basri's Lieutenant, Reluctant Role Model) don't translate
@@ -557,7 +565,9 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlef
                    'GainLifeControllerTriggeredAbility': 'you_gain_life',
                    'GainLifeFirstTimeTriggeredAbility': 'you_gain_life_first_time',
                    'DealsCombatDamageToAPlayerTriggeredAbility': 'combat_damage_to_player',
-                   'DamagedOpponentsNoncombatTriggeredAbility': 'opponents_dealt_noncombat_damage'}
+                   'DamagedOpponentsNoncombatTriggeredAbility': 'opponents_dealt_noncombat_damage',
+                   'TurnedFaceUpSourceTriggeredAbility': 'turned_face_up',
+                   'EntersBattlefieldOrTurnedFaceUpTriggeredAbility': 'enters_or_turned_face_up'}
 
 # the triggers an `OrTriggeredAbility` may combine: those whose events the engine checks with `Game::triggers` alone
 # (nothing after it looks at which trigger it was)
@@ -815,7 +825,7 @@ def predicate(text, subtypes):
               'EnchantedPredicate.instance': 'enchanted', 'ModifiedPredicate.instance': 'modified',
               'WasDealtDamageThisTurnPredicate.instance': 'damaged_this_turn', 'KickedSpellPredicate.instance': 'kicked_spell',
               # a permanent card (an object on the battlefield is always a permanent)
-              'PermanentPredicate.instance': 'permanent_card'}
+              'PermanentPredicate.instance': 'permanent_card', 'FaceDownPredicate.instance': 'face_down'}
     if text in simple:
         return {'p': simple[text]}
     if (m := re.fullmatch(r'ChosenSubtypePredicate\.(TRUE|FALSE)', text)):
@@ -847,6 +857,15 @@ def predicate(text, subtypes):
 
 def filter_object(cls, args, adds, subtypes):
     """`new <cls>(args)` plus the predicates later `add`ed to it -> a filter (a list of predicates)"""
+    # "this or another <filter>" (`FilterPermanentThisOrAnother(otherFilter, onlyControlled)`): the source, or a
+    # permanent of the other filter; controlled by you with `onlyControlled`
+    if cls == 'FilterPermanentThisOrAnother' and len(args) in (2, 3) and args[1].strip() in ('true', 'false') \
+            and (m := re.fullmatch(r'StaticFilters\.(FILTER_\w+)', args[0].strip())) and not adds:
+        other = static_filters(subtypes).get(m.group(1))
+        if other is None or isinstance(other, Unsupported):
+            raise Unsupported('filter ' + args[0].strip())
+        return ([YOU] if args[1].strip() == 'true' else []) + \
+            [{'p': 'or', 'xs': [{'p': 'not', 'x': {'p': 'another'}}, {'p': 'and', 'xs': other}]}]
     if cls not in FILTER_CLASSES:
         raise Unsupported('filter class ' + cls)
     preds = [dict(p) for p in FILTER_CLASSES[cls]]
@@ -1349,6 +1368,9 @@ class Translator:
         arg = arg.strip()
         name = arg[len('StaticFilters.'):] if arg.startswith('StaticFilters.') else arg
         found = self.filters.get(name)
+        # daunt's "creatures with power 2 or less"
+        if arg == 'DauntAbility.getFilter()':
+            found = [CREATURE, {'p': 'power', 'cmp': 'OR_LESS', 'n': 2}]
         if found is None and re.fullmatch(r'FILTER_\w+', name):
             found = static_filters(self.subtypes).get(name)
         if found is None and (m := re.fullmatch(r'new (Filter\w+)\((.*)\)', arg, re.S)):
@@ -2147,6 +2169,19 @@ class Translator:
         if cls == 'AddCountersAllEffect' and len(args) == 3:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'amount': self.amount(args[1]),
                     'filter': self.filter(args[2].strip())}
+        # manifest dread, then counters on it
+        if cls == 'ManifestDreadEffect':
+            return {'class': cls, 'counters': [self.value('counter', a.strip()) for a in args if a.strip()]}
+        # cloak (`ManifestEffect(amount, isPlural, cloakNotManifest)`)
+        if cls == 'ManifestEffect' and len(args) == 3 and args[1].strip() in ('true', 'false') \
+                and args[2].strip() in ('true', 'false'):
+            return {'class': cls, 'amount': self.amount(args[0]), 'cloak': args[2].strip() == 'true'}
+        # "as this is turned face up, put N +1/+1 counters on it" (a replacement of `TURN_FACE_UP`, not optional)
+        if cls == 'AsTurnedFaceUpEffect' and len(args) == 2 and args[1].strip() == 'false':
+            inner = self.effect(args[0])
+            if inner.get('class') != 'AddCountersSourceEffect' or inner.get('amount'):
+                raise Unsupported('AsTurnedFaceUpEffect ' + inner.get('class', ''))
+            return {'class': cls, 'counter': inner['counter']}
         if cls == 'AddCountersSourceEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'amount': self.amount(args[1])}
         # investigate: create a Clue
@@ -2667,6 +2702,8 @@ class Translator:
             out['look'] = int(args[0])
         elif args[0] in COUNTS:
             out['look_count'] = COUNTS[args[0]]
+        elif args[0] in ('SavedDamageValue.MANY', 'SavedDamageValue.MUCH'):
+            out['look_count'] = 'x'
         else:
             raise Unsupported('argument ' + args[0])
         if args[1] == 'Integer.MAX_VALUE' and 'look' in out:
@@ -2772,6 +2809,11 @@ class Translator:
         m = re.fullmatch(r'new EntersBattlefieldAbility\((.*)\)', expr.strip(), re.S)
         if m and len(a := split_args(m.group(1))) == 5 and a[1].strip() == 'false':
             return self.ability('new EntersBattlefieldAbility(' + ','.join([a[0]] + a[2:]) + ')')
+        # "Sacrifice this: …" usable from anywhere (`Zone.ALL`, Whisperwood Elemental): only on the battlefield, where
+        # it can be sacrificed
+        m = re.fullmatch(r'new SimpleActivatedAbility\(Zone\.ALL,(.*)\)', canonical(expr.strip()), re.S)
+        if m and len(a := split_args(m.group(1))) == 2 and a[1].strip() == 'new SacrificeSourceCost()':
+            return self.ability('new SimpleActivatedAbility(' + m.group(1) + ')')
         # the overload with its zone first: the battlefield's is the two-argument one
         m = re.fullmatch(r'new ActivateAsSorceryActivatedAbility\(Zone\.BATTLEFIELD,(.*)\)', expr.strip(), re.S)
         if m and len(split_args(m.group(1))) == 2:
@@ -2840,6 +2882,10 @@ class Translator:
         if cls == 'ActivateAsSorceryActivatedAbility' and len(args) == 3 and args[0].strip() == 'Zone.GRAVEYARD':
             return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [self.effect(args[1])],
                     'cost': [self.cost(args[2])], 'sorcery': True}
+        # unearth: as a sorcery, from your graveyard
+        if cls == 'UnearthAbility' and len(args) == 1:
+            return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [{'class': 'UnearthEffect'}],
+                    'cost': [self.cost(args[0])], 'sorcery': True}
         # "{cost}: … Activate only if …", from your graveyard
         if cls == 'ActivateIfConditionActivatedAbility' and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD':
             return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [self.effect(args[1])],
@@ -3570,6 +3616,33 @@ class Translator:
             return {'class': cls, 'java': cls}
         if cls == 'OffspringAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
             return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
+        # backup N: "when this enters, put N +1/+1 counters on target creature; if that's another creature, it gains
+        # the following abilities until end of turn" (the abilities added with `backupAbility.addAbility`)
+        if cls == 'BackupAbility' and n == 2 and args[0] == 'this' and args[1].isdigit():
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'enters'}, 'optional': False,
+                    'effects': [{'class': 'BackupEffect', 'amount': int(args[1]), 'abilities': []}],
+                    'targets': [{'class': 'TargetPermanent', 'filter': [CREATURE]}]}
+        # madness: the static (its replacement: discarded into exile), then its "when this card is exiled this way"
+        # trigger, listed on its own (`MadnessTriggeredAbility`, a sub-ability)
+        if cls == 'MadnessAbility' and n in (1, 2) and (m := re.fullmatch(r'new ManaCostsImpl<>\("((\{[^"]*\})+)"\)', args[0].strip())) \
+                and (n == 1 or args[1].strip().isdigit()):
+            return {'class': cls, 'java': cls, 'cost': m.group(1), 'life': int(args[1]) if n == 2 else 0}
+        # disturb: the card's back face cast from the graveyard for this cost (`SpellTransformedAbility`)
+        if cls == 'DisturbAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1].strip()):
+            return {'class': cls, 'java': cls, 'cost': args[1].strip()[1:-1]}
+        # sneak: a spell ability of its own, for its sneak cost and an unblocked attacker returned to hand
+        if cls == 'SneakAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1].strip()):
+            return {'class': cls, 'java': cls, 'cost': args[1].strip()[1:-1]}
+        # awaken: a spell ability of its own, for its awaken cost, with a target land you control too
+        if cls == 'AwakenAbility' and n == 3 and args[0] == 'this' and args[1].strip().isdigit() \
+                and re.fullmatch(r'"(\{[^"]*\})+"', args[2].strip()):
+            return {'class': cls, 'java': cls, 'amount': int(args[1]), 'cost': args[2].strip()[1:-1]}
+        # strive: the spell costs this more for each target beyond the first (of its "any number of" target)
+        if cls == 'StriveAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
+            return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
+        if cls == 'PrototypeAbility' and n == 4 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]) \
+                and args[2].isdigit() and args[3].isdigit():
+            return {'class': cls, 'java': cls, 'mana': args[1][1:-1], 'power': int(args[2]), 'toughness': int(args[3])}
         if cls == 'BlitzAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
             return {'class': cls, 'java': cls, 'mana': args[1][1:-1], 'cost': []}
         if cls == 'WardAbility' and n in (1, 2) and (n == 1 or args[1] in ('true', 'false')):
@@ -3602,6 +3675,9 @@ class Translator:
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]}
         if cls == 'DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility' and n == 2:
             return out({'e': 'combat_damage_to_player_or_planeswalker'}, args[0], flag(args[1]))
+        # X is the damage dealt (`SavedDamageValue.MANY`)
+        if cls == 'DealsCombatDamageToAPlayerOrBattleTriggeredAbility' and n == 2:
+            return out({'e': 'combat_damage_to_player_or_battle'}, args[0], flag(args[1]))
         if cls == 'FlurryAbility' and n == 1:
             return out({'e': 'cast_second_spell', 'who': 'you'}, args[0])
         if cls == 'CastSecondSpellTriggeredAbility' and n == 2:
@@ -4158,6 +4234,17 @@ def translate(card_name, subtypes, facts):
             raise Unsupported('tiered without mode costs')
     elif 'first_mode_cost' in spell or any('cost' in m for m in modes):
         raise Unsupported('mode costs without spree')
+    for a in card['abilities']:
+        if a.get('class') in ('SneakAbility', 'AwakenAbility') and 'spell_effects' in a:
+            made = a.pop('modes')
+            if made and made != len(modes):
+                raise Unsupported(a['class'] + ' between the modes')
+            # made before the modes were: a spell of none of them (Karai's Technique's sneak)
+            if made == 0 and modes:
+                a['no_modes'] = True
+            # (all of it there already: nothing to leave out)
+            if (a['spell_effects'], a['spell_targets']) == (len(spell['effects']), len(spell['targets'])):
+                del a['spell_effects'], a['spell_targets']
     if modes:
         # "choose one": the spell ability's own effects and targets are its first mode
         first = {'effects': spell['effects'], 'targets': spell['targets']}
@@ -4319,11 +4406,14 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
             face['power'], face['toughness'] = int(m.group(2)), int(m.group(3))
             continue
         # a sorcery or Aura front (Esper Origins, Journey to Eternity): its spell's effects and targets
-        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.(getSpellAbility\(\)\.add(?:Effect|Target)\(.*\))', st)
+        # (or an Aura back's, cast with disturb: Ancestor's Embrace's "enchant creature")
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(getSpellAbility\(\)\.add(?:Effect|Target)\(.*\))', st)
         if m:
-            front.setdefault('spell', {'effects': [], 'targets': [], 'rule': java_abilities[0].get('rule', '')})
+            face = back if m.group(1) == 'Right' else front
+            face.setdefault('spell', {'effects': [], 'targets': [],
+                                      'rule': '' if face is back else java_abilities[0].get('rule', '')})
             modes = []
-            card_statement(t, 'this.' + m.group(1), front, [], front['spell'], modes, subtypes)
+            card_statement(t, 'this.' + m.group(2), face, [], face['spell'], modes, subtypes)
             if modes:
                 raise Unsupported('transforming double-faced card statement ' + st)
             continue
@@ -4335,8 +4425,16 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
         if m:
             # (a face given as the card: `new FlashbackAbility(this.getLeftHalfCard(), …)`)
             body = m.group(2).replace('this.getLeftHalfCard()', 'this').replace('this.getRightHalfCard()', 'this')
-            if not ability_statement(t, 'this.' + body, added[m.group(1) == 'Right']):
+            into = added[m.group(1) == 'Right']
+            before = len(into)
+            if not ability_statement(t, 'this.' + body, into):
                 raise Unsupported('transforming double-faced card statement ' + st)
+            # disturb copies the back's spell ability as it is when it's made (Twinblade Geist's comes before its
+            # back's "enchant creature" target, so its Twinblade Invocation is cast with no target)
+            for a in into[before:]:
+                if a.get('class') == 'DisturbAbility':
+                    a['back_targets'] = len(back.get('spell', {}).get('targets', []))
+                    a['back_effects'] = len(back.get('spell', {}).get('effects', []))
             continue
         # a watcher is the engine's own bookkeeping
         if re.fullmatch(r'\w+\.addWatcher\(new \w+Watcher\(\)\)', st):
@@ -4351,6 +4449,15 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
     split = 1 + len(added[0])
     front['abilities'] = in_java_order(java_abilities[:split], added[0])
     back['abilities'] = in_java_order(java_abilities[split:], added[1])
+    for a in front['abilities']:
+        if a.get('class') == 'DisturbAbility' and 'back_targets' in a:
+            if (a['back_targets'], a['back_effects']) == (len(back.get('spell', {}).get('targets', [])),
+                                                          len(back.get('spell', {}).get('effects', []))):
+                del a['back_targets'], a['back_effects']
+            # an Aura back without its target (Twinblade Invocation): Java casts it and, as it resolves, puts the
+            # game back to before the cast, which the engine doesn't do
+            elif 'Aura' in back.get('subtypes', []):
+                raise Unsupported("disturb made before its Aura back's target")
     front['transform_back'] = back
     return front
 
@@ -4484,7 +4591,14 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if m:
             card[m.group(1)] = int(m.group(2))
             return
+        before = len(added)
         if ability_statement(t, st, added):
+            # sneak and awaken copy the spell ability as it is when they're made: what the card adds to it after
+            # isn't theirs (Leonardo's Technique's sneak has no effects or targets)
+            for a in added[before:]:
+                if a.get('class') in ('SneakAbility', 'AwakenAbility'):
+                    a['spell_effects'], a['spell_targets'] = len(spell['effects']), len(spell['targets'])
+                    a['modes'] = len(modes)
             return
         st = re.sub(r'^getSpellAbility\(\)', 'this.getSpellAbility()', st)
         st = re.sub(r'^this\.getSpellAbility\(\)\.get(Effect|Target)s\(\)\.add\(', r'this.getSpellAbility().add\1(', st)
@@ -4816,6 +4930,23 @@ def ability_statement(t, st, added):
                      r'|getModes\(\)\.getMode\(\)\.withFlavorWord)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
+    # backup: an ability the card has and the backup target gains (`BackupAbility.addAbility`; with `true`, only
+    # the target: a second backup of the card's)
+    m = re.fullmatch(r'(\w+)\.addAbility\((.*?)(,true)?\)', st, re.S)
+    if m and isinstance(v := t.vars.get(m.group(1)), dict) and v.get('java') == 'BackupAbility':
+        into = [] if m.group(3) else added
+        before = len(into)
+        if not ability_statement(t, 'this.addAbility(' + m.group(2) + ')', into):
+            raise Unsupported('statement ' + st)
+        v['effects'][0]['abilities'].extend(into[before:])
+        return True
+    # works face down: a turned-face-up trigger already does; an "as this is turned face up" static
+    m = re.fullmatch(r'(\w+)\.setWorksFaceDown\(true\)', st)
+    if m and isinstance(v := t.vars.get(m.group(1)), dict) and (
+            v.get('on', {}).get('e', '').startswith(('turned_face_up', 'enters_or_turned_face_up'))
+            or v.get('class') == 'SimpleStaticAbility'
+            and [e.get('class') for e in v.get('effects', [])] == ['AsTurnedFaceUpEffect']):
+        return True
     m = re.fullmatch(r'(\w+)\.setCostAdjuster\(GhostfireBladeAdjuster\.instance\)', st)
     if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'EquipAbility':
         t.vars[m.group(1)]['colorless_discount'] = 2
@@ -4880,6 +5011,17 @@ def ability_statement(t, st, added):
         # splice onto Arcane: revealed from the hand as an Arcane spell is cast, its effects added to that spell
         if (e := re.fullmatch(r'new SpliceAbility\(SpliceAbility\.ARCANE,"(\{[^"]*\})"\)', ','.join(args).strip())):
             added.append({'class': 'SpliceAbility', 'java': 'SpliceAbility', 'subtype': 'Arcane', 'cost': e.group(1)})
+            return True
+        # morph, megamorph and disguise: the face-down spell ability, then its face-down static (listed on its own)
+        if (e := re.fullmatch(r'new (Morph|Disguise)Ability\(this,(.*?)(,true)?\)', ','.join(args).strip(), re.S)):
+            cost = e.group(2).strip()
+            if (c := re.fullmatch(r'new ManaCostsImpl<>\("(\{[^"]*\})"\)', cost)):
+                costs = [{'class': 'ManaCost', 'cost': c.group(1)}]
+            else:
+                costs = [t.cost(cost)]
+            added.append({'class': 'MorphAbility', 'java': e.group(1) + 'Ability', 'costs': costs,
+                          'megamorph': bool(e.group(3)), 'disguise': e.group(1) == 'Disguise'})
+            added.append({'class': 'FaceDownAbility', 'java': 'SimpleStaticAbility'})
             return True
         # evolve: a trigger on a creature of yours entering with greater power or toughness
         if ','.join(args).strip() == 'new EvolveAbility()':
@@ -4954,6 +5096,10 @@ def ability_statement(t, st, added):
                 raise Unsupported('a solved ability without the solved condition')
             added.append(solved)
             return True
+        # a disturbed back face's "if this would be put into a graveyard from anywhere, exile it instead"
+        if ','.join(args).strip() == 'DisturbAbility.makeBackAbility()':
+            added.append({'class': 'DisturbExileAbility', 'java': 'PutIntoGraveFromAnywhereSourceAbility'})
+            return True
         # exert: the static ability, then its "when you do" trigger
         if (e := re.fullmatch(r'new ExertAbility\((\w+|new BecomesExertSourceTriggeredAbility\(.*\))\)', ','.join(args).strip(), re.S)):
             added.append({'class': 'ExertAbility'})
@@ -4964,6 +5110,17 @@ def ability_statement(t, st, added):
         if added[-1].get('class') == 'DecayedAbility':
             added.append({'class': 'TriggeredAbility', 'java': 'AttacksTriggeredAbility', 'on': {'e': 'attacks'},
                           'effects': [{'class': 'SacrificeSourceAtEndOfCombatEffect'}], 'targets': []})
+        if added[-1].get('class') == 'MadnessAbility':
+            m = added[-1]
+            pay = m['cost'] + (f" and {m['life']} life" if m['life'] else '')
+            added.append({'class': 'TriggeredAbility', 'java': 'MadnessTriggeredAbility', 'on': {'e': 'madness_exiled'},
+                          'effects': [{'class': 'MadnessCastEffect', 'cost': m['cost'], 'life': m['life']}],
+                          'targets': [],
+                          'rule': f'When this card is exiled this way, you may cast it by paying {pay} instead of '
+                                  'putting it into your graveyard.'})
+        # prototype: its `PrototypeEffect` static, listed on its own
+        if added[-1].get('class') == 'PrototypeAbility':
+            added.append({'class': 'SimpleStaticAbility', 'java': 'SimpleStaticAbility', 'effects': [], 'rule': ''})
         # blitz: its "as it enters" part, listed on its own
         if added[-1].get('class') == 'BlitzAbility':
             added.append({'class': 'BlitzEntersAbility', 'java': 'EntersBattlefieldAbility'})
@@ -5407,8 +5564,10 @@ def that_player_names(card):
 def granted_rules(card):
     """a granted ability without its own rule text: the quoted part of the granting ability's or spell's (a ward,
     "ward {N}"), wherever it is (a spell, a face, a token's ability); one it can't be read from blocks the card"""
-    def one(g, rule):
-        quoted = re.search(r'"([^"]*)"', rule or '')
+    def one(g, rule, nth):
+        # the nth granted ability without a text of the rule's: its nth quoted part (Swashbuckler's Whip's two)
+        quotes = list(re.finditer(r'"([^"]*)"', rule or ''))
+        quoted = quotes[nth] if nth < len(quotes) else (quotes[0] if quotes else None)
         cost = [c.get('cost') for x in g.get('effects', []) for c in x.get('cost', []) if c.get('class') == 'ManaCost']
         if g.get('class') == 'WardAbility' and len(cost) == 1:
             # `WardAbility.getRule`: with its hint unless it's turned off
@@ -5427,7 +5586,7 @@ def granted_rules(card):
                              'LoyaltyAbility') and quoted:
             # an activated ability's rule ends with its effect's sentence; its costs read as the cost classes
             # write them (`SacrificeSourceCost`: "Sacrifice {this}")
-            g['rule'] = quoted.group(1).rstrip('.') + '.'
+            g['rule'] = quoted.group(1).rstrip('.,') + '.'
             # (a cost given its own text keeps it: Compulsory Rest's `cost.setText("Sacrifice this creature")`)
             if any(c.get('class') == 'SacrificeSourceCost' for c in g.get('cost', [])) \
                     and not re.search(r'setText\("[Ss]acrifice this ', card_source(card.get('name'))):
@@ -5459,6 +5618,15 @@ def granted_rules(card):
                                                                   card_source(card.get('name'))):
                 g['rule'] = re.sub(r': Untap this (?:artifact|creature|permanent)\.', ': Untap {this}.',
                                    g['rule'], count=1)
+            # `DiscoverEffect(n)` writes its reminder text after "discover n." (Swashbuckler's Whip's "{8}, {T}:
+            # Discover 10.")
+            effects = g.get('effects', [])
+            m = re.search(r'[Dd]iscover (\d+)\.$', g['rule'])
+            if m and effects and effects[-1].get('class') == 'DiscoverEffect' and \
+                    effects[-1].get('amount') == int(m.group(1)):
+                g['rule'] += (' <i>(Exile cards from the top of your library until you exile a nonland card with mana'
+                              ' value %s or less. Cast it without paying its mana cost or put it into your hand. Put'
+                              ' the rest on the bottom in a random order.)</i>' % m.group(1))
         elif g.get('class') == 'TriggeredAbility' and quoted:
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
             # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
@@ -5486,22 +5654,33 @@ def granted_rules(card):
             if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
                 g['rule'] += (' <i>(Create a Clue token. It\'s an artifact with "{2}, Sacrifice this artifact: Draw a'
                               ' card.")</i>')
+            # `ManifestEffect(1)` writes its reminder text after "manifest the top card of your library."
+            # (Whisperwood Elemental's granted dies trigger)
+            if g['rule'].endswith('manifest the top card of your library.') and \
+                    [(e.get('class'), e.get('amount')) for e in g.get('effects', [])] == [('ManifestEffect', 1)]:
+                g['rule'] += (' <i>(Put it onto the battlefield face down as a 2/2 creature. Turn it face up at any'
+                              ' time for its mana cost if it\'s a creature card.)</i>')
         elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
                                 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
 
-    def walk(x, rule):
+    def walk(x, rule, seen):
         if isinstance(x, dict):
-            rule = x.get('rule', rule)
+            if 'rule' in x:
+                rule, seen = x['rule'], [0]
             g = x.get('ability')
             if isinstance(g, dict) and 'rule' not in g:
-                one(g, rule)
+                one(g, rule, seen[0])
+                # (a keyword's text isn't quoted)
+                if g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
+                                      'TriggeredAbility', 'SimpleStaticAbility'):
+                    seen[0] += 1
             for v in x.values():
-                walk(v, rule)
+                walk(v, rule, seen)
         elif isinstance(x, list):
             for v in x:
-                walk(v, rule)
-    walk(card, '')
+                walk(v, rule, seen)
+    walk(card, '', [0])
 
 
 def reflexive_rules(card):

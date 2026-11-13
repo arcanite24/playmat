@@ -139,6 +139,12 @@ pub struct Obj {
     /// creature dying in the same combat)
     pub lki_def: Option<Arc<CardDef>>,
     pub face_down: bool,
+    /// how it came to be face down: the name and image its views show (`BecomesFaceDownCreatureEffect.FaceDownType`)
+    pub face_down_as: Option<crate::card::FaceDown>,
+    /// face down (cast with morph or disguise, manifested, cloaked) or prototyped: the card it is, while `def` is the
+    /// 2/2 face-down creature (`CardDef::face_down`) or the prototype; its card again when it's turned face up or
+    /// leaves the stack or the battlefield
+    pub face_up: Option<Arc<CardDef>>,
     /// the player it attacks
     pub attacking: Option<Seat>,
     /// the planeswalker it attacks (and its zone change count), if it attacks one
@@ -249,6 +255,8 @@ pub struct Obj {
     pub regen_shields: u32,
     /// "if this creature would die, exile it instead" for as long as it stays (Can't Stay Away)
     pub exile_instead_of_dying: bool,
+    /// unearthed: exiled if it would leave the battlefield (`UnearthLeavesBattlefieldEffect`)
+    pub unearthed: bool,
     /// `DamagedByControlledWatcher`: the turn, and the players whose sources dealt it damage that turn (bits)
     pub damaged_by: (u32, u8),
     /// it lost all abilities while this source (and zone-change count) is on the battlefield: the source, and its
@@ -291,6 +299,9 @@ pub struct Obj {
     pub adventure_zone: Zone,
     /// when it was attached (`Game.attach_clock`)
     pub attached_at: u64,
+    /// where what it gives as an attachment ("equipped creature has …") registers in Java's trigger order: after
+    /// every object there was as it was attached, as a Class level's ability does
+    pub attached_key: u64,
     /// the attackers it blocks
     pub blocking: Vec<ObjId>,
     /// how many attackers it was declared to block (Java's `blocking` count: an attacker leaving combat doesn't
@@ -1141,6 +1152,8 @@ impl Game {
             lki_attached_to: None,
             lki_def: None,
             face_down: false,
+            face_down_as: None,
+            face_up: None,
             attacking: None,
             attacking_pw: None,
             protector: None,
@@ -1195,6 +1208,7 @@ impl Game {
             entered_at: 0,
             regen_shields: 0,
             exile_instead_of_dying: false,
+            unearthed: false,
             damaged_by: (0, 0),
             lost_abilities: None,
             may_play: None,
@@ -1214,6 +1228,7 @@ impl Game {
             targeted: (0, 0),
             on_adventure: false,
             attached_at: 0,
+            attached_key: 0,
             blocking: Vec::new(),
             blocks: 0,
             blocked: false,
@@ -1314,6 +1329,7 @@ impl Game {
             }
             Pred::InCombat => o.attacking.is_some() || !o.blocking.is_empty(),
             Pred::Token { v } => o.token == *v,
+            Pred::FaceDown => o.face_down,
             Pred::ChosenSubtype { v } => {
                 source.and_then(|s| self.obj(s).chosen_type.as_ref()).is_some_and(|t| self.has_subtype(id, t)) == *v
             }
@@ -1693,9 +1709,11 @@ impl Game {
 
     pub fn attach_to(&mut self, id: ObjId, to: ObjId, zcc: u32) {
         let at = self.timestamp();
+        let key = (1 << 40) + self.objs.len() as u64;
         let o = self.obj_mut(id);
         o.attached_to = Some((to, zcc));
         o.attached_at = at;
+        o.attached_key = key;
         if self.events.is_some() {
             let player = Some(self.obj(id).controller);
             self.record(GameEvent {
@@ -1728,6 +1746,26 @@ impl Game {
             {
                 if let Some((_, k)) = o.class_gained.iter().find(|(l, _)| l == n) {
                     return *k;
+                }
+            }
+            // a triggered ability an Aura or Equipment gives it (`GainAbilityAttachedEffect`): registered as the effect
+            // applies, after the objects there were as it was attached (Hunter's Axe's "whenever this creature
+            // attacks" after Hunter's Talent's level 2 "whenever you attack" from before)
+            if let Some(a) = o.def.abilities.get(i) {
+                let given = self
+                    .attachments(t.card)
+                    .filter(|s| {
+                        self.obj(*s).def.abilities.iter().any(|x| {
+                            matches!(x, crate::card::AbilityDef::SimpleStaticAbility { effects, .. }
+                                if effects.iter().any(|e| matches!(e, crate::card::EffectDef::GainAbilityAttachedEffect { ability } if **ability == *a)))
+                        })
+                    })
+                    .map(|s| self.obj(s).attached_key)
+                    .min();
+                if let Some(k) =
+                    given.filter(|_| o.land_type_base.as_ref().is_some_and(|(b, _, _)| !b.abilities.contains(a)))
+                {
+                    return k;
                 }
             }
             // a triggered ability an effect gave it (`GainAbilityTargetEffect`): Java registers it as the effect
@@ -1798,6 +1836,13 @@ impl Game {
                 AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| f(self, *src, e)),
                 _ => false,
             })
+        }) || self.grants.iter().any(|g| match &g.ability {
+            // a static ability a resolved effect gave a permanent (backup's)
+            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                let o = self.obj(g.target);
+                o.zone == Zone::Battlefield && o.zcc == g.zcc && effects.iter().any(|e| f(self, g.target, e))
+            }
+            _ => false,
         })
     }
 
@@ -2681,7 +2726,8 @@ impl Game {
                     self.item_def(item).abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
                 format!("stack ability ({})", self.that_player_rule(item, rule))
             }
-            None => card.name().to_string(),
+            // a face-down spell is still named by its card on the stack (`Spell.getName`)
+            None => card.face_up.as_ref().map_or(card.name(), |f| f.name.as_str()).to_string(),
         }
     }
 
@@ -2741,6 +2787,27 @@ impl Game {
         // player chooses which applies)
         let flashed_to_graveyard = from == Zone::Stack && self.obj(id).flashback && zone == Zone::Graveyard;
         let zone = if from == Zone::Stack && self.obj(id).flashback { Zone::Exile } else { zone };
+        // unearth: exiled instead, wherever it was going
+        let zone = if from == Zone::Battlefield && self.obj(id).unearthed { Zone::Exile } else { zone };
+        // madness (`MadnessReplacementEffect`): a card with madness going from a hand to a graveyard is exiled
+        // instead, and its trigger fires (`MADNESS_CARD_EXILED`)
+        let madness = from == Zone::Hand
+            && zone == Zone::Graveyard
+            && self.obj(id).def.abilities.iter().any(|a| matches!(a, AbilityDef::MadnessAbility { .. }));
+        let zone = if madness { Zone::Exile } else { zone };
+        // a disturb card's back face's "if this would be put into a graveyard from anywhere, exile it instead": the
+        // back face's, on the battlefield or the stack; Java's card in a hand or library has both faces' abilities,
+        // so it applies there too (Galedrifter discarded is exiled; dying as itself, it isn't)
+        let disturb_exile =
+            |d: &CardDef| d.abilities.iter().any(|a| matches!(a, AbilityDef::DisturbExileAbility { .. }));
+        let zone = if zone == Zone::Graveyard
+            && (disturb_exile(&self.obj(id).def)
+                || (from != Zone::Battlefield && self.obj(id).def.transform_back.as_deref().is_some_and(disturb_exile)))
+        {
+            Zone::Exile
+        } else {
+            zone
+        };
         self.obj_mut(id).flashback = false;
         if !(from == Zone::Stack && zone == Zone::Battlefield) {
             self.obj_mut(id).escaped = false;
@@ -3095,7 +3162,8 @@ impl Game {
                 .collect();
             self.obj_mut(id).lki_keywords = kept;
             let o = self.obj_mut(id);
-            o.lki_def = o.land_type_base.is_some().then(|| o.def.clone());
+            // (a face-down one had none of its card's: its dies triggers don't fire)
+            o.lki_def = (o.land_type_base.is_some() || o.face_up.is_some()).then(|| o.def.clone());
         } else {
             let o = self.obj_mut(id);
             o.lki_keywords.clear();
@@ -3104,10 +3172,20 @@ impl Game {
         self.remove_from_zone(id);
         // a transformed permanent's front, its card again after the effects that changed its back are undone
         let mut left_front = None;
+        let mut left_face_up = None;
         {
             let o = self.obj_mut(id);
             o.toughness_lki = pt_lki.map(|p| p.1);
             o.power_lki = pt_lki.map(|p| p.0);
+            // a face-down spell or permanent is its card again anywhere else (a face-down spell stays face down onto
+            // the battlefield)
+            if (from == Zone::Stack && zone != Zone::Battlefield) || from == Zone::Battlefield {
+                if let Some(def) = o.face_up.take() {
+                    o.def = def.clone();
+                    left_face_up = Some(def);
+                }
+                o.face_down = false;
+            }
             if from == Zone::Stack {
                 if let Some(def) = o.adventurer.take() {
                     o.def = def;
@@ -3131,6 +3209,7 @@ impl Game {
             o.flashback_turn = None;
             o.solved = false;
             o.exile_instead_of_dying = false;
+            o.unearthed = false;
             o.may_play = None;
             o.any_mana = false;
             o.play_free = false;
@@ -3210,6 +3289,10 @@ impl Game {
                 if let Some(def) = left_front.take() {
                     o.def = def;
                 }
+                // a face-down one's card, whatever was given to its face-down 2/2 (backup's ability)
+                if let Some(def) = left_face_up.take() {
+                    o.def = def;
+                }
                 o.cast_x = 0;
                 if from == Zone::Battlefield {
                     o.lki_class_level = o.class_level;
@@ -3241,6 +3324,10 @@ impl Game {
         }
         if from == Zone::Graveyard && zone != Zone::Graveyard {
             self.left_graveyard.push(id);
+        }
+        if madness && self.obj(id).zone == Zone::Exile {
+            let fired = self.triggers([id], |_, src, _, t| src == id && matches!(t, Trigger::MadnessExiled));
+            self.pending.extend(fired);
         }
         // DISCARDED_CARD, after the move (a card from a hand to a graveyard is a discarded one)
         if from == Zone::Hand && requested == Zone::Graveyard {
