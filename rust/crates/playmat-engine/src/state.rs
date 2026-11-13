@@ -442,6 +442,8 @@ pub struct Player {
     pub life_lost: i32,
     /// cards drawn this turn
     pub drawn: u32,
+    /// of those, drawn during a draw step (`CardsDrawnDuringDrawStepWatcher`)
+    pub drawn_in_draw_step: u32,
     /// noncreature spells cast this turn
     pub noncreature_cast: u32,
     /// cast a non-Lemur creature spell with flying this turn
@@ -610,6 +612,16 @@ pub struct Grant {
     pub until_end_of_turn: bool,
     /// it lasts until this player's next turn
     pub until_turn_of: Option<Seat>,
+}
+
+/// A static handler's effect that started as a spell or ability resolved (`EffectDef::CardStatic`): it lasts until
+/// the turn's cleanup
+#[derive(Clone, Debug, PartialEq)]
+pub struct ResolvedStatic {
+    pub effect: EffectDef,
+    pub source: ObjId,
+    pub controller: Seat,
+    pub timestamp: u64,
 }
 
 /// A delayed triggered ability a resolved effect set up: "sacrifice that token at end of combat".
@@ -821,6 +833,8 @@ pub struct Game {
     /// continuous effects that started as a spell or ability resolved and last until end of turn, with no object
     /// locked in (Java's `RestrictionEffect`s): the effect, its controller, its source
     pub eot_effects: Vec<(EffectDef, Seat, ObjId)>,
+    /// static handlers' effects (`EffectDef::CardStatic`) that resolved, until the turn's cleanup
+    pub card_statics: Vec<ResolvedStatic>,
     /// layer 7b until end of turn: the permanent, its zone change count, the base power and toughness, the timestamp
     pub base_pt_until_eot: Vec<(ObjId, u32, i32, i32, u64)>,
     /// "prevent the next N damage that would be dealt to target …" this turn: the target, its zone change count,
@@ -1055,6 +1069,7 @@ impl Game {
             piles: Vec::new(),
             attach_clock: 0,
             eot_effects: Vec::new(),
+            card_statics: Vec::new(),
             base_pt_until_eot: Vec::new(),
             prevent_to_target: Vec::new(),
             abilities_resolved: Vec::new(),
@@ -1481,7 +1496,9 @@ impl Game {
 
     pub fn has_subtype(&self, id: ObjId, s: &str) -> bool {
         let o = self.obj(id);
-        if o.zone == Zone::Battlefield && self.added_subtypes(id).contains(&s) {
+        if o.zone == Zone::Battlefield
+            && (self.added_subtypes(id).contains(&s) || crate::rules::cards::has_subtype(self, id, s))
+        {
             return true;
         }
         let def = &o.def;
@@ -1577,6 +1594,9 @@ impl Game {
                 }
             }
         }
+        for given in crate::rules::cards::abilities(self, id, lost_at) {
+            add(&given, &mut out);
+        }
         out
     }
 
@@ -1641,7 +1661,7 @@ impl Game {
                     }
                     _ => false,
                 })
-        })
+        }) || crate::rules::cards::abilities(self, id, lost_at).contains(ability)
     }
 
     /// The timestamp of the newest attached Aura's "enchanted creature loses all abilities and is a …"
@@ -1727,7 +1747,10 @@ impl Game {
     /// `NumberOfTriggersEvent`: each trigger once more for each `AdditionalTriggersEffect` that applies to it, the
     /// copies next to it; with two or more applying, its controller is asked their order (the answers change nothing)
     fn additional_triggers(&self, fired: Vec<StackItem>) -> Vec<StackItem> {
-        if fired.is_empty() || !self.any_static(|_, _, e| matches!(e, EffectDef::AdditionalTriggersEffect { .. })) {
+        if fired.is_empty()
+            || !(self.any_static(|_, _, e| matches!(e, EffectDef::AdditionalTriggersEffect { .. }))
+                || crate::rules::cards::any_replacement(self, crate::rules::cards::EventType::NumberOfTriggers))
+        {
             return fired;
         }
         let mut out = Vec::with_capacity(fired.len());
@@ -1756,6 +1779,8 @@ impl Game {
                 }
                 false
             });
+            // static handlers' (`card_statics.rs`): each adds one
+            n += crate::rules::cards::extra_triggers(self, &t);
             for _ in 1..n {
                 self.owed_replacement_choices.borrow_mut().push(t.controller);
             }
@@ -2772,6 +2797,10 @@ impl Game {
                 }
             }
         }
+        // static handlers' (`card_statics.rs`), by their timestamps with the others
+        for (at, bp, bt) in crate::rules::cards::set_pt(self, id) {
+            later(at, bp, bt);
+        }
         if let Some((_, bp, bt)) = set {
             (p, t) = (bp, bt);
         }
@@ -2804,6 +2833,9 @@ impl Game {
                 }
             }
         }
+        let (dp, dt) = crate::rules::cards::modify_pt(self, id);
+        p += dp;
+        t += dt;
         // (`BoostTargetEffect` changes only a creature: a Vehicle's boost counts once it's crewed)
         let creature = self.has_type(id, CardType::Creature);
         for b in self.boosts.iter() {

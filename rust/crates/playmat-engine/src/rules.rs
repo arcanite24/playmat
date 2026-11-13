@@ -201,6 +201,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.attacked = false;
                 p.life_lost = 0;
                 p.drawn = 0;
+                p.drawn_in_draw_step = 0;
                 p.noncreature_cast = 0;
                 p.flier_cast = false;
                 p.permanent_left = false;
@@ -586,9 +587,15 @@ fn end_step(game: &mut Game, step: Step) {
 
 /// Draws `n` cards, one at a time: each card drawn is a `DREW_CARD` event for "whenever … draws" triggers.
 pub fn draw(game: &mut Game, seat: Seat, n: usize) {
+    draw_applied(game, seat, n, &[]);
+}
+
+/// `PlayerImpl.drawCards(n, source, game, event)`: `draw`, inside a replacement effect of a `DRAW_CARD` event (its
+/// `applied` effects don't apply again). The line it logs counts the cards drawn inside it too, as Java's does.
+fn draw_applied(game: &mut Game, seat: Seat, n: usize, applied: &[ObjId]) {
     let before = game.player(seat).drawn;
     for _ in 0..n {
-        draw_one(game, seat, &[]);
+        draw_one(game, seat, applied);
     }
     let drawn = game.player(seat).drawn.saturating_sub(before) as usize;
     if drawn > 0 && log::kept(game) {
@@ -596,6 +603,28 @@ pub fn draw(game: &mut Game, seat: Seat, n: usize) {
             format!("{} draws {} card{}", log::player(seat), log::number(drawn), if drawn > 1 { "s" } else { "" });
         log::inform(game, line);
     }
+}
+
+/// `PlayerImpl.won`: each opponent still in loses (`lostForced`), then, with none left, `seat` wins
+fn win_game(game: &mut Game, seat: Seat) {
+    if game.over || game.player(seat).lost {
+        return;
+    }
+    for s in 0..game.seats() {
+        if s != seat && !game.player(s).lost {
+            game.player_mut(s).lost = true;
+            if log::kept(game) {
+                let line = format!("{} has lost the game", log::player(s));
+                log::inform(game, line);
+            }
+        }
+    }
+    if log::kept(game) {
+        let line = format!("{} has won the game", log::player(seat));
+        log::inform(game, line);
+    }
+    game.player_mut(seat).won = true;
+    game.over = true;
 }
 
 /// One `DRAW_CARD` event; `applied`: the replacement effects (their sources) already applied to it.
@@ -609,6 +638,24 @@ fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
         {
             return;
         }
+        // static handlers' replacements (`card_statics.rs`), with the Quantum Riddlers that apply
+        let riddlers = if game.player(seat).hand.len() <= 1 {
+            let mut n = 0;
+            game.any_static(|g, src, e| {
+                n += (matches!(e, EffectDef::QuantumRiddlerReplacementEffect)
+                    && g.obj(src).controller == seat
+                    && !applied.contains(&src)) as usize;
+                false
+            });
+            n
+        } else {
+            0
+        };
+        let mut ev = cards::Event { applied: applied.to_vec(), ..cards::Event::new(cards::EventType::DrawCard, seat) };
+        if cards::replace_event(game, &mut ev, riddlers) {
+            return;
+        }
+        let applied = &ev.applied[..];
         // Quantum Riddler: with one or fewer cards in hand, two cards instead
         if game.player(seat).hand.len() <= 1 {
             let mut riddlers = Vec::new();
@@ -636,6 +683,9 @@ fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
         match game.player(seat).library.first().copied() {
             Some(id) => {
                 game.player_mut(seat).drawn += 1;
+                if game.step == Some(Step::Draw) {
+                    game.player_mut(seat).drawn_in_draw_step += 1;
+                }
                 game.move_to(id, Zone::Hand);
                 game.record(GameEvent {
                     target: Some(Target::Obj(id)),
@@ -1324,6 +1374,18 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
     out
 }
 
+/// A Room's unlock cost (its `RoomUnlockAbility` at `index`), with the static handlers' changes
+fn unlock_cost(game: &Game, seat: Seat, id: ObjId, index: usize) -> Option<ManaCost> {
+    let a = &game.obj(id).def.abilities[index];
+    let AbilityDef::RoomUnlockAbility { cost, .. } = a else { return None };
+    let mut c = ManaCost::parse(cost).ok()?;
+    let of = cards::CostCx { seat, card: id, face: &game.obj(id).def, ability: Some(a) };
+    for kind in [cards::CostKind::Increase, cards::CostKind::Reduce, cards::CostKind::Set] {
+        cards::change_cost(game, kind, &of, &mut c);
+    }
+    Some(c)
+}
+
 /// A permanent's activated abilities (not mana abilities) its controller can activate now, by index.
 fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     let o = game.obj(id);
@@ -1345,10 +1407,10 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
     let mut out = Vec::new();
     for (i, a) in o.def.abilities.iter().enumerate() {
         // a Room's locked door: unlocked as a sorcery, paying its cost (the playable check counts conditional mana)
-        if let AbilityDef::RoomUnlockAbility { cost, .. } = a {
+        if let AbilityDef::RoomUnlockAbility { .. } = a {
             if o.zone == Zone::Battlefield
                 && sorcery_speed(game, seat)
-                && ManaCost::parse(cost).is_ok_and(|c| {
+                && unlock_cost(game, seat, id, i).is_some_and(|c| {
                     let paying = game.paying_for.get();
                     game.paying_for.set(Some(ANY_SPELL));
                     let ok = can_pay(game, seat, &c);
@@ -1640,7 +1702,8 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
         || game
             .flash_until_next_turn
             .iter()
-            .any(|(s, filter, src)| *s == seat && game.filter_matches(filter, seat, Some(*src), id)))
+            .any(|(s, filter, src)| *s == seat && game.filter_matches(filter, seat, Some(*src), id))
+        || cards::flash(game, seat, id, def))
         // Teferi, Time Raveler: an opponent's spells only when they could cast a sorcery (`canPlaySorcery`, also for
         // spells cast while an effect resolves)
         && (sorcery_speed(game, seat)
@@ -1649,6 +1712,7 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
             }))
         && !cant_cast_more(game, seat, def)
         && !cant_cast_from(game, seat, id, false)
+        && !cards::cant_cast(game, seat, id, def)
         && (game.player(seat).no_noncreature_turn != Some(game.turn) || def.is(CardType::Creature))
         && game.player(seat).no_spells_turn != Some(game.turn)
         && {
@@ -2928,8 +2992,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             return;
         }
         // `RoomUnlockAbility`, a special action: its cost paid, the door unlocks (no stack)
-        if let AbilityDef::RoomUnlockAbility { left, cost } = game.obj(id).def.abilities[index].clone() {
-            let paid = ManaCost::parse(&cost).is_ok_and(|c| {
+        if let AbilityDef::RoomUnlockAbility { left, .. } = game.obj(id).def.abilities[index].clone() {
+            let paid = unlock_cost(game, seat, id, index).is_some_and(|c| {
                 game.paying_for.set(Some(id));
                 let paid = pay_mana(game, d, seat, &c);
                 game.paying_for.set(None);
@@ -4598,7 +4662,11 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
             }
         }
     }
+    // static handlers' (`card_statics.rs`), each kind after the engine's own
+    let of = cards::CostCx { seat, card: id, face, ability: None };
+    cards::change_cost(game, cards::CostKind::Increase, &of, &mut cost);
     cost.generic = cost.generic.saturating_sub(reduce);
+    cards::change_cost(game, cards::CostKind::Reduce, &of, &mut cost);
     let o = game.obj(id);
     for a in &o.def.abilities {
         // Ice Out: less if bargained (while checking what's playable: if it could be)
@@ -4628,6 +4696,7 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
             }
         }
     }
+    cards::change_cost(game, cards::CostKind::Set, &of, &mut cost);
     // "mana of any type can be spent to cast it" (Cruelclaw's Heist): its colored symbols take any mana
     if o.any_mana {
         cost.generic += cost.colored.iter().sum::<u32>() + cost.colorless;
@@ -5328,6 +5397,11 @@ fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, co
             })
             .count();
         cost.generic = cost.generic.saturating_sub(legends as u32);
+    }
+    // static handlers' (`card_statics.rs`), by `CostModificationType`
+    let of = cards::CostCx { seat, card: id, face: &game.obj(id).def, ability: Some(a) };
+    for kind in [cards::CostKind::Increase, cards::CostKind::Reduce, cards::CostKind::Set] {
+        cards::change_cost(game, kind, &of, &mut cost);
     }
     cost
 }
@@ -9058,6 +9132,8 @@ fn apply_each_effect(
                     return;
                 }
             }
+            // a static handler's effect started by a resolving ability: until the turn's cleanup
+            EffectDef::CardStatic { .. } => cards::resolve_static(game, e, source.0, controller),
             EffectDef::TargetPointerEffect { target, effect } => {
                 // without a target an earlier effect moved (Badlands Revival)
                 let only = vec![fresh_targets(game, item, *target, legal.get(*target).map_or(&[], |g| &g[..]))];
@@ -12754,7 +12830,12 @@ fn apply_each_effect(
                 }
             }
             EffectDef::SurveilEffect { amount } => {
-                let amount = &v!(amount);
+                // `PlayerImpl.doSurveil`: the `SURVEIL` event, replaced or changed (Enhanced Surveillance)
+                let mut ev =
+                    cards::Event { amount: v!(amount), ..cards::Event::new(cards::EventType::Surveil, controller) };
+                // replaced, or less than one: no surveil
+                let replaced = cards::replace_event(game, &mut ev, 0);
+                let amount = &if replaced { 0 } else { ev.amount.max(0) };
                 let cards: Vec<ObjId> =
                     game.player(controller).library.iter().take(*amount as usize).copied().collect();
                 if !cards.is_empty() {
@@ -14656,26 +14737,7 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::WinGameSourceControllerEffect => {
-                // `PlayerImpl.won`: each opponent still in loses (`lostForced`), then, with none left, you win
-                if !game.over && !game.player(controller).lost {
-                    for s in 0..game.seats() {
-                        if s != controller && !game.player(s).lost {
-                            game.player_mut(s).lost = true;
-                            if log::kept(game) {
-                                let line = format!("{} has lost the game", log::player(s));
-                                log::inform(game, line);
-                            }
-                        }
-                    }
-                    if log::kept(game) {
-                        let line = format!("{} has won the game", log::player(controller));
-                        log::inform(game, line);
-                    }
-                    game.player_mut(controller).won = true;
-                    game.over = true;
-                }
-            }
+            EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
             EffectDef::ReturnToHandFromBattlefieldAllEffect { filter } => {
                 for o in matching(game, filter, controller, source.0) {
                     game.move_to(o, Zone::Hand);
@@ -17914,6 +17976,12 @@ pub fn gain_life(game: &mut Game, seat: Seat, amount: i32) {
             _ => false,
         })
         .count() as i32;
+    // static handlers' replacements (`card_statics.rs`), first
+    let mut ev = cards::Event { amount, ..cards::Event::new(cards::EventType::GainLife, seat) };
+    if cards::replace_event(game, &mut ev, plus as usize) {
+        return;
+    }
+    let amount = ev.amount;
     // two or more (each one's text names its object, so they differ): the player picks which applies first, and
     // again while two are left (`HumanPlayer.chooseReplacementEffect`)
     for _ in 1..plus {
@@ -17972,6 +18040,7 @@ pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
         && !game.cant_attack_or_block(id)
         && !game.cant_attack_alone(id)
         && !game.has_ability(id, &AbilityDef::CantAttackAbility)
+        && !cards::cant_attack(game, id)
 }
 
 /// `Combat.selectAttackers` and `HumanPlayer.selectAttackers`: asked only when something can attack; "special" is
@@ -18135,6 +18204,10 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
         return false;
     }
     if game.has_ability(blocker, &AbilityDef::DecayedAbility) {
+        return false;
+    }
+    // static handlers' restrictions (`card_statics.rs`)
+    if cards::cant_block(game, blocker, attacker) {
         return false;
     }
     // unleash: it can't block while it has a +1/+1 counter (`UnleashRestrictionEffect`)
@@ -18850,6 +18923,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         Arc::make_mut(&mut game.grants).retain(|g| !g.until_end_of_turn);
     }
     game.eot_effects.clear();
+    game.card_statics.clear();
     game.base_pt_until_eot.clear();
     game.prevent_to_target.clear();
     end_control(game, true);

@@ -1519,6 +1519,20 @@ pub enum EffectDef {
     CastFromHandForFreeEffect {
         filter: Filter,
     },
+    /// a static effect class written in Rust (continuous, replacement, cost, restriction, rule-modifying or
+    /// as-though; `src/card_statics.rs`), with what the transpiler translated for it. In a static ability it lasts
+    /// while the ability's source is on the battlefield; resolving as a one-shot effect, until the turn's cleanup.
+    CardStatic {
+        handler: crate::rules::cards::StaticHandler,
+        #[serde(default)]
+        args: Vec<String>,
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        filters: Vec<Filter>,
+        #[serde(default)]
+        abilities: Vec<AbilityDef>,
+    },
     /// deals `amount` damage to the ability's target
     DamageTargetEffect {
         amount: Amount,

@@ -227,6 +227,7 @@ Alela, Artful Provocateur
 Alert Heedbonder
 Alesha's Legacy
 Alesha's Vanguard
+Alhammarret's Archive
 All That Glitters
 All-Fates Stalker
 Alley Assailant
@@ -643,6 +644,7 @@ Bankrupt in Blood
 Baral's Expertise
 Bard the Bowman
 Bard's Bow
+Bard, King of Dale
 Barge In
 Barging Sergeant
 Bark-Knuckle Boxer
@@ -1145,6 +1147,7 @@ Broodhunter Wurm
 Broodrage Mycoid
 Broodspinner
 Brotherhood's End
+Brush Off
 Brushfire Elemental
 Brushland
 Brushstrider
@@ -1473,6 +1476,7 @@ Chosen by Heliod
 Chrome Cat
 Chrome Companion
 Chrome Prowler
+Chronicle of Victory
 Chronicler of Heroes
 Chronostutter
 Chupacabra Echo
@@ -2067,6 +2071,7 @@ Defiled Crypt // Cadaver Lab
 Deft Dismissal
 Deliberate
 Delivery Moogle
+Delney, Streetwise Lookout
 Delta Bloodflies
 Delver of Secrets
 Demand Answers
@@ -2613,6 +2618,7 @@ Embraal Gear-Smasher
 Embrace Oblivion
 Embrace the Paradox
 Emerge from the Cocoon
+Emergence Zone
 Emergency Eject
 Emergency Medical Hologram
 Emergency Phytomedic
@@ -2662,6 +2668,7 @@ Engineered Explosives
 Engineered Might
 Engulfing Eruption
 Enhanced Awareness
+Enhanced Surveillance
 Enigma Drake
 Enlarge
 Enlightened Ascetic
@@ -2782,6 +2789,7 @@ Expedition Map
 Expedition Raptor
 Expedition Skulker
 Expel
+Expendable Lackey
 Experiment One
 Experimental Augury
 Experimental Aviator
@@ -3634,6 +3642,7 @@ Goring Warplow
 Goro-Goro, Disciple of Ryusei
 Goryo's Vengeance
 Gossip's Talent
+Graaz, Unstoppable Juggernaut
 Grabby Giant
 Graceblade Artisan
 Graceful Cat
@@ -4161,6 +4170,7 @@ Huatli's Snubhorn
 Huatli's Spurring
 Huatli, Dinosaur Knight
 Hugs, Grisly Guardian
+Hulk, Gamma Goliath
 Hulking Bugbear
 Hulking Devil
 Hulking Raptor
@@ -4338,6 +4348,7 @@ Inner Demons Gangsters
 Innocuous Rat
 Innovative Commons
 Inordinate Rage
+Inquisitive Glimmer
 Inquisitive Puppet
 Inquisitor's Ox
 Insatiable Appetite
@@ -4482,6 +4493,7 @@ Jace's Sentinel
 Jace's Triumph
 Jace, Arcane Strategist
 Jace, Ingenious Mind-Mage
+Jace, Wielder of Mysteries
 Jackhammer
 Jadar, Ghoulcaller of Nephalia
 Jaddi Offshoot
@@ -4862,6 +4874,7 @@ Lava Spike
 Lavakin Brawler
 Lavaspur Boots
 Lavastep Raider
+Lavinia, Azorius Renegade
 Law-Rune Enforcer
 Lawless Broker
 Lawmage's Binding
@@ -5823,6 +5836,7 @@ North Pole Patrol
 Northern Air Temple
 Not on My Watch
 Notion Rain
+Notion Thief
 Nova Hellkite
 Novice Dissector
 Novice Inspector
@@ -6092,6 +6106,7 @@ Passenger Ferry
 Passwall Adept
 Patagia Tiger
 Patchwork Automaton
+Patchwork Banner
 Path of Discovery
 Path of Peril
 Path to Exile
@@ -6549,6 +6564,7 @@ Rakdos Locket
 Rakdos Ragemutt
 Rakdos Shred-Freak
 Rakdos Trumpeter
+Rakdos, Lord of Riots
 Raking Claws
 Rakish Crew
 Rakish Scoundrel
@@ -6849,6 +6865,7 @@ Rewind
 Rewrite Regrets
 Rhet-Crop Spearmaster
 Rhizome Lurcher
+Rhonas the Indomitable
 Rhonas's Monument
 Rhox Maulers
 Rhox Oracle
@@ -7661,6 +7678,7 @@ Silundi Vision
 Silver Deputy
 Silver Raven
 Silver Sable, Mercenary Leader
+Silver-Fur Master
 Silverback Elder
 Silverback Shaman
 Silverbeak Griffin
@@ -7802,6 +7820,7 @@ Slaying Fire
 Sleek Schooner
 Sleep Paralysis
 Sleep of the Dead
+Sleep with the Fishes
 Sleep-Cursed Faerie
 Sleeper Dart
 Sleight of Hand
@@ -8523,6 +8542,7 @@ Taigam's Scheming
 Taigam's Strike
 Tail Slash
 Tainted Observer
+Tainted Remedy
 Tainted Treats
 Tajic, Blade of the Legion
 Tajic, Legion's Edge
@@ -8601,6 +8621,7 @@ Tectonic Rift
 Teeming Dragonstorm
 Teeterpeak Ambusher
 Teething Wurmlet
+Teferi's Ageless Insight
 Teferi's Protege
 Teferi's Sentinel
 Teferi's Tutelage
@@ -8690,6 +8711,7 @@ Testament Bearer
 Tether Technician
 Tethermage's Advantage
 Tethmos High Priest
+Tetsuko Umezawa, Fugitive
 Tetsuko Umezawa, Pursuer
 Teyo's Lightshield
 Teyo, the Shieldmage
@@ -8769,6 +8791,7 @@ The Wanderer
 The Wandering Emperor
 The Wandering Rescuer
 The Weatherseed Treaty
+The Wind Crystal
 The Witch's Vanity
 The Wondrous Wasp
 The World Spell
@@ -9037,6 +9060,7 @@ Traveling Minister
 Traveling Philosopher
 Traverse the Ulvenwald
 Trawler Drake
+Traxos, Academy Guardian
 Traxos, Scourge Eternal
 Treacherous Blessing
 Tread Upon
@@ -9072,6 +9096,7 @@ Triplicate Spirits
 Triskaidekaphile
 Triton Cavalry
 Triton Fortune Hunter
+Triton Shorestalker
 Triton Shorethief
 Triton Waverider
 Triumphant Surge
@@ -9522,6 +9547,7 @@ Volcanic Dragon
 Volcanic Geyser
 Volcanic Rambler
 Volcanic Rush
+Volcanic Salvo
 Volcanic Upheaval
 Volcanic Villain
 Voldaren Ambusher
@@ -9576,6 +9602,7 @@ Walk the Plank
 Walk with the Ancestors
 Walking Corpse
 Walking Skyscraper
+Wall Crawl
 Wall of Fire
 Wall of Forgotten Pharaohs
 Wall of Frost
@@ -9926,6 +9953,7 @@ Yahenni, Undying Partisan
 Yanling's Harbinger
 Yargle, Glutton of Urborg
 Yargle, Goliath of Otaria
+Yarok, the Desecrated
 Yathan Roadwatcher
 Yathan Tombguard
 Yavimaya Coast

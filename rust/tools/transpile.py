@@ -2054,6 +2054,12 @@ class Translator:
         return out
 
     def effect(self, expr):
+        # a handler named for this card's use of a class (`OuterCardClass.Class`, card_handlers.py): before any form
+        # of the class the translator knows
+        m = re.fullmatch(r'new (\w+)\((.*)\)', self.strip_setters(expr.strip()), re.S)
+        if m and balanced(m.group(0)) and getattr(self, 'source', None) \
+                and (h := card_handlers.effect(self, m.group(1), split_args(m.group(2)), own_only=True)) is not None:
+            return h
         if expr.strip().startswith('new CreateTokenCopyTargetEffect(') and (e := self.token_copy_effect(expr)):
             return e
         # untap every target's permanents (Nissa, Genesis Mage's creatures and lands)
@@ -2100,6 +2106,9 @@ class Translator:
         # a cost reduction that only counts while the spell is cast
         if (m := re.fullmatch(r'(.*)\.setCanWorksOnStackOnly\(true\)', expr.strip(), re.S)):
             e = self.effect(m.group(1))
+            # a cost handler reads where the spell is itself (card_statics.rs)
+            if e.get('class') == 'CardStatic':
+                return e
             if e.get('class') != 'SpellCostReductionSourceEffect':
                 raise Unsupported('setCanWorksOnStackOnly on ' + e.get('class'))
             e['stack_only'] = True
@@ -3249,6 +3258,9 @@ class Translator:
             return obj
         cls, args = obj
         if cls in KEYWORDS and not args:
+            return {'class': cls}
+        # `new CantBeBlockedSourceAbility("{this} can't be blocked")`: its text only (rule texts come from the facts)
+        if cls == 'CantBeBlockedSourceAbility' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}
         # "{cost}: …" from your graveyard, at any time
         if cls == 'SimpleActivatedAbility' and len(args) == 3 and args[0].strip() == 'Zone.GRAVEYARD':
