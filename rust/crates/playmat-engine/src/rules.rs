@@ -1786,8 +1786,7 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                         || *creature_abilities && game.paying_ability.get() && game.has_type(s, CardType::Creature)
                         || (*filter_abilities || !game.paying_ability.get())
                             && game.filter_matches(filter, seat, Some(*id), s)
-                            && (!*chosen_type
-                                || o.chosen_type.as_ref().is_some_and(|t| game.has_subtype(s, t)))
+                            && (!*chosen_type || o.chosen_type.as_ref().is_some_and(|t| game.has_subtype(s, t)))
                 }),
                 _ => true,
             })
@@ -4378,11 +4377,13 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         }
         // tapped already (it paid mana for this ability): the activation fails and is rolled back
         CostDef::TapSourceCost => {
-            if game.obj(id).tapped {
+            // gone already (a mana ability paying for it sacrificed it): the activation fails and is rolled back
+            if game.obj(id).tapped || game.obj(id).zone != Zone::Battlefield {
                 return false;
             }
             tap(game, id);
         }
+        CostDef::SacrificeSourceCost if game.obj(id).zone != Zone::Battlefield => return false,
         CostDef::SacrificeSourceCost => {
             let power = game.power_toughness(id).0;
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
@@ -5992,8 +5993,7 @@ fn conditional_usable(game: &Game, seat: Seat, src: ObjId, j: usize) -> bool {
                     || s != ANY_SPELL
                         && (*filter_abilities || !game.paying_ability.get())
                         && game.filter_matches(filter, seat, Some(src), s)
-                        && (!*chosen_type
-                            || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.has_subtype(s, t)))
+                        && (!*chosen_type || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.has_subtype(s, t)))
             })
         }
         _ => false,

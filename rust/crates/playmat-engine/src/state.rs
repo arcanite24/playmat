@@ -2361,6 +2361,15 @@ impl Game {
                 _ => false,
             });
             let mut fired = self.pelt_collector(fired, id);
+            // a source that left in the same action triggers as the permanent it was (Morbid Opportunist dying with
+            // the others: its "once each turn" counts that object, not the card in the graveyard)
+            for t in fired.iter_mut() {
+                if t.card != id && !self.battlefield.contains(&t.card) {
+                    if let Some((_, zcc)) = t.ability.as_mut() {
+                        *zcc = zcc.saturating_sub(1);
+                    }
+                }
+            }
             // blitz: its granted "When this creature dies, draw a card."
             if self.obj(id).blitzed {
                 let delayed = Delayed {
