@@ -18649,6 +18649,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
             let deathtouch = src_deathtouch;
             let creature = game.has_type(o, CardType::Creature);
+            // wither: a creature gets -1/-1 counters, not damage (`checkWither`)
+            let wither = creature && keyword(&AbilityDef::WitherAbility);
             if game.obj(o).def.abilities.iter().any(|a| a.trigger() == Some(&Trigger::DealtDamage)) {
                 game.damaged_batch.push((o, amount));
             }
@@ -18674,7 +18676,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             let t = game.obj_mut(o);
             t.damaged_by = if t.damaged_by.0 == turn { (turn, t.damaged_by.1 | (1 << you)) } else { (turn, 1 << you) };
             if creature {
-                t.damage += amount;
+                if !wither {
+                    t.damage += amount;
+                }
                 if deathtouch {
                     t.deathtouched = true;
                 }
@@ -18692,6 +18696,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                     let fired = game.triggers([o], |_, _, _, t| matches!(t, Trigger::SiegeDefeated));
                     game.pending.extend(fired);
                 }
+            }
+            if wither {
+                add_counters_by(game, o, "-1/-1", amount, Some(you));
             }
         }
     }

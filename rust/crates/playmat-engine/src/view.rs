@@ -1049,6 +1049,7 @@ fn ability_rule(a: &crate::card::AbilityDef) -> Option<String> {
             A::DoubleStrikeAbility => "Double strike",
             A::LifelinkAbility => "Lifelink",
             A::DeathtouchAbility => "Deathtouch",
+            A::WitherAbility => "Wither <i>(This deals damage to creatures in the form of -1/-1 counters.)</i>",
             A::DefenderAbility => "Defender",
             A::MenaceAbility => "Menace",
             A::HexproofAbility => "Hexproof",

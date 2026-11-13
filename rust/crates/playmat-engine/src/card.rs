@@ -4394,6 +4394,8 @@ pub enum AbilityDef {
     DoubleStrikeAbility,
     LifelinkAbility,
     DeathtouchAbility,
+    /// damage this deals to a creature is -1/-1 counters instead (`PermanentImpl.checkWither`)
+    WitherAbility,
     DefenderAbility,
     /// this can block only creatures with flying
     CanBlockOnlyFlyingAbility,
