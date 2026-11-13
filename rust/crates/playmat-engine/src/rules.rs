@@ -6490,7 +6490,8 @@ fn refresh_land_types(game: &mut Game) {
                         // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"; Food Fight: artifacts you
                         // control have "{2}, Sacrifice this artifact: …"
                         EffectDef::GainAbilityAllEffect { ability, filter, .. }
-                            if ability.mana().is_some() || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }) =>
+                            if ability.mana().is_some()
+                                || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }) =>
                         {
                             let you = game.obj(*id).controller;
                             for to in game.battlefield.iter() {
@@ -6952,10 +6953,8 @@ fn apply_each_effect(
                 // an ability whose source isn't a spell (Defabricate's second mode): the ability leaves the stack
                 if let Some(Target::Obj(o)) = target {
                     if game.obj(o).zone != Zone::Stack {
-                        if let Some(k) = game
-                            .stack
-                            .iter()
-                            .rposition(|i| i.card == o && (i.ability.is_some() || i.delayed.is_some()))
+                        if let Some(k) =
+                            game.stack.iter().rposition(|i| i.card == o && (i.ability.is_some() || i.delayed.is_some()))
                         {
                             Arc::make_mut(&mut game.stack).remove(k);
                             continue;
