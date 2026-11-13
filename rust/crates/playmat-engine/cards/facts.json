@@ -43761,7 +43761,7 @@
             "name": "Caves count",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@1002d1c8"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@67d8613"
             }
           }
         ]
@@ -48323,7 +48323,7 @@
             "name": "Artificers you control and Artificer cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@1be12e05"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@48a61e38"
             }
           }
         ]
@@ -102978,7 +102978,7 @@
             "name": "Value of X",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@53964b0e"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@3296b4ba"
             }
           }
         ]
@@ -113030,7 +113030,7 @@
             "name": "Elves you control plus the number of Elf cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@78288298"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@94af25"
             }
           }
         ]
@@ -172825,7 +172825,7 @@
             "name": "Graveyards with seven or more cards in it",
             "value": {
               "class": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt",
-              "text": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt@144602ef"
+              "text": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt@180a59f2"
             }
           }
         ]
@@ -182094,7 +182094,7 @@
             "name": "Creatures you control and creature cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@739f57d1"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@10224d43"
             }
           }
         ]
@@ -299672,7 +299672,7 @@
             "name": "Current damage",
             "value": {
               "class": "mage.abilities.dynamicvalue.MaximumDynamicValue",
-              "text": "mage.abilities.dynamicvalue.MaximumDynamicValue@342af214"
+              "text": "mage.abilities.dynamicvalue.MaximumDynamicValue@24e021d8"
             }
           }
         ]
@@ -333861,6 +333861,20 @@
   },
   {
     "name": "token:NoFlyingSpiritWhite11Token",
+    "images": {
+      "TDM": 1
+    },
+    "abilities": []
+  },
+  {
+    "name": "token:NoFlyingSpiritWhite22Token",
+    "images": {
+      "TDM": 1
+    },
+    "abilities": []
+  },
+  {
+    "name": "token:NoFlyingSpiritWhite33Token",
     "images": {
       "TDM": 1
     },
