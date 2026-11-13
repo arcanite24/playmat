@@ -2631,8 +2631,9 @@ class Translator:
             return {'class': 'TargetTriggeredAbilityOrColorlessSpell'}
         # X divided among any number of creatures (one point each at least)
         # a fixed amount over 3 needs no target at all (`amount > 3 ? 0 : 1`: Fight with Fire's 10 damage)
+        # (a `DynamicValue` amount needs none either: `super(amount, 0, …)`, Undercity Upheaval's X with no creature)
         def fewest(amount):
-            return 0 if isinstance(amount, int) and amount > 3 else 1
+            return 1 if isinstance(amount, int) and amount <= 3 else 0
         if cls == 'TargetAnyTargetAmount' and len(args) == 1:
             amount = self.amount(args[0])
             return {'class': 'TargetAnyTarget', 'min': fewest(amount), 'max': 99, 'distribute': amount}
@@ -5275,12 +5276,21 @@ def granted_rules(card):
                                    r'\1acrifice {this}', g['rule'], count=1)
             # the effect writes its own sentence, where the source is {this}: "{this} gains flying" (Lunarch Mantle's
             # "this creature gains"), "{this} deals 1 damage" (Mask of Immolation's "it deals")
+            # (Burning Anger's "this creature deals damage equal to its power", Dragon Mantle's "this creature gets")
             effects = [e.get('class') for e in g.get('effects', [])]
-            if len(effects) == 1 and effects[0] in ('GainAbilitySourceEffect', 'DamageTargetEffect') \
-                    and not re.search(r'new %s\((?:[^;()]|\((?:[^;()]|\([^;()]*\))*\))*\)\s*\.setText' % effects[0],
-                                      card_source(card.get('name'))):
-                g['rule'] = re.sub(r': (?:This (?:artifact|creature|permanent)|It) (gains|deals) ', r': {this} \1 ',
-                                   g['rule'], count=1)
+            java = {'DamageTargetSourcePowerEffect': 'DamageTargetEffect'}
+            if len(effects) == 1 and effects[0] in ('GainAbilitySourceEffect', 'DamageTargetEffect',
+                                                    'DamageTargetSourcePowerEffect', 'BoostSourceEffect',
+                                                    'DamageTargetAndTargetEffect') \
+                    and not re.search(r'new %s\((?:[^;()]|\((?:[^;()]|\([^;()]*\))*\))*\)\s*\.setText'
+                                      % java.get(effects[0], effects[0]), card_source(card.get('name'))):
+                g['rule'] = re.sub(r': (?:This (?:artifact|creature|permanent|planeswalker)|It) (gains|deals|gets) ',
+                                   r': {this} \1 ', g['rule'], count=1)
+            # `new SurveilEffect(1)` writes its reminder (Way of the Healer's "Surveil 1.")
+            if 'SurveilEffect' in effects and g['rule'].endswith('Surveil 1.') \
+                    and re.search(r'new SurveilEffect\(1\)\)', card_source(card.get('name'))):
+                g['rule'] += (' <i>(Look at the top card of your library. You may put that card into your'
+                              ' graveyard.)</i>')
             # `new RegenerateSourceEffect()` writes "Regenerate {this}" (Molting Snakeskin's "Regenerate this creature")
             if effects == ['RegenerateSourceEffect'] and 'new RegenerateSourceEffect()' in card_source(card.get('name')):
                 g['rule'] = re.sub(r': Regenerate this (?:artifact|creature|permanent)\.', ': Regenerate {this}.',

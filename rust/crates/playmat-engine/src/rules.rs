@@ -3469,7 +3469,8 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     }
     let mut defs: Vec<TargetDef> = Vec::new();
     let mut mode_ends: Vec<usize> = Vec::new();
-    for k in if modes.is_empty() { vec![0] } else { modes.clone() } {
+    // ("choose up to" with none chosen: cast with no mode and no targets, Call Damage Control)
+    for k in if modes.is_empty() && n <= 1 { vec![0] } else { modes.clone() } {
         defs.extend(def.spell.mode(k).1.iter().cloned());
         mode_ends.push(defs.len());
     }
@@ -6520,7 +6521,8 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
     let zcc = game.obj(id).zcc;
     // countered on resolution (608.2b): an adventure then goes to the graveyard, not on its adventure
     let fizzled;
-    if item.modes.len() > 1 {
+    // (a modal spell cast with no mode chosen resolves doing nothing)
+    if item.modes.len() > 1 || (item.modes.is_empty() && def.spell.modes.len() > 1) {
         // `Spell.resolve`: each chosen mode with its own targets; a targeted mode whose targets are all illegal is
         // dropped, and with every targeted mode dropped the spell doesn't resolve (608.2b)
         let mut parts = Vec::new();
@@ -6937,11 +6939,14 @@ fn refresh_land_types(game: &mut Game) {
                                 types.push(subtype.clone());
                             }
                         }
+                        // (Skygames: enchanted land has "{T}: … Activate only as a sorcery.")
                         EffectDef::GainAbilityAttachedEffect { ability }
                             if ability.mana().is_some()
                                 || matches!(
                                     **ability,
-                                    AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::TriggeredAbility { .. }
+                                    AbilityDef::SimpleActivatedAbility { .. }
+                                        | AbilityDef::ActivateAsSorceryActivatedAbility { .. }
+                                        | AbilityDef::TriggeredAbility { .. }
                                 ) =>
                         {
                             if let Some(to) = game.attached(*id) {
@@ -6951,8 +6956,9 @@ fn refresh_land_types(game: &mut Game) {
                         // Bootleggers' Stash: lands you control have "{T}: Create a Treasure token."
                         // Phenax: creatures you control have "{T}: Target player mills X cards, …"
                         // Constricting Sliver: Slivers you control have "When this creature enters, …"
+                        // (Way of the Pyromancer: planeswalkers you control have "+1: Add {R}.")
                         EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. }
-                            if matches!(**ability, AbilityDef::SimpleActivatedAbility { .. })
+                            if matches!(**ability, AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::LoyaltyAbility { .. })
                                 || matches!(**ability, AbilityDef::TriggeredAbility { .. })
                                 // Great Divide Guide: each land and Ally you control has "{T}: Add one mana of any color."
                                 || ability.mana().is_some() =>
@@ -7124,7 +7130,7 @@ fn land_type_mana(t: &str) -> AbilityDef {
 /// A spell's targets, as it was cast: its chosen modes' (or its own), the kicked or gifted ones if so
 fn spell_target_defs(def: &CardDef, item: &StackItem) -> Vec<TargetDef> {
     let mut defs: Vec<TargetDef> = Vec::new();
-    for k in if item.modes.is_empty() { vec![0] } else { item.modes.clone() } {
+    for k in if item.modes.is_empty() && def.spell.modes.len() <= 1 { vec![0] } else { item.modes.clone() } {
         defs.extend(def.spell.mode(k).1.iter().cloned());
     }
     if let Some((unkicked, kicked)) = &def.spell.kicked_targets {
