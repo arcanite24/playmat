@@ -119,6 +119,21 @@ sees the cards. The chosen and unchosen cards then go to their zones with `moveC
 through stays unsupported), and a `boolean` local set once becomes a flag. A body with anything else (a field, a
 `Map`, an exile zone of its own, a token copy) stays unsupported. `PLAYMAT_APPLY_LOG=<file>` writes why each class did or didn't translate.
 
+A card's own static effect classes (replacement, continuous, cost, rule-modifying, restriction and prevention effects
+lasting while the source is on the battlefield) are read by `rust/tools/custom_statics.py`. A replacement effect is
+picked by the events its `checksEventType` names, and its `replaceEvent` has to be one of a few shapes, each one engine
+effect: a trigger firing an additional time (`AdditionalTriggersEffect`: Panharmonicon, Teysa Karlov), counters put
+multiplied or plus N (`ModifyCountersAddedEffect`: Hardened Scales, Doubling Season), twice the tokens
+(`CreateTwiceThatManyTokensEffect`), "enters with" a counter or riot (`EntersWithCountersAllEffect`: Rhythm of the
+Wild) and damage multiplied or plus N (`ModifyDamageEffect`: City on Fire, Tomik). Its `applies` test is read as a
+formula over atoms about the permanents the event names (its source, its target, the permanents that entered or died),
+the event's player, combat damage or a condition, and becomes those effects' filters and flags; a test or body with
+anything else stays unsupported, with the reason in the apply log. Two or more of these replacements for one event
+owe Java's "which first" question (`owed_replacement_choices`), answered before the next one is asked. Single cards
+with a bespoke rule (Grafdigger's Cage, Drannith Magistrate, Grand Abolisher, Deafening Silence, Containment Priest,
+Divine Visitation, Silence, Legion Loyalist) are in the `CUSTOM` table as general engine effects
+(`CantCastFromZonesEffect`, `CardsCantEnterEffect`, `ReplaceCreatureTokensEffect` and the like).
+
 ## The 10,000-game gate run (11–12 Nov 2026)
 
 Phase 4's gate asks for 10,000 shadow games of the pool. `ShadowGamesTest` recorded seeds 100000–109999 with the 42
@@ -198,7 +213,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,786 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (ENGINE_COUNT on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -332,6 +347,13 @@ Being in the engine and being trusted are kept apart.
   a few single games (Kin-Tree Severance, Abomination, Monastery Messenger, Reigning Victor, Rakshasa's Bargain).
   Layer work (becomes-a-creature effects and Auras, enters-as-copy, token copies with exceptions, werewolf
   transforms; 98 games, 90 of the 97 Java finished match) verified 58 more: 9,603 (9,786 in the engine).
+
+  Card-specific static effects (13 Nov, `custom_statics.py` and the bespoke statics in `CUSTOM`): four rounds over
+  the 45 cards they brought in, 86 games, all matching on the final engine. The fix, with a game under
+  `shadow/factory/`: Java asks which replacement applies first before each "enters with" replacement while two or
+  more are left, not all at once (four Rhythms of the Wild and a Valley Flamecaller). VERIFIED_LINE
+  City on Fire is pending (cast in one game); The Great Henge translates but doesn't load (its mana ability
+  also gains life).
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the

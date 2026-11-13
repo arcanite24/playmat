@@ -288,6 +288,14 @@ impl TargetDef {
     }
 }
 
+fn one_i32() -> i32 {
+    1
+}
+
+fn two_i32() -> i32 {
+    2
+}
+
 fn one_u32() -> u32 {
     1
 }
@@ -1722,6 +1730,72 @@ pub enum EffectDef {
         filter: Filter,
         who: String,
     },
+    /// a static ability's effect (`DAMAGE_PLAYER`/`DAMAGE_PERMANENT` replacements: City on Fire, Tomik, Charging
+    /// Tuskodon): damage from a source of `source` (as seen by its controller; `this_source`: this permanent,
+    /// `attached_source`: the creature it's attached to) is `times` that much, plus `plus`; `combat`: only combat (or
+    /// only noncombat) damage; `to_opponent`: only to an opponent or a permanent of theirs; `players_only`: only to a
+    /// player
+    ModifyDamageEffect {
+        #[serde(default)]
+        source: Filter,
+        #[serde(default)]
+        this_source: bool,
+        #[serde(default)]
+        attached_source: bool,
+        #[serde(default)]
+        combat: Option<bool>,
+        #[serde(default)]
+        to_opponent: bool,
+        #[serde(default)]
+        players_only: bool,
+        #[serde(default = "one_i32")]
+        times: i32,
+        #[serde(default)]
+        plus: i32,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
+    /// a static ability's effect (`ENTERS_THE_BATTLEFIELD` replacements): each permanent of `filter` enters with
+    /// `counter` on it (Metallic Mimic), or with riot (`riot`: Rhythm of the Wild's "+1/+1 counter or haste")
+    EntersWithCountersAllEffect {
+        filter: Filter,
+        #[serde(default)]
+        counter: Option<CounterDef>,
+        #[serde(default)]
+        riot: bool,
+    },
+    /// a static ability's effect (`ADD_COUNTERS` replacements: Hardened Scales, Corpsejack Menace, Doubling Season):
+    /// counters put on a permanent of `filter` (of the kind `counter`, if given) are `times` that many, plus `plus`;
+    /// `by_you`: only counters its controller puts; `effects_only`: only counters an effect puts (not a cost)
+    ModifyCountersAddedEffect {
+        filter: Filter,
+        #[serde(default)]
+        counter: Option<String>,
+        #[serde(default = "one_i32")]
+        times: i32,
+        #[serde(default)]
+        plus: i32,
+        #[serde(default)]
+        by_you: bool,
+        #[serde(default)]
+        effects_only: bool,
+    },
+    /// a static ability's effect (`NUMBER_OF_TRIGGERS` replacements: Panharmonicon, Teysa Karlov): a triggered
+    /// ability its controller controls triggers an additional time when its source matches `source`, a permanent
+    /// whose entering caused it matches `entered`, or one whose dying caused it matches `died` (each one given, and
+    /// `condition` if given, must hold; `on_battlefield`: its source is on the battlefield now)
+    AdditionalTriggersEffect {
+        #[serde(default)]
+        source: Option<Filter>,
+        #[serde(default)]
+        entered: Option<Filter>,
+        #[serde(default)]
+        died: Option<Filter>,
+        #[serde(default)]
+        condition: Option<Condition>,
+        #[serde(default)]
+        on_battlefield: bool,
+    },
     /// spells of the filter you cast cost {amount} less (while the condition holds)
     SpellsCostReductionControllerEffect {
         filter: Filter,
@@ -2002,8 +2076,19 @@ pub enum EffectDef {
     PutIntoLibraryNFromTopTargetEffect {
         n: usize,
     },
-    /// if one or more tokens would be created under your control, twice that many are created instead
-    CreateTwiceThatManyTokensEffect,
+    /// a static ability's effect: if one or more creature tokens would be created under your control, that many of
+    /// `token` are created instead (Divine Visitation)
+    ReplaceCreatureTokensEffect {
+        token: TokenDef,
+    },
+    /// if one or more tokens would be created under your control, twice (`times`) that many are created instead
+    /// (`creatures_only`: creature tokens, Ojer Taq)
+    CreateTwiceThatManyTokensEffect {
+        #[serde(default = "two_i32")]
+        times: i32,
+        #[serde(default)]
+        creatures_only: bool,
+    },
     /// deals X (the damage this was dealt) to the target; a player dealt damage this way can't gain life for the
     /// rest of the game
     ScreamingNemesisEffect,
@@ -2462,12 +2547,49 @@ pub enum EffectDef {
     },
     /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb)
     DontCauseTriggerEffect,
-    /// a static ability's effect: each player of `who` can't cast more than one spell each turn
+    /// a static ability's effect: each player of `who` can't cast more than one spell (`noncreature`: noncreature
+    /// spell, Deafening Silence) each turn
     CantCastMoreThanOneSpellEffect {
         who: String,
+        #[serde(default)]
+        noncreature: bool,
     },
+    /// players of `who` can't cast spells of `filter` from `zones` (`not_hand`: from anywhere but their hand), nor
+    /// (`activations`) activate abilities of cards there (Grafdigger's Cage, Drannith Magistrate, Ashes of the
+    /// Abhorrent)
+    CantCastFromZonesEffect {
+        who: String,
+        #[serde(default)]
+        zones: Vec<String>,
+        #[serde(default)]
+        not_hand: bool,
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        activations: bool,
+    },
+    /// cards of `filter` in graveyards (and libraries, `library`) can't enter the battlefield (Grafdigger's Cage)
+    CardsCantEnterEffect {
+        filter: Filter,
+        #[serde(default)]
+        library: bool,
+    },
+    /// permanents of `filter` (as seen by the effect's controller, now) can't be blocked by creatures of `blockers`
+    /// this turn (Legion Loyalist)
+    CantBeBlockedByAllEffect {
+        filter: Filter,
+        blockers: Filter,
+    },
+    /// your opponents can't cast spells this turn (Silence)
+    OpponentsCantCastThisTurnEffect,
+    /// a nontoken creature that would enter the battlefield without being cast is exiled instead: while this static
+    /// ability's source is on the battlefield (Containment Priest), or this turn when it resolves (Mistcaller)
+    ExileUncastCreaturesEffect,
     /// your opponents can't cast spells during your turn (Voice of Victory)
     CantCastDuringYourTurnEffect,
+    /// during your turn, your opponents can't cast spells or activate abilities of artifacts, creatures, or
+    /// enchantments (Grand Abolisher)
+    CantCastOrActivateOpponentsYourTurnEffect,
     /// equip abilities you activate that target this cost {amount} less (Fervent Champion)
     ReduceCostEquipTargetSourceEffect {
         #[serde(default)]
@@ -3720,6 +3842,8 @@ pub enum AbilityDef {
         effects: Vec<EffectDef>,
         #[serde(default)]
         condition: Option<Condition>,
+        /// none when it's given (Rhythm of the Wild's riot: its own replacement effect does the work)
+        #[serde(default)]
         rule: String,
     },
     /// bargain: as it's cast, you may sacrifice an artifact, enchantment, or token (the spell is then kicked);
