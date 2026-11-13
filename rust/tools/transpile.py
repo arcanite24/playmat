@@ -1420,7 +1420,8 @@ class Translator:
         if re.fullmatch(r'new UntapTargetEffect\((?:"[^"]*")?\)\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip())):
             return {'class': 'UntapEachTargetEffect'}
         # Aether Tradewinds: every target returns, one from each of its targets
-        if re.fullmatch(r'new ReturnToHandTargetEffect\(\)\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip())):
+        if re.fullmatch(r'new Return(?:FromGraveyard)?ToHandTargetEffect\(\)\.setTargetPointer\(new EachTargetPointer\(\)\)',
+                        canonical(expr.strip())):
             return {'class': 'ReturnToHandEachTargetEffect'}
         # every target (the one target a duel's "for each opponent" adjuster leaves)
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)

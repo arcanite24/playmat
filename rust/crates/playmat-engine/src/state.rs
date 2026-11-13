@@ -2035,13 +2035,19 @@ impl Game {
                             p = n;
                             t = n;
                         }
-                        if count == "creatures_you_control" {
+                        // Harmonious Grovestrider: the lands you control
+                        let counted = match count.as_str() {
+                            "creatures_you_control" => Some(CardType::Creature),
+                            "lands_you_control" => Some(CardType::Land),
+                            _ => None,
+                        };
+                        if let Some(ty) = counted {
                             let n = self
                                 .battlefield
                                 .iter()
                                 .filter(|b| {
                                     let x = self.obj(**b);
-                                    x.controller == o.controller && x.is(CardType::Creature)
+                                    x.controller == o.controller && x.is(ty)
                                 })
                                 .count() as i32;
                             p = n;
