@@ -925,6 +925,10 @@ pub enum Condition {
     TwoSpellsLastTurn,
     /// a permanent you controlled left the battlefield this turn
     Revolt,
+    /// `CitysBlessingCondition`: you have the city's blessing
+    CitysBlessing,
+    /// `GiftWasPromisedCondition.TRUE` in a spell's `ConditionalOneShotEffect`: its gift was promised
+    GiftPromised,
     /// you cast `n` or more instant and sorcery spells this turn
     InstantsSorceriesCast {
         n: u32,
@@ -4205,6 +4209,8 @@ pub enum AbilityDef {
     SunburstAbility,
     /// if a player casts no spells during their own turn, it becomes night next turn (the front of a werewolf)
     DayboundAbility,
+    /// ascend: if you control ten or more permanents, you get the city's blessing for the rest of the game
+    AscendAbility,
     /// if a player casts at least two spells during their own turn, it becomes day next turn (its back)
     NightboundAbility,
     /// "you may exert this as it attacks"; its `BecomesExertSourceTriggeredAbility` is the next ability

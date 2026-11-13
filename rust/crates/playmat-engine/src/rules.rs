@@ -10431,7 +10431,12 @@ fn apply_each_effect(
                 }
             }
             EffectDef::ConditionalOneShotEffect { effect, otherwise, condition, also } => {
-                let holds = condition_with_kicker(game, condition, controller, source.0, item.kicked);
+                // a spell's "if the gift was promised": the spell's own item knows
+                let holds = if *condition == Condition::GiftPromised {
+                    item.gift_promised
+                } else {
+                    condition_with_kicker(game, condition, controller, source.0, item.kicked)
+                };
                 if let Some(e) = if holds { effect } else { otherwise } {
                     apply_effects(game, d, item, std::slice::from_ref(&**e), legal, source);
                 }
@@ -17139,6 +17144,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
         }
         counters_added_triggers(game);
         game.update_guildpact();
+        game.update_ascend();
         happened |= unattach_equipment(game);
         // what the last triggers' targets triggered, now that they're all on the stack
         if let Some(later) = game.targeted_later.take() {
