@@ -2,7 +2,8 @@
 """Writes site/rust/progress.json, the data behind the site's Rust tracker (site/rust/).
 
 The hand-kept part (phases, steps, benchmark numbers) comes from rust/tools/progress-plan.json; this adds what can be
-counted from the repository: cards in the engine, the decks they cover, the shadow games that match Java, and the Rust
+counted from the repository: cards in the engine and how many of them are verified against Java, the decks the
+verified ones cover, the shadow games that match Java, and the Rust
 code itself. The site workflow runs it before each deploy, so the counted numbers follow master.
 
     python3 rust/tools/progress.py            # writes site/rust/progress.json
@@ -27,6 +28,12 @@ def path(*parts):
 def engine_cards():
     cards = json.load(open(os.path.join(ENGINE, 'cards', 'cards.json')))
     return {c['name'] for c in cards}
+
+
+def name_list(name):
+    """a card list under cards/ (verified.txt, pioneer-pool.txt): one name per line"""
+    with open(os.path.join(ENGINE, 'cards', name), encoding='utf-8') as f:
+        return {l.strip() for l in f if l.strip() and not l.startswith('#')}
 
 
 def deck_names(file):
@@ -120,7 +127,10 @@ def commit():
 def build():
     plan = json.load(open(path('rust', 'tools', 'progress-plan.json'), encoding='utf-8'))
     plan.pop('_about', None)
-    have = engine_cards()
+    in_engine = engine_cards()
+    # a game goes to Rust only with verified cards, so the decks count as covered by those
+    have = name_list('verified.txt') & in_engine
+    pioneer = name_list('pioneer-pool.txt')
     school = glob.glob(path('Mage.Server', 'career-src', 'pioneer', '*.txt')) + \
         glob.glob(path('Mage.Server', 'career-src', 'standard', '*.txt'))
     meta = [f for f in glob.glob(path('Mage.Web.Client', 'public', 'meta-decks', '*.dck'))
@@ -130,7 +140,9 @@ def build():
     matched = sum(r['matched'] or 0 for r in t)
     timeouts = sum(r['timeouts'] for r in t)
     return dict(plan, counted={
-        'engine_cards': len(have),
+        'engine_cards': len(in_engine),
+        'verified_cards': len(have),
+        'pioneer': {'cards': len(pioneer), 'in_engine': len(pioneer & in_engine), 'verified': len(pioneer & have)},
         'java_card_files': java_card_files(),
         'school': coverage(school, have, 'Pioneer and Standard school decks'),
         'meta': coverage(meta, have, 'Pioneer and Standard meta decks'),
@@ -155,8 +167,8 @@ def main():
         json.dump(data, f, indent=1, ensure_ascii=False)
         f.write('\n')
     c = data['counted']
-    print('%d engine cards; school decks %d of %d; meta decks %d of %d; shadow games %d of %d match' % (
-        c['engine_cards'], c['school']['covered'], c['school']['decks'], c['meta']['covered'], c['meta']['decks'],
+    print('%d engine cards, %d verified; school decks %d of %d; meta decks %d of %d; shadow games %d of %d match' % (
+        c['engine_cards'], c['verified_cards'], c['school']['covered'], c['school']['decks'], c['meta']['covered'], c['meta']['decks'],
         c['shadow']['matched'], c['shadow']['played']), file=sys.stderr)
 
 

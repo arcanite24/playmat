@@ -19,7 +19,7 @@ In `RustAiGameTest` a game takes 12 to 14 s of wall time, but little of that is 
 
 | | Today |
 |---|---|
-| Cards in the engine | 881 (the Career school decks, the shadow-test decks, Company and Zombies, the meta decks, the starter decks, a player's Modern Domain Zoo and Esper Goryos) |
+| Cards verified (a game goes to Rust only with these) | 881 of the 6,826 in the engine (the Career school decks, the shadow-test decks, Company and Zombies, the meta decks, the starter decks, a player's Modern Domain Zoo and Esper Goryos) |
 | Pioneer and Standard meta decks the AI picks from (`public/meta-decks`) | 24 of 24 fully covered (tiers 31 to 33) |
 | Modern meta decks | 12 of 12 fully covered (tiers 34 to 38) |
 | A player's own Modern decks the AI draws from with "every deck" (Domain Zoo, Esper Goryos, Izzet Prowess; main decks) | 3 of 3 fully covered (tier 40) |
@@ -123,7 +123,8 @@ browser ─ wss ─► gateway (Rust) ── game calls for a Rust game ──�
   games and sends their calls (`gameJoin`, `gameResync`, `sendPlayer*`, `sendPlayerAction`, `matchQuit`, chat) to the
   host. It already diffs views into patches.
 
-A game goes to Rust only when it's a duel against the AI, every card of both decks is in the engine, and it uses no
+A game goes to Rust only when it's a duel against the AI, every card of both decks is verified (docs/rust/Engine.md, "Pool, gate and
+factory"), and it uses no
 feature the host lacks (below). Otherwise it plays as today, with the Rust AI's copy where it qualifies.
 
 ## What has to be built
@@ -186,7 +187,7 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
 
 - **Start.** Java keeps the table and the match. At `TableController.startGame`, `RustHost.host` decides whether the
   game qualifies (one human against one AI, not Career, not a setup or resume, the human connected through a hosting
-  gateway, every card in the engine, `XMAGE_RUST_HOST_USERS`), and logs why when it doesn't. If it does, Java sends
+  gateway, every card verified, `XMAGE_RUST_HOST_USERS`), and logs why when it doesn't. If it does, Java sends
   the human's connection `HOST_GAME` (the game id, a token, the seed, each seat's player id, name, deck and, for the
   human, preferences, and in a match's later games the `chooser`) instead of making a game session; `START_GAME`
   still goes to the client.
@@ -225,7 +226,7 @@ Built in `playmat-host` (the game) and `playmat-gateway` (`host.rs`, `connection
   host reports the end as `timed out`, which Java takes as the player leaving the match (`PlayerImpl.timerTimeout`).
 - **Matches.** A best-of-three is a hosted game at a time. Java's match runs as for its own games: at a game's end
   `MatchImpl.endGame` counts the win, `TableController` sends `SIDEBOARD` and waits for the deck, then starts the
-  next game, which `RustHost.host` checks and hands to the host again (a deck that now has a card the engine lacks
+  next game, which `RustHost.host` checks and hands to the host again (a deck that now has a card that isn't verified
   plays that game on Java). The next game's `chooser` is the last game's loser (`MatchImpl.getChooser`): the host asks
   them who plays first, or, when it's the AI, the AI starts. After a draw nobody has lost, so a random player
   chooses, as in Java. On a timed table each game keeps the time left from the earlier ones: the host reports it
@@ -306,7 +307,7 @@ Built 11 Nov 2026 (#189). Tournaments and drafts are left out: their decks come 
 more cards ported first.
 
 - **Games between people.** A one-on-one table of two people is hosted when both qualify as a player against the AI
-  does (listed in `XMAGE_RUST_HOST_USERS`, or opted in), every card of both decks is in the engine, and both are
+  does (listed in `XMAGE_RUST_HOST_USERS`, or opted in), every card of both decks is verified, and both are
   connected through **the same** gateway: the gateway asks Java for `gameHost:<id>` as well as `gameHost`, with an
   id of its own made at start, and `RustHost.host` compares the two players' ids (`User.gameHostId`). Java sends
   `HOST_GAME` on both players' connections, and the gateway starts the game once (the first to arrive) and maps

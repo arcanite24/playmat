@@ -260,8 +260,8 @@ public final class RustHost {
             seatList.forEach(seats::add);
             Set<String> missing = RustAiBridge.missing(cards);
             if (!missing.isEmpty()) {
-                logger.info("Rust host: " + names + "'s game doesn't qualify, the Rust engine lacks "
-                        + missing.size() + " card" + (missing.size() == 1 ? "" : "s") + ": " + String.join(", ", missing));
+                logger.info("Rust host: " + names + "'s game doesn't qualify, not verified for Rust ("
+                        + missing.size() + " card" + (missing.size() == 1 ? "" : "s") + "): " + String.join(", ", missing));
                 return false;
             }
             String token = UUID.randomUUID().toString();
