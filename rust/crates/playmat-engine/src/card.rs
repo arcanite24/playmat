@@ -763,6 +763,15 @@ pub enum ManaKind {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "c", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Condition {
+    /// `SourceHasCountersCondition`: the source has a counter of any kind
+    SourceHasCounters,
+    /// `EnchantedSourceCondition` (an enchantment attached), or also an Equipment (Novice Knight's)
+    SourceAttached {
+        #[serde(default)]
+        equipment: bool,
+    },
+    /// `SourceAttackingAloneCondition`: it's the only creature attacking
+    SourceAttackingAlone,
     /// delirium: four or more card types among cards in your graveyard
     Delirium,
     /// `PlayLandCondition`: you played a land this turn
@@ -1031,6 +1040,10 @@ fn yes() -> bool {
 pub enum CostDef {
     ManaCost {
         cost: String,
+    },
+    /// mill `amount` cards (only with that many in the library)
+    MillCardsCost {
+        amount: usize,
     },
     TapSourceCost,
     /// exert this: it doesn't untap during its controller's next untap step
@@ -1626,6 +1639,168 @@ pub enum EffectDef {
     CastAsThoughItHadFlashUntilYourNextTurnEffect {
         filter: Filter,
     },
+    /// a static as-though effect (`CastAsThoughItHadFlash…Effect`) while a condition holds
+    ConditionalAsThoughEffect {
+        effect: Box<EffectDef>,
+        condition: Condition,
+    },
+    /// a card's own "you may cast this spell as though it had flash" (from any zone; inside a conditional one)
+    CastAsThoughItHadFlashSourceEffect,
+    /// enchanted permanent can't attack or block, and its activated abilities (mana abilities too) can't be activated
+    CantBlockAttackActivateAttachedEffect,
+    /// this can't be blocked by more than one creature (`setMaxBlockedBy(1)`)
+    CantBeBlockedByMoreThanOneSourceEffect,
+    /// this can't block creatures of the filter
+    CantBlockCreaturesSourceEffect {
+        filter: Filter,
+    },
+    /// creatures of the filter can't block: a static, or until end of turn as it resolves. Either way the filter is
+    /// looked at each time (Java's `RestrictionEffect` locks nothing in)
+    CantBlockAllEffect {
+        filter: Filter,
+        duration: Duration,
+    },
+    /// creatures of the filter can't be blocked, as `CantBlockAllEffect`
+    CantBeBlockedAllEffect {
+        filter: Filter,
+        duration: Duration,
+    },
+    /// puts the source's counters (as it last existed, when it's gone) on the target: each kind, or only `counter`
+    PutSourceCountersOnTargetEffect {
+        #[serde(default)]
+        counter: Option<String>,
+    },
+    /// a static ability's effect: untap the source during each other player's untap step
+    UntapSourceDuringEachOtherPlayersUntapStepEffect,
+    /// a static ability's effect: untap the permanents of `filter` during each other player's untap step
+    UntapAllDuringEachOtherPlayersUntapStepEffect {
+        filter: Filter,
+    },
+    /// doubles the counters of the kind on each permanent of `filter`
+    DoubleCounterOnEachPermanentEffect {
+        name: String,
+        filter: Filter,
+    },
+    /// doubles the counters of the kind on each target permanent
+    DoubleCountersTargetEffect {
+        name: String,
+    },
+    /// "if this is the `n`th time this ability has resolved this turn" (or `n`th or later), its effects
+    IfAbilityHasResolvedXTimesEffect {
+        n: u32,
+        #[serde(default)]
+        or_more: bool,
+        effects: Vec<EffectDef>,
+    },
+    /// the creature the source is attached to gets +power/+toughness until end of turn (Adventuring Gear)
+    BoostEquippedUntilEndOfTurnEffect {
+        power: Amount,
+        toughness: Amount,
+    },
+    /// the target permanents lose the ability until end of turn
+    LoseAbilityTargetEffect {
+        ability: Box<AbilityDef>,
+    },
+    /// the source loses the ability until end of turn
+    LoseAbilitySourceEffect {
+        ability: Box<AbilityDef>,
+    },
+    /// a static: the creature the source is attached to loses the ability
+    LoseAbilityAttachedEffect {
+        ability: Box<AbilityDef>,
+    },
+    /// the target creatures gain protection from the color of your choice until end of turn
+    GainProtectionFromColorTargetEffect,
+    /// the target permanents become the card types besides their others (until end of turn, or for good)
+    AddCardTypeTargetEffect {
+        types: Vec<CardType>,
+        duration: Duration,
+    },
+    /// a static: the creature the source is attached to has the subtype besides its others
+    AddCardSubtypeAttachedEffect {
+        subtype: String,
+    },
+    /// target player gains `amount` life
+    GainLifeTargetEffect {
+        amount: Amount,
+    },
+    /// each player loses `amount` life, from the controller on in turn order
+    LoseLifeAllPlayersEffect {
+        amount: Amount,
+    },
+    /// the player the source is attacking loses `amount` life
+    LoseLifeDefendingPlayerEffect {
+        amount: Amount,
+    },
+    /// a static: your opponents can't gain life
+    CantGainLifeOpponentsEffect,
+    /// removes up to `counter.amount` counters of its kind from the source
+    RemoveCounterSourceEffect {
+        counter: CounterDef,
+    },
+    /// a static: creatures of the filter can't be blocked by more than one creature
+    CantBeBlockedByMoreThanOneAllEffect {
+        filter: Filter,
+    },
+    /// prevent all damage permanents of the filter (any source, with no filter) would deal this turn (Fog)
+    PreventAllDamageByAllPermanentsEffect {
+        #[serde(default)]
+        filter: Option<Filter>,
+        #[serde(default)]
+        combat_only: bool,
+    },
+    /// prevent all damage that would be dealt to permanents of the filter (and to you, with `and_to_you`): a static,
+    /// or until end of turn as it resolves
+    PreventAllDamageToAllEffect {
+        filter: Filter,
+        duration: Duration,
+        #[serde(default)]
+        combat_only: bool,
+        #[serde(default)]
+        noncombat_only: bool,
+        #[serde(default)]
+        and_to_you: bool,
+    },
+    /// prevent all combat damage that would be dealt to the source, or by it with `by` (a static, or this turn)
+    PreventCombatDamageToSourceEffect {
+        duration: Duration,
+        #[serde(default)]
+        by: bool,
+    },
+    /// prevent the next `amount` damage (all of it, with none) that would be dealt to the targets this turn
+    PreventDamageToTargetEffect {
+        #[serde(default)]
+        amount: Option<i32>,
+        #[serde(default)]
+        combat_only: bool,
+    },
+    /// layer 7b until end of turn: the target creatures have base power and toughness N/N
+    SetBasePowerToughnessTargetEffect {
+        power: Amount,
+        toughness: Amount,
+        /// for good (`Duration.EndOfGame`), not until end of turn
+        #[serde(default)]
+        permanent: bool,
+    },
+    /// layer 7b: the source has base power and toughness N/N, as a static (`WhileOnBattlefield`, usually in a
+    /// conditional one) or until end of turn as it resolves
+    SetBasePowerToughness7bSourceEffect {
+        power: i32,
+        toughness: i32,
+        duration: Duration,
+    },
+    /// layer 7b: the enchanted or equipped creature has base power and toughness N/N
+    SetBasePowerToughnessAttachedEffect {
+        power: i32,
+        toughness: i32,
+    },
+    /// layer 7b: the permanents of the filter, as a static; or the ones there as it resolves, until end of turn
+    SetBasePowerToughnessAllEffect {
+        power: Amount,
+        toughness: Amount,
+        duration: Duration,
+        filter: Filter,
+    },
     /// each opponent can cast spells only any time they could cast a sorcery (Teferi, Time Raveler)
     TeferiTimeRavelerEffect,
     /// return the target legendary creature card from your graveyard to the battlefield; it gains haste; exile it at
@@ -2067,6 +2242,9 @@ pub enum EffectDef {
         #[serde(default)]
         targets: Vec<TargetDef>,
         effects: Vec<EffectDef>,
+        /// false: paid without asking (`DoWhenCostPaid(…, false)`)
+        #[serde(default = "yes")]
+        optional: bool,
     },
     /// a counter on the source (while it's still there), then a reflexive trigger: "when you do, if …"
     AddCounterSourceReflexiveEffect {
@@ -2552,10 +2730,15 @@ pub enum EffectDef {
         #[serde(default)]
         reflexive: Option<String>,
     },
-    /// the source gains the chosen one of `abilities` (named by `names`, their rule texts) until end of turn
+    /// the source (and/or the target's permanents: `target`, without `source`) gains the chosen one of `abilities`
+    /// (named by `names`, their rule texts) until end of turn
     GainsChoiceOfAbilitiesEffect {
         abilities: Vec<AbilityDef>,
         names: Vec<String>,
+        #[serde(default = "yes")]
+        source: bool,
+        #[serde(default)]
+        target: bool,
     },
     /// creates one token with power and toughness `amount` (`new SharkToken(xValue)`)
     CreateXXTokenEffect {
@@ -3055,6 +3238,10 @@ pub enum AbilityDef {
     ReachAbility,
     /// it blocks this turn if able (`BlocksIfAbleTargetEffect`, granted until end of turn)
     BlocksIfAbleAbility,
+    /// it can attack as though it didn't have defender (`CanAttackAsThoughItDidntHaveDefenderSourceEffect`)
+    CanAttackAsThoughNoDefenderAbility,
+    /// it must be blocked this turn if able (`MustBeBlockedByAtLeastOneTargetEffect`, granted until end of turn)
+    MustBeBlockedIfAbleAbility,
     HasteAbility,
     VigilanceAbility,
     TrampleAbility,
