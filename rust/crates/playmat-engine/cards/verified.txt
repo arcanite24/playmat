@@ -138,6 +138,7 @@ Aethertorch Renegade
 Aetherwind Basker
 Affa Protector
 Affectionate Indrik
+Aftermath Analyst
 Afterthought Sentry
 Against All Odds
 Agate Assault
@@ -312,6 +313,7 @@ Angelheart Protector
 Angelic Accord
 Angelic Ascension
 Angelic Captain
+Angelic Destiny
 Angelic Edict
 Angelic Exaltation
 Angelic Gift
@@ -443,6 +445,7 @@ Argivian Phalanx
 Argothian Opportunist
 Argothian Sprite
 Arguel's Blood Fast
+Arid Archway
 Arid Mesa
 Arisen Gorgon
 Arlinn's Wolf
@@ -1116,6 +1119,8 @@ Brazen Freebooter
 Brazen Scourge
 Brazen Upstart
 Brazen Wolves
+Breach the Multiverse
+Breaching Dragonstorm
 Breaching Hippocamp
 Break Down the Door
 Break Through the Line
@@ -1347,6 +1352,7 @@ Cartouche of Strength
 Cartouche of Zeal
 Cascade Seer
 Cascading Cataracts
+Case of the Gateway Express
 Case of the Uneaten Feast
 Casey Jones, Jury-Rig Justiciar
 Cast Away Doubt
@@ -1403,6 +1409,7 @@ Celestial Flare
 Celestial Messenger
 Celestial Unicorn
 Cement Shoes
+Cemetery Recruitment
 Cenote Scout
 Censor
 Centaur Battlemaster
@@ -1668,6 +1675,7 @@ Common Crook
 Commune with Beavers
 Commune with Dinosaurs
 Commune with Evil
+Commune with Lava
 Commune with Nature
 Commune with Spirits
 Commune with the Gods
@@ -1718,6 +1726,7 @@ Consulate Dreadnought
 Consulate Skygate
 Consulate Turret
 Consult the Star Charts
+Consuming Aberration
 Consuming Aetherborn
 Consuming Blob
 Consuming Fervor
@@ -2093,6 +2102,7 @@ Dedicated Commons
 Deduce
 Deep Freeze
 Deep Goblin Skulltaker
+Deep-Cavern Bat
 Deep-Sea Terror
 Deepchannel Duelist
 Deepmuck Desperado
@@ -2446,6 +2456,7 @@ Drivnod, Carnage Dominus
 Drix Fatemaker
 Drogskol Cavalry
 Drogskol Infantry
+Drogskol Reaver
 Drogskol Shieldmate
 Dromoka Captain
 Dromoka Dunecaster
@@ -2609,6 +2620,7 @@ Eldritch Evolution
 Electric Revelation
 Electrickery
 Electrify
+Electrodominance
 Electrostatic Field
 Electrostatic Infantry
 Electrostatic Pummeler
@@ -2901,6 +2913,7 @@ Faceless Haven
 Facet Reader
 Fade from History
 Fade into Antiquity
+Fading Hope
 Fae Flight
 Faebloom Trick
 Faeburrow Elder
@@ -3460,6 +3473,7 @@ Generous Revival
 Generous Stray
 Generous Visitor
 Genesis Effect
+Genesis Wave
 Genghis Frog
 Geology Enthusiast
 Geothermal Bog
@@ -3665,6 +3679,7 @@ Goblin Javelineer
 Goblin Locksmith
 Goblin Morningstar
 Goblin Motivator
+Goblin Negotiation
 Goblin Oriflamme
 Goblin Picker
 Goblin Piledriver
@@ -4308,6 +4323,7 @@ Hurloon Battle Hymn
 Hushwing Gryff
 Hushwood Verge
 Hussar Patrol
+Hydra's Growth
 Hydraulic Helper
 Hydroform
 Hydrolash
@@ -4466,6 +4482,7 @@ Insidious Roots
 Insolent Neonate
 Insomnia, Crown City
 Inspiration
+Inspiration from Beyond
 Inspired Charge
 Inspiring Bard
 Inspiring Call
@@ -4730,6 +4747,7 @@ Kargan Warleader
 Kari Zev's Expertise
 Kari Zev, Skyship Raider
 Karn's Bastion
+Karn, Scion of Urza
 Karok Wrangler
 Karplusan Forest
 Karplusan Hound
@@ -5055,6 +5073,7 @@ Library Larcenist
 Lich's Caress
 Lich's Relic
 Life Goes On
+Life's Legacy
 Lifebane Zombie
 Lifecraft Cavalry
 Lifecrafter's Bestiary
@@ -5903,6 +5922,7 @@ Nezumi Linkbreaker
 Nezumi Prowler
 Ni'Var Science Academy
 Niambi, Faithful Healer
+Nibelheim Aflame
 Niblis of Dusk
 Niblis of Frost
 Nick Fury, Agent of S.H.I.E.L.D.
@@ -5968,6 +5988,7 @@ North Pole Gates
 North Pole Patrol
 Northampton Farm
 Northern Air Temple
+Not Dead After All
 Not on My Watch
 Notion Rain
 Notion Thief
@@ -6033,6 +6054,7 @@ Obzedat's Aid
 Octoprophet
 Octopus Form
 Odric's Outrider
+Odric, Lunarch Marshal
 Odunos River Trawler
 Of One Mind
 Offender at Large
@@ -6464,6 +6486,7 @@ Power Word Kill
 Powerstone Engineer
 Powerstone Fracture
 Powerstone Shard
+Pox Plague
 Practical Research
 Practiced Offense
 Practiced Tactics
@@ -6641,6 +6664,7 @@ Quantum Riddler
 Quark's Bar
 Quarrel
 Quarry Beetle
+Quartzwood Crasher
 Queen Brahne
 Queen's Agent
 Queen's Bay Soldier
@@ -6771,6 +6795,7 @@ Raptor Companion
 Raptor Hatchling
 Rapturous Moment
 Rat Colony
+Rat King, Verminister
 Rat Out
 Ratcatcher Trainee
 Ratchet Bomb
@@ -6942,6 +6967,7 @@ Repair and Recharge
 Repeating Barrage
 Repel Calamity
 Repel the Vile
+Replicating Ring
 Replication Specialist
 Reprisal
 Reptil, Dinomorpher
@@ -7438,6 +7464,7 @@ Scales of Shale
 Scalestorm Summoner
 Scampering Scorcher
 Scampering Surveyor
+Scapeshift
 Scarab Feast
 Scarblade Scout
 Scarblade's Malice
@@ -7659,6 +7686,7 @@ Seven-Tail Mentor
 Severed Strands
 Sewer-veillance Cam
 Seymour Flux
+Shackle Slinger
 Shacklegeist
 Shadewing Laureate
 Shadow Alley Denizen
@@ -8095,6 +8123,7 @@ Sorin's Guide
 Sorin's Thirst
 Sorin, Vampire Lord
 Soul Enervation
+Soul Partition
 Soul Salvage
 Soul Sear
 Soul Summons
@@ -8104,6 +8133,7 @@ Soul of Innistrad
 Soul of New Phyrexia
 Soul of Ravnica
 Soul of Theros
+Soul of Windgrace
 Soul of Zendikar
 Soul of the Harvest
 Soul of the Rapids
@@ -8397,6 +8427,7 @@ Stern Lesson
 Steward of Solidarity
 Sticky Fingers
 Stickytongue Sentinel
+Stiltzkin, Moogle Merchant
 Stimulus Package
 Sting-Slinger
 Stingblade Assassin
@@ -8690,6 +8721,7 @@ Sword of the Animist
 Swordwise Centaur
 Sworn Companions
 Sworn Guardian
+Sygg's Command
 Sygg, Wanderwine Wisdom
 Sylvan Advocate
 Sylvan Brushstrider
@@ -8774,6 +8806,7 @@ Tar Snare
 Taranika, Akroan Veteran
 Tarkir Duneshaper
 Tarmogoyf
+Tasha's Hideous Laughter
 Tasigur's Cruelty
 Tasseled Dromedary
 Taste of Death
@@ -8845,6 +8878,7 @@ Temur Charm
 Temur Devotee
 Temur Monument
 Temur Runemark
+Temur Sabertooth
 Temur Tawnyback
 Tenacious Hunter
 Tenacious Tomeseeker
@@ -9585,6 +9619,7 @@ Vampire's Kiss
 Vampire's Zeal
 Vampires' Vengeance
 Vampiric Rites
+Vance's Blasting Cannons
 Vandalblast
 Vandalize
 Vanguard Seraph
@@ -9599,6 +9634,7 @@ Vanquisher's Axe
 Vantress Paladin
 Vantress Transmuter
 Vaporkin
+Variable Chaser
 Varragoth, Bloodsky Sire
 Vash, Freelance Archaeologist
 Vassal Soul
@@ -9697,6 +9733,7 @@ Vilespawn Spider
 Village Messenger
 Village Rites
 Village Watch
+Villainous Wrath
 Vindictive Warden
 Vine Mare
 Vine Snare
@@ -10049,6 +10086,7 @@ Wildwood Mentor
 Wildwood Patrol
 Wildwood Rebirth
 Wildwood Tracker
+Will of the All-Hunter
 Will of the Naga
 Will-Forged Golem
 Willbreaker
