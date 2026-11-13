@@ -16980,6 +16980,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 ..GameEvent::new(EventKind::Damage)
             });
             lose_life_by(game, s, amount, Some(source), combat);
+            if combat && amount > 0 && !game.combat_damaged_players.contains(&(source, s)) {
+                game.combat_damaged_players.push((source, s));
+            }
             // toxic: combat damage to a player also gives them poison counters, each toxic ability's (`doDamage`)
             if combat {
                 let toxic = |a: &AbilityDef| match a {
@@ -18195,6 +18198,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.must_block_from.clear();
     game.exile_if_dies.clear();
     game.damaged_by_source.clear();
+    game.combat_damaged_players.clear();
     if !game.all_basics_until_eot.is_empty() {
         game.all_basics_until_eot.clear();
         game.update_guildpact();
