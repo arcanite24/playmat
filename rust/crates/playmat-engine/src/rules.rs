@@ -1846,9 +1846,9 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                     }
                     CostDef::PayLifeCost { amount } => game.player(seat).life >= *amount,
                     CostDef::PayEnergyCost { amount } => energy(game, seat) >= *amount,
-                    CostDef::SacrificeTargetCost { .. } | CostDef::RemoveCountersSourceCost { .. } => {
-                        can_pay_cost(game, seat, *id, c)
-                    }
+                    CostDef::SacrificeTargetCost { .. }
+                    | CostDef::RemoveCountersSourceCost { .. }
+                    | CostDef::ExileFromGraveCost { .. } => can_pay_cost(game, seat, *id, c),
                     _ => true,
                 })
             })

@@ -621,7 +621,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'CorruptedCondition.instance': {'c': 'opponent_poison', 'n': 3},
               'VoidCondition.instance': {'c': 'void'},
               'CastFromGraveyardSourceCondition.instance': {'c': 'cast_from', 'zone': 'graveyard'},
-              'CastFromHandSourcePermanentCondition.instance': {'c': 'cast_from', 'zone': 'hand'},
+              # not `CastFromHandSourcePermanentCondition`: in shadow games Java's is false where the rules say true
+              # (Patched Plaything enters without its counters, Cyclone Summoner doesn't trigger)
               'EquippedSourceCondition.instance': {'c': 'source_equipped'},
               'SourceTappedCondition.TAPPED': {'c': 'source_tapped', 'v': True},
               'SourceTappedCondition.UNTAPPED': {'c': 'source_tapped', 'v': False},
@@ -1670,8 +1671,18 @@ class Translator:
             r = self.vars.get(args[0].strip()) or self.ability(args[0])
             if r.get('class') != 'Reflexive' or [e['class'] for e in r['effects']] != ['ReturnToHandTargetEffect']:
                 raise Unsupported('reflexive ability ' + args[0])
+            # its rule names what it returns (the reflexive ability's target)
+            preds = [x for t in r['targets'] for x in t.get('filter', []) if x.get('p') != 'owner']
+            nouns = {'instant or sorcery card': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}],
+                     'creature or land card': [{'p': 'or', 'xs': [type_pred('CREATURE'), type_pred('LAND')]}],
+                     'creature card': [type_pred('CREATURE')]}
+            noun = next((k for k, v in nouns.items() if preds == v), None)
+            if noun is None and {'p': 'permanent_card'} in preds:
+                noun = 'permanent card'
+            if noun is None:
+                raise Unsupported('reflexive ability ' + args[0])
             return {'class': cls, 'cost': [self.cost(args[1])], 'message': args[2].strip()[1:-1],
-                    'rule': 'return target permanent card from your graveyard to your hand.',
+                    'rule': 'return target ' + noun + ' from your graveyard to your hand.',
                     'targets': r['targets'], 'effects': r['effects']}
         # `new DoIfCostPaid(null, otherwise, cost)`: only what's done when it isn't paid
         # `new DoIfCostPaid(effect, null, cost, optional)`

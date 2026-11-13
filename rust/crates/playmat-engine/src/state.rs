@@ -2034,14 +2034,20 @@ impl Game {
             Condition::Revolt => self.player(you).permanent_left,
             Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
             // `getStackObject`: the spell is still on the stack as it resolves, and its targets are as they last were
-            Condition::SourceTargets { filter } => self.stack.iter().chain(self.resolving_item.iter()).any(|i| {
-                i.card == source
-                    && i.ability.is_none()
-                    && i.targets.iter().flatten().any(|t| match t {
+            // the resolving spell or ability's targets (Little Bear's trigger), else its spell's on the stack
+            Condition::SourceTargets { filter } => {
+                let resolving = self.resolving_item.as_ref().filter(|i| i.card == source);
+                let mut items: Box<dyn Iterator<Item = &StackItem>> = match resolving {
+                    Some(i) => Box::new(std::iter::once(i)),
+                    None => Box::new(self.stack.iter().filter(|i| i.card == source && i.ability.is_none())),
+                };
+                items.any(|i| {
+                    i.targets.iter().flatten().any(|t| match t {
                         Target::Obj(o) => self.filter_matches(filter, you, Some(source), *o),
                         _ => false,
                     })
-            }),
+                })
+            }
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
             Condition::SourceRenowned => self.obj(source).marks.iter().any(|m| m == "renowned"),
             Condition::SourceTapped => self.obj(source).tapped,
