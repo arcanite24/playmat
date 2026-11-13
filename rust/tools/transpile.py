@@ -37,7 +37,7 @@ KEYWORDS = {
     'CantBeCounteredSourceAbility', 'DoubleStrikeAbility', 'LifelinkAbility', 'DeathtouchAbility', 'DefenderAbility', 'MenaceAbility', 'FlashAbility', 'ReboundAbility', 'ImproviseAbility', 'DevoidAbility',
     'HexproofAbility', 'IndestructibleAbility', 'WhiteManaAbility', 'BlueManaAbility', 'BlackManaAbility',
     'RedManaAbility', 'GreenManaAbility', 'ColorlessManaAbility', 'CanBlockOnlyFlyingAbility', 'CantBeBlockedSourceAbility', 'CantBlockAbility', 'DauntAbility',
-    'IslandwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility',
+    'IslandwalkAbility', 'SkulkAbility', 'IntimidateAbility', 'DecayedAbility', 'WitherAbility',
     'UmbraArmorAbility',
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility', 'AscendAbility',
     # what a creature crews or saddles with (`CrewAbility.getCrewPower`, `SaddleCost.getSaddlePower`)
@@ -896,7 +896,8 @@ def predicate(text, subtypes):
         return {'p': 'blocking_or_blocked_by_source', 'blocking': m.group(1) != 'BLOCKED_BY',
                 'blocked_by': m.group(1) != 'BLOCKING'}
     # "another target": none of the ability's earlier targets (Java: of its other tagged targets)
-    if re.fullmatch(r'new AnotherTargetPredicate\([2-9]\)', text):
+    # (1 too: on the first target, which has no earlier ones, it changes nothing; Band Together)
+    if re.fullmatch(r'new AnotherTargetPredicate\([1-9]\)', text):
         return {'p': 'another_target'}
     if (m := re.fullmatch(r'new AbilityPredicate\((\w+)\.class\)', text)) and m.group(1) in KEYWORDS:
         return {'p': 'ability', 'a': {'class': m.group(1)}}
@@ -2506,7 +2507,9 @@ class Translator:
         if cls == 'AddCardTypeSourceEffect' and len(args) >= 2 and args[0].strip() == 'Duration.EndOfTurn' \
                 and all(re.fullmatch(r'CardType\.[A-Z]+', a.strip()) for a in args[1:]):
             return {'class': cls, 'types': [a.strip()[9:] for a in args[1:]], 'duration': 'EndOfTurn'}
-        if cls == 'GainAbilityTargetEffect' and len(args) == 3 and re.fullmatch(r'"[^"]*"(?:\+"[^"]*")*', args[2].strip()):
+        # (its text may quote the granted ability: `\"When this creature dies, …\"`, Feign Death)
+        if cls == 'GainAbilityTargetEffect' and len(args) == 3 \
+                and re.fullmatch(r'"(?:[^"\\]|\\.)*"(?:\+"(?:[^"\\]|\\.)*")*', args[2].strip()):
             return self.effect('new GainAbilityTargetEffect(' + args[0] + ',' + args[1] + ')')
         if cls == 'UntapAttachedEffect' and (not args or (len(args) == 2 and args[0].strip() in (
                 'AttachmentType.AURA', 'AttachmentType.EQUIPMENT') and re.fullmatch(r'"[^"]*"', args[1].strip()))):
@@ -2590,6 +2593,9 @@ class Translator:
             if n.group(1) != 'Colorless':
                 out['color'] = COLOR_LETTERS[n.group(1)]
             return out
+        # a triggered ability's "add {R}{R}" (Gloin): the same mana, into the controller's pool as it resolves
+        if cls == 'AddManaToManaPoolSourceControllerEffect' and len(args) == 1:
+            return self.effect('new BasicManaEffect(' + args[0] + ')')
         if cls == 'BasicManaEffect' and len(args) == 1:
             a = args[0].strip()
             n = re.fullmatch(r'newMana\((\d+),(\d+),(\d+),(\d+),(\d+),0,0,(\d+)\)', a.replace(' ', ''))
@@ -2670,6 +2676,12 @@ class Translator:
                 and args[0].strip() in ('true', 'false') and args[1].strip() == 'false':
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[0].strip() == 'true',
                     'owner': True}
+        # (counter, additional, tapped, returnFromExileZoneOnly): "additional" only changes the text
+        if cls == 'ReturnToBattlefieldUnderOwnerControlWithCounterTargetEffect' and len(args) == 4 \
+                and [a.strip() for a in args[1:]] in (['false', 'false', 'false'], ['false', 'true', 'false'],
+                                                      ['true', 'false', 'false'], ['true', 'true', 'false']):
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[2].strip() == 'true',
+                    'owner': True, 'counters': self.value('counter', args[0].strip())}
         if cls == 'ReturnFromGraveyardToBattlefieldWithCounterTargetEffect' and len(args) in (1, 2) \
                 and (len(args) == 1 or args[0].strip() in ('true', 'false')):
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False,
@@ -4007,6 +4019,11 @@ class Translator:
                 and args[1].strip() == 'Duration.OneUse' and args[0].strip() == 'new DrawCardSourceControllerEffect(1)':
             return {'class': 'NextUpkeepDelayed', 'effects': [self.effect(args[0])],
                     'rule': "Draw a card at the beginning of the next turn's upkeep."}
+        # "transform {this} at the beginning of the next upkeep" (Archangel Avacyn)
+        if cls == 'AtTheBeginOfNextUpkeepDelayedTriggeredAbility' and len(args) == 1 \
+                and args[0].strip() == 'new TransformSourceEffect()':
+            return {'class': 'NextUpkeepDelayed', 'effects': [self.effect(args[0])],
+                    'rule': "At the beginning of the next turn's upkeep, transform {this}."}
         if cls == 'AtTheBeginOfNextEndStepDelayedTriggeredAbility' and len(args) == 1 \
                 and args[0].strip() == 'new UntapLandsEffect(2)':
             return {'class': 'NextEndStepDelayed', 'effects': [self.effect(args[0])],
@@ -4646,6 +4663,21 @@ class Translator:
             return out({'e': 'draws', 'who': 'you'}, args[1], flag(args[2]))
         if cls == 'DrawCardOpponentTriggeredAbility' and n == 3:
             return out({'e': 'draws', 'who': 'opponent'}, args[0], flag(args[1]), flag(args[2]))
+        # "whenever this deals (combat) damage", once for each batch of its damage (`DAMAGED_BATCH_BY_SOURCE`)
+        if cls == 'DealsDamageSourceTriggeredAbility' and n in (1, 2):
+            return out({'e': 'deals_damage'}, args[0], n == 2 and flag(args[1]))
+        if cls == 'DealsCombatDamageTriggeredAbility' and n == 2:
+            return out({'e': 'deals_damage', 'only_combat': True}, args[0], flag(args[1]))
+        # "whenever a creature you control deals (combat) damage": the permanent or its controller is the pointer
+        if cls == 'DealsDamageToAnyTriggeredAbility' and n == 6 and args[0] == 'Zone.BATTLEFIELD':
+            pointer = args[3]
+            if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+                raise Unsupported(cls + ' ' + pointer)
+            a = out({'e': 'deals_damage', 'filter': self.filter(args[2]), 'only_combat': flag(args[4])}, args[1],
+                    flag(args[5]), pointer == 'SetTargetPointer.PERMANENT')
+            if pointer == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
         if cls == 'DealsDamageToOpponentTriggeredAbility' and 1 <= n <= 4:
             return out({'e': 'deals_damage_to_opponent', 'only_combat': n >= 3 and flag(args[2])}, args[0],
                        n >= 2 and flag(args[1]), n == 4 and flag(args[3]))
@@ -6606,6 +6638,14 @@ def that_player_names(card):
     walk(card)
 
 
+def spaced_and(card, text):
+    """an effect text set with a trailing space keeps it before the next effect's "and" (Quintessential Katana's
+    `setText("untap it ")`: Java's rule reads "untap it  and you gain 2 life")"""
+    for t in re.findall(r'\.setText\("([^"]*\S) "\)', card_source(card.get('name'))):
+        text = text.replace(t + ' and ', t + '  and ')
+    return text
+
+
 def granted_rules(card):
     """a granted ability without its own rule text: the quoted part of the granting ability's or spell's (a ward,
     "ward {N}"), wherever it is (a spell, a face, a token's ability); one it can't be read from blocks the card"""
@@ -6679,7 +6719,7 @@ def granted_rules(card):
             phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', card_source(card.get('name')) + ''.join(
                 open(os.path.join(TOKENS, cls + '.java')).read() for cls in token_classes([card.get('name')])))
             if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
-                g['rule'] = quoted.group(1)
+                g['rule'] = spaced_and(card, quoted.group(1))
             else:
                 # an effect given its own text keeps "this creature" (Nurturing Presence's `BoostSourceEffect`
                 # `.setText("this creature gets +1/+1 until end of turn")`)
@@ -6700,7 +6740,7 @@ def granted_rules(card):
                 # list, not verified.txt, so regenerating never changes a verified card)
                 if not text.endswith(('.', '!', ')', '>', '"')) and card.get('name') not in UNENDED_GRANTED_TEXT:
                     text = text.rstrip(',') + '.'
-                g['rule'] = text
+                g['rule'] = spaced_and(card, text)
                 # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it")
                 if [e.get('class') for e in g.get('effects', [])] == ['AddCountersSourceEffect']:
                     g['rule'] = re.sub(r'\b(counters? on) it\.$', r'\1 {this}.', g['rule'])
