@@ -259,7 +259,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,786 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (9,848 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -393,6 +393,13 @@ Being in the engine and being trusted are kept apart.
   a few single games (Kin-Tree Severance, Abomination, Monastery Messenger, Reigning Victor, Rakshasa's Bargain).
   Layer work (becomes-a-creature effects and Auras, enters-as-copy, token copies with exceptions, werewolf
   transforms; 98 games, 90 of the 97 Java finished match) verified 58 more: 9,603 (9,786 in the engine).
+  Per-card handlers (13 Nov, above): 58 handler files, written by five workers in parallel, brought 62 cards in;
+  two factory rounds (100 games, all matching after the fixes) verified 61: 9,664 (9,848 in the engine). Their
+  fixes, each with a game under `shadow/factory/`: an optional "up to one" sacrifice is asked even with nothing to
+  choose (Ziatora, as `HumanPlayer.choose` with a target that isn't required); an escaped permanent stays escaped
+  while it's on the battlefield (Kroxa); a reflexive trigger's targets fire ward and becomes-target triggers, and
+  ward can counter it. Four more games under `shadow/handlers/` cover 32 of the handled cards. Rise of the Dark
+  Realms wasn't exercised yet.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
