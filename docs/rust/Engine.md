@@ -202,6 +202,8 @@ Being in the engine and being trusted are kept apart.
   - **pending** when it wasn't exercised enough; a later round takes it again, up to 3 rounds.
 
   Recordings are kept, so after an engine fix `replay --all` and `verdicts` judge every round again without Java.
+  The first two rounds (12 Nov 2026, 3,129 games over 3,313 candidates, the used ones first) verified 2,963 cards, for
+  3,844 in all; 2,882 games matched and 135 differ, each listed in `bugs.md` by the card blamed.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
