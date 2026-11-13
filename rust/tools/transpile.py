@@ -1623,7 +1623,11 @@ class Translator:
         if cls == 'GainAbilityTargetEffect' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[2].strip()):
             return self.effect('new GainAbilityTargetEffect(' + args[0] + ',' + args[1] + ')')
         if cls in ('UntapAllControllerEffect', 'UntapAllEffect') and 1 <= len(args) <= 2:
-            return {'class': 'UntapAllEffect', 'filter': self.filter(args[0])}
+            f = self.filter(args[0])
+            # `UntapAllControllerEffect`: only the controller's permanents (Paradox Engine)
+            if cls == 'UntapAllControllerEffect' and {'p': 'controller', 'who': 'you'} not in f:
+                f = f + [{'p': 'controller', 'who': 'you'}]
+            return {'class': 'UntapAllEffect', 'filter': f}
         if cls == 'DamageWithPowerFromOneToAnotherTargetEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}
         if cls == 'DamageAllControlledTargetEffect' and 1 <= len(args) <= 2:
