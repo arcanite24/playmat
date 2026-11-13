@@ -106,6 +106,14 @@ impl ManaCost {
     }
 
     /// the symbols of a color, hybrid ones included (devotion)
+    /// The symbols of either color, a hybrid of both counted once (devotion to two colors)
+    pub fn symbols_of_either(&self, c: Color, c2: Color) -> u32 {
+        let (i, j) = (c.index(), c2.index());
+        self.colored[i]
+            + if i == j { 0 } else { self.colored[j] }
+            + self.hybrid.iter().filter(|(a, b)| [*a, *b].iter().any(|x| *x == i || *x == j)).count() as u32
+    }
+
     pub fn symbols_of(&self, c: Color) -> u32 {
         self.colored[c.index()] + self.hybrid.iter().filter(|(a, b)| *a == c.index() || *b == c.index()).count() as u32
     }
@@ -1022,8 +1030,13 @@ pub enum Value {
     SacrificedThisTurn,
     /// opponents who lost life this turn (`PlayerLostLifeWatcher`)
     OpponentsLostLife,
-    /// the controller's devotion to a color: its mana symbols among the mana costs of permanents they control
-    Devotion { c: Color },
+    /// the controller's devotion to a color (and `c2`, for two): its mana symbols among the mana costs of permanents
+    /// they control, a hybrid symbol of both counted once
+    Devotion {
+        c: Color,
+        #[serde(default)]
+        c2: Option<Color>,
+    },
     /// basic land types among lands the controller controls (`DomainValue.REGULAR`)
     Domain,
     /// Auras attached to the source (`AuraAttachedCount`)
@@ -1588,6 +1601,29 @@ pub enum EffectDef {
     ScryTargetEffect {
         amount: Amount,
     },
+    /// proliferate: the controller chooses any number of permanents and players with counters, then each gets
+    /// another counter of each kind already there
+    ProliferateEffect,
+    /// populate: a token that's a copy of a creature token the controller chooses among theirs
+    PopulateEffect,
+    /// as long as `amount` is less than `less_than`, this isn't a creature (a Theros god's devotion)
+    LoseCreatureTypeSourceEffect {
+        amount: Amount,
+        less_than: i32,
+    },
+    /// the permanents of `filter` attack each combat if able (a static, `AttacksIfAbleAllEffect`)
+    AttacksIfAbleAllEffect {
+        filter: Filter,
+    },
+    /// amass: with no Army, create `token` (a 0/0 Army) first; then `amount` +1/+1 counters on an Army the
+    /// controller chooses, which becomes a `subtype` too
+    AmassEffect {
+        amount: Amount,
+        subtype: String,
+        token: TokenDef,
+    },
+    /// the targets don't untap during their controller's next untap step
+    DontUntapInControllersNextUntapStepTargetEffect,
     /// you win the game: each opponent loses it (`PlayerImpl.won`)
     WinGameSourceControllerEffect,
     /// Blade of the Bloodchief: a +1/+1 counter on the equipped creature, two if it's a Vampire
@@ -2754,6 +2790,14 @@ pub enum AbilityDef {
     ReboundAbility,
     /// devoid: no colors (the card's colors are set empty; this is its keyword)
     DevoidAbility,
+    /// toxic N: combat damage to a player also gives them N poison counters
+    ToxicAbility {
+        amount: i32,
+        #[serde(default)]
+        rule: String,
+    },
+    /// changeling: the card is every creature type (`CardDef::all_creature_types`)
+    ChangelingAbility,
     HexproofAbility,
     /// protection from a color, as an effect grants it (Brave the Elements)
     ProtectionFromColorAbility {
@@ -3221,6 +3265,9 @@ pub struct CardJson {
     /// the index of the ability each hint is of, in its abilities
     #[serde(default)]
     pub hint_abilities: Vec<usize>,
+    /// changeling: every creature type, in every zone (`ChangelingAbility`)
+    #[serde(default)]
+    pub all_creature_types: bool,
 }
 
 /// A hint an ability adds to a card's rules in a view (`mage.abilities.hint`), in the order of its abilities.
@@ -3258,33 +3305,164 @@ pub enum HintDef {
     },
 }
 
-/// Subtypes that aren't creature types, for "every creature type"
-pub const LAND_TYPES: &[&str] = &[
-    "Plains",
-    "Island",
-    "Swamp",
-    "Mountain",
+/// Subtypes that aren't creature types (`SubType`'s other `SubTypeSet`s), for "every creature type"
+pub const NON_CREATURE_TYPES: &[&str] = &[
+    "Adventure",
+    "Arcane",
+    "Lesson",
+    "Omen",
+    "Trap",
+    "Vengeance",
+    "Siege",
     "Forest",
+    "Island",
+    "Mountain",
+    "Plains",
+    "Swamp",
+    "Cave",
     "Desert",
     "Gate",
-    "Cave",
-    "Town",
-    "Sphere",
     "Lair",
     "Locus",
     "Mine",
+    "Planet",
     "Power-Plant",
+    "Sphere",
     "Tower",
+    "Town",
     "Urza's",
-    "Equipment",
     "Aura",
-    "Vehicle",
-    "Food",
-    "Clue",
-    "Treasure",
-    "Saga",
+    "Background",
+    "Cartouche",
+    "Case",
     "Class",
+    "Curse",
+    "Plan",
     "Role",
+    "Room",
+    "Rune",
+    "Saga",
+    "Shard",
+    "Shrine",
+    "Attraction",
+    "Blood",
+    "Bobblehead",
+    "Book",
+    "Clue",
+    "Communicator",
+    "Contraption",
+    "Equipment",
+    "Food",
+    "Fortification",
+    "Gold",
+    "Heartwood",
+    "Incubator",
+    "Infinity",
+    "Junk",
+    "Lander",
+    "Map",
+    "Mutagen",
+    "Powerstone",
+    "Spacecraft",
+    "Stone",
+    "Treasure",
+    "Vehicle",
+    "Vibranium",
+    "Ajani",
+    "Aminatou",
+    "Angrath",
+    "Arlinn",
+    "Arzakon",
+    "Ashiok",
+    "Aurra",
+    "Bahamut",
+    "Basri",
+    "Bolas",
+    "Calix",
+    "Chandra",
+    "Comet",
+    "Dack",
+    "Dakkon",
+    "Daretti",
+    "Davriel",
+    "Dellian",
+    "Dihada",
+    "Domri",
+    "Dooku",
+    "Dovin",
+    "Dyfed",
+    "Ellywick",
+    "Elminster",
+    "Elspeth",
+    "Estrid",
+    "Feroz",
+    "Freyalise",
+    "Garruk",
+    "Gideon",
+    "Greensleeves",
+    "Grist",
+    "Guff",
+    "Huatli",
+    "Inzerva",
+    "Jace",
+    "Jared",
+    "Jaya",
+    "Jeska",
+    "Kaito",
+    "Karn",
+    "Kasmina",
+    "Kaya",
+    "Kiora",
+    "Koth",
+    "Liliana",
+    "Lolth",
+    "Luke",
+    "Lukka",
+    "Minsc",
+    "Mordenkainen",
+    "Nahiri",
+    "Narset",
+    "Niko",
+    "Nissa",
+    "Nixilis",
+    "Obi-Wan",
+    "Oko",
+    "Quintorius",
+    "Ral",
+    "Rey",
+    "Rowan",
+    "Saheeli",
+    "Samut",
+    "Sarkhan",
+    "Serra",
+    "Sidious",
+    "Sifa",
+    "Sivitri",
+    "Snoke",
+    "Sorin",
+    "Szat",
+    "Tamiyo",
+    "Tasha",
+    "Teferi",
+    "Teyo",
+    "Tezzeret",
+    "Tibalt",
+    "Tyvar",
+    "Ugin",
+    "Urza",
+    "Venser",
+    "Vivien",
+    "Vraska",
+    "Vronos",
+    "Will",
+    "Windgrace",
+    "Worzel",
+    "Wrenn",
+    "Xenagos",
+    "Yanggu",
+    "Yanling",
+    "Yoda",
+    "Zariel",
 ];
 
 /// A card's printed characteristics and abilities, shared by every copy of it and never changed.
@@ -3399,7 +3577,7 @@ impl CardDef {
             toughness: json.toughness.unwrap_or(0),
             loyalty: json.loyalty,
             defense: json.defense,
-            all_creature_types: false,
+            all_creature_types: json.all_creature_types,
             abilities: json.abilities,
             spell: json.spell.unwrap_or_default(),
             adventure: match json.adventure {

@@ -754,6 +754,10 @@ pub struct Game {
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
     /// its zone change count, the subtype
     pub subtypes_until_eot: Vec<(ObjId, u32, String)>,
+    /// subtypes permanents have for as long as they stay (amass's `AddCardSubTypeTargetEffect`, `Duration.Custom`)
+    pub subtypes_while_there: Vec<(ObjId, u32, String)>,
+    /// permanents that don't untap during their controller's next untap step (and their zone change count)
+    pub skip_next_untap: Vec<(ObjId, u32)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
     /// while triggered abilities go on the stack: what their targets trigger (ward, valiant), which Java's
@@ -892,6 +896,8 @@ impl Game {
             events: None,
             exile_if_dies: Vec::new(),
             subtypes_until_eot: Vec::new(),
+            subtypes_while_there: Vec::new(),
+            skip_next_untap: Vec::new(),
             triggered_this_turn: Vec::new(),
             targeted_later: None,
             sac_insert: None,
@@ -1168,7 +1174,7 @@ impl Game {
                 }
             }
         }
-        for (x, zcc, t) in &self.subtypes_until_eot {
+        for (x, zcc, t) in self.subtypes_until_eot.iter().chain(&self.subtypes_while_there) {
             if *x == id && *zcc == o.zcc && !added.contains(&t.as_str()) {
                 added.push(t);
             }
@@ -1184,10 +1190,10 @@ impl Game {
         let def = &o.def;
         if let Some(types) = o.creature_types.as_ref().filter(|_| o.zone == Zone::Battlefield) {
             return types.iter().any(|x| x == s)
-                || (crate::card::LAND_TYPES.contains(&s) && def.subtypes.iter().any(|x| x == s));
+                || (crate::card::NON_CREATURE_TYPES.contains(&s) && def.subtypes.iter().any(|x| x == s));
         }
         def.subtypes.iter().any(|x| x == s)
-            || (def.all_creature_types && !crate::card::LAND_TYPES.contains(&s))
+            || (def.all_creature_types && !crate::card::NON_CREATURE_TYPES.contains(&s))
             || (o.zone == Zone::Battlefield
                 && self.any_static(|g, src, e| match e {
                     EffectDef::AddCardSubtypeAllEffect { filter, subtype } => {
@@ -1491,6 +1497,11 @@ impl Game {
                 }
                 _ => false,
             }),
+            _ => false,
+        }) || self.any_static(|g, src, e| match e {
+            EffectDef::AttacksIfAbleAllEffect { filter } => {
+                g.filter_matches(filter, g.obj(src).controller, Some(src), id)
+            }
             _ => false,
         })
     }
@@ -1796,7 +1807,7 @@ impl Game {
                         })
                     })
                     .count() as i32,
-                Value::Devotion { c } => self
+                Value::Devotion { c, c2 } => self
                     .battlefield
                     .iter()
                     // a transformed permanent's back face has no mana symbols (its mana value is still its front's)
@@ -1804,7 +1815,13 @@ impl Game {
                         let o = self.obj(**b);
                         o.controller == you && o.front.as_ref().is_none_or(|f| f.transform_back.is_none())
                     })
-                    .map(|b| self.obj(*b).def.cost.symbols_of(*c) as i32)
+                    .map(|b| {
+                        let cost = &self.obj(*b).def.cost;
+                        (match c2 {
+                            Some(c2) => cost.symbols_of_either(*c, *c2),
+                            None => cost.symbols_of(*c),
+                        }) as i32
+                    })
                     .sum(),
             },
         }
