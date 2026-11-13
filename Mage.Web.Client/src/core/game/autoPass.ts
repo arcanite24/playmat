@@ -43,6 +43,11 @@ export interface AutoPassSettings {
   abilitiesOnTheirTurn: boolean;
   /** Arena's full control: the client never answers for the player */
   fullControl?: boolean;
+  /**
+   * Arena's pass turn (the ">>" toggle, Shift+Enter): every priority this turn is passed, whatever is on the stack or
+   * in hand, and on the player's own turn nobody attacks. Blocks and the choices an effect asks for still wait.
+   */
+  passTurn?: boolean;
   /** combat steps where the player wants to stop */
   combatStops?: TurnCombatStops;
   /**
@@ -124,7 +129,13 @@ export type AutoAnswer = 'pass' | 'noAttacks' | 'noBlocks';
 
 /** What to answer for the player right now, or null when the decision is theirs. */
 export function autoAnswer(view: GameView | null | undefined, prompt: Prompt | null, settings: AutoPassSettings): AutoAnswer | null {
-  if (!view || !prompt || settings.fullControl) return null;
+  if (!view || !prompt) return null;
+  if (settings.passTurn) {
+    if (prompt.kind === 'priority') return 'pass';
+    if (prompt.kind === 'declareAttackers' && myAttackers(view).length === 0) return 'noAttacks';
+    return null;
+  }
+  if (settings.fullControl) return null;
   switch (prompt.kind) {
     case 'priority':
     {

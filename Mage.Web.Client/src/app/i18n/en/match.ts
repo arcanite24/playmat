@@ -25,6 +25,7 @@ export default {
   'match.shortcuts.cancel': "Cancel or skip a choice when allowed.",
   'match.shortcuts.undo': "Undo mana taps at priority, when available.",
   'match.shortcuts.control': "Press and release together to toggle full control.",
+  'match.shortcuts.passTurn': "Pass the turn (the » button): skip every stop until this turn ends. Press again to stop.",
   'match.shortcuts.ahead': "Pass to end of turn / next turn / your next turn / resolve the stack.",
   'match.shortcuts.mute': "Toggle game sounds.",
   'match.shortcuts.note': "Shortcuts pause while typing or using menus. Tab reaches cards beyond the first ten.",

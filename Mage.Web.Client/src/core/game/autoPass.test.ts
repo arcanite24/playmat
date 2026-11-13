@@ -164,3 +164,22 @@ describe('beginning of combat on your turn', () => {
     expect(autoAnswer({ ...combat({ bolt: { basicCastAbilities: record } }), stack: { trigger: {} } } as GameView, priority, on)).toBeNull();
   });
 });
+
+describe('pass turn (Arena ">>")', () => {
+  const off = { autoPass: false, autoSkipCombat: false, abilitiesOnTheirTurn: true };
+  const loaded = view({ bolt: { basicCastAbilities: record } });
+
+  it('passes every priority, with plays in hand or a spell on the stack', () => {
+    expect(autoAnswer(loaded, priority, { ...off, passTurn: true })).toBe('pass');
+    expect(autoAnswer({ ...loaded, stack: { s: { id: 's' } } as never }, priority, { ...off, passTurn: true, fullControl: true })).toBe('pass');
+  });
+
+  it('skips attacking with creatures that could attack, but leaves blocks and choices to the player', () => {
+    const attackers = parsePrompt('GAME_SELECT', { message: 'Select attackers', options: { possibleAttackers: ['bear'] } });
+    expect(autoAnswer(loaded, attackers, { ...off, passTurn: true })).toBe('noAttacks');
+    const blockers = parsePrompt('GAME_SELECT', { message: 'Select blockers', options: { possibleBlockers: ['bear'] } });
+    expect(autoAnswer(loaded, blockers, { ...off, passTurn: true })).toBeNull();
+    const target = parsePrompt('GAME_TARGET', { message: 'Select a target', targets: ['x'], flag: true });
+    expect(autoAnswer(loaded, target, { ...off, passTurn: true })).toBeNull();
+  });
+});

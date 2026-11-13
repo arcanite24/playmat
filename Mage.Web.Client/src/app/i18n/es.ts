@@ -27,6 +27,7 @@ const es: Catalog = {
   'match.shortcuts.cancel': "Cancela u omite una elección cuando esté permitido.",
   'match.shortcuts.undo': "Deshaz acciones de maná cuando tengas prioridad y esté disponible.",
   'match.shortcuts.control': "Pulsa y suelta ambas teclas para alternar el control total.",
+  'match.shortcuts.passTurn': "Pasa el turno (el botón »): salta todas las paradas hasta que acabe este turno. Pulsa otra vez para parar.",
   'match.shortcuts.ahead': "Pasa al final del turno / siguiente turno / tu siguiente turno / resuelve la pila.",
   'match.shortcuts.mute': "Activa o desactiva los sonidos de la partida.",
   'match.shortcuts.note': "Los atajos se pausan al escribir o usar menús. Tab llega a las cartas después de las primeras diez.",

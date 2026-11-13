@@ -1,5 +1,5 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ChevronUp } from 'lucide-react';
+import { ChevronsRight, ChevronUp } from 'lucide-react';
 import { useEffect, useMemo, type ReactNode } from 'react';
 import type { Command, Interaction, PromptButton } from '../../core/game/interaction';
 import type { CardView, PlayerAction } from '../../protocol/generated/views';
@@ -31,6 +31,9 @@ export interface ActionClusterProps {
   /** Arena's full control: stop at every step, never pass for the player */
   fullControl?: boolean;
   onFullControl?(on: boolean): void;
+  /** Arena's pass turn (">>"): every priority passed until this turn ends */
+  passTurn?: boolean;
+  onPassTurn?(on: boolean): void;
   /** the last answer got no reaction from the server in time */
   stalled?: boolean;
   onResend?(): void;
@@ -55,7 +58,8 @@ const UNDO: PromptButton = { label: 'Undo tap', command: { type: 'action', actio
 
 /** The decision corner: what the game is asking, and the one big button that answers it. */
 export function ActionCluster({
-  interaction, awaiting, status, canAct, special, holdingPriority, undoable = false, autoPassing = false, fullControl = false, onFullControl, extra,
+  interaction, awaiting, status, canAct, special, holdingPriority, undoable = false, autoPassing = false, fullControl = false, onFullControl,
+  passTurn = false, onPassTurn, extra,
   stalled = false, onResend, onResync, conceding = null, warning = null, cards = null, onCommand,
 }: ActionClusterProps) {
   const t = useT();
@@ -88,6 +92,12 @@ export function ActionCluster({
         if (!awaiting || (interaction.mode === 'payMana' && button === cancel)) command = button?.command;
       } else if (key === 'cancel' && (!awaiting || interaction.mode === 'payMana')) {
         command = cancel?.command;
+      } else if (onPassTurn && event.key === 'Enter' && event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        // Shift+Enter, as on Arena: pass the turn, or take it back
+        event.preventDefault();
+        event.stopPropagation();
+        onPassTurn(!passTurn);
+        return;
       } else if (undo && !awaiting && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === 'z') {
         command = undo.command;
       } else if (!event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && (interaction.mode === 'priority' || interaction.mode === 'waiting')) {
@@ -103,7 +113,7 @@ export function ActionCluster({
     }
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [main, primaryShortcut, secondary, cancel, undo, awaiting, autoPassing, canAct, interaction.mode, onCommand]);
+  }, [main, primaryShortcut, secondary, cancel, undo, awaiting, autoPassing, canAct, interaction.mode, onCommand, passTurn, onPassTurn]);
 
   // Ctrl+Shift on its own, as on Arena, locks full control on or off (released without any other key in between)
   useEffect(() => {
@@ -248,6 +258,19 @@ export function ActionCluster({
           </Button>
         ) : deciding ? null : (
           <div className={styles.waiting}>{awaiting ? 'Sending…' : 'Waiting'}</div>
+        )}
+        {onPassTurn && canAct && (
+          <button
+            type="button"
+            className={[styles.passTurn, passTurn ? styles.passTurnOn : ''].join(' ')}
+            aria-pressed={passTurn}
+            aria-keyshortcuts="Shift+Enter"
+            aria-label="Pass turn"
+            title={passTurn ? 'Passing this turn: click to stop (Shift+Enter)' : 'Pass turn: skip to the end of this turn (Shift+Enter)'}
+            onClick={() => onPassTurn(!passTurn)}
+          >
+            <ChevronsRight size={30} strokeWidth={2.75} aria-hidden="true" />
+          </button>
         )}
       </div>
     </section>

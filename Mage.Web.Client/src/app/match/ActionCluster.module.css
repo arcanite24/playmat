@@ -172,9 +172,51 @@
   background: rgb(var(--decision-rgb) / 0.15);
 }
 
+/* Arena's pass turn: a quiet chip when off, lit amber while the turn is being passed */
+.passTurn {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 44px;
+  align-self: flex-end;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(var(--mat-rgb) / 0.8);
+  box-shadow: inset 0 0 0 1.5px var(--ink-ghost);
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, box-shadow 120ms ease;
+}
+
+.passTurn:hover {
+  color: var(--ink-strong);
+  box-shadow: inset 0 0 0 1.5px var(--decision);
+}
+
+.passTurnOn,
+.passTurnOn:hover {
+  background: var(--decision);
+  color: var(--decision-ink);
+  box-shadow: 0 0 14px var(--decision-glow), inset 0 0 0 1.5px var(--decision-strong);
+}
+
+.passTurnOn svg {
+  animation: pass-turn-nudge 900ms ease-in-out infinite;
+}
+
+@keyframes pass-turn-nudge {
+  50% { transform: translateX(3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .passTurnOn svg { animation: none; }
+}
+
 /* touch: the pass-ahead button is as wide as a finger */
-.ahead {
+.ahead,
+.passTurn {
   min-width: var(--touch-target, 0px);
+  min-height: var(--touch-target, 0px);
 }
 
 /* tall: the corner sits in the band above the hand */
