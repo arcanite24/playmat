@@ -947,6 +947,8 @@ pub struct Game {
     pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
     /// players dealt combat damage this turn, by source (Steel Hellkite's watcher): the source, the player
     pub combat_damaged_players: Vec<(ObjId, Seat)>,
+    /// the creatures that attacked this turn, as they were (`AttackedThisTurnWatcher.getAttackedThisTurnCreatures`)
+    pub attacked_this_turn: Vec<(ObjId, u32)>,
     /// the players whose lands have all basic land types until end of turn (Energybending)
     pub all_basics_until_eot: Vec<Seat>,
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
@@ -1122,6 +1124,7 @@ impl Game {
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
+            attacked_this_turn: Vec::new(),
             all_basics_until_eot: Vec::new(),
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
