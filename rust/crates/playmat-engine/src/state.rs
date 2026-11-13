@@ -2319,8 +2319,16 @@ impl Game {
             let o = self.obj(id);
             self.owed_choices.push(o.owner);
         }
+        // with an "if it would die this turn, exile it instead" too, the creature's controller chooses which applies
+        // (Snarling Gorehound under Rest in Peace)
+        let dies_exiles = if from == Zone::Battlefield && zone == Zone::Graveyard {
+            let zcc = self.obj(id).zcc;
+            self.exile_if_dies.iter().filter(|e| **e == (id, zcc)).count()
+        } else {
+            0
+        };
         let zone = if zone == Zone::Graveyard && rest_in_peace > 0 {
-            if rest_in_peace > 1 {
+            if rest_in_peace + dies_exiles > 1 {
                 let o = self.obj(id);
                 self.owed_choices.push(if from == Zone::Battlefield { o.controller } else { o.owner });
             }
@@ -2347,8 +2355,15 @@ impl Game {
         } else {
             0
         };
-        // more than one applies: Java asks the creature's controller which, though each exiles it
-        if etchings > 1 {
+        // more than one applies: Java asks the creature's controller which, though each exiles it (two "exile it
+        // instead" from Scorching Dragonfire and Shock's... the same replacement twice counts as two)
+        let exiles = if from == Zone::Battlefield && zone == Zone::Graveyard {
+            let zcc = self.obj(id).zcc;
+            self.exile_if_dies.iter().filter(|e| **e == (id, zcc)).count()
+        } else {
+            0
+        };
+        if etchings + exiles > 1 {
             let c = self.obj(id).controller;
             self.owed_choices.push(c);
         }
