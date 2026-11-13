@@ -7557,38 +7557,74 @@ Territorial Maro
 Territorial Roc
 Territorial Scythecat
 Territorial Witchstalker
+Terror of Mount Velus
+Terror of the Fairgrounds
 Teshar, Ancestor's Apostle
+Test of Conviction
+Test of Courage
+Test of Loyalty
+Testament Bearer
 Tether Technician
+Tethermage's Advantage
+Tethmos High Priest
 Tetsuko Umezawa, Pursuer
+Teyo's Lightshield
+Teyo, the Shieldmage
+Tezzeret's Ambition
 Tezzeret's Betrayal
 Tezzeret's Gatebreaker
 Tezzeret's Simulacrum
+Tezzeret's Strider
 Tezzeret's Touch
 Tezzeret, Master of Metal
+Thalia's Lancers
 Thalia's Lieutenant
 Thalia, Guardian of Thraben
 Thalia, Heretic Cathar
+Thalia, the Survivor
+Thallid Soothsayer
 Thassa's Bounty
 Thassa's Devourer
+Thassa's Ire
+Thassa's Rebuff
 Thassa, God of the Sea
+Thaumaturge's Familiar
+Thawbringer
 The Arkenstone
+The Autonomous Furnace
 The Boulder, Ready to Rumble
+The Chase Is On
 The Circle of Loyalty
 The Cruelty of Gix
 The Doctor, EMH
+The Dross Pits
+The Duras Sisters
+The Echoverse Fulcrum
 The Eldest Reborn
+The Fair Basilica
 The Filigree Sylex
 The Final Days
+The Haunt of Hightower
+The Hunter Maze
 The Huntsman's Redemption
 The Legend of Roku
+The Lion-Turtle
 The Locust God
 The Meathook Massacre
+The Mechanist, Aerial Artisan
+The Modern Age
+The Monumental Facade
+The Mountain-king's Return
 The Ooze
+The Prima Vista
 The Restoration of Eiganjo
 The Sackville-Bagginses
 The Scarab God
 The Scorpion God
 The Spirit Oasis
+The Spot's Portal
+The Surgical Bay
+The Swarmweaver
 The Theorist, Jace Beleren
 The Unbeatable Squirrel Girl
 The Unicomplex
@@ -7596,6 +7632,7 @@ The Walls of Ba Sing Se
 The Wanderer
 The Wandering Emperor
 The Wandering Rescuer
+The Weatherseed Treaty
 The Wondrous Wasp
 Theoretical Necromancer
 Theorist's Sanctum
@@ -7603,247 +7640,610 @@ Theorix Annex
 Theorix Charm
 Theorix Metamage
 Thermo-Alchemist
+They Went This Way
+Thicket Crasher
+Thieving Otter
 Think Twice
+Thinking Cap
 Third Path Iconoclast
+Third Path Savant
 Thirst for Discovery
+Thirst for Identity
 Thirst for Knowledge
+Thirst for Meaning
+Thirsting Bloodlord
+Thirsting Roots
+Thirsting Shade
 This Town Ain't Big Enough
+Thistledown Players
+Thopter Architect
 Thopter Engineer
+Thopter Fabricator
 Thopter Mechanic
+Thor Odinson
 Thorin's Last Stand
 Thorn Mammoth
+Thorned Moloch
+Thornfist Striker
+Thornhide Wolves
 Thornspire Verge
 Thornweald Archer
 Thornwood Falls
+Those Who Serve
+Thought Erasure
 Thoughtcast
+Thoughtflare
 Thoughtrender Lamia
 Thoughtseize
+Thoughtweft Imbuer
+Thoughtweft Lieutenant
 Thousand Moons Crackshot
+Thousand Moons Infantry
+Thraben Foulbloods
+Thraben Gargoyle
 Thraben Inspector
+Thraben Standard Bearer
 Thran Vigil
+Thranduil's Company
+Thranduil, Sindarin Liege
+Thrash of Raptors
 Thrashing Brontodon
+Thraxodemon
+Threadbind Clique
 Three Blind Mice
 Three Steps Ahead
+Three Tree Rootweaver
 Threefold Thunderhulk
+Threnody Singer
+Thresher Lizard
 Thrill of Possibility
+Thrill-Kill Assassin
+Thrilling Discovery
+Thriving Grubs
+Thriving Ibex
+Thriving Rats
 Thriving Rhino
 Thriving Turtle
 Throne of the God-Pharaoh
 Thror's Map
+Throttle
 Throwing Knife
 Thrumming Hivepool
 Thrummingbird
 Thud
 Thunder Drake
+Thunder Strike
+Thunderclap Wyvern
 Thunderherd Migration
 Thundering Broodwagon
+Thundering Ceratok
+Thundering Chariot
 Thundering Falls
+Thundering Giant
+Thundering Rebuke
+Thundering Sparkmage
 Thundering Spineback
+Thunderous Snapper
+Thundersteel Colossus
+Thundertrap Trainer
 Thwart the Enemy
+Tibalt's Rager
 Tibalt, Rakish Instigator
+Ticket Tortoise
+Tidal Terror
+Tide Drifter
 Tide Shaper
+Tide Skimmer
+Tidecaller Mentor
+Tidepool Turtle
 Tidings of War
+Tidus, Blitzball Star
+Tidy Conclusion
 Tifa Lockhart
+Tiger-Dillo
+Tiger-Seal
 Tightening Coils
+Tigra, Feline Fury
 Tilonalli's Knight
 Timber Gorge
+Timberland Ancient
+Timberland Guide
+Time Ebb
 Time Wipe
+Timely Hordemate
+Timid Shieldbearer
+Tin Street Dodger
+Tin Street Market
+Tinker's Tote
 Tinybones, the Pickpocket
+Tireless Hauler
+Tireless Missionaries
 Tireless Tracker
 Tishana's Tidebinder
 Tishana's Wayfinder
 Tishana, Voice of Thunder
+Titan's Grave
 Titan's Strength
 Titania's Command
 Titanic Brawl
 Titanic Growth
+Tithe Drinker
+Tithebearer Giant
+To the Slaughter
+Toadstool Admirer
 Toby, Beastie Befriender
+Tocasia's Dig Site
 Tocasia's Welcome
 Tocatli Honor Guard
+Tolarian Geyser
 Tolarian Kraken
+Tolarian Scholar
 Tolarian Terror
+Toll of the Invasion
+Tolls of War
+Tomakul Honor Guard
+Tomakul Scrapsmith
+Tomb Robber
+Tomb Trawler
 Tomb of the Spirit Dragon
 Tombstone, Career Criminal
+Tome Anima
+Tome Blast
+Tome Raider
+Tome Scour
 Tome Shredder
+Tome of the Guildpact
 Tonberry
+Toolcraft Exemplar
+Topan Freeblade
+Topiary Panther
 Topiary Stomper
 Topple the Statue
+Torch Breath
 Torch Courier
+Torch Fiend
+Torch Gauntlet
 Torch the Tower
+Torens, Fist of the Angels
+Tormented Hero
 Tormenting Voice
 Tormod's Crypt
 Torpor Orb
 Toski, Bearer of Secrets
+Totally Lost
+Totem-Guide Hartebeest
+Totentanz, Swarm Piper
 Tough Cookie
+Tournament Grounds
+Towashi Songshaper
+Tower Defense
+Tower Drake
+Tower Geist
+Towering Indrik
+Town Gossipmonger
 Town Greeter
+Toxic Abomination
 Toxin Analysis
 Trading Post
 Tragic Banshee
+Tragic Poet
 Tragic Trajectory
+Trail of Evidence
+Trailblazing Historian
+Trained Caracal
+Trained Condor
 Training Compound
+Training Regimen
+Tramway Station
 Tranquil Cove
 Tranquil Expanse
 Transcendent Envoy
 Transcendent Message
+Transdimensional Bovine
+Transformative Commons
 Transguild Promenade
+Transit Mage
 Transmogrant Altar
 Transmogrant's Crown
+Transmogrifying Wand
+Transplant Theorist
+Trapjaw Tyrant
+Trapped in the Screen
 Trapped in the Tower
 Trash the Town
 Traumatic Critique
+Traveler's Amulet
 Traveling Botanist
+Traveling Minister
+Traveling Philosopher
+Traverse the Ulvenwald
+Trawler Drake
+Traxos, Scourge Eternal
+Tread Upon
 Treasure Cruise
+Treasure Dredger
 Treasure Keeper
 Treasure Vault
+Treasured Find
+Treasury Thrull
+Treeguard Duo
+Treetop Freedom Fighters
+Treetop Sentries
 Treetop Snarespinner
 Trelasarra, Moon Dancer
+Trench Stalker
 Treno, Dark City
+Trestle Troll
 Trial of Ambition
+Trial of Knowledge
+Trial of Solidarity
+Trial of Strength
 Trial of Zeal
 Tribal Flames
+Tributary Vaulter
+Tribute to Urborg
+Triceraton Commander
 Tricks of the Trade
 Tricorder
+Triplicate Spirits
 Triskaidekaphile
+Triton Cavalry
 Triton Fortune Hunter
+Triton Shorethief
 Triton Waverider
+Triumphant Surge
+Troll Negotiations
+Trollbred Guardian
+Trollhide
 Trophy Mage
+Trostani's Judgment
+Trostani, Three Whispers
 Troublemaker Ouphe
+Troubling Tribbles
+Truck Toss
 True Ancestry
+True Love's Kiss
+Truefire Captain
+Truefire Paladin
+Trufflesnout
+Trumpet Blast
+Trusted Pegasus
 Trusty Companion
+Trusty Packbeast
 Trygon Predator
+Tuktuk Rubblefort
+Tundra Tank
+Tunnel Rats
+Tunnel Surveyor
 Tunneling Geopede
 Tura Kennerud, Skyknight
+Turntimber Ascetic
+Turret Ogre
 Turtle Lair
+Turtle Power!
+Tusked Colossodon
+Tuskeri Firewalker
 Tuskguard Captain
+Tweeze
+Twilight Panther
+Twin Blades
+Twin Bolt
 Twinblade Assassins
 Twinblade Blessing
 Twinblade Paladin
 Twinferno
 Twinflame Tyrant
 Twinmaw Stormbrood
+Twinscroll Shaman
+Twinshot Sniper
+Twisted Embrace
 Twitching Doll
+Two-Headed Cerberus
+Two-Headed Hunter
+Two-Headed Zombie
 Ty Lee, Artful Acrobat
+Type-2 Phaser
+Typhoid Rats
+Tyrant of Kher Ridges
+Tyrant's Machine
+Tyrant's Scorn
+Tyrox, Saurid Tyrant
+Tyrranax Atrocity
 Tyrranax Rex
 Tyvar's Stand
+Tyvar, the Pummeler
 Ubul Sar Gatekeepers
 Ugin's Insight
 Ugin's Labyrinth
+Ukud Cobra
+Ulcerate
+Ulna Alley Shopkeep
+Ulrich's Kindred
 Ultima Weapon
 Ultimate Price
+Ultron Drone
 Ultros, Obnoxious Octopus
 Ulvenwald Hydra
+Ulvenwald Mysteries
 Ulvenwald Oddity
+Umara Entangler
+Umara Mystic
+Umara Wizard
 Umbral Collar Zealot
+Umbral Juke
 Una Chin-Riley, Number One
+Unauthorized Exit
 Unbridled Growth
+Unburden
+Unburied Earthcarver
+Uncaged Fury
+Unchained Berserker
+Uncharted Haven
 Unclaimed Territory
+Uncle Iroh
+Uncomfortable Chill
 Uncovered Clues
+Undead Butler
+Undead Minotaur
+Undead Servant
+Undercity Dire Rat
 Undercity Eliminator
+Undercity Scavenger
 Undercity Scrounger
 Undercity Sewers
+Undercity Troll
+Undercity Upheaval
+Undercity Uprising
+Undercity's Embrace
+Underdark Basilisk
+Underfoot Underdogs
 Underground Mortuary
 Underground River
 Undergrowth Leopard
+Undergrowth Recon
+Underhanded Designs
+Undersea Invader
+Underworld Charger
 Underworld Coinsmith
+Underworld Connections
 Underworld Dreams
+Underworld Fires
+Underworld Rage-Hound
 Undulating Witness
+Unending Whisper
 Unexpected Assistance
 Unexpected Windfall
+Unexplained Disappearance
+Unexplored Territory
+Unflinching Courage
 Unflinching Hortimancer
+Unforgiving Aim
+Unfortunate Accident
+Unfriendly Fire
+Unhallowed Phalanx
 Unholy Annex // Ritual Chamber
 Unholy Heat
+Unholy Hunger
+Unholy Officiant
+Uninvited Geist
+Union of the Third Path
 United Battlefront
 United Front
 Universal Solvent
 University Campus
+Unknown Shores
 Unlicensed Hearse
+Unlikely Aid
+Unliving Legionnaire
+Unmake the Graves
 Unnatural Aggression
+Unnatural Endurance
 Unnatural Restoration
 Unquenchable Thirst
+Unraveling Mummy
+Unrooted Ancestor
 Unruly Catapult
+Unruly Mob
+Unscrupulous Contractor
 Unsparing Boltcaster
+Unstoppable Ogre
 Unstoppable Plan
+Unsubstantiate
+Unsubtle Mockery
 Unsummon
+Untamed Hunger
+Untamed Kavu
+Untethered Express
 Unwelcome Sprite
+Unwilling Ingredient
 Unwind
+Unyielding Krumar
 Up the Beanstalk
+Updraft Elemental
+Upriser Renegade
+Urabrask's Anointer
+Urban Utopia
+Urbis Protector
 Urborg, Tomb of Yawgmoth
+Ureni's Rebuff
+Urn of Godfire
+Urza's Rebuff
 Urza's Saga
 Usher of the Fallen
+Utility Knife
+Utrom Scientists
 Utter End
+Uurg, Spawn of Turg
 Vadmir, New Blood
+Valakut Invoker
+Valakut Predator
+Valgavoth's Faithful
 Valgavoth's Lair
 Valgavoth, Terror Eater
+Valiant Knight
+Valiant Veteran
+Valkyrie Aerial Unit
 Valkyrie Harbinger
 Valkyrie's Sword
+Valley Dasher
 Valley Flamecaller
 Valley Floodcaller
+Valley Mightcaller
 Valley Rotcaller
+Valor Singer
 Valor in Akros
 Valorous Stance
+Valorous Steed
+Vampire Champion
+Vampire Cutthroat
+Vampire Envoy
 Vampire Gourmand
+Vampire Interloper
+Vampire Neonate
 Vampire Nighthawk
+Vampire Noble
+Vampire Opportunist
+Vampire Revenant
+Vampire Soulcaller
+Vampire Sovereign
 Vampire Spawn
+Vampire Warlord
 Vampire of the Dire Moon
+Vampire's Kiss
 Vampire's Zeal
+Vampires' Vengeance
 Vampiric Rites
 Vandalblast
+Vandalize
 Vanguard Seraph
+Vanguard of Brimaz
+Vanguard of the Rose
 Vanishing Verse
+Vanquish the Foul
 Vanquish the Horde
+Vanquish the Weak
+Vanquisher's Axe
 Vantress Transmuter
+Vaporkin
 Vash, Freelance Archaeologist
+Vassal Soul
 Vastwood Fortification
+Vastwood Gorger
+Vastwood Surge
+Vat Emergence
 Vat of Rebirth
+Vault Plunderer
 Vault Robber
+Vaultbreaker
 Vector, Imperial Capital
+Vedalken Blademaster
+Vedalken Mesmerist
 Vega, the Watcher
 Veil of Assimilation
+Veiled Shade
 Vein Ripper
+Veloheart Bike
+Velvetwing Butterflies
+Venerable Knight
+Venerated Stormsinger
+Vengeance Mission
+Vengeant Vampire
 Vengeful Bloodwitch
+Vengeful Reaper
+Vengeful Rebel
 Vengeful Tracker
 Vengeful Villagers
+Venom Connoisseur
 Venom Sliver
+Venom's Hunger
 Venom, Evil Unleashed
+Venomized Cat
+Venomous Brutalizer
+Venomous Hierophant
 Venus, Torn Between Worlds
 Verdant Automaton
 Verdant Crescendo
 Verdant Force
+Verdant Outrider
 Verdant Rebirth
 Verdurous Gearhulk
 Verix Bladewing
+Vernadi Shieldmate
+Vessel of Nascency
+Vessel of Paramnesia
 Vessel of Volatility
+Vestige of Emrakul
+Veteran Beastrider
+Veteran Guardmouse
 Veteran Motorist
+Veteran Warleader
+Veteran's Powerblade
+Veteran's Sidearm
 Vexing Bauble
+Vexing Drone
+Vexing Gull
 Vial Smasher, Gleeful Grenadier
+Vial of Dragonfire
+Vial of Poison
+Viashino Branchrider
+Viashino Firstblade
+Viashino Pyromancer
+Viashino Racketeer
+Viashino Shanktail
 Vibrance
+Vibranium Energy Daggers
 Vibrant Cityscape
 Vibrant Outburst
+Vicious Clown
+Vicious Conquistador
+Victory's Envoy
 Victory's Herald
 Vigilant Baloth
+Vigorbloom Annex
 Vigorbloom Charm
 Vigorbloom Vanguard
+Vigorspore Wurm
+Vildin-Pack Outcast
 Vile Entomber
+Vile Rebirth
+Vilespawn Spider
 Village Rites
+Village Watch
+Vindictive Warden
+Vine Mare
 Vine Snare
+Vinebred Brawler
 Vineglimmer Snarl
 Vinelasher Adept
 Vinereap Mentor
+Vines of the Recluse
 Vineshaper Mystic
+Vineshaper Prodigy
+Violent Impact
 Violent Urge
 Viper's Kiss
 Virtue of Loyalty
 Virtue of Persistence
 Virulent Emissary
+Virulent Plague
 Virus Beetle
+Visage of Bolas
 Vision of Love
+Visionary Augmenter
+Vito's Inquisitor
 Vito, Fanatic of Aclazotz
 Vito, Thorn of the Dusk Rose
+Vivid Revival
 Vivien Reid
+Vivien's Crocodile
 Vivien's Grizzly
 Vivien, Nature's Avenger
+Vivisection
 Vivisection Evangelist
+Vivisurgeon's Insight
+Vizier of Tumbling Sands
 Vizier of the Scorpion
+Vizkopa Vampire
 Vodalian Arcanist
 Vodalian Hexcatcher
 Voice of Resurgence
@@ -7851,147 +8251,427 @@ Voice of Victory
 Voice of the Blessed
 Voice of the Vermin
 Void Extrapolator
+Void Grafter
 Void Rend
+Void Shatter
+Void Snare
+Void Squall
 Voidforged Titan
+Voidwielder
 Voja, Jaws of the Conclave
 Volatile Fault
 Volatile Fjord
+Volatile Wanderglyph
 Volcanic Geyser
+Volcanic Rambler
+Volcanic Rush
+Volcanic Upheaval
+Volcanic Villain
+Voldaren Ambusher
+Voldaren Duelist
 Voldaren Epicure
+Voldaren Stinger
 Volley Veteran
+Voltaic Brawler
+Voltaic Servant
 Vona, Butcher of Magan
+Voracious Greatshark
 Voracious Hydra
+Voracious Null
 Voracious Tome-Skimmer
+Voracious Typhon
+Voracious Vampire
+Voracious Varmint
+Voracious Vermin
 Voracious Wurm
+Vorstclaw
 Vortex Runner
+Vote Out
 Voyage Home
 Voyage's End
+Voyager Glidecar
+Voyager Quickwelder
+Voyaging Satyr
+Vraan, Executioner Thane
 Vraska's Conquistador
+Vraska's Contempt
+Vraska's Final Mercy
 Vraska's Finisher
 Vraska's Stoneglare
 Vraska, Soul of Stone
+Vryn Wingmare
+Vulcan
+Vulpine Goliath
+Vulture, Scheming Scavenger
+Wailing Ghoul
+Wakandan Drone Flock
 Wake the Reflections
+Walk the Plank
+Walking Corpse
 Walking Skyscraper
 Wall of Fire
 Wall of Forgotten Pharaohs
 Wall of Frost
+Wall of Limbs
+Wall of Lost Thoughts
+Wall of Mist
+Wall of Mulch
 Wall of Omens
+Wall of Runes
+Wall of Swords
+Wall of Vines
 Wan Shi Tong, Librarian
+Wander Off
+Wander in Death
+Wanderbrine Preacher
+Wanderbrine Trapper
+Wanderer's Intervention
+Wanderer's Strike
+Wandering Champion
+Wandering Mind
+Wandering Musicians
+Wandering Tombshell
+Wanderlight Spirit
+Wandermare
 Wandertale Mentor
+Wanderwine Distracter
+Wanted Griffin
+Wanted Scoundrels
+War Flare
+War Horn
+War Machine, Legacy of Iron
+War Oracle
+War Screecher
+War Squeak
+War-Name Aspirant
+War-Wing Siren
+Warbriar Blessing
+Warchanter of Mogis
+Warded Battlements
+Warden of Evos Isle
+Warden of Geometries
+Warden of the Chained
+Warden of the Woods
 Wardens of the Cycle
+Wardscale Crocodile
 Warehouse Tabby
+Warfire Javelineer
 Warg Tactics
+Wargling
+Warhorn Blast
 Warkite Marauder
 Warleader's Call
+Warleader's Helix
+Warlord's Elite
 Warlord's Fury
+Warm Welcome
+Warmind Infantry
+Warp Core
 Warped Landscape
+Warped Physique
+Warren Elder
+Warren Warleader
+Warriors' Lesson
+Wartime Protestors
+Wary Okapi
 Wary Thespian
+Wary Watchdog
 Wash Away
+Wasp of the Bitter End
+Wasteful Harvest
+Wasteland Scorpion
+Wasteland Viper
 Wastewood Verge
+Watcher of the Spheres
+Watcher of the Wayside
+Watchful Automaton
+Watchful Blisterzoa
+Watchful Giant
+Watchful Naga
+Water Servant
+Water Tribe Captain
 Water Wings
+Watercourser
+Waterfall Aerialist
 Waterfront District
+Waterkin Shaman
+Waterknot
+Watertrap Weaver
+Waterwhirl
 Waterwind Scout
 Watery Grave
+Wave-Wing Elemental
 Wavebreak Hippocamp
+Wavecrash Triton
+Way of the Cryomancer
+Way of the Deathbringer
+Way of the Healer
+Way of the Mentor
 Way of the Necromancer
+Way of the Pyromancer
 Way of the Thief
+Way of the Warlord
+Way of the Wildspeaker
+Wayfaring Temple
+Waylaying Pirates
 Wayspeaker Bodyguard
+Wayward Giant
+Wayward Servant
 We Say Thee Nay!
+Weakstone's Subjugation
+Weaponcraft Enthusiast
+Weaponize the Monsters
 Weapons Manufacturing
 Weapons Trainer
+Weary Prisoner
+Weaselback Redcap
+Weather Maker
 Weathered Runestone
 Weatherlight
+Weave Fate
+Weaver of Blossoms
 Weaver of Currents
+Weaver of Lightning
 Web Up
+Web-Warriors
 Wedding Invitation
+Wedding Security
+Wee Dragonauts
+Weftblade Enhancer
 Weftstalker Ardent
 Weigh Down
+Weight of Memory
+Weight of the Underworld
 Welcome to Sweettooth
 Welcoming Vampire
+Welder Automaton
+Weldfast Engineer
 Weldfast Monitor
+Weldfast Wingsmith
 Welding Jar
+Welding Sparks
+Welkin Tern
+Well-Worn Spatula
 Werefox Bodyguard
+Wetland Sambar
+Whack
 Whelming Wave
 Whirler Rogue
 Whirler Virtuoso
+Whirlermaker
+Whirling Strike
+Whirlwind Adept
 Whirlwind of Thought
 Whirlwing Stormbrood
+Whiskerquill Scribe
+Whisper Agent
+Whisper Squad
+Whisper of the Dross
 Whisper, Blood Liturgist
+Whispering Wizard
 White Auracite
+White Dragon
+White Lotus Hideout
+White Lotus Reinforcements
 White Tiger, Ava Ayala
+White Widow, Free Agent
 Whitewater Naiads
+Whoosh!
 Wicked Visitor
 Wicked Wolf
+Wicker Witch
 Wild Beastmaster
+Wild Celebrants
+Wild Ceratok
+Wild Guess
+Wild Instincts
 Wild Nacatl
+Wild Pack Squad
 Wild Ride
+Wild Wanderer
+Wild-Field Scarecrow
+Wilderland Scrounger
 Wildest Dreams
+Wildfire Wickerfolk
+Wildheart Invoker
+Wildvine Pummeler
+Wildwood Mentor
+Wildwood Patrol
+Wildwood Rebirth
 Wildwood Tracker
+Will of the Naga
+Will-Forged Golem
 Willow Geist
 Willowrush Verge
+Wilt
+Wily Bandar
+Wily Goblin
+Wind Drake
 Wind Strider
 Wind-Kin Raiders
 Wind-Scarred Crag
+Windgrace Acolyte
+Windrider Patrol
+Windrider Wizard
+Windstorm
+Windstorm Drake
 Windswept Heath
 Windurst, Federation Center
+Wing Commando
+Wingblade Disciple
+Winged Portent
 Winged Words
+Wingmantle Chaplain
 Wingmate Roc
+Wings of the Cosmos
+Wingshield Agent
+Wingspan Stride
+Wingsteed Rider
+Winter's Intervention
+Winter, Team Player
 Winter, Tormented Loner
+Winterflame
 Winternight Stories
 Winterthorn Blessing
+Wishcoin Crab
+Wispdrinker Vampire
 Wistfulness
+Witch's Cauldron
 Witch's Cottage
+Witch's Familiar
+Witch's Mark
 Witch's Oven
+Witch's Web
+Witches' Eye
+Witching Well
 Witherbloom Apprentice
+Witherbloom Campus
+Witherbloom Charm
 Witherbloom Command
 Witherbloom Pledgemage
+Withering Curse
 Withering Torment
+Without Weakness
+Witness of Tomorrows
 Witty Roastmaster
 Wizard Class
+Wizard's Lightning
 Wizard's Retort
 Woe Strider
+Wojek Bodyguard
+Wojek Halberdiers
+Wolf's Quarry
+Wolfkin Bond
+Wolfkin Outcast
+Wolfrider's Saddle
 Wood Elves
+Woodcutter's Grit
 Wooded Foothills
 Wooded Ridgeline
+Woodland Acolyte
 Woodland Cemetery
 Woodland Chasm
+Woodland Mystic
+Woodland Patrol
 Woodland Stream
+Woodweaver's Puzzleknot
 Worf, Honor-Bound Warrior
+Workshop Assistant
 Workshop Elders
+Workshop Warchief
+World Map
+Worldsoul Colossus
+Wormhole Serpent
+Worthy Cost
+Worthy Knight
 Wraith, Vicious Vigilante
+Wrap in Flames
 Wrath of the Bloodmane
+Wreck Remover
 Wreckage Wickerfolk
+Wrecking Beast
+Wrecking Crew
 Wrecking Gecko
+Wrecking Ogre
+Wrench
 Wrenn's Resolve
 Wretched Camel
+Wretched Doll
+Wretched Throng
+Wring Flesh
+Writhing Necromass
+Xande, Dark Mage
 Xander's Lounge
+Xathrid Necromancer
 Xathrid Slyblade
+Xenobotanist
+Xindi Surveyors
 Yahenni, Undying Partisan
+Yanling's Harbinger
 Yargle, Glutton of Urborg
+Yargle, Goliath of Otaria
 Yathan Roadwatcher
 Yathan Tombguard
 Yavimaya Coast
+Yavimaya Iconoclast
 Yavimaya Sapherd
+Yavimaya Sojourner
 Yavimaya, Cradle of Growth
+Yellowjacket, Heartless Marauder
+Yeva's Forcemage
+Yoked Ox
+Yoshimaru, Scrappy Stray
+Yotian Dissident
+Yotian Medic
+Yotian Tactician
+You Come to a River
+You Come to the Gnoll Camp
+You Find the Villains' Lair
 You Meet in a Tavern
+You See a Guard Approach
 You See a Pair of Goblins
+You're Ambushed on the Road
+You're Not Alone
 Young Pyromancer
 Your Fate Ends Here
 Youthful Knight
+Youthful Scholar
 Youthful Valkyrie
 Yuriko, Hope from the Shadows
+Yuyan Archers
+Zada's Commando
+Zagoth Crystal
 Zagoth Triome
+Zarichi Tiger
+Zealot of the God-Pharaoh
 Zealot's Conviction
+Zealous Display
 Zegana, Utopian Speaker
+Zendikar Incarnate
+Zendikar's Roil
 Zenith Seeker
 Zephyr Boots
+Zephyr Charge
+Zephyr Scribe
+Zephyr Winder
 Zetalpa, Primal Dawn
+Zhalfirin Lancer
 Zhalfirin Shapecraft
 Zhalfirin Void
+Zhao, Ruthless Admiral
+Zhur-Taa Goblin
+Zhur-Taa Swine
 Ziatora's Proving Ground
+Zof Shade
+Zog, Triceraton Castaway
 Zombify
+Zoo Escapees
 Zookeeper Mechan
+Zuko's Conviction
+Zuko's Exile
 Zuko, Exiled Prince
+Zulaport Chainmage
 Zulaport Cutthroat
 Zulaport Duelist
 Zurgo Bellstriker
+Zurgo's Vanguard
