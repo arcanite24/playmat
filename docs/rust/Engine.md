@@ -150,6 +150,11 @@ transpiler emits a reference to the handler instead of giving up.
   classes), plus `check(game, item)`, its `checkTrigger` beyond that event or its intervening "if" about the event
   (the waiting trigger's `entering` and target pointer are set), checked as it goes on the stack and as it resolves
   (Guardian Project). A trigger on an event the engine has no `Trigger` for still needs engine work.
+  `Handler::predicate` is a card's `ObjectSourcePlayerPredicate` (`{"p": "card", …}` in a filter), checked with the
+  player, the source and the object; while targets are chosen, `game.chosen_before` holds the earlier ones (Fiery
+  Annihilation's "Equipment attached to that creature"). An enum's constants are named by constant
+  (`Outer.XCondition.TEN`, Betor's), and so is an effect an enum constant makes (`XEffectType.DISCARD.makeEffect()`
+  is `Outer.XEffectType.DISCARD`, Lord Xander's).
 - Constructor arguments come as their text in `cx.args`; `.args(&[…])` names how to translate them, in order:
   `"library_target"` turns a `TargetCardInLibrary` argument into "min max" plus its filter after the declared
   filters, `"filter"` appends the filter to `cx.filters`, `"counter_type"` gives the engine's counter name
@@ -328,7 +333,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,475 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,553 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -594,6 +599,14 @@ Being in the engine and being trusted are kept apart.
   and `StackObjectImpl.chooseNewTarget`'s dialog), "must be blocked by a creature of a filter" on Equipment (Slayer's
   Cleaver); cards that need another area's work: Combat Celebrant (exert with a "when you do"), Aurelia (attacks the
   first time each turn), All-Out Assault (a "when you attack" delayed trigger), Chemister's Trick (overload).
+
+  Claim 3's handlers (13 Nov): 59 handler files (a new kind, `Handler::predicate`, for a card's own
+  `ObjectSourcePlayerPredicate`) and a few transpiler gaps brought 78 cards in (10,553 in the engine). Four factory
+  rounds (120 games, 110 matching, replayed again on the engine with claims 1, 2, 4, 5 and 6 and wave 5) verified 59
+  more: 10,416. Six games under `shadow/handlers/game-handlers-claim3-*` cover 39 of them. Left: The World Tree (its
+  lands' granted "any color" mana ability isn't paid with in Java's order; the games it was in also hold back
+  Gardenize, Kothophed, Mistbreath Elder and Rage into the Valley), Gruul Ragebeast (Java's stack text names "Your
+  fighting creature"), Red Hulk pending.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only

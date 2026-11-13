@@ -28,7 +28,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
 
 /// `CardUtil.castMultipleWithAttributeForFree(player, source, game, cards, nonland filter)`: as many casts as there
 /// are cards, each `castSpellWithAttributesForFree`; a cast not made asks whether to go on
-fn cast_multiple_for_free(
+pub(super) fn cast_multiple_for_free(
     game: &mut Game,
     d: &mut dyn Decider,
     cx: &EffectCx,

@@ -11,7 +11,7 @@
 //! naming the Java class it stands for as `OuterCardClass.InnerClass` (or the class alone for one in the framework).
 //! `build.rs` lists every file here, so adding a card never touches a shared file, and `rust/tools/transpile.py`
 //! reads the same names: a card whose class has a handler gets `{"class": "CardEffect", "handler": …}` (or a
-//! condition's `{"c": "card", …}`, a value's `{"v": "card", …}`) in cards.json. A name cards.json uses that no file
+//! condition's `{"c": "card", …}`, a value's `{"v": "card", …}`, a predicate's `{"p": "card", …}`) in cards.json. A name cards.json uses that no file
 //! registers leaves the card out of the engine, as any JSON this build doesn't know does.
 
 // a handler's `use super::*;` brings in the rules, their helpers and imports with this module's own items
@@ -130,6 +130,10 @@ pub(crate) type ValueFn = fn(&Game, Seat, ObjId, i32) -> i32;
 /// waiting trigger: its source, controller, and what the event set (`targets` for a target pointer, `entering`).
 /// Checked as it goes on the stack and again as it resolves.
 pub(crate) type TriggerFn = fn(&Game, &StackItem) -> bool;
+/// A filter's `Predicate.apply` (an `ObjectSourcePlayerPredicate`'s too): whether `id` passes, for "you" (the
+/// filter's source's controller, or the player choosing targets) and the filter's source. While targets are chosen,
+/// `game.chosen_before` has the ability's earlier targets (Java's `input.getSource().getTargets()`).
+pub(crate) type PredicateFn = fn(&Game, Seat, Option<ObjId>, ObjId) -> bool;
 
 #[allow(dead_code)]
 pub(crate) enum Hook {
@@ -145,6 +149,7 @@ pub(crate) enum Hook {
     Restriction(Restriction),
     Rule(Rule),
     AsThough(AsThough),
+    Predicate(PredicateFn),
 }
 
 /// One Java class written in Rust
@@ -201,6 +206,10 @@ impl Handler {
 
     pub const fn value(java: &'static str, f: ValueFn) -> Handler {
         Handler::new(java, Hook::Value(f))
+    }
+
+    pub const fn predicate(java: &'static str, f: PredicateFn) -> Handler {
+        Handler::new(java, Hook::Predicate(f))
     }
 
     /// a triggered ability class: `base` is the framework trigger it extends, in Java (`Handler::base`)
@@ -346,6 +355,7 @@ handler_ref!(EffectHandler, Effect, EffectFn, "an effect");
 handler_ref!(ConditionHandler, Condition, ConditionFn, "a condition");
 handler_ref!(ValueHandler, Value, ValueFn, "a value");
 handler_ref!(TriggerHandler, Trigger, TriggerFn, "a trigger");
+handler_ref!(PredicateHandler, Predicate, PredicateFn, "a predicate");
 
 #[cfg(test)]
 mod tests {

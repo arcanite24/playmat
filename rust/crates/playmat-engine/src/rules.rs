@@ -4840,7 +4840,8 @@ fn choose_targets_of_modes(
         }
         if matches!(t, TargetDef::TargetAnyTarget { not_first: true, .. })
             || matches!(t, TargetDef::TargetPermanent { filter, .. } | TargetDef::TargetCardInGraveyard { filter, .. }
-                if filter.0.contains(&Pred::ControlledByFirstTarget) || filter.0.contains(&Pred::AnotherTarget))
+                if filter.0.contains(&Pred::ControlledByFirstTarget) || filter.0.contains(&Pred::AnotherTarget)
+                    || filter.0.iter().any(|p| matches!(p, Pred::Card { .. })))
         {
             game.chosen_before = targets.iter().flatten().copied().collect();
         }

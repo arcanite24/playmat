@@ -1480,6 +1480,7 @@ impl Game {
             Pred::DamagedThisTurn => o.damaged_by.0 == self.turn && o.damaged_by.1 != 0,
             Pred::Blocking => !o.blocking.is_empty(),
             Pred::ManaSpent { cmp, n } => cmp.holds(o.mana_spent as i32, *n),
+            Pred::Card { handler } => (handler.f())(self, you, source, id),
             Pred::Not { x } => !self.pred_holds(x, you, source, id),
             Pred::Or { xs } => xs.iter().any(|x| self.pred_holds(x, you, source, id)),
             Pred::And { xs } => xs.iter().all(|x| self.pred_holds(x, you, source, id)),
