@@ -4610,6 +4610,9 @@ def main():
                 card['set'] = EXTRA[card['name']]['set']
             granted_rules(card)
             reflexive_rules(card)
+            # a creature type chosen as a spell resolves: the engine asks only as a permanent enters (Crippling Fear)
+            if 'ChooseCreatureTypeEffect' in json.dumps(card.get('spell')):
+                raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
             # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
             if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
                 raise Unsupported('mana symbol ' + m.group(0))
