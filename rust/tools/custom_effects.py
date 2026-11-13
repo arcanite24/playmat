@@ -1417,12 +1417,17 @@ def _strip_comments(source):
                   lambda m: m.group(1) or ' ', source, flags=re.S)
 
 
+import custom_statics  # noqa: E402: it imports this module's helpers
+
+
 def _translate(t, cls, args, source):
     source = _strip_comments(source)
     found = class_body(source, cls)
     if not found:
         raise Unsupported('not declared')
     extends, body = found
+    if extends in custom_statics.KINDS and not args:
+        return custom_statics.translate(t, cls, extends, body, T)
     if extends != 'OneShotEffect':
         raise Unsupported('extends ' + extends)
     if args:
