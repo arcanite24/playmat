@@ -2442,9 +2442,16 @@ pub enum EffectDef {
         only_color: Vec<Color>,
         #[serde(default)]
         abilities: Vec<AbilityDef>,
+        #[serde(default)]
+        tapped: bool,
     },
-    /// a token that's a copy of this permanent (or of it as it last was)
-    CreateTokenCopySourceEffect,
+    /// `number` tokens that are copies of this permanent (or of it as it last was), tapped if it says so
+    CreateTokenCopySourceEffect {
+        #[serde(default)]
+        number: Option<u32>,
+        #[serde(default)]
+        tapped: bool,
+    },
     /// `EmpowerJaceEffect`: loyalty counters on a Jace token you control, first creating one if you control none
     EmpowerJaceEffect {
         amount: Amount,

@@ -2116,7 +2116,9 @@ class Translator:
                 raise Unsupported('token copy number ' + args[3])
             if int(args[3]) != 1:
                 out['number'] = int(args[3])
-        if len(args) >= 6 and args[4:6] != ['false', 'false']:
+        if len(args) >= 6 and args[4:6] == ['true', 'false']:
+            out['tapped'] = True
+        elif len(args) >= 6 and args[4:6] != ['false', 'false']:
             raise Unsupported('token copy tapped or attacking')
         if len(args) >= 7 and args[6] != 'null':
             raise Unsupported('token copy attacked player')
@@ -2441,6 +2443,13 @@ class Translator:
         # "copy this spell" (a cast trigger of the spell itself: `getValue("spellCast")`, else the source spell)
         if cls == 'CopySourceSpellEffect' and not args:
             return {'class': cls}
+        if cls == 'CreateTokenCopySourceEffect' and len(args) in (1, 2) and args[0].strip().isdigit() \
+                and (len(args) == 1 or args[1].strip() in ('true', 'false')):
+            out = {'class': cls}
+            if int(args[0]) != 1:
+                out['number'] = int(args[0])
+            if len(args) == 2 and args[1].strip() == 'true':
+                out['tapped'] = True
             return out
         # the snarls and check lands: reveal a card of the filter from your hand, or it enters tapped
         if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (

@@ -10865,8 +10865,13 @@ fn apply_each_effect(
                 }
                 draw(game, controller, chosen.len());
             }
-            EffectDef::CreateTokenCopySourceEffect => {
-                token_copy(game, d, source.0, controller, None);
+            EffectDef::CreateTokenCopySourceEffect { number, tapped } => {
+                let made = token_copy_modified(game, d, source.0, controller, number.unwrap_or(1), &|_| {});
+                if *tapped {
+                    for t in made {
+                        game.obj_mut(t).tapped = true;
+                    }
+                }
             }
             EffectDef::CreateTokenCopyTargetEffect {
                 number,
@@ -10881,6 +10886,7 @@ fn apply_each_effect(
                 add_subtypes,
                 only_color,
                 abilities,
+                tapped,
             } => {
                 // `applyAdditionsToToken`, in its order
                 let mods = |def: &mut CardDef| {
@@ -10938,7 +10944,12 @@ fn apply_each_effect(
                 // `getPermanentOrLKIBattlefield`: a target that left as the spell resolved is copied as it last was
                 // (Supplant Form returns it to hand first)
                 for o in &objs {
-                    token_copy_modified(game, d, *o, controller, number.unwrap_or(1), &mods);
+                    let made = token_copy_modified(game, d, *o, controller, number.unwrap_or(1), &mods);
+                    if *tapped {
+                        for t in made {
+                            game.obj_mut(t).tapped = true;
+                        }
+                    }
                 }
             }
             EffectDef::GhostVacuumEffect => {
