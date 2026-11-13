@@ -11,6 +11,10 @@ use crate::log;
 use crate::state::{Boost, Delayed, EventKind, Game, GameEvent, Grant, ObjId, Seat, StackItem, Step, Target, Zone};
 use std::sync::Arc;
 
+/// Per-card handlers (`src/cards/`): a child module, so a handler can use the rules' own helpers
+#[path = "cards/mod.rs"]
+pub(crate) mod cards;
+
 const MAX_HAND: usize = 7;
 
 /// Plays from the first priority of the game (as `ShadowGame::start_game` leaves it) until a player loses, the decider
@@ -8801,6 +8805,13 @@ fn apply_each_effect(
     for e in effects {
         game.lookback = game.battlefield.to_vec();
         match e {
+            // a card's own class, written in Rust (`src/cards/`)
+            EffectDef::CardEffect { handler, args, tokens, effects, filters } => {
+                let cx = cards::EffectCx { item, legal, source, args, tokens, effects, filters };
+                if handler.f()(game, d, &cx).is_none() {
+                    return;
+                }
+            }
             EffectDef::TargetPointerEffect { target, effect } => {
                 // without a target an earlier effect moved (Badlands Revival)
                 let only = vec![fresh_targets(game, item, *target, legal.get(*target).map_or(&[], |g| &g[..]))];

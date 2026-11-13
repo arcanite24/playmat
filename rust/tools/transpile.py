@@ -14,6 +14,7 @@ import os
 import re
 import sys
 
+import card_handlers
 import custom_effects
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -1258,6 +1259,8 @@ class Translator:
                 return {'v': 'times', 'of': self.amount(args[0]), 'n': int(args[1])}
             if cls == 'HalfValue' and len(args) == 2 and args[1].strip() == 'false':
                 return {'v': 'half', 'of': self.amount(args[0])}
+        if (h := card_handlers.value(self, arg)) is not None:
+            return h
         raise Unsupported('amount ' + arg)
 
     def condition(self, arg):
@@ -1371,6 +1374,8 @@ class Translator:
         if (m := re.fullmatch(r'MoreThanStartingLifeTotalCondition\.(ONE|SEVEN|TEN|FIFTEEN)', arg)):
             n = {'ONE': 1, 'SEVEN': 7, 'TEN': 10, 'FIFTEEN': 15}[m.group(1)]
             return {'c': 'life_compare', 'who': 'you', 'cmp': 'OR_GREATER', 'n': 20 + n}
+        if (h := card_handlers.condition(self, arg)) is not None:
+            return h
         raise Unsupported('condition ' + arg)
 
     def stack_filter_abilities(self, arg):
@@ -2655,6 +2660,9 @@ class Translator:
             args = args[:3]
         if (k := self.keyword_effect(cls, [a.strip() for a in args])) is not None:
             return k
+        # a class written by hand in Rust (src/cards/, card_handlers.py)
+        if cls not in EFFECTS and (h := card_handlers.effect(self, cls, args)) is not None:
+            return h
         if cls not in EFFECTS and getattr(self, 'source', None) and custom_effects.declares(self.source, cls):
             # a class of the card's own: its `apply` body, statement by statement (custom_effects.py)
             custom_effects.T = sys.modules[__name__]
@@ -6109,6 +6117,7 @@ def strip_java(x):
 
 
 def main():
+    card_handlers.T = sys.modules[__name__]
     parser = argparse.ArgumentParser()
     parser.add_argument('--pool')
     parser.add_argument('--write-facts-pool', help='write the CardFactsTest pool (cards, then token:<class>) and stop')

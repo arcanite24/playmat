@@ -2137,6 +2137,7 @@ impl Game {
         match a {
             Amount::Fixed(n) => *n,
             Amount::Of(v) => match v {
+                Value::Card { handler } => handler.f()(self, you, source, x),
                 Value::X => x,
                 Value::Permanents { filter } => {
                     self.battlefield.iter().filter(|id| self.filter_matches(filter, you, Some(source), **id)).count()
@@ -2346,6 +2347,7 @@ impl Game {
     pub fn condition_holds(&self, condition: Option<&Condition>, you: Seat, source: ObjId) -> bool {
         let Some(c) = condition else { return true };
         match c {
+            Condition::Card { handler } => handler.f()(self, you, source),
             // a permanent that was cast kicked ("when this enters, if it was kicked")
             Condition::Kicked => {
                 self.obj(source).kicked

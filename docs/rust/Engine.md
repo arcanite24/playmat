@@ -119,6 +119,60 @@ sees the cards. The chosen and unchosen cards then go to their zones with `moveC
 through stays unsupported), and a `boolean` local set once becomes a flag. A body with anything else (a field, a
 `Map`, an exile zone of its own, a token copy) stays unsupported. `PLAYMAT_APPLY_LOG=<file>` writes why each class did or didn't translate.
 
+## Per-card handlers
+
+Most cards still out of the engine are held up by a class their own file declares, with an `apply` the matchers
+above can't read. Such a class is written by hand in Rust, one file per card under
+`rust/crates/playmat-engine/src/cards/`. Nobody edits a shared list: `build.rs` makes every file there a module of
+`rules::cards` and collects its `HANDLERS`, and `rust/tools/card_handlers.py` reads the same declarations so the
+transpiler emits a reference to the handler instead of giving up.
+
+    // src/cards/rapid_hybridization.rs
+    use super::*;
+
+    pub const HANDLERS: &[Handler] =
+        &[Handler::effect("RapidHybridization.RapidHybridizationEffect", apply).tokens(&["FrogLizardToken"])];
+
+    fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
+        let e = EffectDef::CreateTokenControllerTargetEffect { token: cx.tokens[0].clone(), amount: 1, tapped: false };
+        cx.run(game, d, &[e]);
+        Some(())
+    }
+
+- **The name** is the Java class as `OuterCardClass.InnerClass` (a class in the framework, such as
+  `SearchLibraryPutOntoBattlefieldTappedRestInHandEffect`, by its bare name). Kinds: `Handler::effect` (a
+  `OneShotEffect`, in cards.json `{"class": "CardEffect", "handler": …}`), `Handler::condition` (`{"c": "card", …}`,
+  checked wherever conditions are) and `Handler::value` (a `DynamicValue`, `{"v": "card", …}`).
+- **Java the handler needs translated** goes in its declaration as string literals: `.tokens(&["XToken"])`,
+  `.effects(&["new DiscardTargetEffect(1)"])`, `.filters(&["StaticFilters.FILTER_…"])` (or a filter the card file
+  declares). The transpiler puts what it makes of them into the card's JSON, and the handler gets them, in order, as
+  `cx.tokens`, `cx.effects`, `cx.filters`. The Java constructor's arguments come as their text in `cx.args`.
+- **What a handler can call.** The file is a child of `rules`, so `use super::*;` gives it every helper the rules
+  have (`choose_cards`, `choose_use`, `search_library`, `deal_damage`, `destroy`, `sacrifice`, `discard`, `draw`,
+  `put_onto_battlefield`, `matching`…) and `EffectCx`'s kit: the targets still legal (`cx.obj(i)`, `cx.objs(i)`,
+  `cx.player(i)`), the controller, the source, and `cx.run(game, d, &effects)` / `run_as` / `run_on` to resolve
+  engine effects inside the handler, the way Java's `apply` calls `new XEffect().apply(game, source)`.
+- **Java's order.** Ask what `HumanPlayer` asks, in the order Java's `apply` asks it, through the rules' helpers
+  (they already auto-choose, skip empty choices and name the prompts as Java does; HumanDialogs.md). Return `None`
+  as soon as an ask does (`?`): the decider stopped. Never iterate a `HashMap` or anything unordered.
+
+Adding a card:
+
+1. Read the card's Java file and every class it declares. Find the closest engine effect in `rules.rs`
+   (`apply_each_effect`) and copy its patterns.
+2. Add `src/cards/<card_name_in_snake_case>.rs` with the card's rules text as its doc comment and its `HANDLERS`.
+3. Translate the card alone and load it:
+
+       python3 rust/tools/transpile.py --pool names.txt --out /tmp/c.json --report /tmp/r.txt   # names.txt: the card
+       PLAYMAT_CHECK_CARDS=/tmp/c.json cargo test -p playmat-engine --lib check_cards_load
+
+   An empty report means it translates; a blocker left there is another class to write (or a framework gap).
+4. Regenerate cards.json (last commit, as always), then verify with the factory (`--candidates` with the new
+   cards): only cards with matching games go on verified.txt.
+
+Workers fan out by card: each takes a batch, adds only files under `src/cards/` and commits; batches merge without
+conflicts, and one regeneration and one factory round follow the merge.
+
 ## The 10,000-game gate run (11–12 Nov 2026)
 
 Phase 4's gate asks for 10,000 shadow games of the pool. `ShadowGamesTest` recorded seeds 100000–109999 with the 42
