@@ -179,8 +179,8 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (7,284 on 13 Nov). A card whose JSON the engine can't load yet is left out of the engine with a warning
-  in `lib.rs`'s test, unless it's verified, which fails the test.
+  can express (7,276 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
+  of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
   `HostedGame::start` itself) only when every card of both decks is on it. The 881 cards of the phase 4 gate run
@@ -205,6 +205,27 @@ Being in the engine and being trusted are kept apart.
   The first two rounds (12 Nov 2026, 3,129 games over 3,313 candidates, the used ones first) verified 2,963 cards, for
   3,844 in all; 2,882 games matched and 135 differ, each listed in `bugs.md` by the card blamed. Replayed after
   #299 to #302 (13 Nov), 2,933 match and 10 more cards are verified: 3,854.
+
+  Wave 2 (13 Nov): four more rounds, the 246 unverified cards that decks use first, then the rest by use, 4,498
+  games in all. Their mismatches led to these fixes, each with a game under `shadow/factory/`: a cost that taps a
+  permanent fires its "becomes tapped" triggers; equip's cost reductions (Dwarven Hammer, Fervent Champion) apply to
+  the creature it targets; cleanup unattaches an Equipment from a creature that stopped being one; an effect's
+  `SecondTargetPointer`; the Army tokens' images; a dying source's power as it last was; a card transforms once per
+  "transform"; an Aura goes right after the creature it was on, even one that was destroyed; delayed upkeep triggers
+  before the others; a saga chapter with no target to choose; granted texts ("{this}", investigate's reminder);
+  changelings for mana of a chosen creature type; a tap or sacrifice cost whose source is gone; a "once each turn"
+  dies trigger whose source dies with the others; a land back from its adventure can be played; two or more mana of
+  any colors in any combination (Hermitic Herbalist); a creature's own "can't be blocked by"; "done" on harmonize's
+  creature; the text a tap-another or forage cost's auto-choice reads; targeting a triggered ability doesn't target
+  its source permanent (valiant, ward); a mana ability that sacrifices its source (Lotus Ring's creature, which made
+  the engine panic). Snow mana costs (`{S}`) aren't in the engine yet: the transpiler leaves out the 8 cards that use
+  them. Replayed together, 4,192 games match, 132 differ and Java didn't finish 42; 1,282 more cards are verified,
+  added in two PRs, the used ones first: 4,504, then 5,136.
+
+  Java's nondeterminism, not copied: tokens created together with `withAdditionalTokens` (Forbidden Friendship's
+  Dragon and Human) enter in `CreateTokenEvent`'s `HashMap` order, which changes from run to run, so the games where
+  that order matters (Barrier of Bones, Hellkite Whelp, Dimension X) part there. They're left as differing, and those
+  cards aren't verified from them.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
