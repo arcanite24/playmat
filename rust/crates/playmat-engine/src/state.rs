@@ -2038,8 +2038,17 @@ impl Game {
         if o.zone != Zone::Battlefield {
             return (p, t);
         }
-        // layer 7a: characteristic-defining abilities
-        for a in &o.def.abilities {
+        // layer 7a: characteristic-defining abilities (that an Aura's base power and toughness in layer 7b replace:
+        // Collective Drone enchanted by Ensoul Artifact is 5/5)
+        let ensouled = o.becomes_base.is_some()
+            && self.battlefield.iter().any(|a| {
+                self.attached(*a) == Some(id)
+                    && self.obj(*a).def.abilities.iter().any(|b| {
+                        matches!(b, AbilityDef::SimpleStaticAbility { effects, .. }
+                            if effects.iter().any(|e| matches!(e, EffectDef::BecomesCreatureAttachedEffect { .. })))
+                    })
+            });
+        for a in o.def.abilities.iter().filter(|_| !ensouled) {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
                 for e in effects {
                     if let EffectDef::SetBasePowerSourceEffect { amount } = e {
