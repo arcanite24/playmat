@@ -505,7 +505,9 @@ def triggered(a):
     elif cls == 'EntersBattlefieldAllTriggeredAbility':
         on = {'e': 'enters_all', 'filter': a.pop('filter')}
     elif cls == 'DiesThisOrAnotherTriggeredAbility':
-        on = {'e': 'dies_all', 'filter': a.pop('filter', [CREATURE]), 'include_self': True}
+        # `checkTrigger`: the source itself triggers it whatever the filter says ("this or another"); the two cards
+        # that `setApplyFilterOnSource(true)` (Basri's Lieutenant, Reluctant Role Model) don't translate
+        on = {'e': 'dies_all', 'filter': a.pop('filter', [CREATURE]), 'include_self': True, 'this_unfiltered': True}
     elif cls == 'SpellCastControllerTriggeredAbility':
         on = {'e': 'spell_cast', 'filter': a.pop('filter'), 'who': 'you'}
     elif cls in SIMPLE_TRIGGERS:

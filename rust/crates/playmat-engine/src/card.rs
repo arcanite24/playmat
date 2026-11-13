@@ -531,6 +531,9 @@ pub enum Trigger {
         filter: Filter,
         #[serde(default)]
         include_self: bool,
+        /// this triggers it whatever the filter says (`DiesThisOrAnotherTriggeredAbility`)
+        #[serde(default)]
+        this_unfiltered: bool,
     },
     /// at the beginning of `step` ("upkeep", "combat", "end") of `who`'s turn: "you", "opponent" or "any"
     StepBegins {

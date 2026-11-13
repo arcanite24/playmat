@@ -2326,8 +2326,9 @@ impl Game {
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source counts too unless it says "another", but it must match like the others
                 // (Bishop of Wings, a Human, isn't "an Angel you control")
-                Trigger::DiesAll { filter, include_self } => {
-                    (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
+                Trigger::DiesAll { filter, include_self, this_unfiltered } => {
+                    (src == id && *this_unfiltered)
+                        || (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
                 Trigger::PeltCollector => src != id && died_controller == you,
                 Trigger::DiesAttached => g.obj(src).attached_to.is_some_and(|(a, _)| a == id),
