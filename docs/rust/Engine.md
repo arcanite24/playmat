@@ -149,8 +149,10 @@ transpiler emits a reference to the handler instead of giving up.
   classes), plus `check(game, item)`, its `checkTrigger` beyond that event or its intervening "if" about the event
   (the waiting trigger's `entering` and target pointer are set), checked as it goes on the stack and as it resolves
   (Guardian Project). A trigger on an event the engine has no `Trigger` for still needs engine work.
-- Constructor arguments come as their text in `cx.args`; `.args(&["library_target"])` turns a
-  `TargetCardInLibrary` argument into "min max" plus its filter after the declared filters.
+- Constructor arguments come as their text in `cx.args`; `.args(&[…])` names how to translate them, in order:
+  `"library_target"` turns a `TargetCardInLibrary` argument into "min max" plus its filter after the declared
+  filters, `"filter"` appends the filter to `cx.filters`, `"counter_type"` gives the engine's counter name
+  (`CounterType.M1M1` as "-1/-1"), and `"text"` keeps the text; card_handlers.py lists the rest.
 - **Java the handler needs translated** goes in its declaration as string literals: `.tokens(&["XToken"])`,
   `.effects(&["new DiscardTargetEffect(1)"])`, `.filters(&["StaticFilters.FILTER_…"])` (or a filter the card file
   declares). The transpiler puts what it makes of them into the card's JSON, and the handler gets them, in order, as
@@ -325,7 +327,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,320 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,385 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -543,6 +545,18 @@ Being in the engine and being trusted are kept apart.
   Smuggler's Surprise isn't verified: it returns its two cards in `HashSet<Card>` order, like Pearl Lake Ancient
   above, and the two games that differed (Ghalta and Mavren, Doctor Doom) part on the hand order after it. Eight
   games under `shadow/handlers/` cover 49 of the newly verified cards.
+
+  Claim 5's handlers (13 Nov): 53 handler files (framework classes such as `UntapAllControllerEffect`,
+  `RemoveAllCountersPermanentTargetEffect`, `RegenerateAllEffect`; conditions such as `YouLostLifeCondition`; values
+  such as `GreatestSharedCreatureTypeCount`; triggers such as Luminous Broodmoth's and Haazda Marshal's; and card
+  effects), plus `ReturnToBattlefieldUnderOwnerControlWithCounterTargetEffect` and devotion's reminder in the
+  transpiler, brought 65 cards in (10,385 in the engine). Four factory rounds (122 games, 107 matching, replayed
+  again on the engine with claims 1, 2 and 4) verified 62 more: 10,272. Left: Tarrian's Soulcleaver (its trigger and
+  two Soulcipher Boards' wait in a different order), Stay Hidden, Stay Silent (`TapEnchantedEffect` doesn't read the
+  Aura's last known attachment once the Aura has left), Black Cat (a face-down card exiled for you to play is looked
+  at first when clicked, which the engine doesn't model; its handler was dropped), Desecration Demon and Nylea's
+  Huntmaster (their games part on other cards: Make Disappear's casualty copy, Grim Javelineer's surveil reminder
+  text).
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
