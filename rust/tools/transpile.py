@@ -5412,9 +5412,6 @@ def main():
             # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
             if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
                 raise Unsupported('mana symbol ' + m.group(0))
-            # snow mana ({S}: mana from a snow source): the engine's mana pool doesn't know where mana came from
-            if re.search(r'"cost": "[^"]*\{S\}', json.dumps(card)):
-                raise Unsupported('mana symbol {S}')
             if WHEN_YOU_DO in json.dumps(card) or RULE_FROM in json.dumps(card):
                 raise Unsupported('a reflexive trigger without a text')
             hints = card_hints(card['name'], subtypes)
