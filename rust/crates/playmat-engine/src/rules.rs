@@ -5333,7 +5333,8 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         CostDef::RemoveCountersFromAmongCost { filter, counter, amount, max } => {
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
-            let Some(chosen) = choose_in_rounds(game, d, seat, &possible, 1, *max) else {
+            let rule = cost_source_rule(game, id);
+            let Some(chosen) = choose_in_rounds(game, d, seat, &possible, 1, *max, &rule) else {
                 return false;
             };
             let mut removed = 0;
@@ -15163,7 +15164,8 @@ fn choose_cards_with(
 }
 
 /// `TargetImpl.choose` (a cost's target, RemoveCounterCost): it asks the player again after each round that added a
-/// target and didn't complete the choice, so "done" with a target picked is asked twice
+/// target and didn't complete the choice, so "done" with a target picked is asked twice. Auto-choice as
+/// `TargetImpl.tryToAutoChoose`, reading `rule` (Sunstar Chaplain's one creature is picked by itself, counter or not)
 fn choose_in_rounds(
     game: &mut Game,
     d: &mut dyn Decider,
@@ -15171,13 +15173,26 @@ fn choose_in_rounds(
     possible: &[ObjId],
     min: usize,
     max: usize,
+    rule: &str,
 ) -> Option<Vec<ObjId>> {
+    let rule = rule.to_lowercase();
+    let feel_bad = ["discard", "sacrifice", "destroy", "exile"].iter().any(|w| rule.contains(w));
     let mut chosen: Vec<ObjId> = Vec::new();
     loop {
         let before = chosen.len();
         // one `HumanPlayer.choose`: picks until the target is complete or "done"
         loop {
             let left: Vec<ObjId> = possible.iter().copied().filter(|c| !chosen.contains(c)).collect();
+            if min == max && left.len() == min - chosen.len() && !left.is_empty() && !rule.contains("search") {
+                let all = game.player(seat).auto_target_all;
+                if let Some(c) = left.iter().copied().find(|c| all || !(feel_bad && owns_target(game, seat, *c))) {
+                    chosen.push(c);
+                    if chosen.len() >= max {
+                        return Some(chosen);
+                    }
+                    continue;
+                }
+            }
             let required = chosen.len() < min && !left.is_empty();
             match ask(game, d, seat, &Query::Cards { objs: left.clone(), required }) {
                 Answer::Obj(o) if chosen.contains(&o) => chosen.retain(|c| *c != o),
