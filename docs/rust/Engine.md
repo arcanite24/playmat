@@ -181,6 +181,51 @@ Adding a card:
 Workers fan out by card: each takes a batch, adds only files under `src/cards/` and commits; batches merge without
 conflicts, and one regeneration and one factory round follow the merge.
 
+### Static handlers
+
+Continuous, replacement, cost, restriction, rule-modifying and as-though effect classes get handlers too
+(`src/card_statics.rs`, which documents each hook). A class with one becomes `{"class": "CardStatic", "handler": …}`,
+wherever an effect can be: in a static ability it lasts while its source is on the battlefield (or, with
+`.in_any_zone()`, in every zone: "this spell costs {2} less"); resolving, until the turn's cleanup. The engine has no
+general layer system: each query (`power_toughness`, `has_subtype`, `has_ability`, `can_block`, `castable`,
+`modified_cost_of`, the draw and life-gain event points) scans the static abilities in play, and now asks the handlers
+at the same point, so they sort into the layers, timestamps and replacement order the engine already keeps.
+
+    // src/cards/rhonas_the_indomitable.rs
+    pub const HANDLERS: &[Handler] = &[Handler::restriction(
+        "RhonasTheIndomitable.RhonasTheIndomitableRestrictionEffect",
+        applies,                                   // fn(&Game, &StaticCx, ObjId) -> bool: Java's `applies(permanent)`
+        &[Restrict::CantAttack(no_attack), Restrict::CantBlock(no_block)],
+    )];
+
+| Kind | Declaration | Java | Read by |
+|---|---|---|---|
+| continuous | `Handler::continuous(name, affects, Layer::Type(f) / Ability(f) / SetPt(f) / ModifyPt(f))` | `ContinuousEffectImpl` in layer 4, 6, 7b, 7c (`Layer::java()` names Java's layer and sublayer) | `has_subtype`, `granted_abilities`/`has_ability`, `power_toughness_layers` (7b in timestamp order with the rest; layer 6 lost to an older "loses all abilities") |
+| replacement | `Handler::replacement(name, &[EventType::…], applies, replace)` | `ReplacementEffectImpl`: `checksEventType`, `applies`, `replaceEvent` | `replace_event` at the event's point: `DrawCard` (each card drawn), `GainLife`, `NumberOfTriggers` |
+| cost | `Handler::cost(name, CostKind::Increase / Reduce / Set, applies, apply)` | `CostModificationEffectImpl` | `modified_cost_of` (spells, after the engine's own of that kind), `adjusted_mana_cost_own` (abilities), room unlocks |
+| restriction | `Handler::restriction(name, applies, &[Restrict::…])` | `RestrictionEffect`: `canAttack`, `canBlock`, `canBeBlocked` | `can_attack`, `can_block` |
+| rule | `Handler::rule(name, Rule::CantCast(f))` | `ContinuousRuleModifyingEffectImpl` on `CAST_SPELL` | `castable` |
+| as-though | `Handler::as_though(name, AsThough::Flash(f))` | `AsThoughEffectImpl`, `CAST_AS_INSTANT` | `castable`'s timing |
+
+- **Functions get a `StaticCx`**: the source and controller (Java's `source`), the effect's timestamp, its constructor
+  arguments as text and what the transpiler made of the Java it asked for (`effects`, `filters`, `abilities`;
+  `cx.matches(game, i, id)` tests filter `i`). Replacements get an `Event` (kind, player, target, source, amount,
+  the replacements already applied) and change it or return `true` for "replaced".
+- **Replacement order** follows `ContinuousEffects.replaceEvent`: each one applies once per event, two or more that
+  apply (with the engine's own for that event) owe "Choose a replacement effect to apply first", and a replacement
+  inside a replacement (Alhammarret's Archive's extra draw) passes `ev.applied` on, so it isn't applied twice.
+  Approximations: handler replacements go before the engine's own for the same event, the owed question's answer
+  doesn't reorder them yet, and a `NumberOfTriggers` handler only counts (`applies` is its whole test).
+- **Framework classes** (`BoostAllOfChosenSubtypeEffect`, `CantBeBlockedByCreaturesAllEffect`,
+  `AbilitiesCostReductionControllerEffect`…) take bare names and declare a kind per constructor argument;
+  "while_on_battlefield" and "one_of:a|b" refuse the constructors the handler wasn't written for, and a static handler
+  refuses more arguments than it declares kinds, so a different overload stays blocked rather than mistranslated.
+- **Card-scoped first**: a handler named `Outer.Class` for this card is looked up before the transpiler's matchers, so
+  it wins over their translation of the same class, even a framework one (Traxos's `SpellCostReductionSourceEffect`
+  with a condition the matchers don't read).
+- Keep a function from asking what its own layer changes (a 7c boost reading power), and from recursing through the
+  query it answers: `has_subtype` guards layer 4 handlers against that.
+
 A card's own static effect classes (replacement, continuous, cost, rule-modifying, restriction and prevention effects
 lasting while the source is on the battlefield) are read by `rust/tools/custom_statics.py`. A replacement effect is
 picked by the events its `checksEventType` names, and its `replaceEvent` has to be one of a few shapes, each one engine
