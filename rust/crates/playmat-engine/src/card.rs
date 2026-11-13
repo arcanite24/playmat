@@ -2947,6 +2947,9 @@ pub enum AbilityDef {
         color: Option<Color>,
         #[serde(default = "one_u32")]
         amount: u32,
+        /// more than one of any color: in any combination of colors (`getMultiAmount`), not all of one
+        #[serde(default)]
+        combination: bool,
         filter: Filter,
         /// and of the source's chosen creature type (Unclaimed Territory)
         #[serde(default)]

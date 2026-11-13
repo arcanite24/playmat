@@ -1364,6 +1364,9 @@ class Translator:
             if not re.fullmatch(r'\d+', amount):
                 return None
             out = {'class': 'ConditionalManaAbility', 'amount': int(amount)}
+            # `oneChoice` false (the default): two or more in any combination of colors
+            if int(amount) > 1 and not (len(args) == 4 and args[3] == 'true'):
+                out['combination'] = True
             if cost != 'new TapSourceCost()':
                 return None
             out.update(self.mana_builder(builder))

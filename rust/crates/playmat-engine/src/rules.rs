@@ -989,7 +989,10 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
     // a card on an adventure: its creature, from exile; a card you may play from exile
     for id in game.exile.iter() {
         let o = game.obj(*id);
-        if o.on_adventure && o.owner == seat && castable(game, seat, *id, &o.def) {
+        if o.on_adventure
+            && o.owner == seat
+            && if o.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, *id, &o.def) }
+        {
             out.push(*id);
         } else if o.foretold_turn.is_some() || o.plotted_turn.is_some() {
             if exile_cast(game, seat, *id).is_some() {
@@ -2316,6 +2319,29 @@ fn color_among(
     }
 }
 
+/// `AddConditionalManaOfAnyColorEffect.produceMana` for more than one mana in any combination of colors: the player
+/// divides it among W, U, B, R and G (`getMultiAmount`, all on white by default). None: not such an ability; Some(None):
+/// stopped.
+fn mana_combination(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, i: usize) -> Option<Option<Mana>> {
+    let AbilityDef::ConditionalManaAbility { amount, combination: true, .. } = game.obj(id).def.abilities[i] else {
+        return None;
+    };
+    if amount < 2 {
+        return None;
+    }
+    let n = amount as i32;
+    let mut defaults = vec![0; 5];
+    defaults[0] = n;
+    let Some(values) = multi_amount(game, d, seat, defaults, vec![(0, n); 5], (n, n), (None, Vec::new())) else {
+        return Some(None);
+    };
+    let mut m = Mana::default();
+    for (c, v) in values.iter().enumerate() {
+        m.colored[c] = *v as u32;
+    }
+    Some(Some(m))
+}
+
 /// `ManaUtil.tryToAutoSelectAManaColor`: the one color still owed; with none owed, white; else the player chooses
 /// (CHOOSE_CHOICE). None: stopped.
 fn any_color(game: &mut Game, d: &mut dyn Decider, seat: Seat, unpaid: &ManaCost, n: u32) -> Option<Color> {
@@ -2633,12 +2659,14 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
     }
     // a land with an adventure-like spell (Midgar, City of Mako): with a land to play, the picker offers the spell
-    // (a0) whatever it costs and the land (a1), as `playCard` does for a card with two spell abilities
-    if game.obj(id).is(CardType::Land) && game.obj(id).zone == Zone::Hand {
+    // (a0) whatever it costs and the land (a1), as `playCard` does for a card with two spell abilities; back from its
+    // adventure, the same picker, though only the land can be played from exile
+    let on_adventure = game.obj(id).zone == Zone::Exile && game.obj(id).on_adventure;
+    if game.obj(id).is(CardType::Land) && (game.obj(id).zone == Zone::Hand || on_adventure) {
         if let Some(adventure) = game.obj(id).def.adventure.clone() {
             let options = if can_play_land(game, seat) {
                 vec![0, 1]
-            } else if castable(game, seat, id, &adventure) {
+            } else if !on_adventure && castable(game, seat, id, &adventure) {
                 vec![0]
             } else {
                 return;
@@ -2651,6 +2679,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     _ => return,
                 }
             };
+            if k == 0 && on_adventure {
+                return;
+            }
             if k == 0 {
                 let before = game.clone();
                 let full = game.obj(id).def.clone();
@@ -5353,8 +5384,14 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                                     AbilityDef::ConditionalManaAbility { amount, .. } => *amount,
                                     _ => 1,
                                 };
-                                let Some(c) = any_color(game, d, seat, &unpaid, n) else { return false };
-                                m = Mana::of(c, n);
+                                m = match mana_combination(game, d, seat, id, i) {
+                                    Some(Some(m)) => m,
+                                    Some(None) => return false,
+                                    None => {
+                                        let Some(c) = any_color(game, d, seat, &unpaid, n) else { return false };
+                                        Mana::of(c, n)
+                                    }
+                                };
                             }
                             game.player_mut(seat).conditional_pool.push((m, id, i));
                             fresh_conditional += 1;
@@ -5777,8 +5814,14 @@ fn activate_mana_paying(
             }
             _ => 1,
         };
-        let Some(c) = any_color(game, d, seat, choosing, n) else { return false };
-        m = Mana::of(c, n);
+        m = match mana_combination(game, d, seat, id, i) {
+            Some(Some(m)) => m,
+            Some(None) => return false,
+            None => {
+                let Some(c) = any_color(game, d, seat, choosing, n) else { return false };
+                Mana::of(c, n)
+            }
+        };
     }
     mana_spent_riders(game, id, i, Some(unpaid));
     let pool = &mut game.player_mut(seat).mana_pool;
@@ -12623,6 +12666,7 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                                 AbilityDef::ConditionalManaAbility {
                                     color: Some(c),
                                     amount: *amount,
+                                    combination: false,
                                     filter: crate::card::Filter::default(),
                                     chosen_type: false,
                                     cant_counter: false,
