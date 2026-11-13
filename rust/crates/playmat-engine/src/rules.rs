@@ -976,7 +976,11 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             }
             continue;
         }
+        // (only casting: its abilities still activate, Halo Scarab's "Exile this card from your graveyard")
         if runestone {
+            if !activatable(game, seat, *id).is_empty() {
+                out.push(*id);
+            }
             continue;
         }
         if game.flashback_def(*id).is_some_and(|f| castable(game, seat, *id, &f))
