@@ -198,7 +198,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,607 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (9,719 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -317,17 +317,18 @@ Being in the engine and being trusted are kept apart.
   Mana abilities and unusual costs (13 Nov, wave 3): `SimpleManaAbility` with several kinds at once, any
   combination, two different colors or one of a few (`ManaAbility`), `LimitedTimesPerTurnActivatedManaAbility`,
   `ConditionalColoredManaAbility` with any cost and more mana builders, `DynamicManaEffect`, Bloom Tender's colors,
-  converge (`ColorsOfManaSpentToCastCount`), monocolored hybrid `{2/R}` (its color, else two generic, after hybrid),
+  monocolored hybrid `{2/R}` (its color, else two generic, after hybrid),
   blight, waterbend (asked after X, before targets, in one `Player.choose` round) and
-  `ReturnToHandChosenControlledPermanentCost`. 117 more cards translate (9,283). Two factory rounds (142 games, 132
-  match) verified 108 of them. Their fixes, each with a game under `shadow/mana-wave3/`: a spell's colors spent
+  `ReturnToHandChosenControlledPermanentCost`. 112 more cards translate on a61ec8b (9,719). Two factory rounds (142 games, 132
+  match) verified 99 more: 9,545 (the converge spells among them, Radiant Flames and the like, came in with
+  #321 meanwhile). Their fixes, each with a game under `shadow/mana-wave3/`: a spell's colors spent
   leave out what paid a mana ability's own cost (Guild Globe's {2}); Cormela's {U}{B}{R} is three mana, spent one
   at a time and counted whole in the playable check; a mana ability's own cost is asked, not taken from the stock;
   "Pay 1 life: add {C}" doesn't tap; Powerstone mana can plot; a dynamic "any combination" of one mana is a color
   choice; conditional {C} made at priority stays in
   the pool; a transformed permanent's abilities are numbered after its back face's spell ability, in place too
   (Brigid, Doun's Mind). Left: Pearl Lake Ancient's lands reach the hand in `HashSet` order (Java nondeterminism, as
-  Cyclonic Rift above); the order of two first-main-phase triggers with a transforming card (Scuzzback Scrounger);
+  Cyclonic Rift above; Devour in Flames shares one of those games); the order of two first-main-phase triggers with a transforming card (Scuzzback Scrounger);
   a few single games (Kin-Tree Severance, Abomination, Monastery Messenger, Reigning Victor, Rakshasa's Bargain).
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
