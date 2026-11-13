@@ -13926,6 +13926,17 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     }) {
         return false;
     }
+    // Stromkirk Noble: its own "can't be blocked by Humans" (`CantBeBlockedByCreaturesSourceEffect`)
+    if game.obj(attacker).def.abilities.iter().any(|x| match x {
+        AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| {
+            matches!(e, EffectDef::CantBeBlockedByCreaturesSourceEffect { filter, duration }
+                if *duration == Duration::WhileOnBattlefield
+                    && game.filter_matches(filter, a.controller, Some(attacker), blocker))
+        }),
+        _ => false,
+    }) {
+        return false;
+    }
     // Elusive Otter: creatures with power less than its can't block it
     if game.obj(attacker).def.abilities.iter().any(|a| match a {
         AbilityDef::SimpleStaticAbility { effects, .. } => {
