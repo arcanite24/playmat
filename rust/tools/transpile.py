@@ -90,7 +90,7 @@ EFFECTS = {
     'DamagePlayersEffect': [('amount', 'int'), ('controller', 'target_controller'), (None, 'string')],
     'SacrificeSourceEffect': [],
     'DoIfCostPaid': [('effect', 'effect'), ('cost', 'cost')],
-    'GainAbilityControllerEffect': [('ability', 'ability')],
+    'GainAbilityControllerEffect': [('ability', 'ability'), (None, 'while_on_battlefield')],
     'GainAbilityControlledEffect': [('ability', 'ability'), ('duration', 'duration'), ('filter', 'filter'),
                                     ('exclude_source', 'bool')],
     'GainAbilityTargetEffect': [('ability', 'ability'), ('duration', 'duration')],
@@ -101,7 +101,7 @@ EFFECTS = {
     'ExileTargetIfDiesEffect': [],
     'TapSourceUnlessPaysEffect': [('life', 'life_cost')],
     'LoseLifeOpponentsEffect': [('amount', 'int')],
-    'LoseLifeSourceControllerEffect': [('amount', 'int')],
+    'LoseLifeSourceControllerEffect': [('amount', 'int'), (None, 'bool')],
     'LoseLifeTargetEffect': [('amount', 'int')],
     'DestroyAllEffect': [('filter', 'filter')],
     'DamageAllEffect': [('amount', 'int'), ('filter', 'filter')],
@@ -898,6 +898,9 @@ def predicate(text, subtypes):
         return {'p': 'not', 'x': predicate(m.group(1), subtypes)}
     if (m := re.fullmatch(r'Predicates\.(or|and)\((.*)\)', text)):
         return {'p': m.group(1), 'xs': [predicate(x, subtypes) for x in split_args(m.group(2))]}
+    # a predicate class written by hand in Rust (src/cards/, card_handlers.py)
+    if (h := card_handlers.predicate(text)) is not None:
+        return h
     raise Unsupported('predicate ' + text)
 
 
@@ -939,6 +942,8 @@ def declared_filters(source, subtypes):
     """filter fields (`static final FilterX name = new FilterX(…); static { name.add(…); }`) -> filters by name; one
     that can't be read is left out (the card fails only if it uses it)"""
     out = {}
+    # the card being read, for a predicate class it declares with a handler (`card_handlers.predicate`)
+    card_handlers.SOURCE = source
     # predicate fields (`static final Predicate<…> predicate = Predicates.or(…);`), by name
     preds = {m.group(1): canonical(m.group(2))
              for m in re.finditer(r'static final Predicate<[\w<>, ]*> (\w+)\s*=\s*(.*?);', source, re.S)}
@@ -2100,6 +2105,11 @@ class Translator:
         return out
 
     def effect(self, expr):
+        # an enum constant's effect (`XEffectType.DISCARD.makeEffect()`, Lord Xander's): the handler
+        # `Outer.XEffectType.DISCARD`
+        if (m := re.fullmatch(r'(\w+\.[A-Z][A-Z0-9_]*)\.makeEffect\(\)', expr.strip())) \
+                and (h := card_handlers.effect(self, m.group(1), [])) is not None:
+            return h
         # a handler named for this card's use of a class (`OuterCardClass.Class`, card_handlers.py): before any form
         # of the class the translator knows
         m = re.fullmatch(r'new (\w+)\((.*)\)', self.strip_setters(expr.strip()), re.S)
@@ -2939,6 +2949,10 @@ class Translator:
             return {'class': cls, 'amount': self.amount(args[0])}
         if cls == 'LoseLifeDefendingPlayerEffect' and len(args) == 2 and args[1] == 'true':
             return {'class': cls, 'amount': self.amount(args[0])}
+        # the attacker not the source: the defending player is the trigger's player pointer (Leeching Sliver's)
+        if cls == 'LoseLifeDefendingPlayerEffect' and len(args) == 2 and args[1] == 'false' \
+                and re.fullmatch(r'\d+', args[0]):
+            return {'class': 'LoseLifeTargetEffect', 'amount': int(args[0])}
         if cls == 'CantGainLifeAllEffect' and args == ['Duration.WhileOnBattlefield', 'TargetController.OPPONENT']:
             return {'class': 'CantGainLifeOpponentsEffect'}
         if cls == 'RemoveCounterSourceEffect' and len(args) == 1:
@@ -3184,7 +3198,8 @@ class Translator:
         if isinstance(obj, dict) or obj[0] != 'TargetCardInLibrary':
             raise Unsupported('library target ' + expr)
         cls, args = obj
-        args = [a.strip() for a in args]
+        # "any number of": (0, Integer.MAX_VALUE), the engine's 99 (The World Tree's Gods)
+        args = ['99' if a.strip() == 'Integer.MAX_VALUE' else a.strip() for a in args]
         ints = [int(a) for a in args if re.fullmatch(r'\d+', a)]
         rest = [a for a in args if not re.fullmatch(r'\d+', a)]
         if len(rest) > 1 or len(ints) > 2:
@@ -3272,6 +3287,9 @@ class Translator:
                 and (len(args) == 2 or args[2].strip() == 'false'):
             lo, hi = int(args[0]), 99 if args[1].strip() == 'Integer.MAX_VALUE' else int(args[1])
             return {'class': cls} if (lo, hi) == (1, 1) else {'class': cls, 'min': lo, 'max': hi}
+        # `TargetOpponent(false)`: `notTarget` false, the default
+        if cls == 'TargetOpponent' and [a.strip() for a in args] == ['false']:
+            return {'class': cls}
         # Consign to Memory: "triggered ability or colorless spell"
         if cls == 'TargetStackObject' and len(args) == 1 and 'ConsignToMemoryPredicate' in str(self.filters.get(args[0].strip())):
             return {'class': 'TargetTriggeredAbilityOrColorlessSpell'}
@@ -4206,6 +4224,9 @@ class Translator:
                     'optional': optional, 'set_target_pointer': pointer}
 
         n = len(args)
+        # "whenever you cast a spell of the filter, … that spell …": a target pointer at the spell
+        if cls == 'SpellCastControllerTriggeredAbility' and n == 4 and args[3] == 'SetTargetPointer.SPELL':
+            return out({'e': 'spell_cast', 'filter': self.filter(args[1]), 'who': 'you'}, args[0], flag(args[2]), True)
         # "when this dies, return it to its owner's hand at the beginning of the next end step"
         if cls == 'DiesSourceTriggeredAbility' and n == 3 and args[1] == 'false' and args[2] == 'SetTargetPointer.CARD' \
                 and re.fullmatch(r'new CreateDelayedTriggeredAbilityEffect\(new AtTheBeginOfNextEndStepDelayedTriggeredAbility\('
@@ -4258,6 +4279,8 @@ class Translator:
         # whenever a permanent of the filter leaves the battlefield
         if cls == 'LeavesBattlefieldAllTriggeredAbility' and n == 3 and args[2] in ('true', 'false'):
             return out({'e': 'leaves_all', 'filter': self.filter(args[1])}, args[0], flag(args[2]))
+        if cls == 'LeavesBattlefieldAllTriggeredAbility' and n == 2:
+            return out({'e': 'leaves_all', 'filter': self.filter(args[1])}, args[0])
         if cls == 'AttacksWithCreaturesTriggeredAbility':
             if not re.fullmatch(r'\d+', args[1]):
                 raise Unsupported(cls + '(' + ','.join(args) + ')')
@@ -4591,6 +4614,11 @@ class Translator:
         if cls == 'PutIntoGraveFromBattlefieldAllTriggeredAbility' and n in (4, 5) and args[3] == 'false' \
                 and (n == 4 or args[4] == 'false'):
             return out({'e': 'dies_all', 'filter': self.filter(args[2]), 'include_self': True}, args[0], flag(args[1]))
+        # `ZoneChangeAllTriggeredAbility(BATTLEFIELD, BATTLEFIELD, GRAVEYARD, effect, filter, text, optional)`: the
+        # same as a permanent of the filter put into a graveyard from the battlefield (Kothophed's)
+        if cls == 'ZoneChangeAllTriggeredAbility' and n == 7 \
+                and args[:3] == ['Zone.BATTLEFIELD', 'Zone.BATTLEFIELD', 'Zone.GRAVEYARD']:
+            return out({'e': 'dies_all', 'filter': self.filter(args[4]), 'include_self': True}, args[3], flag(args[6]))
         # whenever a creature of the filter attacks (any controller's); "you or a planeswalker you control": in a
         # duel, an opponent's creature; with a target pointer at it, at the defending player or at its controller
         if cls == 'AttacksAllTriggeredAbility' and n in (2, 3, 5, 6):

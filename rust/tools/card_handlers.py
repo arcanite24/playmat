@@ -8,7 +8,7 @@ A handler file declares its classes as
         Handler::effect("RapidHybridization.RapidHybridizationEffect", apply).tokens(&["FrogLizardToken"]),
     ];
 
-`Handler::effect`, `::condition`, `::value` or `::trigger` (with the framework trigger it extends, in Java, as its
+`Handler::effect`, `::condition`, `::value`, `::predicate` or `::trigger` (with the framework trigger it extends, in Java, as its
 second argument), with the Java class as `OuterCardClass.InnerClass` (or the bare class
 name for one in the framework), and optionally `.tokens(&[…])`, `.effects(&[…])`, `.filters(&[…])`: Java for the
 transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order; and
@@ -32,7 +32,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
 STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_though')
-_DECL = re.compile(r'Handler::(effect|condition|value|trigger|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
+_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
 _FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
 _PART = re.compile(r'\s*\.(tokens|effects|filters|args|abilities)\(\s*&\[')
 _ANY_ZONE = re.compile(r'\s*\.in_any_zone\(\)')
@@ -41,6 +41,8 @@ _STR = re.compile(r'\s*(?:"((?:[^"\\]|\\.)*)"|r(#*)"(.*?)"\2)\s*,?', re.S)
 _cache = None
 # transpile.py, set as it imports this module (for `token`)
 T = None
+# the card file being translated, set by transpile.py as it reads the card's filters (`predicate`)
+SOURCE = None
 
 
 class Unsupported(Exception):
@@ -215,9 +217,10 @@ def effect(t, cls, args, own_only=False):
 
 
 def condition(t, expr):
-    """`{"c": "card", …}` for `new XCondition()` or `XCondition.instance` with a condition handler, or None"""
-    m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance', expr.strip())
-    name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2), 'condition')
+    """`{"c": "card", …}` for `new XCondition()`, `XCondition.instance` or an enum's constant
+    (`XCondition.TEN`, the handler `Outer.XCondition.TEN`) with a condition handler, or None"""
+    m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance|(\w+\.[A-Z][A-Z0-9_]*)', expr.strip())
+    name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2) or m.group(3), 'condition')
     return {'c': 'card', 'handler': name} if name else None
 
 
@@ -228,9 +231,16 @@ def value(t, expr):
     return {'v': 'card', 'handler': name} if name else None
 
 
+def predicate(expr):
+    """`{"p": "card", …}` for `XPredicate.instance` or `new XPredicate()` with a predicate handler, or None"""
+    m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance', expr.strip())
+    name = m and find(SOURCE, m.group(1) or m.group(2), 'predicate')
+    return {'p': 'card', 'handler': name} if name else None
+
+
 def trigger(t, cls, args):
     """A triggered ability class with a trigger handler: its base trigger, translated, with the handler as its
-    `check`; or None"""
+    `check` and the targets its constructor adds; or None"""
     name = find(getattr(t, 'source', None), cls, 'trigger')
     if not name:
         return None
@@ -241,6 +251,12 @@ def trigger(t, cls, args):
         a = T.triggered(a)
     if a.get('class') != 'TriggeredAbility':
         raise _unsupported(f'ability {cls}: its base trigger is a {a.get("class")}')
+    # targets its constructor adds (`this.addTarget(…)`), after the base trigger's own
+    inner = cls.split('.')[-1]
+    body = re.search(r'\n\s*(?:public |protected |private )?' + inner + r'\(\)\s*\{(.*?)\n    \}',
+                     getattr(t, 'source', '') or '', re.S)
+    for m in re.finditer(r'(?:this\.)?addTarget\((.*?)\);', body.group(1) if body else '', re.S):
+        a.setdefault('targets', []).append(t.target(m.group(1)))
     a['java'] = cls
     a['check'] = name
     return a
