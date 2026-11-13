@@ -2542,6 +2542,11 @@ class Translator:
                 and (len(args) == 1 or args[0].strip() in ('true', 'false')):
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False,
                     'counters': self.value('counter', args[-1].strip())}
+        # (counter, additional, tapped, returnFromExileZoneOnly): "additional" only changes the text
+        if cls == 'ReturnToBattlefieldUnderOwnerControlWithCounterTargetEffect' and len(args) == 4 \
+                and all(a.strip() in ('true', 'false') for a in args[1:]) and args[3].strip() == 'false':
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[2].strip() == 'true',
+                    'owner': True, 'counters': self.value('counter', args[0].strip())}
         if cls == 'AddCountersAllEffect' and len(args) == 3:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'amount': self.amount(args[1]),
                     'filter': self.filter(args[2].strip())}
@@ -2745,6 +2750,10 @@ class Translator:
         # "choose a color": the permanents of the filter gain protection from it until end of turn
         if cls == 'GainProtectionFromColorAllEffect' and len(args) == 2 and args[0].strip() == 'Duration.EndOfTurn':
             return {'class': cls, 'filter': self.filter(args[1])}
+        # a reminder of devotion's rules (Aspect of Hydra): text only
+        if cls == 'InfoEffect' and len(args) == 1 \
+                and re.fullmatch(r'DevotionCount\.[WUBRG]+\.getReminder\(\)', args[0].strip()):
+            return {'class': cls}
         if cls == 'GainAbilityAllEffect' and len(args) == 4 and args[3].strip().startswith('"'):
             args = args[:3]
         # `LoseLifeSourceControllerEffect(n, youLose)`: the flag only changes the text ("you lose" or "lose")
@@ -2759,6 +2768,10 @@ class Translator:
             return k
         # a class written by hand in Rust (src/cards/, card_handlers.py)
         if cls not in EFFECTS and (h := card_handlers.effect(self, cls, args)) is not None:
+            return h
+        # the tapped overload of a framework class the table has in its one-argument form (Lumra)
+        if cls == 'ReturnFromYourGraveyardToBattlefieldAllEffect' and len(args) == 2 \
+                and (h := card_handlers.effect(self, cls, args)) is not None:
             return h
         if cls not in EFFECTS and getattr(self, 'source', None) and custom_effects.declares(self.source, cls):
             # a class of the card's own: its `apply` body, statement by statement (custom_effects.py)
