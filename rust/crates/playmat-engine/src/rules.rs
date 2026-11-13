@@ -11334,7 +11334,7 @@ fn apply_each_effect(
             EffectDef::IncubateEffect { amount, token } => {
                 let def = Arc::new(token.card());
                 token_image(game, token, source.0);
-                for _ in 0..token_copies(game, controller) {
+                for _ in 0..token_copies(game, controller, &def) {
                     let id = game.create_obj(def.clone(), controller, Zone::Library);
                     let o = game.obj_mut(id);
                     o.token = true;
