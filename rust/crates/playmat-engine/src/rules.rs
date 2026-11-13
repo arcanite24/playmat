@@ -1787,7 +1787,7 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                         || (*filter_abilities || !game.paying_ability.get())
                             && game.filter_matches(filter, seat, Some(*id), s)
                             && (!*chosen_type
-                                || o.chosen_type.as_ref().is_some_and(|t| game.obj(s).def.subtypes.contains(t)))
+                                || o.chosen_type.as_ref().is_some_and(|t| game.has_subtype(s, t)))
                 }),
                 _ => true,
             })
@@ -5993,7 +5993,7 @@ fn conditional_usable(game: &Game, seat: Seat, src: ObjId, j: usize) -> bool {
                         && (*filter_abilities || !game.paying_ability.get())
                         && game.filter_matches(filter, seat, Some(src), s)
                         && (!*chosen_type
-                            || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.obj(s).def.subtypes.contains(t)))
+                            || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.has_subtype(s, t)))
             })
         }
         _ => false,
