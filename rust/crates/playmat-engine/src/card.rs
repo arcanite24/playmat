@@ -816,7 +816,7 @@ pub enum Condition {
     /// an Equipment is attached to the source (`EquippedSourceCondition`)
     SourceEquipped,
     /// the source permanent is tapped (`v`) or untapped (`SourceTappedCondition`)
-    SourceTapped {
+    SourceTappedIs {
         v: bool,
     },
     /// the source (or it as it last was on the battlefield) passes the filter (`SourceMatchesFilterCondition`)

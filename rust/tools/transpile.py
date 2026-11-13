@@ -624,8 +624,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               # not `CastFromHandSourcePermanentCondition`: in shadow games Java's is false where the rules say true
               # (Patched Plaything enters without its counters, Cyclone Summoner doesn't trigger)
               'EquippedSourceCondition.instance': {'c': 'source_equipped'},
-              'SourceTappedCondition.TAPPED': {'c': 'source_tapped', 'v': True},
-              'SourceTappedCondition.UNTAPPED': {'c': 'source_tapped', 'v': False},
+              'SourceTappedCondition.TAPPED': {'c': 'source_tapped_is', 'v': True},
+              'SourceTappedCondition.UNTAPPED': {'c': 'source_tapped_is', 'v': False},
               'CardsInOpponentGraveyardCondition.EIGHT': {'c': 'opponent_graveyard', 'n': 8},
               'CardsInOpponentGraveyardCondition.SEVEN': {'c': 'opponent_graveyard', 'n': 7},
               'FatefulHourCondition.instance': {'c': 'life_compare', 'who': 'you', 'cmp': 'OR_LESS', 'n': 5},

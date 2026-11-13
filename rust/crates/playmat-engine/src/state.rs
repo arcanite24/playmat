@@ -2161,7 +2161,7 @@ impl Game {
                 self.obj(source).zone == Zone::Battlefield
                     && self.attachments(source).any(|a| self.has_subtype(a, "Equipment"))
             }
-            Condition::SourceTapped { v } => {
+            Condition::SourceTappedIs { v } => {
                 self.obj(source).zone == Zone::Battlefield && self.obj(source).tapped == *v
             }
             Condition::SourceMatches { filter } => self.filter_matches(filter, you, Some(source), source),
