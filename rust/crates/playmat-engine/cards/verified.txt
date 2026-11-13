@@ -658,6 +658,7 @@ Boots of Speed
 Borderland Marauder
 Borderland Minotaur
 Boros Charm
+Boros Cluestone
 Boros Guildgate
 Boros Keyrune
 Boros Locket
@@ -955,6 +956,7 @@ Civic Stalwart
 Civil Servant
 Clachan Festival
 Claim Jumper
+Clammy Prowler
 Clamorous Ironclad
 Clarion Cathars
 Clarion Conqueror
@@ -1059,6 +1061,7 @@ Consulate Turret
 Consult the Star Charts
 Consuming Blob
 Consuming Fervor
+Consuming Sinkhole
 Contaminated Aquifer
 Contingency Plan
 Contraband Kingpin
@@ -1605,6 +1608,7 @@ Elderfang Ritualist
 Elderleaf Mentor
 Eldrazi Aggressor
 Eldrazi Devastator
+Eldrazi Skyspawner
 Eldrazi Temple
 Electric Revelation
 Electrify
@@ -2101,6 +2105,7 @@ Galestrike
 Gallant Cavalry
 Gallant Citizen
 Gallant Fowlknight
+Galuf's Final Act
 Galvanic Giant
 Galvanic Iteration
 Galvanize
@@ -2270,6 +2275,7 @@ Goblin Smuggler
 Goblin Surprise
 Goblin Tomb Raider
 Goblin Trailblazer
+Goblin Trashmaster
 Goblin War Paint
 Goblin Warchief
 Goblin Wizardry
@@ -3010,6 +3016,7 @@ Pacifism
 Pack Rat
 Painful Lesson
 Palladium Myr
+Paradox Engine
 Parhelion II
 Patchwork Automaton
 Path of Discovery
@@ -3227,6 +3234,7 @@ Rottenmouth Viper
 Rotting Regisaur
 Rowan's Grim Search
 Rowdy Snowballers
+Royal Treatment
 Ruby, Daring Tracker
 Rugged Highlands
 Rule of Law
@@ -3255,6 +3263,7 @@ Sarkhan, Dragon Ascendant
 Saruli Caretaker
 Saryth, the Viper's Fang
 Satyr Wayfinder
+Savage Mansion
 Savage Stomp
 Savai Triome
 Savannah Lions
@@ -3770,6 +3779,7 @@ Warg Tactics
 Warleader's Call
 Warped Landscape
 Wary Thespian
+Wash Away
 Wastewood Verge
 Waterfront District
 Waterwind Scout
