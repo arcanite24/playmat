@@ -3225,6 +3225,9 @@ impl Game {
         } else {
             zone
         };
+        // a spell's copy its own effect exiles (`ExileSpellEffect` moves the copy's card): it's in exile until the
+        // next state check (704.5e), where a copy countered or moved any other way just leaves the stack
+        let copy_exiled = from == Zone::Stack && zone == Zone::Exile && self.obj(id).flashback && self.obj(id).token;
         self.obj_mut(id).flashback = false;
         if !(from == Zone::Stack && zone == Zone::Battlefield) {
             self.obj_mut(id).escaped = false;
@@ -3821,6 +3824,9 @@ impl Game {
                 t.target_zcc = vec![vec![self.obj(id).zcc]];
             }
             self.pending.push(t);
+        }
+        if copy_exiled {
+            Arc::make_mut(&mut self.exile).push(id);
         }
         if self.obj(id).token && zone != Zone::Battlefield {
             return;
