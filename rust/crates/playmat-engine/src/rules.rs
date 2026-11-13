@@ -4,7 +4,7 @@
 
 use crate::card::{
     AbilityDef, Amount, CardDef, CardType, Cmp, Color, Condition, CostDef, Duration, EffectDef, Mana, ManaCost,
-    ManaKind, Pred, TargetDef, Trigger,
+    ManaKind, ManaMake, Pred, TargetDef, Trigger,
 };
 use crate::decide::{Answer, Decider, Query};
 use crate::log;
@@ -1497,7 +1497,25 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         // either one (`OrCost`)
         CostDef::OrCost { costs } => costs.iter().any(|c| or_cost_payable(game, seat, id, c)),
         CostDef::ForageCost => can_pay_cost(game, seat, id, &forage_cost()),
+        CostDef::BlightCost { .. } => !controlled_creatures(game, seat).is_empty(),
+        // its options are {0} to {N-1} generic (`WaterbendCost`): `canPay` holds with nothing to tap or pay
+        CostDef::WaterbendCost { .. } => true,
+        CostDef::ReturnToHandChosenControlledPermanentCost { filter, amount } => {
+            matching(game, filter, seat, id).iter().filter(|p| game.obj(**p).controller == seat).count() >= *amount
+        }
     }
+}
+
+/// The text of the ability a cost is paid for, which `TargetImpl.tryToAutoChoose` reads (`source.getRule`): the
+/// ability or spell on the stack from `id`, else the one resolving, else the card's spell
+fn cost_source_rule(game: &Game, id: ObjId) -> String {
+    if let Some(top) = game.stack.last().filter(|t| t.card == id) {
+        return item_rule(game, top);
+    }
+    if let Some(item) = game.resolving_item.as_ref().filter(|i| i.card == id) {
+        return item_rule(game, item);
+    }
+    game.obj(id).def.spell.rule.clone()
 }
 
 /// `ForageCost`: an `OrCost` of exiling three cards from your graveyard and sacrificing a Food.
@@ -1968,6 +1986,13 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
             .enumerate()
             .filter(|(_, a)| can_tap || (a.mana().is_some() && !a.taps_source()))
             .filter(|(_, a)| a.mana_condition().is_none_or(|c| game.condition_holds(Some(c), seat, *id)))
+            // `LimitedTimesPerTurnActivatedManaAbility`: not once it's been activated its times this turn
+            .filter(|(i, a)| match a {
+                AbilityDef::ManaAbility { per_turn: Some(n), .. } => {
+                    (game.activated_this_turn.iter().filter(|x| **x == (*id, *i)).count() as u32) < *n
+                }
+                _ => true,
+            })
             .filter(|(_, a)| match a {
                 AbilityDef::ConditionalManaAbility { land_abilities: true, .. } => game
                     .paying_for
@@ -1978,9 +2003,11 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                     chosen_type,
                     creature_abilities,
                     filter_abilities,
+                    any_abilities,
                     ..
                 } => game.paying_for.get().is_some_and(|s| {
                     s == ANY_SPELL
+                        || *any_abilities && game.paying_ability.get()
                         || *creature_abilities && game.paying_ability.get() && game.has_type(s, CardType::Creature)
                         || (*filter_abilities || !game.paying_ability.get())
                             && game.filter_matches(filter, seat, Some(*id), s)
@@ -2000,7 +2027,8 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                     CostDef::PayEnergyCost { amount } => energy(game, seat) >= *amount,
                     CostDef::SacrificeTargetCost { .. }
                     | CostDef::RemoveCountersSourceCost { .. }
-                    | CostDef::ExileFromGraveCost { .. } => can_pay_cost(game, seat, *id, c),
+                    | CostDef::ExileFromGraveCost { .. }
+                    | CostDef::ForageCost => can_pay_cost(game, seat, *id, c),
                     _ => true,
                 })
             })
@@ -2022,6 +2050,17 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                             })
                             .unwrap_or(1);
                         (i, Mana::of(*color, *amount * times as u32), a.mana_kind())
+                    }
+                    AbilityDef::ManaAbility {
+                        make: ManaMake::AnyOneColor { amount } | ManaMake::Combination { amount, .. },
+                        ..
+                    } => {
+                        let n = game.value(amount, seat, *id, 0).max(0) as u32;
+                        let mut m = m;
+                        for c in m.colored.iter_mut() {
+                            *c *= n;
+                        }
+                        (i, m, a.mana_kind())
                     }
                     AbilityDef::DynamicManaAbility { color, amount, .. } => {
                         let n = game.value(amount, seat, *id, 0).max(0) as u32;
@@ -2062,6 +2101,13 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                         let mut m = Mana::default();
                         for c in Color::ALL {
                             m.colored[c.index()] = devotion(game, seat, c);
+                        }
+                        (i, m, a.mana_kind())
+                    }
+                    AbilityDef::AddEachControlledColorManaAbility { .. } => {
+                        let mut m = Mana::default();
+                        for c in colors_among(game, seat, *id, &crate::card::Filter::default()) {
+                            m.colored[c.index()] = 1;
                         }
                         (i, m, a.mana_kind())
                     }
@@ -2220,9 +2266,20 @@ fn pay_with_costly(
             continue;
         }
         let makes = |k: usize| if k < 5 { m.colored[k] } else { m.colorless };
-        // each kind owed it makes, and one other (for generic, any does)
+        // each kind owed it makes, and one other (for generic, any does); several kinds at once (Cormela's
+        // {U}{B}{R}, one `Mana` in Java's `addManaWithCost`): all of it, as kind 6
+        let all = matches!(
+            game.obj(*id).def.abilities.iter().find(|a| a.mana() == Some(*m)),
+            Some(
+                AbilityDef::ConditionalManaAbility { mana: Some(_), .. }
+                    | AbilityDef::ManaAbility { make: ManaMake::Fixed { .. }, .. }
+            )
+        ) && (0..6).filter(|k| makes(*k) > 0).count() > 1;
         let mut kinds: Vec<usize> = (0..6).filter(|k| makes(*k) > 0 && owed(*k)).collect();
         kinds.extend((0..6).find(|k| makes(*k) > 0 && !owed(*k)));
+        if all {
+            kinds = vec![6];
+        }
         let mut symbols: Vec<ManaCost> = Vec::new();
         if own.generic > 0 {
             symbols.push(ManaCost { generic: own.generic, ..ManaCost::default() });
@@ -2236,7 +2293,7 @@ fn pay_with_costly(
         }
         for k in kinds {
             for sym in &symbols {
-                chosen.push((*id, k, makes(k), sym.clone()));
+                chosen.push((*id, k, if k == 6 { 0 } else { makes(k) }, sym.clone()));
                 // the chosen sources tap for these abilities: the others pay
                 let others: Vec<Vec<Mana>> = {
                     let ids: Vec<ObjId> = chosen.iter().map(|(c, ..)| *c).collect();
@@ -2247,7 +2304,19 @@ fn pay_with_costly(
                 };
                 let mut options = others;
                 let mut r = cost.clone();
-                for (_, k, made, sym) in chosen.iter() {
+                for (c, k, made, sym) in chosen.iter() {
+                    if *k == 6 {
+                        let m = costly.iter().find(|(s, ..)| s == c).map(|(_, m, _)| *m).unwrap_or_default();
+                        for j in 0..6 {
+                            let one = if j < 5 {
+                                Mana::of(Color::ALL[j], 1)
+                            } else {
+                                Mana { colorless: 1, ..Mana::default() }
+                            };
+                            let n = if j < 5 { m.colored[j] } else { m.colorless };
+                            options.extend((0..n).map(|_| vec![one]));
+                        }
+                    }
                     let one =
                         if *k < 5 { Mana::of(Color::ALL[*k], 1) } else { Mana { colorless: 1, ..Mana::default() } };
                     options.extend((0..*made).map(|_| vec![one]));
@@ -2319,6 +2388,32 @@ fn mana_options(
         // "tap an untapped legendary creature"), the ones that tap it one source between them
         let (taps, own): (Vec<_>, Vec<_>) =
             a.into_iter().partition(|(i, _)| game.obj(id).def.abilities[*i].taps_source());
+        // the source's one ability making several kinds at once ({W}{U}{B}{R}{G}): a source for each mana; two
+        // mana of different colors, two of any
+        if let [(i, m)] = taps[..] {
+            match &game.obj(id).def.abilities[i] {
+                AbilityDef::ManaAbility { make: ManaMake::Fixed { .. }, .. }
+                | AbilityDef::AddEachControlledColorManaAbility { .. }
+                | AbilityDef::ConditionalManaAbility { mana: Some(_), .. } => {
+                    for c in Color::ALL {
+                        options.extend((0..m.colored[c.index()]).map(|_| vec![Mana::of(c, 1)]));
+                    }
+                    options.extend((0..m.colorless).map(|_| vec![Mana { colorless: 1, ..Mana::default() }]));
+                    for (_, m) in own {
+                        options.push(vec![m]);
+                    }
+                    continue;
+                }
+                AbilityDef::ManaAbility { make: ManaMake::TwoDifferent, .. } => {
+                    options.extend([vec![m], vec![m]]);
+                    for (_, m) in own {
+                        options.push(vec![m]);
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+        }
         let groups = std::iter::once(taps.into_iter().map(|(_, m)| m).collect::<Vec<Mana>>())
             .chain(own.into_iter().map(|(_, m)| vec![m]));
         for a in groups {
@@ -2365,6 +2460,22 @@ fn mana_options(
 
 /// Whether the sources pay the cost: each symbol from a different source, generic from what's left.
 fn options_pay(options: &[Vec<Mana>], cost: &ManaCost) -> bool {
+    // a monocolored hybrid symbol: its color, or two generic (`MonoHybridManaCost.getManaOptions`)
+    if !cost.mono.is_empty() {
+        let n = cost.mono.len().min(8);
+        return (0..1u32 << n).any(|mask| {
+            let mut c = cost.clone();
+            c.mono.clear();
+            for (b, k) in cost.mono.iter().enumerate() {
+                if mask & (1 << b) != 0 {
+                    c.colored[*k] += 1;
+                } else {
+                    c.generic += 2;
+                }
+            }
+            options_pay(options, &c)
+        });
+    }
     // the costs' symbols, colored and colorless first; each needs a different source
     let mut needs: Vec<usize> = Vec::new();
     for c in Color::ALL {
@@ -2412,7 +2523,7 @@ fn auto_pay_abilities(abilities: &[(usize, Mana, ManaKind)], unpaid: &ManaCost) 
         return abilities.to_vec();
     }
     let hybrid: Vec<(usize, usize)> = unpaid.hybrid.iter().map(|(a, b)| ((*a).min(*b), (*a).max(*b))).collect();
-    let single = |k: usize| k < 5 && unpaid.colored[k] > 0;
+    let single = |k: usize| k < 5 && (unpaid.colored[k] > 0 || unpaid.mono.contains(&k));
     if (0..5).all(|k| !single(k)) && hybrid.is_empty() {
         // `getManaAbilitiesUsingMana`
         if unpaid.generic > 0 {
@@ -2486,6 +2597,47 @@ fn colors_among(game: &Game, seat: Seat, source: ObjId, filter: &crate::card::Fi
         }
     }
     out
+}
+
+/// One of `choices`, in their order: the only one; while paying, `ManaUtil.tryToAutoSelectAManaColor`'s (the one
+/// owed, the first with no color owed); else the player picks it (`HumanPlayer.choose`). None: stopped.
+fn pick_color(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    unpaid: &ManaCost,
+    choices: &[Color],
+    message: &str,
+) -> Option<Color> {
+    if choices.len() == 1 {
+        return Some(choices[0]);
+    }
+    let owed: Vec<Color> = [Color::W, Color::R, Color::G, Color::U, Color::B]
+        .into_iter()
+        .filter(|c| unpaid.symbols_of(*c) > 0 && choices.contains(c))
+        .collect();
+    if owed.len() == 1 {
+        return Some(owed[0]);
+    }
+    if owed.is_empty() && Color::ALL.iter().all(|c| unpaid.symbols_of(*c) == 0) {
+        return choices.first().copied();
+    }
+    let name = |c: &Color| ["White", "Blue", "Black", "Red", "Green"][c.index()].to_string();
+    let q = Query::Choice { message: message.into(), choices: choices.iter().map(name).collect() };
+    loop {
+        match ask(game, d, seat, &q) {
+            Answer::Text(t) => {
+                if let Some(c) = choices.iter().find(|c| name(c) == t) {
+                    return Some(*c);
+                }
+            }
+            Answer::Stop => return None,
+            _ => {}
+        }
+        if d.stopped() {
+            return None;
+        }
+    }
 }
 
 /// One of `allowed` (`ManaType.getChoiceOfManaTypes`, black red blue green white): the only one; while paying, the
@@ -2626,7 +2778,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 || matches!(game.obj(id).def.abilities[abilities[0]], AbilityDef::RoomUnlockAbility { .. })
                 || {
                     let (_, _, _, costs, _) = game.obj(id).def.abilities[abilities[0]].activated().unwrap();
+                    // (waterbend is a mana cost in Java: `WaterbendCost` is among `getManaCosts`)
                     ability_mana_cost(costs).mana_value() > 0
+                        || costs.iter().any(|c| matches!(c, CostDef::WaterbendCost { .. }))
                 });
         let index = if direct {
             abilities[0]
@@ -2648,10 +2802,14 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     let p = game.player_mut(seat);
                     let mut made = Mana::default();
                     for c in 0..5 {
-                        made.colored[c] = p.mana_pool.colored[c] - before.colored[c];
+                        made.colored[c] = p.mana_pool.colored[c].saturating_sub(before.colored[c]);
                     }
+                    // (Renowned Weaponsmith's {C}{C})
+                    made.colorless = p.mana_pool.colorless.saturating_sub(before.colorless);
                     p.mana_pool = before;
-                    p.conditional_pool.push((made, id, i));
+                    if made.colored.iter().sum::<u32>() + made.colorless > 0 {
+                        p.conditional_pool.push((made, id, i));
+                    }
                 }
                 for s in 0..game.seats() {
                     game.player_mut(s).passed = false;
@@ -2944,7 +3102,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if let Some((_, cost)) = plot.filter(|(k, _)| *k == index) {
                 // `PlotSourceExileEffect`: pay the plot cost, then exile it plotted; it can't be cast this turn
                 let before = game.clone();
-                if !pay_mana(game, d, seat, &cost) {
+                if !pay_special_action(game, d, seat, id, &cost) {
                     *game = before;
                     return;
                 }
@@ -2958,7 +3116,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if foretell == Some(index) {
                 // `ForetellExileEffect`: pay {2}, then exile it face down; it can't be cast this turn
                 let before = game.clone();
-                if !pay_mana(game, d, seat, &ManaCost { generic: 2, ..ManaCost::default() }) {
+                if !pay_special_action(game, d, seat, id, &ManaCost { generic: 2, ..ManaCost::default() }) {
                     *game = before;
                     return;
                 }
@@ -3328,6 +3486,7 @@ fn pay_spell_mana(
 ) -> bool {
     game.paying_for.set(Some(id));
     let tally = game.spent_tally;
+    let nested = game.nested_spent;
     if phyrexian_life > 0 {
         lose_life(game, seat, phyrexian_life);
     }
@@ -3337,11 +3496,10 @@ fn pay_spell_mana(
         return false;
     }
     game.mana_paid = game.unpaid;
-    game.obj_mut(id).mana_spent =
-        cost.generic + cost.colored.iter().sum::<u32>() + cost.colorless + cost.hybrid.len() as u32 + cost.snow;
+    game.obj_mut(id).mana_spent = cost.mana_value();
     let mut spent = [0; 5];
     for (k, n) in spent.iter_mut().enumerate() {
-        *n = game.spent_tally[k] - tally[k];
+        *n = game.spent_tally[k] - tally[k] - (game.nested_spent[k] - nested[k]);
     }
     game.obj_mut(id).spent_colors = spent;
     true
@@ -4731,6 +4889,13 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             top.x = x;
         }
     }
+    // waterbend: after X and phyrexian mana, before the targets (`AbilityImpl.handleWaterbendingCosts`)
+    for c in costs {
+        if let CostDef::WaterbendCost { amount } = c {
+            let Some(tapped) = waterbend(game, d, seat, *amount) else { return false };
+            mana.generic += amount - tapped;
+        }
+    }
     if !choose_targets(game, d, seat, targets, None, rule, true) {
         return false;
     }
@@ -4773,7 +4938,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     }
     game.mana_paid = game.unpaid;
     for c in costs {
-        if !matches!(c, CostDef::ManaCost { .. }) && !pay_cost(game, d, seat, id, c) {
+        if !matches!(c, CostDef::ManaCost { .. } | CostDef::WaterbendCost { .. }) && !pay_cost(game, d, seat, id, c) {
             return false;
         }
     }
@@ -4795,6 +4960,29 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     }
     commit_crime(game, seat);
     true
+}
+
+/// Waterbend N: up to N untapped artifacts and creatures you control chosen (`TargetControlledPermanent(0, N)`,
+/// `Player.choose`) and tapped. How many were tapped; None: stopped.
+fn waterbend(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: u32) -> Option<u32> {
+    let possible: Vec<ObjId> = game
+        .battlefield
+        .iter()
+        .copied()
+        .filter(|p| {
+            let o = game.obj(*p);
+            o.controller == seat
+                && !o.tapped
+                && (game.has_type(*p, CardType::Artifact) || game.has_type(*p, CardType::Creature))
+        })
+        .collect();
+    // `HumanPlayer.choose(outcome, target, …)`: one round, until done; asked even with none to tap (Java's prompt,
+    // "selected 0 of N", answered with done)
+    let chosen = choose_cards_with(game, d, seat, &possible, &possible, 0, amount as usize, "tap", false)?;
+    for c in &chosen {
+        tap(game, *c);
+    }
+    Some(chosen.len() as u32)
 }
 
 /// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
@@ -5126,6 +5314,48 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                     t.target_zcc = vec![vec![zcc]];
                 }
                 game.pending.extend(fired);
+            }
+        }
+        // `ReturnToHandChosenControlledPermanentCost`: chosen (`Targets.choose`), then returned together
+        CostDef::ReturnToHandChosenControlledPermanentCost { filter, amount } => {
+            let possible: Vec<ObjId> =
+                matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
+            if possible.len() < *amount {
+                return false;
+            }
+            let rule = cost_source_rule(game, id);
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, &rule, true)
+            else {
+                return false;
+            };
+            if chosen.len() < *amount {
+                return false;
+            }
+            for c in chosen {
+                game.move_to(c, Zone::Hand);
+            }
+        }
+        // waterbend paid on its own (`ManaCostsImpl.handleWaterbendingCosts`): the taps, then the rest as mana
+        CostDef::WaterbendCost { amount } => {
+            let Some(tapped) = waterbend(game, d, seat, *amount) else { return false };
+            let rest = ManaCost { generic: amount - tapped, ..ManaCost::default() };
+            if rest.generic > 0 && !pay_mana(game, d, seat, &rest) {
+                return false;
+            }
+        }
+        // `BlightCost.doBlight`: a creature you control chosen (`TargetPermanent`, not targeted), the counters on it
+        CostDef::BlightCost { amount } => {
+            let creatures = controlled_creatures(game, seat);
+            if creatures.is_empty() {
+                return false;
+            }
+            let rule = cost_source_rule(game, id);
+            let Some(chosen) = choose_cards(game, d, seat, &creatures, &creatures, 1, 1, &rule) else {
+                return false;
+            };
+            match chosen.first() {
+                Some(c) => game.obj_mut(*c).add_counters("-1/-1", *amount),
+                None => return false,
             }
         }
         CostDef::SacrificeTargetCost { filter, amount } => {
@@ -6006,13 +6236,28 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                             .any(|(s, a)| *s == id && a.iter().any(|(j, _, _)| *j == i));
                         if !spendable {
                             // tapped for mana this payment can't use: it stays in the pool for one that can (its
-                            // life paid too, and its mana cost)
-                            tap(game, id);
+                            // life paid too, and its mana cost; Lord of the Forsaken's "Pay 1 life" doesn't tap it)
+                            let taps = game.obj(id).def.abilities[i].taps_source();
+                            if taps {
+                                tap(game, id);
+                            }
+                            // `HumanPlayer.activateAbility` sets the stock here too: its own mana cost (Cormela's
+                            // {1}) is asked for, not taken from what's floating
+                            stock = game.player(seat).mana_pool;
+                            game.player_mut(seat).mana_stock = stock;
                             let ability = game.obj(id).def.abilities[i].clone();
                             match pay_mana_ability_cost(game, d, seat, id, &ability) {
-                                Some(true) => {}
+                                Some(true) => {
+                                    let p = game.player_mut(seat);
+                                    for k in 0..6 {
+                                        *kind(&mut stock, k) =
+                                            (*kind(&mut p.mana_stock, k)).min(*kind(&mut p.mana_pool, k));
+                                    }
+                                }
                                 Some(false) => {
-                                    untap_undo(game, id);
+                                    if taps {
+                                        untap_undo(game, id);
+                                    }
                                     continue;
                                 }
                                 None => return false,
@@ -6033,7 +6278,7 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                             let mut m = m;
                             if matches!(
                                 game.obj(id).def.abilities[i],
-                                AbilityDef::ConditionalManaAbility { color: None, colorless: false, .. }
+                                AbilityDef::ConditionalManaAbility { color: None, colorless: false, mana: None, .. }
                                     | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }
                             ) {
                                 let n = match &game.obj(id).def.abilities[i] {
@@ -6085,8 +6330,11 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                             }
                             made.colorless = p.mana_pool.colorless.saturating_sub(before.colorless);
                             p.mana_pool = before;
-                            p.conditional_pool.push((made, id, i));
-                            fresh_conditional += 1;
+                            // (nothing made: its own cost was cancelled and the activation undone)
+                            if made.colored.iter().sum::<u32>() + made.colorless > 0 {
+                                p.conditional_pool.push((made, id, i));
+                                fresh_conditional += 1;
+                            }
                         }
                     }
                 }
@@ -6369,14 +6617,15 @@ fn activate_mana_paying(
                 tap(game, o);
             }
         }
-        // "Sacrifice a Goblin" (Skirk Prospector): `SacrificeTargetCost`, as for any ability
-        if let CostDef::SacrificeTargetCost { .. } = c {
-            if !pay_cost(game, d, seat, id, &c) {
-                if taps {
-                    untap_undo(game, id);
-                }
-                return !d.stopped();
+        // "Sacrifice a Goblin" (Skirk Prospector): `SacrificeTargetCost`, as for any ability; "exile a card from your
+        // graveyard" (Molt Tender) the same way
+        if matches!(c, CostDef::SacrificeTargetCost { .. } | CostDef::ExileFromGraveCost { .. } | CostDef::ForageCost)
+            && !pay_cost(game, d, seat, id, &c)
+        {
+            if taps {
+                untap_undo(game, id);
             }
+            return !d.stopped();
         }
     }
     if let AbilityDef::ConditionalManaAbility { cant_counter: true, .. } = def.abilities[i] {
@@ -6459,9 +6708,71 @@ fn activate_mana_paying(
             m = Mana::of(c, 1);
         }
     }
+    // Bloom Tender: one of each color among the permanents you control, as it's activated
+    if let AbilityDef::AddEachControlledColorManaAbility { .. } = def.abilities[i] {
+        m = Mana::default();
+        for c in colors_among(game, seat, id, &crate::card::Filter::default()) {
+            m.colored[c.index()] = 1;
+        }
+    }
+    // `ManaAbility`: what it makes, asked as its Java effect asks
+    if let AbilityDef::ManaAbility { make, per_turn, .. } = def.abilities[i].clone() {
+        if per_turn.is_some() {
+            game.activated_this_turn.push((id, i));
+        }
+        m = match make {
+            ManaMake::Fixed { mana } => mana,
+            // `ChoiceColor`, autoselected while paying (`DynamicManaEffect`: nothing when X is 0)
+            ManaMake::AnyOneColor { amount } => {
+                let n = game.value(&amount, seat, id, 0).max(0) as u32;
+                if n == 0 {
+                    Mana::default()
+                } else {
+                    let Some(c) = any_color(game, d, seat, choosing, n) else { return false };
+                    Mana::of(c, n)
+                }
+            }
+            ManaMake::Combination { amount, colors, dynamic } => {
+                let n = game.value(&amount, seat, id, 0).max(0);
+                let mut out = Mana::default();
+                if dynamic && n == 1 {
+                    let Some(c) = any_color(game, d, seat, choosing, 1) else { return false };
+                    out = Mana::of(c, 1);
+                } else if n > 0 && !colors.is_empty() {
+                    let mut defaults = vec![0; colors.len()];
+                    defaults[0] = n;
+                    let ranges = vec![(0, n); colors.len()];
+                    let Some(values) = multi_amount(game, d, seat, defaults, ranges, (n, n), (None, Vec::new())) else {
+                        return false;
+                    };
+                    for (c, v) in colors.iter().zip(values) {
+                        out.colored[c.index()] += v.max(0) as u32;
+                    }
+                }
+                out
+            }
+            // `ManaChoice.chooseTwoDifferentColors`: color 1, then color 2 of the others
+            ManaMake::TwoDifferent => {
+                let all = Color::ALL.to_vec();
+                let Some(a) = pick_color(game, d, seat, choosing, &all, "Choose color 1") else { return false };
+                let rest: Vec<Color> = all.into_iter().filter(|c| *c != a).collect();
+                let Some(b) = pick_color(game, d, seat, choosing, &rest, "Choose color 2") else { return false };
+                let mut out = Mana::of(a, 1);
+                out.colored[b.index()] += 1;
+                out
+            }
+            // `ManaType.getChoiceOfManaTypes`: black, red, blue, green, white
+            ManaMake::OneOf { colors } => {
+                let order = [Color::B, Color::R, Color::U, Color::G, Color::W];
+                let choices: Vec<Color> = order.into_iter().filter(|c| colors.contains(c)).collect();
+                let Some(c) = pick_color(game, d, seat, choosing, &choices, "Pick a mana type") else { return false };
+                Mana::of(c, 1)
+            }
+        };
+    }
     let conditional_any = matches!(
         def.abilities[i],
-        AbilityDef::ConditionalManaAbility { color: None, colorless: false, .. }
+        AbilityDef::ConditionalManaAbility { color: None, colorless: false, mana: None, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }
     );
     if k == ManaKind::AnyColor || conditional_any || matches!(def.abilities[i], AbilityDef::AnyColorManaAbility { .. })
@@ -6544,7 +6855,12 @@ fn pay_mana_ability_cost(
     let paying = (game.paying_for.get(), game.paying_ability.get());
     game.paying_for.set(Some(id));
     game.paying_ability.set(true);
+    let (tally, nested) = (game.spent_tally, game.nested_spent);
     let paid = pay_mana(game, d, seat, &c);
+    // (all of it, a mana ability's paid inside it too: Guild Globe's {2} paid by another Globe)
+    for k in 0..6 {
+        game.nested_spent[k] = nested[k] + game.spent_tally[k] - tally[k];
+    }
     game.paying_for.set(paying.0);
     game.paying_ability.set(paying.1);
     if paid {
@@ -6642,8 +6958,13 @@ fn pay_from_pool(
             let any_unit = units.iter().position(|u| u.0 as usize == k && (!snow || u.1));
             if let Some(c) = usable {
                 // one mana of it (Sunken Citadel's two are one entry; one of any color is all of them)
+                // Cormela's {U}{B}{R} is three mana, each spent on its own (`ConditionalManaAbility` with `mana`)
+                let several = matches!(
+                    game.obj(conditional[c].1).def.abilities.get(conditional[c].2),
+                    Some(AbilityDef::ConditionalManaAbility { mana: Some(_), .. })
+                );
                 let m = &mut conditional[c].0;
-                let colors = m.colored.iter().filter(|n| **n > 0).count();
+                let colors = if several { 1 } else { m.colored.iter().filter(|n| **n > 0).count() };
                 if k < 5 {
                     m.colored[k] -= 1;
                 } else {
@@ -6689,6 +7010,26 @@ fn pay_from_pool(
         }
     }
     unpaid.hybrid = left;
+    // `MonoHybridManaCost`: its color first, then (each in turn) its two generic
+    let mut left = Vec::new();
+    for k in std::mem::take(&mut unpaid.mono) {
+        if spend(&mut pool, stock, unlocked, k, 1, false) == 0 {
+            left.push(k);
+        }
+    }
+    let mut still = Vec::new();
+    for k in left {
+        let mut paid = 0;
+        while paid < 2 && [5, 2, 1, 0, 4, 3].into_iter().any(|g| spend(&mut pool, stock, unlocked, g, 1, false) == 1) {
+            paid += 1;
+        }
+        match paid {
+            0 => still.push(k),
+            1 => unpaid.generic += 1,
+            _ => {}
+        }
+    }
+    unpaid.mono = still;
     // `SnowManaCost.assignPayment`: as generic, from snow mana only
     while unpaid.snow > 0 {
         if ![5, 2, 1, 0, 4, 3].into_iter().any(|k| spend(&mut pool, stock, unlocked, k, 1, true) == 1) {
@@ -6713,6 +7054,18 @@ fn pay_from_pool(
     p.conditional_pool = conditional;
 }
 
+/// A special action's mana (plot, foretell): not a spell's, so conditional mana sees an ability's cost (a
+/// Powerstone's mana pays to plot Highway Robbery: `PowerstoneManaCondition` only refuses a `SpellAbility`).
+fn pay_special_action(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, cost: &ManaCost) -> bool {
+    let paying = (game.paying_for.get(), game.paying_ability.get());
+    game.paying_for.set(Some(id));
+    game.paying_ability.set(true);
+    let paid = pay_mana(game, d, seat, cost);
+    game.paying_for.set(paying.0);
+    game.paying_ability.set(paying.1);
+    paid
+}
+
 /// Whether conditional mana made by `src`'s ability `j` can be spent on the spell being paid for.
 fn conditional_usable(game: &Game, seat: Seat, src: ObjId, j: usize) -> bool {
     game.obj(src).def.abilities.get(j).is_some_and(|a| match a {
@@ -6720,18 +7073,24 @@ fn conditional_usable(game: &Game, seat: Seat, src: ObjId, j: usize) -> bool {
             game.paying_ability.get()
                 && game.paying_for.get().is_some_and(|s| s != ANY_SPELL && game.has_type(s, CardType::Land))
         }
-        AbilityDef::ConditionalManaAbility { filter, chosen_type, creature_abilities, filter_abilities, .. } => {
-            game.paying_for.get().is_some_and(|s| {
-                s != ANY_SPELL
+        AbilityDef::ConditionalManaAbility {
+            filter,
+            chosen_type,
+            creature_abilities,
+            filter_abilities,
+            any_abilities,
+            ..
+        } => game.paying_for.get().is_some_and(|s| {
+            s != ANY_SPELL && *any_abilities && game.paying_ability.get()
+                || s != ANY_SPELL
                     && *creature_abilities
                     && game.paying_ability.get()
                     && game.has_type(s, CardType::Creature)
-                    || s != ANY_SPELL
-                        && (*filter_abilities || !game.paying_ability.get())
-                        && game.filter_matches(filter, seat, Some(src), s)
-                        && (!*chosen_type || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.has_subtype(s, t)))
-            })
-        }
+                || s != ANY_SPELL
+                    && (*filter_abilities || !game.paying_ability.get())
+                    && game.filter_matches(filter, seat, Some(src), s)
+                    && (!*chosen_type || game.obj(src).chosen_type.as_ref().is_some_and(|t| game.has_subtype(s, t)))
+        }),
         _ => false,
     })
 }
@@ -6746,6 +7105,9 @@ fn unpaid_text(c: &ManaCost) -> String {
         for _ in 0..c.colored[i] {
             s.push_str(&format!("{{{}}}", l));
         }
+    }
+    for k in &c.mono {
+        s.push_str(&format!("{{2/{}}}", ["W", "U", "B", "R", "G"][*k]));
     }
     for (a, b) in &c.hybrid {
         let l = ["W", "U", "B", "R", "G"];
@@ -13318,6 +13680,14 @@ fn apply_each_effect(
                     enter_battlefield(game, d, id, p, false);
                 }
             }
+            EffectDef::DynamicManaEffect { color, amount } => {
+                let n = game.value(amount, controller, source.0, item.x).max(0) as u32;
+                let pool = &mut game.player_mut(controller).mana_pool;
+                match color {
+                    Some(c) => pool.colored[c.index()] += n,
+                    None => pool.colorless += n,
+                }
+            }
             EffectDef::BasicManaEffect { colored, colorless } => {
                 let pool = &mut game.player_mut(controller).mana_pool;
                 for (k, n) in colored.iter().enumerate() {
@@ -15257,6 +15627,9 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                                     creature_abilities: false,
                                     colorless: false,
                                     filter_abilities: false,
+                                    any_abilities: false,
+                                    mana: None,
+                                    no_tap: false,
                                     rule: rule.clone(),
                                 }
                             } else {

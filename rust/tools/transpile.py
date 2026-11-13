@@ -936,6 +936,30 @@ _static_filters = None
 GIFTS = {'GiftType.TAPPED_FISH': ('a tapped Fish', 'FishNoAbilityToken'), 'GiftType.CARD': ('a card', None)}
 
 # card-declared `ConditionalManaBuilder`s: what their mana can be spent on, as `ConditionalManaAbility` fields
+_ARTIFACT = {'p': 'type', 't': 'ARTIFACT'}
+_INSTANT_OR_SORCERY = {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}
+MANA_BUILDERS_MORE = {
+    # a Powerstone's: "can't be spent to cast a nonartifact spell" (abilities take it)
+    'makeBuilder()': {'filter': [_ARTIFACT], 'any_abilities': True},
+    'PowerstoneToken.makeBuilder()': {'filter': [_ARTIFACT], 'any_abilities': True},
+    'new PurpleDragonPunksManaBuilder()': {'filter': [_ARTIFACT], 'any_abilities': True},
+    'new AutomatedArtificerManaBuilder()': {'filter': [_ARTIFACT], 'any_abilities': True},
+    # "artifact spells or abilities of artifacts"
+    'new OakenSirenManaBuilder()': {'filter': [_ARTIFACT], 'filter_abilities': True},
+    'new DalakosCrafterOfWondersManaBuilder()': {'filter': [_ARTIFACT], 'filter_abilities': True},
+    'new RenownedWeaponsmithManaBuilder()': {'filter': [_ARTIFACT], 'filter_abilities': True},
+    'new GnarlrootTrapperManaBuilder()': {'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'subtype', 's': 'Elf'}]},
+    'new ChandrasEmbercatManaBuilder()': {'filter': [{'p': 'or', 'xs': [
+        {'p': 'and', 'xs': [{'p': 'type', 't': 'CREATURE'}, {'p': 'subtype', 's': 'Elemental'}]},
+        {'p': 'and', 'xs': [{'p': 'type', 't': 'PLANESWALKER'}, {'p': 'subtype', 's': 'Chandra'}]}]}]},
+    # a creature spell of the chosen type or a legendary one (Kolvori)
+    'new TheRinghartCrestManaBuilder()': {'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'or', 'xs': [
+        {'p': 'supertype', 's': 'LEGENDARY'}, {'p': 'chosen_subtype', 'v': True}]}]},
+    'new UnblinkingObserverManaBuilder()': {'filter': [_INSTANT_OR_SORCERY]},
+    'new VolsheTideturnerManaBuilder()': {'filter': [{'p': 'or', 'xs': [
+        {'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}, {'p': 'kicked_spell'}]}]},
+    'new LordOfTheForsakenManaBuilder()': {'filter': [{'p': 'cast_from', 'zone': 'graveyard'}]},
+}
 MANA_BUILDERS = {
     # "a creature spell of the chosen type"
     'UnclaimedTerritoryManaBuilder': {'filter': [{'p': 'type', 't': 'CREATURE'}], 'chosen_type': True},
@@ -1617,6 +1641,19 @@ class Translator:
             return {'class': cls, 'amount': int(args[0])}
         if cls == 'PayLifeCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': cls, 'amount': int(args[0])}
+        if cls == 'WaterbendCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
+            return {'class': cls, 'amount': int(args[0])}
+        if cls == 'BlightCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
+            return {'class': cls, 'amount': int(args[0])}
+        if cls == 'ReturnToHandChosenControlledPermanentCost' and len(args) == 1 \
+                and (t := re.fullmatch(r'new TargetControlledPermanent\((.*)\)', args[0].strip(), re.S)):
+            targs = split_args(t.group(1))
+            if not targs:
+                return {'class': cls, 'filter': [], 'amount': 1}
+            if len(targs) == 1:
+                return {'class': cls, 'filter': self.filter(targs[0]), 'amount': 1}
+            if len(targs) == 4 and targs[0] == targs[1] and targs[0].isdigit() and targs[3] == 'true':
+                return {'class': cls, 'filter': self.filter(targs[2]), 'amount': int(targs[0])}
         raise Unsupported('cost ' + expr)
 
     def mana_builder(self, expr):
@@ -1628,6 +1665,8 @@ class Translator:
             return {'filter': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}]}
         if (b := re.fullmatch(r'new (\w+)\(\)', expr)) and b.group(1) in MANA_BUILDERS:
             return dict(MANA_BUILDERS[b.group(1)])
+        if canonical(expr) in MANA_BUILDERS_MORE:
+            return json.loads(json.dumps(MANA_BUILDERS_MORE[canonical(expr)]))
         # a card's own builder that makes `CreatureCastConditionalMana` (Herd Heirloom)
         if (b := re.fullmatch(r'new (\w+ManaBuilder)\(\)', expr)) and re.search(
                 r'class ' + b.group(1) + r' extends ConditionalManaBuilder \{\s*@Override\s*public ConditionalMana '
@@ -1686,6 +1725,153 @@ class Translator:
                 return None
             out['net'] = self.amount(net)
         return out
+
+    def java_mana(self, expr):
+        """`Mana.RedMana(2)`, `new Mana(ManaType.BLUE, 1)`, `new Mana(w, u, b, r, g, generic, any, colorless)` as an
+        engine `Mana` (none for generic or any-color mana)"""
+        e = canonical(expr.strip())
+        out = {'colored': [0] * 5, 'colorless': 0}
+        if (m := re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green|Colorless)Mana\((\d+)\)', e)) \
+                or (m := re.fullmatch(r'new Mana\(ManaType\.(WHITE|BLUE|BLACK|RED|GREEN|COLORLESS)(?:,(\d+))?\)', e)):
+            k = m.group(1).capitalize()
+            n = int(m.group(2) or 1)
+            if k == 'Colorless':
+                out['colorless'] = n
+            else:
+                out['colored']['WUBRG'.index(COLOR_LETTERS[k])] = n
+            return out
+        if (m := re.fullmatch(r'new Mana\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)', e)):
+            v = [int(x) for x in m.groups()]
+            if v[5] or v[6]:
+                return None
+            out['colored'], out['colorless'] = v[:5], v[7]
+            return out
+        return None
+
+    def mana_cost_part(self, cost):
+        """a mana ability's cost argument: [] and False for {T}, else its costs and that it doesn't tap"""
+        if canonical(cost) == 'new TapSourceCost()':
+            return [], False
+        return [self.cost(cost)], True
+
+    def more_mana_abilities(self, cls, args):
+        """mana abilities with several kinds of mana, any combination, two colors, a choice of colors, once each
+        turn, X of one color (`ManaAbility`), and conditional mana of a card's own builder; None if not one"""
+        if cls in ('SimpleManaAbility', 'LimitedTimesPerTurnActivatedManaAbility', 'ActivateIfConditionManaAbility') \
+                and args and args[0] == 'Zone.BATTLEFIELD':
+            args = args[1:]
+        any5 = ['W', 'U', 'B', 'R', 'G']
+
+        def make(effect):
+            e = canonical(self.strip_setters(effect))
+            if (m := re.fullmatch(r'new BasicManaEffect\((.*)\)', e)):
+                e = m.group(1)
+            if (mana := self.java_mana(e)) is not None:
+                return {'k': 'fixed', 'mana': mana}
+            if (m := re.fullmatch(r'new AddManaInAnyCombinationEffect\((\d+)\)', e)):
+                return {'k': 'combination', 'amount': int(m.group(1)), 'colors': any5}
+            if e == 'new AddManaOfTwoDifferentColorsEffect()':
+                return {'k': 'two_different'}
+            if (m := re.fullmatch(r'new AddManaOfAnyColorEffect\((\d*)\)', e)):
+                return {'k': 'any_one_color', 'amount': int(m.group(1) or 1)}
+            if (m := re.fullmatch(r'new AddManaFromColorChoicesEffect\(((?:ManaType\.(?:WHITE|BLUE|BLACK|RED|GREEN),?)+)\)', e)):
+                return {'k': 'one_of', 'colors': [COLOR_LETTERS[c.split('.')[1].capitalize()] for c in m.group(1).split(',') if c]}
+            if (m := re.fullmatch(r'new DynamicManaEffect\(Mana\.(White|Blue|Black|Red|Green)Mana\(1\),(.*)\)', e)):
+                return {'k': 'fixed_x', 'color': COLOR_LETTERS[m.group(1)], 'amount': self.amount(m.group(2))}
+            return None
+
+        # "{T}: Add {W}{U}{B}{R}{G}", "{2}: Add two mana in any combination of colors", "Add two mana of different
+        # colors"
+        if cls == 'SimpleManaAbility' and len(args) == 2 and (k := make(args[0])):
+            # (one kind of mana alone is `mana_ability`'s)
+            if k['k'] == 'fixed' and sum(1 for n in k['mana']['colored'] + [k['mana']['colorless']] if n) == 1:
+                return None
+            cost, no_tap = self.mana_cost_part(args[1])
+            # "{T}: Add {U} for each …" is a `DynamicManaAbility`; N of any one color for {T}, `mana_ability`'s
+            if k['k'] == 'fixed_x':
+                out = {'class': 'DynamicManaAbility', 'color': k['color'], 'amount': k['amount']}
+                if no_tap:
+                    out['cost'], out['no_tap'] = cost, True
+                return out
+            if k['k'] == 'any_one_color' and not no_tap:
+                return None
+            return {'class': 'ManaAbility', 'make': k, 'cost': cost, 'no_tap': no_tap}
+        # "{1}: Add one mana of any color. Activate only once each turn."
+        if cls == 'LimitedTimesPerTurnActivatedManaAbility' and len(args) in (2, 3) and (k := make(args[0])):
+            if k['k'] == 'fixed_x' or len(args) == 3 and not args[2].isdigit():
+                return None
+            cost, no_tap = self.mana_cost_part(args[1])
+            return {'class': 'ManaAbility', 'make': k, 'cost': cost, 'no_tap': no_tap,
+                    'per_turn': int(args[2]) if len(args) == 3 else 1}
+        # "{T}: Add {C}{C}{C}. Activate only if …" (one mana of one color is the older class's)
+        if cls == 'ActivateIfConditionManaAbility' and len(args) == 3 and (k := make(args[0])) \
+                and not (k['k'] == 'fixed' and sum(k['mana']['colored']) + k['mana']['colorless'] == 1
+                         and k['mana']['colorless'] == 0) and k['k'] != 'fixed_x':
+            cost, no_tap = self.mana_cost_part(args[1])
+            return {'class': 'ManaAbility', 'make': k, 'cost': cost, 'no_tap': no_tap,
+                    'condition': self.condition(args[2])}
+        # "{T}: Add X mana of any one color" / "in any combination of colors"
+        if cls == 'DynamicManaAbility' and 3 <= len(args) <= 5 and canonical(args[0]) == 'Mana.AnyMana(1)':
+            # (mana, amount, cost, text[, oneChoice]) or (mana, amount, text)
+            if len(args) == 3 and re.fullmatch(r'".*"', args[2], re.S):
+                cost, one = 'new TapSourceCost()', False
+            elif len(args) >= 4 and re.fullmatch(r'"(?:[^"]|"\s*\+\s*")*"', args[3], re.S):
+                cost, one = args[2], len(args) == 5 and args[4] == 'true'
+            else:
+                return None
+            if len(args) == 5 and args[4] not in ('true', 'false'):
+                return None
+            costs, no_tap = self.mana_cost_part(cost)
+            amount = self.amount(args[1])
+            k = {'k': 'any_one_color', 'amount': amount} if one else {'k': 'combination', 'amount': amount, 'colors': any5, 'dynamic': True}
+            return {'class': 'ManaAbility', 'make': k, 'cost': costs, 'no_tap': no_tap}
+        # "{T}: Add X {G}, where X is …" (mana, amount, cost, text, oneChoice)
+        if cls == 'DynamicManaAbility' and len(args) in (4, 5) and args[-1] in ('true', 'false', args[3]) \
+                and (n := re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green|Colorless)Mana\(1\)', canonical(args[0]))) \
+                and re.fullmatch(r'"(?:[^"]|"\s*\+\s*")*"', args[3], re.S):
+            out = {'class': 'DynamicManaAbility', 'amount': self.amount(args[1])}
+            if n.group(1) != 'Colorless':
+                out['color'] = COLOR_LETTERS[n.group(1)]
+            costs, no_tap = self.mana_cost_part(args[2])
+            if no_tap:
+                out['cost'], out['no_tap'] = costs, True
+            return out
+        # "{T}: Add {R}. Spend this mana only to …" with a card's own builder (or a Powerstone's), any cost
+        if cls == 'ConditionalColoredManaAbility' and len(args) in (2, 3):
+            cost = args[0] if len(args) == 3 else 'new TapSourceCost()'
+            mana = self.java_mana(args[-2])
+            if mana is None or mana['colorless']:
+                return None
+            if re.fullmatch(r'new (ConditionalSpellManaBuilder|InstantOrSorcerySpellManaBuilder|CastleGarenbrigManaBuilder|ElfhameDruidManaBuilder)\(.*\)', args[-1], re.S) \
+                    and len(args) == 2 and sum(mana['colored']) == 1 and args[-1].startswith('new ConditionalSpellManaBuilder'):
+                return None
+            if canonical(args[-1]) not in MANA_BUILDERS_MORE and not args[-1].startswith('new InstantOrSorcerySpellManaBuilder') \
+                    and not args[-1].startswith('new ConditionalSpellManaBuilder'):
+                return None
+            costs, no_tap = self.mana_cost_part(cost)
+            out = {'class': 'ConditionalManaAbility', 'cost': costs}
+            if no_tap:
+                out['no_tap'] = True
+            colors = [k for k, n in enumerate(mana['colored']) if n]
+            if len(colors) == 1:
+                out['color'], out['amount'] = 'WUBRG'[colors[0]], mana['colored'][colors[0]]
+            else:
+                out['mana'] = mana
+            out.update(self.mana_builder(args[-1]))
+            return out
+        # "{T}: Add {C}. Spend this mana only to …" with a cost other than tapping (Lord of the Forsaken's 1 life), or
+        # a card's own builder
+        if cls == 'ConditionalColorlessManaAbility' and len(args) == 3 and args[1].isdigit() \
+                and canonical(args[2]) in MANA_BUILDERS_MORE:
+            costs, no_tap = self.mana_cost_part(args[0])
+            if no_tap and costs[0].get('class') != 'PayLifeCost':
+                return None
+            out = {'class': 'ConditionalManaAbility', 'colorless': True, 'amount': int(args[1]), 'cost': costs}
+            if no_tap:
+                out['no_tap'] = True
+            out.update(self.mana_builder(args[2]))
+            return out
+        return None
 
     def build(self, cls, args, spec, what):
         if len(args) > len(spec) or any(k not in ('bool', 'string', 'false', 'no_pointer', 'outcome', 'while_on_battlefield') and n not in DEFAULTS
@@ -2087,6 +2273,13 @@ class Translator:
             return {'class': 'CastAsThoughItHadFlashUntilYourNextTurnEffect', 'filter': self.filter(args[1])}
         if cls == 'ConniveSourceEffect' and args in (['"{this}"'], []):
             return {'class': cls}
+        if cls == 'DynamicManaEffect' and len(args) in (2, 3) \
+                and (n := re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green|Colorless)Mana\(1\)', args[0].strip())) \
+                and (len(args) == 2 or re.fullmatch(r'"[^"]*"', args[2].strip())):
+            out = {'class': cls, 'amount': self.amount(args[1])}
+            if n.group(1) != 'Colorless':
+                out['color'] = COLOR_LETTERS[n.group(1)]
+            return out
         if cls == 'BasicManaEffect' and len(args) == 1:
             a = args[0].strip()
             n = re.fullmatch(r'newMana\((\d+),(\d+),(\d+),(\d+),(\d+),0,0,(\d+)\)', a.replace(' ', ''))
@@ -2947,6 +3140,8 @@ class Translator:
         if cls == 'AnyColorPermanentTypesManaAbility' and len(args) == 2 and args[0].strip() == 'TargetController.YOU':
             return {'class': cls, 'java': cls, 'filter': self.filter(args[1])}
         # Command Tower, Arcane Signet: no commander in a duel, so it makes nothing (the engine's)
+        if cls == 'AddEachControlledColorManaAbility' and not args:
+            return {'class': cls, 'java': cls}
         if cls == 'CommanderColorIdentityManaAbility' and not args:
             return {'class': cls, 'java': cls}
         if cls == 'NykthosShrineToNyxManaAbility' and not args:
@@ -3292,6 +3487,9 @@ class Translator:
         t = self.more_triggers(cls, [x.strip() for x in args])
         if t is not None:
             return t
+        if (m := self.more_mana_abilities(cls, [x.strip() for x in args])) is not None:
+            m['java'] = cls
+            return m
         # the mana abilities of one kind of mana for a cost, last: the cards' own forms above go first
         if (m := self.mana_ability(cls, args)) is not None:
             m['java'] = cls
@@ -4973,7 +5171,7 @@ def ability_statement(t, st, added):
     # spell, it gains haste until end of turn" (Arena of Glory)
     m = re.fullmatch(r'(\w+)\.add(Effect|Cost)\((.*)\)', st)
     if m and t.vars.get(m.group(1), {}).get('class') in ('ColoredManaAbility', 'AnyColorManaAbility', 'ColorlessManaAbility',
-                                                         'DynamicManaAbility') \
+                                                         'DynamicManaAbility', 'ManaAbility', 'ConditionalManaAbility') \
             and t.vars[m.group(1)].get('no_tap'):
         holder = t.vars[m.group(1)]
         if m.group(2) == 'Cost' and m.group(3).strip() == 'new TapSourceCost()':
@@ -5760,9 +5958,10 @@ def main():
                 raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
             that_player_names(card)
             copies_spells_only(card)
-            # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
-            if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
-                raise Unsupported('mana symbol ' + m.group(0))
+            # waterbend is paid as an activated ability's cost (or on its own); a spell's or a ward's isn't yet
+            if 'WaterbendCost' in json.dumps(card.get('spell')) or any(
+                    'WaterbendCost' in json.dumps(a) for a in card.get('abilities', []) if a.get('class') == 'WardAbility'):
+                raise Unsupported('cost WaterbendCost of a spell or ward')
             if WHEN_YOU_DO in json.dumps(card) or RULE_FROM in json.dumps(card):
                 raise Unsupported('a reflexive trigger without a text')
             hints = card_hints(card['name'], subtypes)
