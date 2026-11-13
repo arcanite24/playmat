@@ -1690,14 +1690,7 @@ pub fn item_rule(game: &Game, item: &crate::state::StackItem) -> String {
                 .map(str::to_string)
                 .or_else(|| ability_rules(game, item.card).and_then(|r| r.get(k).cloned()))
                 .unwrap_or_default();
-            // `ThatPlayerControlsTargetAdjuster`: the target's name gains the player it's about (in a duel, the
-            // controller's opponent)
-            if matches!(ability, Some(AbilityDef::TriggeredAbility { that_player_controls: true, .. })) {
-                let them = (item.controller + 1) % game.seats();
-                let named = format!("that player controls (controlled by {})", crate::log::player(them));
-                return rule.replacen("that player controls", &named, 1);
-            }
-            rule
+            game.that_player_rule(item, &rule)
         }
         _ => String::new(),
     }

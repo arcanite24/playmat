@@ -2128,10 +2128,22 @@ impl Game {
             Some((i, _)) => {
                 let rule =
                     self.item_def(item).abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
-                format!("stack ability ({})", rule)
+                format!("stack ability ({})", self.that_player_rule(item, rule))
             }
             None => card.name().to_string(),
         }
+    }
+
+    /// `ThatPlayerControlsTargetAdjuster`: on the stack, the target's name gains the player it's about, "… that
+    /// player controls (controlled by B)" (in a duel, the controller's opponent)
+    pub fn that_player_rule(&self, item: &StackItem, rule: &str) -> String {
+        let ability = item.ability.and_then(|(i, _)| self.item_def(item).abilities.get(i));
+        if matches!(ability, Some(AbilityDef::TriggeredAbility { that_player_controls: true, .. })) {
+            let them = (item.controller + 1) % self.seats();
+            let named = format!("that player controls (controlled by {})", crate::log::player(them));
+            return rule.replacen("that player controls", &named, 1);
+        }
+        rule.to_string()
     }
 
     /// Takes an object out of whatever zone list holds it.
