@@ -226,10 +226,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         matches!(e, EffectDef::DontUntapInControllersUntapStepEnchantedEffect)
                             && g.attached(src) == Some(id)
                     });
+                    // `DontUntapInControllersNextUntapStepTargetEffect`: used up by this untap step
+                    let zcc = game.obj(id).zcc;
+                    let skipped = game.skip_next_untap.contains(&(id, zcc));
+                    if skipped {
+                        game.skip_next_untap.retain(|x| *x != (id, zcc));
+                    }
                     let o = game.obj_mut(id);
                     if o.exerted {
                         o.exerted = false;
-                    } else if !stays_tapped {
+                    } else if !stays_tapped && !skipped {
                         untap(o);
                     }
                     o.sick = false;
@@ -1926,7 +1932,7 @@ fn tap_for_mana_extra(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
 
 /// a player's devotion to a color
 pub fn devotion(game: &Game, seat: Seat, c: Color) -> u32 {
-    game.value(&Amount::Of(crate::card::Value::Devotion { c }), seat, ObjId(0), 0).max(0) as u32
+    game.value(&Amount::Of(crate::card::Value::Devotion { c, c2: None }), seat, ObjId(0), 0).max(0) as u32
 }
 
 /// `can_pay`, with more sources (each a list of the mana it could make; none: generic only).
@@ -4458,6 +4464,10 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let hand = game.player(seat).hand.clone();
             let possible: Vec<ObjId> =
                 hand.iter().copied().filter(|c| game.filter_matches(filter, seat, Some(id), *c)).collect();
+            // checked as playable, the card counted itself; cast, it may leave nothing to discard (the cast is undone)
+            if possible.len() < *amount {
+                return false;
+            }
             let Some(chosen) = choose_cards(game, d, seat, &hand, &possible, *amount, *amount, "discard") else {
                 return false;
             };
@@ -6299,6 +6309,34 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
             }),
             _ => None,
         });
+        // a Theros god: not a creature while its devotion is too low (layer 4, `LoseCreatureTypeSourceEffect`)
+        let devotion = base.abilities.iter().find_map(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().find_map(|e| match e {
+                EffectDef::LoseCreatureTypeSourceEffect { amount, less_than } => Some((amount.clone(), *less_than)),
+                _ => None,
+            }),
+            _ => None,
+        });
+        if let Some((amount, less_than)) = devotion {
+            let holds = lost.is_none() && game.value(&amount, o.controller, id, 0) < less_than;
+            let applied = o.becomes_base.is_some();
+            if holds && !applied {
+                let mut def = (*base).clone();
+                def.types.retain(|t| *t != CardType::Creature);
+                if !def.types.contains(&CardType::Kindred) {
+                    def.subtypes.retain(|s| crate::card::NON_CREATURE_TYPES.contains(&s.as_str()));
+                    def.all_creature_types = false;
+                }
+                let o = game.obj_mut(id);
+                o.becomes_base = Some(base);
+                o.def = Arc::new(def);
+                remove_from_combat(game, id);
+            } else if !holds && applied {
+                let o = game.obj_mut(id);
+                o.def = o.becomes_base.take().unwrap();
+            }
+            continue;
+        }
         // Ensoul Artifact: an Aura's "enchanted artifact is a 5/5 creature in addition to its other types"
         let ensoul = game.battlefield.iter().find_map(|a| {
             if game.attached(*a) != Some(id) {
@@ -11081,6 +11119,95 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::ProliferateEffect => {
+                if !proliferate(game, d, controller) {
+                    return;
+                }
+            }
+            EffectDef::PopulateEffect => {
+                // `PopulateEffect`: `choose` a creature token you control (not targeted), then copy it
+                let tokens: Vec<ObjId> = game
+                    .battlefield
+                    .iter()
+                    .copied()
+                    .filter(|o| {
+                        game.obj(*o).token
+                            && game.obj(*o).controller == controller
+                            && game.has_type(*o, CardType::Creature)
+                    })
+                    .collect();
+                if !tokens.is_empty() {
+                    let rule = item_rule(game, item);
+                    let Some(chosen) = choose_cards(game, d, controller, &tokens, &tokens, 1, 1, &rule) else {
+                        return;
+                    };
+                    if let Some(&o) = chosen.first() {
+                        if log::kept(game) {
+                            let line = format!("Token selected for populate: {}", log::object(game, o));
+                            log::inform(game, line);
+                        }
+                        token_copy(game, d, o, controller, None);
+                    }
+                }
+            }
+            EffectDef::AmassEffect { amount, subtype, token } => {
+                // `AmassEffect.doAmass`
+                let n = v!(amount);
+                let army = |g: &Game| -> Vec<ObjId> {
+                    g.battlefield
+                        .iter()
+                        .copied()
+                        .filter(|o| g.obj(*o).controller == controller && g.has_subtype(*o, "Army"))
+                        .collect()
+                };
+                if army(game).is_empty() {
+                    let e = EffectDef::CreateTokenEffect {
+                        token: token.clone(),
+                        amount: Amount::Fixed(1),
+                        tapped_and_attacking: false,
+                        tapped: false,
+                        attacking: false,
+                        sacrifice_at_end_of_combat: false,
+                        sacrifice_at_next_end_step: false,
+                        haste_until_end_of_turn: false,
+                        also: None,
+                        attach_source: None,
+                    };
+                    apply_effects(game, d, item, &[e], legal, source);
+                }
+                let armies = army(game);
+                // one Army: no prompt
+                let chosen = match armies.len() {
+                    0 => None,
+                    1 => Some(armies[0]),
+                    _ => {
+                        let rule = item_rule(game, item);
+                        let Some(c) = choose_cards(game, d, controller, &armies, &armies, 1, 1, &rule) else {
+                            return;
+                        };
+                        c.first().copied()
+                    }
+                };
+                if let Some(o) = chosen {
+                    if !game.has_subtype(o, subtype) {
+                        let zcc = game.obj(o).zcc;
+                        game.subtypes_while_there.push((o, zcc, subtype.clone()));
+                    }
+                    if n > 0 {
+                        put_counters(game, o, "+1/+1", n, controller);
+                    }
+                }
+            }
+            EffectDef::DontUntapInControllersNextUntapStepTargetEffect => {
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        let zcc = game.obj(*o).zcc;
+                        if !game.skip_next_untap.contains(&(*o, zcc)) {
+                            game.skip_next_untap.push((*o, zcc));
+                        }
+                    }
+                }
+            }
             EffectDef::WinGameSourceControllerEffect => {
                 // `PlayerImpl.won`: each opponent still in loses (`lostForced`), then, with none left, you win
                 if !game.over && !game.player(controller).lost {
@@ -11254,6 +11381,8 @@ fn apply_each_effect(
             | EffectDef::SetBasePowerSourceEffect { .. }
             | EffectDef::ValleyFlamecallerEffect
             | EffectDef::TheWanderingEmperorEffect
+            | EffectDef::LoseCreatureTypeSourceEffect { .. }
+            | EffectDef::AttacksIfAbleAllEffect { .. }
             | EffectDef::SoulScarMageDamageReplacementEffect => {}
         }
     }
@@ -11739,6 +11868,27 @@ fn evolves(game: &Game, src: ObjId, entered: ObjId) -> bool {
     let (sp, st) = game.power_toughness(src);
     let (ep, et) = game.power_toughness(entered);
     game.has_type(src, CardType::Creature) && game.has_type(entered, CardType::Creature) && (ep > sp || et > st)
+}
+
+/// `PermanentImpl.removeFromCombat`: no longer attacking or blocking (a creature that stopped being one)
+fn remove_from_combat(game: &mut Game, id: ObjId) {
+    let (attacking, blocking) = {
+        let o = game.obj_mut(id);
+        let a = o.attacking.take().is_some();
+        o.attacking_pw = None;
+        o.blocked = false;
+        o.blocks = 0;
+        (a, std::mem::take(&mut o.blocking))
+    };
+    let blockers = std::mem::take(&mut game.obj_mut(id).blocked_by);
+    if attacking {
+        for b in blockers {
+            game.obj_mut(b).blocking.retain(|x| *x != id);
+        }
+    }
+    for a in blocking {
+        game.obj_mut(a).blocked_by.retain(|x| *x != id);
+    }
 }
 
 /// `PermanentImpl.regenerate`, if it has a shield: tapped, removed from combat, its damage removed. True: it did.
@@ -13087,6 +13237,18 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 ..GameEvent::new(EventKind::Damage)
             });
             lose_life_by(game, s, amount, Some(source), combat);
+            // toxic: combat damage to a player also gives them poison counters, each toxic ability's (`doDamage`)
+            if combat {
+                let toxic = |a: &AbilityDef| match a {
+                    AbilityDef::ToxicAbility { amount, .. } => *amount,
+                    _ => 0,
+                };
+                let mut n: i32 = src.def.abilities.iter().map(toxic).sum();
+                if src.zone == Zone::Battlefield {
+                    n += game.granted_abilities(source).iter().map(toxic).sum::<i32>();
+                }
+                add_poison(game, s, n);
+            }
             if !combat {
                 damaged_opponent_triggers(game, s);
             }
@@ -13747,6 +13909,74 @@ fn lethal_damage(game: &Game, blocker: ObjId, attacker: ObjId) -> i32 {
     }
 }
 
+/// `ProliferateEffect`: one `HumanPlayer.choose` of a `TargetPermanentOrPlayer(0, MAX)` of what has counters (not
+/// targeted), asked even with nothing to choose; then, in the order chosen, one more counter of each kind there (a
+/// permanent's in `Counters`' hash order). False: the decider stopped.
+fn proliferate(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
+    let has = |c: &[(String, i32)]| c.iter().any(|(_, k)| *k > 0);
+    let objs: Vec<ObjId> = game.battlefield.iter().copied().filter(|o| has(&game.obj(*o).counters)).collect();
+    let players: Vec<Seat> =
+        (0..game.seats()).filter(|s| !game.player(*s).lost && has(&game.player(*s).counters)).collect();
+    let mut chosen: Vec<Target> = Vec::new();
+    loop {
+        let left_objs: Vec<ObjId> = objs.iter().copied().filter(|o| !chosen.contains(&Target::Obj(*o))).collect();
+        let left_players: Vec<Seat> =
+            players.iter().copied().filter(|p| !chosen.contains(&Target::Player(*p))).collect();
+        let q = Query::Target { players: left_players.clone(), objs: left_objs.clone(), required: false };
+        let pick = match ask(game, d, seat, &q) {
+            Answer::Obj(o) => Target::Obj(o),
+            Answer::Player(p) => Target::Player(p),
+            Answer::Stop => return false,
+            Answer::Unknown => continue,
+            _ => break,
+        };
+        if chosen.contains(&pick) {
+            chosen.retain(|t| *t != pick);
+            continue;
+        }
+        let possible = match pick {
+            Target::Obj(o) => left_objs.contains(&o),
+            Target::Player(p) => left_players.contains(&p),
+        };
+        if possible {
+            chosen.push(pick);
+            // `TargetImpl.isChoiceCompleted`: nothing more to choose
+            if chosen.len() == objs.len() + players.len() {
+                break;
+            }
+        }
+        if d.stopped() {
+            return false;
+        }
+    }
+    for t in chosen {
+        match t {
+            Target::Obj(o) => {
+                if game.obj(o).zone != Zone::Battlefield {
+                    continue;
+                }
+                let kinds: Vec<String> =
+                    game.obj(o).counters.iter().filter(|(_, k)| *k > 0).map(|(n, _)| n.clone()).collect();
+                for name in java_hash_order(kinds) {
+                    put_counters(game, o, &name, 1, seat);
+                }
+            }
+            Target::Player(p) => {
+                let kinds: Vec<String> =
+                    game.player(p).counters.iter().filter(|(_, k)| *k > 0).map(|(n, _)| n.clone()).collect();
+                for name in java_hash_order(kinds) {
+                    if name == "poison" {
+                        add_poison(game, p, 1);
+                    } else if let Some(c) = game.player_mut(p).counters.iter_mut().find(|(c, _)| *c == name) {
+                        c.1 += 1;
+                    }
+                }
+            }
+        }
+    }
+    true
+}
+
 /// The order a Java `HashMap<String, _>` (`Counters`) lists keys inserted in this order: by bucket of the spread
 /// `String.hashCode`, then insertion order within a bucket.
 fn java_hash_order(keys: Vec<String>) -> Vec<String> {
@@ -14382,6 +14612,27 @@ mod tests {
         assert!(game.over);
         assert!(game.player(0).won && !game.player(0).lost);
         assert!(game.player(1).lost);
+    }
+
+    #[test]
+    fn a_permanent_skips_only_its_controllers_next_untap() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let land = game.create_obj(db.get("Forest").unwrap(), 0, Zone::Hand);
+        game.move_to(land, Zone::Battlefield);
+        game.obj_mut(land).tapped = true;
+        let item = StackItem::spell(land, 1);
+        let zcc = game.obj(land).zcc;
+        let targets = vec![vec![Target::Obj(land)]];
+        apply_effects(
+            &mut game,
+            &mut Passer,
+            &item,
+            &[EffectDef::DontUntapInControllersNextUntapStepTargetEffect],
+            &targets,
+            (land, zcc),
+        );
+        assert_eq!(game.skip_next_untap, vec![(land, zcc)]);
     }
 
     #[test]

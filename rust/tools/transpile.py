@@ -129,6 +129,11 @@ EFFECTS = {
     'LoseLifeOpponentsYouGainLifeLostEffect': [('amount', 'amount'), (None, 'string')],
     'DestroyAllNamedPermanentsEffect': [],
     'WinGameSourceControllerEffect': [],
+    'DontUntapInControllersNextUntapStepTargetEffect': [(None, 'string')],
+    'AttacksIfAbleAllEffect': [('filter', 'filter'), (None, 'while_on_battlefield')],
+    'LoseCreatureTypeSourceEffect': [('amount', 'amount'), ('less_than', 'int')],
+    'PopulateEffect': [(None, 'string')],
+    'ProliferateEffect': [(None, 'bool')],
     'DoubleCountersSourceEffect': [('name', 'counter_type')],
     'DamageCantBePreventedEffect': [('duration', 'duration')],
     'ReturnFromGraveyardToBattlefieldTargetEffect': [('tapped', 'bool')],
@@ -430,6 +435,7 @@ ABILITIES = {
     'EscapeAbility': [(None, 'this'), ('cost', 'cost_text'), ('exile', 'int')],
     'EscapesWithAbility': [('counters', 'int')],
     'SpectacleAbility': [(None, 'this'), ('cost', 'mana_costs')],
+    'ToxicAbility': [('amount', 'int')],
     # cast for the cleave cost instead, with the effect without the bracketed words
     'CleaveAbility': [(None, 'this'), ('effect', 'effect'), ('cost', 'cost_text')],
     'WarpAbility': [(None, 'this'), ('cost', 'cost_text')],
@@ -988,6 +994,8 @@ class Translator:
             return {'v': 'card_types_in_your_graveyard'}
         if (m := re.fullmatch(r'DevotionCount\.([WUBRG])', arg)):
             return {'v': 'devotion', 'c': m.group(1)}
+        if (m := re.fullmatch(r'DevotionCount\.([WUBRG])([WUBRG])', arg)):
+            return {'v': 'devotion', 'c': m.group(1), 'c2': m.group(2)}
         if arg == 'DomainValue.REGULAR':
             return {'v': 'domain'}
         if arg == 'RevealTargetFromHandCostCount.instance':
@@ -1245,6 +1253,11 @@ class Translator:
             m = re.fullmatch(r'new (\w+Token)\(\)', arg)
             if m:
                 return token(m.group(1))
+            # `GoblinToken(true)`: the same token with haste
+            if arg == 'new GoblinToken(true)':
+                out = token('GoblinToken')
+                out['abilities'] = out['abilities'] + [{'class': 'HasteAbility'}]
+                return out
         raise Unsupported('argument ' + arg)
 
     def cost(self, expr):
@@ -1646,6 +1659,10 @@ class Translator:
                 and (l := re.fullmatch(r'new LockedInCondition\((.*)\)', args[1].strip(), re.S)):
             return {'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[0]), 'condition': self.condition(l.group(1))}
         # "target creature can't block this turn"
+        # "this creature can't block" (a static): it has can't block
+        if cls == 'CantBlockSourceEffect' and [a.strip() for a in args] == ['Duration.WhileOnBattlefield']:
+            return {'class': 'GainAbilitySourceEffect', 'ability': {'class': 'CantBlockAbility'},
+                    'duration': DURATIONS['Duration.WhileOnBattlefield']}
         if cls == 'CantBlockTargetEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
             return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'CantBlockAbility'}, 'duration': 'EndOfTurn'}
         # "target creature can't be blocked by <filter> this turn"
@@ -1682,6 +1699,11 @@ class Translator:
                     return {'class': cls, 'colored': colored, 'colorless': int(n.group(2))}
                 colored[['White', 'Blue', 'Black', 'Red', 'Green'].index(n.group(1))] = int(n.group(2))
                 return {'class': cls, 'colored': colored, 'colorless': 0}
+        # amass: the Army token of the subtype (`AmassEffect.makeToken`)
+        if cls == 'AmassEffect' and len(args) in (2, 3) and (m := re.fullmatch(r'SubType\.(ORC|ZOMBIE|SLIVER|GOBLIN)', args[1].strip())) \
+                and (len(args) == 2 or args[2].strip() in ('true', 'false')):
+            return {'class': cls, 'amount': self.amount(args[0].strip()), 'subtype': subtype_names()[m.group(1)],
+                    'token': token(m.group(1).title() + 'ArmyToken')}
         if cls == 'CreateTokenControllerTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())):
             return {'class': cls, 'token': token(m.group(1)), 'amount': 1, 'tapped': False}
         if cls == 'CreateTokenControllerTargetEffect' and len(args) == 3 \
@@ -3161,6 +3183,11 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         if m:
             card['loyalty'] = int(m.group(1))
             return
+        # changeling: every creature type, in every zone
+        if re.fullmatch(r'this\.addAbility\(new ChangelingAbility\((?:true)?\)\)', st):
+            card['all_creature_types'] = True
+            added.append({'class': 'ChangelingAbility'})
+            return
         # devoid: the card has no colors
         if re.fullmatch(r'this\.addAbility\(new DevoidAbility\(this\.color\)\)', st):
             card['colors'] = []
@@ -3928,6 +3955,9 @@ def token_classes(names):
             cls = m.group(1) or m.group(2)
             if os.path.exists(os.path.join(TOKENS, cls + '.java')):
                 out.add(cls)
+        # the Army tokens amass makes
+        for sub in re.findall(r'new AmassEffect\([^;]*?SubType\.(ORC|ZOMBIE|SLIVER|GOBLIN)', source):
+            out.add(sub.title() + 'ArmyToken')
         if 'InvestigateEffect' in source:
             out.add('ClueArtifactToken')
         # tokens a keyword makes
