@@ -142,11 +142,18 @@ transpiler emits a reference to the handler instead of giving up.
 - **The name** is the Java class as `OuterCardClass.InnerClass` (a class in the framework, such as
   `SearchLibraryPutOntoBattlefieldTappedRestInHandEffect`, by its bare name). Kinds: `Handler::effect` (a
   `OneShotEffect`, in cards.json `{"class": "CardEffect", "handler": …}`), `Handler::condition` (`{"c": "card", …}`,
-  checked wherever conditions are) and `Handler::value` (a `DynamicValue`, `{"v": "card", …}`).
+  checked wherever conditions are), `Handler::value` (a `DynamicValue`, `{"v": "card", …}`) and
+  `Handler::trigger(name, base, check)`: a `TriggeredAbility` class is the framework trigger it extends, written as
+  Java in `base` (`"new EntersBattlefieldAllTriggeredAbility(…)"`, its effects may be the card's own handled
+  classes), plus `check(game, item)`, its `checkTrigger` beyond that event or its intervening "if" about the event
+  (the waiting trigger's `entering` and target pointer are set), checked as it goes on the stack and as it resolves
+  (Guardian Project). A trigger on an event the engine has no `Trigger` for still needs engine work.
+- Constructor arguments come as their text in `cx.args`; `.args(&["library_target"])` turns a
+  `TargetCardInLibrary` argument into "min max" plus its filter after the declared filters.
 - **Java the handler needs translated** goes in its declaration as string literals: `.tokens(&["XToken"])`,
   `.effects(&["new DiscardTargetEffect(1)"])`, `.filters(&["StaticFilters.FILTER_…"])` (or a filter the card file
   declares). The transpiler puts what it makes of them into the card's JSON, and the handler gets them, in order, as
-  `cx.tokens`, `cx.effects`, `cx.filters`. The Java constructor's arguments come as their text in `cx.args`.
+  `cx.tokens`, `cx.effects`, `cx.filters`.
 - **What a handler can call.** The file is a child of `rules`, so `use super::*;` gives it every helper the rules
   have (`choose_cards`, `choose_use`, `search_library`, `deal_damage`, `destroy`, `sacrifice`, `discard`, `draw`,
   `put_onto_battlefield`, `matching`…) and `EffectCx`'s kit: the targets still legal (`cx.obj(i)`, `cx.objs(i)`,
