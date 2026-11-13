@@ -619,7 +619,7 @@ COUNTERS = {'CounterType.FINALITY': 'finality', 'CounterType.FLYING': 'flying', 
             'CounterType.SHIELD': 'shield', 'CounterType.CHARGE': 'charge',
             'CounterType.M1M1': '-1/-1', 'CounterType.INDESTRUCTIBLE': 'indestructible'}
 # counters that are only a tally the card's own text reads (no rules of their own): by their Java names
-_TALLIES = ('GOLD', 'MUSTER', 'QUEST', 'ICE', 'WISH', 'REVIVAL', 'NEST', 'REV', 'UNITY', 'STORAGE', 'PLAGUE', 'SPORE',
+_TALLIES = ('GOLD', 'BLOODLINE', 'MUSTER', 'QUEST', 'ICE', 'WISH', 'REVIVAL', 'NEST', 'REV', 'UNITY', 'STORAGE', 'PLAGUE', 'SPORE',
             'FUNGUS', 'VERSE', 'OMEN', 'OIL', 'CORPSE', 'EGG', 'TIDE', 'LUCK', 'KI', 'DEPLETION', 'FLOOD', 'STUDY', 'VOID',
             'BOUNTY', 'SOUL', 'POINT', 'PLAN', 'HOUR', 'STASH', 'SLIME', 'GROWTH', 'BOOK', 'UNLOCK', 'LOOT', 'HONE', 'FIRE',
             'FILM', 'FATE', 'CRYSTAL', 'TASK', 'SUPPLY', 'SKEWER', 'SIN', 'DIVINITY', 'FORESHADOW')
@@ -1206,6 +1206,8 @@ class Translator:
             return {'v': 'card_types_in_graveyards'}
         if arg == 'CardTypesInGraveyardCount.YOU':
             return {'v': 'card_types_in_your_graveyard'}
+        if arg == 'CardTypesInGraveyardCount.OPPONENTS':
+            return {'v': 'card_types_in_opponents_graveyards'}
         if (m := re.fullmatch(r'DevotionCount\.([WUBRG])', arg)):
             return {'v': 'devotion', 'c': m.group(1)}
         if (m := re.fullmatch(r'DevotionCount\.([WUBRG])([WUBRG])', arg)):
@@ -1245,6 +1247,10 @@ class Translator:
             return {'v': 'source_counters_any'}
         if arg == 'ColorsOfManaSpentToCastCount.getInstance()':
             return {'v': 'colors_spent'}
+        # a value class written by hand in Rust (src/cards/, card_handlers.py), before `new_expr` gives up on
+        # `XValue.instance`
+        if (h := card_handlers.value(self, arg)) is not None:
+            return h
         obj = self.new_expr(arg)
         if isinstance(obj, tuple):
             cls, args = obj
@@ -2354,6 +2360,9 @@ class Translator:
             if cls == 'UntapAllControllerEffect' and {'p': 'controller', 'who': 'you'} not in f:
                 f = f + [{'p': 'controller', 'who': 'you'}]
             return {'class': 'UntapAllEffect', 'filter': f}
+        # `UntapAllLandsControllerEffect()`: the lands you control (Beledros Witherbloom)
+        if cls == 'UntapAllLandsControllerEffect' and not args:
+            return {'class': 'UntapAllEffect', 'filter': [{'p': 'type', 't': 'LAND'}, {'p': 'controller', 'who': 'you'}]}
         if cls == 'DamageWithPowerFromOneToAnotherTargetEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}
         if cls == 'DamageAllControlledTargetEffect' and 1 <= len(args) <= 2:
@@ -2817,6 +2826,10 @@ class Translator:
             return {'class': 'CantGainLifeOpponentsEffect'}
         if cls == 'RemoveCounterSourceEffect' and len(args) == 1:
             return {'class': cls, 'counter': self.value('counter', args[0])}
+        # "remove those counters": every counter of the kind (`removeAllCounters`)
+        if cls == 'RemoveAllCountersSourceEffect' and len(args) == 1 and args[0].strip() in COUNTERS:
+            return {'class': 'RemoveCounterSourceEffect',
+                    'counter': {'name': COUNTERS[args[0].strip()], 'amount': 2147483647}}
         if cls == 'CantBeBlockedByMoreThanOneAllEffect' and len(args) == 1:
             return {'class': cls, 'filter': self.filter(args[0])}
         # (n, effect), or (outcome, n[, orMore], effects…)
@@ -3032,6 +3045,9 @@ class Translator:
             return {'class': cls}
         if cls == 'ReturnFromGraveyardToBattlefieldTargetEffect' and len(args) == 2 and args[1] == 'false':
             return {'class': cls, 'tapped': self.value('bool', args[0])}
+        # "… tapped and attacking" (Alesha)
+        if cls == 'ReturnFromGraveyardToBattlefieldTargetEffect' and len(args) == 2 and args[1] == 'true':
+            return {'class': cls, 'tapped': self.value('bool', args[0]), 'attacking': True}
         # `DiscardEachPlayerEffect(amount, false, who)`
         if cls == 'DiscardEachPlayerEffect' and len(args) == 3 and args[1] == 'false' and args[2] in TARGET_CONTROLLERS:
             return {'class': cls, 'amount': self.amount(args[0]), 'who': TARGET_CONTROLLERS[args[2]]}
@@ -3249,7 +3265,7 @@ class Translator:
         m = re.fullmatch(r'(.*\))\s*\.setTiming\(TimingRule\.SORCERY\)', self.strip_setters(expr), re.S)
         if m and balanced(m.group(1)):
             a = self.ability(m.group(1))
-            if a.get('class') != 'GraveyardActivatedAbility':
+            if a.get('class') not in ('GraveyardActivatedAbility', 'LimitedTimesPerTurnActivatedAbility'):
                 raise Unsupported('sorcery timing on ' + a.get('class', '?'))
             a['sorcery'] = True
             return a
@@ -3494,6 +3510,9 @@ class Translator:
                               'set_target_pointer_player': args[4].strip() == 'SetTargetPointer.PLAYER'})
         if cls in STEP_TRIGGERS and args and not args[0].strip().startswith('TargetController.'):
             args = ['TargetController.YOU'] + args
+        # `AtStepTriggeredAbility.checkTrigger`: EACH_PLAYER is ANY (Fevered Visions)
+        if cls in STEP_TRIGGERS and args and args[0].strip() == 'TargetController.EACH_PLAYER':
+            args = ['TargetController.ANY'] + args[1:]
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 2:
             args = [args[0], 'StaticFilters.FILTER_SPELL_A', args[1]]
         # opus: a cast trigger for instants and sorceries, its extra effect if five or more mana was spent on the spell
@@ -4332,6 +4351,9 @@ class Translator:
     def wave2_triggers(self, cls, args, flag, out):
         """More trigger classes (wave 2), read by shape; None if `cls` isn't one of them"""
         n = len(args)
+        # an emblem's (Vraska, Golgari Queen's): the same from the command zone
+        if cls == 'DealsDamageToAPlayerAllTriggeredAbility' and n == 7 and args[0] == 'Zone.COMMAND':
+            return self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
         # "whenever a creature you control deals combat damage to a player": the permanent (PERMANENT), its
         # controller (PLAYER) or, with affectsDefendingPlayer, the damaged player is the pointer; X is the damage
         if cls == 'DealsDamageToAPlayerAllTriggeredAbility' and n in (5, 6, 7) and not args[0].startswith('Zone.') \
@@ -5516,6 +5538,13 @@ def ability_statement(t, st, added):
     # Elven Passage's second half, which ElvenPassageEffect does too
     m = re.fullmatch(r'(\w+)\.addEffect\(new ElvenPassageUntapLandEffect\(\)\)', st)
     if m and m.group(1) in t.vars:
+        return True
+    # `ability.setMaxActivationsPerTurn(n)` on an activated ability: activated only n times each turn (Beledros)
+    m = re.fullmatch(r'(\w+)\.setMaxActivationsPerTurn\((\d+)\)', st)
+    if m and t.vars.get(m.group(1), {}).get('class') == 'SimpleActivatedAbility' and not t.vars[m.group(1)].get('min_x'):
+        t.vars[m.group(1)]['class'] = 'LimitedTimesPerTurnActivatedAbility'
+        t.vars[m.group(1)]['limit'] = int(m.group(2))
+        t.vars[m.group(1)].setdefault('java', 'SimpleActivatedAbility')
         return True
     # a modal triggered ability: "choose one" of its effects and targets, or a mode's
     m = re.fullmatch(r'(\w+)\.addMode\((.*)\)', st)
