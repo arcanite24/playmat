@@ -523,7 +523,10 @@ impl<'a> Decider for ReplayDecider<'a> {
             match resolve(game, r) {
                 Some(a) => a,
                 None => {
-                    self.fail(format!("answer {} names {}, which isn't in this game ({})", self.next, r, asked));
+                    self.fail(format!(
+                        "answer {} names {}, which isn't in this game ({}; asked {:?})",
+                        self.next, r, asked, query
+                    ));
                     return Answer::Stop;
                 }
             }

@@ -1068,7 +1068,8 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     // from a graveyard only with Crucible of Worlds' effect
                     let from_graveyard = o.zone != Zone::Graveyard
                         || game.any_static(|g, src, e| {
-                            matches!(e, EffectDef::PlayLandsFromGraveyardControllerEffect) && g.obj(src).controller == seat
+                            matches!(e, EffectDef::PlayLandsFromGraveyardControllerEffect)
+                                && g.obj(src).controller == seat
                         });
                     if let Some(k) =
                         index(def, &AbilityDef::PlayLandAbility).filter(|_| from_graveyard && can_play_land(game, seat))
@@ -2377,12 +2378,18 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some(k) = land_back {
             options.push(k);
         }
-        if !options.is_empty() {
+        // its front cast, or its back played: Java shows the picker for either, even with one choice
+        let mdfc = zone == Zone::Hand && !game.obj(id).def.is(CardType::Land) && game.obj(id).def.back.is_some();
+        if !options.is_empty() || mdfc {
             let def = game.obj(id).def.clone();
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
                 options.insert(0, 0);
             }
-            let index = if options.len() == 1 {
+            // (a modal double-faced card's faces always show the picker, one choice or two)
+            if options.is_empty() {
+                return;
+            }
+            let index = if options.len() == 1 && !mdfc {
                 options[0]
             } else {
                 match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
@@ -12153,7 +12160,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                 // `TapSourceUnlessPaysEffect` with a `RevealTargetFromHandCost`: asked only when a card can be revealed
                 if let EffectDef::TapSourceUnlessRevealsEffect { filter, message } = e {
                     let cost = CostDef::RevealTargetFromHandCost { filter: filter.clone(), min: 1, max: 1 };
-                    let can = game.player(controller).hand.iter().any(|c| *c != id && game.filter_matches(filter, controller, Some(id), *c));
+                    let can = game
+                        .player(controller)
+                        .hand
+                        .iter()
+                        .any(|c| *c != id && game.filter_matches(filter, controller, Some(id), *c));
                     let paid = can && {
                         let q = Query::YesNo {
                             message: format!("reveal {}? (otherwise {} becomes tapped)", message, def.name),
