@@ -200,6 +200,22 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   const setFullControl = useSettings((settings) => settings.setFullControl);
   // full control lasts for the match on screen, as on Arena
   useEffect(() => () => useSettings.getState().setFullControl(false), []);
+  // Arena's pass turn (">>"): set for one turn of one game, so it ends by itself when the next turn begins
+  const [passTurnAt, setPassTurnAt] = useState<{ gameId: string; turn: number } | null>(null);
+  const passTurn = !!passTurnAt && passTurnAt.gameId === state.gameId && passTurnAt.turn === (view?.turn ?? 0) && !state.gameOver;
+  const onPassTurn = useCallback((on: boolean) => {
+    if (!on) {
+      setPassTurnAt(null);
+      return;
+    }
+    setPassTurnAt({ gameId: state.gameId, turn: session.getState().view?.turn ?? 0 });
+    // passing the turn is the opposite of full control: Arena drops it
+    useSettings.getState().setFullControl(false);
+  }, [session, state.gameId]);
+  const onFullControl = useCallback((on: boolean) => {
+    if (on) setPassTurnAt(null);
+    setFullControl(on);
+  }, [setFullControl]);
 
   useEffect(() => setCardMotion(animations), [animations]);
   // a new game starts with a clean table
@@ -325,7 +341,7 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
   useSkipSingleChoice(session, state, automation.skipSingleChoice && mode === 'play');
   useAutoDamage(session, state, mode === 'play' ? damageSplit : null, { plain: automation.autoAssignDamage, trample: automation.autoAssignTrample });
   // holding priority means the player wants every stop
-  const autoPassing = useAutoPass(session, state, !holding);
+  const autoPassing = useAutoPass(session, state, !holding, passTurn && mode === 'play');
   useGameCues(state, myId, !!autoPassing);
   useAutoOrder(session, state);
   // the players' own looks (servers with accounts), refreshed during the match so late uploads reach every seat
@@ -680,7 +696,9 @@ export function MatchStage({ session, state, replayLog, onLeave }: MatchStagePro
                 autoPassing={!!autoPassing}
                 extra={prompt?.kind === 'ask' ? <AlwaysAnswerMenu gameId={state.gameId} prompt={prompt} onCommand={onCommand} /> : undefined}
                 fullControl={fullControl}
-                onFullControl={setFullControl}
+                onFullControl={onFullControl}
+                passTurn={passTurn}
+                onPassTurn={onPassTurn}
                 stalled={state.stalled}
                 conceding={state.conceding ? { waitingOn: priorityName } : null}
                 warning={blockWarned && blockWarned.prompt === interaction.prompt ? blockWarned.text : null}
