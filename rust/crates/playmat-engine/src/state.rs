@@ -102,6 +102,9 @@ pub struct Obj {
     pub counters: Vec<(String, i32)>,
     /// its counters as it last left the battlefield
     pub lki_counters: Vec<(String, i32)>,
+    /// deathtouch and lifelink it had as it last left the battlefield, granted ones too (Vial Smasher's lifelink
+    /// from Eternal Thirst, put into the graveyard by the legend rule)
+    pub lki_keywords: Vec<AbilityDef>,
     pub face_down: bool,
     /// the player it attacks
     pub attacking: Option<Seat>,
@@ -995,6 +998,7 @@ impl Game {
             damage: 0,
             counters: Vec::new(),
             lki_counters: Vec::new(),
+            lki_keywords: Vec::new(),
             face_down: false,
             attacking: None,
             attacking_pw: None,
@@ -2502,6 +2506,15 @@ impl Game {
             }
         }
         let pt_lki = (from == Zone::Battlefield).then(|| self.power_toughness(id));
+        if from == Zone::Battlefield {
+            let kept = [AbilityDef::DeathtouchAbility, AbilityDef::LifelinkAbility]
+                .into_iter()
+                .filter(|a| self.has_ability(id, a))
+                .collect();
+            self.obj_mut(id).lki_keywords = kept;
+        } else {
+            self.obj_mut(id).lki_keywords.clear();
+        }
         self.remove_from_zone(id);
         // a transformed permanent's front, its card again after the effects that changed its back are undone
         let mut left_front = None;

@@ -13630,7 +13630,13 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
     let mut lifelink = 0;
     let src = game.obj(source).clone();
     // keywords it has now (granted ones too), or had as it left
-    let keyword = |a: &AbilityDef| if src.zone == Zone::Battlefield { game.has_ability(source, a) } else { src.has(a) };
+    let keyword = |a: &AbilityDef| {
+        if src.zone == Zone::Battlefield {
+            game.has_ability(source, a)
+        } else {
+            src.has(a) || src.lki_keywords.contains(a)
+        }
+    };
     let (src_deathtouch, src_lifelink) =
         (keyword(&AbilityDef::DeathtouchAbility), keyword(&AbilityDef::LifelinkAbility));
     match to {
