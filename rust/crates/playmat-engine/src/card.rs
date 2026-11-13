@@ -1687,6 +1687,15 @@ pub enum EffectDef {
     },
     /// decayed's "sacrifice it at end of combat" (`AtTheEndOfCombatDelayedTriggeredAbility`)
     SacrificeSourceAtEndOfCombatEffect,
+    /// unleash: it may enter with a +1/+1 counter (`UnleashReplacementEffect`); with one, it can't block
+    UnleashEffect,
+    /// recruit: draw a card, then discard a card; a nonland card discarded makes a `token` (a Human Soldier)
+    RecruitEffect {
+        token: TokenDef,
+    },
+    /// connive: the target's controller draws a card, then discards a card; a +1/+1 counter on it for each nonland
+    /// card discarded (`ConniveSourceEffect.connive`)
+    ConniveTargetEffect,
     /// Blade of the Bloodchief: a +1/+1 counter on the equipped creature, two if it's a Vampire
     BladeOfTheBloodchiefEffect,
     /// Edifice of Authority: until your next turn, the target can't attack or block and its activated abilities

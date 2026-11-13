@@ -1925,7 +1925,7 @@ impl Game {
             Condition::SourceTapped => self.obj(source).tapped,
             Condition::SourceAttackedThisTurn => {
                 let turn = format!("attacked{}", self.turn);
-                self.obj(source).marks.iter().any(|m| *m == turn)
+                self.obj(source).marks.contains(&turn)
             }
             Condition::AttackedOrBlockedThisCombat => {
                 let o = self.obj(source);

@@ -39,6 +39,22 @@ KEYWORDS = {
     'ConvokeAbility', 'DayboundAbility', 'NightboundAbility',
 }
 
+def affinity_filter(kind):
+    """`AffinityType`'s filter (without "you control"), or None"""
+    types = {'ARTIFACTS': [type_pred('ARTIFACT')], 'CREATURES': [type_pred('CREATURE')],
+             'ARTIFACT_CREATURES': [type_pred('ARTIFACT'), type_pred('CREATURE')],
+             'ENCHANTMENTS': [type_pred('ENCHANTMENT')], 'PLANESWALKERS': [type_pred('PLANESWALKER')],
+             'TOKENS': [{'p': 'token', 'v': True}],
+             'OUTLAWS': [{'p': 'or', 'xs': [{'p': 'subtype', 's': s} for s in ('Assassin', 'Mercenary', 'Pirate', 'Rogue', 'Warlock')]}]}
+    if kind in types:
+        return types[kind]
+    m = re.search(r'^\s*' + kind + r'\(new FilterControlledPermanent\(SubType\.(\w+),', open(os.path.join(
+        ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'constants', 'AffinityType.java')).read(), re.M)
+    if m and m.group(1) in subtype_names():
+        return [{'p': 'subtype', 's': subtype_names()[m.group(1)]}]
+    return None
+
+
 # landcycling's land card filters (`BasicLandcyclingAbility`, `MountaincyclingAbility`, …)
 LANDCYCLING = {'BasicLandcyclingAbility': [{'p': 'type', 't': 'LAND'}, {'p': 'supertype', 's': 'BASIC'}]}
 for _land in ('Plains', 'Island', 'Swamp', 'Mountain', 'Forest'):
@@ -2580,6 +2596,15 @@ class Translator:
     def keyword_effect(self, cls, args):
         """Keyword effects (wave 2's keyword mechanics), read by shape; None if `cls` isn't one"""
         n = len(args)
+        # support on a permanent's ability: the ability has its own "up to N other target creatures"
+        if cls == 'SupportEffect' and n == 3 and args[0] == 'this' and args[1].isdigit() and args[2] == 'true':
+            return {'class': 'AddCountersTargetEffect', 'counter': {'name': '+1/+1', 'amount': 1}}
+        if cls == 'RecruitEffect' and n in (0, 1):
+            return {'class': cls, 'token': token('HumanSoldierToken')}
+        if cls == 'ConniveTargetEffect' and n == 0:
+            return {'class': cls}
+        if cls == 'ConniveSourceEffect' and (n == 0 or n == 1 and re.fullmatch(r'"[^"]*"', args[0])):
+            return {'class': cls}
         # detain: until your next turn, can't attack or block and its activated abilities can't be activated
         if cls == 'DetainTargetEffect' and n == 0:
             return {'class': 'EdificeOfAuthorityEffect'}
@@ -2669,6 +2694,32 @@ class Translator:
         if cls == 'EntersBattlefieldAttachToTarget' and n in (0, 1):
             return trig({'e': 'enters'}, [{'class': 'EquipEffect'}],
                         targets=[{'class': 'TargetPermanent', 'filter': self.filter(args[0]) if n else [CREATURE, YOU]}])
+        # unleash: it may enter with a +1/+1 counter, and can't block while it has one
+        if cls == 'UnleashAbility' and n == 0:
+            return {'class': 'EntersBattlefieldAbility', 'java': cls, 'effects': [{'class': 'UnleashEffect'}]}
+        # cohort: {T}, tap an untapped Ally you control
+        if cls == 'CohortAbility' and n == 1:
+            return {'class': 'SimpleActivatedAbility', 'java': cls, 'effects': [self.effect(args[0])], 'targets': [],
+                    'cost': [{'class': 'TapSourceCost'},
+                             {'class': 'TapTargetCost', 'filter': [{'p': 'subtype', 's': 'Ally'}, {'p': 'tapped', 'v': False}],
+                              'amount': 1}]}
+        # bloodrush: from hand, {cost} and discard this: the effect on target attacking creature
+        if cls == 'BloodrushAbility' and n == 2 and re.fullmatch(r'"[^"]*"', args[0]):
+            return {'class': 'ChannelAbility', 'java': cls, 'effects': [self.effect(args[1])],
+                    'cost': [{'class': 'ManaCost', 'cost': args[0][1:-1]}, {'class': 'DiscardSourceCost'}],
+                    'targets': [{'class': 'TargetPermanent', 'filter': [CREATURE, {'p': 'attacking'}]}]}
+        # support N: when this enters, a +1/+1 counter on each of up to N other target creatures
+        if cls == 'SupportAbility' and n in (2, 3) and args[0] == 'this' and args[1].isdigit() \
+                and (n == 2 or args[2] in ('true', 'false')):
+            return trig({'e': 'enters'}, [{'class': 'AddCountersTargetEffect', 'counter': {'name': '+1/+1', 'amount': 1}}],
+                        targets=[{'class': 'TargetPermanent', 'filter': [CREATURE, {'p': 'another'}], 'min': 0,
+                                  'max': int(args[1])}])
+        # affinity for a kind of permanent: the spell costs {1} less for each one you control
+        if cls == 'AffinityAbility' and n == 1 and (m := re.fullmatch(r'AffinityType\.(\w+)', args[0])) \
+                and (f := affinity_filter(m.group(1))) is not None:
+            return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [{
+                'class': 'SpellCostReductionForEachSourceEffect', 'per': 1,
+                'amount': {'v': 'permanents', 'filter': f + [YOU]}}]}
         # eerie: whenever an enchantment you control enters and whenever you fully unlock a Room
         if cls == 'EerieAbility' and n in (1, 2):
             return trig({'e': 'eerie'}, [self.effect(args[0])], n == 2 and flag(args[1]))
@@ -3349,6 +3400,13 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
             return
         st = re.sub(r'^getSpellAbility\(\)', 'this.getSpellAbility()', st)
         st = re.sub(r'^this\.getSpellAbility\(\)\.get(Effect|Target)s\(\)\.add\(', r'this.getSpellAbility().add\1(', st)
+        # support N on an instant or sorcery: a +1/+1 counter on each of up to N target creatures (`SupportEffect`
+        # adds the spell's target as it's made)
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.addEffect\(new SupportEffect\(this,(\d+),(true|false)\)\)', st)
+        if m and set(card.get('types', [])) & {'INSTANT', 'SORCERY'}:
+            spell['effects'].append({'class': 'AddCountersTargetEffect', 'counter': {'name': '+1/+1', 'amount': 1}})
+            spell['targets'].append({'class': 'TargetPermanent', 'filter': [CREATURE], 'min': 0, 'max': int(m.group(1))})
+            return
         # Ice Out: {1} less if it's bargained (the text, then its cost adjuster)
         if st == 'this.getSpellAbility().addEffect(new InfoEffect("this spell costs {1} less to cast if it\'s bargained"))':
             return
@@ -4147,6 +4205,8 @@ def token_classes(names):
         # tokens a keyword makes
         if 'MobilizeAbility' in source:
             out.add('RedWarriorToken')
+        if 'RecruitEffect' in source:
+            out.add('HumanSoldierToken')
         if 'AfterlifeAbility' in source:
             out.add('WhiteBlackSpiritToken')
         if 'FabricateAbility' in source:

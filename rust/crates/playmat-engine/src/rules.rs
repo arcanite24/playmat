@@ -11602,10 +11602,11 @@ fn apply_each_effect(
                 let (o, zcc) = source;
                 let delayed = Delayed {
                     rule: "At end of combat, sacrifice {this}.".into(),
-                    sacrifice: vec![(o, zcc)],
+                    // `SacrificeSourceEffect`, not a fixed target: two of them are the same trigger (auto-ordered)
+                    sacrifice: Vec::new(),
                     warp_exile: Vec::new(),
-                    effects: Vec::new(),
-                    source_zcc: 0,
+                    effects: vec![EffectDef::SacrificeSourceEffect],
+                    source_zcc: zcc,
                     fixed: Vec::new(),
                     return_tapped: Vec::new(),
                     targets: Vec::new(),
@@ -11613,6 +11614,51 @@ fn apply_each_effect(
                 };
                 game.at_end_of_combat
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(o, controller) });
+            }
+            EffectDef::UnleashEffect => {
+                let (o, _) = source;
+                let q = Query::YesNo { message: format!("Unleash {}?", game.obj(o).name()) };
+                let yes = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if yes {
+                    if log::kept(game) {
+                        let line = format!("{} unleashes {}", log::player(controller), game.obj(o).name());
+                        log::inform(game, line);
+                    }
+                    put_counters(game, o, "+1/+1", 1, controller);
+                }
+            }
+            EffectDef::RecruitEffect { token } => {
+                draw(game, controller, 1);
+                let gone = discard(game, d, controller, 1);
+                if d.stopped() {
+                    return;
+                }
+                if gone.iter().any(|c| !game.has_type(*c, CardType::Land)) {
+                    let e = token_effect(token, 1);
+                    apply_effects(game, d, item, &[e], legal, source);
+                }
+            }
+            EffectDef::ConniveTargetEffect => {
+                let who: Vec<ObjId> = objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect();
+                for o in who {
+                    let p = game.obj(o).controller;
+                    let zcc = game.obj(o).zcc;
+                    draw(game, p, 1);
+                    let gone = discard(game, d, p, 1);
+                    if d.stopped() {
+                        return;
+                    }
+                    let n = gone.iter().filter(|c| !game.has_type(**c, CardType::Land)).count() as i32;
+                    if n > 0 && game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                        put_counters(game, o, "+1/+1", n, p);
+                    }
+                }
             }
             EffectDef::BecomesRenownedSourceEffect { amount } => {
                 let (o, zcc) = source;
@@ -13306,8 +13352,7 @@ fn add_lore(game: &mut Game, id: ObjId, n: i32) {
     game.obj_mut(id).add_counters("lore", n);
     let after = before + n;
     // read ahead, the turn it entered: only the chapter it starts on (`ChapterTriggeredAbility.checkTrigger`)
-    let read_ahead =
-        game.obj(id).entered_turn == game.turn && game.has_ability(id, &AbilityDef::ReadAheadAbility);
+    let read_ahead = game.obj(id).entered_turn == game.turn && game.has_ability(id, &AbilityDef::ReadAheadAbility);
     let fired = game.triggers([id], |_, _, _, t| {
         matches!(t, Trigger::Chapter { n } if if read_ahead { *n as i32 == after } else { before < *n as i32 && *n as i32 <= after })
     });
@@ -14358,6 +14403,15 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
         return false;
     }
     if game.has_ability(blocker, &AbilityDef::DecayedAbility) {
+        return false;
+    }
+    // unleash: it can't block while it has a +1/+1 counter (`UnleashRestrictionEffect`)
+    if game.obj(blocker).counter("+1/+1") > 0
+        && game.obj(blocker).def.abilities.iter().any(|a| {
+            matches!(a, AbilityDef::EntersBattlefieldAbility { effects, .. }
+                if matches!(effects.as_slice(), [EffectDef::UnleashEffect]))
+        })
+    {
         return false;
     }
     // skulk: not by a creature with greater power
