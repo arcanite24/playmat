@@ -4491,8 +4491,13 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             let possible: Vec<ObjId> =
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
             // `TapTargetCost`: its target isn't required: done before enough are chosen cancels the ability
-            // (Shacklegeist with one other Spirit)
-            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, "tap", true)
+            // (Shacklegeist with one other Spirit). `tryToAutoChoose` reads the ability's text: Network Terminal's
+            // "discard" keeps its one artifact from being picked by itself
+            let rule = match game.stack.last() {
+                Some(top) if top.card == id && top.ability.is_some() => item_rule(game, top),
+                _ => "tap".to_string(),
+            };
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, &rule, true)
             else {
                 return false;
             };
