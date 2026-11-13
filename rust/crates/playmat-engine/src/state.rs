@@ -1359,7 +1359,11 @@ impl Game {
                         // a copy until end of turn (Shifting Woodland) keeps what it copied once it has left; a Room's
                         // keeps the face it came from (the face is rebuilt as doors unlock)
                         let room = o.printed_def.as_ref().is_some_and(|f| !f.room.is_empty());
-                        let def = (o.until_end_of_turn_def.is_some() || room).then(|| o.def.clone());
+                        // (and one an effect gave it: the ability stays when the effect ends, Infernal Scarring's
+                        // "When this creature dies, draw a card." with the Aura gone, Antagonist Incorporator's with
+                        // it gone)
+                        let def = (o.until_end_of_turn_def.is_some() || room || o.land_type_base.is_some())
+                            .then(|| o.def.clone());
                         fired.push(StackItem { ability: Some((i, o.zcc)), def, ..StackItem::spell(src, o.controller) });
                     }
                 }
