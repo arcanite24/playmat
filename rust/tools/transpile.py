@@ -4035,7 +4035,9 @@ def granted_rules(card):
             # an activated ability's rule ends with its effect's sentence; its costs read as the cost classes
             # write them (`SacrificeSourceCost`: "Sacrifice {this}")
             g['rule'] = quoted.group(1).rstrip('.') + '.'
-            if any(c.get('class') == 'SacrificeSourceCost' for c in g.get('cost', [])):
+            # (a cost given its own text keeps it: Compulsory Rest's `cost.setText("Sacrifice this creature")`)
+            if any(c.get('class') == 'SacrificeSourceCost' for c in g.get('cost', [])) \
+                    and not re.search(r'setText\("[Ss]acrifice this ', card_source(card.get('name'))):
                 g['rule'] = re.sub(r'\b([Ss])acrifice this (?:artifact|creature|permanent|land|enchantment)\b',
                                    r'\1acrifice {this}', g['rule'], count=1)
             # the effect writes its own sentence, where the source is {this}: "{this} gains flying" (Lunarch Mantle's
@@ -4053,7 +4055,17 @@ def granted_rules(card):
             if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
                 g['rule'] = quoted.group(1)
             else:
-                g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
+                # an effect given its own text keeps "this creature" (Nurturing Presence's `BoostSourceEffect`
+                # `.setText("this creature gets +1/+1 until end of turn")`)
+                kept = [t for t in re.findall(r'\.setText\("([^"]*)"\)', card_source(card.get('name')))
+                        if 'this creature' in t and t in quoted.group(1)]
+                text = quoted.group(1)
+                for k, t in enumerate(kept):
+                    text = text.replace(t, '\x00%d\x00' % k)
+                text = re.sub(r'\b[Tt]his creature\b', '{this}', text)
+                for k, t in enumerate(kept):
+                    text = text.replace('\x00%d\x00' % k, t)
+                g['rule'] = text
                 # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it")
                 if [e.get('class') for e in g.get('effects', [])] == ['AddCountersSourceEffect']:
                     g['rule'] = re.sub(r'\b(counters? on) it\.$', r'\1 {this}.', g['rule'])
