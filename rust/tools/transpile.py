@@ -1455,6 +1455,12 @@ class Translator:
             return {'class': cls}
         if cls in ('CreateTokenCopyTargetEffect', 'CreateTokenCopySourceEffect') and not args:
             return {'class': cls}
+        # the snarls and check lands: reveal a card of the filter from your hand, or it enters tapped
+        if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (
+                m := re.fullmatch(r'new RevealTargetFromHandCost\(new TargetCardInHand\((\w+)\)\)', canonical(args[0]))) \
+                and m.group(1) in getattr(self, 'filter_texts', {}):
+            return {'class': 'TapSourceUnlessRevealsEffect', 'filter': self.filter(m.group(1)),
+                    'message': self.filter_texts[m.group(1)]}
         if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (
                 m := re.fullmatch(r'new BeholdCost\(SubType\.(\w+)\)', args[0].strip())):
             return {'class': 'TapSourceUnlessBeholdEffect', 'subtype': subtype_names()[m.group(1)]}
@@ -2000,17 +2006,25 @@ class Translator:
                     'min_x': self.min_x}
         # equip: as a sorcery, attach this to target creature you control
         if cls == 'EquipAbility' and len(args) in (1, 2, 3, 4):
-            if len(args) <= 2 and re.fullmatch(r'\d+', args[0].strip()):
-                cost = {'class': 'ManaCost', 'cost': '{' + args[0].strip() + '}'}
-            elif len(args) == 3 and args[0].strip().startswith('Outcome.') and args[2].strip() in ('true', 'false'):
-                cost = self.cost(args[1])
-            elif len(args) == 4 and args[0].strip().startswith('Outcome.') \
-                    and args[2].strip() == 'new TargetControlledCreaturePermanent()' and args[3].strip() in ('true', 'false'):
-                cost = self.cost(args[1])
+            # (n[, hint]) or (outcome, cost[, target][, hint]); the target is a creature you control (702.6c)
+            a = [x.strip() for x in args]
+            if a[-1] in ('true', 'false') and len(a) > 1:
+                a = a[:-1]
+            target = [CREATURE, YOU]
+            if len(a) == 1 and re.fullmatch(r'\d+', a[0]):
+                cost = {'class': 'ManaCost', 'cost': '{' + a[0] + '}'}
+            elif len(a) in (2, 3) and a[0].startswith('Outcome.'):
+                cost = self.cost(a[1])
+                if len(a) == 3 and a[2] != 'new TargetControlledCreaturePermanent()':
+                    n = re.fullmatch(r'new TargetPermanent\((\w+)\)', a[2])
+                    f = self.filter(n.group(1)) if n else None
+                    if not f or CREATURE not in f:
+                        raise Unsupported('equip ' + ','.join(args))
+                    target = [dict(p) for p in f] + ([YOU] if YOU not in f else [])
             else:
                 raise Unsupported('equip ' + ','.join(args))
             return {'class': cls, 'java': cls, 'effects': [{'class': 'EquipEffect'}], 'cost': [cost],
-                    'targets': [{'class': 'TargetPermanent', 'filter': [CREATURE, YOU]}]}
+                    'targets': [{'class': 'TargetPermanent', 'filter': target}]}
         if cls == 'NykthosShrineToNyxManaAbility' and not args:
             return {'class': cls, 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': '{2}'}]}
         if cls == 'EntersBattlefieldTappedAsItEntersChooseColorAbility' and not args:
@@ -2423,6 +2437,8 @@ class Translator:
         if cls == 'LeavesBattlefieldAllTriggeredAbility' and n == 3 and args[2] in ('true', 'false'):
             return out({'e': 'leaves_all', 'filter': self.filter(args[1])}, args[0], flag(args[2]))
         if cls == 'AttacksWithCreaturesTriggeredAbility':
+            if not re.fullmatch(r'\d+', args[1]):
+                raise Unsupported(cls + '(' + ','.join(args) + ')')
             if n == 2:
                 return out({'e': 'attacks_with', 'min': int(args[1]), 'filter': [CREATURE]}, args[0])
             if n == 3:
@@ -2661,18 +2677,20 @@ def translate(card_name, subtypes, facts):
     if not os.path.exists(path):
         raise Unsupported('no card class ' + cls)
     source = open(path).read()
-    if 'extends ModalDoubleFacedCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
+    if 'extends ModalDoubleFacedCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
         return modal_double_faced(card_name, subtypes, facts, cls, source)
-    if 'extends TransformingDoubleFacedCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
+    if 'extends TransformingDoubleFacedCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
         return transforming_double_faced(card_name, subtypes, facts, cls, source)
-    if 'extends RoomCard' in re.search(r'public final class \w+ extends \w+', source).group(0):
+    if 'extends RoomCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0):
         return room_card(card_name, subtypes, facts, cls, source)
-    if 'extends SplitCard' in re.search(r'public final class \w+ extends \w+', source).group(0) \
+    if 'extends SplitCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0) \
             and 'SpellAbilityType.SPLIT_AFTERMATH' in source:
         return aftermath_card(card_name, subtypes, facts, cls, source)
-    if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b|PrepareCard\b)\w+', re.search(r'public final class \w+ extends \w+', source).group(0)):
+    if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b|PrepareCard\b)\w+', re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0)):
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    # each filter's own text (`new FilterCard("a Plains or Swamp card from your hand")`)
+    t.filter_texts = {m.group(1): m.group(2) for m in re.finditer(r'\bFilter\w* (\w+)\s*=\s*new Filter\w*(?:<>)?\("((?:[^"\\]|\\.)*)"', source)}
     # filters the constructor declares for itself (`FilterX filter = new FilterX(…); filter.add(…);`)
     body = constructor_body(source, cls)
     local_filters = set()
@@ -3255,7 +3273,10 @@ def ability_statement(t, st, added):
         elif m.group(2) == 'Target':
             holder.setdefault('targets', []).append(t.target(m.group(3)))
         else:
-            holder.setdefault('cost', []).append(t.cost(m.group(3)))
+            if not isinstance(holder.setdefault('cost', []), list):
+                # a keyword's own mana cost (flashback "{2}{R}") with another cost added
+                raise Unsupported(holder['class'] + ' with another cost')
+            holder['cost'].append(t.cost(m.group(3)))
         return True
     m = re.fullmatch(r'(?:this\.)?addAbility\((.*)\)', st)
     if m:
@@ -3720,26 +3741,38 @@ def token_classes(names):
 
 
 def granted_rules(card):
-    """a granted ability without its own rule text: the quoted part of the granting ability's (a ward, "ward {N}")"""
-    for a in card.get('abilities', []):
-        for e in a.get('effects', []):
-            g = e.get('ability') if isinstance(e, dict) else None
-            if not isinstance(g, dict) or 'rule' in g:
-                continue
-            quoted = re.search(r'"([^"]*)"', a.get('rule', ''))
-            cost = [c.get('cost') for x in g.get('effects', []) for c in x.get('cost', []) if c.get('class') == 'ManaCost']
-            if g.get('class') == 'WardAbility' and len(cost) == 1:
-                # `WardAbility.getRule`: with its hint unless it's turned off
-                g['rule'] = 'ward ' + cost[0]
-                if g.get('hint'):
-                    g['rule'] += (' <i>(Whenever this creature becomes the target of a spell or ability an opponent'
-                                  ' controls, counter it unless that player pays ' + cost[0] + '.)</i>')
-            elif g.get('class') == 'SimpleActivatedAbility' and quoted:
-                # an activated ability's rule ends with its effect's sentence
-                g['rule'] = quoted.group(1).rstrip('.') + '.'
-            elif g.get('class') == 'TriggeredAbility' and quoted:
-                # Java writes the granted trigger's own text, where the creature is {this}
-                g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
+    """a granted ability without its own rule text: the quoted part of the granting ability's or spell's (a ward,
+    "ward {N}"), wherever it is (a spell, a face, a token's ability); one it can't be read from blocks the card"""
+    def one(g, rule):
+        quoted = re.search(r'"([^"]*)"', rule or '')
+        cost = [c.get('cost') for x in g.get('effects', []) for c in x.get('cost', []) if c.get('class') == 'ManaCost']
+        if g.get('class') == 'WardAbility' and len(cost) == 1:
+            # `WardAbility.getRule`: with its hint unless it's turned off
+            g['rule'] = 'ward ' + cost[0]
+            if g.get('hint'):
+                g['rule'] += (' <i>(Whenever this creature becomes the target of a spell or ability an opponent'
+                              ' controls, counter it unless that player pays ' + cost[0] + '.)</i>')
+        elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility') and quoted:
+            # an activated ability's rule ends with its effect's sentence
+            g['rule'] = quoted.group(1).rstrip('.') + '.'
+        elif g.get('class') == 'TriggeredAbility' and quoted:
+            # Java writes the granted trigger's own text, where the creature is {this}
+            g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
+        elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility', 'TriggeredAbility', 'SimpleStaticAbility'):
+            raise Unsupported('granted ' + g['class'] + ' without its rule text')
+
+    def walk(x, rule):
+        if isinstance(x, dict):
+            rule = x.get('rule', rule)
+            g = x.get('ability')
+            if isinstance(g, dict) and 'rule' not in g:
+                one(g, rule)
+            for v in x.values():
+                walk(v, rule)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v, rule)
+    walk(card, '')
 
 
 def strip_java(x):
@@ -3782,6 +3815,9 @@ def main():
             if EXTRA.get(card['name'], {}).get('set'):
                 card['set'] = EXTRA[card['name']]['set']
             granted_rules(card)
+            # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
+            if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
+                raise Unsupported('mana symbol ' + m.group(0))
             hints = card_hints(card['name'], subtypes)
             if hints:
                 card['hints'] = hints

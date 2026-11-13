@@ -175,7 +175,7 @@ fn asking(game: &Game) -> Option<(String, String)> {
     let (id, _, _) = game.entering_from_hand?;
     let k = game.obj(id).def.abilities.iter().position(|a| {
         matches!(a, AbilityDef::AsEntersBattlefieldAbility { effects, .. } | AbilityDef::EntersBattlefieldAbility { effects, .. }
-            if effects.iter().any(|e| matches!(e, EffectDef::TapSourceUnlessPaysEffect { .. })))
+            if effects.iter().any(|e| matches!(e, EffectDef::TapSourceUnlessPaysEffect { .. } | EffectDef::TapSourceUnlessRevealsEffect { .. })))
     })?;
     Some((object_html(game, id), format!("{}a{}", reference(game, id), k)))
 }

@@ -10988,6 +10988,7 @@ fn apply_each_effect(
             | EffectDef::PetrifiedHamletCostEffect
             | EffectDef::PithingNeedleEffect
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
+            | EffectDef::TapSourceUnlessRevealsEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
             | EffectDef::EtchingOfKumanoReplacementEffect
             | EffectDef::AttachEffect
@@ -12110,6 +12111,29 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                         }
                     };
                     let cost = CostDef::BeholdCost { subtype: subtype.clone() };
+                    if !(paid && pay_cost(game, d, controller, id, &cost)) {
+                        if d.stopped() {
+                            return;
+                        }
+                        game.obj_mut(id).tapped = true;
+                    }
+                }
+                // `TapSourceUnlessPaysEffect` with a `RevealTargetFromHandCost`: asked only when a card can be revealed
+                if let EffectDef::TapSourceUnlessRevealsEffect { filter, message } = e {
+                    let cost = CostDef::RevealTargetFromHandCost { filter: filter.clone(), min: 1, max: 1 };
+                    let can = game.player(controller).hand.iter().any(|c| *c != id && game.filter_matches(filter, controller, Some(id), *c));
+                    let paid = can && {
+                        let q = Query::YesNo {
+                            message: format!("reveal {}? (otherwise {} becomes tapped)", message, def.name),
+                        };
+                        loop {
+                            match ask(game, d, controller, &q) {
+                                Answer::Bool(b) => break b,
+                                Answer::Stop => return,
+                                _ => {}
+                            }
+                        }
+                    };
                     if !(paid && pay_cost(game, d, controller, id, &cost)) {
                         if d.stopped() {
                             return;
