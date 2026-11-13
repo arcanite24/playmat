@@ -17862,6 +17862,43 @@ fn damaged_batch_triggers(game: &mut Game) {
     }
 }
 
+/// `DAMAGED_BATCH_BY_SOURCE`: for each source that dealt damage, in the order it first did, "whenever this (or a
+/// permanent of the filter) deals damage" triggers once, X the batch's damage; a combat batch for "combat damage"
+fn source_damage_batch_triggers(game: &mut Game) {
+    let batch = std::mem::take(&mut game.source_damage_batch);
+    let mut sources: Vec<(ObjId, i32, bool)> = Vec::new();
+    for (s, n, combat) in batch {
+        match sources.iter_mut().find(|x| x.0 == s) {
+            Some(x) => {
+                x.1 += n;
+                x.2 |= combat;
+            }
+            None => sources.push((s, n, combat)),
+        }
+    }
+    for (source, n, combat) in sources {
+        let from = game.trigger_sources();
+        let fired = game.triggers(from, |g, src, you, t| match t {
+            Trigger::DealsDamage { filter, only_combat } if combat || !*only_combat => match filter {
+                None => src == source,
+                Some(f) => g.filter_matches(f, you, Some(src), source),
+            },
+            _ => false,
+        });
+        for mut t in fired {
+            t.x = n;
+            if set_target_pointer(game, &t) {
+                t.targets = vec![vec![Target::Obj(source)]];
+                t.target_zcc = vec![vec![game.obj(source).zcc]];
+            } else if set_target_pointer_player(game, &t) {
+                t.targets = vec![vec![Target::Player(game.obj(source).controller)]];
+                t.target_zcc = vec![vec![0]];
+            }
+            game.pending.push(t);
+        }
+    }
+}
+
 /// `DAMAGED_BATCH_FOR_ONE_PLAYER`: for each player dealt damage, in the order they were first dealt it, "whenever one
 /// or more … deal damage to a player" triggers once, with the total of the damage it counts as its X
 fn player_damage_batch_triggers(game: &mut Game) {
@@ -17981,6 +18018,9 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
         }
         if !game.player_damage_batch.is_empty() {
             player_damage_batch_triggers(game);
+        }
+        if !game.source_damage_batch.is_empty() {
+            source_damage_batch_triggers(game);
         }
         counters_added_triggers(game);
         game.update_guildpact();
@@ -18654,6 +18694,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 }
             }
         }
+    }
+    if amount > 0 {
+        game.source_damage_batch.push((source, amount, combat));
     }
     if src_lifelink {
         if combat {

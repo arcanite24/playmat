@@ -777,6 +777,15 @@ pub enum Trigger {
     DrawsNth {
         n: u32,
     },
+    /// this, or with `filter` a permanent of it, deals damage (`DAMAGED_BATCH_BY_SOURCE`: once for each source's
+    /// batch, X the batch's damage); `DealsDamageSourceTriggeredAbility`, `DealsCombatDamageTriggeredAbility` and
+    /// `DealsDamageToAnyTriggeredAbility`. A pointer is the source, or with a player pointer its controller
+    DealsDamage {
+        #[serde(default)]
+        filter: Option<Filter>,
+        #[serde(default)]
+        only_combat: bool,
+    },
     /// this deals damage to an opponent (`only_combat`: combat damage)
     DealsDamageToOpponent {
         #[serde(default)]

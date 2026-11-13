@@ -1061,6 +1061,8 @@ pub struct Game {
     /// damage players were dealt since triggers were last checked: source, player, amount, combat
     /// (`DAMAGED_BATCH_FOR_ONE_PLAYER`)
     pub player_damage_batch: Vec<(ObjId, Seat, i32, bool)>,
+    /// damage dealt since triggers were last checked: source, amount, combat (`DAMAGED_BATCH_BY_SOURCE`)
+    pub source_damage_batch: Vec<(ObjId, i32, bool)>,
     /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
     pub mana_batch: u64,
     /// "opponents are dealt noncombat damage" sources that triggered, with the mana batch they triggered in
@@ -1270,6 +1272,7 @@ impl Game {
             day: None,
             damaged_batch: Vec::new(),
             player_damage_batch: Vec::new(),
+            source_damage_batch: Vec::new(),
             mana_batch: 0,
             noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
