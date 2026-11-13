@@ -527,6 +527,14 @@ TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'a
 COUNTERS = {'CounterType.P1P1': '+1/+1', 'CounterType.BRICK': 'brick', 'CounterType.VELOCITY': 'velocity', 'CounterType.PAGE': 'page', 'CounterType.BLIGHT': 'blight', 'CounterType.LOYALTY': 'loyalty', 'CounterType.STUN': 'stun',
             'CounterType.SHIELD': 'shield', 'CounterType.CHARGE': 'charge',
             'CounterType.M1M1': '-1/-1', 'CounterType.INDESTRUCTIBLE': 'indestructible'}
+# counters that are only a tally the card's own text reads (no rules of their own): by their Java names
+_TALLIES = ('GOLD', 'MUSTER', 'QUEST', 'ICE', 'WISH', 'REVIVAL', 'NEST', 'REV', 'UNITY', 'STORAGE', 'PLAGUE', 'SPORE',
+            'FUNGUS', 'VERSE', 'OMEN', 'OIL', 'CORPSE', 'EGG', 'TIDE', 'LUCK', 'KI', 'DEPLETION', 'FLOOD', 'STUDY', 'VOID',
+            'BOUNTY')
+for _m in re.finditer(r'^    (\w+)\("([a-z][a-z -]*)"\)', open(os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'counters',
+                                                                 'CounterType.java')).read(), re.M):
+    if _m.group(1) in _TALLIES:
+        COUNTERS.setdefault('CounterType.' + _m.group(1), _m.group(2))
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'MetalcraftCondition.instance': {'c': 'permanents', 'filter': [{'p': 'type', 't': 'ARTIFACT'}, {'p': 'controller', 'who': 'you'}], 'cmp': 'OR_GREATER', 'n': 3}, 'PlayLandCondition.instance': {'c': 'played_land'}, 'DeliriumCondition.instance': {'c': 'delirium'},
               # a bargained spell is kicked (`BargainAbility`)
