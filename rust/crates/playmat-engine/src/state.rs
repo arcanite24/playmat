@@ -273,6 +273,16 @@ pub struct Obj {
 }
 
 impl Obj {
+    /// Where Java's numbering of its abilities starts: a permanent that entered transformed (a battle's back face cast)
+    /// is its back face's card, whose spell ability comes first (`TransformingDoubleFacedCardHalf`)
+    pub fn java_ability_offset(&self) -> usize {
+        usize::from(
+            self.zone == Zone::Battlefield
+                && !self.transformed_in_place
+                && self.front.as_ref().is_some_and(|f| f.transform_back.is_some()),
+        )
+    }
+
     /// Sets a line of its view's rules (`Permanent.addInfo`, with `CardUtil.addToolTipMarkTags`)
     pub fn add_info(&mut self, key: &str, text: &str) {
         let line = format!("<font color = 'blue'>{}</font>", text);
@@ -2477,6 +2487,8 @@ impl Game {
         }
         let pt_lki = (from == Zone::Battlefield).then(|| self.power_toughness(id));
         self.remove_from_zone(id);
+        // a transformed permanent's front, its card again after the effects that changed its back are undone
+        let mut left_front = None;
         {
             let o = self.obj_mut(id);
             o.toughness_lki = pt_lki.map(|p| p.1);
@@ -2495,7 +2507,8 @@ impl Game {
             if from == Zone::Battlefield {
                 o.cast_lki = o.cast;
                 if let Some(def) = o.front.take() {
-                    o.def = def;
+                    o.def = def.clone();
+                    left_front = Some(def);
                 }
                 o.damaged_by = (0, 0);
             }
@@ -2574,6 +2587,10 @@ impl Game {
                     o.guildpact_order.clear();
                 }
                 if let Some(def) = o.printed_def.take() {
+                    o.def = def;
+                }
+                // (Aetherwing crewed: its back as it was before it became a creature)
+                if let Some(def) = left_front.take() {
                     o.def = def;
                 }
                 o.cast_x = 0;

@@ -194,7 +194,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
             text = text.replace("chosen color.", &format!("chosen color {{{}}}.", color_symbol(*color)));
         }
         let tag = if kind == PlayKind::RoomHalf { "h" } else { "a" };
-        let record = json!({"id": format!("{}{}{}", r, tag, k), "value": text});
+        let record = json!({"id": format!("{}{}{}", r, tag, k + o.java_ability_offset()), "value": text});
         let part = match kind {
             PlayKind::RoomHalf => Some(format!("{}h{}", r, k)),
             _ => face.map(|f| format!("{}f{}", r, f)),
