@@ -12,7 +12,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     }
     let n = game.obj(src).counter("charge");
     if n > 0 {
-        cx.run(game, d, &[EffectDef::BasicManaEffect { colored: [0, 0, 0, 0, n as u32], colorless: 0 }]);
+        cx.run(game, d, &[EffectDef::BasicManaEffect { colored: [0, 0, 0, 0, n as u32], colorless: 0, until_end_of_turn: false }]);
     }
     Some(())
 }
