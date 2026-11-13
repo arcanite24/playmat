@@ -2941,6 +2941,116 @@ pub enum EffectDef {
         #[serde(default)]
         exclude_source: bool,
     },
+    /// A card's own effect class, read from its `apply` body (`rust/tools/custom_effects.py`): its statements'
+    /// effects in order. The sequence names what the body's locals named in slots: "target" (the first target),
+    /// "target.controller" (its controller as the outermost sequence began), "you", "source", "second" (the second
+    /// target), and the ones it binds (`bind`, `each`). In order: `bind` a slot; stop unless each of `require`
+    /// holds (a null check); work out `x`, the X its effects see; then for each of `each` (or once), its effects,
+    /// or `otherwise` when `when` (the slot matches the filter) or `may` (its player says yes) doesn't hold. `to`:
+    /// the slot its effects' first target is (the effects inherit the sequence's targets otherwise).
+    Effects {
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        otherwise: Vec<EffectDef>,
+        #[serde(default)]
+        bind: Option<Bind>,
+        #[serde(default)]
+        require: Vec<Require>,
+        #[serde(default)]
+        x: Option<Quantity>,
+        #[serde(default)]
+        to: Option<String>,
+        #[serde(default)]
+        each: Option<Each>,
+        #[serde(default)]
+        when: Option<When>,
+        #[serde(default)]
+        may: Option<May>,
+    },
+    /// destroys the target permanent; it can't be regenerated (`DestroyTargetEffect(true)`)
+    DestroyNoRegenerateTargetEffect,
+    /// the source fights the target creature (`FightTargetSourceEffect`): both must be creatures
+    FightTargetSourceEffect,
+    /// `controller.moveCards(card, zone, source, game)`: the target cards to a zone ("HAND", "EXILED", "GRAVEYARD",
+    /// "BATTLEFIELD" or "BATTLEFIELD_TAPPED" under the controller's control, "LIBRARY_BOTTOM")
+    MoveTargetCardsEffect {
+        zone: String,
+    },
+}
+
+/// A number an `Effects` sequence works out before its effects
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "q", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Quantity {
+    Amount {
+        amount: Amount,
+    },
+    /// a slot's object's power, toughness or mana value, as it is now
+    Power {
+        of: String,
+    },
+    Toughness {
+        of: String,
+    },
+    ManaValue {
+        of: String,
+    },
+}
+
+/// A slot an `Effects` sequence names: `what` ("top_card", the top card of the library of the player in `of`)
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Bind {
+    pub name: String,
+    pub what: String,
+    #[serde(default)]
+    pub of: Option<String>,
+}
+
+/// A Java null check: the slot has something (`is` ""), a permanent still on the battlefield ("permanent"), or a
+/// creature one ("creature"). The slot "source" is the source permanent; "source_lki" the source as it last was
+/// (always there for an ability).
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Require {
+    pub slot: String,
+    #[serde(default)]
+    pub is: String,
+}
+
+/// What an `Effects` sequence is done for, one at a time, each named `name`: "opponents" (`getOpponents`),
+/// "players" (`getPlayersInRange`, in seat order) or "permanents" of the filter (`getActivePermanents`, battlefield
+/// order)
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Each {
+    pub kind: String,
+    #[serde(default)]
+    pub filter: Option<Filter>,
+    pub name: String,
+    /// "permanents" only: those the slot's player controls (`getAllActivePermanents(filter, playerId, game)`)
+    #[serde(default)]
+    pub controller: Option<String>,
+}
+
+/// "if the slot's object matches the filter" (`card.isLand(game)`)
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct When {
+    pub slot: String,
+    pub filter: Filter,
+}
+
+/// `player.chooseUse(…)`: the slot's player is asked (the controller when it's none)
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct May {
+    pub message: String,
+    #[serde(default)]
+    pub who: Option<String>,
+    /// `chooseUse(…) && cost.pay(…)`: a yes counts only once they pay it (a mana or life cost)
+    #[serde(default)]
+    pub pay: Vec<CostDef>,
 }
 
 /// The spell ability of an instant or sorcery: what it does when it resolves. A modal spell ("choose one") has

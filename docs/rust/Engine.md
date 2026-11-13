@@ -100,7 +100,13 @@ beginning of a step, a spell cast, a card drawn, life gained, damage to a player
 to line it up with the facts.
 
 Classes a card file declares for itself (Kavaron Harrier's effect, Master of Barbs' trigger) are written by hand in
-the transpiler's `CUSTOM` table as the engine classes that do the same.
+the transpiler's `CUSTOM` table as the engine classes that do the same. A one-shot effect class that isn't in the
+table is read from its `apply` body by `rust/tools/custom_effects.py`: null checks, `if`s on a type, a condition or a
+`chooseUse` (also one paid for, `chooseUse(…) && cost.pay(…)`), loops over opponents, players or permanents, the top
+card of a library, and calls such as `damage`, `drawCards`, `moveCards` or `new XToken().putOntoBattlefield` become
+one `Effects` sequence of engine effects, with named slots for the locals ("target", "target.controller", "you",
+"second", a loop's permanent). A body with anything else (a `Cards` pile, a `switch`, a choice of cards, a field)
+stays unsupported. `PLAYMAT_APPLY_LOG=<file>` writes why each class did or didn't translate.
 
 ## The 10,000-game gate run (11–12 Nov 2026)
 
@@ -181,7 +187,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,022 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
+  can express (9,132 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -255,6 +261,11 @@ Being in the engine and being trusted are kept apart.
   flash" sees adventure faces; the defending player is still known after the attacker left; a conditional static
   whose condition reads power no longer recurses. 266 games match and 247 cards are verified, 231 of them new:
   7,200.
+
+  Card-specific effects (13 Nov, `custom_effects.py`): two rounds over the cards it brought in (120 games recorded;
+  replayed on this base, 106 of 108 match). Their fixes, each with a game under `shadow/factory/`: an effect pointed
+  at a target skips one an earlier effect moved (Badlands Revival); a return inside a nested if stops only that path
+  (Matter Reshaper). 84 more cards are verified: 7,284.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the

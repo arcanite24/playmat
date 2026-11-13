@@ -14,6 +14,8 @@ import os
 import re
 import sys
 
+import custom_effects
+
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 SETS = os.path.join(ROOT, 'Mage.Sets', 'src', 'mage', 'cards')
 SUBTYPES = os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'constants', 'SubType.java')
@@ -133,6 +135,7 @@ EFFECTS = {
     'GainAbilityAttachedEffect': [('ability', 'ability'), (None, 'aura'), (None, 'while_on_battlefield'), (None, 'string')],
     'CantAttackBlockAttachedEffect': [(None, 'aura')],
     'FightTargetsEffect': [],
+    'FightTargetSourceEffect': [],
     'FightEnchantedTargetEffect': [],
     'CantBeBlockedByMoreThanOneAttachedEffect': [(None, 'aura')],
     'CantCastMoreThanOneSpellEffect': [('who', 'target_controller')],
@@ -1672,6 +1675,8 @@ class Translator:
                 return {'class': 'EachTargetEffect', 'effect': e}
         # every target (the one target a duel's "for each opponent" adjuster leaves)
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
+        # the first target is the default target pointer
+        expr = re.sub(r'\.setTargetPointer\(new FirstTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
         # the ability's second target (`SecondTargetPointer`): counters put on it
         m = re.fullmatch(r'(new AddCountersTargetEffect\(.*\))\.setTargetPointer\(new SecondTargetPointer\(\)\)', canonical(self.strip_setters(expr)), re.S)
         if m:
@@ -1679,6 +1684,11 @@ class Translator:
             if e.get('class') == 'AddCountersTargetEffect':
                 e['second'] = True
                 return e
+        # any other effect on the ability's second target: the same effect, pointed at it
+        m = re.fullmatch(r'(new \w+\(.*\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new SecondTargetPointer\(\)\)((?:\.setText\(.*\))?)',
+                         canonical(expr), re.S)
+        if m and balanced(m.group(1)) and not m.group(1).startswith('new AddCountersTargetEffect('):
+            return {'class': 'TargetPointerEffect', 'target': 1, 'effect': self.effect(m.group(1))}
         m = re.fullmatch(r'new RemoveCounterTargetEffect\((CounterType\.\w+)\.createInstance\(\)\)', canonical(self.strip_setters(expr)))
         if m and m.group(1) in COUNTERS:
             return {'class': 'RemoveCounterTargetEffect', 'counter': COUNTERS[m.group(1)]}
@@ -1785,6 +1795,20 @@ class Translator:
         # a one-shot wrapper that starts a continuous effect: the effect itself
         if cls == 'AddContinuousEffectToGame' and len(args) == 1:
             return self.effect(args[0])
+        # several effects in one: each in order (`new Effects(…)`, `AddContinuousEffectToGame(e1, e2)`)
+        if cls in ('Effects', 'AddContinuousEffectToGame') and len(args) > 1:
+            return {'class': 'Effects', 'effects': [self.effect(a) for a in args]}
+        # Java's own default target pointer, or the ability's second target
+        if cls == 'DestroyTargetEffect' and len(args) == 1 and (args[0].strip() == 'true' or args[0].strip() == 'false'
+                                                                 or re.fullmatch(r'"[^"]*"(?:\+"[^"]*")*', canonical(args[0]))):
+            return {'class': 'DestroyNoRegenerateTargetEffect' if args[0].strip() == 'true' else 'DestroyTargetEffect'}
+        if cls == 'FightTargetsEffect' and [a.strip() for a in args] in (['true'], ['false']):
+            return {'class': cls}
+        # "sacrifice this unless you pay": not paid, it's sacrificed
+        if cls == 'SacrificeSourceUnlessPaysEffect' and len(args) == 1 and not re.fullmatch(r'\w+', args[0].strip()):
+            return {'class': 'DoIfCostPaid', 'cost': [self.cost(args[0])], 'otherwise': [{'class': 'SacrificeSourceEffect'}]}
+        if cls == 'SacrificeSourceUnlessPaysEffect' and len(args) == 1 and args[0].strip() in self.vars:
+            return {'class': 'DoIfCostPaid', 'cost': [self.vars[args[0].strip()]], 'otherwise': [{'class': 'SacrificeSourceEffect'}]}
         if cls == 'DamageTargetEffect' and args == ['SourcePermanentPowerValue.NOT_NEGATIVE']:
             return {'class': 'DamageTargetSourcePowerEffect'}
         if cls.startswith('SearchLibraryPutIn'):
@@ -1810,8 +1834,12 @@ class Translator:
         if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 3 and args[2].strip() == 'Duration.Custom' \
                 and all(re.fullmatch(r'\d+', a.strip()) for a in args[:2]):
             return {'class': 'SetBasePowerToughnessUntilLeavesEffect', 'power': int(args[0]), 'toughness': int(args[1])}
-        if cls == 'EarthbendTargetEffect' and len(args) == 1:
+        # (amount[, withReminderText]): the flag is only text
+        if cls == 'EarthbendTargetEffect' and (len(args) == 1 or (len(args) == 2 and args[1].strip() in ('true', 'false'))):
             return {'class': cls, 'amount': self.value('amount', args[0].strip())}
+        # (itBecomes): only text
+        if cls == 'BecomePreparedSourceEffect' and len(args) == 1 and args[0].strip() in ('true', 'false'):
+            return {'class': cls}
         if cls == 'EmpowerJaceEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': self.amount(args[0].strip()), 'token': token('JacePlaneswalkerToken')}
         # a Role token attached to each target
@@ -2195,6 +2223,16 @@ class Translator:
             args = args[:3]
         if (k := self.keyword_effect(cls, [a.strip() for a in args])) is not None:
             return k
+        if cls not in EFFECTS and getattr(self, 'source', None) and custom_effects.declares(self.source, cls):
+            # a class of the card's own: its `apply` body, statement by statement (custom_effects.py)
+            custom_effects.T = sys.modules[__name__]
+            try:
+                e = custom_effects.translate(self, cls, [a.strip() for a in args], self.source)
+                custom_effects.log(getattr(self, 'card_name', ''), cls, 'OK ' + json.dumps(e, sort_keys=True))
+                return e
+            except (Unsupported, custom_effects.Unsupported) as e:
+                custom_effects.log(getattr(self, 'card_name', ''), cls, e)
+                raise Unsupported('effect ' + cls)
         if cls not in EFFECTS:
             raise Unsupported('effect ' + cls)
         return self.build(cls, args, EFFECTS[cls], 'effect')
@@ -3925,6 +3963,7 @@ def translate(card_name, subtypes, facts):
     # each filter's own text (`new FilterCard("a Plains or Swamp card from your hand")`)
     t.filter_texts = {m.group(1): m.group(2) for m in re.finditer(r'\bFilter\w* (\w+)\s*=\s*new Filter\w*(?:<>)?\("((?:[^"\\]|\\.)*)"', source)}
     t.source = source
+    t.card_name = card_name
     # filters the constructor declares for itself (`FilterX filter = new FilterX(…); filter.add(…);`)
     body = constructor_body(source, cls)
     local_filters = set()
@@ -4044,7 +4083,7 @@ def aftermath_card(card_name, subtypes, facts, cls, source):
     if not halves or len(halves) != 2:
         raise Unsupported('split card without its halves\' facts')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
-    t.source = source
+    t.source, t.card_name = source, card_name
     # a split card (`SpellAbilityType.SPLIT`): either half is cast from hand, the way a Room's are
     card = {'name': card_name, 'abilities': []}
     if 'SpellAbilityType.SPLIT_AFTERMATH' in source:
@@ -4089,6 +4128,7 @@ def room_card(card_name, subtypes, facts, cls, source):
     if not halves or len(halves) != 2:
         raise Unsupported('room without its halves\' facts')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    t.source, t.card_name = source, card_name
     card = {'name': card_name, 'types': ['ENCHANTMENT'], 'subtypes': ['Room']}
     added = [[], []]
     costs = None
@@ -4122,6 +4162,7 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
     transforms into (`transform_back`); Java lists the front's abilities (its spell ability first), then the back's"""
     java_abilities = facts[card_name]
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    t.source, t.card_name = source, card_name
     front, back = {'name': card_name}, {}
     added = [[], []]
     types = lambda g: [x.strip().split('.')[-1] for x in g.split(',') if x.strip()]
@@ -4195,6 +4236,7 @@ def modal_double_faced(card_name, subtypes, facts, cls, source):
     second spell ability on)"""
     java_abilities = facts[card_name]
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    t.source, t.card_name = source, card_name
     t.filter_texts = {m.group(1): m.group(2) for m in re.finditer(r'\bFilter\w* (\w+)\s*=\s*new Filter\w*(?:<>)?\("((?:[^"\\]|\\.)*)"', source)}
     t.source = source
     faces = [{'name': card_name}, {}]
@@ -5401,6 +5443,7 @@ def main():
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, 'w') as f:
         f.write('[\n' + ',\n'.join(json.dumps(c, sort_keys=True) for c in sorted(cards, key=lambda c: c['name'])) + '\n]\n')
+    custom_effects.write_log()
     if args.report:
         with open(args.report, 'w') as f:
             f.write('\n'.join(report) + '\n')
