@@ -323,6 +323,7 @@ Anointer of Champions
 Antagonist Incorporator
 Antagonize
 Anthem of Champions
+Anthousa, Setessan Hero
 Anthropede
 Anthropological Mission
 Anticipate
@@ -402,6 +403,7 @@ Ardent Electromancer
 Ardent Elementalist
 Ardenvale Paladin
 Ardenvale Tactician
+Ardyn, the Usurper
 Arena Athlete
 Arena Trickster
 Arena of Glory
@@ -523,6 +525,8 @@ Autonomous Assembler
 Autumnal Gloom
 Auxiliary Boosters
 Avabruck Caretaker
+Avacynian Missionaries
+Avalanche Caller
 Avaricious Dragon
 Avatar Enthusiasts
 Avatar of the Resolute
@@ -546,10 +550,12 @@ Avian Oddity
 Aviary Mechanic
 Aviation Pioneer
 Avid Reclaimer
+Awaken the Ancient
 Awaken the Bear
 Awaken the Honored Dead
 Awaken the Inferno
 Awaken the Woods
+Awakening of Vitu-Ghazi
 Awe for the Guilds
 Axebane Beast
 Axebane Guardian
@@ -1175,6 +1181,7 @@ Caligo Skin-Witch
 Call Damage Control
 Call In a Professional
 Call of the Conclave
+Call of the Full Moon
 Call the Bloodline
 Call the Cavalry
 Call the Gatewatch
@@ -1229,6 +1236,7 @@ Captivating Cave
 Captivating Crew
 Captivating Gyre
 Captivating Unicorn
+Captive Weird
 Capture Sphere
 Cardassia Prime
 Careening Mine Cart
@@ -1445,6 +1453,7 @@ Clammy Prowler
 Clamor Shaman
 Clamorous Ironclad
 Clan Defiance
+Clan Guildmage
 Clarion Cathars
 Clarion Conqueror
 Clarion Spirit
@@ -1469,6 +1478,7 @@ Cleric of Life's Bond
 Cleric of the Forward Order
 Cleveland Booker, Empath
 Clever Conjurer
+Clever Impersonator
 Clever Lumimancer
 Cliffhaven Kitesail
 Cliffhaven Sell-Sword
@@ -1483,6 +1493,7 @@ Clockwork Drawbridge
 Clockwork Percussionist
 Clockwork Servant
 Cloistered Telepath
+Clone
 Cloud Manta
 Cloud of Darkness
 Cloud, Planet's Champion
@@ -1784,6 +1795,7 @@ Cutthroat Contender
 Cutthroat Maneuver
 Cybernetic Specialist
 Cycle of Renewal
+Cyclone Sire
 Cyclonic Rift
 Cyclops Electromancer
 Cyclops Tyrant
@@ -1939,6 +1951,7 @@ Decode Transmissions
 Decommission
 Dedicated Commons
 Deduce
+Deep Freeze
 Deep Goblin Skulltaker
 Deep-Sea Terror
 Deepchannel Duelist
@@ -2111,6 +2124,7 @@ Distemper of the Blood
 Distorted Curiosity
 Distracting Geist
 District Guide
+Disturbed Slumber
 Dive Down
 Divergent Equation
 Diversion Specialist
@@ -2313,6 +2327,7 @@ Duskfang Mentor
 Duskmantle Operative
 Duskmantle Seer
 Duskwatch Hunter
+Duskwatch Recruiter
 Duskwielder
 Dust Animus
 Dust Stalker
@@ -2424,6 +2439,7 @@ Elemental Bond
 Elemental Mascot
 Elemental Masterpiece
 Elemental Summoning
+Elemental Uprising
 Elementalist Adept
 Elenda, the Dusk Rose
 Elfhame Druid
@@ -2464,6 +2480,7 @@ Elvish Visionary
 Elvish Warmaster
 Ember Beast
 Ember Hauler
+Ember Island Production
 Ember-Eye Wolf
 Embercleave
 Embereth Paladin
@@ -2472,6 +2489,8 @@ Embereth Skyblazer
 Embereth Veteran
 Emberheart Challenger
 Emberhorn Minotaur
+Embodiment of Fury
+Embodiment of Insight
 Embodiment of Spring
 Embraal Bruiser
 Embraal Gear-Smasher
@@ -3065,6 +3084,7 @@ Frilled Sea Serpent
 Frilled Sparkshooter
 Frillscare Mentor
 Frog Butler
+Frogify
 Frolicking Familiar
 From Beyond
 From Father to Son
@@ -3177,6 +3197,7 @@ Gather the Pack
 Gather the White Lotus
 Gathering Place
 Gathering of Darkness
+Gatstaf Arsonists
 Gavony Silversmith
 Gavony Trapper
 Gavony Unhallowed
@@ -3269,6 +3290,7 @@ Gift of Growth
 Gift of Orzhova
 Gift of Paradise
 Gift of Strength
+Gift of Tusks
 Gift of Wrath
 Gifted Aetherborn
 Gigantic Big Bear
@@ -3790,12 +3812,14 @@ Herald of the Dreadhorde
 Herald of the Fair
 Herald of the Pantheon
 Herald of the Sun
+Herbology Instructor
 Hercules, Prince of Power
 Herd Heirloom
 Herd Migration
 Herdchaser Dragon
 Heritage Druid
 Heritage Reclamation
+Hermit of the Natterknolls
 Hermitic Herbalist
 Hermitic Nautilus
 Hero in Training
@@ -3860,6 +3884,7 @@ Hill Gigas
 Hindervines
 Hinterland Drake
 Hinterland Harbor
+Hinterland Logger
 Hinterland Sanctifier
 Hire a Crew
 Hired Blade
@@ -3997,6 +4022,7 @@ Hushwing Gryff
 Hushwood Verge
 Hussar Patrol
 Hydraulic Helper
+Hydroform
 Hydrolash
 Hydrosurge
 Hyena Pack
@@ -4023,6 +4049,7 @@ Icetill Explorer
 Icewind Elemental
 Ichor Synthesizer
 Ichorspit Basilisk
+Ichthyomorphosis
 Icy Manipulator
 Icy Reception
 Idyllic Beachfront
@@ -4079,6 +4106,7 @@ Imposing Sovereign
 Imposing Vantasaur
 Impossible Choice
 Impossible Inferno
+Impostor Syndrome
 Impractical Joke
 Improbable Alliance
 Improvised Arsenal
@@ -4397,6 +4425,7 @@ Karok Wrangler
 Karplusan Forest
 Karplusan Hound
 Karumonix, the Rat King
+Kasmina's Transmutation
 Katilda, Dawnhart Martyr
 Kavaron Harrier
 Kavaron Skywarden
@@ -4423,8 +4452,10 @@ Keldon Strike Team
 Kellan's Lightblades
 Kellan, the Fae-Blooded
 Kelpie Guide
+Kenrith's Transformation
 Kessig Dire Swine
 Kessig Flamebreather
+Kessig Forgemaster
 Kessig Prowler
 Kessig Wolfrider
 Ketramose, the New Dawn
@@ -4449,6 +4480,7 @@ Kindled Fury
 Kindled Heroism
 Kindlespark Duo
 Kindly Ancestor
+Kindly Stranger
 Kinetic Augur
 King Darien XLVIII
 King Harald's Revenge
@@ -4592,6 +4624,7 @@ Lake-town Toymaker
 Lakeshore Apothecary
 Lakeside Shack
 Lambholt Harrier
+Lambholt Pacifist
 Lambholt Raconteur
 Lampad of Death's Vigil
 Lamplighter of Selhoff
@@ -4750,6 +4783,7 @@ Living Twister
 Llanowar Elves
 Llanowar Empath
 Llanowar Envoy
+Llanowar Loamspeaker
 Llanowar Scout
 Llanowar Stalker
 Llanowar Visionary
@@ -5217,6 +5251,7 @@ Mirran Banesplitter
 Mirrex
 Mirrodin Avenged
 Mirror Shield
+Mirrormade
 Mirrorpool
 Miscast
 Mischief and Mayhem
@@ -5441,6 +5476,7 @@ Nebelgast Intruder
 Nebula Dragon
 Necrobite
 Necroblossom Snarl
+Necroduality
 Necrogen Communion
 Necrogen Scudder
 Necromancer's Assistant
@@ -5482,6 +5518,7 @@ New Prahv Guildmage
 News Helicopter
 Nexus Wardens
 Nezumi Bladeblesser
+Nezumi Freewheeler
 Nezumi Informant
 Nezumi Linkbreaker
 Nezumi Prowler
@@ -5538,6 +5575,7 @@ No More Lies
 No Way Out
 Nobody
 Noggle Robber
+Noggle the Mind
 Nomad Outpost
 Noose Constrictor
 Nori, Teller of Tales
@@ -6097,6 +6135,7 @@ Prosperous Innkeeper
 Prosperous Pirates
 Prosperous Thief
 Prosthetic Injector
+Protean Raider
 Protect // Serve
 Protect the Negotiators
 Protective Parents
@@ -6366,6 +6405,7 @@ Reaver Drone
 Rebel Salvo
 Rebellious Captives
 Rebellious Strike
+Rebuild the City
 Reckless Air Strike
 Reckless Amplimancer
 Reckless Cohort
@@ -6599,6 +6639,7 @@ Rising Populace
 Risky Research
 Risky Shortcut
 Rite of Oblivion
+Rite of Replication
 Rite of Undoing
 Rite of the Dragoncaller
 Rite of the Moth
@@ -6627,6 +6668,7 @@ Roadside Blowout
 Roadside Reliquary
 Roamer's Routine
 Roaming Ghostlight
+Roaring Earth
 Roaring Primadox
 Roast
 Rob the Archives
@@ -7270,6 +7312,7 @@ Sibsig Host
 Sibsig Icebreakers
 Sidequest: Card Collection
 Sidequest: Catch a Fish
+Sidequest: Raise a Chocobo
 Sidewinder Naga
 Sidisi's Pet
 Siege Mastodon
@@ -7524,6 +7567,7 @@ Solemn Recruit
 Solemn Simulacrum
 Solitary Camel
 Solitary Cell
+Solitary Hunter
 Solitude
 Solve for Disappointment
 Solve the Equation
@@ -7640,6 +7684,7 @@ Spider-Byte, Web Warden
 Spider-Girl, Legacy Hero
 Spider-Gwen, Free Spirit
 Spider-Ham, Peter Porker
+Spider-Man No More
 Spider-Mobile
 Spider-Rex, Daring Dino
 Spider-Suit
@@ -8113,6 +8158,7 @@ Sword of the Animist
 Swordwise Centaur
 Sworn Companions
 Sworn Guardian
+Sygg, Wanderwine Wisdom
 Sylvan Advocate
 Sylvan Brushstrider
 Sylvan Caryatid
@@ -8199,6 +8245,7 @@ Tattered Haunter
 Tattered Mummy
 Tattered Ratter
 Tatyova, Benthic Druid
+Tatyova, Steward of Tides
 Taurean Mauler
 Tavern Ruffian
 Taxi Driver
@@ -8263,6 +8310,7 @@ Tend the Pests
 Tend the Sprigs
 Tender Wildguide
 Tenderize
+Tendril of the Mycotyrant
 Tenement Crasher
 Tentative Connection
 Tenth District Guard
@@ -8384,6 +8432,7 @@ They Went This Way
 Thicket Crasher
 Thieves' Guild Enforcer
 Thieving Otter
+Thing in the Ice
 Think Twice
 Thinking Cap
 Third Path Iconoclast
@@ -8684,6 +8733,7 @@ Trusted Pegasus
 Trusty Companion
 Trusty Packbeast
 Trygon Predator
+Trystan, Callous Cultivator
 Tuinvale Guide
 Tuinvale Treefolk
 Tuktuk Rubblefort
@@ -8694,6 +8744,7 @@ Tunneling Geopede
 Tura Kennerud, Skyknight
 Turn Against
 Turn into a Pumpkin
+Turn to Frog
 Turntimber Ascetic
 Turret Ogre
 Turtle Blimp
@@ -8740,6 +8791,7 @@ Ugin's Labyrinth
 Ukud Cobra
 Ulcerate
 Ulna Alley Shopkeep
+Ulrich of the Krallenhorde
 Ulrich's Kindred
 Ultima Weapon
 Ultimate Price
@@ -8874,6 +8926,7 @@ Urza's Command
 Urza's Rebuff
 Urza's Saga
 Urza, Powerstone Prodigy
+Urza, Prince of Kroog
 Usher of the Fallen
 Utility Knife
 Utrom Scientists
@@ -9021,6 +9074,7 @@ Vile Entomber
 Vile Mutilator
 Vile Rebirth
 Vilespawn Spider
+Village Messenger
 Village Rites
 Village Watch
 Vindictive Warden
@@ -9042,6 +9096,7 @@ Virtue of Persistence
 Virulent Emissary
 Virulent Plague
 Virus Beetle
+Visage Bandit
 Visage of Bolas
 Vision of Love
 Visionary Augmenter
@@ -9130,6 +9185,8 @@ Wailing Ghoul
 Wakandan Drone Flock
 Wake the Reflections
 Waker of Waves
+Waker of the Wilds
+Wakeroot Elemental
 Walk the Plank
 Walk with the Ancestors
 Walking Corpse
@@ -9142,6 +9199,7 @@ Wall of Lost Thoughts
 Wall of Mist
 Wall of Mulch
 Wall of Omens
+Wall of Resurgence
 Wall of Runes
 Wall of Swords
 Wall of Vines
