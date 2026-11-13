@@ -5162,11 +5162,30 @@ fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, co
     let mut cost = ability_mana_cost(costs);
     // power-up the turn it entered: less its own mana cost
     if matches!(a, AbilityDef::PowerUpAbility { .. }) && game.obj(id).entered_turn == game.turn {
+        // `CardUtil.adjustCost(ability, permanent.getManaCost(), false)`: its own colored and hybrid symbols
+        // (a hybrid counts as both its colors) take off colored symbols; a hybrid symbol of the cost goes once
+        // either of its colors is taken off (black, red, blue, green, white first); generic takes off generic only
         let own = &game.obj(id).def.cost;
-        for k in 0..5 {
-            cost.colored[k] = cost.colored[k].saturating_sub(own.colored[k]);
+        let mut reduce = own.colored;
+        for &(a, b) in &own.hybrid {
+            reduce[a] += 1;
+            reduce[b] += 1;
         }
-        cost.generic = cost.generic.saturating_sub(own.generic);
+        for k in 0..5 {
+            let r = reduce[k].min(cost.colored[k]);
+            cost.colored[k] -= r;
+            reduce[k] -= r;
+        }
+        cost.hybrid.retain(|&(a, b)| {
+            for k in [2, 3, 1, 4, 0] {
+                if (a == k || b == k) && reduce[k] > 0 {
+                    reduce[k] -= 1;
+                    return false;
+                }
+            }
+            true
+        });
+        cost.generic = cost.generic.saturating_sub(own.generic + 2 * own.mono.len() as u32);
     }
     // Ghostfire Blade: {2} less if it can target a colorless creature (`inCheckPlayableState`); `activate` adds it
     // back once the target turns out not to be colorless

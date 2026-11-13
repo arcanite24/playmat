@@ -4134,10 +4134,12 @@ class Translator:
         if cls == 'ValiantTriggeredAbility' and n == 1:
             return out({'e': 'valiant'}, args[0])
         if cls == 'BecomesTargetSourceTriggeredAbility' and n == 4 and args[2] in ('SetTargetPointer.PLAYER', 'SetTargetPointer.NONE'):
-            # (an ability's targets don't count here yet, though a `FilterStackObject`'s should: Cactarantula is
-            # verified as it is)
-            return out({'e': 'becomes_target_of_spell', 'filter': self.filter(args[1])}, args[0], flag(args[3]),
-                       args[2] == 'SetTargetPointer.PLAYER')
+            # a `FilterStackObject`'s abilities count too (Tenured Concocter targeted by a fight ability)
+            a = out({'e': 'becomes_target_of_spell', 'filter': self.filter(args[1])}, args[0], flag(args[3]),
+                    args[2] == 'SetTargetPointer.PLAYER')
+            if self.stack_filter_abilities(args[1]):
+                a['on']['abilities'] = True
+            return a
         # (effect[, filter]): any spell or ability, or the filter's, no pointer; (…, SPELL, optional): at that spell
         if cls == 'BecomesTargetSourceTriggeredAbility' and (n in (1, 2) or n == 4 and args[2] == 'SetTargetPointer.SPELL'):
             stack = args[1] if n > 1 else 'StaticFilters.FILTER_SPELL_OR_ABILITY_A'
