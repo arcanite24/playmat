@@ -84,6 +84,7 @@ to keep them small; a recording keeps them, which is what the difference report 
 | triggers | `shadow-decks/trig1`..`trig5`, wave-2 trigger probes: magecraft (cast or copied), "attacks or blocks", blocks and becomes-blocked (per combat group, Java's `acceptBlockers` order), "attacks alone", an attached Equipment's attack and damage triggers, constellation, alliance, rally, "draw your Nth card", "your second spell", "one or more creatures deal combat damage to a player" (once per player, X the damage), discards (`DISCARDED_CARD`, and "one or more" once per discard), "you cycle", "cards leave your graveyard", "enters untapped", "scry or surveil", "your first spell during an opponent's turn", `OrTriggeredAbility`, a Role's granted attack trigger keeping its phrase | 30 of 30 in each (15 checked in under `shadow/triggers`); the factory's two rounds on the 351 cards these unlocked: 407 of 417 match, 340 verified |
 | face down | `shadow-decks/fd1`..`fd3`, wave 3's face-down probes: morph and megamorph (cast face down for {3}, turned face up as a special action that announces X first; a turned-up permanent that isn't a creature leaves combat), disguise (ward {2} while face down), manifest and manifest dread (a creature card turned up for its mana cost, a morph card for its morph cost too); what each player sees: to everyone a nameless 2/2 named for how it got there ("Morph", "Manifest"…), to its controller "Morph: Name" with the card as its other face; leaving the battlefield face up, even after an Aura or backup gave the face-down 2/2 abilities | 30 of 30 in each (6 checked in under `shadow/casting`) |
 | casting | `shadow-decks/cast3`..`cast11`, wave 3's alternative casts: prototype, awaken (the land becomes a 0/0 Elemental with haste and gets the counters), sneak (only in the declare blockers step, returning an unblocked attacker), backup (the counter on a target, the abilities until end of turn if it's another creature), discover (free cast or to hand, a Room cast as one half), strive, unearth, madness (exiled as it's discarded, also as a cost, then cast for its madness cost or put into the graveyard), disturb (the back cast from the graveyard, exiled instead of going to a graveyard from anywhere but the battlefield as its front); sneak, awaken and disturb cast the spell as it was when the ability was made, as Java's copy does | 30 of 30 in each (14 checked in under `shadow/casting`) |
+| mechanics | `shadow-decks/mech1`..`mech7`, wave 4's named mechanics: saddle and crew variants, embalm, eternalize and scavenge, ingest, pack tactics and job select, repartee, impending and free casts from hand, incubate, emerge, die-roll tables | 208 of 210 (two Reckoner Bankbuster token-order games are Java nondeterminism; 14 checked in under `shadow/mechanics`, beside two factory games) |
 | meta | `shadow-decks/meta`: the 24 meta decks, each against the others (288 games): behold for an ability that searches (asked, never auto-chosen), conditional mana of any color takes its color as it's made, each combat group deals its damage (and asks for replacement order) before the next assigns its own, a cancelled spree mode stops the cast before the next mode's targets, cards back from exile together see each other enter (Pinnacle Starcage), mana of any color asked at priority, generic mana paid one at a time in Java's order, short-living LKI for sacrifices | 287 of 288 match, the other unfinished in Java (15 checked in) |
 
 An overloaded `ReturnToHandTargetEffect` (Cyclonic Rift) returns its cards through `FixedTargets` made from a
@@ -274,7 +275,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,895 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,047 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -448,6 +449,26 @@ Being in the engine and being trusted are kept apart.
   `HashMap` order; two Food activations (Summoned Dromedary, You Hear Something on Watch); and single games
   (Profound Journey, Akoum Warrior, Depth Charge Colossus, Copper Host Crusher, Clone Legion, Refurbish, Spell
   Blast).
+
+  Named mechanics (13 Nov, wave 4): saddle and "attacks while saddled", the crew and saddle variants that count
+  toughness or power plus 2, embalm and eternalize (a token copy of the card, a 4/4 black Zombie for eternalize),
+  scavenge, ingest, pack tactics (its own `ATTACKER_DECLARED` per attacker), repartee, job select, impending (time
+  counters, not a creature while it has one), incubate (the Incubator's back face picks its image too, one more
+  random number), emerge (the sacrifice auto-chosen as Java's `tryToAutoChoose` reads the emerge text), die-roll
+  tables (`RollDieWithResultTableEffect`: `RandomUtil.nextInt(sides) + 1` from the game's seeded random numbers,
+  so the rolls replay), `AlternativeCostSourceAbility` with a condition, and `CastFromHandForFreeEffect`. 152 more
+  cards translate and load (10,047 in the engine). Probes `shadow-decks/mech1`..`mech7`: 208 of 210 games match (the
+  other two give Reckoner Bankbuster's Treasure and Pilot in `withAdditionalTokens` order, below), 14 checked in
+  under `shadow/mechanics/`. Two factory rounds (184 games, 179 match) verified 148 more: 10,011 of 10,047. Their
+  fixes, each with a game under `shadow/mechanics/`: the triggers of one damage-to-a-player event wait in Java's
+  order together (Ingest beside Furnace Reins' "to a player or battle"); a granted trigger whose effect is named
+  "this creature" keeps it (Black Mage's Rod). Left: Reckoner Bankbuster (the token order), Blasphemous Edict (a
+  face-down Aura card isn't sacrificed as a creature), Surtland Elementalist and Vexing Scuttler pending (not cast
+  yet). Not done: bestow, craft, cipher, enlist, mayhem, "can block an additional creature" and
+  `EntersWithCountersControlledEffect` each need engine support of their own (a permanent that's an Aura or a
+  creature, an exile cost across zones, encoded spells, an attack replacement, a discarded-this-turn watcher,
+  multi-blocks, an enters replacement order); venture into the dungeon needs the dungeon subsystem (rooms chosen,
+  not random).
 
   Java's nondeterminism, not copied: tokens created together with `withAdditionalTokens` (Forbidden Friendship's
   Dragon and Human) enter in `CreateTokenEvent`'s `HashMap` order, which changes from run to run, so the games where
