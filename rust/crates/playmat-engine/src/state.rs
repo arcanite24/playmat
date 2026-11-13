@@ -904,6 +904,8 @@ pub struct Game {
     /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
     /// count (Anger of the Gods exiles each one it damaged)
     pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
+    /// players dealt combat damage this turn, by source (Steel Hellkite's watcher): the source, the player
+    pub combat_damaged_players: Vec<(ObjId, Seat)>,
     /// the players whose lands have all basic land types until end of turn (Energybending)
     pub all_basics_until_eot: Vec<Seat>,
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
@@ -1074,6 +1076,7 @@ impl Game {
             exile_if_dies: Vec::new(),
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
+            combat_damaged_players: Vec::new(),
             all_basics_until_eot: Vec::new(),
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
@@ -1920,6 +1923,10 @@ impl Game {
         }) || self.any_static(|g, src, e| match e {
             EffectDef::AttacksIfAbleAllEffect { filter } => {
                 g.filter_matches(filter, g.obj(src).controller, Some(src), id)
+            }
+            // one a resolved effect gave it (Legion Warboss's token)
+            EffectDef::AttacksIfAbleSourceEffect { condition } => {
+                src == id && g.condition_holds(condition.as_ref(), g.obj(src).controller, src)
             }
             _ => false,
         })
