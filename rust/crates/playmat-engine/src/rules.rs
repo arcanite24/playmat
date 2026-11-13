@@ -13314,7 +13314,12 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                 // its targets, which can't be cancelled; with no legal ones it's removed (rule 603.3d)
                 if let Some((rule, _, targets, _)) = ability.as_ref().and_then(|a| a.triggered()) {
                     let targets = mode_targets.as_deref().unwrap_or(targets);
-                    if !targets.is_empty() {
+                    // (`PlayerImpl.triggerAbility`'s `canChooseTarget`: every target first, so a later "up to one"
+                    // isn't asked when an earlier one has none: Invasion of Muraganda with no creature of yours)
+                    let card = game.stack.last().map(|t| t.card);
+                    if !targets.iter().all(|x| target_possible(game, seat, x, card)) {
+                        Arc::make_mut(&mut game.stack).pop();
+                    } else if !targets.is_empty() {
                         if !choose_targets(game, d, seat, targets, None, rule, false) {
                             if d.stopped() {
                                 return happened;
