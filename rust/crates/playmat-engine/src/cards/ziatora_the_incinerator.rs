@@ -16,9 +16,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         .into_iter()
         .filter(|o| game.obj(*o).controller == you && *o != cx.source_id())
         .collect();
-    if possible.is_empty() {
-        return Some(());
-    }
+    // (`HumanPlayer.choose` skips an empty choice only when it's required: with nothing to sacrifice it still asks)
     let rule = item_rule(game, cx.item);
     let chosen = choose_cards(game, d, you, &possible, &possible, 0, 1, &rule)?;
     let Some(&o) = chosen.first() else { return Some(()) };
