@@ -277,6 +277,16 @@ Being in the engine and being trusted are kept apart.
   (Matter Reshaper). 84 more cards are verified: 7,284. A probe round for snow mana and the pile and choice
   effects (88 games, 84 of the 85 Java finished match) verified 32 more: 7,316.
 
+  Wave 2, round 6 (13 Nov): one round over the 1,535 cards translated but not verified on master 1225a38, the used
+  ones first (1,524 games; Java finished 1,507). Its fixes, each with a game under `shadow/factory/`: loyalty
+  abilities a static gives planeswalkers (Way of the Pyromancer's "+1: Add {R}."), and their texts ("{this} deals",
+  surveil's reminder); an Aura's "activate only as a sorcery" ability for its permanent (Skygames); a modal spell cast
+  with no mode chosen resolves doing nothing (Call Damage Control); a distribute target with a dynamic amount needs
+  no target (`super(amount, 0, …)`: Undercity Upheaval with no creature); a granted "this creature gets/deals"
+  reads "{this}" (Dragon Mantle, Burning Anger). Replayed on master bf0977f, 1,464 games match and 43 differ; 1,361
+  more cards are verified, added in two PRs, the used ones first: 7,997, then 8,677. Left: a daybound card cast at
+  night numbers its abilities as one that entered transformed in Java (Fangblade Brigand), and single games.
+
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
   same priority still trigger (Agent Venom); the order of triggers that fire together (gained ones, Lone Rider;
