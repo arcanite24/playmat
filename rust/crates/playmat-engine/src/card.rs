@@ -2317,6 +2317,128 @@ pub enum EffectDef {
     ExileAndGainLifeEqualPowerTargetEffect,
     /// `ExileThenReturnTargetEffect`: exile the targets, then return them under their owner's control
     ExileThenReturnTargetEffect,
+    /// `ExileThenReturnTargetEffect(yourControl, …, PutCards)`: the same, under your control (`your_control`) or
+    /// tapped
+    ExileThenReturnUnderTargetEffect {
+        #[serde(default)]
+        your_control: bool,
+        #[serde(default)]
+        tapped: bool,
+    },
+    /// `PutCardFromHandOntoBattlefieldEffect`: you may (always asked) put a card of `filter` from your hand onto the
+    /// battlefield, tapped or attacking
+    PutCardFromHandOntoBattlefieldEffect {
+        filter: Filter,
+        #[serde(default)]
+        tapped: bool,
+        #[serde(default)]
+        attacking: bool,
+    },
+    /// `MillCardsEachPlayerEffect`: each player of `who` ("any", "opponent"), from you in turn order, mills `amount`
+    MillCardsEachPlayerEffect {
+        amount: Amount,
+        who: String,
+    },
+    /// `MillHalfLibraryTargetEffect`: the target players mill half their library, rounded down (or up)
+    MillHalfLibraryTargetEffect {
+        #[serde(default)]
+        round_up: bool,
+    },
+    /// `PutOnTopOrBottomLibraryTargetEffect`: the first target's owner puts it on the top (`n`th from the top) or
+    /// the bottom of their library, asked "Top" or "Bottom"
+    PutOnTopOrBottomLibraryTargetEffect {
+        #[serde(default = "one")]
+        n: usize,
+    },
+    /// `SearchLibraryPutOnLibraryEffect`: search your library for cards of `filter`, shuffle, then put them on top
+    SearchLibraryPutOnLibraryEffect {
+        filter: Filter,
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
+    /// `ExileReturnBattlefieldNextEndStepTargetEffect`: exile the targets; at the beginning of the next end step
+    /// return those cards to the battlefield under their owner's (or your) control, tapped or not
+    ExileReturnBattlefieldNextEndStepTargetEffect {
+        #[serde(default)]
+        your_control: bool,
+        #[serde(default)]
+        tapped: bool,
+    },
+    /// the delayed half of `ExileReturnBattlefieldNextEndStepTargetEffect`: its fixed targets, cards still in exile,
+    /// return to the battlefield (`ReturnToBattlefieldUnder…ControlTargetEffect`)
+    ReturnToBattlefieldTargetEffect {
+        #[serde(default)]
+        your_control: bool,
+        #[serde(default)]
+        tapped: bool,
+    },
+    /// `ExileAndReturnSourceEffect(PutCards.BATTLEFIELD[_TAPPED])`: exile this permanent, then return it under its
+    /// owner's (or your) control
+    ExileAndReturnSourceEffect {
+        #[serde(default)]
+        your_control: bool,
+        #[serde(default)]
+        tapped: bool,
+        /// `PutCards.BATTLEFIELD_TRANSFORMED`: it returns as its back face
+        #[serde(default)]
+        transformed: bool,
+    },
+    /// `ShuffleIntoLibraryTargetEffect`: the targets' owners shuffle them into their libraries (asked first when
+    /// optional)
+    ShuffleIntoLibraryTargetEffect {
+        #[serde(default)]
+        optional: bool,
+    },
+    /// `ExileAllEffect`: exile every permanent of the filter
+    ExileAllEffect {
+        filter: Filter,
+    },
+    /// `ExileAttachedEffect`: exile the permanent this is attached to
+    ExileAttachedEffect,
+    /// `DrawCardAllEffect`: each player of `who`, from you in turn order, draws `amount`
+    DrawCardAllEffect {
+        amount: Amount,
+        who: String,
+    },
+    /// `ExileCardYouChooseTargetOpponentEffect`: the target opponent reveals their hand; you choose a card of the
+    /// filter from it and exile it
+    ExileCardYouChooseTargetOpponentEffect {
+        filter: Filter,
+    },
+    /// `RevealLibraryPutIntoHandEffect`: reveal the top `amount`, put every card of the filter into your hand and
+    /// the rest on the bottom of your library (in any order, or a random one) or into your graveyard
+    RevealLibraryPutIntoHandEffect {
+        amount: Amount,
+        filter: Filter,
+        #[serde(default)]
+        graveyard: bool,
+        #[serde(default)]
+        any_order: bool,
+    },
+    /// `ShuffleIntoLibrarySourceEffect`: this object, while it's still the same one, is shuffled into its owner's
+    /// library
+    ShuffleIntoLibrarySourceEffect,
+    /// `ShuffleYourGraveyardIntoLibraryEffect`
+    ShuffleYourGraveyardIntoLibraryEffect,
+    /// `CreateTokenAllEffect`: each player of `who`, from you in turn order, creates the tokens of `effect` (a
+    /// `CreateTokenEffect`)
+    CreateTokenAllEffect {
+        who: String,
+        effect: Box<EffectDef>,
+    },
+    /// `ExileCardsFromTopOfLibraryTargetEffect`: the target player exiles the top `amount` cards of their library
+    ExileCardsFromTopOfLibraryTargetEffect {
+        amount: Amount,
+    },
+    /// `ExileFromZoneTargetEffect(Zone.HAND, filter, amount, false)`: the target player exiles `amount` cards of the
+    /// filter from their hand
+    ExileFromHandTargetEffect {
+        filter: Filter,
+        #[serde(default = "one")]
+        amount: usize,
+    },
     /// rebound's upkeep trigger: its owner may cast the exiled card without paying its mana cost
     ReboundCastSpellFromExileEffect,
     /// returns the targets to their owners' hands
