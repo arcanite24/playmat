@@ -510,6 +510,10 @@ pub enum Pred {
         cmp: Cmp,
         n: i32,
     },
+    /// a predicate class a card declares for itself (or a framework one), written in Rust (`src/cards/`)
+    Card {
+        handler: crate::rules::cards::PredicateHandler,
+    },
     Not {
         x: Box<Pred>,
     },
