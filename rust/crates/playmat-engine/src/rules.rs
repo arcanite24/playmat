@@ -11048,7 +11048,9 @@ fn apply_each_effect(
                     };
                     if yes {
                         let rule_text = item_rule(game, item);
-                        match choose_cards(game, d, controller, &cards, &possible, number, number, &rule_text) {
+                        // `LookLibraryAndPickControllerEffect`: picking more than one is "up to" (none at least)
+                        let min = if *pick > 1 { 0 } else { number };
+                        match choose_cards(game, d, controller, &cards, &possible, min, number, &rule_text) {
                             Some(chosen) => picked = chosen,
                             None => return,
                         }
