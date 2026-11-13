@@ -224,7 +224,12 @@ at the same point, so they sort into the layers, timestamps and replacement orde
   it wins over their translation of the same class, even a framework one (Traxos's `SpellCostReductionSourceEffect`
   with a condition the matchers don't read).
 - Keep a function from asking what its own layer changes (a 7c boost reading power), and from recursing through the
-  query it answers: `has_subtype` guards layer 4 handlers against that.
+  query it answers: `has_subtype` guards layer 4 handlers against that, and a conditional effect's condition is only
+  read around a handler's effect.
+
+The first batch (13 Nov): 24 cards of the static claim list and 7 framework classes, which bring in 4 more; three
+factory rounds (63 games, 62 matching; the other is an "on it" ability text of another card) verified all 28: 10,039
+of 10,075. Games covering them are under `shadow/statics/`.
 
 A card's own static effect classes (replacement, continuous, cost, rule-modifying, restriction and prevention effects
 lasting while the source is on the battlefield) are read by `rust/tools/custom_statics.py`. A replacement effect is
@@ -320,7 +325,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,047 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,075 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
