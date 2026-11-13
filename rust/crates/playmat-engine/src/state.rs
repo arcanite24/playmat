@@ -751,6 +751,9 @@ pub struct Game {
     pub events: Option<Vec<GameEvent>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
+    /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
+    /// count (Anger of the Gods exiles each one it damaged)
+    pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
     /// its zone change count, the subtype
     pub subtypes_until_eot: Vec<(ObjId, u32, String)>,
@@ -895,6 +898,7 @@ impl Game {
             log: None,
             events: None,
             exile_if_dies: Vec::new(),
+            damaged_by_source: Vec::new(),
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
             skip_next_untap: Vec::new(),

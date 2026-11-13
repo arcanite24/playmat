@@ -11326,6 +11326,15 @@ fn apply_each_effect(
                 if let Some(Target::Obj(o)) = target {
                     let zcc = game.obj(o).zcc;
                     game.exile_if_dies.push((o, zcc));
+                } else if target.is_none() {
+                    // no target (Anger of the Gods): each creature this source dealt damage to this turn
+                    let hit: Vec<(ObjId, u32)> = game
+                        .damaged_by_source
+                        .iter()
+                        .filter(|(s, _, _)| *s == source.0)
+                        .map(|(_, o, z)| (*o, *z))
+                        .collect();
+                    game.exile_if_dies.extend(hit);
                 }
             }
             // static abilities (`Game::power_toughness`, `Game::has_ability`) and as-enters effects
@@ -13278,6 +13287,10 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 combat,
                 ..GameEvent::new(EventKind::Damage)
             });
+            if creature {
+                let zcc = game.obj(o).zcc;
+                game.damaged_by_source.push((source, o, zcc));
+            }
             let turn = game.turn;
             let t = game.obj_mut(o);
             t.damaged_by = if t.damaged_by.0 == turn { (turn, t.damaged_by.1 | (1 << you)) } else { (turn, 1 << you) };
@@ -14204,6 +14217,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     }
     game.must_block_from.clear();
     game.exile_if_dies.clear();
+    game.damaged_by_source.clear();
     game.subtypes_until_eot.clear();
     for id in Arc::clone(&game.battlefield).iter().copied() {
         if game.obj(id).loyalty_used {
