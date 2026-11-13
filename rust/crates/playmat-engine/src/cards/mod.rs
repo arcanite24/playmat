@@ -247,7 +247,8 @@ mod tests {
     fn handler_names_are_unique() {
         for h in super::ALL.iter().flat_map(|hs| hs.iter()) {
             assert!(h.java.chars().all(|c| c.is_ascii_alphanumeric() || c == '.'), "{}", h.java);
-            assert!(std::ptr::eq(super::find(h.java).unwrap(), h));
+            // (`HANDLERS` are consts: each use may be its own copy, so compare names, not addresses)
+            assert_eq!(super::find(h.java).map(|f| f.java), Some(h.java));
         }
     }
 }
