@@ -681,6 +681,9 @@ pub struct Game {
     pub at_end_of_combat: Vec<StackItem>,
     /// "at the beginning of the next end step" delayed triggers
     pub at_next_end_step: Vec<StackItem>,
+    /// "when that creature dies this turn" delayed triggers: the creature as it was, the turn, whether its target is
+    /// the creature's controller, the trigger
+    pub when_dies: Vec<(ObjId, u32, u32, bool, StackItem)>,
     /// "at the beginning of the next turn's upkeep" delayed triggers
     pub at_next_upkeep: Vec<StackItem>,
     /// cards exiled by rebound: (card, its exile zcc, owner), offered at the owner's next upkeep
@@ -836,6 +839,9 @@ pub struct Game {
     pub returning: Vec<(Seat, ObjId)>,
     /// damage permanents were dealt since triggers were last checked, in order (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
     pub damaged_batch: Vec<(ObjId, i32)>,
+    /// damage players were dealt since triggers were last checked: source, player, amount, combat
+    /// (`DAMAGED_BATCH_FOR_ONE_PLAYER`)
+    pub player_damage_batch: Vec<(ObjId, Seat, i32, bool)>,
     /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
     pub mana_batch: u64,
     /// double-faced permanents whose triggers Java registered as they entered, in that order (`trigger_order`)
@@ -846,6 +852,10 @@ pub struct Game {
     pub batch_pending: Vec<StackItem>,
     /// a card was put into exile from a graveyard or the battlefield since triggers were last checked (Ketramose)
     pub exiled_batch: bool,
+    /// the cards that left a graveyard since triggers were last checked (`ZONE_CHANGE_BATCH`)
+    pub left_graveyard: Vec<ObjId>,
+    /// cards discarded since the last `DISCARDED_CARDS` (`Game::discarded_cards`)
+    pub discarded: Vec<(Seat, ObjId)>,
     /// `LOST_LIFE_BATCH_FOR_ONE_PLAYER` triggers waiting for the batch: the player who lost life, and the trigger
     /// with the total as its X
     pub life_batch: Vec<(Seat, StackItem)>,
@@ -890,6 +900,7 @@ impl Game {
             pending: Vec::new(),
             at_end_of_combat: Vec::new(),
             at_next_end_step: Vec::new(),
+            when_dies: Vec::new(),
             at_next_upkeep: Vec::new(),
             rebound: Vec::new(),
             attacks_opponent: Vec::new(),
@@ -962,11 +973,14 @@ impl Game {
             returning: Vec::new(),
             day: None,
             damaged_batch: Vec::new(),
+            player_damage_batch: Vec::new(),
             mana_batch: 0,
             dfc_registered: 0,
             noncombat_fired: Vec::new(),
             batch_pending: Vec::new(),
             exiled_batch: false,
+            left_graveyard: Vec::new(),
+            discarded: Vec::new(),
             life_batch: Vec::new(),
             resolving_controller: None,
             chosen_before: Vec::new(),
@@ -1404,7 +1418,11 @@ impl Game {
             let lki = o.lki_def.as_ref().filter(|_| o.zone != Zone::Battlefield && self.lookback.contains(&src));
             for (i, a) in lki.unwrap_or(&o.def).abilities.iter().enumerate() {
                 if let Some(t) = a.trigger() {
-                    if fires(self, src, o.controller, t)
+                    let hit = match t {
+                        Trigger::Or { ts } => ts.iter().any(|x| fires(self, src, o.controller, x)),
+                        _ => fires(self, src, o.controller, t),
+                    };
+                    if hit
                         && self.condition_holds(a.intervening_if(), o.controller, src)
                         && self.condition_holds(a.trigger_condition(), o.controller, src)
                     {
@@ -1445,6 +1463,35 @@ impl Game {
 
     pub fn trigger_of<'a>(&'a self, t: &'a StackItem) -> Option<&'a Trigger> {
         t.ability.and_then(|(i, _)| self.item_def(t).abilities.get(i)).and_then(|a| a.trigger())
+    }
+
+    /// `DISCARDED_CARDS`, once for the cards each player discarded together: "whenever you discard one or more
+    /// cards", X the number of them of the filter
+    pub fn discarded_cards(&mut self) {
+        let batch = std::mem::take(&mut self.discarded);
+        let mut seats: Vec<Seat> = Vec::new();
+        for (s, _) in &batch {
+            if !seats.contains(s) {
+                seats.push(*s);
+            }
+        }
+        for seat in seats {
+            let cards: Vec<ObjId> = batch.iter().filter(|(s, _)| *s == seat).map(|(_, c)| *c).collect();
+            let sources = self.trigger_sources();
+            let fired = self.triggers(sources, |g, src, you, t| match t {
+                Trigger::DiscardsOneOrMore { filter } => {
+                    you == seat && cards.iter().any(|c| g.filter_matches(filter, you, Some(src), *c))
+                }
+                _ => false,
+            });
+            for mut t in fired {
+                if let Some(Trigger::DiscardsOneOrMore { filter }) = self.trigger_of(&t) {
+                    let you = t.controller;
+                    t.x = cards.iter().filter(|c| self.filter_matches(filter, you, Some(t.card), **c)).count() as i32;
+                }
+                self.pending.push(t);
+            }
+        }
     }
 
     /// The card face a spell or ability comes from (an ability keeps the face it came from)
@@ -1504,6 +1551,15 @@ impl Game {
             {
                 if let Some((_, k)) = o.class_gained.iter().find(|(l, _)| l == n) {
                     return *k;
+                }
+            }
+            // a triggered ability an effect gave it (`GainAbilityTargetEffect`): Java registers it as the effect
+            // applies, after every object's own (Fake Your Own Death's dies trigger after Vat of Rebirth's)
+            if let (Some((base, _, gave)), Some(a)) = (&o.land_type_base, o.def.abilities.get(i)) {
+                if gave.contains(a) && !base.abilities.contains(a) {
+                    if let Some(k) = self.grants.iter().position(|g| g.target == t.card && g.ability == *a) {
+                        return (1 << 40) + k as u64;
+                    }
                 }
             }
         }
@@ -2372,10 +2428,11 @@ impl Game {
     /// player controls (controlled by B)" (in a duel, the controller's opponent)
     pub fn that_player_rule(&self, item: &StackItem, rule: &str) -> String {
         let ability = item.ability.and_then(|(i, _)| self.item_def(item).abilities.get(i));
-        if matches!(ability, Some(AbilityDef::TriggeredAbility { that_player_controls: true, .. })) {
+        if let Some(AbilityDef::TriggeredAbility { that_player_controls: true, that_player_name, .. }) = ability {
             let them = (item.controller + 1) % self.seats();
-            let named = format!("that player controls (controlled by {})", crate::log::player(them));
-            return rule.replacen("that player controls", &named, 1);
+            let name = that_player_name.as_deref().unwrap_or("that player controls");
+            let named = format!("{name} (controlled by {})", crate::log::player(them));
+            return rule.replacen(name, &named, 1);
         }
         rule.to_string()
     }
@@ -2409,6 +2466,7 @@ impl Game {
     /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
         let from = self.obj(id).zone;
+        let requested = zone;
         // a prepared permanent's copy is kept only while it stays: it can't be cast, and the next state check
         // removes it (704.5e)
         if from == Zone::Battlefield {
@@ -2575,6 +2633,18 @@ impl Game {
             self.creature_died = true;
             self.creatures_died += 1;
         }
+        // "whenever a card is put into a graveyard from anywhere" (`ZONE_CHANGE` to a graveyard): its source on the
+        // battlefield now, a card (not a token) of the filter whose owner is `who`
+        let into_graveyard = |g: &Game, src: ObjId, you: Seat, t: &Trigger| match t {
+            Trigger::PutIntoGraveyardAll { filter, who } => {
+                src != id
+                    && g.obj(src).zone == Zone::Battlefield
+                    && !g.obj(id).token
+                    && Game::whose(who, you, g.obj(id).owner)
+                    && g.filter_matches(filter, you, Some(src), id)
+            }
+            _ => false,
+        };
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
             let mut sources: Vec<ObjId> =
                 self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
@@ -2593,8 +2663,9 @@ impl Game {
                         || (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
                 Trigger::PeltCollector => src != id && died_controller == you,
-                Trigger::DiesAttached => g.obj(src).attached_to.is_some_and(|(a, _)| a == id),
+                Trigger::DiesAttached { .. } => g.obj(src).attached_to.is_some_and(|(a, _)| a == id),
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
+                Trigger::PutIntoGraveyardAll { .. } => into_graveyard(g, src, you, t),
                 _ => false,
             });
             let mut fired = self.pelt_collector(fired, id);
@@ -2630,6 +2701,9 @@ impl Game {
                 Trigger::LeavesAll { filter } => g.filter_matches(filter, you, Some(src), id),
                 _ => false,
             })
+        } else if zone == Zone::Graveyard && from != Zone::Graveyard {
+            let sources: Vec<ObjId> = self.battlefield.iter().copied().collect();
+            self.triggers(sources, |g, src, you, t| into_graveyard(g, src, you, t))
         } else {
             Vec::new()
         };
@@ -2645,8 +2719,29 @@ impl Game {
                 t.lki_power = Some(power);
             }
             // a copy's (Mockingbird as Greedy Freebooter): the ability is the copied one, whatever the card is after
-            if t.card == id && t.ability.is_some() && t.def.is_none() && self.obj(id).copied_def.is_some() {
+            // and one an effect gave it until end of turn (Fake Your Own Death's "When this creature dies, …"): the
+            // card in the graveyard doesn't have it
+            if t.card == id
+                && t.ability.is_some()
+                && t.def.is_none()
+                && (self.obj(id).copied_def.is_some() || self.obj(id).land_type_base.is_some())
+            {
                 t.def = Some(self.obj(id).def.clone());
+            }
+        }
+        // "when that creature dies this turn" (delayed triggers are checked before the others, in the order made)
+        if from == Zone::Battlefield && zone == Zone::Graveyard && !self.when_dies.is_empty() {
+            let (zcc, turn) = (self.obj(id).zcc, self.turn);
+            self.when_dies.retain(|w| w.2 == turn);
+            let (now, rest): (Vec<_>, Vec<_>) =
+                std::mem::take(&mut self.when_dies).into_iter().partition(|w| w.0 == id && w.1 == zcc);
+            self.when_dies = rest;
+            for (k, (_, _, _, to_player, mut item)) in now.into_iter().enumerate() {
+                if to_player {
+                    item.targets = vec![vec![Target::Player(died_controller)]];
+                    item.target_zcc = vec![vec![0]];
+                }
+                dies.insert(k, item);
             }
         }
         // earthbend's delayed trigger (delayed triggers are checked before the others)
@@ -2862,6 +2957,28 @@ impl Game {
                 ..GameEvent::new(EventKind::Zone)
             });
         }
+        if from == Zone::Graveyard && zone != Zone::Graveyard {
+            self.left_graveyard.push(id);
+        }
+        // DISCARDED_CARD, after the move (a card from a hand to a graveyard is a discarded one)
+        if from == Zone::Hand && requested == Zone::Graveyard {
+            self.discarded.push((owner, id));
+            let sources = self.trigger_sources();
+            let fired = self.triggers(sources, |g, src, you, t| match t {
+                Trigger::Discards { who, filter } => {
+                    Game::whose(who, you, owner) && g.filter_matches(filter, you, Some(src), id)
+                }
+                _ => false,
+            });
+            for mut t in fired {
+                let a = t.ability.and_then(|(i, _)| self.item_def(&t).abilities.get(i));
+                if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
+                    t.targets = vec![vec![Target::Player(owner)]];
+                    t.target_zcc = vec![vec![0]];
+                }
+                self.pending.push(t);
+            }
+        }
         for mut t in dies {
             // a dead permanent's own trigger is its graveyard card's
             if t.card == id {
@@ -2873,8 +2990,17 @@ impl Game {
                 t.targets = vec![vec![Target::Player(died_controller)]];
                 t.target_zcc = vec![vec![0]];
             }
+            // "when this dies, return it …" (`SetTargetPointer.CARD`): the card in the graveyard
+            let at_card = t.ability.and_then(|(i, _)| self.item_def(&t).abilities.get(i));
+            if t.card == id
+                && self.trigger_of(&t) == Some(&Trigger::Dies)
+                && matches!(at_card, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. }))
+            {
+                t.targets = vec![vec![Target::Obj(id)]];
+                t.target_zcc = vec![vec![self.obj(id).zcc]];
+            }
             // "return that card": the card in the graveyard
-            if t.card != id && self.trigger_of(&t) == Some(&Trigger::DiesAttached) {
+            if t.card != id && self.trigger_of(&t) == Some(&Trigger::DiesAttached { no_card: false }) {
                 t.targets = vec![vec![Target::Obj(id)]];
                 t.target_zcc = vec![vec![self.obj(id).zcc]];
             }

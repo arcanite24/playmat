@@ -444,6 +444,8 @@ CUSTOM = {
 # abilities with arguments: class -> (field name, kind) per argument; optional trailing arguments may be left out
 ABILITIES = {
     'EntersBattlefieldTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'EntersBattlefieldUntappedTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'ScryOrSurveilTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'CastSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'CrewsVehicleSourceTriggeredAbility': [('effect', 'effect')],
     'BecomesTappedSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
@@ -542,7 +544,8 @@ def triggered(a):
     return out
 
 
-SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'CrewsVehicleSourceTriggeredAbility': 'crews_vehicle',
+SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlefieldUntappedTriggeredAbility': 'enters_untapped',
+                   'ScryOrSurveilTriggeredAbility': 'you_scry_or_surveil', 'CrewsVehicleSourceTriggeredAbility': 'crews_vehicle',
                    'BecomesTappedSourceTriggeredAbility': 'becomes_tapped', 'CastSourceTriggeredAbility': 'cast_this', 'AttacksTriggeredAbility': 'attacks',
                    'DiesSourceTriggeredAbility': 'dies', 'PutIntoGraveFromBattlefieldSourceTriggeredAbility': 'dies',
                    'EntersBattlefieldOrDiesSourceTriggeredAbility':
@@ -552,6 +555,12 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'CrewsVehicleS
                    'GainLifeFirstTimeTriggeredAbility': 'you_gain_life_first_time',
                    'DealsCombatDamageToAPlayerTriggeredAbility': 'combat_damage_to_player',
                    'DamagedOpponentsNoncombatTriggeredAbility': 'opponents_dealt_noncombat_damage'}
+
+# the triggers an `OrTriggeredAbility` may combine: those whose events the engine checks with `Game::triggers` alone
+# (nothing after it looks at which trigger it was)
+OR_PARTS = {'enters', 'attacks', 'dies', 'spell_cast', 'step_begins', 'becomes_target_of_spell',
+            'combat_damage_to_player', 'enters_all', 'blocks', 'becomes_blocked', 'discards', 'cast_this', 'dies_all',
+            'attacks_attached'}
 
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
@@ -1059,7 +1068,7 @@ class Translator:
         # the life a "whenever you gain life" trigger saw is its X (The Ooze: the +1/+1 counters on what left)
         if arg in ('GetXValue.instance', 'ManacostVariableValue.REGULAR', 'ManacostVariableValue.ETB',
                    'SavedGainedLifeValue.MUCH', 'TheOozeValue.instance', 'SavedDamageValue.MUCH', 'SavedDamageValue.MANY',
-                   'SavedLifeLossValue.MUCH'):
+                   'SavedLifeLossValue.MUCH', 'SavedDiscardValue.MANY', 'SavedDiscardValue.MUCH'):
             return {'v': 'x'}
         if (m := re.fullmatch(r'new CountersSourceCount\((CounterType\.\w+)\)', arg)) and m.group(1) in COUNTERS:
             return {'v': 'source_counters', 'counter': COUNTERS[m.group(1)]}
@@ -1669,11 +1678,12 @@ class Translator:
         # `new DoWhenCostPaid(reflexive, cost, "Forage?")`
         if cls == 'DoWhenCostPaid' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[2].strip()):
             r = self.vars.get(args[0].strip()) or self.ability(args[0])
-            if r.get('class') != 'Reflexive' or [e['class'] for e in r['effects']] != ['ReturnToHandTargetEffect']:
+            if r.get('class') != 'Reflexive':
                 raise Unsupported('reflexive ability ' + args[0])
+            # the reflexive trigger's text: its own, else what follows "when you do," in the ability's (filled in
+            # by `in_java_order`)
             return {'class': cls, 'cost': [self.cost(args[1])], 'message': args[2].strip()[1:-1],
-                    'rule': 'return target permanent card from your graveyard to your hand.',
-                    'targets': r['targets'], 'effects': r['effects']}
+                    'rule': r.get('rule', WHEN_YOU_DO), 'targets': r['targets'], 'effects': r['effects']}
         # `new DoIfCostPaid(null, otherwise, cost)`: only what's done when it isn't paid
         # `new DoIfCostPaid(effect, null, cost, optional)`
         if cls == 'DoIfCostPaid' and len(args) == 4 and args[1].strip() == 'null' and args[3].strip() in ('true', 'false'):
@@ -1948,6 +1958,13 @@ class Translator:
         # Rest in Peace's: any player's cards, and tokens
         if cls == 'GraveyardFromAnywhereExileReplacementEffect' and [a.strip() for a in args] == ['false', 'true']:
             return {'class': cls}
+        # the target card (a dies trigger's) back onto the battlefield, under your control or its owner's
+        if cls == 'ReturnToBattlefieldUnderYourControlTargetEffect' and args in ([], ['false']):
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False}
+        if cls == 'ReturnToBattlefieldUnderOwnerControlTargetEffect' and len(args) == 2 \
+                and args[0].strip() in ('true', 'false') and args[1].strip() == 'false':
+            return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': args[0].strip() == 'true',
+                    'owner': True}
         if cls == 'ReturnFromGraveyardToBattlefieldWithCounterTargetEffect' and len(args) in (1, 2) \
                 and (len(args) == 1 or args[0].strip() in ('true', 'false')):
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False,
@@ -2060,6 +2077,9 @@ class Translator:
                         'rule': 'When you next cast a creature spell this turn, that creature enters with an '
                                 'additional +1/+1 counter on it.'}
             d = self.vars.get(args[0].strip()) or self.ability(args[0])
+            if d.get('class') == 'WhenTargetDiesDelayed':
+                return {'class': 'CreateWhenTargetDiesDelayedEffect', 'effects': d['effects'], 'rule': d['rule'],
+                        'to_player': d['to_player']}
             if d.get('class') == 'NextUpkeepDelayed':
                 return {'class': 'CreateNextUpkeepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
             if d.get('class') != 'NextEndStepDelayed':
@@ -2688,6 +2708,17 @@ class Translator:
         # "when you do, …": its targets are added after (`DoWhenCostPaid`)
         if cls == 'ReflexiveTriggeredAbility' and len(args) == 2 and args[1].strip() == 'false':
             return {'class': 'Reflexive', 'effects': [self.effect(args[0])], 'targets': []}
+        # with its own text (`getRule`: the text with its first letter upper case, and a period)
+        if cls == 'ReflexiveTriggeredAbility' and len(args) == 3 and args[1].strip() == 'false' \
+                and (r := re.fullmatch(r'"([^"]*)"', canonical(args[2]).replace('"+"', ''))):
+            return {'class': 'Reflexive', 'effects': [self.effect(args[0])], 'targets': [],
+                    'rule': r.group(1)[:1].upper() + r.group(1)[1:] + '.'}
+        # "when that creature dies this turn, …": its text is the spell's sentence that starts so
+        if cls == 'WhenTargetDiesDelayedTriggeredAbility' and len(args) in (1, 2) \
+                and (len(args) == 1 or args[1].strip() in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER')):
+            return {'class': 'WhenTargetDiesDelayed', 'effects': [self.effect(args[0])],
+                    'rule': RULE_FROM + 'When that creature dies this turn, >',
+                    'to_player': len(args) == 2 and args[1].strip() == 'SetTargetPointer.PLAYER'}
         if cls == 'AtTheBeginOfNextUpkeepDelayedTriggeredAbility' and len(args) == 2 \
                 and args[1].strip() == 'Duration.OneUse' and args[0].strip() == 'new DrawCardSourceControllerEffect(1)':
             return {'class': 'NextUpkeepDelayed', 'effects': [self.effect(args[0])],
@@ -3130,6 +3161,251 @@ class Translator:
         if cls == 'EntersBattlefieldThisOrAnotherTriggeredAbility' and n == 4:
             filt = self.filter(args[1]) + ([YOU] if flag(args[3]) else [])
             return out({'e': 'enters_all', 'filter': filt, 'include_self': True}, args[0], flag(args[2]))
+        return self.wave2_triggers(cls, args, flag, out)
+
+    def wave2_triggers(self, cls, args, flag, out):
+        """More trigger classes (wave 2), read by shape; None if `cls` isn't one of them"""
+        n = len(args)
+        # "whenever a creature you control deals combat damage to a player": the permanent (PERMANENT), its
+        # controller (PLAYER) or, with affectsDefendingPlayer, the damaged player is the pointer; X is the damage
+        if cls == 'DealsDamageToAPlayerAllTriggeredAbility' and n in (5, 6, 7) and not args[0].startswith('Zone.') \
+                and args[4] == 'true':
+            pointer = args[3]
+            damaged = n >= 6 and args[5] == 'true'
+            who = 'opponent' if n == 7 and args[6] == 'TargetController.OPPONENT' else ''
+            if n == 7 and args[6] not in ('TargetController.OPPONENT', 'TargetController.ANY'):
+                raise Unsupported(cls + ' ' + args[6])
+            if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+                raise Unsupported(cls + ' ' + pointer)
+            on = {'e': 'combat_damage_to_player_all', 'filter': self.filter(args[1])}
+            if who:
+                on['who'] = who
+            if damaged:
+                on['damaged'] = True
+            a = out(on, args[0], flag(args[2]), pointer == 'SetTargetPointer.PERMANENT' and not damaged)
+            if damaged or pointer == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
+        # "whenever a land card is put into your graveyard from anywhere"
+        if cls == 'PutCardIntoGraveFromAnywhereAllTriggeredAbility' and n in (3, 4, 5) \
+                and (n < 5 or args[4] == 'SetTargetPointer.NONE') and args[n - 1 if n < 5 else 3] in TARGET_CONTROLLERS:
+            tc = args[n - 1 if n < 5 else 3]
+            return out({'e': 'put_into_graveyard_all', 'filter': self.filter(args[2]) if n >= 4 else [],
+                        'who': TARGET_CONTROLLERS[tc]}, args[0], flag(args[1]))
+        # "whenever you discard one or more cards": once per discard, X the cards of the filter
+        if cls == 'DiscardOneOrMoreCardsTriggeredAbility' and n in (1, 2, 4):
+            if n == 4 and args[0] != 'Zone.BATTLEFIELD':
+                raise Unsupported(cls + ' ' + args[0])
+            filt = self.filter(args[3]) if n == 4 else []
+            return out({'e': 'discards_one_or_more', 'filter': filt}, args[1] if n == 4 else args[0],
+                       n > 1 and flag(args[2] if n == 4 else args[1]))
+        if cls == 'FirstSpellOpponentsTurnTriggeredAbility' and n == 2:
+            return out({'e': 'first_spell_opponents_turn'}, args[0], flag(args[1]))
+        # "when this dies, return it …": its target is the card in the graveyard
+        if cls == 'DiesSourceTriggeredAbility' and n == 3 and args[2] in ('SetTargetPointer.CARD', 'SetTargetPointer.NONE'):
+            return out({'e': 'dies'}, args[0], flag(args[1]), args[2] == 'SetTargetPointer.CARD')
+        # constellation: "whenever this or another enchantment you control enters" (`thisOr` false: "an enchantment")
+        if cls == 'ConstellationAbility' and 1 <= n <= 3:
+            return out({'e': 'enters_all', 'filter': [type_pred('ENCHANTMENT'), YOU], 'include_self': n < 3 or flag(args[2])},
+                       args[0], n >= 2 and flag(args[1]))
+        # alliance: "whenever another creature you control enters"
+        if cls == 'AllianceAbility' and n == 1:
+            return out({'e': 'enters_all', 'filter': self.filter('StaticFilters.FILTER_CONTROLLED_ANOTHER_CREATURE') + [YOU]},
+                       args[0])
+        # rally: "whenever this or another Ally you control enters"
+        if cls == 'AllyEntersBattlefieldTriggeredAbility' and n == 2:
+            return out({'e': 'enters_all', 'filter': [{'p': 'subtype', 's': 'Ally'}, YOU], 'include_self': True},
+                       args[0], flag(args[1]))
+        # whenever you draw your `n`th card each turn
+        if cls == 'DrawNthCardTriggeredAbility' and n == 3 and re.fullmatch(r'\d+', args[2]):
+            return out({'e': 'draws_nth', 'n': int(args[2])}, args[0], flag(args[1]))
+        if cls == 'CastSecondSpellTriggeredAbility' and n == 1:
+            return out({'e': 'cast_second_spell', 'who': 'you'}, args[0])
+        # whenever an opponent casts a spell of the filter; with a target pointer at that player or that spell
+        if cls == 'SpellCastOpponentTriggeredAbility':
+            pointer = 'SetTargetPointer.NONE'
+            if n >= 4 and args[0] == 'Zone.BATTLEFIELD':
+                args = args[1:]
+                if len(args) == 4 and args[3].startswith('SetTargetPointer.'):
+                    pointer = args.pop()
+                n = len(args)
+            if n == 2 and args[1] in ('true', 'false'):
+                args = [args[0], 'StaticFilters.FILTER_SPELL_A', args[1]]
+            if len(args) != 3 or pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER', 'SetTargetPointer.SPELL'):
+                raise Unsupported(cls + ' overload')
+            a = out({'e': 'spell_cast', 'filter': self.filter(args[1]), 'who': 'opponent'}, args[0], flag(args[2]),
+                    pointer == 'SetTargetPointer.SPELL')
+            if pointer == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
+        # whenever a permanent of the filter is put into a graveyard from the battlefield (any graveyard)
+        if cls == 'PutIntoGraveFromBattlefieldAllTriggeredAbility' and n in (4, 5) and args[3] == 'false' \
+                and (n == 4 or args[4] == 'false'):
+            return out({'e': 'dies_all', 'filter': self.filter(args[2]), 'include_self': True}, args[0], flag(args[1]))
+        # whenever a creature of the filter attacks (any controller's); "you or a planeswalker you control": in a
+        # duel, an opponent's creature; with a target pointer at it, at the defending player or at its controller
+        if cls == 'AttacksAllTriggeredAbility' and n in (2, 3, 5, 6):
+            filt, pointer, you, controller = [CREATURE], 'SetTargetPointer.NONE', False, False
+            if n == 3:
+                you = flag(args[2])
+            elif n >= 5:
+                filt, pointer, you = self.filter(args[2]), args[3], flag(args[4])
+                controller = n == 6 and flag(args[5])
+            if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+                raise Unsupported(cls + ' ' + pointer)
+            on = {'e': 'attacks_all', 'filter': filt + ([OPPONENT] if you else [])}
+            if controller and pointer == 'SetTargetPointer.PLAYER':
+                on['attacker_controller'] = True
+            a = out(on, args[0], flag(args[1]), pointer == 'SetTargetPointer.PERMANENT')
+            if pointer == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
+        # "whenever this attacks, … defending player …"
+        if cls == 'AttacksTriggeredAbility' and n == 4 and args[3] == 'SetTargetPointer.PLAYER' \
+                and (args[2] == 'null' or re.fullmatch(r'"[^"]*"', args[2])):
+            a = out({'e': 'attacks'}, args[0], flag(args[1]))
+            a['set_target_pointer_player'] = True
+            return a
+        # whenever a creature of the filter attacks alone; with a target pointer at it
+        if cls == 'AttacksAloneControlledTriggeredAbility' and 1 <= n <= 4:
+            filt, pointer, optional = [CREATURE, YOU], False, False
+            if n == 2:
+                optional = flag(args[1])
+            elif n == 3:
+                pointer, optional = flag(args[1]), flag(args[2])
+            elif n == 4:
+                filt, pointer, optional = self.filter(args[1]), flag(args[2]), flag(args[3])
+            return out({'e': 'attacks_alone_all', 'filter': filt}, args[0], optional, pointer)
+        # whenever the equipped (enchanted) creature attacks; with a target pointer at it or the defending player
+        if cls == 'AttacksAttachedTriggeredAbility' and 1 <= n <= 4:
+            if n >= 3 and args[1] not in ('AttachmentType.EQUIPMENT', 'AttachmentType.AURA'):
+                raise Unsupported(cls + ' ' + args[1])
+            optional = (n == 2 and flag(args[1])) or (n >= 3 and flag(args[2]))
+            pointer = args[3] if n == 4 else 'SetTargetPointer.NONE'
+            if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+                raise Unsupported(cls + ' ' + pointer)
+            a = out({'e': 'attacks_attached'}, args[0], optional, pointer == 'SetTargetPointer.PERMANENT')
+            if pointer == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
+        # "whenever equipped (enchanted) creature deals (combat) damage to a player"
+        if cls == 'DealsDamageToAPlayerAttachedTriggeredAbility' and 3 <= n <= 6 and re.fullmatch(r'"[^"]*"', args[1]):
+            who = {'TargetController.ANY': 'any', 'TargetController.OPPONENT': 'opponent',
+                   'TargetController.YOU': 'you'}.get(args[5] if n == 6 else 'TargetController.ANY')
+            if who is None:
+                raise Unsupported(cls + ' ' + args[5])
+            return out({'e': 'attached_deals_damage_to_player', 'only_combat': n < 5 or flag(args[4]), 'who': who},
+                       args[0], flag(args[2]), n >= 4 and flag(args[3]))
+        # "whenever one or more creatures you control deal combat damage to a player"
+        if cls == 'OneOrMoreCombatDamagePlayerTriggeredAbility' and 1 <= n <= 5:
+            filt, pointer, optional = self.filter('StaticFilters.FILTER_PERMANENT_CREATURES'), 'SetTargetPointer.NONE', False
+            if n == 2 and args[1].startswith('SetTargetPointer.'):
+                pointer = args[1]
+            elif n == 2:
+                filt = self.filter(args[1])
+            elif n == 4:
+                pointer, filt, optional = args[1], self.filter(args[2]), flag(args[3])
+            elif n == 5 and args[0] == 'Zone.BATTLEFIELD':
+                args = args[1:]
+                filt, pointer, optional = self.filter(args[1]), args[2], flag(args[3])
+            elif n != 1:
+                raise Unsupported(cls + ' overload')
+            if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER'):
+                raise Unsupported(cls + ' ' + pointer)
+            a = out({'e': 'damage_player_batch', 'filter': filt, 'only_combat': True}, args[0], optional)
+            if pointer == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
+        # "whenever … or …": one trigger on any of its abilities' events (once for an event that several match)
+        if cls == 'OrTriggeredAbility' and n >= 3 and args[0] in ('Zone.BATTLEFIELD', 'Zone.ALL'):
+            effect, optional, subs = args[1], False, args[2:]
+            if subs[0] in ('true', 'false') and len(subs) >= 3 and (subs[1] == 'null' or subs[1].startswith('"')):
+                optional, subs = flag(subs[0]), subs[2:]
+            ons = []
+            for sub in subs:
+                m = re.fullmatch(r'new (\w+)\((Zone\.\w+,)?(?:\(Effect\) ?)?null(\)|,.*\))', canonical(sub), re.S)
+                if not m:
+                    raise Unsupported(cls + ' part ' + sub[:60])
+                # (a part's own "optional" doesn't count: the whole ability's does)
+                a = self.ability('new ' + m.group(1) + '(' + (m.group(2) or '') + effect + m.group(3))
+                on = a.get('on')
+                if a.get('class') != 'TriggeredAbility' or a.get('targets') \
+                        or a.get('condition') or a.get('trigger_condition') or a.get('set_target_pointer') \
+                        or a.get('set_target_pointer_player') or a.get('limit_per_turn') \
+                        or on.get('e') not in OR_PARTS or on.get('batch') or on.get('graveyard'):
+                    raise Unsupported(cls + ' part ' + m.group(1))
+                ons.append(on)
+            return out({'e': 'or', 'ts': ons}, effect, optional)
+        # discarding, cycling, cards leaving your graveyard
+        if cls == 'CycleOrDiscardControllerTriggeredAbility' and n in (1, 2):
+            return out({'e': 'discards', 'who': 'you'}, args[0], n == 2 and flag(args[1]))
+        if cls == 'DiscardCardControllerTriggeredAbility' and n in (2, 3):
+            return out({'e': 'discards', 'who': 'you', 'filter': self.filter(args[2]) if n == 3 else []}, args[0],
+                       flag(args[1]))
+        if cls == 'DiscardsACardOpponentTriggeredAbility' and n in (2, 3) \
+                and (n == 2 or args[2] in ('SetTargetPointer.NONE', 'SetTargetPointer.PLAYER')):
+            a = out({'e': 'discards', 'who': 'opponent'}, args[0], flag(args[1]))
+            if n == 3 and args[2] == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
+        if cls == 'CycleControllerTriggeredAbility' and n in (1, 2, 3):
+            return out({'e': 'you_cycle'}, args[0], n >= 2 and flag(args[1]))
+        if cls == 'CardsLeaveGraveyardTriggeredAbility' and n in (1, 2, 3):
+            a = out({'e': 'cards_leave_graveyard', 'filter': self.filter(args[1]) if n >= 2 else []}, args[0])
+            if n == 3 and flag(args[2]):
+                a['trigger_condition'] = {'c': 'my_turn'}
+            return a
+        # combat: blocking and becoming blocked
+        if cls == 'AttacksOrBlocksTriggeredAbility' and n == 2:
+            return out({'e': 'attacks_or_blocks'}, args[0], flag(args[1]))
+        if cls == 'BlocksSourceTriggeredAbility' and n in (1, 2):
+            return out({'e': 'blocks'}, args[0], n == 2 and flag(args[1]))
+        if cls == 'BlocksAllTriggeredAbility' and 1 <= n <= 4:
+            pointer = args[3] if n == 4 else 'SetTargetPointer.NONE'
+            if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+                raise Unsupported(cls + ' ' + pointer)
+            a = out({'e': 'blocks_all', 'filter': self.filter(args[2]) if n >= 3 else [CREATURE]}, args[0],
+                    n >= 2 and flag(args[1]), pointer == 'SetTargetPointer.PERMANENT')
+            if pointer == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
+        if cls == 'BecomesBlockedSourceTriggeredAbility' and n in (2, 3):
+            a = out({'e': 'becomes_blocked'}, args[0], flag(args[1]))
+            if n == 3 and flag(args[2]):
+                a['set_target_pointer_player'] = True
+            return a
+        if cls == 'BecomesBlockedAllTriggeredAbility' and n in (2, 4):
+            return out({'e': 'becomes_blocked_all', 'filter': self.filter(args[2]) if n == 4 else [CREATURE]}, args[0],
+                       flag(args[1]), n == 4 and flag(args[3]))
+        if cls == 'BlocksCreatureTriggeredAbility' and n in (1, 2, 3):
+            filt = self.filter(args[1]) if n == 3 else [CREATURE]
+            return out({'e': 'blocker_declared', 'filter': filt, 'blocks': True}, args[0], n >= 2 and flag(args[-1]))
+        if cls == 'BecomesBlockedByCreatureTriggeredAbility' and n in (2, 3):
+            filt = self.filter(args[1]) if n == 3 else [CREATURE]
+            return out({'e': 'blocker_declared', 'filter': filt, 'blocked': True}, args[0], flag(args[-1]))
+        if cls == 'BlocksOrBlockedByCreatureSourceTriggeredAbility' and n in (1, 2, 3):
+            filt, optional = [CREATURE], False
+            if n == 2 and args[1] in ('true', 'false'):
+                optional = flag(args[1])
+            elif n >= 2:
+                filt, optional = self.filter(args[1]), n == 3 and flag(args[2])
+            return out({'e': 'blocker_declared', 'filter': filt, 'blocks': True, 'blocked': True}, args[0], optional)
+        # whenever you cast or copy an instant or sorcery spell
+        if cls == 'MagecraftAbility' and n in (1, 2):
+            return out({'e': 'spell_cast_or_copied', 'filter': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}],
+                        'who': 'you'}, args[0], n == 2 and flag(args[1]))
+        # "when the enchanted (equipped) creature dies": its controller (`ATTACHED_TO_CONTROLLER`) or the card
+        # (`CARD`) as the target
+        if cls == 'DiesAttachedTriggeredAbility' and 2 <= n <= 5 and re.fullmatch(r'"[^"]*"', args[1]):
+            pointer = args[4] if n == 5 else 'SetTargetPointer.NONE'
+            if pointer not in ('SetTargetPointer.NONE', 'SetTargetPointer.CARD', 'SetTargetPointer.ATTACHED_TO_CONTROLLER'):
+                raise Unsupported(cls + ' ' + pointer)
+            a = out({'e': 'dies_attached'}, args[0], n >= 3 and flag(args[2]))
+            if pointer == 'SetTargetPointer.ATTACHED_TO_CONTROLLER':
+                a['set_target_pointer_player'] = True
+            if pointer != 'SetTargetPointer.CARD':
+                a['on']['no_card'] = True
+            return a
         return None
 
     def assign(self, var, expr):
@@ -3313,6 +3589,8 @@ def translate(card_name, subtypes, facts):
                 card['spell'][k] = spell[k]
     elif spell['effects'] or spell['targets'] or spell.get('costs'):
         card['spell'] = dict(spell, rule=rule)
+    if 'spell' in card:
+        fill_when_you_do(card['spell'], rule)
     if adventure is not None:
         if amodes:
             raise Unsupported('modal adventure')
@@ -3862,6 +4140,7 @@ def ability_statement(t, st, added):
         target = t.vars[m.group(1)]['targets'][0]
         target['filter'] = [dict(p) for p in target['filter']] + [dict(OPPONENT)]
         t.vars[m.group(1)]['set_target_pointer'] = False
+        t.vars[m.group(1)].pop('set_target_pointer_player', None)
         t.vars[m.group(1)]['that_player_controls'] = True
         return True
     # "target card from that player's graveyard": in a duel, the opponent's graveyard
@@ -4068,6 +4347,34 @@ def ability_statement(t, st, added):
     return False
 
 
+WHEN_YOU_DO = '<when you do>'
+# a delayed trigger's text, from its ability's: the sentence that starts with the phrase (`RULE_FROM + phrase + '>'`)
+RULE_FROM = '<rule from:'
+
+
+def fill_when_you_do(x, rule):
+    """A reflexive trigger without a text of its own (`DoWhenCostPaid`) shows its effects' text: what follows "when
+    you do," in its ability's rule; a delayed trigger (`RULE_FROM`), its sentence of the rule"""
+    if isinstance(x, dict):
+        for k, v in x.items():
+            if v == WHEN_YOU_DO:
+                m = re.search(r'[Ww]hen you do, (.*)$', rule, re.S)
+                if not m:
+                    raise Unsupported('a reflexive trigger without a text')
+                x[k] = m.group(1)
+            elif isinstance(v, str) and v.startswith(RULE_FROM):
+                phrase = v[len(RULE_FROM):-1]
+                m = re.search(re.escape(phrase) + r'.*?(\.(?=\s|<|$)|$)', rule, re.S | re.I)
+                if not m:
+                    raise Unsupported('a delayed trigger without a text')
+                x[k] = phrase + m.group(0)[len(phrase):]
+            else:
+                fill_when_you_do(v, rule)
+    elif isinstance(x, list):
+        for v in x:
+            fill_when_you_do(v, rule)
+
+
 def in_java_order(java_abilities, added):
     """The abilities in Java's order (decision logs number them so), each matched to one the constructor added"""
     abilities = []
@@ -4081,6 +4388,7 @@ def in_java_order(java_abilities, added):
         added.remove(match)
         if match.pop('java', None) or match['class'] in ABILITIES:
             match['rule'] = fact['rule']
+        fill_when_you_do(match, fact['rule'])
         abilities.append(match)
     if added:
         raise Unsupported('abilities Java does not list: ' + ', '.join(a['class'] for a in added))
@@ -4446,6 +4754,25 @@ def token_classes(names):
     return sorted(out)
 
 
+def that_player_names(card):
+    """`ThatPlayerControlsTargetAdjuster` names the target after its filter's message, "(controlled by B)" added:
+    when the rule doesn't say "that player controls", that message is the card's filter whose text the rule has"""
+    def walk(x):
+        if isinstance(x, dict):
+            if x.get('that_player_controls') and 'that player controls' not in x.get('rule', ''):
+                msgs = [m for m in re.findall(r'new Filter\w*\("([^"]+)"', card_source(card.get('name')))
+                        if 'target ' + m in x.get('rule', '')]
+                if not msgs:
+                    raise Unsupported('a that-player target without its name')
+                x['that_player_name'] = max(msgs, key=len)
+            for v in x.values():
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(card)
+
+
 def granted_rules(card):
     """a granted ability without its own rule text: the quoted part of the granting ability's or spell's (a ward,
     "ward {N}"), wherever it is (a spell, a face, a token's ability); one it can't be read from blocks the card"""
@@ -4538,10 +4865,14 @@ def granted_rules(card):
 def reflexive_rules(card):
     """A `DoWhenCostPaid`'s reflexive trigger's text is its own sentence of the ability's: "When you do, return target
     creature or land card from your graveyard to your hand." (Awaken the Honored Dead), "return another target
-    permanent card" (Eden, Seat of the Sanctum)"""
+    permanent card" (Eden, Seat of the Sanctum). One made with its own text (`ReflexiveTriggeredAbility(effect,
+    optional, text)`) keeps it, first letter capitalized as Java shows it: "Destroy target creature an opponent
+    controls." (Cavalier of Night)"""
     def walk(x, rule):
         if isinstance(x, dict):
-            if x.get('class') == 'DoWhenCostPaid' and (m := re.search(r'[Ww]hen you do, ([^.]*\.)', rule)):
+            own = isinstance(x.get('rule'), str) and x['rule'] != ''
+            if x.get('class') == 'DoWhenCostPaid' and not own \
+                    and (m := re.search(r'[Ww]hen you do, ([^.]*\.)', rule)):
                 x['rule'] = m.group(1)
             for k, v in x.items():
                 walk(v, x['rule'] if k != 'rule' and isinstance(x.get('rule'), str) and x.get('class') != 'DoWhenCostPaid'
@@ -4603,12 +4934,15 @@ def main():
             # a creature type chosen as a spell resolves: the engine asks only as a permanent enters (Crippling Fear)
             if 'ChooseCreatureTypeEffect' in json.dumps(card.get('spell')):
                 raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
+            that_player_names(card)
             # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
             if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
                 raise Unsupported('mana symbol ' + m.group(0))
             # snow mana ({S}: mana from a snow source): the engine's mana pool doesn't know where mana came from
             if re.search(r'"cost": "[^"]*\{S\}', json.dumps(card)):
                 raise Unsupported('mana symbol {S}')
+            if WHEN_YOU_DO in json.dumps(card) or RULE_FROM in json.dumps(card):
+                raise Unsupported('a reflexive trigger without a text')
             hints = card_hints(card['name'], subtypes)
             if hints:
                 card['hints'] = hints
