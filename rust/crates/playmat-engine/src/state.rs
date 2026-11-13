@@ -477,6 +477,8 @@ pub struct Player {
     pub nonlands_entered: u32,
     /// permanent cards put into their graveyard this turn (`DescendedWatcher`)
     pub descended: u32,
+    /// life lost last turn (`PlayerLostLifeWatcher.getLifeLostLastTurn`)
+    pub life_lost_last_turn: i32,
 }
 
 impl Player {
@@ -603,6 +605,9 @@ pub struct StackItem {
     pub kicked: bool,
     /// the source's power as it last was on the battlefield, for an ability whose cost sacrificed it
     pub lki_power: Option<i32>,
+    /// the source's toughness as it last was on the battlefield, for its own leave triggers
+    /// (`SourcePermanentToughnessValue`'s last known information)
+    pub lki_toughness: Option<i32>,
     /// the greatest toughness among the permanents its cost sacrificed (Witch's Oven)
     pub sacrificed_toughness: Option<i32>,
     /// the total power, toughness and mana value of the permanents its costs sacrificed (`SacrificeCostCreaturesPower`,
@@ -681,6 +686,7 @@ impl StackItem {
             ability: None,
             kicked: false,
             lki_power: None,
+            lki_toughness: None,
             sacrificed_toughness: None,
             sacrificed_stats: [0; 3],
             target_amounts: Vec::new(),
@@ -1073,6 +1079,55 @@ pub struct Game {
     pub first_strikers: Vec<ObjId>,
     /// the game is over (a player lost, or it reached its last turn)
     pub over: bool,
+    /// what Java's per-turn watchers saw this turn (`TurnWatch`), cleared as each turn begins
+    pub watch: TurnWatch,
+}
+
+/// A spell cast this turn, as `SpellsCastWatcher` keeps it: its characteristics as it was cast
+#[derive(Clone, Debug, PartialEq)]
+pub struct SpellSeen {
+    pub caster: Seat,
+    pub card: ObjId,
+    pub from: Option<Zone>,
+    pub creature: bool,
+    /// artifact, legendary or Saga (`HistoricPredicate`)
+    pub historic: bool,
+}
+
+/// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TurnWatch {
+    /// `SpellsCastWatcher`, in the order they were cast
+    pub spells: Vec<SpellSeen>,
+    /// `PermanentsSacrificedWatcher`: who sacrificed, and whether it was an artifact
+    pub sacrificed: Vec<(Seat, bool)>,
+    /// `CardsLeftGraveyardWatcher`: the owner of each card that left a graveyard
+    pub left_graveyard: Vec<Seat>,
+    /// `DiscardedCardWatcher`: who discarded, once a card
+    pub discarded: Vec<Seat>,
+    /// `ScryOrSurveilWatcher`: who scried or surveilled
+    pub scried: Vec<Seat>,
+    /// `CardsPutIntoGraveyardWatcher`: each card put into a graveyard, its zone-change count there, and whether it
+    /// came from the battlefield
+    pub to_graveyard: Vec<(ObjId, u32, bool)>,
+    /// `CrewedVehicleWatcher`: (vehicle, its zone-change count, a creature that crewed it, its count)
+    pub crewed: Vec<(ObjId, u32, ObjId, u32)>,
+    /// `LifeLostThisTurnWatcher`: a `LOST_LIFE_BATCH_FOR_ONE_PLAYER` for each, once a batch
+    pub life_loss_batches: Vec<Seat>,
+    /// the players who lost life since the last batch
+    pub life_loss_unbatched: Vec<Seat>,
+    /// `CommittedCrimeWatcher`: who committed a crime
+    pub crimes: Vec<Seat>,
+    /// `CreaturesDiedWatcher`: the controller of each creature that died
+    pub died: Vec<Seat>,
+    /// `PermanentsEnteredBattlefieldWatcher` and the like: each permanent that entered, as (its controller, an
+    /// artifact, a creature, a Goblin)
+    pub entered: Vec<(Seat, bool, bool, bool)>,
+    /// `CardsExiledThisTurnWatcher`: objects put into exile
+    pub exiled: u32,
+    /// `TriggeredAbility.setDidThisTurn`: the "do this only once each turn" abilities done this turn (the source, its
+    /// zone-change count, the ability's index)
+    pub did_this_turn: Vec<(ObjId, u32, usize)>,
 }
 
 impl Game {
@@ -1211,6 +1266,7 @@ impl Game {
             first_strike_step: false,
             first_strikers: Vec::new(),
             over: false,
+            watch: TurnWatch::default(),
         }
     }
 
@@ -1468,6 +1524,18 @@ impl Game {
             Pred::Monocolored => self.colors(id).len() == 1,
             Pred::CounterAny => o.counters.iter().any(|(_, n)| *n > 0),
             Pred::EnteredThisTurn => o.zone == Zone::Battlefield && o.entered_turn == self.turn,
+            Pred::ToGraveyardThisTurn { battlefield } => {
+                o.zone == Zone::Graveyard
+                    && self
+                        .watch
+                        .to_graveyard
+                        .iter()
+                        .any(|(c, zcc, from)| *c == id && *zcc == o.zcc && (*from || !battlefield))
+            }
+            Pred::CrewedSourceThisTurn => source.is_some_and(|src| {
+                let s = self.obj(src);
+                self.watch.crewed.iter().any(|(v, vz, c, cz)| *v == src && *vz == s.zcc && *c == id && *cz == o.zcc)
+            }),
             Pred::Equipped => self.attachments(id).any(|a| self.has_subtype(a, "Equipment")),
             Pred::Enchanted => self.attachments(id).any(|a| self.has_subtype(a, "Aura")),
             Pred::Modified => {
@@ -3257,6 +3325,10 @@ impl Game {
         if from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) {
             self.creature_died = true;
             self.creatures_died += 1;
+            self.watch.died.push(died_controller);
+        }
+        if zone == Zone::Exile {
+            self.watch.exiled += 1;
         }
         // "whenever a card is put into a graveyard from anywhere" (`ZONE_CHANGE` to a graveyard): its source on the
         // battlefield now, a card (not a token) of the filter whose owner is `who`
@@ -3284,7 +3356,7 @@ impl Game {
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source counts too unless it says "another", but it must match like the others
                 // (Bishop of Wings, a Human, isn't "an Angel you control")
-                Trigger::DiesAll { filter, include_self, this_unfiltered } => {
+                Trigger::DiesAll { filter, include_self, this_unfiltered, .. } => {
                     (src == id && *this_unfiltered)
                         || (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
@@ -3335,7 +3407,7 @@ impl Game {
             Vec::new()
         };
         let p1p1 = self.obj(id).counters.iter().find(|(c, _)| c == "+1/+1").map_or(0, |c| c.1);
-        let power = self.power_toughness(id).0;
+        let (power, toughness) = self.power_toughness(id);
         let mut dies = dies;
         for t in dies.iter_mut() {
             // "whenever a creature dies, … that card": a fixed target pointer at the card in the graveyard
@@ -3364,6 +3436,9 @@ impl Game {
             // its own leave triggers remember its power as it last was (`SourcePermanentPowerValue`)
             if t.card == id && t.lki_power.is_none() {
                 t.lki_power = Some(power);
+            }
+            if t.card == id && t.lki_toughness.is_none() {
+                t.lki_toughness = Some(toughness);
             }
             // a copy's (Mockingbird as Greedy Freebooter): the ability is the copied one, whatever the card is after
             // and one an effect gave it until end of turn (Fake Your Own Death's "When this creature dies, …"): the
@@ -3626,6 +3701,11 @@ impl Game {
         }
         if from == Zone::Graveyard && zone != Zone::Graveyard {
             self.left_graveyard.push(id);
+            self.watch.left_graveyard.push(owner);
+        }
+        if zone == Zone::Graveyard && from != Zone::Graveyard && !self.obj(id).token {
+            let zcc = self.obj(id).zcc;
+            self.watch.to_graveyard.push((id, zcc, from == Zone::Battlefield));
         }
         if madness && self.obj(id).zone == Zone::Exile {
             let fired = self.triggers([id], |_, src, _, t| src == id && matches!(t, Trigger::MadnessExiled));
@@ -3634,6 +3714,7 @@ impl Game {
         // DISCARDED_CARD, after the move (a card from a hand to a graveyard is a discarded one)
         if from == Zone::Hand && requested == Zone::Graveyard {
             self.discarded.push((owner, id));
+            self.watch.discarded.push(owner);
             let sources = self.trigger_sources();
             let fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Discards { who, filter } => {
@@ -3651,6 +3732,13 @@ impl Game {
             }
         }
         for mut t in dies {
+            // "whenever one or more … die": once a batch, after the batch's other triggers
+            if matches!(self.trigger_of(&t), Some(Trigger::DiesAll { batch: true, .. })) {
+                if !self.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+                    self.batch_pending.push(t);
+                }
+                continue;
+            }
             // a dead permanent's own trigger is its graveyard card's
             if t.card == id {
                 t.ability = t.ability.map(|(i, _)| (i, self.obj(id).zcc));
@@ -3694,6 +3782,13 @@ impl Game {
                     let c = self.obj(id).controller;
                     self.player_mut(c).nonlands_entered += 1;
                 }
+                let seen = (
+                    self.obj(id).controller,
+                    self.has_type(id, CardType::Artifact),
+                    self.has_type(id, CardType::Creature),
+                    self.has_subtype(id, "Goblin"),
+                );
+                self.watch.entered.push(seen);
                 let at = self.timestamp();
                 let o = self.obj_mut(id);
                 o.sick = true;

@@ -276,6 +276,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.lands_played = 0;
                 p.attacked = false;
                 p.attackers_this_turn = 0;
+                p.life_lost_last_turn = p.life_lost;
                 p.life_lost = 0;
                 p.drawn = 0;
                 p.drawn_in_draw_step = 0;
@@ -304,6 +305,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 Arc::make_mut(&mut game.boosts).retain(|b| b.until_turn_of != Some(active));
             }
             game.triggered_this_turn.clear();
+            game.watch = crate::state::TurnWatch::default();
             game.creature_died = false;
             game.creatures_died = 0;
             game.void_this_turn = false;
@@ -391,6 +393,11 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             }
             let declared = attackers(game).len() as u32;
             game.player_mut(active).attackers_this_turn += declared;
+            // the attackers attacking for the first time this turn (`AttackedThisTurnWatcher`)
+            let first_attack: Vec<ObjId> = attackers(game)
+                .into_iter()
+                .filter(|a| !game.attacked_this_turn.contains(&(*a, game.obj(*a).zcc)))
+                .collect();
             // boast: each attacker attacked this turn (`AttackedThisTurnWatcher`)
             let turn = format!("attacked{}", game.turn);
             for a in attackers(game) {
@@ -428,6 +435,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 let sources: Vec<ObjId> = game.trigger_sources();
                 let fired = game.triggers(sources, |g, src, you, t| match t {
                     Trigger::EntersOrAttacks | Trigger::AttacksOrBlocks | Trigger::AttackerDeclared => src == a,
+                    Trigger::AttacksFirstTime => src == a && first_attack.contains(&a),
                     Trigger::AttacksAll { filter, .. } => g.filter_matches(filter, you, Some(src), a),
                     Trigger::AttacksAloneAll { filter } => alone && g.filter_matches(filter, you, Some(src), a),
                     Trigger::AttacksAttached => g.attached(src) == Some(a),
@@ -4351,7 +4359,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             return false;
         };
         match chosen.first() {
-            Some(c) => game.obj_mut(*c).add_counters("-1/-1", n),
+            Some(c) => {
+                game.obj_mut(*c).add_counters("-1/-1", n);
+                counters_put_triggers(game, *c, "-1/-1", n, Some(seat));
+            }
             None => return false,
         }
     }
@@ -4395,6 +4406,18 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         let flier = def.is(CardType::Creature)
             && !def.subtypes.iter().any(|s| s == "Lemur")
             && game.has_ability(spell, &AbilityDef::FlyingAbility);
+        // `SpellsCastWatcher`: the spell as it was cast
+        let historic = game.has_type(spell, CardType::Artifact)
+            || def.supertypes.iter().any(|s| s == "LEGENDARY")
+            || game.has_subtype(spell, "Saga");
+        let seen = crate::state::SpellSeen {
+            caster: seat,
+            card: spell,
+            from: game.obj(spell).cast_from,
+            creature: game.has_type(spell, CardType::Creature),
+            historic,
+        };
+        game.watch.spells.push(seen);
         let p = game.player_mut(seat);
         p.flier_cast |= flier;
         p.spells_cast += 1;
@@ -4485,6 +4508,9 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         .rev()
         .find(|i| i.card == spell && i.ability.is_none() && i.delayed.is_none())
         .is_some_and(|i| is_crime(game, seat, &i.targets));
+    if crime {
+        game.watch.crimes.push(seat);
+    }
     let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
         Trigger::SpellCast { filter, who } | Trigger::SpellCastOrCopied { filter, who } => {
             Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell)
@@ -4641,6 +4667,7 @@ fn commit_crime(game: &mut Game, seat: Seat) {
     if top.controller != seat || !is_crime(game, seat, &top.targets) {
         return;
     }
+    game.watch.crimes.push(seat);
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::CommittedCrime) && you == seat);
     game.pending.extend(fired);
@@ -5283,6 +5310,28 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
         });
         game.pending.extend(fired.into_iter().map(|t| StackItem { x, ..t }));
     }
+    // `ACTIVATED_ABILITY`: "whenever you activate an exhaust ability" (`ActivateAbilityTriggeredAbility`), "a loyalty
+    // ability" (`ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility`)
+    let ability = &def.abilities[index];
+    let loyalty = matches!(ability, AbilityDef::LoyaltyAbility { .. });
+    let fired = game.triggers(game.trigger_sources(), |g, _, you, t| match t {
+        Trigger::AbilityActivated { kind } => {
+            you == seat
+                && match kind.as_str() {
+                    "exhaust" => matches!(ability, AbilityDef::ExhaustAbility { .. }),
+                    "power_up" => matches!(ability, AbilityDef::PowerUpAbility { .. }),
+                    _ => true,
+                }
+        }
+        Trigger::LoyaltyActivated { subtype } => {
+            you == seat
+                && loyalty
+                && g.has_type(id, CardType::Planeswalker)
+                && (subtype.is_empty() || g.has_subtype(id, subtype))
+        }
+        _ => false,
+    });
+    game.pending.extend(fired);
     commit_crime(game, seat);
     true
 }
@@ -5611,7 +5660,10 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
         }
-        CostDef::PutCountersSourceCost { counter } => game.obj_mut(id).add_counters(&counter.name, counter.amount),
+        CostDef::PutCountersSourceCost { counter } => {
+            game.obj_mut(id).add_counters(&counter.name, counter.amount);
+            counters_put_triggers(game, id, &counter.name, counter.amount, Some(seat));
+        }
         CostDef::RemoveCountersSourceCost { counter } => {
             let o = game.obj_mut(id);
             if o.counter(&counter.name) < counter.amount {
@@ -5624,6 +5676,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             o.add_counters("loyalty", *amount);
             o.loyalty_used = true;
             note(game, EventKind::Loyalty, Some(seat), Some(id), None, 0);
+            counters_put_triggers(game, id, "loyalty", *amount, Some(seat));
         }
         CostDef::TapTargetCost { filter, amount } => {
             let possible: Vec<ObjId> =
@@ -5680,6 +5733,10 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
             // "whenever this crews a Vehicle": that Vehicle is its target
             let zcc = game.obj(id).zcc;
+            for o in &crew {
+                let seen = (id, zcc, *o, game.obj(*o).zcc);
+                game.watch.crewed.push(seen);
+            }
             for o in crew {
                 let mut fired = game.triggers([o], |_, _, _, t| matches!(t, Trigger::CrewsVehicle));
                 for t in fired.iter_mut() {
@@ -5731,6 +5788,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 Some(c) => {
                     let n = counters_to_add(game, *c, "-1/-1", *amount, Some(seat), false);
                     game.obj_mut(*c).add_counters("-1/-1", n);
+                    counters_put_triggers(game, *c, "-1/-1", n, Some(seat));
                 }
                 None => return false,
             }
@@ -6425,7 +6483,7 @@ pub fn add_poison(game: &mut Game, seat: Seat, n: i32) {
 fn scry(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32, rule: &str) -> bool {
     let cards: Vec<ObjId> = game.player(seat).library.iter().take(amount.max(0) as usize).copied().collect();
     if cards.is_empty() {
-        scried(game, seat, amount);
+        scried(game, seat, amount, false);
         return true;
     }
     let Some(bottom) = choose_cards(game, d, seat, &cards, &cards, 0, cards.len(), rule) else {
@@ -6434,15 +6492,23 @@ fn scry(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32, rule: &st
     let top: Vec<ObjId> = cards.iter().copied().filter(|c| !bottom.contains(c)).collect();
     let done = put_on_library(game, d, seat, &bottom, false, true) && put_on_library(game, d, seat, &top, true, true);
     if done {
-        scried(game, seat, amount);
+        scried(game, seat, amount, false);
     }
     done
 }
 
 /// `SCRIED` / `SURVEILED`: fired after the cards move, with the amount asked for, even from an empty library
-fn scried(game: &mut Game, seat: Seat, amount: i32) {
+fn scried(game: &mut Game, seat: Seat, amount: i32, surveiled: bool) {
+    game.watch.scried.push(seat);
     let sources: Vec<ObjId> = game.trigger_sources();
-    let fired = game.triggers(sources, |_, _, you, t| you == seat && matches!(t, Trigger::YouScryOrSurveil));
+    let fired = game.triggers(sources, |_, _, you, t| {
+        you == seat
+            && match t {
+                Trigger::YouScryOrSurveil => true,
+                Trigger::YouSurveilOrScry { surveil } => *surveil == surveiled,
+                _ => false,
+            }
+    });
     game.pending.extend(fired.into_iter().map(|t| StackItem { x: amount, ..t }));
 }
 
@@ -7626,8 +7692,13 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
         let Some(legal) = legal_targets(game, &item, targets) else {
             return;
         };
-        // "may" abilities ask at resolution (`TriggeredAbilityImpl.resolve`)
+        // "may" abilities ask at resolution (`TriggeredAbilityImpl.resolve`); "do this only once each turn": not again
+        let once = matches!(def.abilities.get(index), Some(AbilityDef::TriggeredAbility { once_each_turn: true, .. }));
+        let did = (id, game.obj(id).zcc, index);
         if optional {
+            if once && game.watch.did_this_turn.contains(&did) {
+                return;
+            }
             let q = Query::YesNo { message: rule.to_string() };
             loop {
                 match ask(game, d, item.controller, &q) {
@@ -7635,6 +7706,9 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
                     Answer::Bool(false) | Answer::Stop => return,
                     _ => {}
                 }
+            }
+            if once {
+                game.watch.did_this_turn.push(did);
             }
         }
         {
@@ -8993,9 +9067,10 @@ fn apply_sequence(
         use crate::card::Quantity;
         let of = |s: &String| slot_obj(&slots, s);
         it.x = match q {
-            Quantity::Amount { amount } => match (amount, item.lki_power) {
-                (Amount::Of(crate::card::Value::SourcePower), Some(p)) => p,
-                (a, _) => game.value(a, item.controller, source.0, item.x),
+            Quantity::Amount { amount } => match (amount, item.lki_power, item.lki_toughness) {
+                (Amount::Of(crate::card::Value::SourcePower), Some(p), _) => p,
+                (Amount::Of(crate::card::Value::SourceToughness), _, Some(t)) => t,
+                (a, _, _) => game.value(a, item.controller, source.0, item.x),
             },
             // a target that left the battlefield since it was chosen: its last known power (Grisly Spectacle's
             // destroyed token)
@@ -9207,9 +9282,10 @@ fn apply_each_effect(
     // an effect's number, worked out now
     macro_rules! v {
         ($a:expr) => {
-            match ($a, item.lki_power) {
-                (Amount::Of(crate::card::Value::SourcePower), Some(p)) => p,
-                (a, _) => game.value(a, item.controller, source.0, item.x),
+            match ($a, item.lki_power, item.lki_toughness) {
+                (Amount::Of(crate::card::Value::SourcePower), Some(p), _) => p,
+                (Amount::Of(crate::card::Value::SourceToughness), _, Some(t)) => t,
+                (a, _, _) => game.value(a, item.controller, source.0, item.x),
             }
         };
     }
@@ -9552,6 +9628,7 @@ fn apply_each_effect(
                 }
                 if n > 0 {
                     p.add_counters("+1/+1", n);
+                    counters_put_triggers(game, o, "+1/+1", n, Some(item.controller));
                 }
                 game.earthbent.push((o, zcc));
             }
@@ -12977,7 +13054,7 @@ fn apply_each_effect(
                     }
                 }
                 if *amount >= 1 {
-                    scried(game, controller, *amount);
+                    scried(game, controller, *amount, true);
                 }
             }
             EffectDef::LookLibraryAndPickControllerEffect {
@@ -15838,6 +15915,18 @@ fn condition_with_kicker(game: &Game, c: &Condition, you: Seat, source: ObjId, k
 /// `ExploreSourceEffect.doOneExplore`: reveal the top card; a land goes to hand, otherwise the explorer gets a +1/+1
 /// counter and its controller may put the card into their graveyard (ASK). False: the decider stopped.
 fn explore(game: &mut Game, d: &mut dyn Decider, seat: Seat, explorer: ObjId) -> bool {
+    let done = explore_once(game, d, seat, explorer);
+    if done {
+        // `EXPLORED`, after the explore: "whenever a creature you control explores"
+        let controller = game.obj(explorer).controller;
+        let fired =
+            game.triggers(game.trigger_sources(), |_, _, you, t| matches!(t, Trigger::Explores) && you == controller);
+        game.pending.extend(fired);
+    }
+    done
+}
+
+fn explore_once(game: &mut Game, d: &mut dyn Decider, seat: Seat, explorer: ObjId) -> bool {
     let on_battlefield = |g: &Game| g.obj(explorer).zone == Zone::Battlefield;
     let Some(card) = game.player(seat).library.first().copied() else {
         if on_battlefield(game) {
@@ -15869,6 +15958,8 @@ fn sacrifice(game: &mut Game, id: ObjId) {
     }
     let who = game.obj(id).controller;
     game.player_mut(who).sacrificed += 1;
+    let artifact = game.has_type(id, CardType::Artifact);
+    game.watch.sacrificed.push((who, artifact));
     note(game, EventKind::Sacrificed, Some(who), None, Some(Target::Obj(id)), 0);
     // what left in the same action still sees it (Java's short-living LKI): sacrificed together
     // and so does what was sacrificed since the player last passed, cast or made mana (activating an ability doesn't
@@ -15949,7 +16040,32 @@ fn counters_to_add(game: &Game, o: ObjId, name: &str, n: i32, by: Option<Seat>, 
 fn add_counters_by(game: &mut Game, o: ObjId, name: &str, n: i32, by: Option<Seat>) -> i32 {
     let n = counters_to_add(game, o, name, n, by, true);
     game.obj_mut(o).add_counters(name, n);
+    counters_put_triggers(game, o, name, n, by);
     n
+}
+
+/// `COUNTERS_ADDED`, once for the `n` counters of `name` just put on `o` by `by` (its controller, when not known):
+/// "whenever you put one or more counters on a permanent of the filter" (`PutCounterOnPermanentTriggeredAbility`)
+fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Option<Seat>) {
+    if n <= 0 {
+        return;
+    }
+    let by = by.unwrap_or(game.obj(o).controller);
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::CountersPut { filter, counter } => {
+            you == by && (counter.is_empty() || counter == name) && g.filter_matches(filter, you, Some(src), o)
+        }
+        _ => false,
+    });
+    for mut t in fired {
+        t.x = n;
+        if set_target_pointer(game, &t) {
+            t.targets = vec![vec![Target::Obj(o)]];
+            t.target_zcc = vec![vec![game.obj(o).zcc]];
+        }
+        game.pending.push(t);
+    }
 }
 
 /// Destroys a permanent, unless it's indestructible.
@@ -15958,6 +16074,7 @@ fn put_counters(game: &mut Game, o: ObjId, name: &str, n: i32, by: Seat) {
     let n = counters_to_add(game, o, name, n, Some(by), true);
     game.obj_mut(o).add_counters(name, n);
     note(game, EventKind::Counters, Some(by), None, Some(Target::Obj(o)), n);
+    counters_put_triggers(game, o, name, n, Some(by));
     if log::kept(game) {
         let mut line = format!(
             "{} puts {} {} counter{} on {}, remaining {}",
@@ -17337,6 +17454,9 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             });
             game.pending.extend(fired);
         }
+        // `LifeLostThisTurnWatcher` counts the batches
+        let unbatched = std::mem::take(&mut game.watch.life_loss_unbatched);
+        game.watch.life_loss_batches.extend(unbatched);
         if !game.life_batch.is_empty() {
             // `LOST_LIFE_BATCH_FOR_ONE_PLAYER` fires after the effect: a source that left the battlefield meanwhile
             // (Feed the Swarm's life loss, then its destroy) doesn't trigger
@@ -17344,6 +17464,10 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             let sources = game.trigger_sources();
             let live: Vec<StackItem> = batch
                 .into_iter()
+                .filter(|(seat, t)| {
+                    !matches!(game.trigger_of(t), Some(Trigger::LosesLife { first_time: true, .. }))
+                        || game.watch.life_loss_batches.iter().filter(|s| *s == seat).count() <= 1
+                })
                 .map(|(_, t)| t)
                 .filter(|t| sources.contains(&t.card) && t.ability.is_none_or(|(_, zcc)| game.obj(t.card).zcc == zcc))
                 .collect();
@@ -17364,6 +17488,11 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             game.pending.extend(later);
         }
         happened |= state_based_actions(game);
+        // a batch the state-based actions made ("whenever one or more creatures die"): with this pass's triggers
+        if !game.batch_pending.is_empty() {
+            let batch = std::mem::take(&mut game.batch_pending);
+            game.pending.extend(batch);
+        }
         state_triggers(game);
         if game.over || d.stopped() {
             return happened;
@@ -17562,6 +17691,15 @@ fn waiting(game: &mut Game, mut pending: Vec<StackItem>) -> Vec<StackItem> {
             && game.pelt_holds(t)
             && game.trigger_check_holds(t)
             && game.condition_holds(t.delayed.as_ref().and_then(|dl| dl.condition.as_ref()), t.controller, t.card)
+    });
+    // `checkUsedAlready`: a "do this only once each turn" ability done this turn doesn't trigger
+    pending.retain(|t| {
+        let Some((i, _)) = t.ability else { return true };
+        let once = matches!(
+            game.item_def(t).abilities.get(i),
+            Some(AbilityDef::TriggeredAbility { once_each_turn: true, .. })
+        );
+        !once || !game.watch.did_this_turn.contains(&(t.card, game.obj(t.card).zcc, i))
     });
     pending.retain(|t| {
         let Some((i, zcc)) = t.ability else { return true };
@@ -18178,10 +18316,13 @@ fn lose_life_by(game: &mut Game, seat: Seat, amount: i32, source: Option<ObjId>,
     p.life -= amount;
     if amount > 0 {
         p.life_lost += amount;
+        if !game.watch.life_loss_unbatched.contains(&seat) {
+            game.watch.life_loss_unbatched.push(seat);
+        }
         // `LOST_LIFE`: the life lost is the trigger's "that much" (`SavedLifeLossValue`), read as its X
         let sources: Vec<ObjId> = game.trigger_sources();
         let fired = game.triggers(sources, |_, _, you, t| match t {
-            Trigger::LosesLife { who } => Game::whose(who, you, seat),
+            Trigger::LosesLife { who, .. } => Game::whose(who, you, seat),
             _ => false,
         });
         // a batch for each player: one trigger, with all the life they lost
@@ -19105,6 +19246,10 @@ fn proliferate(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
             }
         }
     }
+    // `PROLIFERATED`: "whenever you proliferate"
+    let fired =
+        game.triggers(game.trigger_sources(), |_, _, you, t| matches!(t, Trigger::YouProliferate) && you == seat);
+    game.pending.extend(fired);
     true
 }
 
