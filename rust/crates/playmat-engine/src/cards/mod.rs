@@ -130,12 +130,15 @@ pub(crate) struct Handler {
     pub tokens: &'static [&'static str],
     pub effects: &'static [&'static str],
     pub filters: &'static [&'static str],
+    /// how the transpiler passes each constructor argument (`card_handlers.py`): "text" as written, or
+    /// "library_target" (a `TargetCardInLibrary`: "min max" in `cx.args`, its filter after the declared `filters`)
+    pub args: &'static [&'static str],
 }
 
 #[allow(dead_code)]
 impl Handler {
     const fn new(java: &'static str, hook: Hook) -> Handler {
-        Handler { java, hook, tokens: &[], effects: &[], filters: &[] }
+        Handler { java, hook, tokens: &[], effects: &[], filters: &[], args: &[] }
     }
 
     pub const fn effect(java: &'static str, f: EffectFn) -> Handler {
@@ -162,6 +165,11 @@ impl Handler {
 
     pub const fn filters(mut self, filters: &'static [&'static str]) -> Handler {
         self.filters = filters;
+        self
+    }
+
+    pub const fn args(mut self, args: &'static [&'static str]) -> Handler {
+        self.args = args;
         self
     }
 }
@@ -247,7 +255,8 @@ mod tests {
     fn handler_names_are_unique() {
         for h in super::ALL.iter().flat_map(|hs| hs.iter()) {
             assert!(h.java.chars().all(|c| c.is_ascii_alphanumeric() || c == '.'), "{}", h.java);
-            assert!(std::ptr::eq(super::find(h.java).unwrap(), h));
+            // (by name: a `const` slice may be copied at each use, so its address says nothing)
+            assert_eq!(super::find(h.java).map(|f| f.java), Some(h.java));
         }
     }
 }

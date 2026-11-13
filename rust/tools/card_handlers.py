@@ -10,7 +10,9 @@ A handler file declares its classes as
 
 `Handler::effect`, `::condition` or `::value`, with the Java class as `OuterCardClass.InnerClass` (or the bare class
 name for one in the framework), and optionally `.tokens(&[…])`, `.effects(&[…])`, `.filters(&[…])`: Java for the
-transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order. The
+transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order; and
+`.args(&[…])`, one kind per constructor argument ("text" as is, "library_target": a `TargetCardInLibrary`, as
+"min max" with its filter after the declared ones). The
 strings are plain or raw Rust string literals.
 """
 import glob
@@ -21,7 +23,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
 _DECL = re.compile(r'Handler::(effect|condition|value)\(\s*"([\w.]+)"\s*,\s*[\w:]+\s*,?\s*\)')
-_PART = re.compile(r'\s*\.(tokens|effects|filters)\(\s*&\[')
+_PART = re.compile(r'\s*\.(tokens|effects|filters|args)\(\s*&\[')
 _STR = re.compile(r'\s*(?:"((?:[^"\\]|\\.)*)"|r(#*)"(.*?)"\2)\s*,?', re.S)
 
 _cache = None
@@ -33,6 +35,11 @@ class Unsupported(Exception):
     pass
 
 
+def _unsupported(text):
+    # transpile.py's own exception, so the card is reported as blocked rather than the run failing
+    return (T.Unsupported if T else Unsupported)(text)
+
+
 def _unescape(s):
     return re.sub(r'\\(.)', lambda m: {'n': '\n', 't': '\t'}.get(m.group(1), m.group(1)), s)
 
@@ -40,7 +47,8 @@ def _unescape(s):
 def _parse(text, path):
     out = {}
     for m in _DECL.finditer(text):
-        h = {'kind': m.group(1), 'file': os.path.relpath(path, ROOT), 'tokens': [], 'effects': [], 'filters': []}
+        h = {'kind': m.group(1), 'file': os.path.relpath(path, ROOT), 'tokens': [], 'effects': [], 'filters': [],
+             'args': []}
         i = m.end()
         while (p := _PART.match(text, i)):
             i = p.end()
@@ -85,7 +93,7 @@ def find(source, cls, kind):
         h = hs.get(name)
         if h:
             if h['kind'] != kind:
-                raise Unsupported(f'{kind} {cls}: its handler is a {h["kind"]}')
+                raise _unsupported(f'{kind} {cls}: its handler is a {h["kind"]}')
             return name
     return None
 
@@ -98,14 +106,25 @@ def effect(t, cls, args):
     h = handlers()[name]
     out = {'class': 'CardEffect', 'handler': name}
     args = [a.strip() for a in args if a.strip()]
+    filters = [t.filter(x) for x in h['filters']]
+    # constructor arguments the handler asked to have translated (`.args(&[…])`, one kind per argument):
+    # a "library_target" (`TargetCardInLibrary`) becomes "min max" in `args` and its filter goes after the
+    # declared filters
+    for i, kind in enumerate(h['args']):
+        if kind == 'library_target' and i < len(args):
+            filt, lo, hi = t.library_target(args[i])
+            filters.append(filt)
+            args[i] = f'{lo} {hi}'
+        elif kind != 'text':
+            raise _unsupported(f'argument kind {kind}')
     if args:
         out['args'] = args
     if h['tokens']:
         out['tokens'] = [T.token(x) for x in h['tokens']]
     if h['effects']:
         out['effects'] = [t.effect(x) for x in h['effects']]
-    if h['filters']:
-        out['filters'] = [t.filter(x) for x in h['filters']]
+    if filters:
+        out['filters'] = filters
     return out
 
 
