@@ -8116,8 +8116,10 @@ fn refresh_land_types(game: &mut Game) {
     // a triggered ability a resolved effect gave until end of turn (Herd Heirloom's "Whenever this creature deals
     // combat damage to a player, draw a card"): Java adds it to the permanent, so it triggers like its own (an
     // activated one too, activated like its own: Retraction Helix's "{T}: Return target nonland permanent …")
+    // (a mana ability too: Song of Freyalise's "{T}: Add one mana of any color" until your next turn)
     for g in game.grants.iter() {
-        if matches!(g.ability, AbilityDef::TriggeredAbility { .. } | AbilityDef::SimpleActivatedAbility { .. })
+        if (matches!(g.ability, AbilityDef::TriggeredAbility { .. } | AbilityDef::SimpleActivatedAbility { .. })
+            || g.ability.mana().is_some())
             && game.obj(g.target).zone == Zone::Battlefield
             && game.obj(g.target).zcc == g.zcc
         {
@@ -14990,6 +14992,25 @@ fn apply_each_effect(
 fn item_rule(game: &Game, item: &StackItem) -> String {
     let def = game.item_def(item);
     match item.ability {
+        // a triggered ability's `getRule(true)` is `AbilityImpl`'s: its effects' text, without the trigger phrase or
+        // an intervening "if" (Trail of Crumbs' "Whenever you sacrifice a Food" doesn't keep its card from being
+        // picked by itself)
+        Some((i, _)) if matches!(def.abilities.get(i), Some(AbilityDef::TriggeredAbility { .. })) => {
+            let rule = def.abilities[i].on_stack().map(|(r, ..)| r).unwrap_or_default();
+            let low = rule.to_lowercase();
+            let mut rest = rule;
+            if ["when", "whenever", "at "].iter().any(|w| low.starts_with(w)) {
+                if let Some(k) = rest.find(", ") {
+                    rest = &rest[k + 2..];
+                    if rest.starts_with("if ") {
+                        if let Some(k) = rest.find(", ") {
+                            rest = &rest[k + 2..];
+                        }
+                    }
+                }
+            }
+            rest.to_string()
+        }
         Some((i, _)) => {
             def.abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r.to_string()).unwrap_or_default()
         }
