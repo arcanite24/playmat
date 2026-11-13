@@ -119,7 +119,9 @@ pub fn prompt_view(game: &Game, seat: Seat, query: &Query) -> Option<Value> {
                 } else {
                     rule
                 };
-                choices.insert(format!("{}a{}", r, k), json!(format!("{}. {}", n + 1, rule)));
+                // (Java numbers a back face's abilities after its spell ability)
+                let java = k + game.obj(*source).java_ability_offset();
+                choices.insert(format!("{}a{}", r, java), json!(format!("{}. {}", n + 1, rule)));
             }
             // the object its first ability is of: an adventurer's adventure is its face `f1`
             let first = abilities.first().and_then(|k| rules.get(*k));

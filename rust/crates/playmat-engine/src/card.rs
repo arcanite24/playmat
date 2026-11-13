@@ -24,9 +24,11 @@ impl Color {
 }
 
 /// Mana as an amount of each kind: white, blue, black, red, green, colorless.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
 pub struct Mana {
+    #[serde(default)]
     pub colored: [u32; 5],
+    #[serde(default)]
     pub colorless: u32,
 }
 
@@ -53,6 +55,8 @@ pub struct ManaCost {
     pub phyrexian: [u32; 5],
     /// hybrid symbols (`{G/W}`): each paid with either color, the first tried first
     pub hybrid: Vec<(usize, usize)>,
+    /// monocolored hybrid symbols (`{2/R}`, `MonoHybridManaCost`): each paid with its color or two generic mana
+    pub mono: Vec<usize>,
     /// snow symbols (`{S}`, `SnowManaCost`): one generic mana each, from a snow source only. The playable check
     /// counts them as generic (`SnowManaCost.testPay`); the payment takes them after hybrid and before generic
     /// (`ManaCostsImpl.assignPayment`), from mana a snow permanent made (its source filter)
@@ -82,6 +86,9 @@ impl ManaCost {
                 p if p.len() == 3 && &p[1..2] == "/" && "WUBRG".contains(&p[..1]) && "WUBRG".contains(&p[2..]) => {
                     cost.hybrid.push(("WUBRG".find(&p[..1]).unwrap(), "WUBRG".find(&p[2..]).unwrap()));
                 }
+                p if p.len() == 3 && p.starts_with("2/") && "WUBRG".contains(&p[2..]) => {
+                    cost.mono.push("WUBRG".find(&p[2..]).unwrap());
+                }
                 p if p.len() == 3 && p.ends_with("/P") => {
                     let k = "WUBRG".find(&p[..1]).ok_or_else(|| format!("mana symbol {{{}}} not supported", p))?;
                     cost.colored[k] += 1;
@@ -97,7 +104,12 @@ impl ManaCost {
     }
 
     pub fn mana_value(&self) -> u32 {
-        self.generic + self.colored.iter().sum::<u32>() + self.colorless + self.hybrid.len() as u32 + self.snow
+        self.generic
+            + self.colored.iter().sum::<u32>()
+            + self.colorless
+            + self.hybrid.len() as u32
+            + self.snow
+            + 2 * self.mono.len() as u32
     }
 
     /// the cost with its snow symbols as generic ones: what the playable check tests (`SnowManaCost`'s options are
@@ -114,7 +126,9 @@ impl ManaCost {
             .iter()
             .copied()
             .filter(|c| {
-                self.colored[c.index()] > 0 || self.hybrid.iter().any(|(a, b)| *a == c.index() || *b == c.index())
+                self.colored[c.index()] > 0
+                    || self.hybrid.iter().any(|(a, b)| *a == c.index() || *b == c.index())
+                    || self.mono.contains(&c.index())
             })
             .collect()
     }
@@ -126,10 +140,13 @@ impl ManaCost {
         self.colored[i]
             + if i == j { 0 } else { self.colored[j] }
             + self.hybrid.iter().filter(|(a, b)| [*a, *b].iter().any(|x| *x == i || *x == j)).count() as u32
+            + self.mono.iter().filter(|m| **m == i || **m == j).count() as u32
     }
 
     pub fn symbols_of(&self, c: Color) -> u32 {
-        self.colored[c.index()] + self.hybrid.iter().filter(|(a, b)| *a == c.index() || *b == c.index()).count() as u32
+        self.colored[c.index()]
+            + self.hybrid.iter().filter(|(a, b)| *a == c.index() || *b == c.index()).count() as u32
+            + self.mono.iter().filter(|m| **m == c.index()).count() as u32
     }
 
     pub fn is_empty(&self) -> bool {
@@ -149,6 +166,7 @@ impl ManaCost {
             c.phyrexian[i] += other.phyrexian[i];
         }
         c.hybrid.extend(other.hybrid.iter().copied());
+        c.mono.extend(other.mono.iter().copied());
         c.snow += other.snow;
         c.text.push_str(&other.text);
         c
@@ -1216,6 +1234,22 @@ pub enum CostDef {
     DiscardSourceCost,
     /// forage: exile three cards from your graveyard or sacrifice a Food, then "whenever you forage" triggers
     ForageCost,
+    /// blight N: N -1/-1 counters on a creature you control (`BlightCost`, chosen, not targeted)
+    BlightCost {
+        amount: i32,
+    },
+    /// waterbend N: {N}, each untapped artifact or creature you tap paying {1} of it (`WaterbendCost`)
+    WaterbendCost {
+        amount: u32,
+    },
+    /// return `amount` permanents of the filter you control to their owner's hand
+    /// (`ReturnToHandChosenControlledPermanentCost`, chosen, not targeted)
+    ReturnToHandChosenControlledPermanentCost {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default = "one")]
+        amount: usize,
+    },
 }
 
 fn put_hand() -> PutCards {
@@ -2305,6 +2339,13 @@ pub enum EffectDef {
     UginsLabyrinthExileEffect,
     /// Ugin's Labyrinth: the cards exiled with the source go to their owner's hand
     UginsLabyrinthReturnEffect,
+    /// adds `amount` mana of `color` (none: {C}) to the controller's pool, counted as it resolves
+    /// (`DynamicManaEffect`: Neheb's {R} for each life opponents lost)
+    DynamicManaEffect {
+        #[serde(default)]
+        color: Option<Color>,
+        amount: Amount,
+    },
     /// adds mana to the controller's pool (WUBRG, then colorless)
     BasicManaEffect {
         colored: [u32; 5],
@@ -3986,6 +4027,12 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+    /// `{T}: For each color among permanents you control, add one mana of that color`
+    /// (`AddEachControlledColorManaAbility`: Bloom Tender)
+    AddEachControlledColorManaAbility {
+        #[serde(default)]
+        rule: String,
+    },
     /// `{T}: Add` `amount` mana of `color`, counted as it's activated (`DynamicManaAbility`: Elvish Archdruid)
     DynamicManaAbility {
         /// none: `{C}` (Powerstone Shard)
@@ -4060,6 +4107,36 @@ pub enum AbilityDef {
         /// spent on activated abilities of permanents of `filter` too (Eldrazi Temple)
         #[serde(default)]
         filter_abilities: bool,
+        /// spent on any activated ability too, `filter` limiting only spells (a Powerstone's "can't be spent to cast
+        /// a nonartifact spell")
+        #[serde(default)]
+        any_abilities: bool,
+        /// several kinds at once instead of `color` and `amount` (Cormela's {U}{B}{R})
+        #[serde(default)]
+        mana: Option<Mana>,
+        /// it doesn't tap its source (Lord of the Forsaken's "Pay 1 life")
+        #[serde(default)]
+        no_tap: bool,
+        #[serde(default)]
+        rule: String,
+    },
+    /// The mana abilities the other classes don't cover: `SimpleManaAbility` with several kinds of mana at once or
+    /// mana in any combination of colors, `AddManaOfTwoDifferentColorsEffect`, `AddManaFromColorChoicesEffect`,
+    /// `DynamicManaAbility` with `Mana.AnyMana`, `LimitedTimesPerTurnActivatedManaAbility`,
+    /// `ActivateIfConditionManaAbility` with more than one mana
+    ManaAbility {
+        make: ManaMake,
+        /// its costs besides tapping (or instead of it, `no_tap`)
+        #[serde(default)]
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        no_tap: bool,
+        /// "activate only if"
+        #[serde(default)]
+        condition: Option<Condition>,
+        /// activations each turn (`LimitedTimesPerTurnActivatedManaAbility`: once)
+        #[serde(default)]
+        per_turn: Option<u32>,
         #[serde(default)]
         rule: String,
     },
@@ -4090,6 +4167,30 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+}
+
+/// What a `ManaAbility` makes.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(tag = "k", rename_all = "snake_case", deny_unknown_fields)]
+pub enum ManaMake {
+    /// these kinds at once (`new Mana(1, 1, 1, 1, 1, 0, 0, 0)`: {W}{U}{B}{R}{G})
+    Fixed { mana: Mana },
+    /// `amount` of one color the player chooses (`AddManaOfAnyColorEffect(n)`; `DynamicManaEffect` with
+    /// `Mana.AnyMana` and one choice)
+    AnyOneColor { amount: Amount },
+    /// `amount` in any combination of `colors` (`AddManaInAnyCombinationEffect`; `DynamicManaEffect` with
+    /// `Mana.AnyMana` and no one choice), asked with `getMultiAmount`; `dynamic` (`DynamicManaEffect`): one
+    /// mana is a `ChoiceColor` instead
+    Combination {
+        amount: Amount,
+        colors: Vec<Color>,
+        #[serde(default)]
+        dynamic: bool,
+    },
+    /// two mana of different colors (`ManaChoice.chooseTwoDifferentColors`)
+    TwoDifferent,
+    /// one mana of one of `colors` (`AddManaFromColorChoicesEffect`)
+    OneOf { colors: Vec<Color> },
 }
 
 /// An activated ability's parts: rule text, effects, targets, costs, sorcery speed.
@@ -4240,6 +4341,21 @@ impl AbilityDef {
             AbilityDef::CommanderColorIdentityManaAbility { .. } => Some(Mana::default()),
             // counted by the game (the colors among them)
             AbilityDef::AnyColorPermanentTypesManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            AbilityDef::ConditionalManaAbility { mana: Some(m), .. } => Some(*m),
+            // (counted by the game, the colors among them)
+            AbilityDef::AddEachControlledColorManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            AbilityDef::ManaAbility { make, .. } => Some(match make {
+                ManaMake::Fixed { mana } => *mana,
+                // (counted by the game, `mana_sources_with_kinds`)
+                ManaMake::AnyOneColor { .. } | ManaMake::TwoDifferent => Mana { colored: [1; 5], ..Mana::default() },
+                ManaMake::Combination { colors, .. } | ManaMake::OneOf { colors } => {
+                    let mut m = Mana::default();
+                    for c in colors {
+                        m.colored[c.index()] = 1;
+                    }
+                    m
+                }
+            }),
             AbilityDef::ConditionalManaAbility { colorless: true, amount, .. } => {
                 Some(Mana { colorless: *amount, ..Mana::default() })
             }
@@ -4264,6 +4380,8 @@ impl AbilityDef {
             | AbilityDef::AnyColorPermanentTypesManaAbility { .. }
             | AbilityDef::ConditionalManaAbility { .. }
             | AbilityDef::ConditionalColorManaAbility { .. }
+            | AbilityDef::ManaAbility { .. }
+            | AbilityDef::AddEachControlledColorManaAbility { .. }
             | AbilityDef::DynamicManaAbility { .. } => ManaKind::Other,
             // a `BasicManaAbility` makes one mana; "{T}: Add {G}{G}" is a `SimpleManaAbility`
             AbilityDef::ColoredManaAbility { amount, .. } if *amount != 1 => ManaKind::Other,
@@ -4285,6 +4403,8 @@ impl AbilityDef {
                 | AbilityDef::ColorlessManaAbility { no_tap: true, .. }
                 | AbilityDef::AnyColorManaAbility { no_tap: true, .. }
                 | AbilityDef::DynamicManaAbility { no_tap: true, .. }
+                | AbilityDef::ManaAbility { no_tap: true, .. }
+                | AbilityDef::ConditionalManaAbility { no_tap: true, .. }
         )
     }
 
@@ -4312,6 +4432,7 @@ impl AbilityDef {
             | AbilityDef::ColoredManaAbility { cost, .. }
             | AbilityDef::ConditionalManaAbility { cost, .. }
             | AbilityDef::DynamicManaAbility { cost, .. }
+            | AbilityDef::ManaAbility { cost, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { cost, .. }
             | AbilityDef::NykthosShrineToNyxManaAbility { cost, .. } => cost,
             _ => &[],
@@ -4323,6 +4444,7 @@ impl AbilityDef {
         match self {
             AbilityDef::ActivateIfConditionManaAbility { condition, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { condition, .. } => Some(condition),
+            AbilityDef::ManaAbility { condition, .. } => condition.as_ref(),
             _ => None,
         }
     }

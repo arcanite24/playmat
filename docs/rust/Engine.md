@@ -314,6 +314,21 @@ Being in the engine and being trusted are kept apart.
   creature" target, so Java casts Twinblade Invocation with no target and then undoes the game as it resolves.
   A face-down card's view is Java's except `imageNumber`, which Java picks from the object's UUID.
 
+  Mana abilities and unusual costs (13 Nov, wave 3): `SimpleManaAbility` with several kinds at once, any
+  combination, two different colors or one of a few (`ManaAbility`), `LimitedTimesPerTurnActivatedManaAbility`,
+  `ConditionalColoredManaAbility` with any cost and more mana builders, `DynamicManaEffect`, Bloom Tender's colors,
+  converge (`ColorsOfManaSpentToCastCount`), monocolored hybrid `{2/R}` (its color, else two generic, after hybrid),
+  blight, waterbend (asked after X, before targets, in one `Player.choose` round) and
+  `ReturnToHandChosenControlledPermanentCost`. 117 more cards translate (9,283). Two factory rounds (142 games, 132
+  match) verified 108 of them. Their fixes, each with a game under `shadow/mana-wave3/`: a spell's colors spent
+  leave out what paid a mana ability's own cost (Guild Globe's {2}); Cormela's {U}{B}{R} is three mana, spent one
+  at a time and counted whole in the playable check; a mana ability's own cost is asked, not taken from the stock;
+  "Pay 1 life: add {C}" doesn't tap; Powerstone mana can plot; a dynamic "any combination" of one mana is a color
+  choice; conditional {C} made at priority stays in
+  the pool; a transformed permanent's abilities are numbered after its back face's spell ability, in place too
+  (Brigid, Doun's Mind). Left: Pearl Lake Ancient's lands reach the hand in `HashSet` order (Java nondeterminism, as
+  Cyclonic Rift above); the order of two first-main-phase triggers with a transforming card (Scuzzback Scrounger);
+  a few single games (Kin-Tree Severance, Abomination, Monastery Messenger, Reigning Victor, Rakshasa's Bargain).
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
