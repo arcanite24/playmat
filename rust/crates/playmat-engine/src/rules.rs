@@ -6481,8 +6481,11 @@ fn refresh_land_types(game: &mut Game) {
                                 }
                             }
                         }
-                        // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"
-                        EffectDef::GainAbilityAllEffect { ability, filter, .. } if ability.mana().is_some() => {
+                        // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"; Food Fight: artifacts you
+                        // control have "{2}, Sacrifice this artifact: …"
+                        EffectDef::GainAbilityAllEffect { ability, filter, .. }
+                            if ability.mana().is_some() || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }) =>
+                        {
                             let you = game.obj(*id).controller;
                             for to in game.battlefield.iter() {
                                 if game.filter_matches(filter, you, Some(*id), *to) {
@@ -9413,6 +9416,16 @@ fn apply_each_effect(
                     untap(game.obj_mut(*o));
                 }
             }
+            EffectDef::ReturnToHandEachTargetEffect => {
+                for t in legal.iter().flatten() {
+                    if let Target::Obj(o) = t {
+                        if game.obj(*o).zone == Zone::Stack {
+                            Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                        }
+                        game.move_to(*o, Zone::Hand);
+                    }
+                }
+            }
             EffectDef::UntapEachTargetEffect => {
                 for t in legal.iter().flatten() {
                     if let Target::Obj(o) = t {
@@ -11316,7 +11329,7 @@ fn apply_each_effect(
                     game.move_to(c, Zone::Graveyard);
                 }
             }
-            EffectDef::MillThenPutInHandEffect { amount, filter, optional } => {
+            EffectDef::MillThenPutInHandEffect { amount, filter, optional, otherwise } => {
                 let amount = &v!(amount);
                 let n = (*amount).max(0) as usize;
                 let milled: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
@@ -11329,17 +11342,23 @@ fn apply_each_effect(
                     .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
                     .collect();
                 // `HumanPlayer.choose(cards)` shows the milled cards even when none of them can be chosen
+                let mut returned = false;
                 if !milled.is_empty() {
                     let min = if *optional || possible.is_empty() { 0 } else { 1 };
                     let rule_text = item_rule(game, item);
                     match choose_cards(game, d, controller, &milled, &possible, min, 1, &rule_text) {
                         Some(chosen) => {
+                            returned = !chosen.is_empty();
                             for c in chosen {
                                 game.move_to(c, Zone::Hand);
                             }
                         }
                         None => return,
                     }
+                }
+                // `applyOtherwiseEffect`: nothing milled, or nothing put into the hand
+                if let (false, Some(e)) = (returned, otherwise) {
+                    apply_effects(game, d, item, std::slice::from_ref(&**e), legal, source);
                 }
             }
             EffectDef::MillCardsControllerEffect { amount } => {

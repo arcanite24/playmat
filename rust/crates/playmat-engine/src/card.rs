@@ -1667,6 +1667,8 @@ pub enum EffectDef {
     BelieveEffect,
     /// `UntapTargetEffect` with `EachTargetPointer`: every target's permanents untap
     UntapEachTargetEffect,
+    /// `ReturnToHandTargetEffect` with an `EachTargetPointer`: every target of each of its targets (Aether Tradewinds)
+    ReturnToHandEachTargetEffect,
     /// Nissa's Encouragement: a Forest, a Brambleweft Behemoth and a Nissa, Genesis Mage from your library (and the
     /// ones not found there, from your graveyard) into your hand
     NissasEncouragementEffect,
@@ -1734,6 +1736,9 @@ pub enum EffectDef {
         amount: Amount,
         filter: Filter,
         optional: bool,
+        /// what happens if no card is put into the hand (Ainok Wayfarer's +1/+1 counter)
+        #[serde(default)]
+        otherwise: Option<Box<EffectDef>>,
     },
     /// a spell costs `per` less for each of `amount` (`SpellCostReductionForEachSourceEffect`)
     SpellCostReductionForEachSourceEffect {
