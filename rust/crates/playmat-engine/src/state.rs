@@ -119,6 +119,8 @@ pub struct Obj {
     pub cast_lki: bool,
     /// its toughness as it last left the battlefield (Righteous Valkyrie's trigger on a creature already gone)
     pub toughness_lki: Option<i32>,
+    /// its power as it last left the battlefield (`SourcePermanentPowerValue`'s last known information)
+    pub power_lki: Option<i32>,
     /// +1/+1 counters were put on it since triggers were last checked (`COUNTERS_ADDED`)
     pub p1p1_added: bool,
     /// it has flashback for its mana cost this turn (Stingcaster Mage), while it stays in the graveyard
@@ -987,6 +989,7 @@ impl Game {
             cast: false,
             cast_lki: false,
             toughness_lki: None,
+            power_lki: None,
             p1p1_added: false,
             flashback_turn: None,
             solved: false,
@@ -1741,7 +1744,11 @@ impl Game {
                     .iter()
                     .filter(|id| self.filter_matches(filter, you, Some(source), **id))
                     .count() as i32,
-                Value::SourcePower => self.power_toughness(source).0,
+                // a source gone from the battlefield: its power as it last was there
+                Value::SourcePower => match self.obj(source).power_lki {
+                    Some(p) if self.obj(source).zone != Zone::Battlefield => p,
+                    _ => self.power_toughness(source).0,
+                },
                 Value::SourceToughness => self.power_toughness(source).1,
                 Value::ControllerLife => self.player(you).life,
                 Value::TotalPower { filter } => self
@@ -2455,11 +2462,12 @@ impl Game {
                 }
             }
         }
-        let toughness_lki = (from == Zone::Battlefield).then(|| self.power_toughness(id).1);
+        let pt_lki = (from == Zone::Battlefield).then(|| self.power_toughness(id));
         self.remove_from_zone(id);
         {
             let o = self.obj_mut(id);
-            o.toughness_lki = toughness_lki;
+            o.toughness_lki = pt_lki.map(|p| p.1);
+            o.power_lki = pt_lki.map(|p| p.0);
             if from == Zone::Stack {
                 if let Some(def) = o.adventurer.take() {
                     o.def = def;

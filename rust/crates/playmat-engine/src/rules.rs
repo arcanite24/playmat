@@ -417,7 +417,6 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 let delayed = std::mem::take(&mut game.at_next_end_step);
                 game.pending.extend(delayed);
             }
-            game.pending.extend(fired);
             if step == Step::Upkeep {
                 let delayed = std::mem::take(&mut game.at_next_upkeep);
                 game.pending.extend(delayed);
@@ -443,6 +442,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     game.pending.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(card, owner) });
                 }
             }
+            // the delayed ones (the next upkeep's, rebound) before the others, as at the end step
+            game.pending.extend(fired);
         }
         // the replacement choices its damage asked for (Twinflame Tyrants) come before the step's priority
         Step::FirstCombatDamage => {
@@ -4132,6 +4133,18 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     if !choose_targets(game, d, seat, targets, None, rule, true) {
         return false;
     }
+    // an equip ability's reductions are for the creature it targets, now that it's chosen
+    if let AbilityDef::EquipAbility { .. } = def.abilities[index] {
+        if equip_discount(game, seat, None) > 0 {
+            let first = game.stack.last().and_then(|t| t.targets.first()).and_then(|t| t.first()).copied();
+            let off = match first {
+                Some(Target::Obj(o)) => equip_discount(game, seat, Some(o)),
+                _ => 0,
+            };
+            let own = adjusted_mana_cost_own(game, seat, id, &def.abilities[index], costs).generic;
+            mana.generic = own.saturating_sub(off);
+        }
+    }
     if let AbilityDef::EquipAbility { colorless_discount, .. } = def.abilities[index] {
         if colorless_discount > 0 {
             let first = game.stack.last().and_then(|t| t.targets.first()).and_then(|t| t.first()).copied();
@@ -4255,8 +4268,42 @@ fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost
     Some(paid)
 }
 
-/// An activated ability's mana cost, after its cost adjuster (Channel's legendary discount)
+/// `ReduceCostEquipTargetSourceEffect` (Fervent Champion): what `seat`'s equip abilities cost less for targeting
+/// `only`, or, with none, for every creature of theirs it could target (`inCheckPlayableState`: the first target can
+/// be it)
+fn equip_discount(game: &Game, seat: Seat, only: Option<ObjId>) -> u32 {
+    let mut n = 0;
+    for src in game.battlefield.iter() {
+        if only.is_some_and(|o| o != *src)
+            || game.obj(*src).controller != seat
+            || !game.has_type(*src, CardType::Creature)
+        {
+            continue;
+        }
+        for a in game.obj(*src).def.abilities.iter() {
+            if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                for e in effects {
+                    if let EffectDef::ReduceCostEquipTargetSourceEffect { amount } = e {
+                        n += amount;
+                    }
+                }
+            }
+        }
+    }
+    n
+}
+
+/// An activated ability's mana cost, after its cost adjuster (Channel's legendary discount) and, for an equip
+/// ability, the playable check's reductions for what it could target
 fn adjusted_mana_cost(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
+    let mut cost = adjusted_mana_cost_own(game, seat, id, a, costs);
+    if let AbilityDef::EquipAbility { .. } = a {
+        cost.generic = cost.generic.saturating_sub(equip_discount(game, seat, None));
+    }
+    cost
+}
+
+fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
     let mut cost = ability_mana_cost(costs);
     // power-up the turn it entered: less its own mana cost
     if matches!(a, AbilityDef::PowerUpAbility { .. }) && game.obj(id).entered_turn == game.turn {
@@ -4307,7 +4354,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if choose_cards(game, d, seat, &[c], &[c], 1, 1, &rule) != Some(vec![c]) {
                 return false;
             }
-            game.obj_mut(c).tapped = true;
+            tap(game, c);
         }
         CostDef::TapXTargetCost { filter } => {
             let can: Vec<ObjId> = matching(game, filter, seat, id)
@@ -4334,7 +4381,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if game.obj(id).tapped {
                 return false;
             }
-            game.obj_mut(id).tapped = true
+            tap(game, id);
         }
         CostDef::SacrificeSourceCost => {
             let power = game.power_toughness(id).0;
@@ -4420,7 +4467,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
             for o in chosen {
-                game.obj_mut(o).tapped = true;
+                tap(game, o);
             }
         }
         CostDef::CrewCost { value } => {
@@ -5273,11 +5320,11 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
                         if !spendable {
                             // tapped for mana this payment can't use: it stays in the pool for one that can (its
                             // life paid too, and its mana cost)
-                            game.obj_mut(id).tapped = true;
+                            tap(game, id);
                             match pay_mana_ability_cost(game, d, seat, id, i) {
                                 Some(true) => {}
                                 Some(false) => {
-                                    game.obj_mut(id).tapped = false;
+                                    untap_undo(game, id);
                                     continue;
                                 }
                                 None => return false,
@@ -5493,7 +5540,7 @@ fn special_mana_payment(
             let artifacts = improvise_artifacts(game, seat);
             let chosen = pick_objects(game, d, seat, &artifacts, 1, unpaid.generic as usize)?;
             for c in &chosen {
-                game.obj_mut(*c).tapped = true;
+                tap(game, *c);
                 if log::kept(game) {
                     let line = format!("Improvise: {} taps {} to pay {{1}}", log::player(seat), log::object(game, *c));
                     log::inform(game, line);
@@ -5506,7 +5553,7 @@ fn special_mana_payment(
             let creatures = convoke_creatures(game, seat, unpaid);
             let chosen = pick_objects(game, d, seat, &creatures, 1, 1)?;
             let Some(c) = chosen.first().copied() else { return Some(false) };
-            game.obj_mut(c).tapped = true;
+            tap(game, c);
             // `ConvokeEffect.buildChoice`: its colors that are unpaid, and Colorless beside more than one
             let names = ["White", "Blue", "Black", "Red", "Green"];
             let mut choices: Vec<String> = Vec::new();
@@ -5594,7 +5641,7 @@ fn activate_mana_paying(
         m = Mana::of(*color, *amount);
     }
     if taps {
-        game.obj_mut(id).tapped = true;
+        tap(game, id);
     }
     // "tap an untapped permanent you control": asked, unless only enough are left
     for c in game.obj(id).def.abilities[i].mana_costs().to_vec() {
@@ -5616,19 +5663,19 @@ fn activate_mana_paying(
             if chosen.len() < amount {
                 // the cost wasn't paid: the ability isn't activated
                 if taps {
-                    game.obj_mut(id).tapped = false;
+                    untap_undo(game, id);
                 }
                 return true;
             }
             for o in chosen {
-                game.obj_mut(o).tapped = true;
+                tap(game, o);
             }
         }
         // "Sacrifice a Goblin" (Skirk Prospector): `SacrificeTargetCost`, as for any ability
         if let CostDef::SacrificeTargetCost { .. } = c {
             if !pay_cost(game, d, seat, id, &c) {
                 if taps {
-                    game.obj_mut(id).tapped = false;
+                    untap_undo(game, id);
                 }
                 return !d.stopped();
             }
@@ -5658,7 +5705,7 @@ fn activate_mana_paying(
         Some(false) => {
             match before_costs {
                 Some(b) => *game = b,
-                None => game.obj_mut(id).tapped = false,
+                None => untap_undo(game, id),
             }
             return true;
         }
@@ -6315,7 +6362,8 @@ fn lose_all_abilities(game: &mut Game, id: ObjId, src: ObjId, zcc: u32) {
 }
 
 /// 704.5n: an Equipment attached to what isn't a creature (or is gone) becomes unattached
-fn unattach_equipment(game: &mut Game) {
+fn unattach_equipment(game: &mut Game) -> bool {
+    let mut happened = false;
     let ids: Vec<ObjId> = game.battlefield.iter().copied().collect();
     for id in ids {
         if game.obj(id).attached_to.is_some()
@@ -6325,8 +6373,10 @@ fn unattach_equipment(game: &mut Game) {
                 || game.has_type(id, CardType::Creature))
         {
             game.obj_mut(id).attached_to = None;
+            happened = true;
         }
     }
+    happened
 }
 
 /// A static "as long as …, it's a creature" (Kaito, Bane of Nightmares): applied or removed as its condition changes.
@@ -6910,6 +6960,10 @@ fn apply_each_effect(
     for e in effects {
         game.lookback = game.battlefield.to_vec();
         match e {
+            EffectDef::TargetPointerEffect { target, effect } => {
+                let only = vec![legal.get(*target).cloned().unwrap_or_default()];
+                apply_each_effect(game, d, item, std::slice::from_ref(&**effect), &only, source);
+            }
             EffectDef::DamageTargetEffect { amount } => {
                 let amount = &v!(amount);
                 for t in legal.first().cloned().unwrap_or_default() {
@@ -8104,7 +8158,10 @@ fn apply_each_effect(
             }
             EffectDef::TransformSourceEffect => {
                 let (src, zcc) = source;
-                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc {
+                // `checkTransformCount`: not if it transformed since this ability was activated or triggered (the
+                // ability keeps the face it came from)
+                let same_face = item.def.as_ref().is_none_or(|f| f.name == game.obj(src).def.name);
+                if game.obj(src).zone == Zone::Battlefield && game.obj(src).zcc == zcc && same_face {
                     transform(game, src);
                 }
             }
@@ -8848,7 +8905,7 @@ fn apply_each_effect(
             }
             EffectDef::CantCastMoreThanOneSpellEffect { .. }
             | EffectDef::CantCastDuringYourTurnEffect
-            | EffectDef::ReduceCostEquipTargetSourceEffect
+            | EffectDef::ReduceCostEquipTargetSourceEffect { .. }
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
             | EffectDef::CantGainLifeAllEffect
             | EffectDef::AttacksIfAbleSourceEffect { .. }
@@ -9454,7 +9511,7 @@ fn apply_each_effect(
             EffectDef::TapSourceEffect => {
                 let (o, zcc) = source;
                 if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
-                    game.obj_mut(o).tapped = true;
+                    tap(game, o);
                 }
             }
             EffectDef::DamageControllerEffect { amount } => {
@@ -12027,10 +12084,10 @@ fn regenerate(game: &mut Game, id: ObjId) -> bool {
     if game.obj(id).regen_shields == 0 {
         return false;
     }
+    tap(game, id);
     let (attacking, blocking) = {
         let o = game.obj_mut(id);
         o.regen_shields -= 1;
-        o.tapped = true;
         o.damage = 0;
         o.deathtouched = false;
         let a = o.attacking.take().is_some();
@@ -12967,7 +13024,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
         }
         counters_added_triggers(game);
         game.update_guildpact();
-        unattach_equipment(game);
+        happened |= unattach_equipment(game);
         // what the last triggers' targets triggered, now that they're all on the stack
         if let Some(later) = game.targeted_later.take() {
             game.pending.extend(later);
@@ -12984,8 +13041,9 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
         if d.stopped() || (game.pending.is_empty() && game.returning.is_empty()) {
             return happened;
         }
-        // something triggered: `checkStateAndTriggered` processes the action
-        happened = true;
+        // something triggered: `checkStateAndTriggered` processes the action, unless none of it was played (each
+        // one removed for want of targets: `checkTriggered` is false, and the state isn't checked again)
+        let mut played = false;
         game.short_lki.clear();
         let pending = std::mem::take(&mut game.pending);
         let mut pending = waiting(game, pending);
@@ -13002,6 +13060,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
             let mut back: Vec<ObjId> = game.returning.iter().filter(|(s, _)| *s == seat).map(|(_, c)| *c).collect();
             let mut refetch = false;
             if !back.is_empty() {
+                played = true;
                 game.returning.retain(|(s, _)| *s != seat);
                 // `AuraReplacementEffect` puts an Aura onto the battlefield as its move is replaced, before the rest
                 back.sort_by_key(|c| !game.obj(*c).def.has_subtype("Aura"));
@@ -13121,12 +13180,19 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                         }
                     }
                 }
+                if game.stack.len() == at {
+                    played = true;
+                }
                 if log::kept(game) && game.stack.len() == at {
                     let line = log::triggers(game, seat, &game.stack[at - 1]);
                     log::inform(game, line);
                 }
             }
         }
+        if !played {
+            return happened;
+        }
+        happened = true;
     }
 }
 
@@ -13768,6 +13834,19 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     if !vigilance {
         tap(game, id);
     }
+}
+
+/// Undoes a cost's tap (the cost wasn't paid): the "whenever this becomes tapped" triggers it fired go too
+fn untap_undo(game: &mut Game, id: ObjId) {
+    game.obj_mut(id).tapped = false;
+    let def = game.obj(id).def.clone();
+    game.pending.retain(|t| {
+        !(t.card == id
+            && t.delayed.is_none()
+            && t.ability.is_some_and(|(i, _)| {
+                matches!(def.abilities.get(i).and_then(|a| a.trigger()), Some(Trigger::BecomesTapped))
+            }))
+    });
 }
 
 /// Taps a permanent: "whenever this becomes tapped" triggers
@@ -14592,7 +14671,8 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             })
             .collect();
         // `GameImpl.checkStateBasedActions` moves each permanent as it comes to it: an Aura after the creature it
-        // enchants, which went for 0 toughness, already enchants nothing (its card follows the creature's)
+        // enchants, which went (for 0 toughness or destroyed by lethal damage), already enchants nothing (its card
+        // follows the creature's)
         let bf: Vec<ObjId> = game.battlefield.to_vec();
         let gone_before = |aura: ObjId| {
             let Some(to) = game.attached(aura) else { return false };
@@ -14602,9 +14682,15 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             t < a
                 && dying.contains(&to)
                 && game.has_type(to, CardType::Creature)
-                && game.power_toughness(to).1 <= 0
                 && game.obj(aura).def.has_subtype("Aura")
         };
+        // the Auras that follow their creature, only if it did leave (a regeneration shield keeps it)
+        let follows: Vec<(ObjId, ObjId)> = bf
+            .iter()
+            .copied()
+            .filter(|id| !dying.contains(id) && gone_before(*id))
+            .filter_map(|id| game.attached(id).map(|to| (id, to)))
+            .collect();
         let mut dying: Vec<ObjId> = bf.iter().copied().filter(|id| dying.contains(id) || gone_before(*id)).collect();
         // 704.5y: of the Roles one player controls on one permanent, only the newest stays
         let roles: Vec<ObjId> = game
@@ -14621,6 +14707,9 @@ pub fn state_based_actions(game: &mut Game) -> bool {
         }
         game.lookback = game.battlefield.to_vec();
         for id in dying {
+            if follows.iter().any(|(a, to)| *a == id && game.obj(*to).zone == Zone::Battlefield) {
+                continue;
+            }
             // lethal damage destroys (a regeneration shield replaces that); 0 toughness doesn't
             let creature = game.has_type(id, CardType::Creature);
             let lethal = creature && game.power_toughness(id).1 > 0;

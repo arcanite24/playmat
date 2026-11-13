@@ -115,8 +115,8 @@ EFFECTS = {
     'CantBeBlockedByMoreThanOneAttachedEffect': [(None, 'aura')],
     'CantCastMoreThanOneSpellEffect': [('who', 'target_controller')],
     'CantCastDuringYourTurnEffect': [],
-    # cheaper equip abilities: the engine has no equipment, so it never applies
-    'ReduceCostEquipTargetSourceEffect': [(None, 'int')],
+    # equip abilities that target this cost less (Fervent Champion)
+    'ReduceCostEquipTargetSourceEffect': [('amount', 'int')],
     'PermanentsEnterBattlefieldTappedEffect': [('filter', 'filter')],
     'CantGainLifeAllEffect': [],
     'ReturnSourceFromGraveyardToBattlefieldEffect': [('tapped', 'bool'), (None, 'false')],
@@ -3466,6 +3466,20 @@ def ability_statement(t, st, added):
     if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'ReturnToHandTargetEffect':
         t.vars[m.group(1)]['class'] = 'ReturnToHandEachTargetEffect'
         return True
+    # an effect on the ability's second or third target (Grip of Desolation's land, Manticore's damage)
+    m = re.fullmatch(r'(\w+)\.setTargetPointer\(new (First|Second|Third)TargetPointer\(\)\)', st)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and 'class' in t.vars[m.group(1)]:
+        if m.group(2) != 'First':
+            v = t.vars[m.group(1)]
+            inner = dict(v)
+            v.clear()
+            v.update({'class': 'TargetPointerEffect', 'target': {'Second': 1, 'Third': 2}[m.group(2)],
+                      'effect': inner})
+        return True
+    m = re.fullmatch(r'(\w+)\.setTargetPointer\(.*\)', st)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and 'class' in t.vars[m.group(1)] \
+            and t.vars[m.group(1)].get('class', '').endswith('Effect'):
+        raise Unsupported('target pointer ' + st)
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withFirstModeFlavorWord)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
@@ -4022,6 +4036,13 @@ def granted_rules(card):
                 g['rule'] = quoted.group(1)
             else:
                 g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
+                # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it")
+                if [e.get('class') for e in g.get('effects', [])] == ['AddCountersSourceEffect']:
+                    g['rule'] = re.sub(r'\b(counters? on) it\.$', r'\1 {this}.', g['rule'])
+            # `InvestigateEffect()` writes its reminder text after "investigate."
+            if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
+                g['rule'] += (' <i>(Create a Clue token. It\'s an artifact with "{2}, Sacrifice this artifact: Draw a'
+                              ' card.")</i>')
         elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility', 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
 
@@ -4089,6 +4110,9 @@ def main():
             # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
             if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
                 raise Unsupported('mana symbol ' + m.group(0))
+            # snow mana ({S}: mana from a snow source): the engine's mana pool doesn't know where mana came from
+            if re.search(r'"cost": "[^"]*\{S\}', json.dumps(card)):
+                raise Unsupported('mana symbol {S}')
             hints = card_hints(card['name'], subtypes)
             if hints:
                 card['hints'] = hints

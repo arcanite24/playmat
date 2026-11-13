@@ -1212,6 +1212,11 @@ pub enum EffectDef {
         effect: Box<EffectDef>,
         condition: Condition,
     },
+    /// `effect` on the ability's target number `target` (0 the first; `SecondTargetPointer` is 1)
+    TargetPointerEffect {
+        target: usize,
+        effect: Box<EffectDef>,
+    },
     /// the source's base power and toughness are each a count (layer 7a; "creatures_you_control")
     SetBasePowerToughnessSourceEffect {
         count: String,
@@ -1794,8 +1799,11 @@ pub enum EffectDef {
     },
     /// your opponents can't cast spells during your turn (Voice of Victory)
     CantCastDuringYourTurnEffect,
-    /// equip abilities that target this cost less; the engine has no equipment, so it never applies
-    ReduceCostEquipTargetSourceEffect,
+    /// equip abilities you activate that target this cost {amount} less (Fervent Champion)
+    ReduceCostEquipTargetSourceEffect {
+        #[serde(default)]
+        amount: u32,
+    },
     /// a static ability's effect: permanents of the filter enter tapped
     PermanentsEnterBattlefieldTappedEffect {
         filter: Filter,
