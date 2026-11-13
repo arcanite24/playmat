@@ -10153,7 +10153,22 @@ fn apply_each_effect(
                         continue;
                     }
                     let old = game.obj(*o).def.clone();
-                    let def = becomes_creature(&old, token, false);
+                    let mut def = becomes_creature(&old, token, false);
+                    // its base power and toughness (layer 7b) replace a characteristic-defining one (7a): Pack Rat
+                    // made a 1/1 Citizen by Secret Identity
+                    for a in def.abilities.iter_mut() {
+                        if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                            effects.retain(|e| {
+                                !matches!(
+                                    e,
+                                    EffectDef::SetBasePowerSourceEffect { .. }
+                                        | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
+                                        | EffectDef::SetBasePowerToughnessAmountSourceEffect { .. }
+                                        | EffectDef::SetBasePowerToughnessSourceEffect { .. }
+                                )
+                            });
+                        }
+                    }
                     let ob = game.obj_mut(*o);
                     if *duration == Duration::EndOfTurn && ob.until_end_of_turn_def.is_none() {
                         ob.until_end_of_turn_def = Some(old);
