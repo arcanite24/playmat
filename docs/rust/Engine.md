@@ -213,7 +213,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (ENGINE_COUNT on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (9,833 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -348,11 +348,12 @@ Being in the engine and being trusted are kept apart.
   Layer work (becomes-a-creature effects and Auras, enters-as-copy, token copies with exceptions, werewolf
   transforms; 98 games, 90 of the 97 Java finished match) verified 58 more: 9,603 (9,786 in the engine).
 
-  Card-specific static effects (13 Nov, `custom_statics.py` and the bespoke statics in `CUSTOM`): four rounds over
-  the 45 cards they brought in, 86 games, all matching on the final engine. The fix, with a game under
+  Card-specific static effects (13 Nov, `custom_statics.py` and the bespoke statics in `CUSTOM`): five rounds over
+  the 47 cards they brought in (two of them, Kami of Whispered Hopes and Mirror Room, translate only on top of the
+  other wave-3 work), 104 games, all matching on the final engine. The fix, with a game under
   `shadow/factory/`: Java asks which replacement applies first before each "enters with" replacement while two or
-  more are left, not all at once (four Rhythms of the Wild and a Valley Flamecaller). VERIFIED_LINE
-  City on Fire is pending (cast in one game); The Great Henge translates but doesn't load (its mana ability
+  more are left, not all at once (four Rhythms of the Wild and a Valley Flamecaller). 45 more cards are verified:
+  9,648. City on Fire is pending (cast in one game); The Great Henge translates but doesn't load (its mana ability
   also gains life).
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
