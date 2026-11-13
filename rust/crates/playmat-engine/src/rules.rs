@@ -9,7 +9,8 @@ use crate::card::{
 use crate::decide::{Answer, Decider, Query};
 use crate::log;
 use crate::state::{
-    Boost, Delayed, EventKind, Game, GameEvent, Grant, ObjId, Seat, StackItem, Step, Target, TriggerCause, Zone,
+    Boost, Delayed, EventKind, Game, GameEvent, Grant, ObjId, Requirement, RequirementKind, Seat, StackItem, Step,
+    Target, TriggerCause, Zone,
 };
 use std::sync::Arc;
 
@@ -65,7 +66,7 @@ fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: 
             let line = format!("{} skips Draw step", log::player(game.active.unwrap_or(0)));
             log::inform(game, line);
         }
-        match next_step(game, step) {
+        match advance(game, step) {
             Some(s) => game.step = Some(s),
             None => {
                 if stop_on_turn != 0 && game.turn + 1 >= stop_on_turn {
@@ -93,6 +94,58 @@ fn play_on(game: &mut Game, d: &mut dyn Decider, stop_on_turn: u32, mut resume: 
     }
     if game.over {
         traced(game, d);
+    }
+}
+
+/// The phase a step is in, named by its first step
+fn phase_of(step: Step) -> Step {
+    match step {
+        Step::Untap | Step::Upkeep | Step::Draw => Step::Untap,
+        Step::PrecombatMain => Step::PrecombatMain,
+        Step::BeginCombat
+        | Step::DeclareAttackers
+        | Step::DeclareBlockers
+        | Step::FirstCombatDamage
+        | Step::CombatDamage
+        | Step::EndCombat => Step::BeginCombat,
+        Step::PostcombatMain => Step::PostcombatMain,
+        Step::EndTurn | Step::Cleanup => Step::EndTurn,
+    }
+}
+
+/// The step after `step`: within its phase the next one; after a phase (`Turn.playExtraPhases`, 500.8) the extra
+/// phase that comes after it, the last one added first, then the turn's own next phase
+fn advance(game: &mut Game, step: Step) -> Option<Step> {
+    let next = next_step(game, step);
+    let phase = phase_of(step);
+    if next.is_some_and(|n| phase_of(n) == phase) || step == Step::Cleanup {
+        return next;
+    }
+    if phase == Step::BeginCombat && game.resume_step.is_none() {
+        game.combat_phase_done = true;
+    }
+    let active = game.active.unwrap_or(0);
+    if let Some(i) =
+        game.extra_phases.iter().rposition(|(s, _, after, _)| *s == active && after.is_none_or(|a| a == phase))
+    {
+        let (_, extra, _, with_main) = game.extra_phases.remove(i);
+        if game.resume_step.is_none() {
+            game.resume_step = next;
+        }
+        // `AddCombatAndMainPhaseEffect`'s delayed trigger: the main phase after this combat
+        if with_main {
+            game.extra_phases.push((active, Step::PostcombatMain, None, false));
+        }
+        if log::kept(game) {
+            let name = if extra == Step::BeginCombat { "Combat" } else { "Postcombat Main" };
+            let line = format!("{} starts an additional {} phase", log::player(active), name);
+            log::inform(game, line);
+        }
+        return Some(extra);
+    }
+    match game.resume_step.take() {
+        Some(r) => Some(r),
+        None => next,
     }
 }
 
@@ -177,6 +230,29 @@ fn note_countered(game: &mut Game, spell: ObjId, source: ObjId) {
     note(game, EventKind::Countered, player, Some(source), Some(Target::Obj(spell)), 0);
 }
 
+/// Whether a resolved "doesn't untap" effect keeps `id` tapped in `active`'s untap step: one for as long as its
+/// source stays under the controller it had (`DontUntapInControllersUntapStepTargetEffect`), or one for the next
+/// untap step of its controller's turn (`DontUntapInControllersUntapStepAllEffect` until your next turn)
+fn dont_untap_now(game: &Game, id: ObjId, active: Seat) -> bool {
+    let zcc = game.obj(id).zcc;
+    game.dont_untap_while.iter().any(|(t, tz, src, sz, seat)| {
+        let s = game.obj(*src);
+        *t == id
+            && *tz == zcc
+            && s.zone == Zone::Battlefield
+            && s.zcc == *sz
+            && match seat {
+                Some(c) => s.controller == *c,
+                None => s.tapped,
+            }
+    }) || game.dont_untap_next.iter().any(|(you, controller, filter, src, at)| {
+        *you == active
+            && *at < game.turn
+            && (controller != "you" || game.obj(id).controller == *you)
+            && game.filter_matches(filter, *you, Some(*src), id)
+    })
+}
+
 fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
     let active = game.active.unwrap_or(0);
     match step {
@@ -217,6 +293,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.nonlands_entered = 0;
                 p.descended = 0;
             }
+            game.combat_phase_done = false;
             // "until your next turn" ends as it begins
             game.attacks_opponent.retain(|(s, _)| *s != active);
             game.flash_until_next_turn.retain(|(s, _, _)| *s != active);
@@ -233,7 +310,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             game.activated_this_turn.clear();
             for id in Arc::clone(&game.battlefield).iter().copied() {
                 if game.obj(id).controller == active {
-                    let stays_tapped = game.obj(id).def.abilities.iter().any(|a| match a {
+                    // `SkipUntapOptionalSourceEffect`, a restriction asked before the untap itself: "Untap X?"
+                    let kept = game.obj(id).tapped
+                        && game.obj(id).def.abilities.contains(&AbilityDef::SkipUntapOptionalAbility)
+                        && match choose_use(game, d, active, &format!("Untap {}?", log::object(game, id))) {
+                            Some(yes) => !yes,
+                            None => return,
+                        };
+                    let stays_tapped = kept
+                        || game.obj(id).def.abilities.iter().any(|a| match a {
                         AbilityDef::SimpleStaticAbility { effects, .. } => {
                             effects.iter().any(|e| matches!(e, EffectDef::DontUntapInControllersUntapStepSourceEffect))
                         }
@@ -241,7 +326,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     }) || game.any_static(|g, src, e| {
                         matches!(e, EffectDef::DontUntapInControllersUntapStepEnchantedEffect)
                             && g.attached(src) == Some(id)
-                    });
+                            || matches!(e, EffectDef::DontUntapInControllersUntapStepAllEffect { controller, filter, .. }
+                                if (controller != "you" || g.obj(src).controller == active)
+                                    && g.filter_matches(filter, g.obj(src).controller, Some(src), id))
+                    }) || dont_untap_now(game, id, active);
                     // `DontUntapInControllersNextUntapStepTargetEffect`: used up by this untap step
                     let zcc = game.obj(id).zcc;
                     let skipped = game.skip_next_untap.contains(&(id, zcc));
@@ -275,6 +363,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     }
                 }
             }
+            // "during your next untap step": used up by this one (`UntapStep` applies effects after untapping)
+            let turn = game.turn;
+            game.dont_untap_next.retain(|(you, _, _, _, at)| !(*you == active && *at < turn));
         }
         Step::DeclareAttackers => {
             declare_attackers(game, d, active);
@@ -577,6 +668,7 @@ fn end_step(game: &mut Game, step: Step) {
         game.first_strike_step = false;
         game.first_strikers.clear();
         game.combat_groups.clear();
+        game.requirements.retain(|r| !r.end_of_combat);
         for id in Arc::clone(&game.battlefield).iter().copied() {
             let o = game.obj(id);
             if o.attacking.is_some() || !o.blocking.is_empty() || o.blocks > 0 || o.blocked {
@@ -6200,7 +6292,7 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
                     && !game.chosen_before.contains(&Target::Obj(id))
             }),
         ),
-        TargetDef::TargetPlayer => (players, Vec::new()),
+        TargetDef::TargetPlayer { .. } => (players, Vec::new()),
         TargetDef::TargetOpponent => (players.into_iter().filter(|s| *s != seat).collect(), Vec::new()),
         TargetDef::TargetPlayerOrPlaneswalker => (players, permanents(&|id| game.has_type(id, CardType::Planeswalker))),
         TargetDef::TargetOpponentOrPlaneswalker => (
@@ -6359,6 +6451,7 @@ fn target_counts(def: &TargetDef) -> (usize, usize) {
         TargetDef::TargetPermanent { min, max, .. }
         | TargetDef::TargetCardInGraveyard { min, max, .. }
         | TargetDef::TargetStackAbility { min, max }
+        | TargetDef::TargetPlayer { min, max }
         | TargetDef::TargetAnyTarget { min, max, .. } => (*min, *max),
         _ => (1, 1),
     }
@@ -11890,6 +11983,16 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::UntapAttachedEffect => {
+                // (`getSourcePermanentOrLKI`: what it was attached to as it left)
+                let src = game.obj(source.0);
+                let attached = if src.zcc == source.1 { src.attached_to } else { src.lki_attached_to };
+                if let Some((o, zcc)) = attached {
+                    if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                        untap_permanent(game, o);
+                    }
+                }
+            }
             EffectDef::DrawCardAllEffect { amount, who } => {
                 for k in 0..game.seats() {
                     let p = (controller + k) % game.seats();
@@ -12976,10 +13079,8 @@ fn apply_each_effect(
             | EffectDef::SacrificeAllEffect { filter, amount } => {
                 let amount = v!(amount);
                 let players: Vec<Seat> = if matches!(e, EffectDef::SacrificeEffect { .. }) {
-                    match target {
-                        Some(Target::Player(p)) => vec![p],
-                        _ => vec![],
-                    }
+                    // each target player (`getTargetPointer().getTargets`), in the order chosen
+                    players.clone()
                 } else if matches!(e, EffectDef::SacrificeAllEffect { .. }) {
                     (0..game.seats()).map(|i| (controller + i) % game.seats()).collect()
                 } else {
@@ -13055,9 +13156,10 @@ fn apply_each_effect(
                 }
             }
             EffectDef::DiscardTargetEffect { amount } => {
+                // each target player, in the order chosen ("any number of target players")
                 let amount = v!(amount);
-                if let Some(Target::Player(p)) = target {
-                    discard(game, d, p, amount);
+                for p in &players {
+                    discard(game, d, *p, amount);
                 }
             }
             EffectDef::BecomesCreatureTargetEffect { token, duration, lose_abilities, still_land, named }
@@ -13244,7 +13346,7 @@ fn apply_each_effect(
             }
             EffectDef::MillCardsTargetEffect { amount } => {
                 let n = v!(amount).max(0) as usize;
-                if let Some(Target::Player(p)) = target {
+                for p in players.iter().copied() {
                     let top: Vec<ObjId> = game.player(p).library.iter().take(n).copied().collect();
                     note(game, EventKind::Milled, Some(p), None, None, top.len() as i32);
                     for c in top {
@@ -14775,6 +14877,99 @@ fn apply_each_effect(
                             game.skip_next_untap.push((*o, zcc));
                         }
                     }
+                }
+            }
+            EffectDef::MustBeBlockedByAllTargetEffect { end_of_combat }
+            | EffectDef::AttacksIfAbleTargetEffect { end_of_combat }
+            | EffectDef::MustBeBlockedByTargetSourceEffect { end_of_combat } => {
+                let (kind, attacker) = match e {
+                    EffectDef::MustBeBlockedByAllTargetEffect { .. } => (RequirementKind::BlockedByAll, None),
+                    EffectDef::AttacksIfAbleTargetEffect { .. } => (RequirementKind::Attacks, None),
+                    _ => (RequirementKind::MustBlock, Some(source)),
+                };
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        let obj = (*o, game.obj(*o).zcc);
+                        game.requirements.push(Requirement { kind, obj, attacker, end_of_combat: *end_of_combat });
+                    }
+                }
+            }
+            EffectDef::AttacksIfAbleAttachedEffect | EffectDef::BlocksIfAbleSourceEffect => {}
+            // `PlayerImpl.flipCoins`: "Heads or tails?" (yes: heads), then `RandomUtil.nextBoolean()`
+            EffectDef::FlipCoinEffect { won, lost } => {
+                let Some(chosen) = choose_use(game, d, controller, "Heads or tails?") else { return };
+                let result = game.rng.next_boolean();
+                if log::kept(game) {
+                    let name = |b: bool| if b { "Heads" } else { "Tails" };
+                    let from =
+                        log::source(game).map(|s| format!(" (source: {})", log::object(game, s))).unwrap_or_default();
+                    let p = log::player(controller);
+                    log::inform(game, format!("{} chose {}", p, name(chosen)));
+                    log::inform(game, format!("{} flipped {}{}", p, name(result), from));
+                    let outcome = if result == chosen { "won" } else { "lost" };
+                    log::inform(game, format!("{} {} the flip{}", p, outcome, from));
+                }
+                let effects = if result == chosen { won } else { lost };
+                apply_effects(game, d, item, effects, legal, source);
+            }
+            EffectDef::AdditionalCombatPhaseEffect { amount } => {
+                let active = game.active.unwrap_or(0);
+                for _ in 0..*amount {
+                    game.extra_phases.push((active, Step::BeginCombat, None, false));
+                }
+            }
+            EffectDef::AddCombatAndMainPhaseEffect => {
+                if game.step.is_some_and(|s| s.is_main()) {
+                    game.extra_phases.push((controller, Step::BeginCombat, Some(Step::PostcombatMain), true));
+                }
+            }
+            EffectDef::CanBlockAdditionalCreatureEffect { duration, .. }
+            | EffectDef::CanBlockAdditionalCreatureAllEffect { duration, .. }
+            | EffectDef::MustBeBlockedByAllSourceEffect { duration, .. } => {
+                if *duration == Duration::EndOfTurn {
+                    game.eot_effects.push((e.clone(), controller, source.0));
+                }
+            }
+            EffectDef::CanBlockAdditionalCreatureTargetEffect { amount } => {
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        let zcc = game.obj(*o).zcc;
+                        game.extra_blocks.push((*o, zcc, *amount));
+                    }
+                }
+            }
+            EffectDef::DontUntapInControllersNextUntapStepSourceEffect => {
+                let o = source.0;
+                if game.obj(o).zone == Zone::Battlefield {
+                    let zcc = game.obj(o).zcc;
+                    if !game.skip_next_untap.contains(&(o, zcc)) {
+                        game.skip_next_untap.push((o, zcc));
+                    }
+                }
+            }
+            EffectDef::DontUntapAsLongAsSourceTappedEffect => {
+                let (src, szcc) = source;
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        let zcc = game.obj(*o).zcc;
+                        game.dont_untap_while.push((*o, zcc, src, szcc, None));
+                    }
+                }
+            }
+            EffectDef::DontUntapInControllersUntapStepTargetEffect { duration } => {
+                let (src, szcc) = source;
+                let seat = (duration == "WhileControlled").then_some(controller);
+                for o in &objs {
+                    if game.obj(*o).zone == Zone::Battlefield {
+                        let zcc = game.obj(*o).zcc;
+                        game.dont_untap_while.push((*o, zcc, src, szcc, seat));
+                    }
+                }
+            }
+            EffectDef::DontUntapInControllersUntapStepAllEffect { duration, controller: who, filter } => {
+                if *duration == Duration::UntilYourNextTurn {
+                    let turn = game.turn;
+                    game.dont_untap_next.push((controller, who.clone(), filter.clone(), source.0, turn));
                 }
             }
             EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
@@ -17007,6 +17202,10 @@ fn untap_permanent(game: &mut Game, id: ObjId) {
 
 /// `PermanentImpl.untap`'s `UNTAPPED` event: "whenever this becomes untapped" (`InspiredAbility`)
 fn fire_untapped(game: &mut Game, id: ObjId) {
+    // `DontUntapAsLongAsSourceTappedEffect`: discarded as its source untaps
+    if game.dont_untap_while.iter().any(|x| x.2 == id && x.4.is_none()) {
+        game.dont_untap_while.retain(|x| !(x.2 == id && x.4.is_none()));
+    }
     let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::BecomesUntapped));
     game.pending.extend(fired);
 }
@@ -18355,6 +18554,7 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
 /// `Combat.selectBlockers`: the defender declares, then the block restrictions are checked. A creature with menace
 /// blocked by one loses its blocker; if the defender could have blocked it with two, they declare again.
 fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
+    let forced = forced_blockers(game, seat);
     let mut tries = 0;
     loop {
         tries += 1;
@@ -18367,8 +18567,7 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             // "can't be blocked by more than one creature" (an Aura's static): every blocker is removed
             if max_blocked_by_one(game, a) && live_blockers(game, a).len() > 1 {
                 for b in live_blockers(game, a) {
-                    game.obj_mut(b).blocking.clear();
-                    game.obj_mut(b).blocks = 0;
+                    remove_blocker(game, b);
                 }
                 let o = game.obj_mut(a);
                 o.blocked_by.clear();
@@ -18383,8 +18582,7 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             if blockers.len() != 1 {
                 continue;
             }
-            game.obj_mut(blockers[0]).blocking.clear();
-            game.obj_mut(blockers[0]).blocks = 0;
+            remove_blocker(game, blockers[0]);
             let o = game.obj_mut(a);
             o.blocked_by.clear();
             o.blocked = false;
@@ -18425,13 +18623,44 @@ fn declare_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 o.controller == seat
                     && !o.tapped
                     && o.blocking.is_empty()
-                    && game.has_ability(*b, &AbilityDef::BlocksIfAbleAbility)
+                    && (game.has_ability(*b, &AbilityDef::BlocksIfAbleAbility)
+                        || has_static(game, *b, |e| matches!(e, EffectDef::BlocksIfAbleSourceEffect)))
                     && attacking.iter().any(|a| {
                         can_block(game, *b, *a)
                             && !game.has_ability(*a, &AbilityDef::MenaceAbility)
                             && (!max_blocked_by_one(game, *a) || live_blockers(game, *a).is_empty())
                     })
             });
+        }
+        // the creatures forced to block (`creatureMustBlockAttackers`): each blocks one of the attackers forcing it
+        // (or is the only blocker of one that must be blocked), unless the only ones forcing it need more blockers
+        if legal && tries < 100 {
+            for (b, forcing) in &forced {
+                if game.obj(*b).zone != Zone::Battlefield {
+                    break;
+                }
+                if game.obj(*b).controller != seat {
+                    continue;
+                }
+                let valid = if game.obj(*b).blocks == 0 {
+                    forcing.iter().any(|a| {
+                        game.obj(*a).zone == Zone::Battlefield
+                            && game.has_ability(*a, &AbilityDef::MenaceAbility)
+                            && live_blockers(game, *a).len() + 1 < 2
+                    })
+                } else {
+                    game.obj(*b).blocking.iter().any(|a| {
+                        forcing.contains(a)
+                            || live_blockers(game, *a).len() == 1
+                                && (has_static(game, *a, |e| {
+                                    matches!(e, EffectDef::MustBeBlockedByAtLeastOneSourceEffect)
+                                }) || game.has_ability(*a, &AbilityDef::MustBeBlockedIfAbleAbility))
+                    })
+                };
+                if !valid {
+                    legal = false;
+                }
+            }
         }
         // `checkBlockRestrictionsAfter`: one that can't block alone, blocking alone, is removed
         let blocking: Vec<ObjId> = game
@@ -18530,6 +18759,93 @@ fn block_triggers(game: &mut Game) {
     }
 }
 
+/// The attackers whose requirements force `b` to block them (`RequirementEffect.mustBlock`): lures (all creatures
+/// able to block it do so) and "target creature blocks it if able", in the order of their sources
+fn forcing_attackers(game: &Game, b: ObjId) -> Vec<ObjId> {
+    let mut out: Vec<ObjId> = Vec::new();
+    let attacking = |g: &Game, a: ObjId| g.obj(a).zone == Zone::Battlefield && g.obj(a).attacking.is_some();
+    let add = |a: ObjId, out: &mut Vec<ObjId>| {
+        if attacking(game, a)
+            && can_block(game, b, a)
+            && game.obj(a).attacking == Some(game.obj(b).controller)
+            && !out.contains(&a)
+        {
+            out.push(a);
+        }
+    };
+    for src in game.battlefield.iter().copied() {
+        let you = game.obj(src).controller;
+        for ab in game.obj(src).def.abilities.iter() {
+            if let AbilityDef::SimpleStaticAbility { effects, .. } = ab {
+                for e in effects {
+                    let e = match e {
+                        EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                            if !game.condition_holds(Some(condition), you, src) {
+                                continue;
+                            }
+                            &**effect
+                        }
+                        e => e,
+                    };
+                    if let EffectDef::MustBeBlockedByAllSourceEffect { filter, .. } = e {
+                        if game.filter_matches(filter, you, Some(src), b) {
+                            add(src, &mut out);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    for (e, you, src) in game.eot_effects.iter() {
+        if let EffectDef::MustBeBlockedByAllSourceEffect { filter, .. } = e {
+            if game.filter_matches(filter, *you, Some(*src), b) {
+                add(*src, &mut out);
+            }
+        }
+    }
+    let zcc = game.obj(b).zcc;
+    for r in game.requirements.iter() {
+        match r.kind {
+            RequirementKind::BlockedByAll if game.obj(r.obj.0).zcc == r.obj.1 => add(r.obj.0, &mut out),
+            RequirementKind::MustBlock if r.obj == (b, zcc) => {
+                if let Some((a, _)) = r.attacker.filter(|(a, z)| game.obj(*a).zcc == *z) {
+                    add(a, &mut out);
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// `Combat.retrieveMustBlockAttackerRequirements`, before the defending player declares: each creature that a
+/// requirement forces to block (in battlefield order) is declared blocking the first attacker forcing it
+fn forced_blockers(game: &mut Game, seat: Seat) -> Vec<(ObjId, Vec<ObjId>)> {
+    let mut forced: Vec<(ObjId, Vec<ObjId>)> = Vec::new();
+    for b in Arc::clone(&game.battlefield).iter().copied() {
+        let o = game.obj(b);
+        if o.controller != seat || !o.is(CardType::Creature) || o.tapped || o.attacking.is_some() {
+            continue;
+        }
+        if !can_block_more(game, b) {
+            continue;
+        }
+        let forcing = forcing_attackers(game, b);
+        let Some(&first) = forcing.first() else { continue };
+        forced.push((b, forcing));
+        if !game.obj(b).blocking.contains(&first) {
+            game.obj_mut(b).blocking.push(first);
+            game.obj_mut(b).blocks += 1;
+            note(game, EventKind::Block, Some(seat), Some(b), Some(Target::Obj(first)), 0);
+            let by = &mut game.obj_mut(first).blocked_by;
+            by.retain(|x| *x != b);
+            by.push(b);
+            game.obj_mut(first).blocked = true;
+        }
+    }
+    forced
+}
+
 /// Whether an Aura on `a` says it can't be blocked by more than one creature.
 fn max_blocked_by_one(game: &Game, a: ObjId) -> bool {
     game.any_static(|g, src, e| {
@@ -18540,6 +18856,73 @@ fn max_blocked_by_one(game: &Game, a: ObjId) -> bool {
     })
 }
 
+/// `Permanent.getMaxBlocks` (0: any number): 1, plus each "can block an additional creature" effect on it, in
+/// Java's way (an "any number" sets 0, and a later "N more" leaves a 0 as it is)
+fn max_blocks(game: &Game, id: ObjId) -> u32 {
+    let mut amounts: Vec<i32> = Vec::new();
+    let mut add = |e: &EffectDef, src: ObjId, you: Seat, game: &Game| match e {
+        EffectDef::CanBlockAdditionalCreatureEffect { amount, .. } if src == id => amounts.push(*amount),
+        EffectDef::CanBlockAdditionalCreatureAllEffect { amount, filter, .. }
+            if game.filter_matches(filter, you, Some(src), id) =>
+        {
+            amounts.push(*amount)
+        }
+        _ => {}
+    };
+    for src in game.battlefield.iter().copied() {
+        for a in game.obj(src).def.abilities.iter() {
+            if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                for e in effects {
+                    let you = game.obj(src).controller;
+                    match e {
+                        EffectDef::ConditionalContinuousEffect { effect, condition } => {
+                            if game.condition_holds(Some(condition), you, src) {
+                                add(effect, src, you, game);
+                            }
+                        }
+                        e => add(e, src, you, game),
+                    }
+                }
+            }
+        }
+    }
+    for (e, you, src) in game.eot_effects.iter() {
+        add(e, *src, *you, game);
+    }
+    let zcc = game.obj(id).zcc;
+    for (o, z, n) in game.extra_blocks.iter() {
+        if *o == id && *z == zcc {
+            amounts.push(*n);
+        }
+    }
+    let mut max: u32 = 1;
+    for n in amounts {
+        if n == 0 {
+            max = 0;
+        } else if max > 0 {
+            max += n as u32;
+        }
+    }
+    max
+}
+
+/// `CanBlockPredicate`: it blocks fewer creatures than it can
+fn can_block_more(game: &Game, id: ObjId) -> bool {
+    let max = max_blocks(game, id);
+    max == 0 || game.obj(id).blocks < max
+}
+
+/// `Combat.removeBlocker`: out of every group it blocks
+fn remove_blocker(game: &mut Game, b: ObjId) {
+    for a in std::mem::take(&mut game.obj_mut(b).blocking) {
+        game.obj_mut(a).blocked_by.retain(|x| *x != b);
+        if !game.battlefield.iter().any(|x| game.obj(*x).blocking.contains(&a)) {
+            game.obj_mut(a).blocked = false;
+        }
+    }
+    game.obj_mut(b).blocks = 0;
+}
+
 fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let free = |g: &Game| -> Vec<ObjId> {
         g.battlefield
@@ -18547,7 +18930,7 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
             .copied()
             .filter(|id| {
                 let o = g.obj(*id);
-                o.controller == seat && o.is(CardType::Creature) && !o.tapped && o.blocking.is_empty()
+                o.controller == seat && o.is(CardType::Creature) && !o.tapped && can_block_more(g, *id)
             })
             .collect()
     };
@@ -18570,8 +18953,9 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         if o.controller != seat || !o.is(CardType::Creature) || o.zone != Zone::Battlefield {
             continue;
         }
-        if !o.blocking.is_empty() {
-            if game.stack.is_empty() {
+        // one that can block more is asked which attacker (again); one that can't is taken out of its blocks
+        if o.tapped || !can_block_more(game, blocker) {
+            if !o.blocking.is_empty() && game.stack.is_empty() {
                 // `Combat.removeBlocker`: out of each group it blocked, too (the view's blockers)
                 for a in std::mem::take(&mut game.obj_mut(blocker).blocking) {
                     game.obj_mut(a).blocked_by.retain(|x| *x != blocker);
@@ -18579,9 +18963,6 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 game.obj_mut(blocker).blocks = 0;
                 refresh_blocked(game);
             }
-            continue;
-        }
-        if o.tapped {
             continue;
         }
         let options: Vec<ObjId> = attackers(game).into_iter().filter(|a| can_block(game, blocker, *a)).collect();
@@ -18593,7 +18974,13 @@ fn select_blockers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
                 _ => None,
             }
         };
-        if let Some(a) = chosen {
+        // `Combat.removeBlockerGromGroup`: an attacker it already blocks is unblocked by it
+        if let Some(a) = chosen.filter(|a| game.obj(blocker).blocking.contains(a)) {
+            game.obj_mut(blocker).blocking.retain(|x| *x != a);
+            game.obj_mut(blocker).blocks -= 1;
+            game.obj_mut(a).blocked_by.retain(|x| *x != blocker);
+            refresh_blocked(game);
+        } else if let Some(a) = chosen {
             game.obj_mut(blocker).blocking.push(a);
             game.obj_mut(blocker).blocks += 1;
             let controller = game.obj(blocker).controller;
@@ -18903,6 +19290,44 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
             continue;
         }
         let power = power_of(game, b);
+        // one that blocks several (`Combat.blockingGroups`, `CombatGroup.attackerDamage`): its controller divides
+        // its damage among them (the first two in combat group order, then as declared), lethal damage to each
+        // in turn by default and the rest to the first
+        if game.obj(b).blocks > 1 {
+            let mut blocked: Vec<ObjId> =
+                blocking.iter().copied().filter(|a| game.obj(*a).zone == Zone::Battlefield).collect();
+            if blocked.len() >= 2 {
+                let order = |g: &Game, a: ObjId| g.combat_groups.iter().position(|c| c.attacker == a);
+                if order(game, blocked[1]) < order(game, blocked[0]) {
+                    blocked.swap(0, 1);
+                }
+            }
+            if blocked.len() < 2 {
+                continue;
+            }
+            let damage = power.max(0);
+            let mut remaining = damage;
+            let mut defaults = Vec::new();
+            for a in &blocked {
+                let n = remaining.min(lethal_damage(game, *a, b));
+                remaining -= n;
+                defaults.push(n);
+            }
+            if remaining > 0 {
+                defaults[0] += remaining;
+            }
+            let ranges = vec![(0, damage); blocked.len()];
+            let seat = game.obj(b).controller;
+            let amounts =
+                match multi_amount(game, d, seat, defaults, ranges, (damage, damage), (Some(b), blocked.clone())) {
+                    Some(v) => v,
+                    None => return,
+                };
+            for (a, n) in blocked.iter().zip(amounts.iter()) {
+                hits.push((b, Target::Obj(*a), *n));
+            }
+            continue;
+        }
         // not an attacker that left the battlefield (bounced and cast again, it's the same object here)
         if let Some(a) = blocking.first().filter(|a| game.obj(**a).blocked_by.contains(&b)) {
             hits.push((b, Target::Obj(*a), power));
@@ -18969,6 +19394,8 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.prevent_to_target.clear();
     end_control(game, true);
     game.must_block_from.clear();
+    game.extra_blocks.clear();
+    game.requirements.clear();
     game.exile_if_dies.clear();
     game.damaged_by_source.clear();
     game.combat_damaged_players.clear();

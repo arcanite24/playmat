@@ -216,7 +216,13 @@ pub enum TargetDef {
         #[serde(default)]
         x_count: bool,
     },
-    TargetPlayer,
+    /// a player; "any number of target players" is `min` 0, `max` 99 (`TargetPlayer(0, Integer.MAX_VALUE, false)`)
+    TargetPlayer {
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
     TargetOpponent,
     /// a spell on the stack, of the filter
     TargetSpell {
@@ -939,6 +945,8 @@ pub enum Condition {
     },
     /// `MyTurnCondition`
     MyTurn,
+    /// `FirstCombatPhaseCondition`: this turn's own combat phase isn't over (extra ones before it don't count)
+    FirstCombatPhase,
     /// `CastFromEverywhereSourceCondition`: this permanent was cast
     CastFromEverywhere,
     /// `LifeCompareCondition`: your life (or an opponent's) compared with `n`
@@ -2414,6 +2422,73 @@ pub enum EffectDef {
     },
     /// the targets don't untap during their controller's next untap step
     DontUntapInControllersNextUntapStepTargetEffect,
+    /// this can block `amount` additional creatures (0: any number; `CanBlockAdditionalCreatureEffect`): a static,
+    /// or resolved for the turn
+    CanBlockAdditionalCreatureEffect {
+        amount: i32,
+        duration: Duration,
+    },
+    /// the permanents of `filter` can block `amount` additional creatures (0: any number)
+    CanBlockAdditionalCreatureAllEffect {
+        amount: i32,
+        filter: Filter,
+        duration: Duration,
+    },
+    /// the target can block `amount` additional creatures this turn (0: any number)
+    CanBlockAdditionalCreatureTargetEffect {
+        amount: i32,
+    },
+    /// all creatures of `filter` able to block this do so (a lure: `MustBeBlockedByAllSourceEffect`): a static, or
+    /// resolved for the turn
+    MustBeBlockedByAllSourceEffect {
+        duration: Duration,
+        filter: Filter,
+    },
+    /// all creatures able to block the target this turn do so
+    MustBeBlockedByAllTargetEffect {
+        end_of_combat: bool,
+    },
+    /// the target blocks this (the source) this turn (or combat) if able
+    MustBeBlockedByTargetSourceEffect {
+        end_of_combat: bool,
+    },
+    /// the target attacks this turn (or combat) if able
+    AttacksIfAbleTargetEffect {
+        end_of_combat: bool,
+    },
+    /// the creature this is attached to attacks each combat if able
+    AttacksIfAbleAttachedEffect,
+    /// this blocks each combat if able
+    BlocksIfAbleSourceEffect,
+    /// flip a coin, calling it (`PlayerImpl.flipCoin`, winnable): `won` if you win the flip, else `lost`
+    FlipCoinEffect {
+        won: Vec<EffectDef>,
+        lost: Vec<EffectDef>,
+    },
+    /// after this phase, `amount` additional combat phases (`AdditionalCombatPhaseEffect`)
+    AdditionalCombatPhaseEffect {
+        amount: u32,
+    },
+    /// in a main phase: after the postcombat main phase, an additional combat phase followed by an additional main
+    /// phase (`AddCombatAndMainPhaseEffect`, which adds them after the postcombat main phase whichever main it is)
+    AddCombatAndMainPhaseEffect,
+    /// this doesn't untap during its controller's next untap step
+    DontUntapInControllersNextUntapStepSourceEffect,
+    /// the targets don't untap during their controller's untap step for as long as the source stays tapped
+    DontUntapAsLongAsSourceTappedEffect,
+    /// the targets don't untap during their controller's untap step while the source stays on the battlefield
+    /// (`duration` "WhileOnBattlefield") or under its controller ("WhileControlled")
+    DontUntapInControllersUntapStepTargetEffect {
+        duration: String,
+    },
+    /// the permanents of `filter` (`controller` "you": the source's controller's) don't untap during their controllers'
+    /// untap steps: as a static while the source is on the battlefield; resolved, `UntilYourNextTurn`: during the
+    /// next untap step of the controller's turn
+    DontUntapInControllersUntapStepAllEffect {
+        duration: Duration,
+        controller: String,
+        filter: Filter,
+    },
     /// you win the game: each opponent loses it (`PlayerImpl.won`)
     WinGameSourceControllerEffect,
     /// bolster: `amount` +1/+1 counters on the creature you control with the least toughness (chosen among ties)
@@ -2853,6 +2928,8 @@ pub enum EffectDef {
     },
     /// `ExileAttachedEffect`: exile the permanent this is attached to
     ExileAttachedEffect,
+    /// `UntapAttachedEffect`: untap the permanent this is attached to
+    UntapAttachedEffect,
     /// `DrawCardAllEffect`: each player of `who`, from you in turn order, draws `amount`
     DrawCardAllEffect {
         amount: Amount,
@@ -4148,6 +4225,8 @@ pub enum AbilityDef {
     MustBeBlockedIfAbleAbility,
     HasteAbility,
     VigilanceAbility,
+    /// "You may choose not to untap {this} during your untap step" (`SkipUntapOptionalAbility`)
+    SkipUntapOptionalAbility,
     TrampleAbility,
     FirstStrikeAbility,
     DoubleStrikeAbility,

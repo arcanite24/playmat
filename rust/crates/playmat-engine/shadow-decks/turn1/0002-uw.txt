@@ -1,0 +1,13 @@
+// probe round: blockers against attackers
+4 Tidebinder Mage
+4 Trueheart Duelist
+4 Veteran Ice Climber
+4 Coastline Chimera
+4 Night Market Guard
+4 Deserter's Quarters
+4 Brave the Sands
+4 Act of Heroism
+4 Dungeon Geists
+2 The Gold Saucer
+11 Island
+11 Plains

@@ -543,6 +543,27 @@ pub struct LookedAt {
     pub cards: Vec<ObjId>,
 }
 
+/// A combat requirement a resolved effect made (`RequirementEffect` until end of turn or of combat)
+#[derive(Clone, Debug, PartialEq)]
+pub struct Requirement {
+    pub kind: RequirementKind,
+    /// the permanent it's about, with its zone change count
+    pub obj: (ObjId, u32),
+    /// `MustBlock`: the attacker it must block, with its zone change count
+    pub attacker: Option<(ObjId, u32)>,
+    pub end_of_combat: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RequirementKind {
+    /// all creatures able to block it do so
+    BlockedByAll,
+    /// it attacks if able
+    Attacks,
+    /// it blocks `attacker` if able
+    MustBlock,
+}
+
 /// A combat group as views show it (`Combat.groups`): an attacker, in the order they attacked, and once it's left the
 /// battlefield what its group was then (Java keeps the group: its defender, blocked, and blockers)
 #[derive(Clone, Debug)]
@@ -958,6 +979,27 @@ pub struct Game {
     pub subtypes_while_there: Vec<(ObjId, u32, String)>,
     /// permanents that don't untap during their controller's next untap step (and their zone change count)
     pub skip_next_untap: Vec<(ObjId, u32)>,
+    /// `DontUntapInControllersUntapStepTargetEffect`: a permanent (its zone change count) that doesn't untap while its
+    /// source (its zone change count) stays on the battlefield under the controller it had (`Some`,
+    /// `WhileControlled`), or (None, `DontUntapAsLongAsSourceTappedEffect`) while the source stays tapped
+    pub dont_untap_while: Vec<(ObjId, u32, ObjId, u32, Option<Seat>)>,
+    /// `CanBlockAdditionalCreatureTargetEffect` this turn: the creature, its zone change count, how many more it can
+    /// block (0: any number)
+    pub extra_blocks: Vec<(ObjId, u32, i32)>,
+    /// combat requirements resolved this turn: what (its zone change count) must be blocked by all able, must attack,
+    /// or must block (the attacker named, with its zone change count), and whether it lasts only this combat
+    pub requirements: Vec<Requirement>,
+    /// extra phases to come (Java's turn mods, kept from turn to turn as Java keeps them): whose turn, the phase
+    /// (its first step), the phase it comes after (None: the current one), and whether an extra main phase follows it
+    /// (`AddCombatAndMainPhaseEffect`); the last one added is used first
+    pub extra_phases: Vec<(Seat, Step, Option<Step>, bool)>,
+    /// while an extra phase is played: the step the turn goes on with after it (and the extra phases after it)
+    pub resume_step: Option<Step>,
+    /// this turn's own combat phase is over (`FirstCombatPhaseCondition`: an extra one doesn't count)
+    pub combat_phase_done: bool,
+    /// `DontUntapInControllersUntapStepAllEffect` until your next turn: its controller, "you" or "any", the filter,
+    /// the source and the turn it resolved; it applies in the next untap step of that player's turn
+    pub dont_untap_next: Vec<(Seat, String, Filter, ObjId, u32)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
     /// while triggered abilities go on the stack: what their targets trigger (ward, valiant), which Java's
@@ -1129,6 +1171,13 @@ impl Game {
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
             skip_next_untap: Vec::new(),
+            dont_untap_while: Vec::new(),
+            extra_blocks: Vec::new(),
+            requirements: Vec::new(),
+            extra_phases: Vec::new(),
+            resume_step: None,
+            combat_phase_done: false,
+            dont_untap_next: Vec::new(),
             triggered_this_turn: Vec::new(),
             targeted_later: None,
             sac_insert: None,
@@ -2051,8 +2100,9 @@ impl Game {
             EffectDef::AttacksIfAbleSourceEffect { condition } => {
                 src == id && g.condition_holds(condition.as_ref(), g.obj(src).controller, src)
             }
+            EffectDef::AttacksIfAbleAttachedEffect => g.attached(src) == Some(id),
             _ => false,
-        })
+        }) || self.requirements.iter().any(|r| r.kind == RequirementKind::Attacks && r.obj == (id, self.obj(id).zcc))
     }
 
     pub fn cant_attack_or_block(&self, id: ObjId) -> bool {
@@ -2616,6 +2666,7 @@ impl Game {
             }
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
+            Condition::FirstCombatPhase => !self.combat_phase_done,
             Condition::Morbid => self.creature_died,
             Condition::PlayedLand => self.player(you).lands_played > 0,
             Condition::CardsInExile { n } => self.exile.len() >= *n,

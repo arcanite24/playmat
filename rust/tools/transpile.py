@@ -117,6 +117,7 @@ EFFECTS = {
     'ExpressiveIterationEffect': [],
     'ExileGraveyardAllPlayersEffect': [],
     'AddExtraTurnControllerEffect': [],
+    'AddCombatAndMainPhaseEffect': [],
     'ExileSpellEffect': [],
     'RemoveUpToAmountCountersEffect': [('amount', 'int')],
     # (first, second): damage to the targets tagged 1 and 2, the ability's first and second targets
@@ -160,6 +161,11 @@ EFFECTS = {
     'DestroyAllNamedPermanentsEffect': [],
     'WinGameSourceControllerEffect': [],
     'DontUntapInControllersNextUntapStepTargetEffect': [(None, 'string')],
+    'DontUntapInControllersNextUntapStepSourceEffect': [],
+    'DontUntapAsLongAsSourceTappedEffect': [],
+    'DontUntapInControllersUntapStepTargetEffect': [('duration', 'untap_duration'), (None, 'string')],
+    'DontUntapInControllersUntapStepAllEffect': [('duration', 'untap_all_duration'),
+                                                 ('controller', 'target_controller'), ('filter', 'filter')],
     'AttacksIfAbleAllEffect': [('filter', 'filter'), (None, 'while_on_battlefield')],
     'LoseCreatureTypeSourceEffect': [('amount', 'amount'), ('less_than', 'int')],
     'PopulateEffect': [(None, 'string')],
@@ -490,6 +496,7 @@ ABILITIES = {
     'SimpleStaticAbility': [('effect', 'effect')],
     'AsEntersBattlefieldAbility': [('effect', 'effect'), (None, 'string')],
     'EntersBattlefieldTappedAbility': [],
+    'SkipUntapOptionalAbility': [],
     'KickerAbility': [('cost', 'cost_text')],
     'BlightAbility': [('amount', 'int')],
     'FlashbackAbility': [(None, 'this'), ('cost', 'mana_costs')],
@@ -654,6 +661,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'SpellMasteryCondition.instance': {'c': 'cards_in_graveyard', 'n': 2, 'filter': [
                   {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}]},
               'MyTurnCondition.instance': {'c': 'my_turn'},
+              'FirstCombatPhaseCondition.instance': {'c': 'first_combat_phase'},
               'MorbidCondition.instance': {'c': 'morbid'},
               'MomoFriendlyFlierCondition.instance': {'c': 'and', 'xs': [{'c': 'my_turn'}, {'c': 'not', 'x': {'c': 'flier_cast'}}]},
               'YouGainedLifeCondition.getZero()': {'c': 'you_gained_life'},
@@ -1580,6 +1588,13 @@ class Translator:
         elif kind == 'aura':
             if arg in ('AttachmentType.AURA', 'AttachmentType.EQUIPMENT'):
                 return None
+        elif kind == 'untap_duration':
+            # for as long as you control the source (`DontUntapInControllersUntapStepTargetEffect`)
+            if arg == 'Duration.WhileControlled':
+                return 'WhileControlled'
+        elif kind == 'untap_all_duration':
+            if arg in ('Duration.WhileOnBattlefield', 'Duration.UntilYourNextTurn'):
+                return DURATIONS[arg]
         elif kind == 'while_on_battlefield':
             if arg == 'Duration.WhileOnBattlefield':
                 return None
@@ -2289,6 +2304,46 @@ class Translator:
             return {'class': cls, 'amount': int(args[0])}
         if cls == 'AddManaOfAnyColorEffect' and not args:
             return {'class': cls, 'amount': 1}
+        # "can block an additional creature (each combat)", "any number of creatures" (0)
+        if cls in ('CanBlockAdditionalCreatureEffect', 'CanBlockAdditionalCreatureTargetEffect'):
+            aa = [x.strip() for x in args]
+            if not aa:
+                aa = ['Duration.WhileOnBattlefield' if cls == 'CanBlockAdditionalCreatureEffect' else 'Duration.EndOfTurn', '1']
+            elif len(aa) == 1 and cls == 'CanBlockAdditionalCreatureEffect':
+                aa = ['Duration.WhileOnBattlefield'] + aa
+            if len(aa) == 2 and aa[0] in ('Duration.WhileOnBattlefield', 'Duration.EndOfTurn') and re.fullmatch(r'\d+', aa[1]):
+                if cls == 'CanBlockAdditionalCreatureTargetEffect':
+                    if aa[0] == 'Duration.EndOfTurn':
+                        return {'class': cls, 'amount': int(aa[1])}
+                else:
+                    return {'class': cls, 'amount': int(aa[1]), 'duration': DURATIONS[aa[0]]}
+        if cls == 'CanBlockAdditionalCreatureAllEffect' and len(args) == 3 and re.fullmatch(r'\d+', args[0].strip()) \
+                and args[2].strip() in ('Duration.WhileOnBattlefield', 'Duration.EndOfTurn'):
+            return {'class': cls, 'amount': int(args[0].strip()), 'filter': self.filter(args[1]),
+                    'duration': DURATIONS[args[2].strip()]}
+        # "flip a coin; if you win the flip, …" (`FlipCoinEffect(won[, lost])`)
+        if cls == 'FlipCoinEffect' and 1 <= len(args) <= 2:
+            parts = [None if x.strip() == 'null' else self.effect(x) for x in args]
+            return {'class': cls, 'won': [parts[0]] if parts[0] else [],
+                    'lost': [parts[1]] if len(parts) == 2 and parts[1] else []}
+        if cls == 'AdditionalCombatPhaseEffect' and len(args) <= 1 and (not args or re.fullmatch(r'\d+', args[0].strip())):
+            return {'class': cls, 'amount': int(args[0]) if args else 1}
+        # combat requirements (`RequirementEffect`): lures, provokes, "attacks/blocks if able"
+        aa = [x.strip() for x in args]
+        if cls == 'MustBeBlockedByAllSourceEffect' and len(aa) <= 2 \
+                and (not aa or aa[0] in ('Duration.WhileOnBattlefield', 'Duration.EndOfTurn')):
+            return {'class': cls, 'duration': DURATIONS[aa[0]] if aa else 'WhileOnBattlefield',
+                    'filter': self.filter(aa[1]) if len(aa) == 2 else [CREATURE]}
+        if cls in ('MustBeBlockedByAllTargetEffect', 'AttacksIfAbleTargetEffect', 'MustBeBlockedByTargetSourceEffect') \
+                and (aa in (['Duration.EndOfTurn'], ['Duration.EndOfCombat'])
+                     or (not aa and cls == 'MustBeBlockedByTargetSourceEffect')):
+            if not (cls == 'MustBeBlockedByAllTargetEffect' and aa == ['Duration.EndOfCombat']):
+                return {'class': cls, 'end_of_combat': aa == ['Duration.EndOfCombat']}
+        if cls == 'AttacksIfAbleAttachedEffect' and len(aa) == 2 and aa[0] == 'Duration.WhileOnBattlefield' \
+                and aa[1] in ('AttachmentType.AURA', 'AttachmentType.EQUIPMENT'):
+            return {'class': cls}
+        if cls == 'BlocksIfAbleSourceEffect' and aa == ['Duration.WhileOnBattlefield']:
+            return {'class': cls}
         # "target creature blocks this turn if able": a requirement it has until end of turn
         if cls == 'BlocksIfAbleTargetEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
             return {'class': 'GainAbilityTargetEffect', 'ability': {'class': 'BlocksIfAbleAbility'}, 'duration': 'EndOfTurn'}
@@ -2379,6 +2434,9 @@ class Translator:
             return {'class': cls, 'types': [a.strip()[9:] for a in args[1:]], 'duration': 'EndOfTurn'}
         if cls == 'GainAbilityTargetEffect' and len(args) == 3 and re.fullmatch(r'"[^"]*"(?:\+"[^"]*")*', args[2].strip()):
             return self.effect('new GainAbilityTargetEffect(' + args[0] + ',' + args[1] + ')')
+        if cls == 'UntapAttachedEffect' and (not args or (len(args) == 2 and args[0].strip() in (
+                'AttachmentType.AURA', 'AttachmentType.EQUIPMENT') and re.fullmatch(r'"[^"]*"', args[1].strip()))):
+            return {'class': cls}
         if cls in ('UntapAllControllerEffect', 'UntapAllEffect') and 1 <= len(args) <= 2:
             f = self.filter(args[0])
             # `UntapAllControllerEffect`: only the controller's permanents (Paradox Engine)
@@ -2903,6 +2961,9 @@ class Translator:
                     return {'class': cls, 'n': n, 'or_more': or_more, 'effects': [self.effect(a) for a in rest]}
         if cls == 'MustBeBlockedByAtLeastOneTargetEffect' and args in ([], ['Duration.EndOfTurn']):
             return gains('GainAbilityTargetEffect', {'class': 'MustBeBlockedIfAbleAbility'}, 'EndOfTurn')
+        # "{this} must be blocked each combat this turn if able"
+        if cls == 'MustBeBlockedByAtLeastOneSourceEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
+            return gains('GainAbilitySourceEffect', {'class': 'MustBeBlockedIfAbleAbility'}, 'EndOfTurn')
         if cls == 'PutSourceCountersOnTargetEffect' and (not args or len(args) == 1 and args[0] in COUNTERS):
             return {'class': cls, **({'counter': COUNTERS[args[0]]} if args else {})}
         # "… gains your choice of A or B until end of turn": Java's choices are the abilities' rules
@@ -3205,6 +3266,12 @@ class Translator:
         cls, args = obj
         if cls in PLAYER_TARGETS and not args:
             return {'class': cls}
+        # "any number of target players" / "up to one target player": `TargetPlayer(min, max, false)`
+        if cls == 'TargetPlayer' and len(args) in (2, 3) and re.fullmatch(r'\d+', args[0].strip()) \
+                and (re.fullmatch(r'\d+', args[1].strip()) or args[1].strip() == 'Integer.MAX_VALUE') \
+                and (len(args) == 2 or args[2].strip() == 'false'):
+            lo, hi = int(args[0]), 99 if args[1].strip() == 'Integer.MAX_VALUE' else int(args[1])
+            return {'class': cls} if (lo, hi) == (1, 1) else {'class': cls, 'min': lo, 'max': hi}
         # Consign to Memory: "triggered ability or colorless spell"
         if cls == 'TargetStackObject' and len(args) == 1 and 'ConsignToMemoryPredicate' in str(self.filters.get(args[0].strip())):
             return {'class': 'TargetTriggeredAbilityOrColorlessSpell'}
