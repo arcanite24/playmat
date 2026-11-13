@@ -1,0 +1,12 @@
+// probe round: blockers against attackers
+4 Goblin Guide
+4 Monastery Swiftspear
+4 Savannah Lions
+4 Fervent Champion
+4 Relentless Raptor
+4 Raiyuu, Storm's Edge
+4 Tori D'Avenant, Fury Rider
+4 Lightning Bolt
+4 Genji Glove
+12 Mountain
+12 Plains

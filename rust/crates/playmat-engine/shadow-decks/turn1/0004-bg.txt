@@ -1,0 +1,12 @@
+// probe round: blockers against attackers
+4 Priest of Forgotten Gods
+4 Maraleaf Rider
+4 Golgari Decoy
+4 Watcher in the Web
+4 Llanowar Elves
+4 Tinybones Joins Up
+4 Roar of Challenge
+4 Giant Growth
+4 Howl of the Hunt
+12 Swamp
+12 Forest
