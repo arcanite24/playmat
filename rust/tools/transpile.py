@@ -2954,31 +2954,59 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
 
 
 def modal_double_faced(card_name, subtypes, facts, cls, source):
-    """A modal double-faced card whose faces are both lands (the pathways): each face is a card of its own, and the
-    card's abilities are the front's, then the back's"""
+    """A modal double-faced card whose back is a land: a land front (the pathways) or a spell or creature front (the
+    Zendikar Rising spell lands). Each face is a card of its own; the card's abilities are the front's, then the
+    back's (from its play-land ability on)"""
     java_abilities = facts[card_name]
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
+    t.filter_texts = {m.group(1): m.group(2) for m in re.finditer(r'\bFilter\w* (\w+)\s*=\s*new Filter\w*(?:<>)?\("((?:[^"\\]|\\.)*)"', source)}
     faces = [{'name': card_name}, {}]
     added = [[], []]
+    spell, modes = {'effects': [], 'targets': []}, []
+    types = lambda g: [x.strip().split('.')[-1] for x in g.split(',') if x.strip()]
     for st in statements(constructor_body(source, cls)):
-        m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},new SubType\[\]\{\},"","(.*?)",'
+        m = re.fullmatch(r'super\(ownerId,setInfo,new CardType\[\]\{([^}]*)\},new SubType\[\]\{([^}]*)\},"(.*?)","(.*?)",'
                          r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{\},""\)', st)
         if m:
-            for face, types in ((faces[0], m.group(1)), (faces[1], m.group(3))):
-                face['types'] = [x.strip().split('.')[-1] for x in types.split(',') if x.strip()]
-                if face['types'] != ['LAND']:
-                    raise Unsupported('modal double-faced card with a face that is not a land')
-                face['cost'] = ''
-            faces[1]['name'] = m.group(2)
+            faces[0]['types'], faces[1]['types'] = types(m.group(1)), types(m.group(5))
+            faces[0]['cost'], faces[1]['cost'] = m.group(3), ''
+            faces[1]['name'] = m.group(4)
+            for x in types(m.group(2)):
+                if x not in subtypes:
+                    raise Unsupported('subtype ' + x)
+                faces[0].setdefault('subtypes', []).append(subtypes[x])
+            if faces[1]['types'] != ['LAND'] or (faces[0]['types'] == ['LAND']) != (faces[0]['cost'] == ''):
+                raise Unsupported('modal double-faced card with a back that is not a land')
+            continue
+        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.setPT\((?:new MageInt\()?(-?\d+)\)?,(?:new MageInt\()?(-?\d+)\)?\)', st)
+        if m:
+            faces[0]['power'], faces[0]['toughness'] = int(m.group(1)), int(m.group(2))
+            continue
+        # the front's spell: its effects, targets and modes
+        m = re.fullmatch(r'this\.getLeftHalfCard\(\)\.(getSpellAbility\(\)\..*)', st)
+        if m:
+            card_statement(t, 'this.' + m.group(1), faces[0], [], spell, modes, subtypes)
             continue
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(addAbility\(.*\))', st)
-        if not m or not ability_statement(t, 'this.' + m.group(2), added[m.group(1) == 'Right']):
-            raise Unsupported('modal double-faced card statement ' + st)
+        if m and ability_statement(t, 'this.' + m.group(2).replace('this.getLeftHalfCard()', 'this'), added[m.group(1) == 'Right']):
+            continue
+        if ability_statement(t, st, added[0]):
+            continue
+        raise Unsupported('modal double-faced card statement ' + st)
     if 'types' not in faces[0]:
         raise Unsupported('modal double-faced card without its faces')
     split = [i for i, f in enumerate(java_abilities) if f['class'] == 'PlayLandAbility']
+    if faces[0]['types'] != ['LAND']:
+        split = [0] + split
     if len(split) != 2:
         raise Unsupported('modal double-faced card abilities')
+    if faces[0]['types'] != ['LAND']:
+        if java_abilities[0]['class'] != 'SpellAbility':
+            raise Unsupported('modal double-faced card without its spell')
+        if modes or spell.get('costs') or 'first_mode_cost' in spell:
+            raise Unsupported('modal double-faced card with a modal spell')
+        if spell['effects'] or spell['targets']:
+            faces[0]['spell'] = dict(spell, rule=java_abilities[0].get('rule', ''))
     faces[0]['abilities'] = in_java_order(java_abilities[:split[1]], added[0])
     faces[1]['abilities'] = in_java_order(java_abilities[split[1]:], added[1])
     faces[0]['back'] = faces[1]

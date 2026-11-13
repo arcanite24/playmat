@@ -2357,6 +2357,17 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &blitz {
             options.push(*k);
         }
+        // a modal double-faced card with a spell front and a land back (Malakir Rebirth): its back's play ability,
+        // after the front's abilities
+        let land_back = (zone == Zone::Hand && !game.obj(id).def.is(CardType::Land))
+            .then(|| game.obj(id).def.back.clone())
+            .flatten()
+            .filter(|b| b.is(CardType::Land) && can_play_land(game, seat))
+            .and_then(|b| b.abilities.iter().position(|a| *a == AbilityDef::PlayLandAbility))
+            .map(|k| game.obj(id).def.abilities.len() + k);
+        if let Some(k) = land_back {
+            options.push(k);
+        }
         if !options.is_empty() {
             let def = game.obj(id).def.clone();
             if if def.is(CardType::Land) { can_play_land(game, seat) } else { castable(game, seat, id, &def) } {
@@ -2439,7 +2450,14 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 }
                 return;
             }
-            if index != 0 {
+            if land_back == Some(index) {
+                // played as its back: the land below
+                let full = game.obj(id).def.clone();
+                let back = full.back.clone().expect("a land back");
+                let o = game.obj_mut(id);
+                o.front = Some(full);
+                o.def = back;
+            } else if index != 0 {
                 let before = game.clone();
                 if !activate(game, d, seat, id, index) {
                     *game = before;
