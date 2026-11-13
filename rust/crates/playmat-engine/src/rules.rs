@@ -6387,8 +6387,29 @@ fn refresh_land_types(game: &mut Game) {
     for id in game.battlefield.iter() {
         for a in &game.obj(*id).def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                // an Aura that gives a keyword and an activated ability (Prophetic Ravings' haste and "{T}, Discard
+                // a card: Draw a card."): Java numbers both, the keyword first, so it goes into the list too
+                let gives_activated = effects.iter().any(|e| {
+                    matches!(e, EffectDef::GainAbilityAttachedEffect { ability }
+                        if ability.mana().is_some()
+                            || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::TriggeredAbility { .. }))
+                });
                 for e in effects {
                     match e {
+                        EffectDef::GainAbilityAttachedEffect { ability }
+                            if gives_activated
+                                && ability.mana().is_none()
+                                && !matches!(
+                                    **ability,
+                                    AbilityDef::SimpleActivatedAbility { .. }
+                                        | AbilityDef::TriggeredAbility { .. }
+                                        | AbilityDef::WardAbility { .. }
+                                ) =>
+                        {
+                            if let Some(to) = game.attached(*id) {
+                                granted.push((to, (**ability).clone()));
+                            }
+                        }
                         EffectDef::AddBasicLandTypeAllLandsEffect { subtype } => {
                             if !types.contains(subtype) {
                                 types.push(subtype.clone());
