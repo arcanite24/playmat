@@ -165,7 +165,8 @@ pub(crate) struct Handler {
     pub base: &'static str,
     /// how the transpiler passes each constructor argument (`card_handlers.py`): "text" as written,
     /// "library_target" (a `TargetCardInLibrary`: "min max" in `cx.args`, its filter after the declared `filters`),
-    /// "filter" (translated, after the declared `filters`) or "ability" (translated, after the declared `abilities`)
+    /// "filter" (translated, after the declared `filters`), "ability" (translated, after the declared `abilities`)
+    /// or "counter_type" (`CounterType.M1M1` as the engine's counter name, "-1/-1"); the rest in `card_handlers.py`
     pub args: &'static [&'static str],
     /// abilities in Java for a static handler (`"FirstStrikeAbility.getInstance()"`): `StaticCx::abilities`
     pub abilities: &'static [&'static str],
