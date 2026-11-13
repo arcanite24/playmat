@@ -4096,6 +4096,23 @@ def granted_rules(card):
     walk(card, '')
 
 
+def reflexive_rules(card):
+    """A `DoWhenCostPaid`'s reflexive trigger's text is its own sentence of the ability's: "When you do, return target
+    creature or land card from your graveyard to your hand." (Awaken the Honored Dead), "return another target
+    permanent card" (Eden, Seat of the Sanctum)"""
+    def walk(x, rule):
+        if isinstance(x, dict):
+            if x.get('class') == 'DoWhenCostPaid' and (m := re.search(r'[Ww]hen you do, ([^.]*\.)', rule)):
+                x['rule'] = m.group(1)
+            for k, v in x.items():
+                walk(v, x['rule'] if k != 'rule' and isinstance(x.get('rule'), str) and x.get('class') != 'DoWhenCostPaid'
+                     else rule)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v, rule)
+    walk(card.get('abilities', []), '')
+
+
 def card_source(name):
     try:
         return open(card_path(name)).read()
@@ -4143,6 +4160,7 @@ def main():
             if EXTRA.get(card['name'], {}).get('set'):
                 card['set'] = EXTRA[card['name']]['set']
             granted_rules(card)
+            reflexive_rules(card)
             # monocolored hybrid mana ({2/R}): the engine's mana costs don't have it yet
             if (m := re.search(r'\{2/[WUBRG]\}', json.dumps(card))):
                 raise Unsupported('mana symbol ' + m.group(0))
