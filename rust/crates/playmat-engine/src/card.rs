@@ -1588,6 +1588,8 @@ pub enum EffectDef {
     ScryTargetEffect {
         amount: Amount,
     },
+    /// you win the game: each opponent loses it (`PlayerImpl.won`)
+    WinGameSourceControllerEffect,
     /// Blade of the Bloodchief: a +1/+1 counter on the equipped creature, two if it's a Vampire
     BladeOfTheBloodchiefEffect,
     /// Edifice of Authority: until your next turn, the target can't attack or block and its activated abilities
@@ -2402,6 +2404,13 @@ pub enum AbilityDef {
         /// the cleaved spell's own targets, when they aren't the spell's (the words in brackets restrict them)
         #[serde(default)]
         targets: Option<Vec<TargetDef>>,
+        rule: String,
+    },
+    /// overload: cast for `cost` instead, with no targets and `effects`, the spell's applied to each permanent its
+    /// target could have chosen (a second spell ability, `OverloadAbility`)
+    OverloadAbility {
+        cost: String,
+        effects: Vec<EffectDef>,
         rule: String,
     },
     /// cast for `mana` and `cost` instead: it gains haste and "when this creature dies, draw a card", and it's
@@ -3520,6 +3529,27 @@ impl CardDef {
                     ..self.clone()
                 },
             )),
+            _ => None,
+        })
+    }
+
+    /// The overload ability's index and the card cast with it: its overload cost, no targets, the "each" effects.
+    pub fn overload(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::OverloadAbility { cost, effects, .. } => {
+                let mut spell = self.spell.clone();
+                spell.effects = effects.clone();
+                spell.targets.clear();
+                Some((
+                    k,
+                    CardDef {
+                        cost: ManaCost::parse(cost).ok()?,
+                        printed_cost: Some(self.printed().clone()),
+                        spell,
+                        ..self.clone()
+                    },
+                ))
+            }
             _ => None,
         })
     }

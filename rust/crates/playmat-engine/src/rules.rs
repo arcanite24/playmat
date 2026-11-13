@@ -940,6 +940,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || spectacle(game, seat, *id).is_some()
             || warp(game, seat, *id).is_some()
             || cleave(game, seat, *id).is_some()
+            || overload(game, seat, *id).is_some()
             || blitz(game, seat, *id).is_some()
             || foretell(game, seat, *id).is_some()
             || plot(game, seat, *id).is_some()
@@ -1124,6 +1125,7 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         spectacle(game, seat, id).map(|x| x.0),
                         warp(game, seat, id).map(|x| x.0),
                         cleave(game, seat, id).map(|x| x.0),
+                        overload(game, seat, id).map(|x| x.0),
                         blitz(game, seat, id).map(|x| x.0),
                         foretell(game, seat, id),
                         plot(game, seat, id).map(|x| x.0),
@@ -1683,6 +1685,15 @@ fn cleave(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
         return None;
     }
     let (k, def) = game.obj(id).def.cleave()?;
+    castable(game, seat, id, &def).then_some((k, def))
+}
+
+/// Overload: the card's ability index and the card cast for its overload cost, from hand, if it can be cast that way.
+fn overload(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    if game.obj(id).zone != Zone::Hand {
+        return None;
+    }
+    let (k, def) = game.obj(id).def.overload()?;
     castable(game, seat, id, &def).then_some((k, def))
 }
 
@@ -2490,6 +2501,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &cleave {
             options.push(*k);
         }
+        let overload = overload(game, seat, id);
+        if let Some((k, _)) = &overload {
+            options.push(*k);
+        }
         let blitz = if zone == Zone::Hand { blitz(game, seat, id) } else { None };
         if let Some((k, _)) = &blitz {
             options.push(*k);
@@ -2528,6 +2543,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             let alternative = spectacle
                 .filter(|(k, _)| *k == index)
                 .or(cleave.filter(|(k, _)| *k == index))
+                .or(overload.filter(|(k, _)| *k == index))
                 .map(|(_, def)| (def, false));
             if let Some((def, warped)) = alternative.or(warp.filter(|(k, _)| *k == index).map(|(_, def)| (def, true))) {
                 let before = game.clone();
@@ -11065,6 +11081,26 @@ fn apply_each_effect(
                     }
                 }
             }
+            EffectDef::WinGameSourceControllerEffect => {
+                // `PlayerImpl.won`: each opponent still in loses (`lostForced`), then, with none left, you win
+                if !game.over && !game.player(controller).lost {
+                    for s in 0..game.seats() {
+                        if s != controller && !game.player(s).lost {
+                            game.player_mut(s).lost = true;
+                            if log::kept(game) {
+                                let line = format!("{} has lost the game", log::player(s));
+                                log::inform(game, line);
+                            }
+                        }
+                    }
+                    if log::kept(game) {
+                        let line = format!("{} has won the game", log::player(controller));
+                        log::inform(game, line);
+                    }
+                    game.player_mut(controller).won = true;
+                    game.over = true;
+                }
+            }
             EffectDef::ReturnToHandFromBattlefieldAllEffect { filter } => {
                 for o in matching(game, filter, controller, source.0) {
                     game.move_to(o, Zone::Hand);
@@ -14332,6 +14368,20 @@ mod tests {
                 _ => Passer.answer(game, seat, query),
             }
         }
+    }
+
+    #[test]
+    fn you_win_the_game_ends_it_with_each_opponent_lost() {
+        let db = crate::cards();
+        let mut game = game_with(&db, &[("Forest", 10)]);
+        let src = game.create_obj(db.get("Forest").unwrap(), 0, Zone::Hand);
+        game.move_to(src, Zone::Battlefield);
+        let zcc = game.obj(src).zcc;
+        let item = StackItem::spell(src, 0);
+        apply_effects(&mut game, &mut Passer, &item, &[EffectDef::WinGameSourceControllerEffect], &[], (src, zcc));
+        assert!(game.over);
+        assert!(game.player(0).won && !game.player(0).lost);
+        assert!(game.player(1).lost);
     }
 
     #[test]
