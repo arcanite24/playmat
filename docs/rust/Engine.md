@@ -325,7 +325,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,202 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,320 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -524,6 +524,17 @@ Being in the engine and being trusted are kept apart.
   Dragon and Human) enter in `CreateTokenEvent`'s `HashMap` order, which changes from run to run, so the games where
   that order matters (Barrier of Bones, Hellkite Whelp, Dimension X) part there. They're left as differing, and those
   cards aren't verified from them.
+
+  Per-card handlers, claim 1 (13 Nov, `.local/rust-port/handlers/claim-1.tsv`): handler files for 45 cards and six
+  framework classes (`RevealCardsFromLibraryUntilEffect`, `SearchLibraryPutInPlayTargetPlayerEffect`,
+  `ReturnFromYourGraveyardToBattlefieldAllEffect`, `AddendumCondition` and two more), and transpiler forms for
+  ascend and the city's blessing, "if the gift was promised" in a spell, Firebending X, "until your next end step",
+  emblem step triggers and a framework class falling back to a handler when the generic table can't take its form.
+  Three factory rounds (96 games, all matching on the final engine) verified 59 more: 10,210 of 10,320. Their fixes,
+  each with a game under `shadow/factory/`: the city's blessing, checked wherever the guildpact state is; a spell's
+  gift condition; a discard paid as a reflexive trigger's cost fires its discard triggers before the reflexive one
+  goes on the stack (Inti). Eight games under `shadow/handlers/` cover 44 of the handled cards. Call the Spirit
+  Dragons is pending (in one game so far).
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
