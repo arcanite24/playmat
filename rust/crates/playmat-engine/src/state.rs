@@ -461,6 +461,8 @@ pub struct Player {
     pub lands_entered: u32,
     /// can't cast noncreature spells during this turn (an opponent's Ranger-Captain of Eos)
     pub no_noncreature_turn: Option<u32>,
+    /// can't cast spells during this turn (an opponent's Silence)
+    pub no_spells_turn: Option<u32>,
     /// a permanent they controlled left the battlefield this turn (`RevoltWatcher`)
     pub permanent_left: bool,
     /// nonland permanents that entered under their control this turn (celebration)
@@ -543,6 +545,15 @@ pub struct CombatGroup {
 
 /// A card spliced onto a spell: the card, its targets and their zone change counters.
 pub type Spliced = (ObjId, Vec<Vec<Target>>, Vec<Vec<u32>>);
+
+/// The event the triggers being checked trigger on, as far as `AdditionalTriggersEffect` asks
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum TriggerCause {
+    /// a permanent entering
+    Entered(ObjId),
+    /// a permanent dying
+    Died(ObjId),
+}
 
 #[derive(Clone, Debug)]
 pub struct StackItem {
@@ -879,6 +890,13 @@ pub struct Game {
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
+    /// the same, owed where the game can't be changed (`Game::triggers`: two or more Panharmonicons applying; two
+    /// counter or token doublers)
+    pub owed_replacement_choices: std::cell::RefCell<Vec<Seat>>,
+    /// what the event triggers are checked for now is (`NumberOfTriggersEvent`'s entered and died permanents)
+    pub trigger_cause: Option<TriggerCause>,
+    /// the turn a resolving `ExileUncastCreaturesEffect` works until its end (Mistcaller)
+    pub exile_uncast_turn: Option<u32>,
     /// a card entering whose replacement effects see it as it was (Enduring Glimmer's return: Java's type effect
     /// applies once it's there, so "creatures enter tapped" still taps it)
     pub enters_as: Option<(ObjId, Arc<CardDef>)>,
@@ -1066,6 +1084,9 @@ impl Game {
             creatures_died: 0,
             void_this_turn: false,
             owed_choices: Vec::new(),
+            owed_replacement_choices: Default::default(),
+            trigger_cause: None,
+            exile_uncast_turn: None,
             enters_as: None,
             extra_turns: Vec::new(),
             control_next_turn: Vec::new(),
@@ -1685,8 +1706,52 @@ impl Game {
                 }
             }
         }
+        let mut fired = self.additional_triggers(fired);
         fired.sort_by_key(|t| self.trigger_key(t));
         fired
+    }
+
+    /// `NumberOfTriggersEvent`: each trigger once more for each `AdditionalTriggersEffect` that applies to it, the
+    /// copies next to it; with two or more applying, its controller is asked their order (the answers change nothing)
+    fn additional_triggers(&self, fired: Vec<StackItem>) -> Vec<StackItem> {
+        if fired.is_empty() || !self.any_static(|_, _, e| matches!(e, EffectDef::AdditionalTriggersEffect { .. })) {
+            return fired;
+        }
+        let mut out = Vec::with_capacity(fired.len());
+        for t in fired {
+            let mut n = 0;
+            self.any_static(|g, src, e| {
+                if let EffectDef::AdditionalTriggersEffect { source, entered, died, condition, on_battlefield } = e {
+                    let you = g.obj(src).controller;
+                    let caused = |f: &Option<Filter>, dying: bool| match f {
+                        None => true,
+                        Some(f) => match g.trigger_cause {
+                            Some(TriggerCause::Entered(id)) if !dying => g.filter_matches(f, you, Some(src), id),
+                            Some(TriggerCause::Died(id)) if dying => g.filter_matches(f, you, Some(src), id),
+                            _ => false,
+                        },
+                    };
+                    if t.controller == you
+                        && (!*on_battlefield || g.obj(t.card).zone == Zone::Battlefield)
+                        && source.as_ref().is_none_or(|f| g.filter_matches(f, you, Some(src), t.card))
+                        && caused(entered, false)
+                        && caused(died, true)
+                        && g.condition_holds(condition.as_ref(), you, src)
+                    {
+                        n += 1;
+                    }
+                }
+                false
+            });
+            for _ in 1..n {
+                self.owed_replacement_choices.borrow_mut().push(t.controller);
+            }
+            for _ in 0..n {
+                out.push(t.clone());
+            }
+            out.push(t);
+        }
+        out
     }
 
     /// Pelt Collector's triggers on `id` entering or dying: each remembers `id`'s power, and fires only if it's
@@ -3058,6 +3123,7 @@ impl Game {
             let mut sources: Vec<ObjId> =
                 self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
             sources.extend(self.battlefield.iter().copied());
+            self.trigger_cause = Some(TriggerCause::Died(id));
             let fired = self.triggers(sources, |g, src, you, t| match t {
                 Trigger::Dies
                 | Trigger::EntersOrDies
@@ -3077,6 +3143,7 @@ impl Game {
                 Trigger::PutIntoGraveyardAll { .. } => into_graveyard(g, src, you, t),
                 _ => false,
             });
+            self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
             // a source that left in the same action triggers as the permanent it was (Morbid Opportunist dying with
             // the others: its "once each turn" counts that object, not the card in the graveyard)

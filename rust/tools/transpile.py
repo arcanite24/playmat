@@ -141,6 +141,7 @@ EFFECTS = {
     'CantBeBlockedByMoreThanOneAttachedEffect': [(None, 'aura')],
     'CantCastMoreThanOneSpellEffect': [('who', 'target_controller')],
     'CantCastDuringYourTurnEffect': [],
+    'CantCastOrActivateOpponentsYourTurnEffect': [],
     # equip abilities that target this cost less (Fervent Champion)
     'ReduceCostEquipTargetSourceEffect': [('amount', 'int')],
     'PermanentsEnterBattlefieldTappedEffect': [('filter', 'filter')],
@@ -206,6 +207,32 @@ PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED',
 # classes a card file declares for itself, written by hand as the engine classes that do the same
 CUSTOM = {
     'PithingNeedleEffect': lambda: {'class': 'PithingNeedleEffect'},
+    # cards' own rule-modifying effects: where spells can't be cast from, what can't enter from graveyards
+    'GrafdiggersCageEffect': lambda: {'class': 'CardsCantEnterEffect', 'filter': [{'p': 'type', 't': 'CREATURE'}],
+                                      'library': True},
+    'GrafdiggersCageEffect2': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'any',
+                                       'zones': ['graveyard', 'library']},
+    'KunorosHoundOfAthreosEnterEffect': lambda: {'class': 'CardsCantEnterEffect',
+                                                 'filter': [{'p': 'type', 't': 'CREATURE'}]},
+    'KunorosHoundOfAthreosCastEffect': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'any', 'zones': ['graveyard']},
+    'SoullessJailerEnterEffect': lambda: {'class': 'CardsCantEnterEffect', 'filter': [{'p': 'permanent_card'}]},
+    'SoullessJailerCastEffect': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'any',
+                                         'zones': ['graveyard', 'exile'],
+                                         'filter': [{'p': 'not', 'x': {'p': 'type', 't': 'CREATURE'}}]},
+    'DivineVisitationEffect': lambda: {'class': 'ReplaceCreatureTokensEffect', 'token': token('AngelVigilanceToken')},
+    'LegionLoyalistCantBeBlockedByTokensEffect': lambda: {
+        'class': 'CantBeBlockedByAllEffect', 'filter': [CREATURE, YOU], 'blockers': [{'p': 'token', 'v': True}]},
+    'SilenceEffect': lambda: {'class': 'OpponentsCantCastThisTurnEffect'},
+    'ContainmentPriestReplacementEffect': lambda: {'class': 'ExileUncastCreaturesEffect'},
+    'OjerTaqDeepestFoundationTriplingEffect': lambda: {'class': 'CreateTwiceThatManyTokensEffect', 'times': 3,
+                                                       'creatures_only': True},
+    'TheGreatHengeCostReductionEffect': lambda: {
+        'class': 'SpellCostReductionForEachSourceEffect', 'per': 1,
+        'amount': {'v': 'greatest_power', 'filter': [{'p': 'type', 't': 'CREATURE'}, {'p': 'controller', 'who': 'you'}]}},
+    'DrannithMagistrateEffect': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'opponent', 'not_hand': True},
+    'AshesOfTheAbhorrentEffect': lambda: {'class': 'CantCastFromZonesEffect', 'who': 'any', 'zones': ['graveyard'],
+                                          'activations': True},
+    'DeafeningSilenceEffect': lambda: {'class': 'CantCastMoreThanOneSpellEffect', 'who': 'any', 'noncreature': True},
     'EmryLurkerOfTheLochPlayEffect': lambda: {'class': 'MayCastTargetFromGraveyardThisTurnEffect'},
     'PrismaticEndingEffect': lambda: {'class': 'PrismaticEndingEffect'},
     'BladeOfTheBloodchiefEffect': lambda: {'class': 'BladeOfTheBloodchiefEffect'},
@@ -2265,6 +2292,13 @@ class Translator:
             return {'class': cls}
         if cls == 'CreateTwiceThatManyTokensEffect' and not args:
             return {'class': cls}
+        # "if one or more (+1/+1) counters would be put on a … you control, that many plus one are put on it instead"
+        if cls == 'ModifyCountersAddedEffect' and len(args) == 2 \
+                and (args[1].strip() == 'null' or args[1].strip() in COUNTERS):
+            out = {'class': cls, 'filter': self.filter(args[0]), 'plus': 1}
+            if args[1].strip() != 'null':
+                out['counter'] = COUNTERS[args[1].strip()]
+            return out
         if cls == 'MaximumHandSizeControllerEffect' and [a.strip() for a in args] in ([
                 'Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'MaximumHandSizeControllerEffect.HandSizeModification.SET'], [
                 'Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'HandSizeModification.SET']):
