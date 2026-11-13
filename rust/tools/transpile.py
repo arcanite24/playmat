@@ -4865,10 +4865,14 @@ def granted_rules(card):
 def reflexive_rules(card):
     """A `DoWhenCostPaid`'s reflexive trigger's text is its own sentence of the ability's: "When you do, return target
     creature or land card from your graveyard to your hand." (Awaken the Honored Dead), "return another target
-    permanent card" (Eden, Seat of the Sanctum)"""
+    permanent card" (Eden, Seat of the Sanctum). One made with its own text (`ReflexiveTriggeredAbility(effect,
+    optional, text)`) keeps it, first letter capitalized as Java shows it: "Destroy target creature an opponent
+    controls." (Cavalier of Night)"""
     def walk(x, rule):
         if isinstance(x, dict):
-            if x.get('class') == 'DoWhenCostPaid' and (m := re.search(r'[Ww]hen you do, ([^.]*\.)', rule)):
+            own = isinstance(x.get('rule'), str) and x['rule'] != ''
+            if x.get('class') == 'DoWhenCostPaid' and not own \
+                    and (m := re.search(r'[Ww]hen you do, ([^.]*\.)', rule)):
                 x['rule'] = m.group(1)
             for k, v in x.items():
                 walk(v, x['rule'] if k != 'rule' and isinstance(x.get('rule'), str) and x.get('class') != 'DoWhenCostPaid'
