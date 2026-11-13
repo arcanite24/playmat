@@ -12999,7 +12999,8 @@ fn apply_each_effect(
                 }
                 game.move_to(id, Zone::Command);
             }
-            EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters, owner } => {
+            EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters, owner, attacking } => {
+                let mut entered = Vec::new();
                 for o in &objs {
                     // a token that died isn't a card to return (`game.getCard` finds none)
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).token {
@@ -13014,7 +13015,25 @@ fn apply_each_effect(
                         if *tapped {
                             game.obj_mut(*o).tapped = true;
                         }
+                        entered.push(*o);
                     }
+                }
+                // `Combat.addAttackingCreature` once they're all on the battlefield: with planeswalkers or battles to
+                // attack too, asked which (only in combat, where there are defenders)
+                let in_combat = matches!(
+                    game.step,
+                    Some(Step::DeclareAttackers | Step::DeclareBlockers | Step::FirstCombatDamage | Step::CombatDamage)
+                );
+                for o in entered.into_iter().filter(|_| *attacking && in_combat) {
+                    if game.obj(o).zone != Zone::Battlefield {
+                        continue;
+                    }
+                    let defender = game.opponent(controller);
+                    let Some(pw) = choose_defender(game, d, controller, defender) else { return };
+                    let ob = game.obj_mut(o);
+                    ob.attacking = Some(defender);
+                    ob.attacking_pw = pw;
+                    join_combat(game, o);
                 }
             }
             EffectDef::DiscardTargetEffect { amount } => {

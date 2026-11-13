@@ -3166,6 +3166,9 @@ pub enum EffectDef {
         /// it enters with these counters (`…WithCounterTargetEffect`)
         #[serde(default)]
         counters: Option<CounterDef>,
+        /// and attacking (`ReturnFromGraveyardToBattlefieldTargetEffect(tapped, true)`: Alesha)
+        #[serde(default)]
+        attacking: bool,
     },
     /// the target player discards `amount` cards of their choice
     DiscardTargetEffect {
