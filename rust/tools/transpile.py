@@ -108,7 +108,7 @@ EFFECTS = {
     'CantBeBlockedTargetEffect': [('duration', 'duration')],
     'AttachEffect': [(None, 'outcome'), (None, 'string')],
     'BoostEnchantedEffect': [('power', 'int'), ('toughness', 'int'), (None, 'while_on_battlefield')],
-    'GainAbilityAttachedEffect': [('ability', 'ability'), (None, 'aura')],
+    'GainAbilityAttachedEffect': [('ability', 'ability'), (None, 'aura'), (None, 'while_on_battlefield'), (None, 'string')],
     'CantAttackBlockAttachedEffect': [(None, 'aura')],
     'FightTargetsEffect': [],
     'FightEnchantedTargetEffect': [],
@@ -128,6 +128,7 @@ EFFECTS = {
     'SetBasePowerToughnessPlusOneSourceEffect': [('amount', 'amount')],
     'LoseLifeOpponentsYouGainLifeLostEffect': [('amount', 'amount'), (None, 'string')],
     'DestroyAllNamedPermanentsEffect': [],
+    'WinGameSourceControllerEffect': [],
     'DoubleCountersSourceEffect': [('name', 'counter_type')],
     'DamageCantBePreventedEffect': [('duration', 'duration')],
     'ReturnFromGraveyardToBattlefieldTargetEffect': [('tapped', 'bool')],
@@ -1681,6 +1682,8 @@ class Translator:
                     return {'class': cls, 'colored': colored, 'colorless': int(n.group(2))}
                 colored[['White', 'Blue', 'Black', 'Red', 'Green'].index(n.group(1))] = int(n.group(2))
                 return {'class': cls, 'colored': colored, 'colorless': 0}
+        if cls == 'CreateTokenControllerTargetEffect' and len(args) == 1 and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())):
+            return {'class': cls, 'token': token(m.group(1)), 'amount': 1, 'tapped': False}
         if cls == 'CreateTokenControllerTargetEffect' and len(args) == 3 \
                 and (m := re.fullmatch(r'new (\w+Token)\(\)', args[0].strip())) and re.fullmatch(r'\d+', args[1].strip()):
             return {'class': cls, 'token': token(m.group(1)), 'amount': int(args[1]), 'tapped': args[2].strip() == 'true'}
@@ -3247,11 +3250,39 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
             added.append({'class': 'ExileCardsFromHandAdjusterAbility', 'java': 'SimpleStaticAbility',
                           'filter': t.filter(m.group(1))})
             return
+        # overload: the spell's target and effects, and a second spell ability for the overload cost whose effects
+        # apply to each permanent the target could have chosen (`OverloadedEffect`, no targets)
+        m = re.fullmatch(r'OverloadAbility\.implementOverloadAbility\(this,(.*)\)', st)
+        if m and len(a := split_args(m.group(1))) >= 3:
+            target = t.target(a[1])
+            if target.get('class') != 'TargetPermanent' or set(target) - {'class', 'filter'}:
+                raise Unsupported('statement ' + st)
+            each = []
+            for e in a[2:]:
+                effect = t.effect(e)
+                spell['effects'].append(effect)
+                each.append(overloaded(effect, target['filter'], st))
+            spell['targets'].append(target)
+            added.append({'class': 'OverloadAbility', 'java': 'OverloadAbility', 'cost': t.cost(a[0])['cost'],
+                          'effects': each})
+            return
         # an effect's outcome only steers the Java AI
         if re.fullmatch(r'\w+\.setOutcome\(Outcome\.\w+\)', st):
             return
         raise Unsupported('statement ' + st)
 
+
+
+def overloaded(effect, filter, st):
+    """An overloaded spell's effect: the target one applied to each permanent of the target's filter"""
+    cls = effect['class']
+    if cls == 'DestroyTargetEffect' and set(effect) == {'class'}:
+        return {'class': 'DestroyAllEffect', 'filter': filter}
+    if cls == 'ReturnToHandTargetEffect' and set(effect) == {'class'}:
+        return {'class': 'ReturnToHandFromBattlefieldAllEffect', 'filter': filter}
+    if cls == 'DamageTargetEffect' and set(effect) == {'class', 'amount'}:
+        return {'class': 'DamageAllEffect', 'amount': effect['amount'], 'filter': filter}
+    raise Unsupported('statement ' + st)
 
 
 def mode_expr(t, arg):
