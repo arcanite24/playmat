@@ -774,6 +774,9 @@ pub struct TokenDef {
     pub colors: Vec<Color>,
     #[serde(default)]
     pub subtypes: Vec<String>,
+    /// legendary (Cragflame)
+    #[serde(default)]
+    pub supertypes: Vec<String>,
     #[serde(default)]
     pub power: i32,
     #[serde(default)]
@@ -807,7 +810,7 @@ impl TokenDef {
             cost: ManaCost::default(),
             types: self.types.clone(),
             subtypes: self.subtypes.clone(),
-            supertypes: Vec::new(),
+            supertypes: self.supertypes.clone(),
             colors: self.colors.clone(),
             power: self.power,
             toughness: self.toughness,

@@ -10237,6 +10237,7 @@ fn apply_each_effect(
                         types: vec![CardType::Creature],
                         colors: vec![Color::G],
                         subtypes: vec!["Hydra".into()],
+                        supertypes: Vec::new(),
                         power: item.x,
                         toughness: item.x,
                         abilities: Vec::new(),
