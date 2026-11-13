@@ -113,8 +113,9 @@
       stats.appendChild(stat(num(sh.matched) + '<em>/</em>' + num(sh.played), 'shadow games match Java',
         num(sh.checked_in) + ' of them replayed on every change'));
     }
-    stats.appendChild(stat(num(c.engine_cards), 'cards in the Rust engine',
-      'all ' + num(c.school.cards_in) + ' cards of the ' + c.school.decks + ' school decks'));
+    stats.appendChild(stat(num(c.verified_cards || c.engine_cards), 'cards verified against Java',
+      c.verified_cards ? num(c.engine_cards) + ' in the Rust engine; a game goes to Rust only with verified cards'
+        : 'all ' + num(c.school.cards_in) + ' cards of the ' + c.school.decks + ' school decks'));
 
     // tracks
     track($('phases'), d.phases || [], false);
@@ -209,7 +210,13 @@
     cov.appendChild(coverageBar('School decks', 'The Career\'s Pioneer and Standard decks, ' + num(c.school.cards) + ' different cards',
       c.school.covered, c.school.decks, 'decks'));
     cov.appendChild(coverageBar('Meta decks', 'The 24 Pioneer and Standard decks the AI picks from; ' +
-      num(c.meta.cards_in) + ' of their ' + num(c.meta.cards) + ' cards are in', c.meta.covered, c.meta.decks, 'decks'));
+      num(c.meta.cards_in) + ' of their ' + num(c.meta.cards) + ' cards are verified', c.meta.covered, c.meta.decks, 'decks'));
+    if (c.pioneer) {
+      cov.appendChild(coverageBar('Pioneer cards in the engine', 'Translated from the Java card files; not trusted until verified',
+        c.pioneer.in_engine, c.pioneer.cards, 'cards'));
+      cov.appendChild(coverageBar('Pioneer cards verified', 'Matched Java in shadow games that used them; only these go to Rust',
+        c.pioneer.verified, c.pioneer.cards, 'cards'));
+    }
     cov.appendChild(coverageBar('Every XMage card', 'Not the target yet: Pioneer first, other formats later',
       c.engine_cards, c.java_card_files, 'cards'));
     var list = $('meta-list');

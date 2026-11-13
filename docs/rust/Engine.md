@@ -163,9 +163,33 @@ tagged with the name of the Java framework class it mirrors (`DamageTargetEffect
 generated from `Mage.Sets` by `rust/tools/transpile.py`. The transpiler takes each card's abilities in Java's order,
 with Java's rule texts, from `cards/facts.json`: decision logs name abilities by that order, and abilities on the stack
 show those texts. `CardFactsTest` (Mage.Tests) writes the facts for a pool of names, one per line
-(`-Dxmage.cardFacts=<out> -Dxmage.cardFacts.pool=<names>`); the pool is every card in the school decks and the
-shadow decks (`transpile.school_pool()`). A card the transpiler can't express isn't in the engine, and
-a game with it isn't routed to Rust.
+(`-Dxmage.cardFacts=<out> -Dxmage.cardFacts.pool=<names>`); the pool is `transpile.engine_pool()` (below). A card
+the transpiler can't express isn't in the engine.
+
+## Pool, gate and factory
+
+Being in the engine and being trusted are kept apart.
+
+- **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
+  `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
+  Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
+  can express (6,826 on 12 Nov). A card whose JSON the engine can't load yet is left out of the engine with a warning
+  in `lib.rs`'s test, unless it's verified, which fails the test.
+- **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
+  Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
+  `HostedGame::start` itself) only when every card of both decks is on it. The 881 cards of the phase 4 gate run
+  started it. Shadow replays (`tests/shadow.rs`) and `ai-bench` take any card in the engine: that's how a card gets
+  verified.
+- **Views.** `cards/views.json` (docs/rust/Views.md) needs a template for every verified card, not for the whole pool:
+  only verified cards reach a player's screen. Regenerate it when the list grows.
+
+To regenerate after the pool or the Java cards change (in this order; the files are generated, so on a merge conflict
+regenerate them rather than merge by hand, and `site/rust/progress.json` with `progress.py`):
+
+    python3 rust/tools/transpile.py --write-facts-pool /tmp/facts-pool.txt
+    mvn -o -q -pl Mage.Tests test -Dtest=CardFactsTest -Dsurefire.failIfNoSpecifiedTests=false \
+      -Dxmage.cardFacts=$PWD/rust/crates/playmat-engine/cards/facts.json -Dxmage.cardFacts.pool=/tmp/facts-pool.txt
+    python3 rust/tools/transpile.py --report /tmp/report.txt
 
 ## Rules, in order of work
 
@@ -178,5 +202,5 @@ a game with it isn't routed to Rust.
 
 ## Toggles
 
-Nothing routes games to this engine yet. Routing (`engine = java|rust|auto` per table, `auto` only when every card of
-both decks is in the engine, kill switch `XMAGE_ENGINE=java`) comes after the shadow gate in issue #187.
+Games go to this engine through the Rust AI and the Rust host (docs/rust/Ai.md, GameHost.md), only when every card of
+both decks is verified (above); kill switch `XMAGE_ENGINE=java`.

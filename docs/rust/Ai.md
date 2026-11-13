@@ -165,10 +165,11 @@ against the Java AI isn't possible this way; both are measured against the same 
 | `XMAGE_RUST_AI_BIN` | `playmat-ai-bridge` | The bridge binary (the server image has it on the path). |
 
 A game qualifies when it's one human against one AI, from opening hands (no test setup, no resumed game), and the
-engine has every card in both decks (`playmat-ai-bridge --check`, asked once per card name). Others are untouched.
+every card in both decks is verified (in the engine and on `cards/verified.txt`, docs/rust/Engine.md;
+`playmat-ai-bridge --check`, asked once per card name). Others are untouched.
 The server logs `… qualifies (AI deck: …)` and `Rust AI plays seat …` when a game starts with it, `Rust AI stops in …`
-with the reason when it hands a game back, and `… doesn't qualify, the Rust engine lacks N cards: …` for a listed
-player's game with cards the engine doesn't have. When the reason is a state that differs, the line before it gives
+with the reason when it hands a game back, and `… doesn't qualify, not verified for Rust (N cards): …` for a listed
+player's game with cards that aren't verified. When the reason is a state that differs, the line before it gives
 the fingerprint lines only Java's state has and those only the copy's has (the copy sends its text with `diverged`,
 and the bridge keeps Java's last few). At the end of each game it played, `Rust AI cost in …` gives the
 game thread's CPU since the copy started (Java's engine, dialogs and views), the share the trace took (fingerprints,

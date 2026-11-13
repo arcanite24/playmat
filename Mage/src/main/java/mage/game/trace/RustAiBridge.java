@@ -117,13 +117,17 @@ public final class RustAiBridge {
         return bin == null || bin.isEmpty() ? "playmat-ai-bridge" : bin;
     }
 
-    /** Whether the Rust engine has every one of these cards (asked once per name, then remembered). */
+    /**
+     * Whether a game with these cards may go to Rust: the engine has every one and each is verified against Java
+     * ({@code cards/verified.txt}; asked once per name, then remembered).
+     */
     public static boolean supports(Collection<String> names) {
         return missing(names).isEmpty();
     }
 
     /**
-     * The cards of these the Rust engine doesn't have (asked once per name, then remembered); all of them when the
+     * The cards of these a game can't go to Rust with: the engine doesn't have them, or has them without their being
+     * verified against Java ({@code cards/verified.txt}); asked once per name, then remembered. All of them when the
      * bridge can't be asked.
      */
     public static Set<String> missing(Collection<String> names) {

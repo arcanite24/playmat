@@ -296,6 +296,20 @@ fn no_timer_views() {
     }
 }
 
+/// A card the engine has but that isn't verified against Java (`cards/verified.txt`) keeps the game off the host
+#[test]
+fn a_deck_with_an_unverified_card_is_refused() {
+    let db = Arc::new(playmat_engine::cards());
+    let unverified = db.iter().map(|d| d.name.clone()).find(|n| !playmat_engine::is_verified(n));
+    let Some(unverified) = unverified else { return };
+    let (mut company, zombies) = (deck("gw-company.txt"), deck("b-zombies.txt"));
+    company.cards[0] = unverified.clone();
+    match HostedGame::start(start(&company, &zombies, 1, None), db) {
+        Ok(_) => panic!("{unverified} isn't verified, the host must refuse the deck"),
+        Err(e) => assert_eq!(e, format!("card not verified: {unverified}")),
+    }
+}
+
 /// A match's next game: the last game's loser chooses who plays first (`MatchImpl.getChooser`)
 #[test]
 fn the_chooser_picks_who_plays_first() {

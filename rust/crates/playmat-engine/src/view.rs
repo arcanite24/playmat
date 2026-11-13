@@ -2169,14 +2169,16 @@ mod tests {
         assert_ne!(vb["expansionSetCode"].as_str(), Some("UNF"));
     }
 
-    /// Without its template a card's view is its name alone (no rules, types, P/T or printing): every card in the
-    /// engine needs one. Regenerate with `CardFactsTest` and `rust/tools/view_templates.py` (docs/rust/Views.md).
+    /// Without its template a card's view is its name alone (no rules, types, P/T or printing): every verified card
+    /// needs one, since only games of verified cards are played on Rust (cards that are only in the pool don't).
+    /// Regenerate with `CardFactsTest` and `rust/tools/view_templates.py` (docs/rust/Views.md).
     #[test]
-    fn every_card_has_a_view_template() {
+    fn every_verified_card_has_a_view_template() {
         let db = crate::cards();
         let mut missing: Vec<&str> = db
             .iter()
             .map(|c| c.name.as_str())
+            .filter(|n| crate::is_verified(n))
             .filter(|n| !n.starts_with("token:") && !n.starts_with("emblem:"))
             .filter(|n| !super::templates().contains_key(*n))
             .collect();

@@ -227,6 +227,10 @@ impl HostedGame {
             if let Some(c) = s.deck.iter().find(|c| db.get(c).is_none()) {
                 return Err(format!("card not in the engine: {c}"));
             }
+            // a card the engine has but that isn't checked against Java yet keeps the game on Java
+            if let Some(c) = s.deck.iter().find(|c| !playmat_engine::is_verified(c)) {
+                return Err(format!("card not verified: {c}"));
+            }
         }
         if let Some(p) = &start.prelude {
             let same = p.start.seats.len() == 2

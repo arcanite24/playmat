@@ -83,8 +83,8 @@ public final class RustAi {
             }
             Set<String> missing = RustAiBridge.missing(names);
             if (!missing.isEmpty()) {
-                logger.info("Rust AI: " + user + " vs " + ai.getName() + " doesn't qualify, the Rust engine lacks "
-                        + missing.size() + " card" + (missing.size() == 1 ? "" : "s") + ": " + String.join(", ", missing));
+                logger.info("Rust AI: " + user + " vs " + ai.getName() + " doesn't qualify, not verified for Rust ("
+                        + missing.size() + " card" + (missing.size() == 1 ? "" : "s") + "): " + String.join(", ", missing));
                 return;
             }
             // the human's views, for the copy to compare with its own (docs/rust/Views.md)

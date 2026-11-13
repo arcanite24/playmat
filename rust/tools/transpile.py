@@ -3598,6 +3598,18 @@ def school_pool():
     return sorted(names)
 
 
+PIONEER_POOL = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'cards', 'pioneer-pool.txt')
+
+
+def engine_pool():
+    """The cards the engine takes in: the school and shadow decks' (`school_pool`) and every Pioneer-legal card
+    (`cards/pioneer-pool.txt`). Being in the engine isn't being trusted: `cards/verified.txt` decides which games
+    go to Rust."""
+    names = set(school_pool())
+    names.update(l.strip() for l in open(PIONEER_POOL) if l.strip() and not l.startswith('#'))
+    return sorted(names)
+
+
 # report every unsupported statement of a card, not just the first (PLAYMAT_ALL_ERRORS=1)
 ALL_ERRORS = os.environ.get('PLAYMAT_ALL_ERRORS') == '1'
 
@@ -3738,7 +3750,7 @@ def main():
     parser.add_argument('--out', default=DEFAULT_OUT)
     parser.add_argument('--report')
     args = parser.parse_args()
-    pool = [l.strip() for l in open(args.pool)] if args.pool else school_pool()
+    pool = [l.strip() for l in open(args.pool)] if args.pool else engine_pool()
     if args.write_facts_pool:
         with open(args.write_facts_pool, 'w') as f:
             f.write('\n'.join(pool + ['token:' + t for t in token_classes(pool)]
@@ -3778,6 +3790,8 @@ def main():
             cards.append(card)
         except Unsupported as e:
             report.append('%s: %s' % (name, e))
+        except Exception as e:  # noqa: BLE001: a card source the transpiler's patterns don't expect at all
+            report.append('%s: CRASH %s %s' % (name, type(e).__name__, e))
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, 'w') as f:
         f.write('[\n' + ',\n'.join(json.dumps(c, sort_keys=True) for c in sorted(cards, key=lambda c: c['name'])) + '\n]\n')

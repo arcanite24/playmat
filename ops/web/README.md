@@ -285,11 +285,11 @@ step, and whenever the copy differs from Java's game, the Java AI takes the seat
 | `PLAYMAT_AI_POLICY` | `playouts` | Who answers the Rust AI's decisions, here and in Rust-hosted games: `playouts` (the default search), `mcts` (Monte Carlo tree search on up to 4 threads, `PLAYMAT_AI_THREADS`: as strong in the benchmarks, far more CPU), `quick` (no search, weakest) or `random`. See [docs/rust/Ai.md](../../docs/rust/Ai.md#one-decision-at-a-time-policies). |
 | `XMAGE_ENGINE` | | `java` turns every Rust part off. |
 
-It plays a game when it's one player against one AI from opening hands, and the Rust engine has every card in both
-decks (for now, the Pioneer and Standard Career school decks' cards and a few Pioneer decks more,
+It plays a game when it's one player against one AI from opening hands, and every card in both decks is verified for
+the Rust engine (for now, the Pioneer and Standard Career school decks' cards and a few Pioneer decks more,
 [docs/rust/Engine.md](../../docs/rust/Engine.md)). The log says `Rust AI plays seat …` when it starts, `Rust AI stops
-in …` with the reason when it hands a game back, and, for a listed player's game that doesn't qualify, which cards the
-engine lacks. At the end of each game it logs `Rust views in …: n compared, m differ` with the fields that differed
+in …` with the reason when it hands a game back, and, for a listed player's game that doesn't qualify, which cards
+aren't verified. At the end of each game it logs `Rust views in …: n compared, m differ` with the fields that differed
 and an example of each; the admin console's Overview adds up the games and views since the server started. Try it on
 staff first, e.g.
 `XMAGE_AI_BACKEND=rust` and `XMAGE_RUST_AI_USERS=neri`, then `up -d`.
@@ -310,10 +310,10 @@ starts, it hands the game to the gateway, which plays it and reports the result 
 
 A game qualifies when it's one player against one AI, or two people, not a Career game, a tournament or a draft, and
 not a setup game, every human player is listed or opted in and connected through the gateway (both through the same
-one, for a game between people), and the Rust engine has every card in both decks. A game resumed from a save made on
+one, for a game between people), and every card in both decks is verified for the Rust engine. A game resumed from a save made on
 the Rust engine carries on there. In a match of more than one game
 (best-of-three), each game is checked and hosted on its own: Java keeps the score and runs sideboarding, the last
-game's loser chooses who plays first, and a game whose deck gains a card the engine lacks after sideboarding plays on
+game's loser chooses who plays first, and a game whose deck gains a card that isn't verified after sideboarding plays on
 Java.
 The log says `Rust host: plays …'s game` when it hosts one, `Rust host: game … ended after n turns` at its end, and,
 for a listed player's game that doesn't qualify, why. The table's priority timer and buffer time work as on Java: a

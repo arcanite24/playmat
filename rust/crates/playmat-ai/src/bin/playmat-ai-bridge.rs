@@ -1,5 +1,6 @@
 //! The Rust AI for a seat of a game Java hosts (`playmat_ai::mirror`): one game per process, JSON lines on stdin and
-//! stdout. `--check` instead reads card names, one per line, and prints those the engine doesn't have.
+//! stdout. `--check` instead reads card names, one per line, and prints those a game can't go to Rust with: not in
+//! the engine, or in it but not verified against Java (`cards/verified.txt`).
 
 use std::io::{BufRead, Write};
 
@@ -11,7 +12,7 @@ fn main() {
         let mut out = stdout.lock();
         for name in stdin.lock().lines().map_while(Result::ok) {
             let name = name.trim();
-            if !name.is_empty() && db.get(name).is_none() {
+            if !name.is_empty() && (db.get(name).is_none() || !playmat_engine::is_verified(name)) {
                 let _ = writeln!(out, "{name}");
             }
         }
