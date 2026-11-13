@@ -55,6 +55,8 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         if cards.len() == 1 {
             break;
         }
+        // (one put on the bottom is still in the library: it's out of the choice)
+        cards.retain(|c| *c != chosen);
     }
     Some(())
 }
