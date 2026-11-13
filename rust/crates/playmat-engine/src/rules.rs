@@ -212,6 +212,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
                 Arc::make_mut(&mut game.grants).retain(|g| g.until_turn_of != Some(active));
             }
+            if game.boosts.iter().any(|b| b.until_turn_of == Some(active)) {
+                Arc::make_mut(&mut game.boosts).retain(|b| b.until_turn_of != Some(active));
+            }
             game.triggered_this_turn.clear();
             game.creature_died = false;
             game.activated_this_turn.clear();
@@ -8519,6 +8522,30 @@ fn apply_each_effect(
                     }
                 }
             }
+            // the creatures there as it resolves, until its controller's next turn (Mouth of the Storm)
+            EffectDef::BoostAllEffect {
+                power,
+                toughness,
+                duration: Duration::UntilYourNextTurn,
+                filter,
+                exclude_source,
+            } => {
+                let power = &v!(power);
+                let toughness = &v!(toughness);
+                for o in matching(game, filter, controller, source.0) {
+                    if !(*exclude_source && o == source.0) {
+                        let zcc = game.obj(o).zcc;
+                        Arc::make_mut(&mut game.boosts).push(Boost {
+                            target: o,
+                            zcc,
+                            power: *power,
+                            toughness: *toughness,
+                            until_end_of_turn: false,
+                            until_turn_of: Some(controller),
+                        });
+                    }
+                }
+            }
             EffectDef::AddCountersAllEffect { counter, filter, amount } => {
                 let n = match amount {
                     Some(a) => v!(a).max(0),
@@ -12261,6 +12288,7 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
         power,
         toughness,
         until_end_of_turn: duration == Duration::EndOfTurn,
+        until_turn_of: None,
     });
 }
 
@@ -15192,6 +15220,7 @@ mod tests {
             power: 0,
             toughness: 2,
             until_end_of_turn: true,
+            until_turn_of: None,
         });
         game.step = Some(Step::EndTurn);
         let mut d = PriorityLog(Vec::new());

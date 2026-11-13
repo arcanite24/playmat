@@ -536,6 +536,8 @@ pub struct Boost {
     pub toughness: i32,
     /// ends in the cleanup step (otherwise, when the object leaves the battlefield)
     pub until_end_of_turn: bool,
+    /// "until your next turn": ends as that player's turn begins
+    pub until_turn_of: Option<Seat>,
 }
 
 /// What a game event is (`GameEventKind`, what the web client's effects play from)
