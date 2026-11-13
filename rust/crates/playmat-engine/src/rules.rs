@@ -8544,6 +8544,7 @@ fn apply_each_effect(
                             toughness: *toughness,
                             until_end_of_turn: false,
                             until_turn_of: Some(controller),
+                            noncreature_too: true,
                         });
                     }
                 }
@@ -12292,6 +12293,7 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
         toughness,
         until_end_of_turn: duration == Duration::EndOfTurn,
         until_turn_of: None,
+        noncreature_too: false,
     });
 }
 
@@ -15245,6 +15247,7 @@ mod tests {
             toughness: 2,
             until_end_of_turn: true,
             until_turn_of: None,
+            noncreature_too: false,
         });
         game.step = Some(Step::EndTurn);
         let mut d = PriorityLog(Vec::new());
