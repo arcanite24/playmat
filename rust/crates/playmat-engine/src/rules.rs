@@ -1873,7 +1873,8 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                     }
                     AbilityDef::DynamicManaAbility { color, amount, .. } => {
                         let n = game.value(amount, seat, *id, 0).max(0) as u32;
-                        (i, Mana::of(*color, n), a.mana_kind())
+                        let mana = color.map_or(Mana { colorless: n, ..Mana::default() }, |c| Mana::of(c, n));
+                        (i, mana, a.mana_kind())
                     }
                     AbilityDef::ColorlessManaAbility { any_color_with: Some(counter), .. } => {
                         if o.counter(counter) > 0 {
@@ -4675,8 +4676,18 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             // sacrificed together: their dies triggers see each other die
             let outer = std::mem::replace(&mut game.lookback, game.battlefield.to_vec());
             let toughness = chosen.iter().map(|o| game.power_toughness(*o).1).max();
+            let mut stats = [0; 3];
+            for o in &chosen {
+                let (p, t) = game.power_toughness(*o);
+                stats[0] += p;
+                stats[1] += t;
+                stats[2] += game.obj(*o).def.mana_value() as i32;
+            }
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
                 top.sacrificed_toughness = toughness;
+                for (k, n) in stats.into_iter().enumerate() {
+                    top.sacrificed_stats[k] += n;
+                }
             }
             let insert = game.sac_insert.replace(game.pending.len());
             for o in chosen {
@@ -5015,7 +5026,10 @@ fn choose_target(
     cancellable: bool,
 ) -> Option<Vec<Target>> {
     let (mut min, mut max) = target_counts(def);
-    if let TargetDef::TargetPermanent { x_count: true, .. } = def {
+    if let TargetDef::TargetPermanent { x_count: true, .. }
+    | TargetDef::TargetAnyTarget { x_count: true, .. }
+    | TargetDef::TargetCardInGraveyard { x_count: true, .. } = def
+    {
         let x = source
             .and_then(|s| game.stack.iter().rev().find(|i| i.card == s && i.ability.is_none()))
             .map_or(0, |i| i.x);

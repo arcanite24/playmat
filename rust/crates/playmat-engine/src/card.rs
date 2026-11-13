@@ -174,6 +174,9 @@ pub enum TargetDef {
         /// an amount divided among the targets as they're chosen (`TargetAnyTargetAmount`)
         #[serde(default)]
         distribute: Option<Amount>,
+        /// `XTargetsCountAdjuster`: X targets (up to X when `min` is 0), the spell's X; none for X 0
+        #[serde(default)]
+        x_count: bool,
     },
     TargetPlayer,
     TargetOpponent,
@@ -229,6 +232,9 @@ pub enum TargetDef {
         /// up to the spell's X (Kozilek's Command's adjuster; X 0 is any number, as Java's max 0)
         #[serde(default)]
         max_x: bool,
+        /// `XTargetsCountAdjuster`: X targets (up to X when `min` is 0), the spell's X; none for X 0
+        #[serde(default)]
+        x_count: bool,
     },
 }
 
@@ -383,6 +389,13 @@ pub enum Pred {
     /// `CounterType.X.getPredicate()`: has at least one counter of the kind
     Counter {
         name: String,
+        /// at least this many (`TargetHasCounterCondition`'s minimum)
+        #[serde(default = "one_u32")]
+        n: u32,
+    },
+    /// `ChosenSubtypePredicate`: of the creature type the source chose (`v`), or not
+    ChosenSubtype {
+        v: bool,
     },
     /// `AbilityPredicate(X.class)`: has the keyword
     Ability {
@@ -1073,11 +1086,15 @@ pub enum Value {
     /// the X paid (`GetXValue`, `ManacostVariableValue`)
     X,
     /// permanents of the filter (`PermanentsOnBattlefieldCount`, `CreaturesYouControlCount`…)
-    Permanents { filter: Filter },
+    Permanents {
+        filter: Filter,
+    },
     /// cards in the controller's hand
     CardsInHand,
     /// cards of the filter in the controller's graveyard
-    CardsInGraveyard { filter: Filter },
+    CardsInGraveyard {
+        filter: Filter,
+    },
     /// the source's power (`SourcePermanentPowerValue`)
     SourcePower,
     /// the source's toughness (`SourcePermanentToughnessValue`)
@@ -1085,25 +1102,43 @@ pub enum Value {
     /// the controller's life total (`ControllerLifeCount`)
     ControllerLife,
     /// the total power of the permanents of the filter
-    TotalPower { filter: Filter },
+    TotalPower {
+        filter: Filter,
+    },
     /// counters of a kind on the source while it's on the battlefield
-    SourceCounters { counter: String },
+    SourceCounters {
+        counter: String,
+    },
     /// minus a value (`-X`)
-    Negative { of: Box<Amount> },
+    Negative {
+        of: Box<Amount>,
+    },
     /// a value times a number
-    Times { of: Box<Amount>, n: i32 },
+    Times {
+        of: Box<Amount>,
+        n: i32,
+    },
     /// a value halved, rounded down
-    Half { of: Box<Amount> },
+    Half {
+        of: Box<Amount>,
+    },
     /// a value plus a number
-    Plus { of: Box<Amount>, n: i32 },
+    Plus {
+        of: Box<Amount>,
+        n: i32,
+    },
     /// card types among cards in all graveyards (`CardTypesInGraveyardCount.ALL`)
     CardTypesInGraveyards,
     /// cards exiled with the source while it's on the battlefield (`UnlicensedHearseValue`)
     ExiledWithSource,
     /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
-    GreatestManaValue { filter: Filter },
+    GreatestManaValue {
+        filter: Filter,
+    },
     /// the greatest power among permanents of the filter, 0 if there are none (`GreatestAmongPermanentsValue`)
-    GreatestPower { filter: Filter },
+    GreatestPower {
+        filter: Filter,
+    },
     /// cards the controller drew this turn
     CardsDrawn,
     /// life the controller gained this turn (`ControllerGainedLifeCount`)
@@ -1112,6 +1147,12 @@ pub enum Value {
     ManaExpended,
     /// permanents the controller sacrificed this turn (`PermanentsSacrificedThisTurnCount.YOU`)
     SacrificedThisTurn,
+    /// the total power, toughness or mana value of what the resolving spell or ability's costs sacrificed, as they
+    /// last were on the battlefield (`SacrificeCostCreaturesPower`, `SacrificeCostCreaturesToughness`,
+    /// `SacrificeCostManaValue.PERMANENT`)
+    SacrificedPower,
+    SacrificedToughness,
+    SacrificedManaValue,
     /// opponents who lost life this turn (`PlayerLostLifeWatcher`)
     OpponentsLostLife,
     /// the controller's devotion to a color (and `c2`, for two): its mana symbols among the mana costs of permanents
@@ -1135,13 +1176,19 @@ pub enum Value {
     /// for one type only (`PartyCount`)
     Party,
     /// colors among permanents of the filter (`ColorsAmongControlledPermanentsCount`)
-    ColorsAmong { filter: Filter },
+    ColorsAmong {
+        filter: Filter,
+    },
     /// counters of every kind on the source, or on it as it last was on the battlefield (`CountersSourceCount.ANY`)
     SourceCountersAny,
     /// these values added up (`AdditiveDynamicValue`)
-    Sum { xs: Vec<Amount> },
+    Sum {
+        xs: Vec<Amount>,
+    },
     /// different powers among permanents of the filter (coven)
-    DifferentPowers { filter: Filter },
+    DifferentPowers {
+        filter: Filter,
+    },
     /// nonland permanents that entered under the controller's control this turn (celebration)
     NonlandsEntered,
     /// permanent cards put into the controller's graveyard this turn (descend, `DescendedWatcher`)
@@ -3072,8 +3119,15 @@ pub enum AbilityDef {
     },
     /// `{T}: Add` `amount` mana of `color`, counted as it's activated (`DynamicManaAbility`: Elvish Archdruid)
     DynamicManaAbility {
-        color: Color,
+        /// none: `{C}` (Powerstone Shard)
+        #[serde(default)]
+        color: Option<Color>,
         amount: Amount,
+        /// its costs besides tapping (Cabal Stronghold's {3}), or instead of it (`no_tap`)
+        #[serde(default)]
+        cost: Vec<CostDef>,
+        #[serde(default)]
+        no_tap: bool,
         #[serde(default)]
         rule: String,
     },
@@ -3286,7 +3340,8 @@ impl AbilityDef {
             AbilityDef::ColorlessManaAbility { amount, .. } => Some(Mana { colorless: *amount, ..Mana::default() }),
             AbilityDef::ColoredManaAbility { color, amount, .. } => Some(Mana::of(*color, *amount)),
             // at least one, as far as this can tell (the game counts the rest)
-            AbilityDef::DynamicManaAbility { color, .. } => Some(Mana::of(*color, 1)),
+            AbilityDef::DynamicManaAbility { color: None, .. } => Some(Mana { colorless: 1, ..Mana::default() }),
+            AbilityDef::DynamicManaAbility { color: Some(c), .. } => Some(Mana::of(*c, 1)),
             // (the game picks which as it lists the sources)
             AbilityDef::ConditionalColorManaAbility { otherwise, otherwise_amount, .. } => {
                 Some(Mana::of(*otherwise, *otherwise_amount))
@@ -3347,6 +3402,7 @@ impl AbilityDef {
             AbilityDef::ColoredManaAbility { no_tap: true, .. }
                 | AbilityDef::ColorlessManaAbility { no_tap: true, .. }
                 | AbilityDef::AnyColorManaAbility { no_tap: true, .. }
+                | AbilityDef::DynamicManaAbility { no_tap: true, .. }
         )
     }
 
@@ -3373,6 +3429,7 @@ impl AbilityDef {
             | AbilityDef::ColorlessManaAbility { cost, .. }
             | AbilityDef::ColoredManaAbility { cost, .. }
             | AbilityDef::ConditionalManaAbility { cost, .. }
+            | AbilityDef::DynamicManaAbility { cost, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { cost, .. }
             | AbilityDef::NykthosShrineToNyxManaAbility { cost, .. } => cost,
             _ => &[],

@@ -626,6 +626,9 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'SourceTappedCondition.TAPPED': {'c': 'source_tapped', 'v': True},
               'SourceTappedCondition.UNTAPPED': {'c': 'source_tapped', 'v': False},
               'CardsInOpponentGraveyardCondition.EIGHT': {'c': 'opponent_graveyard', 'n': 8},
+              'CardsInOpponentGraveyardCondition.SEVEN': {'c': 'opponent_graveyard', 'n': 7},
+              'FatefulHourCondition.instance': {'c': 'life_compare', 'who': 'you', 'cmp': 'OR_LESS', 'n': 5},
+              'FullPartyCondition.instance': {'c': 'value', 'cmp': 'OR_GREATER', 'n': 4, 'of': {'v': 'party'}},
               # a duel: the opponents' turns are the turns that aren't yours
               'OpponentsTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}},
               # a player (either: two players, both in range) has 13 or less life
@@ -779,6 +782,8 @@ def predicate(text, subtypes):
               'PermanentPredicate.instance': 'permanent_card'}
     if text in simple:
         return {'p': simple[text]}
+    if (m := re.fullmatch(r'ChosenSubtypePredicate\.(TRUE|FALSE)', text)):
+        return {'p': 'chosen_subtype', 'v': m.group(1) == 'TRUE'}
     if (m := re.fullmatch(r'TokenPredicate\.(TRUE|FALSE)', text)):
         return {'p': 'token', 'v': m.group(1) == 'TRUE'}
     if (m := re.fullmatch(r'(CounterType\.\w+)\.getPredicate\(\)', text)) and m.group(1) in COUNTERS:
@@ -801,7 +806,9 @@ def filter_object(cls, args, adds, subtypes):
     preds = [dict(p) for p in FILTER_CLASSES[cls]]
     for a in args:
         a = a.strip()
-        if re.fullmatch(r'"[^"]*"', a):
+        # its text: a literal, or one built of literals and subtype names
+        if re.fullmatch(r'"[^"]*"', a) or '"' in a and re.fullmatch(r'(?:"[^"]*"|SubType\.\w+\.(?:toString|getDescription)\(\))'
+                                                                 r'(?:\s*\+\s*(?:"[^"]*"|SubType\.\w+\.(?:toString|getDescription)\(\)))*', a):
             continue
         if (m := re.fullmatch(r'SubType\.(\w+)', a)) and m.group(1) in subtypes:
             preds.append({'p': 'subtype', 's': subtypes[m.group(1)]})
@@ -919,7 +926,7 @@ PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPl
 # chained calls that only change texts, hints or the AI's view
 TEXT_SETTERS = {'setText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
-                'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier'}
+                'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier', 'withForceQuotes'}
 
 # abilities every card has, which the constructor doesn't add
 IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'OmenCardSpellAbility', 'PrepareCardSpellAbility'}
@@ -1085,6 +1092,12 @@ class Translator:
             return {'v': 'opponents_lost_life'}
         if arg == 'PermanentsSacrificedThisTurnCount.YOU':
             return {'v': 'sacrificed_this_turn'}
+        # what the spell or ability's costs sacrificed
+        sacrificed = {'SacrificeCostCreaturesPower.instance': 'sacrificed_power',
+                      'SacrificeCostCreaturesToughness.instance': 'sacrificed_toughness',
+                      'SacrificeCostManaValue.PERMANENT': 'sacrificed_mana_value'}
+        if arg in sacrificed:
+            return {'v': sacrificed[arg]}
         if arg == 'CardsInControllerHandCount.ANY':
             return {'v': 'cards_in_hand'}
         if arg == 'ControllerGainedLifeCount.instance':
@@ -1185,6 +1198,15 @@ class Translator:
             return {'c': 'source_targets', 'filter': [{'p': 'supertype', 's': m.group(1)}]}
         if (m := re.fullmatch(r'new TargetHasCounterCondition\((CounterType\.\w+)\)', arg)) and m.group(1) in COUNTERS:
             return {'c': 'source_targets', 'filter': [{'p': 'counter', 'name': COUNTERS[m.group(1)]}]}
+        # "if it has N or more counters" (no upper bound)
+        if (m := re.fullmatch(r'new TargetHasCounterCondition\((CounterType\.\w+),(\d+),Integer\.MAX_VALUE\)', arg)) \
+                and m.group(1) in COUNTERS and int(m.group(2)) > 0:
+            return {'c': 'source_targets', 'filter': [{'p': 'counter', 'name': COUNTERS[m.group(1)], 'n': int(m.group(2))}]}
+        # the source's counters compared with N
+        if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+),ComparisonType\.(\w+),(\d+)\)', arg)) \
+                and m.group(1) in COUNTERS and m.group(2) in COMPARISONS:
+            return {'c': 'value', 'of': {'v': 'source_counters', 'counter': COUNTERS[m.group(1)]}, 'cmp': m.group(2),
+                    'n': int(m.group(3))}
         if (m := re.fullmatch(r'new OpponentControlsPermanentCondition\((.*)\)', arg)) and split_args(m.group(1)) == [m.group(1)]:
             return {'c': 'permanents', 'filter': self.filter(m.group(1)) + [OPPONENT], 'cmp': 'OR_GREATER', 'n': 1, 'all': True}
         if (m := re.fullmatch(r'new SourceHasCounterCondition\((CounterType\.\w+),ComparisonType\.MORE_THAN,(\d+)\)', arg)) \
@@ -2549,9 +2571,18 @@ class Translator:
         # "{T}: Add {G} for each …"
         if cls == 'DynamicManaAbility' and len(args) == 3 and re.fullmatch(r'"[^"]*"(?:\s*\+\s*[\w.]+\(\))?', args[2].strip()):
             args = args[:2]
-        if cls == 'DynamicManaAbility' and len(args) == 2 \
-                and (n := re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green)Mana\(1\)', args[0].strip())):
-            return {'class': cls, 'java': cls, 'color': COLOR_LETTERS[n.group(1)], 'amount': self.amount(args[1])}
+        if cls == 'DynamicManaAbility' and len(args) in (2, 3) \
+                and (n := re.fullmatch(r'Mana\.(White|Blue|Black|Red|Green|Colorless)Mana\(1\)', args[0].strip())):
+            out = {'class': cls, 'java': cls, 'amount': self.amount(args[1])}
+            if n.group(1) != 'Colorless':
+                out['color'] = COLOR_LETTERS[n.group(1)]
+            # a cost instead of tapping (tapping added after, Cabal Stronghold)
+            if len(args) == 3:
+                cost = self.cost(args[2])
+                if cost.get('class') == 'TapSourceCost':
+                    return out
+                out['cost'], out['no_tap'] = [cost], True
+            return out
         if cls == 'SimpleManaAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD' \
                 and args[2].strip() == 'new TapSourceCost()':
             if (n := re.fullmatch(r'new AddManaOfAnyColorEffect\((\d+)\)', args[1].strip())):
@@ -3656,7 +3687,8 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
             return
         # "X target creatures": the spell's permanent target takes X targets (up to X when it may choose none)
         if st == 'this.getSpellAbility().setTargetAdjuster(new XTargetsCountAdjuster())' and spell['targets'] \
-                and spell['targets'][-1].get('class') == 'TargetPermanent' and 'distribute' not in spell['targets'][-1]:
+                and spell['targets'][-1].get('class') in ('TargetPermanent', 'TargetAnyTarget', 'TargetCardInGraveyard') \
+                and not {'distribute', 'max_x', 'single'} & set(spell['targets'][-1]):
             spell['targets'][-1]['x_count'] = True
             return
         # "you may exile any number of <filter> from your hand. This spell costs {2} less for each": its info static,
@@ -3898,7 +3930,8 @@ def ability_statement(t, st, added):
     # a mana ability built with a mana cost: tapping is one more cost; "if any of that mana is spent on a creature
     # spell, it gains haste until end of turn" (Arena of Glory)
     m = re.fullmatch(r'(\w+)\.add(Effect|Cost)\((.*)\)', st)
-    if m and t.vars.get(m.group(1), {}).get('class') in ('ColoredManaAbility', 'AnyColorManaAbility', 'ColorlessManaAbility') \
+    if m and t.vars.get(m.group(1), {}).get('class') in ('ColoredManaAbility', 'AnyColorManaAbility', 'ColorlessManaAbility',
+                                                         'DynamicManaAbility') \
             and t.vars[m.group(1)].get('no_tap'):
         holder = t.vars[m.group(1)]
         if m.group(2) == 'Cost' and m.group(3).strip() == 'new TapSourceCost()':
@@ -4424,6 +4457,13 @@ def granted_rules(card):
             if g.get('hint'):
                 g['rule'] += (' <i>(Whenever this creature becomes the target of a spell or ability an opponent'
                               ' controls, counter it unless that player pays ' + cost[0] + '.)</i>')
+        elif g.get('class') == 'WardAbility' and not cost and len(life := [
+                c for x in g.get('effects', []) for c in x.get('cost', [])]) == 1 and life[0].get('class') == 'PayLifeCost':
+            # "ward—Pay N life." (`PayLifeCost`'s text, first letter upper case)
+            g['rule'] = 'ward&mdash;Pay %d life.' % life[0]['amount']
+            if g.get('hint'):
+                g['rule'] += (' <i>(Whenever this creature becomes the target of a spell or ability an opponent'
+                              ' controls, counter it unless that player pays %d life.)</i>' % life[0]['amount'])
         elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility') and quoted:
             # an activated ability's rule ends with its effect's sentence; its costs read as the cost classes
             # write them (`SacrificeSourceCost`: "Sacrifice {this}")

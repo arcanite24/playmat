@@ -472,6 +472,9 @@ pub struct StackItem {
     pub lki_power: Option<i32>,
     /// the greatest toughness among the permanents its cost sacrificed (Witch's Oven)
     pub sacrificed_toughness: Option<i32>,
+    /// the total power, toughness and mana value of the permanents its costs sacrificed (`SacrificeCostCreaturesPower`,
+    /// `SacrificeCostCreaturesToughness`, `SacrificeCostManaValue`)
+    pub sacrificed_stats: [i32; 3],
     /// a divided target's share for each of its first target group's targets, in order
     pub target_amounts: Vec<i32>,
     /// a delayed triggered ability (it has no ability index)
@@ -536,6 +539,7 @@ impl StackItem {
             kicked: false,
             lki_power: None,
             sacrificed_toughness: None,
+            sacrificed_stats: [0; 3],
             target_amounts: Vec::new(),
             delayed: None,
             modes: Vec::new(),
@@ -1173,7 +1177,10 @@ impl Game {
             }
             Pred::InCombat => o.attacking.is_some() || !o.blocking.is_empty(),
             Pred::Token { v } => o.token == *v,
-            Pred::Counter { name } => o.counter(name) > 0,
+            Pred::ChosenSubtype { v } => {
+                source.and_then(|s| self.obj(s).chosen_type.as_ref()).is_some_and(|t| self.has_subtype(id, t)) == *v
+            }
+            Pred::Counter { name, n } => o.counter(name) >= (*n).max(1) as i32,
             Pred::Ability { a } => self.has_ability(id, a),
             Pred::Name { n } => o.name() == n,
             Pred::PermanentCard => o.def.is_permanent_card(),
@@ -1806,6 +1813,9 @@ impl Game {
                 Value::LifeGained => self.player(you).life_gained,
                 Value::ManaExpended => self.player(you).expended as i32,
                 Value::SacrificedThisTurn => self.player(you).sacrificed as i32,
+                Value::SacrificedPower => self.resolving_item.as_ref().map_or(0, |i| i.sacrificed_stats[0]),
+                Value::SacrificedToughness => self.resolving_item.as_ref().map_or(0, |i| i.sacrificed_stats[1]),
+                Value::SacrificedManaValue => self.resolving_item.as_ref().map_or(0, |i| i.sacrificed_stats[2]),
                 Value::OpponentsLostLife => {
                     (0..self.seats()).filter(|p| *p != you && self.player(*p).life_lost > 0).count() as i32
                 }
