@@ -2596,6 +2596,9 @@ pub enum EffectDef {
         /// what happens if no card is put into the hand (Ainok Wayfarer's +1/+1 counter)
         #[serde(default)]
         otherwise: Option<Box<EffectDef>>,
+        /// up to this many cards go to the hand (`maxReturnedCard`, Smuggler's Surprise's two)
+        #[serde(default = "one")]
+        max: usize,
     },
     /// a spell costs `per` less for each of `amount` (`SpellCostReductionForEachSourceEffect`)
     SpellCostReductionForEachSourceEffect {
