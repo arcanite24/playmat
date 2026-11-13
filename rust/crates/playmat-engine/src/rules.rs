@@ -17743,24 +17743,30 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             game.pending.push(t);
         }
     }
+    let mut damage_to_player: Vec<StackItem> = Vec::new();
     if combat
         && (matches!(to, Target::Player(_)) || matches!(to, Target::Obj(o) if game.has_type(o, CardType::Planeswalker)))
     {
         let fired = game.triggers([source], |_, _, _, t| matches!(t, Trigger::CombatDamageToPlayerOrPlaneswalker));
-        game.pending.extend(fired);
+        damage_to_player.extend(fired);
     }
     if combat && (matches!(to, Target::Player(_)) || matches!(to, Target::Obj(o) if game.has_type(o, CardType::Battle)))
     {
         let fired = game.triggers([source], |_, _, _, t| matches!(t, Trigger::CombatDamageToPlayerOrBattle));
         for mut t in fired {
             t.x = amount;
-            game.pending.push(t);
+            damage_to_player.push(t);
         }
+    }
+    // a player damaged: one event, so these wait in Java's order with the "to a player" triggers below (an Ingest
+    // creature with Furnace Reins' granted "to a player or battle")
+    if !matches!(to, Target::Player(_)) {
+        game.pending.append(&mut damage_to_player);
     }
     if combat {
         if let Target::Player(p) = to {
             let fired = game.triggers([source], |_, _, _, t| matches!(t, Trigger::CombatDamageToPlayer));
-            let mut own = Vec::new();
+            let mut own = std::mem::take(&mut damage_to_player);
             for mut t in fired {
                 let a = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
                 if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
@@ -19024,11 +19030,20 @@ fn castable_parts(def: &Arc<CardDef>) -> Vec<(usize, Arc<CardDef>)> {
     }
 }
 
+/// A card's castable parts: the index of each and its definition
+type CastableParts = Vec<(usize, Arc<CardDef>)>;
+
 /// `CardUtil.castSpellWithAttributesForFree` over `seat`'s hand: the cards with a part of the filter that isn't a
 /// land (none asked about one alone), "cast it without paying its mana cost?", then the part to cast if more than one.
 /// False: the decider stopped.
-fn cast_one_for_free(game: &mut Game, d: &mut dyn Decider, seat: Seat, source: ObjId, filter: &crate::card::Filter) -> bool {
-    let mut castable: Vec<(ObjId, Vec<(usize, Arc<CardDef>)>)> = Vec::new();
+fn cast_one_for_free(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    source: ObjId,
+    filter: &crate::card::Filter,
+) -> bool {
+    let mut castable: Vec<(ObjId, CastableParts)> = Vec::new();
     for c in game.player(seat).hand.clone() {
         let full = game.obj(c).def.clone();
         let parts: Vec<(usize, Arc<CardDef>)> = castable_parts(&full)

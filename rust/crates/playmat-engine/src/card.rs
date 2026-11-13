@@ -5391,7 +5391,11 @@ impl CardDef {
         self.abilities.iter().enumerate().find_map(|(k, a)| match a {
             AbilityDef::EmergeAbility { cost, filter, .. } => Some((
                 k,
-                CardDef { cost: ManaCost::parse(cost).ok()?, printed_cost: Some(self.printed().clone()), ..self.clone() },
+                CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    ..self.clone()
+                },
                 filter.clone().unwrap_or_else(|| Filter(vec![Pred::Type { t: CardType::Creature }])),
             )),
             _ => None,

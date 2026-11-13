@@ -6206,6 +6206,10 @@ def granted_rules(card):
                 # `.setText("this creature gets +1/+1 until end of turn")`)
                 kept = [t for t in re.findall(r'\.setText\("([^"]*)"\)', card_source(card.get('name')))
                         if 'this creature' in t and t in quoted.group(1)]
+                # so does a damage effect named "this creature" (Black Mage's Rod's `DamagePlayersEffect`)
+                kept += ['this creature deals %s damage to each opponent' % m.group(1) for m in re.finditer(
+                    r'new DamagePlayersEffect\((\d+),\s*TargetController\.OPPONENT,\s*"this creature"\)',
+                    card_source(card.get('name')))]
                 text = quoted.group(1)
                 for k, t in enumerate(kept):
                     text = text.replace(t, '\x00%d\x00' % k)
