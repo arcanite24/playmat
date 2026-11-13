@@ -438,6 +438,8 @@ pub struct Player {
     pub cant_gain_life: bool,
     /// declared an attacker this turn (`PlayerAttackedWatcher`)
     pub attacked: bool,
+    /// the attackers declared this turn, over every combat (`PlayerAttackedWatcher.getNumberOfAttackersCurrentTurn`)
+    pub attackers_this_turn: u32,
     /// life lost this turn
     pub life_lost: i32,
     /// cards drawn this turn
@@ -2317,6 +2319,22 @@ impl Game {
                 Value::CardTypesInGraveyards => {
                     let mut types: Vec<CardType> = Vec::new();
                     for p in self.players.iter() {
+                        for c in p.graveyard.iter() {
+                            for t in &self.obj(*c).def.types {
+                                if !types.contains(t) {
+                                    types.push(*t);
+                                }
+                            }
+                        }
+                    }
+                    types.len() as i32
+                }
+                Value::CardTypesInOpponentsGraveyards => {
+                    let mut types: Vec<CardType> = Vec::new();
+                    for (seat, p) in self.players.iter().enumerate() {
+                        if seat == you {
+                            continue;
+                        }
                         for c in p.graveyard.iter() {
                             for t in &self.obj(*c).def.types {
                                 if !types.contains(t) {

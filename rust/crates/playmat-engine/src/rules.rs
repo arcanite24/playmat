@@ -199,6 +199,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 let p = game.player_mut(s);
                 p.lands_played = 0;
                 p.attacked = false;
+                p.attackers_this_turn = 0;
                 p.life_lost = 0;
                 p.drawn = 0;
                 p.drawn_in_draw_step = 0;
@@ -297,6 +298,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             if !attackers(game).is_empty() {
                 game.player_mut(active).attacked = true;
             }
+            let declared = attackers(game).len() as u32;
+            game.player_mut(active).attackers_this_turn += declared;
             // boast: each attacker attacked this turn (`AttackedThisTurnWatcher`)
             let turn = format!("attacked{}", game.turn);
             for a in attackers(game) {
@@ -12996,7 +12999,8 @@ fn apply_each_effect(
                 }
                 game.move_to(id, Zone::Command);
             }
-            EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters, owner } => {
+            EffectDef::ReturnFromGraveyardToBattlefieldTargetEffect { tapped, counters, owner, attacking } => {
+                let mut entered = Vec::new();
                 for o in &objs {
                     // a token that died isn't a card to return (`game.getCard` finds none)
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).token {
@@ -13011,7 +13015,25 @@ fn apply_each_effect(
                         if *tapped {
                             game.obj_mut(*o).tapped = true;
                         }
+                        entered.push(*o);
                     }
+                }
+                // `Combat.addAttackingCreature` once they're all on the battlefield: with planeswalkers or battles to
+                // attack too, asked which (only in combat, where there are defenders)
+                let in_combat = matches!(
+                    game.step,
+                    Some(Step::DeclareAttackers | Step::DeclareBlockers | Step::FirstCombatDamage | Step::CombatDamage)
+                );
+                for o in entered.into_iter().filter(|_| *attacking && in_combat) {
+                    if game.obj(o).zone != Zone::Battlefield {
+                        continue;
+                    }
+                    let defender = game.opponent(controller);
+                    let Some(pw) = choose_defender(game, d, controller, defender) else { return };
+                    let ob = game.obj_mut(o);
+                    ob.attacking = Some(defender);
+                    ob.attacking_pw = pw;
+                    join_combat(game, o);
                 }
             }
             EffectDef::DiscardTargetEffect { amount } => {

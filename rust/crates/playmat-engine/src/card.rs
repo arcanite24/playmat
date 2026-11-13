@@ -1407,6 +1407,8 @@ pub enum Value {
     },
     /// card types among cards in all graveyards (`CardTypesInGraveyardCount.ALL`)
     CardTypesInGraveyards,
+    /// card types among cards in the controller's opponents' graveyards (`CardTypesInGraveyardCount.OPPONENTS`)
+    CardTypesInOpponentsGraveyards,
     /// cards exiled with the source while it's on the battlefield (`UnlicensedHearseValue`)
     ExiledWithSource,
     /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
@@ -3166,6 +3168,9 @@ pub enum EffectDef {
         /// it enters with these counters (`…WithCounterTargetEffect`)
         #[serde(default)]
         counters: Option<CounterDef>,
+        /// and attacking (`ReturnFromGraveyardToBattlefieldTargetEffect(tapped, true)`: Alesha)
+        #[serde(default)]
+        attacking: bool,
     },
     /// the target player discards `amount` cards of their choice
     DiscardTargetEffect {
@@ -4045,6 +4050,9 @@ pub enum AbilityDef {
         limit: u32,
         #[serde(default)]
         condition: Option<Condition>,
+        /// "… and only as a sorcery" (`setTiming(TimingRule.SORCERY)`)
+        #[serde(default)]
+        sorcery: bool,
     },
     /// an activated ability from hand: pay, discard this, draw (`CyclingAbility`)
     CyclingAbility {
@@ -4543,8 +4551,8 @@ impl AbilityDef {
             AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),
             AbilityDef::EquipAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, true)),
             AbilityDef::CyclingAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, false)),
-            AbilityDef::LimitedTimesPerTurnActivatedAbility { effects, cost, targets, rule, .. } => {
-                Some((rule, effects, targets, cost, false))
+            AbilityDef::LimitedTimesPerTurnActivatedAbility { effects, cost, targets, rule, sorcery, .. } => {
+                Some((rule, effects, targets, cost, *sorcery))
             }
             AbilityDef::ChannelAbility { effects, cost, targets, rule, .. } => {
                 Some((rule, effects, targets, cost, false))
