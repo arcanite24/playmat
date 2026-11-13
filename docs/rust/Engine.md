@@ -85,6 +85,7 @@ to keep them small; a recording keeps them, which is what the difference report 
 | face down | `shadow-decks/fd1`..`fd3`, wave 3's face-down probes: morph and megamorph (cast face down for {3}, turned face up as a special action that announces X first; a turned-up permanent that isn't a creature leaves combat), disguise (ward {2} while face down), manifest and manifest dread (a creature card turned up for its mana cost, a morph card for its morph cost too); what each player sees: to everyone a nameless 2/2 named for how it got there ("Morph", "Manifest"…), to its controller "Morph: Name" with the card as its other face; leaving the battlefield face up, even after an Aura or backup gave the face-down 2/2 abilities | 30 of 30 in each (6 checked in under `shadow/casting`) |
 | casting | `shadow-decks/cast3`..`cast11`, wave 3's alternative casts: prototype, awaken (the land becomes a 0/0 Elemental with haste and gets the counters), sneak (only in the declare blockers step, returning an unblocked attacker), backup (the counter on a target, the abilities until end of turn if it's another creature), discover (free cast or to hand, a Room cast as one half), strive, unearth, madness (exiled as it's discarded, also as a cost, then cast for its madness cost or put into the graveyard), disturb (the back cast from the graveyard, exiled instead of going to a graveyard from anywhere but the battlefield as its front); sneak, awaken and disturb cast the spell as it was when the ability was made, as Java's copy does | 30 of 30 in each (14 checked in under `shadow/casting`) |
 | mechanics | `shadow-decks/mech1`..`mech7`, wave 4's named mechanics: saddle and crew variants, embalm, eternalize and scavenge, ingest, pack tactics and job select, repartee, impending and free casts from hand, incubate, emerge, die-roll tables | 208 of 210 (two Reckoner Bankbuster token-order games are Java nondeterminism; 14 checked in under `shadow/mechanics`, beside two factory games) |
+| turn | `shadow-decks/turn1`, wave 5's turn and combat probe: blocker decks (multi-blocks, "doesn't untap") against attacker decks (lures, "attacks or blocks each combat", additional combat phases, coin flips, "any number of target players") | 16 of 16 finished games match (13 checked in under `shadow/turn`, with factory games) |
 | meta | `shadow-decks/meta`: the 24 meta decks, each against the others (288 games): behold for an ability that searches (asked, never auto-chosen), conditional mana of any color takes its color as it's made, each combat group deals its damage (and asks for replacement order) before the next assigns its own, a cancelled spree mode stops the cast before the next mode's targets, cards back from exile together see each other enter (Pinnacle Starcage), mana of any color asked at priority, generic mana paid one at a time in Java's order, short-living LKI for sacrifices | 287 of 288 match, the other unfinished in Java (15 checked in) |
 
 An overloaded `ReturnToHandTargetEffect` (Cyclonic Rift) returns its cards through `FixedTargets` made from a
@@ -327,7 +328,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,426 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,475 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -566,6 +567,33 @@ Being in the engine and being trusted are kept apart.
   and 5) verified 38 more: 10,310; 13 games under `shadow/handlers/` cover them. Left: Hadana's Climb (Java offers
   Winged Temple's mana ability through its "choose ability" list when the other ability can't be paid), and Eerie
   Ultimatum, Gishath and Zacama pending (not cast often enough yet).
+
+  Turn and combat (13 Nov, wave 5): "doesn't untap" in its forms (the controller's next untap step, while the source
+  stays on the battlefield or under the same controller, for as long as the source stays tapped, a filter until your
+  next turn, and `SkipUntapOptionalAbility`'s "Untap X?" asked before the untap, as Java's
+  `SkipUntapOptionalSourceEffect`); "can block an additional creature" (and any number), with Java's
+  `HumanPlayer.selectCombatGroup` (choosing an attacker the blocker already blocks takes it off that one) and a
+  blocker's damage divided among its attackers (the first two in combat-group order, as `CombatGroup`'s blocking
+  group); combat requirements: "must be blocked by all (of a filter) if able" (lures, provoke-like targets until end
+  of turn or end of combat), "attacks if able" for a target or what's attached, "blocks if able", and the forced
+  blocks Java's `Combat.retrieveMustBlockAttackerRequirements` declares before the defender is asked, with its
+  `creatureMustBlockAttackers` check after; additional combat phases (`TurnMods`' extra phases, the last added first,
+  `AddCombatAndMainPhaseEffect`'s main phase after it, `FirstCombatPhaseCondition` counting only the turn's own combat);
+  coin flips (`PlayerImpl.flipCoins`: "Heads or tails?", then `RandomUtil.nextBoolean()` from the seeded random
+  numbers, so the flips replay); "any number of target players" and "up to one target player" (`TargetPlayer(min,
+  max)`, each target player discarding, milling, sacrificing in the order chosen); untapping what's attached.
+  49 more cards translate and load (10,475 in the engine). Four factory rounds, a probe round (`shadow-decks/turn1`:
+  blocker decks against attacker decks, so multi-blocks, lures, extra combats and coin flips happen) and one more
+  round: 113 of 113 finished games match (replayed again on the engine with claims 1, 5 and 6), 47 more verified:
+  10,357 of 10,475. The probe found one fix (a discard or mill for each target player, not only the first). 13
+  games under `shadow/turn/` cover each part. Left: Breaker of Armies and Singularity Rupture pending (not
+  exercised enough yet). Not done: phasing (a phased-out permanent would have to be
+  skipped everywhere the battlefield is read), `EndTurnEffect` (Time Stop, Glorious End: Java's end-the-turn
+  bookkeeping), extra turns with appliers (Alchemist's Gambit, Kang), the additional end step, changing targets
+  (`ChooseNewTargetsTargetEffect` for Redirect Lightning, Bolt Bend: `TargetStackObject` with a target-count filter
+  and `StackObjectImpl.chooseNewTarget`'s dialog), "must be blocked by a creature of a filter" on Equipment (Slayer's
+  Cleaver); cards that need another area's work: Combat Celebrant (exert with a "when you do"), Aurelia (attacks the
+  first time each turn), All-Out Assault (a "when you attack" delayed trigger), Chemister's Trick (overload).
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
