@@ -105,6 +105,10 @@ pub struct Obj {
     /// deathtouch and lifelink it had as it last left the battlefield, granted ones too (Vial Smasher's lifelink
     /// from Eternal Thirst, put into the graveyard by the legend rule)
     pub lki_keywords: Vec<AbilityDef>,
+    /// its abilities as it last left the battlefield, when effects gave it some (land_type_base): what it triggers
+    /// on from the others leaving with it (Eternal Thirst's "Whenever a creature an opponent controls dies" on a
+    /// creature dying in the same combat)
+    pub lki_def: Option<Arc<CardDef>>,
     pub face_down: bool,
     /// the player it attacks
     pub attacking: Option<Seat>,
@@ -999,6 +1003,7 @@ impl Game {
             counters: Vec::new(),
             lki_counters: Vec::new(),
             lki_keywords: Vec::new(),
+            lki_def: None,
             face_down: false,
             attacking: None,
             attacking_pw: None,
@@ -1357,7 +1362,9 @@ impl Game {
         let mut fired = Vec::new();
         for src in sources {
             let o = self.obj(src);
-            for (i, a) in o.def.abilities.iter().enumerate() {
+            // one that left in the same action: the abilities it had
+            let lki = o.lki_def.as_ref().filter(|_| o.zone != Zone::Battlefield && self.lookback.contains(&src));
+            for (i, a) in lki.unwrap_or(&o.def).abilities.iter().enumerate() {
                 if let Some(t) = a.trigger() {
                     if fires(self, src, o.controller, t)
                         && self.condition_holds(a.intervening_if(), o.controller, src)
@@ -1370,7 +1377,8 @@ impl Game {
                         // "When this creature dies, draw a card." with the Aura gone, Antagonist Incorporator's with
                         // it gone)
                         let def = (o.until_end_of_turn_def.is_some() || room || o.land_type_base.is_some())
-                            .then(|| o.def.clone());
+                            .then(|| o.def.clone())
+                            .or_else(|| lki.cloned());
                         fired.push(StackItem { ability: Some((i, o.zcc)), def, ..StackItem::spell(src, o.controller) });
                     }
                 }
@@ -2512,8 +2520,12 @@ impl Game {
                 .filter(|a| self.has_ability(id, a))
                 .collect();
             self.obj_mut(id).lki_keywords = kept;
+            let o = self.obj_mut(id);
+            o.lki_def = o.land_type_base.is_some().then(|| o.def.clone());
         } else {
-            self.obj_mut(id).lki_keywords.clear();
+            let o = self.obj_mut(id);
+            o.lki_keywords.clear();
+            o.lki_def = None;
         }
         self.remove_from_zone(id);
         // a transformed permanent's front, its card again after the effects that changed its back are undone
