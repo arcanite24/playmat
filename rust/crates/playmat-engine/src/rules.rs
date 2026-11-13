@@ -4868,6 +4868,12 @@ fn choose_target(
         }
         players.retain(|p| !chosen.contains(&Target::Player(*p)));
         objs.retain(|o| !chosen.contains(&Target::Obj(*o)));
+        // a divided target with its most targets chosen is asked once more, but a new one isn't added
+        // (Chandra's Pyrohelix: two damage, at most two targets)
+        if divided && chosen.len() >= max {
+            players.clear();
+            objs.clear();
+        }
         // `isChoiceCompleted`: nothing more to choose, but only once a target was chosen (a divided "up to" target
         // with nothing to choose is still asked once)
         if selected && players.is_empty() && objs.is_empty() && chosen.len() >= min && !(divided && added_in_prompt) {

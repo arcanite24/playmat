@@ -1997,14 +1997,20 @@ class Translator:
         if cls == 'TargetStackObject' and len(args) == 1 and 'ConsignToMemoryPredicate' in str(self.filters.get(args[0].strip())):
             return {'class': 'TargetTriggeredAbilityOrColorlessSpell'}
         # X divided among any number of creatures (one point each at least)
+        # a fixed amount over 3 needs no target at all (`amount > 3 ? 0 : 1`: Fight with Fire's 10 damage)
+        def fewest(amount):
+            return 0 if isinstance(amount, int) and amount > 3 else 1
         if cls == 'TargetAnyTargetAmount' and len(args) == 1:
-            return {'class': 'TargetAnyTarget', 'min': 1, 'max': 99, 'distribute': self.amount(args[0])}
+            amount = self.amount(args[0])
+            return {'class': 'TargetAnyTarget', 'min': fewest(amount), 'max': 99, 'distribute': amount}
         if cls == 'TargetCreaturePermanentAmount' and len(args) == 1:
-            return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)], 'min': 1, 'max': 99,
-                    'distribute': self.amount(args[0])}
+            amount = self.amount(args[0])
+            return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)], 'min': fewest(amount), 'max': 99,
+                    'distribute': amount}
         if cls == 'TargetCreaturePermanentAmount' and len(args) == 2:
-            return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)] + self.filter(args[1]), 'min': 1, 'max': 99,
-                    'distribute': self.amount(args[0])}
+            amount = self.amount(args[0])
+            return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)] + self.filter(args[1]),
+                    'min': fewest(amount), 'max': 99, 'distribute': amount}
         if cls == 'TargetPermanentOrPlayer' and len(args) == 4 and self.filters.get(args[2].strip()) == ANY_TARGET_NOT_FIRST \
                 and re.fullmatch(r'\d+', args[0].strip()) and re.fullmatch(r'\d+', args[1].strip()) and args[3].strip() == 'false':
             return {'class': 'TargetAnyTarget', 'min': int(args[0]), 'max': int(args[1]), 'not_first': True}
