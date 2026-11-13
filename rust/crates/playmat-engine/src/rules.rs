@@ -4767,6 +4767,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                     min: 1,
                     max: 1,
                     distribute: None,
+                    x_count: false,
                 };
                 // `tryToAutoChoose` reads the ability's text: an effect that searches too (Elven Passage) asks
                 let card = &game.obj(id).def;
@@ -5013,7 +5014,20 @@ fn choose_target(
     rule: &str,
     cancellable: bool,
 ) -> Option<Vec<Target>> {
-    let (min, mut max) = target_counts(def);
+    let (mut min, mut max) = target_counts(def);
+    if let TargetDef::TargetPermanent { x_count: true, .. } = def {
+        let x = source
+            .and_then(|s| game.stack.iter().rev().find(|i| i.card == s && i.ability.is_none()))
+            .map_or(0, |i| i.x);
+        // X of 0: the adjuster leaves the spell no targets
+        if x <= 0 {
+            return Some(Vec::new());
+        }
+        max = x as usize;
+        if min != 0 {
+            min = x as usize;
+        }
+    }
     if let TargetDef::TargetCardInGraveyard { max_x: true, .. } = def {
         let x = source
             .and_then(|s| game.stack.iter().rev().find(|i| i.card == s && i.ability.is_none()))
@@ -13040,7 +13054,13 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                     game.obj_mut(id).chosen_name = Some(chosen);
                 }
                 if let EffectDef::ChooseCreatureEffect { filter } = e {
-                    let def = TargetDef::TargetPermanent { filter: filter.clone(), min: 1, max: 1, distribute: None };
+                    let def = TargetDef::TargetPermanent {
+                        filter: filter.clone(),
+                        min: 1,
+                        max: 1,
+                        distribute: None,
+                        x_count: false,
+                    };
                     // `chooseTarget` with nothing to choose returns without asking
                     let chosen = if target_possible(game, controller, &def, Some(id)) {
                         choose_target(game, d, controller, &def, Some(id), "", false)

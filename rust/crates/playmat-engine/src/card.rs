@@ -208,6 +208,9 @@ pub enum TargetDef {
         /// point)
         #[serde(default)]
         distribute: Option<Amount>,
+        /// `XTargetsCountAdjuster`: X targets (up to X when `min` is 0), the spell's X; none for X 0
+        #[serde(default)]
+        x_count: bool,
     },
     TargetPlayerOrPlaneswalker,
     /// an opponent or a planeswalker an opponent controls

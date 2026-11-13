@@ -3619,6 +3619,10 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         # hints and flavor words are display; a watcher is the engine's own bookkeeping
         if re.fullmatch(r'this\.getSpellAbility\(\)\.(addHint|addWatcher|withFirstModeFlavorWord|setAbilityWord)\(.*\)', st):
             return
+        # the modes' texts (a "choose" text that only says what the min and max modes do; a mode's flavor word)
+        if re.fullmatch(r'this\.getSpellAbility\(\)\.getModes\(\)\.(setChooseText\("[^"]*"\)|getMode\(\)\.withFlavorWord\("[^"]*"\))', st) \
+                and not re.search(r'getModes\(\)\.setMoreCondition', getattr(t, 'source', '')):
+            return
         m = re.fullmatch(r'this\.getSpellAbility\(\)\.addCost\((.*)\)', st)
         if m:
             spell.setdefault('costs', []).append(t.cost(m.group(1)))
@@ -3646,9 +3650,14 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
                     if tg['class'] == 'TargetCardInGraveyard':
                         tg['max_x'] = True
             return
-        m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new XManaValueTargetAdjuster\(ComparisonType\.(OR_LESS|EQUAL_TO)\)\)', st)
+        m = re.fullmatch(r'this\.getSpellAbility\(\)\.setTargetAdjuster\(new XManaValueTargetAdjuster\((?:ComparisonType\.(OR_LESS|EQUAL_TO))?\)\)', st)
         if m and spell['targets']:
-            spell['targets'][-1].setdefault('filter', []).append({'p': 'mana_value_x', 'cmp': m.group(1)})
+            spell['targets'][-1].setdefault('filter', []).append({'p': 'mana_value_x', 'cmp': m.group(1) or 'EQUAL_TO'})
+            return
+        # "X target creatures": the spell's permanent target takes X targets (up to X when it may choose none)
+        if st == 'this.getSpellAbility().setTargetAdjuster(new XTargetsCountAdjuster())' and spell['targets'] \
+                and spell['targets'][-1].get('class') == 'TargetPermanent' and 'distribute' not in spell['targets'][-1]:
+            spell['targets'][-1]['x_count'] = True
             return
         # "you may exile any number of <filter> from your hand. This spell costs {2} less for each": its info static,
         # and the adjuster
@@ -3860,7 +3869,8 @@ def ability_statement(t, st, added):
     if m and isinstance(t.vars.get(m.group(1)), dict) and 'class' in t.vars[m.group(1)] \
             and t.vars[m.group(1)].get('class', '').endswith('Effect'):
         raise Unsupported('target pointer ' + st)
-    m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withFirstModeFlavorWord)\(.*\)', st)
+    m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withFirstModeFlavorWord'
+                     r'|getModes\(\)\.getMode\(\)\.withFlavorWord)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
     m = re.fullmatch(r'(\w+)\.setCostAdjuster\(GhostfireBladeAdjuster\.instance\)', st)
