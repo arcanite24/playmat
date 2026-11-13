@@ -4381,7 +4381,8 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
             let rule = game.obj(id).def.spell.rule.clone();
-            if choose_cards(game, d, seat, &[c], &[c], 1, 1, &rule) != Some(vec![c]) {
+            // "done" instead leaves the cost unpaid: the cast is rolled back
+            if choose_cards_with(game, d, seat, &[c], &[c], 1, 1, &rule, true) != Some(vec![c]) {
                 return false;
             }
             tap(game, c);
