@@ -945,6 +945,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || plot(game, seat, *id).is_some()
             || suspend(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
+            || o.def.back.as_ref().is_some_and(|b| b.is(CardType::Land) && can_play_land(game, seat))
         {
             out.push(*id);
         }
@@ -957,7 +958,8 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
     for id in p.graveyard.iter() {
         let def = &game.obj(*id).def;
         if def.is(CardType::Land) {
-            if lands {
+            // played from it (Crucible of Worlds), or a graveyard ability of its own (Drownyard Temple)
+            if lands || !activatable(game, seat, *id).is_empty() {
                 out.push(*id);
             }
             continue;
@@ -1063,7 +1065,14 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     }
                 }
                 if o.is(CardType::Land) {
-                    if let Some(k) = index(def, &AbilityDef::PlayLandAbility).filter(|_| can_play_land(game, seat)) {
+                    // from a graveyard only with Crucible of Worlds' effect
+                    let from_graveyard = o.zone != Zone::Graveyard
+                        || game.any_static(|g, src, e| {
+                            matches!(e, EffectDef::PlayLandsFromGraveyardControllerEffect) && g.obj(src).controller == seat
+                        });
+                    if let Some(k) =
+                        index(def, &AbilityDef::PlayLandAbility).filter(|_| from_graveyard && can_play_land(game, seat))
+                    {
                         out.push((id, k, PlayKind::Land, face));
                     }
                 } else {
@@ -2466,7 +2475,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
         }
     }
-    if game.obj(id).is(CardType::Land) {
+    // a land in a graveyard with an ability of its own there (Drownyard Temple): that ability, below
+    let graveyard_ability = game.obj(id).zone == Zone::Graveyard && !activatable(game, seat, id).is_empty();
+    if game.obj(id).is(CardType::Land) && !graveyard_ability {
         // a modal double-faced land: the picker, with its front's and its back's play abilities (the back's come
         // after the front's)
         if let Some(back) = game.obj(id).def.back.clone() {
