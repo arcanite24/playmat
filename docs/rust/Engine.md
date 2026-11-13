@@ -431,7 +431,7 @@ Being in the engine and being trusted are kept apart.
   death order (Goreclaw); the index of an activated ability granted after granted keywords (Hagra Constrictor with Snapping Gnarlid);
   and single games where Java and Rust part on who gets priority next.
 
-  Round 8 (13 Nov, after the wave-3 and static-effect PRs): three rounds over the 88 translating but unverified
+  Round 8 (13 Nov, after the wave-3, static-effect and per-card handler PRs): three rounds over the 88 translating but unverified
   cards, used ones first (192 games), and the rounds 6 and 7 games replayed on the new engine. The fixes, each with a
   game under `shadow/factory/`: becomes-the-target triggers fire on abilities too (Tenured Concocter, Cactarantula);
   power-up's discount the turn it entered follows `CardUtil.adjustCost` (a hybrid symbol of its own cost takes off a
@@ -441,7 +441,7 @@ Being in the engine and being trusted are kept apart.
   is picked (Reigning Victor, Temur Tawnyback); a triggered ability's auto-choice text is `getRule(true)`, its
   effects without the trigger phrase (Trail of Crumbs); mana abilities granted until your next turn (Song of
   Freyalise); RemoveCounterCost's creature is auto-chosen (Sunstar Chaplain); a target gone since it was chosen is
-  read with its last known power (Grisly Spectacle). 154 more cards are verified: 9,802 of 9,833.
+  read with its last known power (Grisly Spectacle). 154 more cards are verified: 9,863 of 9,895.
 
   Left: Pearl Lake Ancient and Volt Charge games where the lands reach the hand in `HashSet<Card>` order (identity
   hashes, so it changes from run to run: Java nondeterminism, like Cyclonic Rift above); Turn the Earth's
