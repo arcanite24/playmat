@@ -1683,12 +1683,15 @@ pub fn item_rule(game: &Game, item: &crate::state::StackItem) -> String {
     match (&item.delayed, item.ability) {
         (Some(d), _) => d.rule.clone(),
         // its own rule, or its card's at its index when it has none (an effect's def can reorder them)
-        (None, Some((k, _))) => ability
-            .and_then(|a| a.triggered().map(|t| t.0).or_else(|| a.activated().map(|t| t.0)))
-            .filter(|r| !r.is_empty())
-            .map(str::to_string)
-            .or_else(|| ability_rules(game, item.card).and_then(|r| r.get(k).cloned()))
-            .unwrap_or_default(),
+        (None, Some((k, _))) => {
+            let rule = ability
+                .and_then(|a| a.triggered().map(|t| t.0).or_else(|| a.activated().map(|t| t.0)))
+                .filter(|r| !r.is_empty())
+                .map(str::to_string)
+                .or_else(|| ability_rules(game, item.card).and_then(|r| r.get(k).cloned()))
+                .unwrap_or_default();
+            game.that_player_rule(item, &rule)
+        }
         _ => String::new(),
     }
 }

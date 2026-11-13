@@ -531,6 +531,9 @@ pub enum Trigger {
         filter: Filter,
         #[serde(default)]
         include_self: bool,
+        /// this triggers it whatever the filter says (`DiesThisOrAnotherTriggeredAbility`)
+        #[serde(default)]
+        this_unfiltered: bool,
     },
     /// at the beginning of `step` ("upkeep", "combat", "end") of `who`'s turn: "you", "opponent" or "any"
     StepBegins {
@@ -1664,6 +1667,8 @@ pub enum EffectDef {
     BelieveEffect,
     /// `UntapTargetEffect` with `EachTargetPointer`: every target's permanents untap
     UntapEachTargetEffect,
+    /// `ReturnToHandTargetEffect` with an `EachTargetPointer`: every target of each of its targets (Aether Tradewinds)
+    ReturnToHandEachTargetEffect,
     /// Nissa's Encouragement: a Forest, a Brambleweft Behemoth and a Nissa, Genesis Mage from your library (and the
     /// ones not found there, from your graveyard) into your hand
     NissasEncouragementEffect,
@@ -1731,6 +1736,9 @@ pub enum EffectDef {
         amount: Amount,
         filter: Filter,
         optional: bool,
+        /// what happens if no card is put into the hand (Ainok Wayfarer's +1/+1 counter)
+        #[serde(default)]
+        otherwise: Option<Box<EffectDef>>,
     },
     /// a spell costs `per` less for each of `amount` (`SpellCostReductionForEachSourceEffect`)
     SpellCostReductionForEachSourceEffect {
@@ -2394,6 +2402,10 @@ pub enum AbilityDef {
         /// a modal ability ("choose one"): its other modes, mode 0 being its own effects and targets
         #[serde(default)]
         modes: Vec<ModeDef>,
+        /// its target is "… that player controls" (`ThatPlayerControlsTargetAdjuster`): on the stack its text names
+        /// the player, "(controlled by B)"
+        #[serde(default)]
+        that_player_controls: bool,
         rule: String,
     },
     EntersBattlefieldTappedAbility {
@@ -3124,6 +3136,8 @@ impl AbilityDef {
     /// what `ManaUtil.tryToAutoPay` sees in a mana ability
     pub fn mana_kind(&self) -> ManaKind {
         match self {
+            // "two mana of any one color" is a `SimpleManaAbility` with an `AddManaOfAnyColorEffect` (Gift of Paradise)
+            AbilityDef::AnyColorManaAbility { amount, .. } if *amount != 1 => ManaKind::Other,
             AbilityDef::AnyColorManaAbility { .. } => ManaKind::AnyColor,
             AbilityDef::ActivateIfConditionManaAbility { .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }

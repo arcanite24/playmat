@@ -505,7 +505,9 @@ def triggered(a):
     elif cls == 'EntersBattlefieldAllTriggeredAbility':
         on = {'e': 'enters_all', 'filter': a.pop('filter')}
     elif cls == 'DiesThisOrAnotherTriggeredAbility':
-        on = {'e': 'dies_all', 'filter': a.pop('filter', [CREATURE]), 'include_self': True}
+        # `checkTrigger`: the source itself triggers it whatever the filter says ("this or another"); the two cards
+        # that `setApplyFilterOnSource(true)` (Basri's Lieutenant, Reluctant Role Model) don't translate
+        on = {'e': 'dies_all', 'filter': a.pop('filter', [CREATURE]), 'include_self': True, 'this_unfiltered': True}
     elif cls == 'SpellCastControllerTriggeredAbility':
         on = {'e': 'spell_cast', 'filter': a.pop('filter'), 'who': 'you'}
     elif cls in SIMPLE_TRIGGERS:
@@ -1417,6 +1419,10 @@ class Translator:
         # untap every target's permanents (Nissa, Genesis Mage's creatures and lands)
         if re.fullmatch(r'new UntapTargetEffect\((?:"[^"]*")?\)\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip())):
             return {'class': 'UntapEachTargetEffect'}
+        # Aether Tradewinds: every target returns, one from each of its targets
+        if re.fullmatch(r'new Return(?:FromGraveyard)?ToHandTargetEffect\(\)\.setTargetPointer\(new EachTargetPointer\(\)\)',
+                        canonical(expr.strip())):
+            return {'class': 'ReturnToHandEachTargetEffect'}
         # every target (the one target a duel's "for each opponent" adjuster leaves)
         expr = re.sub(r'\.setTargetPointer\(new EachTargetPointer\(\)\)((?:\.setText\(.*\))?)$', r'\1', expr.strip(), flags=re.S)
         # the ability's second target (`SecondTargetPointer`): counters put on it
@@ -1623,7 +1629,11 @@ class Translator:
         if cls == 'GainAbilityTargetEffect' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[2].strip()):
             return self.effect('new GainAbilityTargetEffect(' + args[0] + ',' + args[1] + ')')
         if cls in ('UntapAllControllerEffect', 'UntapAllEffect') and 1 <= len(args) <= 2:
-            return {'class': 'UntapAllEffect', 'filter': self.filter(args[0])}
+            f = self.filter(args[0])
+            # `UntapAllControllerEffect`: only the controller's permanents (Paradox Engine)
+            if cls == 'UntapAllControllerEffect' and {'p': 'controller', 'who': 'you'} not in f:
+                f = f + [{'p': 'controller', 'who': 'you'}]
+            return {'class': 'UntapAllEffect', 'filter': f}
         if cls == 'DamageWithPowerFromOneToAnotherTargetEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}
         if cls == 'DamageAllControlledTargetEffect' and 1 <= len(args) <= 2:
@@ -1729,6 +1739,11 @@ class Translator:
                 and (len(args) == 5 or args[5].strip() in ('true', 'false')):
             return {'class': cls, 'amount': int(args[0]), 'pick': int(args[1]), 'filter': self.filter(args[2]),
                     'optional': len(args) == 5 or args[5].strip() == 'true'}
+        # Ainok Wayfarer: "If you don't, put a +1/+1 counter on this creature" (the otherwise effect)
+        if cls == 'MillThenPutInHandEffect' and len(args) == 3 and re.fullmatch(r'\d+', args[0].strip()) \
+                and args[2].strip().startswith('new '):
+            return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]), 'optional': True,
+                    'otherwise': self.effect(args[2])}
         if cls == 'MillThenPutInHandEffect' and len(args) in (2, 3) and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]),
                     'optional': len(args) == 2 or args[2].strip() == 'true'}
@@ -1983,14 +1998,20 @@ class Translator:
         if cls == 'TargetStackObject' and len(args) == 1 and 'ConsignToMemoryPredicate' in str(self.filters.get(args[0].strip())):
             return {'class': 'TargetTriggeredAbilityOrColorlessSpell'}
         # X divided among any number of creatures (one point each at least)
+        # a fixed amount over 3 needs no target at all (`amount > 3 ? 0 : 1`: Fight with Fire's 10 damage)
+        def fewest(amount):
+            return 0 if isinstance(amount, int) and amount > 3 else 1
         if cls == 'TargetAnyTargetAmount' and len(args) == 1:
-            return {'class': 'TargetAnyTarget', 'min': 1, 'max': 99, 'distribute': self.amount(args[0])}
+            amount = self.amount(args[0])
+            return {'class': 'TargetAnyTarget', 'min': fewest(amount), 'max': 99, 'distribute': amount}
         if cls == 'TargetCreaturePermanentAmount' and len(args) == 1:
-            return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)], 'min': 1, 'max': 99,
-                    'distribute': self.amount(args[0])}
+            amount = self.amount(args[0])
+            return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)], 'min': fewest(amount), 'max': 99,
+                    'distribute': amount}
         if cls == 'TargetCreaturePermanentAmount' and len(args) == 2:
-            return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)] + self.filter(args[1]), 'min': 1, 'max': 99,
-                    'distribute': self.amount(args[0])}
+            amount = self.amount(args[0])
+            return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)] + self.filter(args[1]),
+                    'min': fewest(amount), 'max': 99, 'distribute': amount}
         if cls == 'TargetPermanentOrPlayer' and len(args) == 4 and self.filters.get(args[2].strip()) == ANY_TARGET_NOT_FIRST \
                 and re.fullmatch(r'\d+', args[0].strip()) and re.fullmatch(r'\d+', args[1].strip()) and args[3].strip() == 'false':
             return {'class': 'TargetAnyTarget', 'min': int(args[0]), 'max': int(args[1]), 'not_first': True}
@@ -3419,6 +3440,7 @@ def ability_statement(t, st, added):
         target = t.vars[m.group(1)]['targets'][0]
         target['filter'] = [dict(p) for p in target['filter']] + [dict(OPPONENT)]
         t.vars[m.group(1)]['set_target_pointer'] = False
+        t.vars[m.group(1)]['that_player_controls'] = True
         return True
     # "target card from that player's graveyard": in a duel, the opponent's graveyard
     m = re.fullmatch(r'(\w+)\.setTargetAdjuster\(new ThatPlayerControlsTargetAdjuster\(true\)\)', st)
@@ -3440,6 +3462,9 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.setTargetPointer\(new EachTargetPointer\(\)\)', st)
     if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'UntapTargetEffect':
         t.vars[m.group(1)]['class'] = 'UntapEachTargetEffect'
+        return True
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'ReturnToHandTargetEffect':
+        t.vars[m.group(1)]['class'] = 'ReturnToHandEachTargetEffect'
         return True
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withFirstModeFlavorWord)\(.*\)', st)
     if m and m.group(1) in t.vars:
@@ -3983,11 +4008,20 @@ def granted_rules(card):
                 g['rule'] += (' <i>(Whenever this creature becomes the target of a spell or ability an opponent'
                               ' controls, counter it unless that player pays ' + cost[0] + '.)</i>')
         elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility') and quoted:
-            # an activated ability's rule ends with its effect's sentence
+            # an activated ability's rule ends with its effect's sentence; its costs read as the cost classes
+            # write them (`SacrificeSourceCost`: "Sacrifice {this}")
             g['rule'] = quoted.group(1).rstrip('.') + '.'
+            if any(c.get('class') == 'SacrificeSourceCost' for c in g.get('cost', [])):
+                g['rule'] = re.sub(r'\b([Ss])acrifice this (?:artifact|creature|permanent|land|enchantment)\b',
+                                   r'\1acrifice {this}', g['rule'], count=1)
         elif g.get('class') == 'TriggeredAbility' and quoted:
-            # Java writes the granted trigger's own text, where the creature is {this}
-            g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
+            # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
+            # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
+            phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', card_source(card.get('name')))
+            if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
+                g['rule'] = quoted.group(1)
+            else:
+                g['rule'] = re.sub(r'\b[Tt]his creature\b', '{this}', quoted.group(1))
         elif g.get('class') in ('SimpleActivatedAbility', 'LoyaltyAbility', 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
 
@@ -4003,6 +4037,13 @@ def granted_rules(card):
             for v in x:
                 walk(v, rule)
     walk(card, '')
+
+
+def card_source(name):
+    try:
+        return open(card_path(name)).read()
+    except (OSError, TypeError, KeyError):
+        return ''
 
 
 def strip_java(x):

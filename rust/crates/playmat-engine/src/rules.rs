@@ -411,12 +411,13 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         && you == active
                         && g.obj(src).zone == Zone::Battlefield)
             });
-            game.pending.extend(fired);
-            // "at the beginning of the next end step" delayed triggers, after the others
+            // "at the beginning of the next end step" delayed triggers: `GameState.handleEvent` checks the delayed
+            // ones before the others
             if step == Step::EndTurn {
                 let delayed = std::mem::take(&mut game.at_next_end_step);
                 game.pending.extend(delayed);
             }
+            game.pending.extend(fired);
             if step == Step::Upkeep {
                 let delayed = std::mem::take(&mut game.at_next_upkeep);
                 game.pending.extend(delayed);
@@ -2631,6 +2632,38 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
         }
     }
+    // a land with an adventure-like spell (Midgar, City of Mako): with a land to play, the picker offers the spell
+    // (a0) whatever it costs and the land (a1), as `playCard` does for a card with two spell abilities
+    if game.obj(id).is(CardType::Land) && game.obj(id).zone == Zone::Hand {
+        if let Some(adventure) = game.obj(id).def.adventure.clone() {
+            let options = if can_play_land(game, seat) {
+                vec![0, 1]
+            } else if castable(game, seat, id, &adventure) {
+                vec![0]
+            } else {
+                return;
+            };
+            let k = if options.len() == 1 {
+                options[0]
+            } else {
+                match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+                    Answer::Ability(o, k) if o == id && options.contains(&k) => k,
+                    _ => return,
+                }
+            };
+            if k == 0 {
+                let before = game.clone();
+                let full = game.obj(id).def.clone();
+                let o = game.obj_mut(id);
+                o.adventurer = Some(full);
+                o.def = adventure;
+                if !cast(game, d, seat, id) {
+                    *game = before;
+                }
+                return;
+            }
+        }
+    }
     // a land in a graveyard with an ability of its own there (Drownyard Temple): that ability, below
     let graveyard_ability = game.obj(id).zone == Zone::Graveyard && !activatable(game, seat, id).is_empty();
     if game.obj(id).is(CardType::Land) && !graveyard_ability {
@@ -4835,6 +4868,12 @@ fn choose_target(
         }
         players.retain(|p| !chosen.contains(&Target::Player(*p)));
         objs.retain(|o| !chosen.contains(&Target::Obj(*o)));
+        // a divided target with its most targets chosen is asked once more, but a new one isn't added
+        // (Chandra's Pyrohelix: two damage, at most two targets)
+        if divided && chosen.len() >= max {
+            players.clear();
+            objs.clear();
+        }
         // `isChoiceCompleted`: nothing more to choose, but only once a target was chosen (a divided "up to" target
         // with nothing to choose is still asked once)
         if selected && players.is_empty() && objs.is_empty() && chosen.len() >= min && !(divided && added_in_prompt) {
@@ -5680,7 +5719,10 @@ fn activate_mana_paying(
         AbilityDef::ConditionalManaAbility { color: None, colorless: false, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { .. }
     );
-    if k == ManaKind::AnyColor || conditional_any {
+    if k == ManaKind::AnyColor
+        || conditional_any
+        || matches!(game.obj(id).def.abilities[i], AbilityDef::AnyColorManaAbility { .. })
+    {
         let n = match &game.obj(id).def.abilities[i] {
             AbilityDef::AnyColorManaAbility { amount, .. } | AbilityDef::ConditionalManaAbility { amount, .. } => {
                 *amount
@@ -6387,8 +6429,29 @@ fn refresh_land_types(game: &mut Game) {
     for id in game.battlefield.iter() {
         for a in &game.obj(*id).def.abilities {
             if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                // an Aura that gives a keyword and an activated ability (Prophetic Ravings' haste and "{T}, Discard
+                // a card: Draw a card."): Java numbers both, the keyword first, so it goes into the list too
+                let gives_activated = effects.iter().any(|e| {
+                    matches!(e, EffectDef::GainAbilityAttachedEffect { ability }
+                        if ability.mana().is_some()
+                            || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::TriggeredAbility { .. }))
+                });
                 for e in effects {
                     match e {
+                        EffectDef::GainAbilityAttachedEffect { ability }
+                            if gives_activated
+                                && ability.mana().is_none()
+                                && !matches!(
+                                    **ability,
+                                    AbilityDef::SimpleActivatedAbility { .. }
+                                        | AbilityDef::TriggeredAbility { .. }
+                                        | AbilityDef::WardAbility { .. }
+                                ) =>
+                        {
+                            if let Some(to) = game.attached(*id) {
+                                granted.push((to, (**ability).clone()));
+                            }
+                        }
                         EffectDef::AddBasicLandTypeAllLandsEffect { subtype } => {
                             if !types.contains(subtype) {
                                 types.push(subtype.clone());
@@ -6405,8 +6468,31 @@ fn refresh_land_types(game: &mut Game) {
                                 granted.push((to, (**ability).clone()));
                             }
                         }
-                        // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"
-                        EffectDef::GainAbilityAllEffect { ability, filter, .. } if ability.mana().is_some() => {
+                        // Bootleggers' Stash: lands you control have "{T}: Create a Treasure token."
+                        // Constricting Sliver: Slivers you control have "When this creature enters, …"
+                        EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. }
+                            if matches!(**ability, AbilityDef::SimpleActivatedAbility { .. })
+                                && filter.0.iter().any(|p| matches!(p, Pred::Type { t: CardType::Land }))
+                                || matches!(**ability, AbilityDef::TriggeredAbility { .. })
+                                // Great Divide Guide: each land and Ally you control has "{T}: Add one mana of any color."
+                                || ability.mana().is_some() =>
+                        {
+                            let you = game.obj(*id).controller;
+                            for to in game.battlefield.iter() {
+                                if !(*exclude_source && to == id)
+                                    && game.obj(*to).controller == you
+                                    && game.filter_matches(filter, you, Some(*id), *to)
+                                {
+                                    granted.push((*to, (**ability).clone()));
+                                }
+                            }
+                        }
+                        // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"; Food Fight: artifacts you
+                        // control have "{2}, Sacrifice this artifact: …"
+                        EffectDef::GainAbilityAllEffect { ability, filter, .. }
+                            if ability.mana().is_some()
+                                || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }) =>
+                        {
                             let you = game.obj(*id).controller;
                             for to in game.battlefield.iter() {
                                 if game.filter_matches(filter, you, Some(*id), *to) {
@@ -6862,6 +6948,17 @@ fn apply_each_effect(
                     {
                         Arc::make_mut(&mut game.stack).remove(k);
                         continue;
+                    }
+                }
+                // an ability whose source isn't a spell (Defabricate's second mode): the ability leaves the stack
+                if let Some(Target::Obj(o)) = target {
+                    if game.obj(o).zone != Zone::Stack {
+                        if let Some(k) =
+                            game.stack.iter().rposition(|i| i.card == o && (i.ability.is_some() || i.delayed.is_some()))
+                        {
+                            Arc::make_mut(&mut game.stack).remove(k);
+                            continue;
+                        }
                     }
                 }
                 if let Some(Target::Obj(o)) = target {
@@ -7966,10 +8063,10 @@ fn apply_each_effect(
                 token_copy(game, d, source.0, controller, None);
             }
             EffectDef::CreateTokenCopyTargetEffect => {
+                // `getPermanentOrLKIBattlefield`: a target that left as the spell resolved is copied as it last was
+                // (Supplant Form returns it to hand first)
                 for o in &objs {
-                    if game.obj(*o).zone == Zone::Battlefield {
-                        token_copy(game, d, *o, controller, None);
-                    }
+                    token_copy(game, d, *o, controller, None);
                 }
             }
             EffectDef::GhostVacuumEffect => {
@@ -9335,6 +9432,16 @@ fn apply_each_effect(
             EffectDef::UntapTargetEffect => {
                 for o in &objs {
                     untap(game.obj_mut(*o));
+                }
+            }
+            EffectDef::ReturnToHandEachTargetEffect => {
+                for t in legal.iter().flatten() {
+                    if let Target::Obj(o) = t {
+                        if game.obj(*o).zone == Zone::Stack {
+                            Arc::make_mut(&mut game.stack).retain(|i| i.card != *o || i.ability.is_some());
+                        }
+                        game.move_to(*o, Zone::Hand);
+                    }
                 }
             }
             EffectDef::UntapEachTargetEffect => {
@@ -11048,7 +11155,9 @@ fn apply_each_effect(
                     };
                     if yes {
                         let rule_text = item_rule(game, item);
-                        match choose_cards(game, d, controller, &cards, &possible, number, number, &rule_text) {
+                        // `LookLibraryAndPickControllerEffect`: picking more than one is "up to" (none at least)
+                        let min = if *pick > 1 { 0 } else { number };
+                        match choose_cards(game, d, controller, &cards, &possible, min, number, &rule_text) {
                             Some(chosen) => picked = chosen,
                             None => return,
                         }
@@ -11238,7 +11347,7 @@ fn apply_each_effect(
                     game.move_to(c, Zone::Graveyard);
                 }
             }
-            EffectDef::MillThenPutInHandEffect { amount, filter, optional } => {
+            EffectDef::MillThenPutInHandEffect { amount, filter, optional, otherwise } => {
                 let amount = &v!(amount);
                 let n = (*amount).max(0) as usize;
                 let milled: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
@@ -11251,17 +11360,23 @@ fn apply_each_effect(
                     .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
                     .collect();
                 // `HumanPlayer.choose(cards)` shows the milled cards even when none of them can be chosen
+                let mut returned = false;
                 if !milled.is_empty() {
                     let min = if *optional || possible.is_empty() { 0 } else { 1 };
                     let rule_text = item_rule(game, item);
                     match choose_cards(game, d, controller, &milled, &possible, min, 1, &rule_text) {
                         Some(chosen) => {
+                            returned = !chosen.is_empty();
                             for c in chosen {
                                 game.move_to(c, Zone::Hand);
                             }
                         }
                         None => return,
                     }
+                }
+                // `applyOtherwiseEffect`: nothing milled, or nothing put into the hand
+                if let (false, Some(e)) = (returned, otherwise) {
+                    apply_effects(game, d, item, std::slice::from_ref(&**e), legal, source);
                 }
             }
             EffectDef::MillCardsControllerEffect { amount } => {
@@ -11322,10 +11437,27 @@ fn apply_each_effect(
                     grant(game, source.0, ability);
                 }
             }
+            // a spell's (Energybending): the controller's lands gain all basic land types until end of turn (a
+            // static one, Leyline of the Guildpact, is `Game::guildpact`)
+            EffectDef::BecomesAllBasicsControlledEffect => {
+                if !game.all_basics_until_eot.contains(&item.controller) {
+                    game.all_basics_until_eot.push(item.controller);
+                }
+                game.update_guildpact();
+            }
             EffectDef::ExileTargetIfDiesEffect => {
                 if let Some(Target::Obj(o)) = target {
                     let zcc = game.obj(o).zcc;
                     game.exile_if_dies.push((o, zcc));
+                } else if target.is_none() {
+                    // no target (Anger of the Gods): each creature this source dealt damage to this turn
+                    let hit: Vec<(ObjId, u32)> = game
+                        .damaged_by_source
+                        .iter()
+                        .filter(|(s, _, _)| *s == source.0)
+                        .map(|(_, o, z)| (*o, *z))
+                        .collect();
+                    game.exile_if_dies.extend(hit);
                 }
             }
             // static abilities (`Game::power_toughness`, `Game::has_ability`) and as-enters effects
@@ -11361,7 +11493,6 @@ fn apply_each_effect(
             | EffectDef::LeylineOfTheGuildpactEffect
             | EffectDef::BecomesCreatureAttachedEffect { .. }
             | EffectDef::InfoEffect
-            | EffectDef::BecomesAllBasicsControlledEffect
             | EffectDef::GiadaFontOfHopeEntersBattlefieldEffect
             | EffectDef::AddBasicLandTypeAllLandsEffect { .. }
             | EffectDef::AddCardSubtypeAllEffect { .. }
@@ -12058,8 +12189,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             }
         }
     }
-    // Weathered Runestone: nonland permanent cards in graveyards and libraries can't enter
+    // Weathered Runestone: nonland permanent cards in graveyards and libraries can't enter (a token isn't a card:
+    // Java's `game.getCard` doesn't find it)
     if matches!(game.obj(id).zone, Zone::Graveyard | Zone::Library)
+        && !game.obj(id).token
         && !game.obj(id).is(CardType::Land)
         && game.any_static(|_, _, e| matches!(e, EffectDef::WeatheredRunestoneEffect))
     {
@@ -13276,6 +13409,10 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 combat,
                 ..GameEvent::new(EventKind::Damage)
             });
+            if creature {
+                let zcc = game.obj(o).zcc;
+                game.damaged_by_source.push((source, o, zcc));
+            }
             let turn = game.turn;
             let t = game.obj_mut(o);
             t.damaged_by = if t.damaged_by.0 == turn { (turn, t.damaged_by.1 | (1 << you)) } else { (turn, 1 << you) };
@@ -13346,8 +13483,11 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             let fired = game.triggers(sources, |g, src, you, t| {
                 matches!(t, Trigger::CombatDamageToPlayerAll { filter } if g.filter_matches(filter, you, Some(src), source))
             });
-            // one damage event: Java checks every trigger in its load order
-            own.extend(fired);
+            // one damage event: Java checks every trigger in its load order; "that many" is the damage (Starwinder)
+            own.extend(fired.into_iter().map(|mut t| {
+                t.x = amount;
+                t
+            }));
             own.sort_by_key(|t| game.trigger_key(t));
             game.pending.extend(own);
         }
@@ -14202,6 +14342,11 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     }
     game.must_block_from.clear();
     game.exile_if_dies.clear();
+    game.damaged_by_source.clear();
+    if !game.all_basics_until_eot.is_empty() {
+        game.all_basics_until_eot.clear();
+        game.update_guildpact();
+    }
     game.subtypes_until_eot.clear();
     for id in Arc::clone(&game.battlefield).iter().copied() {
         if game.obj(id).loyalty_used {

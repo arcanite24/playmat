@@ -751,6 +751,11 @@ pub struct Game {
     pub events: Option<Vec<GameEvent>>,
     /// permanents exiled instead if they would die this turn
     pub exile_if_dies: Vec<(ObjId, u32)>,
+    /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
+    /// count (Anger of the Gods exiles each one it damaged)
+    pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
+    /// the players whose lands have all basic land types until end of turn (Energybending)
+    pub all_basics_until_eot: Vec<Seat>,
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
     /// its zone change count, the subtype
     pub subtypes_until_eot: Vec<(ObjId, u32, String)>,
@@ -895,6 +900,8 @@ impl Game {
             log: None,
             events: None,
             exile_if_dies: Vec::new(),
+            damaged_by_source: Vec::new(),
+            all_basics_until_eot: Vec::new(),
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
             skip_next_untap: Vec::new(),
@@ -1571,6 +1578,9 @@ impl Game {
 
     /// whether a Leyline of the Guildpact (or the like) is on the battlefield under `seat`'s control, with this effect
     pub fn guildpact(&self, seat: Seat, land_part: bool) -> bool {
+        if land_part && self.all_basics_until_eot.contains(&seat) {
+            return true;
+        }
         self.battlefield.iter().any(|src| {
             let s = self.obj(*src);
             s.controller == seat
@@ -1851,7 +1861,8 @@ impl Game {
             Condition::Raid => self.player(you).attacked,
             Condition::Revolt => self.player(you).permanent_left,
             Condition::InstantsSorceriesCast { n } => self.player(you).instants_sorceries_cast >= *n,
-            Condition::SourceTargets { filter } => self.stack.iter().any(|i| {
+            // `getStackObject`: the spell is still on the stack as it resolves, and its targets are as they last were
+            Condition::SourceTargets { filter } => self.stack.iter().chain(self.resolving_item.iter()).any(|i| {
                 i.card == source
                     && i.ability.is_none()
                     && i.targets.iter().flatten().any(|t| match t {
@@ -2024,13 +2035,19 @@ impl Game {
                             p = n;
                             t = n;
                         }
-                        if count == "creatures_you_control" {
+                        // Harmonious Grovestrider: the lands you control
+                        let counted = match count.as_str() {
+                            "creatures_you_control" => Some(CardType::Creature),
+                            "lands_you_control" => Some(CardType::Land),
+                            _ => None,
+                        };
+                        if let Some(ty) = counted {
                             let n = self
                                 .battlefield
                                 .iter()
                                 .filter(|b| {
                                     let x = self.obj(**b);
-                                    x.controller == o.controller && x.is(CardType::Creature)
+                                    x.controller == o.controller && x.is(ty)
                                 })
                                 .count() as i32;
                             p = n;
@@ -2117,10 +2134,22 @@ impl Game {
             Some((i, _)) => {
                 let rule =
                     self.item_def(item).abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
-                format!("stack ability ({})", rule)
+                format!("stack ability ({})", self.that_player_rule(item, rule))
             }
             None => card.name().to_string(),
         }
+    }
+
+    /// `ThatPlayerControlsTargetAdjuster`: on the stack, the target's name gains the player it's about, "… that
+    /// player controls (controlled by B)" (in a duel, the controller's opponent)
+    pub fn that_player_rule(&self, item: &StackItem, rule: &str) -> String {
+        let ability = item.ability.and_then(|(i, _)| self.item_def(item).abilities.get(i));
+        if matches!(ability, Some(AbilityDef::TriggeredAbility { that_player_controls: true, .. })) {
+            let them = (item.controller + 1) % self.seats();
+            let named = format!("that player controls (controlled by {})", crate::log::player(them));
+            return rule.replacen("that player controls", &named, 1);
+        }
+        rule.to_string()
     }
 
     /// Takes an object out of whatever zone list holds it.
@@ -2315,8 +2344,9 @@ impl Game {
                 Trigger::DiesIfCreature => src == id && g.has_type(id, CardType::Creature),
                 // the source counts too unless it says "another", but it must match like the others
                 // (Bishop of Wings, a Human, isn't "an Angel you control")
-                Trigger::DiesAll { filter, include_self } => {
-                    (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
+                Trigger::DiesAll { filter, include_self, this_unfiltered } => {
+                    (src == id && *this_unfiltered)
+                        || (src != id || *include_self) && g.filter_matches(filter, you, Some(src), id)
                 }
                 Trigger::PeltCollector => src != id && died_controller == you,
                 Trigger::DiesAttached => g.obj(src).attached_to.is_some_and(|(a, _)| a == id),

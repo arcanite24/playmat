@@ -179,7 +179,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (6,826 on 12 Nov). A card whose JSON the engine can't load yet is left out of the engine with a warning
+  can express (7,284 on 13 Nov). A card whose JSON the engine can't load yet is left out of the engine with a warning
   in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -188,6 +188,34 @@ Being in the engine and being trusted are kept apart.
   verified.
 - **Views.** `cards/views.json` (docs/rust/Views.md) needs a template for every verified card, not for the whole pool:
   only verified cards reach a player's screen. Regenerate it when the list grows.
+- **The factory** (`rust/tools/verify_factory.py`) grows the list. Each round takes the cards in the engine that
+  aren't verified (by default in name order; `--priority card-priority.tsv` orders them by use, `--used-only` keeps
+  the used ones), and builds two-color 60-card decks around them: about 6 candidate spells and 2 candidate lands at 4
+  copies, 3 cheap verified spells of the deck's colors, and basics, each candidate in 3 decks with different
+  partners. It records 2 games per deck with `ShadowGamesTest` in parallel Maven processes (seeds chosen so the
+  test's pairing plays exactly those decks), replays them with the `shadow` test, and gives each card a verdict:
+  - **verified** after 3 matching games that exercised it (it was on the stack: cast, activated or triggered; a land,
+    on the battlefield), with no mismatching game blamed on it;
+  - **bug** when a mismatching game is blamed on it: the first unverified card on the stack where Java and Rust part,
+    else one named on a line that differs, else the last unverified card on the stack before it. The blame is a
+    lead, not proof (a static effect can make a card that resolved next to it look guilty);
+  - **pending** when it wasn't exercised enough; a later round takes it again, up to 3 rounds.
+
+  Recordings are kept, so after an engine fix `replay --all` and `verdicts` judge every round again without Java.
+  The first two rounds (12 Nov 2026, 3,129 games over 3,313 candidates, the used ones first) verified 2,963 cards, for
+  3,844 in all; 2,882 games matched and 135 differ, each listed in `bugs.md` by the card blamed. Replayed after
+  #299 to #302 (13 Nov), 2,933 match and 10 more cards are verified: 3,854.
+
+      W=.local/rust-port/factory
+      python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
+      python3 rust/tools/verify_factory.py record --work $W --procs 8     # long: run it in the background
+      python3 rust/tools/verify_factory.py replay --work $W --all
+      python3 rust/tools/verify_factory.py verdicts --work $W --write    # adds the verified cards to verified.txt
+      python3 rust/tools/verify_factory.py views --work $W               # views.json for the new list
+
+  `verdicts` writes `verdicts.tsv` (card, verdict, games, exercised, blamed, rounds) and `bugs.md` (mismatches by the
+  card blamed, with the lines where Java and Rust differ). Each engine fix it leads to gets one regression game under
+  `shadow/factory/`.
 
 To regenerate after the pool or the Java cards change (in this order; the files are generated, so on a merge conflict
 regenerate them rather than merge by hand, and `site/rust/progress.json` with `progress.py`):
