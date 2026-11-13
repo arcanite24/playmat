@@ -8561,6 +8561,16 @@ fn fresh_targets(game: &Game, item: &StackItem, i: usize, group: &[Target]) -> V
         .collect()
 }
 
+/// `o`, a target of `item`, was a permanent when chosen and isn't that object now
+fn left_since_targeted(game: &Game, item: &StackItem, o: ObjId) -> bool {
+    game.obj(o).zone != Zone::Battlefield
+        && item
+            .targets
+            .iter()
+            .zip(item.target_zcc.iter())
+            .any(|(ts, zs)| ts.iter().zip(zs.iter()).any(|(t, z)| *t == Target::Obj(o) && *z != game.obj(o).zcc))
+}
+
 fn slot<'a>(slots: &'a Slots, name: &str) -> Option<&'a Vec<Target>> {
     slots.iter().rev().find(|(n, _)| n == name).map(|(_, t)| t)
 }
@@ -8730,8 +8740,16 @@ fn apply_sequence(
                 (Amount::Of(crate::card::Value::SourcePower), Some(p)) => p,
                 (a, _) => game.value(a, item.controller, source.0, item.x),
             },
-            Quantity::Power { of: s } => of(s).map_or(0, |o| game.power_toughness(o).0),
-            Quantity::Toughness { of: s } => of(s).map_or(0, |o| game.power_toughness(o).1),
+            // a target that left the battlefield since it was chosen: its last known power (Grisly Spectacle's
+            // destroyed token)
+            Quantity::Power { of: s } => of(s).map_or(0, |o| match left_since_targeted(game, item, o) {
+                true => game.obj(o).power_lki.unwrap_or_else(|| game.power_toughness(o).0),
+                false => game.power_toughness(o).0,
+            }),
+            Quantity::Toughness { of: s } => of(s).map_or(0, |o| match left_since_targeted(game, item, o) {
+                true => game.obj(o).toughness_lki.unwrap_or_else(|| game.power_toughness(o).1),
+                false => game.power_toughness(o).1,
+            }),
             Quantity::ManaValue { of: s } => of(s).map_or(0, |o| game.obj(o).def.mana_value() as i32),
             Quantity::Count { of: s, filter } => slot(&slots, s).map_or(0, |ts| {
                 ts.iter()
