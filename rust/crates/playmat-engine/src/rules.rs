@@ -6459,6 +6459,21 @@ fn refresh_land_types(game: &mut Game) {
                                 granted.push((to, (**ability).clone()));
                             }
                         }
+                        // Bootleggers' Stash: lands you control have "{T}: Create a Treasure token."
+                        EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. }
+                            if matches!(**ability, AbilityDef::SimpleActivatedAbility { .. })
+                                && filter.0.iter().any(|p| matches!(p, Pred::Type { t: CardType::Land })) =>
+                        {
+                            let you = game.obj(*id).controller;
+                            for to in game.battlefield.iter() {
+                                if !(*exclude_source && to == id)
+                                    && game.obj(*to).controller == you
+                                    && game.filter_matches(filter, you, Some(*id), *to)
+                                {
+                                    granted.push((*to, (**ability).clone()));
+                                }
+                            }
+                        }
                         // Petrified Hamlet: lands with the chosen name have "{T}: Add {C}"
                         EffectDef::GainAbilityAllEffect { ability, filter, .. } if ability.mana().is_some() => {
                             let you = game.obj(*id).controller;
