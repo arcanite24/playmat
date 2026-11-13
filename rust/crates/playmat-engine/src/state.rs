@@ -134,6 +134,9 @@ pub struct Obj {
     /// what it was attached to as it last left the battlefield (Path to Redemption's "Sacrifice this: Exile enchanted
     /// creature")
     pub lki_attached_to: Option<(ObjId, u32)>,
+    /// the permanents attached to it as it last left the battlefield, with their zone-change counts (Zack Fair's
+    /// "attach an Equipment that was attached to {this}")
+    pub lki_attachments: Vec<(ObjId, u32)>,
     /// its abilities as it last left the battlefield, when effects gave it some (land_type_base): what it triggers
     /// on from the others leaving with it (Eternal Thirst's "Whenever a creature an opponent controls dies" on a
     /// creature dying in the same combat)
@@ -227,7 +230,7 @@ pub struct Obj {
     pub flashback: bool,
     /// harmonize: the creature chosen to tap for the cost, while this is cast
     pub harmonize_tap: Option<ObjId>,
-    /// cast with its escape cost (until it enters, or leaves the stack another way)
+    /// cast with its escape cost: on the stack, and on the battlefield as the permanent it became (cleared as it leaves)
     pub escaped: bool,
     /// the player the attacker this ninja's ninjutsu returned was attacking
     pub ninjutsu_defender: Option<Seat>,
@@ -922,6 +925,8 @@ pub struct Game {
     /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
     /// count (Anger of the Gods exiles each one it damaged)
     pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
+    /// players dealt combat damage this turn, by source (Steel Hellkite's watcher): the source, the player
+    pub combat_damaged_players: Vec<(ObjId, Seat)>,
     /// the players whose lands have all basic land types until end of turn (Energybending)
     pub all_basics_until_eot: Vec<Seat>,
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
@@ -1095,6 +1100,7 @@ impl Game {
             exile_if_dies: Vec::new(),
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
+            combat_damaged_players: Vec::new(),
             all_basics_until_eot: Vec::new(),
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
@@ -1177,6 +1183,7 @@ impl Game {
             lki_counters: Vec::new(),
             lki_keywords: Vec::new(),
             lki_attached_to: None,
+            lki_attachments: Vec::new(),
             lki_def: None,
             face_down: false,
             face_down_as: None,
@@ -1800,6 +1807,15 @@ impl Game {
 
     /// Pelt Collector's intervening "if": the creature's power is greater than its source's (still on the
     /// battlefield)
+    /// A card's own trigger class's check (`src/cards/`, `Handler::trigger`), on a waiting or resolving trigger
+    /// whose event details (`entering`, its target pointer) are set
+    pub fn trigger_check_holds(&self, t: &StackItem) -> bool {
+        match t.ability.and_then(|(i, _)| self.item_def(t).abilities.get(i)) {
+            Some(AbilityDef::TriggeredAbility { check: Some(h), .. }) => h.f()(self, t),
+            _ => true,
+        }
+    }
+
     pub fn pelt_holds(&self, t: &StackItem) -> bool {
         if self.trigger_of(t) != Some(&Trigger::PeltCollector) {
             return true;
@@ -1985,6 +2001,10 @@ impl Game {
         }) || self.any_static(|g, src, e| match e {
             EffectDef::AttacksIfAbleAllEffect { filter } => {
                 g.filter_matches(filter, g.obj(src).controller, Some(src), id)
+            }
+            // one a resolved effect gave it (Legion Warboss's token)
+            EffectDef::AttacksIfAbleSourceEffect { condition } => {
+                src == id && g.condition_holds(condition.as_ref(), g.obj(src).controller, src)
             }
             _ => false,
         })
@@ -2202,6 +2222,7 @@ impl Game {
         match a {
             Amount::Fixed(n) => *n,
             Amount::Of(v) => match v {
+                Value::Card { handler } => handler.f()(self, you, source, x),
                 Value::X => x,
                 Value::Permanents { filter } => {
                     self.battlefield.iter().filter(|id| self.filter_matches(filter, you, Some(source), **id)).count()
@@ -2411,6 +2432,7 @@ impl Game {
     pub fn condition_holds(&self, condition: Option<&Condition>, you: Seat, source: ObjId) -> bool {
         let Some(c) = condition else { return true };
         match c {
+            Condition::Card { handler } => handler.f()(self, you, source),
             // a permanent that was cast kicked ("when this enters, if it was kicked")
             Condition::Kicked => {
                 self.obj(source).kicked
@@ -2892,6 +2914,11 @@ impl Game {
     /// leaves the battlefield is gone (it goes to no zone's list).
     pub fn move_to(&mut self, id: ObjId, zone: Zone) {
         let from = self.obj(id).zone;
+        let attachments: Vec<(ObjId, u32)> = if from == Zone::Battlefield && zone != Zone::Battlefield {
+            self.attachments(id).map(|a| (a, self.obj(a).zcc)).collect()
+        } else {
+            Vec::new()
+        };
         let requested = zone;
         // a prepared permanent's copy is kept only while it stays: it can't be cast, and the next state check
         // removes it (704.5e)
@@ -3384,6 +3411,7 @@ impl Game {
                 o.kicked = false;
                 o.cast = false;
                 o.lki_attached_to = if from == Zone::Battlefield { o.attached_to } else { None };
+                o.lki_attachments = attachments;
                 o.attached_to = None;
                 o.uncounterable = false;
                 o.foretold_turn = None;

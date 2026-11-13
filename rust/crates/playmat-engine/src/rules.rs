@@ -13,6 +13,10 @@ use crate::state::{
 };
 use std::sync::Arc;
 
+/// Per-card handlers (`src/cards/`): a child module, so a handler can use the rules' own helpers
+#[path = "cards/mod.rs"]
+pub(crate) mod cards;
+
 const MAX_HAND: usize = 7;
 
 /// Plays from the first priority of the game (as `ShadowGame::start_game` leaves it) until a player loses, the decider
@@ -4614,8 +4618,9 @@ fn choose_targets_of_modes(
         top.targets = targets;
         top.target_zcc = target_zcc;
     }
-    // TARGETED for an ability (a spell's, after SPELL_CAST, in `cast`)
-    if game.stack.last().is_some_and(|t| t.ability.is_some()) {
+    // TARGETED for an ability (a spell's, after SPELL_CAST, in `cast`), a reflexive trigger's too (Faebloom Trick's
+    // "when you do, tap target creature" on a creature with ward)
+    if game.stack.last().is_some_and(|t| t.ability.is_some() || t.delayed.is_some()) {
         ward(game);
         ability_targeted(game);
     }
@@ -4769,6 +4774,9 @@ fn stack_target_slots(game: &Game, item: &StackItem) -> Vec<bool> {
 
 /// `WardAbility`: the permanents the top of the stack targets whose controller is that object's opponent, each with
 /// a ward trigger countering it
+/// `StackItem::ward_of`'s ability index for ward against a delayed (reflexive) trigger
+const WARD_DELAYED: usize = usize::MAX;
+
 fn ward(game: &mut Game) {
     let Some(top) = game.stack.last().cloned() else { return };
     // valiant: the first time each turn a permanent becomes a target (`NumberOfTimesPermanentTargetedATurnWatcher`)
@@ -4838,6 +4846,9 @@ fn ward(game: &mut Game) {
                     StackItem { ability: Some((i, obj.zcc)), def: face.clone(), ..StackItem::spell(o, obj.controller) };
                 match top.ability {
                     Some(ability) => item.ward_of = Some((top.card, ability)),
+                    // a reflexive (delayed) trigger has no ability index: `WARD_DELAYED` names the latest delayed
+                    // trigger of that source on the stack
+                    None if top.delayed.is_some() => item.ward_of = Some((top.card, (WARD_DELAYED, 0))),
                     None => {
                         item.targets = vec![vec![Target::Obj(top.card)]];
                         item.target_zcc = vec![vec![game.obj(top.card).zcc]];
@@ -7263,7 +7274,10 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
     }
     if let Some((index, zcc)) = item.ability {
         if let Some(a) = def.abilities.get(index) {
-            if !game.condition_holds(a.intervening_if(), item.controller, id) || !game.pelt_holds(&item) {
+            if !game.condition_holds(a.intervening_if(), item.controller, id)
+                || !game.pelt_holds(&item)
+                || !game.trigger_check_holds(&item)
+            {
                 return;
             }
         }
@@ -8852,6 +8866,13 @@ fn apply_each_effect(
     for e in effects {
         game.lookback = game.battlefield.to_vec();
         match e {
+            // a card's own class, written in Rust (`src/cards/`)
+            EffectDef::CardEffect { handler, args, tokens, effects, filters } => {
+                let cx = cards::EffectCx { item, legal, source, args, tokens, effects, filters };
+                if handler.f()(game, d, &cx).is_none() {
+                    return;
+                }
+            }
             EffectDef::TargetPointerEffect { target, effect } => {
                 // without a target an earlier effect moved (Badlands Revival)
                 let only = vec![fresh_targets(game, item, *target, legal.get(*target).map_or(&[], |g| &g[..]))];
@@ -14475,7 +14496,10 @@ fn apply_each_effect(
             // ward against an ability: counter (remove) it unless its controller pays
             EffectDef::CounterUnlessPaysEffect { cost, .. } if item.ward_of.is_some() => {
                 let (card, ability) = item.ward_of.unwrap();
-                let Some(at) = game.stack.iter().rposition(|i| i.card == card && i.ability == Some(ability)) else {
+                let Some(at) = game.stack.iter().rposition(|i| {
+                    i.card == card
+                        && if ability.0 == WARD_DELAYED { i.delayed.is_some() } else { i.ability == Some(ability) }
+                }) else {
                     continue;
                 };
                 let payer = game.stack[at].controller;
@@ -15971,8 +15995,9 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         o.kicked = kicked;
         o.cast = cast;
         o.entered_turn = turn;
-        // `EscapesWithAbility`
-        if std::mem::take(&mut o.escaped) {
+        // `EscapesWithAbility` (the flag stays while it's on the battlefield: `EscapeAbility.wasCastedWithEscape`,
+        // Kroxa's "sacrifice it unless it escaped"; leaving clears it)
+        if o.escaped {
             for a in &def.abilities {
                 if let AbilityDef::EscapesWithAbility { counters, .. } = a {
                     entering.push(("+1/+1", *counters));
@@ -16918,6 +16943,7 @@ fn waiting(game: &mut Game, mut pending: Vec<StackItem>) -> Vec<StackItem> {
         let ability = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
         game.condition_holds(ability.and_then(|a| a.intervening_if()), t.controller, t.card)
             && game.pelt_holds(t)
+            && game.trigger_check_holds(t)
             && game.condition_holds(t.delayed.as_ref().and_then(|dl| dl.condition.as_ref()), t.controller, t.card)
     });
     pending.retain(|t| {
@@ -17286,6 +17312,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 ..GameEvent::new(EventKind::Damage)
             });
             lose_life_by(game, s, amount, Some(source), combat);
+            if combat && amount > 0 && !game.combat_damaged_players.contains(&(source, s)) {
+                game.combat_damaged_players.push((source, s));
+            }
             // toxic: combat damage to a player also gives them poison counters, each toxic ability's (`doDamage`)
             if combat {
                 let toxic = |a: &AbilityDef| match a {
@@ -18501,6 +18530,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.must_block_from.clear();
     game.exile_if_dies.clear();
     game.damaged_by_source.clear();
+    game.combat_damaged_players.clear();
     if !game.all_basics_until_eot.is_empty() {
         game.all_basics_until_eot.clear();
         game.update_guildpact();

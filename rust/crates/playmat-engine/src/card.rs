@@ -858,6 +858,10 @@ pub enum ManaKind {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "c", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Condition {
+    /// a card's own `Condition` class, written in Rust (`src/cards/`)
+    Card {
+        handler: crate::rules::cards::ConditionHandler,
+    },
     /// `SourceHasCountersCondition`: the source has a counter of any kind
     SourceHasCounters,
     /// `EnchantedSourceCondition` (an enchantment attached), or also an Equipment (Novice Knight's)
@@ -1313,6 +1317,10 @@ impl From<i32> for Amount {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "v", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Value {
+    /// a card's own `DynamicValue` class, written in Rust (`src/cards/`)
+    Card {
+        handler: crate::rules::cards::ValueHandler,
+    },
     /// the X paid (`GetXValue`, `ManacostVariableValue`)
     X,
     /// the colors of mana spent to cast the source (`ColorsOfManaSpentToCastCount`: the spell, or the permanent it
@@ -1434,6 +1442,19 @@ pub enum Value {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "class", deny_unknown_fields)]
 pub enum EffectDef {
+    /// a class a card declares for itself, written in Rust (`src/cards/`, docs/rust/Engine.md "Per-card handlers"),
+    /// with the Java constructor's arguments as their source text and the Java the handler asked the transpiler for
+    CardEffect {
+        handler: crate::rules::cards::EffectHandler,
+        #[serde(default)]
+        args: Vec<String>,
+        #[serde(default)]
+        tokens: Vec<TokenDef>,
+        #[serde(default)]
+        effects: Vec<EffectDef>,
+        #[serde(default)]
+        filters: Vec<Filter>,
+    },
     /// deals `amount` damage to the ability's target
     DamageTargetEffect {
         amount: Amount,
@@ -3682,6 +3703,10 @@ pub enum AbilityDef {
         /// the target's name there when the rule doesn't say "that player controls" (its filter's message)
         #[serde(default)]
         that_player_name: Option<String>,
+        /// a card's own trigger class (`src/cards/`): its `checkTrigger` beyond the event `on` names, or its
+        /// intervening "if" about the event, checked as it triggers and as it resolves
+        #[serde(default)]
+        check: Option<crate::rules::cards::TriggerHandler>,
         rule: String,
     },
     EntersBattlefieldTappedAbility {

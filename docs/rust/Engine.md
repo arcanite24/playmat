@@ -119,6 +119,67 @@ sees the cards. The chosen and unchosen cards then go to their zones with `moveC
 through stays unsupported), and a `boolean` local set once becomes a flag. A body with anything else (a field, a
 `Map`, an exile zone of its own, a token copy) stays unsupported. `PLAYMAT_APPLY_LOG=<file>` writes why each class did or didn't translate.
 
+## Per-card handlers
+
+Most cards still out of the engine are held up by a class their own file declares, with an `apply` the matchers
+above can't read. Such a class is written by hand in Rust, one file per card under
+`rust/crates/playmat-engine/src/cards/`. Nobody edits a shared list: `build.rs` makes every file there a module of
+`rules::cards` and collects its `HANDLERS`, and `rust/tools/card_handlers.py` reads the same declarations so the
+transpiler emits a reference to the handler instead of giving up.
+
+    // src/cards/rapid_hybridization.rs
+    use super::*;
+
+    pub const HANDLERS: &[Handler] =
+        &[Handler::effect("RapidHybridization.RapidHybridizationEffect", apply).tokens(&["FrogLizardToken"])];
+
+    fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
+        let e = EffectDef::CreateTokenControllerTargetEffect { token: cx.tokens[0].clone(), amount: 1, tapped: false };
+        cx.run(game, d, &[e]);
+        Some(())
+    }
+
+- **The name** is the Java class as `OuterCardClass.InnerClass` (a class in the framework, such as
+  `SearchLibraryPutOntoBattlefieldTappedRestInHandEffect`, by its bare name). Kinds: `Handler::effect` (a
+  `OneShotEffect`, in cards.json `{"class": "CardEffect", "handler": …}`), `Handler::condition` (`{"c": "card", …}`,
+  checked wherever conditions are), `Handler::value` (a `DynamicValue`, `{"v": "card", …}`) and
+  `Handler::trigger(name, base, check)`: a `TriggeredAbility` class is the framework trigger it extends, written as
+  Java in `base` (`"new EntersBattlefieldAllTriggeredAbility(…)"`, its effects may be the card's own handled
+  classes), plus `check(game, item)`, its `checkTrigger` beyond that event or its intervening "if" about the event
+  (the waiting trigger's `entering` and target pointer are set), checked as it goes on the stack and as it resolves
+  (Guardian Project). A trigger on an event the engine has no `Trigger` for still needs engine work.
+- Constructor arguments come as their text in `cx.args`; `.args(&["library_target"])` turns a
+  `TargetCardInLibrary` argument into "min max" plus its filter after the declared filters.
+- **Java the handler needs translated** goes in its declaration as string literals: `.tokens(&["XToken"])`,
+  `.effects(&["new DiscardTargetEffect(1)"])`, `.filters(&["StaticFilters.FILTER_…"])` (or a filter the card file
+  declares). The transpiler puts what it makes of them into the card's JSON, and the handler gets them, in order, as
+  `cx.tokens`, `cx.effects`, `cx.filters`.
+- **What a handler can call.** The file is a child of `rules`, so `use super::*;` gives it every helper the rules
+  have (`choose_cards`, `choose_use`, `search_library`, `deal_damage`, `destroy`, `sacrifice`, `discard`, `draw`,
+  `put_onto_battlefield`, `matching`…) and `EffectCx`'s kit: the targets still legal (`cx.obj(i)`, `cx.objs(i)`,
+  `cx.player(i)`), the controller, the source, and `cx.run(game, d, &effects)` / `run_as` / `run_on` to resolve
+  engine effects inside the handler, the way Java's `apply` calls `new XEffect().apply(game, source)`.
+- **Java's order.** Ask what `HumanPlayer` asks, in the order Java's `apply` asks it, through the rules' helpers
+  (they already auto-choose, skip empty choices and name the prompts as Java does; HumanDialogs.md). Return `None`
+  as soon as an ask does (`?`): the decider stopped. Never iterate a `HashMap` or anything unordered.
+
+Adding a card:
+
+1. Read the card's Java file and every class it declares. Find the closest engine effect in `rules.rs`
+   (`apply_each_effect`) and copy its patterns.
+2. Add `src/cards/<card_name_in_snake_case>.rs` with the card's rules text as its doc comment and its `HANDLERS`.
+3. Translate the card alone and load it:
+
+       python3 rust/tools/transpile.py --pool names.txt --out /tmp/c.json --report /tmp/r.txt   # names.txt: the card
+       PLAYMAT_CHECK_CARDS=/tmp/c.json cargo test -p playmat-engine --lib check_cards_load
+
+   An empty report means it translates; a blocker left there is another class to write (or a framework gap).
+4. Regenerate cards.json (last commit, as always), then verify with the factory (`--candidates` with the new
+   cards): only cards with matching games go on verified.txt.
+
+Workers fan out by card: each takes a batch, adds only files under `src/cards/` and commits; batches merge without
+conflicts, and one regeneration and one factory round follow the merge.
+
 A card's own static effect classes (replacement, continuous, cost, rule-modifying, restriction and prevention effects
 lasting while the source is on the battlefield) are read by `rust/tools/custom_statics.py`. A replacement effect is
 picked by the events its `checksEventType` names, and its `replaceEvent` has to be one of a few shapes, each one engine
@@ -213,7 +274,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,833 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (9,895 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -355,6 +416,13 @@ Being in the engine and being trusted are kept apart.
   more are left, not all at once (four Rhythms of the Wild and a Valley Flamecaller). 45 more cards are verified:
   9,648. City on Fire is pending (cast in one game); The Great Henge translates but doesn't load (its mana ability
   also gains life).
+
+  Per-card handlers (13 Nov, above): 58 handler files, written by five workers in parallel, brought 62 cards in;
+  two factory rounds (100 games, all matching after the fixes) verified 61: 9,709 (9,895 in the engine). Their fixes, each with a game under `shadow/factory/`: an optional "up to one" sacrifice is asked even with nothing to
+  choose (Ziatora, as `HumanPlayer.choose` with a target that isn't required); an escaped permanent stays escaped
+  while it's on the battlefield (Kroxa); a reflexive trigger's targets fire ward and becomes-target triggers, and
+  ward can counter it. Four more games under `shadow/handlers/` cover 32 of the handled cards. Rise of the Dark
+  Realms wasn't exercised yet.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
