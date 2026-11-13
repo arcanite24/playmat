@@ -517,6 +517,8 @@ pub enum Trigger {
     TurnedFaceUpAll {
         filter: Filter,
     },
+    /// this transforms into this face (`TransformIntoSourceTriggeredAbility`)
+    TransformsInto,
     /// this attacks (`AttacksTriggeredAbility`)
     Attacks,
     /// this attacks alone (`AttacksAloneSourceTriggeredAbility`)
@@ -878,6 +880,10 @@ pub enum Condition {
     },
     /// `RaidCondition`: you attacked this turn
     Raid,
+    /// `NoSpellsWereCastLastTurnCondition`
+    NoSpellsLastTurn,
+    /// `TwoOrMoreSpellsWereCastLastTurnCondition`
+    TwoSpellsLastTurn,
     /// a permanent you controlled left the battlefield this turn
     Revolt,
     /// you cast `n` or more instant and sorcery spells this turn
@@ -1680,6 +1686,13 @@ pub enum EffectDef {
     FightEnchantedTargetEffect,
     /// Mockingbird's enter-as-a-copy (done as it enters)
     MockingbirdEffect,
+    /// "you may have this enter as a copy of a permanent of the filter" (`CopyPermanentEffect` in an optional
+    /// `EntersBattlefieldAbility`, done as it enters), with the subtypes its applier adds
+    CopyPermanentEffect {
+        filter: Filter,
+        #[serde(default)]
+        subtypes: Vec<String>,
+    },
     /// until your next turn, creatures attacking your opponents get +2/+2 and trample
     GarrukCurseBreakerEffect,
     /// Static: the enchanted creature can't be blocked by more than one creature.
@@ -2071,8 +2084,34 @@ pub enum EffectDef {
     AddManaOfAnyColorEffect {
         amount: u32,
     },
-    /// a token that's a copy of the target permanent
-    CreateTokenCopyTargetEffect,
+    /// a token that's a copy of the target permanent (or card), `number` of them, with the exceptions
+    /// `applyAdditionsToToken` makes in this order
+    CreateTokenCopyTargetEffect {
+        #[serde(default)]
+        number: Option<u32>,
+        #[serde(default)]
+        becomes_artifact: bool,
+        #[serde(default)]
+        not_legendary: bool,
+        #[serde(default)]
+        add_types: Vec<CardType>,
+        #[serde(default)]
+        haste: bool,
+        #[serde(default)]
+        flying: bool,
+        #[serde(default)]
+        power: Option<i32>,
+        #[serde(default)]
+        toughness: Option<i32>,
+        #[serde(default)]
+        only_subtype: Option<String>,
+        #[serde(default)]
+        add_subtypes: Vec<String>,
+        #[serde(default)]
+        only_color: Vec<Color>,
+        #[serde(default)]
+        abilities: Vec<AbilityDef>,
+    },
     /// a token that's a copy of this permanent (or of it as it last was)
     CreateTokenCopySourceEffect,
     /// `EmpowerJaceEffect`: loyalty counters on a Jace token you control, first creating one if you control none
@@ -2868,6 +2907,15 @@ pub enum EffectDef {
     BecomesCreatureTargetEffect {
         token: TokenDef,
         duration: Duration,
+        /// "loses all abilities and becomes …" (Turn to Frog)
+        #[serde(default)]
+        lose_abilities: bool,
+        /// "it's still a land": every prior type and subtype stays (205.1b)
+        #[serde(default)]
+        still_land: bool,
+        /// "named …" (`loseName`, layer 3)
+        #[serde(default)]
+        named: Option<String>,
     },
     /// if this isn't a creature, it becomes the token's kind of creature for good; still a land
     GreatHallOfTheBiblioplexEffect {
@@ -2944,6 +2992,9 @@ pub enum EffectDef {
     /// an Aura's static: what it enchants is also the token's kind of creature, with its base power and toughness
     BecomesCreatureAttachedEffect {
         token: TokenDef,
+        /// what it loses (`BecomesCreatureAttachedEffect.LoseType`: ALL, ABILITIES, COLOR, SUBTYPE…); none: nothing
+        #[serde(default)]
+        lose: Option<String>,
     },
     /// a Siege defeated: exile it, then cast it transformed without paying its mana cost
     SiegeDefeatedEffect,

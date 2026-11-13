@@ -200,6 +200,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 p.permanent_left = false;
                 p.life_gains = 0;
                 p.life_gained = 0;
+                p.spells_cast_last_turn = p.spells_cast;
                 p.spells_cast = 0;
                 p.instants_sorceries_cast = 0;
                 p.sacrificed = 0;
@@ -7227,6 +7228,10 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             Some(k) if *k < modes.len() => modes[*k],
             _ => (effects, targets),
         };
+        // with every target gone it doesn't resolve, and asks nothing (`StackAbility.resolve`)
+        let Some(legal) = legal_targets(game, &item, targets) else {
+            return;
+        };
         // "may" abilities ask at resolution (`TriggeredAbilityImpl.resolve`)
         if optional {
             let q = Query::YesNo { message: rule.to_string() };
@@ -7238,7 +7243,7 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
                 }
             }
         }
-        if let Some(legal) = legal_targets(game, &item, targets) {
+        {
             // `RESOLVING_ABILITY`, which `AbilityResolvedWatcher` counts (each turn)
             let (turn, now) = (game.turn, game.obj(id).zcc);
             game.abilities_resolved.retain(|r| r.3 == turn);
@@ -7448,6 +7453,117 @@ fn becomes_creature(old: &CardDef, token: &crate::card::TokenDef, retain: bool) 
     def
 }
 
+/// `BecomesCreatureTargetEffect.applyTypes` and its other layers on `old`: the token's card types replace the
+/// others unless it's only a creature or an artifact creature (205.1a, 205.1b) or `keep_prior` ("it's still a land");
+/// its creature types replace the creature types; supertypes are added, a color replaces the colors (105.3), and the
+/// abilities are the token's after the others or in place of them (`lose`); the base power and toughness are its
+fn becomes_creature_target(old: &CardDef, token: &crate::card::TokenDef, keep_prior: bool, lose: bool) -> CardDef {
+    let mut def = old.clone();
+    let sets_types = !(token.types.contains(&CardType::Artifact) && token.types.contains(&CardType::Creature))
+        && token.types.iter().any(|t| *t != CardType::Creature);
+    if !keep_prior && sets_types {
+        def.types.clear();
+    }
+    for t in &token.types {
+        if !def.types.contains(t) {
+            def.types.push(*t);
+        }
+    }
+    let creature_type = |s: &String| !crate::card::NON_CREATURE_TYPES.contains(&s.as_str());
+    let replaces_creature_types = !keep_prior && (token.all_creature_types || token.subtypes.iter().any(creature_type));
+    if replaces_creature_types {
+        def.subtypes.retain(|s| !creature_type(s));
+        def.all_creature_types = false;
+    }
+    for s in &token.subtypes {
+        if !def.subtypes.contains(s) {
+            def.subtypes.push(s.clone());
+        }
+    }
+    def.all_creature_types |= token.all_creature_types;
+    for s in &token.supertypes {
+        if !def.supertypes.contains(s) {
+            def.supertypes.push(s.clone());
+        }
+    }
+    if !token.colors.is_empty() {
+        def.colors = token.colors.clone();
+    }
+    if lose {
+        def.abilities.clear();
+    }
+    def.abilities.extend(token.abilities.iter().cloned());
+    // its base power and toughness (layer 7b) replace a characteristic-defining one (7a)
+    for a in def.abilities.iter_mut() {
+        if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+            effects.retain(|e| {
+                !matches!(
+                    e,
+                    EffectDef::SetBasePowerSourceEffect { .. }
+                        | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
+                        | EffectDef::SetBasePowerToughnessAmountSourceEffect { .. }
+                        | EffectDef::SetBasePowerToughnessSourceEffect { .. }
+                )
+            });
+        }
+    }
+    def.power = token.power;
+    def.toughness = token.toughness;
+    def
+}
+
+/// `BecomesCreatureAttachedEffect` with a `LoseType`: what the enchanted permanent loses (its card types and
+/// subtypes with ALL, its subtypes with SUBTYPE, its creature types with ABILITIES_SUBTYPE, its colors with ALL and
+/// COLOR, its abilities with ALL, ALL_BUT_COLOR, ABILITIES and ABILITIES_SUBTYPE), then the token's are added
+fn becomes_creature_attached(old: &CardDef, token: &crate::card::TokenDef, lose: &str) -> CardDef {
+    let mut def = old.clone();
+    for s in &token.supertypes {
+        if !def.supertypes.contains(s) {
+            def.supertypes.push(s.clone());
+        }
+    }
+    if matches!(lose, "ALL" | "ALL_BUT_COLOR") {
+        def.types.clear();
+    }
+    for t in &token.types {
+        if !def.types.contains(t) {
+            def.types.push(*t);
+        }
+    }
+    match lose {
+        "ALL" | "ALL_BUT_COLOR" | "SUBTYPE" => {
+            def.subtypes.clear();
+            def.all_creature_types = false;
+        }
+        "ABILITIES_SUBTYPE" => {
+            def.subtypes.retain(|s| crate::card::NON_CREATURE_TYPES.contains(&s.as_str()));
+            def.all_creature_types = false;
+        }
+        _ => {}
+    }
+    for s in &token.subtypes {
+        if !def.subtypes.contains(s) {
+            def.subtypes.push(s.clone());
+        }
+    }
+    def.all_creature_types |= token.all_creature_types;
+    if matches!(lose, "ALL" | "COLOR") {
+        def.colors.clear();
+    }
+    for c in &token.colors {
+        if !def.colors.contains(c) {
+            def.colors.push(*c);
+        }
+    }
+    if matches!(lose, "ALL" | "ALL_BUT_COLOR" | "ABILITIES" | "ABILITIES_SUBTYPE") {
+        def.abilities.clear();
+    }
+    def.abilities.extend(token.abilities.iter().cloned());
+    def.power = token.power;
+    def.toughness = token.toughness;
+    def
+}
+
 /// `setPrepared(true)`: a permanent with a prepare spell, not yet prepared, gets a copy of that spell in exile
 fn become_prepared(game: &mut Game, id: ObjId) {
     let o = game.obj(id);
@@ -7613,27 +7729,56 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
             }
             continue;
         }
-        // Ensoul Artifact: an Aura's "enchanted artifact is a 5/5 creature in addition to its other types"
-        let ensoul = game.battlefield.iter().find_map(|a| {
+        // Ensoul Artifact: an Aura's "enchanted artifact is a 5/5 creature in addition to its other types"; Frogify's
+        // "enchanted creature loses all abilities and is a blue Frog": each attached Aura's, in timestamp order
+        let mut auras: Vec<(u64, ObjId, crate::card::TokenDef, Option<String>)> = Vec::new();
+        for a in game.battlefield.iter() {
             if game.attached(*a) != Some(id) {
-                return None;
+                continue;
             }
-            game.obj(*a).def.abilities.iter().find_map(|b| match b {
-                AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().find_map(|e| match e {
-                    EffectDef::BecomesCreatureAttachedEffect { token } => Some(token.clone()),
-                    _ => None,
-                }),
-                _ => None,
-            })
-        });
-        let (token, retain, holds) = match (found, ensoul) {
-            (Some((token, retain, condition)), _) if game.condition_holds(Some(&condition), o.controller, id) => {
+            for b in game.obj(*a).def.abilities.iter() {
+                if let AbilityDef::SimpleStaticAbility { effects, .. } = b {
+                    for e in effects {
+                        if let EffectDef::BecomesCreatureAttachedEffect { token, lose } = e {
+                            auras.push((game.obj(*a).attached_at, *a, token.clone(), lose.clone()));
+                        }
+                    }
+                }
+            }
+        }
+        auras.sort_by_key(|(at, a, _, _)| (*at, *a));
+        let conditional = matches!(&found, Some((_, _, c)) if game.condition_holds(Some(c), o.controller, id));
+        if !conditional && !auras.is_empty() {
+            let ids: Vec<ObjId> = auras.iter().map(|(_, a, _, _)| *a).collect();
+            if o.becomes_base.is_none() || o.becomes_auras != ids {
+                // a newer Aura applies over what it is now; one gone, all again from what it was without them
+                let more = o.becomes_base.is_some() && !o.becomes_auras.is_empty() && ids.starts_with(&o.becomes_auras);
+                let (mut def, start) =
+                    if more { ((*o.def).clone(), o.becomes_auras.len()) } else { ((*base).clone(), 0) };
+                for (_, _, token, lose) in &auras[start..] {
+                    def = match lose {
+                        Some(lose) => becomes_creature_attached(&def, token, lose),
+                        None => becomes_creature(&def, token, true),
+                    };
+                }
+                if lost.is_some() {
+                    def.abilities.clear();
+                    (def.power, def.toughness) = (base.power, base.toughness);
+                }
+                let o = game.obj_mut(id);
+                o.becomes_base = Some(base);
+                o.becomes_auras = ids;
+                o.def = Arc::new(def);
+            }
+            continue;
+        }
+        let (token, retain, holds) = match found {
+            Some((token, retain, condition)) if game.condition_holds(Some(&condition), o.controller, id) => {
                 (token, retain, true)
             }
-            (_, Some(token)) => (token, true, true),
-            (Some((token, retain, _)), None) => (token, retain, false),
-            (None, None) if o.becomes_base.is_some() => (crate::card::TokenDef::default(), false, false),
-            (None, None) => continue,
+            Some((token, retain, _)) => (token, retain, false),
+            None if o.becomes_base.is_some() => (crate::card::TokenDef::default(), false, false),
+            None => continue,
         };
         let applied = o.becomes_base.is_some();
         if holds && !applied {
@@ -7649,6 +7794,7 @@ pub(crate) fn refresh_becomes(game: &mut Game) {
         } else if !holds && applied {
             let o = game.obj_mut(id);
             o.def = o.becomes_base.take().unwrap();
+            o.becomes_auras.clear();
         }
     }
     refresh_land_types(game);
@@ -8085,6 +8231,30 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
 /// toughness
 fn token_copy(game: &mut Game, d: &mut dyn Decider, of: ObjId, controller: Seat, pt: Option<(i32, i32)>) {
     token_copy_with(game, d, of, controller, pt, false);
+}
+
+/// `CreateTokenCopyTargetEffect` with its exceptions (`mods`), `number` of them (each doubled by a token doubler)
+fn token_copy_modified(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    of: ObjId,
+    controller: Seat,
+    number: u32,
+    mods: &dyn Fn(&mut CardDef),
+) -> Vec<ObjId> {
+    let mut def = (*game.obj(of).copiable()).clone();
+    mods(&mut def);
+    let def = Arc::new(def);
+    let mut made = Vec::new();
+    for _ in 0..number as usize * token_copies(game, controller) {
+        let id = game.create_obj(def.clone(), controller, Zone::Library);
+        let o = game.obj_mut(id);
+        o.token = true;
+        o.trigger_order = (1 << 32) + id.0 as u64;
+        enter_battlefield(game, d, id, controller, false);
+        made.push(id);
+    }
+    made
 }
 
 /// `token_copy`, the tokens gaining haste if asked; the tokens made
@@ -9798,11 +9968,77 @@ fn apply_each_effect(
             EffectDef::CreateTokenCopySourceEffect => {
                 token_copy(game, d, source.0, controller, None);
             }
-            EffectDef::CreateTokenCopyTargetEffect => {
+            EffectDef::CreateTokenCopyTargetEffect {
+                number,
+                becomes_artifact,
+                not_legendary,
+                add_types,
+                haste,
+                flying,
+                power,
+                toughness,
+                only_subtype,
+                add_subtypes,
+                only_color,
+                abilities,
+            } => {
+                // `applyAdditionsToToken`, in its order
+                let mods = |def: &mut CardDef| {
+                    let add_type = |def: &mut CardDef, t: CardType| {
+                        if !def.types.contains(&t) {
+                            def.types.push(t);
+                        }
+                    };
+                    if *becomes_artifact {
+                        add_type(def, CardType::Artifact);
+                    }
+                    if *not_legendary {
+                        def.supertypes.retain(|s| s != "LEGENDARY");
+                    }
+                    for t in add_types {
+                        add_type(def, *t);
+                    }
+                    if *haste && !def.abilities.contains(&AbilityDef::HasteAbility) {
+                        def.abilities.push(AbilityDef::HasteAbility);
+                    }
+                    if *flying && !def.abilities.contains(&AbilityDef::FlyingAbility) {
+                        def.abilities.push(AbilityDef::FlyingAbility);
+                    }
+                    if let Some(p) = power {
+                        def.remove_pt_cda();
+                        def.power = *p;
+                    }
+                    if let Some(t) = toughness {
+                        def.remove_pt_cda();
+                        def.toughness = *t;
+                    }
+                    // (a creature type only goes on a creature or a kindred: `SubType.canGain`)
+                    let can_gain = |def: &CardDef, s: &str| {
+                        crate::card::NON_CREATURE_TYPES.contains(&s)
+                            || def.types.contains(&CardType::Creature)
+                            || def.types.contains(&CardType::Kindred)
+                    };
+                    if let Some(s) = only_subtype {
+                        def.subtypes.retain(|x| crate::card::NON_CREATURE_TYPES.contains(&x.as_str()));
+                        def.all_creature_types = false;
+                        if can_gain(def, s) && !def.subtypes.contains(s) {
+                            def.subtypes.push(s.clone());
+                        }
+                    }
+                    for s in add_subtypes {
+                        if can_gain(def, s) && !def.subtypes.contains(s) {
+                            def.subtypes.push(s.clone());
+                        }
+                    }
+                    if !only_color.is_empty() {
+                        def.colors = only_color.clone();
+                    }
+                    def.abilities.extend(abilities.iter().cloned());
+                };
                 // `getPermanentOrLKIBattlefield`: a target that left as the spell resolved is copied as it last was
                 // (Supplant Form returns it to hand first)
                 for o in &objs {
-                    token_copy(game, d, *o, controller, None);
+                    token_copy_modified(game, d, *o, controller, number.unwrap_or(1), &mods);
                 }
             }
             EffectDef::GhostVacuumEffect => {
@@ -12368,7 +12604,46 @@ fn apply_each_effect(
                     discard(game, d, p, amount);
                 }
             }
-            EffectDef::BecomesCreatureTargetEffect { token, duration } => {
+            EffectDef::BecomesCreatureTargetEffect { token, duration, lose_abilities, still_land, named }
+                if *lose_abilities || *still_land || named.is_some() =>
+            {
+                for o in &objs {
+                    if game.obj(*o).zone != Zone::Battlefield {
+                        continue;
+                    }
+                    let becomes = |old: &CardDef| {
+                        let mut def = becomes_creature_target(old, token, *still_land, *lose_abilities);
+                        if let Some(n) = named {
+                            def.name = n.clone();
+                        }
+                        Arc::new(def)
+                    };
+                    let old = game.obj(*o).def.clone();
+                    let (zcc, at) = (game.obj(*o).zcc, game.timestamp());
+                    if *duration == Duration::EndOfTurn {
+                        game.base_pt_until_eot.push((*o, zcc, token.power, token.toughness, at));
+                        let ob = game.obj_mut(*o);
+                        if ob.until_end_of_turn_def.is_none() {
+                            ob.until_end_of_turn_def = Some(old.clone());
+                        }
+                        ob.def = becomes(&old);
+                    } else {
+                        // until it leaves (`Duration.Custom`): the card it was comes back then; one animated until
+                        // end of turn too (Mutavault's) stays this once that ends
+                        let ob = game.obj_mut(*o);
+                        if ob.printed_def.is_none() {
+                            ob.printed_def = Some(ob.until_end_of_turn_def.clone().unwrap_or_else(|| old.clone()));
+                        }
+                        ob.def = becomes(&old);
+                        if let Some(eot) = ob.until_end_of_turn_def.take() {
+                            ob.until_end_of_turn_def = Some(becomes(&eot));
+                        }
+                        ob.base_pt = Some((token.power, token.toughness));
+                        ob.base_pt_at = at;
+                    }
+                }
+            }
+            EffectDef::BecomesCreatureTargetEffect { token, duration, .. } => {
                 for o in &objs {
                     if game.obj(*o).zone != Zone::Battlefield {
                         continue;
@@ -14227,6 +14502,7 @@ fn apply_each_effect(
             | EffectDef::CantAttackBlockAttachedEffect
             | EffectDef::CantBeBlockedByMoreThanOneAttachedEffect
             | EffectDef::MockingbirdEffect
+            | EffectDef::CopyPermanentEffect { .. }
             | EffectDef::GraveyardFromAnywhereExileReplacementEffect
             | EffectDef::SetBasePowerSourceEffect { .. }
             | EffectDef::ValleyFlamecallerEffect
@@ -15111,32 +15387,53 @@ fn boost(game: &mut Game, target: ObjId, power: i32, toughness: i32, duration: D
 /// A permanent enters: under `controller`, tapped if it says so, with what its "enters with" abilities give it; then
 /// its own enters triggers and other permanents' "whenever … enters" triggers wait to go on the stack.
 /// `MockingbirdEffect` (an optional `EntersBattlefieldAbility`): it may enter as a copy of a creature with mana value
-/// up to the mana spent to cast it, a Bird with flying besides
+/// up to the mana spent to cast it, a Bird with flying besides. `CopyPermanentEffect` the same way (Clone): a copy
+/// of a permanent of its filter, with the subtypes its applier adds, if its ability's condition holds
 fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, cast: bool) {
     // a copy of a Mockingbird has the replacement again, a new one Java hasn't applied yet: it asks again
     loop {
         let def = game.obj(id).def.clone();
-        let Some(rule) = def.abilities.iter().find_map(|a| match a {
+        let Some((rule, copy_of)) = def.abilities.iter().find_map(|a| match a {
             AbilityDef::EntersBattlefieldAbility { effects, rule, .. }
                 if matches!(effects.as_slice(), [EffectDef::MockingbirdEffect]) =>
             {
-                Some(rule.clone())
+                Some((rule.clone(), None))
+            }
+            AbilityDef::EntersBattlefieldAbility { effects, rule, condition }
+                if matches!(effects.as_slice(), [EffectDef::CopyPermanentEffect { .. }]) =>
+            {
+                Some((rule.clone(), Some((effects[0].clone(), condition.clone()))))
             }
             _ => None,
         }) else {
             return;
         };
+        // (`EntersBattlefieldEffect.applies`: its condition before the question)
+        if let Some((_, Some(condition))) = &copy_of {
+            if !game.condition_holds(Some(condition), controller, id) {
+                return;
+            }
+        }
         let q = Query::YesNo { message: format!("Use effect of {}?", def.name) };
         if ask(game, d, controller, &q) != Answer::Bool(true) {
             return;
         }
         let spent = if cast { game.obj(id).mana_spent } else { 0 };
-        let possible: Vec<ObjId> = game
-            .battlefield
-            .iter()
-            .copied()
-            .filter(|o| *o != id && game.has_type(*o, CardType::Creature) && game.obj(*o).def.mana_value() <= spent)
-            .collect();
+        let possible: Vec<ObjId> = match &copy_of {
+            None => game
+                .battlefield
+                .iter()
+                .copied()
+                .filter(|o| *o != id && game.has_type(*o, CardType::Creature) && game.obj(*o).def.mana_value() <= spent)
+                .collect(),
+            Some((EffectDef::CopyPermanentEffect { filter, .. }, _)) => game
+                .battlefield
+                .iter()
+                .copied()
+                .filter(|o| *o != id && game.filter_matches(filter, controller, Some(id), *o))
+                .collect(),
+            Some(_) => Vec::new(),
+        };
         if possible.is_empty() {
             return;
         }
@@ -15149,10 +15446,20 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
         let o = game.obj(of);
         let mut copy = (*o.copiable()).clone();
         // (Java's `addSubType` keeps a creature type off what isn't a creature: a copy of an unanimated Mutavault)
-        if copy.types.contains(&CardType::Creature) && !copy.subtypes.iter().any(|t| t == "Bird") {
-            copy.subtypes.push("Bird".into());
+        let added: Vec<String> = match &copy_of {
+            None => vec!["Bird".into()],
+            Some((EffectDef::CopyPermanentEffect { subtypes, .. }, _)) => subtypes.clone(),
+            Some(_) => Vec::new(),
+        };
+        for s in added {
+            let creature_type = !crate::card::NON_CREATURE_TYPES.contains(&s.as_str());
+            let can_gain =
+                !creature_type || copy.types.contains(&CardType::Creature) || copy.types.contains(&CardType::Kindred);
+            if can_gain && !copy.subtypes.contains(&s) {
+                copy.subtypes.push(s);
+            }
         }
-        if !copy.abilities.contains(&AbilityDef::FlyingAbility) {
+        if copy_of.is_none() && !copy.abilities.contains(&AbilityDef::FlyingAbility) {
             copy.abilities.push(AbilityDef::FlyingAbility);
         }
         let copy = Arc::new(copy);
@@ -15161,7 +15468,20 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
             o.printed_def = Some(def);
         }
         o.copied_def = Some(copy.clone());
-        o.def = copy;
+        o.def = copy.clone();
+        // `CopyPermanentEffect`: a copy of an Aura chooses what it enchants (not targeted); one put onto the
+        // battlefield without being cast chooses as any Aura does (303.4f, in `enter_battlefield_now`)
+        if cast && copy_of.is_some() && copy.has_subtype("Aura") {
+            if let Some(t) = copy.spell.targets.first() {
+                let rule = format!("attach {} to", copy.name);
+                if let Some(chosen) = choose_target(game, d, controller, t, Some(id), &rule, false) {
+                    if let Some(Target::Obj(to)) = chosen.first().copied() {
+                        let zcc = game.obj(to).zcc;
+                        game.attach_to(id, to, zcc);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -15194,7 +15514,7 @@ pub fn put_onto_battlefield(game: &mut Game, d: &mut dyn Decider, id: ObjId, con
     enter_battlefield(game, d, id, controller, false);
 }
 
-/// where double-faced permanents' triggers start in the order (`Game::dfc_registered`)
+/// where double-faced permanents' triggers start in the order, after every other card's
 const DFC_ORDER: u64 = 1 << 24;
 
 fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Seat, kicked: bool) {
@@ -15358,14 +15678,13 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     if let Some(def) = real_def.clone() {
         game.obj_mut(id).def = def;
     }
-    // a double-faced card's triggers: Java registers its halves as it loads, but the permanent's under new keys as it
-    // first enters, so they wait after every other card's (`TriggeredAbilities` is a LinkedHashMap)
+    // a double-faced card's triggers: Java registers its halves after every other card, so they wait after every
+    // other card's, in the order the cards loaded (`TriggeredAbilities` is a LinkedHashMap)
     {
         let o = game.obj(id);
         let dfc = o.printed_def.as_ref().unwrap_or(&o.def);
         if !o.token && (dfc.transform_back.is_some() || dfc.back.is_some()) && o.trigger_order < DFC_ORDER {
-            let k = DFC_ORDER + game.dfc_registered;
-            game.dfc_registered += 1;
+            let k = DFC_ORDER + game.obj(id).trigger_order;
             game.obj_mut(id).trigger_order = k;
         }
     }
@@ -17956,6 +18275,10 @@ fn transform(game: &mut Game, id: ObjId) {
         let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::TransformsOrEnters));
         game.pending.extend(fired);
     }
+    // `TRANSFORMED`: the face it is now
+    let fired = game
+        .triggers([id], |g, src, _, t| matches!(t, Trigger::TransformsInto) && g.obj(src).zone == Zone::Battlefield);
+    game.pending.extend(fired);
 }
 
 /// Turns a face-down permanent face up (`PermanentCard.turnFaceUp`): its card again, a +1/+1 counter for megamorph,

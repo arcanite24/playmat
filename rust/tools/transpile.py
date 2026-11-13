@@ -501,6 +501,7 @@ ABILITIES = {
     'EntersBattlefieldOrDiesSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), (None, 'bool')],
     'EntersBattlefieldOrAttacksSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
     'TransformsOrEntersTriggeredAbility': [('effect', 'effect'), ('optional', 'bool')],
+    'TransformIntoSourceTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), (None, 'bool')],
     'DiesThisOrAnotherTriggeredAbility': [('effect', 'effect'), ('optional', 'bool'), ('filter', 'filter')],
     'SpellCastControllerTriggeredAbility': [('effect', 'effect'), ('filter', 'filter'), ('optional', 'bool'),
                                             (None, 'no_pointer')],
@@ -562,6 +563,7 @@ SIMPLE_TRIGGERS = {'EntersBattlefieldTriggeredAbility': 'enters', 'EntersBattlef
                    'EntersBattlefieldOrDiesSourceTriggeredAbility':
                    'enters_or_dies', 'EntersBattlefieldOrAttacksSourceTriggeredAbility': 'enters_or_attacks',
                    'TransformsOrEntersTriggeredAbility': 'transforms_or_enters',
+                   'TransformIntoSourceTriggeredAbility': 'transforms_into',
                    'GainLifeControllerTriggeredAbility': 'you_gain_life',
                    'GainLifeFirstTimeTriggeredAbility': 'you_gain_life_first_time',
                    'DealsCombatDamageToAPlayerTriggeredAbility': 'combat_damage_to_player',
@@ -602,6 +604,8 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'KaitoBaneOfNightmaresCondition.instance': {'c': 'and', 'xs': [
                   {'c': 'my_turn'}, {'c': 'source_counter', 'name': 'loyalty', 'n': 1}]},
               # blight is an optional additional cost the engine keeps as the spell's kicked flag
+              'NoSpellsWereCastLastTurnCondition.instance': {'c': 'no_spells_last_turn'},
+              'TwoOrMoreSpellsWereCastLastTurnCondition.instance': {'c': 'two_spells_last_turn'},
               'BlightedCondition.instance': {'c': 'kicked'}, 'TeamworkCondition.instance': {'c': 'kicked'}, 'RaidCondition.instance': {'c': 'raid'},
               'RevoltCondition.instance': {'c': 'revolt'},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
@@ -1928,7 +1932,95 @@ class Translator:
             return {'class': 'CopyTargetSpellEffect'}
         return None
 
+    def peel_chain(self, expr):
+        """`new X(…).a(…).b(…)` -> ('new X(…)', [('a', '…'), ('b', '…')]), text setters dropped"""
+        expr = self.strip_setters(expr)
+        chain = []
+        while expr.endswith(')'):
+            depth, i = 0, len(expr) - 1
+            while i >= 0:
+                depth += {')': 1, '(': -1}.get(expr[i], 0)
+                if depth == 0:
+                    break
+                i -= 1
+            m = re.search(r'\.(\w+)$', expr[:i])
+            if not m:
+                break
+            chain.insert(0, (m.group(1), expr[i + 1:-1].strip()))
+            expr = self.strip_setters(expr[:m.start()])
+        return expr, chain
+
+    def token_copy_effect(self, expr):
+        """`CreateTokenCopyTargetEffect(playerId, additionalCardType, hasHaste, number, tapped, attacking,
+        attackedPlayer, power, toughness, gainsFlying)` and its setters, as `applyAdditionsToToken` applies them"""
+        base, chain = self.peel_chain(expr)
+        m = re.fullmatch(r'new CreateTokenCopyTargetEffect\((.*)\)', base, re.S)
+        if not m:
+            return None
+        args = [a.strip() for a in split_args(m.group(1))] if m.group(1).strip() else []
+        out = {'class': 'CreateTokenCopyTargetEffect'}
+        if args == ['true']:
+            # `useLKI`: the first target as it last was (what the engine's copy does)
+            args = []
+        if args and (len(args) not in (3, 4, 6, 7, 10) or args[0] != 'null'):
+            raise Unsupported('token copy arguments ' + ','.join(args))
+        if len(args) >= 3:
+            if args[1] != 'null':
+                t = re.fullmatch(r'CardType\.(\w+)', args[1])
+                if not t:
+                    raise Unsupported('token copy type ' + args[1])
+                out['add_types'] = [t.group(1)]
+            if args[2] == 'true':
+                out['haste'] = True
+            elif args[2] != 'false':
+                raise Unsupported('token copy haste ' + args[2])
+        if len(args) >= 4:
+            if not args[3].isdigit():
+                raise Unsupported('token copy number ' + args[3])
+            if int(args[3]) != 1:
+                out['number'] = int(args[3])
+        if len(args) >= 6 and args[4:6] != ['false', 'false']:
+            raise Unsupported('token copy tapped or attacking')
+        if len(args) >= 7 and args[6] != 'null':
+            raise Unsupported('token copy attacked player')
+        if len(args) == 10:
+            if not re.fullmatch(r'-?\d+', args[7]) or not re.fullmatch(r'-?\d+', args[8]) or args[9] not in ('true', 'false'):
+                raise Unsupported('token copy power and toughness')
+            out['power'], out['toughness'] = int(args[7]), int(args[8])
+            if args[9] == 'true':
+                out['flying'] = True
+        subtypes = subtype_names()
+        for name, a in chain:
+            if name == 'setIsntLegendary' and a == 'true':
+                out['not_legendary'] = True
+            elif name in ('setPower', 'setToughness') and re.fullmatch(r'-?\d+', a):
+                out['power' if name == 'setPower' else 'toughness'] = int(a)
+            elif name == 'setHasHaste' and a == 'true':
+                out['haste'] = True
+            elif name == 'setBecomesArtifact' and a == 'true':
+                out['becomes_artifact'] = True
+            elif name == 'withAdditionalSubType' and a.startswith('SubType.') and a[8:] in subtypes:
+                out.setdefault('add_subtypes', []).append(subtypes[a[8:]])
+            elif name == 'setOnlySubType' and a.startswith('SubType.') and a[8:] in subtypes:
+                out['only_subtype'] = subtypes[a[8:]]
+            elif name == 'setOnlyColor' and (c := re.fullmatch(r'ObjectColor\.(WHITE|BLUE|BLACK|RED|GREEN)', a)):
+                out['only_color'] = [{'WHITE': 'W', 'BLUE': 'U', 'BLACK': 'B', 'RED': 'R', 'GREEN': 'G'}[c.group(1)]]
+            elif name == 'addAdditionalAbilities':
+                for x in split_args(a):
+                    ab = self.ability(x)
+                    if ab.get('class') not in KEYWORDS:
+                        raise Unsupported('token copy ability ' + x.strip()[:60])
+                    ab.pop('java', None)
+                    out.setdefault('abilities', []).append(ab)
+            else:
+                raise Unsupported('token copy ' + name + ' ' + a[:40])
+        if ('power' in out) != ('toughness' in out):
+            raise Unsupported('token copy power or toughness alone')
+        return out
+
     def effect(self, expr):
+        if expr.strip().startswith('new CreateTokenCopyTargetEffect(') and (e := self.token_copy_effect(expr)):
+            return e
         # untap every target's permanents (Nissa, Genesis Mage's creatures and lands)
         if re.fullmatch(r'new UntapTargetEffect\((?:"[^"]*")?\)\.setTargetPointer\(new EachTargetPointer\(\)\)', canonical(expr.strip())):
             return {'class': 'UntapEachTargetEffect'}
@@ -2443,6 +2535,55 @@ class Translator:
         if cls == 'CreateTokenEffect' and len(args) == 4 and [a.strip() for a in args[2:]] == ['true', 'true']:
             return {'class': cls, 'token': self.value('token', args[0].strip()),
                     'amount': self.value('amount', args[1].strip()), 'tapped_and_attacking': True}
+        # `BecomesCreatureTargetEffect(token, loseAllAbilities, stillALand, duration[, loseName])` as Java's
+        # `applyTypes` reads it: "it's still a land" keeps every prior type, "loses all abilities" (Turn to Frog);
+        # `Duration.Custom` lasts until it leaves the battlefield (Roaring Earth's lands)
+        if cls == 'BecomesCreatureTargetEffect' and len(args) in (4, 5) \
+                and ([a.strip() for a in args[1:3]] != ['false', 'false'] or (len(args) == 5 and args[4].strip() != 'false')):
+            lose, still = args[1].strip(), args[2].strip()
+            durations = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.Custom': 'WhileOnBattlefield',
+                         'Duration.WhileOnBattlefield': 'WhileOnBattlefield'}
+            if lose not in ('true', 'false') or still not in ('true', 'false') or args[3].strip() not in durations \
+                    or (len(args) == 5 and args[4].strip() not in ('true', 'false')):
+                raise Unsupported('becomes creature target ' + ','.join(a.strip() for a in args[1:]))
+            tok = args[0].strip()
+            made = self.creature_token(tok) if 'CreatureToken(' in tok else self.value('token', tok)
+            if any(t not in ('CREATURE', 'ARTIFACT') for t in made['types']):
+                raise Unsupported('becomes creature target of types ' + ','.join(made['types']))
+            out = {'class': cls, 'token': made, 'duration': durations[args[3].strip()]}
+            if lose == 'true':
+                out['lose_abilities'] = True
+            if still == 'true':
+                out['still_land'] = True
+            if len(args) == 5 and args[4].strip() == 'true':
+                n = re.search(r'\.withName\("((?:[^"\\]|\\.)*)"\)', tok)
+                if not n:
+                    raise Unsupported('becomes creature target named without a name')
+                out['named'] = json.loads('"' + n.group(1) + '"')
+            return out
+        # `CopyPermanentEffect([filter][, applier])`: entering as a copy (Clone), with what a simple applier adds
+        if cls == 'CopyPermanentEffect' and len(args) <= 2:
+            filt = [{'p': 'type', 't': 'CREATURE'}]
+            applier = None
+            rest = [a.strip() for a in args]
+            if rest and not re.fullmatch(r'new \w*Applier\(.*\)', rest[0], re.S):
+                filt = self.filter(rest.pop(0))
+            if rest:
+                applier = rest.pop(0)
+            out = {'class': cls, 'filter': filt}
+            if applier and applier != 'new EmptyCopyApplier()':
+                out.update(self.copy_applier(applier))
+            return out
+        # an Aura's "enchanted creature loses all abilities and is a blue Frog …" (`LoseType`, Frogify)
+        if cls == 'BecomesCreatureAttachedEffect' and len(args) in (4, 5) and args[2].strip() == 'Duration.WhileOnBattlefield':
+            m = re.fullmatch(r'BecomesCreatureAttachedEffect\.LoseType\.(ALL|ALL_BUT_COLOR|ABILITIES|ABILITIES_SUBTYPE|COLOR|SUBTYPE|NONE)',
+                             args[3].strip())
+            if not m or (len(args) == 5 and not args[4].strip().startswith('Outcome.')):
+                raise Unsupported('becomes creature attached ' + args[3].strip())
+            out = {'class': cls, 'token': self.creature_token(args[0])}
+            if m.group(1) != 'NONE':
+                out['lose'] = m.group(1)
+            return out
         # it becomes the token's kind of creature in place of what it was (types and subtypes), keeping its abilities
         if cls == 'BecomesCreatureTargetEffect' and len(args) == 4 and [a.strip() for a in args[1:3]] == ['false', 'false']:
             return {'class': cls, 'token': self.creature_token(args[0]), 'duration': self.value('duration', args[3].strip())}
@@ -3207,6 +3348,12 @@ class Translator:
             n = int(args[0].strip())
             return {'class': cls, 'java': cls, 'level': n, 'effects': [{'class': 'SetClassLevelEffect', 'level': n}],
                     'cost': [{'class': 'ManaCost', 'cost': args[1].strip()[1:-1]}]}
+        # the werewolves: "at the beginning of each upkeep, if no spells were cast last turn, transform {this}" (and
+        # the back's "if a player cast two or more spells last turn")
+        if cls in ('WerewolfFrontTriggeredAbility', 'WerewolfBackTriggeredAbility') and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'step_begins', 'step': 'upkeep', 'who': 'any'},
+                    'effects': [{'class': 'TransformSourceEffect'}], 'optional': False,
+                    'condition': {'c': 'no_spells_last_turn' if 'Front' in cls else 'two_spells_last_turn'}}
         if cls == 'BecomesClassLevelTriggeredAbility' and len(args) == 2 and args[1].strip().isdigit():
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'class_level', 'n': int(args[1].strip())},
                     'effects': [self.effect(args[0])], 'optional': False}
@@ -3247,6 +3394,16 @@ class Translator:
             a['trigger_condition'] = gate
             a['java'] = cls
             return a
+        # "you may have this enter as a copy of …" (`EntersBattlefieldAbility(copyEffect, true[, condition, text, text])`)
+        if cls == 'EntersBattlefieldAbility' and len(args) in (2, 5) and args[1].strip() == 'true':
+            e = self.vars.get(args[0].strip())
+            if not isinstance(e, dict) and re.match(r'new CopyPermanentEffect\(', args[0].strip()):
+                e = self.effect(args[0])
+            if isinstance(e, dict) and e.get('class') == 'CopyPermanentEffect':
+                out = {'class': cls, 'effects': [e]}
+                if len(args) == 5 and args[2].strip() != 'null':
+                    out['condition'] = self.condition(args[2])
+                return out
         if cls == 'EntersBattlefieldAbility' and args == ['new MockingbirdEffect()', 'true']:
             return {'class': cls, 'effects': [{'class': 'MockingbirdEffect'}]}
         if cls == 'EntersBattlefieldAbility' and len(args) == 2 and re.fullmatch(r'"[^"]*"', args[1].strip()):
@@ -3501,6 +3658,28 @@ class Translator:
             a['effects'] = [a.pop('effect')]
         return triggered(a)
 
+    def copy_applier(self, expr):
+        """a card's own `CopyApplier` whose `apply` only adds subtypes (`blueprint.addSubType(SubType.SPIRIT)`,
+        Mirrorhall Mimic): the subtypes the copy gets"""
+        m = re.fullmatch(r'new (\w+)\(\)', expr.strip())
+        body = m and re.search(r'class ' + m.group(1) + r' extends CopyApplier\s*\{(.*?)\n\}', self.source or '', re.S)
+        apply = body and re.search(r'public boolean apply\([^)]*\)\s*\{(.*?)\n    \}', body.group(1), re.S)
+        if not apply or re.search(r'public \w+ (?!apply\b|getText\b)\w+\(', body.group(1)):
+            raise Unsupported('copy applier ' + expr[:60])
+        subtypes = subtype_names()
+        out = []
+        for st in statements(apply.group(1)):
+            if st in ('return true', 'return true;'):
+                continue
+            s = re.fullmatch(r'blueprint\.addSubType\(((?:SubType\.\w+,?)+)\);?', st)
+            if not s:
+                raise Unsupported('copy applier statement ' + st[:60])
+            for t in re.findall(r'SubType\.(\w+)', s.group(1)):
+                if t not in subtypes:
+                    raise Unsupported('copy applier subtype ' + t)
+                out.append(subtypes[t])
+        return {'subtypes': out}
+
     def creature_token(self, expr):
         """`new CreatureToken(p, t, "…").withColor("R").withSubType(SubType.GOBLIN).withAbility(…)…`"""
         expr = expr.strip()
@@ -3534,6 +3713,10 @@ class Translator:
                 out['types'].append(arg[9:])
             elif call == 'withAllCreatureTypes' and arg == 'true':
                 out['all_creature_types'] = True
+            elif call == 'withSuperType' and arg == 'SuperType.LEGENDARY':
+                out['supertypes'] = out.get('supertypes', []) + ['LEGENDARY']
+            elif call == 'withName' and re.fullmatch(r'"(?:[^"\\]|\\.)*"', arg):
+                out['name'] = json.loads(arg)
             elif call == 'withAbility':
                 a = self.ability(arg)
                 if 'rule' not in a:
