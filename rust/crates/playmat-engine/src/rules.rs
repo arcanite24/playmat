@@ -12928,7 +12928,23 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             if holds {
                 let mut item = StackItem::spell(id, controller);
                 item.x = game.obj(id).cast_x;
-                apply_effects(game, d, &item, effects, &[], (id, zcc));
+                // its counters counted the same way, without itself (Squad Captain's "for each other creature you
+                // control" counts the creatures you control)
+                let mut effects = effects.clone();
+                for e in effects.iter_mut() {
+                    if let EffectDef::AddCountersSourceEffect { amount: Some(a @ Amount::Of(_)), .. } = e {
+                        let at = game.battlefield.iter().position(|x| *x == id);
+                        if let Some(i) = at {
+                            Arc::make_mut(&mut game.battlefield).remove(i);
+                        }
+                        let n = game.value(a, controller, id, item.x);
+                        if let Some(i) = at {
+                            Arc::make_mut(&mut game.battlefield).insert(i, id);
+                        }
+                        *a = Amount::Fixed(n);
+                    }
+                }
+                apply_effects(game, d, &item, &effects, &[], (id, zcc));
             }
         }
     }
