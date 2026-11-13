@@ -187,7 +187,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (9,022 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
+  can express (9,132 on 13 Nov, the snow cards left out). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -261,6 +261,11 @@ Being in the engine and being trusted are kept apart.
   flash" sees adventure faces; the defending player is still known after the attacker left; a conditional static
   whose condition reads power no longer recurses. 266 games match and 247 cards are verified, 231 of them new:
   7,200.
+
+  Card-specific effects (13 Nov, `custom_effects.py`): two rounds over the cards it brought in (120 games recorded;
+  replayed on this base, 106 of 108 match). Their fixes, each with a game under `shadow/factory/`: an effect pointed
+  at a target skips one an earlier effect moved (Badlands Revival); a return inside a nested if stops only that path
+  (Matter Reshaper). 84 more cards are verified: 7,284.
 
   Left differing, a game or two each: two abilities of one object on the stack (a triggered ability and its source
   share an id, Agonasaur Rex and Defabricate); Java's short-living LKI letting a creature sacrificed earlier in the
