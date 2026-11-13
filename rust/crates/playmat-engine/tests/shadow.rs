@@ -27,7 +27,15 @@ fn shadow_games_match_java() {
             skipped += 1;
             continue;
         }
-        let report = replay(&shadow, &db);
+        // an engine panic fails that game and the rest are still replayed
+        let report = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| replay(&shadow, &db))) {
+            Ok(report) => report,
+            Err(_) => {
+                eprintln!("{name}: 0 of 0 entries match, 0 answers used\nthe engine panicked\n");
+                failed.push(name);
+                continue;
+            }
+        };
         if report.complete() {
             matched += 1;
             eprintln!("{}: matches ({} entries, {} answers)", name, report.entries, report.answers);

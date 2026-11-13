@@ -43761,7 +43761,7 @@
             "name": "Caves count",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@47cd9e1a"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@1002d1c8"
             }
           }
         ]
@@ -48323,7 +48323,7 @@
             "name": "Artificers you control and Artificer cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@22f2fec6"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@1be12e05"
             }
           }
         ]
@@ -102978,7 +102978,7 @@
             "name": "Value of X",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@5e9e050e"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@53964b0e"
             }
           }
         ]
@@ -113030,7 +113030,7 @@
             "name": "Elves you control plus the number of Elf cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@6885fcf8"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@78288298"
             }
           }
         ]
@@ -172825,7 +172825,7 @@
             "name": "Graveyards with seven or more cards in it",
             "value": {
               "class": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt",
-              "text": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt@77231cf1"
+              "text": "mage.cards.m.GraveyardsWithXOrMoreCardsInIt@144602ef"
             }
           }
         ]
@@ -182094,7 +182094,7 @@
             "name": "Creatures you control and creature cards in your graveyard",
             "value": {
               "class": "mage.abilities.dynamicvalue.AdditiveDynamicValue",
-              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@18d5acaa"
+              "text": "mage.abilities.dynamicvalue.AdditiveDynamicValue@739f57d1"
             }
           }
         ]
@@ -299672,7 +299672,7 @@
             "name": "Current damage",
             "value": {
               "class": "mage.abilities.dynamicvalue.MaximumDynamicValue",
-              "text": "mage.abilities.dynamicvalue.MaximumDynamicValue@c05d034"
+              "text": "mage.abilities.dynamicvalue.MaximumDynamicValue@342af214"
             }
           }
         ]
@@ -332393,6 +332393,13 @@
     "abilities": []
   },
   {
+    "name": "token:GoblinArmyToken",
+    "images": {
+      "HOB": 2
+    },
+    "abilities": []
+  },
+  {
     "name": "token:GoblinToken",
     "images": {
       "10E": 1,
@@ -336326,6 +336333,20 @@
     "images": {
       "ORI": 1,
       "ZNC": 1
+    },
+    "abilities": []
+  },
+  {
+    "name": "token:ZombieArmyToken",
+    "images": {
+      "CMM": 1,
+      "DRC": 1,
+      "FRC": 1,
+      "MH2": 1,
+      "MH3": 1,
+      "MIC": 1,
+      "SCD": 1,
+      "WAR": 3
     },
     "abilities": []
   },
