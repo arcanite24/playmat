@@ -6939,11 +6939,14 @@ fn refresh_land_types(game: &mut Game) {
                                 types.push(subtype.clone());
                             }
                         }
+                        // (Skygames: enchanted land has "{T}: … Activate only as a sorcery.")
                         EffectDef::GainAbilityAttachedEffect { ability }
                             if ability.mana().is_some()
                                 || matches!(
                                     **ability,
-                                    AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::TriggeredAbility { .. }
+                                    AbilityDef::SimpleActivatedAbility { .. }
+                                        | AbilityDef::ActivateAsSorceryActivatedAbility { .. }
+                                        | AbilityDef::TriggeredAbility { .. }
                                 ) =>
                         {
                             if let Some(to) = game.attached(*id) {
