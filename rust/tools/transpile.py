@@ -874,6 +874,13 @@ def predicate(text, subtypes):
               'PermanentPredicate.instance': 'permanent_card', 'FaceDownPredicate.instance': 'face_down'}
     if text in simple:
         return {'p': simple[text]}
+    # the per-turn watchers' (`Game::watch`)
+    if text == 'PutIntoGraveFromBattlefieldThisTurnPredicate.instance':
+        return {'p': 'to_graveyard_this_turn', 'battlefield': True}
+    if text == 'PutIntoGraveFromAnywhereThisTurnPredicate.instance':
+        return {'p': 'to_graveyard_this_turn'}
+    if text == 'CrewedSourceThisTurnPredicate.instance':
+        return {'p': 'crewed_source_this_turn'}
     if (m := re.fullmatch(r'ChosenSubtypePredicate\.(TRUE|FALSE)', text)):
         return {'p': 'chosen_subtype', 'v': m.group(1) == 'TRUE'}
     if (m := re.fullmatch(r'TokenPredicate\.(TRUE|FALSE)', text)):
@@ -1069,6 +1076,14 @@ TEXT_SETTERS = {'setText', 'withTextThatCard', 'withShowSacText', 'setAbilityWor
                 'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier', 'withForceQuotes',
                 'withConditionText'}
 
+# watchers whose bookkeeping the engine keeps (`Game::watch`, the players' turn counters): adding one to an ability
+# changes nothing the engine reads
+KEPT_WATCHERS = {'ScryOrSurveilWatcher', 'SpellsCastWatcher', 'PermanentsSacrificedWatcher', 'CardsLeftGraveyardWatcher',
+                 'DiscardedCardWatcher', 'PlayerLostLifeWatcher', 'AttackedThisTurnWatcher', 'CrewedVehicleWatcher',
+                 'CardsPutIntoGraveyardWatcher', 'CommittedCrimeWatcher',
+                 'CreaturesDiedWatcher', 'ArtifactEnteredControllerWatcher', 'CreatureEnteredControllerWatcher',
+                 'PermanentsEnteredBattlefieldWatcher', 'CardsExiledThisTurnWatcher', 'PlayerGainedLifeWatcher'}
+
 # abilities every card has, which the constructor doesn't add
 IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'OmenCardSpellAbility', 'PrepareCardSpellAbility'}
 
@@ -1251,6 +1266,9 @@ class Translator:
             return {'v': 'x'}
         if arg == 'CardsDrawnThisTurnDynamicValue.instance':
             return {'v': 'cards_drawn'}
+        # a counters trigger's "that many" (`PutCounterOnPermanentTriggeredAbility`'s countersAdded) is its X
+        if re.fullmatch(r'new EffectKeyValue\("countersAdded"(,"[^"]*")?\)', arg):
+            return {'v': 'x'}
         if arg == 'KaitoBaneOfNightmaresCount.instance':
             return {'v': 'opponents_lost_life'}
         if arg == 'PermanentsSacrificedThisTurnCount.YOU':
@@ -1499,7 +1517,9 @@ class Translator:
                     break
                 i -= 1
             m = re.search(r'\.(\w+)$', expr[:i])
-            if not m or m.group(1) not in TEXT_SETTERS:
+            kept = m and m.group(1) == 'addWatcher' and re.fullmatch(r'\(new (\w+)\(\)\)', expr[i:]) \
+                and re.fullmatch(r'\(new (\w+)\(\)\)', expr[i:]).group(1) in KEPT_WATCHERS
+            if not m or (m.group(1) not in TEXT_SETTERS and not kept):
                 break
             expr = expr[:m.start()].strip()
         return expr
@@ -3416,6 +3436,16 @@ class Translator:
                 raise Unsupported('a trigger limit on ' + a.get('class', '?'))
             a['limit_per_turn'] = int(m.group(2))
             return a
+        # `….setDoOnlyOnceEachTurn(true)`: a "may" trigger that, once its controller said yes, doesn't trigger again
+        # that turn (Java makes it optional, unless a `DoIfCostPaid` asks)
+        m = re.fullmatch(r'(.*\))\s*\.setDoOnlyOnceEachTurn\(true\)', self.strip_setters(expr), re.S)
+        if m:
+            a = self.ability(m.group(1))
+            if a.get('class') != 'TriggeredAbility' or any(e.get('class') == 'DoIfCostPaid' for e in a.get('effects', [])):
+                raise Unsupported('do only once each turn on ' + a.get('class', '?'))
+            a['optional'] = True
+            a['once_each_turn'] = True
+            return a
         # `….setTiming(TimingRule.SORCERY)` on an ability from the graveyard
         m = re.fullmatch(r'(.*\))\s*\.setTiming\(TimingRule\.SORCERY\)', self.strip_setters(expr), re.S)
         if m and balanced(m.group(1)):
@@ -4783,6 +4813,77 @@ class Translator:
             if pointer != 'SetTargetPointer.CARD':
                 a['on']['no_card'] = True
             return a
+        return self.wave5_triggers(cls, args, flag, out)
+
+    def stack_filter_kind(self, arg):
+        """An `ActivateAbilityTriggeredAbility`'s `FilterStackObject` field: "exhaust" or "power_up" (one predicate of
+        that ability kind), else Unsupported"""
+        src = getattr(self, 'source', None) or ''
+        name = arg.strip()
+        if not re.search(r'FilterStackObject\s+' + re.escape(name) + r'\s*=\s*new FilterStackObject\("[^"]*"\)', src):
+            raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
+        preds = re.findall(r'\b' + re.escape(name) + r'\.add\(([^;]*)\);', src)
+        kinds = {'ExhaustAbilityPredicate.instance': 'exhaust', 'PowerUpAbilityPredicate.instance': 'power_up'}
+        if len(preds) != 1 or preds[0].strip() not in kinds:
+            raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
+        return kinds[preds[0].strip()]
+
+    def wave5_triggers(self, cls, args, flag, out):
+        """Trigger classes on the events and watchers of wave 5 (`COUNTERS_ADDED`, `ACTIVATED_ABILITY`, `EXPLORED`,
+        `PROLIFERATED`, first attacks and life losses each turn); None if `cls` isn't one of them"""
+        n = len(args)
+        # "whenever you put one or more [kind] counters on a permanent of the filter": X is how many
+        if cls == 'PutCounterOnPermanentTriggeredAbility' and n in (3, 5):
+            counter = args[1].strip()
+            if counter != 'null' and counter not in COUNTERS:
+                raise Unsupported(cls + ' counter ' + counter)
+            on = {'e': 'counters_put', 'filter': self.filter(args[2])}
+            if counter != 'null':
+                on['counter'] = COUNTERS[counter]
+            return out(on, args[0], n == 5 and flag(args[4]), n == 5 and flag(args[3]))
+        # "whenever you activate an exhaust ability" (from the battlefield; from the graveyard isn't in)
+        if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.NONE':
+            return out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1])}, args[0])
+        # "whenever you activate a loyalty ability [of a <subtype> planeswalker]"
+        if cls == 'ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility' and n in (2, 3) \
+                and args[-1].strip() == 'SetTargetPointer.NONE':
+            on = {'e': 'loyalty_activated'}
+            if n == 3:
+                m = re.fullmatch(r'SubType\.(\w+)', args[1].strip())
+                if not m or m.group(1) not in subtype_names():
+                    raise Unsupported(cls + ' ' + args[1])
+                on['subtype'] = subtype_names()[m.group(1)]
+            return out(on, args[0])
+        # "whenever one or more creatures of the filter die": once a batch
+        if cls == 'DiesOneOrMoreTriggeredAbility' and (n == 3 or (n == 4 and args[3].strip() == 'false')):
+            return out({'e': 'dies_all', 'filter': self.filter(args[1]), 'batch': True}, args[0], flag(args[2]))
+        if cls == 'LeavesBattlefieldAllTriggeredAbility' and n == 2:
+            return out({'e': 'leaves_all', 'filter': self.filter(args[1])}, args[0])
+        # "whenever one or more permanents of the filter you control enter": once a batch
+        if cls == 'EntersBattlefieldOneOrMoreTriggeredAbility' and n in (3, 4) \
+                and args[2].strip() == 'TargetController.YOU':
+            return out({'e': 'enters_all', 'filter': self.filter(args[1]) + [YOU], 'batch': True}, args[0],
+                       n == 4 and flag(args[3]))
+        if cls == 'CommittedCrimeTriggeredAbility' and n == 2:
+            return out({'e': 'committed_crime'}, args[0], flag(args[1]))
+        if cls in ('SurveilTriggeredAbility', 'ScryTriggeredAbility') and n in (1, 2):
+            if n == 2 and cls == 'SurveilTriggeredAbility':
+                raise Unsupported(cls + ' ' + args[0])
+            return out({'e': 'you_surveil_or_scry', 'surveil': cls == 'SurveilTriggeredAbility'}, args[0],
+                       n == 2 and flag(args[1]))
+        if cls == 'CreatureExploresTriggeredAbility' and n == 1:
+            return out({'e': 'explores'}, args[0])
+        if cls == 'ProliferatedControllerTriggeredAbility' and n in (1, 2):
+            return out({'e': 'you_proliferate'}, args[0], n == 2 and flag(args[1]))
+        if cls == 'AttacksFirstTimeTriggeredAbility' and n == 2:
+            return out({'e': 'attacks_first_time'}, args[0], flag(args[1]))
+        # "whenever you (an opponent) lose life for the first time each turn"
+        if cls == 'LoseLifeFirstTimeEachTurnTriggeredAbility' and n in (1, 4):
+            who = 'you' if n == 1 else self.value('target_controller', args[1])
+            if who not in ('you', 'opponent'):
+                raise Unsupported(cls + ' ' + args[1])
+            return out({'e': 'loses_life', 'who': who, 'first_time': True}, args[0], n == 4 and flag(args[2]),
+                       n == 4 and flag(args[3]))
         return None
 
     def assign(self, var, expr):
@@ -5551,6 +5652,10 @@ CHAPTERS = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6}
 
 
 def ability_statement(t, st, added):
+    # a watcher whose bookkeeping the engine keeps itself (`Game::watch` and the turn counters)
+    m = re.fullmatch(r'\w+\.addWatcher\(new (\w+Watcher)\(\)\)', st)
+    if m and m.group(1) in KEPT_WATCHERS:
+        return True
     # `Condition condition = new …Condition(…)`: a local the abilities name
     m = re.fullmatch(r'(?:final )?Condition (\w+)=(new \w+Condition\(.*\)|\w+Condition\.\w+)', st, re.S)
     if m:
