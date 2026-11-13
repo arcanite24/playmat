@@ -1010,6 +1010,8 @@ pub enum Value {
     ExiledWithSource,
     /// the greatest mana value among permanents of the filter (`GreatestAmongPermanentsValue`)
     GreatestManaValue { filter: Filter },
+    /// the greatest power among permanents of the filter, 0 if there are none (`GreatestAmongPermanentsValue`)
+    GreatestPower { filter: Filter },
     /// cards the controller drew this turn
     CardsDrawn,
     /// life the controller gained this turn (`ControllerGainedLifeCount`)

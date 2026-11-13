@@ -935,8 +935,16 @@ class Translator:
             return int(arg)
         if (m := re.fullmatch(r'StaticValue\.get\((-?\d+)\)', arg)):
             return int(m.group(1))
-        if (m := re.fullmatch(r'new GreatestAmongPermanentsValue\(Quality\.ManaValue,(.*)\)', arg)):
-            return {'v': 'greatest_mana_value', 'filter': self.filter(m.group(1))}
+        if (m := re.fullmatch(r'new GreatestAmongPermanentsValue\((?:GreatestAmongPermanentsValue\.)?Quality\.(ManaValue|Power),(.*)\)', arg)):
+            return {'v': 'greatest_mana_value' if m.group(1) == 'ManaValue' else 'greatest_power', 'filter': self.filter(m.group(2))}
+        greatest = {'POWER_CONTROLLED_CREATURES': ('Power', 'FILTER_CONTROLLED_CREATURES'),
+                    'POWER_OTHER_CONTROLLED_CREATURES': ('Power', 'FILTER_OTHER_CONTROLLED_CREATURES'),
+                    'MANAVALUE_CONTROLLED_CREATURES': ('ManaValue', 'FILTER_CONTROLLED_CREATURES'),
+                    'MANAVALUE_CONTROLLED_PERMANENTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENTS'),
+                    'MANAVALUE_CONTROLLED_ARTIFACTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENT_ARTIFACTS')}
+        if (m := re.fullmatch(r'GreatestAmongPermanentsValue\.(\w+)', arg)) and m.group(1) in greatest:
+            q, f = greatest[m.group(1)]
+            return self.amount('new GreatestAmongPermanentsValue(Quality.%s,StaticFilters.%s)' % (q, f))
         if arg in self.values:
             return self.amount(self.values[arg])
         # the life a "whenever you gain life" trigger saw is its X (The Ooze: the +1/+1 counters on what left)
