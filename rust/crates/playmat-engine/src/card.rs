@@ -4045,6 +4045,9 @@ pub enum AbilityDef {
         limit: u32,
         #[serde(default)]
         condition: Option<Condition>,
+        /// "… and only as a sorcery" (`setTiming(TimingRule.SORCERY)`)
+        #[serde(default)]
+        sorcery: bool,
     },
     /// an activated ability from hand: pay, discard this, draw (`CyclingAbility`)
     CyclingAbility {
@@ -4543,8 +4546,8 @@ impl AbilityDef {
             AbilityDef::LoyaltyAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, true)),
             AbilityDef::EquipAbility { effects, cost, targets, rule, .. } => Some((rule, effects, targets, cost, true)),
             AbilityDef::CyclingAbility { effects, cost, targets, rule } => Some((rule, effects, targets, cost, false)),
-            AbilityDef::LimitedTimesPerTurnActivatedAbility { effects, cost, targets, rule, .. } => {
-                Some((rule, effects, targets, cost, false))
+            AbilityDef::LimitedTimesPerTurnActivatedAbility { effects, cost, targets, rule, sorcery, .. } => {
+                Some((rule, effects, targets, cost, *sorcery))
             }
             AbilityDef::ChannelAbility { effects, cost, targets, rule, .. } => {
                 Some((rule, effects, targets, cost, false))
