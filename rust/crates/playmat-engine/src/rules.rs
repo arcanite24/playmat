@@ -236,12 +236,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         game.skip_next_untap.retain(|x| *x != (id, zcc));
                     }
                     let o = game.obj_mut(id);
+                    let was = o.tapped;
                     if o.exerted {
                         o.exerted = false;
                     } else if !stays_tapped && !skipped {
                         untap(o);
                     }
                     o.sick = false;
+                    if was && !o.tapped {
+                        fire_untapped(game, id);
+                    }
                 }
             }
         }
@@ -266,6 +270,13 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             }
             if !attackers(game).is_empty() {
                 game.player_mut(active).attacked = true;
+            }
+            // boast: each attacker attacked this turn (`AttackedThisTurnWatcher`)
+            let turn = format!("attacked{}", game.turn);
+            for a in attackers(game) {
+                if !game.obj(a).marks.contains(&turn) {
+                    game.obj_mut(a).marks.push(turn.clone());
+                }
             }
             // ATTACKER_DECLARED's replacement: "you may exert this as it attacks", asked for each attacker in turn,
             // and its "when you do" trigger
@@ -322,6 +333,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         you == active
                             && all.iter().filter(|a| g.filter_matches(filter, you, Some(src), **a)).count() >= *min
                     }
+                    Trigger::Battalion => all.len() >= 3 && all.contains(&src),
                     _ => false,
                 });
                 game.pending.extend(fired);
@@ -347,6 +359,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         }
         Step::DeclareBlockers => {
             declare_blockers(game, d, game.opponent(active));
+            if !d.stopped() {
+                becomes_blocked_triggers(game, active);
+            }
             if log::kept(game) && !d.stopped() {
                 // `Combat.logBlockerInfo`
                 for g in game.combat_groups.clone() {
@@ -1278,6 +1293,9 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
             }
         }
         if matches!(a, AbilityDef::PowerUpAbility { .. }) && o.powered_up {
+            continue;
+        }
+        if matches!(a, AbilityDef::ExhaustAbility { .. }) && o.marks.contains(&format!("exhaust{i}")) {
             continue;
         }
         if matches!(a, AbilityDef::ClassLevelAbility { level, .. } if o.class_level + 1 != *level) {
@@ -4179,6 +4197,9 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     if let AbilityDef::PowerUpAbility { .. } = def.abilities[index] {
         game.obj_mut(id).powered_up = true;
     }
+    if let AbilityDef::ExhaustAbility { .. } = def.abilities[index] {
+        game.obj_mut(id).marks.push(format!("exhaust{index}"));
+    }
     // the face it was activated from: an ability an Aura grants is gone from a land sacrificed to pay for it
     Arc::make_mut(&mut game.stack).push(StackItem {
         ability: Some((index, zcc)),
@@ -6430,6 +6451,15 @@ fn unlock_door(game: &mut Game, id: ObjId, k: usize) {
     set_room_face(game, id);
     let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::DoorUnlocked { left } if *left == (k == 0)));
     game.pending.extend(fired);
+    // `ROOM_FULLY_UNLOCKED`: eerie
+    if game.obj(id).doors.iter().all(|d| *d) {
+        let you = game.obj(id).controller;
+        let sources = game.trigger_sources();
+        let fired = game.triggers(sources, |g, src, c, t| {
+            matches!(t, Trigger::Eerie) && c == you && g.obj(src).zone == Zone::Battlefield
+        });
+        game.pending.extend(fired);
+    }
 }
 
 /// `BecomesCreatureSourceEffect`: the card as the token's kind of creature (its other types gone unless `retain`)
@@ -9602,7 +9632,11 @@ fn apply_each_effect(
             }
             EffectDef::UntapAllEffect { filter } => {
                 for o in matching(game, filter, controller, source.0) {
+                    let was = game.obj(o).tapped;
                     game.obj_mut(o).tapped = false;
+                    if was {
+                        fire_untapped(game, o);
+                    }
                 }
             }
             EffectDef::MayTapOrUntapTargetEffect => {
@@ -9628,7 +9662,7 @@ fn apply_each_effect(
             EffectDef::UntapSourceEffect => {
                 let (o, zcc) = source;
                 if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
-                    untap(game.obj_mut(o));
+                    untap_permanent(game, o);
                 }
             }
             EffectDef::RegenerateTargetEffect => {
@@ -9655,7 +9689,7 @@ fn apply_each_effect(
             }
             EffectDef::UntapTargetEffect => {
                 for o in &objs {
-                    untap(game.obj_mut(*o));
+                    untap_permanent(game, *o);
                 }
             }
             EffectDef::ReturnToHandEachTargetEffect => {
@@ -9671,7 +9705,7 @@ fn apply_each_effect(
             EffectDef::UntapEachTargetEffect => {
                 for t in legal.iter().flatten() {
                     if let Target::Obj(o) = t {
-                        untap(game.obj_mut(*o));
+                        untap_permanent(game, *o);
                     }
                 }
             }
@@ -11112,7 +11146,11 @@ fn apply_each_effect(
                     }
                 }
                 for o in chosen {
+                    let was = game.obj(o).tapped;
                     game.obj_mut(o).tapped = false;
+                    if was {
+                        fire_untapped(game, o);
+                    }
                 }
             }
             EffectDef::PutIntoLibraryNFromTopTargetEffect { n } => {
@@ -11467,6 +11505,212 @@ fn apply_each_effect(
                     if *tapped {
                         game.obj_mut(id).tapped = true;
                     }
+                }
+            }
+            EffectDef::BolsterEffect { amount } => {
+                // `BolsterEffect.apply`: the least toughness among your creatures; ties are chosen
+                // (`chooseTarget` of a not-targeted `TargetPermanent`), one is picked for you
+                let n = v!(amount);
+                if n > 0 {
+                    let mine: Vec<ObjId> = game
+                        .battlefield
+                        .iter()
+                        .copied()
+                        .filter(|o| game.obj(*o).controller == controller && game.has_type(*o, CardType::Creature))
+                        .collect();
+                    if let Some(least) = mine.iter().map(|o| game.power_toughness(*o).1).min() {
+                        let tied: Vec<ObjId> =
+                            mine.iter().copied().filter(|o| game.power_toughness(*o).1 == least).collect();
+                        let chosen = if tied.len() == 1 {
+                            Some(tied[0])
+                        } else {
+                            let Some(c) = pick_objects(game, d, controller, &tied, 1, 1) else {
+                                return;
+                            };
+                            c.first().copied()
+                        };
+                        if let Some(o) = chosen {
+                            put_counters(game, o, "+1/+1", n, controller);
+                        }
+                    }
+                }
+            }
+            EffectDef::FabricateEffect { amount, token } => {
+                // `FabricateEffect`: "Fabricate N" (counters, or tokens), while the card still exists
+                let (o, zcc) = source;
+                if game.obj(o).zcc == zcc || game.obj(o).zone == Zone::Battlefield {
+                    let q = Query::YesNo { message: format!("Fabricate {amount}") };
+                    let counters = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if counters {
+                        if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                            put_counters(game, o, "+1/+1", *amount, controller);
+                        }
+                    } else {
+                        let e = token_effect(token, *amount);
+                        apply_effects(game, d, item, &[e], legal, source);
+                    }
+                }
+            }
+            EffectDef::EndureSourceEffect { amount, token } => {
+                let n = v!(amount);
+                let (o, zcc) = source;
+                if n >= 1 {
+                    let here = game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc;
+                    let counters = here && {
+                        let q = Query::YesNo {
+                            message: format!(
+                                "Put {} +1/+1 counter{} on {} or create a {n}/{n} Spirit token?",
+                                match n {
+                                    1 => "a".to_string(),
+                                    2 => "two".to_string(),
+                                    3 => "three".to_string(),
+                                    _ => n.to_string(),
+                                },
+                                if n > 1 { "s" } else { "" },
+                                game.obj(o).name()
+                            ),
+                        };
+                        loop {
+                            match ask(game, d, controller, &q) {
+                                Answer::Bool(b) => break b,
+                                Answer::Stop => return,
+                                _ => {}
+                            }
+                        }
+                    };
+                    if counters {
+                        put_counters(game, o, "+1/+1", n, controller);
+                    } else {
+                        // `SpiritXXToken(amount)` past 3 (one class per size up to it)
+                        let mut t = token.clone();
+                        if t.power != n {
+                            t.power = n;
+                            t.toughness = n;
+                        }
+                        let e = token_effect(&t, 1);
+                        apply_effects(game, d, item, &[e], legal, source);
+                    }
+                }
+            }
+            EffectDef::SacrificeSourceAtEndOfCombatEffect => {
+                let (o, zcc) = source;
+                let delayed = Delayed {
+                    rule: "At end of combat, sacrifice {this}.".into(),
+                    // `SacrificeSourceEffect`, not a fixed target: two of them are the same trigger (auto-ordered)
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: vec![EffectDef::SacrificeSourceEffect],
+                    source_zcc: zcc,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.at_end_of_combat
+                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(o, controller) });
+            }
+            EffectDef::UnleashEffect => {
+                let (o, _) = source;
+                let q = Query::YesNo { message: format!("Unleash {}?", game.obj(o).name()) };
+                let yes = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if yes {
+                    if log::kept(game) {
+                        let line = format!("{} unleashes {}", log::player(controller), game.obj(o).name());
+                        log::inform(game, line);
+                    }
+                    put_counters(game, o, "+1/+1", 1, controller);
+                }
+            }
+            EffectDef::RecruitEffect { token } => {
+                draw(game, controller, 1);
+                let gone = discard(game, d, controller, 1);
+                if d.stopped() {
+                    return;
+                }
+                if gone.iter().any(|c| !game.has_type(*c, CardType::Land)) {
+                    let e = token_effect(token, 1);
+                    apply_effects(game, d, item, &[e], legal, source);
+                }
+            }
+            EffectDef::ConniveTargetEffect => {
+                let who: Vec<ObjId> = objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect();
+                for o in who {
+                    let p = game.obj(o).controller;
+                    let zcc = game.obj(o).zcc;
+                    draw(game, p, 1);
+                    let gone = discard(game, d, p, 1);
+                    if d.stopped() {
+                        return;
+                    }
+                    let n = gone.iter().filter(|c| !game.has_type(**c, CardType::Land)).count() as i32;
+                    if n > 0 && game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                        put_counters(game, o, "+1/+1", n, p);
+                    }
+                }
+            }
+            EffectDef::BecomesRenownedSourceEffect { amount } => {
+                let (o, zcc) = source;
+                if game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc {
+                    if log::kept(game) {
+                        let line = format!("{} is now renowned", log::object(game, o));
+                        log::inform(game, line);
+                    }
+                    if *amount > 0 {
+                        put_counters(game, o, "+1/+1", *amount, controller);
+                    }
+                    game.obj_mut(o).marks.push("renowned".into());
+                }
+            }
+            EffectDef::SagaReadAheadEffect { max } => {
+                // `SagaLoreCountersEffect`: "Choose the number of lore counters to enter with"
+                let (o, _) = source;
+                let q = Query::Amount { min: 1, max: *max as i32 };
+                let n = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Int(n) if (1..=*max as i32).contains(&n) => break n,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                add_lore(game, o, n);
+            }
+            EffectDef::RiotEffect => {
+                let (o, zcc) = source;
+                let q = Query::YesNo {
+                    message: format!(
+                        "Have {} enter the battlefield with a +1/+1 counter on it or with haste?",
+                        game.obj(o).name()
+                    ),
+                };
+                let counter = loop {
+                    match ask(game, d, controller, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if counter {
+                    put_counters(game, o, "+1/+1", 1, controller);
+                } else {
+                    Arc::make_mut(&mut game.grants).push(Grant {
+                        target: o,
+                        zcc,
+                        ability: AbilityDef::HasteAbility,
+                        until_end_of_turn: false,
+                        until_turn_of: None,
+                    });
                 }
             }
             EffectDef::ProliferateEffect => {
@@ -13030,6 +13274,9 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                 && ((src == id && *include_self) || g.filter_matches(filter, you, Some(src), id))
         }
         Trigger::PeltCollector => src != id && g.obj(src).zone == Zone::Battlefield && controller == you,
+        Trigger::Eerie => {
+            g.obj(src).zone == Zone::Battlefield && controller == you && g.has_type(id, CardType::Enchantment)
+        }
         Trigger::Evolve => g.obj(src).zone == Zone::Battlefield && controller == you && evolves(g, src, id),
         _ => false,
     });
@@ -13104,8 +13351,11 @@ fn add_lore(game: &mut Game, id: ObjId, n: i32) {
     let before = game.obj(id).counter("lore");
     game.obj_mut(id).add_counters("lore", n);
     let after = before + n;
-    let fired = game
-        .triggers([id], |_, _, _, t| matches!(t, Trigger::Chapter { n } if before < *n as i32 && *n as i32 <= after));
+    // read ahead, the turn it entered: only the chapter it starts on (`ChapterTriggeredAbility.checkTrigger`)
+    let read_ahead = game.obj(id).entered_turn == game.turn && game.has_ability(id, &AbilityDef::ReadAheadAbility);
+    let fired = game.triggers([id], |_, _, _, t| {
+        matches!(t, Trigger::Chapter { n } if if read_ahead { *n as i32 == after } else { before < *n as i32 && *n as i32 <= after })
+    });
     game.pending.extend(fired);
 }
 
@@ -13142,6 +13392,57 @@ fn crew_candidates(game: &Game, seat: Seat, vehicle: ObjId) -> Vec<ObjId> {
 }
 
 /// Untaps a permanent, unless it has a stun counter: then one comes off instead
+/// A `CreateTokenEffect` of `amount` `token`s, nothing else
+fn token_effect(token: &crate::card::TokenDef, amount: i32) -> EffectDef {
+    EffectDef::CreateTokenEffect {
+        token: token.clone(),
+        amount: Amount::Fixed(amount),
+        tapped_and_attacking: false,
+        tapped: false,
+        attacking: false,
+        sacrifice_at_end_of_combat: false,
+        sacrifice_at_next_end_step: false,
+        haste_until_end_of_turn: false,
+        also: None,
+        attach_source: None,
+    }
+}
+
+/// `untap`, with the `UNTAPPED` event's triggers (inspired) when it was tapped
+fn untap_permanent(game: &mut Game, id: ObjId) {
+    let was = game.obj(id).tapped;
+    untap(game.obj_mut(id));
+    if was && !game.obj(id).tapped {
+        fire_untapped(game, id);
+    }
+}
+
+/// `PermanentImpl.untap`'s `UNTAPPED` event: "whenever this becomes untapped" (`InspiredAbility`)
+fn fire_untapped(game: &mut Game, id: ObjId) {
+    let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::BecomesUntapped));
+    game.pending.extend(fired);
+}
+
+/// `Combat.acceptBlockers`: `CREATURE_BLOCKED` for each attacker that became blocked, in combat order (afflict's
+/// trigger points at the defending player)
+fn becomes_blocked_triggers(game: &mut Game, active: Seat) {
+    for g in game.combat_groups.clone() {
+        let a = g.attacker;
+        if game.obj(a).zone != Zone::Battlefield || live_blockers(game, a).is_empty() {
+            continue;
+        }
+        let defender = game.opponent(active);
+        for mut t in game.triggers([a], |_, _, _, t| matches!(t, Trigger::BecomesBlocked)) {
+            let ab = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
+            if matches!(ab, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. })) {
+                t.targets = vec![vec![Target::Player(defender)]];
+                t.target_zcc = vec![vec![0]];
+            }
+            game.pending.push(t);
+        }
+    }
+}
+
 fn untap(o: &mut crate::state::Obj) {
     if o.tapped && o.counter("stun") > 0 {
         o.add_counters("stun", -1);
@@ -14098,6 +14399,31 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
             game.battlefield.iter().any(|l| game.obj(*l).controller == defender && game.has_subtype(*l, "Island"))
         })
         || game.protected_from(attacker, blocker)
+    {
+        return false;
+    }
+    if game.has_ability(blocker, &AbilityDef::DecayedAbility) {
+        return false;
+    }
+    // unleash: it can't block while it has a +1/+1 counter (`UnleashRestrictionEffect`)
+    if game.obj(blocker).counter("+1/+1") > 0
+        && game.obj(blocker).def.abilities.iter().any(|a| {
+            matches!(a, AbilityDef::EntersBattlefieldAbility { effects, .. }
+                if matches!(effects.as_slice(), [EffectDef::UnleashEffect]))
+        })
+    {
+        return false;
+    }
+    // skulk: not by a creature with greater power
+    if game.has_ability(attacker, &AbilityDef::SkulkAbility)
+        && game.power_toughness(blocker).0 > game.power_toughness(attacker).0
+    {
+        return false;
+    }
+    // intimidate: only by artifact creatures and creatures that share a color with it
+    if game.has_ability(attacker, &AbilityDef::IntimidateAbility)
+        && !game.has_type(blocker, CardType::Artifact)
+        && !game.colors(blocker).iter().any(|c| game.colors(attacker).contains(c))
     {
         return false;
     }
