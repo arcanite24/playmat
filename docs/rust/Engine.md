@@ -209,7 +209,9 @@ at the same point, so they sort into the layers, timestamps and replacement orde
 | Kind | Declaration | Java | Read by |
 |---|---|---|---|
 | continuous | `Handler::continuous(name, affects, Layer::Type(f) / Ability(f) / SetPt(f) / ModifyPt(f))` | `ContinuousEffectImpl` in layer 4, 6, 7b, 7c (`Layer::java()` names Java's layer and sublayer) | `has_subtype`, `granted_abilities`/`has_ability`, `power_toughness_layers` (7b in timestamp order with the rest; layer 6 lost to an older "loses all abilities") |
-| replacement | `Handler::replacement(name, &[EventType::…], applies, replace)` | `ReplacementEffectImpl`: `checksEventType`, `applies`, `replaceEvent` | `replace_event` at the event's point: `DrawCard` (each card drawn), `GainLife`, `NumberOfTriggers` |
+| replacement | `Handler::replacement(name, &[EventType::…], applies, replace)` | `ReplacementEffectImpl`: `checksEventType`, `applies`, `replaceEvent` | `replace_event` at the event's point: `DrawCard` (each card drawn), `GainLife`, `NumberOfTriggers`, `DamagePlayer` and `DamagePermanent` (`deal_damage`, before the engine's preventions), `ZoneChange` (`move_to`: a replacement can change `ev.to`), `EntersBattlefield` (as a permanent enters, with the "enters with" replacements; a permanent's own statics don't see it entering) |
+| keeps mana | `Handler::keeps_mana(name, f)` | "you don't lose this mana as steps and phases end" (`YouDontLoseManaEffect`) | `end_step`'s pool emptying: `f` gives the mana kinds that stay |
+| mana | `Handler::mana(name, net, produce)` | a mana effect class (`ManaEffect.getNetMana`, `produceMana`) in a `SimpleManaAbility` or the card's own `ActivatedManaAbilityImpl` | `mana_sources_with_kinds` (`net`, what it could make, for paying and the AI) and `activate_mana_paying` (`produce`: asks, makes the mana) |
 | cost | `Handler::cost(name, CostKind::Increase / Reduce / Set, applies, apply)` | `CostModificationEffectImpl` | `modified_cost_of` (spells, after the engine's own of that kind), `adjusted_mana_cost_own` (abilities), room unlocks |
 | restriction | `Handler::restriction(name, applies, &[Restrict::…])` | `RestrictionEffect`: `canAttack`, `canBlock`, `canBeBlocked` | `can_attack`, `can_block` |
 | rule | `Handler::rule(name, Rule::CantCast(f))` | `ContinuousRuleModifyingEffectImpl` on `CAST_SPELL` | `castable` |
@@ -218,7 +220,13 @@ at the same point, so they sort into the layers, timestamps and replacement orde
 - **Functions get a `StaticCx`**: the source and controller (Java's `source`), the effect's timestamp, its constructor
   arguments as text and what the transpiler made of the Java it asked for (`effects`, `filters`, `abilities`;
   `cx.matches(game, i, id)` tests filter `i`). Replacements get an `Event` (kind, player, target, source, amount,
-  the replacements already applied) and change it or return `true` for "replaced".
+  the replacements already applied, damage's `combat` and `preventable`, a zone change's `from` and `to`) and change
+  it or return `true` for "replaced". Preventions follow `PreventionEffectImpl`: `cx.preventable(ev, only_combat)`
+  and `cx.prevent(ev, n)`, with an amount left to prevent kept per effect (`cx.left`, `cx.set_left`).
+- **Resolving effects** ("prevent the next 3 damage that would be dealt to target creature this turn") keep the
+  spell's first target group in `cx.targets` (`cx.target_obj`, `cx.target_player`, each checked against its zone
+  change count). `.on_start(f)` runs as the effect starts and can ask (Deflecting Palm's "source of your choice",
+  `choose_source`); `Duration.UntilYourNextTurn` lasts until its controller's next turn instead of cleanup.
 - **Replacement order** follows `ContinuousEffects.replaceEvent`: each one applies once per event, two or more that
   apply (with the engine's own for that event) owe "Choose a replacement effect to apply first", and a replacement
   inside a replacement (Alhammarret's Archive's extra draw) passes `ev.applied` on, so it isn't applied twice.
@@ -235,9 +243,21 @@ at the same point, so they sort into the layers, timestamps and replacement orde
   query it answers: `has_subtype` guards layer 4 handlers against that, and a conditional effect's condition is only
   read around a handler's effect.
 
+Argument kinds besides the filters and effects: `counter` (`CounterType.P1P1.createInstance(2)` as `"+1/+1 2"`,
+`counter_arg`) and `duration` (an optional leading `Duration`, `WhileOnBattlefield` when it's left out). Mana that
+stays in the pool otherwise: `UntilEndOfTurnManaEffect` (kept until the turn's end phase, `eot_mana`); colored mana
+abilities can carry effects (The Great Henge's counter and draw).
+
 The first batch (13 Nov): 24 cards of the static claim list and 7 framework classes, which bring in 4 more; three
 factory rounds (63 games, 62 matching; the other is an "on it" ability text of another card) verified all 28: 10,039
 of 10,075. Games covering them are under `shadow/statics/`.
+
+The replacement and mana batch (13 Nov): damage, zone change and enters events, keeps-mana and mana hooks, 16
+handlers (prevention shields, "exile it instead", enters with counters, Deflecting Palm, Three Tree City, Astral
+Cornucopia) and one-shot "add {R}". Two factory rounds (54 games) verified 25 cards: 10,297 of 10,417. Games covering
+them are under `shadow/replace/`. Grumgully's one mismatch is Ancient Animus reading any target rather than the first
+(a fix of its own), and Savage Ventmaw is one game short without that game. The mana-handler cards (Three Tree City, Astral Cornucopia, Vivi Ornitier) translate
+but don't match yet: Java's AI taps them for payment even with no mana to make, and asks to pay by hand around them.
 
 A card's own static effect classes (replacement, continuous, cost, rule-modifying, restriction and prevention effects
 lasting while the source is on the battlefield) are read by `rust/tools/custom_statics.py`. A replacement effect is
