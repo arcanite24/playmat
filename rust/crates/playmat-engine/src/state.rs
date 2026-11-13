@@ -471,6 +471,8 @@ pub struct Player {
     pub no_spells_turn: Option<u32>,
     /// a permanent they controlled left the battlefield this turn (`RevoltWatcher`)
     pub permanent_left: bool,
+    /// the city's blessing (ascend: `DesignationType.CITYS_BLESSING`), for the rest of the game
+    pub citys_blessing: bool,
     /// nonland permanents that entered under their control this turn (celebration)
     pub nonlands_entered: u32,
     /// permanent cards put into their graveyard this turn (`DescendedWatcher`)
@@ -2163,6 +2165,20 @@ impl Game {
         }
     }
 
+    /// `AscendContinuousEffect` (layer PlayerEffects): the controller of a permanent with ascend who controls ten or
+    /// more permanents gets the city's blessing
+    pub fn update_ascend(&mut self) {
+        for s in 0..self.seats() {
+            if self.player(s).citys_blessing {
+                continue;
+            }
+            let mine: Vec<ObjId> = self.battlefield.iter().copied().filter(|o| self.obj(*o).controller == s).collect();
+            if mine.len() > 9 && mine.iter().any(|o| self.has_ability(*o, &AbilityDef::AscendAbility)) {
+                self.player_mut(s).citys_blessing = true;
+            }
+        }
+    }
+
     /// The Leyline whose land part applies to `seat`'s lands, by its place on the battlefield (its timestamp)
     fn guildpact_at(&self, seat: Seat) -> Option<usize> {
         self.battlefield.iter().position(|src| {
@@ -2511,6 +2527,9 @@ impl Game {
                 o.cast || (o.zone != Zone::Battlefield && o.cast_lki)
             }
             Condition::Raid => self.player(you).attacked,
+            Condition::CitysBlessing => self.player(you).citys_blessing,
+            // only a resolving spell's conditional effect knows (`ConditionalOneShotEffect`)
+            Condition::GiftPromised => false,
             // the werewolves' "if no spells were cast last turn" (not on the first turn) and "if a player cast two
             // or more spells last turn"
             Condition::NoSpellsLastTurn => self.turn >= 2 && self.players.iter().all(|p| p.spells_cast_last_turn == 0),
