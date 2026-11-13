@@ -1186,7 +1186,7 @@ class Translator:
         # the life a "whenever you gain life" trigger saw is its X (The Ooze: the +1/+1 counters on what left)
         if arg in ('GetXValue.instance', 'ManacostVariableValue.REGULAR', 'ManacostVariableValue.ETB',
                    'SavedGainedLifeValue.MUCH', 'SavedGainedLifeValue.MANY', 'TheOozeValue.instance', 'SavedDamageValue.MUCH', 'SavedDamageValue.MANY',
-                   'SavedLifeLossValue.MUCH', 'SavedDiscardValue.MANY', 'SavedDiscardValue.MUCH'):
+                   'SavedLifeLossValue.MUCH', 'SavedLifeLossValue.MANY', 'SavedDiscardValue.MANY', 'SavedDiscardValue.MUCH'):
             return {'v': 'x'}
         if (m := re.fullmatch(r'new CountersSourceCount\((CounterType\.\w+)\)', arg)) and m.group(1) in COUNTERS:
             return {'v': 'source_counters', 'counter': COUNTERS[m.group(1)]}
@@ -2480,6 +2480,11 @@ class Translator:
                 and args[2].strip().startswith('new '):
             return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]), 'optional': True,
                     'otherwise': self.effect(args[2])}
+        # "up to M of them" (Smuggler's Surprise): `(n, filter, null, optional, M)`
+        if cls == 'MillThenPutInHandEffect' and len(args) == 5 and re.fullmatch(r'\d+', args[0].strip()) \
+                and args[2].strip() == 'null' and re.fullmatch(r'\d+', args[4].strip()):
+            return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]),
+                    'optional': args[3].strip() == 'true', 'max': int(args[4])}
         if cls == 'MillThenPutInHandEffect' and len(args) in (2, 3) and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0]), 'filter': self.filter(args[1]),
                     'optional': len(args) == 2 or args[2].strip() == 'true'}
@@ -2713,6 +2718,12 @@ class Translator:
             return {'class': cls, 'filter': self.filter(args[1])}
         if cls == 'GainAbilityAllEffect' and len(args) == 4 and args[3].strip().startswith('"'):
             args = args[:3]
+        # `LoseLifeSourceControllerEffect(n, youLose)`: the flag only changes the text ("you lose" or "lose")
+        if cls == 'LoseLifeSourceControllerEffect' and len(args) == 2 and args[1].strip() in ('true', 'false'):
+            args = args[:1]
+        # `DamageMultiEffect("it")`: the text's name for the source only
+        if cls == 'DamageMultiEffect' and len(args) == 1 and args[0].strip().startswith('"'):
+            args = []
         if (k := self.keyword_effect(cls, [a.strip() for a in args])) is not None:
             return k
         if (k := self.wave4_effect(cls, [a.strip() for a in args])) is not None:
@@ -3159,6 +3170,11 @@ class Translator:
             amount = self.amount(args[0])
             return {'class': 'TargetPermanent', 'filter': [dict(CREATURE)] + self.filter(args[1]),
                     'min': fewest(amount), 'max': 99, 'distribute': amount}
+        # X divided among creatures and/or planeswalkers of the filter (Dragonlord Atarka)
+        if cls == 'TargetCreatureOrPlaneswalkerAmount' and len(args) == 2:
+            amount = self.amount(args[0])
+            return {'class': 'TargetPermanent', 'filter': self.filter(args[1]), 'min': fewest(amount),
+                    'max': amount if isinstance(amount, int) else 99, 'distribute': amount}
         if cls == 'TargetPermanentOrPlayer' and len(args) == 4 and self.filters.get(args[2].strip()) == ANY_TARGET_NOT_FIRST \
                 and re.fullmatch(r'\d+', args[0].strip()) and re.fullmatch(r'\d+', args[1].strip()) and args[3].strip() == 'false':
             return {'class': 'TargetAnyTarget', 'min': int(args[0]), 'max': int(args[1]), 'not_first': True}
