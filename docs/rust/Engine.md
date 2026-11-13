@@ -100,7 +100,13 @@ beginning of a step, a spell cast, a card drawn, life gained, damage to a player
 to line it up with the facts.
 
 Classes a card file declares for itself (Kavaron Harrier's effect, Master of Barbs' trigger) are written by hand in
-the transpiler's `CUSTOM` table as the engine classes that do the same.
+the transpiler's `CUSTOM` table as the engine classes that do the same. A one-shot effect class that isn't in the
+table is read from its `apply` body by `rust/tools/custom_effects.py`: null checks, `if`s on a type, a condition or a
+`chooseUse` (also one paid for, `chooseUse(…) && cost.pay(…)`), loops over opponents, players or permanents, the top
+card of a library, and calls such as `damage`, `drawCards`, `moveCards` or `new XToken().putOntoBattlefield` become
+one `Effects` sequence of engine effects, with named slots for the locals ("target", "target.controller", "you",
+"second", a loop's permanent). A body with anything else (a `Cards` pile, a `switch`, a choice of cards, a field)
+stays unsupported. `PLAYMAT_APPLY_LOG=<file>` writes why each class did or didn't translate.
 
 ## The 10,000-game gate run (11–12 Nov 2026)
 

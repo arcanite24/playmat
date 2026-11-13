@@ -7332,6 +7332,189 @@ fn apply_effects(
     game.lookback = outer;
 }
 
+/// The slots an `Effects` sequence names (`EffectDef::Effects`): each a target group
+type Slots = Vec<(String, Vec<Target>)>;
+
+/// The slots an outermost `Effects` sequence starts with: its targets, the first one's controller, the controller
+fn first_slots(game: &Game, item: &StackItem, legal: &[Vec<Target>]) -> Slots {
+    let first = legal.first().cloned().unwrap_or_default();
+    let controller = first.iter().find_map(|t| match t {
+        Target::Obj(o) => Some(Target::Player(game.obj(*o).controller)),
+        _ => None,
+    });
+    vec![
+        ("target".into(), first),
+        ("second".into(), legal.get(1).cloned().unwrap_or_default()),
+        ("target.controller".into(), controller.into_iter().collect()),
+        ("you".into(), vec![Target::Player(item.controller)]),
+    ]
+}
+
+fn slot<'a>(slots: &'a Slots, name: &str) -> Option<&'a Vec<Target>> {
+    slots.iter().rev().find(|(n, _)| n == name).map(|(_, t)| t)
+}
+
+/// A slot's first object, if it's one
+fn slot_obj(slots: &Slots, name: &str) -> Option<ObjId> {
+    slot(slots, name).and_then(|ts| ts.first()).and_then(|t| if let Target::Obj(o) = t { Some(*o) } else { None })
+}
+
+fn slot_player(slots: &Slots, name: &str) -> Option<Seat> {
+    slot(slots, name).and_then(|ts| ts.first()).and_then(|t| if let Target::Player(p) = t { Some(*p) } else { None })
+}
+
+/// An `Effects` sequence (a card's own `apply` body, `EffectDef::Effects`)
+fn apply_sequence(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    item: &StackItem,
+    e: &EffectDef,
+    legal: &[Vec<Target>],
+    source: (ObjId, u32),
+    slots: &Slots,
+) {
+    let EffectDef::Effects { effects, otherwise, bind, require, x, to, each, when, may } = e else { return };
+    let mut slots = slots.clone();
+    let source_here = |g: &Game| g.obj(source.0).zone == Zone::Battlefield && g.obj(source.0).zcc == source.1;
+    if let Some(b) = bind {
+        let got: Vec<Target> = match b.what.as_str() {
+            "top_card" => {
+                let p = b.of.as_deref().and_then(|s| slot_player(&slots, s)).unwrap_or(item.controller);
+                game.player(p).library.first().map(|c| Target::Obj(*c)).into_iter().collect()
+            }
+            _ => return,
+        };
+        slots.push((b.name.clone(), got));
+    }
+    let holds = require.iter().all(|r| match r.slot.as_str() {
+        "source" => source_here(game) && (r.is != "creature" || game.has_type(source.0, CardType::Creature)),
+        // a spell has no permanent to remember
+        "source_lki" => item.ability.is_some() || item.delayed.is_some() || source_here(game),
+        s => match r.is.as_str() {
+            "" => slot(&slots, s).is_some_and(|ts| !ts.is_empty()),
+            "permanent" => slot_obj(&slots, s).is_some_and(|o| game.obj(o).zone == Zone::Battlefield),
+            "creature" => slot_obj(&slots, s)
+                .is_some_and(|o| game.obj(o).zone == Zone::Battlefield && game.has_type(o, CardType::Creature)),
+            // `player.getLibrary().hasCards()`
+            "library" => slot_player(&slots, s).is_some_and(|p| !game.player(p).library.is_empty()),
+            _ => false,
+        },
+    });
+    if !holds {
+        return;
+    }
+    let mut it = item.clone();
+    if let Some(q) = x {
+        use crate::card::Quantity;
+        let of = |s: &String| slot_obj(&slots, s);
+        it.x = match q {
+            Quantity::Amount { amount } => match (amount, item.lki_power) {
+                (Amount::Of(crate::card::Value::SourcePower), Some(p)) => p,
+                (a, _) => game.value(a, item.controller, source.0, item.x),
+            },
+            Quantity::Power { of: s } => of(s).map_or(0, |o| game.power_toughness(o).0),
+            Quantity::Toughness { of: s } => of(s).map_or(0, |o| game.power_toughness(o).1),
+            Quantity::ManaValue { of: s } => of(s).map_or(0, |o| game.obj(o).def.mana_value() as i32),
+        };
+    }
+    // one run, or one for each player or permanent (named, with a permanent's controller)
+    let runs: Vec<Vec<(String, Vec<Target>)>> = match each {
+        None => vec![Vec::new()],
+        Some(each) => {
+            let named = |t: Target, g: &Game| {
+                let mut v = vec![(each.name.clone(), vec![t])];
+                if let Target::Obj(o) = t {
+                    v.push((each.name.clone() + ".controller", vec![Target::Player(g.obj(o).controller)]));
+                }
+                v
+            };
+            match (each.kind.as_str(), &each.filter) {
+                ("opponents", _) => (0..game.seats())
+                    .filter(|s| *s != item.controller)
+                    .map(|s| named(Target::Player(s), game))
+                    .collect(),
+                ("players", _) => (0..game.seats()).map(|s| named(Target::Player(s), game)).collect(),
+                ("permanents", Some(filter)) => {
+                    let only = match each.controller.as_deref() {
+                        None => None,
+                        Some(s) => match slot_player(&slots, s) {
+                            Some(p) => Some(p),
+                            None => return,
+                        },
+                    };
+                    matching(game, filter, item.controller, source.0)
+                        .into_iter()
+                        .filter(|o| only.is_none_or(|p| game.obj(*o).controller == p))
+                        .map(|o| named(Target::Obj(o), game))
+                        .collect()
+                }
+                _ => return,
+            }
+        }
+    };
+    for run in runs {
+        let mut slots = slots.clone();
+        slots.extend(run);
+        let pointed: Vec<Vec<Target>> = match to.as_deref() {
+            None => legal.to_vec(),
+            Some(s) => {
+                let group = if s == "source" {
+                    if !source_here(game) {
+                        continue;
+                    }
+                    vec![Target::Obj(source.0)]
+                } else {
+                    match slot(&slots, s) {
+                        Some(g) => g.clone(),
+                        None => continue,
+                    }
+                };
+                std::iter::once(group).chain(legal.iter().skip(1).cloned()).collect()
+            }
+        };
+        let mut does = true;
+        if let Some(w) = when {
+            does = slot_obj(&slots, &w.slot)
+                .is_some_and(|o| game.filter_matches(&w.filter, item.controller, Some(source.0), o));
+        }
+        if does {
+            if let Some(m) = may {
+                let who = m.who.as_deref().and_then(|s| slot_player(&slots, s)).unwrap_or(item.controller);
+                let q = Query::YesNo { message: m.message.clone() };
+                does = loop {
+                    match ask(game, d, who, &q) {
+                        Answer::Bool(b) => break b,
+                        Answer::Stop => return,
+                        _ => {}
+                    }
+                };
+                if does && !m.pay.is_empty() {
+                    let life: i32 =
+                        m.pay.iter().map(|c| if let CostDef::PayLifeCost { amount } = c { *amount } else { 0 }).sum();
+                    does = if life > 0 {
+                        game.player(who).life >= life && {
+                            lose_life(game, who, life);
+                            true
+                        }
+                    } else {
+                        pay_mana(game, d, who, &ability_mana_cost(&m.pay))
+                    };
+                    if d.stopped() {
+                        return;
+                    }
+                }
+            }
+        }
+        for e in if does { effects } else { otherwise } {
+            if matches!(e, EffectDef::Effects { .. }) {
+                apply_sequence(game, d, &it, e, &pointed, source, &slots);
+            } else {
+                apply_effects(game, d, &it, std::slice::from_ref(e), &pointed, source);
+            }
+        }
+    }
+}
+
 fn apply_each_effect(
     game: &mut Game,
     d: &mut dyn Decider,
@@ -8870,6 +9053,51 @@ fn apply_each_effect(
                         let pa = pa.min(fight_lethal(game, b, a));
                         deal_damage(game, a, Target::Obj(b), pa, false);
                     }
+                }
+            }
+            // `FightTargetSourceEffect`: the source (still on the battlefield) fights the target, both creatures
+            EffectDef::FightTargetSourceEffect => {
+                let (a, zcc) = source;
+                let creature =
+                    |g: &Game, o: ObjId| g.obj(o).zone == Zone::Battlefield && g.has_type(o, CardType::Creature);
+                if let Some(Target::Obj(b)) = target {
+                    if game.obj(a).zcc == zcc && creature(game, a) && creature(game, b) {
+                        let pb = game.power_toughness(b).0;
+                        let pa = game.power_toughness(a).0;
+                        deal_damage(game, b, Target::Obj(a), pb, false);
+                        let pa = pa.min(fight_lethal(game, b, a));
+                        deal_damage(game, a, Target::Obj(b), pa, false);
+                    }
+                }
+            }
+            EffectDef::Effects { .. } => {
+                let slots = first_slots(game, item, legal);
+                apply_sequence(game, d, item, e, legal, source, &slots);
+            }
+            EffectDef::MoveTargetCardsEffect { zone } => {
+                for o in &objs {
+                    let o = *o;
+                    if game.obj(o).zone == Zone::Stack {
+                        Arc::make_mut(&mut game.stack).retain(|i| i.card != o || i.ability.is_some());
+                    }
+                    match zone.as_str() {
+                        "HAND" => game.move_to(o, Zone::Hand),
+                        "EXILED" => game.move_to(o, Zone::Exile),
+                        "GRAVEYARD" => game.move_to(o, Zone::Graveyard),
+                        "LIBRARY_BOTTOM" => to_library(game, o, false),
+                        "BATTLEFIELD" | "BATTLEFIELD_TAPPED" if game.obj(o).zone != Zone::Battlefield => {
+                            enter_battlefield(game, d, o, controller, false);
+                            if zone == "BATTLEFIELD_TAPPED" && game.obj(o).zone == Zone::Battlefield {
+                                game.obj_mut(o).tapped = true;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            EffectDef::DestroyNoRegenerateTargetEffect => {
+                for o in &objs {
+                    destroy_with(game, *o, false);
                 }
             }
             // `FightEnchantedTargetEffect`: the Aura's creature (last known) fights the target
@@ -13405,11 +13633,16 @@ fn put_counters(game: &mut Game, o: ObjId, name: &str, n: i32, by: Seat) {
 }
 
 fn destroy(game: &mut Game, id: ObjId) {
+    destroy_with(game, id, true)
+}
+
+/// `PermanentImpl.destroy`, with `noRegen` false when `regenerates`
+fn destroy_with(game: &mut Game, id: ObjId, regenerates: bool) {
     if game.obj(id).zone == Zone::Battlefield
         && !game.has_ability(id, &AbilityDef::IndestructibleAbility)
         && !shield(game, id)
         && !umbra_armor(game, id)
-        && !regenerate(game, id)
+        && !(regenerates && regenerate(game, id))
     {
         let creature = game.has_type(id, CardType::Creature);
         let token = game.obj(id).token;
