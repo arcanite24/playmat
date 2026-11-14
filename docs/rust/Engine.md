@@ -739,6 +739,18 @@ Being in the engine and being trusted are kept apart.
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
 
+  Wave 10, claim 1 (14 Nov): 61 handler files, three of them framework classes (`DamageWithExcessEffect`, with the
+  `lethal_from` and `damage_with_excess` helpers Torch the Witness reuses; `DamageTargetAndAllControlledEffect`;
+  `RemoveFromCombatTargetEffect`) and an `int` argument kind for a handler's numeric Java argument. Engine pieces:
+  `ReturnToHandFromBattlefieldSourceCost` (Shigeki, Rootha), `RevealLibraryPickControllerEffect` onto the battlefield
+  tapped, a stack item's `sacrificed` (the permanents its `SacrificeTargetCost`s took, for Thallid Omnivore and Pyre of
+  Heroes), and `AddPoisonCounterTargetEffect` as `AddCountersTargetEffect` with poison. "Discard any number of cards"
+  (Steal the Show) is `choose_cards_rounds`: Java's `TargetDiscard(0, MAX)` asks for "done" once more after a round
+  that added a card. Three factory rounds (122 games, all matching) verified 72: 11,201 of 11,393. Twelve games under
+  `shadow/handlers/game-handlers10-c1-*` cover the engine pieces and 57 of the cards. Left: Doomsday Excruciator (cast
+  in one game of 40), Commit // Memory and Wild Ricochet (need #358), Triskaidekaphobia (`GainLifeAllEffect`, #361 and
+  #370), Gonti (#365's look-at for face-down exiled cards).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
