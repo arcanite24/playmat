@@ -739,6 +739,14 @@ Being in the engine and being trusted are kept apart.
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
 
+  Load fixes (14 Nov): five cards in `cards.json` didn't load. Dragon's Approach, Sphinx's Approach and Ruthless
+  Disposal kept a `CompositeCost` in their spell, and Ultimecia, Time Sorceress in its front face's trigger, because
+  the transpiler flattened composite costs only in a plain card's abilities; it now flattens them in the whole card.
+  Sandman's Quicksand's mayhem ability has effects of its own (`MayhemAbility` copies the spell ability before the card
+  adds its effects), which the engine now reads as the mayhem spell's. One factory round (20 games, all matching)
+  verified the five: 11,134 of 11,322. `shadow/handlers/game-loadfix-composite-spell-cost.json` covers Ruthless
+  Disposal's two-part additional cost.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
