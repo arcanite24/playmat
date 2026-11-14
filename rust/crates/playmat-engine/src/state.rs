@@ -348,6 +348,14 @@ pub struct Obj {
     pub trigger_order: u64,
     /// a Class's levels gained (on the battlefield), with where the abilities they add are in trigger order
     pub class_gained: Vec<(u32, u64)>,
+    /// phased out (702.26): still on the battlefield (its zone), but treated as though it doesn't exist, so it's
+    /// off `Game::battlefield` and on `Game::phased`; it phases in as its controller's untap step begins
+    pub phased_out: bool,
+    /// it phased out indirectly (attached to a permanent that phased out): it phases in only with that one
+    pub phased_indirect: bool,
+    /// the melded permanent's two cards (`MeldCard`'s top and bottom halves), while it's on the battlefield: where
+    /// it leaves to, they go
+    pub melded: Vec<ObjId>,
 }
 
 impl Obj {
@@ -880,6 +888,9 @@ pub struct Game {
     pub players: Arc<Vec<Player>>,
     pub objs: Arc<Vec<Arc<Obj>>>,
     pub battlefield: Arc<Vec<ObjId>>,
+    /// the phased-out permanents (702.26): on the battlefield, but off `battlefield`, so what reads it doesn't see
+    /// them (Java's `getActivePermanents`); `all_permanents` puts them back in their places
+    pub phased: Arc<Vec<ObjId>>,
     pub exile: Arc<Vec<ObjId>>,
     /// emblems, in the order they were made
     pub command: Arc<Vec<ObjId>>,
@@ -1010,6 +1021,9 @@ pub struct Game {
     /// questions Java asked where the engine has no one to ask (`move_to`): which of several replacement effects
     /// applies, when they all do the same; asked before the next question or trace
     pub owed_choices: Vec<Seat>,
+    /// a melded permanent's two cards put into a graveyard or library (`move_to`): Java's owner orders them
+    /// (`ZonesHandler.chooseOrder`), asked like `owed_choices`. The cards as `move_to` put them there, in order
+    pub owed_meld_orders: Vec<(Seat, ObjId, ObjId)>,
     /// the same, owed where the game can't be changed (`Game::triggers`: two or more Panharmonicons applying; two
     /// counter or token doublers)
     pub owed_replacement_choices: std::cell::RefCell<Vec<Seat>>,
@@ -1255,6 +1269,7 @@ impl Game {
             players: Arc::new((0..seats).map(|_| Player { life: 20, ..Player::default() }).collect()),
             objs: Arc::new(Vec::new()),
             battlefield: Arc::new(Vec::new()),
+            phased: Arc::new(Vec::new()),
             command: Arc::new(Vec::new()),
             exile: Arc::new(Vec::new()),
             stack: Arc::new(Vec::new()),
@@ -1313,6 +1328,7 @@ impl Game {
             creatures_died: 0,
             void_this_turn: false,
             owed_choices: Vec::new(),
+            owed_meld_orders: Vec::new(),
             owed_replacement_choices: Default::default(),
             trigger_cause: None,
             damage_applied: None,
@@ -1389,6 +1405,62 @@ impl Game {
 
     pub fn seats(&self) -> usize {
         self.players.len()
+    }
+
+    /// Every permanent, the phased-out ones too, in Java's battlefield order (`Battlefield.getAllPermanents`, the
+    /// order they entered): what the fingerprint, the decision log's `B` refs and the views list
+    pub fn all_permanents(&self) -> Vec<ObjId> {
+        let mut all = self.battlefield.to_vec();
+        if !self.phased.is_empty() {
+            all.extend(self.phased.iter().copied());
+            all.sort_by_key(|id| (self.obj(*id).entered_at, id.0));
+        }
+        all
+    }
+
+    /// 702.26: a permanent phases out, and what's attached to it phases out indirectly (`PermanentImpl.phaseOut`);
+    /// it leaves combat. False: it was already phased out (or isn't on the battlefield).
+    pub fn phase_out(&mut self, id: ObjId, indirect: bool) -> bool {
+        if self.obj(id).zone != Zone::Battlefield || self.obj(id).phased_out {
+            return false;
+        }
+        let attached: Vec<ObjId> = self.attachments(id).collect();
+        for a in attached {
+            self.phase_out(a, true);
+        }
+        Arc::make_mut(&mut self.battlefield).retain(|x| *x != id);
+        Arc::make_mut(&mut self.phased).push(id);
+        let o = self.obj_mut(id);
+        o.phased_out = true;
+        o.phased_indirect = indirect;
+        true
+    }
+
+    /// A phased-out permanent phases in, and what phased out indirectly with it (`PermanentImpl.phaseIn`)
+    pub fn phase_in(&mut self, id: ObjId) {
+        if !self.obj(id).phased_out {
+            return;
+        }
+        Arc::make_mut(&mut self.phased).retain(|x| *x != id);
+        let key = (self.obj(id).entered_at, id.0);
+        let at = self
+            .battlefield
+            .iter()
+            .position(|b| (self.obj(*b).entered_at, b.0) > key)
+            .unwrap_or(self.battlefield.len());
+        Arc::make_mut(&mut self.battlefield).insert(at, id);
+        let o = self.obj_mut(id);
+        o.phased_out = false;
+        o.phased_indirect = false;
+        let attached: Vec<ObjId> = self
+            .phased
+            .iter()
+            .copied()
+            .filter(|a| self.obj(*a).phased_indirect && self.obj(*a).attached_to.is_some_and(|(t, _)| t == id))
+            .collect();
+        for a in attached {
+            self.phase_in(a);
+        }
     }
 
     pub fn obj(&self, id: ObjId) -> &Obj {
@@ -1528,6 +1600,9 @@ impl Game {
             token: false,
             trigger_order: id.0 as u64,
             class_gained: Vec::new(),
+            phased_out: false,
+            phased_indirect: false,
+            melded: Vec::new(),
         }));
         id
     }
@@ -2961,6 +3036,22 @@ impl Game {
                 self.obj(source).marks.contains(&turn)
             }
             Condition::SourceHasCounters => self.obj(source).counters.iter().any(|(_, n)| *n > 0),
+            Condition::Meld { with, card_type, attacking } => {
+                let s = self.obj(source);
+                s.zone == Zone::Battlefield
+                    && !s.phased_out
+                    && s.controller == you
+                    && s.owner == you
+                    && (!*attacking || s.attacking.is_some())
+                    && self.battlefield.iter().any(|b| {
+                        let o = self.obj(*b);
+                        o.controller == you
+                            && o.owner == you
+                            && self.has_type(*b, *card_type)
+                            && o.name() == with
+                            && (!*attacking || o.attacking.is_some())
+                    })
+            }
             Condition::SourceAttached { equipment } => self.battlefield.iter().any(|b| {
                 self.attached(*b) == Some(source)
                     && (self.has_type(*b, CardType::Enchantment) || *equipment && self.has_subtype(*b, "Equipment"))
@@ -3252,6 +3343,18 @@ impl Game {
         if !boosts {
             return (p, t);
         }
+        // phased out: Java's counters and the effects that read the battlefield (`getActivePermanents`) skip it;
+        // what targeted it (`BoostTargetEffect`) still applies
+        if o.phased_out {
+            let creature = self.has_type(id, CardType::Creature);
+            for b in self.boosts.iter() {
+                if b.target == id && b.zcc == o.zcc && (creature || b.noncreature_too) {
+                    p += b.power;
+                    t += b.toughness;
+                }
+            }
+            return (p, t);
+        }
         // +1/+1 counters change only a creature's power and toughness (a Vehicle's, while it's crewed)
         if self.has_type(id, CardType::Creature) {
             let counters = o.counter("+1/+1") - o.counter("-1/-1");
@@ -3399,7 +3502,15 @@ impl Game {
             Zone::Library => self.player_mut(owner).library.retain(|x| *x != id),
             Zone::Hand => self.player_mut(owner).hand.retain(|x| *x != id),
             Zone::Graveyard => self.player_mut(owner).graveyard.retain(|x| *x != id),
-            Zone::Battlefield => Arc::make_mut(&mut self.battlefield).retain(|x| *x != id),
+            Zone::Battlefield => {
+                Arc::make_mut(&mut self.battlefield).retain(|x| *x != id);
+                if self.phased.contains(&id) {
+                    Arc::make_mut(&mut self.phased).retain(|x| *x != id);
+                }
+                let o = self.obj_mut(id);
+                o.phased_out = false;
+                o.phased_indirect = false;
+            }
             Zone::Exile => Arc::make_mut(&mut self.exile).retain(|x| *x != id),
             Zone::Command => Arc::make_mut(&mut self.command).retain(|x| *x != id),
             Zone::Outside => {
@@ -4110,6 +4221,32 @@ impl Game {
             Arc::make_mut(&mut self.exile).push(id);
         }
         if self.obj(id).token && zone != Zone::Battlefield {
+            return;
+        }
+        // a melded permanent's two cards go where it goes, each a card of its own (`ZonesHandler`'s `MeldCard`
+        // halves); the melded permanent itself is in no zone's list
+        if from == Zone::Battlefield && zone != Zone::Battlefield && !self.obj(id).melded.is_empty() {
+            let halves = std::mem::take(&mut self.obj_mut(id).melded);
+            if matches!(zone, Zone::Graveyard | Zone::Library) && halves.len() == 2 {
+                let owner = self.obj(id).owner;
+                self.owed_meld_orders.push((owner, halves[0], halves[1]));
+            }
+            for h in halves {
+                let o = self.obj_mut(h);
+                o.zone = zone;
+                o.zcc += 1;
+                o.controller = o.owner;
+                let owner = o.owner;
+                match zone {
+                    Zone::Library => self.player_mut(owner).library.push(h),
+                    Zone::Hand => self.player_mut(owner).hand.push(h),
+                    Zone::Graveyard => self.player_mut(owner).graveyard.push(h),
+                    Zone::Exile => Arc::make_mut(&mut self.exile).push(h),
+                    Zone::Command => Arc::make_mut(&mut self.command).push(h),
+                    Zone::Outside => self.player_mut(owner).outside.push(h),
+                    Zone::Stack | Zone::Battlefield => {}
+                }
+            }
             return;
         }
         match zone {

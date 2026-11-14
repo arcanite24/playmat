@@ -21,6 +21,7 @@
 //!   own static abilities too: "this spell costs {2} less") and activated abilities (`adjusted_mana_cost_own`).
 //! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`.
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
+//!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
 //!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`.
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
@@ -349,6 +350,10 @@ pub(crate) struct Restriction {
 pub(crate) enum Rule {
     /// `CAST_SPELL` (and `CAST_SPELL_LATE`): `seat` can't cast the card `id` as `face`
     CantCast(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> bool),
+    /// `CAST_SPELL_LATE` whose `applies` reads the spell on the stack (Brisela's `getStack().getSpell`): `seat` can't
+    /// cast the spell `id` as `face`. The playable check finds no spell, so it holds only as the spell is cast, after
+    /// its modes and targets (`AbilityImpl.activate`, 601.2e), which undoes the cast
+    CantCastOnStack(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> bool),
     /// `ACTIVATE_ABILITY` of an activated ability that isn't a mana ability: `seat` can't activate the ability at
     /// `index` of `id` (Faith's Fetters)
     CantActivate(fn(&Game, &StaticCx, Seat, ObjId, usize) -> bool),
@@ -688,6 +693,18 @@ pub(crate) fn cant_cast(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> b
     };
     each_static(game, &mut check);
     each_own_static(game, id, &mut check);
+    out
+}
+
+/// Whether a rule-modifying handler stops `seat` casting `id`, on the stack now as `face`, once its modes and
+/// targets are chosen
+pub(crate) fn cant_cast_on_stack(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool {
+    let mut out = false;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::CantCastOnStack(f)) = h {
+            out = out || f(game, cx, seat, id, face);
+        }
+    });
     out
 }
 
