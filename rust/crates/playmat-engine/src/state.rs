@@ -2267,8 +2267,15 @@ impl Game {
     /// Whether `seat` may play `id` now by an effect that made it playable (`may_play`, with its end)
     pub fn may_play_now(&self, id: ObjId, seat: Seat) -> bool {
         let o = self.obj(id);
+        // a prepared copy: its permanent's controller casts it (`PrepareCastFromExileEffect`), whoever made it
+        let caster = |p: Seat| match o.prepared_for {
+            Some((perm, zcc)) if self.obj(perm).zone == Zone::Battlefield && self.obj(perm).zcc == zcc => {
+                self.obj(perm).controller
+            }
+            _ => p,
+        };
         o.may_play.is_some_and(|(p, t)| {
-            p == seat
+            caster(p) == seat
                 && (self.turn < t
                     || (self.turn == t
                         && !(o.may_play_end_step && matches!(self.step, Some(Step::EndTurn | Step::Cleanup)))))
