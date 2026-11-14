@@ -1242,9 +1242,17 @@ fn pass(game: &mut Game, seat: Seat) {
     game.player_mut(seat).passed = true;
 }
 
-/// `HumanPlayer.passWithManaPoolCheck`: passing with mana in the pool asks first. False: the player didn't pass.
+/// `HumanPlayer.passWithManaPoolCheck`: passing with mana in the pool asks first, unless all of it is of kinds a
+/// `YouDontLoseManaEffect` keeps (`ManaPool.canLostManaOnEmpty`). False: the player didn't pass.
 fn pass_with_mana_pool_check(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
-    if game.stack.is_empty() && game.player(seat).mana_pool.total() > 0 && !game.player(seat).no_pool_check {
+    let pool = game.player(seat).mana_pool;
+    let lost = pool.total() > 0 && {
+        let kept = cards::kept_mana_kinds(game, seat);
+        let kept_n: u32 =
+            (0..6).filter(|k| kept[*k]).map(|k| if k < 5 { pool.colored[k] } else { pool.colorless }).sum();
+        pool.total() > kept_n
+    };
+    if game.stack.is_empty() && lost && !game.player(seat).no_pool_check {
         let q =
             Query::YesNo { message: "You still have mana in your mana pool and it will be lost. Pass anyway?".into() };
         loop {
