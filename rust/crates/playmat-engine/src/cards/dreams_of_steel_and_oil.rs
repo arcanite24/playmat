@@ -5,8 +5,8 @@ use super::*;
 
 pub const HANDLERS: &[Handler] = &[Handler::effect("DreamsOfSteelAndOil.DreamsOfSteelAndOilEffect", apply)];
 
-/// The hand is revealed; you choose from it, then from the graveyard (each not targeted, when there's one); both
-/// are exiled together
+/// The hand is revealed; you choose from it, then from the graveyard (not targeted; each asked whenever that zone has
+/// a card, even with none that fits, as `HumanPlayer.choose` does); both are exiled together
 fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let Some(p) = cx.player(0) else { return Some(()) };
     let you = cx.controller();
@@ -18,12 +18,12 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let rule = item_rule(game, cx.item);
     let mut to_exile = Vec::new();
     let possible: Vec<ObjId> = hand.iter().copied().filter(|c| fits(game, *c)).collect();
-    if !possible.is_empty() {
+    if !hand.is_empty() {
         to_exile.extend(choose_cards(game, d, you, &hand, &possible, 1, 1, &rule)?);
     }
     let graveyard = game.player(p).graveyard.clone();
     let possible: Vec<ObjId> = graveyard.iter().copied().filter(|c| fits(game, *c)).collect();
-    if !possible.is_empty() {
+    if !graveyard.is_empty() {
         to_exile.extend(choose_cards(game, d, you, &graveyard, &possible, 1, 1, &rule)?);
     }
     for c in to_exile {

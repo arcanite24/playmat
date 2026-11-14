@@ -15,7 +15,7 @@ fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         return Some(());
     }
     let owner = game.obj(o).owner;
-    game.move_to(o, Zone::Library);
+    to_library(game, o, true);
     let mut library = game.player(owner).library.clone();
     game.rng.shuffle(&mut library);
     game.player_mut(owner).library = library;
