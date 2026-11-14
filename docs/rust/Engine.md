@@ -739,6 +739,15 @@ Being in the engine and being trusted are kept apart.
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
 
+  Wave 10, claim 3, second batch (14 Nov): the claim's cheapest cards, 47 handler files with no engine change
+  (one-shot effects and conditions, and the framework's `AddCounterChoiceSourceEffect`, which brought in Boot Nipper
+  and Wingfold Pteron, and `DamageTargetAndAllControlledEffect`, which brought in Radiating Lightning). Java chooses
+  a lone permanent without asking for Wayward Guide-Beast's land, and asks Devout Invocation's controller even with
+  no untapped creature. Two factory rounds (78 games, all matching) verified 51, 48 of them from the claim's list:
+  11,180 of 11,374. Twelve games under `shadow/handlers/game-handlers10-claim3b-*` cover them. Left: Mardu Charm
+  (pending: not exercised enough), Ferocious Tigorilla (its "enters with" text), Feast of the Victorious Dead
+  (distributing counters), and about 750 of the list's cards.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
