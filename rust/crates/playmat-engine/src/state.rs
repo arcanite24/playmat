@@ -645,6 +645,9 @@ pub struct StackItem {
     pub spliced: Vec<Spliced>,
     /// a cast trigger: the spell that was cast (Java's `getValue("spellCast")`), whatever its target pointer is
     pub cast_spell: Option<ObjId>,
+    /// a "whenever a creature dies" trigger (`DiesCreatureTriggeredAbility`): the permanent that died and its
+    /// controller as it died (`getValue("creatureDied")`, its last known information)
+    pub died: Option<(ObjId, Seat)>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -719,6 +722,7 @@ impl StackItem {
             def: None,
             spliced: Vec::new(),
             cast_spell: None,
+            died: None,
         }
     }
 }
@@ -3501,6 +3505,11 @@ impl Game {
             });
             self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
+            for t in fired.iter_mut() {
+                if matches!(self.trigger_of(t), Some(Trigger::DiesAll { .. })) {
+                    t.died = Some((id, died_controller));
+                }
+            }
             // a source that left in the same action triggers as the permanent it was (Morbid Opportunist dying with
             // the others: its "once each turn" counts that object, not the card in the graveyard)
             for t in fired.iter_mut() {
