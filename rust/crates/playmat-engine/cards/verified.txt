@@ -269,6 +269,7 @@ Alesha's Legacy
 Alesha's Vanguard
 Alesha, Who Laughs at Fate
 Alhammarret's Archive
+Aligned Hedron Network
 All That Glitters
 All-Fates Scroll
 All-Fates Stalker
@@ -283,6 +284,7 @@ Ally Encampment
 Almighty Brushwagg
 Alms Beast
 Alms of the Vein
+Aloe Alchemist
 Alpha Authority
 Alpharael, Dreaming Acolyte
 Alpine Grizzly
@@ -1165,6 +1167,7 @@ Bolt of Keranos
 Boltwave
 Boltwing Marauder
 Bomat Bazaar Barge
+Bomat Courier
 Bombard
 Bomber Corps
 Bond of Discipline
@@ -1252,6 +1255,7 @@ Brackish Blunder
 Brackish Trudge
 Braids's Frightful Return
 Braids, Arisen Nightmare
+Brain Maggot
 Bramble Armor
 Bramble Familiar
 Bramble Wurm
@@ -1423,6 +1427,7 @@ By Invitation Only
 Bygone Bishop
 Bygone Colossus
 Byrke, Long Ear of the Law
+Byway Barterer
 Byway Courier
 Cabal Evangel
 Cabal Paladin
@@ -1446,6 +1451,7 @@ Calamity's Wake
 Calculated Dismissal
 Caldaia Strongarm
 Caligo Skin-Witch
+Calix, Destiny's Hand
 Call Damage Control
 Call In a Professional
 Call a Surprise Witness
@@ -1641,8 +1647,11 @@ Champion of Dusan
 Champion of Dusk
 Champion of Rhonas
 Champion of Wits
+Champion of the Clachan
 Champion of the Flame
+Champion of the Path
 Champion of the Perished
+Champions of the Perfect
 Chancellor of Tales
 Chandra's Defeat
 Chandra's Embercat
@@ -1983,6 +1992,7 @@ Congregate
 Congregation Gryff
 Conifer Strider
 Conjured Currency
+Connecting the Dots
 Connive // Concoct
 Conquest Mission
 Conscripted Infantry
@@ -1998,6 +2008,7 @@ Constricting Sliver
 Constrictor Sage
 Consul's Lieutenant
 Consul's Shieldguard
+Consulate Crackdown
 Consulate Dreadnought
 Consulate Skygate
 Consulate Turret
@@ -2428,6 +2439,7 @@ Debt to the Deathless
 Debt to the Kami
 Debtor's Pulpit
 Debtors' Transport
+Decadent Dragon
 Deceit
 Decimator Beetle
 Decimator of the Provinces
@@ -2498,6 +2510,7 @@ Demon's Due
 Demon's Grasp
 Demonic Bargain
 Demonic Counsel
+Demonic Embrace
 Demonic Pact
 Demonic Ruckus
 Demonlord Belzenlok
@@ -2517,6 +2530,7 @@ Depower
 Depressurize
 Depths of Desire
 Deputy of Acquittals
+Deputy of Detention
 Deranged Whelp
 Derelict Attic // Widow's Walk
 Descend upon the Sinful
@@ -3167,6 +3181,7 @@ Emeritus of Conflict
 Emeritus of Ideation
 Emeritus of Truce
 Emeritus of Woe
+Emet-Selch, Unsundered
 Emissary of Sunrise
 Emissary of the Sleepless
 Emmara Tandris
@@ -3297,6 +3312,7 @@ Etali, Primal Storm
 Etched Cornfield
 Etched Familiar
 Eternal Isolation
+Eternal Scourge
 Eternal Skylord
 Eternal Student
 Eternal Taskmaster
@@ -3954,6 +3970,7 @@ Fungal Rebirth
 Furious Bellow
 Furious Reprisal
 Furious Resistance
+Furious Rise
 Furnace Gremlin
 Furnace Host Charger
 Furnace Punisher
@@ -4916,6 +4933,7 @@ Hive of the Eye Tyrant
 Hivespine Wolverine
 Hoard Hauler
 Hoard Robber
+Hoarding Dragon
 Hoarding Ogre
 Hoarding Recluse
 Hobbit Hole
@@ -5615,6 +5633,7 @@ Kefnet's Monument
 Keldon Overseer
 Keldon Raider
 Keldon Strike Team
+Kellan Joins Up
 Kellan's Lightblades
 Kellan, Planar Trailblazer
 Kellan, the Fae-Blooded
@@ -6018,6 +6037,7 @@ Liliana's Steward
 Liliana's Triumph
 Liliana, Death Wielder
 Liliana, Dreadhorde General
+Liliana, Untouched by Death
 Liliana, the Necromancer
 Lilysplash Mentor
 Liminal Hold
@@ -6089,6 +6109,7 @@ Long Lake Nuisance
 Long River's Pull
 Long-Bodied Grey Dog
 Long-Finned Skywhale
+Longhorn Sharpshooter
 Longshot Squad
 Longtusk Cub
 Lookout's Dispersal
@@ -6313,6 +6334,7 @@ Map the Frontier
 Map the Wastes
 Maraleaf Pixie
 Maraleaf Rider
+Marang River Prowler
 Marang River Regent
 Marang River Skeleton
 Marauder's Axe
@@ -6997,6 +7019,7 @@ Nightmarish End
 Nightpack Ambusher
 Nightsquad Commando
 Nightveil Predator
+Nightveil Specter
 Nightveil Sprite
 Nightwhorl Hermit
 Nightwing Shade
@@ -7115,6 +7138,7 @@ Oath of Nissa
 Oath of Teferi
 Oath of the Ancient Wood
 Oathsworn Knight
+Oathsworn Vampire
 Ob Nixilis's Cruelty
 Ob Nixilis, Captive Kingpin
 Ob Nixilis, the Hate-Twisted
@@ -7305,6 +7329,7 @@ Outlaw Medic
 Outlaws' Fury
 Outnumber
 Outpost Siege
+Outrageous Robbery
 Ovalchase Daredevil
 Ovalchase Dragster
 Over the Edge
@@ -7759,6 +7784,7 @@ Prophesied End
 Prophet of Distortion
 Prophet of Kruphix
 Prophet of the Peak
+Prophetic Flamespeaker
 Prophetic Prism
 Prophetic Ravings
 Prosperity Tycoon
@@ -7789,6 +7815,7 @@ Prying Questions
 Psionic Snoop
 Psychic Corrosion
 Psychic Frog
+Psychic Intrusion
 Psychic Spiral
 Psychic Strike
 Psychic Symbiont
@@ -7921,6 +7948,7 @@ Radical Idea
 Radioactive Spider
 Raff Capashen, Ship's Mage
 Raff, Weatherlight Stalwart
+Raffine's Guidance
 Raffine's Informant
 Raffine's Tower
 Raffine, Scheming Seer
@@ -8392,6 +8420,7 @@ Rise of the Dread Marn
 Rise of the Varmints
 Rise to Glory
 Rise to the Challenge
+Risen Executioner
 Risen Reef
 Risen Riptide
 Risen Sanctuary
@@ -8505,6 +8534,7 @@ Rot Farm Mortipede
 Rot Farm Skeleton
 Rot Shambler
 Rot-Tide Gargantua
+Rotfeaster Maggot
 Rotisserie Elemental
 Rotted Hulk
 Rotten Reunion
@@ -9790,6 +9820,7 @@ Squall, SeeD Mercenary
 Square Up
 Squash
 Squawkroaster
+Squee, the Immortal
 Squelching Leeches
 Squire's Devotion
 Squire's Lightblade
@@ -10166,6 +10197,7 @@ Super Strength
 Super Suit
 Super Villain Lockup
 Super-Skrull
+Superior Foes of Spider-Man
 Supernatural Rescue
 Supernatural Stamina
 Suplex
@@ -10255,6 +10287,7 @@ Switcheroo
 Swooping Lookout
 Swooping Protector
 Sword of Forge and Frontier
+Sword of Once and Future
 Sword of Vengeance
 Sword of Wealth and Power
 Sword of the Animist
@@ -10632,6 +10665,7 @@ The Wind Crystal
 The Witch's Vanity
 The Wondrous Wasp
 The World Spell
+Theater of Horrors
 Theoretical Necromancer
 Theorist's Sanctum
 Theorix Annex
@@ -11371,6 +11405,7 @@ Vault Plunderer
 Vault Robber
 Vaultborn Tyrant
 Vaultbreaker
+Vaultguard Trooper
 Vayne's Treachery
 Vector, Imperial Capital
 Vedalken Blademaster
@@ -11616,6 +11651,7 @@ Waker of the Wilds
 Wakeroot Elemental
 Walk the Plank
 Walk with the Ancestors
+Walk-In Closet // Forgotten Cellar
 Walking Corpse
 Walking Skyscraper
 Wall Crawl
@@ -11849,6 +11885,7 @@ Wicked Slumber
 Wicked Visitor
 Wicked Wolf
 Wicker Witch
+Wickerfolk Indomitable
 Wickerfolk Thresher
 Widespread Brutality
 Widespread Thieving

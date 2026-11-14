@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (12,410 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,450 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1096,7 +1096,7 @@ Being in the engine and being trusted are kept apart.
   `exiled_until_leaves` (Brain Maggot's card goes back to hand through `return_to_hand`). Fixes: a spell's controller
   in a filter is who cast it (an opponent's card cast with Psychic Intrusion triggers Eternal Scourge), and only the
   player who may look at a face-down exiled card is asked whether to (Squee cast by its owner). Three factory rounds
-  (82 games, 74 matching) verified 37: 12,136 of 12,404. Ten games under `shadow/handlers/game-handlers11-exile-*`
+  (82 games, 74 matching) verified 37: 12,182 of 12,450 (on the train with the copy wave). Ten games under `shadow/handlers/game-handlers11-exile-*`
   cover them. Left: Mnemonic Betrayal (it returns its cards from a `HashSet<MageObjectReference>`, so the graveyard
   order is random; Bishop of Binding's one mismatch is that game), Festival of Embers (Java shows the ability picker
   for a graveyard cast with it), Doom Reigns Supreme (`PlanCounterThresholdTriggeredAbility`), Inside Information
