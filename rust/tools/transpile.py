@@ -2723,12 +2723,6 @@ class Translator:
         # "you gain hexproof until end of turn" (as it resolves)
         if cls == 'GainAbilityControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.EndOfTurn':
             return {'class': cls, 'ability': self.ability(args[0]), 'until_end_of_turn': True}
-        # "add {R}{R}{R}{G}{G}{G}. Until end of turn, you don't lose this mana as steps and phases end"
-        if cls == 'UntilEndOfTurnManaEffect' and len(args) == 1:
-            out = self.effect('new BasicManaEffect(' + args[0] + ')')
-            if out.get('class') != 'BasicManaEffect':
-                raise Unsupported('effect ' + cls)
-            return {**out, 'until_end_of_turn': True}
         if cls == 'BasicManaEffect' and len(args) == 1:
             a = args[0].strip()
             if (n := re.fullmatch(r'newMana\(ManaType\.(WHITE|BLUE|BLACK|RED|GREEN|COLORLESS),(\d+)\)', a.replace(' ', ''))):
