@@ -5213,6 +5213,20 @@ class Translator:
             return out({'e': 'draws', 'who': 'you'}, args[1], flag(args[2]))
         if cls == 'DrawCardOpponentTriggeredAbility' and n == 3:
             return out({'e': 'draws', 'who': 'opponent'}, args[0], flag(args[1]), flag(args[2]))
+        # "whenever a source deals damage to this": the source's controller the player pointer (`DAMAGED_PERMANENT`)
+        if cls == 'SourceDealsDamageToThisTriggeredAbility' and n in (1, 2):
+            a = out({'e': 'damaged_permanent', 'of': 'to_this'}, args[0], n == 2 and flag(args[1]))
+            a['set_target_pointer_player'] = True
+            return a
+        # "whenever this deals (combat) damage to a creature (of the filter)", each `DAMAGED_PERMANENT` event
+        if cls == 'DealsDamageToACreatureTriggeredAbility' and n in (4, 5):
+            f = self.filter(args[4]) if n == 5 else self.filter('StaticFilters.FILTER_PERMANENT_A_CREATURE')
+            return out({'e': 'damaged_permanent', 'of': 'this_to', 'filter': f, 'combat': flag(args[1])}, args[0],
+                       flag(args[2]), flag(args[3]))
+        # Giant's Skewer: "whenever equipped creature deals combat damage to a creature" (in Java, to any permanent)
+        if cls == 'GiantsSkewerTriggeredAbility' and n == 0:
+            return out({'e': 'damaged_permanent', 'of': 'attached_to', 'combat': True},
+                       'new CreateTokenEffect(new FoodToken())')
         # "whenever this deals (combat) damage", once for each batch of its damage (`DAMAGED_BATCH_BY_SOURCE`)
         if cls == 'DealsDamageSourceTriggeredAbility' and n in (1, 2):
             return out({'e': 'deals_damage'}, args[0], n == 2 and flag(args[1]))

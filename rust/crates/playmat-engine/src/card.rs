@@ -818,6 +818,18 @@ pub enum Trigger {
     },
     /// this is dealt damage (`DealtDamageToSourceTriggeredAbility`: once for each batch, with the damage as X)
     DealtDamage,
+    /// a source deals damage to a permanent, each `DAMAGED_PERMANENT` event, X the damage (`combat`: combat damage
+    /// only). `of` says whose: "to_this", any source to this (`SourceDealsDamageToThisTriggeredAbility`, its player
+    /// pointer the source's controller); "this_to", this to a permanent of `filter`
+    /// (`DealsDamageToACreatureTriggeredAbility`); "attached_to", the permanent this is attached to, to one of
+    /// `filter` (Giant's Skewer). A target pointer is the damaged permanent.
+    DamagedPermanent {
+        of: String,
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        combat: bool,
+    },
     /// you draw your `n`th card this turn (`DrawNthCardTriggeredAbility`); `who` another `TargetController`
     /// ("opponent": an opponent draws their `n`th card, "any": a player does)
     DrawsNth {

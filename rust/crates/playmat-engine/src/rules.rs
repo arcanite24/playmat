@@ -19117,6 +19117,32 @@ fn damaged_batch_triggers(game: &mut Game) {
     }
 }
 
+/// `DAMAGED_PERMANENT`, each time a source deals damage to a permanent: the `Trigger::DamagedPermanent`s it fires,
+/// X the damage, a target pointer at the damaged permanent or a player pointer at the source's controller
+fn damaged_permanent_triggers(game: &mut Game, source: ObjId, o: ObjId, amount: i32, combat: bool) {
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::DamagedPermanent { of, filter, combat: only } if combat || !*only => match of.as_str() {
+            "to_this" => src == o,
+            "this_to" => src == source && g.filter_matches(filter, you, Some(src), o),
+            "attached_to" => g.attached(src) == Some(source) && g.filter_matches(filter, you, Some(src), o),
+            _ => false,
+        },
+        _ => false,
+    });
+    for mut t in fired {
+        t.x = amount;
+        if set_target_pointer(game, &t) {
+            t.targets = vec![vec![Target::Obj(o)]];
+            t.target_zcc = vec![vec![game.obj(o).zcc]];
+        } else if set_target_pointer_player(game, &t) {
+            t.targets = vec![vec![Target::Player(game.obj(source).controller)]];
+            t.target_zcc = vec![vec![0]];
+        }
+        game.pending.push(t);
+    }
+}
+
 /// `DAMAGED_BATCH_BY_SOURCE`: for each source that dealt damage, in the order it first did, "whenever this (or a
 /// permanent of the filter) deals damage" triggers once, X the batch's damage; a combat batch for "combat damage"
 fn source_damage_batch_triggers(game: &mut Game) {
@@ -20073,6 +20099,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
             if wither {
                 add_counters_by(game, o, "-1/-1", amount, Some(you));
+            }
+            if amount > 0 {
+                damaged_permanent_triggers(game, source, o, amount, combat);
             }
         }
     }
