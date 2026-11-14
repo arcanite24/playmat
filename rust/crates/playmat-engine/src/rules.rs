@@ -1242,9 +1242,17 @@ fn pass(game: &mut Game, seat: Seat) {
     game.player_mut(seat).passed = true;
 }
 
-/// `HumanPlayer.passWithManaPoolCheck`: passing with mana in the pool asks first. False: the player didn't pass.
+/// `HumanPlayer.passWithManaPoolCheck`: passing with mana in the pool asks first, unless all of it is of kinds a
+/// `YouDontLoseManaEffect` keeps (`ManaPool.canLostManaOnEmpty`). False: the player didn't pass.
 fn pass_with_mana_pool_check(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
-    if game.stack.is_empty() && game.player(seat).mana_pool.total() > 0 && !game.player(seat).no_pool_check {
+    let pool = game.player(seat).mana_pool;
+    let lost = pool.total() > 0 && {
+        let kept = cards::kept_mana_kinds(game, seat);
+        let kept_n: u32 =
+            (0..6).filter(|k| kept[*k]).map(|k| if k < 5 { pool.colored[k] } else { pool.colorless }).sum();
+        pool.total() > kept_n
+    };
+    if game.stack.is_empty() && lost && !game.player(seat).no_pool_check {
         let q =
             Query::YesNo { message: "You still have mana in your mana pool and it will be lost. Pass anyway?".into() };
         loop {
@@ -9021,6 +9029,11 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
         if !fizzles {
             for ((effects, _, part), l) in parts.iter().zip(legal) {
                 if let Some(l) = l {
+                    // legality is checked only as the spell begins to resolve, but a target an earlier mode moved is a
+                    // new object a later mode's target pointer doesn't find (Quandrix Command returning a creature, then
+                    // putting counters on it)
+                    let l: Vec<Vec<Target>> =
+                        l.iter().enumerate().map(|(i, g)| fresh_targets(game, part, i, g)).collect();
                     apply_effects(game, d, part, effects, &l, (id, zcc));
                 }
             }
@@ -10053,10 +10066,10 @@ fn token_copy_with(
     made
 }
 
-/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish), or draws a card
+/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish, an untapped Food), or draws a card
 fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, source: ObjId) {
     for a in &def.abilities {
-        if let AbilityDef::GiftAbility { token, .. } = a {
+        if let AbilityDef::GiftAbility { token, untapped, .. } = a {
             match token {
                 Some(token) => {
                     let tdef = Arc::new(token.card());
@@ -10068,7 +10081,9 @@ fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, sour
                         o.token = true;
                         o.trigger_order = (1 << 32) + id.0 as u64;
                         enter_battlefield(game, d, id, to, false);
-                        game.obj_mut(id).tapped = true;
+                        if !*untapped {
+                            game.obj_mut(id).tapped = true;
+                        }
                     }
                 }
                 None => draw(game, to, 1),
@@ -11933,6 +11948,9 @@ fn apply_each_effect(
                 // a spell's "if the gift was promised": the spell's own item knows
                 let holds = if *condition == Condition::GiftPromised {
                     item.gift_promised
+                } else if matches!(condition, Condition::Not { x } if **x == Condition::GiftPromised) {
+                    // "if the gift wasn't promised" (Nocturnal Hunger)
+                    !item.gift_promised
                 } else {
                     // (a permanent's own trigger: whether it was cast kicked, Crimestopper Sprite's "if evidence was
                     // collected")

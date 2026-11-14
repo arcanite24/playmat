@@ -4369,6 +4369,9 @@ pub enum AbilityDef {
         name: String,
         #[serde(default)]
         token: Option<TokenDef>,
+        /// the token enters untapped (a Food; the Fish enters tapped)
+        #[serde(default)]
+        untapped: bool,
         rule: String,
     },
     /// spree: the spell's modes each cost more, and one or more are chosen (the modes carry the costs)

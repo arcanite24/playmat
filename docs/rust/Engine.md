@@ -739,6 +739,28 @@ Being in the engine and being trusted are kept apart.
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
 
+  Wave 8, claim 4 (14 Nov): 31 handler files (cards' own classes, and framework ones for
+  `SetBaseToughnessSourceEffect` with devotion and `TargetPlayerShufflesTargetCardsEffect` with
+  `TargetCardInTargetPlayersGraveyard`, which Java lets pick any graveyard card: the class overrides only the
+  `canTarget` neither choosing nor resolving calls) and transpiler forms (`ConditionalReplacementEffect` around a
+  replacement handler, `SimpleActivatedAbility(Zone.BATTLEFIELD, …)`, the effects a trigger handler's class adds in
+  its constructor unless its base effect is a handler of its own, `ForEachPlayerTargetsAdjuster(true, true)` on an
+  opponent's-graveyard card in a duel, `CopyStackObjectEffect`, a Food gift and "if the gift wasn't promised")
+  brought 40 cards in (11,362 in the engine). Engine fixes: passing priority with only mana a static keeps in the
+  pool doesn't ask (`ManaPool.canLostManaOnEmpty`: Leyline Tyrant, Electro); a modal spell's later mode skips a
+  target an earlier mode moved (Quandrix Command returning a creature, then putting counters on it); a gifted Food
+  enters untapped. Four factory rounds (90 games, 89 matching, all replayed on the last build) verified 37: 31 of the
+  claim and 6 that came in through shared classes (Armament of Nyx, Scroll of the Masters, Skarrg Guildmage, Quandrix
+  Command, Nocturnal Hunger, Valley Rally): 11,166 of 11,362. Games under `shadow/factory/game-w8c4-*` cover the
+  engine fixes and ten under `shadow/handlers/game-handlers8-claim4-*` cover the cards. Left: Mica, Reader of Ruins
+  (one game parts on which Defabricate resolves after its sacrifice-to-copy trigger copies a spell), Desolation Twin
+  (no game cast it in three rounds), Fire Lord Azula (the factory builds no deck for it); the rest of the claim needs
+  engine pieces: modal double-faced cards with a nonland back (Tergrid, King T'Challa, Cosima, Esika), lose-all-
+  abilities and type-changing Auras (Witness Protection, Imprisoned in the Moon, Minimus Containment), harness,
+  copy appliers, attack and block taxes, cost reductions that tap or ask (Explosive Singularity, Bruenor), an X cap
+  (Open the Way), cast-this-turn permissions from a graveyard (Liliana, Untouched by Death; Mavinda), treasure-spent
+  tracking (Forsworn Paladin), damage batch watchers and state triggers.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
