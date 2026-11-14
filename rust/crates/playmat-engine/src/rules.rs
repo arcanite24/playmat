@@ -17710,8 +17710,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     let real_def = entering_as.as_ref().map(|def| std::mem::replace(&mut game.obj_mut(id).def, def.clone()));
     // replacement effects on its entering, more than one: the player picks the order (`chooseReplacementEffect`):
     // Gev's counters for another creature, the next creature spell's counters, and the creature's own "enters"
-    // abilities (`EntersBattlefieldEffect`s: one whether its condition holds or not, an `EscapesWithAbility` whether
-    // it escaped or not)
+    // abilities (`EntersBattlefieldEffect`s when their condition holds, an `EscapesWithAbility` whether it escaped or
+    // not)
     if game.obj(id).def.is(CardType::Creature) {
         let gevs = game
             .battlefield
@@ -17731,8 +17731,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             .abilities
             .iter()
             .filter(|a| match a {
-                // `EntersBattlefieldEffect.applies` checks a kicker condition (Gnarlid Colony unkicked has none)
-                AbilityDef::EntersBattlefieldAbility { condition: Some(Condition::Kicked), .. } => kicked,
+                // `EntersBattlefieldEffect.applies` checks its condition (Gnarlid Colony unkicked has none; War-Name
+                // Aspirant's raid before combat isn't one of two Phyrexian Censors' "enters tapped" to order)
+                AbilityDef::EntersBattlefieldAbility { condition: Some(c), .. } => {
+                    condition_with_kicker(game, c, controller, id, kicked)
+                }
                 _ => matches!(
                     a,
                     AbilityDef::EntersPreparedAbility { .. }
