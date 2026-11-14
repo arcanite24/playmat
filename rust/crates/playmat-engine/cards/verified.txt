@@ -197,6 +197,7 @@ Airlift Chaplain
 Airship Crash
 Airship Engine Room
 Ajani Resolute
+Ajani Unrelenting
 Ajani Unyielding
 Ajani's Aid
 Ajani's Anguish
@@ -217,6 +218,7 @@ Ajani, Wise Counselor
 Ajani, the Greathearted
 Akal Pakal, First Among Equals
 Akawalli, the Seething Tower
+Akiri, Fearless Voyager
 Akki Ember-Keeper
 Akki Ronin
 Akki Scrapchomper
@@ -470,6 +472,7 @@ Arena Athlete
 Arena Trickster
 Arena of Glory
 Ares, God of War
+Argentum Masticore
 Argivian Phalanx
 Argothian Opportunist
 Argothian Sprite
@@ -562,6 +565,7 @@ Atarka's Command
 Atarka, World Render
 Atlantean Cavalry
 Atlantis Attacks
+Atmosphere Surgeon
 Atomic Microsizer
 Atraxa's Fall
 Atraxa's Skitterfang
@@ -573,6 +577,7 @@ Attended Healer
 Attended Socialite
 Attentive Sunscribe
 Attercop
+Attuma, Atlantean Warlord
 Attune with Aether
 Attuned Hunter
 Atzocan Archer
@@ -2166,6 +2171,7 @@ Deanna Troi, Psychic Counsel
 Death Baron
 Death Wind
 Death in the Family
+Death's Presence
 Death-Priest of Myrkul
 Death-Rattle Oni
 Deathbellow Raider
@@ -2608,6 +2614,7 @@ Drover of the Mighty
 Drown in Filth
 Drown in Ichor
 Drown in Sorrow
+Drown in the Loch
 Drowned Catacomb
 Drowned Secrets
 Drowner of Hope
@@ -3052,6 +3059,7 @@ Extinguish All Hope
 Extract a Confession
 Extravagant Replication
 Extricator of Sin
+Exuberant Fuseling
 Exultant Cultist
 Exultant Skymarcher
 Eye Collector
@@ -3085,6 +3093,7 @@ Faerie Dreamthief
 Faerie Duelist
 Faerie Formation
 Faerie Guidemother
+Faerie Mastermind
 Faerie Miscreant
 Faerie Snoop
 Faerie Vandal
@@ -3120,6 +3129,7 @@ Family Reunion
 Famished Foragers
 Famished Paladin
 Fan Bearer
+Fanatic of Mogis
 Fanatical Firebrand
 Fanatical Offering
 Fanatical Strength
@@ -3440,6 +3450,7 @@ Forest
 Forever Young
 Forge Boss
 Forgeborn Oreads
+Forgehammer Centurion
 Forging the Anchor
 Forging the Tyrite Sword
 Forgotten Creation
@@ -3966,6 +3977,7 @@ Goro-Goro, Disciple of Ryusei
 Goryo's Vengeance
 Gossip's Talent
 Graaz, Unstoppable Juggernaut
+Grab the Prize
 Grabby Giant
 Graceblade Artisan
 Graceful Cat
@@ -5229,6 +5241,7 @@ Kuldotha Cackler
 Kulrath Mystic
 Kulrath Zealot
 Kumano Faces Kakkazan
+Kumena's Speaker
 Kumena, Tyrant of Orazca
 Kunoros, Hound of Athreos
 Kura, the Boundless Sky
@@ -5399,6 +5412,7 @@ Lightning, Security Sergeant
 Lightning-Rig Crew
 Lightshell Duo
 Lightshield Parry
+Lightstall Inquisitor
 Lightwalker
 Liliana of the Veil
 Liliana the Faultless
@@ -5640,6 +5654,7 @@ Malamet War Scribe
 Malboro
 Malcator's Watcher
 Malcator, Purity Overseer
+Malcolm, Alluring Scoundrel
 Malcolm, the Eyes
 Malefic Scythe
 Malevolent Chandelier
@@ -5764,6 +5779,7 @@ Mastery of the Unseen
 Mathemagics
 Matoya, Archon Elder
 Matter Reshaper
+Matzalantli, the Great Door
 Maul of the Skyclaves
 Maulfist Doorbuster
 Maulfist Squad
@@ -5781,6 +5797,7 @@ Maze Glider
 Maze Rusher
 Maze Sentinel
 Maze Skullbomb
+Maze's Mantle
 Mazemind Tome
 Meandering River
 Meanders Guide
@@ -5847,6 +5864,7 @@ Merfolk Skydiver
 Merfolk Trickster
 Merfolk Windrobber
 Merfolk of the Depths
+Meria's Outrider
 Meria, Scholar of Antiquity
 Merrow Skyswimmer
 Merry Bards
@@ -6393,6 +6411,7 @@ Ob Nixilis, the Hate-Twisted
 Obliterating Bolt
 Oblivion Sower
 Oblivion Strike
+Oblivious Bookworm
 Obscura Charm
 Obscura Initiate
 Obscura Storefront
@@ -6576,6 +6595,7 @@ Overwhelmed Archivist
 Overwhelming Denial
 Overwhelming Remorse
 Overwhelming Surge
+Oviya Pashiri, Sage Lifecrafter
 Owlbear
 Owlin Historian
 Owlin Shieldmage
@@ -6619,6 +6639,7 @@ Papercraft Decoy
 Paradise Druid
 Paradox Engine
 Paradox Gardens
+Paradox Shaper
 Paragon of Eternal Wilds
 Paragon of Fierce Defiance
 Paragon of Gathering Mists
@@ -6876,6 +6897,7 @@ Precision Bolt
 Precognition Field
 Predation Steward
 Predator Ooze
+Predatory Sliver
 Predatory Wurm
 Predictive Preparations
 Preeminent Captain
@@ -8177,6 +8199,7 @@ Shattering Blow
 Shatterskull Charger
 Shatterskull Minotaur
 Shatterskull Recruit
+Shatterskull Smashing
 Shatterwing Pegasus
 She-Hulk, Jade Defender
 Sheer Drop
@@ -8606,6 +8629,7 @@ Soulbright Seeker
 Soulcipher Board
 Soulcoil Viper
 Soulknife Spy
+Soulless Jailer
 Soulmender
 Soulreaper of Mogis
 Souls of the Lost
@@ -8654,6 +8678,7 @@ Spectral Sailor
 Spectral Shepherd
 Spectral Snatcher
 Spectral Steel
+Spectrum Sentinel
 Speed, Young Avenger
 Speedway Fanatic
 Spell Pierce
@@ -8901,6 +8926,7 @@ Stingblade Assassin
 Stingcaster Mage
 Stingerquill Annex
 Stingerquill Charm
+Stingerquill Voxmancer
 Stinging Cave Crawler
 Stinging Hivemaster
 Stinging Lionfish
@@ -9217,6 +9243,7 @@ Sylvan Scavenging
 Sylvan Scrying
 Sylvan Shepherd
 Synapse Necromage
+Synchronized Charge
 Synchronized Strike
 Syndic of Tithes
 Syndicate Enforcer
@@ -9474,6 +9501,7 @@ The Crystal's Chosen
 The Doctor, EMH
 The Dross Pits
 The Duras Sisters
+The Earth Crystal
 The Earth King
 The Echoverse Fulcrum
 The Eldest Reborn
@@ -9645,6 +9673,7 @@ Thundering Ceratok
 Thundering Chariot
 Thundering Falls
 Thundering Giant
+Thundering Raiju
 Thundering Rebuke
 Thundering Sparkmage
 Thundering Spineback
@@ -9676,6 +9705,7 @@ Tiger-Dillo
 Tiger-Seal
 Tightening Coils
 Tigra, Feline Fury
+Tiller of Flesh
 Tilonalli's Knight
 Tilonalli's Skinshifter
 Timber Gorge
@@ -10288,6 +10318,7 @@ Village Messenger
 Village Rites
 Village Watch
 Villainous Wrath
+Vincent Valentine
 Vindictive Warden
 Vine Mare
 Vine Snare
@@ -10789,6 +10820,7 @@ Xindi Surveyors
 Yahenni's Expertise
 Yahenni, Undying Partisan
 Yanling's Harbinger
+Yargle and Multani
 Yargle, Glutton of Urborg
 Yargle, Goliath of Otaria
 Yarok, the Desecrated
