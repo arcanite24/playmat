@@ -11425,7 +11425,10 @@ fn apply_each_effect(
                 let holds = if *condition == Condition::GiftPromised {
                     item.gift_promised
                 } else {
-                    condition_with_kicker(game, condition, controller, source.0, item.kicked)
+                    // (a permanent's own trigger: whether it was cast kicked, Crimestopper Sprite's "if evidence was
+                    // collected")
+                    let own = item.ability.is_some() && item.cast_spell.is_none() && game.obj(source.0).kicked;
+                    condition_with_kicker(game, condition, controller, source.0, item.kicked || own)
                 };
                 if let Some(e) = if holds { effect } else { otherwise } {
                     apply_effects(game, d, item, std::slice::from_ref(&**e), legal, source);
