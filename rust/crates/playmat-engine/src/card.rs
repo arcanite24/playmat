@@ -652,6 +652,9 @@ pub enum Trigger {
     DiscardsOneOrMore {
         #[serde(default)]
         filter: Filter,
+        /// any player, not only you (Tinybones, Pocket Nuisance's "whenever a player discards one or more cards")
+        #[serde(default)]
+        any_player: bool,
     },
     /// the creature this is attached to deals (combat) damage to a player of `who` ("you", "opponent", "any")
     /// (`DealsDamageToAPlayerAttachedTriggeredAbility`); with a target pointer, at that player; the damage is its X

@@ -2012,13 +2012,13 @@ impl Game {
             let cards: Vec<ObjId> = batch.iter().filter(|(s, _)| *s == seat).map(|(_, c)| *c).collect();
             let sources = self.trigger_sources();
             let fired = self.triggers(sources, |g, src, you, t| match t {
-                Trigger::DiscardsOneOrMore { filter } => {
-                    you == seat && cards.iter().any(|c| g.filter_matches(filter, you, Some(src), *c))
+                Trigger::DiscardsOneOrMore { filter, any_player } => {
+                    (you == seat || *any_player) && cards.iter().any(|c| g.filter_matches(filter, you, Some(src), *c))
                 }
                 _ => false,
             });
             for mut t in fired {
-                if let Some(Trigger::DiscardsOneOrMore { filter }) = self.trigger_of(&t) {
+                if let Some(Trigger::DiscardsOneOrMore { filter, .. }) = self.trigger_of(&t) {
                     let you = t.controller;
                     t.x = cards.iter().filter(|c| self.filter_matches(filter, you, Some(t.card), **c)).count() as i32;
                 }
