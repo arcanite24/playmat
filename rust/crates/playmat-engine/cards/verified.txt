@@ -2557,6 +2557,7 @@ Dragon Trainer
 Dragon Turtle
 Dragon Whelp
 Dragon Whisperer
+Dragon's Approach
 Dragon's Eye Savants
 Dragon's Eye Sentry
 Dragon's Hoard
@@ -7888,6 +7889,7 @@ Rust-Shield Rampager
 Rustvine Cultivator
 Rustwing Falcon
 Ruthless Deathfang
+Ruthless Disposal
 Ruthless Instincts
 Ruthless Knave
 Ruthless Lawbringer
@@ -7975,6 +7977,7 @@ Sand Strangler
 Sandbenders' Storm
 Sandblast
 Sandcrafter Mage
+Sandman's Quicksand
 Sandman, Shifting Scoundrel
 Sandskitter Outrider
 Sandsteppe Citadel
@@ -8867,6 +8870,7 @@ Sphinx of Forgotten Lore
 Sphinx of Magosi
 Sphinx of New Prahv
 Sphinx of the Final Word
+Sphinx's Approach
 Sphinx's Disciple
 Sphinx's Revelation
 Sphinx's Tutelage
@@ -10193,6 +10197,7 @@ Ultima Weapon
 Ultimate Green Goblin
 Ultimate Price
 Ultimecia, Temporal Threat
+Ultimecia, Time Sorceress
 Ultron Drone
 Ultron, Artificial Malevolence
 Ultros, Obnoxious Octopus
