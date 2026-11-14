@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,375 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -765,8 +765,8 @@ Being in the engine and being trusted are kept apart.
     Identity copied a creature together with its cipher trigger (`game-w7d-token-copy-without-granted-trigger`).
   - Also: `LandfallCondition`, `CantAttackTargetEffect` until your next turn, Ellywick Tumblestrum's emblem value,
     Hidden Strings, Whispering Madness, and the reminder text of a granted venture trigger (Fly).
-  - 53 cards came in (11,119 in the engine). Two factory rounds (94 games, 90 matching, 2 unfinished in Java)
-    verified 51: 10,935 of 11,119. Nine games under `shadow/mechanics/game-w7d-*` cover them.
+  - 53 cards came in (11,375 in the engine). Two factory rounds (94 games, 90 matching, 2 unfinished in Java, replayed again on master after #355 and #356)
+    verified 51: 11,180 of 11,375. Nine games under `shadow/mechanics/game-w7d-*` cover them.
   - Left:
     - Voidwalk: two cipher triggers on one creature go on the stack in a different order than Java's (round-002
       game-00115).
