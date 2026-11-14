@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,374 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -738,6 +738,15 @@ Being in the engine and being trusted are kept apart.
   (`WhileOnBattlefield` subtype ending with its source), card-specific target adjusters (Agadeem's Awakening, Body
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
+
+  Wave 10, claim 3, second batch (14 Nov): the claim's cheapest cards, 47 handler files with no engine change
+  (one-shot effects and conditions, and the framework's `AddCounterChoiceSourceEffect`, which brought in Boot Nipper
+  and Wingfold Pteron, and `DamageTargetAndAllControlledEffect`, which brought in Radiating Lightning). Java chooses
+  a lone permanent without asking for Wayward Guide-Beast's land, and asks Devout Invocation's controller even with
+  no untapped creature. Two factory rounds (78 games, all matching) verified 51, 48 of them from the claim's list:
+  11,180 of 11,374. Twelve games under `shadow/handlers/game-handlers10-claim3b-*` cover them. Left: Mardu Charm
+  (pending: not exercised enough), Ferocious Tigorilla (its "enters with" text), Feast of the Victorious Dead
+  (distributing counters), and about 750 of the list's cards.
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
