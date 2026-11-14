@@ -42,6 +42,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             not_first: false,
             distribute: None,
             x_count: false,
+            count: None,
         }],
         condition: None,
     };

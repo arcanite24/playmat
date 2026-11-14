@@ -215,6 +215,10 @@ pub enum TargetDef {
         /// `XTargetsCountAdjuster`: X targets (up to X when `min` is 0), the spell's X; none for X 0
         #[serde(default)]
         x_count: bool,
+        /// `TargetsCountAdjuster(value)`: that many targets (up to that many when `min` is 0), the value as the
+        /// spell or ability is put on the stack; none for 0
+        #[serde(default)]
+        count: Option<Amount>,
     },
     /// a player; "any number of target players" is `min` 0, `max` 99 (`TargetPlayer(0, Integer.MAX_VALUE, false)`)
     TargetPlayer {
@@ -258,6 +262,10 @@ pub enum TargetDef {
         /// `XTargetsCountAdjuster`: X targets (up to X when `min` is 0), the spell's X; none for X 0
         #[serde(default)]
         x_count: bool,
+        /// `TargetsCountAdjuster(value)`: that many targets (up to that many when `min` is 0), the value as the
+        /// spell or ability is put on the stack; none for 0
+        #[serde(default)]
+        count: Option<Amount>,
     },
     TargetPlayerOrPlaneswalker,
     /// an opponent or a planeswalker an opponent controls
@@ -279,6 +287,10 @@ pub enum TargetDef {
         /// `XTargetsCountAdjuster`: X targets (up to X when `min` is 0), the spell's X; none for X 0
         #[serde(default)]
         x_count: bool,
+        /// `TargetsCountAdjuster(value)`: that many targets (up to that many when `min` is 0), the value as the
+        /// spell or ability is put on the stack; none for 0
+        #[serde(default)]
+        count: Option<Amount>,
     },
 }
 
@@ -293,6 +305,12 @@ impl TargetDef {
                 *min = 1;
                 *max = 1;
             }
+            _ => {}
+        }
+        match &mut t {
+            TargetDef::TargetAnyTarget { count, .. }
+            | TargetDef::TargetPermanent { count, .. }
+            | TargetDef::TargetCardInGraveyard { count, .. } => *count = None,
             _ => {}
         }
         t
@@ -1385,6 +1403,17 @@ pub enum CostDef {
     RemoveCountersSourceCost {
         counter: CounterDef,
     },
+    /// an activated ability's cost adjuster that reduces it (`CostAdjuster.reduceCost`): {1} less for each of
+    /// `amount` ("for each creature card in your graveyard"), while `condition` holds; nothing to pay
+    CostAdjusterReduction {
+        amount: Amount,
+        #[serde(default)]
+        condition: Option<Condition>,
+    },
+    /// `RemoveCountersSourceCost(amount)`: remove `amount` counters of any kinds from the source
+    RemoveAnyCountersSourceCost {
+        amount: i32,
+    },
     /// put counters on the source (Mazemind Tome's page counters)
     PutCountersSourceCost {
         counter: CounterDef,
@@ -1698,6 +1727,12 @@ pub enum EffectDef {
         sides: i32,
         #[serde(default)]
         table: Vec<DieTableEntry>,
+    },
+    /// `FractalToken.getEffect`: `amount` 0/0 Fractal tokens, then `value` +1/+1 counters on each one made
+    FractalTokenEffect {
+        amount: i32,
+        value: Amount,
+        token: TokenDef,
     },
     /// incubate: an Incubator token with `amount` +1/+1 counters (`IncubateEffect.doIncubate`)
     IncubateEffect {
@@ -3434,6 +3469,19 @@ pub enum EffectDef {
         first: i32,
         second: i32,
     },
+    /// `AddCardSubTypeTargetEffect`: the target permanents gain a subtype until end of turn, or for as long as each
+    /// stays (`Duration.Custom`)
+    AddCardSubTypeTargetEffect {
+        subtype: String,
+        duration: Duration,
+    },
+    /// `AddCreatureTypeAdditionEffect`: the ability's first target (a creature card it just returned) is a `subtype`,
+    /// and black with `black`, in addition to its other types and colors, for as long as it stays
+    AddCreatureTypeAdditionEffect {
+        subtype: String,
+        #[serde(default)]
+        black: bool,
+    },
     /// the source gains card types (until end of turn): a crewed Vehicle becomes an artifact creature
     AddCardTypeSourceEffect {
         types: Vec<CardType>,
@@ -4422,6 +4470,10 @@ pub enum AbilityDef {
     KickerAbility {
         cost: String,
         rule: String,
+        /// a kicker that isn't mana (`KickerAbility(Cost)`): these costs, paid with the spell's other additional
+        /// costs; `cost` is empty then
+        #[serde(default)]
+        costs: Vec<CostDef>,
     },
     /// "as an additional cost, you may blight N": N -1/-1 counters on a creature you control
     BlightAbility {
@@ -5908,6 +5960,7 @@ impl CardDef {
                     max: 1,
                     distribute: None,
                     x_count: false,
+                    count: None,
                 });
                 spell.effects.push(EffectDef::AwakenEffect { amount: *amount });
                 Some((
