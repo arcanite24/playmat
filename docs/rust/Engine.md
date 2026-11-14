@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,981 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,059 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -688,19 +688,19 @@ Being in the engine and being trusted are kept apart.
   different order). Rowdy Crew and Curse-Marred Demon discard at random from a `HashSet<Card>`, so they aren't
   ported.
 
-  Wave 6, claim 4 (13 Nov): 20 handler files (14 cards' own classes, and framework ones: `CantAttackBlockTargetEffect`,
-  `MaximumHandSizeControllerEffect`, `GainControlAllOwnedEffect`, `CantAttackAllEffect`,
-  `AddCreatureTypeAdditionEffect`, `ExchangeControlTargetEffect`, `ToughnessGreaterThanPowerPredicate`) and engine
-  support for a set maximum hand size (or none for the rest of the game), loyalty abilities twice a turn (Oath of
-  Teferi), mana kept until end of turn (`UntilEndOfTurnManaEffect`), "you gain …" and extra land plays until end of
-  turn, `PutCards.SHUFFLE`, a look count of your life, the greatest toughness among permanents, and toughness combat
-  damage for creatures of a filter (`CombatDamageByToughnessControlledEffect`) brought 60 cards in (10,798 in the
-  engine). Preacher of the Schism's attack trigger isn't checked again as it resolves (Java checks it only as it
-  triggers), with a game under `shadow/handlers/`. Three factory rounds (114 games, 109 matching, replayed again on
-  the engine with claim 1's second batch) verified 52 more, 25 of them from the claim's list: 10,641. Twenty games
-  under `shadow/handlers/game-handlers-w6c4-*` cover them. Left: Phyrexian Censor (with two Censors out, Java asks
-  which "enters tapped" replacement applies first; the engine doesn't ask), Endbringer, Portal to Phyrexia and Sea
-  Gate Restoration (pending: not exercised in three rounds), and 105 of the list's cards still untranslated.
+  Wave 6, claim 4 (13 Nov): 20 handler files (14 cards' own classes, and framework ones:
+  `CantAttackBlockTargetEffect`, `MaximumHandSizeControllerEffect`, `GainControlAllOwnedEffect`,
+  `CantAttackAllEffect`, `AddCreatureTypeAdditionEffect`, `ExchangeControlTargetEffect`,
+  `ToughnessGreaterThanPowerPredicate`) and engine support for a set maximum hand size (or none for the rest of the
+  game), loyalty abilities twice a turn (Oath of Teferi), "you gain …" until end of turn, `PutCards.SHUFFLE`, a look
+  count of your life, the greatest toughness among permanents, and toughness combat damage for creatures of a filter
+  (`CombatDamageByToughnessControlledEffect`) brought 47 cards in (11,059 in the engine). Preacher of the Schism's
+  attack trigger isn't checked again as it resolves (Java checks it only as it triggers), with a game under
+  `shadow/handlers/`. Three factory rounds (114 games, 109 matching, replayed again on master after #338, #344, #345,
+  #346, #347, #348 and #351) verified 47 more, 24 of them from the claim's list: 10,869 of 11,059. Twenty games under
+  `shadow/handlers/game-handlers-w6c4-*` cover them. Left: Phyrexian Censor (with two Censors out, Java asks which
+  "enters tapped" replacement applies first; the engine doesn't ask), Endbringer, Portal to Phyrexia and Sea Gate
+  Restoration (pending: not exercised in three rounds), and 105 of the list's cards still untranslated.
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
