@@ -1022,6 +1022,10 @@ _INSTANT_SORCERY = {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type
 # predicates on stack objects: framework ones, and the enums cards declare for their `FilterStackObject`s
 STACK_PREDICATES = {
     'TriggeredAbilityPredicate.instance': {'p': 'stack_object', 'kind': 'triggered'},
+    # an ability whose source is a creature (`CreatureSourcePredicate`)
+    'CreatureSourcePredicate.instance': {'p': 'stack_object', 'kind': 'creature_source'},
+    # "a spell that wasn't cast" (Errant's `!spell.wasCast()`): a copy
+    'ErrantStreetArtistPredicate.instance': {'p': 'stack_object', 'kind': 'not_cast'},
     'ActivatedOrTriggeredAbilityPredicate.instance': {'p': 'or', 'xs': [{'p': 'stack_object', 'kind': 'activated'},
                                                                         {'p': 'stack_object', 'kind': 'triggered'}]},
     # "instant spell, sorcery spell, activated ability, or triggered ability"
@@ -2618,12 +2622,25 @@ class Translator:
             elif name == 'setOnlyColor' and (c := re.fullmatch(r'ObjectColor\.(WHITE|BLUE|BLACK|RED|GREEN)', a)):
                 out['only_color'] = [{'WHITE': 'W', 'BLUE': 'U', 'BLACK': 'B', 'RED': 'R', 'GREEN': 'G'}[c.group(1)]]
             elif name == 'addAdditionalAbilities':
-                for x in split_args(a):
+                xs = split_args(a)
+                if len(xs) == 1 and xs[0].strip() in getattr(self, 'arrays', {}) \
+                        and None not in self.arrays[xs[0].strip()]:
+                    xs = self.arrays[xs[0].strip()]
+                for x in xs:
                     ab = self.ability(x)
-                    if ab.get('class') not in KEYWORDS:
+                    # a keyword; or a triggered ability (the token's "At the beginning of the end step, sacrifice
+                    # this token."), its rule the effect text's quoted part (`token_copy_rules`)
+                    if ab.get('class') not in KEYWORDS and ab.get('class') != 'TriggeredAbility':
                         raise Unsupported('token copy ability ' + x.strip()[:60])
-                    ab.pop('java', None)
+                    if ab.get('class') in KEYWORDS:
+                        ab.pop('java', None)
+                    else:
+                        ab['token_copy_rule'] = True
                     out.setdefault('abilities', []).append(ab)
+            elif name == 'setPermanentModifier' and re.fullmatch(
+                    r'(\w+)\s*->\s*\1\.addSuperType\(SuperType\.LEGENDARY\)', a.strip()):
+                # "except it's legendary" (Adagia's)
+                out['legendary'] = True
             else:
                 raise Unsupported('token copy ' + name + ' ' + a[:40])
         if ('power' in out) != ('toughness' in out):
@@ -3052,6 +3069,7 @@ class Translator:
         # (effect, condition[, text])
         if cls == 'ConditionalOneShotEffect' and len(args) in (2, 3) \
                 and (re.fullmatch(r'\w+Condition\.\w+', args[1].strip()) or args[1].strip() in self.conditions
+                     or args[1].strip() in CONDITIONS
                      or card_handlers.condition(self, args[1]) is not None
                      or re.fullmatch(r'new InvertCondition\(\w+Condition\.\w+\)', args[1].strip())
                      or re.fullmatch(r'new \w+Condition\(.*\)', args[1].strip(), re.S)):
@@ -3521,6 +3539,18 @@ class Translator:
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1:
             if args[0].strip() == 'new CopyNextSpellDelayedTriggeredAbility()':
                 return {'class': 'CreateCopyNextSpellDelayedEffect'}
+            # Sea Gate Stormcaller's: the next instant or sorcery spell with mana value 2 or less this turn, copied
+            # once, or twice (kicked)
+            m = re.fullmatch(r'new SeaGateStormcallerDelayedTriggeredAbility\((true|false)\)', args[0].strip())
+            if m and getattr(self, 'source', None) and 'class SeaGateStormcallerDelayedTriggeredAbility' in self.source:
+                twice = m.group(1) == 'true'
+                return {'class': 'CreateCopyNextSpellDelayedEffect',
+                        'filter': [{'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]},
+                                   {'p': 'mv', 'cmp': 'OR_LESS', 'n': 2}],
+                        'copies': 2 if twice else 1,
+                        'rule': 'When you cast your next instant or sorcery spell this turn with mana value 2 or less, '
+                                'copy that spell%s. You may choose new targets for the cop%s.'
+                                % (' twice' if twice else '', 'ies' if twice else 'y')}
             # `CopyNextSpellDelayedTriggeredAbility(filter)`: the next spell of the filter this turn
             m = re.fullmatch(r'new CopyNextSpellDelayedTriggeredAbility\(([^,()]+|StaticFilters\.\w+)\)', canonical(args[0].strip()))
             if m:
@@ -5622,6 +5652,10 @@ class Translator:
                 return out({'e': 'sacrificed', 'filter': self.filter(args[1]),
                             'who': self.value('target_controller', args[2]) if n == 3 else 'you'}, args[0])
             raise Unsupported(cls + ' overload')
+        # (effect, cost): once each turn, from the battlefield
+        if cls == 'LimitedTimesPerTurnActivatedAbility' and n == 2 and not args[0].strip().startswith('Zone.'):
+            return {'class': cls, 'java': cls, 'effects': [self.effect(args[0])], 'cost': [self.cost(args[1])],
+                    'limit': 1}
         if cls == 'LimitedTimesPerTurnActivatedAbility' and n in (3, 4, 5) and args[0] == 'Zone.BATTLEFIELD' \
                 and (n == 3 or re.fullmatch(r'\d+', args[3])):
             a = {'class': cls, 'java': cls, 'effects': [self.effect(args[1])], 'cost': [self.cost(args[2])],
@@ -6253,13 +6287,21 @@ class Translator:
         that ability kind), else Unsupported"""
         src = getattr(self, 'source', None) or ''
         name = arg.strip()
-        if not re.search(r'FilterStackObject\s+' + re.escape(name) + r'\s*=\s*new FilterStackObject\("[^"]*"\)', src):
+        if not re.search(r'FilterStackObject\s+' + re.escape(name) + r'\s*=\s*new (?:FilterStackObject|FilterActivatedOrTriggeredAbility)\("[^"]*"\)', src):
             raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
         preds = re.findall(r'\b' + re.escape(name) + r'\.add\(([^;]*)\);', src)
         kinds = {'ExhaustAbilityPredicate.instance': 'exhaust', 'PowerUpAbilityPredicate.instance': 'power_up'}
-        if len(preds) != 1 or preds[0].strip() not in kinds:
-            raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
-        return kinds[preds[0].strip()]
+        if len(preds) == 1 and preds[0].strip() in kinds:
+            return kinds[preds[0].strip()]
+        # (copy triggers: "an ability of an artifact" / "of equipped creature", "if it isn't a mana ability"; "an
+        # ability that targets a creature or player"; the engine's site only sees abilities that aren't mana abilities)
+        rest = sorted(canonical(x) for x in preds if x.strip() != 'NotManaAbilityPredicate.instance')
+        more = {'ArtifactSourcePredicate.instance': 'artifact', 'AbilitySourceAttachedPredicate.instance': 'attached',
+                'new TargetsPermanentOrPlayerPredicate(StaticFilters.FILTER_PERMANENT_CREATURE,new FilterPlayer())':
+                    'targets_creature_or_player'}
+        if len(rest) == 1 and rest[0] in more and len(preds) <= 2:
+            return more[rest[0]]
+        raise Unsupported('ActivateAbilityTriggeredAbility filter ' + name)
 
     def wave5_triggers(self, cls, args, flag, out):
         """Trigger classes on the events and watchers of wave 5 (`COUNTERS_ADDED`, `ACTIVATED_ABILITY`, `EXPLORED`,
@@ -6277,20 +6319,26 @@ class Translator:
         # "whenever you activate an exhaust ability" (from the battlefield; from the graveyard isn't in)
         if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.NONE':
             return out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1])}, args[0])
+        # "…, copy that ability" (`SetTargetPointer.SPELL`: the trigger points at the ability activated)
+        if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.SPELL':
+            return copies_abilities(out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1]),
+                                         'pointer': True}, args[0]))
         # Runic Armasaur: "whenever an opponent activates an ability of a creature or land that isn't a mana ability"
         if cls == 'RunicArmasaurTriggeredAbility' and n == 0:
             return out({'e': 'ability_activated', 'kind': 'creature_or_land', 'opponent': True},
                        'new DrawCardSourceControllerEffect(1)', True)
         # "whenever you activate a loyalty ability [of a <subtype> planeswalker]"
         if cls == 'ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility' and n in (2, 3) \
-                and args[-1].strip() == 'SetTargetPointer.NONE':
+                and args[-1].strip() in ('SetTargetPointer.NONE', 'SetTargetPointer.SPELL'):
             on = {'e': 'loyalty_activated'}
+            if args[-1].strip() == 'SetTargetPointer.SPELL':
+                on['pointer'] = True
             if n == 3:
                 m = re.fullmatch(r'SubType\.(\w+)', args[1].strip())
                 if not m or m.group(1) not in subtype_names():
                     raise Unsupported(cls + ' ' + args[1])
                 on['subtype'] = subtype_names()[m.group(1)]
-            return out(on, args[0])
+            return copies_abilities(out(on, args[0])) if on.get('pointer') else out(on, args[0])
         # a card's own "one or more" `ZONE_CHANGE_BATCH` trigger, as a trigger handler's base writes it (a name for
         # the engine's trigger, not a Java class): (effect, from zone or null, to zone or null, filter,
         # TargetController, cards[, optional]); `cards` reads `game.getCard` (no tokens), else the permanent
@@ -6472,6 +6520,10 @@ def copies_spells_only(card):
         if isinstance(x.get('effects'), list) and has_copy(x['effects']):
             targets = x.get('targets') or []
             spell_trigger = x.get('set_target_pointer') and (x.get('on') or {}).get('e') == 'spell_cast'
+            # (an "activate an ability" trigger pointing at that ability: `copies_abilities` marked its copy)
+            if (x.get('on') or {}).get('pointer') and (x.get('on') or {}).get('e') in ('ability_activated',
+                                                                                       'loyalty_activated'):
+                spell_trigger = True
             # a spell or an ability (`TargetStackObject`): the engine copies whichever it is
             if len(targets) == 1 and targets[0].get('class') == 'TargetStackObject':
                 for e in x['effects']:
@@ -6987,6 +7039,23 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         m = re.fullmatch(r'(\w+)\.setText\(.*\)', st, re.S)
         if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class', '').endswith('Cost'):
             return
+        # an array of abilities a token copy gains (`Ability[] extra = new Ability[2]; extra[0] = …`), read where
+        # `addAdditionalAbilities(extra)` names it
+        m = re.fullmatch(r'Ability\[\](\w+)=new Ability\[(\d+)\]', st)
+        if m:
+            t.arrays = getattr(t, 'arrays', {})
+            t.arrays[m.group(1)] = [None] * int(m.group(2))
+            return
+        m = re.fullmatch(r'(\w+)\[(\d+)\]=(.*)', st, re.S)
+        if m and m.group(1) in getattr(t, 'arrays', {}) and int(m.group(2)) < len(t.arrays[m.group(1)]):
+            t.arrays[m.group(1)][int(m.group(2))] = m.group(3)
+            return
+        # a setter on a local token copy effect (`effect.setBecomesArtifact(true)`): as if chained on its `new`
+        m = re.fullmatch(r'(\w+)\.((?:set|with|add)\w+)\((.*)\)', st, re.S)
+        if m and m.group(2) != 'setText' and re.match(r'new CreateTokenCopyTargetEffect\(',
+                                                      getattr(t, 'sources', {}).get(m.group(1), '')):
+            t.assign(m.group(1), t.sources[m.group(1)] + '.%s(%s)' % (m.group(2), m.group(3)))
+            return
         m = re.fullmatch(r'this\.supertype\.add\((.*)\)', st)
         if m:
             card.setdefault('supertypes', []).extend(x.split('.')[-1] for x in split_args(m.group(1)))
@@ -7200,6 +7269,22 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
             return
         raise Unsupported('statement ' + st)
 
+
+
+def copies_abilities(ability):
+    """A trigger pointing at an activated ability: its `CopyStackObjectEffect` (`CopyTargetSpellEffect`) copies that
+    ability (`abilities`), wherever it is among the effects (`DoIfCostPaid`'s)"""
+    def walk(x):
+        if isinstance(x, dict):
+            if x.get('class') == 'CopyTargetSpellEffect':
+                x['abilities'] = True
+            for v in x.values():
+                walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v)
+    walk(ability.get('effects', []))
+    return ability
 
 
 def static_type_changes(card):
@@ -8580,6 +8665,16 @@ def granted_rules(card):
                     if [e.get('class') for e in g.get('effects', [])] == ['ReturnToHandSourceEffect']:
                         g['rule'] = re.sub(r'\b([Rr])eturn this creature\b', r'\1eturn {this}', g['rule'])
                     seen[0] += 1
+            # (a token copy's triggered ability: the quoted text, the token {this}, as its effect writes it:
+            # `SacrificeSourceEffect`'s "sacrifice {this}")
+            if x.get('class') == 'CreateTokenCopyTargetEffect':
+                for g in x.get('abilities', []):
+                    if isinstance(g, dict) and g.pop('token_copy_rule', False):
+                        quotes = re.findall(r'"([^"]*)"', rule or '')
+                        if seen[0] >= len(quotes):
+                            raise Unsupported('token copy ability without its rule text')
+                        g['rule'] = re.sub(r'\b[Tt]his (?:token|creature)\b', '{this}', quotes[seen[0]])
+                        seen[0] += 1
             g = x.get('ability')
             if isinstance(g, dict) and 'rule' not in g:
                 one(g, rule, seen[0])

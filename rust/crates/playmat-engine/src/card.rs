@@ -1143,16 +1143,24 @@ pub enum Trigger {
     /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any";
     /// "creature_or_land": of a creature or land permanent) (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`);
     /// with `opponent`, an opponent activates it (Runic Armasaur)
+    /// "artifact": of an artifact (`ArtifactSourcePredicate`), "attached": of the permanent the trigger's source is
+    /// attached to (`AbilitySourceAttachedPredicate`), "targets_creature_or_player": one that targets a creature or a
+    /// player (`TargetsPermanentOrPlayerPredicate`); with `pointer` (`SetTargetPointer.SPELL`), the trigger points
+    /// at the ability activated (its source, the topmost stack object of it: what `CopyStackObjectEffect` copies)
     AbilityActivated {
         kind: String,
         #[serde(default)]
         opponent: bool,
+        #[serde(default)]
+        pointer: bool,
     },
     /// you activate a loyalty ability of a planeswalker (of `subtype`, when it's set)
-    /// (`ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility`)
+    /// (`ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility`); with `pointer`, the trigger points at that ability
     LoyaltyActivated {
         #[serde(default)]
         subtype: String,
+        #[serde(default)]
+        pointer: bool,
     },
     /// a creature you control explores (`CreatureExploresTriggeredAbility`, `EXPLORED`)
     Explores,
@@ -2757,6 +2765,9 @@ pub enum EffectDef {
         filter: Option<Filter>,
         #[serde(default)]
         rule: Option<String>,
+        /// the copies made (Sea Gate Stormcaller kicked: twice), one when it's left out
+        #[serde(default)]
+        copies: Option<u32>,
     },
     /// copy the spell the target pointer points at (`CopyTargetStackObjectEffect`): new targets may be chosen unless
     /// `keep_targets`; `not_legendary` is `RemoveTypeCopyApplier(SuperType.LEGENDARY)`
@@ -2852,6 +2863,9 @@ pub enum EffectDef {
         only_color: Vec<Color>,
         #[serde(default)]
         abilities: Vec<AbilityDef>,
+        /// "except it's legendary" (`setPermanentModifier(token -> token.addSuperType(LEGENDARY))`, after the rest)
+        #[serde(default)]
+        legendary: bool,
         #[serde(default)]
         tapped: bool,
         /// "the token enters tapped and attacking" (`tapped` and `attacking` both true): attacking a defender its
