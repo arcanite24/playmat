@@ -4842,13 +4842,21 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             game.pending.push(item);
         }
     }
-    // Galvanic Iteration: the next instant or sorcery spell this turn
-    if game.obj(spell).is(CardType::Instant) || game.obj(spell).is(CardType::Sorcery) {
+    // Galvanic Iteration: the next instant or sorcery spell this turn (or the next spell of a filter: Dual Strike)
+    if !game.next_instant_sorcery.is_empty() {
         let turn = game.turn;
-        let (now, rest): (Vec<_>, Vec<_>) =
-            std::mem::take(&mut game.next_instant_sorcery).into_iter().partition(|(s, t, _)| *s == seat && *t == turn);
-        game.next_instant_sorcery = rest.into_iter().filter(|(_, t, _)| *t == turn).collect();
-        for (_, _, mut item) in now {
+        let instant_sorcery = game.obj(spell).is(CardType::Instant) || game.obj(spell).is(CardType::Sorcery);
+        let waiting = std::mem::take(&mut game.next_instant_sorcery);
+        let (now, rest): (Vec<_>, Vec<_>) = waiting.into_iter().partition(|(s, t, item, filter)| {
+            *s == seat
+                && *t == turn
+                && match filter {
+                    Some(f) => game.filter_matches(f, seat, Some(item.card), spell),
+                    None => instant_sorcery,
+                }
+        });
+        game.next_instant_sorcery = rest.into_iter().filter(|(_, t, _, _)| *t == turn).collect();
+        for (_, _, mut item, _) in now {
             if let Some(dl) = item.delayed.as_mut() {
                 Arc::make_mut(dl).fixed = vec![(spell, game.obj(spell).zcc)];
             }
@@ -4907,6 +4915,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         .is_some_and(|i| i.kicked);
     for t in fired.iter_mut() {
         t.x = spell_mv;
+        t.cast_spell = Some(spell);
         // a cast trigger of the spell itself: whether it was kicked (Sowing Mycospawn); others: "five or more mana"
         let has_kicker = game.obj(spell).def.abilities.iter().any(|a| matches!(a, AbilityDef::KickerAbility { .. }));
         t.kicked = if t.card == spell && has_kicker { spell_kicked } else { opus };
@@ -8953,7 +8962,23 @@ fn spell_target_defs(def: &CardDef, item: &StackItem) -> Vec<TargetDef> {
 /// `Spell.createSingleCopy` with new targets: the copy (a token) goes on the stack, then `chooseNewTargets` asks of
 /// each target whether to change it (`chooseNewTarget`)
 fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, controller: Seat) {
-    let def = game.obj(original.card).def.clone();
+    copy_spell_with(game, d, original, controller, true, false);
+}
+
+/// `copy_spell`, asking about new targets only with `new_targets` (`chooseTargets`), the copy not legendary with
+/// `not_legendary` (`RemoveTypeCopyApplier`); the copy, or None when the decider stopped
+fn copy_spell_with(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    original: &StackItem,
+    controller: Seat,
+    new_targets: bool,
+    not_legendary: bool,
+) -> Option<ObjId> {
+    let mut def = game.obj(original.card).def.clone();
+    if not_legendary && def.supertypes.iter().any(|s| s == "LEGENDARY") {
+        Arc::make_mut(&mut def).supertypes.retain(|s| s != "LEGENDARY");
+    }
     let copy = game.create_obj(def.clone(), controller, Zone::Stack);
     {
         let o = game.obj_mut(copy);
@@ -8968,7 +8993,7 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
     let defs = spell_target_defs(&def, original);
     let mut targets = item.targets.clone();
     let mut zccs = item.target_zcc.clone();
-    for (k, tdef) in defs.iter().enumerate() {
+    for (k, tdef) in defs.iter().enumerate().filter(|_| new_targets) {
         let Some(old) = original.targets.get(k).cloned() else { continue };
         let total = old.len();
         let mut new: Vec<Target> = Vec::new();
@@ -8992,7 +9017,7 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
             let change = loop {
                 match ask(game, d, controller, &q) {
                     Answer::Bool(b) => break b,
-                    Answer::Stop => return,
+                    Answer::Stop => return None,
                     _ => {}
                 }
             };
@@ -9005,7 +9030,7 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
             loop {
                 let chosen = choose_target(game, d, controller, &single, Some(copy), "", false);
                 if d.stopped() {
-                    return;
+                    return None;
                 }
                 let picked = chosen.as_ref().and_then(|c| c.first().copied());
                 let reset = match picked {
@@ -9020,7 +9045,7 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
                 let yes = loop {
                     match ask(game, d, controller, &q) {
                         Answer::Bool(b) => break b,
-                        Answer::Stop => return,
+                        Answer::Stop => return None,
                         _ => {}
                     }
                 };
@@ -9056,6 +9081,7 @@ fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, contro
         _ => false,
     });
     game.pending.extend(fired);
+    Some(copy)
 }
 
 /// `CreateTokenCopyTargetEffect`: a token copy of `of`'s copiable values (its printed card), with a set power and
@@ -10278,14 +10304,16 @@ fn apply_each_effect(
                 game.at_next_end_step
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(card, controller) });
             }
-            EffectDef::CreateCopyNextSpellDelayedEffect => {
+            EffectDef::CreateCopyNextSpellDelayedEffect { filter, rule } => {
                 let delayed = Delayed {
-                    rule: "When you next cast an instant or sorcery spell this turn, copy that spell. You may choose \
-                           new targets for the copy."
-                        .into(),
+                    rule: rule.clone().unwrap_or_else(|| {
+                        "When you next cast an instant or sorcery spell this turn, copy that spell. You may choose \
+                         new targets for the copy."
+                            .into()
+                    }),
                     sacrifice: Vec::new(),
                     warp_exile: Vec::new(),
-                    effects: vec![EffectDef::CopyTargetSpellEffect],
+                    effects: vec![EffectDef::CopyTargetSpellEffect { keep_targets: false, not_legendary: false }],
                     source_zcc: source.1,
                     fixed: Vec::new(),
                     return_tapped: Vec::new(),
@@ -10297,14 +10325,18 @@ fn apply_each_effect(
                     controller,
                     turn,
                     StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) },
+                    filter.clone(),
                 ));
             }
-            EffectDef::CopyTargetSpellEffect => {
+            EffectDef::CopyTargetSpellEffect { keep_targets, not_legendary } => {
                 for o in &objs {
                     let original =
                         game.stack.iter().find(|i| i.card == *o && i.ability.is_none() && i.delayed.is_none()).cloned();
                     if let Some(original) = original {
-                        copy_spell(game, d, &original, controller);
+                        let copy = copy_spell_with(game, d, &original, controller, !*keep_targets, *not_legendary);
+                        if copy.is_none() {
+                            return;
+                        }
                     }
                 }
             }
@@ -10833,8 +10865,13 @@ fn apply_each_effect(
                 }
                 draw(game, controller, chosen.len());
             }
-            EffectDef::CreateTokenCopySourceEffect => {
-                token_copy(game, d, source.0, controller, None);
+            EffectDef::CreateTokenCopySourceEffect { number, tapped } => {
+                let made = token_copy_modified(game, d, source.0, controller, number.unwrap_or(1), &|_| {});
+                if *tapped {
+                    for t in made {
+                        game.obj_mut(t).tapped = true;
+                    }
+                }
             }
             EffectDef::CreateTokenCopyTargetEffect {
                 number,
@@ -10849,6 +10886,7 @@ fn apply_each_effect(
                 add_subtypes,
                 only_color,
                 abilities,
+                tapped,
             } => {
                 // `applyAdditionsToToken`, in its order
                 let mods = |def: &mut CardDef| {
@@ -10906,7 +10944,12 @@ fn apply_each_effect(
                 // `getPermanentOrLKIBattlefield`: a target that left as the spell resolved is copied as it last was
                 // (Supplant Form returns it to hand first)
                 for o in &objs {
-                    token_copy_modified(game, d, *o, controller, number.unwrap_or(1), &mods);
+                    let made = token_copy_modified(game, d, *o, controller, number.unwrap_or(1), &mods);
+                    if *tapped {
+                        for t in made {
+                            game.obj_mut(t).tapped = true;
+                        }
+                    }
                 }
             }
             EffectDef::GhostVacuumEffect => {
@@ -16742,6 +16785,9 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
                 copy.subtypes.push(s);
             }
         }
+        if let Some((EffectDef::CopyPermanentEffect { applier: Some(ap), .. }, _)) = &copy_of {
+            apply_copy_applier(game, &mut copy, ap, of, controller, id);
+        }
         if copy_of.is_none() && !copy.abilities.contains(&AbilityDef::FlyingAbility) {
             copy.abilities.push(AbilityDef::FlyingAbility);
         }
@@ -16765,6 +16811,89 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
                 }
             }
         }
+    }
+}
+
+/// `CreateTokenCopyTargetEffect.removeTokensCreatedAt(…, PhaseStep.END_TURN, …)`: a delayed trigger that sacrifices
+/// the tokens made (as they are now), or exiles them (`exileTokensCreatedAtNextEndStep`), at the beginning of the next
+/// end step
+fn remove_tokens_at_next_end_step(game: &mut Game, made: &[ObjId], source: ObjId, controller: Seat, exile: bool) {
+    let them: Vec<(ObjId, u32)> = made.iter().map(|t| (*t, game.obj(*t).zcc)).collect();
+    if them.is_empty() {
+        return;
+    }
+    let what = if exile { "exile" } else { "sacrifice" };
+    let delayed = Delayed {
+        rule: format!("At the beginning of the next end step, {what} the token copies."),
+        sacrifice: if exile { Vec::new() } else { them.clone() },
+        warp_exile: Vec::new(),
+        effects: if exile { vec![EffectDef::ExileTargetEffect] } else { Vec::new() },
+        source_zcc: 0,
+        fixed: if exile { them } else { Vec::new() },
+        return_tapped: Vec::new(),
+        targets: Vec::new(),
+        condition: None,
+    };
+    game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source, controller) });
+}
+
+/// `game.copyPermanent(Duration.EndOfTurn, …)`: `src` becomes `copy` (what it copies' copiable values, with what an
+/// applier changed) until end of turn, as Shifting Woodland does; the cleanup gives it its own characteristics back
+fn become_copy_until_end_of_turn(game: &mut Game, src: ObjId, copy: Arc<CardDef>) {
+    let ob = game.obj_mut(src);
+    let old = ob.def.clone();
+    if ob.until_end_of_turn_def.is_none() {
+        ob.until_end_of_turn_def = Some(old);
+    }
+    ob.eot_copy = Some(copy.clone());
+    ob.def = copy;
+}
+
+/// A `CopyApplier` on the copy's blueprint (`CopyApplierDef`), as `GameImpl.copyPermanent` applies it: its types and
+/// abilities always; its creature abilities and "enters with" counters only when what it copies isn't itself a copy
+/// (`isCopyOfCopy`: a copy of a Spark Double has the counter ability Spark Double's copy got, not a second one)
+fn apply_copy_applier(
+    game: &Game,
+    copy: &mut CardDef,
+    ap: &crate::card::CopyApplierDef,
+    of: ObjId,
+    controller: Seat,
+    id: ObjId,
+) {
+    for t in &ap.remove_supertypes {
+        copy.supertypes.retain(|x| x != t);
+    }
+    for t in &ap.add_supertypes {
+        if !copy.supertypes.contains(t) {
+            copy.supertypes.push(t.clone());
+        }
+    }
+    copy.abilities.extend(ap.abilities.iter().cloned());
+    if game.obj(of).copied_def.is_some() {
+        return;
+    }
+    if copy.types.contains(&CardType::Creature) {
+        copy.abilities.extend(ap.creature_abilities.iter().cloned());
+    }
+    for c in &ap.counters {
+        if c.if_type.is_some_and(|t| !copy.types.contains(&t))
+            || (c.if_controlled && game.obj(of).controller != controller)
+        {
+            continue;
+        }
+        let mut counter = c.counter.clone();
+        if c.x {
+            // (`checkSourceCostsTagExists`: none when it wasn't cast with an X)
+            counter.amount = game.obj(id).cast_x;
+            if counter.amount <= 0 {
+                continue;
+            }
+        }
+        copy.abilities.push(AbilityDef::EntersBattlefieldAbility {
+            effects: vec![EffectDef::AddCountersSourceEffect { counter, amount: None }],
+            condition: None,
+            rule: c.rule.clone(),
+        });
     }
 }
 
@@ -19941,6 +20070,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         if game.obj(id).until_end_of_turn_def.is_some() {
             let o = game.obj_mut(id);
             o.def = o.until_end_of_turn_def.take().unwrap();
+            o.eot_copy = None;
         }
         if game.obj(id).damage != 0 || game.obj(id).deathtouched {
             let o = game.obj_mut(id);

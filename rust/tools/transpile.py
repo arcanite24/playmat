@@ -1075,7 +1075,7 @@ TARGET_CLASSES = {
 PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPlayerOrPlaneswalker', 'TargetOpponentOrPlaneswalker'}
 
 # chained calls that only change texts, hints or the AI's view
-TEXT_SETTERS = {'setText', 'withTextThatCard', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
+TEXT_SETTERS = {'setText', 'withTextThatCard', 'withText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
                 'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier', 'withForceQuotes',
                 'withConditionText'}
@@ -1472,6 +1472,21 @@ class Translator:
         if (h := card_handlers.condition(self, arg)) is not None:
             return h
         raise Unsupported('condition ' + arg)
+
+    def filter_message(self, arg):
+        """a filter argument's message (`filter.getMessage()`): a field of the card's, a `StaticFilters` one, or a
+        `new FilterX("…")`; a filter class made without one has its default"""
+        arg = arg.strip()
+        defaults = {'FilterSpell': 'spell', 'FilterInstantOrSorcerySpell': 'instant or sorcery spell',
+                    'FilterCreatureSpell': 'creature spell'}
+        m = re.fullmatch(r'new (Filter\w+)\((?:"((?:[^"\\]|\\.)*)")?\)', arg)
+        if not m:
+            name = arg[len('StaticFilters.'):] if arg.startswith('StaticFilters.') else arg
+            text = open(STATIC_FILTERS).read() if arg.startswith('StaticFilters.') else getattr(self, 'source', '') or ''
+            m = re.search(r'\bFilter\w* ' + re.escape(name) + r'\s*=\s*new (Filter\w+)(?:<>)?\((?:"((?:[^"\\]|\\.)*)")?\)', text)
+        if not m or (m.group(2) is None and m.group(1) not in defaults):
+            raise Unsupported('filter message of ' + arg)
+        return json.loads('"' + m.group(2) + '"') if m.group(2) is not None else defaults[m.group(1)]
 
     def stack_filter_abilities(self, arg):
         """Whether a stack object filter takes abilities too: a `FilterStackObject` (not a `FilterSpell`)"""
@@ -2040,6 +2055,18 @@ class Translator:
         # its targets by `copies_spells_only`)
         if cls == 'CopyTargetStackObjectEffect' and ','.join(args) in ('', 'true', 'false', 'false,false,true'):
             return {'class': 'CopyTargetSpellEffect'}
+        # `(useController, useLKI, chooseTargets[, amount, applier])`: under your control, once, with new targets or
+        # not, the copy not legendary with `RemoveTypeCopyApplier(SuperType.LEGENDARY)`
+        if cls == 'CopyTargetStackObjectEffect' and len(args) in (3, 5) and args[0] == 'false' \
+                and args[1] in ('true', 'false') and args[2] in ('true', 'false') \
+                and (len(args) == 3 or (args[3] == '1' and args[4] in ('null', 'new RemoveTypeCopyApplier(SuperType.LEGENDARY)'))):
+            out = {'class': 'CopyTargetSpellEffect'}
+            # (an applier asks for new targets anyway: `Spell.createSingleCopy`'s `chooseNewTargets || applier != null`)
+            if args[2] == 'false' and (len(args) == 3 or args[4] == 'null'):
+                out['keep_targets'] = True
+            if len(args) == 5 and args[4] != 'null':
+                out['not_legendary'] = True
+            return out
         return None
 
     def peel_chain(self, expr):
@@ -2089,7 +2116,9 @@ class Translator:
                 raise Unsupported('token copy number ' + args[3])
             if int(args[3]) != 1:
                 out['number'] = int(args[3])
-        if len(args) >= 6 and args[4:6] != ['false', 'false']:
+        if len(args) >= 6 and args[4:6] == ['true', 'false']:
+            out['tapped'] = True
+        elif len(args) >= 6 and args[4:6] != ['false', 'false']:
             raise Unsupported('token copy tapped or attacking')
         if len(args) >= 7 and args[6] != 'null':
             raise Unsupported('token copy attacked player')
@@ -2411,6 +2440,17 @@ class Translator:
             return {'class': cls}
         if cls in ('CreateTokenCopyTargetEffect', 'CreateTokenCopySourceEffect') and not args:
             return {'class': cls}
+        # "copy this spell" (a cast trigger of the spell itself: `getValue("spellCast")`, else the source spell)
+        if cls == 'CopySourceSpellEffect' and not args:
+            return {'class': cls}
+        if cls == 'CreateTokenCopySourceEffect' and len(args) in (1, 2) and args[0].strip().isdigit() \
+                and (len(args) == 1 or args[1].strip() in ('true', 'false')):
+            out = {'class': cls}
+            if int(args[0]) != 1:
+                out['number'] = int(args[0])
+            if len(args) == 2 and args[1].strip() == 'true':
+                out['tapped'] = True
+            return out
         # the snarls and check lands: reveal a card of the filter from your hand, or it enters tapped
         if cls == 'TapSourceUnlessPaysEffect' and len(args) == 1 and (
                 m := re.fullmatch(r'new RevealTargetFromHandCost\(new TargetCardInHand\((\w+)\)\)', canonical(args[0]))) \
@@ -2762,6 +2802,11 @@ class Translator:
             if applier and applier != 'new EmptyCopyApplier()':
                 out.update(self.copy_applier(applier))
             return out
+        # `CopyPermanentEffect(applier)`: a creature, with what the applier changes
+        if cls == 'CopyPermanentEffect' and len(args) == 1 and re.fullmatch(r'new \w*Applier\(.*\)', args[0].strip(), re.S):
+            out = {'class': cls, 'filter': [{'p': 'type', 't': 'CREATURE'}]}
+            out.update(self.copy_applier(args[0]))
+            return out
         # an Aura's "enchanted creature loses all abilities and is a blue Frog …" (`LoseType`, Frogify)
         if cls == 'BecomesCreatureAttachedEffect' and len(args) in (4, 5) and args[2].strip() == 'Duration.WhileOnBattlefield':
             m = re.fullmatch(r'BecomesCreatureAttachedEffect\.LoseType\.(ALL|ALL_BUT_COLOR|ABILITIES|ABILITIES_SUBTYPE|COLOR|SUBTYPE|NONE)',
@@ -2807,6 +2852,13 @@ class Translator:
         if cls == 'CreateDelayedTriggeredAbilityEffect' and len(args) == 1:
             if args[0].strip() == 'new CopyNextSpellDelayedTriggeredAbility()':
                 return {'class': 'CreateCopyNextSpellDelayedEffect'}
+            # `CopyNextSpellDelayedTriggeredAbility(filter)`: the next spell of the filter this turn
+            m = re.fullmatch(r'new CopyNextSpellDelayedTriggeredAbility\(([^,()]+|StaticFilters\.\w+)\)', canonical(args[0].strip()))
+            if m:
+                f = m.group(1).strip()
+                return {'class': 'CreateCopyNextSpellDelayedEffect', 'filter': self.filter(f),
+                        'rule': 'When you next cast %s this turn, copy that spell. You may choose new targets for the '
+                                'copy.' % self.filter_message(f)}
             if args[0].strip() == 'new AddCounterNextSpellDelayedTriggeredAbility()':
                 return {'class': 'CreateNextCreatureSpellDelayedEffect', 'amount': 1,
                         'rule': 'When you next cast a creature spell this turn, that creature enters with an '
@@ -3932,6 +3984,11 @@ class Translator:
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 \
                 and args[0].strip() == 'new SharkTyphoonCastEffect()' and args[3].strip() == 'SetTargetPointer.SPELL':
             args = args[:3] + ['SetTargetPointer.NONE']
+        # `SetTargetPointer.SPELL`: its effects point at the spell cast ("copy that spell")
+        if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 and args[3].strip() == 'SetTargetPointer.SPELL':
+            a = self.ability('new SpellCastControllerTriggeredAbility(' + ','.join(args[:3]) + ')')
+            a['set_target_pointer'] = True
+            return a
         # "when you do, …": its targets are added after (`DoWhenCostPaid`)
         if cls == 'ReflexiveTriggeredAbility' and len(args) == 2 and args[1].strip() == 'false':
             return {'class': 'Reflexive', 'effects': [self.effect(args[0])], 'targets': []}
@@ -3994,8 +4051,16 @@ class Translator:
 
     def copy_applier(self, expr):
         """a card's own `CopyApplier` whose `apply` only adds subtypes (`blueprint.addSubType(SubType.SPIRIT)`,
-        Mirrorhall Mimic): the subtypes the copy gets"""
+        Mirrorhall Mimic): the subtypes the copy gets; `AbilityCopyApplier(ability)` and the appliers in
+        `COPY_APPLIERS`: what they change (`CopyApplierDef`)"""
+        m = re.fullmatch(r'new AbilityCopyApplier\((.*)\)', expr.strip(), re.S)
+        if m and len(split_args(m.group(1))) == 1:
+            ab = self.ability(m.group(1))
+            ab.pop('java', None)
+            return {'applier': {'abilities': [ab]}}
         m = re.fullmatch(r'new (\w+)\(\)', expr.strip())
+        if m and m.group(1) in COPY_APPLIERS and re.search(r'class ' + m.group(1) + r' extends CopyApplier\b', self.source or ''):
+            return {'applier': COPY_APPLIERS[m.group(1)]}
         body = m and re.search(r'class ' + m.group(1) + r' extends CopyApplier\s*\{(.*?)\n\}', self.source or '', re.S)
         apply = body and re.search(r'public boolean apply\([^)]*\)\s*\{(.*?)\n    \}', body.group(1), re.S)
         if not apply or re.search(r'public \w+ (?!apply\b|getText\b)\w+\(', body.group(1)):
@@ -4981,6 +5046,28 @@ class Translator:
 
 
 # spells whose effects work across their targets in ways the statements can't say: their spell, by card name
+# card-declared `CopyApplier`s, read by hand: what `apply` does to the blueprint (`CopyApplierDef`)
+COPY_APPLIERS = {
+    # it isn't legendary; unless it copies a copy, +1/+1 counter if a creature, loyalty counter if a planeswalker
+    'SparkDoubleCopyApplier': {
+        'remove_supertypes': ['LEGENDARY'],
+        'counters': [{'counter': {'name': '+1/+1', 'amount': 1}, 'if_type': 'CREATURE',
+                      'rule': 'with an additional +1/+1 counter on it'},
+                     {'counter': {'name': 'loyalty', 'amount': 1}, 'if_type': 'PLANESWALKER',
+                      'rule': 'with an additional loyalty counter on it'}]},
+    # legendary and snow; unless it copies a copy, a creature has changeling and two +1/+1 counters
+    'MoritteOfTheFrostCopyApplier': {
+        'add_supertypes': ['LEGENDARY', 'SNOW'],
+        'creature_abilities': [{'class': 'ChangelingAbility'}],
+        'counters': [{'counter': {'name': '+1/+1', 'amount': 2}, 'if_type': 'CREATURE'}]},
+    # unless it copies a copy, X +1/+1 counters (the X it was cast with)
+    'AlteredEgoCopyApplier': {'counters': [{'counter': {'name': '+1/+1', 'amount': 0}, 'x': True}]},
+    # unless it copies a copy, a shield counter if you control the copied creature
+    'UndercoverOperativeApplier': {
+        'counters': [{'counter': {'name': 'shield', 'amount': 1}, 'if_controlled': True,
+                      'rule': 'with a shield counter on it'}]},
+}
+
 SPELL_OVERRIDES = {
     'Dark Salvation': lambda: {
         'effects': [{'class': 'DarkSalvationEffect', 'token': token('ZombieToken')}],
@@ -6635,6 +6722,17 @@ def granted_rules(card):
         if isinstance(x, dict):
             if 'rule' in x:
                 rule, seen = x['rule'], [0]
+            # (the abilities a copy applier gives: Progenitor Mimic's "except it has \"…\"", the quoted text as
+            # written, but for the effects that write their own: `ReturnToHandSourceEffect`'s "return {this}")
+            for g in (x.get('applier') or {}).get('abilities', []) if isinstance(x.get('applier'), dict) else []:
+                if isinstance(g, dict) and 'rule' not in g:
+                    quotes = re.findall(r'"([^"]*)"', rule or '')
+                    if seen[0] >= len(quotes):
+                        raise Unsupported('copy applier ability without its rule text')
+                    g['rule'] = quotes[seen[0]]
+                    if [e.get('class') for e in g.get('effects', [])] == ['ReturnToHandSourceEffect']:
+                        g['rule'] = re.sub(r'\b([Rr])eturn this creature\b', r'\1eturn {this}', g['rule'])
+                    seen[0] += 1
             g = x.get('ability')
             if isinstance(g, dict) and 'rule' not in g:
                 one(g, rule, seen[0])

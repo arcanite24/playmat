@@ -220,6 +220,8 @@ pub struct Obj {
     pub guildpact_order: Vec<Option<usize>>,
     /// what it entered as a copy of (Mockingbird): its copiable values, which a copy of it copies
     pub copied_def: Option<Arc<CardDef>>,
+    /// what it became a copy of until end of turn (Mirage Mirror): the latest copy effect, so its copiable values
+    pub eot_copy: Option<Arc<CardDef>>,
     /// the permanent (and its zone change count) this Aura is attached to
     pub attached_to: Option<(ObjId, u32)>,
     /// cast as its adventure: the whole card, while `def` is the adventure's
@@ -359,8 +361,9 @@ impl Obj {
     /// Its copiable values: what it's a copy of, or its card before other effects changed it
     pub fn copiable(&self) -> Arc<CardDef> {
         // (an Aura's or a static's "is a …" isn't copiable: Frogify's creature is copied as it's printed)
-        self.copied_def
+        self.eot_copy
             .clone()
+            .or_else(|| self.copied_def.clone())
             .or_else(|| self.printed_def.clone())
             .or_else(|| self.until_end_of_turn_def.clone().filter(|_| self.becomes_base.is_none()))
             .or_else(|| self.becomes_base.clone())
@@ -635,6 +638,8 @@ pub struct StackItem {
     /// cards spliced onto this spell: each card's spell ability resolves after the spell's own, with its targets
     /// and their zone-change counts
     pub spliced: Vec<Spliced>,
+    /// a cast trigger: the spell that was cast (Java's `getValue("spellCast")`), whatever its target pointer is
+    pub cast_spell: Option<ObjId>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -703,6 +708,7 @@ impl StackItem {
             gift_to: None,
             def: None,
             spliced: Vec::new(),
+            cast_spell: None,
         }
     }
 }
@@ -843,8 +849,9 @@ pub struct Game {
     pub rebound: Vec<(ObjId, u32, Seat)>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
     pub next_creature_spell: Vec<(Seat, u32, StackItem)>,
-    /// "when you next cast an instant or sorcery spell this turn": the player, the turn, the delayed trigger
-    pub next_instant_sorcery: Vec<(Seat, u32, StackItem)>,
+    /// "when you next cast an instant or sorcery spell this turn": the player, the turn, the delayed trigger, and the
+    /// spells it waits for when they aren't instants and sorceries (`CastNextSpellDelayedTriggeredAbility`'s filter)
+    pub next_instant_sorcery: Vec<(Seat, u32, StackItem, Option<crate::card::Filter>)>,
     /// "until your next turn, whenever one or more creatures attack one of your opponents" delayed triggers: whose,
     /// and the trigger (its `fixed` set to the attackers)
     pub attacks_opponent: Vec<(Seat, StackItem)>,
@@ -1363,6 +1370,7 @@ impl Game {
             pre_guildpact: None,
             guildpact_order: Vec::new(),
             copied_def: None,
+            eot_copy: None,
             cast_x: 0,
             attached_to: None,
             adventurer: None,
@@ -3221,6 +3229,9 @@ impl Game {
         } else {
             zone
         };
+        // a spell's copy its own effect exiles (`ExileSpellEffect` moves the copy's card): it's in exile until the
+        // next state check (704.5e), where a copy countered or moved any other way just leaves the stack
+        let copy_exiled = from == Zone::Stack && zone == Zone::Exile && self.obj(id).flashback && self.obj(id).token;
         self.obj_mut(id).flashback = false;
         if !(from == Zone::Stack && zone == Zone::Battlefield) {
             self.obj_mut(id).escaped = false;
@@ -3708,6 +3719,7 @@ impl Game {
                     o.def = def;
                 }
                 o.copied_def = None;
+                o.eot_copy = None;
                 if let Some(def) = o.pre_guildpact.take() {
                     o.def = def;
                     o.guildpact_order.clear();
@@ -3817,6 +3829,9 @@ impl Game {
                 t.target_zcc = vec![vec![self.obj(id).zcc]];
             }
             self.pending.push(t);
+        }
+        if copy_exiled {
+            Arc::make_mut(&mut self.exile).push(id);
         }
         if self.obj(id).token && zone != Zone::Battlefield {
             return;

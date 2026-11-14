@@ -333,7 +333,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,676 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,704 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -656,6 +656,38 @@ Being in the engine and being trusted are kept apart.
   (303.4g; Prophetic Ravings back from Sheltered by Ghosts); toxic adds every granted instance (two Necrogen
   Communions on one creature give 4 poison); an attack trigger with a target pointer and targets of its own keeps the
   attacker as its event object. Left: Gruul Ragebeast (its stack text).
+
+  Copy effects (wave 5, area A): `CopyPermanentEffect` takes a `CopyApplierDef`, which is what a `CopyApplier` does
+  to the copy's blueprint. That covers `AbilityCopyApplier` and the card-declared ones the transpiler's
+  `COPY_APPLIERS` table reads: Spark Double, Moritte of the Frost, Altered Ego and Undercover Operative. Its
+  supertypes and abilities stay copiable. Its creature abilities and "enters with" counters don't come again on a
+  copy of a copy (`isCopyOfCopy`, 707.9e). An applier ability's rule is the quoted text of the granting rule
+  (Progenitor Mimic). Spell copies (`CopyTargetStackObjectEffect`) can keep their targets (when `chooseTargets` is
+  false and there's no applier) or not be legendary (`RemoveTypeCopyApplier`). `CopyNextSpellDelayedTriggeredAbility`
+  takes its filter (Jeong Jeong, Dual Strike). A spell copy that its own effect exiles stays in exile until the next
+  state check. `CreateTokenCopySourceEffect` takes a number and a tapped flag, and so does
+  `CreateTokenCopyTargetEffect`. Becoming a copy until end of turn (`become_copy_until_end_of_turn`, for Mirage
+  Mirror, Tilonalli's Skinshifter and Sarkhan, Soul Aflame) makes the copy the permanent's copiable values until the
+  cleanup (`eot_copy`). `remove_tokens_at_next_end_step` is `removeTokensCreatedAt` at the next end step: sacrifice
+  or exile the token copies (Mirror March, which flips coins until it loses). Four factory rounds (72 games, 64
+  match) verified 26 more: 10,558 of 10,704. The copy games are in `shadow/factory/game-copy-*` and `game-token-cop*`, plus
+  `shadow/handlers/game-handlers5-copy-*`.
+
+  Left from wave 5's copy area:
+  - Double Major: one game's beginning-of-combat triggers from a copied permanent spell's token and the original
+    resolve in a different order.
+  - Sage of the Skies: Java's `CastAnotherSpellThisTurnCondition` counts the Sage itself as the trigger is checked
+    (the stack-moment zone-change count isn't set yet), so its trigger goes on the stack with no other spell cast and
+    does nothing as it resolves. The engine's condition is the same at both checks, so the trigger never goes on
+    the stack.
+  - Double Vision and Social Snub: pending (their triggers aren't in a factory game yet).
+  - Thousand-Faced Shadow: needs a trigger handler with targets, the zone a permanent entered from, and an
+    attacking token copy.
+  - Copying abilities (Strionic Resonator, Lithoform Engine): `TargetStackObject` with a triggered-ability filter.
+  - The `ExileTargetCardCopyAndCastEffect` family.
+  - Polymorphous Rush and Hall of Echoes: their own copy effects.
+  - Wandering Archaic: its back face's `ExploreTheVastlandsEffect`.
+  - Jackal, Genius Geneticist and Loki, God of Mischief: their own predicate and trigger.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
