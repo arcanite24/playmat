@@ -2652,6 +2652,11 @@ pub enum EffectDef {
         #[serde(default)]
         this_turn: bool,
     },
+    /// resolving: the permanents of `filter` attack each combat if able until your next turn
+    /// (`AttacksIfAbleAllEffect(filter, Duration.UntilYourNextTurn)`: Kardur, Doomscourge)
+    AttacksIfAbleAllUntilYourNextTurnEffect {
+        filter: Filter,
+    },
     /// amass: with no Army, create `token` (a 0/0 Army) first; then `amount` +1/+1 counters on an Army the
     /// controller chooses, which becomes a `subtype` too
     AmassEffect {

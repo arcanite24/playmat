@@ -1064,6 +1064,8 @@ pub struct Game {
     /// `DontUntapInControllersUntapStepAllEffect` until your next turn: its controller, "you" or "any", the filter,
     /// the source and the turn it resolved; it applies in the next untap step of that player's turn
     pub dont_untap_next: Vec<(Seat, String, Filter, ObjId, u32)>,
+    /// `AttacksIfAbleAllEffect` until your next turn: its controller, the filter and the source
+    pub attacks_if_able_next: Vec<(Seat, Filter, ObjId)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
     /// while triggered abilities go on the stack: what their targets trigger (ward, valiant), which Java's
@@ -1314,6 +1316,7 @@ impl Game {
             resume_step: None,
             combat_phase_done: false,
             dont_untap_next: Vec::new(),
+            attacks_if_able_next: Vec::new(),
             triggered_this_turn: Vec::new(),
             targeted_later: None,
             sac_insert: None,
@@ -2317,6 +2320,7 @@ impl Game {
             }
             _ => false,
         }) || self.requirements.iter().any(|r| r.kind == RequirementKind::Attacks && r.obj == (id, self.obj(id).zcc))
+            || self.attacks_if_able_next.iter().any(|(you, filter, src)| self.filter_matches(filter, *you, Some(*src), id))
     }
 
     pub fn cant_attack_or_block(&self, id: ObjId) -> bool {

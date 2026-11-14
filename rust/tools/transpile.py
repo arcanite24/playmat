@@ -2424,6 +2424,9 @@ class Translator:
         # "each player may play an additional land on each of their turns" (Ghirapur Orrery)
         if cls == 'PlayAdditionalLandsAllEffect' and not [a for a in args if a.strip()]:
             return {'class': 'PlayAdditionalLandsControllerEffect', 'amount': 1, 'all': True}
+        # "until your next turn, creatures your opponents control attack each combat if able" (Kardur)
+        if cls == 'AttacksIfAbleAllEffect' and len(args) == 2 and args[1].strip() == 'Duration.UntilYourNextTurn':
+            return {'class': 'AttacksIfAbleAllUntilYourNextTurnEffect', 'filter': self.filter(args[0])}
         if cls == 'PlayAdditionalLandsControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}

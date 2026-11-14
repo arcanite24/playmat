@@ -298,6 +298,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // "until your next turn" ends as it begins
             game.attacks_opponent.retain(|(s, _)| *s != active);
             game.flash_until_next_turn.retain(|(s, _, _)| *s != active);
+            game.attacks_if_able_next.retain(|(s, _, _)| *s != active);
             game.card_statics.retain(|r| r.until_turn_of != Some(active));
             game.damage_doubled_to.retain(|(_, s)| *s != active);
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
@@ -16057,6 +16058,9 @@ fn apply_each_effect(
                     let turn = game.turn;
                     game.dont_untap_next.push((controller, who.clone(), filter.clone(), source.0, turn));
                 }
+            }
+            EffectDef::AttacksIfAbleAllUntilYourNextTurnEffect { filter } => {
+                game.attacks_if_able_next.push((controller, filter.clone(), source.0));
             }
             EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
             EffectDef::LoseGameSourceControllerEffect => {
