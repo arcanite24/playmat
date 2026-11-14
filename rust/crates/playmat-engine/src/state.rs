@@ -388,6 +388,9 @@ impl Obj {
             .or_else(|| self.until_end_of_turn_def.clone().filter(|_| self.becomes_base.is_none()))
             .or_else(|| self.becomes_base.clone())
             .or_else(|| self.until_end_of_turn_def.clone())
+            // what a static's land types or an effect's granted abilities added isn't copiable (a cipher's trigger
+            // stays off a token copy of its creature)
+            .or_else(|| self.land_type_base.as_ref().map(|(b, _, _)| b.clone()))
             .unwrap_or_else(|| self.def.clone())
     }
 
