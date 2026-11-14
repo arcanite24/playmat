@@ -8,7 +8,7 @@ A handler file declares its classes as
         Handler::effect("RapidHybridization.RapidHybridizationEffect", apply).tokens(&["FrogLizardToken"]),
     ];
 
-`Handler::effect`, `::condition`, `::value`, `::predicate` or `::trigger` (with the framework trigger it extends, in Java, as its
+`Handler::effect`, `::condition`, `::value`, `::predicate`, `::spend` (a `ConditionalManaBuilder`) or `::trigger` (with the framework trigger it extends, in Java, as its
 second argument), with the Java class as `OuterCardClass.InnerClass` (or the bare class
 name for one in the framework), and optionally `.tokens(&[…])`, `.effects(&[…])`, `.filters(&[…])`: Java for the
 transpiler to translate (token classes, effect and filter expressions), handed to the handler in that order; and
@@ -34,7 +34,7 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 DIR = os.path.join(ROOT, 'rust', 'crates', 'playmat-engine', 'src', 'cards')
 
 STATIC_KINDS = ('continuous', 'replacement', 'cost', 'restriction', 'rule', 'as_though', 'keeps_mana')
-_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|mana|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
+_DECL = re.compile(r'Handler::(effect|condition|value|trigger|predicate|mana|spend|' + '|'.join(STATIC_KINDS) + r')\(\s*"([\w.]+)"\s*,')
 _FN = re.compile(r'\s*[\w:]+\s*,?\s*\)')
 _PART = re.compile(r'\s*\.(tokens|effects|filters|args|abilities)\(\s*&\[')
 # `.in_any_zone()` and `.on_start(f)`: the engine's business only
@@ -238,6 +238,13 @@ def mana_ability(t, expr, cost, no_tap):
     if h['filters']:
         out['filters'] = [t.filter(x) for x in h['filters']]
     return out
+
+
+def spend(t, expr):
+    """the spend handler's name (`Handler::spend`) for a `ConditionalManaBuilder` expression `new XManaBuilder()`
+    (one the card declares, or a framework one by its bare name), or None"""
+    m = re.fullmatch(r'new (\w+)\(\)', expr.strip())
+    return m and find(getattr(t, 'source', None), m.group(1), 'spend')
 
 
 def condition(t, expr):
