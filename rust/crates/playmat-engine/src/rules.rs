@@ -1348,6 +1348,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || suspend(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
             || o.def.back.as_ref().is_some_and(|b| b.is(CardType::Land) && can_play_land(game, seat))
+            || o.def.back.as_ref().is_some_and(|b| !b.is(CardType::Land) && castable(game, seat, *id, b))
         {
             out.push(*id);
         }
@@ -1506,6 +1507,12 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     if back.is(CardType::Land) && can_play_land(game, seat) {
                         if let Some(k) = index(back, &AbilityDef::PlayLandAbility) {
                             out.push((id, def.abilities.len() + k, PlayKind::Land, Some(1)));
+                        }
+                    }
+                    // a back that is cast (Kaldheim's gods' artifacts, the Strixhaven deans)
+                    if !back.is(CardType::Land) && castable(game, seat, id, back) {
+                        if let Some(k) = index(back, &AbilityDef::SpellAbility) {
+                            out.push((id, def.abilities.len() + k, PlayKind::Other, Some(1)));
                         }
                     }
                 }
@@ -1732,7 +1739,9 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
         }
         if let AbilityDef::LimitedTimesPerTurnActivatedAbility { limit, condition, .. } = a {
             let used = game.activated_this_turn.iter().filter(|x| **x == (id, i)).count() as u32;
-            if used >= *limit || !game.condition_holds(condition.as_ref(), seat, id) {
+            if used >= cards::max_activations(game, seat, id, i, *limit)
+                || !game.condition_holds(condition.as_ref(), seat, id)
+            {
                 continue;
             }
         }
@@ -3869,6 +3878,16 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some(k) = land_back {
             options.push(k);
         }
+        // a back that is cast (Birgi's Harnfel, Horn of Bounty): its spell ability, after the front's abilities
+        let spell_back = (zone == Zone::Hand)
+            .then(|| game.obj(id).def.back.clone())
+            .flatten()
+            .filter(|b| !b.is(CardType::Land) && castable(game, seat, id, b))
+            .and_then(|b| b.abilities.iter().position(|a| *a == AbilityDef::SpellAbility))
+            .map(|k| game.obj(id).def.abilities.len() + k);
+        if let Some(k) = spell_back {
+            options.push(k);
+        }
         // its front cast, or its back played: Java shows the picker for either, even with one choice
         let mdfc = zone == Zone::Hand && !game.obj(id).def.is(CardType::Land) && game.obj(id).def.back.is_some();
         // a card cast from exile with other mana (airbend's {2}: `setCastSourceIdWithAlternateMana`) shows the picker
@@ -4052,6 +4071,18 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 let o = game.obj_mut(id);
                 o.front = Some(full);
                 o.def = back;
+            } else if spell_back == Some(index) {
+                // cast as its back: the whole card again as it leaves the stack or, as a permanent, the battlefield
+                let before = game.clone();
+                let full = game.obj(id).def.clone();
+                let back = full.back.clone().expect("a back");
+                let o = game.obj_mut(id);
+                o.front = Some(full);
+                o.def = back;
+                if !cast(game, d, seat, id) {
+                    *game = before;
+                }
+                return;
             } else if index != 0 {
                 let before = game.clone();
                 if !activate(game, d, seat, id, index) {
@@ -21617,7 +21648,10 @@ fn transform(game: &mut Game, id: ObjId) {
             true
         }
         None => {
-            let Some(back) = o.def.transform_back.clone() else { return };
+            // a modal double-faced card transforms when both its faces are permanents
+            // (`ModalDoubleFacedCard.isTransformable`: Monica Rambeau)
+            let mdfc = o.def.back.clone().filter(|b| b.is_permanent_card() && o.def.is_permanent_card());
+            let Some(back) = o.def.transform_back.clone().or(mdfc) else { return };
             o.front = Some(std::mem::replace(&mut o.def, back));
             o.transformed_in_place = true;
             false

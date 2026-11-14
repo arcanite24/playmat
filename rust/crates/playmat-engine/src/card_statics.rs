@@ -22,7 +22,8 @@
 //! - **restrictions**: `Handler::restriction(name, applies, &[Restrict::…])`: `rules::can_block`, `can_attack`.
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
-//!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`.
+//!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
+//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
@@ -355,6 +356,9 @@ pub(crate) enum Rule {
     /// `LOSES` (`false`: `seat` can't lose the game, `PlayerImpl.canLose`) and `WINS` (`true`: `seat` can't win it,
     /// `PlayerImpl.won`)
     CantLoseOrWin(fn(&Game, &StaticCx, Seat, bool) -> bool),
+    /// `MAX_ACTIVATIONS`: how many times `seat` may activate the ability at `index` of `id` each turn, where it
+    /// limits them (Birgi's boast twice); None leaves the limit as it is
+    MaxActivations(fn(&Game, &StaticCx, Seat, ObjId, usize) -> Option<u32>),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -708,6 +712,20 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
     each_static(game, &mut |h, cx, _| {
         if let Hook::Rule(Rule::CantActivate(f)) = h {
             out = out || f(game, cx, seat, id, index);
+        }
+    });
+    out
+}
+
+/// The most times `seat` may activate the ability at `index` of `id` this turn: `limit`, unless a handler changes it
+/// (`MAX_ACTIVATIONS`: the last one that applies sets it)
+pub(crate) fn max_activations(game: &Game, seat: Seat, id: ObjId, index: usize, limit: u32) -> u32 {
+    let mut out = limit;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::MaxActivations(f)) = h {
+            if let Some(n) = f(game, cx, seat, id, index) {
+                out = n;
+            }
         }
     });
     out
