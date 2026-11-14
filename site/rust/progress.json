@@ -257,12 +257,12 @@
   "source": "docs/rust/Engine.md"
  },
  "counted": {
-  "engine_cards": 12450,
-  "verified_cards": 12182,
+  "engine_cards": 12507,
+  "verified_cards": 12238,
   "pioneer": {
    "cards": 15259,
-   "in_engine": 12363,
-   "verified": 12095
+   "in_engine": 12420,
+   "verified": 12151
   },
   "java_card_files": 32749,
   "school": {
@@ -1019,10 +1019,10 @@
    "played": 1360,
    "matched": 1357,
    "java_timeouts": 28,
-   "checked_in": 1226
+   "checked_in": 1236
   },
   "rust": {
-   "lines": 98687,
+   "lines": 99565,
    "crates": [
     {
      "crate": "playmat-ai",
@@ -1030,7 +1030,7 @@
     },
     {
      "crate": "playmat-engine",
-     "lines": 76824
+     "lines": 77702
     },
     {
      "crate": "playmat-gateway",
@@ -1055,6 +1055,6 @@
    ]
   }
  },
- "commit": "5fa8a18ec81d7e9408699f378396a2d9e96cd8cf",
+ "commit": "dfa4973571085d6959822db6cbf306c49ab58fd6",
  "generated": "2026-11-14"
 }
