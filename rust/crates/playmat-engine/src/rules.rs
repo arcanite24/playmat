@@ -6109,6 +6109,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     });
     // X: announced before the targets (`AbilityImpl.handleManaXCosts`)
     let mut mana = adjusted_mana_cost(game, seat, id, &def.abilities[index], costs);
+    let untargeted = mana.clone();
     if mana.x > 0 {
         let min = match def.abilities[index] {
             AbilityDef::SimpleActivatedAbility { min_x, .. } => min_x,
@@ -6190,6 +6191,12 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     };
     if !choose_targets_of_modes(game, d, seat, targets, &mode_ends, None, rule, true) {
         return false;
+    }
+    // the cost changes that look at the ability's targets (Kopala's "abilities your opponents activate that target a
+    // Merfolk you control cost {2} more"), now that they're chosen: Java adjusts the costs after the targets
+    let targeted = adjusted_mana_cost(game, seat, id, &def.abilities[index], costs);
+    if targeted.generic != untargeted.generic {
+        mana.generic = (mana.generic + targeted.generic).saturating_sub(untargeted.generic);
     }
     // an equip ability's reductions are for the creature it targets, now that it's chosen
     if let AbilityDef::EquipAbility { .. } = def.abilities[index] {
