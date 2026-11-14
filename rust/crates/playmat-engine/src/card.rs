@@ -519,6 +519,11 @@ pub enum Pred {
     Modified,
     /// `WasDealtDamageThisTurnPredicate`
     DamagedThisTurn,
+    /// `DamagedPlayerThisTurnPredicate(who)`: it dealt damage this turn to you ("you"), an opponent ("opponent") or
+    /// any player ("any") (`PlayerDamagedBySourceWatcher`, as the object it is now)
+    DamagedPlayerThisTurn {
+        who: String,
+    },
     /// `BlockingPredicate`
     Blocking,
     /// `ManaSpentToCastPredicate`: the mana spent to cast it compared with `n`

@@ -1030,6 +1030,9 @@ pub struct Game {
     pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
     /// players dealt combat damage this turn, by source (Steel Hellkite's watcher): the source, the player
     pub combat_damaged_players: Vec<(ObjId, Seat)>,
+    /// players dealt any damage this turn, by source (`PlayerDamagedBySourceWatcher`): the source, its zone change
+    /// count then, the player
+    pub damaged_players: Vec<(ObjId, u32, Seat)>,
     /// the creatures that attacked this turn, as they were (`AttackedThisTurnWatcher.getAttackedThisTurnCreatures`)
     pub attacked_this_turn: Vec<(ObjId, u32)>,
     /// the permanents each player put one or more +1/+1 counters on this turn, as they were (Kid Loki's watcher)
@@ -1303,6 +1306,7 @@ impl Game {
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
+            damaged_players: Vec::new(),
             attacked_this_turn: Vec::new(),
             p1p1_put_this_turn: Vec::new(),
             all_basics_until_eot: Vec::new(),
@@ -1656,6 +1660,15 @@ impl Game {
                     })
             }
             Pred::DamagedThisTurn => o.damaged_by.0 == self.turn && o.damaged_by.1 != 0,
+            Pred::DamagedPlayerThisTurn { who } => self.damaged_players.iter().any(|(s, z, p)| {
+                *s == id
+                    && *z == o.zcc
+                    && match who.as_str() {
+                        "you" => *p == you,
+                        "opponent" => *p != you,
+                        _ => true,
+                    }
+            }),
             Pred::Blocking => !o.blocking.is_empty(),
             Pred::ManaSpent { cmp, n } => cmp.holds(o.mana_spent as i32, *n),
             Pred::Card { handler } => (handler.f())(self, you, source, id),

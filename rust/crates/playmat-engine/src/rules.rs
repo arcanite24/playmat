@@ -19455,6 +19455,12 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             if combat && amount > 0 && !game.combat_damaged_players.contains(&(source, s)) {
                 game.combat_damaged_players.push((source, s));
             }
+            if amount > 0 {
+                let zcc = game.obj(source).zcc;
+                if !game.damaged_players.contains(&(source, zcc, s)) {
+                    game.damaged_players.push((source, zcc, s));
+                }
+            }
             // toxic: combat damage to a player also gives them poison counters, each toxic ability's (`doDamage`)
             if combat {
                 let toxic = |a: &AbilityDef| match a {
@@ -21002,6 +21008,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.exile_if_graveyard.clear();
     game.damaged_by_source.clear();
     game.combat_damaged_players.clear();
+    game.damaged_players.clear();
     game.attacked_this_turn.clear();
     game.p1p1_put_this_turn.clear();
     if !game.all_basics_until_eot.is_empty() {

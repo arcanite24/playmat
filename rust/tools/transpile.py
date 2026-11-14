@@ -940,6 +940,9 @@ def predicate(text, subtypes):
         return {'p': 'token', 'v': m.group(1) == 'TRUE'}
     if (m := re.fullmatch(r'(CounterType\.\w+)\.getPredicate\(\)', text)) and m.group(1) in COUNTERS:
         return {'p': 'counter', 'name': COUNTERS[m.group(1)]}
+    m = re.fullmatch(r'new DamagedPlayerThisTurnPredicate\(TargetController\.(YOU|OPPONENT|ANY)\)', text)
+    if m:
+        return {'p': 'damaged_player_this_turn', 'who': m.group(1).lower()}
     m = re.fullmatch(r'BlockingOrBlockedBySourcePredicate\.(BLOCKING|BLOCKED_BY|EITHER)', text)
     if m:
         return {'p': 'blocking_or_blocked_by_source', 'blocking': m.group(1) != 'BLOCKED_BY',
