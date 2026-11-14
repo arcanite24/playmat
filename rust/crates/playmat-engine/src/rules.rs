@@ -13059,7 +13059,7 @@ fn apply_each_effect(
             | EffectDef::GainPlusOneLifeReplacementEffect
             | EffectDef::SpellCostReductionForEachSourceEffect { .. }
             | EffectDef::CantBeCounteredControlledEffect { .. }
-            | EffectDef::DontCauseTriggerEffect
+            | EffectDef::DontCauseTriggerEffect { .. }
             | EffectDef::CreaturesCantGetOrHaveAbilityEffect { .. }
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
             | EffectDef::SpellsCostIncreasingAllEffect { .. }
@@ -18863,18 +18863,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // everything that triggers on this event, in Java's registration order
     let mut sources: Vec<ObjId> = game.battlefield.iter().copied().filter(|s| *s != id).collect();
     sources.insert(0, id);
-    // Torpor Orb: a creature entering triggers nothing
-    let orb = game.battlefield.iter().any(|s| {
-        game.obj(*s).def.abilities.iter().any(|a| match a {
-            AbilityDef::SimpleStaticAbility { effects, .. } => {
-                effects.iter().any(|e| matches!(e, EffectDef::DontCauseTriggerEffect))
-            }
-            _ => false,
-        })
-    });
-    if orb && game.has_type(id, CardType::Creature) {
-        sources.clear();
-    }
+    // Torpor Orb: a creature entering triggers nothing (Elesh Norn: no ability of an opponent's permanent)
+    game.dont_cause_triggers(id, false, &mut sources);
     for p in game.players.iter() {
         sources.extend(p.graveyard.iter().copied());
     }

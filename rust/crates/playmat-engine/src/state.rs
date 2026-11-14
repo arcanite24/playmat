@@ -1236,6 +1236,39 @@ pub struct TurnWatch {
 }
 
 impl Game {
+    /// `DontCauseTriggerEffect` (`NUMBER_OF_TRIGGERS` replaced): `id` entering (or, `dying`, dying) doesn't cause the
+    /// abilities of `sources` to trigger, of every one (Torpor Orb, Hushbringer) or of permanents of a filter (Elesh
+    /// Norn, Mother of Machines). Cards in graveyards aren't permanents: only the filterless ones stop theirs
+    /// (`filterTriggering` null).
+    pub fn dont_cause_triggers(&self, id: ObjId, dying: bool, sources: &mut Vec<ObjId>) {
+        for s in self.battlefield.iter() {
+            let o = self.obj(*s);
+            for a in &o.def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    let EffectDef::DontCauseTriggerEffect { entering, or_dying, triggering } = e else { continue };
+                    if dying && !*or_dying {
+                        continue;
+                    }
+                    let matches = match entering {
+                        None => self.has_type(id, CardType::Creature),
+                        Some(f) => self.filter_matches(f, o.controller, Some(*s), id),
+                    };
+                    if !matches {
+                        continue;
+                    }
+                    match triggering {
+                        None => sources.clear(),
+                        Some(f) => sources.retain(|t| {
+                            !(self.obj(*t).zone == Zone::Battlefield || *t == id)
+                                || !self.filter_matches(f, o.controller, Some(*s), *t)
+                        }),
+                    }
+                }
+            }
+        }
+    }
+
     /// a snow permanent (`SuperType.SNOW`): its mana pays snow symbols
     pub fn is_snow(&self, id: ObjId) -> bool {
         self.obj(id).def.supertypes.iter().any(|s| s == "SNOW")
@@ -3673,6 +3706,13 @@ impl Game {
             });
             self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
+            // Hushbringer: a creature dying triggers nothing
+            let mut from: Vec<ObjId> = fired.iter().map(|t| t.card).collect();
+            let before = from.clone();
+            self.dont_cause_triggers(id, true, &mut from);
+            if from != before {
+                fired.retain(|t| from.contains(&t.card));
+            }
             for t in fired.iter_mut() {
                 if matches!(self.trigger_of(t), Some(Trigger::DiesAll { .. })) {
                     t.died = Some((id, died_controller));

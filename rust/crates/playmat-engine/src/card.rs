@@ -3083,8 +3083,17 @@ pub enum EffectDef {
         filter: Filter,
         duration: Duration,
     },
-    /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb)
-    DontCauseTriggerEffect,
+    /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb);
+    /// with `entering`, permanents of that filter (and, `or_dying`, dying: Hushbringer), and with `triggering`, only
+    /// abilities of permanents of that filter (Elesh Norn, Mother of Machines' "permanents your opponents control")
+    DontCauseTriggerEffect {
+        #[serde(default)]
+        entering: Option<Filter>,
+        #[serde(default)]
+        or_dying: bool,
+        #[serde(default)]
+        triggering: Option<Filter>,
+    },
     /// a static ability's effect: each player of `who` can't cast more than one spell (`noncreature`: noncreature
     /// spell, Deafening Silence) each turn
     CantCastMoreThanOneSpellEffect {
