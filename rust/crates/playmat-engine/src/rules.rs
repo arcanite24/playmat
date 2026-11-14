@@ -20903,7 +20903,8 @@ fn deal_hits(game: &mut Game, hits: Vec<(ObjId, Target, i32)>, gains: &mut Vec<(
 /// How many times a turn `seat`'s planeswalkers' loyalty abilities can be activated: twice with an Oath of Teferi
 /// (`OathOfTeferiLoyaltyEffect`: `setLoyaltyActivationsAvailable(2)`)
 fn loyalty_activations(game: &Game, seat: Seat) -> u8 {
-    if game.any_static(|g, src, e| matches!(e, EffectDef::LoyaltyAbilitiesTwiceEffect) && g.obj(src).controller == seat) {
+    if game.any_static(|g, src, e| matches!(e, EffectDef::LoyaltyAbilitiesTwiceEffect) && g.obj(src).controller == seat)
+    {
         2
     } else {
         1
