@@ -2113,6 +2113,10 @@ class Translator:
             return {'class': cls, 'filter': self.filter(args[0]) if args and args[0] != 'false' else []}
         if cls == 'BeholdCost' and len(args) == 1 and (m := re.fullmatch(r'SubType\.(\w+)', args[0].strip())):
             return {'class': cls, 'subtype': subtype_names()[m.group(1)]}
+        if cls == 'DiscardHandCost' and not args:
+            return {'class': cls}
+        if cls == 'BeholdAndExileCost' and len(args) == 1 and (m := re.fullmatch(r'SubType\.(\w+)', args[0].strip())):
+            return {'class': cls, 'subtype': subtype_names()[m.group(1)]}
         if cls == 'PayEnergyCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': cls, 'amount': int(args[0])}
         if cls == 'MillCardsCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
@@ -2797,6 +2801,24 @@ class Translator:
             return {'class': 'AttacksIfAbleSourceEffect'}
         if expr.strip() == 'PlayFromGraveyardControllerEffect.playLands()':
             return {'class': 'PlayLandsFromGraveyardControllerEffect'}
+        # "you may play cards (cast spells of the filter) from your graveyard [this turn]"
+        if self.strip_setters(expr) == 'PlayFromGraveyardControllerEffect.playCards()':
+            return {'class': 'PlayFromGraveyardControllerEffect', 'filter': []}
+        m = re.fullmatch(r'PlayFromGraveyardControllerEffect\.playLandsAndCastSpells\(Duration\.(\w+)\)',
+                         self.strip_setters(expr))
+        if m and m.group(1) in ('EndOfTurn', 'WhileOnBattlefield'):
+            e = {'class': 'PlayFromGraveyardControllerEffect', 'filter': []}
+            if m.group(1) == 'EndOfTurn':
+                e['duration'] = 'EndOfTurn'
+            return e
+        m = re.fullmatch(r'new PlayFromGraveyardControllerEffect\((.*)\)', self.strip_setters(expr), re.S)
+        if m and balanced(self.strip_setters(expr)):
+            a = split_args(m.group(1))
+            if len(a) == 1 or (len(a) == 2 and a[1] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield')):
+                e = {'class': 'PlayFromGraveyardControllerEffect', 'filter': self.filter(a[0])}
+                if len(a) == 2 and a[1] == 'Duration.EndOfTurn':
+                    e['duration'] = 'EndOfTurn'
+                return e
         if (e := self.zones_effect(expr)) is not None:
             return e
         if (e := self.stack_effect(expr)) is not None:
@@ -3322,6 +3344,12 @@ class Translator:
         # Rest in Peace's: any player's cards, and tokens
         if cls == 'GraveyardFromAnywhereExileReplacementEffect' and [a.strip() for a in args] == ['false', 'true']:
             return {'class': cls}
+        # yours only, tokens too (Hades)
+        if cls == 'GraveyardFromAnywhereExileReplacementEffect' and [a.strip() for a in args] == ['true', 'true']:
+            return {'class': cls, 'only_you': True}
+        # yours only, cards only, this turn (Forgotten Cellar)
+        if cls == 'GraveyardFromAnywhereExileReplacementEffect' and [a.strip() for a in args] == ['Duration.EndOfTurn']:
+            return {'class': cls, 'only_you': True, 'cards_only': True, 'duration': 'EndOfTurn'}
         # the target card (a dies trigger's) back onto the battlefield, under your control or its owner's
         if cls == 'ReturnToBattlefieldUnderYourControlTargetEffect' and args in ([], ['false']):
             return {'class': 'ReturnFromGraveyardToBattlefieldTargetEffect', 'tapped': False}
@@ -3688,7 +3716,7 @@ class Translator:
             if inner.get('class') == 'GainAbilitySourceEffect' and inner['duration'] == 'WhileOnBattlefield':
                 return {'class': 'ConditionalContinuousEffect', 'effect': inner, 'condition': self.condition(args[1])}
             if inner.get('class') in ('CastAsThoughItHadFlashAllEffect', 'CastAsThoughItHadFlashSourceEffect',
-                                      'PlayFromTopOfLibraryEffect'):
+                                      'PlayFromTopOfLibraryEffect', 'PlayFromGraveyardControllerEffect'):
                 return {'class': 'ConditionalAsThoughEffect', 'effect': inner, 'condition': self.condition(args[1])}
             raise Unsupported('conditional as-though ' + inner.get('class', ''))
         if cls == 'CastAsThoughItHadFlashSourceEffect' and args == ['Duration.EndOfGame']:
@@ -4034,6 +4062,29 @@ class Translator:
         # (to the shared exile, face up)
         if cls == 'ExileCardsFromTopOfLibraryControllerEffect' and (len(args) == 1 or args[1:] in (['false'], ['false', 'false'])):
             return {'class': cls, 'amount': self.amount(args[0])}
+        # (into the source's exile zone, face down or not: "the cards exiled with {this}")
+        if cls == 'ExileCardsFromTopOfLibraryControllerEffect' and len(args) in (2, 3, 4) and args[1] == 'true' \
+                and all(a in ('true', 'false') for a in args[2:]):
+            out = {'class': cls, 'amount': self.amount(args[0]), 'unique': True}
+            if len(args) > 2 and args[2] == 'true':
+                out['face_down'] = True
+            return out
+        if cls == 'MayExileCardFromHandPlottedEffect' and len(args) == 1:
+            return {'class': cls, 'filter': self.filter(args[0])}
+        if cls == 'ExileFaceDownTopNLibraryYouMayPlayAsLongAsExiledTargetEffect' and len(args) in (2, 3) \
+                and args[0] in ('true', 'false') \
+                and args[1] in ('CastManaAdjustment.NONE', 'CastManaAdjustment.AS_THOUGH_ANY_MANA_TYPE',
+                                'CastManaAdjustment.AS_THOUGH_ANY_MANA_COLOR'):
+            return {'class': 'ExileFaceDownTopNYouMayPlayEffect', 'amount': self.amount(args[2]) if len(args) == 3 else 1,
+                    'cast_only': args[0] == 'true', 'any_mana': args[1] != 'CastManaAdjustment.NONE'}
+        # (the intervening "if you do" and the card's name only change the text)
+        if cls == 'ExileTopCardPlayUntilExileAnotherEffect' and (not args or args in (['true'], ['false'])
+                                                                 or (len(args) == 1 and args[0].startswith('"'))):
+            return {'class': cls}
+        # "return the exiled card(s) to …"
+        if cls == 'ReturnFromExileForSourceEffect' and len(args) == 1 \
+                and args[0] in ('Zone.HAND', 'Zone.BATTLEFIELD', 'Zone.GRAVEYARD'):
+            return {'class': cls, 'zone': args[0][5:].lower()}
         # a text for the target (rule texts come from the facts)
         if cls == 'ExileTargetIfDiesEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0]):
             return {'class': cls}
@@ -4620,6 +4671,13 @@ class Translator:
         if cls == 'MenaceAbility' and args in (['false'], ['true']):
             return {'class': cls}
         if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and ('CantBeCounteredSourceEffect' in args[1] or (self.vars.get(args[1].strip()) or {}).get('class') == 'CantBeCounteredSourceEffect'))):
+            args = args[1:]
+        # "you may cast this from exile / your graveyard" (`Zone.EXILED`, `Zone.GRAVEYARD`): an as-though handler of
+        # the card's own, which checks the zone itself (`.in_any_zone()`)
+        elif cls == 'SimpleStaticAbility' and len(args) == 2 and args[0] in ('Zone.EXILED', 'Zone.GRAVEYARD') \
+                and (g := re.fullmatch(r'new (\w+)\(\)', args[1].strip())) \
+                and (h := card_handlers.find(getattr(self, 'source', None), g.group(1), 'effect', own_only=True)) \
+                and card_handlers.handlers()[h]['kind'] == 'as_though':
             args = args[1:]
         # "… as long as …. Otherwise, …" (`ConditionalContinuousEffect(effect, otherwise, condition, text)`): each
         # effect under its side of the condition
@@ -5806,6 +5864,8 @@ class Translator:
             return a
         if cls == 'ForageTriggeredAbility' and n == 1:
             return out({'e': 'forage'}, args[0])
+        if cls == 'BecomesPlottedSourceTriggeredAbility' and n == 1:
+            return out({'e': 'becomes_plotted'}, args[0])
         if cls == 'ExpendTriggeredAbility' and n == 2 and (m := re.fullmatch(r'ExpendTriggeredAbility\.Expend\.(FOUR|SIX|EIGHT)', args[1])):
             return out({'e': 'expend', 'n': {'FOUR': 4, 'SIX': 6, 'EIGHT': 8}[m.group(1)]}, args[0])
         # once for each batch: one sacrifice at a time in these decks
