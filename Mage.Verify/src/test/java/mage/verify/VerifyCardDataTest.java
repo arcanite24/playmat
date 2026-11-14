@@ -1006,6 +1006,8 @@ public class VerifyCardDataTest {
         ignoreBoosterSets.add("Foundations Jumpstart");
         ignoreBoosterSets.add("Ravnica: Clue Edition");
         ignoreBoosterSets.add("Avatar: The Last Airbender Eternal");
+        // boosters stay off until the spoiler season ends, see StarTrek.java
+        ignoreBoosterSets.add("Star Trek");
         // joke or un-sets, low implemented cards
         ignoreBoosterSets.add("Unglued");
         ignoreBoosterSets.add("Unhinged");
