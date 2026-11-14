@@ -693,10 +693,13 @@ pub enum Trigger {
         filter: Filter,
         who: String,
     },
-    /// you attack with `min` or more creatures of the filter (`AttacksWithCreaturesTriggeredAbility`)
+    /// you (or `who`: "opponent", "any" player) attack with `min` or more creatures of the filter
+    /// (`AttacksWithCreaturesTriggeredAbility`; Aurelia, the Law Above's and Mangara, the Diplomat's `DECLARED_ATTACKERS`)
     AttacksWith {
         min: usize,
         filter: Filter,
+        #[serde(default)]
+        who: String,
     },
     /// this leaves the battlefield
     LeavesBattlefield,

@@ -490,8 +490,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                             all.iter().any(|a| g.power_toughness(*a).0 > power)
                         }
                     }
-                    Trigger::AttacksWith { min, filter } => {
-                        you == active
+                    Trigger::AttacksWith { min, filter, who } => {
+                        (if who.is_empty() { you == active } else { Game::whose(who, you, active) })
                             && all.iter().filter(|a| g.filter_matches(filter, you, Some(src), **a)).count() >= *min
                     }
                     Trigger::Battalion => all.len() >= 3 && all.contains(&src),
