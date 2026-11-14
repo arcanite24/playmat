@@ -984,6 +984,31 @@ Being in the engine and being trusted are kept apart.
   - 94 cards came in. Three factory rounds (120 games, all matching once fixed, replayed again on master after
     #353) verified 93: 11,049 of 11,238. Sandman's Quicksand had no factory deck yet.
 
+  Wave 8, claim 5 (14 Nov, `.local/rust-port/wave8/claim-5.tsv`, most-used first):
+  - Handlers: Hostage Taker and Black Cat (exiled cards you may cast with mana of any type, Hostage Taker's until it
+    leaves), Taster of Wares (cast while you control it: `may_play_while`), Narset, Enlightened Master and You
+    Find Some Prisoners (cast from exile, free or with any mana), Glamdring (cost reduction by the equipped
+    creature's power, Gleam of Death's mill), Armor Wars, Banner of Kinship, Branch of Vitu-Ghazi (mana kept until
+    end of turn), Chandra, Heart of Fire's −9, Deathknell Berserker, Escape to the Wilds, Head of the Hunt,
+    Invisible Woman, Simic Ascendancy, Nicanzil, Swallow Whole, Vannifar, and the framework's
+    `GainLifeAllEffect` (Centaur Peacemaker came in with it).
+  - Transpiler: `EntersBattlefieldOpponentTriggeredAbility` with a target pointer, `withIfTheyDo` on
+    `CounterUnlessPaysEffect`, saga chapters written as lambdas (the FIN Summons), `TargetPermanentAmount`,
+    `TargetPlayer(n)`, `ExileThenReturnTargetEffect` returning tapped and attacking (The Neutrinos), and
+    `CombatDamageByToughnessAttachedEffect` (Gauntlets of Light).
+  - Engine: `tapped_for_cost` keeps what a spell's `TapTargetCost` tapped, and that cost's choice reads the spell's
+    text the way Java's auto-choose does (Swallow Whole's "exile" isn't picked by itself); `explored` on an explore
+    trigger; a land with disguise is playable face down without a land drop (Branch of Vitu-Ghazi); proliferating a
+    lore counter triggers the chapter it reaches; a card exiled face down that may be played first asks "Look at"
+    (not for a double-faced card); "that player loses the game" ends the game as it resolves, with the ability still
+    on the stack; once a player has lost and one is left, the state-based check ends the game before a Saga past its
+    last chapter is sacrificed. Games under `shadow/factory/game-w8c5-*` and `shadow/handlers/game-handlers-w8c5-*`.
+  - 46 cards came in. Three factory rounds (74 games, 72 matching) verified 44: 11,173 of 11,368. Aetherworks
+    Marvel's one differing game picks a target by a battlefield index that differs from Java's; Summon: Choco/Mog
+    had no game yet. Nicanzil's explore triggers weren't reached in its games. Left on the list: MDFCs with a nonland
+    back (Birgi, Wandering Archaic, Kolvori, Monica Rambeau), phasing, meld, copying spells, batch "one or more"
+    triggers, play-from-graveyard for every card, conditional mana, and about 60 one-off effects.
+
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
       python3 rust/tools/verify_factory.py record --work $W --procs 8     # long: run it in the background
