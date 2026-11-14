@@ -5205,7 +5205,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             you != seat && g.active == Some(you) && g.obj(src).zone == Zone::Battlefield
         }
         Trigger::CommittedCrime => you == seat && crime,
-        Trigger::SpellCastTargetingThis => you == seat && targeted.contains(&src),
+        // (heroic: not once it was sacrificed to cast the spell, War-Wing Siren to Bone Splinters)
+        Trigger::SpellCastTargetingThis => {
+            you == seat && targeted.contains(&src) && g.obj(src).zone == Zone::Battlefield
+        }
         Trigger::CastSecondSpell { who } => Game::whose(who, you, seat) && g.player(seat).spells_cast == 2,
         Trigger::FirstSpellOpponentsTurn => {
             you == seat && g.active.is_some_and(|a| a != you) && g.player(seat).spells_cast == 1
@@ -14530,6 +14533,10 @@ fn apply_each_effect(
                 for p in players.iter().copied() {
                     let top: Vec<ObjId> = game.player(p).library.iter().take(n).copied().collect();
                     note(game, EventKind::Milled, Some(p), None, None, top.len() as i32);
+                    if *lose_abilities {
+                        let ob = game.obj_mut(*o);
+                        ob.lost_all = ob.lost_all.max(if *duration == Duration::EndOfTurn { 1 } else { 2 });
+                    }
                     for c in top {
                         game.move_to(c, Zone::Graveyard);
                     }
@@ -21371,6 +21378,9 @@ fn cast_one_for_free(
                 Some(c) => *c,
                 None => return true,
             }
+        }
+        if game.obj(id).lost_all == 1 {
+            game.obj_mut(id).lost_all = 0;
         }
     };
     let parts = castable.into_iter().find(|(c, _)| *c == card).map(|(_, p)| p).unwrap_or_default();

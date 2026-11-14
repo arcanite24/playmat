@@ -174,6 +174,9 @@ pub struct Obj {
     pub solved: bool,
     /// what it was before an effect changed its characteristics (`def`) until end of turn
     pub until_end_of_turn_def: Option<Arc<CardDef>>,
+    /// it lost all abilities (`BecomesCreatureTargetEffect`'s `loseAllAbilities`): 1 until end of turn, 2 until it
+    /// leaves. Its keyword counters' abilities go too: Java adds them first in layer 6 (`ApplyStatusEffect`)
+    pub lost_all: u8,
     /// a static "as long as …, it's a creature" applied: the card as it is without it
     pub becomes_base: Option<Arc<CardDef>>,
     /// the Auras whose "enchanted … is a …" (`BecomesCreatureAttachedEffect`) `def` has, in timestamp order
@@ -1436,6 +1439,7 @@ impl Game {
             becomes_base: None,
             becomes_auras: Vec::new(),
             land_type_base: None,
+            lost_all: 0,
             chosen_type: None,
             info: Vec::new(),
             chosen_name: None,
@@ -1847,7 +1851,7 @@ impl Game {
             ("deathtouch", AbilityDef::DeathtouchAbility),
             ("indestructible", AbilityDef::IndestructibleAbility),
         ] {
-            if o.counter(counter) > 0 {
+            if o.counter(counter) > 0 && !(o.lost_all != 0 && o.zone == Zone::Battlefield) {
                 add(&a, &mut out);
             }
         }
@@ -1907,31 +1911,34 @@ impl Game {
         if o.has(ability) {
             return true;
         }
-        // an indestructible counter
-        if *ability == AbilityDef::IndestructibleAbility && o.counter("indestructible") > 0 {
-            return true;
-        }
-        if *ability == AbilityDef::DeathtouchAbility && o.counter("deathtouch") > 0 {
-            return true;
-        }
-        if *ability == AbilityDef::FlyingAbility && o.counter("flying") > 0 {
-            return true;
-        }
-        // the other keyword counters (122.1b)
-        let keyword = match ability {
-            AbilityDef::LifelinkAbility => "lifelink",
-            AbilityDef::TrampleAbility => "trample",
-            AbilityDef::FirstStrikeAbility => "first strike",
-            AbilityDef::DoubleStrikeAbility => "double strike",
-            AbilityDef::MenaceAbility => "menace",
-            AbilityDef::VigilanceAbility => "vigilance",
-            AbilityDef::ReachAbility => "reach",
-            AbilityDef::HexproofAbility => "hexproof",
-            AbilityDef::HasteAbility => "haste",
-            _ => "",
-        };
-        if !keyword.is_empty() && o.counter(keyword) > 0 {
-            return true;
+        // (keyword counters' abilities, unless it lost all abilities)
+        if !(o.lost_all != 0 && o.zone == Zone::Battlefield) {
+            // an indestructible counter
+            if *ability == AbilityDef::IndestructibleAbility && o.counter("indestructible") > 0 {
+                return true;
+            }
+            if *ability == AbilityDef::DeathtouchAbility && o.counter("deathtouch") > 0 {
+                return true;
+            }
+            if *ability == AbilityDef::FlyingAbility && o.counter("flying") > 0 {
+                return true;
+            }
+            // the other keyword counters (122.1b)
+            let keyword = match ability {
+                AbilityDef::LifelinkAbility => "lifelink",
+                AbilityDef::TrampleAbility => "trample",
+                AbilityDef::FirstStrikeAbility => "first strike",
+                AbilityDef::DoubleStrikeAbility => "double strike",
+                AbilityDef::MenaceAbility => "menace",
+                AbilityDef::VigilanceAbility => "vigilance",
+                AbilityDef::ReachAbility => "reach",
+                AbilityDef::HexproofAbility => "hexproof",
+                AbilityDef::HasteAbility => "haste",
+                _ => "",
+            };
+            if !keyword.is_empty() && o.counter(keyword) > 0 {
+                return true;
+            }
         }
         if o.zone != Zone::Battlefield {
             return false;
@@ -3963,6 +3970,7 @@ impl Game {
                 if let Some(def) = o.printed_def.take() {
                     o.def = def;
                 }
+                o.lost_all = 0;
                 // (Aetherwing crewed: its back as it was before it became a creature)
                 if let Some(def) = left_front.take() {
                     o.def = def;
