@@ -265,6 +265,7 @@ Altac Bloodseeker
 Altanak, the Thrice-Called
 Altar of the Brood
 Altar's Reap
+Altered Ego
 Always Watching
 Amaranthine Wall
 Amazing Acrobatics
@@ -621,6 +622,7 @@ Axiom Engraver
 Ayara's Oathsworn
 Ayara, First of Locthwain
 Ayli, Eternal Pilgrim
+Aziza, Mage Tower Captain
 Azorius Arrester
 Azorius Charm
 Azorius Cluestone
@@ -1457,6 +1459,7 @@ Champion of Rhonas
 Champion of Wits
 Champion of the Flame
 Champion of the Perished
+Chancellor of Tales
 Chandra's Embercat
 Chandra's Emberling
 Chandra's Firemaw
@@ -2379,6 +2382,7 @@ Doomwake Giant
 Doorkeeper
 Doppelgang
 Dori, Bearer of Friends
+Double Down
 Doublecast
 Doubling Season
 Douse in Gloom
@@ -2397,6 +2401,7 @@ Dracogenesis
 Draconautics Engineer
 Draconic Disciple
 Dracosaur Auxiliary
+Drafna, Founder of Lat-Nam
 Drag Under
 Drag the Canal
 Drag to the Roots
@@ -2531,6 +2536,7 @@ Dryad Greenseeker
 Dryad of the Ilysian Grove
 Dryad's Revival
 Dual Shot
+Dual Strike
 Dual-Sun Adepts
 Dub
 Dubious Delicacy
@@ -3215,6 +3221,7 @@ Flame-Chain Mauler
 Flameblade Adept
 Flamecache Gecko
 Flamecast Wheel
+Flamehold Grappler
 Flamekin Gildweaver
 Flames of the Firebrand
 Flameshadow Conjuring
@@ -3448,6 +3455,7 @@ Futurist Forge
 Futurist Sentinel
 G'raha Tia
 Gadget Technician
+Gadwick's First Duel
 Gadwick, the Wizened
 Gaea's Courser
 Gaea's Gift
@@ -3965,6 +3973,7 @@ Gruesome Fate
 Gruesome Realization
 Gruesome Scourger
 Gruesome Slaughter
+Gruff Triplets
 Grunn, the Lonely King
 Gruul Beastmaster
 Gruul Cluestone
@@ -4743,6 +4752,7 @@ Jem Lightfoote, Sky Explorer
 Jennika's Technique
 Jennika, Bad Apple Big Sister
 Jeong Jeong's Deserters
+Jeong Jeong, the Deserter
 Jeskai Ascendancy
 Jeskai Banner
 Jeskai Barricade
@@ -5332,6 +5342,7 @@ Loyal Gryff
 Loyal Pegasus
 Loyal Tutor
 Loyal Warhound
+Lucky Clover
 Lucky Offering
 Luke Cage, Power Man
 Lullmage's Familiar
@@ -5605,6 +5616,7 @@ Melded Moxite
 Meldweb Curator
 Meldweb Strider
 Meletis Astronomer
+Meletis Charlatan
 Meltstrider Eulogist
 Meltstrider's Gear
 Meltstrider's Resolve
@@ -5621,6 +5633,7 @@ Memory Trap
 Mending Touch
 Mental Modulation
 Mentor of the Meek
+Mentor's Guidance
 Mephitic Draught
 Mephitic Vapors
 Mer-Ek Nightblade
@@ -5634,6 +5647,7 @@ Merciless Executioner
 Merciless Repurposing
 Merciless Resolve
 Mercurial Geists
+Mercurial Pretender
 Mercurial Spelldancer
 Merfolk Branchwalker
 Merfolk Cave-Diver
@@ -5740,6 +5754,7 @@ Minotaur Sureshot
 Mintstrosity
 Minwu, White Mage
 Mirage Mesa
+Mirage Mirror
 Mire Triton
 Mire's Grasp
 Mire's Malice
@@ -5751,6 +5766,7 @@ Mirran Banesplitter
 Mirrex
 Mirrodin Avenged
 Mirror Image
+Mirror March
 Mirror Room // Fractured Realm
 Mirror Shield
 Mirrormade
@@ -5865,6 +5881,7 @@ Morbid Opportunist
 Morbius the Living Vampire
 Morcant's Eyes
 Morcant's Loyalist
+Moritte of the Frost
 Morkrut Behemoth
 Morkrut Necropod
 Morlun, Devourer of Spiders
@@ -6707,6 +6724,7 @@ Professor's Warning
 Profit // Loss
 Proft's Eidetic Memory
 Proft, Consulting Detective
+Progenitor Mimic
 Prognostic Sphinx
 Project Deathlok Soldier
 Promising Vein
@@ -7069,6 +7087,7 @@ Reduce to Ashes
 Reduce to Memory
 Reef Roads
 Referee Squad
+Reflections of Littjara
 Refocus
 Refurbish
 Refuse to Yield
@@ -7125,6 +7144,7 @@ Repel Calamity
 Repel the Vile
 Replicating Ring
 Replication Specialist
+Replicator
 Reprisal
 Reptil, Dinomorpher
 Reptilian Reflection
@@ -7574,6 +7594,7 @@ Sarkhan's Resolve
 Sarkhan's Triumph
 Sarkhan's Unsealing
 Sarkhan, Dragon Ascendant
+Sarkhan, Soul Aflame
 Saru, Unthreatened
 Sarulf's Packmate
 Saruli Caretaker
@@ -8114,6 +8135,7 @@ Skirk Prospector
 Skirmish Rhino
 Skirsdag Supplicant
 Skitter Eel
+Skitterbeam Battalion
 Skittering Heartstopper
 Skittering Surveyor
 Skitterskin
@@ -8339,6 +8361,7 @@ Sowing Mycospawn
 Space-Time Anomaly
 Spara's Headquarters
 Spare Supplies
+Spark Double
 Spark Harvest
 Spark Jolt
 Spark Reaper
@@ -8878,6 +8901,7 @@ Swampsnare Trap
 Swan Song
 Swarm Culler
 Swarm Guildmage
+Swarm Intelligence
 Swarm Shambler
 Swarm Surge
 Swarm of Bloodflies
@@ -9357,6 +9381,7 @@ Tiger-Seal
 Tightening Coils
 Tigra, Feline Fury
 Tilonalli's Knight
+Tilonalli's Skinshifter
 Timber Gorge
 Timberland Ancient
 Timberland Guide
@@ -9679,6 +9704,7 @@ Undercity Upheaval
 Undercity Uprising
 Undercity's Embrace
 Undercover Crocodelf
+Undercover Operative
 Underdark Basilisk
 Underfoot Underdogs
 Underground Mortuary
