@@ -127,6 +127,8 @@ EFFECTS = {
     # (first, second): damage to the targets tagged 1 and 2, the ability's first and second targets
     'DamageTargetAndTargetEffect': [('first', 'int'), ('second', 'int')],
     'TapTargetEffect': [],
+    'PhaseOutTargetEffect': [],
+    'PhaseOutSourceEffect': [],
     'CantAttackAloneSourceEffect': [],
     'MayTapOrUntapTargetEffect': [],
     'UntapTargetEffect': [(None, 'string')],
@@ -1657,6 +1659,9 @@ class Translator:
             if m.group(1) == 'PermanentsOnTheBattlefieldCondition' and args[-1] == 'false' and len(args) in (2, 4):
                 out['all'] = True
             return out
+        # meld: you both own and control the source and a permanent of the type named `with` (attacking too)
+        if (m := re.fullmatch(r'new MeldCondition\("([^"]+)"(?:,CardType\.([A-Z]+)(?:,(true|false))?)?\)', arg)):
+            return {'c': 'meld', 'with': m.group(1), 'card_type': m.group(2) or 'CREATURE', 'attacking': m.group(3) == 'true'}
         if (m := re.fullmatch(r'new EnchantedCreatureSubtypeCondition\(SubType\.(\w+)\)', arg)) and m.group(1) in self.subtypes:
             return {'c': 'attached_matches', 'filter': [CREATURE, {'p': 'subtype', 's': self.subtypes[m.group(1)]}]}
         if (m := re.fullmatch(r'new LifeCompareCondition\(TargetController\.(YOU|OPPONENT),ComparisonType\.(\w+),(\d+)\)', arg)) \
@@ -2678,6 +2683,11 @@ class Translator:
             e = self.effect(m.group(1))
             if e.get('class') == 'CounterUnlessPaysEffect':
                 return dict(e, if_they_do=[self.effect(m.group(2))])
+        # meld (`MeldEffect`): exile this and the permanent named `with`, then meld them into `into`, a card of its own
+        # (`MeldCard`) put in later by `melded_cards`, as that card's whole translation
+        m = re.fullmatch(r'new MeldEffect\("([^"]+)","([^"]+)"(?:,(true|false))?\)', canonical(self.strip_setters(expr.strip())))
+        if m:
+            return {'class': 'MeldEffect', 'with': m.group(1), 'into': {'meld': m.group(2)}, 'attacking': m.group(3) == 'true'}
         # an enchantment that becomes a creature keeps its creature types by default (`keepCreatureSubtypes`)
         m = re.fullmatch(r'(new BecomesCreatureSourceEffect\(.*,\s*CardType\.ENCHANTMENT\s*,[^,]*\))'
                          r'\.withKeepCreatureSubtypes\(true\)', self.strip_setters(expr.strip()), re.S)
@@ -2712,10 +2722,15 @@ class Translator:
         # any other effect on the ability's second target: the same effect, pointed at it
         # (a `concatBy` before the pointer only joins the texts)
         # (and one after it: Unstable Experiment's ", then")
+        second = re.sub(r'(?:\.concatBy\("[^"]*"\))+(\.setTargetPointer\(new SecondTargetPointer\(\)\))', r'\1',
+                        re.sub(r'(\.setTargetPointer\(new SecondTargetPointer\(\)\))\.concatBy\("[^"]*"\)$', r'\1',
+                               canonical(expr)))
         m = re.fullmatch(r'(new \w+\(.*\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new SecondTargetPointer\(\)\)((?:\.setText\(.*\))?)',
-                         re.sub(r'(?:\.concatBy\("[^"]*"\))+(\.setTargetPointer\(new SecondTargetPointer\(\)\))', r'\1',
-                                re.sub(r'(\.setTargetPointer\(new SecondTargetPointer\(\)\))\.concatBy\("[^"]*"\)$', r'\1',
-                                       canonical(expr))), re.S)
+                         second, re.S)
+        # (a text set before the pointer: the call is the shortest part that matches, Ragnarok's return)
+        if m and not balanced(m.group(1)):
+            m = re.fullmatch(r'(new \w+\(.*?\))((?:\.setText\("[^"]*"\))?)\.setTargetPointer\(new SecondTargetPointer\(\)\)((?:\.setText\(.*\))?)',
+                             second, re.S)
         if m and balanced(m.group(1)) and not m.group(1).startswith('new AddCountersTargetEffect('):
             return {'class': 'TargetPointerEffect', 'target': 1, 'effect': self.effect(m.group(1))}
         m = re.fullmatch(r'new RemoveCounterTargetEffect\((CounterType\.\w+)\.createInstance\(\)\)', canonical(self.strip_setters(expr)))
@@ -6334,11 +6349,10 @@ def translate(card_name, subtypes, facts):
     if 'extends SplitCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0) \
             and re.search(r'SpellAbilityType\.SPLIT(?:_AFTERMATH|_FUSED)?\)', source):
         return aftermath_card(card_name, subtypes, facts, cls, source)
-    if re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b|PrepareCard\b)\w+', re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0)):
+    meld_card = 'extends MeldCard' in re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0)
+    if not meld_card and re.search(r'extends (?!CardImpl\b|AdventureCard\b|OmenCard\b|PrepareCard\b)\w+', re.search(r'public (?:final )?class \w+\s+extends \w+', source).group(0)):
         if 'SpellAbilityType.SPLIT_FUSED' in source:
             raise Unsupported('fused split card')
-        if 'extends MeldCard' in source:
-            raise Unsupported('meld card')
         raise Unsupported('card class is not a CardImpl')
     t = Translator(declared_filters(source, subtypes), card_conditions(source), subtypes, card_values(source))
     # each filter's own text (`new FilterCard("a Plains or Swamp card from your hand")`)
@@ -6356,6 +6370,9 @@ def translate(card_name, subtypes, facts):
         except Unsupported:
             pass
     card = {'name': card_name}
+    if meld_card:
+        # a meld card is never in a deck: it's what two cards meld into (`MeldEffect`)
+        card['meld_card'] = True
     added, spell, modes = [], {'effects': [], 'targets': []}, []
     # an adventurer card's adventure: its spell is `getSpellCard().getSpellAbility()`
     adventure, aspell, amodes = None, {'effects': [], 'targets': []}, []
@@ -6779,6 +6796,21 @@ def card_statement(t, st, card, added, spell, modes, subtypes):
         m = re.fullmatch(r'this\.supertype\.add\((.*)\)', st)
         if m:
             card.setdefault('supertypes', []).extend(x.split('.')[-1] for x in split_args(m.group(1)))
+            return
+        # a meld card's colors (it has no mana cost to give them)
+        m = re.fullmatch(r'this\.color\.set(White|Blue|Black|Red|Green)\(true\)', st)
+        if m and card.get('meld_card'):
+            color = {'White': 'W', 'Blue': 'U', 'Black': 'B', 'Red': 'R', 'Green': 'G'}[m.group(1)]
+            card['colors'] = [c for c in 'WUBRG' if c in card.get('colors', []) + [color]]
+            return
+        # a meld card's partner (`meldsWithClazz`, which `MeldEffect` checks) and what they meld into (display only)
+        m = re.fullmatch(r'this\.melds(With|To)Clazz=mage\.cards\.\w\.(\w+)\.class', st)
+        if m:
+            if m.group(1) == 'With':
+                named = [n for n in FACTS if class_name(n) == m.group(2)]
+                if len(named) != 1:
+                    raise Unsupported('melds with ' + m.group(2))
+                card['melds_with'] = named[0]
             return
         m = re.fullmatch(r'this\.setStartingLoyalty\((\d+)\)', st)
         if m:
@@ -8414,6 +8446,77 @@ def strip_java(x):
             strip_java(v)
 
 
+def translate_card(name, subtypes, facts):
+    """`translate` and what follows it for every card: the card's JSON as cards.json has it"""
+    card = translate(name, subtypes, facts)
+    if EXTRA.get(card['name'], {}).get('set'):
+        card['set'] = EXTRA[card['name']]['set']
+    granted_rules(card)
+    reflexive_rules(card)
+    # a creature type chosen as a spell resolves: the engine asks only as a permanent enters (Crippling Fear)
+    if 'ChooseCreatureTypeEffect' in json.dumps(card.get('spell')):
+        raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
+    that_player_names(card)
+    copies_spells_only(card)
+    # a promised gift is known to the spell's own conditional effects only
+    if 'gift_promised' in json.dumps({k: v for k, v in card.items() if k != 'spell'}):
+        raise Unsupported('condition GiftWasPromisedCondition.TRUE outside the spell')
+    # waterbend is paid as an activated ability's cost (or on its own); a spell's or a ward's isn't yet
+    if 'WaterbendCost' in json.dumps(card.get('spell')) or any(
+            'WaterbendCost' in json.dumps(a) for a in card.get('abilities', []) if a.get('class') == 'WardAbility'):
+        raise Unsupported('cost WaterbendCost of a spell or ward')
+    if WHEN_YOU_DO in json.dumps(card) or RULE_FROM in json.dumps(card):
+        raise Unsupported('a reflexive trigger without a text')
+    static_type_changes(card)
+    hints = card_hints(card['name'], subtypes)
+    if hints:
+        card['hints'] = hints
+        # each hint's ability, by its index in the card's abilities
+        card['hint_abilities'] = [i for i, a in enumerate(EXTRA.get(card['name'], {}).get('abilities', []))
+                                  for _ in a.get('hints', [])]
+    # a room's halves' hints, from one pass over the card's source (`addHint` calls in the halves' order)
+    halves = EXTRA.get(card['name'], {}).get('halves', [])
+    if card.get('room') and len(halves) == len(card['room']):
+        hints = card_hints(card['name'], subtypes, [a for h in halves for a in h.get('abilities', [])])
+        for half, facts_half in zip(card['room'], halves):
+            n = sum(len(a.get('hints', [])) for a in facts_half.get('abilities', []))
+            if hints[:n]:
+                half['hints'] = hints[:n]
+                half['hint_abilities'] = [i for i, a in enumerate(facts_half.get('abilities', []))
+                                          for _ in a.get('hints', [])]
+            hints = hints[n:]
+    strip_java(card)
+    melded_cards(card, subtypes, facts)
+    return card
+
+
+def melded_cards(card, subtypes, facts):
+    """each `MeldEffect`'s `into`: the meld card's own translation (a card the halves make, not one in any deck)"""
+    def walk(x):
+        if isinstance(x, list):
+            for y in x:
+                walk(y)
+        elif isinstance(x, dict):
+            if x.get('class') == 'MeldEffect' and isinstance(x.get('into'), dict) and 'meld' in x['into']:
+                name = x['into']['meld']
+                if name not in facts:
+                    raise Unsupported('meld card %s has no facts' % name)
+                into = translate_card(name, subtypes, facts)
+                if not into.get('meld_card'):
+                    raise Unsupported('%s is not a meld card' % name)
+                # `MeldEffect` checks that the two cards meld with each other (`Card.meldsWith`)
+                path = card_path(x['with'])
+                partner = re.search(r'this\.meldsWithClazz\s*=\s*mage\.cards\.\w\.(\w+)\.class',
+                                    open(path).read() if os.path.exists(path) else '')
+                if not partner or partner.group(1) != class_name(card['name']) or card.get('melds_with') != x['with']:
+                    raise Unsupported('%s and %s don\'t meld with each other' % (card['name'], x['with']))
+                x['into'] = into
+                x['this'] = card['name']
+            for v in x.values():
+                walk(v)
+    walk(card)
+
+
 def main():
     card_handlers.T = sys.modules[__name__]
     parser = argparse.ArgumentParser()
@@ -8439,45 +8542,7 @@ def main():
         if not name:
             continue
         try:
-            card = translate(name, subtypes, facts)
-            if EXTRA.get(card['name'], {}).get('set'):
-                card['set'] = EXTRA[card['name']]['set']
-            granted_rules(card)
-            reflexive_rules(card)
-            # a creature type chosen as a spell resolves: the engine asks only as a permanent enters (Crippling Fear)
-            if 'ChooseCreatureTypeEffect' in json.dumps(card.get('spell')):
-                raise Unsupported('effect ChooseCreatureTypeEffect on a spell')
-            that_player_names(card)
-            copies_spells_only(card)
-            # a promised gift is known to the spell's own conditional effects only
-            if 'gift_promised' in json.dumps({k: v for k, v in card.items() if k != 'spell'}):
-                raise Unsupported('condition GiftWasPromisedCondition.TRUE outside the spell')
-            # waterbend is paid as an activated ability's cost (or on its own); a spell's or a ward's isn't yet
-            if 'WaterbendCost' in json.dumps(card.get('spell')) or any(
-                    'WaterbendCost' in json.dumps(a) for a in card.get('abilities', []) if a.get('class') == 'WardAbility'):
-                raise Unsupported('cost WaterbendCost of a spell or ward')
-            if WHEN_YOU_DO in json.dumps(card) or RULE_FROM in json.dumps(card):
-                raise Unsupported('a reflexive trigger without a text')
-            static_type_changes(card)
-            hints = card_hints(card['name'], subtypes)
-            if hints:
-                card['hints'] = hints
-                # each hint's ability, by its index in the card's abilities
-                card['hint_abilities'] = [i for i, a in enumerate(EXTRA.get(card['name'], {}).get('abilities', []))
-                                          for _ in a.get('hints', [])]
-            # a room's halves' hints, from one pass over the card's source (`addHint` calls in the halves' order)
-            halves = EXTRA.get(card['name'], {}).get('halves', [])
-            if card.get('room') and len(halves) == len(card['room']):
-                hints = card_hints(card['name'], subtypes, [a for h in halves for a in h.get('abilities', [])])
-                for half, facts_half in zip(card['room'], halves):
-                    n = sum(len(a.get('hints', [])) for a in facts_half.get('abilities', []))
-                    if hints[:n]:
-                        half['hints'] = hints[:n]
-                        half['hint_abilities'] = [i for i, a in enumerate(facts_half.get('abilities', []))
-                                                  for _ in a.get('hints', [])]
-                    hints = hints[n:]
-            strip_java(card)
-            cards.append(card)
+            cards.append(translate_card(name, subtypes, facts))
         except Unsupported as e:
             report.append('%s: %s' % (name, e))
         except Exception as e:  # noqa: BLE001: a card source the transpiler's patterns don't expect at all

@@ -1096,6 +1096,14 @@ pub enum Condition {
     Card {
         handler: crate::rules::cards::ConditionHandler,
     },
+    /// `MeldCondition`: you both own and control the source and a permanent of `card_type` named `with` (attacking
+    /// too, when `attacking`)
+    Meld {
+        with: String,
+        card_type: CardType,
+        #[serde(default)]
+        attacking: bool,
+    },
     /// `SourceHasCountersCondition`: the source has a counter of any kind
     SourceHasCounters,
     /// `EnchantedSourceCondition` (an enchantment attached), or also an Equipment (Novice Knight's)
@@ -3510,6 +3518,20 @@ pub enum EffectDef {
     UntapTargetEffect,
     /// taps the source
     TapSourceEffect,
+    /// `MeldEffect`: if you both own and control the source (attacking, when `attacking`) and a permanent named
+    /// `with` (`this` is the source's card), exile them, then meld them into `into`, a card of its own (`MeldCard`)
+    /// that enters with the two cards as its halves (tapped and attacking, when `attacking`)
+    MeldEffect {
+        with: String,
+        into: Box<CardJson>,
+        #[serde(default)]
+        attacking: bool,
+        this: String,
+    },
+    /// the first target's permanents phase out (702.26), with what's attached to them
+    PhaseOutTargetEffect,
+    /// the source phases out, if it's still the same permanent
+    PhaseOutSourceEffect,
     /// counters the target spell unless its controller pays `cost`
     CounterUnlessPaysEffect {
         #[serde(default)]

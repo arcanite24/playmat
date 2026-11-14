@@ -490,6 +490,7 @@ Ares, God of War
 Argentum Masticore
 Argivian Cavalier
 Argivian Phalanx
+Argoth, Sanctum of Nature
 Argothian Opportunist
 Argothian Sprite
 Arguel's Blood Fast
@@ -1011,6 +1012,7 @@ Blinding Drone
 Blinding Flare
 Blinding Fog
 Blinding Spray
+Blink Dog
 Blink of an Eye
 Blistercoil Weird
 Blisterpod
@@ -1277,6 +1279,7 @@ Brinebarrow Intruder
 Brineborn Cutthroat
 Bring Low
 Bring to Trial
+Brisela, Voice of Nightmares
 Bristlebane Battler
 Bristlebud Farmer
 Bristlepack Sentry
@@ -1308,6 +1311,7 @@ Broodrage Mycoid
 Broodspinner
 Brotherhood's End
 Brought Back
+Bruna, the Fading Light
 Brush Off
 Brushfire Elemental
 Brushland
@@ -1658,6 +1662,7 @@ Chimney Rabble
 Chitin Gravestalker
 Chitinous Cloak
 Chitinous Graspling
+Chittering Host
 Chittering Skitterling
 Chittering Witch
 Choco-Comet
@@ -2288,6 +2293,7 @@ Deadly Visit
 Deadly Wanderings
 Deafening Clarion
 Deafening Silence
+Deal Gone Bad
 Deanna Troi, Psychic Counsel
 Death Baron
 Death Wind
@@ -3306,6 +3312,7 @@ Fanatical Strength
 Fancy Footwork
 Fang Guardian
 Fang of Shigeki
+Fang, Fearless l'Cie
 Fangblade Brigand
 Fangkeeper's Familiar
 Far // Away
@@ -3983,6 +3990,7 @@ Girder Goons
 Gisa and Geralf
 Gisa's Bidding
 Gisa, the Hellraiser
+Gisela, the Broken Blade
 Gitaxian Raptor
 Give In to Violence
 Gix's Caress
@@ -4197,6 +4205,7 @@ Graceful Takedown
 Graduation Day
 Graf Harvest
 Graf Mole
+Graf Rats
 Grafdigger's Cage
 Graft Surgeon
 Grafted Butcher
@@ -4353,6 +4362,7 @@ Guardian Gladewalker
 Guardian Project
 Guardian Shield-Bearer
 Guardian Sunmare
+Guardian of Faith
 Guardian of Ghirapur
 Guardian of Pilgrims
 Guardian of the Gateless
@@ -4438,7 +4448,10 @@ Hands of Binding
 Hangar Scrounger
 Hangarback Walker
 Hanged Executioner
+Hanweir Battlements
+Hanweir Garrison
 Hanweir Militia Captain
+Hanweir, the Writhing Township
 Hapatra's Mark
 Hapatra, Vizier of Poisons
 Hapatra, the Desert Frost
@@ -4699,6 +4712,7 @@ Hologram Stalker
 Holy Cow
 Holy Mantle
 Homarid Explorer
+Homesickness
 Homestead Courage
 Homicide Investigator
 Homunculus Horde
@@ -5273,6 +5287,7 @@ K'un-Lun Warrior
 Kaalia, Zenith Seeker
 Kabira Outrider
 Kabira Takedown
+Kaito Shizuki
 Kaito's Pursuit
 Kaito, Bane of Nightmares
 Kaito, Cunning Infiltrator
@@ -6010,6 +6025,7 @@ Marauding Mako
 Marauding Maulhorn
 Marauding Raptor
 March of Otherworldly Light
+March of Swirling Mist
 March of Wretched Sorrow
 March of the Drowned
 March of the Multitudes
@@ -6217,6 +6233,7 @@ Midnight Guard
 Midnight Mayhem
 Midnight Reaper
 Midnight Recovery
+Midnight Scavengers
 Midnight Snack
 Midnight Tilling
 Might Beyond Reason
@@ -6310,6 +6327,7 @@ Mishra's Juggernaut
 Mishra's Onslaught
 Mishra's Research Desk
 Mishra's Self-Replicator
+Mishra, Claimed by Gix
 Mishra, Excavation Prodigy
 Misleading Motes
 Mission Briefing
@@ -6389,6 +6407,7 @@ Mondrak, Glory Dominus
 Mongoose Lizard
 Monk of the Open Hand
 Monk's Fist
+Monoist Circuit-Feeder
 Monoist Sentry
 Monstrous Onslaught
 Monstrous Rage
@@ -7282,6 +7301,7 @@ Prepare // Fight
 Preposterous Proportions
 Prescient Chimera
 Press for Answers
+Press into Service
 Press the Advantage
 Pressure Point
 Pretending Poxbearers
@@ -7526,6 +7546,7 @@ Raging Kronch
 Raging Redcap
 Raging Regisaur
 Raging Swordtooth
+Ragnarok, Divine Deliverance
 Raiders' Wake
 Rain of Revelation
 Rainveil Rejuvenator
@@ -7560,6 +7581,7 @@ Ral's Outburst
 Ral's Reinforcements
 Ral's Staticaster
 Ral, Caller of Storms
+Rally Maneuver
 Rally for the Throne
 Rally of Wings
 Rally the Monastery
@@ -8487,6 +8509,7 @@ Seismic Elemental
 Seismic Monstrosaur
 Seismic Rupture
 Seismic Sense
+Seismic Shift
 Seismic Stomp
 Seismic Strike
 Seize Opportunity
@@ -8957,6 +8980,7 @@ Slimebind
 Slimefoot, the Stowaway
 Slimy Dualleech
 Slinn Voda, the Rising Deep
+Slip Out the Back
 Slip Through Space
 Slippery Bogle
 Slither Blade
@@ -10028,6 +10052,7 @@ The Masters of Evil
 The Meathook Massacre
 The Mechanist, Aerial Artisan
 The Mending of Dominaria
+The Mightstone and Weakstone
 The Mighty Thor, Jane Foster
 The Misty Mountains Cold
 The Modern Age
@@ -10750,6 +10775,7 @@ Vandalize
 Vanguard Seraph
 Vanguard of Brimaz
 Vanguard of the Rose
+Vanille, Cheerful l'Cie
 Vanish from Sight
 Vanishing Verse
 Vannifar, Evolved Enigma

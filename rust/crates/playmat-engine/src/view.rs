@@ -2124,7 +2124,7 @@ fn token_view(game: &Game, id: ObjId) -> Option<Value> {
 /// A player's permanents (`PermanentView`), by reference
 fn battlefield_view(game: &Game, p: Seat, viewer: Seat, names: &[&str]) -> Value {
     let mut m = Map::new();
-    for id in game.battlefield.iter().copied() {
+    for id in game.all_permanents() {
         // an attachment shows with what it's attached to (`PlayerView.showInBattlefield`)
         let shown_by = match game.attached(id).filter(|t| game.obj(*t).zone == Zone::Battlefield) {
             Some(t) => game.obj(t).controller,
@@ -2169,7 +2169,7 @@ fn permanent_view(game: &Game, id: ObjId, r: &str, viewer: Seat, names: &[&str])
     m.insert("mageObjectType".into(), json!("PERMANENT"));
     m.insert("tapped".into(), json!(o.tapped));
     m.insert("flipped".into(), json!(false));
-    m.insert("phasedIn".into(), json!(true));
+    m.insert("phasedIn".into(), json!(!o.phased_out));
     // `Permanent.hasSummoningSickness`: not controlled since the turn began, without haste
     m.insert(
         "summoningSickness".into(),

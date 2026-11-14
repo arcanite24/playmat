@@ -887,6 +887,34 @@ Being in the engine and being trusted are kept apart.
   (`EnchantedTappedTriggeredManaAbility`, `TapForManaAllTriggeredManaAbility`), mana-type copying (Kinnan, Zendikar
   Resurgent), mana that grants the spell an ability (Generator Servant) and custom `SimpleManaAbility` effects.
 
+  Wave 9, meld and phasing (14 Nov): a phased-out permanent leaves `battlefield` for `Game::phased`, so everything
+  that reads the battlefield skips it, while `all_permanents()` (Java's `getAllPermanents`: the fingerprint, the
+  `B<i>` references and the client view) still lists it, in its entered order. `PhaseOutTargetEffect` and
+  `PhaseOutSourceEffect` phase it out with what's attached to it (indirectly, so those come back with it), out of
+  combat; it phases in during its controller's untap step, before the untap. Its trace P/T is the printed one plus
+  boosts aimed at it, as Java's, and destroy and sacrifice pass it by. Cleanup's per-turn resets go over phased-out
+  permanents too (`Battlefield.endOfTurn`: Kaito Shizuki's loyalty use). Meld (`MeldEffect`, `MeldCondition`): the
+  transpiler writes the meld card's whole translation into the effect's `into` (a card marked `meld_card`, never
+  in a deck; both halves must name each other in `meldsWithClazz`), and the engine exiles the source and the
+  partner it asks for (the ability's "exile them" makes even one a question), then creates the melded permanent
+  from the two cards (mana value: both halves'), entering tapped and attacking for Mishra's. When it leaves the
+  battlefield both cards go to that zone, and the owner is asked their order for a graveyard or library (owed like
+  the replacement choices; Java names the cards with no reference, so a replay can't follow that order). A
+  `Rule::CantCastOnStack` static hook reads the spell after its modes and targets, as Java's `CAST_SPELL_LATE`
+  (Brisela's "can't cast spells with mana value 3 or less"). Also fixed: `DiscardAndDrawThatManyEffect` with an
+  empty hand no longer drops the ability's later effects (Greasewrench Goblin's counter); a card with its own
+  flashback that gains another (Stingcaster Mage on Duel Tactics) offers both, the gained one after the card's own
+  abilities as in Java (`Game::flashbacks`), and is cast with the one picked; and the transpiler's
+  `SecondTargetPointer` form retries with a lazy match (Deal Gone Bad, Homesickness, Monoist Circuit-Feeder, Press
+  into Service, Rally Maneuver, Seismic Shift and Ragnarok translate now). Five factory rounds (four of them probes
+  whose decks hold both halves of each meld pair, 162 games, all matching after the flashback fix) verified 26:
+  11,155 of 11,350. Nine games under
+  `shadow/handlers/game-handlers9-meld-*` cover the engine pieces. Left: Mishra, Lost to Phyrexia (Phyrexian Dragon
+  Engine needs an "enters from your graveyard" trigger), Titania, Gaea Incarnate (Titania, Voice of Gaea's land
+  batch trigger), Urza, Planeswalker and Urza, Lord Protector, Teferi, Master of Time and Teferi, Timeless Voyager,
+  The Phasing of Zhalfir, The City on the Edge of Forever, Temporal Firestorm and Spectral Adversary (their own
+  effect classes).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
@@ -935,8 +963,7 @@ Being in the engine and being trusted are kept apart.
   round: 113 of 113 finished games match (replayed again on the engine with claims 1, 5 and 6), 47 more verified:
   10,357 of 10,475. The probe found one fix (a discard or mill for each target player, not only the first). 13
   games under `shadow/turn/` cover each part. Left: Breaker of Armies and Singularity Rupture pending (not
-  exercised enough yet). Not done: phasing (a phased-out permanent would have to be
-  skipped everywhere the battlefield is read), `EndTurnEffect` (Time Stop, Glorious End: Java's end-the-turn
+  exercised enough yet). Not done: phasing (wave 9 added it, below), `EndTurnEffect` (Time Stop, Glorious End: Java's end-the-turn
   bookkeeping), extra turns with appliers (Alchemist's Gambit, Kang), the additional end step, changing targets
   (`ChooseNewTargetsTargetEffect` for Redirect Lightning, Bolt Bend: `TargetStackObject` with a target-count filter
   and `StackObjectImpl.chooseNewTarget`'s dialog), "must be blocked by a creature of a filter" on Equipment (Slayer's
