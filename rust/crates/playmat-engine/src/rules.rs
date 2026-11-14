@@ -12673,11 +12673,22 @@ fn apply_each_effect(
                     };
                 if pay {
                     let before = game.clone();
+                    // what paying fires at once goes before the reflexive trigger, which `fireReflexiveTriggeredAbility`
+                    // puts ahead of what a sacrifice's zone change fires with the simultaneous events (a sacrificed
+                    // creature's dies trigger: Skyfisher Spider)
+                    let outer = game.sac_insert.replace(game.pending.len());
                     if pay_costs_then_mana(game, d, controller, source.0, cost, *mana_first) {
+                        let mut at = game.sac_insert.unwrap_or(game.pending.len()).min(game.pending.len());
+                        game.sac_insert = outer;
                         // a discard cost's `DISCARDED_CARDS` came as it was paid, before the reflexive trigger
                         // (Inti, Seneschal of the Sun)
                         if !game.discarded.is_empty() {
+                            let from = game.pending.len();
                             game.discarded_cards();
+                            let fired: Vec<StackItem> = game.pending.drain(from..).collect();
+                            let n = fired.len();
+                            game.pending.splice(at..at, fired);
+                            at += n;
                         }
                         let delayed = Delayed {
                             rule: rule.clone(),
@@ -12697,12 +12708,15 @@ fn apply_each_effect(
                         } else {
                             (Vec::new(), Vec::new())
                         };
-                        game.pending.push(StackItem {
-                            delayed: Some(Arc::new(delayed)),
-                            targets: pointed,
-                            target_zcc: pointed_zcc,
-                            ..StackItem::spell(source.0, controller)
-                        });
+                        game.pending.insert(
+                            at,
+                            StackItem {
+                                delayed: Some(Arc::new(delayed)),
+                                targets: pointed,
+                                target_zcc: pointed_zcc,
+                                ..StackItem::spell(source.0, controller)
+                            },
+                        );
                     } else if d.stopped() {
                         return;
                     } else {
@@ -15186,11 +15200,8 @@ fn apply_each_effect(
                     continue;
                 }
                 let owner = game.obj(card).owner;
-                // `CardUtil.castSpellWithAttributesForFree`: only a card that can be cast now is offered
-                let free = CardDef { cost: ManaCost::default(), ..(*game.obj(card).def).clone() };
-                if !has_targets(game, owner, card, &free) {
-                    continue;
-                }
+                // `CardUtil.castSpellWithAttributesForFree` doesn't look for targets: a spell with none to choose is
+                // offered too (Ephemerate with no creature), and casting it then fails, leaving it in exile
                 let message = format!("Cast spell without paying its mana cost ({})?", log::object(game, card));
                 let yes = loop {
                     match ask(game, d, owner, &Query::YesNo { message: message.clone() }) {
