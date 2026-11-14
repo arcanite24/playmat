@@ -3035,12 +3035,23 @@ impl Game {
                 }
             }
         }
-        // static handlers' (`card_statics.rs`), by their timestamps with the others
+        // static handlers' (`card_statics.rs`), by their timestamps with the others; one setting the toughness alone
+        // keeps the power the others set
+        let mut toughness_only: Option<(u64, i32)> = None;
         for (at, bp, bt) in crate::rules::cards::set_pt(self, id) {
-            later(at, bp, bt);
+            match bp {
+                Some(bp) => later(at, bp, bt),
+                None if toughness_only.is_none_or(|(s, _)| at >= s) => toughness_only = Some((at, bt)),
+                None => {}
+            }
         }
         if let Some((_, bp, bt)) = set {
             (p, t) = (bp, bt);
+        }
+        if let Some((at, bt)) = toughness_only {
+            if set.is_none_or(|(s, _, _)| at >= s) {
+                t = bt;
+            }
         }
         if !boosts {
             return (p, t);
