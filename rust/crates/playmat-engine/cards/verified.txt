@@ -541,6 +541,7 @@ Atarka Beastbreaker
 Atarka Efreet
 Atarka Monument
 Atarka Pummeler
+Atarka's Command
 Atarka, World Render
 Atlantean Cavalry
 Atlantis Attacks
@@ -571,6 +572,7 @@ Aunt May
 Auntie's Sentence
 Auramancer
 Aurelia, Exemplar of Justice
+Aurelia, the Law Above
 Auron's Inspiration
 Auroral Procession
 Auspicious Arrival
@@ -1011,6 +1013,7 @@ Blossom Dryad
 Blossom-Blessed Angel
 Blossoming Defense
 Blossoming Sands
+Blossoming Tortoise
 Blot Out
 Blot Out the Sky
 Blur Sliver
@@ -1753,6 +1756,7 @@ Confusticate and Bebother
 Congregate
 Congregation Gryff
 Conifer Strider
+Connive // Concoct
 Conquest Mission
 Conscripted Infantry
 Consecrated by Blood
@@ -1885,6 +1889,7 @@ Crescent Island Temple
 Crested Herdcaller
 Crested Sunmare
 Crew Captain
+Crib Swap
 Crime Novelist
 Crimson Operative
 Crippling Blight
@@ -2077,6 +2082,7 @@ Dawning Angel
 Dawnstrike Paladin
 Dawnstrike Vanguard
 Dawnwing Marshal
+Day of Black Sun
 Day of Judgment
 Daybreak Chaplain
 Daybreak Charger
@@ -2164,6 +2170,7 @@ Deeproot Champion
 Deeproot Elite
 Deeproot Warrior
 Deeproot Waters
+Deeproot Wayfinder
 Deepwater Hypnotist
 Defabricate
 Deface
@@ -3206,6 +3213,7 @@ Final Death
 Final Flare
 Final Payment
 Final Reward
+Final Showdown
 Final Vengeance
 Finale of Devastation
 Finale of Eternity
@@ -3797,6 +3805,7 @@ Goblin Guide
 Goblin Heelcutter
 Goblin Instigator
 Goblin Javelineer
+Goblin Kaboomist
 Goblin Locksmith
 Goblin Morningstar
 Goblin Motivator
@@ -4262,6 +4271,7 @@ Hero's Heirloom
 Heroes of the Revel
 Heroes' Bane
 Heroes' Hangout
+Heroes' Podium
 Heroes' Reunion
 Heroic Charge
 Heroic Intervention
@@ -4342,6 +4352,7 @@ Hog-Monkey
 Hold at Bay
 Hold the Gates
 Holdout Settlement
+Hollow One
 Hollow Scavenger
 Hologram Janeway
 Hologram Stalker
@@ -4876,6 +4887,7 @@ Kabira Outrider
 Kabira Takedown
 Kaito's Pursuit
 Kaito, Bane of Nightmares
+Kaito, Cunning Infiltrator
 Kalakscion, Hunger Tyrant
 Kalastria Healer
 Kalastria Highborn
@@ -5337,6 +5349,7 @@ Lofty Dreams
 Lone Rider
 Lonely Arroyo
 Lonesome Unicorn
+Long Feng, Grand Secretariat
 Long Goodbye
 Long Lake Nuisance
 Long River's Pull
@@ -5476,6 +5489,7 @@ Magmatic Insight
 Magnificent End
 Magnifying Glass
 Magnigoth Sentry
+Maha, Its Feathers Night
 Mahamoti Djinn
 Mai, Jaded Edge
 Mai, Scornful Striker
@@ -5526,6 +5540,7 @@ Manalith
 Manaweft Sliver
 Mandible Justiciar
 Maned Serval
+Mangara, the Diplomat
 Manglehorn
 Maniacal Rage
 Manic Scribe
@@ -6032,6 +6047,7 @@ Naban, Dean of Iteration
 Nadir Kraken
 Naga Eternal
 Naga Oracle
+Naga Vitalist
 Nagging Thoughts
 Nahiri's Binding
 Nahiri's Machinations
@@ -6245,6 +6261,7 @@ Oath of Gideon
 Oath of Jace
 Oath of the Ancient Wood
 Ob Nixilis's Cruelty
+Ob Nixilis, Captive Kingpin
 Ob Nixilis, the Hate-Twisted
 Obliterating Bolt
 Oblivion Sower
@@ -6535,6 +6552,7 @@ Perimeter Sergeant
 Perpetual Timepiece
 Persistent Petitioners
 Persistent Specimen
+Personify
 Pest Control
 Pest Mascot
 Pest Summoning
@@ -6691,6 +6709,7 @@ Pop Quiz
 Popular Egotist
 Pore Over the Pages
 Port Town
+Port of Karfell
 Portable Hole
 Portcullis Vine
 Portent of Betrayal
@@ -6974,6 +6993,7 @@ Rakdos Shred-Freak
 Rakdos Trumpeter
 Rakdos, Lord of Riots
 Rakdos, Patron of Chaos
+Rakdos, the Showstopper
 Raking Claws
 Rakish Crew
 Rakish Scoundrel
@@ -7185,6 +7205,7 @@ Relic Sloth
 Relic Vial
 Relic of Legends
 Relic of Progenitus
+Relic's Roar
 Relief Captain
 Reliquary Tower
 Relm's Sketching
@@ -7359,6 +7380,7 @@ Rise of Eagles
 Rise of Extus
 Rise of the Ants
 Rise of the Deathbringer
+Rise of the Dread Marn
 Rise of the Varmints
 Rise to Glory
 Rise to the Challenge
@@ -7429,6 +7451,7 @@ Roil Eruption
 Roil Spout
 Roil's Retribution
 Roiling Dragonstorm
+Roiling Vortex
 Roiling Waters
 Rok-Tahk, Budding Scientist
 Roll-Roll-Roll-Roll
@@ -7642,6 +7665,7 @@ Sandstorm Charger
 Sandstorm Salvager
 Sandstorm Verge
 Sandworm
+Sandwurm Convergence
 Sanguimancy
 Sanguinary Mage
 Sanguine Bond
@@ -9036,6 +9060,7 @@ Syr Armont, the Redeemer
 Syr Faren, the Hengehammer
 Syr Ginger, the Meal Ender
 Syr Gwyn, Hero of Ashvale
+Syr Konrad, the Grim
 Syr Vondam, the Lucent
 TCRI Building
 Tablet of Compleation
@@ -9249,6 +9274,7 @@ Thallid Soothsayer
 Thanos, the Mad Titan
 Thassa's Bounty
 Thassa's Devourer
+Thassa's Intervention
 Thassa's Ire
 Thassa's Oracle
 Thassa's Rebuff
@@ -9479,6 +9505,7 @@ Tin Street Dodger
 Tin Street Market
 Tinker's Tote
 Tinybones Joins Up
+Tinybones, Pocket Nuisance
 Tinybones, the Pickpocket
 Tireless Hauler
 Tireless Missionaries
@@ -9933,6 +9960,7 @@ Vampire Nighthawk
 Vampire Noble
 Vampire Opportunist
 Vampire Revenant
+Vampire Scrivener
 Vampire Soulcaller
 Vampire Sovereign
 Vampire Spawn
@@ -9954,6 +9982,7 @@ Vanquish the Foul
 Vanquish the Horde
 Vanquish the Weak
 Vanquisher's Axe
+Vanquisher's Banner
 Vantress Paladin
 Vantress Transmuter
 Vaporkin
@@ -10058,6 +10087,7 @@ Vile Entomber
 Vile Mutilator
 Vile Rebirth
 Vilespawn Spider
+Vilis, Broker of Blood
 Village Messenger
 Village Rites
 Village Watch
@@ -10396,6 +10426,7 @@ Wicked Wolf
 Wicker Witch
 Widespread Brutality
 Widow's Bite
+Wight of Precinct Six
 Wild Beastmaster
 Wild Celebrants
 Wild Ceratok

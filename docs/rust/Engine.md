@@ -634,7 +634,7 @@ Being in the engine and being trusted are kept apart.
   `CantAttackYouAllEffect`, `LoseAllAbilitiesAllEffect` and `ReturnCardChosenFromGraveyardEffect`), a trigger
   handler's Java base that takes the constructor's arguments (`$0`, `$1`…), and transpiler forms (a token's
   changeling, Kaito's emblem, Roiling Vortex's "no mana spent", Vilis's and Ob Nixilis's life-loss triggers) brought
-  33 cards in (10,771 in the engine), 7 of them through the shared classes (Atarka's Command, Connive // Concoct,
+  33 cards in (10,837 in the engine), 7 of them through the shared classes (Atarka's Command, Connive // Concoct,
   Crib Swap, Deeproot Wayfinder, Port of Karfell, Thassa's Intervention, Vampire Scrivener). Engine changes, each
   with a game under `shadow/handlers/game-handlers6-claim6-*`: Syr Konrad's trigger (another creature dies, a
   creature card goes to a graveyard from anywhere else, or leaves your graveyard); "whenever a player discards one or
@@ -643,7 +643,7 @@ Being in the engine and being trusted are kept apart.
   (`Layer::SetToughness`, Maha, Its Feathers Night); the names of the spells each player cast this game
   (`Player::cast_this_game`, Approach of the Second Sun's watcher); and `AnyColorLandsProduceManaAbility` (Naga
   Vitalist; Exotic Orchard and Fellwar Stone aren't in the pool). Three factory rounds (65 games, 62 matching,
-  replayed again on master after #340) verified 31: 10,620 of 10,771. Left: Approach of the Second Sun (Java's
+  replayed again on master after #338 and #344) verified 31: 10,678 of 10,837. Left: Approach of the Second Sun (Java's
   `won()` ends the game with the spell still on the stack, the engine moves it to the graveyard first), Ill-Timed
   Explosion (its one differing game is Embereth Veteran's Young Hero Role text, above). The rest of claim 6 needs
   engine work: zone-change and mana replacements (Nyxbloom Ancient, Liesa), attack taxes (Archangel of Tithes,
