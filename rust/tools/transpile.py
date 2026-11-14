@@ -2692,6 +2692,14 @@ class Translator:
         if cls == 'ConditionalOneShotEffect' and len(args) == 4:
             return {'class': cls, 'effect': self.effect(args[0]), 'otherwise': self.effect(args[1]),
                     'condition': self.condition(args[2])}
+        # a spell's "if …, damage can't be prevented this turn" (Wild Slash's ferocious): worked out as it resolves
+        # (`LockedInCondition`)
+        if cls == 'ConditionalContinuousRuleModifyingEffect' and len(args) == 2 \
+                and (l := re.fullmatch(r'new LockedInCondition\((.*)\)', args[1].strip(), re.S)):
+            inner = self.effect(args[0])
+            if inner.get('class') != 'DamageCantBePreventedEffect' or inner.get('duration') != 'EndOfTurn':
+                raise Unsupported('effect ' + cls)
+            return {'class': 'ConditionalOneShotEffect', 'effect': inner, 'condition': self.condition(l.group(1))}
         # a spell's "+2/+2, or +4/+4 instead if …": worked out as it resolves (`LockedInCondition`)
         if cls == 'ConditionalContinuousEffect' and len(args) == 4 \
                 and (all(re.fullmatch(r'new Boost(Target|Source)Effect\(-?\d+,-?\d+,Duration\.EndOfTurn\)', a.strip()) for a in args[:2])
@@ -2999,6 +3007,10 @@ class Translator:
         if cls == 'RegenerateSourceEffect' and len(args) <= 1:
             return {'class': cls}
         if cls == 'CounterUnlessPaysEffect' and len(args) == 1 and not args[0].strip().startswith('new '):
+            return {'class': cls, 'generic': self.value('amount', args[0].strip())}
+        # a `DynamicValue` constructed in place (`new CardsInControllerGraveyardCount()`): {1} for each
+        if cls == 'CounterUnlessPaysEffect' and len(args) == 1 \
+                and re.fullmatch(r'new \w+(?:Count|Value)\(.*\)', args[0].strip(), re.S):
             return {'class': cls, 'generic': self.value('amount', args[0].strip())}
         # a characteristic-defining power and toughness of any count (Pack Rat, Territorial Kavu)
         if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 1 and args[0].strip() not in COUNTS:
@@ -3853,6 +3865,11 @@ class Translator:
             if a.get('on', {}).get('this_unfiltered'):
                 a['on']['this_unfiltered'] = False
                 return a
+        # a legendary instant or sorcery: a static working in every zone, its check effect a handler
+        if re.fullmatch(r'new LegendarySpellAbility\((?:true|false)?\)', canonical(self.strip_setters(expr))):
+            a = self.ability('new SimpleStaticAbility(Zone.ALL,new LegendarySpellAbilityCheckEffect())')
+            a['java'] = 'LegendarySpellAbility'
+            return a
         # an evasion static is a static
         m = re.fullmatch(r'new SimpleEvasionAbility\((.*)\)', expr.strip(), re.S)
         if m:
@@ -6628,6 +6645,13 @@ def ability_statement(t, st, added):
         return True
     if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'ReturnToHandTargetEffect':
         t.vars[m.group(1)]['class'] = 'ReturnToHandEachTargetEffect'
+        return True
+    # each target player mills (the engine's mill already takes every player of the first target)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'MillCardsTargetEffect':
+        return True
+    # a card's own effect class written as a handler reads every target itself (`cx.legal`)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') == 'CardEffect' \
+            and '.' in t.vars[m.group(1)].get('handler', ''):
         return True
     # an effect on the ability's second or third target (Grip of Desolation's land, Manticore's damage)
     m = re.fullmatch(r'(\w+)\.setTargetPointer\(new (First|Second|Third)TargetPointer\(\)\)', st)
