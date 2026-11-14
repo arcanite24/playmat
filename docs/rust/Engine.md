@@ -668,7 +668,7 @@ Being in the engine and being trusted are kept apart.
   Embereth Veteran and Merry Bards, already verified); that one game was set aside, and Beifong's Bounty Hunters
   verified in games without it.
 
-  Wave 6, claim 1 (13 Nov): 30 handler files and a few engine pieces brought 33 cards in (10,771 in the engine).
+  Wave 6, claim 1 (13 Nov): 23 handler files and a few engine pieces brought 31 cards in (11,012 in the engine).
   Fated Return, Bria, Riptide Rogue and Sokka, Tenacious Tactician came in through shared transpiler forms. The
   engine pieces: attack triggers know they were caused by an attack (`TriggerCause::Attacked`, for Isshin's
   additional triggers); a player's hexproof for one turn (Lazotep Plating; master's handlers cover Riot Control's
@@ -680,8 +680,9 @@ Being in the engine and being trusted are kept apart.
   source (Fated Firepower); damage to a player doubled until your next turn (Lightning, Army of One); entering with a
   +1/+1 counter for each land that entered this turn (Bioengineered Future); and the `artifacts_you_control` count. A
   granted prowess keeps its reminder text, as Java's `getRule` writes it. Four factory rounds (79 games, 77
-  matching, replayed again on the engine with claim 1's second batch) verified 31 more: 10,620 of 10,771. Eleven
-  games under `shadow/handlers/game-handlers6-claim1-*` cover the engine pieces. Left: The Ozolith (one game where
+  matching, replayed again on master after #338, #344, #345, #346, #347 and #351) verified 29 more (Riot Control
+  and Atarka's Command were verified on master meanwhile): 10,822 of 11,012. Eleven games under
+  `shadow/handlers/game-handlers6-claim1-*` cover the engine pieces. Left: The Ozolith (one game where
   two Prophetic Ravings on one creature give it its granted abilities at different indices than Java's, which adds
   the second haste once) and Bria, Riptide Rogue (two Faerie Duelists' granted prowess triggers resolve in a
   different order). Rowdy Crew and Curse-Marred Demon discard at random from a `HashSet<Card>`, so they aren't

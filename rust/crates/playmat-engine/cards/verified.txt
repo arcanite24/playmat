@@ -245,6 +245,7 @@ Alela, Artful Provocateur
 Alert Heedbonder
 Alesha's Legacy
 Alesha's Vanguard
+Alesha, Who Laughs at Fate
 Alhammarret's Archive
 All That Glitters
 All-Fates Scroll
@@ -370,6 +371,7 @@ Anthem of Champions
 Anthousa, Setessan Hero
 Anthropede
 Anthropological Mission
+Anticausal Vestige
 Anticipate
 Anticognition
 Anvilwrought Raptor
@@ -863,6 +865,7 @@ Binding Geist
 Binding Mummy
 Binding Negotiation
 Binding the Old Gods
+Bioengineered Future
 Biogenic Ooze
 Biomass Mutation
 Biomathematician
@@ -2494,6 +2497,7 @@ Dragonback Lancer
 Dragonbroods' Relic
 Dragonfly Suit
 Dragonfly Swarm
+Dragonhawk, Fate's Tempest
 Dragonloft Idol
 Dragonlord Atarka
 Dragonlord Dromoka
@@ -2885,6 +2889,7 @@ Enraged Ceratok
 Enraged Flamecaster
 Enraged Giant
 Ensoul Artifact
+Enter the Avatar State
 Enter the Enigma
 Enterprising Scallywag
 Enthralling Victor
@@ -3121,9 +3126,11 @@ Fate Forgotten
 Fate Unraveler
 Fate of the Sun-Cryst
 Fated Conflagration
+Fated Firepower
 Fated Infatuation
 Fated Intervention
 Fated Retribution
+Fated Return
 Fateful Absence
 Fateful Discovery
 Fateful End
@@ -3377,6 +3384,7 @@ Foggy Swamp Vinebender
 Fogwalker
 Folio of Fancies
 Follow the Lumarets
+Fomori Vault
 Font of Fertility
 Font of Fortunes
 Font of Ire
@@ -4085,6 +4093,7 @@ Gruul Keyrune
 Gruul Locket
 Gruul War Chant
 Gryff Rider
+Gryff's Boon
 Gryffwing Cavalry
 Guadosalam, Farplane Gateway
 Guarded Heir
@@ -4153,6 +4162,7 @@ Halimar Tidecaller
 Haliya, Ascendant Cadet
 Haliya, Guided by Light
 Hall Monitor
+Hall of Oracles
 Hall of Storm Giants
 Hall of Tagsin
 Hallowed Fountain
@@ -4294,6 +4304,7 @@ Hengegate Pathway
 Henrika Domnathi
 Herald of Anguish
 Herald of Dromoka
+Herald of Eternal Dawn
 Herald of Faith
 Herald of Hadar
 Herald of Kozilek
@@ -4302,6 +4313,7 @@ Herald of the Dreadhorde
 Herald of the Fair
 Herald of the Pantheon
 Herald of the Sun
+Heraldic Banner
 Herbology Instructor
 Hercules, Prince of Power
 Herd Heirloom
@@ -4565,6 +4577,7 @@ Ichor Shade
 Ichor Synthesizer
 Ichorspit Basilisk
 Ichthyomorphosis
+Icingdeath, Frost Tyrant
 Icy Manipulator
 Icy Reception
 Idyllic Beachfront
@@ -4816,6 +4829,7 @@ Isolated Chapel
 Isolation Zone
 Isperia's Skywatch
 Isperia, Supreme Judge
+Isshin, Two Heavens as One
 It of the Horrid Swarm
 It'll Quench Ya!
 Item Shopkeep
@@ -5036,6 +5050,7 @@ Khenra Scrapper
 Khenra Spellspear
 Kheru Bloodsucker
 Kheru Dreadmaw
+Kid Loki
 Kill Shot
 Kill-Zone Acrobat
 Killing Glare
@@ -5259,6 +5274,7 @@ Lawmage's Binding
 Lay Bare the Heart
 Lay of the Land
 Lazotep Behemoth
+Lazotep Plating
 Lazotep Reaver
 Lead Pipe
 Lead by Example
@@ -5346,6 +5362,7 @@ Lightning Strike
 Lightning Talons
 Lightning Volley
 Lightning Wolf
+Lightning, Army of One
 Lightning, Security Sergeant
 Lightning-Rig Crew
 Lightshell Duo
@@ -5427,6 +5444,7 @@ Longtusk Cub
 Lookout's Dispersal
 Looming Altisaur
 Looming Spires
+Loot, Exuberant Explorer
 Loot, the Pathfinder
 Loporrit Scout
 Loran of the Third Path
@@ -6031,6 +6049,7 @@ Mortality Spear
 Mortify
 Mortuary Mire
 Mortus Strider
+Moseo, Vein's New Dean
 Moss Viper
 Mossbeard Ancient
 Mossborn Hydra
@@ -6505,6 +6524,7 @@ Overflowing Insight
 Overgrown Arch
 Overgrown Armasaur
 Overgrown Farmland
+Overgrown Pest
 Overgrown Tomb
 Overgrowth Elemental
 Overkill
@@ -8486,6 +8506,7 @@ Sokenzan, Crucible of Defiance
 Sokka's Haiku
 Sokka, Bold Boomeranger
 Sokka, Lateral Strategist
+Sokka, Tenacious Tactician
 Solarium Sentry
 Soldier of the Pantheon
 Solemn Offering
@@ -9389,6 +9410,7 @@ The Antiquities War
 The Arkenstone
 The Autonomous Furnace
 The Birth of Meletis
+The Book of Exalted Deeds
 The Boulder, Ready to Rumble
 The Cave of Two Lovers
 The Chase Is On
@@ -9435,6 +9457,7 @@ The Raven Man
 The Restoration of Eiganjo
 The Sackville-Bagginses
 The Scarab God
+The Scarlet Witch
 The Scorpion God
 The Shattered States Era
 The Spirit Oasis
@@ -9558,6 +9581,7 @@ Thud
 Thunder Drake
 Thunder Lasso
 Thunder Strike
+Thunderbolts Conspiracy
 Thunderbreak Regent
 Thunderclap Wyvern
 Thunderhead Squadron
@@ -9665,6 +9689,7 @@ Toph, the Blind Bandit
 Topiary Panther
 Topiary Stomper
 Topple the Statue
+Torbran, Thane of Red Fell
 Torch Breath
 Torch Courier
 Torch Fiend
@@ -9821,6 +9846,7 @@ Tunneling Geopede
 Tura Kennerud, Skyknight
 Turn // Burn
 Turn Against
+Turn Aside
 Turn into a Pumpkin
 Turn to Frog
 Turntimber Ascetic
@@ -10047,6 +10073,7 @@ Valiant Knight
 Valiant Veteran
 Valkyrie Aerial Unit
 Valkyrie Harbinger
+Valkyrie's Call
 Valkyrie's Sword
 Valley Dasher
 Valley Flamecaller
@@ -10098,6 +10125,7 @@ Variable Chaser
 Varragoth, Bloodsky Sire
 Vash, Freelance Archaeologist
 Vassal Soul
+Vastlands Scavenger
 Vastwood Fortification
 Vastwood Gorger
 Vastwood Surge
@@ -10632,6 +10660,7 @@ Witty Roastmaster
 Wizard Class
 Wizard's Lightning
 Wizard's Retort
+Wizard's Staff
 Woe Strider
 Wojek Bodyguard
 Wojek Halberdiers
