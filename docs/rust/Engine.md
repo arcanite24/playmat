@@ -333,7 +333,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,669 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,676 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -646,6 +646,16 @@ Being in the engine and being trusted are kept apart.
   lands' granted "any color" mana ability isn't paid with in Java's order; the games it was in also hold back
   Gardenize, Kothophed, Mistbreath Elder and Rage into the Valley), Gruul Ragebeast (Java's stack text names "Your
   fighting creature"), Red Hulk pending.
+
+  Claim 3, part 2 (13 Nov): handlers for Lightning Runner (an extra combat for eight energy), Tolsimir, Midnight's
+  Light (a "blocks that Wolf if able" requirement), Ash Zealot, Bramble Familiar's Fetch Quest and All-Fates Scroll,
+  plus `DestroyAllEffect(filter, false)` (Fated Retribution, Planar Outburst), brought 7 cards in (10,676 in the
+  engine). Two factory rounds (34 games, 31 matching) verified 11, Gardenize, Kothophed, Mistbreath Elder and Red
+  Hulk among them, now that The World Tree isn't in their games: 10,532. Engine fixes, each with a game under
+  `shadow/handlers/game-handlers-claim3b-*`: an Aura coming back from exile with nothing to enchant stays in exile
+  (303.4g; Prophetic Ravings back from Sheltered by Ghosts); toxic adds every granted instance (two Necrogen
+  Communions on one creature give 4 poison); an attack trigger with a target pointer and targets of its own keeps the
+  attacker as its event object. Left: Gruul Ragebeast (its stack text).
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
