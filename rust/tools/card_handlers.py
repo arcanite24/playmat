@@ -286,6 +286,8 @@ def trigger(t, cls, args):
         raise _unsupported(f'ability {cls}: {len(args)} constructor arguments, its handler takes {len(holes)}')
     for i, arg in enumerate(args):
         base = base.replace('$%d' % i, arg)
+    # an argument the check reads another way goes in a comment (`/* $1 */`: Nicanzil's isLand)
+    base = re.sub(r'/\*.*?\*/', '', base, flags=re.S)
     a = t.ability(base)
     if a.get('class') != 'TriggeredAbility':
         a = T.triggered(a)
