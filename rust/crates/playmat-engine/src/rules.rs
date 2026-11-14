@@ -413,7 +413,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
             // ATTACKER_DECLARED's replacement: "you may exert this as it attacks", asked for each attacker in turn,
-            // and its "when you do" trigger
+            // and its "when you do" trigger, waiting after the triggers its own tap fired and before a later
+            // attacker's (`attack_taps`)
+            let mut inserted: Vec<(usize, usize)> = Vec::new();
             for a in attackers(game) {
                 if !game.has_ability(a, &AbilityDef::ExertAbility) {
                     continue;
@@ -429,7 +431,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 if yes {
                     game.obj_mut(a).exerted = true;
                     let fired = game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted));
-                    game.pending.extend(fired);
+                    let n = fired.len();
+                    match game.attack_taps.iter().find(|(x, _)| *x == a).map(|(_, at)| *at) {
+                        Some(at) => {
+                            let before: usize = inserted.iter().filter(|(p, _)| *p <= at).map(|(_, k)| *k).sum();
+                            let pos = (at + before).min(game.pending.len());
+                            game.pending.splice(pos..pos, fired);
+                            inserted.push((at, n));
+                        }
+                        None => game.pending.extend(fired),
+                    }
                 }
             }
             // ATTACKER_DECLARED's enlist replacement (`EnlistEffect`), for each attacker in turn: asked when a creature
@@ -20365,6 +20376,7 @@ pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
 /// `Combat.selectAttackers` and `HumanPlayer.selectAttackers`: asked only when something can attack; "special" is
 /// the All attack button, a creature toggles it, any other answer is done.
 fn declare_attackers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
+    game.attack_taps.clear();
     let defender = game.opponent(seat);
     let possible =
         |g: &Game| -> Vec<ObjId> { g.battlefield.iter().copied().filter(|id| can_attack(g, seat, *id)).collect() };
@@ -20484,6 +20496,8 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     if !vigilance {
         tap(game, id);
     }
+    let waiting = game.pending.len();
+    game.attack_taps.push((id, waiting));
 }
 
 /// Undoes a cost's tap (the cost wasn't paid): the "whenever this becomes tapped" triggers it fired go too

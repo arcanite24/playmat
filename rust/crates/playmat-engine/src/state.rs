@@ -1048,6 +1048,10 @@ pub struct Game {
     /// cards exiled instead if they would be put into a graveyard this turn (`ThatSpellGraveyardExileReplacementEffect`:
     /// Torrential Gearhulk's instant, from anywhere)
     pub exile_if_graveyard: Vec<ObjId>,
+    /// this combat's attackers as they were declared, each with how many triggers were waiting once it was tapped
+    /// for its attack: Java taps each attacker and asks its exert replacement in turn (`Combat.resumeSelectAttackers`),
+    /// so an exert trigger waits before a later attacker's "becomes tapped" one
+    pub attack_taps: Vec<(ObjId, usize)>,
     /// control changes with a duration, oldest first
     pub control_changes: Vec<ControlChange>,
     /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
@@ -1365,6 +1369,7 @@ impl Game {
             events: None,
             exile_if_dies: Vec::new(),
             exile_if_graveyard: Vec::new(),
+            attack_taps: Vec::new(),
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
