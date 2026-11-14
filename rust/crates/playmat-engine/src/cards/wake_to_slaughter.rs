@@ -50,7 +50,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
             until_turn_of: None,
         });
         let delayed = Delayed {
-            rule: "At the beginning of the next end step, exile it.".into(),
+            rule: "At the beginning of the next end step, exile that permanent.".into(),
             sacrifice: Vec::new(),
             warp_exile: Vec::new(),
             effects: vec![EffectDef::ExileTargetEffect],

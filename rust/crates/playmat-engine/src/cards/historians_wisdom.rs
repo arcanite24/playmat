@@ -6,12 +6,20 @@ use super::*;
 
 pub const HANDLERS: &[Handler] = &[Handler::condition("HistoriansWisdom.HistoriansWisdomCondition", greatest)];
 
+/// While its own spell resolves, the Aura's enters trigger is checked before the engine attaches it (Java's Aura
+/// enters already attached): the spell's target, still on the battlefield, is what it enters attached to
+fn entering_attached_to(game: &Game, source: ObjId) -> Option<ObjId> {
+    let item = game.resolving_item.as_ref().filter(|i| i.card == source && i.ability.is_none())?;
+    let Some(Target::Obj(to)) = item.targets.first()?.first().copied() else { return None };
+    (game.obj(to).zone == Zone::Battlefield).then_some(to)
+}
+
 /// The source still on the battlefield, attached to a creature whose power is at least every creature's
 fn greatest(game: &Game, _you: Seat, source: ObjId) -> bool {
     if game.obj(source).zone != Zone::Battlefield {
         return false;
     }
-    let Some(to) = game.attached(source) else { return false };
+    let Some(to) = game.attached(source).or_else(|| entering_attached_to(game, source)) else { return false };
     if !game.has_type(to, CardType::Creature) {
         return false;
     }
