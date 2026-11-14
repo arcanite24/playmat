@@ -954,6 +954,9 @@ pub struct Game {
     pub paying_for: std::cell::Cell<Option<ObjId>>,
     /// what's being paid for is an activated ability of `paying_for` (not a spell)
     pub paying_ability: std::cell::Cell<bool>,
+    /// a replayed answer that named a stack object by its place: that place from the bottom of Java's stack (what's
+    /// resolving still on it). Stack objects go by their card here, so this tells a copy from its original
+    pub picked_stack: std::cell::Cell<Option<usize>>,
     /// a spell cast while an effect resolves ("you may cast"): timing doesn't apply
     pub any_time: std::cell::Cell<bool>,
     /// paying a forage cost: its rule reads "forage" (no feel-bad word for the auto-choice)
@@ -1281,6 +1284,7 @@ impl Game {
             loop_declined: 0,
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
+            picked_stack: std::cell::Cell::new(None),
             any_time: std::cell::Cell::new(false),
             foraging: std::cell::Cell::new(false),
             spent_tally: [0; 6],
@@ -1552,6 +1556,22 @@ impl Game {
                         _ => false,
                     })
             }),
+            Pred::StackObject { .. } | Pred::NumberOfTargets { .. } => {
+                self.stack.iter().rev().find(|i| i.card == id).is_some_and(|i| self.stack_pred_holds(p, you, source, i))
+            }
+            Pred::SingleTargetPermanent { filter } => self.stack.iter().any(|i| {
+                let mut all = i.targets.iter().flatten();
+                i.card == id
+                    && i.ability.is_none()
+                    && match all.next() {
+                        Some(Target::Obj(x)) => {
+                            all.all(|t| *t == Target::Obj(*x))
+                                && self.obj(*x).zone == Zone::Battlefield
+                                && self.filter_matches(filter, you, source, *x)
+                        }
+                        _ => false,
+                    }
+            }),
             Pred::ManaCostIn { costs } => costs.iter().any(|c| *c == o.def.cost.text),
             Pred::GreatestPowerControlled => {
                 let controller = o.controller;
@@ -1697,6 +1717,43 @@ impl Game {
             Pred::Not { x } => !self.pred_holds(x, you, source, id),
             Pred::Or { xs } => xs.iter().any(|x| self.pred_holds(x, you, source, id)),
             Pred::And { xs } => xs.iter().all(|x| self.pred_holds(x, you, source, id)),
+        }
+    }
+
+    /// Whether a spell or an ability on the stack matches a `FilterStackObject`: a spell as its card does; an
+    /// ability (a `StackAbility`) has no card types, supertypes or colors, and its controller is the ability's
+    pub fn stack_item_matches(&self, filter: &Filter, you: Seat, source: Option<ObjId>, item: &StackItem) -> bool {
+        filter.0.iter().all(|p| self.stack_pred_holds(p, you, source, item))
+    }
+
+    fn stack_pred_holds(&self, p: &Pred, you: Seat, source: Option<ObjId>, item: &StackItem) -> bool {
+        let spell = item.ability.is_none() && item.delayed.is_none();
+        match p {
+            Pred::StackObject { kind } => match kind.as_str() {
+                "spell" => spell,
+                "triggered" => {
+                    item.delayed.is_some()
+                        || item.ability.is_some_and(|(k, _)| {
+                            matches!(self.item_def(item).abilities.get(k), Some(AbilityDef::TriggeredAbility { .. }))
+                        })
+                }
+                _ => {
+                    item.delayed.is_none()
+                        && item.ability.is_some_and(|(k, _)| {
+                            !matches!(self.item_def(item).abilities.get(k), Some(AbilityDef::TriggeredAbility { .. }))
+                        })
+                }
+            },
+            Pred::NumberOfTargets { n } => item.targets.iter().map(|t| t.len()).sum::<usize>() == *n,
+            Pred::Not { x } => !self.stack_pred_holds(x, you, source, item),
+            Pred::Or { xs } => xs.iter().any(|x| self.stack_pred_holds(x, you, source, item)),
+            Pred::And { xs } => xs.iter().all(|x| self.stack_pred_holds(x, you, source, item)),
+            _ if spell => self.pred_holds(p, you, source, item.card),
+            Pred::Type { .. } | Pred::Subtype { .. } | Pred::Supertype { .. } | Pred::Color { .. } => false,
+            Pred::Multicolored => false,
+            Pred::Colorless => true,
+            Pred::Controller { who } => (item.controller == you) == (who == "you"),
+            _ => self.pred_holds(p, you, source, item.card),
         }
     }
 

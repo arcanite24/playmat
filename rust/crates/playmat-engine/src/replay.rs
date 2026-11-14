@@ -383,6 +383,7 @@ pub fn resolve(game: &Game, r: &str) -> Option<Answer> {
             if index >= n {
                 return None;
             }
+            game.picked_stack.set(Some(n - 1 - index));
             Some(Answer::Obj(stack[n - 1 - index]))
         }
         "E" => exile_order(game).get(rest.parse::<usize>().ok()?).copied().map(Answer::Obj),
