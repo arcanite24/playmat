@@ -6591,8 +6591,10 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     // ability" (`ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility`)
     let ability = &def.abilities[index];
     let loyalty = matches!(ability, AbilityDef::LoyaltyAbility { .. });
-    let fired = game.triggers(game.trigger_sources(), |g, _, you, t| match t {
-        Trigger::AbilityActivated { kind, opponent } => {
+    // (the ability just put on the stack: its targets, for "an ability that targets a creature or player")
+    let activated = game.stack.iter().rposition(|i| i.card == id && i.ability.map(|a| a.0) == Some(index));
+    let fired = game.triggers(game.trigger_sources(), |g, src, you, t| match t {
+        Trigger::AbilityActivated { kind, opponent, .. } => {
             (you == seat) != *opponent
                 && match kind.as_str() {
                     "exhaust" => matches!(ability, AbilityDef::ExhaustAbility { .. }),
@@ -6602,10 +6604,37 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
                         (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
                             && (g.has_type(id, CardType::Creature) || g.has_type(id, CardType::Land))
                     }
+                    "artifact" => {
+                        (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
+                            && g.has_type(id, CardType::Artifact)
+                    }
+                    "attached" => g.obj(src).attached_to.map(|(to, _)| to) == Some(id),
+                    // (a target on the stack is a spell or ability, whose id may be its source's)
+                    "targets_creature_or_player" => activated.is_some_and(|at| {
+                        let defs = item_target_defs(g, &g.stack[at]);
+                        g.stack[at].targets.iter().enumerate().any(|(k, group)| {
+                            let on_stack = defs.get(k).is_some_and(|t| {
+                                matches!(
+                                    t,
+                                    TargetDef::TargetSpell { .. }
+                                        | TargetDef::TargetStackAbility { .. }
+                                        | TargetDef::TargetStackObject { .. }
+                                        | TargetDef::TargetTriggeredAbilityOrColorlessSpell
+                                )
+                            });
+                            !on_stack
+                                && group.iter().any(|t| match t {
+                                    Target::Player(_) => true,
+                                    Target::Obj(o) => {
+                                        g.obj(*o).zone == Zone::Battlefield && g.has_type(*o, CardType::Creature)
+                                    }
+                                })
+                        })
+                    }),
                     _ => true,
                 }
         }
-        Trigger::LoyaltyActivated { subtype } => {
+        Trigger::LoyaltyActivated { subtype, .. } => {
             you == seat
                 && loyalty
                 && g.has_type(id, CardType::Planeswalker)
@@ -6613,6 +6642,18 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
         }
         _ => false,
     });
+    // `SetTargetPointer.SPELL`: a fixed target, the ability activated (by its source)
+    let mut fired = fired;
+    let zcc = game.obj(id).zcc;
+    for t in fired.iter_mut() {
+        if matches!(
+            game.trigger_of(t),
+            Some(Trigger::AbilityActivated { pointer: true, .. } | Trigger::LoyaltyActivated { pointer: true, .. })
+        ) {
+            t.targets = vec![vec![Target::Obj(id)]];
+            t.target_zcc = vec![vec![zcc]];
+        }
+    }
     game.pending.extend(fired);
     commit_crime(game, seat);
     true
@@ -12057,7 +12098,7 @@ fn apply_each_effect(
                 game.at_next_end_step
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(card, controller) });
             }
-            EffectDef::CreateCopyNextSpellDelayedEffect { filter, rule } => {
+            EffectDef::CreateCopyNextSpellDelayedEffect { filter, rule, copies } => {
                 let delayed = Delayed {
                     rule: rule.clone().unwrap_or_else(|| {
                         "When you next cast an instant or sorcery spell this turn, copy that spell. You may choose \
@@ -12066,11 +12107,14 @@ fn apply_each_effect(
                     }),
                     sacrifice: Vec::new(),
                     warp_exile: Vec::new(),
-                    effects: vec![EffectDef::CopyTargetSpellEffect {
-                        keep_targets: false,
-                        not_legendary: false,
-                        abilities: false,
-                    }],
+                    effects: vec![
+                        EffectDef::CopyTargetSpellEffect {
+                            keep_targets: false,
+                            not_legendary: false,
+                            abilities: false,
+                        };
+                        copies.unwrap_or(1) as usize
+                    ],
                     source_zcc: source.1,
                     fixed: Vec::new(),
                     return_tapped: Vec::new(),
@@ -12727,6 +12771,7 @@ fn apply_each_effect(
                 add_subtypes,
                 only_color,
                 abilities,
+                legendary,
                 tapped,
                 attacking,
             } => {
@@ -12782,6 +12827,9 @@ fn apply_each_effect(
                         def.colors = only_color.clone();
                     }
                     def.abilities.extend(abilities.iter().cloned());
+                    if *legendary && !def.supertypes.iter().any(|s| s == "LEGENDARY") {
+                        def.supertypes.push("LEGENDARY".into());
+                    }
                 };
                 // `getPermanentOrLKIBattlefield`: a target that left as the spell resolved is copied as it last was
                 // (Supplant Form returns it to hand first)
@@ -19262,8 +19310,15 @@ fn remove_tokens_at_next_end_step(game: &mut Game, made: &[ObjId], source: ObjId
 /// `game.copyPermanent(Duration.EndOfTurn, …)`: `src` becomes `copy` (what it copies' copiable values, with what an
 /// applier changed) until end of turn, as Shifting Woodland does; the cleanup gives it its own characteristics back
 fn become_copy_until_end_of_turn(game: &mut Game, src: ObjId, copy: Arc<CardDef>) {
+    // its abilities waiting or on the stack keep what they came from (Felhide Spiritbinder's inspired trigger, from
+    // the untap before it becomes a copy)
+    let old = game.obj(src).def.clone();
+    for t in Arc::make_mut(&mut game.stack).iter_mut().chain(game.pending.iter_mut()) {
+        if t.card == src && t.ability.is_some() && t.def.is_none() {
+            t.def = Some(old.clone());
+        }
+    }
     let ob = game.obj_mut(src);
-    let old = ob.def.clone();
     if ob.until_end_of_turn_def.is_none() {
         ob.until_end_of_turn_def = Some(old);
     }
@@ -23145,9 +23200,14 @@ pub(crate) fn next_main_delayed(
     game.at_next_main.push((phase.to_string(), game.turn, t));
 }
 
-/// Transforms a permanent into its other face; transforming into its front fires "enters or transforms into"
-/// triggers (`PermanentImpl.transform`)
+/// Transforms a permanent into its other face (not one that entered as a copy); transforming into its front fires
+/// "enters or transforms into" triggers (`PermanentImpl.transform`)
 fn transform(game: &mut Game, id: ObjId) {
+    // a permanent that entered as a copy keeps the copied face: the copy effect is applied over whichever face of its
+    // own card is up (Mirrorhall Mimic as a copy of Sun-Blessed Guardian stays Sun-Blessed Guardian)
+    if game.obj(id).copied_def.is_some() {
+        return;
+    }
     // its abilities waiting or on the stack keep the face they came from
     let old = game.obj(id).def.clone();
     for t in Arc::make_mut(&mut game.stack).iter_mut().chain(game.pending.iter_mut()) {
