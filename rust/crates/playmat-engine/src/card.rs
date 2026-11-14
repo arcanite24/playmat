@@ -4729,6 +4729,17 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+    /// `{T}: Add one mana of any color (`any_type`: or colorless) that a land you control (`opponent`: an opponent
+    /// controls) could produce` (`AnyColorLandsProduceManaAbility`: Exotic Orchard, Fellwar Stone, Naga Vitalist;
+    /// none: no mana)
+    AnyColorLandsProduceManaAbility {
+        #[serde(default)]
+        opponent: bool,
+        #[serde(default)]
+        any_type: bool,
+        #[serde(default)]
+        rule: String,
+    },
     /// Nykthos: `{2}, {T}`: choose a color, add mana of it equal to your devotion to it
     NykthosShrineToNyxManaAbility {
         cost: Vec<CostDef>,
@@ -4939,6 +4950,8 @@ impl AbilityDef {
             AbilityDef::CommanderColorIdentityManaAbility { .. } => Some(Mana::default()),
             // counted by the game (the colors among them)
             AbilityDef::AnyColorPermanentTypesManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
+            // (counted by the game, what the lands could make)
+            AbilityDef::AnyColorLandsProduceManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
             AbilityDef::ConditionalManaAbility { mana: Some(m), .. } => Some(*m),
             // (counted by the game, the colors among them)
             AbilityDef::AddEachControlledColorManaAbility { .. } => Some(Mana { colored: [1; 5], ..Mana::default() }),
@@ -4978,6 +4991,7 @@ impl AbilityDef {
             | AbilityDef::NykthosShrineToNyxManaAbility { .. }
             | AbilityDef::CommanderColorIdentityManaAbility { .. }
             | AbilityDef::AnyColorPermanentTypesManaAbility { .. }
+            | AbilityDef::AnyColorLandsProduceManaAbility { .. }
             | AbilityDef::ConditionalManaAbility { .. }
             | AbilityDef::ConditionalColorManaAbility { .. }
             | AbilityDef::ManaAbility { .. }
