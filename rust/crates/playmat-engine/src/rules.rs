@@ -5085,9 +5085,13 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     if crime {
         game.watch.crimes.push(seat);
     }
+    // (a permanent that was targeted and then left as a cost is a source only for TARGETED: The Vision sacrificed to
+    // Heartfire doesn't see the spell cast)
     let fired = game.triggers(sources.clone(), |g, src, you, t| match t {
         Trigger::SpellCast { filter, who } | Trigger::SpellCastOrCopied { filter, who } => {
-            Game::whose(who, you, seat) && g.filter_matches(filter, you, Some(src), spell)
+            matches!(g.obj(src).zone, Zone::Battlefield | Zone::Command)
+                && Game::whose(who, you, seat)
+                && g.filter_matches(filter, you, Some(src), spell)
         }
         Trigger::OpponentCastsOnYourTurnOrDies => {
             you != seat && g.active == Some(you) && g.obj(src).zone == Zone::Battlefield
