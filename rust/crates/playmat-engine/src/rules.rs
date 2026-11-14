@@ -2651,6 +2651,13 @@ fn mana_sources(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, Mana)>)> {
 /// Clarion Conqueror: the activated abilities (mana abilities too) of artifacts, creatures and planeswalkers on the
 /// battlefield can't be activated.
 fn activations_forbidden(game: &Game, id: ObjId) -> bool {
+    // Phyrexian Revoker: activated abilities of sources with the chosen name, mana abilities too
+    let name = &game.obj(id).def.name;
+    if game.any_static(|g, src, e| {
+        matches!(e, EffectDef::PhyrexianRevokerEffect) && g.obj(src).chosen_name.as_ref() == Some(name)
+    }) {
+        return true;
+    }
     game.obj(id).zone == Zone::Battlefield
         && ([CardType::Artifact, CardType::Creature, CardType::Planeswalker].iter().any(|t| game.has_type(id, *t))
             && game.any_static(|_, _, e| matches!(e, EffectDef::ClarionConquerorEffect))
@@ -11505,7 +11512,8 @@ fn apply_each_effect(
                         _ => {}
                     }
                 };
-                if game.obj(source.0).zone == Zone::Battlefield {
+                // the permanent entering, or the spell resolving (Unmoored Ego's next effect reads it)
+                if matches!(game.obj(source.0).zone, Zone::Battlefield | Zone::Stack) {
                     game.obj_mut(source.0).chosen_name = Some(chosen);
                 }
             }
@@ -16840,6 +16848,7 @@ fn apply_each_effect(
             | EffectDef::RottenmouthViperCostReductionEffect
             | EffectDef::PetrifiedHamletCostEffect
             | EffectDef::PithingNeedleEffect
+            | EffectDef::PhyrexianRevokerEffect
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::TapSourceUnlessRevealsEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
@@ -18731,8 +18740,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                     o.marks.push(format!("mode:{chosen}"));
                     o.add_info("_modeChoice", &format!("Chosen mode: {}", chosen));
                 }
-                if let EffectDef::EntersTappedChooseColorEffect = e {
-                    game.obj_mut(id).tapped = true;
+                if matches!(e, EffectDef::EntersTappedChooseColorEffect | EffectDef::ChooseColorEffect) {
+                    if matches!(e, EffectDef::EntersTappedChooseColorEffect) {
+                        game.obj_mut(id).tapped = true;
+                    }
                     let names = ["White", "Blue", "Black", "Red", "Green"];
                     let choices: Vec<String> = names.iter().map(|n| n.to_string()).collect();
                     let q = Query::Choice { message: "Choose color".into(), choices };

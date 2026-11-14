@@ -3207,6 +3207,9 @@ pub enum EffectDef {
     },
     /// activated abilities (not mana abilities) of sources with the source's chosen name can't be activated
     PithingNeedleEffect,
+    /// "Activated abilities of sources with the chosen name can't be activated" (mana abilities too: Phyrexian
+    /// Revoker)
+    PhyrexianRevokerEffect,
     /// Emry: you may cast the target (a nonland card in your graveyard) this turn
     MayCastTargetFromGraveyardThisTurnEffect,
     /// converge: exile the target nonland permanent if its mana value is at most the colors spent to cast this
@@ -3714,6 +3717,8 @@ pub enum EffectDef {
     MaraudingRaptorEffect,
     /// as this enters: tapped, and its controller chooses a color (its chosen-color mana abilities make that color)
     EntersTappedChooseColorEffect,
+    /// `ChooseColorEffect` as this enters: its controller chooses a color (its chosen-color mana abilities make it)
+    ChooseColorEffect,
     /// a Case's "to solve": the source permanent becomes solved
     SolveEffect,
     /// creature cards in your graveyard may be cast from there until end of turn
