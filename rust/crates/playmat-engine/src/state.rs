@@ -1131,6 +1131,8 @@ pub struct SpellSeen {
     pub creature: bool,
     /// artifact, legendary or Saga (`HistoricPredicate`)
     pub historic: bool,
+    /// its mana value as cast, X included (`Spell.getManaValue`)
+    pub mv: i32,
 }
 
 /// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
@@ -1548,8 +1550,10 @@ impl Game {
             Pred::Toughness { cmp, n } => cmp.holds(self.power_toughness(id).1, *n),
             Pred::Tapped { v } => o.tapped == *v,
             // a target adjuster: not applied while checking what's playable (the spell not yet cast)
-            Pred::ManaValueX { cmp } => {
-                match source.and_then(|s| self.stack.iter().rev().find(|i| i.card == s && i.ability.is_none())) {
+            Pred::ManaValueX { cmp, ability } => {
+                match source
+                    .and_then(|s| self.stack.iter().rev().find(|i| i.card == s && (*ability || i.ability.is_none())))
+                {
                     Some(i) => cmp.holds(o.def.mana_value() as i32, i.x),
                     None => true,
                 }
@@ -1820,11 +1824,19 @@ impl Game {
         {
             return false;
         }
-        // an Aura or Equipment's "enchanted creature loses …"
+        // an Aura or Equipment's "enchanted creature loses …", Archetype of Imagination's opponents' creatures
         if o.zone == Zone::Battlefield
-            && self.any_static(|g, src, e| {
-                matches!(e, EffectDef::LoseAbilityAttachedEffect { ability: lost } if **lost == *ability)
-                    && g.attached(src) == Some(id)
+            && self.any_static(|g, src, e| match e {
+                EffectDef::LoseAbilityAttachedEffect { ability: lost } => {
+                    **lost == *ability && g.attached(src) == Some(id)
+                }
+                // "can't have or gain": after whatever grants it
+                EffectDef::CreaturesCantGetOrHaveAbilityEffect { ability: lost, filter } => {
+                    **lost == *ability
+                        && g.has_type(id, CardType::Creature)
+                        && g.filter_matches(filter, g.obj(src).controller, Some(src), id)
+                }
+                _ => false,
             })
         {
             return false;
@@ -2264,7 +2276,7 @@ impl Game {
             }),
             _ => false,
         }) || self.any_static(|g, src, e| match e {
-            EffectDef::AttacksIfAbleAllEffect { filter } => {
+            EffectDef::AttacksIfAbleAllEffect { filter, this_turn: false } => {
                 g.filter_matches(filter, g.obj(src).controller, Some(src), id)
             }
             // one a resolved effect gave it (Legion Warboss's token)
@@ -2272,6 +2284,12 @@ impl Game {
                 src == id && g.condition_holds(condition.as_ref(), g.obj(src).controller, src)
             }
             EffectDef::AttacksIfAbleAttachedEffect => g.attached(src) == Some(id),
+            _ => false,
+        }) || self.eot_effects.iter().any(|(e, you, src)| match e {
+            // "attack this turn if able" (Bident of Thassa): `AttackedThisTurnWatcher`'s creatures are done
+            EffectDef::AttacksIfAbleAllEffect { filter, this_turn: true } => {
+                self.filter_matches(filter, *you, Some(*src), id) && !self.attacked_this_turn.contains(&(id, o.zcc))
+            }
             _ => false,
         }) || self.requirements.iter().any(|r| r.kind == RequirementKind::Attacks && r.obj == (id, self.obj(id).zcc))
     }
@@ -2516,6 +2534,26 @@ impl Game {
                 Value::SacrificedPower => self.resolving_item.as_ref().map_or(0, |i| i.sacrificed_stats[0]),
                 Value::SacrificedToughness => self.resolving_item.as_ref().map_or(0, |i| i.sacrificed_stats[1]),
                 Value::SacrificedManaValue => self.resolving_item.as_ref().map_or(0, |i| i.sacrificed_stats[2]),
+                Value::TargetPlayerPermanents { filter } => {
+                    match self.resolving_item.as_ref().and_then(|i| i.targets.first()?.first().copied()) {
+                        Some(Target::Player(p)) => self
+                            .battlefield
+                            .iter()
+                            .filter(|id| {
+                                self.obj(**id).controller == p && self.filter_matches(filter, you, Some(source), **id)
+                            })
+                            .count() as i32,
+                        _ => 0,
+                    }
+                }
+                Value::TargetManaValue => self
+                    .resolving_item
+                    .as_ref()
+                    .and_then(|i| i.targets.first()?.first().copied())
+                    .map_or(0, |t| match t {
+                        Target::Obj(c) => self.obj(c).def.mana_value() as i32,
+                        _ => 0,
+                    }),
                 Value::OpponentsLostLife => {
                     (0..self.seats()).filter(|p| *p != you && self.player(*p).life_lost > 0).count() as i32
                 }
@@ -2539,7 +2577,7 @@ impl Game {
                     .sum(),
                 Value::Negative { of } => -self.value(of, you, source, x),
                 Value::Times { of, n } => self.value(of, you, source, x) * n,
-                Value::Half { of } => self.value(of, you, source, x) / 2,
+                Value::Half { of, up } => (self.value(of, you, source, x) + i32::from(*up)) / 2,
                 Value::Plus { of, n } => self.value(of, you, source, x) + n,
                 Value::ExiledWithSource => {
                     let zcc = self.obj(source).zcc;
@@ -2788,6 +2826,9 @@ impl Game {
                     .map(|b| self.power_toughness(*b).0)
                     .sum::<i32>()
                     >= *n
+            }
+            Condition::SourcePrepared { prepared } => {
+                self.obj(source).zone == Zone::Battlefield && self.obj(source).prepared_copy.is_some() == *prepared
             }
             Condition::SourceRenowned => self.obj(source).marks.iter().any(|m| m == "renowned"),
             Condition::Monstrous => self.obj(source).marks.iter().any(|m| m == "monstrous"),

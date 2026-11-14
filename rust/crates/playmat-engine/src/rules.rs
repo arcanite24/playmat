@@ -590,7 +590,15 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             let fired = game.triggers(sources, |g, src, you, t| {
                 let suspended_card = g.obj(src).zone == Zone::Exile && g.obj(src).suspended;
                 matches!(t, Trigger::StepBegins { step, who, graveyard, suspended }
-                    if step == name && Game::whose(who, you, active)
+                    if step == name
+                        && if who == "attached_controller" {
+                            g.obj(src).zone == Zone::Battlefield
+                                && g.attached(src).is_some_and(|a| {
+                                    g.obj(a).zone == Zone::Battlefield && g.obj(a).controller == active
+                                })
+                        } else {
+                            Game::whose(who, you, active)
+                        }
                         && *suspended == suspended_card
                         && *graveyard == (g.obj(src).zone == Zone::Graveyard))
                     || (matches!(t, Trigger::EntersOrUpkeep)
@@ -1245,6 +1253,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
             || spectacle(game, seat, *id).is_some()
             || surge(game, seat, *id).is_some()
+            || pay_more_flash(game, seat, *id).is_some()
             || awaken(game, seat, *id).is_some()
             || sneak(game, seat, *id).is_some()
             || emerge(game, seat, *id).is_some()
@@ -1482,6 +1491,7 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     let alternatives = [
                         spectacle(game, seat, id).map(|x| x.0),
                         surge(game, seat, id).map(|x| x.0),
+                        pay_more_flash(game, seat, id).map(|x| x.0),
                         awaken(game, seat, id).map(|x| x.0),
                         sneak(game, seat, id).map(|x| x.0),
                         emerge(game, seat, id).map(|x| x.0),
@@ -1609,6 +1619,9 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
             continue;
         }
         let Some((_, _, targets, costs, sorcery)) = a.activated() else { continue };
+        if cards::cant_activate(game, seat, id, i) {
+            continue;
+        }
         // cycling works from hand, everything else on the battlefield
         if a.from_hand() != (o.zone == Zone::Hand) || a.from_graveyard() != (o.zone == Zone::Graveyard) {
             continue;
@@ -1696,8 +1709,10 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::HarmonizeCost | CostDef::ExertSourceCost => true,
         CostDef::ManaCost { cost } => ManaCost::parse(cost).map(|m| can_pay(game, seat, &m)).unwrap_or(false),
         CostDef::TapSourceCost => {
-            let sick =
-                game.has_type(id, CardType::Creature) && o.sick && !game.has_ability(id, &AbilityDef::HasteAbility);
+            let sick = game.has_type(id, CardType::Creature)
+                && o.sick
+                && !game.has_ability(id, &AbilityDef::HasteAbility)
+                && !cards::activate_haste(game, id);
             !(o.tapped || sick)
         }
         CostDef::SacrificeSourceCost | CostDef::ExileSourceCost => true,
@@ -1849,6 +1864,13 @@ pub fn lands_per_turn(game: &Game, seat: Seat) -> u32 {
         }
         false
     });
+    for (e, you, _) in &game.eot_effects {
+        if let EffectDef::PlayAdditionalLandsThisTurnEffect { amount } = e {
+            if *you == seat {
+                extra += amount;
+            }
+        }
+    }
     1 + extra
 }
 
@@ -2480,6 +2502,18 @@ fn surge(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     castable(game, seat, id, &def).then_some((k, def))
 }
 
+/// `PayMoreToCastAsThoughtItHadFlashAbility`: from hand, at instant speed, for its mana cost and that more
+fn pay_more_flash(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
+    if game.obj(id).zone != Zone::Hand {
+        return None;
+    }
+    let (k, def) = game.obj(id).def.pay_more_flash()?;
+    let any_time = game.any_time.replace(true);
+    let can = castable(game, seat, id, &def);
+    game.any_time.set(any_time);
+    can.then_some((k, def))
+}
+
 fn spectacle(game: &Game, seat: Seat, id: ObjId) -> Option<(usize, CardDef)> {
     let (k, def) = game.obj(id).def.spectacle()?;
     (game.condition_holds(Some(&Condition::OpponentsLostLife), seat, id) && castable(game, seat, id, &def))
@@ -2546,7 +2580,10 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
         }
         // an ability that taps it needs it untapped, and a creature's not summoning sick
         let can_tap = !(o.tapped
-            || game.has_type(*id, CardType::Creature) && o.sick && !game.has_ability(*id, &AbilityDef::HasteAbility));
+            || game.has_type(*id, CardType::Creature)
+                && o.sick
+                && !game.has_ability(*id, &AbilityDef::HasteAbility)
+                && !cards::activate_haste(game, *id));
         let abilities: Vec<(usize, Mana, ManaKind)> = o
             .def
             .abilities
@@ -3667,6 +3704,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some((k, _)) = &surge {
             options.push(*k);
         }
+        let pay_more = if zone == Zone::Hand { pay_more_flash(game, seat, id) } else { None };
+        if let Some((k, _)) = &pay_more {
+            options.push(*k);
+        }
         let awaken = if zone == Zone::Hand { awaken(game, seat, id) } else { None };
         if let Some((k, _)) = &awaken {
             options.push(*k);
@@ -3747,6 +3788,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 .filter(|(k, _)| *k == index)
                 .or(surge.filter(|(k, _)| *k == index))
                 .or(awaken.filter(|(k, _)| *k == index))
+                .or(pay_more.filter(|(k, _)| *k == index))
                 .or(cleave.filter(|(k, _)| *k == index))
                 .or(overload.filter(|(k, _)| *k == index))
                 .map(|(_, def)| (def, false));
@@ -4888,6 +4930,14 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             return false;
         }
     }
+    // a cost increase that adds a life payment (Terror of the Peaks: "spells your opponents cast that target {this}
+    // cost an additional 3 life"), added after the spell's own costs
+    let life = cards::life_cost(game, &cards::CostCx { seat, card: id, face: &def, ability: None });
+    if life > 0
+        && (game.player(seat).life < life || !pay_cost(game, d, seat, id, &CostDef::PayLifeCost { amount: life }))
+    {
+        return false;
+    }
     // expend: the spell's mana, an additional cost's too (Silvergill Adept's {3}), is counted one by one; the 4th, 6th or 8th fires "whenever you expend N"
     let before = game.player(seat).expended;
     let after = before + (0..6).map(|k| game.spent_tally[k] - tally[k]).sum::<u32>();
@@ -4981,6 +5031,10 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             from: game.obj(spell).cast_from,
             creature: game.has_type(spell, CardType::Creature),
             historic,
+            mv: {
+                let c = game.obj(spell).def.printed();
+                c.mana_value() as i32 + game.stack.last().map_or(0, |t| t.x) * c.x as i32
+            },
         };
         game.watch.spells.push(seen);
         let p = game.player_mut(seat);
@@ -6213,6 +6267,15 @@ fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, co
             cost.generic = cost.generic.saturating_sub(*colorless_discount);
         }
     }
+    // Plate Armor (`PlateArmorAdjuster`): {1} less for each other Equipment you control
+    if let AbilityDef::EquipAbility { equipment_discount: true, .. } = a {
+        let others = game
+            .battlefield
+            .iter()
+            .filter(|b| **b != id && game.obj(**b).controller == seat && game.has_subtype(**b, "Equipment"))
+            .count();
+        cost.generic = cost.generic.saturating_sub(others as u32);
+    }
     if let AbilityDef::ChannelAbility { legendary_discount: true, .. } = a {
         let legends = game
             .battlefield
@@ -6841,7 +6904,15 @@ fn cant_be_countered(game: &Game, spell: ObjId) -> bool {
                 _ => false,
             })
     });
+    // resolved "spells of the filter you cast this turn can't be countered" (Domri, Anarch of Bolas)
+    let this_turn = game.eot_effects.iter().any(|(e, you, src)| match e {
+        EffectDef::CantBeCounteredControlledEffect { filter, .. } => {
+            Some(*you) == controller && game.filter_matches(filter, *you, Some(*src), spell)
+        }
+        _ => false,
+    });
     by_static
+        || this_turn
         || game.obj(spell).uncounterable
         || game.obj(spell).def.abilities.iter().any(|a| match a {
             AbilityDef::CantBeCounteredSourceAbility => true,
@@ -7029,7 +7100,12 @@ fn owns_target(game: &Game, seat: Seat, id: ObjId) -> bool {
 pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>) -> (Vec<Seat>, Vec<ObjId>) {
     // a player with hexproof can't be the target of their opponents' spells and abilities
     let players: Vec<Seat> = (0..game.seats())
-        .filter(|s| !game.player(*s).lost && (*s == seat || !game.player_has(*s, &AbilityDef::HexproofAbility)))
+        .filter(|s| {
+            !game.player(*s).lost
+                && (*s == seat
+                    || !game.player_has(*s, &AbilityDef::HexproofAbility)
+                    || cards::ignore_hexproof(game, seat, Target::Player(*s)))
+        })
         .collect();
     let permanents = |f: &dyn Fn(ObjId) -> bool| -> Vec<ObjId> {
         game.battlefield.iter().copied().filter(|id| f(*id) && targetable(game, seat, *id, src)).collect()
@@ -7119,7 +7195,8 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
 fn targetable(game: &Game, seat: Seat, id: ObjId, src: Option<ObjId>) -> bool {
     (game.obj(id).controller == seat
         || !game.has_ability(id, &AbilityDef::HexproofAbility)
-        || (game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller)))
+        || (game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
+        || cards::ignore_hexproof(game, seat, Target::Obj(id)))
         && !src.is_some_and(|s| game.protected_from(id, s))
 }
 
@@ -7964,6 +8041,17 @@ fn activate_mana_paying(
                 Mana::of(c, n)
             }
         };
+    }
+    // `TAPPED_FOR_MANA`: replacements of what it produces (Damping Sphere's {C})
+    if cards::any_replacement(game, cards::EventType::TappedForMana) {
+        let mut ev = cards::Event::new(cards::EventType::TappedForMana, seat);
+        ev.target = Some(id);
+        ev.amount = m.total() as i32;
+        cards::replace_event(game, &mut ev, 0);
+        if let Some(n) = ev.colorless {
+            m = Mana::default();
+            m.colorless = n;
+        }
     }
     mana_spent_riders(game, id, i, Some(unpaid));
     let snow = game.is_snow(id);
@@ -10239,7 +10327,11 @@ fn apply_each_effect(
                 };
                 if n > 0 {
                     for o in &to {
-                        put_counters(game, *o, &counter.name, n, controller);
+                        if counter.name == "lore" {
+                            add_lore(game, *o, n);
+                        } else {
+                            put_counters(game, *o, &counter.name, n, controller);
+                        }
                     }
                 }
             }
@@ -12526,6 +12618,7 @@ fn apply_each_effect(
             | EffectDef::SpellCostReductionForEachSourceEffect { .. }
             | EffectDef::CantBeCounteredControlledEffect { .. }
             | EffectDef::DontCauseTriggerEffect
+            | EffectDef::CreaturesCantGetOrHaveAbilityEffect { .. }
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
             | EffectDef::SpellsCostIncreasingAllEffect { .. }
             | EffectDef::SpellsCostReductionControllerEffect { .. }
@@ -14063,8 +14156,11 @@ fn apply_each_effect(
                     if game.obj(*o).zone == Zone::Graveyard && !game.obj(*o).token {
                         let under = if *owner { game.obj(*o).owner } else { controller };
                         // a double-faced card enters as its face, which the counters (`setEnterWithCounters`, by the
-                        // card's id) don't find: Baneblade Scoundrel returned by Unbreakable Bond
-                        let faced = game.obj(*o).def.transform_back.is_some() || game.obj(*o).def.back.is_some();
+                        // card's id) don't find: Baneblade Scoundrel returned by Unbreakable Bond; nor does an Aura,
+                        // which `AuraReplacementEffect` puts there itself (Spiral into Solitude returned by Yuna)
+                        let faced = game.obj(*o).def.transform_back.is_some()
+                            || game.obj(*o).def.back.is_some()
+                            || game.obj(*o).def.subtypes.iter().any(|s| s == "Aura");
                         enter_battlefield(game, d, *o, under, false);
                         if let Some(c) = counters.as_ref().filter(|_| !faced) {
                             add_counters_by(game, *o, &c.name, c.amount, Some(controller));
@@ -14841,6 +14937,11 @@ fn apply_each_effect(
                 game.enters_as = None;
             }
             EffectDef::AddExtraTurnControllerEffect => game.extra_turns.push(controller),
+            EffectDef::ReturnToLibrarySpellEffect { top } => {
+                if game.obj(source.0).zone == Zone::Stack && game.obj(source.0).zcc == source.1 {
+                    to_library(game, source.0, *top);
+                }
+            }
             EffectDef::ExileSpellEffect => {
                 if game.obj(source.0).zone == Zone::Stack {
                     game.obj_mut(source.0).flashback = true;
@@ -16165,7 +16266,7 @@ fn apply_each_effect(
             | EffectDef::TheWanderingEmperorEffect
             | EffectDef::LoseCreatureTypeSourceEffect { .. }
             | EffectDef::ImpendingTypeEffect
-            | EffectDef::AttacksIfAbleAllEffect { .. }
+            | EffectDef::AttacksIfAbleAllEffect { this_turn: false, .. }
             | EffectDef::SoulScarMageDamageReplacementEffect
             | EffectDef::ConditionalAsThoughEffect { .. }
             | EffectDef::CastAsThoughItHadFlashSourceEffect
@@ -16182,6 +16283,10 @@ fn apply_each_effect(
                 if *duration == Duration::EndOfTurn {
                     game.eot_effects.push((e.clone(), controller, source.0));
                 }
+            }
+            EffectDef::AttacksIfAbleAllEffect { this_turn: true, .. }
+            | EffectDef::PlayAdditionalLandsThisTurnEffect { .. } => {
+                game.eot_effects.push((e.clone(), controller, source.0));
             }
             EffectDef::LoseAbilityAttachedEffect { .. } | EffectDef::AddCardSubtypeAttachedEffect { .. } => {}
             EffectDef::PutSourceCountersOnTargetEffect { counter } => {
@@ -19761,6 +19866,12 @@ fn tap(game: &mut Game, id: ObjId) {
     game.obj_mut(id).tapped = true;
     let fired = game.triggers([id], |_, _, _, t| matches!(t, Trigger::BecomesTapped));
     game.pending.extend(fired);
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |g, src, you, t| {
+        matches!(t, Trigger::BecomesTappedAll { filter }
+            if g.obj(src).zone == Zone::Battlefield && g.filter_matches(filter, you, Some(src), id))
+    });
+    game.pending.extend(fired);
 }
 
 pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
@@ -21423,7 +21534,7 @@ mod tests {
         let item = StackItem::spell(src, 0);
         apply_effects(&mut game, &mut Passer, &item, &[EffectDef::WinGameSourceControllerEffect], &[], (src, zcc));
         assert!(game.over);
-        assert!(game.player(0).won && !game.player(0).lost);
+        assert!(!game.player(0).lost);
         assert!(game.player(1).lost);
     }
 

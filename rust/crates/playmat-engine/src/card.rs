@@ -429,9 +429,12 @@ pub enum Pred {
     CastFrom {
         zone: String,
     },
-    /// `XManaValueTargetAdjuster`: mana value compared with the spell's X (the filter's source)
+    /// `XManaValueTargetAdjuster`: mana value compared with the spell's X (the filter's source); `ability`: an
+    /// activated ability's `ManaValueTargetAdjuster(GetXValue.instance, …)`, the X of the spell or ability
     ManaValueX {
         cmp: Cmp,
+        #[serde(default)]
+        ability: bool,
     },
     /// `AnotherTargetPredicate`: not one of the ability's earlier targets (while its targets are chosen)
     AnotherTarget,
@@ -873,6 +876,10 @@ pub enum Trigger {
     CrewsVehicle,
     /// this becomes tapped (`BecomesTappedSourceTriggeredAbility`)
     BecomesTapped,
+    /// a permanent of the filter becomes tapped (`BecomesTappedTriggeredAbility`)
+    BecomesTappedAll {
+        filter: Filter,
+    },
     /// this deals combat damage to a player
     CombatDamageToPlayer,
     /// this deals combat damage to a player or planeswalker (`DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility`)
@@ -1083,6 +1090,10 @@ pub enum Condition {
     /// "Khans" or "Dragons")
     ModeChosen {
         mode: String,
+    },
+    /// `SourcePreparedCondition`: the source is on the battlefield, prepared (or not, `prepared: false`)
+    SourcePrepared {
+        prepared: bool,
     },
     /// survival's intervening "if": the source is tapped
     SourceTapped,
@@ -1529,9 +1540,12 @@ pub enum Value {
         of: Box<Amount>,
         n: i32,
     },
-    /// a value halved, rounded down
+    /// a value halved
     Half {
         of: Box<Amount>,
+        /// rounded up (`HalfValue(value, true)`), else down
+        #[serde(default)]
+        up: bool,
     },
     /// a value plus a number
     Plus {
@@ -1566,6 +1580,13 @@ pub enum Value {
     SacrificedPower,
     SacrificedToughness,
     SacrificedManaValue,
+    /// the mana value of the resolving spell or ability's first target card (`TargetManaValue`)
+    TargetManaValue,
+    /// the permanents of the filter the resolving ability's first target player controls
+    /// (`PermanentsTargetOpponentControlsCount`)
+    TargetPlayerPermanents {
+        filter: Filter,
+    },
     /// opponents who lost life this turn (`PlayerLostLifeWatcher`)
     OpponentsLostLife,
     /// the controller's devotion to a color (and `c2`, for two): its mana symbols among the mana costs of permanents
@@ -1820,6 +1841,11 @@ pub enum EffectDef {
     GainAbilitySourceEffect {
         ability: Box<AbilityDef>,
         duration: Duration,
+    },
+    /// a static: the creatures of the filter lose the ability and can't have or gain it (Archetype of Imagination)
+    CreaturesCantGetOrHaveAbilityEffect {
+        ability: Box<AbilityDef>,
+        filter: Filter,
     },
     /// the permanents of the filter (as it resolves) lose the ability until end of turn (Shadowspear)
     LoseAbilityAllEffect {
@@ -2268,6 +2294,14 @@ pub enum EffectDef {
         #[serde(default)]
         all: bool,
     },
+    /// the resolving spell's card goes to the top (or bottom) of its owner's library (Sanguine Sacrament)
+    ReturnToLibrarySpellEffect {
+        top: bool,
+    },
+    /// you may play `amount` additional lands this turn (resolving: Plant Beans)
+    PlayAdditionalLandsThisTurnEffect {
+        amount: u32,
+    },
     /// you may play lands from your graveyard
     PlayLandsFromGraveyardControllerEffect,
     /// `PlayFromTopOfLibraryEffect`: you may play lands and cast spells of the filter from the top of your library
@@ -2587,9 +2621,12 @@ pub enum EffectDef {
         amount: Amount,
         less_than: i32,
     },
-    /// the permanents of `filter` attack each combat if able (a static, `AttacksIfAbleAllEffect`)
+    /// the permanents of `filter` attack each combat if able (a static, `AttacksIfAbleAllEffect`); resolving
+    /// (`this_turn`, `Duration.EndOfTurn`), they attack this turn if able: those that haven't attacked this turn yet
     AttacksIfAbleAllEffect {
         filter: Filter,
+        #[serde(default)]
+        this_turn: bool,
     },
     /// amass: with no Army, create `token` (a 0/0 Army) first; then `amount` +1/+1 counters on an Army the
     /// controller chooses, which becomes a `subtype` too
@@ -4208,6 +4245,12 @@ pub enum AbilityDef {
     BlitzEntersAbility {
         rule: String,
     },
+    /// cast from hand as though it had flash for its mana cost plus `cost` (a second spell ability, instant timing:
+    /// `PayMoreToCastAsThoughtItHadFlashAbility`)
+    PayMoreToCastAsThoughtItHadFlashAbility {
+        cost: String,
+        rule: String,
+    },
     /// cast from hand for `cost` instead if an opponent lost life this turn (a second spell ability)
     SpectacleAbility {
         cost: String,
@@ -4227,13 +4270,16 @@ pub enum AbilityDef {
     },
     /// an optional additional cost asked for as the spell is cast
     /// equip: attach this to target creature you control, as a sorcery; `colorless_discount` less when it targets a
-    /// colorless creature (Ghostfire Blade)
+    /// colorless creature (Ghostfire Blade), {1} less for each other Equipment you control with `equipment_discount`
     EquipAbility {
         effects: Vec<EffectDef>,
         cost: Vec<CostDef>,
         targets: Vec<TargetDef>,
         #[serde(default)]
         colorless_discount: u32,
+        /// {1} less for each other Equipment you control (Plate Armor)
+        #[serde(default)]
+        equipment_discount: bool,
         #[serde(default)]
         rule: String,
     },
@@ -5762,6 +5808,21 @@ impl CardDef {
                 k,
                 CardDef {
                     cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    ..self.clone()
+                },
+            )),
+            _ => None,
+        })
+    }
+
+    /// The "pay more to cast it as though it had flash" ability's index and the card with its cost plus that more.
+    pub fn pay_more_flash(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::PayMoreToCastAsThoughtItHadFlashAbility { cost, .. } => Some((
+                k,
+                CardDef {
+                    cost: self.cost.plus(&ManaCost::parse(cost).ok()?),
                     printed_cost: Some(self.printed().clone()),
                     ..self.clone()
                 },
