@@ -298,6 +298,7 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
             // "until your next turn" ends as it begins
             game.attacks_opponent.retain(|(s, _)| *s != active);
             game.flash_until_next_turn.retain(|(s, _, _)| *s != active);
+            game.attacks_if_able_next.retain(|(s, _, _)| *s != active);
             game.card_statics.retain(|r| r.until_turn_of != Some(active));
             game.damage_doubled_to.retain(|(_, s)| *s != active);
             if game.grants.iter().any(|g| g.until_turn_of == Some(active)) {
@@ -16058,6 +16059,9 @@ fn apply_each_effect(
                     game.dont_untap_next.push((controller, who.clone(), filter.clone(), source.0, turn));
                 }
             }
+            EffectDef::AttacksIfAbleAllUntilYourNextTurnEffect { filter } => {
+                game.attacks_if_able_next.push((controller, filter.clone(), source.0));
+            }
             EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
             EffectDef::LoseGameSourceControllerEffect => {
                 // `lostForced`: not once they've won; with one player left the game ends there, as it resolves
@@ -17109,6 +17113,11 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
     if name == "+1/+1" {
         game.watch.p1p1_put.push((by, n));
     }
+    // `COUNTER_ADDED`, one event for each counter, before the batch's `COUNTERS_ADDED`
+    let each = game.triggers([o], |_, _, _, t| matches!(t, Trigger::CounterAddedSource { counter } if counter == name));
+    for _ in 0..n {
+        game.pending.extend(each.iter().cloned());
+    }
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::CountersPut { filter, counter } => {
@@ -17710,8 +17719,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     let real_def = entering_as.as_ref().map(|def| std::mem::replace(&mut game.obj_mut(id).def, def.clone()));
     // replacement effects on its entering, more than one: the player picks the order (`chooseReplacementEffect`):
     // Gev's counters for another creature, the next creature spell's counters, and the creature's own "enters"
-    // abilities (`EntersBattlefieldEffect`s: one whether its condition holds or not, an `EscapesWithAbility` whether
-    // it escaped or not)
+    // abilities (`EntersBattlefieldEffect`s when their condition holds, an `EscapesWithAbility` whether it escaped or
+    // not)
     if game.obj(id).def.is(CardType::Creature) {
         let gevs = game
             .battlefield
@@ -17731,8 +17740,11 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
             .abilities
             .iter()
             .filter(|a| match a {
-                // `EntersBattlefieldEffect.applies` checks a kicker condition (Gnarlid Colony unkicked has none)
-                AbilityDef::EntersBattlefieldAbility { condition: Some(Condition::Kicked), .. } => kicked,
+                // `EntersBattlefieldEffect.applies` checks its condition (Gnarlid Colony unkicked has none; War-Name
+                // Aspirant's raid before combat isn't one of two Phyrexian Censors' "enters tapped" to order)
+                AbilityDef::EntersBattlefieldAbility { condition: Some(c), .. } => {
+                    condition_with_kicker(game, c, controller, id, kicked)
+                }
                 _ => matches!(
                     a,
                     AbilityDef::EntersPreparedAbility { .. }
@@ -18625,13 +18637,22 @@ fn player_damage_batch_triggers(game: &mut Game) {
                 .sum()
         };
         let sources = game.trigger_sources();
+        // `DamagedBatchForOnePlayerEvent.isCombatDamage`: its damage was combat damage
+        let noncombat = events.iter().any(|e| !e.2);
+        let dealt: i32 = events.iter().map(|e| e.1).sum();
         let fired = game.triggers(sources, |g, src, you, t| match t {
             Trigger::DamagePlayerBatch { filter, only_combat } => total(g, src, you, filter, *only_combat) > 0,
+            Trigger::OpponentDealtNoncombatDamageBatch => noncombat && you != p,
             _ => false,
         });
         for mut t in fired {
-            if let Some(Trigger::DamagePlayerBatch { filter, only_combat }) = game.trigger_of(&t).cloned() {
-                t.x = total(game, t.card, t.controller, &filter, only_combat);
+            match game.trigger_of(&t).cloned() {
+                Some(Trigger::DamagePlayerBatch { filter, only_combat }) => {
+                    t.x = total(game, t.card, t.controller, &filter, only_combat);
+                }
+                // "damage": the batch's amount
+                Some(Trigger::OpponentDealtNoncombatDamageBatch) => t.x = dealt,
+                _ => {}
             }
             if set_target_pointer_player(game, &t) {
                 t.targets = vec![vec![Target::Player(p)]];
@@ -19433,6 +19454,12 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             lose_life_by(game, s, amount, Some(source), combat);
             if combat && amount > 0 && !game.combat_damaged_players.contains(&(source, s)) {
                 game.combat_damaged_players.push((source, s));
+            }
+            if amount > 0 {
+                let zcc = game.obj(source).zcc;
+                if !game.damaged_players.contains(&(source, zcc, s)) {
+                    game.damaged_players.push((source, zcc, s));
+                }
             }
             // toxic: combat damage to a player also gives them poison counters, each toxic ability's (`doDamage`)
             if combat {
@@ -20981,6 +21008,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     game.exile_if_graveyard.clear();
     game.damaged_by_source.clear();
     game.combat_damaged_players.clear();
+    game.damaged_players.clear();
     game.attacked_this_turn.clear();
     game.p1p1_put_this_turn.clear();
     if !game.all_basics_until_eot.is_empty() {

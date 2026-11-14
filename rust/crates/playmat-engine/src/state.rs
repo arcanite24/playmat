@@ -1030,6 +1030,9 @@ pub struct Game {
     pub damaged_by_source: Vec<(ObjId, ObjId, u32)>,
     /// players dealt combat damage this turn, by source (Steel Hellkite's watcher): the source, the player
     pub combat_damaged_players: Vec<(ObjId, Seat)>,
+    /// players dealt any damage this turn, by source (`PlayerDamagedBySourceWatcher`): the source, its zone change
+    /// count then, the player
+    pub damaged_players: Vec<(ObjId, u32, Seat)>,
     /// the creatures that attacked this turn, as they were (`AttackedThisTurnWatcher.getAttackedThisTurnCreatures`)
     pub attacked_this_turn: Vec<(ObjId, u32)>,
     /// the permanents each player put one or more +1/+1 counters on this turn, as they were (Kid Loki's watcher)
@@ -1064,6 +1067,8 @@ pub struct Game {
     /// `DontUntapInControllersUntapStepAllEffect` until your next turn: its controller, "you" or "any", the filter,
     /// the source and the turn it resolved; it applies in the next untap step of that player's turn
     pub dont_untap_next: Vec<(Seat, String, Filter, ObjId, u32)>,
+    /// `AttacksIfAbleAllEffect` until your next turn: its controller, the filter and the source
+    pub attacks_if_able_next: Vec<(Seat, Filter, ObjId)>,
     /// triggered abilities with a limit each turn that triggered this turn: source, its zone changes, ability index
     pub triggered_this_turn: Vec<(ObjId, u32, usize)>,
     /// while triggered abilities go on the stack: what their targets trigger (ward, valiant), which Java's
@@ -1301,6 +1306,7 @@ impl Game {
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
+            damaged_players: Vec::new(),
             attacked_this_turn: Vec::new(),
             p1p1_put_this_turn: Vec::new(),
             all_basics_until_eot: Vec::new(),
@@ -1314,6 +1320,7 @@ impl Game {
             resume_step: None,
             combat_phase_done: false,
             dont_untap_next: Vec::new(),
+            attacks_if_able_next: Vec::new(),
             triggered_this_turn: Vec::new(),
             targeted_later: None,
             sac_insert: None,
@@ -1653,6 +1660,15 @@ impl Game {
                     })
             }
             Pred::DamagedThisTurn => o.damaged_by.0 == self.turn && o.damaged_by.1 != 0,
+            Pred::DamagedPlayerThisTurn { who } => self.damaged_players.iter().any(|(s, z, p)| {
+                *s == id
+                    && *z == o.zcc
+                    && match who.as_str() {
+                        "you" => *p == you,
+                        "opponent" => *p != you,
+                        _ => true,
+                    }
+            }),
             Pred::Blocking => !o.blocking.is_empty(),
             Pred::ManaSpent { cmp, n } => cmp.holds(o.mana_spent as i32, *n),
             Pred::Card { handler } => (handler.f())(self, you, source, id),
@@ -2317,6 +2333,10 @@ impl Game {
             }
             _ => false,
         }) || self.requirements.iter().any(|r| r.kind == RequirementKind::Attacks && r.obj == (id, self.obj(id).zcc))
+            || self
+                .attacks_if_able_next
+                .iter()
+                .any(|(you, filter, src)| self.filter_matches(filter, *you, Some(*src), id))
     }
 
     pub fn cant_attack_or_block(&self, id: ObjId) -> bool {

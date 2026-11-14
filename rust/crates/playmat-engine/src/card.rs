@@ -519,6 +519,11 @@ pub enum Pred {
     Modified,
     /// `WasDealtDamageThisTurnPredicate`
     DamagedThisTurn,
+    /// `DamagedPlayerThisTurnPredicate(who)`: it dealt damage this turn to you ("you"), an opponent ("opponent") or
+    /// any player ("any") (`PlayerDamagedBySourceWatcher`, as the object it is now)
+    DamagedPlayerThisTurn {
+        who: String,
+    },
     /// `BlockingPredicate`
     Blocking,
     /// `ManaSpentToCastPredicate`: the mana spent to cast it compared with `n`
@@ -678,6 +683,9 @@ pub enum Trigger {
         #[serde(default)]
         only_combat: bool,
     },
+    /// an opponent is dealt noncombat damage, once for each player's batch
+    /// (`OpponentDealtNoncombatDamageTriggeredAbility`); X is the batch's damage
+    OpponentDealtNoncombatDamageBatch,
     /// any of `ts` (`OrTriggeredAbility`): it triggers once for an event that any of them triggers on
     Or {
         ts: Vec<Trigger>,
@@ -852,6 +860,10 @@ pub enum Trigger {
     },
     /// one or more `counter` counters are put on this (Exemplar of Light)
     CountersAddedSource {
+        counter: String,
+    },
+    /// a `counter` counter is put on this, once for each counter (Fathom Mage's `COUNTER_ADDED`)
+    CounterAddedSource {
         counter: String,
     },
     /// a state trigger: this has `n` or more `counter` counters (Mazemind Tome)
@@ -2648,6 +2660,11 @@ pub enum EffectDef {
         filter: Filter,
         #[serde(default)]
         this_turn: bool,
+    },
+    /// resolving: the permanents of `filter` attack each combat if able until your next turn
+    /// (`AttacksIfAbleAllEffect(filter, Duration.UntilYourNextTurn)`: Kardur, Doomscourge)
+    AttacksIfAbleAllUntilYourNextTurnEffect {
+        filter: Filter,
     },
     /// amass: with no Army, create `token` (a 0/0 Army) first; then `amount` +1/+1 counters on an Army the
     /// controller chooses, which becomes a `subtype` too

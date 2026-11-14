@@ -940,6 +940,9 @@ def predicate(text, subtypes):
         return {'p': 'token', 'v': m.group(1) == 'TRUE'}
     if (m := re.fullmatch(r'(CounterType\.\w+)\.getPredicate\(\)', text)) and m.group(1) in COUNTERS:
         return {'p': 'counter', 'name': COUNTERS[m.group(1)]}
+    m = re.fullmatch(r'new DamagedPlayerThisTurnPredicate\(TargetController\.(YOU|OPPONENT|ANY)\)', text)
+    if m:
+        return {'p': 'damaged_player_this_turn', 'who': m.group(1).lower()}
     m = re.fullmatch(r'BlockingOrBlockedBySourcePredicate\.(BLOCKING|BLOCKED_BY|EITHER)', text)
     if m:
         return {'p': 'blocking_or_blocked_by_source', 'blocking': m.group(1) != 'BLOCKED_BY',
@@ -2424,6 +2427,9 @@ class Translator:
         # "each player may play an additional land on each of their turns" (Ghirapur Orrery)
         if cls == 'PlayAdditionalLandsAllEffect' and not [a for a in args if a.strip()]:
             return {'class': 'PlayAdditionalLandsControllerEffect', 'amount': 1, 'all': True}
+        # "until your next turn, creatures your opponents control attack each combat if able" (Kardur)
+        if cls == 'AttacksIfAbleAllEffect' and len(args) == 2 and args[1].strip() == 'Duration.UntilYourNextTurn':
+            return {'class': 'AttacksIfAbleAllUntilYourNextTurnEffect', 'filter': self.filter(args[0])}
         if cls == 'PlayAdditionalLandsControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
@@ -4047,6 +4053,10 @@ class Translator:
             return {'class': 'SimpleActivatedAbility', 'java': cls,
                     'effects': [{'class': 'AdaptEffect', 'amount': int(args[0])}],
                     'cost': [{'class': 'ManaCost', 'cost': args[1].strip()[1:-1]}]}
+        # "whenever a +1/+1 counter is put on this, you may draw a card" (once for each counter)
+        if cls == 'FathomMageTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counter_added_source', 'counter': '+1/+1'},
+                    'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}], 'optional': True}
         # "whenever one or more +1/+1 counters are put on this"
         if cls == 'OneOrMoreCountersAddedTriggeredAbility' and len(args) in (1, 2):
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counters_added_source', 'counter': '+1/+1'},
@@ -5149,6 +5159,10 @@ class Translator:
                 raise Unsupported(cls + ' ' + args[5])
             return out({'e': 'attached_deals_damage_to_player', 'only_combat': n < 5 or flag(args[4]), 'who': who},
                        args[0], flag(args[2]), n >= 4 and flag(args[3]))
+        # "whenever an opponent is dealt noncombat damage" (Massacre Girl, Most Wanted): once for each player's batch
+        if cls == 'OpponentDealtNoncombatDamageTriggeredAbility' and (n == 1 or (n == 3 and args[0] == 'Zone.BATTLEFIELD')):
+            return out({'e': 'opponent_dealt_noncombat_damage_batch'}, args[-2] if n == 3 else args[0],
+                       n == 3 and flag(args[2]))
         # "whenever one or more <filter> you control deal (combat) damage to a player" (effect, filter, onlyCombat,
         # onlyControlled): the engine's batch counts only the permanents you control
         if cls == 'OneOrMoreDamagePlayerTriggeredAbility' and n == 4 and args[3] == 'true':

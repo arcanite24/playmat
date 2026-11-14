@@ -1,5 +1,7 @@
-//! `ExchangeControlTargetEffect(Duration.EndOfGame, text[, withSource])`: "exchange control of two target creatures"
-//! (Switcheroo, Shifting Grift) or, with the source, "of this and target nonland permanent" (Eyes Everywhere). Both
+//! `ExchangeControlTargetEffect(Duration.EndOfGame, text[, withSource[, withSecondTarget]])`: "exchange control of two
+//! target creatures" (Switcheroo, Shifting Grift), with the source "of this and target nonland permanent" (Eyes
+//! Everywhere), or with the second target "of target artifact you control and target artifact or creature you don't
+//! control" (Shrewd Negotiation: the two are separate targets). Both
 //! still on the battlefield and under different controllers, each comes under the other's controller for the rest of
 //! the game (layer 2, the newest control change for each).
 
@@ -10,15 +12,19 @@ pub const HANDLERS: &[Handler] = &[Handler::effect("ExchangeControlTargetEffect"
     "one_of:Duration.EndOfGame",
     "text",
     "one_of:true|false",
+    "one_of:true|false",
 ])];
 
 fn apply(game: &mut Game, _d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
     let with_source = cx.args.get(2).is_some_and(|a| a.trim() == "true");
+    let with_second_target = cx.args.get(3).is_some_and(|a| a.trim() == "true");
     let (first, second) = if with_source {
         if !cx.source_on_battlefield(game) {
             return Some(());
         }
         (cx.obj(0)?, cx.source_id())
+    } else if with_second_target {
+        (cx.obj(0)?, cx.obj(1)?)
     } else {
         let objs = cx.objs(0);
         (*objs.first()?, *objs.get(1)?)

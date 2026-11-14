@@ -466,11 +466,12 @@ mod tests {
         eprintln!("{} cards load", db.len());
     }
 
-    /// every handler's Java name is unique and well formed (`find` asserts uniqueness as it builds its map)
+    /// every handler's Java name is unique and well formed, `_` allowed for enum constants such as `GAINED_AND_LOST`
+    /// (`find` asserts uniqueness as it builds its map)
     #[test]
     fn handler_names_are_unique() {
         for h in super::ALL.iter().flat_map(|hs| hs.iter()) {
-            assert!(h.java.chars().all(|c| c.is_ascii_alphanumeric() || c == '.'), "{}", h.java);
+            assert!(h.java.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_'), "{}", h.java);
             // (by name: a `const` slice may be copied at each use, so its address says nothing)
             assert_eq!(super::find(h.java).map(|f| f.java), Some(h.java));
         }
