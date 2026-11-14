@@ -3934,6 +3934,10 @@ class Translator:
         cls, args = obj
         if cls in KEYWORDS and not args:
             return {'class': cls}
+        # hexproof from a color, monocolored or multicolored, each color
+        if (m := re.fullmatch(r'HexproofFrom(White|Blue|Black|Red|Green|Monocolored|Multicolored|EachColor)Ability', cls)) \
+                and not args:
+            return {'class': 'HexproofFromAbility', 'java': cls, 'from': {'EachColor': 'each_color'}.get(m.group(1), m.group(1).lower())}
         # `new CantBeBlockedSourceAbility("{this} can't be blocked")`: its text only (rule texts come from the facts)
         if cls == 'CantBeBlockedSourceAbility' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}

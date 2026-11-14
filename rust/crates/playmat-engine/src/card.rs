@@ -4805,6 +4805,13 @@ pub enum AbilityDef {
     /// changeling: the card is every creature type (`CardDef::all_creature_types`)
     ChangelingAbility,
     HexproofAbility,
+    /// hexproof from a color, "monocolored", "multicolored" or "each_color" (`HexproofFromBlackAbility`…: the
+    /// spell's or ability's source object is of it)
+    HexproofFromAbility {
+        from: String,
+        #[serde(default)]
+        rule: String,
+    },
     /// protection from a color, as an effect grants it (Brave the Elements)
     ProtectionFromColorAbility {
         c: Color,

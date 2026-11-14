@@ -7529,6 +7529,31 @@ fn targetable(game: &Game, seat: Seat, id: ObjId, src: Option<ObjId>) -> bool {
         || (game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
         || cards::ignore_hexproof(game, seat, Target::Obj(id)))
         && !src.is_some_and(|s| game.protected_from(id, s))
+        && !src.is_some_and(|s| {
+            game.obj(id).controller != seat
+                && hexproof_from(game, id, s)
+                && !(game.has_type(id, CardType::Creature) && nowhere_to_run(game, game.obj(id).controller))
+                && !cards::ignore_hexproof(game, seat, Target::Obj(id))
+        })
+}
+
+/// `HexproofBaseAbility.checkObject`: one of `id`'s "hexproof from" abilities covers the object `s`
+fn hexproof_from(game: &Game, id: ObjId, s: ObjId) -> bool {
+    let o = game.obj(id);
+    if !o.def.abilities.iter().chain(game.granted_abilities(id).iter()).any(|a| matches!(a, AbilityDef::HexproofFromAbility { .. })) {
+        return false;
+    }
+    let colors = game.colors(s);
+    let kinds = ["white", "blue", "black", "red", "green"];
+    o.def.abilities.iter().chain(game.granted_abilities(id).iter()).any(|a| match a {
+        AbilityDef::HexproofFromAbility { from, .. } => match from.as_str() {
+            "monocolored" => colors.len() == 1,
+            "multicolored" => colors.len() > 1,
+            "each_color" => !colors.is_empty(),
+            c => kinds.iter().position(|k| *k == c).is_some_and(|i| colors.iter().any(|x| *x as usize == i)),
+        },
+        _ => false,
+    }) && (o.lost_all == 0 || o.zone != Zone::Battlefield)
 }
 
 /// Nowhere to Run: an opponent of `seat` controls one, so `seat`'s creatures can be targeted as though they didn't
