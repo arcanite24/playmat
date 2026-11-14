@@ -161,6 +161,7 @@ EFFECTS = {
     'DestroyAllNamedPermanentsEffect': [],
     'WinGameSourceControllerEffect': [],
     'LoseGameSourceControllerEffect': [],
+    'AirbendTargetEffect': [],
     'DontUntapInControllersNextUntapStepTargetEffect': [(None, 'string')],
     'DontUntapInControllersNextUntapStepSourceEffect': [],
     'DontUntapAsLongAsSourceTappedEffect': [],
@@ -266,6 +267,12 @@ CUSTOM = {
                                           'on': {'e': 'exiled_from_graveyard_or_battlefield_batch'},
                                           'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1},
                                                       {'class': 'LoseLifeSourceControllerEffect', 'amount': 1}]},
+    # Frontier Siege's Khans: "at the beginning of each of your main phases, add {G}{G}"
+    'FrontierSiegeKhansTriggeredAbility': lambda: {
+        'class': 'TriggeredAbility', 'java': 'FrontierSiegeKhansTriggeredAbility', 'optional': False,
+        'on': {'e': 'or', 'ts': [{'e': 'step_begins', 'step': 'main1', 'who': 'you'},
+                                 {'e': 'step_begins', 'step': 'main2', 'who': 'you'}]},
+        'effects': [{'class': 'BasicManaEffect', 'colored': [0, 0, 0, 0, 2], 'colorless': 0}]},
     'ExtinctionEventEffect': lambda: {'class': 'ExtinctionEventEffect'},
     'FumigateEffect': lambda: {'class': 'FumigateEffect'},
     # "enters with a +1/+1 counter on it for each Zombie card in your graveyard"
@@ -371,6 +378,7 @@ CUSTOM = {
     'ClarionConquerorEffect': lambda: {'class': 'ClarionConquerorEffect'},
     'SunspineLynxEffect': lambda: {'class': 'SunspineLynxEffect'},
     'LovestruckBeastEffect': lambda: {'class': 'LovestruckBeastEffect'},
+    'BloodletterOfAclazotzEffect': lambda: {'class': 'BloodletterOfAclazotzEffect'},
     # two 1/1 Spirits that gain haste until end of turn
     'SokenzanCrucibleOfDefianceEffect': lambda: {'class': 'CreateTokenEffect', 'token': token('SpiritToken'), 'amount': 2,
                                                  'haste_until_end_of_turn': True},
@@ -517,6 +525,7 @@ ABILITIES = {
     'EscapeAbility': [(None, 'this'), ('cost', 'cost_text'), ('exile', 'int')],
     'EscapesWithAbility': [('counters', 'int')],
     'SpectacleAbility': [(None, 'this'), ('cost', 'mana_costs')],
+    'SurgeAbility': [(None, 'this'), ('cost', 'cost_text')],
     'ToxicAbility': [('amount', 'int')],
     # cast for the cleave cost instead, with the effect without the bracketed words
     'CleaveAbility': [(None, 'this'), ('effect', 'effect'), ('cost', 'cost_text')],
@@ -651,7 +660,7 @@ for _m in re.finditer(r'^    (\w+)\("([a-z][a-z -]*)"(?:, "\w+")?\)', open(os.pa
 CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'MetalcraftCondition.instance': {'c': 'permanents', 'filter': [{'p': 'type', 't': 'ARTIFACT'}, {'p': 'controller', 'who': 'you'}], 'cmp': 'OR_GREATER', 'n': 3}, 'PlayLandCondition.instance': {'c': 'played_land'}, 'DeliriumCondition.instance': {'c': 'delirium'},
               # a bargained spell is kicked (`BargainAbility`)
-              'BargainedCondition.instance': {'c': 'kicked'},
+              'BargainedCondition.instance': {'c': 'kicked'}, 'CollectedEvidenceCondition.instance': {'c': 'kicked'}, 'SurgedCondition.instance': {'c': 'kicked'},
               'ObsessivePursuitCondition.instance': {'c': 'sacrificed_this_turn', 'n': 3},
               'KaitoBaneOfNightmaresCondition.instance': {'c': 'and', 'xs': [
                   {'c': 'my_turn'}, {'c': 'source_counter', 'name': 'loyalty', 'n': 1}]},
@@ -697,7 +706,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
                   {'p': 'type', 't': 'CREATURE'}, {'p': 'power', 'cmp': 'OR_GREATER', 'n': 4}]},
               'SourceEnteredThisTurnCondition.TRUE': {'c': 'source_entered_this_turn'},
               'SourceEnteredThisTurnCondition.FALSE': {'c': 'not', 'x': {'c': 'source_entered_this_turn'}},
-              'RenownedSourceCondition.ITS': {'c': 'source_renowned'},
+              'RenownedSourceCondition.ITS': {'c': 'source_renowned'}, 'MonstrousCondition.instance': {'c': 'monstrous'},
               'RenownedSourceCondition.THIS': {'c': 'source_renowned'},
               'AdamantCondition.ANY': {'c': 'or', 'xs': [{'c': 'mana_color_spent', 'color': c, 'n': 3} for c in 'WUBRG']},
               'CastFromEverywhereSourceCondition.instance': {'c': 'cast_from_everywhere'},
@@ -840,6 +849,8 @@ def predicate(text, subtypes):
         return {'p': 'mana_value_equal_source_counters', 'counter': COUNTERS[m.group(1)]}
     if text == 'ManaValueLessThanOrEqualToSourcePowerPredicate.instance':
         return {'p': 'mana_value_at_most_source_power'}
+    if text == 'GreatestPowerControlledPredicate.instance':
+        return {'p': 'greatest_power_controlled'}
     if text == 'UrzasSagaPredicate.instance':
         return {'p': 'mana_cost_in', 'costs': ['{0}', '{1}']}
     if text == 'ColorlessPredicate.instance':
@@ -1092,7 +1103,7 @@ PLAYER_TARGETS = {'TargetAnyTarget', 'TargetPlayer', 'TargetOpponent', 'TargetPl
 TEXT_SETTERS = {'setText', 'withTextThatCard', 'withText', 'withShowSacText', 'setAbilityWord', 'withFlavorWord', 'addHint', 'concatBy', 'setTriggerPhrase', 'withChooseHint',
                 'setOutcome', 'setRuleAtTheTop', 'withRuleTextReplacement', 'withDurationRuleAtStart', 'withTargetDescription',
                 'withTextOptions', 'setTargetTag', 'setRuleVisible', 'setIdentifier', 'withForceQuotes',
-                'withConditionText'}
+                'withConditionText', 'setModeTag'}
 
 # watchers whose bookkeeping the engine keeps (`Game::watch`, the players' turn counters): adding one to an ability
 # changes nothing the engine reads
@@ -1695,6 +1706,9 @@ class Translator:
     def cost(self, expr):
         if isinstance(self.vars.get(expr.strip()), dict) and self.vars[expr.strip()].get('class', '').endswith('Cost'):
             return self.vars[expr.strip()]
+        # collect evidence N (Forensic Researcher; not with the source's exile zone)
+        if (m := re.fullmatch(r'new CollectEvidenceCost\((\d+)\)', canonical(expr))):
+            return {'class': 'CollectEvidenceCost', 'amount': int(m.group(1))}
         # "exile N cards from your graveyard" (Emeritus of Ideation; not with the source's exile zone)
         if (m := re.fullmatch(r'new ExileFromGraveCost\(new TargetCardInYourGraveyard\((\d+)\)\)(?:\.withSourceExileZone\(false\))?',
                               canonical(expr))):
@@ -2461,6 +2475,9 @@ class Translator:
             return {'class': 'ChooseLandNameEffect'}
         if cls == 'ChooseCreatureTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
+        # a Siege's "choose Khans or Dragons", kept on the permanent for its anchor-word abilities
+        if cls == 'ChooseModeEffect' and args and all(re.fullmatch(r'ModeChoice\.\w+', a.strip()) for a in args):
+            return {'class': cls, 'modes': [mode_choice(a) for a in args]}
         if cls == 'ChooseBasicLandTypeEffect' and len(args) == 1 and args[0].strip().startswith('Outcome.'):
             return {'class': cls}
         if cls in ('CreateTokenCopyTargetEffect', 'CreateTokenCopySourceEffect') and not args:
@@ -3520,6 +3537,32 @@ class Translator:
         return out
 
     def ability(self, expr):
+        # an anchor word ("&bull Khans &mdash; …", `GainAnchorWordAbilitySourceEffect`): the ability while that mode
+        # was chosen as it entered; a triggered one with the choice as an intervening "if" (it never changes), a
+        # static one's effects conditional on it
+        m = re.fullmatch(r'new SimpleStaticAbility\(new GainAnchorWordAbilitySourceEffect\((.*)\)\)',
+                         canonical(self.strip_setters(expr)), re.S)
+        if m and len(a := split_args(m.group(1))) == 2 and re.fullmatch(r'ModeChoice\.\w+', a[1].strip()):
+            cond = {'c': 'mode_chosen', 'mode': mode_choice(a[1])}
+            inner = a[0].strip()
+            v = self.vars.get(inner)
+            if isinstance(v, dict) and v.get('class', '').endswith('Effect') \
+                    or (n := re.match(r'new (\w+)', inner)) and not n.group(1).endswith('Ability') \
+                    or re.fullmatch(r'\w+\.\w+\(\)', inner):
+                got = self.ability('new SimpleStaticAbility(' + inner + ')')
+            else:
+                got = dict(self.ability(inner))
+            if got.get('class') == 'TriggeredAbility':
+                got['condition'] = {'c': 'and', 'xs': [got['condition'], cond]} if got.get('condition') else cond
+            elif got.get('class') == 'SimpleStaticAbility' and got.get('effects') and all(
+                    e.get('class') in ANCHOR_STATICS for e in got['effects']):
+                got['effects'] = [{'class': 'ConditionalContinuousEffect', 'effect': e, 'condition': cond}
+                                  for e in got['effects']]
+            else:
+                raise Unsupported('anchor word ability ' + got.get('class', ''))
+            got['java'] = 'SimpleStaticAbility'
+            got['anchor'] = True
+            return got
         # protection from one or more colors
         m = re.fullmatch(r'ProtectionAbility\.from\((ObjectColor\.(?:WHITE|BLUE|BLACK|RED|GREEN)(?:,ObjectColor\.\w+)*)\)', canonical(expr.strip()))
         if m and all(c.split('.')[1] in COLORS for c in m.group(1).split(',')):
@@ -3741,6 +3784,9 @@ class Translator:
             return {'class': cls, 'java': cls, 'n': int(args[0].strip())}
         # teamwork N: as you cast it, you may tap creatures with total power N or more (kept as the kicked flag)
         if cls == 'TeamworkAbility' and len(args) == 1 and args[0].strip().isdigit():
+            return {'class': cls, 'java': cls, 'n': int(args[0].strip())}
+        # collect evidence N: as you cast it, you may exile cards with total mana value N or more from your graveyard
+        if cls == 'CollectEvidenceAbility' and len(args) == 1 and args[0].strip().isdigit():
             return {'class': cls, 'java': cls, 'n': int(args[0].strip())}
         # foretell: during your turn, pay {2} and exile it face down; cast it on a later turn for the foretell cost
         if cls == 'ForetellAbility' and len(args) == 2 and args[0].strip() == 'this' \
@@ -4043,6 +4089,14 @@ class Translator:
         # an emblem's cast trigger (the command zone is where emblems are)
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 5 and args[0].strip() == 'Zone.COMMAND':
             args = args[1:]
+        # "whenever you cast a spell from exile" (`fromZone`): the spell's filter, cast from there
+        if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 6 and args[0].strip() == 'Zone.BATTLEFIELD' \
+                and args[4].strip() == 'SetTargetPointer.NONE' \
+                and (z := re.fullmatch(r'Zone\.(GRAVEYARD|EXILED|HAND)', args[5].strip())):
+            a = self.ability('new SpellCastControllerTriggeredAbility(' + ','.join(args[1:4]) + ')')
+            a['on']['filter'] = a['on']['filter'] + [
+                {'p': 'cast_from', 'zone': {'GRAVEYARD': 'graveyard', 'EXILED': 'exile', 'HAND': 'hand'}[z.group(1)]}]
+            return a
         # the spell a cast trigger points at only gives Shark Typhoon its X (the engine's X for cast triggers)
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 \
                 and args[0].strip() == 'new SharkTyphoonCastEffect()' and args[3].strip() == 'SetTargetPointer.SPELL':
@@ -4337,6 +4391,15 @@ class Translator:
         if cls == 'RenownAbility' and n == 1 and args[0].isdigit():
             return trig({'e': 'combat_damage_to_player'}, [{'class': 'BecomesRenownedSourceEffect', 'amount': int(args[0])}],
                         condition={'c': 'not', 'x': {'c': 'source_renowned'}})
+        # monstrosity N: an activated ability ({X} paid: N is X); "when this becomes monstrous" is a trigger of its own
+        if cls == 'MonstrosityAbility' and n == 2 and re.fullmatch(r'"(\{[^"]*\})+"', args[0].strip()) \
+                and (args[1].strip().isdigit() or args[1].strip() == 'Integer.MAX_VALUE'):
+            amount = {'v': 'x'} if args[1].strip() == 'Integer.MAX_VALUE' else int(args[1])
+            return {'class': 'SimpleActivatedAbility', 'java': cls, 'targets': [],
+                    'cost': [{'class': 'ManaCost', 'cost': args[0].strip()[1:-1]}],
+                    'effects': [{'class': 'BecomeMonstrousSourceEffect', 'amount': amount}]}
+        if cls == 'BecomesMonstrousSourceTriggeredAbility' and n in (1, 2):
+            return trig({'e': 'becomes_monstrous'}, [self.effect(args[0])], n == 2 and flag(args[1]))
         # mentor: whenever this attacks, a +1/+1 counter on target attacking creature with lesser power
         if cls == 'MentorAbility' and n == 0:
             return trig({'e': 'attacks'}, [{'class': 'AddCountersTargetEffect', 'counter': {'name': '+1/+1', 'amount': 1}}],
@@ -5915,7 +5978,9 @@ def mode_expr(t, arg):
     arg = arg.strip()
     chained, more = [], []
     # spree and tiered: the mode's additional cost (a flavor word is only text)
-    arg = re.sub(r'\.withFlavorWord\("[^"]*"\)$', '', arg)
+    # (and a mode's tag, which only names it)
+    while (n := re.fullmatch(r'(.*)\.(?:withFlavorWord|setModeTag)\("[^"]*"\)', arg, re.S)):
+        arg = n.group(1).strip()
     cost = None
     if (n := re.fullmatch(r'(.*)\.withCost\((.*)\)', arg, re.S)) and split_args(n.group(2)) == [n.group(2).strip()]:
         arg, cost = n.group(1).strip(), mode_cost(n.group(2))
@@ -6146,8 +6211,30 @@ def ability_statement(t, st, added):
         return True
     # a modal triggered ability: "choose one" of its effects and targets, or a mode's
     m = re.fullmatch(r'(\w+)\.addMode\((.*)\)', st)
-    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'TriggeredAbility':
-        t.vars[m.group(1)].setdefault('modes', []).append(mode_expr(t, m.group(2)))
+    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') in ('TriggeredAbility', 'SimpleActivatedAbility'):
+        mode = mode_expr(t, m.group(2))
+        if 'cost' in mode:
+            raise Unsupported('statement ' + st)
+        t.vars[m.group(1)].setdefault('modes', []).append(mode)
+        return True
+    # how many modes a modal triggered or activated ability chooses ("choose up to one", "choose two"), and "choose
+    # one that hasn't been chosen [this turn]"; a mode's tag and the "modes already used" hint are only text
+    m = re.fullmatch(r'(\w+)\.getModes\(\)\.(setMinModes|setMaxModes|setLimitUsageByOnce|setMayChooseNone)\((\d+|true|false)\)', st)
+    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') in ('TriggeredAbility', 'SimpleActivatedAbility'):
+        count = t.vars[m.group(1)].setdefault('mode_count', {'min': 1, 'max': 1})
+        key, v = m.group(2), m.group(3)
+        if key == 'setMinModes':
+            count['min'] = int(v)
+        elif key == 'setMaxModes':
+            count['max'] = int(v)
+        elif key == 'setLimitUsageByOnce':
+            count['once'] = 'turn' if v == 'true' else 'game'
+        elif v == 'true':
+            count['none'] = True
+        return True
+    m = re.fullmatch(r'(\w+)\.setModeTag\("[^"]*"\)', st)
+    if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class') in (
+            'TriggeredAbility', 'SimpleActivatedAbility', 'Mode'):
         return True
     # a mana ability built with a mana cost: tapping is one more cost; "if any of that mana is spent on a creature
     # spell, it gains haste until end of turn" (Arena of Glory)
@@ -6365,6 +6452,21 @@ def fill_when_you_do(x, rule):
             fill_when_you_do(v, rule)
 
 
+# the static effects the engine reads inside a `ConditionalContinuousEffect` (an anchor word's static ability)
+ANCHOR_STATICS = {'GainAbilitySourceEffect', 'BoostSourceEffect', 'BoostControlledEffect', 'GainAbilityControlledEffect',
+                  'GainAbilityAllEffect', 'BoostAllEffect'}
+
+
+def mode_choice(arg):
+    """`ModeChoice.KHANS` -> its name, "Khans" (`ModeChoice.toString`)"""
+    m = re.fullmatch(r'ModeChoice\.(\w+)', arg.strip())
+    names = dict(re.findall(r'^    (\w+)\("([^"]*)"\)', open(os.path.join(
+        ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'constants', 'ModeChoice.java')).read(), re.M))
+    if not m or m.group(1) not in names:
+        raise Unsupported('mode choice ' + arg)
+    return names[m.group(1)]
+
+
 def in_java_order(java_abilities, added):
     """The abilities in Java's order (decision logs number them so), each matched to one the constructor added"""
     abilities = []
@@ -6378,6 +6480,9 @@ def in_java_order(java_abilities, added):
         added.remove(match)
         if match.pop('java', None) or match['class'] in ABILITIES:
             match['rule'] = fact['rule']
+        # an anchor word's ability: the gained ability's own rule ("&bull Khans &mdash; " + its rule)
+        if match.pop('anchor', None):
+            match['rule'] = re.sub(r'^&bull \w+ &mdash; ', '', match['rule'])
         fill_when_you_do(match, fact['rule'])
         abilities.append(match)
     if added:

@@ -774,6 +774,25 @@ Being in the engine and being trusted are kept apart.
   - Wandering Archaic: its back face's `ExploreTheVastlandsEffect`.
   - Jackal, Genius Geneticist and Loki, God of Mischief: their own predicate and trigger.
 
+  Keyword mechanics and mode forms (wave 6, the mech list):
+  - Modal triggered and activated abilities take `mode_count` (`Modes`: min, max, "may choose none", and
+    `limitUsageByOnce`, once each turn or once per object). `choose_ability_modes` follows `Modes.choose`: the auto
+    path when there are exactly min modes, Done once min are chosen, Cancel clears the choice, and a triggered
+    ability keeps asking. A modal trigger with fewer than max(min, 1) modes whose targets can be chosen isn't put on
+    the stack (`canChooseTargetAbility`). Selected modes resolve in order, and the ability fizzles on the last
+    mode's targets. An activated ability chooses its modes after X and before targets.
+  - Sieges and other anchor words: `ChooseModeEffect` as it enters (a `mode:` mark), and
+    `GainAnchorWordAbilitySourceEffect` as a `mode_chosen` condition on the anchor's trigger or statics.
+  - Monstrosity (`BecomeMonstrousSourceEffect`, the `monstrous` condition and "when this becomes monstrous"),
+    airbend (exile, castable from exile for {2}: `play_cost`), collect evidence (an optional additional cost, and
+    `CollectEvidenceCost` for abilities: the graveyard cards picked in rounds, paid if their mana values add up),
+    surge (a second spell ability once its caster has cast a spell this turn), `GreatestPowerControlledPredicate`,
+    `LoseGameSourceControllerEffect`, and Bloodletter of Aclazotz's doubled life loss.
+  - Engine fixes, each with a game under `shadow/mechanics/game-w6mech-*`: a player who loses as an ability resolves
+    leaves at once, so the game ends with it still on the stack (`checkConcede`), and the winner is marked after it
+    leaves; a permanent that was targeted and then sacrificed as a cost doesn't see the spell cast (The Vision
+    sacrificed to Heartfire).
+
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
       python3 rust/tools/verify_factory.py record --work $W --procs 8     # long: run it in the background

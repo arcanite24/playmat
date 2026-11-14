@@ -283,6 +283,8 @@ pub struct Obj {
     pub cast_only: bool,
     /// cast from exile, it costs this much more (Elite Spellbinder)
     pub play_tax: u32,
+    /// cast from exile, its mana cost is this instead (airbend's {2}: `setCastSourceIdWithAlternateMana`)
+    pub play_cost: Option<crate::card::ManaCost>,
     /// cast for its warp cost (on the stack, then on the battlefield)
     pub warped: bool,
     /// cast for its evoke cost
@@ -1436,6 +1438,7 @@ impl Game {
             play_free: false,
             cast_only: false,
             play_tax: 0,
+            play_cost: None,
             warped: false,
             evoked: false,
             impending: false,
@@ -1500,6 +1503,14 @@ impl Game {
                     })
             }),
             Pred::ManaCostIn { costs } => costs.iter().any(|c| *c == o.def.cost.text),
+            Pred::GreatestPowerControlled => {
+                let controller = o.controller;
+                let power = self.power_toughness(id).0;
+                self.battlefield
+                    .iter()
+                    .filter(|p| self.obj(**p).controller == controller && self.has_type(**p, CardType::Creature))
+                    .all(|p| self.power_toughness(*p).0 <= power)
+            }
             Pred::ManaValueAtMostSourcePower => {
                 source.is_some_and(|src| {
                     // a dies trigger's source (Gurgling Anointer): its power as it last was on the battlefield
@@ -2779,6 +2790,10 @@ impl Game {
                     >= *n
             }
             Condition::SourceRenowned => self.obj(source).marks.iter().any(|m| m == "renowned"),
+            Condition::Monstrous => self.obj(source).marks.iter().any(|m| m == "monstrous"),
+            Condition::ModeChosen { mode } => {
+                self.obj(source).marks.iter().any(|m| m.strip_prefix("mode:") == Some(mode))
+            }
             Condition::SourceTapped => self.obj(source).tapped,
             Condition::SourceAttackedThisTurn => {
                 let turn = format!("attacked{}", self.turn);
@@ -3745,6 +3760,7 @@ impl Game {
             o.exiled_with = None;
             o.transformed_in_place = false;
             o.play_tax = 0;
+            o.play_cost = None;
             o.exerted = false;
             o.powered_up = false;
             o.marks.clear();

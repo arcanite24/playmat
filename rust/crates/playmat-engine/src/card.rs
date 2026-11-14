@@ -366,6 +366,9 @@ pub enum Pred {
     },
     /// `ManaValueLessThanOrEqualToSourcePowerPredicate`: mana value at most the source's power (as it last was)
     ManaValueAtMostSourcePower,
+    /// `GreatestPowerControlledPredicate`: a permanent with the greatest power among the creatures its controller
+    /// controls
+    GreatestPowerControlled,
     /// `CardType.X.getPredicate()`
     Type {
         t: CardType,
@@ -551,6 +554,8 @@ pub enum Trigger {
     Enters,
     /// the last defense counter was removed from this battle (`SiegeDefeatedTriggeredAbility`)
     SiegeDefeated,
+    /// this becomes monstrous (`BecomesMonstrousSourceTriggeredAbility`, `BECOMES_MONSTROUS`)
+    BecomesMonstrous,
     /// this enters or transforms into this face (`TransformsOrEntersTriggeredAbility`)
     TransformsOrEnters,
     /// this is turned face up (`TurnedFaceUpSourceTriggeredAbility`, `TURNED_FACE_UP`)
@@ -1072,6 +1077,13 @@ pub enum Condition {
     SourceAttacking,
     /// renown's intervening "if": the source is renowned (`Permanent.isRenowned`)
     SourceRenowned,
+    /// `MonstrousCondition`: the source is monstrous
+    Monstrous,
+    /// `ModeChoice.checkMode`: the source's mode chosen as it entered (`ChooseModeEffect`) is this one (a Siege's
+    /// "Khans" or "Dragons")
+    ModeChosen {
+        mode: String,
+    },
     /// survival's intervening "if": the source is tapped
     SourceTapped,
     /// boast: the source attacked this turn (`BoastCondition`)
@@ -1359,6 +1371,10 @@ pub enum CostDef {
         amount: usize,
         #[serde(default)]
         filter: Filter,
+    },
+    /// collect evidence `amount`: exile cards with total mana value `amount` or greater from your graveyard
+    CollectEvidenceCost {
+        amount: i32,
     },
     /// one of these, the player's choice when both can be paid
     OrCost {
@@ -2655,6 +2671,18 @@ pub enum EffectDef {
     WinGameSourceControllerEffect,
     /// you lose the game (`PlayerImpl.lost`; the state-based check then ends a game with one player left)
     LoseGameSourceControllerEffect,
+    /// airbend the targets (`AirbendTargetEffect`): exile them (permanents or spells); each card's owner may cast it
+    /// from exile for as long as it stays there by paying {2} rather than its mana cost
+    AirbendTargetEffect,
+    /// monstrosity N (`BecomeMonstrousSourceEffect`): if the source isn't monstrous, N +1/+1 counters on it (X: the
+    /// X paid) and it becomes monstrous, which triggers its "when this becomes monstrous"
+    BecomeMonstrousSourceEffect {
+        amount: Amount,
+    },
+    /// "as this enters, choose Khans or Dragons" (`ChooseModeEffect`): one of `modes`, kept on the permanent
+    ChooseModeEffect {
+        modes: Vec<String>,
+    },
     /// bolster: `amount` +1/+1 counters on the creature you control with the least toughness (chosen among ties)
     BolsterEffect {
         amount: Amount,
@@ -2855,6 +2883,8 @@ pub enum EffectDef {
     },
     /// Lovestruck Beast: this can't attack unless you control a 1/1 creature
     LovestruckBeastEffect,
+    /// Bloodletter of Aclazotz: an opponent who would lose life during your turn loses twice that much instead
+    BloodletterOfAclazotzEffect,
     /// the target opponent exiles a creature they control and their graveyard (Strategic Betrayal)
     StrategicBetrayalEffect,
     /// the target opponent sacrifices a creature, an enchantment and a planeswalker; for each they can't, they lose
@@ -3872,6 +3902,29 @@ pub struct SpellDef {
     pub more_modes: Option<(usize, Condition)>,
 }
 
+/// `Modes`' counts for a modal ability that isn't "choose one": "choose up to one" (`setMinModes(0)`), "choose one or
+/// both", "choose two", and "choose one that hasn't been chosen [this turn]" (`setLimitUsageByOnce`)
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ModeCount {
+    #[serde(default = "one")]
+    pub min: usize,
+    #[serde(default = "one")]
+    pub max: usize,
+    /// `setMayChooseNone`
+    #[serde(default)]
+    pub none: bool,
+    /// each mode only once while the object stays where it is ("game") or each turn ("turn")
+    #[serde(default)]
+    pub once: Option<String>,
+}
+
+impl Default for ModeCount {
+    fn default() -> Self {
+        ModeCount { min: 1, max: 1, none: false, once: None }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 pub struct ModeDef {
     #[serde(default)]
@@ -4046,6 +4099,9 @@ pub enum AbilityDef {
         /// a modal ability ("choose one"): its other modes, mode 0 being its own effects and targets
         #[serde(default)]
         modes: Vec<ModeDef>,
+        /// how many of its modes are chosen, when it isn't exactly one
+        #[serde(default)]
+        mode_count: Option<ModeCount>,
         /// its target is "… that player controls" (`ThatPlayerControlsTargetAdjuster`): on the stack its text names
         /// the player, "(controlled by B)"
         #[serde(default)]
@@ -4157,6 +4213,12 @@ pub enum AbilityDef {
         cost: String,
         rule: String,
     },
+    /// cast from hand for `cost` instead if you've cast another spell this turn (a second spell ability; the spell is
+    /// then kicked, for "if its surge cost was paid")
+    SurgeAbility {
+        cost: String,
+        rule: String,
+    },
     /// cast from hand for `cost` instead, at sorcery speed; exiled at the next end step, castable from exile on a
     /// later turn
     WarpAbility {
@@ -4238,6 +4300,12 @@ pub enum AbilityDef {
     /// kicked)
     TeamworkAbility {
         n: i32,
+        rule: String,
+    },
+    /// "as an additional cost to cast this spell, you may collect evidence `n`" (the spell is then kicked)
+    CollectEvidenceAbility {
+        n: i32,
+        #[serde(default)]
         rule: String,
     },
     /// `ExileCardsFromHandAdjuster`: as it's cast, you may exile any number of cards of the filter from your hand; it
@@ -4355,6 +4423,11 @@ pub enum AbilityDef {
         /// the least X it can be activated with (`VariableManaCost.setMinX`)
         #[serde(default)]
         min_x: i32,
+        /// a modal ability (`addMode`): its other modes, mode 0 being its own effects and targets
+        #[serde(default)]
+        modes: Vec<ModeDef>,
+        #[serde(default)]
+        mode_count: Option<ModeCount>,
     },
     /// an activated ability of a card in your graveyard (`ActivateIfConditionActivatedAbility` with
     /// `Zone.GRAVEYARD`), only while the condition holds, at sorcery speed when `sorcery`
@@ -4914,12 +4987,24 @@ impl AbilityDef {
     /// a modal triggered ability's modes (mode 0 is its own effects and targets); empty if it isn't modal
     pub fn trigger_modes(&self) -> Vec<(&[EffectDef], &[TargetDef])> {
         match self {
-            AbilityDef::TriggeredAbility { effects, targets, modes, .. } if !modes.is_empty() => {
+            AbilityDef::TriggeredAbility { effects, targets, modes, .. }
+            | AbilityDef::SimpleActivatedAbility { effects, targets, modes, .. }
+                if !modes.is_empty() =>
+            {
                 let mut all: Vec<(&[EffectDef], &[TargetDef])> = vec![(effects, targets)];
                 all.extend(modes.iter().map(|m| (&m.effects[..], &m.targets[..])));
                 all
             }
             _ => Vec::new(),
+        }
+    }
+
+    /// how many modes a modal ability chooses
+    pub fn mode_count(&self) -> ModeCount {
+        match self {
+            AbilityDef::TriggeredAbility { mode_count: Some(c), .. }
+            | AbilityDef::SimpleActivatedAbility { mode_count: Some(c), .. } => c.clone(),
+            _ => ModeCount::default(),
         }
     }
 
@@ -5666,6 +5751,21 @@ impl CardDef {
                     },
                 ))
             }
+            _ => None,
+        })
+    }
+
+    /// The surge ability's index and the card with its surge cost.
+    pub fn surge(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::SurgeAbility { cost, .. } => Some((
+                k,
+                CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    ..self.clone()
+                },
+            )),
             _ => None,
         })
     }
