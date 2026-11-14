@@ -1227,6 +1227,8 @@ pub struct TurnWatch {
     pub p1p1_put: Vec<(Seat, i32)>,
     /// `CardsExiledThisTurnWatcher`: objects put into exile
     pub exiled: u32,
+    /// the controller of each creature exiled from the battlefield (Vren, the Relentless' watcher)
+    pub exiled_creatures: Vec<Seat>,
     /// `TriggeredAbility.setDidThisTurn`: the "do this only once each turn" abilities done this turn (the source, its
     /// zone-change count, the ability's index)
     pub did_this_turn: Vec<(ObjId, u32, usize)>,
@@ -3649,6 +3651,9 @@ impl Game {
         let died_controller = self.obj(id).controller;
         if zone == Zone::Exile && matches!(from, Zone::Graveyard | Zone::Battlefield) {
             self.exiled_batch = true;
+        }
+        if zone == Zone::Exile && from == Zone::Battlefield && self.has_type(id, CardType::Creature) {
+            self.watch.exiled_creatures.push(died_controller);
         }
         if from == Zone::Battlefield && zone == Zone::Graveyard {
             let seen = (
