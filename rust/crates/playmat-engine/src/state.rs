@@ -1200,6 +1200,8 @@ pub struct TurnWatch {
     pub left_graveyard: Vec<Seat>,
     /// `DiscardedCardWatcher`: who discarded, once a card
     pub discarded: Vec<Seat>,
+    /// who discarded one or more cards together, once each `DISCARDED_CARDS` event (Rielle's watcher)
+    pub discard_batches: Vec<Seat>,
     /// `ScryOrSurveilWatcher`: who scried or surveilled
     pub scried: Vec<Seat>,
     /// `CardsPutIntoGraveyardWatcher`: each card put into a graveyard, its zone-change count there, and whether it
@@ -2133,6 +2135,7 @@ impl Game {
             }
         }
         for seat in seats {
+            self.watch.discard_batches.push(seat);
             let cards: Vec<ObjId> = batch.iter().filter(|(s, _)| *s == seat).map(|(_, c)| *c).collect();
             let sources = self.trigger_sources();
             let fired = self.triggers(sources, |g, src, you, t| match t {

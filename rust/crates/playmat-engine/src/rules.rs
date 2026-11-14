@@ -6264,6 +6264,16 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     true
 }
 
+/// `ConniveSourceEffect.connive`'s `CONNIVE` event for `o`, controlled by `seat`: whether a replacement stopped it
+/// (Leader, Super-Genius's draws first and lets it go on)
+fn connive_replaced(game: &mut Game, o: ObjId, seat: Seat) -> bool {
+    if !cards::any_replacement(game, cards::EventType::Connive) {
+        return false;
+    }
+    let mut ev = cards::Event { target: Some(o), amount: 1, ..cards::Event::new(cards::EventType::Connive, seat) };
+    cards::replace_event(game, &mut ev, 0)
+}
+
 /// Waterbend N: up to N untapped artifacts and creatures you control chosen (`TargetControlledPermanent(0, N)`,
 /// `Player.choose`) and tapped. How many were tapped; None: stopped.
 fn waterbend(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: u32) -> Option<u32> {
@@ -12551,6 +12561,9 @@ fn apply_each_effect(
                 let (o, zcc) = source;
                 let p = game.obj(o).controller;
                 let there = game.obj(o).zone == Zone::Battlefield && game.obj(o).zcc == zcc;
+                if connive_replaced(game, o, p) {
+                    continue;
+                }
                 draw(game, p, 1);
                 let n = discard(game, d, p, 1).iter().filter(|c| !game.obj(**c).is(CardType::Land)).count();
                 if there && n > 0 {
@@ -16260,6 +16273,9 @@ fn apply_each_effect(
                 for o in who {
                     let p = game.obj(o).controller;
                     let zcc = game.obj(o).zcc;
+                    if connive_replaced(game, o, p) {
+                        continue;
+                    }
                     draw(game, p, 1);
                     let gone = discard(game, d, p, 1);
                     if d.stopped() {
