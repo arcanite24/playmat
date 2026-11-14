@@ -901,6 +901,8 @@ pub enum Trigger {
     Forage,
     /// this card was discarded into exile by its madness (`MadnessTriggeredAbility`, from exile)
     MadnessExiled,
+    /// this card becomes plotted (`BecomesPlottedSourceTriggeredAbility`, from exile: `BECOME_PLOTTED`)
+    BecomesPlotted,
     /// this enters or leaves the battlefield (`EntersBattlefieldOrLeavesSourceTriggeredAbility`)
     EntersOrLeaves,
     /// you spend your `n`th total mana on spells this turn (`ExpendTriggeredAbility`)
@@ -1698,8 +1700,15 @@ pub enum CostDef {
     BeholdCost {
         subtype: String,
     },
+    /// `BeholdAndExileCost`: behold a permanent or card of a subtype, then exile it into the spell's exile zone (the
+    /// permanent it becomes: its cards come back with `ReturnFromExileForSourceEffect`)
+    BeholdAndExileCost {
+        subtype: String,
+    },
     /// discard this card (cycling)
     DiscardSourceCost,
+    /// `DiscardHandCost`: discard your hand (always payable, even with none)
+    DiscardHandCost,
     /// forage: exile three cards from your graveyard or sacrifice a Food, then "whenever you forage" triggers
     ForageCost,
     /// blight N: N -1/-1 counters on a creature you control (`BlightCost`, chosen, not targeted)
@@ -2627,6 +2636,15 @@ pub enum EffectDef {
     },
     /// you may play lands from your graveyard
     PlayLandsFromGraveyardControllerEffect,
+    /// `PlayFromGraveyardControllerEffect(filter[, duration])`: you may play the cards of the filter from your graveyard
+    /// (lands played, spells cast; not a nonland card without a mana cost), as a static ability (while its source is on
+    /// the battlefield) or resolving until end of turn (`duration` "EndOfTurn")
+    PlayFromGraveyardControllerEffect {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        duration: Option<String>,
+    },
     /// `PlayFromTopOfLibraryEffect`: you may play lands and cast spells of the filter from the top of your library
     /// (checked against the face being played)
     PlayFromTopOfLibraryEffect {
@@ -3615,9 +3633,39 @@ pub enum EffectDef {
         who: String,
         effect: Box<EffectDef>,
     },
-    /// `ExileCardsFromTopOfLibraryControllerEffect(amount)`: you exile the top `amount` cards of your library
+    /// `ExileCardsFromTopOfLibraryControllerEffect(amount[, toUniqueExileZone, faceDown])`: you exile the top `amount`
+    /// cards of your library (`unique`: into the source's exile zone, for "the cards exiled with {this}"; `face_down`:
+    /// face down)
     ExileCardsFromTopOfLibraryControllerEffect {
         amount: Amount,
+        #[serde(default)]
+        unique: bool,
+        #[serde(default)]
+        face_down: bool,
+    },
+    /// `MayExileCardFromHandPlottedEffect(filter)`: you may exile a card of the filter from your hand; it becomes
+    /// plotted
+    MayExileCardFromHandPlottedEffect {
+        #[serde(default)]
+        filter: Filter,
+    },
+    /// `ExileFaceDownTopNLibraryYouMayPlayAsLongAsExiledTargetEffect(castOnly, manaAdjustment, amount)`: the target
+    /// player's top `amount` cards exiled face down; you may play them (only cast them with `cast_only`; with mana of
+    /// any type with `any_mana`) for as long as they stay exiled
+    ExileFaceDownTopNYouMayPlayEffect {
+        amount: Amount,
+        #[serde(default)]
+        cast_only: bool,
+        #[serde(default)]
+        any_mana: bool,
+    },
+    /// `ExileTopCardPlayUntilExileAnotherEffect`: you exile the top card of your library into the source's exile zone;
+    /// you may play it until another card is exiled with the source (the others leave that zone)
+    ExileTopCardPlayUntilExileAnotherEffect,
+    /// `ReturnFromExileForSourceEffect(zone)`: the cards in the source's exile zone (exiled with it, by the permanent
+    /// that left in a leaves trigger) go to `zone` ("hand", "battlefield" or "graveyard"), each its owner's
+    ReturnFromExileForSourceEffect {
+        zone: String,
     },
     /// `ExileCardsFromTopOfLibraryTargetEffect`: the target player exiles the top `amount` cards of their library
     ExileCardsFromTopOfLibraryTargetEffect {
@@ -3807,8 +3855,16 @@ pub enum EffectDef {
         amount: Amount,
     },
     /// a static ability's effect: a card or token that would be put into a graveyard from anywhere is exiled
-    /// instead (Rest in Peace)
-    GraveyardFromAnywhereExileReplacementEffect,
+    /// instead (Rest in Peace); `only_you`: only a card (or token) you own, into your graveyard (Hades, Sorcerer of
+    /// Eld); `cards_only`: not a token; `duration` "EndOfTurn": resolving, for the rest of the turn (Forgotten Cellar)
+    GraveyardFromAnywhereExileReplacementEffect {
+        #[serde(default)]
+        only_you: bool,
+        #[serde(default)]
+        cards_only: bool,
+        #[serde(default)]
+        duration: Option<String>,
+    },
     /// an opponent's card that would be put into a graveyard from anywhere is exiled instead
     LeylineOfTheVoidEffect,
     /// Valgavoth: a card you didn't control going to an opponent's graveyard is exiled with it instead

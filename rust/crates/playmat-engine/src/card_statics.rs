@@ -397,6 +397,18 @@ pub(crate) enum AsThough {
     /// `HEXPROOF`: `seat`'s spells and abilities can target the player or permanent as though it didn't have
     /// hexproof
     Hexproof(fn(&Game, &StaticCx, Seat, Target) -> bool),
+    /// `PLAY_FROM_NOT_OWN_HAND_ZONE` / `CAST_FROM_NOT_OWN_HAND_ZONE`: `seat` may play the card `id` as `face` from
+    /// the graveyard or exile it's in; Some: how (`PlayWay`). A card's own (`Zone.ALL`: "you may cast this card from
+    /// your graveyard") is declared `.in_any_zone()`.
+    Play(fn(&Game, &StaticCx, Seat, ObjId, &CardDef) -> Option<PlayWay>),
+}
+
+/// How an as-though effect lets a card be played from a graveyard or exile: for its own mana cost, or for `mana`
+/// instead (`setCastSourceIdWithAlternateMana`), with `costs` paid besides
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PlayWay {
+    pub mana: Option<ManaCost>,
+    pub costs: Vec<crate::card::CostDef>,
 }
 
 /// A cards.json reference to a static handler (`EffectDef::CardStatic`), checked as the card loads
@@ -794,6 +806,27 @@ pub(crate) fn activate_haste(game: &Game, id: ObjId) -> bool {
             out = out || f(game, cx, id);
         }
     });
+    out
+}
+
+/// The as-though handlers that let `seat` play `id` as `face` from where it is (a graveyard or exile): each source
+/// with the way it allows, the statics in play first, then the card's own
+pub(crate) fn play_ways(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> Vec<(ObjId, PlayWay)> {
+    let mut out: Vec<(ObjId, PlayWay)> = Vec::new();
+    if !matches!(game.obj(id).zone, Zone::Graveyard | Zone::Exile) {
+        return out;
+    }
+    let mut check = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
+        if let Hook::AsThough(AsThough::Play(f)) = h {
+            if let Some(way) = f(game, cx, seat, id, face) {
+                if !out.iter().any(|(s, _)| *s == cx.source) {
+                    out.push((cx.source, way));
+                }
+            }
+        }
+    };
+    each_static(game, &mut check);
+    each_own_static(game, id, &mut check);
     out
 }
 
