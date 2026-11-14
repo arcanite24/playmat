@@ -297,6 +297,9 @@ pub(crate) enum CostKind {
     Increase,
     Reduce,
     Set,
+    /// an increase when its first constructor argument is 0 or more, else a reduction (Java picks the
+    /// `CostModificationType` from the amount's sign: `SpellsCostModificationThatTargetSourceEffect`)
+    BySign,
     /// `INCREASE_COST` adding `PayLifeCost(n)` to a spell (`abilityToModify.addCost`): paid after its other costs,
     /// checked once its targets are chosen (`rules::life_cost`); its `apply` isn't called
     Life(i32),
@@ -468,6 +471,34 @@ pub(crate) fn each_static(game: &Game, f: &mut dyn FnMut(&'static Hook, &StaticC
             let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
             for e in effects {
                 visit(game, e, *src, o.controller, game.static_at(*src), &[], f);
+            }
+        }
+    }
+    // a static ability a static gives ("creatures and enchantments you control have 'spells your opponents cast that
+    // target this permanent cost {1} more'": Callaphe), each permanent it's given to its source
+    for src in game.battlefield.iter() {
+        let s = game.obj(*src);
+        for a in &s.def.abilities {
+            let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+            for e in effects {
+                let (EffectDef::GainAbilityControlledEffect { ability, .. }
+                | EffectDef::GainAbilityAllEffect { ability, .. }
+                | EffectDef::GainAbilityAttachedEffect { ability }) = e
+                else {
+                    continue;
+                };
+                let AbilityDef::SimpleStaticAbility { effects: given, .. } = &**ability else { continue };
+                if !given.iter().any(|g| matches!(g, EffectDef::CardStatic { .. })) {
+                    continue;
+                }
+                for id in game.battlefield.iter() {
+                    if game.static_gives(e, *src, s.controller, *id, ability) {
+                        let o = game.obj(*id);
+                        for g in given {
+                            visit(game, g, *id, o.controller, game.static_at(*src), &[], f);
+                        }
+                    }
+                }
             }
         }
     }
@@ -721,7 +752,12 @@ pub(crate) fn flash(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> bool 
 pub(crate) fn change_cost(game: &Game, kind: CostKind, of: &CostCx, cost: &mut ManaCost) {
     let mut change = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
         if let Hook::Cost(CostMod { kind: k, applies, apply }) = h {
-            if *k == kind && applies(game, cx, of) {
+            let k = match k {
+                CostKind::BySign if cx.arg_int(0).unwrap_or(0) >= 0 => CostKind::Increase,
+                CostKind::BySign => CostKind::Reduce,
+                k => *k,
+            };
+            if k == kind && applies(game, cx, of) {
                 apply(game, cx, of, cost);
             }
         }

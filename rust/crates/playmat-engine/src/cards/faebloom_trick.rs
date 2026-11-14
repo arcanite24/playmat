@@ -20,6 +20,7 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         max: 1,
         distribute: None,
         x_count: false,
+        count: None,
     };
     let delayed = Delayed {
         rule: "tap target creature an opponent controls.".into(),
