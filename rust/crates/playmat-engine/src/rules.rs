@@ -6845,6 +6845,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 for (k, n) in stats.into_iter().enumerate() {
                     top.sacrificed_stats[k] += n;
                 }
+                top.sacrificed.extend(chosen.iter().copied());
             }
             let insert = game.sac_insert.replace(game.pending.len());
             for o in chosen {
