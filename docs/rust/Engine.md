@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,099 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -729,8 +729,8 @@ Being in the engine and being trusted are kept apart.
   being crewed that turn stays an artifact creature at cleanup; a target count is read from the ability on top of the
   stack when targets are chosen with no source (triggered and activated abilities: Heroic Feast, Mogis's Marauder);
   a transformed permanent whose back face is a land numbers its abilities from 0 (Java drops the back's play-land
-  ability), so Treasure Cove's draw is `a1`. Two factory rounds (106 games, 104 matching) verified 86: 10,970 of
-  11,157. Eleven games under `shadow/handlers/game-handlers7-adjusters-*` cover the engine pieces. Left: Heroic Feast
+  ability), so Treasure Cove's draw is `a1`. Two factory rounds (106 games, 104 matching, replayed again on master after #350, #353 and #356) verified
+  80 more (six others were verified on master meanwhile): 11,129 of 11,322. Eleven games under `shadow/handlers/game-handlers7-adjusters-*` cover the engine pieces. Left: Heroic Feast
   (its one differing game is a "whenever one or more cards leave your graveyard" trigger the engine misses), Dune Drifter (Java's `XManaValueTargetAdjuster` renames the target, so
   the stack text gains "(Mana Value <= 3)"), Maze's Mantle (an Aura's enters trigger with an attached-to condition:
   Java checks it after the Aura is attached), Leatherhead (refused: Java's reflexive `ThatPlayerControlsTargetAdjuster`
