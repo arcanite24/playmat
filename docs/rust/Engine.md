@@ -739,6 +739,21 @@ Being in the engine and being trusted are kept apart.
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
 
+  Wave 10, claim 1, second batch (14 Nov): cards whose only blocker was one effect class, plus eight conditions. 38
+  handler files, three of them framework classes (`ExileSourceEffect`; `ReturnToBattlefieldUnderOwnerControlSourceEffect`
+  with no zone change count, from a graveyard or exile, so Lamplight Phoenix comes back after its exile cost;
+  `ControlsCreatureGreatestToughnessCondition`). Engine pieces: a `DoWhenCostPaid` reflexive trigger goes after what
+  paying fired at once (sacrifice and discard triggers) and ahead of what the sacrifice's zone change fired, because
+  Java holds that with the simultaneous events (Skyfisher Spider over a dies trigger; Surtland Flinger's handler does
+  the same). Rebound offers its free cast even with nothing to target, as `castSpellWithAttributesForFree` doesn't
+  check (Ephemerate with no creature). Soul Search's choice reads "search" in its spell ability's name ("Cast Soul
+  Search", which `SpellAbility.getRule(true)` appends), so a lone card isn't picked by itself. Five factory rounds (116
+  games; 96 of the 97 replayed match, the rest have Pitiless Carnage) verified 39: 11,168 of 11,363. Twelve games under
+  `shadow/handlers/game-handlers10-c1b-*` cover the engine pieces and 38 of the cards. Left: Morgue Burst and Ride Down
+  (too few games exercised them), Pitiless Carnage (refused: Java sacrifices from a `HashSet<Permanent>`, so the
+  graveyard order is random), Thirsting Axe (needs a combat-damage-to-a-creature watcher), Orcus and Hollow Marauder
+  (their target adjuster and `TargetOpponent(0, MAX)` don't translate yet).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
