@@ -8411,10 +8411,15 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     resolve_popped(game, d);
     // an ability that ended the game as it resolved by its controller losing ("you lose the game": Archfiend of the
     // Dross): Java's game ends with it still on the stack, then `GameImpl.resolve` removes it and the one left has
-    // won
+    // won. Its controller winning ("you win the game": Mechanized Production) is the same: the last opponent's
+    // `lostForced` ends the game, and traces its end, before `this.wins` is set.
     if game.over && !was_over {
-        let lost = |i: &StackItem| i.ability.is_some() && game.player(i.controller).lost;
-        if let Some(item) = game.resolving_item.clone().filter(lost) {
+        let ended =
+            |i: &StackItem| i.ability.is_some() && (game.player(i.controller).lost || game.player(i.controller).won);
+        if let Some(item) = game.resolving_item.clone().filter(ended) {
+            for s in 0..game.seats() {
+                game.player_mut(s).won = false;
+            }
             Arc::make_mut(&mut game.stack).push(item);
             traced(game, d);
             Arc::make_mut(&mut game.stack).pop();
