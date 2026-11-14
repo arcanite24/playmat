@@ -945,6 +945,14 @@ Being in the engine and being trusted are kept apart.
   - Factory rounds: four (82 games, 81 matching) verified 41 cards: 11,170 of 11,363. The one that differs is a Temur Charger enchanted by two Prophetic Ravings (both verified on master): Java numbers the two granted "{T}, Discard a card" abilities differently from the engine. Games under `shadow/handlers/game-handlers9-batch-*` cover the cards, and
     `shadow/factory/game-w9batch-*` the zone-batch order and stack text. Left: Corruption of Towashi ("enters transformed"), Plasm Capture (triggered mana in any combination), Moraug (an extra combat after this phase), Diffusion Sliver, Glyph Keeper and Amulet of Safekeeping (countering an ability), Mirror-Shield Hoplite and Skophos Maze-Warden (the targeting ability's own kind and source), Aegar, Toralf, Imodane and Magmatic Galleon (excess damage, a spell's single target), Jace, Cunning Castaway (a delayed batch trigger), Briarbridge Patrol, Grievous Wound, Polukranos, the dice-roll batches, and the cards other open PRs hold (Elesh Norn, Hushbringer, Doorkeeper Thrull, Karn, Hot Soup, Sleep Magic and the rest of `DealtDamageAttachedTriggeredAbility`, Titania).
 
+  Load fixes (14 Nov): five cards in `cards.json` didn't load. Dragon's Approach, Sphinx's Approach and Ruthless
+  Disposal kept a `CompositeCost` in their spell, and Ultimecia, Time Sorceress in its front face's trigger, because
+  the transpiler flattened composite costs only in a plain card's abilities; it now flattens them in the whole card.
+  Sandman's Quicksand's mayhem ability has effects of its own (`MayhemAbility` copies the spell ability before the card
+  adds its effects), which the engine now reads as the mayhem spell's. One factory round (20 games, all matching)
+  verified the five: 11,134 of 11,322. `shadow/handlers/game-loadfix-composite-spell-cost.json` covers Ruthless
+  Disposal's two-part additional cost.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:

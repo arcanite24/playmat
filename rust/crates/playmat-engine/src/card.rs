@@ -4634,6 +4634,10 @@ pub enum AbilityDef {
     MayhemAbility {
         cost: String,
         rule: String,
+        /// the mayhem spell's effects, when the card adds them to the mayhem ability made before its spell ability's
+        /// (`super(card.getSpellAbility())` copies none of those: Sandman's Quicksand)
+        #[serde(default)]
+        effects: Vec<EffectDef>,
     },
     /// it enters with this many +1/+1 counters if it escaped
     EscapesWithAbility {
@@ -6212,11 +6216,18 @@ impl CardDef {
     /// The card cast for its mayhem cost
     pub fn mayhem(&self) -> Option<CardDef> {
         self.abilities.iter().find_map(|a| match a {
-            AbilityDef::MayhemAbility { cost, .. } => Some(CardDef {
-                cost: ManaCost::parse(cost).ok()?,
-                printed_cost: Some(self.printed().clone()),
-                ..self.clone()
-            }),
+            AbilityDef::MayhemAbility { cost, effects, .. } => {
+                let mut spell = self.spell.clone();
+                if !effects.is_empty() {
+                    spell.effects = effects.clone();
+                }
+                Some(CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    spell,
+                    ..self.clone()
+                })
+            }
             _ => None,
         })
     }
