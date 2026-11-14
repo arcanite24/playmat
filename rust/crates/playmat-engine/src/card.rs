@@ -883,6 +883,9 @@ pub enum Trigger {
     OpponentsDealtNoncombatDamage,
     /// another permanent you control enters or dies, if its power is greater than this one's (Pelt Collector)
     PeltCollector,
+    /// another creature dies, a creature card is put into a graveyard from anywhere other than the battlefield, or a
+    /// creature card leaves your graveyard (Syr Konrad, the Grim: one `ZONE_CHANGE` each)
+    SyrKonrad,
     /// a creature or creature spell you control becomes the target of a spell or ability an opponent controls
     /// (Surrak, Elusive Hunter)
     SurrakTargeted,
