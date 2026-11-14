@@ -2712,6 +2712,9 @@ class Translator:
         if cls == 'AddCardTypeSourceEffect' and len(args) >= 2 and args[0].strip() == 'Duration.EndOfTurn' \
                 and all(re.fullmatch(r'CardType\.[A-Z]+', a.strip()) for a in args[1:]):
             return {'class': cls, 'types': [a.strip()[9:] for a in args[1:]], 'duration': 'EndOfTurn'}
+        # "target player gets N poison counters": `Player.addCounters` on the pointer's player
+        if cls == 'AddPoisonCounterTargetEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return self.effect('new AddCountersTargetEffect(CounterType.POISON.createInstance(%s))' % args[0].strip())
         # "target creature becomes a Dinosaur in addition to its other types" (until end of turn, or for as long as
         # it stays: `Duration.Custom`; `WhileOnBattlefield` would end with the source, which the engine doesn't keep)
         if cls == 'AddCardSubTypeTargetEffect' and len(args) == 2 and re.fullmatch(r'SubType\.\w+', args[0].strip()) \
