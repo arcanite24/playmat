@@ -4677,6 +4677,45 @@ class Translator:
             return out
         # saddle N: tap other creatures with total power N or more: this becomes saddled until end of turn, as a
         # sorcery (`SaddleAbility`)
+        # craft with <materials> {cost}: exile this and the materials (other permanents you control, cards from your
+        # graveyard), then return it transformed, as a sorcery (`CraftAbility`)
+        if cls == 'CraftAbility' and n >= 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
+            rest = args[1:]
+            lo = hi = 1
+            if len(rest) >= 2 and all(re.fullmatch(r'"(?:[^"\\]|\\.)*"(?:\+"(?:[^"\\]|\\.)*")*', x) for x in rest[:2]):
+                rest = rest[2:]
+                if len(rest) >= 2 and rest[0].isdigit() and (rest[1].isdigit() or rest[1] == 'Integer.MAX_VALUE'):
+                    lo, hi = int(rest[0]), (99 if rest[1] == 'Integer.MAX_VALUE' else int(rest[1]))
+                    rest = rest[2:]
+                preds = []
+                for x in rest:
+                    if (m := re.fullmatch(r'CardType\.([A-Z]+)\.getPredicate\(\)', x)):
+                        preds.append({'p': 'type', 't': m.group(1)})
+                    elif (m := re.fullmatch(r'SubType\.\w+\.getPredicate\(\)', x)):
+                        preds.append({'p': 'subtype', 's': self.value('subtype', x[:-len('.getPredicate()')])})
+                    else:
+                        raise Unsupported('craft material ' + x)
+            elif not rest:
+                preds = [{'p': 'type', 't': 'ARTIFACT'}]
+            else:
+                raise Unsupported('craft ' + ','.join(args))
+            return {'class': 'ActivateAsSorceryActivatedAbility', 'java': cls, 'effects': [{'class': 'CraftEffect'}],
+                    'cost': [{'class': 'ManaCost', 'cost': args[0][1:-1]}, {'class': 'ExileSourceCost'},
+                             {'class': 'CraftCost', 'filter': preds, 'min': lo, 'max': hi}], 'targets': []}
+        # mayhem: cast from your graveyard for this if you discarded it this turn
+        if cls == 'MayhemAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
+            return {'class': cls, 'java': cls, 'cost': args[1][1:-1]}
+        # renew: "{cost}, exile this card from your graveyard: put the counters on target creature", as a sorcery
+        if cls == 'RenewAbility' and n >= 2 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
+            return {'class': 'GraveyardActivatedAbility', 'java': cls, 'sorcery': True,
+                    'effects': [self.effect('new AddCountersTargetEffect(' + c + ')') for c in args[1:]],
+                    'cost': [{'class': 'ManaCost', 'cost': args[0][1:-1]}, {'class': 'ExileSourceFromGraveCost'}],
+                    'targets': [self.target('new TargetCreaturePermanent()')]}
+        # jump-start: cast from the graveyard for its mana cost and a discard, then exiled (a flashback that costs
+        # the card's own mana cost)
+        if cls == 'JumpStartAbility' and args == ['this']:
+            return {'class': 'FlashbackAbility', 'java': cls, 'cost': JUMP_START,
+                    'costs': [{'class': 'DiscardCardCost', 'filter': []}]}
         # battle cry: whenever it attacks, each other attacking creature you control gets +1/+0 until end of turn
         if cls == 'BattleCryAbility' and not n:
             a = self.ability('new AttacksTriggeredAbility(new BoostControlledEffect(1,0,Duration.EndOfTurn,'
@@ -4929,6 +4968,9 @@ class Translator:
         # strive: the spell costs this more for each target beyond the first (of its "any number of" target)
         if cls == 'StriveAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
             return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
+        # bestow: cast as an Aura spell with enchant creature for this
+        if cls == 'BestowAbility' and n == 2 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]):
+            return {'class': cls, 'java': cls, 'cost': args[1][1:-1]}
         if cls == 'PrototypeAbility' and n == 4 and args[0] == 'this' and re.fullmatch(r'"(\{[^"]*\})+"', args[1]) \
                 and args[2].isdigit() and args[3].isdigit():
             return {'class': cls, 'java': cls, 'mana': args[1][1:-1], 'power': int(args[2]), 'toughness': int(args[3])}
@@ -5668,6 +5710,10 @@ def translate(card_name, subtypes, facts):
     if card_name in SPELL_OVERRIDES:
         spell.update(SPELL_OVERRIDES[card_name]())
     card['abilities'] = in_java_order(java_abilities, flatten_composite_costs(added))
+    # jump-start: cast from the graveyard for its own mana cost
+    for a in card['abilities']:
+        if a.get('class') == 'FlashbackAbility' and a.get('cost') is JUMP_START:
+            a['cost'] = card.get('cost', '')
     # a creature cast from suspend gains haste, which the engine doesn't do yet
     if 'CREATURE' in card.get('types', []) and any(a.get('class') == 'SuspendAbility' for a in card['abilities']):
         raise Unsupported('suspend on a creature')
@@ -6215,7 +6261,14 @@ def overloaded(effect, filter, st):
         return {'class': 'ReturnToHandFromBattlefieldAllEffect', 'filter': filter}
     if cls == 'DamageTargetEffect' and set(effect) == {'class', 'amount'}:
         return {'class': 'DamageAllEffect', 'amount': effect['amount'], 'filter': filter}
+    # any other: the target effect once, its targets every permanent the target could choose (`OverloadedEffect`)
+    if cls.endswith('TargetEffect') and cls not in OVERLOAD_NOT:
+        return {'class': 'OverloadedEffect', 'effect': effect, 'filter': filter}
     raise Unsupported('statement ' + st)
+
+
+# target effects that don't act on each of their first target's objects
+OVERLOAD_NOT = {'FightTargetsEffect', 'DamageWithPowerFromOneToAnotherTargetEffect'}
 
 
 def mode_expr(t, arg):
@@ -6657,6 +6710,30 @@ def ability_statement(t, st, added):
         if ','.join(args).strip() == 'DisturbAbility.makeBackAbility()':
             added.append({'class': 'DisturbExileAbility', 'java': 'PutIntoGraveFromAnywhereSourceAbility'})
             return True
+        # reconfigure: "attach to target creature you control" and "unattach" for the cost, as a sorcery, and its
+        # static (not a creature while attached)
+        if (e := re.fullmatch(r'new ReconfigureAbility\("(\{[^"]*\})"\)', ','.join(args).strip())):
+            cost = [{'class': 'ManaCost', 'cost': e.group(1)}]
+            added.append({'class': 'ActivateAsSorceryActivatedAbility', 'java': 'ReconfigureAbility', 'cost': cost,
+                          'effects': [{'class': 'ReconfigureAttachEffect'}],
+                          'targets': [t.target('new TargetControlledCreaturePermanent()')]})
+            added.append({'class': 'LimitedTimesPerTurnActivatedAbility', 'java': 'ReconfigureUnattachAbility',
+                          'cost': [dict(c) for c in cost], 'effects': [{'class': 'ReconfigureUnattachEffect'}],
+                          'limit': 4294967295, 'sorcery': True,
+                          'condition': {'c': 'attached_matches', 'filter': [{'p': 'type', 't': 'CREATURE'}]}})
+            added.append({'class': 'SimpleStaticAbility', 'java': 'SimpleStaticAbility',
+                          'effects': [{'class': 'ReconfigureTypeEffect'}]})
+            return True
+        # enlist: the static ability (the engine asks as the creature attacks)
+        if ','.join(args).strip() == 'new EnlistAbility()':
+            added.append({'class': 'EnlistAbility'})
+            return True
+        # For Mirrodin!: when this Equipment enters, a 2/2 red Rebel, then this attached to it
+        if ','.join(args).strip() == 'new ForMirrodinAbility()':
+            a = t.ability('new EntersBattlefieldTriggeredAbility(new CreateTokenAttachSourceEffect(new RebelRedToken()))')
+            a['java'] = 'ForMirrodinAbility'
+            added.append(a)
+            return True
         # exert: the static ability, then its "when you do" trigger
         if (e := re.fullmatch(r'new ExertAbility\((\w+|new BecomesExertSourceTriggeredAbility\(.*\))\)', ','.join(args).strip(), re.S)):
             added.append({'class': 'ExertAbility'})
@@ -6675,6 +6752,10 @@ def ability_statement(t, st, added):
                           'targets': [],
                           'rule': f'When this card is exiled this way, you may cast it by paying {pay} instead of '
                                   'putting it into your graveyard.'})
+        # bestow: its `BestowTypeEffect` static (an Aura while attached), listed on its own
+        if added[-1].get('class') == 'BestowAbility':
+            added.append({'class': 'SimpleStaticAbility', 'java': 'SimpleStaticAbility',
+                          'effects': [{'class': 'BestowTypeEffect'}], 'rule': ''})
         # prototype: its `PrototypeEffect` static, listed on its own
         if added[-1].get('class') == 'PrototypeAbility':
             added.append({'class': 'SimpleStaticAbility', 'java': 'SimpleStaticAbility', 'effects': [], 'rule': ''})
@@ -6733,6 +6814,10 @@ def mode_choice(arg):
     if not m or m.group(1) not in names:
         raise Unsupported('mode choice ' + arg)
     return names[m.group(1)]
+
+
+# a jump-start's cost until the card's mana cost is known (`JumpStartAbility(this)`)
+JUMP_START = object()
 
 
 def flatten_composite_costs(x):
