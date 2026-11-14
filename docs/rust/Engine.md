@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,776 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,804 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -625,7 +625,7 @@ Being in the engine and being trusted are kept apart.
   with a flag, hour and blood counters, and `XCondition(args)` handlers named for the card. Three factory rounds (62
   games, 57 matching) verified 35: 26 from the claim and 9 that came in through shared classes (Call for Unity, Deem
   Worthy, Heart-Piercer Bow, Iron Hills Stalwart, Murder Investigation, Shefet Monitor, Swordsman, Thunder Lasso,
-  Weapons Vendor): 10,624 of 10,776. Three games under `shadow/handlers/` (`game-handlers-w6c2-*`) cover the engine
+  Weapons Vendor): 10,647 of 10,804. Three games under `shadow/handlers/` (`game-handlers-w6c2-*`) cover the engine
   changes. Left: Brass Knuckles (its granted ability's stack text is "{this}" where Java writes "This creature"),
   Greenhouse // Rickety Gazebo (its returned cards reach the hand in Java's `HashSet<Card>` order) and Aettir and
   Priwen (only seen in that Gazebo game).
