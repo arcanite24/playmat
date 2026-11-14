@@ -1050,6 +1050,36 @@ Being in the engine and being trusted are kept apart.
   graveyard order is random), Thirsting Axe (needs a combat-damage-to-a-creature watcher), Orcus and Hollow Marauder
   (their target adjuster and `TargetOpponent(0, MAX)` don't translate yet).
 
+  Wave 11, copy (14 Nov): copy effects. The transpiler now reads `CreateTokenCopyTargetEffect` setters on a local
+  variable, `Ability[]` arrays passed to `addAdditionalAbilities` (triggered abilities included, with "this token" as
+  `{this}`), and a `setPermanentModifier` that adds legendary (Adagia). It also reads `ActivateAbilityTriggeredAbility` and
+  the loyalty one with `SetTargetPointer.SPELL`, which copy the ability just activated, with the kinds artifact,
+  attached and "targets a creature or player" (Illusionist's Bracers, Kurkesh, Chandra's Regulator, Ertha Jo). Further
+  pieces are `FilterActivatedOrTriggeredAbility` stack filters, the creature-source and not-cast stack predicates
+  (Errant, Street Artist), Sea Gate Stormcaller's delayed copy of the next spell (two copies when kicked) and
+  `YouGainedLifeCondition` in a `ConditionalOneShotEffect`. Engine pieces:
+  - "an ability that targets a creature or player" skips a target on the stack, whose id is its source's (Kirol
+    targeting a trigger).
+  - A permanent that entered as a copy keeps the copied face when it transforms (Mirrorhall Mimic as a copy of
+    Sun-Blessed Guardian).
+  - Becoming a copy until end of turn leaves the permanent's triggers that are already waiting or on the stack with the
+    face they came from (Felhide Spiritbinder untapped by Fleeting Reflection).
+
+  26 handler files cover the rest: become-a-copy (Masterful Replication, Naga Fleshcrafter, Fleeting Reflection),
+  token copies with modifiers (Mardu Siegebreaker, Red Sun's Twilight, Cogwork Assembler, Felhide Spiritbinder, Mirror
+  Mockery, Sun-Blessed Guardian, Mirrorhall Mimic, Sin, Spira's Punishment, Delina, Wild Mage, …) and spell copies
+  (Reflective Golem, Melek, Stormsplitter). Mardu Siegebreaker copies only a card it exiled: a token it exiled has
+  ceased to exist. Three factory rounds (78 games, all matching after the fixes) verified all 46 cards that came in:
+  12,145 of 12,410. 17 games under `shadow/handlers/game-handlers11-copy-*` cover the engine pieces and the 46 cards.
+  Left in the copy area:
+  - Cards that don't translate yet: Shuri (`filter.copy()`), Terra (an `EntersBattlefieldAbility` added by another
+    ability), Kindle the Inner Flame (a behold flashback cost), Chandra, Flameshaper (`TargetCreatureOrPlaneswalkerAmount`)
+    and Vesuvan Duplimancy (a sub-filter).
+  - Cards that need more engine work: Zada and Mirrorwing (`CopySpellForEachItCouldTarget`), Pyromancer's Goggles and
+    Primal Amulet (`MANA_PAID`), Firebender Ascension (the `TRIGGERED_ABILITY` event), Mendicant Core and Slick Imitator
+    (speed), See Double, Esoteric Duplicator (the sacrificed permanent), and a permanent become-a-copy for Mycosynth
+    Gardens and Mirrorform.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
