@@ -1803,6 +1803,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             !(o.tapped || sick)
         }
         CostDef::SacrificeSourceCost | CostDef::ExileSourceCost => true,
+        CostDef::ReturnToHandFromBattlefieldSourceCost => o.zone == Zone::Battlefield,
         CostDef::ExileSourceFromGraveCost => o.zone == Zone::Graveyard,
         CostDef::ExileFromGraveCost { amount, filter } => {
             game.player(seat)
@@ -6594,6 +6595,13 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
             game.move_to(id, Zone::Exile);
+        }
+        // `ReturnToHandFromBattlefieldSourceCost.pay`: gone already, it can't be paid
+        CostDef::ReturnToHandFromBattlefieldSourceCost => {
+            if game.obj(id).zone != Zone::Battlefield {
+                return false;
+            }
+            game.move_to(id, Zone::Hand);
         }
         CostDef::ExileSourceCost => {
             let power = game.power_toughness(id).0;

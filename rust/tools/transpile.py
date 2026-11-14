@@ -1824,7 +1824,8 @@ class Translator:
             return {'class': 'ManaCost', 'cost': '{' + n.group(1) + '}'}
         if cls == 'GenericManaCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': 'ManaCost', 'cost': '{' + args[0] + '}'}
-        if cls in ('TapSourceCost', 'SacrificeSourceCost', 'ExileSourceCost', 'ExileSourceFromGraveCost', 'ForageCost', 'ExertSourceCost', 'DiscardSourceCost') and not args:
+        if cls in ('TapSourceCost', 'SacrificeSourceCost', 'ExileSourceCost', 'ExileSourceFromGraveCost', 'ForageCost', 'ExertSourceCost', 'DiscardSourceCost',
+                   'ReturnToHandFromBattlefieldSourceCost') and not args:
             return {'class': cls}
         if cls == 'RemoveCounterCost' and len(args) == 3 and args[1].strip() in COUNTERS and args[2].strip().isdigit() \
                 and (n := re.fullmatch(r'new TargetControlledCreaturePermanent\(1,(\d+)\)', canonical(args[0]))):
@@ -2870,10 +2871,11 @@ class Translator:
                 and args[0].strip() in ('true', 'false'):
             return {'class': cls, 'filter': self.filter(args[1]), 'optional': args[0].strip() == 'true'}
         if cls == 'RevealLibraryPickControllerEffect' and len(args) in (5, 6) and re.fullmatch(r'\d+', args[0].strip()) \
-                and re.fullmatch(r'\d+', args[1].strip()) and [a.strip() for a in args[3:5]] == ['PutCards.BATTLEFIELD', 'PutCards.GRAVEYARD'] \
+                and re.fullmatch(r'\d+', args[1].strip()) and args[4].strip() == 'PutCards.GRAVEYARD' \
+                and args[3].strip() in ('PutCards.BATTLEFIELD', 'PutCards.BATTLEFIELD_TAPPED') \
                 and (len(args) == 5 or args[5].strip() in ('true', 'false')):
             return {'class': cls, 'amount': int(args[0]), 'pick': int(args[1]), 'filter': self.filter(args[2]),
-                    'optional': len(args) == 5 or args[5].strip() == 'true', 'to': 'BATTLEFIELD'}
+                    'optional': len(args) == 5 or args[5].strip() == 'true', 'to': args[3].strip()[9:]}
         if cls == 'RevealLibraryPickControllerEffect' and len(args) in (5, 6) and re.fullmatch(r'\d+', args[0].strip()) \
                 and re.fullmatch(r'\d+', args[1].strip()) and [a.strip() for a in args[3:5]] == ['PutCards.HAND', 'PutCards.GRAVEYARD'] \
                 and (len(args) == 5 or args[5].strip() in ('true', 'false')):
