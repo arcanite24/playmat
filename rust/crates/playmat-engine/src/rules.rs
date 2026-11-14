@@ -17633,6 +17633,17 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
     for _ in 0..n {
         game.pending.extend(each.iter().cloned());
     }
+    // a Saga's chapters reached by lore counters an effect put (proliferate): `ChapterTriggeredAbility` on
+    // `COUNTERS_ADDED`, as for the lore counter of the precombat main phase
+    if name == "lore" {
+        let after = game.obj(o).counter("lore");
+        let before = after - n;
+        let read_ahead = game.obj(o).entered_turn == game.turn && game.has_ability(o, &AbilityDef::ReadAheadAbility);
+        let chapters = game.triggers([o], |_, _, _, t| {
+            matches!(t, Trigger::Chapter { n } if if read_ahead { *n as i32 == after } else { before < *n as i32 && *n as i32 <= after })
+        });
+        game.pending.extend(chapters);
+    }
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::CountersPut { filter, counter } => {
