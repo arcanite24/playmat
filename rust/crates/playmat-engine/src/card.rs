@@ -1408,6 +1408,13 @@ pub enum CostDef {
     /// collect evidence `amount`: exile cards with total mana value `amount` or greater from your graveyard
     /// station: tap another untapped creature you control (its power is read as the ability resolves)
     StationCost,
+    /// craft with materials (`CraftCost`): exile `min`..`max` of the filter from among other permanents you control
+    /// and cards in your graveyard
+    CraftCost {
+        filter: Filter,
+        min: usize,
+        max: usize,
+    },
     CollectEvidenceCost {
         amount: i32,
     },
@@ -2665,6 +2672,19 @@ pub enum EffectDef {
     /// populate: a token that's a copy of a creature token the controller chooses among theirs
     PopulateEffect,
     /// as long as `amount` is less than `less_than`, this isn't a creature (a Theros god's devotion)
+    /// reconfigure's static (`ReconfigureTypeEffect`): while attached to a permanent, it isn't a creature and has no
+    /// creature types
+    ReconfigureTypeEffect,
+    /// bestow's static (`BestowTypeEffect`): while attached to a permanent, it's an Aura, not a creature, with no
+    /// creature types
+    BestowTypeEffect,
+    /// craft (`CraftEffect`): the source, exiled as the ability's cost, returns to the battlefield transformed
+    CraftEffect,
+    /// reconfigure (`AttachEffect` of `ReconfigureAbility`): attach the source to the target creature, although the
+    /// source is a creature
+    ReconfigureAttachEffect,
+    /// reconfigure's unattach (`ReconfigureUnattachEffect`): the source becomes unattached
+    ReconfigureUnattachEffect,
     LoseCreatureTypeSourceEffect {
         amount: Amount,
         less_than: i32,
@@ -2825,6 +2845,12 @@ pub enum EffectDef {
     },
     /// tap every permanent of the filter
     TapAllEffect {
+        filter: Filter,
+    },
+    /// an overloaded spell's target effect (`OverloadedEffect`): once, on every permanent of the target's filter
+    /// (not targeted)
+    OverloadedEffect {
+        effect: Box<EffectDef>,
         filter: Filter,
     },
     /// reveal cards from the top until one of the filter: it goes to your hand, the rest on the bottom at random
@@ -4126,6 +4152,13 @@ pub enum AbilityDef {
         #[serde(default)]
         rule: String,
     },
+    /// bestow: a spell ability of its own, cast for `cost` as an Aura spell with enchant creature; the permanent is an
+    /// Aura while attached, a creature again once not (`BestowAbility`, its `BestowTypeEffect` static listed after it)
+    BestowAbility {
+        cost: String,
+        #[serde(default)]
+        rule: String,
+    },
     /// prototype: a spell ability of its own, cast with another mana cost (its colors too) and size; the permanent
     /// keeps them (`PrototypeAbility`, its `PrototypeEffect` static listed after it)
     PrototypeAbility {
@@ -4252,6 +4285,11 @@ pub enum AbilityDef {
     EscapeAbility {
         cost: String,
         exile: usize,
+        rule: String,
+    },
+    /// mayhem: cast from your graveyard for `cost` if you discarded it this turn (`MayhemAbility`)
+    MayhemAbility {
+        cost: String,
         rule: String,
     },
     /// it enters with this many +1/+1 counters if it escaped
@@ -4668,6 +4706,9 @@ pub enum AbilityDef {
     NightboundAbility,
     /// "you may exert this as it attacks"; its `BecomesExertSourceTriggeredAbility` is the next ability
     ExertAbility,
+    /// enlist: as it attacks, you may tap another untapped nonattacking creature you control without summoning
+    /// sickness; when you do, it gets +X/+0 until end of turn, X that creature's power (`EnlistEffect`)
+    EnlistAbility,
     /// splice onto `subtype` `cost`: as you cast a spell of that subtype, you may reveal this card from your hand and
     /// pay the cost; its effects are added to that spell
     SpliceAbility {
@@ -5765,6 +5806,18 @@ impl CardDef {
     }
 
     /// The card cast with its escape cost, if it has escape
+    /// The card cast for its mayhem cost
+    pub fn mayhem(&self) -> Option<CardDef> {
+        self.abilities.iter().find_map(|a| match a {
+            AbilityDef::MayhemAbility { cost, .. } => Some(CardDef {
+                cost: ManaCost::parse(cost).ok()?,
+                printed_cost: Some(self.printed().clone()),
+                ..self.clone()
+            }),
+            _ => None,
+        })
+    }
+
     pub fn escape(&self) -> Option<CardDef> {
         self.abilities.iter().find_map(|a| match a {
             AbilityDef::EscapeAbility { cost, exile, .. } => {
@@ -5994,6 +6047,46 @@ impl CardDef {
             }
             _ => None,
         })
+    }
+
+    /// Bestow: its ability index, and the card as it's cast that way: an Aura spell with enchant creature for its
+    /// bestow cost (`BestowAbility.becomeAura`)
+    pub fn bestow(&self) -> Option<(usize, CardDef)> {
+        self.abilities.iter().enumerate().find_map(|(k, a)| match a {
+            AbilityDef::BestowAbility { cost, .. } => {
+                let target: TargetDef =
+                    serde_json::from_str(r#"{"class":"TargetPermanent","filter":[{"p":"type","t":"CREATURE"}]}"#)
+                        .ok()?;
+                let mut def = CardDef {
+                    cost: ManaCost::parse(cost).ok()?,
+                    printed_cost: Some(self.printed().clone()),
+                    spell: SpellDef {
+                        effects: vec![EffectDef::AttachEffect],
+                        targets: vec![target],
+                        ..self.spell.clone()
+                    },
+                    ..self.clone()
+                };
+                def.become_aura();
+                Some((k, def))
+            }
+            _ => None,
+        })
+    }
+
+    /// Bestow's Aura: not a creature, with no creature types, an Aura (`BestowAbility.becomeAura`)
+    pub fn become_aura(&mut self) {
+        self.types.retain(|t| *t != CardType::Creature);
+        self.subtypes.retain(|s| NON_CREATURE_TYPES.contains(&s.as_str()));
+        self.all_creature_types = false;
+        if !self.subtypes.iter().any(|s| s == "Aura") {
+            self.subtypes.push("Aura".into());
+        }
+    }
+
+    /// Whether it has bestow (`BestowAbility`)
+    pub fn has_bestow(&self) -> bool {
+        self.abilities.iter().any(|a| matches!(a, AbilityDef::BestowAbility { .. }))
     }
 
     /// Prototype: its ability index, and the card as it's cast that way (and stays on the battlefield)

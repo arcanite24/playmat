@@ -1054,6 +1054,8 @@ pub struct Game {
     pub attacked_this_turn: Vec<(ObjId, u32)>,
     /// the permanents each player put one or more +1/+1 counters on this turn, as they were (Kid Loki's watcher)
     pub p1p1_put_this_turn: Vec<(Seat, ObjId, u32)>,
+    /// the cards discarded this turn, as the cards they became in the graveyard (`MayhemWatcher`)
+    pub discarded_this_turn: Vec<(ObjId, u32)>,
     /// the players whose lands have all basic land types until end of turn (Energybending)
     pub all_basics_until_eot: Vec<Seat>,
     /// subtypes permanents have until end of turn (Sarkhan, Dragon Ascendant's "becomes a Dragon"): the permanent,
@@ -1326,6 +1328,7 @@ impl Game {
             damaged_players: Vec::new(),
             attacked_this_turn: Vec::new(),
             p1p1_put_this_turn: Vec::new(),
+            discarded_this_turn: Vec::new(),
             all_basics_until_eot: Vec::new(),
             subtypes_until_eot: Vec::new(),
             subtypes_while_there: Vec::new(),
@@ -1436,10 +1439,10 @@ impl Game {
             flashback_turn: None,
             solved: false,
             until_end_of_turn_def: None,
+            lost_all: 0,
             becomes_base: None,
             becomes_auras: Vec::new(),
             land_type_base: None,
-            lost_all: 0,
             chosen_type: None,
             info: Vec::new(),
             chosen_name: None,
@@ -2108,6 +2111,12 @@ impl Game {
     /// cards", X the number of them of the filter
     pub fn discarded_cards(&mut self) {
         let batch = std::mem::take(&mut self.discarded);
+        for (_, c) in &batch {
+            let at = (*c, self.obj(*c).zcc);
+            if !self.discarded_this_turn.contains(&at) {
+                self.discarded_this_turn.push(at);
+            }
+        }
         let mut seats: Vec<Seat> = Vec::new();
         for (s, _) in &batch {
             if !seats.contains(s) {
@@ -3961,6 +3970,7 @@ impl Game {
                 if let Some(def) = o.until_end_of_turn_def.take() {
                     o.def = def;
                 }
+                o.lost_all = 0;
                 o.copied_def = None;
                 o.eot_copy = None;
                 if let Some(def) = o.pre_guildpact.take() {
@@ -3970,7 +3980,6 @@ impl Game {
                 if let Some(def) = o.printed_def.take() {
                     o.def = def;
                 }
-                o.lost_all = 0;
                 // (Aetherwing crewed: its back as it was before it became a creature)
                 if let Some(def) = left_front.take() {
                     o.def = def;

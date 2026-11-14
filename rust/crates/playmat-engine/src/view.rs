@@ -352,6 +352,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
                     Some(
                         crate::card::AbilityDef::MorphAbility { .. }
                             | crate::card::AbilityDef::PrototypeAbility { .. }
+                            | crate::card::AbilityDef::BestowAbility { .. }
                             | crate::card::AbilityDef::DisturbAbility { .. }
                             | crate::card::AbilityDef::AwakenAbility { .. }
                             | crate::card::AbilityDef::SneakAbility { .. }
@@ -364,6 +365,7 @@ fn can_play_objects(game: &Game, seat: Seat) -> Value {
                     }
                     Some(crate::card::AbilityDef::MorphAbility { .. }) => format!("Cast {} using Morph", name),
                     Some(crate::card::AbilityDef::PrototypeAbility { .. }) => format!("Cast {} using Prototype", name),
+                    Some(crate::card::AbilityDef::BestowAbility { .. }) => format!("Cast {} using Bestow", name),
                     // (the back's spell ability, with the back's name)
                     Some(crate::card::AbilityDef::DisturbAbility { .. }) => format!(
                         "Cast {} using Disturb",
