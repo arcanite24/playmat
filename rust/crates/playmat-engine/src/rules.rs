@@ -10066,10 +10066,10 @@ fn token_copy_with(
     made
 }
 
-/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish), or draws a card
+/// `GiftType.applyGift`: the opponent gets the token (a tapped Fish, an untapped Food), or draws a card
 fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, source: ObjId) {
     for a in &def.abilities {
-        if let AbilityDef::GiftAbility { token, .. } = a {
+        if let AbilityDef::GiftAbility { token, untapped, .. } = a {
             match token {
                 Some(token) => {
                     let tdef = Arc::new(token.card());
@@ -10081,7 +10081,9 @@ fn give_gift(game: &mut Game, d: &mut dyn Decider, def: &CardDef, to: Seat, sour
                         o.token = true;
                         o.trigger_order = (1 << 32) + id.0 as u64;
                         enter_battlefield(game, d, id, to, false);
-                        game.obj_mut(id).tapped = true;
+                        if !*untapped {
+                            game.obj_mut(id).tapped = true;
+                        }
                     }
                 }
                 None => draw(game, to, 1),
@@ -11946,6 +11948,9 @@ fn apply_each_effect(
                 // a spell's "if the gift was promised": the spell's own item knows
                 let holds = if *condition == Condition::GiftPromised {
                     item.gift_promised
+                } else if matches!(condition, Condition::Not { x } if **x == Condition::GiftPromised) {
+                    // "if the gift wasn't promised" (Nocturnal Hunger)
+                    !item.gift_promised
                 } else {
                     // (a permanent's own trigger: whether it was cast kicked, Crimestopper Sprite's "if evidence was
                     // collected")
