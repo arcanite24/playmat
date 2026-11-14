@@ -15200,11 +15200,8 @@ fn apply_each_effect(
                     continue;
                 }
                 let owner = game.obj(card).owner;
-                // `CardUtil.castSpellWithAttributesForFree`: only a card that can be cast now is offered
-                let free = CardDef { cost: ManaCost::default(), ..(*game.obj(card).def).clone() };
-                if !has_targets(game, owner, card, &free) {
-                    continue;
-                }
+                // `CardUtil.castSpellWithAttributesForFree` doesn't look for targets: a spell with none to choose is
+                // offered too (Ephemerate with no creature), and casting it then fails, leaving it in exile
                 let message = format!("Cast spell without paying its mana cost ({})?", log::object(game, card));
                 let yes = loop {
                     match ask(game, d, owner, &Query::YesNo { message: message.clone() }) {
