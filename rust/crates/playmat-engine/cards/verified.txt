@@ -421,6 +421,7 @@ Arboreal Grazer
 Arc Lightning
 Arc Reactor
 Arc Spitter
+Arcades, the Strategist
 Arcane Amphisbaena
 Arcane Encyclopedia
 Arcane Epiphany
@@ -1514,6 +1515,7 @@ Chandra's Magmutt
 Chandra's Outburst
 Chandra's Outrage
 Chandra's Pyrohelix
+Chandra's Spitfire
 Chandra, Bold Pyromancer
 Chandra, Novice Pyromancer
 Chandra, Pyrogenius
@@ -2875,6 +2877,7 @@ Encumbered Reejerey
 End Hostilities
 End the Festivities
 End-Raze Forerunners
+Endbringer
 Endless Obedience
 Endless One
 Enduring Bondwarden
@@ -3160,6 +3163,7 @@ Fathom Fleet Boarder
 Fathom Fleet Captain
 Fathom Fleet Cutthroat
 Fathom Fleet Firebrand
+Fathom Mage
 Fauna Shaman
 Favor of Jukai
 Favorable Winds
@@ -5011,6 +5015,7 @@ Karai's Technique
 Karametra's Acolyte
 Karametra's Favor
 Karametra, God of Harvests
+Kardur, Doomscourge
 Karfell Kennel-Master
 Kargan Dragonrider
 Kargan Warleader
@@ -5527,6 +5532,7 @@ Luminollusk
 Luminous Bonds
 Luminous Broodmoth
 Luminous Rebuke
+Lunar Convocation
 Lunar Force
 Lunar Frenzy
 Lunar Rejection
@@ -5736,6 +5742,7 @@ Mass Calcify
 Mass Manipulation
 Mass Production
 Massacre Girl, Known Killer
+Massacre Girl, Most Wanted
 Massacre Wurm
 Massive Might
 Massive Raid
@@ -6720,6 +6727,7 @@ Phylath, World Sculptor
 Phyrexian Archivist
 Phyrexian Arena
 Phyrexian Awakening
+Phyrexian Censor
 Phyrexian Espionage
 Phyrexian Gargantua
 Phyrexian Missionary
@@ -6839,6 +6847,7 @@ Pore Over the Pages
 Port Town
 Port of Karfell
 Portable Hole
+Portal to Phyrexia
 Portcullis Vine
 Portent of Betrayal
 Postmortem Professor
@@ -7969,6 +7978,7 @@ Scythe Leopard
 Scytheclaw Raptor
 Sea Gate Banneret
 Sea Gate Colossus
+Sea Gate Restoration
 Sea Gate Wreckage
 Sea God's Revenge
 Sea God's Scorn
@@ -8250,6 +8260,7 @@ Shredded Sails
 Shredder's Revenge
 Shredder, Unrelenting
 Shredding Winds
+Shrewd Negotiation
 Shrewd Storyteller
 Shriek, Treblemaker
 Shriekdiver
@@ -8628,6 +8639,7 @@ Spawnbinder Mage
 Spawning Bed
 Speaker of the Heavens
 Spear Spewer
+Spear of Heliod
 Species Gorger
 Spectacle Mage
 Spectacle Summit
@@ -9505,6 +9517,7 @@ The Spirit Oasis
 The Spot's Portal
 The Surgical Bay
 The Swarmweaver
+The Ten Rings
 The Theorist, Jace Beleren
 The Thing, Ben Grimm
 The Unbeatable Squirrel Girl
@@ -9635,6 +9648,7 @@ Thundering Giant
 Thundering Rebuke
 Thundering Sparkmage
 Thundering Spineback
+Thunderous Debut
 Thunderous Might
 Thunderous Snapper
 Thunderous Velocipede
@@ -10628,6 +10642,7 @@ Wild-Field Scarecrow
 Wilderland Scrounger
 Wildest Dreams
 Wildfire Cerberus
+Wildfire Elemental
 Wildfire Wickerfolk
 Wildgrowth Walker
 Wildheart Invoker
