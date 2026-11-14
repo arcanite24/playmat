@@ -653,6 +653,19 @@ Being in the engine and being trusted are kept apart.
   hexproof (Glaring Spotlight), and cards whose Java order isn't deterministic (Tersa Lightshatter, Winnowing,
   Tibalt's Trickery; hand and graveyard shuffles for Day's Undoing and Commit // Memory).
 
+  Wave 6, claim 2, second batch (13 Nov), on the replacement hooks: damage redirection (`rules::redirect_damage`,
+  "is dealt to {this} instead") deals the damage again from the same source with the event's applied replacements
+  left out, as `Permanent.damage(…, getAppliedEffects())`, and combat lifelink still counts it with the source's
+  other combat damage. A "whenever a creature dies" trigger keeps the creature that died and its controller then
+  (`StackItem::died`, Java's `getValue("creatureDied")`). "You lose the game" (`LoseGameSourceControllerEffect`) ends
+  the game as the ability resolves, with it still on the stack as Java's trace sees it, then the one left has won.
+  Handlers: Temple Altisaur, Orbs of Warding, Palisade Giant, Saving Grace, Gideon's Sacrifice (asked even with one
+  permanent to choose, as `HumanPlayer.choose`), Archfiend of the Dross, Beifong's Bounty Hunters, and
+  `DealtDamageAndDiedTriggeredAbility`'s predicate (Sengir Vampire, with Predator Ooze, Wight and Zurgo Helmsmasher).
+  VERIFIED_LINE Three games under `shadow/handlers/` (`game-handlers-w6c2b-*`) cover the engine changes. A Young
+  Hero Role's granted trigger writes "{this}" where Java writes "it" (Protective Parents, Embereth Veteran and Merry
+  Bards, already verified); that one game was set aside, and Beifong's Bounty Hunters verified in games without it.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
