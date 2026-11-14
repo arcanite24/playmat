@@ -642,6 +642,8 @@ pub struct StackItem {
     /// the total power, toughness and mana value of the permanents its costs sacrificed (`SacrificeCostCreaturesPower`,
     /// `SacrificeCostCreaturesToughness`, `SacrificeCostManaValue`)
     pub sacrificed_stats: [i32; 3],
+    /// the permanents its station cost tapped (`TapTargetCost`'s "tappedPermanents")
+    pub tapped_for_cost: Vec<ObjId>,
     /// a divided target's share for each of its first target group's targets, in order
     pub target_amounts: Vec<i32>,
     /// a delayed triggered ability (it has no ability index)
@@ -733,6 +735,7 @@ impl StackItem {
             lki_toughness: None,
             sacrificed_toughness: None,
             sacrificed_stats: [0; 3],
+            tapped_for_cost: Vec::new(),
             target_amounts: Vec::new(),
             delayed: None,
             modes: Vec::new(),
@@ -1596,8 +1599,14 @@ impl Game {
             Pred::Tapped { v } => o.tapped == *v,
             // a target adjuster: not applied while checking what's playable (the spell not yet cast)
             Pred::ManaValueX { cmp, ability } => {
-                match source
-                    .and_then(|s| self.stack.iter().rev().find(|i| i.card == s && (*ability || i.ability.is_none())))
+                // the spell's X (or with `ability`, any of its abilities'); a permanent's activated ability's
+                // (Sorin, Vengeful Bloodlord's -X) when no spell of it is on the stack
+                let on_stack = |spell: bool| {
+                    source
+                        .and_then(|s| self.stack.iter().rev().find(|i| i.card == s && (!spell || i.ability.is_none())))
+                };
+                match on_stack(!*ability)
+                    .or_else(|| source.filter(|s| self.obj(*s).zone == Zone::Battlefield).and_then(|_| on_stack(false)))
                 {
                     Some(i) => cmp.holds(o.def.mana_value() as i32, i.x),
                     None => true,
