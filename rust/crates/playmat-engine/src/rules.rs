@@ -630,14 +630,20 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
             // `BeginningOfStepTriggeredAbility` points at the active player: "that player mills three cards" (Manic
-            // Scribe), "deals 1 damage to that player" (Gibbering Fiend), with no target of its own
+            // Scribe), "deals 1 damage to that player" (Gibbering Fiend), "that player draws an additional card"
+            // (Dictate of Kruphix), with no target of its own
             let mut fired = fired;
             for t in fired.iter_mut() {
                 let a = t.ability.and_then(|(i, _)| game.item_def(t).abilities.get(i));
                 if let Some(AbilityDef::TriggeredAbility { on: Trigger::StepBegins { .. }, effects, targets, .. }) = a {
                     if targets.is_empty()
                         && effects.iter().any(|e| {
-                            matches!(e, EffectDef::MillCardsTargetEffect { .. } | EffectDef::DamageTargetEffect { .. })
+                            matches!(
+                                e,
+                                EffectDef::MillCardsTargetEffect { .. }
+                                    | EffectDef::DamageTargetEffect { .. }
+                                    | EffectDef::DrawCardTargetEffect { .. }
+                            )
                         })
                     {
                         t.targets = vec![vec![Target::Player(active)]];
@@ -1822,8 +1828,8 @@ fn can_play_land(game: &Game, seat: Seat) -> bool {
 pub fn lands_per_turn(game: &Game, seat: Seat) -> u32 {
     let mut extra = 0;
     game.any_static(|g, src, e| {
-        if let EffectDef::PlayAdditionalLandsControllerEffect { amount } = e {
-            if g.obj(src).controller == seat {
+        if let EffectDef::PlayAdditionalLandsControllerEffect { amount, all } = e {
+            if *all || g.obj(src).controller == seat {
                 extra += amount;
             }
         }
@@ -12141,6 +12147,7 @@ fn apply_each_effect(
             | EffectDef::NarsetParterOfVeilsEffect
             | EffectDef::TeferiTimeRavelerEffect
             | EffectDef::NoMaximumHandSizeEffect
+            | EffectDef::NoMaximumHandSizeAllEffect
             | EffectDef::CreateTwiceThatManyTokensEffect { .. }
             | EffectDef::ReplaceCreatureTokensEffect { .. }
             | EffectDef::AdditionalTriggersEffect { .. }
@@ -16531,6 +16538,9 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
         return;
     }
     let by = by.unwrap_or(game.obj(o).controller);
+    if name == "+1/+1" {
+        game.watch.p1p1_put.push((by, n));
+    }
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::CountersPut { filter, counter } => {
@@ -20189,8 +20199,10 @@ fn deal_hits(game: &mut Game, hits: Vec<(ObjId, Target, i32)>, gains: &mut Vec<(
 
 /// Discard to hand size (one card per answer, as `HumanPlayer.choose` asks), then damage wears off.
 fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
-    let unlimited =
-        game.any_static(|g, src, e| matches!(e, EffectDef::NoMaximumHandSizeEffect) && g.obj(src).controller == seat);
+    let unlimited = game.any_static(|g, src, e| {
+        matches!(e, EffectDef::NoMaximumHandSizeAllEffect)
+            || matches!(e, EffectDef::NoMaximumHandSizeEffect) && g.obj(src).controller == seat
+    });
     let excess = if unlimited { 0 } else { game.player(seat).hand.len().saturating_sub(MAX_HAND) };
     if excess > 0 {
         if log::kept(game) {

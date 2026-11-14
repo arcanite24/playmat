@@ -245,6 +245,10 @@ def condition(t, expr):
     (`XCondition.TEN`, the handler `Outer.XCondition.TEN`) with a condition handler, or None"""
     m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance|(\w+\.[A-Z][A-Z0-9_]*)', expr.strip())
     name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2) or m.group(3), 'condition')
+    # `new XCondition(…)` with arguments: only a handler named for the card (`OuterCardClass.XCondition`, written
+    # for the card's arguments)
+    if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
+        name = find(getattr(t, 'source', None), m.group(1), 'condition', own_only=True)
     return {'c': 'card', 'handler': name} if name else None
 
 

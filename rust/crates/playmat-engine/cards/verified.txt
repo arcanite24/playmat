@@ -602,6 +602,7 @@ Aven Tactician
 Aven Wind Guide
 Aven Wind Mage
 Aven of Enduring Hope
+Avengers Assemble!
 Avengers Disassembled
 Avengers Hangar
 Avengers Tower
@@ -1296,6 +1297,7 @@ Caldaia Strongarm
 Caligo Skin-Witch
 Call Damage Control
 Call In a Professional
+Call for Unity
 Call of the Conclave
 Call of the Full Moon
 Call the Bloodline
@@ -1341,6 +1343,7 @@ Caparocti Sunborn
 Capashen Knight
 Capenna Express
 Capital City
+Captain America's Shield
 Captain America, Super-Soldier
 Captain America, Wings of Freedom
 Captain Lannery Storm
@@ -1548,6 +1551,7 @@ Chord of Calling
 Chorus of Might
 Chorus of the Tides
 Chosen by Heliod
+Chromatic Lantern
 Chrome Cat
 Chrome Companion
 Chrome Prowler
@@ -2149,6 +2153,7 @@ Decorated Griffin
 Decoy Ploy
 Dedicated Commons
 Deduce
+Deem Worthy
 Deep Freeze
 Deep Goblin Skulltaker
 Deep-Cavern Bat
@@ -2279,6 +2284,7 @@ Diamond Pick-Axe
 Diamond Weapon
 Dictate of Erebos
 Dictate of Heliod
+Dictate of Kruphix
 Didact Echo
 Didn't Say Please
 Dig Site Inventory
@@ -2395,6 +2401,7 @@ Doomskar Oracle
 Doomskar Titan
 Doomskar Warrior
 Doomwake Giant
+Door of Destinies
 Doorkeeper
 Doppelgang
 Dori, Bearer of Friends
@@ -2616,6 +2623,7 @@ Dwarven Reinforcements
 Dwarven Shortsword
 Dwynen's Elite
 Dwynen, Gilt-Leaf Daen
+Dying Wish
 Dying to Serve
 Dynamite Diver
 Dynavolt Tower
@@ -2779,6 +2787,7 @@ Emergency Weld
 Emergent Growth
 Emergent Haunting
 Emeria Captain
+Emeria Shepherd
 Emeria's Call
 Emeritus of Abundance
 Emeritus of Ideation
@@ -3106,6 +3115,7 @@ Fearless Pup
 Fearless Skald
 Fearsome Goblin Pair
 Feast of Dreams
+Feast on the Fallen
 Feat of Resistance
 Feather of Flight
 Featherbrained Filcher
@@ -3316,6 +3326,7 @@ Foggy Swamp Hunters
 Foggy Swamp Spirit Keeper
 Foggy Swamp Vinebender
 Fogwalker
+Folio of Fancies
 Follow the Lumarets
 Font of Fertility
 Font of Fortunes
@@ -3479,6 +3490,7 @@ Futurist Forge
 Futurist Sentinel
 G'raha Tia
 Gadget Technician
+Gadrak, the Crown-Scourge
 Gadwick's First Duel
 Gadwick, the Wizened
 Gaea's Courser
@@ -3600,6 +3612,7 @@ Ghastly Gloomhunter
 Ghirapur Aether Grid
 Ghirapur Gearcrafter
 Ghirapur Guide
+Ghirapur Orrery
 Ghirapur Osprey
 Ghired, Mirror of the Wilds
 Ghitu Amplifier
@@ -3933,6 +3946,7 @@ Greater Sandwurm
 Greater Tanuki
 Greed's Gambit
 Greedy Freebooter
+Green Goblin, Revenant
 Greenbelt Guardian
 Greenbelt Radical
 Greenhouse Propagator
@@ -4145,6 +4159,7 @@ Haunted Mire
 Haunted Ridge
 Haunter of Nightveil
 Hauntwoods Shrieker
+Haven of the Spirit Dragon
 Havoc Devils
 Havoc Jester
 Havoc Sower
@@ -4165,6 +4180,7 @@ Headwater Sentries
 Healer of the Glade
 Healer's Hawk
 Healing Hands
+Heart-Piercer Bow
 Heartfire
 Heartfire Immolator
 Hearth Elemental
@@ -4316,6 +4332,7 @@ Hivespine Wolverine
 Hoard Robber
 Hoarding Ogre
 Hoarding Recluse
+Hobbit Hole
 Hobblefiend
 Hobbling Zombie
 Hobgoblin Bandit Lord
@@ -4475,6 +4492,7 @@ Iceridge Serpent
 Icetill Explorer
 Icewind Elemental
 Ichor Drinker
+Ichor Shade
 Ichor Synthesizer
 Ichorspit Basilisk
 Ichthyomorphosis
@@ -4687,6 +4705,7 @@ Irascible Wolverine
 Ire Shaman
 Irencrag Pyromancer
 Iridescent Blademaster
+Iridescent Hornbeetle
 Iridescent Tiger
 Iridescent Vinelasher
 Iroas's Blessing
@@ -4698,6 +4717,7 @@ Iron Giant
 Iron Golem
 Iron Hills
 Iron Hills Blacksmith
+Iron Hills Stalwart
 Iron Lad, Diverging Destiny
 Iron League Steed
 Iron Spider, Stark Upgrade
@@ -5486,6 +5506,7 @@ Malamet Veteran
 Malamet War Scribe
 Malboro
 Malcator's Watcher
+Malcator, Purity Overseer
 Malcolm, the Eyes
 Malefic Scythe
 Malevolent Chandelier
@@ -5903,6 +5924,7 @@ Moonglove Extractor
 Moonlit Scavengers
 Moonrise Cleric
 Moonshaker Cavalry
+Moonsilver Key
 Moonsnare Prototype
 Moonsnare Specialist
 Moopsy
@@ -5967,6 +5989,7 @@ Murasa Ranger
 Murasa Rootgrazer
 Murasa Sproutling
 Murder
+Murder Investigation
 Murderer's Axe
 Murderous Compulsion
 Murderous Cut
@@ -5980,6 +6003,7 @@ Muse Drake
 Muse's Encouragement
 Museum Nightwatch
 Mutable Explorer
+Mutagen Man, Living Ooze
 Mutagenic Growth
 Mutant Chain Reaction
 Mutant Town
@@ -6033,6 +6057,7 @@ Natural Obsolescence
 Natural State
 Naturalize
 Nature's Panoply
+Nature's Rhythm
 Nature's Spiral
 Nature's Way
 Nav Squad Commandos
@@ -7178,6 +7203,7 @@ Renegade Tactics
 Renegade Wheelsmith
 Renegade's Getaway
 Renet, Temporal Apprentice
+Renewed Faith
 Renowned Weaponsmith
 Repair and Recharge
 Repeating Barrage
@@ -7553,6 +7579,7 @@ Sage of Shaila's Claim
 Sage of the Falls
 Sage of the Inward Eye
 Sage's Nouliths
+Sage's Reverie
 Sage's Row Denizen
 Sage's Row Savant
 Sage-Eye Harrier
@@ -7974,6 +8001,7 @@ Shatterwing Pegasus
 She-Hulk, Jade Defender
 Sheer Drop
 Shefet Dunes
+Shefet Monitor
 Shell Shield
 Sheltered Aerie
 Sheltered Thicket
@@ -8698,6 +8726,7 @@ Stitched Mangler
 Stitcher's Supplier
 Stitchwing Skaab
 Stock Up
+Stocking the Pantry
 Stockman, Mad Fly-entist
 Stockpiling Celebrant
 Stoic Builder
@@ -8868,6 +8897,7 @@ Sunderflock
 Sundering Growth
 Sundial, Dawn Tyrant
 Sundown Pass
+Sunfall
 Sungold Barrage
 Sungrace Pegasus
 Sunhome Guildmage
@@ -8977,6 +9007,7 @@ Swooping Protector
 Sword of Vengeance
 Sword of Wealth and Power
 Sword of the Animist
+Swordsman, Sharp Scoundrel
 Swordwise Centaur
 Sworn Companions
 Sworn Guardian
@@ -9281,6 +9312,7 @@ The Spot's Portal
 The Surgical Bay
 The Swarmweaver
 The Theorist, Jace Beleren
+The Thing, Ben Grimm
 The Unbeatable Squirrel Girl
 The Unicomplex
 The Walls of Ba Sing Se
@@ -9356,6 +9388,7 @@ Thraben Foulbloods
 Thraben Gargoyle
 Thraben Inspector
 Thraben Standard Bearer
+Thran Power Suit
 Thran Temporal Gateway
 Thran Vigil
 Thranduil's Company
@@ -9391,6 +9424,7 @@ Thrumming Hivepool
 Thrummingbird
 Thud
 Thunder Drake
+Thunder Lasso
 Thunder Strike
 Thunderbreak Regent
 Thunderclap Wyvern
@@ -10286,6 +10320,7 @@ Weaponcraft Enthusiast
 Weaponize the Monsters
 Weapons Manufacturing
 Weapons Trainer
+Weapons Vendor
 Wear // Tear
 Wear Down
 Weary Prisoner

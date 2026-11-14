@@ -1146,9 +1146,17 @@ pub struct TurnWatch {
     pub crimes: Vec<Seat>,
     /// `CreaturesDiedWatcher`: the controller of each creature that died
     pub died: Vec<Seat>,
+    /// each permanent put into a graveyard from the battlefield (a dies event, `ZoneChangeEvent.isDiesEvent`), as
+    /// (its controller, an artifact, a creature, a token): Ichor Shade's and Gadrak's watchers
+    pub dies: Vec<(Seat, bool, bool, bool)>,
     /// `PermanentsEnteredBattlefieldWatcher` and the like: each permanent that entered, as (its controller, an
     /// artifact, a creature, a Goblin)
     pub entered: Vec<(Seat, bool, bool, bool)>,
+    /// the same permanents, with their zone-change counts as they entered and their controllers then
+    /// (`PermanentsEnteredBattlefieldWatcher.getThisTurnEnteringPermanents`)
+    pub entered_permanents: Vec<(ObjId, u32, Seat)>,
+    /// `COUNTER_ADDED` for +1/+1 counters: who put them, and how many (Iridescent Hornbeetle's watcher)
+    pub p1p1_put: Vec<(Seat, i32)>,
     /// `CardsExiledThisTurnWatcher`: objects put into exile
     pub exiled: u32,
     /// `TriggeredAbility.setDidThisTurn`: the "do this only once each turn" abilities done this turn (the source, its
@@ -3417,6 +3425,15 @@ impl Game {
         if zone == Zone::Exile && matches!(from, Zone::Graveyard | Zone::Battlefield) {
             self.exiled_batch = true;
         }
+        if from == Zone::Battlefield && zone == Zone::Graveyard {
+            let seen = (
+                died_controller,
+                self.has_type(id, CardType::Artifact),
+                self.has_type(id, CardType::Creature),
+                self.obj(id).token,
+            );
+            self.watch.dies.push(seen);
+        }
         if from == Zone::Battlefield && zone == Zone::Graveyard && self.has_type(id, CardType::Creature) {
             self.creature_died = true;
             self.creatures_died += 1;
@@ -3890,6 +3907,8 @@ impl Game {
                     self.has_subtype(id, "Goblin"),
                 );
                 self.watch.entered.push(seen);
+                let zcc = self.obj(id).zcc;
+                self.watch.entered_permanents.push((id, zcc, self.obj(id).controller));
                 let at = self.timestamp();
                 let o = self.obj_mut(id);
                 o.sick = true;

@@ -631,8 +631,9 @@ COUNTERS = {'CounterType.FINALITY': 'finality', 'CounterType.FLYING': 'flying', 
 _TALLIES = ('GOLD', 'BLOODLINE', 'MUSTER', 'QUEST', 'ICE', 'WISH', 'REVIVAL', 'NEST', 'REV', 'UNITY', 'STORAGE', 'PLAGUE', 'SPORE',
             'FUNGUS', 'VERSE', 'OMEN', 'OIL', 'CORPSE', 'EGG', 'TIDE', 'LUCK', 'KI', 'DEPLETION', 'FLOOD', 'STUDY', 'VOID',
             'BOUNTY', 'SOUL', 'POINT', 'PLAN', 'HOUR', 'STASH', 'SLIME', 'GROWTH', 'BOOK', 'UNLOCK', 'LOOT', 'HONE', 'FIRE',
-            'FILM', 'FATE', 'CRYSTAL', 'TASK', 'SUPPLY', 'SKEWER', 'SIN', 'DIVINITY', 'FORESHADOW', 'CHORUS', 'EMBER')
-for _m in re.finditer(r'^    (\w+)\("([a-z][a-z -]*)"\)', open(os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'counters',
+            'FILM', 'FATE', 'CRYSTAL', 'TASK', 'SUPPLY', 'SKEWER', 'SIN', 'DIVINITY', 'FORESHADOW', 'CHORUS', 'EMBER', 'BLOOD')
+# (a name may come with its article: `HOUR("hour", "an")`)
+for _m in re.finditer(r'^    (\w+)\("([a-z][a-z -]*)"(?:, "\w+")?\)', open(os.path.join(ROOT, 'Mage', 'src', 'main', 'java', 'mage', 'counters',
                                                                  'CounterType.java')).read(), re.M):
     if _m.group(1) in _TALLIES:
         COUNTERS.setdefault('CounterType.' + _m.group(1), _m.group(2))
@@ -2338,6 +2339,9 @@ class Translator:
             return {'class': 'DamageTargetSourcePowerEffect'}
         if cls.startswith('SearchLibraryPutIn'):
             return self.search_library(cls, [a.strip() for a in args])
+        # "each player may play an additional land on each of their turns" (Ghirapur Orrery)
+        if cls == 'PlayAdditionalLandsAllEffect' and not [a for a in args if a.strip()]:
+            return {'class': 'PlayAdditionalLandsControllerEffect', 'amount': 1, 'all': True}
         if cls == 'PlayAdditionalLandsControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileOnBattlefield' \
                 and re.fullmatch(r'\d+', args[0].strip()):
             return {'class': cls, 'amount': int(args[0])}
@@ -2484,6 +2488,11 @@ class Translator:
                 'Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'MaximumHandSizeControllerEffect.HandSizeModification.SET'], [
                 'Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'HandSizeModification.SET']):
             return {'class': 'NoMaximumHandSizeEffect'}
+        if cls == 'MaximumHandSizeControllerEffect' and [a.strip() for a in args] in ([
+                'Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'MaximumHandSizeControllerEffect.HandSizeModification.SET',
+                'TargetController.ANY'], ['Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'HandSizeModification.SET',
+                                         'TargetController.ANY']):
+            return {'class': 'NoMaximumHandSizeAllEffect'}
         if cls == 'AddCountersTargetEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'value': self.amount(args[1])}
         # (effect, condition[, text])
@@ -3815,6 +3824,9 @@ class Translator:
             a = self.ability('new LandfallAbility(' + ','.join(args[1:]) + ')')
             a['on']['graveyard'] = True
             return a
+        # (Zone.BATTLEFIELD, effect, optional) is the two-argument form
+        if cls == 'LandfallAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD':
+            return self.ability('new LandfallAbility(' + ','.join(args[1:]) + ')')
         if cls in STEP_TRIGGERS and len(args) == 4 and args[0].strip() == 'Zone.GRAVEYARD':
             a = self.ability('new ' + cls + '(' + ','.join(args[1:]) + ')')
             a['on']['graveyard'] = True
@@ -4641,6 +4653,15 @@ class Translator:
             return {'class': 'CyclingAbility', 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': m.group(1)},
                                                                      {'class': 'DiscardSourceCost'}],
                     'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}]}
+        # typecycling (`CyclingAbility(cost, filter, text)`, Halflingcycling): cycling that searches for a card of the
+        # filter, revealed, into your hand
+        if cls == 'CyclingAbility' and n == 3 and re.fullmatch(r'"[^"]*"', args[2]):
+            cost = self.cost(args[0])
+            if cost.get('class') != 'ManaCost':
+                raise Unsupported(cls + ' cost ' + args[0])
+            return {'class': 'CyclingAbility', 'java': cls, 'cost': [cost, {'class': 'DiscardSourceCost'}],
+                    'effects': [{'class': 'SearchLibraryEffect', 'filter': self.filter(args[1]), 'min': 1, 'max': 1,
+                                 'to': 'HAND'}]}
         if cls == 'DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility' and n == 2:
             return out({'e': 'combat_damage_to_player_or_planeswalker'}, args[0], flag(args[1]))
         # X is the damage dealt (`SavedDamageValue.MANY`)
@@ -4652,8 +4673,8 @@ class Translator:
             return out({'e': 'cast_second_spell', 'who': self.value('target_controller', args[1])}, args[0])
         if cls == 'BecomesExertSourceTriggeredAbility' and n == 1:
             return out({'e': 'exerted'}, args[0])
-        if cls == 'CycleTriggeredAbility' and n == 1:
-            return out({'e': 'cycled'}, args[0])
+        if cls == 'CycleTriggeredAbility' and n in (1, 2):
+            return out({'e': 'cycled'}, args[0], n == 2 and flag(args[1]))
         if cls == 'CommittedCrimeTriggeredAbility' and n == 1:
             return out({'e': 'committed_crime'}, args[0])
         if cls == 'EntersBattlefieldOrLeavesSourceTriggeredAbility' and n == 2:
@@ -4913,6 +4934,11 @@ class Translator:
                 raise Unsupported(cls + ' ' + args[5])
             return out({'e': 'attached_deals_damage_to_player', 'only_combat': n < 5 or flag(args[4]), 'who': who},
                        args[0], flag(args[2]), n >= 4 and flag(args[3]))
+        # "whenever one or more <filter> you control deal (combat) damage to a player" (effect, filter, onlyCombat,
+        # onlyControlled): the engine's batch counts only the permanents you control
+        if cls == 'OneOrMoreDamagePlayerTriggeredAbility' and n == 4 and args[3] == 'true':
+            return out({'e': 'damage_player_batch', 'filter': self.filter(args[1]), 'only_combat': flag(args[2])},
+                       args[0], False)
         # "whenever one or more creatures you control deal combat damage to a player"
         if cls == 'OneOrMoreCombatDamagePlayerTriggeredAbility' and 1 <= n <= 5:
             filt, pointer, optional = self.filter('StaticFilters.FILTER_PERMANENT_CREATURES'), 'SetTargetPointer.NONE', False
@@ -6027,8 +6053,9 @@ def ability_statement(t, st, added):
     m = re.fullmatch(r'(\w+)\.setTargetTag\(\d+\)', st)
     if m and isinstance(t.vars.get(m.group(1)), dict) and t.vars[m.group(1)].get('class', '').startswith('Target'):
         return True
+    # (a dependency only orders Java's layer system; the engine reads each effect where it's asked)
     m = re.fullmatch(r'(\w+)\.(?:set(?:Outcome|Text|TargetPointer|RuleAtTheTop|AbilityWord)|addHint|withFlavorWord|withTargetDescription|withFirstModeFlavorWord'
-                     r'|getModes\(\)\.getMode\(\)\.withFlavorWord)\(.*\)', st)
+                     r'|getModes\(\)\.getMode\(\)\.withFlavorWord|getDependedToTypes\(\)\.add|addDependedToType)\(.*\)', st)
     if m and m.group(1) in t.vars:
         return True
     # backup: an ability the card has and the backup target gains (`BackupAbility.addAbility`; with `true`, only
