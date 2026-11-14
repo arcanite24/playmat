@@ -737,6 +737,7 @@ Basking Broodscale
 Basking Capybara
 Basri's Acolyte
 Basri's Aegis
+Basri's Lieutenant
 Basri's Solidarity
 Basri, Tomorrow's Champion
 Bassara Tower Archer
@@ -777,6 +778,7 @@ Bazaar Krovod
 Beaming Defiance
 Beamsaw Prospector
 Beanstalk Giant
+Beanstalk Wurm
 Bear Cub
 Bear Trap
 Bear's Companion
@@ -848,6 +850,7 @@ Beyeen Veil
 Beyond the Quiet
 Beza, the Bounding Spring
 Biblioplex Assistant
+Bident of Thassa
 Big Play
 Big Score
 Bigfin Bouncer
@@ -1483,6 +1486,7 @@ Chained to the Rocks
 Chainsaw
 Chainwhip Cyclops
 Chalk Outline
+Challenger Troll
 Champion of Arashin
 Champion of Dusk
 Champion of Rhonas
@@ -1623,6 +1627,7 @@ Clarion Spirit
 Clash of Elements
 Clash of Titans
 Clash of Wills
+Clash of the Eikons
 Claustrophobia
 Clawing Torment
 Claws Out
@@ -1996,6 +2001,7 @@ Curious Forager
 Curious Inquiry
 Curious Obsession
 Curious Pair
+Curse of the Swine
 Cursed Minotaur
 Custodian of the Trove
 Cut // Ribbons
@@ -2160,6 +2166,7 @@ Deathless Behemoth
 Deathless Pilot
 Deathmark
 Deathpact Angel
+Deathrite Shaman
 Deathsprout
 Debilitating Injury
 Debris Beetle
@@ -2419,6 +2426,7 @@ Dominator Drone
 Dominion Supervisor
 Domri's Ambush
 Domri's Nodorog
+Domri, Anarch of Bolas
 Domri, City Smasher
 Donatello's Technique
 Donatello, Gadget Master
@@ -2906,6 +2914,7 @@ Era of Innovation
 Erase
 Erebos, Bleak-Hearted
 Erebos, God of the Dead
+Eriette of the Charmed Apple
 Eriette's Lullaby
 Eriette's Tempting Apple
 Eriette's Whisper
@@ -3061,6 +3070,7 @@ Failed Inspection
 Fairgrounds Warden
 Faith Unbroken
 Faith of the Devoted
+Faith's Fetters
 Faithbearer Paladin
 Faithful Mending
 Fake Your Own Death
@@ -3836,6 +3846,7 @@ Goblin Boom Keg
 Goblin Chainwhirler
 Goblin Cratermaker
 Goblin Dark-Dwellers
+Goblin Diplomats
 Goblin Electromancer
 Goblin Firebomb
 Goblin Freerunner
@@ -3956,6 +3967,7 @@ Grasping Thrull
 Grateful Apparition
 Gravblade Heavy
 Grave Birthing
+Grave Researcher
 Grave Strength
 Graveblade Marauder
 Gravebreaker Lamia
@@ -4037,6 +4049,7 @@ Grisly Spectacle
 Grisly Survivor
 Grisly Transformation
 Gristle Glutton
+Grizzled Angler
 Grizzled Outrider
 Grizzly Ghoul
 Grotag Bug-Catcher
@@ -4165,6 +4178,7 @@ Hapatra, the Desert Frost
 Harald, King of Skemfar
 Harbin, Vanguard Aviator
 Harbinger of the Hunt
+Harbinger of the Tides
 Hard Cover
 Hard-Hitting Question
 Hard-Won Jitte
@@ -4760,6 +4774,7 @@ Involuntary Employment
 Ipnu Rivulet
 Irascible Wolverine
 Ire Shaman
+Irencrag Feat
 Irencrag Pyromancer
 Iridescent Blademaster
 Iridescent Hornbeetle
@@ -4826,6 +4841,7 @@ Jace's Sentinel
 Jace's Triumph
 Jace, Arcane Strategist
 Jace, Ingenious Mind-Mage
+Jace, Memory Adept
 Jace, Mirror Mage
 Jace, Wielder of Mysteries
 Jackhammer
@@ -5515,6 +5531,7 @@ Maestros Charm
 Maestros Diabolist
 Maestros Initiate
 Maestros Theater
+Magda, Brazen Outlaw
 Magda, the Hoardmaster
 Mage Tower Referee
 Mage's Attendant
@@ -5722,6 +5739,7 @@ Mechan Navigator
 Mechan Shieldmate
 Mechanical Mobster
 Mechanized Ninja Cavalry
+Mechanized Production
 Mechanozoa
 Meddling Youths
 Medic's Kitesail
@@ -6095,6 +6113,7 @@ Mystic Skyfish
 Mystic of the Hidden Way
 Mystical Dispute
 Mystical Teachings
+Mystical Tether
 Naban, Dean of Iteration
 Nadir Kraken
 Naga Eternal
@@ -6307,6 +6326,7 @@ Oakhame Adversary
 Oakhame Ranger
 Oakheart Dryads
 Oakhollow Village
+Oakshade Stalker
 Oashra Cultivator
 Oasis Gardener
 Oath of Ajani
@@ -6732,6 +6752,7 @@ Planetary Patrol
 Plasma Bolt
 Plasma Cascade
 Plasma Jockey
+Plate Armor
 Plated Crusher
 Plated Onslaught
 Platoon Dispenser
@@ -7384,6 +7405,7 @@ Revolutionary Rebuff
 Rewind
 Rewrite Regrets
 Rhet-Crop Spearmaster
+Rhino, Barreling Brute
 Rhizome Lurcher
 Rhonas the Indomitable
 Rhonas's Last Stand
@@ -7397,6 +7419,7 @@ Rick Jones, Destined Sidekick
 Rictus Robber
 Riddleform
 Riddlemaster Sphinx
+Ride the Shoopuf
 Ride's End
 Ridgescale Tusker
 Rift Bolt
@@ -7641,6 +7664,7 @@ Ruthless Negotiation
 Ruthless Predation
 Ruthless Ripper
 Rydia's Return
+Rydia, Summoner of Mist
 S.H.I.E.L.D. Deployment Drone
 S.H.I.E.L.D. Flying Car
 S.H.I.E.L.D. Helicarrier
@@ -7734,6 +7758,7 @@ Sanguinary Mage
 Sanguine Bond
 Sanguine Glorifier
 Sanguine Indulgence
+Sanguine Sacrament
 Sanguine Savior
 Sanguine Statuette
 Sanguine Syphoner
@@ -7750,6 +7775,7 @@ Sarkhan's Rage
 Sarkhan's Resolve
 Sarkhan's Triumph
 Sarkhan's Unsealing
+Sarkhan's Whelp
 Sarkhan, Dragon Ascendant
 Sarkhan, Soul Aflame
 Saru, Unthreatened
@@ -7995,6 +8021,7 @@ Sephara, Sky's Blade
 Sephiroth's Intervention
 Sephiroth, Planet's Heir
 Sepulcher Ghoul
+Serah Farron
 Seraph of New Capenna
 Seraph of the Masses
 Seraph of the Scales
@@ -8056,6 +8083,7 @@ Shady Traveler
 Shake the Foundations
 Shalai's Acolyte
 Shalai, Voice of Plenty
+Shaman of Forgotten Ways
 Shaman of Spring
 Shaman of the Great Hunt
 Shaman of the Pack
@@ -8455,6 +8483,7 @@ Soaring Stoneglider
 Soaring Thought-Thief
 Social Climber
 Sokenzan, Crucible of Defiance
+Sokka's Haiku
 Sokka, Bold Boomeranger
 Sokka, Lateral Strategist
 Solarium Sentry
@@ -8799,6 +8828,7 @@ Sticky Fingers
 Stickytongue Sentinel
 Stiltzkin, Moogle Merchant
 Stimulus Package
+Sting, Bilbo's Sword
 Sting-Slinger
 Stingblade Assassin
 Stingcaster Mage
@@ -9017,6 +9047,7 @@ Sunstar Chaplain
 Sunstar Expansionist
 Sunstar Lightsmith
 Suntail Hawk
+Super Intelligence
 Super Shredder
 Super Speed
 Super Strength
@@ -9312,6 +9343,7 @@ Territorial Witchstalker
 Terror Ballista
 Terror of Mount Velus
 Terror of the Fairgrounds
+Terror of the Peaks
 Terrus Wurm
 Teshar, Ancestor's Apostle
 Test of Conviction
@@ -9376,6 +9408,7 @@ The Filigree Sylex
 The Final Days
 The Fire Crystal
 The Gold Saucer
+The Goose Mother
 The Great Goblin
 The Great Henge
 The Haunt of Hightower
@@ -9665,6 +9698,7 @@ Town Greeter
 Toxic Abomination
 Toxic Scorpion
 Toxin Analysis
+Toxrill, the Corrosive
 Trading Post
 Tragedy Feaster
 Tragic Arrogance
@@ -9833,6 +9867,7 @@ Tyrox, Saurid Tyrant
 Tyrranax Atrocity
 Tyrranax Rex
 Tyvar's Stand
+Tyvar, Jubilant Brawler
 Tyvar, the Pummeler
 Ubul Sar Gatekeepers
 Uchbenbak, the Great Mistake
@@ -10528,6 +10563,7 @@ Wildwood Rebirth
 Wildwood Tracker
 Will of the All-Hunter
 Will of the Naga
+Will, Scion of Peace
 Will-Forged Golem
 Willbreaker
 Willow Geist
@@ -10617,6 +10653,7 @@ Woodland Patrol
 Woodland Stream
 Woodland Wanderer
 Woodweaver's Puzzleknot
+Woodwork Prodigy
 Woolly Loxodon
 Worf, Honor-Bound Warrior
 Workshop Assistant
@@ -10698,6 +10735,7 @@ Youthful Knight
 Youthful Scholar
 Youthful Valkyrie
 Yue, the Moon Spirit
+Yuna, Hope of Spira
 Yuriko, Hope from the Shadows
 Yuyan Archers
 Zack Fair
