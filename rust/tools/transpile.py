@@ -5225,6 +5225,9 @@ class Translator:
             if pointer == 'SetTargetPointer.PLAYER':
                 a['set_target_pointer_player'] = True
             return a
+        # "whenever this deals damage to a player" (not "or planeswalker")
+        if cls == 'DealsDamageToAPlayerTriggeredAbility' and n in (2, 3, 4) and (n < 4 or args[3] == 'false'):
+            return out({'e': 'deals_damage_to_opponent', 'any': True}, args[0], flag(args[1]), n >= 3 and flag(args[2]))
         if cls == 'DealsDamageToOpponentTriggeredAbility' and 1 <= n <= 4:
             return out({'e': 'deals_damage_to_opponent', 'only_combat': n >= 3 and flag(args[2])}, args[0],
                        n >= 2 and flag(args[1]), n == 4 and flag(args[3]))

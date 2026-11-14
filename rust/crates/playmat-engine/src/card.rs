@@ -837,10 +837,13 @@ pub enum Trigger {
         #[serde(default)]
         only_combat: bool,
     },
-    /// this deals damage to an opponent (`only_combat`: combat damage)
+    /// this deals damage to an opponent (`only_combat`: combat damage), or to any player with `any`
+    /// (`DealsDamageToAPlayerTriggeredAbility`)
     DealsDamageToOpponent {
         #[serde(default)]
         only_combat: bool,
+        #[serde(default)]
+        any: bool,
     },
     /// the permanent this is attached to is put into a graveyard from the battlefield; its target is that card
     DiesAttached {

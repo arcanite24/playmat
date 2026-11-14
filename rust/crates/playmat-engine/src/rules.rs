@@ -20162,7 +20162,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             }
         }
         let fired = game.triggers([source], |_, _, you, t| {
-            matches!(t, Trigger::DealsDamageToOpponent { only_combat } if p != you && (combat || !*only_combat))
+            matches!(t, Trigger::DealsDamageToOpponent { only_combat, any } if (p != you || *any) && (combat || !*only_combat))
         });
         for mut t in fired {
             if set_target_pointer(game, &t) {
