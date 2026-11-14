@@ -413,7 +413,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 }
             }
             // ATTACKER_DECLARED's replacement: "you may exert this as it attacks", asked for each attacker in turn,
-            // and its "when you do" trigger
+            // and its "when you do" trigger, waiting after the triggers its own tap fired and before a later
+            // attacker's (`attack_taps`)
+            let mut inserted: Vec<(usize, usize)> = Vec::new();
             for a in attackers(game) {
                 if !game.has_ability(a, &AbilityDef::ExertAbility) {
                     continue;
@@ -429,7 +431,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 if yes {
                     game.obj_mut(a).exerted = true;
                     let fired = game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted));
-                    game.pending.extend(fired);
+                    let n = fired.len();
+                    match game.attack_taps.iter().find(|(x, _)| *x == a).map(|(_, at)| *at) {
+                        Some(at) => {
+                            let before: usize = inserted.iter().filter(|(p, _)| *p <= at).map(|(_, k)| *k).sum();
+                            let pos = (at + before).min(game.pending.len());
+                            game.pending.splice(pos..pos, fired);
+                            inserted.push((at, n));
+                        }
+                        None => game.pending.extend(fired),
+                    }
                 }
             }
             // ATTACKER_DECLARED's enlist replacement (`EnlistEffect`), for each attacker in turn: asked when a creature
@@ -4557,6 +4568,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
                 }
             };
             if pick {
+                game.obj_mut(id).alternative_paid = true;
                 // its mana is the spell's mana to pay (`activateAlternativeCosts`: `addManaCostsToPay`)
                 cost = ManaCost::default();
                 for c in costs {
@@ -6097,6 +6109,7 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     });
     // X: announced before the targets (`AbilityImpl.handleManaXCosts`)
     let mut mana = adjusted_mana_cost(game, seat, id, &def.abilities[index], costs);
+    let untargeted = mana.clone();
     if mana.x > 0 {
         let min = match def.abilities[index] {
             AbilityDef::SimpleActivatedAbility { min_x, .. } => min_x,
@@ -6178,6 +6191,12 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     };
     if !choose_targets_of_modes(game, d, seat, targets, &mode_ends, None, rule, true) {
         return false;
+    }
+    // the cost changes that look at the ability's targets (Kopala's "abilities your opponents activate that target a
+    // Merfolk you control cost {2} more"), now that they're chosen: Java adjusts the costs after the targets
+    let targeted = adjusted_mana_cost(game, seat, id, &def.abilities[index], costs);
+    if targeted.generic != untargeted.generic {
+        mana.generic = (mana.generic + targeted.generic).saturating_sub(untargeted.generic);
     }
     // an equip ability's reductions are for the creature it targets, now that it's chosen
     if let AbilityDef::EquipAbility { .. } = def.abilities[index] {
@@ -11814,6 +11833,7 @@ fn apply_each_effect(
                 only_color,
                 abilities,
                 tapped,
+                attacking,
             } => {
                 // `applyAdditionsToToken`, in its order
                 let mods = |def: &mut CardDef| {
@@ -11873,8 +11893,23 @@ fn apply_each_effect(
                 for o in &objs {
                     let made = token_copy_modified(game, d, *o, controller, number.unwrap_or(1), &mods);
                     if *tapped {
+                        for t in &made {
+                            game.obj_mut(*t).tapped = true;
+                        }
+                    }
+                    // `TokenImpl.putOntoBattlefield(…, attacking)`: on its controller's turn, each token that's still
+                    // there joins combat, against a defender chosen as `Combat.addAttackingCreature` asks
+                    if *attacking && game.active == Some(controller) {
                         for t in made {
-                            game.obj_mut(t).tapped = true;
+                            if game.obj(t).zone != Zone::Battlefield {
+                                continue;
+                            }
+                            let defender = game.opponent(controller);
+                            let Some(pw) = choose_defender(game, d, controller, defender) else { return };
+                            let o = game.obj_mut(t);
+                            o.attacking = Some(defender);
+                            o.attacking_pw = pw;
+                            join_combat(game, t);
                         }
                     }
                 }
@@ -13059,7 +13094,7 @@ fn apply_each_effect(
             | EffectDef::GainPlusOneLifeReplacementEffect
             | EffectDef::SpellCostReductionForEachSourceEffect { .. }
             | EffectDef::CantBeCounteredControlledEffect { .. }
-            | EffectDef::DontCauseTriggerEffect
+            | EffectDef::DontCauseTriggerEffect { .. }
             | EffectDef::CreaturesCantGetOrHaveAbilityEffect { .. }
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
             | EffectDef::SpellsCostIncreasingAllEffect { .. }
@@ -18863,18 +18898,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // everything that triggers on this event, in Java's registration order
     let mut sources: Vec<ObjId> = game.battlefield.iter().copied().filter(|s| *s != id).collect();
     sources.insert(0, id);
-    // Torpor Orb: a creature entering triggers nothing
-    let orb = game.battlefield.iter().any(|s| {
-        game.obj(*s).def.abilities.iter().any(|a| match a {
-            AbilityDef::SimpleStaticAbility { effects, .. } => {
-                effects.iter().any(|e| matches!(e, EffectDef::DontCauseTriggerEffect))
-            }
-            _ => false,
-        })
-    });
-    if orb && game.has_type(id, CardType::Creature) {
-        sources.clear();
-    }
+    // Torpor Orb: a creature entering triggers nothing (Elesh Norn: no ability of an opponent's permanent)
+    game.dont_cause_triggers(id, false, &mut sources);
     for p in game.players.iter() {
         sources.extend(p.graveyard.iter().copied());
     }
@@ -20359,6 +20384,7 @@ pub fn can_attack(game: &Game, seat: Seat, id: ObjId) -> bool {
 /// `Combat.selectAttackers` and `HumanPlayer.selectAttackers`: asked only when something can attack; "special" is
 /// the All attack button, a creature toggles it, any other answer is done.
 fn declare_attackers(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
+    game.attack_taps.clear();
     let defender = game.opponent(seat);
     let possible =
         |g: &Game| -> Vec<ObjId> { g.battlefield.iter().copied().filter(|id| can_attack(g, seat, *id)).collect() };
@@ -20478,6 +20504,8 @@ fn attack(game: &mut Game, id: ObjId, defender: Seat, pw: Option<(ObjId, u32)>) 
     if !vigilance {
         tap(game, id);
     }
+    let waiting = game.pending.len();
+    game.attack_taps.push((id, waiting));
 }
 
 /// Undoes a cost's tap (the cost wasn't paid): the "whenever this becomes tapped" triggers it fired go too

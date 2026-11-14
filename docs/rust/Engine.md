@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,367 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -738,6 +738,22 @@ Being in the engine and being trusted are kept apart.
   (`WhileOnBattlefield` subtype ending with its source), card-specific target adjusters (Agadeem's Awakening, Body
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
+
+  Wave 8, claim 2 (14 Nov): `DontCauseTriggerEffect` with its filters (permanents of one filter entering, or dying
+  too, don't trigger the abilities of permanents of another: Hushbringer, Elesh Norn, Mother of Machines),
+  continuous handlers in more than one layer (`Handler::and_layers`: Sigarda's Summons), handler classes whose own
+  duration is until your next turn (`Handler::until_your_next_turn`: Elspeth Conquers Death's chapter II, Kiora),
+  token copies that enter tapped and attacking (Firion), the creatures exiled from the battlefield each turn by
+  controller (Vren), a spell cast for its `AlternativeCostSourceAbility` cost remembered (`Obj::alternative_paid`:
+  Baleful Mastery) and a framework handler for `MoveCountersFromSourceToTargetEffect`. Engine fixes: an exert trigger
+  waits before a later attacker's "becomes tapped" triggers, since Java taps each attacker and asks its exert in turn
+  (`Game::attack_taps`); an activated ability's cost changes that look at its targets apply once the targets are
+  chosen, as Java adjusts costs after targets (Kopala, Warden of Waves on Weapon Rack's ability). Four factory rounds
+  (88 games, 86 matching) verified 41, 35 of them from the claim's list: 11,170 of 11,367. Ten games under
+  `shadow/handlers/game-handlers8-c2-*` cover the engine pieces. Left: Dire Fleet Daredevil (two Masks of
+  Immolation grant the same ability twice in Java, once in Rust), Thaumatic Compass (with two Compasses, their
+  transform triggers wait in a different order), Doomsday Excruciator and Ulamog, the Ceaseless Hunger (pending:
+  not exercised), and the list's cards that need engine work of their own (see the PR).
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory

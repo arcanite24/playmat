@@ -297,6 +297,9 @@ pub struct Obj {
     pub warped: bool,
     /// cast for its evoke cost
     pub evoked: bool,
+    /// cast for its `AlternativeCostSourceAbility`'s costs (`AlternativeCostSourceAbility.getActivatedStatus`:
+    /// Baleful Mastery's "if the {1}{B} cost was paid")
+    pub alternative_paid: bool,
     /// cast for its impending cost (kept from the stack to the battlefield)
     pub impending: bool,
     /// cast for its dash cost
@@ -1048,6 +1051,10 @@ pub struct Game {
     /// cards exiled instead if they would be put into a graveyard this turn (`ThatSpellGraveyardExileReplacementEffect`:
     /// Torrential Gearhulk's instant, from anywhere)
     pub exile_if_graveyard: Vec<ObjId>,
+    /// this combat's attackers as they were declared, each with how many triggers were waiting once it was tapped
+    /// for its attack: Java taps each attacker and asks its exert replacement in turn (`Combat.resumeSelectAttackers`),
+    /// so an exert trigger waits before a later attacker's "becomes tapped" one
+    pub attack_taps: Vec<(ObjId, usize)>,
     /// control changes with a duration, oldest first
     pub control_changes: Vec<ControlChange>,
     /// creatures dealt damage this turn, by source (`DamagedByWatcher`): the source, the creature, its zone change
@@ -1227,6 +1234,8 @@ pub struct TurnWatch {
     pub p1p1_put: Vec<(Seat, i32)>,
     /// `CardsExiledThisTurnWatcher`: objects put into exile
     pub exiled: u32,
+    /// the controller of each creature exiled from the battlefield (Vren, the Relentless' watcher)
+    pub exiled_creatures: Vec<Seat>,
     /// `TriggeredAbility.setDidThisTurn`: the "do this only once each turn" abilities done this turn (the source, its
     /// zone-change count, the ability's index)
     pub did_this_turn: Vec<(ObjId, u32, usize)>,
@@ -1236,6 +1245,39 @@ pub struct TurnWatch {
 }
 
 impl Game {
+    /// `DontCauseTriggerEffect` (`NUMBER_OF_TRIGGERS` replaced): `id` entering (or, `dying`, dying) doesn't cause the
+    /// abilities of `sources` to trigger, of every one (Torpor Orb, Hushbringer) or of permanents of a filter (Elesh
+    /// Norn, Mother of Machines). Cards in graveyards aren't permanents: only the filterless ones stop theirs
+    /// (`filterTriggering` null).
+    pub fn dont_cause_triggers(&self, id: ObjId, dying: bool, sources: &mut Vec<ObjId>) {
+        for s in self.battlefield.iter() {
+            let o = self.obj(*s);
+            for a in &o.def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    let EffectDef::DontCauseTriggerEffect { entering, or_dying, triggering } = e else { continue };
+                    if dying && !*or_dying {
+                        continue;
+                    }
+                    let matches = match entering {
+                        None => self.has_type(id, CardType::Creature),
+                        Some(f) => self.filter_matches(f, o.controller, Some(*s), id),
+                    };
+                    if !matches {
+                        continue;
+                    }
+                    match triggering {
+                        None => sources.clear(),
+                        Some(f) => sources.retain(|t| {
+                            !(self.obj(*t).zone == Zone::Battlefield || *t == id)
+                                || !self.filter_matches(f, o.controller, Some(*s), *t)
+                        }),
+                    }
+                }
+            }
+        }
+    }
+
     /// a snow permanent (`SuperType.SNOW`): its mana pays snow symbols
     pub fn is_snow(&self, id: ObjId) -> bool {
         self.obj(id).def.supertypes.iter().any(|s| s == "SNOW")
@@ -1330,6 +1372,7 @@ impl Game {
             events: None,
             exile_if_dies: Vec::new(),
             exile_if_graveyard: Vec::new(),
+            attack_taps: Vec::new(),
             control_changes: Vec::new(),
             damaged_by_source: Vec::new(),
             combat_damaged_players: Vec::new(),
@@ -1506,6 +1549,7 @@ impl Game {
             pay_tax: 0,
             warped: false,
             evoked: false,
+            alternative_paid: false,
             impending: false,
             dashed: false,
             spent_colors: [0; 5],
@@ -3617,6 +3661,9 @@ impl Game {
         if zone == Zone::Exile && matches!(from, Zone::Graveyard | Zone::Battlefield) {
             self.exiled_batch = true;
         }
+        if zone == Zone::Exile && from == Zone::Battlefield && self.has_type(id, CardType::Creature) {
+            self.watch.exiled_creatures.push(died_controller);
+        }
         if from == Zone::Battlefield && zone == Zone::Graveyard {
             let seen = (
                 died_controller,
@@ -3673,6 +3720,13 @@ impl Game {
             });
             self.trigger_cause = None;
             let mut fired = self.pelt_collector(fired, id);
+            // Hushbringer: a creature dying triggers nothing
+            let mut from: Vec<ObjId> = fired.iter().map(|t| t.card).collect();
+            let before = from.clone();
+            self.dont_cause_triggers(id, true, &mut from);
+            if from != before {
+                fired.retain(|t| from.contains(&t.card));
+            }
             for t in fired.iter_mut() {
                 if matches!(self.trigger_of(t), Some(Trigger::DiesAll { .. })) {
                     t.died = Some((id, died_controller));
@@ -3927,6 +3981,7 @@ impl Game {
             if !(from == Zone::Stack && zone == Zone::Battlefield) {
                 o.warped = false;
                 o.evoked = false;
+                o.alternative_paid = false;
                 o.impending = false;
                 o.dashed = false;
                 // kept as it last was on the battlefield (Vibrance's "if {G}{G} was spent" after its evoke sacrifice)
