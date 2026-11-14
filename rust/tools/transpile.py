@@ -736,6 +736,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'SourceEnteredThisTurnCondition.FALSE': {'c': 'not', 'x': {'c': 'source_entered_this_turn'}},
               'RenownedSourceCondition.ITS': {'c': 'source_renowned'}, 'MonstrousCondition.instance': {'c': 'monstrous'},
               'RenownedSourceCondition.THIS': {'c': 'source_renowned'},
+              'TributeNotPaidCondition.instance': {'c': 'tribute_not_paid'},
               'AdamantCondition.ANY': {'c': 'or', 'xs': [{'c': 'mana_color_spent', 'color': c, 'n': 3} for c in 'WUBRG']},
               'CastFromEverywhereSourceCondition.instance': {'c': 'cast_from_everywhere'},
               'NotMyTurnCondition.instance': {'c': 'not', 'x': {'c': 'my_turn'}},
@@ -2685,6 +2686,7 @@ class Translator:
         # (effect, condition[, text])
         if cls == 'ConditionalOneShotEffect' and len(args) in (2, 3) \
                 and (re.fullmatch(r'\w+Condition\.\w+', args[1].strip()) or args[1].strip() in self.conditions
+                     or card_handlers.condition(self, args[1]) is not None
                      or re.fullmatch(r'new InvertCondition\(\w+Condition\.\w+\)', args[1].strip())
                      or re.fullmatch(r'new \w+Condition\(.*\)', args[1].strip(), re.S)):
             return {'class': cls, 'effect': self.effect(args[0]), 'condition': self.condition(args[1])}
@@ -3933,6 +3935,10 @@ class Translator:
         cls, args = obj
         if cls in KEYWORDS and not args:
             return {'class': cls}
+        # hexproof from a color, monocolored or multicolored, each color
+        if (m := re.fullmatch(r'HexproofFrom(White|Blue|Black|Red|Green|Monocolored|Multicolored|EachColor)Ability', cls)) \
+                and not args:
+            return {'class': 'HexproofFromAbility', 'java': cls, 'from': {'EachColor': 'each_color'}.get(m.group(1), m.group(1).lower())}
         # `new CantBeBlockedSourceAbility("{this} can't be blocked")`: its text only (rule texts come from the facts)
         if cls == 'CantBeBlockedSourceAbility' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}
@@ -4693,6 +4699,15 @@ class Translator:
             return {'class': 'SimpleActivatedAbility', 'java': cls, 'targets': [],
                     'cost': [{'class': 'ManaCost', 'cost': args[0].strip()[1:-1]}],
                     'effects': [{'class': 'BecomeMonstrousSourceEffect', 'amount': amount}]}
+        # tribute N: as this enters, an opponent may put N +1/+1 counters on it
+        if cls == 'TributeAbility' and n == 1 and args[0].isdigit():
+            return {'class': 'EntersBattlefieldAbility', 'java': cls, 'effects': [{'class': 'TributeEffect', 'amount': int(args[0])}]}
+        # exploit: when this enters, you may sacrifice a creature
+        if cls == 'ExploitAbility' and n == 0:
+            return trig({'e': 'enters'}, [{'class': 'ExploitEffect'}], True)
+        # "when this exploits a creature" (`EXPLOITED_CREATURE`)
+        if cls == 'ExploitCreatureTriggeredAbility' and (n in (1, 2) or n == 3 and args[2] == 'SetTargetPointer.NONE'):
+            return trig({'e': 'exploits'}, [self.effect(args[0])], n >= 2 and flag(args[1]))
         if cls == 'BecomesMonstrousSourceTriggeredAbility' and n in (1, 2):
             return trig({'e': 'becomes_monstrous'}, [self.effect(args[0])], n == 2 and flag(args[1]))
         # mentor: whenever this attacks, a +1/+1 counter on target attacking creature with lesser power
@@ -5211,6 +5226,9 @@ class Translator:
             if pointer == 'SetTargetPointer.PLAYER':
                 a['set_target_pointer_player'] = True
             return a
+        # "whenever this deals damage to a player" (not "or planeswalker")
+        if cls == 'DealsDamageToAPlayerTriggeredAbility' and n in (2, 3, 4) and (n < 4 or args[3] == 'false'):
+            return out({'e': 'deals_damage_to_opponent', 'any': True}, args[0], flag(args[1]), n >= 3 and flag(args[2]))
         if cls == 'DealsDamageToOpponentTriggeredAbility' and 1 <= n <= 4:
             return out({'e': 'deals_damage_to_opponent', 'only_combat': n >= 3 and flag(args[2])}, args[0],
                        n >= 2 and flag(args[1]), n == 4 and flag(args[3]))
@@ -5556,6 +5574,10 @@ class Translator:
         # "whenever you activate an exhaust ability" (from the battlefield; from the graveyard isn't in)
         if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.NONE':
             return out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1])}, args[0])
+        # Runic Armasaur: "whenever an opponent activates an ability of a creature or land that isn't a mana ability"
+        if cls == 'RunicArmasaurTriggeredAbility' and n == 0:
+            return out({'e': 'ability_activated', 'kind': 'creature_or_land', 'opponent': True},
+                       'new DrawCardSourceControllerEffect(1)', True)
         # "whenever you activate a loyalty ability [of a <subtype> planeswalker]"
         if cls == 'ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility' and n in (2, 3) \
                 and args[-1].strip() == 'SetTargetPointer.NONE':
