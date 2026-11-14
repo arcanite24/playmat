@@ -598,6 +598,8 @@ pub enum Pred {
     },
     /// `BlockingPredicate`
     Blocking,
+    /// `BlockedPredicate`: an attacking creature that's blocked (`Permanent.isBlocked`)
+    Blocked,
     /// `ManaSpentToCastPredicate`: the mana spent to cast it compared with `n`
     ManaSpent {
         cmp: Cmp,
@@ -2699,6 +2701,12 @@ pub enum EffectDef {
         effects: Vec<EffectDef>,
         rule: String,
     },
+    /// "at the beginning of your next upkeep, …" (`AtTheBeginOfYourNextUpkeepDelayedTriggeredAbility`): the
+    /// controller's next upkeep
+    CreateYourNextUpkeepDelayedEffect {
+        effects: Vec<EffectDef>,
+        rule: String,
+    },
     /// "… at the beginning of your next main phase" (`AtTheBeginOfMainPhaseDelayedTriggeredAbility` with
     /// `TargetController.YOU`): `phase` "main", "main_this_turn", "precombat" or "postcombat"
     CreateNextMainPhaseDelayedEffect {
@@ -3848,6 +3856,20 @@ pub enum EffectDef {
     /// the source gains card types (until end of turn): a crewed Vehicle becomes an artifact creature
     AddCardTypeSourceEffect {
         types: Vec<CardType>,
+        duration: Duration,
+    },
+    /// layer 7b, worked out each time it's read (Java's `DynamicValue` in `apply`): the source's (or, `target`, the
+    /// target's) base power and/or toughness. Resolving, until end of turn (`EndOfTurn`) or for as long as it's
+    /// that object (`WhileOnBattlefield`, Java's `EndOfGame`); in a static ability, while its source is there.
+    /// `SetBasePowerSourceEffect(n, duration)`, `SetBasePowerToughnessSourceEffect(value, duration)`,
+    /// `SetBasePowerToughnessTargetEffect(power, null, duration)`, `SetBaseToughnessSourceEffect`
+    SetBasePtEffect {
+        #[serde(default)]
+        power: Option<Amount>,
+        #[serde(default)]
+        toughness: Option<Amount>,
+        #[serde(default)]
+        target: bool,
         duration: Duration,
     },
     /// a characteristic-defining ability: the source's base power is a number (Lumbering Worldwagon)
