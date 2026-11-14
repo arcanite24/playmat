@@ -5149,6 +5149,10 @@ class Translator:
                 raise Unsupported(cls + ' ' + args[5])
             return out({'e': 'attached_deals_damage_to_player', 'only_combat': n < 5 or flag(args[4]), 'who': who},
                        args[0], flag(args[2]), n >= 4 and flag(args[3]))
+        # "whenever an opponent is dealt noncombat damage" (Massacre Girl, Most Wanted): once for each player's batch
+        if cls == 'OpponentDealtNoncombatDamageTriggeredAbility' and (n == 1 or (n == 3 and args[0] == 'Zone.BATTLEFIELD')):
+            return out({'e': 'opponent_dealt_noncombat_damage_batch'}, args[-2] if n == 3 else args[0],
+                       n == 3 and flag(args[2]))
         # "whenever one or more <filter> you control deal (combat) damage to a player" (effect, filter, onlyCombat,
         # onlyControlled): the engine's batch counts only the permanents you control
         if cls == 'OneOrMoreDamagePlayerTriggeredAbility' and n == 4 and args[3] == 'true':

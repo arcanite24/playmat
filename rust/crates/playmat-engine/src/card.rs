@@ -678,6 +678,9 @@ pub enum Trigger {
         #[serde(default)]
         only_combat: bool,
     },
+    /// an opponent is dealt noncombat damage, once for each player's batch
+    /// (`OpponentDealtNoncombatDamageTriggeredAbility`); X is the batch's damage
+    OpponentDealtNoncombatDamageBatch,
     /// any of `ts` (`OrTriggeredAbility`): it triggers once for an event that any of them triggers on
     Or {
         ts: Vec<Trigger>,

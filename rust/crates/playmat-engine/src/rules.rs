@@ -18628,13 +18628,22 @@ fn player_damage_batch_triggers(game: &mut Game) {
                 .sum()
         };
         let sources = game.trigger_sources();
+        // `DamagedBatchForOnePlayerEvent.isCombatDamage`: its damage was combat damage
+        let noncombat = events.iter().any(|e| !e.2);
+        let dealt: i32 = events.iter().map(|e| e.1).sum();
         let fired = game.triggers(sources, |g, src, you, t| match t {
             Trigger::DamagePlayerBatch { filter, only_combat } => total(g, src, you, filter, *only_combat) > 0,
+            Trigger::OpponentDealtNoncombatDamageBatch => noncombat && you != p,
             _ => false,
         });
         for mut t in fired {
-            if let Some(Trigger::DamagePlayerBatch { filter, only_combat }) = game.trigger_of(&t).cloned() {
-                t.x = total(game, t.card, t.controller, &filter, only_combat);
+            match game.trigger_of(&t).cloned() {
+                Some(Trigger::DamagePlayerBatch { filter, only_combat }) => {
+                    t.x = total(game, t.card, t.controller, &filter, only_combat);
+                }
+                // "damage": the batch's amount
+                Some(Trigger::OpponentDealtNoncombatDamageBatch) => t.x = dealt,
+                _ => {}
             }
             if set_target_pointer_player(game, &t) {
                 t.targets = vec![vec![Target::Player(p)]];
