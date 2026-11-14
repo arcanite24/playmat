@@ -653,6 +653,15 @@ Being in the engine and being trusted are kept apart.
   hexproof (Glaring Spotlight), and cards whose Java order isn't deterministic (Tersa Lightshatter, Winnowing,
   Tibalt's Trickery; hand and graveyard shuffles for Day's Undoing and Commit // Memory).
 
+  Text fixes for verified cards (13 Nov): the Young Hero Role's granted trigger keeps its own text, "put a +1/+1
+  counter on it" (its `AddCountersSourceEffect` has a `setText`), and a delayed upkeep transform is "Transform {this}
+  at the beginning of the next turn's upkeep." (`AtTheBeginOfNextUpkeepDelayedTriggeredAbility.getRule` puts the
+  effect first). Only those texts change in four verified cards: Embereth Veteran, Merry Bards and Protective Parents
+  (the Role) and Archangel Avacyn. Two factory rounds (24 games, 23 matching) verified Furtive Courier and Ka-Zar of
+  the Savage Land, which the Role's text had held back, and claim 6's game with the Role now matches, which verifies
+  Ill-Timed Explosion: 10,681 of 10,837. Left: Aang, at the Crossroads (one game where Java transforms it and the
+  engine doesn't; not a text). Three games under `shadow/handlers/game-handlers-textfix-*` show Java's texts.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:

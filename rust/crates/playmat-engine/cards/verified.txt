@@ -3490,6 +3490,7 @@ Furnace Strider
 Furnace Whelp
 Furor of the Bitten
 Furtive Analyst
+Furtive Courier
 Furtive Homunculus
 Furyblade Vampire
 Furycalm Snarl
@@ -4520,6 +4521,7 @@ Ignite the Beacon
 Iguana Parrot
 Il Mheg Pixie
 Ill-Gotten Inheritance
+Ill-Timed Explosion
 Illegitimate Business
 Illicit Shipment
 Illness in the Ranks
@@ -4882,6 +4884,7 @@ Just the Wind
 Justiciar's Portal
 Jwari Disruption
 K'un-Lun Warrior
+Ka-Zar of the Savage Land
 Kaalia, Zenith Seeker
 Kabira Outrider
 Kabira Takedown

@@ -4069,11 +4069,12 @@ class Translator:
                 and args[1].strip() == 'Duration.OneUse' and args[0].strip() == 'new DrawCardSourceControllerEffect(1)':
             return {'class': 'NextUpkeepDelayed', 'effects': [self.effect(args[0])],
                     'rule': "Draw a card at the beginning of the next turn's upkeep."}
-        # "transform {this} at the beginning of the next upkeep" (Archangel Avacyn)
+        # "transform {this} at the beginning of the next upkeep" (Archangel Avacyn): `getRule` is the effect's text
+        # first, then " at the beginning of the next turn's upkeep."
         if cls == 'AtTheBeginOfNextUpkeepDelayedTriggeredAbility' and len(args) == 1 \
                 and args[0].strip() == 'new TransformSourceEffect()':
             return {'class': 'NextUpkeepDelayed', 'effects': [self.effect(args[0])],
-                    'rule': "At the beginning of the next turn's upkeep, transform {this}."}
+                    'rule': "Transform {this} at the beginning of the next turn's upkeep."}
         if cls == 'AtTheBeginOfNextEndStepDelayedTriggeredAbility' and len(args) == 1 \
                 and args[0].strip() == 'new UntapLandsEffect(2)':
             return {'class': 'NextEndStepDelayed', 'effects': [self.effect(args[0])],
@@ -6848,8 +6849,9 @@ def granted_rules(card):
             # Java writes the granted trigger's own text, where the creature is {this}, unless the card set the
             # trigger phrase itself (`setTriggerPhrase("Whenever this creature attacks, ")`): that's kept as written
             # (a token's too: the Sorcerer Role's "Whenever this creature attacks, ")
-            phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', card_source(card.get('name')) + ''.join(
-                open(os.path.join(TOKENS, cls + '.java')).read() for cls in token_classes([card.get('name')])))
+            with_tokens = card_source(card.get('name')) + ''.join(
+                open(os.path.join(TOKENS, cls + '.java')).read() for cls in token_classes([card.get('name')]))
+            phrases = re.findall(r'setTriggerPhrase\("([^"]*)"\)', with_tokens)
             if any(ph and quoted.group(1).startswith(ph) for ph in phrases):
                 g['rule'] = spaced_and(card, quoted.group(1))
             else:
@@ -6873,8 +6875,11 @@ def granted_rules(card):
                 if not text.endswith(('.', '!', ')', '>', '"')) and card.get('name') not in UNENDED_GRANTED_TEXT:
                     text = text.rstrip(',') + '.'
                 g['rule'] = spaced_and(card, text)
-                # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it")
-                if [e.get('class') for e in g.get('effects', [])] == ['AddCountersSourceEffect']:
+                # `AddCountersSourceEffect` writes its own text: "counters on {this}" (Strength of Will's "on it"),
+                # unless it was given one (the Young Hero Role's `.setText("put a +1/+1 counter on it")`)
+                if [e.get('class') for e in g.get('effects', [])] == ['AddCountersSourceEffect'] and not re.search(
+                        r'new AddCountersSourceEffect\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*\)\s*'
+                        r'\.setText\("[^"]*counters? on it"\)', with_tokens):
                     g['rule'] = re.sub(r'\b(counters? on) it\.$', r'\1 {this}.', g['rule'])
             # `InvestigateEffect()` writes its reminder text after "investigate."
             if g['rule'].endswith('investigate.') and 'new InvestigateEffect()' in card_source(card.get('name')):
