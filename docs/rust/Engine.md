@@ -333,7 +333,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,553 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,669 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -551,6 +551,21 @@ Being in the engine and being trusted are kept apart.
   pending. Not done: triggered mana abilities ("tapped for mana"), "a player attacks with N creatures"
   (`DECLARED_ATTACKERS`, Aurelia, Mangara, Tomik), triggers from the graveyard zone, copy-a-spell triggers and
   `SacrificeSource` triggers; "deals damage" batches are claim 1's work.
+
+  Cast permissions (13 Nov, wave 5): the top of the library (`PlayFromTopOfLibraryEffect`, with a filter checked
+  against the face played, under a condition or a Class level too; Bolas's Citadel's life instead of the mana cost;
+  "Choose the permitting object" when several effects allow the same card; looking at and revealing the top card),
+  Omniscience's alternative cost, `MayCastTargetCardEffect` free and with `thenExile`, exile plays that last while you
+  control the source or until your next end step, and "once during each of your turns, cast from your graveyard"
+  (`CastFromGraveyardOnceWatcher`, in `TurnWatch`) brought 31 more cards in (10,669 in the engine). Two factory rounds
+  (117 games, 111 matching, replayed again on the engine with the wave-5 triggers, turn and combat, and claims 3 and
+  6) verified 25 (Zul Ashur meanwhile by another PR): 10,521. Java lists the permitting objects from a `HashSet` of
+  objects without their own hash, so with Bolas's Citadel and Garruk's Horde both allowing a card, which one a
+  choice's index names isn't reproducible (a game of Garruk's Horde's parts there). Left: Radha, Heart of Keld and
+  Ka-Zar of the Savage Land (their games part on a Swashbuckler's Whip ability's tap cost and the Young Hero Role's
+  text above), Gurgling Anointer and Dreadhorde Arcanist (Tempered Veteran's mana payment; a spell castable only
+  through Guild Globe's mana ability paid by other sources), Omniscience and The Dawning Archaic (not cast in their
+  games). Eleven games under `shadow/factory/` cover the features.
 
   Java's nondeterminism, not copied: tokens created together with `withAdditionalTokens` (Forbidden Friendship's
   Dragon and Human) enter in `CreateTokenEvent`'s `HashMap` order, which changes from run to run, so the games where
