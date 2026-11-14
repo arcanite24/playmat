@@ -2015,6 +2015,9 @@ pub enum EffectDef {
         times: i32,
         #[serde(default)]
         plus: i32,
+        /// plus the number of these counters on the source of the effect (Fated Firepower's fire counters)
+        #[serde(default)]
+        plus_counters: Option<String>,
         #[serde(default)]
         condition: Option<Condition>,
     },
@@ -2026,6 +2029,10 @@ pub enum EffectDef {
         counter: Option<CounterDef>,
         #[serde(default)]
         riot: bool,
+        /// `counter`'s amount is the number of lands that entered under its controller's control this turn
+        /// (Bioengineered Future)
+        #[serde(default)]
+        per_land_entered: bool,
     },
     /// a static ability's effect (`ADD_COUNTERS` replacements: Hardened Scales, Corpsejack Menace, Doubling Season):
     /// counters put on a permanent of `filter` (of the kind `counter`, if given) are `times` that many, plus `plus`;
