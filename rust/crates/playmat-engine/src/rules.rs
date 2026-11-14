@@ -1348,6 +1348,7 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             || suspend(game, seat, *id).is_some()
             || !activatable(game, seat, *id).is_empty()
             || o.def.back.as_ref().is_some_and(|b| b.is(CardType::Land) && can_play_land(game, seat))
+            || o.def.back.as_ref().is_some_and(|b| !b.is(CardType::Land) && castable(game, seat, *id, b))
         {
             out.push(*id);
         }
@@ -1420,6 +1421,15 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
                     || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
                     || spectacle(game, seat, *id).is_some()
                     || morph(game, seat, *id).is_some()
+                    // a modal double-faced card's back (Birgi exiled by Harnfel: Harnfel cast from exile)
+                    || game.may_play_now(*id, seat)
+                        && o.def.back.as_ref().is_some_and(|b| {
+                            if b.is(CardType::Land) {
+                                can_play_land(game, seat)
+                            } else {
+                                castable(game, seat, *id, b)
+                            }
+                        })
             }
         {
             out.push(*id);
@@ -1506,6 +1516,12 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     if back.is(CardType::Land) && can_play_land(game, seat) {
                         if let Some(k) = index(back, &AbilityDef::PlayLandAbility) {
                             out.push((id, def.abilities.len() + k, PlayKind::Land, Some(1)));
+                        }
+                    }
+                    // a back that is cast (Kaldheim's gods' artifacts, the Strixhaven deans)
+                    if !back.is(CardType::Land) && castable(game, seat, id, back) {
+                        if let Some(k) = index(back, &AbilityDef::SpellAbility) {
+                            out.push((id, def.abilities.len() + k, PlayKind::Other, Some(1)));
                         }
                     }
                 }
@@ -1732,7 +1748,9 @@ fn activatable(game: &Game, seat: Seat, id: ObjId) -> Vec<usize> {
         }
         if let AbilityDef::LimitedTimesPerTurnActivatedAbility { limit, condition, .. } = a {
             let used = game.activated_this_turn.iter().filter(|x| **x == (id, i)).count() as u32;
-            if used >= *limit || !game.condition_holds(condition.as_ref(), seat, id) {
+            if used >= cards::max_activations(game, seat, id, i, *limit)
+                || !game.condition_holds(condition.as_ref(), seat, id)
+            {
                 continue;
             }
         }
@@ -3860,7 +3878,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
         // a modal double-faced card with a spell front and a land back (Malakir Rebirth): its back's play ability,
         // after the front's abilities
-        let land_back = (zone == Zone::Hand && !game.obj(id).def.is(CardType::Land))
+        // (from a hand, or from where an effect lets you play the card: Harnfel's exiled cards)
+        let mdfc_zone = zone == Zone::Hand || zone == Zone::Exile && game.may_play_now(id, seat);
+        let land_back = (mdfc_zone && !game.obj(id).def.is(CardType::Land))
             .then(|| game.obj(id).def.back.clone())
             .flatten()
             .filter(|b| b.is(CardType::Land) && can_play_land(game, seat))
@@ -3869,8 +3889,18 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let Some(k) = land_back {
             options.push(k);
         }
+        // a back that is cast (Birgi's Harnfel, Horn of Bounty): its spell ability, after the front's abilities
+        let spell_back = mdfc_zone
+            .then(|| game.obj(id).def.back.clone())
+            .flatten()
+            .filter(|b| !b.is(CardType::Land) && castable(game, seat, id, b))
+            .and_then(|b| b.abilities.iter().position(|a| *a == AbilityDef::SpellAbility))
+            .map(|k| game.obj(id).def.abilities.len() + k);
+        if let Some(k) = spell_back {
+            options.push(k);
+        }
         // its front cast, or its back played: Java shows the picker for either, even with one choice
-        let mdfc = zone == Zone::Hand && !game.obj(id).def.is(CardType::Land) && game.obj(id).def.back.is_some();
+        let mdfc = mdfc_zone && !game.obj(id).def.is(CardType::Land) && game.obj(id).def.back.is_some();
         // a card cast from exile with other mana (airbend's {2}: `setCastSourceIdWithAlternateMana`) shows the picker
         // too, with its one spell
         let alternate = (zone == Zone::Exile).then(|| game.obj(id).play_cost.clone()).flatten();
@@ -4052,6 +4082,18 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 let o = game.obj_mut(id);
                 o.front = Some(full);
                 o.def = back;
+            } else if spell_back == Some(index) {
+                // cast as its back: the whole card again as it leaves the stack or, as a permanent, the battlefield
+                let before = game.clone();
+                let full = game.obj(id).def.clone();
+                let back = full.back.clone().expect("a back");
+                let o = game.obj_mut(id);
+                o.front = Some(full);
+                o.def = back;
+                if !cast(game, d, seat, id) {
+                    *game = before;
+                }
+                return;
             } else if index != 0 {
                 let before = game.clone();
                 if !activate(game, d, seat, id, index) {
@@ -4384,6 +4426,37 @@ fn cast(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
 /// before when it's cancelled.
 fn cast_free(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
     let before = game.clone();
+    if cast_with(game, d, seat, id, true) {
+        return true;
+    }
+    *game = before;
+    false
+}
+
+/// `cast_free` of the spell `chooseAbilityForCast(card, game, true)` picks: a modal double-faced card with a nonland
+/// back offers both faces ("Choose ability to cast for FREE": Plargg casting Selfless Glyphweaver as Deadly Vanity),
+/// the back cast as `play` casts it. False: not cast.
+fn cast_free_face(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) -> bool {
+    let full = game.obj(id).def.clone();
+    let back = full.back.clone().filter(|b| !b.is(CardType::Land));
+    let Some(back) = back else { return cast_free(game, d, seat, id) };
+    // (`getCastableComponents` doesn't look at targets or timing; the back's spell numbered after the front's
+    // abilities, as Java's `L0.0a2`)
+    let Some(k) = back.abilities.iter().position(|a| *a == AbilityDef::SpellAbility) else {
+        return cast_free(game, d, seat, id);
+    };
+    let options = vec![0, full.abilities.len() + k];
+    let pick = match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
+        Answer::Ability(o, i) if o == id && options.contains(&i) => i,
+        _ => return false,
+    };
+    if pick == 0 {
+        return cast_free(game, d, seat, id);
+    }
+    let before = game.clone();
+    let o = game.obj_mut(id);
+    o.front = Some(full);
+    o.def = back;
     if cast_with(game, d, seat, id, true) {
         return true;
     }
@@ -9559,8 +9632,36 @@ fn refresh_land_types(game: &mut Game) {
                         if ability.mana().is_some()
                             || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::TriggeredAbility { .. }))
                 });
+                // the same for permanents you control (Esika's vigilance and "{T}: Add one mana of any color.", a
+                // `CompoundAbility`: Tony Stark's mana ability is `a4`)
+                let gives_controlled = effects.iter().any(|e| {
+                    matches!(e, EffectDef::GainAbilityControlledEffect { ability, .. }
+                        if ability.mana().is_some()
+                            || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. } | AbilityDef::TriggeredAbility { .. }))
+                });
                 for e in effects {
                     match e {
+                        EffectDef::GainAbilityControlledEffect { ability, filter, exclude_source, .. }
+                            if gives_controlled
+                                && ability.mana().is_none()
+                                && !matches!(
+                                    **ability,
+                                    AbilityDef::SimpleActivatedAbility { .. }
+                                        | AbilityDef::LoyaltyAbility { .. }
+                                        | AbilityDef::TriggeredAbility { .. }
+                                        | AbilityDef::WardAbility { .. }
+                                ) =>
+                        {
+                            let you = game.obj(*id).controller;
+                            for to in game.battlefield.iter() {
+                                if !(*exclude_source && to == id)
+                                    && game.obj(*to).controller == you
+                                    && game.filter_matches(filter, you, Some(*id), *to)
+                                {
+                                    granted.push((*to, (**ability).clone()));
+                                }
+                            }
+                        }
                         EffectDef::GainAbilityAttachedEffect { ability }
                             if gives_activated
                                 && ability.mana().is_none()
@@ -18336,7 +18437,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     {
         let o = game.obj(id);
         let dfc = o.printed_def.as_ref().unwrap_or(&o.def);
-        if !o.token && (dfc.transform_back.is_some() || dfc.back.is_some()) && o.trigger_order < DFC_ORDER {
+        // (a modal double-faced card with a nonland back keeps its place: Birgi's "Whenever you cast a spell" waits
+        // before Treacherous Blessing's)
+        let land_back = dfc.back.as_ref().is_some_and(|b| b.is(CardType::Land));
+        if !o.token && (dfc.transform_back.is_some() || land_back) && o.trigger_order < DFC_ORDER {
             let k = DFC_ORDER + game.obj(id).trigger_order;
             game.obj_mut(id).trigger_order = k;
         }
@@ -21617,7 +21721,10 @@ fn transform(game: &mut Game, id: ObjId) {
             true
         }
         None => {
-            let Some(back) = o.def.transform_back.clone() else { return };
+            // a modal double-faced card transforms when both its faces are permanents
+            // (`ModalDoubleFacedCard.isTransformable`: Monica Rambeau)
+            let mdfc = o.def.back.clone().filter(|b| b.is_permanent_card() && o.def.is_permanent_card());
+            let Some(back) = o.def.transform_back.clone().or(mdfc) else { return };
             o.front = Some(std::mem::replace(&mut o.def, back));
             o.transformed_in_place = true;
             false
@@ -22103,6 +22210,7 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             }
         }
         game.lookback = game.battlefield.to_vec();
+        game.simultaneous_from = Some(game.pending.len());
         for id in dying {
             if follows.iter().any(|(a, to)| *a == id && game.obj(*to).zone == Zone::Battlefield) {
                 continue;
@@ -22129,6 +22237,7 @@ pub fn state_based_actions(game: &mut Game) -> bool {
             any = true;
         }
         game.lookback.clear();
+        game.simultaneous_from = None;
         happened |= any;
         if !any {
             return happened;
