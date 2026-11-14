@@ -816,7 +816,12 @@ pub(crate) fn life_cost(game: &Game, of: &CostCx) -> i32 {
 /// The static handlers of permanents that left the battlefield in the current action (`game.lookback`), for an event
 /// of something leaving the battlefield: Java's static abilities look back in time through its short-living LKI
 /// (`AbilityImpl.isInUseableZone`: Valentin blocking a creature, both dying, still exiles it)
-fn each_static_left(game: &Game, ev_kind: EventType, from: Option<Zone>, f: &mut dyn FnMut(&'static Hook, &StaticCx, &EffectDef)) {
+fn each_static_left(
+    game: &Game,
+    ev_kind: EventType,
+    from: Option<Zone>,
+    f: &mut dyn FnMut(&'static Hook, &StaticCx, &EffectDef),
+) {
     if ev_kind != EventType::ZoneChange || from != Some(Zone::Battlefield) {
         return;
     }
