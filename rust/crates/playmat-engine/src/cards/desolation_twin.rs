@@ -8,6 +8,7 @@ pub const HANDLERS: &[Handler] = &[Handler::trigger(
     any,
 )];
 
+/// `this.getSourceId().equals(spell.getSourceId())`: the framework trigger's own test
 fn any(_: &Game, _: &StackItem) -> bool {
     true
 }

@@ -435,6 +435,9 @@ pub enum Pred {
     },
     /// `ManaValueLessThanOrEqualToSourcePowerPredicate`: mana value at most the source's power (as it last was)
     ManaValueAtMostSourcePower,
+    /// `TargetCardWithDifferentNameInLibrary`: a card not named as one already chosen in the library search going on
+    /// (`Game::searching`)
+    DifferentName,
     /// `GreatestPowerControlledPredicate`: a permanent with the greatest power among the creatures its controller
     /// controls
     GreatestPowerControlled,
@@ -2181,8 +2184,12 @@ pub enum EffectDef {
         filter: Filter,
         message: String,
     },
-    /// the first target deals damage equal to its power to the second (Bite Down)
-    DamageWithPowerFromOneToAnotherTargetEffect,
+    /// the first target deals damage equal to its power (times `multiplier`) to the second (Bite Down; Animist's
+    /// Might deals twice that)
+    DamageWithPowerFromOneToAnotherTargetEffect {
+        #[serde(default = "one_i32")]
+        multiplier: i32,
+    },
     /// each opponent loses `amount` life
     LoseLifeOpponentsEffect {
         amount: Amount,
