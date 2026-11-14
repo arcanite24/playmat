@@ -354,9 +354,17 @@ impl Obj {
     /// Where Java's numbering of its abilities starts: a permanent showing its back face (entered transformed, a
     /// battle's back face cast, or transformed on the battlefield) has its back face's card's abilities, whose spell
     /// ability comes first (`TransformingDoubleFacedCardHalf`, `PermanentCard.copyFromCard`: Brigid, Doun's Mind's
-    /// {G} is `a1`)
+    /// {G} is `a1`). A land back face's play-land ability isn't among them
+    /// (`TransformingDoubleFacedCardHalf.getAbilities`: Treasure Cove's "{T}, Sacrifice a Treasure" is `a1`).
     pub fn java_ability_offset(&self) -> usize {
-        usize::from(self.zone == Zone::Battlefield && self.front.as_ref().is_some_and(|f| f.transform_back.is_some()))
+        usize::from(
+            self.zone == Zone::Battlefield
+                && self
+                    .front
+                    .as_ref()
+                    .and_then(|f| f.transform_back.as_ref())
+                    .is_some_and(|b| !b.types.contains(&CardType::Land)),
+        )
     }
 
     /// Sets a line of its view's rules (`Permanent.addInfo`, with `CardUtil.addToolTipMarkTags`)
