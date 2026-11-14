@@ -781,7 +781,11 @@ pub enum Trigger {
     },
     /// you commit a crime: a spell or ability of yours targets an opponent, something of theirs or a card in their
     /// graveyard (`CommittedCrimeTriggeredAbility`)
-    CommittedCrime,
+    CommittedCrime {
+        /// it triggers from its owner's graveyard instead of the battlefield (Forsaken Miner)
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// valiant: this becomes the target of a spell or ability you control for the first time each turn
     Valiant,
     /// you forage (`ForageTriggeredAbility`)
@@ -3083,8 +3087,12 @@ pub enum EffectDef {
         filter: Filter,
         duration: Duration,
     },
-    /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb)
-    DontCauseTriggerEffect,
+    /// a static ability's effect: creatures entering the battlefield don't cause abilities to trigger (Torpor Orb);
+    /// with a filter, permanents of it (Doorkeeper Thrull's artifacts and creatures)
+    DontCauseTriggerEffect {
+        #[serde(default)]
+        filter: Option<Filter>,
+    },
     /// a static ability's effect: each player of `who` can't cast more than one spell (`noncreature`: noncreature
     /// spell, Deafening Silence) each turn
     CantCastMoreThanOneSpellEffect {
@@ -4304,6 +4312,10 @@ pub enum AbilityDef {
         rule: String,
     },
     EntersBattlefieldTappedAbility {
+        /// "… and doesn't untap during your untap step" (Traxos, Scourge of Kroog:
+        /// `DontUntapInControllersUntapStepSourceEffect` added to the same static ability)
+        #[serde(default)]
+        effects: Vec<EffectDef>,
         rule: String,
     },
     /// a Saga: a lore counter as it enters and after your draw step; sacrificed after chapter `max`
@@ -4758,6 +4770,8 @@ pub enum AbilityDef {
     NightboundAbility,
     /// "you may exert this as it attacks"; its `BecomesExertSourceTriggeredAbility` is the next ability
     ExertAbility,
+    /// `ExertAbility(ability, true)`: "if this hasn't been exerted this turn, you may exert it as it attacks"
+    ExertOnceAbility,
     /// enlist: as it attacks, you may tap another untapped nonattacking creature you control without summoning
     /// sickness; when you do, it gets +X/+0 until end of turn, X that creature's power (`EnlistEffect`)
     EnlistAbility,
