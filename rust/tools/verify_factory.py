@@ -101,6 +101,26 @@ def is_land(card):
     return 'LAND' in card.get('types', [])
 
 
+def melds(cards):
+    """meld cards (`meld_card`, never in a deck) -> the cards whose `MeldEffect` makes them"""
+    out = collections.defaultdict(set)
+
+    def walk(x, card):
+        if isinstance(x, list):
+            for y in x:
+                walk(y, card)
+        elif isinstance(x, dict):
+            if x.get('class') == 'MeldEffect' and isinstance(x.get('into'), dict):
+                out[x['into']['name']].add(card)
+                out[x['into']['name']].add(x['with'])
+                return
+            for v in x.values():
+                walk(v, card)
+    for n, c in cards.items():
+        walk(c.get('abilities', []), n)
+    return out
+
+
 def mana_value(card):
     n = 0
     for sym in re.findall(r'\{([^}]*)\}', card.get('cost') or ''):
@@ -174,7 +194,7 @@ def build(args):
     names = [n for n in names if n in cards and n not in verified and not n.startswith('A-')
              and prior.get(n, {}).get('verdict') not in ('verified', 'bug')
              and prior.get(n, {}).get('rounds', 0) < args.max_tries
-             and 'BASIC' not in cards[n].get('supertypes', [])]
+             and 'BASIC' not in cards[n].get('supertypes', []) and not cards[n].get('meld_card')]
     if args.limit:
         names = names[:args.limit]
     if not names:
@@ -460,6 +480,8 @@ def verdicts(args):
     stats = collections.defaultdict(lambda: {'games': 0, 'exercised': 0, 'blamed': [], 'rounds': set()})
     bugs = collections.defaultdict(list)
     totals = collections.Counter()
+    # a meld card is in a game whose decks have one of its halves, and exercised once it's on the battlefield
+    melded = melds(cards)
     for r in rounds(args.work):
         out = round_dir(args.work, r)
         path = os.path.join(out, 'replay.json')
@@ -473,6 +495,7 @@ def verdicts(args):
             g = json.load(open(f))
             base = os.path.basename(f)
             names = game_cards(g)
+            names |= {m for m, halves in melded.items() if halves & names}
             candidates = {n for n in names if n not in verified}
             if g['result'] == 'timeout' or g['result'].startswith('error'):
                 totals['java_unfinished'] += 1
@@ -489,7 +512,8 @@ def verdicts(args):
                 seen = set()
                 for e in g['trace']:
                     seen.update(stack_names(e.get('text'), names, rules))
-                    seen.update(n for n in bf_names(e.get('text')) if n in names and is_land(cards.get(n, {})))
+                    seen.update(n for n in bf_names(e.get('text')) if n in names
+                                and (is_land(cards.get(n, {})) or cards.get(n, {}).get('meld_card')))
                 for n in candidates & seen:
                     stats[n]['exercised'] += 1
             else:

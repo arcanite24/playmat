@@ -72,7 +72,7 @@ pub fn text(game: &Game) -> String {
     exile.sort();
     out.push_str(&format!("exile {}\n", exile.join("|")));
     let mut battlefield: Vec<String> = game
-        .battlefield
+        .all_permanents()
         .iter()
         .map(|id| {
             let o = game.obj(*id);
