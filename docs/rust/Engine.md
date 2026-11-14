@@ -713,6 +713,33 @@ Being in the engine and being trusted are kept apart.
   games, all matching) verified 15 more, 9 from the list: 10,884 of 11,066. Seven games under
   `shadow/handlers/game-handlers-w6c4b-*` cover them.
 
+  Wave 7, stack targets (14 Nov): transpiler forms and engine pieces for targets on the stack brought 54 cards in
+  (11,066 in the engine). New targets: `TargetStackObject` (a spell or an ability, with a `FilterStackObject`;
+  `stack_item_matches` reads an ability as a colorless object of no type, with its own controller, and the
+  predicates `stack_object` (spell, activated, triggered) and `number_of_targets`), `TargetPermanentOrPlayer`, and
+  `TargetSpellOrPermanent` with a spell filter and counts. Java's `TargetStackObject` offers the spell being cast and
+  the object resolving (it resolves while still on the stack), so both can be targeted; a
+  `new FilterActivatedOrTriggeredAbility("text")` matches any stack object, as Java's does once the target copies it
+  (its `copy` is `FilterStackObject`'s). `ChooseNewTargetsTargetEffect` and copies of abilities choose new targets
+  as `StackObjectImpl.chooseNewTarget` does (`rules::choose_new_targets`: "Change this n of m target?", or forced, the
+  one target chosen again until it differs; the changed object's text steers the auto-choice, an ability can pick
+  its own source, and "done" without a choice keeps the old target). Stack objects go by their card, so a copy of
+  the resolving ability that targeted itself gets that target marked gone, and a replayed answer that names a stack
+  place (`Game::picked_stack`) tells a copy picking itself from its original. Also: `CopyTargetSpellEffect` for
+  abilities, `ExileTargetCardCopyAndCastEffect`, the processors' `ExileOpponentsCardFromExileToGraveyardCost`,
+  `CounterUnlessPaysEffect` on an ability, `TargetsPermanentPredicate` and `HasOnlySingleTargetPermanentPredicate`,
+  `SpellCastControllerTriggeredAbility` from the graveyard (`Trigger::SpellCastInGraveyard`) and with a
+  from-zone, a copy of an adventure spell going on its adventure (it stays in exile until state-based actions), and
+  airbend's {2} from exile for either half of an adventurer card. Three factory rounds (90 games, 82 matching)
+  verified 43: 10,865 of 11,066. Nine games under `shadow/handlers/game-stack7-*` cover the engine pieces. Left:
+  Keep Safe, Mirrorshell Crab, Return the Favor (its change-target mode can't pick itself: its targets aren't on the
+  stack yet while it's cast), Rending Volley, Wild Ricochet, Ertai Resurrected and Shiko, Paragon of the Way
+  (one mismatching game each, not yet looked at), and Explosive Welcome, Processor Assault, Nashi, Moon's Legacy and
+  Reenact the Crime (pending, too few games). Still blocked in this area: `GainAbilityControlledSpellsEffect`
+  (about 22 cards; spells and cards in hand gaining convoke, cascade, affinity and the like need granted spell
+  abilities), `TargetCardInGraveyardBattlefieldOrStack`, `CopyStackObjectEffect` and the cards with effect classes
+  of their own.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
