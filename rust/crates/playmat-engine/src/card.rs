@@ -636,6 +636,9 @@ pub enum Trigger {
     SiegeDefeated,
     /// this becomes monstrous (`BecomesMonstrousSourceTriggeredAbility`, `BECOMES_MONSTROUS`)
     BecomesMonstrous,
+    /// this exploits a creature (`ExploitCreatureTriggeredAbility`, `EXPLOITED_CREATURE`): it triggers even when it
+    /// sacrificed itself
+    Exploits,
     /// this enters or transforms into this face (`TransformsOrEntersTriggeredAbility`)
     TransformsOrEnters,
     /// this is turned face up (`TurnedFaceUpSourceTriggeredAbility`, `TURNED_FACE_UP`)
@@ -961,10 +964,13 @@ pub enum Trigger {
         #[serde(default)]
         only_combat: bool,
     },
-    /// this deals damage to an opponent (`only_combat`: combat damage)
+    /// this deals damage to an opponent (`only_combat`: combat damage), or to any player with `any`
+    /// (`DealsDamageToAPlayerTriggeredAbility`)
     DealsDamageToOpponent {
         #[serde(default)]
         only_combat: bool,
+        #[serde(default)]
+        any: bool,
     },
     /// the permanent this is attached to is put into a graveyard from the battlefield; its target is that card
     DiesAttached {
@@ -1134,10 +1140,13 @@ pub enum Trigger {
         #[serde(default)]
         counter: String,
     },
-    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any")
-    /// (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`)
+    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any";
+    /// "creature_or_land": of a creature or land permanent) (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`);
+    /// with `opponent`, an opponent activates it (Runic Armasaur)
     AbilityActivated {
         kind: String,
+        #[serde(default)]
+        opponent: bool,
     },
     /// you activate a loyalty ability of a planeswalker (of `subtype`, when it's set)
     /// (`ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility`)
@@ -1310,6 +1319,8 @@ pub enum Condition {
     SourceRenowned,
     /// `MonstrousCondition`: the source is monstrous
     Monstrous,
+    /// `TributeNotPaidCondition`: the opponent asked didn't pay the source's tribute
+    TributeNotPaid,
     /// `ModeChoice.checkMode`: the source's mode chosen as it entered (`ChooseModeEffect`) is this one (a Siege's
     /// "Khans" or "Dragons")
     ModeChosen {
@@ -2388,6 +2399,12 @@ pub enum EffectDef {
     /// this connives: its controller draws a card, then discards one; a nonland card discarded puts a +1/+1 counter
     /// on it
     ConniveSourceEffect,
+    /// tribute N: as this enters, an opponent of your choice may put N +1/+1 counters on it (`TributeEffect`)
+    TributeEffect {
+        amount: i32,
+    },
+    /// exploit: you may sacrifice a creature (`ExploitEffect`), then "when this exploits a creature" triggers
+    ExploitEffect,
     /// deals damage to the target player equal to the noncreature spells they cast this turn
     MagebaneLizardEffect,
     /// you may cast spells of the filter as though they had flash
@@ -5105,6 +5122,13 @@ pub enum AbilityDef {
     /// changeling: the card is every creature type (`CardDef::all_creature_types`)
     ChangelingAbility,
     HexproofAbility,
+    /// hexproof from a color, "monocolored", "multicolored" or "each_color" (`HexproofFromBlackAbility`…: the
+    /// spell's or ability's source object is of it)
+    HexproofFromAbility {
+        from: String,
+        #[serde(default)]
+        rule: String,
+    },
     /// protection from a color, as an effect grants it (Brave the Elements)
     ProtectionFromColorAbility {
         c: Color,

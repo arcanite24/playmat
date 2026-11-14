@@ -268,6 +268,9 @@ pub struct Obj {
     pub powered_up: bool,
     /// keyword statuses a permanent has while it stays (renowned, an exhaust ability activated), by name
     pub marks: Vec<String>,
+    /// whether its tribute was paid, the last time it entered (Java's `tributeValue` state value, by card: it stays
+    /// as the card changes zones)
+    pub tribute: Option<bool>,
     /// creature types and base power and toughness it has until it leaves the battlefield (Evolved Sleeper: each
     /// "becomes" replaces its creature types)
     pub creature_types: Option<Vec<String>>,
@@ -1676,6 +1679,7 @@ impl Game {
             exerted: false,
             powered_up: false,
             marks: Vec::new(),
+            tribute: None,
             creature_types: None,
             base_pt: None,
             base_pt_at: 0,
@@ -3351,6 +3355,7 @@ impl Game {
             }
             Condition::SourceRenowned => self.obj(source).marks.iter().any(|m| m == "renowned"),
             Condition::Monstrous => self.obj(source).marks.iter().any(|m| m == "monstrous"),
+            Condition::TributeNotPaid => self.obj(source).tribute == Some(false),
             Condition::ModeChosen { mode } => {
                 self.obj(source).marks.iter().any(|m| m.strip_prefix("mode:") == Some(mode))
             }
