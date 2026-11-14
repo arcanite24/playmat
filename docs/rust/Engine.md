@@ -787,11 +787,15 @@ Being in the engine and being trusted are kept apart.
     airbend (exile, castable from exile for {2}: `play_cost`), collect evidence (an optional additional cost, and
     `CollectEvidenceCost` for abilities: the graveyard cards picked in rounds, paid if their mana values add up),
     surge (a second spell ability once its caster has cast a spell this turn), `GreatestPowerControlledPredicate`,
-    `LoseGameSourceControllerEffect`, and Bloodletter of Aclazotz's doubled life loss.
-  - Engine fixes, each with a game under `shadow/mechanics/game-w6mech-*`: a player who loses as an ability resolves
-    leaves at once, so the game ends with it still on the stack (`checkConcede`), and the winner is marked after it
-    leaves; a permanent that was targeted and then sacrificed as a cost doesn't see the spell cast (The Vision
-    sacrificed to Heartfire).
+    and Bloodletter of Aclazotz's doubled life loss.
+  - Engine fixes, each with a game under `shadow/mechanics/game-w6mech-*`: a permanent that was targeted and then
+    sacrificed as a cost doesn't see the spell cast (The Vision sacrificed to Heartfire); a permanent's own trigger
+    reads whether it was kicked (Crimestopper Sprite). Kobayashi Maru Scenario's game covers #351's "you lose the
+    game" ending the game as the ability resolves.
+  - 72 cards came in (10,920 in the engine). Three factory rounds (111 games, 106 matching, replayed again on master
+    after #351) verified 65 more: 10,755. Left: Hedge Whisperer (its land stays a creature in Java), Axebane Ferox
+    (ward paid by collecting evidence), Setessan Tactics (the granted fight ability's stack text); Colossus of Akros,
+    Crush of Tentacles, Hythonia the Cruel, Izoni and Tyrant of Valakut are pending.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
