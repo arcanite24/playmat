@@ -26,8 +26,17 @@ fn most_life(game: &Game, p: Seat) -> bool {
     game.players.iter().all(|q| q.life <= game.player(p).life)
 }
 
+/// `checkTrigger` is only asked as it triggers: resolving, it holds (Preacher killed in response still makes its
+/// token)
+fn resolving(game: &Game, t: &StackItem) -> bool {
+    game.resolving_item.as_ref().is_some_and(|r| r.card == t.card && r.ability == t.ability)
+}
+
 /// It's attacking a player (not a planeswalker or battle: `getPlayer` of one is null), who has the most life
 fn attacks_most_life(game: &Game, t: &StackItem) -> bool {
+    if resolving(game, t) {
+        return true;
+    }
     let o = game.obj(t.card);
     match (o.attacking, o.attacking_pw) {
         (Some(p), None) => most_life(game, p),
@@ -37,7 +46,7 @@ fn attacks_most_life(game: &Game, t: &StackItem) -> bool {
 
 /// It's attacking, and you have the most life
 fn you_most_life(game: &Game, t: &StackItem) -> bool {
-    game.obj(t.card).attacking.is_some() && most_life(game, t.controller)
+    resolving(game, t) || game.obj(t.card).attacking.is_some() && most_life(game, t.controller)
 }
 
 fn draw_lose(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
