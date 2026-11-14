@@ -9029,6 +9029,11 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
         if !fizzles {
             for ((effects, _, part), l) in parts.iter().zip(legal) {
                 if let Some(l) = l {
+                    // legality is checked only as the spell begins to resolve, but a target an earlier mode moved is a
+                    // new object a later mode's target pointer doesn't find (Quandrix Command returning a creature, then
+                    // putting counters on it)
+                    let l: Vec<Vec<Target>> =
+                        l.iter().enumerate().map(|(i, g)| fresh_targets(game, part, i, g)).collect();
                     apply_effects(game, d, part, effects, &l, (id, zcc));
                 }
             }
