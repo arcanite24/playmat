@@ -933,6 +933,31 @@ Being in the engine and being trusted are kept apart.
     40: 10,956 of 11,143 on master with #350. Dragon's Approach, Ruthless Disposal, Sphinx's Approach and Ultimecia, Time Sorceress had no factory
     deck yet.
 
+  Wave 7, area K (keyword mechanics):
+  - Bestow (`BestowAbility`): a spell ability of its own from hand, cast for the bestow cost as an Aura spell with
+    enchant creature (`CardDef::bestow`, `become_aura`). With its target illegal as it resolves it enters as the
+    creature; with a legal one it's attached as it enters, so it doesn't enter as a creature. Its
+    `BestowTypeEffect` static makes it an Aura, and not a creature, while it's attached (`refresh_becomes`), and
+    an Aura with bestow attached to nothing or to a noncreature becomes unattached instead of going to the
+    graveyard (702.102e).
+  - Reconfigure: "attach to target creature you control" (`ReconfigureAttachEffect`) and "unattach"
+    (`ReconfigureUnattachEffect`), both as a sorcery, and `ReconfigureTypeEffect`: not a creature while attached.
+  - Craft (`CraftAbility`): a sorcery-speed ability that exiles the card and its materials (`CraftCost`: other
+    permanents you control and cards in your graveyard of the filter), then returns it transformed
+    (`CraftEffect`).
+  - Mayhem: cast from your graveyard for the mayhem cost if you discarded the card this turn
+    (`discarded_this_turn`). Jump-start is a flashback for the mana cost with a discard. Overload is
+    `OverloadedEffect`, the target effect applied to each permanent of the filter. Enlist is asked for each attacker
+    after exert (tap another untapped creature without summoning sickness, the attacker gets its power until end of
+    turn). For Mirrodin! is its enters trigger with a Rebel token, renew a sorcery-speed graveyard ability.
+  - Engine fix: a creature that lost all abilities (`BecomesCreatureTargetEffect`'s `loseAllAbilities`) loses its
+    keyword counters' abilities too, since Java adds those first in layer 6 (Dragonshift on a creature with a
+    lifelink counter).
+  - Hideaway isn't done: each of its seven Pioneer cards needs more than the keyword.
+  - Games covering these are under `shadow/mechanics/game-w7k-*`.
+  - 94 cards came in. Three factory rounds (120 games, all matching once fixed, replayed again on master after
+    #353) verified 93: 11,049 of 11,238. Sandman's Quicksand had no factory deck yet.
+
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
       python3 rust/tools/verify_factory.py record --work $W --procs 8     # long: run it in the background
