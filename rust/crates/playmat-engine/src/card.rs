@@ -228,6 +228,11 @@ pub enum TargetDef {
     TargetSpell {
         #[serde(default)]
         filter: Filter,
+        /// "up to one target spell" (`TargetSpell(0, 1, filter)`)
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
     },
     /// an activated or triggered ability on the stack (`TargetActivatedOrTriggeredAbility`), named by its source
     /// Consign to Memory: a triggered ability or a colorless spell on the stack
@@ -238,10 +243,27 @@ pub enum TargetDef {
         #[serde(default = "one")]
         max: usize,
     },
-    /// any other spell, or a permanent of the filter
+    /// a spell or an ability on the stack of the filter (`TargetStackObject` with a `FilterStackObject`), an ability
+    /// named by its source as `TargetStackAbility`'s are; a spell can target itself, as Java's offers it
+    TargetStackObject {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
+    /// any other spell (of `spell_filter`, when there is one), or a permanent of the filter
+    /// (`FilterSpellOrPermanent`'s spell and permanent filters)
     TargetSpellOrPermanent {
         #[serde(default)]
         filter: Filter,
+        #[serde(default)]
+        spell_filter: Option<Filter>,
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
     },
     /// a permanent of the filter
     TargetPermanent {
@@ -260,6 +282,18 @@ pub enum TargetDef {
         x_count: bool,
     },
     TargetPlayerOrPlaneswalker,
+    /// a player (an opponent with `opponents`) or a permanent of the filter (`TargetPermanentOrPlayer` with a
+    /// `FilterPermanentOrPlayer`: Onakke Javelineer's "player or battle")
+    TargetPermanentOrPlayer {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        opponents: bool,
+        #[serde(default = "one")]
+        min: usize,
+        #[serde(default = "one")]
+        max: usize,
+    },
     /// an opponent or a planeswalker an opponent controls
     TargetOpponentOrPlaneswalker,
     /// a card in a graveyard (`TargetCardInGraveyard`, or `…InYourGraveyard` with the "you" owner predicate)
@@ -289,6 +323,10 @@ impl TargetDef {
         match &mut t {
             TargetDef::TargetAnyTarget { min, max, .. }
             | TargetDef::TargetPermanent { min, max, .. }
+            | TargetDef::TargetSpell { min, max, .. }
+            | TargetDef::TargetSpellOrPermanent { min, max, .. }
+            | TargetDef::TargetPermanentOrPlayer { min, max, .. }
+            | TargetDef::TargetStackObject { min, max, .. }
             | TargetDef::TargetCardInGraveyard { min, max, .. } => {
                 *min = 1;
                 *max = 1;
@@ -353,6 +391,19 @@ impl Cmp {
 pub enum Pred {
     /// a spell that targets a permanent of the filter (`TargetsPermanentPredicate`)
     TargetsPermanent {
+        filter: Filter,
+    },
+    /// a stack object of a kind: "spell" (Java's `instanceof Spell`), "activated" or "triggered" ability
+    StackObject {
+        kind: String,
+    },
+    /// a spell or ability with this many targets, in every chosen mode (`NumberOfTargetsPredicate`)
+    NumberOfTargets {
+        n: usize,
+    },
+    /// a spell whose targets are one permanent of the filter and nothing else, chosen once or more
+    /// (`HasOnlySingleTargetPermanentPredicate`)
+    SingleTargetPermanent {
         filter: Filter,
     },
     /// its mana cost is one of these (Urza's Saga's "{0} or {1}")
@@ -886,6 +937,12 @@ pub enum Trigger {
         filter: Filter,
         who: String,
     },
+    /// `SpellCastControllerTriggeredAbility(Zone.GRAVEYARD, …)`: while this card is in a graveyard, `who` casts a
+    /// spell of the filter
+    SpellCastInGraveyard {
+        filter: Filter,
+        who: String,
+    },
     /// this card is cycled (`CycleTriggeredAbility`); its X is the cycling's
     Cycled,
     /// evolve: a creature you control enters with greater power or toughness than this one
@@ -1381,6 +1438,8 @@ pub enum CostDef {
     ExileSourceCost,
     /// exile this card from your graveyard
     ExileSourceFromGraveCost,
+    /// put a card an opponent owns from exile into its owner's graveyard (the processors' `Ingest` payoff)
+    ExileOpponentsCardFromExileToGraveyardCost,
     /// remove counters from the source
     RemoveCountersSourceCost {
         counter: CounterDef,
@@ -2477,6 +2536,15 @@ pub enum EffectDef {
         keep_targets: bool,
         #[serde(default)]
         not_legendary: bool,
+        /// what it copies may be an activated or triggered ability too (`TargetStackObject`)
+        #[serde(default)]
+        abilities: bool,
+    },
+    /// "change the target of" (`force`, one target that must change) or "you may choose new targets for" the target
+    /// spell or ability (`ChooseNewTargetsTargetEffect`, `StackObjectImpl.chooseNewTargets`)
+    ChooseNewTargetsTargetEffect {
+        #[serde(default)]
+        force: bool,
     },
     /// exile your top card; you may cast it, and if you don't, 2 damage to each opponent
     ChandraTorchOfDefianceEffect,
@@ -3433,6 +3501,12 @@ pub enum EffectDef {
     },
     /// the reflexive part: exile the target cards, then you may cast a copy of each without paying its mana cost
     BloodthirstyAdversaryCopyEffect,
+    /// exile the target card, copy it, and cast the copy (if you choose to, when `optional`), without paying its mana
+    /// cost when `no_mana` (`ExileTargetCardCopyAndCastEffect`)
+    ExileTargetCardCopyAndCastEffect {
+        no_mana: bool,
+        optional: bool,
+    },
     /// counter the target ability; its artifact, creature or planeswalker loses all abilities while the source stays
     TishanasTidebinderEffect,
     /// the target opponent reveals their hand; you exile a nonland card from it, yours to cast if the gift was promised

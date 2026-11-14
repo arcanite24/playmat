@@ -834,7 +834,10 @@ FILTER_CLASSES = {
     'FilterNonlandCard': [{'p': 'not', 'x': LAND}], 'FilterPermanentCard': [{'p': 'permanent_card'}],
     'FilterInstantOrSorceryCard': [{'p': 'or', 'xs': [type_pred('INSTANT'), type_pred('SORCERY')]}],
     'FilterBasicLandCard': [LAND, {'p': 'supertype', 's': 'BASIC'}],
-    'FilterStackObject': [], 'FilterCreatureCards': [CREATURE],
+    'FilterStackObject': [],
+    'FilterActivatedOrTriggeredAbility': [{'p': 'or', 'xs': [{'p': 'stack_object', 'kind': 'activated'},
+                                                             {'p': 'stack_object', 'kind': 'triggered'}]}],
+    'FilterCreatureCards': [CREATURE],
     'FilterEnchantmentCard': [type_pred('ENCHANTMENT')], 'FilterBasicCard': [{'p': 'supertype', 's': 'BASIC'}],
     'FilterBlockingCreature': [CREATURE, {'p': 'blocking'}],
     'FilterAttackingOrBlockingCreature': [CREATURE, {'p': 'in_combat'}],
@@ -962,10 +965,55 @@ def predicate(text, subtypes):
         return {'p': 'not', 'x': predicate(m.group(1), subtypes)}
     if (m := re.fullmatch(r'Predicates\.(or|and)\((.*)\)', text)):
         return {'p': m.group(1), 'xs': [predicate(x, subtypes) for x in split_args(m.group(2))]}
+    # stack objects: a spell, an activated or a triggered ability; a number of targets
+    if text in STACK_PREDICATES:
+        return copy.deepcopy(STACK_PREDICATES[text])
+    if (m := re.fullmatch(r'new NumberOfTargetsPredicate\((\d+)\)', text)):
+        return {'p': 'number_of_targets', 'n': int(m.group(1))}
+    # a spell that targets a permanent of the filter (`TargetsPermanentPredicate`); only a single permanent of it
+    # and nothing else (`HasOnlySingleTargetPermanentPredicate`)
+    if (m := re.fullmatch(r'new (TargetsPermanentPredicate|HasOnlySingleTargetPermanentPredicate)\((\w+(?:\.\w+)?)\)', text)):
+        return {'p': 'targets_permanent' if m.group(1).startswith('Targets') else 'single_target_permanent',
+                'filter': named_filter(m.group(2), subtypes)}
     # a predicate class written by hand in Rust (src/cards/, card_handlers.py)
     if (h := card_handlers.predicate(text)) is not None:
         return h
     raise Unsupported('predicate ' + text)
+
+
+_SPELL_OBJ = {'p': 'stack_object', 'kind': 'spell'}
+_INSTANT_SORCERY = {'p': 'or', 'xs': [{'p': 'type', 't': 'INSTANT'}, {'p': 'type', 't': 'SORCERY'}]}
+# predicates on stack objects: framework ones, and the enums cards declare for their `FilterStackObject`s
+STACK_PREDICATES = {
+    'TriggeredAbilityPredicate.instance': {'p': 'stack_object', 'kind': 'triggered'},
+    'ActivatedOrTriggeredAbilityPredicate.instance': {'p': 'or', 'xs': [{'p': 'stack_object', 'kind': 'activated'},
+                                                                        {'p': 'stack_object', 'kind': 'triggered'}]},
+    # "instant spell, sorcery spell, activated ability, or triggered ability"
+    'ReturnTheFavorPredicate.instance': {'p': 'or', 'xs': [{'p': 'not', 'x': _SPELL_OBJ}, _INSTANT_SORCERY]},
+    # "activated ability, triggered ability, or noncreature spell"
+    'LouisoixsSacrificePredicate.instance': {'p': 'or', 'xs': [{'p': 'not', 'x': _SPELL_OBJ},
+                                                               {'p': 'not', 'x': {'p': 'type', 't': 'CREATURE'}}]},
+    # "activated ability, triggered ability, or legendary spell"
+    'TalesEndPredicate.instance': {'p': 'or', 'xs': [{'p': 'not', 'x': _SPELL_OBJ},
+                                                     {'p': 'supertype', 's': 'LEGENDARY'}]},
+    # "instant spell, sorcery spell, or triggered ability"
+    'SpiderSensePredicate.instance': {'p': 'or', 'xs': [{'p': 'and', 'xs': [_SPELL_OBJ, _INSTANT_SORCERY]},
+                                                        {'p': 'stack_object', 'kind': 'triggered'}]},
+}
+
+# the filter fields of the card being read so far (`declared_filters`), for a predicate naming one
+_declaring = {}
+
+
+def named_filter(name, subtypes):
+    """a filter a predicate names: a `StaticFilters` one or a field the card declared before"""
+    if name.startswith('StaticFilters.'):
+        found = static_filters(subtypes).get(name[len('StaticFilters.'):])
+    else:
+        found = _declaring.get(name)
+    if not isinstance(found, list):
+        raise Unsupported('filter ' + name)
+    return [dict(p) for p in found]
 
 
 def filter_object(cls, args, adds, subtypes):
@@ -982,6 +1030,10 @@ def filter_object(cls, args, adds, subtypes):
     if cls not in FILTER_CLASSES:
         raise Unsupported('filter class ' + cls)
     preds = [dict(p) for p in FILTER_CLASSES[cls]]
+    # `new FilterActivatedOrTriggeredAbility("text")` adds no predicate, and its `match` override is lost when the
+    # target copies it (`copy` is `FilterStackObject`'s): it matches any stack object, spells too
+    if cls == 'FilterActivatedOrTriggeredAbility' and [a for a in args if a.strip()]:
+        preds = []
     for a in args:
         a = a.strip()
         # its text: a literal, or one built of literals and subtype names
@@ -998,6 +1050,8 @@ def filter_object(cls, args, adds, subtypes):
 
 
 ANY_OTHER_TARGET = [{'p': 'any_other_target'}]
+# a `FilterAnyTarget` with nothing added
+ANY_TARGET_PLAIN = [{'p': 'any_target_plain'}]
 # any target other than the ability's first target (`AnotherTargetPredicate(2, true)` on both halves: Drakuseth)
 ANY_TARGET_NOT_FIRST = [{'p': 'any_target_not_first'}]
 
@@ -1005,12 +1059,22 @@ ANY_TARGET_NOT_FIRST = [{'p': 'any_target_not_first'}]
 def declared_filters(source, subtypes):
     """filter fields (`static final FilterX name = new FilterX(…); static { name.add(…); }`) -> filters by name; one
     that can't be read is left out (the card fails only if it uses it)"""
+    global _declaring
     out = {}
+    outer = _declaring
+    _declaring = out
+    try:
+        return declared_filters_into(out, source, subtypes)
+    finally:
+        _declaring = outer
+
+
+def declared_filters_into(out, source, subtypes):
     # the card being read, for a predicate class it declares with a handler (`card_handlers.predicate`)
     card_handlers.SOURCE = source
     # predicate fields (`static final Predicate<…> predicate = Predicates.or(…);`), by name
     preds = {m.group(1): canonical(m.group(2))
-             for m in re.finditer(r'static final Predicate<[\w<>, ]*> (\w+)\s*=\s*(.*?);', source, re.S)}
+             for m in re.finditer(r'static final Predicate(?:<[\w<>, ]*>)? (\w+)\s*=\s*(.*?);', source, re.S)}
     # top-level classes: a field's `add`s are read from its own class (two classes may both have a `filter`; the
     # first, the card's, wins)
     starts = [m.start() for m in re.finditer(r'^(?:public |final |abstract )*(?:class|enum) ', source, re.M)] + [len(source)]
@@ -1032,12 +1096,61 @@ def declared_filters(source, subtypes):
                 and len(re.findall(r'\b' + name + r'\.', source)) == 2:
             out[name] = ANY_TARGET_NOT_FIRST
             continue
+        # "any other target": `AnotherTargetPredicate(n)` on both its permanent and player filters, nothing else
+        if cls == 'FilterAnyTarget' and len(args) <= 1 \
+                and (pa := re.findall(r'\b' + name + r'\.getPermanentFilter\(\)\.add\(new AnotherTargetPredicate\(([2-9])(?:,\s*true)?\)\);', source)) \
+                and re.findall(r'\b' + name + r'\.getPlayerFilter\(\)\.add\(new AnotherTargetPredicate\(([2-9])(?:,\s*true)?\)\);', source) == pa \
+                and len(pa) == 1 and len(re.findall(r'\b' + name + r'\.', source)) == 2:
+            out[name] = ANY_TARGET_NOT_FIRST
+            continue
+        # any target, nothing added (Callous Sell-Sword's "any other target" checks nothing more)
+        if cls == 'FilterAnyTarget' and len(args) <= 1 and not re.search(r'\b' + name + r'\.', source):
+            out[name] = ANY_TARGET_PLAIN
+            continue
+        # a permanent of a filter or a player (an opponent with `FilterOpponent`)
+        if cls == 'FilterPermanentOrPlayer' and len(args) in (1, 3) \
+                and not re.search(r'\b' + name + r'\.(?!getPermanentFilter\(\)\.add)\w', source):
+            try:
+                perm = []
+                opponents = False
+                if len(args) == 3:
+                    if args[2].strip() == 'new FilterOpponent()':
+                        opponents = True
+                    elif args[2].strip() != 'new FilterPlayer()':
+                        raise Unsupported('player filter ' + args[2].strip())
+                    a1 = args[1].strip()
+                    if a1.startswith('StaticFilters.'):
+                        perm = named_filter(a1, subtypes)
+                    elif re.fullmatch(r'\w+', a1):
+                        perm = named_filter(a1, subtypes)
+                    elif (fm := re.fullmatch(r'new (Filter\w+)\((.*)\)', a1, re.S)):
+                        perm = filter_object(fm.group(1), split_args(fm.group(2)), [], subtypes)
+                    else:
+                        raise Unsupported('filter ' + a1)
+                perm = perm + [predicate(preds.get(canonical(x), canonical(x)), subtypes) for x in
+                               re.findall(r'\b' + name + r'\.getPermanentFilter\(\)\.add\((.*?)\);', source, re.S)]
+                out[name] = PermanentOrPlayerFilter(perm, opponents)
+            except Unsupported as e:
+                out[name] = e
+            continue
         adds = [canonical(p) for p in re.findall(r'\b' + name + r'\.add\((.*?)\);', source, re.S)]
         adds = [preds.get(a, a) for a in adds]
         # "spell or creature" (Fatehold Charm): any spell, or a creature
         if cls == 'FilterSpellOrPermanent' and not adds \
                 and re.search(r'\b' + name + r'\.setPermanentFilter\(new FilterCreaturePermanent\(\)\);', source):
             out[name] = SPELL_OR_CREATURE
+            continue
+        # a spell of one filter or a permanent of another (`match` reads only those two, not its own `add`s)
+        if cls == 'FilterSpellOrPermanent' and not adds and len(args) <= 1 \
+                and not re.search(r'\b' + name + r'\.(?!getPermanentFilter\(\)\.add|getSpellFilter\(\)\.add)\w', source):
+            try:
+                spell = [predicate(preds.get(canonical(x), canonical(x)), subtypes) for x in
+                         re.findall(r'\b' + name + r'\.getSpellFilter\(\)\.add\((.*?)\);', source, re.S)]
+                perm = [predicate(preds.get(canonical(x), canonical(x)), subtypes) for x in
+                        re.findall(r'\b' + name + r'\.getPermanentFilter\(\)\.add\((.*?)\);', source, re.S)]
+                out[name] = SpellOrPermanentFilter(spell, perm)
+            except Unsupported as e:
+                out[name] = e
             continue
         # "this or another <filter>" of a filter the card declared before
         if cls == 'FilterPermanentThisOrAnother' and len(args) in (2, 3) and args[1].strip() in ('true', 'false') \
@@ -1154,6 +1267,22 @@ IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'Ome
 
 class Unsupported(Exception):
     pass
+
+
+class PermanentOrPlayerFilter(Unsupported):
+    """a `FilterPermanentOrPlayer` of a permanent filter and every player or only opponents: only a
+    `TargetPermanentOrPlayer` reads it"""
+    def __init__(self, permanent, opponents):
+        super().__init__('filter of permanents or players')
+        self.permanent, self.opponents = permanent, opponents
+
+
+class SpellOrPermanentFilter(Unsupported):
+    """a `FilterSpellOrPermanent` with its spell and permanent filters (`getSpellFilter().add`,
+    `getPermanentFilter().add`): only a `TargetSpellOrPermanent` reads it, anywhere else it's unsupported"""
+    def __init__(self, spell, permanent):
+        super().__init__('filter of spells or permanents')
+        self.spell, self.permanent = spell, permanent
 
 
 def class_name(card_name):
@@ -1616,6 +1745,11 @@ class Translator:
         expr = self.strip_setters(expr)
         if expr in self.vars:
             return self.vars[expr]
+        # `SpellCastControllerTriggeredAbility.createWithFromZone(effect, filter, optional, fromZone)`
+        m = re.fullmatch(r'SpellCastControllerTriggeredAbility\.createWithFromZone\((.*)\)', expr, re.S)
+        if m and balanced(expr) and len(a := split_args(m.group(1))) == 4:
+            return self.new_expr('new SpellCastControllerTriggeredAbility(Zone.BATTLEFIELD,' + ','.join(a[:3])
+                                 + ',SetTargetPointer.NONE,' + a[3] + ')')
         # `ability.copy()`: the same ability again (a double-faced card's back with its front's)
         m = re.fullmatch(r'(\w+)\.copy\(\)', expr)
         if m and isinstance(self.vars.get(m.group(1)), dict):
@@ -1785,6 +1919,8 @@ class Translator:
         if cls == 'GenericManaCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': 'ManaCost', 'cost': '{' + args[0] + '}'}
         if cls in ('TapSourceCost', 'SacrificeSourceCost', 'ExileSourceCost', 'ExileSourceFromGraveCost', 'ForageCost', 'ExertSourceCost', 'DiscardSourceCost') and not args:
+            return {'class': cls}
+        if cls == 'ExileOpponentsCardFromExileToGraveyardCost' and len(args) == 1 and args[0].strip() in ('true', 'false'):
             return {'class': cls}
         if cls == 'RemoveCounterCost' and len(args) == 3 and args[1].strip() in COUNTERS and args[2].strip().isdigit() \
                 and (n := re.fullmatch(r'new TargetControlledCreaturePermanent\(1,(\d+)\)', canonical(args[0]))):
@@ -2144,6 +2280,13 @@ class Translator:
         if cls == 'ReturnToHandChosenControlledPermanentEffect' \
                 and (len(args) == 1 or (len(args) == 2 and re.fullmatch(r'\d+', args[1]))):
             return {'class': cls, 'filter': self.filter(args[0]), 'amount': int(args[1]) if len(args) == 2 else 1}
+        # exile the target card, copy it, and (you may) cast the copy, free or not (`ExileTargetCardCopyAndCastEffect`)
+        if cls == 'ExileTargetCardCopyAndCastEffect' and ','.join(a.strip() for a in args) in ('true', 'false', 'true,true', 'true,false', 'false,true', 'false,false'):
+            a = [x.strip() for x in args]
+            return {'class': cls, 'no_mana': a[0] == 'true', 'optional': len(a) == 1 or a[1] == 'true'}
+        # "you may choose new targets for" / "change the target of" (one target) target spell or ability
+        if cls == 'ChooseNewTargetsTargetEffect' and ','.join(a.strip() for a in args) in ('', 'false,false', 'true,true'):
+            return {'class': cls, 'force': bool(args) and args[0].strip() == 'true'}
         # `CopyTargetStackObjectEffect` copying a spell under your control, new targets allowed (checked against
         # its targets by `copies_spells_only`)
         if cls == 'CopyTargetStackObjectEffect' and ','.join(args) in ('', 'true', 'false', 'false,false,true'):
@@ -3595,6 +3738,13 @@ class Translator:
         # Consign to Memory: "triggered ability or colorless spell"
         if cls == 'TargetStackObject' and len(args) == 1 and 'ConsignToMemoryPredicate' in str(self.filters.get(args[0].strip())):
             return {'class': 'TargetTriggeredAbilityOrColorlessSpell'}
+        # a spell or ability on the stack (`TargetStackObject()` is any)
+        # (`TargetActivatedOrTriggeredAbility(filter)` is a `TargetStackObject` of that filter alone: a plain
+        # `FilterStackObject` "you control" lets Java choose a spell too, Lithoform Engine's)
+        if cls == 'TargetActivatedOrTriggeredAbility' and len(args) == 1:
+            return {'class': 'TargetStackObject', 'filter': self.filter(args[0])}
+        if cls == 'TargetStackObject' and len(args) <= 1:
+            return {'class': cls, 'filter': self.filter(args[0]) if args else []}
         # X divided among any number of creatures (one point each at least)
         # a fixed amount over 3 needs no target at all (`amount > 3 ? 0 : 1`: Fight with Fire's 10 damage)
         # (a `DynamicValue` amount needs none either: `super(amount, 0, …)`, Undercity Upheaval's X with no creature)
@@ -3623,11 +3773,42 @@ class Translator:
         if cls == 'TargetPermanentOrPlayer' and len(args) == 4 and self.filters.get(args[2].strip()) == ANY_TARGET_NOT_FIRST \
                 and re.fullmatch(r'\d+', args[0].strip()) and re.fullmatch(r'\d+', args[1].strip()) and args[3].strip() == 'false':
             return {'class': 'TargetAnyTarget', 'min': int(args[0]), 'max': int(args[1]), 'not_first': True}
+        if cls == 'TargetPermanentOrPlayer' and len(args) == 1 and self.filters.get(args[0].strip()) is ANY_TARGET_PLAIN:
+            return {'class': 'TargetAnyTarget'}
+        if cls == 'TargetPermanentOrPlayer' and len(args) == 1 and self.filters.get(args[0].strip()) == ANY_TARGET_NOT_FIRST:
+            return {'class': 'TargetAnyTarget', 'not_first': True}
+        # a permanent of a filter or a player: `(filter)` or `(1, 1, filter, false)`
+        if cls == 'TargetPermanentOrPlayer' and (len(args) == 1 or len(args) == 4 and [a.strip() for a in args[:2] + args[3:]] == ['1', '1', 'false']) \
+                and isinstance(f := self.filters.get(args[-1 if len(args) == 1 else 2].strip()), PermanentOrPlayerFilter):
+            out = {'class': cls, 'filter': [dict(p) for p in f.permanent]}
+            if f.opponents:
+                out['opponents'] = True
+            return out
         if cls == 'TargetPermanentOrPlayer' and len(args) == 1 and self.filters.get(args[0].strip()) == ANY_OTHER_TARGET:
             return {'class': 'TargetAnyTarget', 'another': True}
         if cls == 'TargetSpellOrPermanent' and [a.strip() for a in args[:2] + args[3:]] == ['1', '1', 'false'] \
                 and self.filters.get(args[2].strip()) is SPELL_OR_CREATURE:
             return {'class': cls, 'filter': [dict(CREATURE)]}
+        # `TargetSpellOrPermanent()`, `(filter)`, `(min, max)`, `(min, max, filter, false)`
+        if cls == 'TargetSpellOrPermanent':
+            a = [x.strip() for x in args]
+            if a and a[-1] == 'false' and len(a) == 4:
+                a = a[:-1]
+            counts = [int(x) for x in a if re.fullmatch(r'\d+', x)]
+            rest = [x for x in a if not re.fullmatch(r'\d+', x)]
+            if len(counts) not in (0, 2) or len(rest) > 1 or (counts and a[:2] != [str(c) for c in counts]):
+                raise Unsupported('target ' + expr)
+            out = {'class': cls, 'filter': []}
+            if rest:
+                f = self.filters.get(rest[0])
+                if not isinstance(f, SpellOrPermanentFilter):
+                    raise Unsupported('target ' + expr)
+                out['filter'] = f.permanent
+                if f.spell:
+                    out['spell_filter'] = f.spell
+            if counts and counts != [1, 1]:
+                out['min'], out['max'] = counts
+            return out
         if cls == 'TargetAnyTarget' and len(args) == 2 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
             return {'class': cls, 'min': int(args[0]), 'max': int(args[1])}
         if cls not in TARGET_CLASSES:
@@ -3648,7 +3829,10 @@ class Translator:
             keep = preds if cls in ('TargetCardInYourGraveyard', 'TargetCardInOpponentsGraveyard') else []
             out['filter'] = [dict(p) for p in keep] + self.filter(rest[0])
         if kind == 'TargetSpell':
-            if ints:
+            # "up to one target spell": `TargetSpell(0, 1, filter)`
+            if len(ints) == 2 and ints[0] <= ints[1] and len(args) == 3:
+                out['min'], out['max'] = ints
+            elif ints:
                 raise Unsupported('target ' + expr)
         elif len(ints) == 1:
             out['min'] = out['max'] = ints[0]
@@ -3948,7 +4132,7 @@ class Translator:
         # `new MenaceAbility(false)`: the flag only changes the reminder text
         if cls == 'MenaceAbility' and args in (['false'], ['true']):
             return {'class': cls}
-        if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and 'CantBeCounteredSourceEffect' in args[1])):
+        if cls == 'SimpleStaticAbility' and len(args) == 2 and (args[0] in ('Zone.ALL', 'Zone.BATTLEFIELD', 'Zone.COMMAND') or (args[0] == 'Zone.STACK' and ('CantBeCounteredSourceEffect' in args[1] or (self.vars.get(args[1].strip()) or {}).get('class') == 'CantBeCounteredSourceEffect'))):
             args = args[1:]
         # "… as long as …. Otherwise, …" (`ConditionalContinuousEffect(effect, otherwise, condition, text)`): each
         # effect under its side of the condition
@@ -4294,6 +4478,24 @@ class Translator:
             a = self.ability('new SpellCastControllerTriggeredAbility(' + ','.join(args[1:4]) + ')')
             a['on']['filter'] = a['on']['filter'] + [
                 {'p': 'cast_from', 'zone': {'GRAVEYARD': 'graveyard', 'EXILED': 'exile', 'HAND': 'hand'}[z.group(1)]}]
+            return a
+        # `(zone, effect, filter, optional, setTargetPointer[, fromZone])`: from the battlefield or a graveyard (the
+        # card triggers while it's there), pointing at the spell or not, only for spells cast from a zone
+        if cls == 'SpellCastControllerTriggeredAbility' and len(args) in (5, 6) \
+                and args[0].strip() in ('Zone.BATTLEFIELD', 'Zone.GRAVEYARD') \
+                and args[4].strip() in ('SetTargetPointer.NONE', 'SetTargetPointer.SPELL') \
+                and (len(args) == 5 or re.fullmatch(r'Zone\.(GRAVEYARD|EXILED|HAND)', args[5].strip())) \
+                and not (args[0].strip() == 'Zone.BATTLEFIELD' and len(args) == 5):
+            filt = 'StaticFilters.FILTER_SPELL_A' if args[2].strip() == 'null' else args[2]
+            a = self.ability('new SpellCastControllerTriggeredAbility(' + ','.join([args[1], filt, args[3]]) + ')')
+            if len(args) == 6:
+                z = args[5].strip()[len('Zone.'):]
+                a['on']['filter'] = a['on']['filter'] + [
+                    {'p': 'cast_from', 'zone': {'GRAVEYARD': 'graveyard', 'EXILED': 'exile', 'HAND': 'hand'}[z]}]
+            if args[4].strip() == 'SetTargetPointer.SPELL':
+                a['set_target_pointer'] = True
+            if args[0].strip() == 'Zone.GRAVEYARD':
+                a['on']['e'] = 'spell_cast_in_graveyard'
             return a
         # the spell a cast trigger points at only gives Shark Typhoon its X (the engine's X for cast triggers)
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 4 \
@@ -5558,7 +5760,12 @@ def copies_spells_only(card):
         if isinstance(x.get('effects'), list) and has_copy(x['effects']):
             targets = x.get('targets') or []
             spell_trigger = x.get('set_target_pointer') and (x.get('on') or {}).get('e') == 'spell_cast'
-            if not (targets and all(t.get('class') == 'TargetSpell' for t in targets)) and not spell_trigger:
+            # a spell or an ability (`TargetStackObject`): the engine copies whichever it is
+            if len(targets) == 1 and targets[0].get('class') == 'TargetStackObject':
+                for e in x['effects']:
+                    if isinstance(e, dict) and e.get('class') == 'CopyTargetSpellEffect':
+                        e['abilities'] = True
+            elif not (targets and all(t.get('class') == 'TargetSpell' for t in targets)) and not spell_trigger:
                 raise Unsupported('copy of a stack object that may not be a spell')
         for v in x.values():
             walk(v)
