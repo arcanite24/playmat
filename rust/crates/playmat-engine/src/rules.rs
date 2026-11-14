@@ -17903,6 +17903,14 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                             continue;
                         }
                         let owner = game.obj(c).owner;
+                        // an Aura with nothing it could enchant stays in exile (303.4g, as Java's games show):
+                        // Prophetic Ravings back from Sheltered by Ghosts after its creature died
+                        let def = Arc::clone(&game.obj(c).def);
+                        if def.has_subtype("Aura")
+                            && def.spell.targets.first().is_some_and(|t| !target_possible(game, owner, t, Some(c)))
+                        {
+                            continue;
+                        }
                         enter_battlefield(game, d, c, owner, false);
                     }
                 }
