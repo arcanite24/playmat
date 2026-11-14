@@ -968,6 +968,10 @@ def predicate(text, subtypes):
     # a predicate class written by hand in Rust (src/cards/, card_handlers.py)
     if (h := card_handlers.predicate(text)) is not None:
         return h
+    # "entered under your control this turn" (Shaile): `checkControlChanged` is true only between a permanent's reset
+    # and the effect that gave it to another player, never while a filter is checked, so it always holds
+    if re.fullmatch(r'\(Predicate<Permanent>\)\(input,game\)->\s*!input\.checkControlChanged\(game\)', text):
+        return {'p': 'and', 'xs': []}
     raise Unsupported('predicate ' + text)
 
 
@@ -4117,6 +4121,16 @@ class Translator:
                 {'class': 'ConditionalContinuousEffect', 'condition': thirty,
                  'effect': {'class': 'GainAbilitySourceEffect', 'ability': {'class': 'FlyingAbility'},
                             'duration': 'WhileOnBattlefield'}}]}
+        # a granted `CompoundAbility(a, b, …)` (Esika's "vigilance and "{T}: Add one mana of any color.""): each
+        # permanent gets its abilities in order, so one grant per ability, in that order
+        if cls == 'SimpleStaticAbility' and len(args) == 1 and (g := re.fullmatch(
+                r'new (GainAbility(?:Controlled|All|Source|Attached)Effect)\((new CompoundAbility\(.*)\)',
+                self.strip_setters(canonical(args[0].strip())), re.S)):
+            inner = split_args(g.group(2))
+            parts = split_args(inner[0][len('new CompoundAbility('):-1]) if inner[0].endswith(')') else []
+            if parts and not parts[0].strip().startswith('"'):
+                return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [
+                    self.effect('new %s(%s)' % (g.group(1), ','.join([p.strip()] + inner[1:]))) for p in parts]}
         # Scion of Draco: each creature you control of a color has that color's keyword
         if cls == 'SimpleStaticAbility' and args == ['new ScionOfDracoEffect()']:
             return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [
@@ -5522,7 +5536,11 @@ class Translator:
             a = out({'e': 'dies_attached'}, args[0], n >= 3 and flag(args[2]))
             if pointer == 'SetTargetPointer.ATTACHED_TO_CONTROLLER':
                 a['set_target_pointer_player'] = True
-            if pointer != 'SetTargetPointer.CARD':
+            # (a card's own effect that reads the card that died, `(Card) getValue("attachedTo")`, has it as its target:
+            # Sword of the Realms)
+            own = re.fullmatch(r'new (\w+)\(\)', args[0].strip())
+            body = custom_effects.class_body(self.source or "", own.group(1)) if own and getattr(self, "source", None) and custom_effects.declares(self.source, own.group(1)) else None
+            if pointer != 'SetTargetPointer.CARD' and not (body and '(Card) getValue("attachedTo")' in body[1]):
                 a['on']['no_card'] = True
             return a
         return self.wave5_triggers(cls, args, flag, out)
@@ -6145,10 +6163,21 @@ def modal_double_faced(card_name, subtypes, facts, cls, source):
             continue
         if java_abilities[split[k] if k else 0]['class'] != 'SpellAbility':
             raise Unsupported('modal double-faced card without its spell')
-        if modes[k] or spells[k].get('costs') or 'first_mode_cost' in spells[k]:
-            raise Unsupported('modal double-faced card with a modal spell')
-        if spells[k]['effects'] or spells[k]['targets']:
-            face['spell'] = dict(spells[k], rule=java_abilities[split[k] if k else 0].get('rule', ''))
+        rule = java_abilities[split[k] if k else 0].get('rule', '')
+        spell = spells[k]
+        if modes[k]:
+            # "choose one": the spell ability's own effects and targets are its first mode (as `translate` does)
+            first = {'effects': spell['effects'], 'targets': spell['targets']}
+            if 'first_mode_cost' in spell:
+                first['cost'] = spell['first_mode_cost']
+            face['spell'] = {'modes': [first] + modes[k], 'rule': rule}
+            for key in ('min_modes', 'max_modes', 'more_modes', 'costs'):
+                if key in spell:
+                    face['spell'][key] = spell[key]
+        elif spell['effects'] or spell['targets'] or spell.get('costs'):
+            face['spell'] = dict(spell, rule=rule)
+        if 'spell' in face:
+            fill_when_you_do(face['spell'], rule)
     faces[0]['abilities'] = in_java_order(java_abilities[:split[1]], added[0])
     faces[1]['abilities'] = in_java_order(java_abilities[split[1]:], added[1])
     faces[0]['back'] = faces[1]
