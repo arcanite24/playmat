@@ -857,6 +857,10 @@ pub enum Trigger {
     CountersAddedSource {
         counter: String,
     },
+    /// a `counter` counter is put on this, once for each counter (Fathom Mage's `COUNTER_ADDED`)
+    CounterAddedSource {
+        counter: String,
+    },
     /// a state trigger: this has `n` or more `counter` counters (Mazemind Tome)
     SourceCountersAtLeast {
         counter: String,

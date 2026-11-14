@@ -17113,6 +17113,11 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
     if name == "+1/+1" {
         game.watch.p1p1_put.push((by, n));
     }
+    // `COUNTER_ADDED`, one event for each counter, before the batch's `COUNTERS_ADDED`
+    let each = game.triggers([o], |_, _, _, t| matches!(t, Trigger::CounterAddedSource { counter } if counter == name));
+    for _ in 0..n {
+        game.pending.extend(each.iter().cloned());
+    }
     let sources = game.trigger_sources();
     let fired = game.triggers(sources, |g, src, you, t| match t {
         Trigger::CountersPut { filter, counter } => {

@@ -4050,6 +4050,10 @@ class Translator:
             return {'class': 'SimpleActivatedAbility', 'java': cls,
                     'effects': [{'class': 'AdaptEffect', 'amount': int(args[0])}],
                     'cost': [{'class': 'ManaCost', 'cost': args[1].strip()[1:-1]}]}
+        # "whenever a +1/+1 counter is put on this, you may draw a card" (once for each counter)
+        if cls == 'FathomMageTriggeredAbility' and not args:
+            return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counter_added_source', 'counter': '+1/+1'},
+                    'effects': [{'class': 'DrawCardSourceControllerEffect', 'amount': 1}], 'optional': True}
         # "whenever one or more +1/+1 counters are put on this"
         if cls == 'OneOrMoreCountersAddedTriggeredAbility' and len(args) in (1, 2):
             return {'class': 'TriggeredAbility', 'java': cls, 'on': {'e': 'counters_added_source', 'counter': '+1/+1'},
