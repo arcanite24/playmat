@@ -320,6 +320,8 @@ pub struct Obj {
     /// the zone Java keeps for an adventurer card's adventure part (`CardWithSpellOption`): it follows the card,
     /// except when the card goes onto the stack or the battlefield or leaves the battlefield
     pub adventure_zone: Zone,
+    /// a dungeon in the command zone: the room its venture marker is in (`Dungeon.currentRoom`), by its index
+    pub room: Option<usize>,
     /// when it was attached (`Game.attach_clock`)
     pub attached_at: u64,
     /// where what it gives as an attachment ("equipped creature has …") registers in Java's trigger order: after
@@ -386,6 +388,9 @@ impl Obj {
             .or_else(|| self.until_end_of_turn_def.clone().filter(|_| self.becomes_base.is_none()))
             .or_else(|| self.becomes_base.clone())
             .or_else(|| self.until_end_of_turn_def.clone())
+            // what a static's land types or an effect's granted abilities added isn't copiable (a cipher's trigger
+            // stays off a token copy of its creature)
+            .or_else(|| self.land_type_base.as_ref().map(|(b, _, _)| b.clone()))
             .unwrap_or_else(|| self.def.clone())
     }
 
@@ -429,6 +434,8 @@ pub struct Player {
     pub no_stock: bool,
     /// the cards in its sideboard (only counted: `OpenSideboardHint`)
     pub sideboard: usize,
+    /// the names of the dungeons it completed this game (`CompletedDungeonWatcher`)
+    pub completed_dungeons: Vec<String>,
     /// the sideboard's cards, when the game knows them (shadow games' `sideboardCards`), in Java's order: what
     /// Learn can reveal
     pub outside: Vec<ObjId>,
@@ -1422,6 +1429,7 @@ impl Game {
             controller: owner,
             zone,
             adventure_zone: zone,
+            room: None,
             harmonize_tap: None,
             tapped: false,
             damage: 0,
@@ -2989,6 +2997,8 @@ impl Game {
             Condition::MyTurn => self.active == Some(you),
             Condition::FirstCombatPhase => !self.combat_phase_done,
             Condition::Morbid => self.creature_died,
+            Condition::CompletedDungeon => !self.player(you).completed_dungeons.is_empty(),
+            Condition::Landfall => self.player(you).lands_entered > 0,
             Condition::PlayedLand => self.player(you).lands_played > 0,
             Condition::CardsInExile { n } => self.exile.len() >= *n,
             Condition::Delirium => {

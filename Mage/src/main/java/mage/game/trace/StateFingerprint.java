@@ -80,7 +80,8 @@ public final class StateFingerprint {
             out.append("bf ").append(line).append('\n');
         }
         for (StackObject object : game.getState().getStack()) { // top first
-            out.append("stack ").append(seat(seats, object.getControllerId())).append(' ').append(object.getName()).append('\n');
+            out.append("stack ").append(seat(seats, object.getControllerId())).append(' ')
+                    .append(withoutObjectIds(object.getName())).append('\n');
         }
         return out.toString();
     }
@@ -135,6 +136,17 @@ public final class StateFingerprint {
         }
         names.sort(null);
         return String.join("|", names);
+    }
+
+    private static final java.util.regex.Pattern LOG_NAME =
+            java.util.regex.Pattern.compile("<font color='[^']*' object_id='[^']*'>([^<]*)</font> \\[[^\\]]*\\]");
+
+    /**
+     * A stack object's name with each object's log name ({@code GameLog.getColoredObjectIdName}) as just the name: a
+     * stack ability's rule can carry one (cipher's "you may cast a copy of ..."), and its object id is random.
+     */
+    static String withoutObjectIds(String name) {
+        return name.indexOf("object_id='") < 0 ? name : LOG_NAME.matcher(name).replaceAll("$1");
     }
 
     private static String name(Game game, UUID id) {

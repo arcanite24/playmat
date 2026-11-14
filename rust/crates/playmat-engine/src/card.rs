@@ -716,6 +716,17 @@ pub enum Trigger {
     EntersUntapped,
     /// you scry or surveil (`ScryOrSurveilTriggeredAbility`, `SCRIED`/`SURVEILED`): X is the amount
     YouScryOrSurveil,
+    /// you enter this room of the dungeon (`RoomTriggeredAbility`, `ROOM_ENTERED`): a dungeon's own, by the room's
+    /// index in its rooms
+    RoomEntered {
+        room: usize,
+    },
+    /// you complete a dungeon (`CompletedDungeonTriggeredAbility`, `DUNGEON_COMPLETED`), from the battlefield or, for
+    /// Dungeon Crawler, its owner's graveyard
+    CompletedDungeon {
+        #[serde(default)]
+        graveyard: bool,
+    },
     /// one or more cards of the filter leave your graveyard (`CardsLeaveGraveyardTriggeredAbility`, once for each
     /// `ZONE_CHANGE_BATCH`)
     CardsLeaveGraveyard {
@@ -1100,6 +1111,10 @@ pub enum Condition {
     Solved,
     /// a creature died this turn
     Morbid,
+    /// you've completed a dungeon this game (`CompletedDungeonCondition`, `CompletedDungeonWatcher`)
+    CompletedDungeon,
+    /// you had a land enter the battlefield under your control this turn (`LandfallCondition`, `LandfallWatcher`)
+    Landfall,
     /// you cast a non-Lemur creature spell with flying this turn (Momo's watcher)
     FlierCast,
     /// you gained life this turn
@@ -3424,6 +3439,9 @@ pub enum EffectDef {
     AddExtraTurnControllerEffect,
     /// the spell is exiled as it resolves, instead of going to the graveyard
     ExileSpellEffect,
+    /// venture into the dungeon: enter the first room of a dungeon you choose, or advance to the next room
+    /// (`VentureIntoTheDungeonEffect`, `Game.ventureIntoDungeon`)
+    VentureIntoTheDungeonEffect,
     /// return the source to the battlefield; it's an enchantment, not a creature, from then on
     EnduringGlimmerReturnEffect,
     /// remove up to `amount` counters, of any kinds, from the target (Glissa Sunslayer)
@@ -3507,6 +3525,14 @@ pub enum EffectDef {
     },
     /// the reflexive part: exile the target cards, then you may cast a copy of each without paying its mana cost
     BloodthirstyAdversaryCopyEffect,
+    /// cipher (`CipherEffect`): you may exile the resolving spell card encoded on a creature you control, which
+    /// gains "whenever this creature deals combat damage to a player, you may cast a copy of that card"
+    CipherEffect,
+    /// that ability's effect (`CipherStoreEffect`): cast a copy of the encoded card (`card`, its object number)
+    /// without paying its mana cost, the copy without cipher
+    CipherStoreEffect {
+        card: u32,
+    },
     /// counter the target ability; its artifact, creature or planeswalker loses all abilities while the source stays
     TishanasTidebinderEffect,
     /// the target opponent reveals their hand; you exile a nonland card from it, yours to cast if the gift was promised
@@ -5379,6 +5405,48 @@ impl AbilityDef {
     }
 }
 
+/// A dungeon's room (`DungeonRoom`): its name and the rooms it leads to, by their index in the dungeon's rooms
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+pub struct RoomDef {
+    pub name: String,
+    #[serde(default)]
+    pub next: Vec<usize>,
+}
+
+/// A dungeon a player ventures into (`mage.game.command.dungeons`): put into the command zone as an object whose
+/// abilities are its rooms' "when you enter this room" triggers, in its rooms' order
+#[derive(Clone, Debug)]
+pub struct DungeonDef {
+    pub def: Arc<CardDef>,
+    pub rooms: Vec<RoomDef>,
+}
+
+#[derive(Deserialize)]
+struct DungeonRooms {
+    rooms: Vec<RoomDef>,
+}
+
+/// The dungeons `rust/tools/transpile.py` wrote (`cards/dungeons.json`), in `Dungeon.dungeonNames`' choice order
+pub fn dungeons() -> &'static [DungeonDef] {
+    static DUNGEONS: std::sync::OnceLock<Vec<DungeonDef>> = std::sync::OnceLock::new();
+    DUNGEONS.get_or_init(|| {
+        let raw: Vec<serde_json::Value> = serde_json::from_str(crate::DUNGEONS_JSON).unwrap_or_default();
+        raw.into_iter()
+            .filter_map(|v| {
+                let rooms: DungeonRooms = serde_json::from_value(v.clone()).ok()?;
+                let json: CardJson = serde_json::from_value(v).ok()?;
+                let def = CardDef::from_json(json).ok()?;
+                Some(DungeonDef { def: Arc::new(def), rooms: rooms.rooms })
+            })
+            .collect()
+    })
+}
+
+/// The dungeon of this name
+pub fn dungeon(name: &str) -> Option<&'static DungeonDef> {
+    dungeons().iter().find(|d| d.def.name == name)
+}
+
 /// A card as written by the transpiler.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct CardJson {
@@ -6381,6 +6449,19 @@ mod tests {
         let s = ManaCost::parse("{1}{S}").unwrap();
         assert_eq!((s.generic, s.snow, s.mana_value()), (1, 1, 2));
         assert_eq!(s.snow_as_generic().generic, 2);
+    }
+
+    /// every dungeon in dungeons.json loads, with a room trigger per room and each next room in range
+    #[test]
+    fn dungeons_load() {
+        let ds = dungeons();
+        let names: Vec<&str> = ds.iter().map(|d| d.def.name.as_str()).collect();
+        assert_eq!(names.len(), 3, "{names:?}");
+        for d in ds {
+            assert_eq!(d.def.abilities.len(), d.rooms.len(), "{}", d.def.name);
+            assert!(d.rooms.iter().all(|r| r.next.iter().all(|n| *n < d.rooms.len())), "{}", d.def.name);
+        }
+        assert!(dungeon("Tomb of Annihilation").is_some());
     }
 
     #[test]
