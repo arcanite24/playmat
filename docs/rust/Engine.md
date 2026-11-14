@@ -807,8 +807,8 @@ Being in the engine and being trusted are kept apart.
   - Conditions and values: `SourcePreparedCondition`, `TargetManaValue`, `PermanentsTargetOpponentControlsCount` and
     `HalfValue` rounded up. The watcher's spells keep the mana value they were cast with (Rhino).
   - Effects: pay-more-for-flash, an extra land this turn (Plant Beans), a spell back to its owner's library
-    (`ReturnToLibrarySpellEffect`), and "can't have or gain" an ability (Archetype of Imagination). Also prevention
-    of the damage to you, lore counters added to a target Saga, and an equip ability's discount for other Equipment.
+    (`ReturnToLibrarySpellEffect`), and "can't have or gain" an ability (Archetype of Imagination). Also lore counters
+    added to a target Saga, and an equip ability's discount for other Equipment.
   - Fixes, each with a regression game in `shadow/factory/`:
     - Winning while a spell or ability resolves leaves it on the stack until the game's end is traced, and sets `won`
       after (`game-win-as-it-resolves`).
@@ -816,7 +816,7 @@ Being in the engine and being trusted are kept apart.
       itself (`game-aura-returned-no-counters`).
 
   Three factory rounds (74 games, 72 matching, replayed again after each fix) verified 40 cards, 4 of
-  them not on the list: 10,598 of 10,768.
+  them not on the list. Druid's Deliverance was verified on master too, so it's 39 more: 10,651 of 10,829.
 
   Left from claim 3:
   - Damping Sphere is held back. In one game Java's playable check and payment don't add its {1} for the spell cast
