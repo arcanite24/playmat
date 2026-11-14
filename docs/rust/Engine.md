@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,804 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,848 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -653,18 +653,20 @@ Being in the engine and being trusted are kept apart.
   hexproof (Glaring Spotlight), and cards whose Java order isn't deterministic (Tersa Lightshatter, Winnowing,
   Tibalt's Trickery; hand and graveyard shuffles for Day's Undoing and Commit // Memory).
 
-  Wave 6, claim 2, second batch (13 Nov), on the replacement hooks: damage redirection (`rules::redirect_damage`,
-  "is dealt to {this} instead") deals the damage again from the same source with the event's applied replacements
-  left out, as `Permanent.damage(…, getAppliedEffects())`, and combat lifelink still counts it with the source's
-  other combat damage. A "whenever a creature dies" trigger keeps the creature that died and its controller then
+  Wave 6, claim 2, second batch (13 Nov), on the replacement hooks: damage redirection (`rules::redirect_damage`, "is
+  dealt to {this} instead") deals the damage again from the same source with the event's applied replacements left
+  out, as `Permanent.damage(…, getAppliedEffects())`, and combat lifelink still counts it with the source's other
+  combat damage. A "whenever a creature dies" trigger keeps the creature that died and its controller then
   (`StackItem::died`, Java's `getValue("creatureDied")`). "You lose the game" (`LoseGameSourceControllerEffect`) ends
   the game as the ability resolves, with it still on the stack as Java's trace sees it, then the one left has won.
   Handlers: Temple Altisaur, Orbs of Warding, Palisade Giant, Saving Grace, Gideon's Sacrifice (asked even with one
   permanent to choose, as `HumanPlayer.choose`), Archfiend of the Dross, Beifong's Bounty Hunters, and
   `DealtDamageAndDiedTriggeredAbility`'s predicate (Sengir Vampire, with Predator Ooze, Wight and Zurgo Helmsmasher).
-  VERIFIED_LINE Three games under `shadow/handlers/` (`game-handlers-w6c2b-*`) cover the engine changes. A Young
-  Hero Role's granted trigger writes "{this}" where Java writes "it" (Protective Parents, Embereth Veteran and Merry
-  Bards, already verified); that one game was set aside, and Beifong's Bounty Hunters verified in games without it.
+  Factory rounds (20 games, 19 matching, plus 14 more for Beifong's Bounty Hunters and Aettir and Priwen, all
+  matching) verified 12: 10,690 of 10,848. Three games under `shadow/handlers/` (`game-handlers-w6c2b-*`) cover the
+  engine changes. A Young Hero Role's granted trigger writes "{this}" where Java writes "it" (Protective Parents,
+  Embereth Veteran and Merry Bards, already verified); that one game was set aside, and Beifong's Bounty Hunters
+  verified in games without it.
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory

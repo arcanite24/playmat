@@ -138,6 +138,7 @@ Aetherstream Leopard
 Aethertide Whale
 Aethertorch Renegade
 Aetherwind Basker
+Aettir and Priwen
 Affa Protector
 Affectionate Indrik
 Aftermath Analyst
@@ -426,6 +427,7 @@ Archers of Qarsi
 Archers' Parapet
 Archfiend of Depravity
 Archfiend of Ifnir
+Archfiend of the Dross
 Archghoul of Thraben
 Architect of the Untamed
 Archive Arbiter
@@ -795,6 +797,7 @@ Befuddle
 Behind the Scenes
 Behold the Beyond
 Behold the Multiverse
+Beifong's Bounty Hunters
 Bejeweled Warg
 Belladonna Took
 Belle of the Brawl
@@ -3660,6 +3663,7 @@ Gideon's Memorial
 Gideon's Phalanx
 Gideon's Reproach
 Gideon's Resolve
+Gideon's Sacrifice
 Gideon, Ally of Zendikar
 Gideon, Martial Paragon
 Gift of Compleation
@@ -6369,6 +6373,7 @@ Oran-Rief Ooze
 Orazca Frillback
 Orazca Puzzle-Door
 Orazca Raptor
+Orbs of Warding
 Orc Sureshot
 Orchard Spirit
 Orcish Vandal
@@ -6478,6 +6483,7 @@ Paladin's Arms
 Paladin's Shield
 Palani's Hatcher
 Pale Rider of Trostad
+Palisade Giant
 Palladium Myr
 Panharmonicon
 Panicked Altisaur
@@ -6738,6 +6744,7 @@ Precise Strike
 Precision Bolt
 Precognition Field
 Predation Steward
+Predator Ooze
 Predatory Wurm
 Predictive Preparations
 Preeminent Captain
@@ -7720,6 +7727,7 @@ Savannah Lions
 Savannah Sage
 Savanti Romero, Time's Exile
 Saved by the Shell
+Saving Grace
 Savior of the Sleeping
 Savior of the Small
 Savor
@@ -7917,6 +7925,7 @@ Senate Guildmage
 Send in the Pest
 Send to Sleep
 Sengir Connoisseur
+Sengir Vampire
 Senseless Rage
 Sensory Deprivation
 Sentinel Sliver
@@ -9173,6 +9182,7 @@ Tempest Caller
 Tempest Djinn
 Tempest Hart
 Tempest Hawk
+Temple Altisaur
 Temple Garden
 Temple of Abandon
 Temple of Deceit
@@ -10426,6 +10436,7 @@ Wicked Wolf
 Wicker Witch
 Widespread Brutality
 Widow's Bite
+Wight
 Wight of Precinct Six
 Wild Beastmaster
 Wild Celebrants
@@ -10675,4 +10686,5 @@ Zulaport Chainmage
 Zulaport Cutthroat
 Zulaport Duelist
 Zurgo Bellstriker
+Zurgo Helmsmasher
 Zurgo's Vanguard
