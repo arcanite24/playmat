@@ -910,6 +910,29 @@ Being in the engine and being trusted are kept apart.
     with their own effect classes.
   - Java's order can't be reproduced: Deadbridge Chant and Getaway Barrel pick from a `HashSet`.
 
+  Second batch of the mech list:
+  - Station: `StationAbility` is a sorcery-speed ability whose `StationCost` taps another untapped creature you
+    control (kept in `tapped_for_cost`); `StationEffect` puts charge counters equal to that creature's power on it
+    as it resolves. `StationLevelAbility(N)` becomes one static of `ConditionalContinuousEffect`s under a
+    `source_counter` charge N condition: with `withPT`, a `BecomesCreatureSourceEffect` that keeps its types and
+    carries the level's keywords; static level abilities as their own conditional effects. A level that is one
+    triggered ability (Dawnsire) is that trigger with the condition as its `trigger_condition`. The lands, whose
+    levels add activated or mana abilities, aren't done.
+  - -X loyalty (`PayVariableLoyaltyCost`): X is announced with the other X costs (up to the loyalty it has),
+    before targets, and that many loyalty counters are removed. `XManaValueTargetAdjuster` on a loyalty ability
+    reads the ability's X (`mana_value_x` falls back to a permanent's ability when no spell of it is on the stack).
+  - `CompositeCost` is spliced into the cost list it's in (`flatten_composite_costs`). A ward of mana and life
+    asks once, then pays the mana and the life. A "you may pay" (`DoIfCostPaid`, `DoWhenCostPaid`) of mana and
+    another cost pays the mana first (`mana_first`). To Java a `CompositeCost` isn't mana: a flashback for one
+    (Twinned Vision) has no mana cost, is castable whatever mana there is, and pays the mana with its other costs.
+  - Escalate (`EscalateAbility`): its cost again for each mode beyond the first; mana joins the spell's mana cost,
+    and another cost is paid after the spell's own. Battle cry is an attack trigger with `BoostControlledEffect`.
+  - Handlers: Sorin, Vengeful Bloodlord's Vampire, Ugin, the Spirit Dragon's -X and -10, Twinned Vision's draw,
+    Collective Effort's counters. Games covering them are under `shadow/mechanics/game-w6mech2-*`.
+  - 44 cards came in. Three factory rounds (74 games, all matching, replayed again on master after #350) verified
+    40: 10,956 of 11,143 on master with #350. Dragon's Approach, Ruthless Disposal, Sphinx's Approach and Ultimecia, Time Sorceress had no factory
+    deck yet.
+
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
       python3 rust/tools/verify_factory.py record --work $W --procs 8     # long: run it in the background

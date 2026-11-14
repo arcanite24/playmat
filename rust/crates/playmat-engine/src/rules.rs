@@ -1745,9 +1745,11 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         }
         CostDef::ReturnAttackerToHandTargetCost => !unblocked_attackers(game, seat).is_empty(),
         CostDef::CollectEvidenceCost { amount } => evidence(game, seat) >= *amount,
+        CostDef::StationCost => !station_candidates(game, seat, id).is_empty(),
         CostDef::PayLoyaltyCost { amount } => {
             o.loyalty_used < loyalty_activations(game, o.controller) && o.counter("loyalty") + amount >= 0
         }
+        CostDef::PayVariableLoyaltyCost => o.loyalty_used < loyalty_activations(game, o.controller),
         CostDef::RemoveCountersSourceCost { counter } => o.counter(&counter.name) >= counter.amount,
         CostDef::PutCountersSourceCost { .. } => true,
         // `canChooseOrAlreadyChosen`: a permanent to choose, with counters or not
@@ -2000,7 +2002,8 @@ fn castable(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> bool {
             game.paying_for.set(None);
             ok
         }
-        && def.spell.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
+        // (mana among the other costs, a `CompositeCost`'s, isn't mana to Java's playable check)
+        && def.spell.costs.iter().all(|c| matches!(c, CostDef::ManaCost { .. }) || can_pay_cost(game, seat, id, c))
         && has_targets(game, seat, id, def)
 }
 
@@ -4875,6 +4878,25 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             }
         }
     }
+    // escalate (`EscalateEffect`): its cost again for each mode beyond the first; mana joins the spell's, another
+    // cost is added after the spell's own (`addCost`)
+    let mut escalate: Vec<CostDef> = Vec::new();
+    if let Some(more) = def.abilities.iter().find_map(|a| match a {
+        AbilityDef::EscalateAbility { cost, .. } => Some(cost.clone()),
+        _ => None,
+    }) {
+        for _ in 1..modes.len() {
+            for c in &more {
+                match c {
+                    CostDef::ManaCost { cost: m } => {
+                        let Ok(m) = ManaCost::parse(m) else { return false };
+                        cost = cost.plus(&m);
+                    }
+                    other => escalate.push(other.clone()),
+                }
+            }
+        }
+    }
     let mut cost = modified_cost(game, seat, id, cost);
     if let Some((_, n)) = &sacrifice_x {
         if sacrifice_x_reduction(game, seat, id, &def).is_some() {
@@ -4953,6 +4975,11 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             }
             continue;
         }
+        if !pay_cost(game, d, seat, id, c) {
+            return false;
+        }
+    }
+    for c in &escalate {
         if !pay_cost(game, d, seat, id, c) {
             return false;
         }
@@ -5980,6 +6007,20 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
             top.x = x;
         }
     }
+    // -X: announced with the other X costs, up to the loyalty it has (`PayVariableLoyaltyCost.getMaxValue`)
+    if costs.iter().any(|c| matches!(c, CostDef::PayVariableLoyaltyCost)) {
+        let max = game.obj(id).counter("loyalty").max(0);
+        let x = loop {
+            match ask(game, d, seat, &Query::Amount { min: 0, max }) {
+                Answer::Int(n) if (0..=max).contains(&n) => break n,
+                Answer::Stop => return false,
+                _ => {}
+            }
+        };
+        if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
+            top.x = x;
+        }
+    }
     // waterbend: after X and phyrexian mana, before the targets (`AbilityImpl.handleWaterbendingCosts`)
     for c in costs {
         if let CostDef::WaterbendCost { amount } = c {
@@ -6120,6 +6161,25 @@ fn waterbend(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: u32) -> O
 
 /// `CounterUnlessPaysEffect`'s payment: `canPay`, `chooseUse` "Pay {2}?" (a mana cost's `canPay` is always true), then
 /// the payment; anything short of paying counters. None: stopped.
+/// A "you may pay" cost: its non-mana parts, then its mana; with `mana_first` (a `CompositeCost` that starts with
+/// mana), the mana, then the rest
+fn pay_costs_then_mana(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    id: ObjId,
+    cost: &[CostDef],
+    mana_first: bool,
+) -> bool {
+    let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
+    let mana = ability_mana_cost(cost);
+    if mana_first {
+        pay_mana(game, d, seat, &mana) && others.iter().all(|c| pay_cost(game, d, seat, id, c))
+    } else {
+        others.iter().all(|c| pay_cost(game, d, seat, id, c)) && pay_mana(game, d, seat, &mana)
+    }
+}
+
 fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost: &[CostDef]) -> Option<bool> {
     // ward—discard a card or pay {2} (Titania, Rugged Rumbler): "<cost>?", then `OrCost.pay` asks which
     if let [c @ CostDef::OrCost { .. }] = cost {
@@ -6197,7 +6257,15 @@ fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost
     if game.player(payer).life < life {
         return Some(false);
     }
-    let message = if life > 0 { format!("Pay {} life?", life) } else { format!("Pay {}?", mana.text) };
+    // ward—{2}, pay 2 life (Gisa, the Hellraiser's `CompositeCost`): the mana, then the life
+    let both = life > 0 && cost.iter().any(|c| matches!(c, CostDef::ManaCost { .. }));
+    let message = if both {
+        format!("Pay {}, Pay {} life?", mana.text, life)
+    } else if life > 0 {
+        format!("Pay {} life?", life)
+    } else {
+        format!("Pay {}?", mana.text)
+    };
     let q = Query::YesNo { message };
     let yes = loop {
         match ask(game, d, payer, &q) {
@@ -6207,7 +6275,12 @@ fn pay_unless(game: &mut Game, d: &mut dyn Decider, payer: Seat, id: ObjId, cost
         }
     };
     let paid = yes
-        && if life > 0 {
+        && if both {
+            pay_mana(game, d, payer, &mana) && {
+                lose_life(game, payer, life);
+                true
+            }
+        } else if life > 0 {
             lose_life(game, payer, life);
             true
         } else {
@@ -6438,6 +6511,14 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
             o.add_counters(&counter.name, -counter.amount);
+        }
+        CostDef::PayVariableLoyaltyCost => {
+            let x = game.stack.last().map_or(0, |t| t.x);
+            let o = game.obj_mut(id);
+            o.add_counters("loyalty", -x);
+            o.loyalty_used = o.loyalty_used.saturating_add(1);
+            note(game, EventKind::Loyalty, Some(seat), Some(id), None, 0);
+            counters_put_triggers(game, id, "loyalty", -x, Some(seat));
         }
         CostDef::PayLoyaltyCost { amount } => {
             let o = game.obj_mut(id);
@@ -6756,6 +6837,26 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
             for c in chosen {
                 game.move_to(c, Zone::Exile);
+            }
+        }
+        // station: `TapTargetCost` of another untapped creature you control, the tapped one kept for the effect
+        CostDef::StationCost => {
+            let possible = station_candidates(game, seat, id);
+            let rule = match game.stack.last() {
+                Some(top) if top.card == id && top.ability.is_some() => item_rule(game, top),
+                _ => "tap".to_string(),
+            };
+            let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, 1, 1, &rule, true) else {
+                return false;
+            };
+            if chosen.is_empty() {
+                return false;
+            }
+            for o in &chosen {
+                tap(game, *o);
+            }
+            if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
+                top.tapped_for_cost.extend(chosen);
             }
         }
         // `CollectEvidenceCost.pay`: any number of cards from the graveyard (not targeted), paid if their mana values
@@ -7247,6 +7348,17 @@ fn nowhere_to_run(game: &Game, seat: Seat) -> bool {
 }
 
 /// A player's energy counters
+/// Station's `TapTargetCost`: another untapped creature you control
+fn station_candidates(game: &Game, seat: Seat, id: ObjId) -> Vec<ObjId> {
+    game.battlefield
+        .iter()
+        .copied()
+        .filter(|o| {
+            *o != id && game.obj(*o).controller == seat && !game.obj(*o).tapped && game.has_type(*o, CardType::Creature)
+        })
+        .collect()
+}
+
 /// `CollectEvidenceCost.getAvailableEvidence`: the total mana value of the cards in the player's graveyard
 fn evidence(game: &Game, seat: Seat) -> i32 {
     game.player(seat).graveyard.iter().map(|c| game.obj(*c).def.mana_value() as i32).sum()
@@ -11582,7 +11694,7 @@ fn apply_each_effect(
                     sacrifice(game, o);
                 }
             }
-            EffectDef::DoIfCostPaid { effect, cost, also, otherwise, optional } => {
+            EffectDef::DoIfCostPaid { effect, cost, also, otherwise, optional, mana_first } => {
                 // a cost that can't be paid isn't asked about (mana always counts as payable)
                 let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
                 let mut paid = false;
@@ -11598,9 +11710,7 @@ fn apply_each_effect(
                         };
                     if pay {
                         let before = game.clone();
-                        if others.iter().all(|c| pay_cost(game, d, controller, source.0, c))
-                            && pay_mana(game, d, controller, &ability_mana_cost(cost))
-                        {
+                        if pay_costs_then_mana(game, d, controller, source.0, cost, *mana_first) {
                             paid = true;
                             if let Some(effect) = effect {
                                 apply_effects(game, d, item, std::slice::from_ref(&**effect), legal, source);
@@ -12278,7 +12388,7 @@ fn apply_each_effect(
                 }
             }
             // asked only when the cost can be paid; a cancelled payment is undone
-            EffectDef::DoWhenCostPaid { cost, message, rule, targets, effects, optional } => {
+            EffectDef::DoWhenCostPaid { cost, message, rule, targets, effects, optional, mana_first } => {
                 let others: Vec<&CostDef> = cost.iter().filter(|c| !matches!(c, CostDef::ManaCost { .. })).collect();
                 if !others.iter().all(|c| can_pay_cost(game, controller, source.0, c)) {
                     return;
@@ -12294,9 +12404,7 @@ fn apply_each_effect(
                     };
                 if pay {
                     let before = game.clone();
-                    if others.iter().all(|c| pay_cost(game, d, controller, source.0, c))
-                        && pay_mana(game, d, controller, &ability_mana_cost(cost))
-                    {
+                    if pay_costs_then_mana(game, d, controller, source.0, cost, *mana_first) {
                         // a discard cost's `DISCARDED_CARDS` came as it was paid, before the reflexive trigger
                         // (Inti, Seneschal of the Sun)
                         if !game.discarded.is_empty() {
@@ -16080,6 +16188,17 @@ fn apply_each_effect(
                 game.attacks_if_able_next.push((controller, filter.clone(), source.0));
             }
             EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
+            // `StationAbilityEffect`: the tapped creatures' power as it resolves, if the source is still there
+            EffectDef::StationEffect => {
+                let o = game.obj(source.0);
+                if o.zone == Zone::Battlefield && o.zcc == source.1 {
+                    let n: i32 = item.tapped_for_cost.iter().map(|c| game.power_toughness(*c).0).sum();
+                    if n > 0 {
+                        game.obj_mut(source.0).add_counters("charge", n);
+                        counters_put_triggers(game, source.0, "charge", n, Some(controller));
+                    }
+                }
+            }
             EffectDef::LoseGameSourceControllerEffect => {
                 // `lostForced`: not once they've won; with one player left the game ends there, as it resolves
                 if !game.player(controller).lost && !game.player(controller).won && !game.over {

@@ -1804,6 +1804,10 @@ class Translator:
             return {'class': cls, 'counter': self.value('counter', args[0].strip())}
         if cls == 'RemoveCountersSourceCost' and len(args) == 1:
             return {'class': cls, 'counter': self.value('counter', args[0].strip())}
+        # "{2}, Pay 2 life" (`CompositeCost`): both, the first first; spliced into the cost list it's in
+        # (`flatten_composite_costs`)
+        if cls == 'CompositeCost' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[2].strip()):
+            return {'class': cls, 'costs': [self.cost(args[0]), self.cost(args[1])]}
         if cls == 'OrCost' and len(args) == 3 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls, 'costs': [self.cost(args[1]), self.cost(args[2])]}
         if cls == 'TapTargetCost' and len(args) == 1:
@@ -3578,6 +3582,13 @@ class Translator:
                 and (len(args) == 2 or args[2].strip() == 'false'):
             lo, hi = int(args[0]), 99 if args[1].strip() == 'Integer.MAX_VALUE' else int(args[1])
             return {'class': cls} if (lo, hi) == (1, 1) else {'class': cls, 'min': lo, 'max': hi}
+        # `TargetPlayer(1, 1, false, filter)` with a filter that only names the players (Collective Effort)
+        if cls == 'TargetPlayer' and len(args) == 4 and [a.strip() for a in args[:3]] == ['1', '1', 'false'] \
+                and re.fullmatch(r'[a-z]\w*', args[3].strip()) \
+                and re.search(r'static final FilterPlayer ' + args[3].strip() + r'\s*=\s*new FilterPlayer\("[^"]*"\);',
+                              getattr(self, 'source', None) or '') \
+                and not re.search(r'\b' + args[3].strip() + r'\.add\(', getattr(self, 'source', None) or ''):
+            return {'class': cls}
         # `TargetOpponent(false)`: `notTarget` false, the default
         if cls == 'TargetOpponent' and [a.strip() for a in args] == ['false']:
             return {'class': cls}
@@ -3650,6 +3661,56 @@ class Translator:
         return out
 
     def ability(self, expr):
+        # STATION N+: while it has N or more charge counters, the level's abilities (and, `withPT`, it's an
+        # artifact creature with that power and toughness; `StationLevelAbility`); one static of conditional effects
+        m = re.fullmatch(r'new StationLevelAbility\((\d+)\)((?:\..*)?)', canonical(expr.strip()), re.S)
+        if m:
+            gate = {'c': 'source_counter', 'name': 'charge', 'n': int(m.group(1))}
+            rest, keywords, effects, pt = m.group(2), [], [], None
+            while rest:
+                c = re.match(r'\.(withLevelAbility|withPT)\(', rest)
+                if not c:
+                    raise Unsupported('station level ' + rest)
+                depth, quoted, end = 0, False, None
+                for i, ch in enumerate(rest[c.end() - 1:], c.end() - 1):
+                    if ch == '"':
+                        quoted = not quoted
+                    elif not quoted and ch == '(':
+                        depth += 1
+                    elif not quoted and ch == ')':
+                        depth -= 1
+                        if depth == 0:
+                            end = i
+                            break
+                inner, rest = rest[c.end():end], rest[end + 1:]
+                if c.group(1) == 'withPT':
+                    p, t = split_args(inner)
+                    pt = (int(p.strip()), int(t.strip()))
+                    continue
+                a = self.ability(inner)
+                # a triggered level ability alone (Dawnsire): the trigger, only while it has the counters
+                if a.get('class') == 'TriggeredAbility' and not a.get('trigger_condition') and not rest \
+                        and not keywords and not effects and pt is None:
+                    a = dict(a, trigger_condition=gate, java='StationLevelAbility', station=True)
+                    return a
+                if a.get('class') == 'SimpleStaticAbility' and a.get('effects') and not a.get('cost') \
+                        and all(e.get('class') in ANCHOR_STATICS for e in a['effects']):
+                    effects += a['effects']
+                elif a.get('class') in KEYWORDS and len(a) == 1:
+                    keywords.append(a)
+                else:
+                    raise Unsupported('station level ability ' + inner)
+            out = []
+            if pt:
+                out.append({'class': 'BecomesCreatureSourceEffect', 'retain': True, 'duration': 'WhileOnBattlefield',
+                            'token': {'name': '', 'types': ['CREATURE'], 'subtypes': [], 'colors': [],
+                                      'power': pt[0], 'toughness': pt[1], 'abilities': keywords}})
+            else:
+                effects = [{'class': 'GainAbilitySourceEffect', 'ability': k, 'duration': 'WhileOnBattlefield'}
+                           for k in keywords] + effects
+            out += effects
+            return {'class': 'SimpleStaticAbility', 'java': 'StationLevelAbility',
+                    'effects': [{'class': 'ConditionalContinuousEffect', 'effect': e, 'condition': gate} for e in out]}
         # an anchor word ("&bull Khans &mdash; …", `GainAnchorWordAbilitySourceEffect`): the ability while that mode
         # was chosen as it entered; a triggered one with the choice as an intervening "if" (it never changes), a
         # static one's effects conditional on it
@@ -3920,6 +3981,14 @@ class Translator:
             return {'class': cls, 'java': cls, 'cost': args[0].strip()[1:-1]}
         if cls == 'AttacksEachCombatStaticAbility' and not args:
             return {'class': 'SimpleStaticAbility', 'java': cls, 'effects': [{'class': 'AttacksIfAbleSourceEffect'}]}
+        # flashback for mana and another cost (Twinned Vision: "{1}{U/R}{U/R}, discard a card"): to Java a
+        # `CompositeCost` isn't mana, so the spell has no mana cost, it's castable whatever mana there is, and the
+        # mana is paid with the other costs, first
+        if cls == 'FlashbackAbility' and len(args) == 2 and args[0].strip() == 'this' \
+                and canonical(args[1]).startswith('new CompositeCost('):
+            c = self.cost(args[1])
+            if c['costs'][0]['class'] == 'ManaCost' and all(x['class'] != 'ManaCost' for x in c['costs'][1:]):
+                return {'class': cls, 'java': cls, 'cost': '', 'costs': c['costs']}
         # flashback for a cost that isn't mana (Lava Dart: sacrifice a Mountain)
         if cls == 'FlashbackAbility' and len(args) == 2 and args[0].strip() == 'this' \
                 and re.fullmatch(r'new (Sacrifice|Discard|Exile|PayLife|Tap)\w*Cost\(.*\)', args[1].strip(), re.S):
@@ -4203,6 +4272,10 @@ class Translator:
             return {'class': 'EntersBattlefieldAbility', 'java': cls,
                     'effects': [{'class': 'AddCountersSourceEffect', 'counter': self.value('counter', args[0])}]}
         # `+N: …`: sorcery speed, paid with loyalty counters
+        # -X: X announced up to its loyalty, then that many loyalty counters removed (`PayVariableLoyaltyCost`)
+        if cls == 'LoyaltyAbility' and len(args) == 1:
+            return {'class': cls, 'java': cls, 'effects': [self.effect(args[0])],
+                    'cost': [{'class': 'PayVariableLoyaltyCost'}]}
         if cls == 'LoyaltyAbility' and len(args) == 2:
             n = re.fullmatch(r'[+-]?\d+', args[1].strip())
             if not n:
@@ -4604,6 +4677,16 @@ class Translator:
             return out
         # saddle N: tap other creatures with total power N or more: this becomes saddled until end of turn, as a
         # sorcery (`SaddleAbility`)
+        # battle cry: whenever it attacks, each other attacking creature you control gets +1/+0 until end of turn
+        if cls == 'BattleCryAbility' and not n:
+            a = self.ability('new AttacksTriggeredAbility(new BoostControlledEffect(1,0,Duration.EndOfTurn,'
+                             'new FilterAttackingCreature(),true),false)')
+            a['java'] = cls
+            return a
+        # station: tap another untapped creature you control: charge counters equal to its power, as a sorcery
+        if cls == 'StationAbility' and not n:
+            return {'class': 'ActivateAsSorceryActivatedAbility', 'java': cls, 'effects': [{'class': 'StationEffect'}],
+                    'cost': [{'class': 'StationCost'}], 'targets': []}
         if cls == 'SaddleAbility' and n == 1 and args[0].isdigit():
             return {'class': 'ActivateAsSorceryActivatedAbility', 'java': cls, 'effects': [{'class': 'SaddleEventEffect'}],
                     'cost': [{'class': 'SaddleCost', 'value': int(args[0])}], 'targets': []}
@@ -4840,6 +4923,9 @@ class Translator:
         if cls == 'AwakenAbility' and n == 3 and args[0] == 'this' and args[1].strip().isdigit() \
                 and re.fullmatch(r'"(\{[^"]*\})+"', args[2].strip()):
             return {'class': cls, 'java': cls, 'amount': int(args[1]), 'cost': args[2].strip()[1:-1]}
+        # escalate: the spell costs this more for each mode chosen beyond the first
+        if cls == 'EscalateAbility' and n == 1:
+            return {'class': cls, 'java': cls, 'cost': [self.cost(args[0])]}
         # strive: the spell costs this more for each target beyond the first (of its "any number of" target)
         if cls == 'StriveAbility' and n == 1 and re.fullmatch(r'"(\{[^"]*\})+"', args[0]):
             return {'class': cls, 'java': cls, 'cost': args[0][1:-1]}
@@ -5581,7 +5667,7 @@ def translate(card_name, subtypes, facts):
         raise Unsupported('no card types')
     if card_name in SPELL_OVERRIDES:
         spell.update(SPELL_OVERRIDES[card_name]())
-    card['abilities'] = in_java_order(java_abilities, added)
+    card['abilities'] = in_java_order(java_abilities, flatten_composite_costs(added))
     # a creature cast from suspend gains haste, which the engine doesn't do yet
     if 'CREATURE' in card.get('types', []) and any(a.get('class') == 'SuspendAbility' for a in card['abilities']):
         raise Unsupported('suspend on a creature')
@@ -6263,6 +6349,15 @@ def ability_statement(t, st, added):
     if m:
         t.assign(m.group(1), m.group(2))
         return True
+    # a -X loyalty ability's "target … with mana value X" (`XManaValueTargetAdjuster`): X the ability's own
+    m = re.fullmatch(r'(\w+)\.setTargetAdjuster\(new XManaValueTargetAdjuster\(\)\)', st)
+    if m and m.group(1) in t.vars and t.vars[m.group(1)].get('class') == 'LoyaltyAbility' \
+            and t.vars[m.group(1)]['cost'] == [{'class': 'PayVariableLoyaltyCost'}] \
+            and len(t.vars[m.group(1)].get('targets', [])) == 1 \
+            and t.vars[m.group(1)]['targets'][0]['class'] in ('TargetPermanent', 'TargetCardInGraveyard'):
+        target = t.vars[m.group(1)]['targets'][0]
+        target['filter'] = [dict(p) for p in target.get('filter', [])] + [{'p': 'mana_value_x', 'cmp': 'EQUAL_TO'}]
+        return True
     # "for each opponent, up to one target … that player controls": in a duel, one target an opponent controls
     m = re.fullmatch(r'(\w+)\.setTargetAdjuster\(new ForEachPlayerTargetsAdjuster\(false,true\)\)', st)
     if m and m.group(1) in t.vars and len(t.vars[m.group(1)].get('targets', [])) == 1 \
@@ -6640,6 +6735,29 @@ def mode_choice(arg):
     return names[m.group(1)]
 
 
+def flatten_composite_costs(x):
+    """A `CompositeCost` in a list of costs becomes its parts, in order (one anywhere else stays, and the engine
+    doesn't read it)"""
+    if isinstance(x, dict):
+        # "you may pay {1} and exile a card": the mana is paid first (`CompositeCost.pay`)
+        if x.get('class') in ('DoIfCostPaid', 'DoWhenCostPaid') and any(
+                isinstance(c, dict) and c.get('class') == 'CompositeCost' and c['costs'][0].get('class') == 'ManaCost'
+                for c in x.get('cost', [])):
+            x['mana_first'] = True
+        for k, v in x.items():
+            x[k] = flatten_composite_costs(v)
+    elif isinstance(x, list):
+        out = []
+        for v in x:
+            v = flatten_composite_costs(v)
+            if isinstance(v, dict) and v.get('class') == 'CompositeCost':
+                out += v['costs']
+            else:
+                out.append(v)
+        return out
+    return x
+
+
 def in_java_order(java_abilities, added):
     """The abilities in Java's order (decision logs number them so), each matched to one the constructor added"""
     abilities = []
@@ -6656,6 +6774,9 @@ def in_java_order(java_abilities, added):
         # an anchor word's ability: the gained ability's own rule ("&bull Khans &mdash; " + its rule)
         if match.pop('anchor', None):
             match['rule'] = re.sub(r'^&bull \w+ &mdash; ', '', match['rule'])
+        # a station level's trigger: the gained ability's own rule (after "STATION N+<br>")
+        if match.pop('station', None):
+            match['rule'] = re.sub(r'^STATION \d+\+<br>', '', match['rule'])
         fill_when_you_do(match, fact['rule'])
         abilities.append(match)
     if added:

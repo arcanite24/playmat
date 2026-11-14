@@ -1347,6 +1347,8 @@ pub enum CostDef {
     PayLoyaltyCost {
         amount: i32,
     },
+    /// `-X:` (`PayVariableLoyaltyCost`): X announced before the targets, up to its loyalty, then removed
+    PayVariableLoyaltyCost,
     /// sacrifice a permanent of the filter you control (chosen as the cost is paid)
     SacrificeTargetCost {
         filter: Filter,
@@ -1404,6 +1406,8 @@ pub enum CostDef {
         filter: Filter,
     },
     /// collect evidence `amount`: exile cards with total mana value `amount` or greater from your graveyard
+    /// station: tap another untapped creature you control (its power is read as the ability resolves)
+    StationCost,
     CollectEvidenceCost {
         amount: i32,
     },
@@ -1849,6 +1853,9 @@ pub enum EffectDef {
         /// false: paid without asking (`DoIfCostPaid(…, false)`)
         #[serde(default = "yes")]
         optional: bool,
+        /// a `CompositeCost` of mana and another cost: the mana is paid first (`CompositeCost.pay`)
+        #[serde(default)]
+        mana_first: bool,
     },
     /// the permanents of `filter` you control have `ability` (static), or gain it (resolving, until end of turn)
     GainAbilityControlledEffect {
@@ -2968,6 +2975,8 @@ pub enum EffectDef {
     LovestruckBeastEffect,
     /// Bloodletter of Aclazotz: an opponent who would lose life during your turn loses twice that much instead
     BloodletterOfAclazotzEffect,
+    /// `StationAbilityEffect`: charge counters on the source equal to the power of the creatures the cost tapped
+    StationEffect,
     /// the target opponent exiles a creature they control and their graveyard (Strategic Betrayal)
     StrategicBetrayalEffect,
     /// the target opponent sacrifices a creature, an enchantment and a planeswalker; for each they can't, they lose
@@ -2990,6 +2999,9 @@ pub enum EffectDef {
         /// false: paid without asking (`DoWhenCostPaid(…, false)`)
         #[serde(default = "yes")]
         optional: bool,
+        /// a `CompositeCost` of mana and another cost: the mana is paid first (`CompositeCost.pay`)
+        #[serde(default)]
+        mana_first: bool,
     },
     /// a counter on the source (while it's still there), then a reflexive trigger: "when you do, if …"
     AddCounterSourceReflexiveEffect {
@@ -4104,6 +4116,13 @@ pub enum AbilityDef {
     /// (`StriveAbility`, a cost increase on the stack)
     StriveAbility {
         cost: String,
+        #[serde(default)]
+        rule: String,
+    },
+    /// escalate: the spell's cost again for each mode chosen beyond the first (`EscalateEffect`, a cost increase
+    /// added to the spell's costs): mana joins its mana cost, another cost is paid after its own
+    EscalateAbility {
+        cost: Vec<CostDef>,
         #[serde(default)]
         rule: String,
     },
