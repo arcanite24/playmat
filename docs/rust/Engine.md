@@ -702,6 +702,17 @@ Being in the engine and being trusted are kept apart.
   "enters tapped" replacement applies first; the engine doesn't ask), Endbringer, Portal to Phyrexia and Sea Gate
   Restoration (pending: not exercised in three rounds), and 105 of the list's cards still untranslated.
 
+  Claim 4's second batch (13 Nov): a creature's own conditional "enters with" ability (War-Name Aspirant's raid) is a
+  replacement to order only when its condition holds, so two Phyrexian Censors entering ask once, as Java does.
+  `ExchangeControlTargetEffect` with `withSecondTarget` exchanges the first target with the second target's
+  permanent (Shrewd Negotiation, Trade the Helm). New engine support: "an opponent is dealt noncombat damage", once
+  for each player's batch (Massacre Girl, Most Wanted; it brought in Chandra's Spitfire, Wildfire Elemental and
+  Arcades, the Strategist too), creatures of a filter that attack each combat if able until your next turn
+  (Kardur, Doomscourge), a trigger for each +1/+1 counter put on this (Fathom Mage), `DamagedPlayerThisTurnPredicate`
+  (Spear of Heliod) and Lunar Convocation's conditions. Two more factory rounds (one of hand-built ramp decks for
+  the costly cards, 50 games, all matching) verified 15 more, 9 from the list: 10,713. Seven games under
+  `shadow/handlers/game-handlers-w6c4b-*` cover them.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
