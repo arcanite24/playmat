@@ -9930,10 +9930,12 @@ fn copy_spell_with(
                 new.push(*t);
                 continue;
             }
-            // one at a time; nothing chosen, or a target already chosen, asks whether to keep the old one
+            // one at a time; nothing chosen, or a target already chosen, asks whether to keep the old one. The
+            // auto-choice reads the copy's rule (`source.getRule(true)`): its own creature to exile is asked for
             let single = tdef.single();
+            let rule = item_rule(game, &item);
             loop {
-                let chosen = choose_target(game, d, controller, &single, Some(copy), "", false);
+                let chosen = choose_target(game, d, controller, &single, Some(copy), &rule, false);
                 if d.stopped() {
                     return None;
                 }
