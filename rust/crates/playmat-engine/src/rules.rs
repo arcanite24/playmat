@@ -20184,7 +20184,11 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         && (matches!(to, Target::Player(_)) || matches!(to, Target::Obj(o) if game.has_type(o, CardType::Planeswalker)))
     {
         let fired = game.triggers([source], |_, _, _, t| matches!(t, Trigger::CombatDamageToPlayerOrPlaneswalker));
-        damage_to_player.extend(fired);
+        // the damage dealt (`setValue("damage", ...)`, Garruk's Harbinger's "that many")
+        for mut t in fired {
+            t.x = amount;
+            damage_to_player.push(t);
+        }
     }
     if combat && (matches!(to, Target::Player(_)) || matches!(to, Target::Obj(o) if game.has_type(o, CardType::Battle)))
     {
