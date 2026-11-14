@@ -160,6 +160,7 @@ EFFECTS = {
     'LoseLifeOpponentsYouGainLifeLostEffect': [('amount', 'amount'), (None, 'string')],
     'DestroyAllNamedPermanentsEffect': [],
     'WinGameSourceControllerEffect': [],
+    'LoseGameSourceControllerEffect': [],
     'DontUntapInControllersNextUntapStepTargetEffect': [(None, 'string')],
     'DontUntapInControllersNextUntapStepSourceEffect': [],
     'DontUntapAsLongAsSourceTappedEffect': [],
@@ -4519,6 +4520,13 @@ class Translator:
                 return out({'e': 'dies_all', 'filter': [CREATURE] + ([{'p': 'another'}] if another else []),
                             'include_self': not another}, args[0], flag(args[1]), n == 4 and flag(args[3]))
             raise Unsupported(cls + ' overload')
+        # "whenever a creature dealt damage by this creature this turn dies" (Sengir Vampire): a dies trigger of any
+        # creature the source damaged this turn (the `DealtDamageAndDiedTriggeredAbility` predicate handler), its
+        # pointer at the card it became
+        if cls == 'DealtDamageAndDiedTriggeredAbility' and n in (1, 2):
+            damaged = {'p': 'card', 'handler': 'DealtDamageAndDiedTriggeredAbility'}
+            return out({'e': 'dies_all', 'filter': [CREATURE, damaged], 'include_self': True}, args[0],
+                       n == 2 and flag(args[1]), True)
         # whenever a permanent of the filter deals combat damage to a player
         if cls == 'DealsDamageToAPlayerAllTriggeredAbility' and n == 5 and args[3] == 'SetTargetPointer.NONE' \
                 and args[4] == 'true':

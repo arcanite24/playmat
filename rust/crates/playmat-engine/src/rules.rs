@@ -8112,7 +8112,23 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     game.revealed.clear();
     game.looked_at.clear();
     game.piles.clear();
+    let was_over = game.over;
     resolve_popped(game, d);
+    // an ability that ended the game as it resolved by its controller losing ("you lose the game": Archfiend of the
+    // Dross): Java's game ends with it still on the stack, then `GameImpl.resolve` removes it and the one left has
+    // won
+    if game.over && !was_over {
+        let lost = |i: &StackItem| i.ability.is_some() && game.player(i.controller).lost;
+        if let Some(item) = game.resolving_item.clone().filter(lost) {
+            Arc::make_mut(&mut game.stack).push(item);
+            traced(game, d);
+            Arc::make_mut(&mut game.stack).pop();
+            let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
+            if let [w] = alive[..] {
+                game.player_mut(w).won = true;
+            }
+        }
+    }
     // `processAction` applies the effects as it resolves: Leyline of the Guildpact's land types end with it
     game.update_guildpact();
     game.revealed.clear();
@@ -15639,6 +15655,25 @@ fn apply_each_effect(
                 }
             }
             EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
+            EffectDef::LoseGameSourceControllerEffect => {
+                // `lostForced`: not once they've won; with one player left the game ends there, as it resolves
+                if !game.player(controller).lost && !game.player(controller).won && !game.over {
+                    game.player_mut(controller).lost = true;
+                    if log::kept(game) {
+                        let line = format!("{} has lost the game", log::player(controller));
+                        log::inform(game, line);
+                    }
+                    let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
+                    if alive.len() <= 1 {
+                        if let (Some(w), true) = (alive.first(), log::kept(game)) {
+                            let line = format!("{} has won the game", log::player(*w));
+                            log::inform(game, line);
+                        }
+                        game.over = true;
+                        return;
+                    }
+                }
+            }
             EffectDef::ReturnToHandFromBattlefieldAllEffect { filter } => {
                 for o in matching(game, filter, controller, source.0) {
                     game.move_to(o, Zone::Hand);
@@ -18628,9 +18663,31 @@ fn damage_modifiers(game: &Game, source: ObjId, to: Target, combat: bool) -> Vec
     out
 }
 
+/// Damage a replacement effect redirects ("is dealt to {this} instead": Palisade Giant, Saving Grace): logged as
+/// those cards' `replaceEvent` does, then dealt to the permanent `to` by the same source, with the replacements
+/// already applied to it left out (`Permanent.damage(…, event.getAppliedEffects())`). Combat damage's lifelink life
+/// goes with its source's other combat damage (`deal_hits`).
+pub(crate) fn redirect_damage(game: &mut Game, ev: &cards::Event, to: ObjId) {
+    let Some(source) = ev.source else { return };
+    if log::kept(game) {
+        let from = match ev.target {
+            Some(t) => game.obj(t).name().to_string(),
+            None => log::player(ev.player),
+        };
+        let line = format!("{}: gets {} damage redirected from {}", game.obj(to).name(), ev.amount, from);
+        log::inform(game, line);
+    }
+    game.damage_applied = Some(ev.applied.clone());
+    let life = deal_damage(game, source, Target::Obj(to), ev.amount, ev.combat);
+    if ev.combat && life > 0 {
+        game.redirected_life.push(life);
+    }
+}
+
 /// Damage from `source`: to a player it's life lost, to a creature it's marked. Lifelink gains its controller life.
 /// Returns combat lifelink's life, which `combat_damage` gains once per source; outside combat, the damage dealt.
 fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
+    let applied = game.damage_applied.take().unwrap_or_default();
     if amount <= 0 {
         return 0;
     }
@@ -18709,6 +18766,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             },
             source: Some(source),
             amount,
+            applied,
             combat,
             preventable: !unpreventable,
             ..cards::Event::new(kind, player)
@@ -20285,7 +20343,7 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
 /// Deals combat damage, adding up what each source dealt (for lifelink)
 fn deal_hits(game: &mut Game, hits: Vec<(ObjId, Target, i32)>, gains: &mut Vec<(ObjId, Seat, i32)>) {
     for (src, to, n) in hits {
-        let amount = deal_damage(game, src, to, n, true);
+        let amount = deal_damage(game, src, to, n, true) + game.redirected_life.drain(..).sum::<i32>();
         if amount > 0 {
             let seat = game.obj(src).controller;
             match gains.iter_mut().find(|g| g.0 == src) {
