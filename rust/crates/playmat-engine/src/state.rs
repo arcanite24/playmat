@@ -1704,10 +1704,20 @@ impl Game {
     /// The abilities a permanent has that it doesn't print, in the order they apply: its counters' keywords, resolved
     /// effects' (as they resolved), then static abilities' (by source), each once
     pub fn granted_abilities(&self, id: ObjId) -> Vec<AbilityDef> {
+        self.granted(id, true)
+    }
+
+    /// `granted_abilities` with each grant as many times as it's given, the ones it prints too (two Auras' "toxic 2"
+    /// are two abilities in Java, each adding its poison: Necrogen Communion)
+    pub fn granted_instances(&self, id: ObjId) -> Vec<AbilityDef> {
+        self.granted(id, false)
+    }
+
+    fn granted(&self, id: ObjId, once: bool) -> Vec<AbilityDef> {
         let o = self.obj(id);
         let mut out: Vec<AbilityDef> = Vec::new();
         let add = |a: &AbilityDef, out: &mut Vec<AbilityDef>| {
-            if !o.has(a) && !out.contains(a) {
+            if !once || !o.has(a) && !out.contains(a) {
                 out.push(a.clone());
             }
         };

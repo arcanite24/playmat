@@ -18456,7 +18456,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 };
                 let mut n: i32 = src.def.abilities.iter().map(toxic).sum();
                 if src.zone == Zone::Battlefield {
-                    n += game.granted_abilities(source).iter().map(toxic).sum::<i32>();
+                    n += game.granted_instances(source).iter().map(toxic).sum::<i32>();
                 }
                 add_poison(game, s, n);
             }
