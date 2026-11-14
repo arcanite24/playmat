@@ -19114,29 +19114,52 @@ fn damaged_batch_triggers(game: &mut Game) {
             t.x = n;
             game.pending.push(t);
         }
+        // `DealtDamageAttachedTriggeredAbility`: the Auras and Equipment attached to it
+        let attached: Vec<ObjId> = game.battlefield.iter().copied().filter(|a| game.attached(*a) == Some(o)).collect();
+        for mut t in game.triggers(attached, |_, _, _, t| matches!(t, Trigger::DealtDamageAttached)) {
+            t.x = n;
+            if set_target_pointer(game, &t) {
+                t.targets = vec![vec![Target::Obj(o)]];
+                t.target_zcc = vec![vec![game.obj(o).zcc]];
+            } else if set_target_pointer_player(game, &t) {
+                t.targets = vec![vec![Target::Player(game.obj(t.card).controller)]];
+                t.target_zcc = vec![vec![0]];
+            }
+            game.pending.push(t);
+        }
     }
 }
 
-/// `DAMAGED_PERMANENT`, each time a source deals damage to a permanent: the `Trigger::DamagedPermanent`s it fires,
-/// X the damage, a target pointer at the damaged permanent or a player pointer at the source's controller
-fn damaged_permanent_triggers(game: &mut Game, source: ObjId, o: ObjId, amount: i32, combat: bool) {
+/// `DAMAGED_PERMANENT` and `DAMAGED_PLAYER`, each time a source deals damage to a permanent or a player: the
+/// `Trigger::DamagedPermanent`s it fires, X the damage, a target pointer at the damaged permanent or a player pointer
+/// at the source's controller
+fn damaged_permanent_triggers(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) {
+    let from = game.obj(source).controller;
     let sources = game.trigger_sources();
-    let fired = game.triggers(sources, |g, src, you, t| match t {
-        Trigger::DamagedPermanent { of, filter, combat: only } if combat || !*only => match of.as_str() {
-            "to_this" => src == o,
-            "this_to" => src == source && g.filter_matches(filter, you, Some(src), o),
-            "attached_to" => g.attached(src) == Some(source) && g.filter_matches(filter, you, Some(src), o),
-            _ => false,
-        },
+    let fired = game.triggers(sources, |g, src, you, t| match (t, to) {
+        (Trigger::DamagedPermanent { of, filter, combat: only }, Target::Obj(o)) if combat || !*only => {
+            match of.as_str() {
+                "to_this" => src == o,
+                "this_to" => src == source && g.filter_matches(filter, you, Some(src), o),
+                "attached_to" => g.attached(src) == Some(source) && g.filter_matches(filter, you, Some(src), o),
+                "to_you_or_yours" => {
+                    from != you && g.obj(o).controller == you && g.filter_matches(filter, you, Some(src), o)
+                }
+                _ => false,
+            }
+        }
+        (Trigger::DamagedPermanent { of, combat: only, .. }, Target::Player(p)) if combat || !*only => {
+            matches!(of.as_str(), "to_you" | "to_you_or_yours") && p == you && from != you
+        }
         _ => false,
     });
     for mut t in fired {
         t.x = amount;
-        if set_target_pointer(game, &t) {
+        if let (true, Target::Obj(o)) = (set_target_pointer(game, &t), to) {
             t.targets = vec![vec![Target::Obj(o)]];
             t.target_zcc = vec![vec![game.obj(o).zcc]];
         } else if set_target_pointer_player(game, &t) {
-            t.targets = vec![vec![Target::Player(game.obj(source).controller)]];
+            t.targets = vec![vec![Target::Player(from)]];
             t.target_zcc = vec![vec![0]];
         }
         game.pending.push(t);
@@ -20042,6 +20065,9 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             if !combat {
                 damaged_opponent_triggers(game, s);
             }
+            if amount > 0 {
+                damaged_permanent_triggers(game, source, to, amount, combat);
+            }
         }
         Target::Obj(o) => {
             if game.obj(o).zone != Zone::Battlefield {
@@ -20051,7 +20077,15 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             let creature = game.has_type(o, CardType::Creature);
             // wither: a creature gets -1/-1 counters, not damage (`checkWither`)
             let wither = creature && keyword(&AbilityDef::WitherAbility);
-            if game.obj(o).def.abilities.iter().any(|a| a.trigger() == Some(&Trigger::DealtDamage)) {
+            let attached_trigger = |g: &Game| {
+                g.battlefield.iter().any(|a| {
+                    g.attached(*a) == Some(o)
+                        && g.obj(*a).def.abilities.iter().any(|x| x.trigger() == Some(&Trigger::DealtDamageAttached))
+                })
+            };
+            if game.obj(o).def.abilities.iter().any(|a| a.trigger() == Some(&Trigger::DealtDamage))
+                || attached_trigger(game)
+            {
                 game.damaged_batch.push((o, amount));
             }
             let planeswalker = game.has_type(o, CardType::Planeswalker);
@@ -20101,7 +20135,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 add_counters_by(game, o, "-1/-1", amount, Some(you));
             }
             if amount > 0 {
-                damaged_permanent_triggers(game, source, o, amount, combat);
+                damaged_permanent_triggers(game, source, to, amount, combat);
             }
         }
     }
@@ -20123,8 +20157,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         if !combat {
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| {
-                matches!(t, Trigger::AttachedDealsDamageToPlayer { only_combat: false, who }
-                    if Game::whose(who, you, p) && g.attached(src) == Some(source))
+                matches!(t, Trigger::AttachedDealsDamageToPlayer { only_combat: false, who, or_this }
+                    if Game::whose(who, you, p) && (g.attached(src) == Some(source) || *or_this && src == source))
             });
             for mut t in fired {
                 if set_target_pointer(game, &t) {
@@ -20187,8 +20221,8 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 Trigger::CombatDamageToPlayerAll { filter, who, .. } => {
                     Game::whose(who, you, p) && g.filter_matches(filter, you, Some(src), source)
                 }
-                Trigger::AttachedDealsDamageToPlayer { who, .. } => {
-                    Game::whose(who, you, p) && g.attached(src) == Some(source)
+                Trigger::AttachedDealsDamageToPlayer { who, or_this, .. } => {
+                    Game::whose(who, you, p) && (g.attached(src) == Some(source) || *or_this && src == source)
                 }
                 _ => false,
             });

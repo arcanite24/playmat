@@ -5204,6 +5204,13 @@ class Translator:
         # (the third argument: the enrage ability word)
         if cls == 'DealtDamageToSourceTriggeredAbility' and (n == 2 or (n == 3 and args[2] in ('true', 'false'))):
             return out({'e': 'dealt_damage'}, args[0], flag(args[1]))
+        # "whenever enchanted (equipped) creature is dealt damage", once for each of its batches
+        if cls == 'DealtDamageAttachedTriggeredAbility' and n == 4 and args[0] == 'Zone.BATTLEFIELD' \
+                and args[3] in ('SetTargetPointer.NONE', 'SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER'):
+            a = out({'e': 'dealt_damage_attached'}, args[1], flag(args[2]), args[3] == 'SetTargetPointer.PERMANENT')
+            if args[3] == 'SetTargetPointer.PLAYER':
+                a['set_target_pointer_player'] = True
+            return a
         # whenever you draw your second card each turn
         if cls == 'DrawNthCardTriggeredAbility' and n == 1:
             return out({'e': 'draws_nth', 'n': 2}, args[0])
@@ -5218,11 +5225,24 @@ class Translator:
             a = out({'e': 'damaged_permanent', 'of': 'to_this'}, args[0], n == 2 and flag(args[1]))
             a['set_target_pointer_player'] = True
             return a
+        # "whenever a source an opponent controls deals damage to you (or a permanent of the filter you control)": its
+        # controller the player pointer
+        if cls == 'SourceDealsDamageToYouTriggeredAbility' and n in (2, 3):
+            on = {'e': 'damaged_permanent', 'of': 'to_you'}
+            if n == 3 and args[1] != 'null':
+                on = {'e': 'damaged_permanent', 'of': 'to_you_or_yours', 'filter': self.filter(args[1])}
+            a = out(on, args[0], flag(args[n - 1]))
+            a['set_target_pointer_player'] = True
+            return a
         # "whenever this deals (combat) damage to a creature (of the filter)", each `DAMAGED_PERMANENT` event
         if cls == 'DealsDamageToACreatureTriggeredAbility' and n in (4, 5):
             f = self.filter(args[4]) if n == 5 else self.filter('StaticFilters.FILTER_PERMANENT_A_CREATURE')
             return out({'e': 'damaged_permanent', 'of': 'this_to', 'filter': f, 'combat': flag(args[1])}, args[0],
                        flag(args[2]), flag(args[3]))
+        # Thassa's Emissary: "whenever this creature or enchanted creature deals combat damage to a player"
+        if cls == 'ThassasEmissaryTriggeredAbility' and n == 2:
+            return out({'e': 'attached_deals_damage_to_player', 'only_combat': True, 'who': 'any', 'or_this': True},
+                       args[0], flag(args[1]))
         # Giant's Skewer: "whenever equipped creature deals combat damage to a creature" (in Java, to any permanent)
         if cls == 'GiantsSkewerTriggeredAbility' and n == 0:
             return out({'e': 'damaged_permanent', 'of': 'attached_to', 'combat': True},
