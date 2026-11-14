@@ -2333,7 +2333,10 @@ impl Game {
             }
             _ => false,
         }) || self.requirements.iter().any(|r| r.kind == RequirementKind::Attacks && r.obj == (id, self.obj(id).zcc))
-            || self.attacks_if_able_next.iter().any(|(you, filter, src)| self.filter_matches(filter, *you, Some(*src), id))
+            || self
+                .attacks_if_able_next
+                .iter()
+                .any(|(you, filter, src)| self.filter_matches(filter, *you, Some(*src), id))
     }
 
     pub fn cant_attack_or_block(&self, id: ObjId) -> bool {
