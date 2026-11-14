@@ -2745,6 +2745,10 @@ class Translator:
             return {'class': 'UntapAllEffect', 'filter': [{'p': 'type', 't': 'LAND'}, {'p': 'controller', 'who': 'you'}]}
         if cls == 'DamageWithPowerFromOneToAnotherTargetEffect' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}
+        # `("", 2)`: twice its power (Animist's Might)
+        if cls == 'DamageWithPowerFromOneToAnotherTargetEffect' and len(args) == 2 \
+                and re.fullmatch(r'"[^"]*"', args[0].strip()) and re.fullmatch(r'\d+', args[1].strip()):
+            return {'class': cls, 'multiplier': int(args[1])} if int(args[1]) != 1 else {'class': cls}
         if cls == 'DamageAllControlledTargetEffect' and 1 <= len(args) <= 2:
             return {'class': cls, 'amount': self.amount(args[0]),
                     'filter': self.filter(args[1]) if len(args) == 2 else [CREATURE]}
@@ -3577,6 +3581,10 @@ class Translator:
         obj = self.new_expr(expr)
         if isinstance(obj, dict) and 'library_target' in obj:
             return obj['library_target']
+        # cards that each have different names (Tiamat): the filter keeps out a name already chosen
+        if not isinstance(obj, dict) and obj[0] == 'TargetCardWithDifferentNameInLibrary' and len(obj[1]) == 3:
+            filt, lo, hi = self.library_target('new TargetCardInLibrary(' + ','.join(obj[1]) + ')')
+            return filt + [{'p': 'different_name'}], lo, hi
         if isinstance(obj, dict) or obj[0] != 'TargetCardInLibrary':
             raise Unsupported('library target ' + expr)
         cls, args = obj
@@ -3829,10 +3837,11 @@ class Translator:
             return got
         # kicker with a sacrifice ("Kicker—Sacrifice an artifact or creature"): no mana, the cost paid with the
         # spell's other additional costs
-        m = re.fullmatch(r'new KickerAbility\((new SacrificeTargetCost\(.*\))\)', canonical(self.strip_setters(expr)), re.S)
+        m = re.fullmatch(r'new KickerAbility\((new (?:SacrificeTargetCost|ReturnToHandChosenControlledPermanentCost)\(.*\))\)',
+                         canonical(self.strip_setters(expr)), re.S)
         if m and balanced(m.group(1)):
             c = self.cost(m.group(1))
-            if c.get('class') == 'SacrificeTargetCost':
+            if c.get('class') in ('SacrificeTargetCost', 'ReturnToHandChosenControlledPermanentCost'):
                 return {'class': 'KickerAbility', 'java': 'KickerAbility', 'cost': '', 'costs': [c]}
         # protection from one or more colors
         m = re.fullmatch(r'ProtectionAbility\.from\((ObjectColor\.(?:WHITE|BLUE|BLACK|RED|GREEN)(?:,ObjectColor\.\w+)*)\)', canonical(expr.strip()))

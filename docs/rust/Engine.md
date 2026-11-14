@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,407 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -738,6 +738,20 @@ Being in the engine and being trusted are kept apart.
   (`WhileOnBattlefield` subtype ending with its source), card-specific target adjusters (Agadeem's Awakening, Body
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
+
+  Wave 10, claim 3 (14 Nov): 74 handler files (one-shot effects, conditions, values and predicates, among them the
+  framework's `YouGainedOrLostLifeCondition`, `AttackedThisTurnSourceCondition`, `NightCondition` and
+  `MaxManaValueControlledCreatureOrPlaneswalkerPredicate`, which brought in Starlit Soothsayer and Riveteers Charm).
+  Engine and transpiler pieces: `DamageWithPowerFromOneToAnotherTargetEffect("", 2)` deals twice the power (Animist's
+  Might, Polliwallop, Punishing Punch), a kicker that returns a land you control (Chocobo Kick), and
+  `TargetCardWithDifferentNameInLibrary` as `Pred::DifferentName` over the cards already chosen in the search; the
+  search now works out what's left after each pick, and is complete when nothing's left (Java's `isChoiceCompleted`).
+  Two games under `shadow/factory/game-w10c3-*` cover those. Three factory rounds (124 games, 117 matching) verified
+  72, 68 of them from the claim's list: 11,201 of 11,407. Twelve games under `shadow/handlers/game-handlers10-claim3-*`
+  cover the handlers. Left: Hapatra (Java's `ForEachOpponentTargetsAdjuster` renames each target, "controlled by …"),
+  Goblin Blast-Runner (one game parts after an Equipment-granted "sacrifice this" ability that targets its own
+  source), Omnipresence (two games part at a free cast's priority), and Desolation Twin, Duneblast, Inspired
+  Ultimatum, Judgment Bolt, Tiamat, Volcanic Vision and War Effort (pending: not exercised enough).
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
