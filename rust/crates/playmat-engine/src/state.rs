@@ -1037,6 +1037,9 @@ pub struct Game {
     pub paying_index: std::cell::Cell<Option<usize>>,
     /// a spell cast while an effect resolves ("you may cast"): timing doesn't apply
     pub any_time: std::cell::Cell<bool>,
+    /// the card being played from a graveyard or exile by an as-though handler's way (`AsThough::Play`), and that
+    /// way: its other mana and extra costs, read as the spell's costs are paid
+    pub cast_permit: Option<(ObjId, crate::rules::cards::PlayWay)>,
     /// paying a forage cost: its rule reads "forage" (no feel-bad word for the auto-choice)
     pub foraging: std::cell::Cell<bool>,
     /// the mana spent on payments so far, by kind (WUBRG, colorless): a spell's colors spent are read from it
@@ -1412,6 +1415,7 @@ impl Game {
             piles: Vec::new(),
             attach_clock: 0,
             eot_effects: Vec::new(),
+            cast_permit: None,
             card_statics: Vec::new(),
             static_amounts: Vec::new(),
             base_pt_until_eot: Vec::new(),
@@ -1749,7 +1753,19 @@ impl Game {
             Pred::Subtype { s } => self.has_subtype(id, s),
             Pred::Supertype { s } => o.def.supertypes.iter().any(|x| x == s),
             Pred::Color { c } => self.colors(id).contains(c),
-            Pred::Controller { who } => (o.controller == you) == (who == "you"),
+            // a spell is controlled by who cast it, not its card's owner (an opponent's card cast with Psychic
+            // Intrusion)
+            Pred::Controller { who } => {
+                let c = match o.zone {
+                    Zone::Stack => self
+                        .stack
+                        .iter()
+                        .find(|i| i.card == id && i.ability.is_none())
+                        .map_or(o.controller, |i| i.controller),
+                    _ => o.controller,
+                };
+                (c == you) == (who == "you")
+            }
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
             Pred::ControlledByFirstTarget => match self.chosen_before.first() {
@@ -3923,19 +3939,33 @@ impl Game {
         if !(from == Zone::Stack && zone == Zone::Battlefield) {
             self.obj_mut(id).escaped = false;
         }
-        // Rest in Peace (two of them: the player chooses which applies)
+        // Rest in Peace (two of them: the player chooses which applies); one of yours only for your cards, one for
+        // cards only not for tokens, and the ones resolved this turn
+        let gone = self.obj(id);
+        let exiles = |e: &EffectDef, you: Seat| match e {
+            EffectDef::GraveyardFromAnywhereExileReplacementEffect { only_you, cards_only, .. } => {
+                (!only_you || gone.owner == you) && (!cards_only || !gone.token)
+            }
+            _ => false,
+        };
         let rest_in_peace = self
             .battlefield
             .iter()
             .filter(|src| {
+                let you = self.obj(**src).controller;
                 self.obj(**src).def.abilities.iter().any(|a| match a {
-                    AbilityDef::SimpleStaticAbility { effects, .. } => {
-                        effects.iter().any(|e| matches!(e, EffectDef::GraveyardFromAnywhereExileReplacementEffect))
-                    }
+                    AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| {
+                        exiles(e, you)
+                            && !matches!(
+                                e,
+                                EffectDef::GraveyardFromAnywhereExileReplacementEffect { duration: Some(_), .. }
+                            )
+                    }),
                     _ => false,
                 })
             })
-            .count();
+            .count()
+            + self.eot_effects.iter().filter(|(e, you, _)| exiles(e, *you)).count();
         // Leyline of the Void: an opponent's card (not a token)
         let leylines = self
             .battlefield

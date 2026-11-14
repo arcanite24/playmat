@@ -1448,7 +1448,11 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         let def = &game.obj(*id).def;
         if def.is(CardType::Land) {
             // played from it (Crucible of Worlds), or a graveyard ability of its own (Drownyard Temple)
-            if lands || !activatable(game, seat, *id).is_empty() {
+            if lands
+                || (can_play_land(game, seat) && !graveyard_play_permits(game, seat, *id, def).is_empty())
+                || !play_ways_now(game, seat, *id, def).is_empty()
+                || !activatable(game, seat, *id).is_empty()
+            {
                 out.push(*id);
             }
             continue;
@@ -1461,8 +1465,11 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
             continue;
         }
         if game.flashbacks(*id).iter().any(|(_, f)| castable(game, seat, *id, f))
-            || ((game.may_play_now(*id, seat) || !graveyard_once_permits(game, seat, *id, def).is_empty())
+            || ((game.may_play_now(*id, seat)
+                || !graveyard_once_permits(game, seat, *id, def).is_empty()
+                || !graveyard_play_permits(game, seat, *id, def).is_empty())
                 && castable(game, seat, *id, def))
+            || !play_ways_now(game, seat, *id, def).is_empty()
             || def.escape().is_some_and(|f| castable(game, seat, *id, &f))
             || mayhem(game, seat, *id).is_some()
             || blitz(game, seat, *id).is_some()
@@ -1518,6 +1525,12 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
                         })
             }
         {
+            out.push(*id);
+        }
+    }
+    // a card an as-though handler lets you play from exile (Squee, the Immortal)
+    for id in game.exile.iter() {
+        if !out.contains(id) && !play_ways_now(game, seat, *id, &game.obj(*id).def).is_empty() {
             out.push(*id);
         }
     }
@@ -1617,7 +1630,9 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                         || game.any_static(|g, src, e| {
                             matches!(e, EffectDef::PlayLandsFromGraveyardControllerEffect)
                                 && g.obj(src).controller == seat
-                        });
+                        })
+                        || !graveyard_play_permits(game, seat, id, def).is_empty()
+                        || !play_ways_now(game, seat, id, def).is_empty();
                     if let Some(k) =
                         index(def, &AbilityDef::PlayLandAbility).filter(|_| from_graveyard && can_play_land(game, seat))
                     {
@@ -1628,8 +1643,11 @@ pub fn playable_abilities(game: &Game, seat: Seat) -> Vec<(ObjId, usize, PlayKin
                     let normal = match o.zone {
                         Zone::Hand => castable(game, seat, id, def),
                         Zone::Graveyard => {
-                            (game.may_play_now(id, seat) || !graveyard_once_permits(game, seat, id, def).is_empty())
+                            (game.may_play_now(id, seat)
+                                || !graveyard_once_permits(game, seat, id, def).is_empty()
+                                || !graveyard_play_permits(game, seat, id, def).is_empty())
                                 && castable(game, seat, id, def)
+                                || !play_ways_now(game, seat, id, def).is_empty()
                         }
                         // a foretold card is cast from exile only for its foretell cost
                         Zone::Exile if o.foretold_turn.is_some() => false,
@@ -1974,11 +1992,12 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         CostDef::ExileFromHandCost { filter } => {
             game.player(seat).hand.iter().any(|c| game.filter_matches(filter, seat, Some(id), *c))
         }
-        CostDef::BeholdCost { subtype } => {
+        CostDef::BeholdCost { subtype } | CostDef::BeholdAndExileCost { subtype } => {
             let (perms, cards) = beholdable(game, seat, subtype);
             !perms.is_empty() || !cards.is_empty()
         }
         CostDef::DiscardSourceCost => o.zone == Zone::Hand,
+        CostDef::DiscardHandCost => true,
         // either one (`OrCost`)
         CostDef::OrCost { costs } => costs.iter().any(|c| or_cost_payable(game, seat, id, c)),
         CostDef::ForageCost => can_pay_cost(game, seat, id, &forage_cost()),
@@ -2449,6 +2468,62 @@ fn graveyard_once_permits(game: &Game, seat: Seat, id: ObjId, face: &CardDef) ->
         false
     });
     out
+}
+
+/// `PlayFromGraveyardControllerEffect`: the sources whose effect lets `seat` play `face` of `id` (a card they own in
+/// their graveyard) now: the static ones in battlefield order (a conditional one while its condition holds), then
+/// the ones resolved this turn. A nonland card without a mana cost can't be cast this way.
+fn graveyard_play_permits(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> Vec<ObjId> {
+    let o = game.obj(id);
+    if o.zone != Zone::Graveyard || o.owner != seat || (!face.is(CardType::Land) && face.cost == ManaCost::default()) {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    game.any_static(|g, src, e| {
+        let (inner, condition) = match e {
+            EffectDef::ConditionalAsThoughEffect { effect, condition } => (&**effect, Some(condition)),
+            e => (e, None),
+        };
+        if let EffectDef::PlayFromGraveyardControllerEffect { filter, .. } = inner {
+            if g.obj(src).controller == seat
+                && condition.is_none_or(|c| g.condition_holds(Some(c), seat, src))
+                && face_matches(g, filter, seat, src, id, face)
+                && !out.contains(&src)
+            {
+                out.push(src);
+            }
+        }
+        false
+    });
+    for (e, you, src) in &game.eot_effects {
+        if let EffectDef::PlayFromGraveyardControllerEffect { filter, .. } = e {
+            if *you == seat && face_matches(game, filter, seat, *src, id, face) && !out.contains(src) {
+                out.push(*src);
+            }
+        }
+    }
+    out
+}
+
+/// The as-though handlers' ways for `seat` to play `face` of `id` from a graveyard or exile (`AsThough::Play`) that
+/// can be taken now: a land with a land to play, a spell castable for the way's mana with its extra costs payable
+fn play_ways_now(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> Vec<(ObjId, cards::PlayWay)> {
+    cards::play_ways(game, seat, id, face)
+        .into_iter()
+        .filter(|(_, w)| {
+            if face.is(CardType::Land) {
+                return can_play_land(game, seat);
+            }
+            // `PlayerImpl.canPlay`: castable for its own mana cost (the way's other costs aren't looked at: Wickerfolk
+            // Indomitable with nothing to sacrifice), or else for an alternate mana cost
+            // (`setCastSourceIdWithAlternateMana`), whose `ManaCosts.canPay` doesn't count the mana available, with
+            // the way's other costs payable (Raffine's Guidance with no white source)
+            castable(game, seat, id, face)
+                || (w.mana.is_some()
+                    && castable(game, seat, id, &CardDef { cost: ManaCost::default(), ..face.clone() })
+                    && w.costs.iter().all(|c| can_pay_cost(game, seat, id, c)))
+        })
+        .collect()
 }
 
 /// One way to play the top card of a library
@@ -3914,9 +3989,11 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         return;
     }
     // `lookAtFaceDownCard`: a card exiled face down that may be played (Black Cat's) asks whether to only look at it;
-    // not a double-faced one, whose face chosen isn't the card turned face down (Jill, Shiva's Dominant)
+    // not a double-faced one, whose face chosen isn't the card turned face down (Jill, Shiva's Dominant); only the
+    // player who may look at it (`LOOK_AT_FACE_DOWN`), not its owner casting it another way (Squee, the Immortal)
     if zone == Zone::Exile
         && game.obj(id).exiled_face_down
+        && game.obj(id).may_play.is_some_and(|(p, _)| p == seat)
         && game.obj(id).def.back.is_none()
         && game.obj(id).def.transform_back.is_none()
     {
@@ -4178,8 +4255,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     *game = before;
                     return;
                 }
-                game.move_to(id, Zone::Exile);
-                game.obj_mut(id).plotted_turn = Some(game.turn);
+                plot_card(game, id);
                 for s in 0..game.seats() {
                     game.player_mut(s).passed = false;
                 }
@@ -4377,6 +4453,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         // a card you may cast from your graveyard (Case of the Uneaten Feast; once each turn, Gisa and Geralf): cast as
         // from hand
         let once = graveyard_once_permits(game, seat, id, &game.obj(id).def.clone());
+        let plays = graveyard_play_permits(game, seat, id, &game.obj(id).def.clone());
+        let ways = play_ways_now(game, seat, id, &game.obj(id).def.clone());
         let allowed = game.may_play_now(id, seat)
             && (castable(game, seat, id, &{
                 let def = (*game.obj(id).def).clone();
@@ -4388,7 +4466,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }) || game.obj(id).play_cost.is_some()
                 && castable(game, seat, id, &CardDef { cost: ManaCost::default(), ..(*game.obj(id).def).clone() }));
         if game.flashback_def(id).is_none()
-            && (allowed || (!once.is_empty() && castable(game, seat, id, &game.obj(id).def.clone())))
+            && (allowed
+                || ((!once.is_empty() || !plays.is_empty()) && castable(game, seat, id, &game.obj(id).def.clone()))
+                || !ways.is_empty())
         {
             // `suppressAbilityPicker`: a {0} spell is picked (a0)
             if game.obj(id).def.cost.mana_value() == 0 {
@@ -4399,6 +4479,8 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
             // the permitting object, with more than one: the statics first, then the effect that made it playable
             let mut permits: Vec<Option<ObjId>> = once.iter().copied().map(Some).collect();
+            permits.extend(plays.iter().copied().filter(|p| !once.contains(p)).map(Some));
+            permits.extend(ways.iter().map(|(p, _)| *p).filter(|p| !once.contains(p) && !plays.contains(p)).map(Some));
             if game.may_play_now(id, seat) {
                 permits.push(None);
             }
@@ -4408,13 +4490,17 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 return;
             };
             let chosen = permits.get(k).copied().flatten();
+            // an as-though handler's way: its mana and extra costs, as the costs are paid
+            if let Some(src) = chosen.filter(|c| !once.contains(c) && !plays.contains(c)) {
+                game.cast_permit = ways.iter().find(|(s, _)| *s == src).map(|(_, w)| (id, w.clone()));
+            }
             let cast = if chosen.is_none() && game.obj(id).play_free { cast_free } else { cast };
             if !cast(game, d, seat, id) {
                 *game = before;
                 return;
             }
             // `CastFromGraveyardOnceWatcher`: that permanent's use this turn
-            if let Some(src) = chosen {
+            if let Some(src) = chosen.filter(|c| once.contains(c)) {
                 let entry = (src, game.obj(src).zcc);
                 game.watch.graveyard_once.push(entry);
             }
@@ -4707,9 +4793,16 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
     Arc::make_mut(&mut game.stack).push(StackItem::spell(id, seat));
     let def = game.obj(id).def.clone();
     // (airbend: cast from exile for {2} instead of its mana cost)
-    let play_cost = if from == Zone::Exile { game.obj(id).play_cost.clone() } else { None };
-    let mut cost = if free { ManaCost::default() } else { play_cost.unwrap_or_else(|| def.cost.clone()) };
+    let mut play_cost = if from == Zone::Exile { game.obj(id).play_cost.clone() } else { None };
     let mut alternative_costs: Vec<CostDef> = Vec::new();
+    // (an as-though handler's way from a graveyard or exile: its other mana, its extra costs)
+    if let Some((_, way)) = game.cast_permit.take().filter(|(c, _)| *c == id) {
+        if way.mana.is_some() {
+            play_cost = way.mana;
+        }
+        alternative_costs.extend(way.costs);
+    }
+    let mut cost = if free { ManaCost::default() } else { play_cost.unwrap_or_else(|| def.cost.clone()) };
     // splice (601.2b, `ContinuousEffects.applySpliceEffects`): before the other costs
     let Some(splice_cost) = choose_splices(game, d, seat, id, &def) else { return false };
     cost = cost.plus(&splice_cost);
@@ -6947,6 +7040,73 @@ fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, co
 }
 
 /// Pays one non-mana cost of `id`'s ability or spell (an `OrCost`'s mana cost too). False: cancelled or stopped.
+/// `BeholdType.beholdOne`: a permanent of the subtype you control, or a card of it revealed from your hand (asked
+/// which when both can be), as `seat` pays the cost of `id`; None: none chosen
+/// `exile`: `BeholdAndExileCost`, whose card from hand isn't auto-chosen (`tryToAutoChoose` reads the spell's text,
+/// "… and exile it")
+fn behold_one(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    id: ObjId,
+    subtype: &str,
+    exile: bool,
+) -> Option<ObjId> {
+    let (perms, cards) = beholdable(game, seat, subtype);
+    let use_permanent = match (perms.is_empty(), cards.is_empty()) {
+        (true, true) => return None,
+        (false, true) => true,
+        (true, false) => false,
+        (false, false) => {
+            let q = Query::YesNo { message: format!("Choose a {} you control or reveal one from your hand?", subtype) };
+            loop {
+                match ask(game, d, seat, &q) {
+                    Answer::Bool(b) => break b,
+                    Answer::Stop => return None,
+                    _ => {}
+                }
+            }
+        }
+    };
+    if use_permanent {
+        let def = TargetDef::TargetPermanent {
+            filter: crate::card::Filter(vec![
+                Pred::Subtype { s: subtype.to_string() },
+                Pred::Controller { who: "you".into() },
+            ]),
+            min: 1,
+            max: 1,
+            distribute: None,
+            x_count: false,
+            count: None,
+        };
+        // `tryToAutoChoose` reads the ability's text: an effect that searches too (Elven Passage) asks
+        let card = &game.obj(id).def;
+        let text = card
+            .abilities
+            .iter()
+            .filter_map(|a| a.activated())
+            .map(|a| a.0.to_lowercase())
+            .find(|r| r.contains("behold"))
+            .unwrap_or_else(|| card.spell.rule.clone());
+        let rule = if text.contains("search") { text } else { "behold".to_string() };
+        match choose_target(game, d, seat, &def, Some(id), &rule, false) {
+            Some(t) => match t.first() {
+                Some(Target::Obj(o)) => Some(*o),
+                _ => None,
+            },
+            None => None,
+        }
+    } else {
+        let hand = game.player(seat).hand.clone();
+        let rule = if exile { "behold and exile it" } else { "behold" };
+        match choose_cards(game, d, seat, &hand, &cards, 1, 1, rule) {
+            Some(c) => c.first().copied(),
+            None => None,
+        }
+    }
+}
+
 fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &CostDef) -> bool {
     match c {
         CostDef::ExertSourceCost => game.obj_mut(id).exerted = true,
@@ -7353,56 +7513,18 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         }
         // `BeholdType.beholdOne`
         CostDef::BeholdCost { subtype } => {
-            let (perms, cards) = beholdable(game, seat, subtype);
-            let use_permanent = match (perms.is_empty(), cards.is_empty()) {
-                (true, true) => return false,
-                (false, true) => true,
-                (true, false) => false,
-                (false, false) => {
-                    let q = Query::YesNo {
-                        message: format!("Choose a {} you control or reveal one from your hand?", subtype),
-                    };
-                    loop {
-                        match ask(game, d, seat, &q) {
-                            Answer::Bool(b) => break b,
-                            Answer::Stop => return false,
-                            _ => {}
-                        }
-                    }
-                }
-            };
-            if use_permanent {
-                let def = TargetDef::TargetPermanent {
-                    filter: crate::card::Filter(vec![
-                        Pred::Subtype { s: subtype.clone() },
-                        Pred::Controller { who: "you".into() },
-                    ]),
-                    min: 1,
-                    max: 1,
-                    distribute: None,
-                    x_count: false,
-                    count: None,
-                };
-                // `tryToAutoChoose` reads the ability's text: an effect that searches too (Elven Passage) asks
-                let card = &game.obj(id).def;
-                let text = card
-                    .abilities
-                    .iter()
-                    .filter_map(|a| a.activated())
-                    .map(|a| a.0.to_lowercase())
-                    .find(|r| r.contains("behold"))
-                    .unwrap_or_else(|| card.spell.rule.clone());
-                let rule = if text.contains("search") { text } else { "behold".to_string() };
-                match choose_target(game, d, seat, &def, Some(id), &rule, false) {
-                    Some(t) if !t.is_empty() => {}
-                    _ => return false,
-                }
-            } else {
-                let hand = game.player(seat).hand.clone();
-                match choose_cards(game, d, seat, &hand, &cards, 1, 1, "behold") {
-                    Some(c) if !c.is_empty() => {}
-                    _ => return false,
-                }
+            if behold_one(game, d, seat, id, subtype, false).is_none() {
+                return false;
+            }
+        }
+        // `BeholdAndExileCost`: the beholden card or permanent exiled into the zone of the permanent the spell becomes
+        // (`CardUtil.getExileZoneId(game, source, 1)`)
+        CostDef::BeholdAndExileCost { subtype } => {
+            let Some(o) = behold_one(game, d, seat, id, subtype, true) else { return false };
+            game.move_to(o, Zone::Exile);
+            if game.obj(o).zone == Zone::Exile {
+                let zcc = game.obj(id).zcc + 1;
+                game.exiled_for_source.push((id, zcc, o));
             }
         }
         CostDef::ReturnAttackerToHandTargetCost => {
@@ -7498,6 +7620,13 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             }
         }
         CostDef::DiscardSourceCost => game.move_to(id, Zone::Graveyard),
+        // `PlayerImpl.discard(hand, true, …)`: each card in hand order, then the batch
+        CostDef::DiscardHandCost => {
+            for c in game.player(seat).hand.clone() {
+                discard_card(game, seat, c);
+            }
+            game.discarded_cards();
+        }
         CostDef::ManaCost { cost } => {
             let Ok(m) = ManaCost::parse(cost) else { return false };
             return pay_mana(game, d, seat, &m);
@@ -12675,11 +12804,7 @@ fn apply_each_effect(
                         continue;
                     };
                     Arc::make_mut(&mut game.stack).remove(k);
-                    game.move_to(*o, Zone::Exile);
-                    if game.obj(*o).zone == Zone::Exile {
-                        let turn = game.turn;
-                        game.obj_mut(*o).plotted_turn = Some(turn);
-                    }
+                    plot_card(game, *o);
                 }
             }
             EffectDef::SpellQuellerLeavesEffect => {
@@ -14109,6 +14234,7 @@ fn apply_each_effect(
             | EffectDef::EntersWithCountersAllEffect { .. }
             | EffectDef::PlayAdditionalLandsControllerEffect { .. }
             | EffectDef::PlayLandsFromGraveyardControllerEffect
+            | EffectDef::PlayFromGraveyardControllerEffect { duration: None, .. }
             | EffectDef::PlayFromTopOfLibraryEffect { .. }
             | EffectDef::LookAtTopCardOfLibraryAnyTimeEffect
             | EffectDef::CastFromGraveyardOnceEffect { .. }
@@ -14615,11 +14741,87 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::ExileCardsFromTopOfLibraryControllerEffect { amount } => {
+            EffectDef::ExileCardsFromTopOfLibraryControllerEffect { amount, unique, face_down } => {
                 let n = v!(amount).max(0) as usize;
                 let top: Vec<ObjId> = game.player(controller).library.iter().take(n).copied().collect();
                 for c in top {
                     game.move_to(c, Zone::Exile);
+                    if game.obj(c).zone == Zone::Exile {
+                        // (`CardUtil.getExileZoneId(game, source)`: the source's zone as it is now)
+                        if *unique {
+                            game.exiled_for_source.push((source.0, source.1, c));
+                        }
+                        if *face_down {
+                            game.obj_mut(c).face_down = true;
+                        }
+                    }
+                }
+            }
+            EffectDef::MayExileCardFromHandPlottedEffect { filter } => {
+                // `TargetCardInHand(0, 1, filter)`, chosen with `chooseTarget`
+                let hand = game.player(controller).hand.clone();
+                let possible: Vec<ObjId> = hand
+                    .iter()
+                    .copied()
+                    .filter(|c| game.filter_matches(filter, controller, Some(source.0), *c))
+                    .collect();
+                if possible.is_empty() {
+                    continue;
+                }
+                let rule = item_rule(game, item);
+                let Some(chosen) = choose_cards(game, d, controller, &hand, &possible, 0, 1, &rule) else { return };
+                if let Some(&c) = chosen.first() {
+                    plot_card(game, c);
+                }
+            }
+            EffectDef::ExileFaceDownTopNYouMayPlayEffect { amount, cast_only, any_mana } => {
+                let n = v!(amount).max(0) as usize;
+                let Some(Target::Player(p)) = target else { continue };
+                let top: Vec<ObjId> = game.player(p).library.iter().take(n).copied().collect();
+                for c in top {
+                    game.move_to(c, Zone::Exile);
+                    if game.obj(c).zone == Zone::Exile {
+                        game.exiled_for_source.push((source.0, source.1, c));
+                        let o = game.obj_mut(c);
+                        o.may_play = Some((controller, u32::MAX));
+                        o.may_play_end_step = false;
+                        o.may_play_while = None;
+                        o.any_mana = *any_mana;
+                        o.cast_only = *cast_only;
+                        o.exiled_face_down = true;
+                    }
+                }
+            }
+            EffectDef::ExileTopCardPlayUntilExileAnotherEffect => {
+                let Some(&c) = game.player(controller).library.first() else { continue };
+                game.move_to(c, Zone::Exile);
+                if game.obj(c).zone != Zone::Exile {
+                    continue;
+                }
+                let (src, zcc) = (source.0, game.obj(source.0).zcc);
+                // the others exiled with it leave its zone (`moveToMainExileZone`): no longer playable this way
+                let others: Vec<ObjId> = game
+                    .exiled_for_source
+                    .iter()
+                    .filter(|(s, z, o)| *s == src && *z == zcc && *o != c)
+                    .map(|(_, _, o)| *o)
+                    .collect();
+                game.exiled_for_source.retain(|(s, z, o)| !(*s == src && *z == zcc && *o != c));
+                for o in others {
+                    if game.obj(o).zone == Zone::Exile && game.obj(o).may_play.is_some_and(|(p, _)| p == controller) {
+                        game.obj_mut(o).may_play = None;
+                    }
+                }
+                game.exiled_for_source.push((src, zcc, c));
+                let o = game.obj_mut(c);
+                o.may_play = Some((controller, u32::MAX));
+                o.may_play_end_step = false;
+                o.may_play_while = None;
+            }
+            EffectDef::ReturnFromExileForSourceEffect { zone } => {
+                return_from_exile_for_source(game, d, source, zone);
+                if d.stopped() {
+                    return;
                 }
             }
             EffectDef::ExileCardsFromTopOfLibraryTargetEffect { amount } => {
@@ -17953,7 +18155,7 @@ fn apply_each_effect(
             | EffectDef::CantBeBlockedByMoreThanOneAttachedEffect
             | EffectDef::MockingbirdEffect
             | EffectDef::CopyPermanentEffect { .. }
-            | EffectDef::GraveyardFromAnywhereExileReplacementEffect
+            | EffectDef::GraveyardFromAnywhereExileReplacementEffect { duration: None, .. }
             | EffectDef::SetBasePowerSourceEffect { .. }
             | EffectDef::ValleyFlamecallerEffect
             | EffectDef::TheWanderingEmperorEffect
@@ -17980,6 +18182,8 @@ fn apply_each_effect(
                 }
             }
             EffectDef::AttacksIfAbleAllEffect { this_turn: true, .. }
+            | EffectDef::PlayFromGraveyardControllerEffect { duration: Some(_), .. }
+            | EffectDef::GraveyardFromAnywhereExileReplacementEffect { duration: Some(_), .. }
             | EffectDef::PlayAdditionalLandsThisTurnEffect { .. } => {
                 game.eot_effects.push((e.clone(), controller, source.0));
             }
@@ -18591,6 +18795,71 @@ fn to_library(game: &mut Game, id: ObjId, top: bool) {
 }
 
 /// `PutCards.moveCards`. False: the decider stopped.
+/// `PlotAbility.doExileAndPlotCard`: the card exiled, plotted this turn (it can be cast from a later turn on), and
+/// its "when this card becomes plotted" triggers (`BECOME_PLOTTED`)
+fn plot_card(game: &mut Game, id: ObjId) {
+    game.move_to(id, Zone::Exile);
+    if game.obj(id).zone != Zone::Exile {
+        return;
+    }
+    let turn = game.turn;
+    game.obj_mut(id).plotted_turn = Some(turn);
+    let fired = game.triggers([id], |_, src, _, t| src == id && matches!(t, Trigger::BecomesPlotted));
+    game.pending.extend(fired);
+}
+
+/// `ReturnFromExileForSourceEffect`: the cards still in the source's exile zone (`exiled_for_source`, or a card's
+/// `exiled_with`), in the order they went there: the zone of the permanent as it is, or, after it left (a leaves or
+/// dies trigger), as it was (one zone change count less). They go to `zone` together, each to its owner's (onto the
+/// battlefield under its owner's control)
+fn return_from_exile_for_source(game: &mut Game, d: &mut dyn Decider, source: (ObjId, u32), zone: &str) {
+    let (src, zcc) = source;
+    let mut cards: Vec<ObjId> = Vec::new();
+    for (s, z, c) in game.exiled_for_source.iter().copied() {
+        if s == src && (z == zcc || z + 1 == zcc) && game.obj(c).zone == Zone::Exile && !cards.contains(&c) {
+            cards.push(c);
+        }
+    }
+    for c in game.exile.iter().copied() {
+        if game.obj(c).exiled_with.is_some_and(|(s, z)| s == src && (z == zcc || z + 1 == zcc)) && !cards.contains(&c) {
+            cards.push(c);
+        }
+    }
+    if cards.is_empty() {
+        return;
+    }
+    for c in &cards {
+        game.obj_mut(*c).face_down = false;
+    }
+    match zone {
+        "battlefield" => {
+            let mut owners: Vec<Seat> = Vec::new();
+            for c in &cards {
+                let owner = game.obj(*c).owner;
+                if !owners.contains(&owner) {
+                    owners.push(owner);
+                }
+            }
+            for owner in owners {
+                let mine: Vec<ObjId> = cards.iter().copied().filter(|c| game.obj(*c).owner == owner).collect();
+                if !put_cards(game, d, owner, &mine, crate::card::PutCards::Battlefield) {
+                    return;
+                }
+            }
+        }
+        "graveyard" => {
+            for c in cards {
+                game.move_to(c, Zone::Graveyard);
+            }
+        }
+        _ => {
+            for c in cards {
+                game.move_to(c, Zone::Hand);
+            }
+        }
+    }
+}
+
 fn put_cards(game: &mut Game, d: &mut dyn Decider, seat: Seat, cards: &[ObjId], to: crate::card::PutCards) -> bool {
     use crate::card::PutCards as P;
     match to {
