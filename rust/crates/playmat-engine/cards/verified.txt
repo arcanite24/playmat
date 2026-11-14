@@ -228,6 +228,7 @@ Akki Scrapchomper
 Akki War Paint
 Akoum Hellhound
 Akoum Hellkite
+Akoum Warrior
 Akroan Conscriptor
 Akroan Crusader
 Akroan Hoplite
@@ -594,6 +595,7 @@ Audacious Infiltrator
 Audacious Thief
 Audacity
 Auger Spree
+Augmenter Pugilist
 Augmenting Automaton
 Augur of Autumn
 Augur of Bolas
@@ -902,6 +904,7 @@ Biosynthic Burst
 Biotech Specialist
 Biovisionary
 Bird Admirer
+Birgi, God of Storytelling
 Birnin Zana Plaza
 Birthing Hulk
 Bishop of Rebirth
@@ -963,6 +966,7 @@ Blessed Light
 Blessed Spirits
 Blessing
 Blessing of Belzenlok
+Blex, Vexing Pest
 Blight Keeper
 Blight Pile
 Blight Rot
@@ -1275,6 +1279,7 @@ Broodrage Mycoid
 Broodspinner
 Brotherhood's End
 Brought Back
+Bruce Banner
 Brush Off
 Brushfire Elemental
 Brushland
@@ -1520,6 +1525,7 @@ Centaur Battlemaster
 Centaur Courser
 Centaur Healer
 Centaur Nurturer
+Centaur Peacemaker
 Centaur's Herald
 Center Soul
 Cephalid Inkmage
@@ -2785,6 +2791,7 @@ Eclipsed Kithkin
 Eclipsed Merrow
 Ecologist's Terrarium
 Ecstatic Awakener
+Eddie Brock
 Eddymurk Crab
 Eddytrail Hawk
 Eden, Seat of the Sanctum
@@ -3020,6 +3027,7 @@ Escape Velocity
 Escaped Experiment
 Esgaroth Garrison
 Esika's Chariot
+Esika, God of the Tree
 Esper Origins
 Essence Anchor
 Essence Burn
@@ -4285,6 +4293,7 @@ Hallowed Fountain
 Hallway Heckler
 Halo Hopper
 Halo Scarab
+Halvar, God of Battle
 Hamato Guardian Stance
 Hamlet Captain
 Hamlet Glutton
@@ -5149,6 +5158,7 @@ Kayla's Reconstruction
 Kazandu Mammoth
 Kazandu Nectarpot
 Kazandu Stomper
+Kazuul's Fury
 Keen Buccaneer
 Keen Glidemaster
 Keen-Eyed Curator
@@ -5207,6 +5217,7 @@ Kindly Stranger
 Kinetic Augur
 King Darien XLVIII
 King Harald's Revenge
+King T'Challa
 Kingpin's Enforcers
 Kingpin's Pet
 Kinjalli's Caller
@@ -5276,6 +5287,7 @@ Kolaghan Stormsinger
 Kolaghan Warmonger
 Kolaghan's Command
 Kolaghan, the Storm's Fury
+Kolvori, God of Kinship
 Koma's Faithful
 Koma, World-Eater
 Kona, Rescue Beastie
@@ -6180,6 +6192,7 @@ Monastery Messenger
 Monastery Swiftspear
 Mondrak, Glory Dominus
 Mongoose Lizard
+Monica Rambeau
 Monk of the Open Hand
 Monk's Fist
 Monoist Sentry
@@ -6843,6 +6856,7 @@ Pest Mascot
 Pest Summoning
 Pestbrood Sloth
 Pestered Wellguard
+Pestilent Cauldron
 Pestilent Syphoner
 Pestilent Wolf
 Pests of Honor
@@ -6958,6 +6972,7 @@ Planar Engineering
 Planar Outburst
 Planetary Bombardment
 Planetary Patrol
+Plargg, Dean of Chaos
 Plasma Bolt
 Plasma Cascade
 Plasma Jockey
@@ -8235,6 +8250,7 @@ Self-Assembler
 Self-Reflection
 Selfcraft Mechan
 Selfless Cathar
+Selfless Glyphweaver
 Selfless Police Captain
 Selfless Samurai
 Selfless Savior
@@ -8321,6 +8337,7 @@ Shadowstorm Vizier
 Shadowy Backstreet
 Shady Informant
 Shady Traveler
+Shaile, Dean of Radiance
 Shake the Foundations
 Shalai's Acolyte
 Shalai, Voice of Plenty
@@ -9954,6 +9971,7 @@ Tome Shredder
 Tome of the Guildpact
 Tomik, Izzet Sparkmage
 Tonberry
+Tony Stark
 Too Evil to Stay Dead
 Toolcraft Exemplar
 Topan Freeblade
@@ -10352,6 +10370,7 @@ Valakut Exploration
 Valakut Invoker
 Valakut Predator
 Valduk, Keeper of the Flame
+Valentin, Dean of the Vein
 Valgavoth's Faithful
 Valgavoth's Lair
 Valgavoth's Onslaught
@@ -10670,6 +10689,7 @@ Wanderbrine Preacher
 Wanderbrine Trapper
 Wanderer's Intervention
 Wanderer's Strike
+Wandering Archaic
 Wandering Champion
 Wandering Mind
 Wandering Musicians
