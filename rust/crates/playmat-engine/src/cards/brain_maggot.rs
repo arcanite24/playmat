@@ -32,6 +32,8 @@ fn apply(game: &mut Game, d: &mut dyn Decider, cx: &EffectCx) -> Option<()> {
         game.move_to(card, Zone::Exile);
         if game.obj(card).zone == Zone::Exile {
             game.exiled_until_leaves.push((src, zcc, card));
+            // back to its owner's hand, not the battlefield (`ReturnFromExileEffect(Zone.HAND)`)
+            game.return_to_hand.push(card);
         }
     }
     Some(())
