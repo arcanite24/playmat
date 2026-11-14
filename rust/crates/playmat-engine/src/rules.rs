@@ -16814,6 +16814,41 @@ fn enter_as_copy(game: &mut Game, d: &mut dyn Decider, id: ObjId, controller: Se
     }
 }
 
+/// `CreateTokenCopyTargetEffect.removeTokensCreatedAt(…, PhaseStep.END_TURN, …)`: a delayed trigger that sacrifices
+/// the tokens made (as they are now), or exiles them (`exileTokensCreatedAtNextEndStep`), at the beginning of the next
+/// end step
+fn remove_tokens_at_next_end_step(game: &mut Game, made: &[ObjId], source: ObjId, controller: Seat, exile: bool) {
+    let them: Vec<(ObjId, u32)> = made.iter().map(|t| (*t, game.obj(*t).zcc)).collect();
+    if them.is_empty() {
+        return;
+    }
+    let what = if exile { "exile" } else { "sacrifice" };
+    let delayed = Delayed {
+        rule: format!("At the beginning of the next end step, {what} the token copies."),
+        sacrifice: if exile { Vec::new() } else { them.clone() },
+        warp_exile: Vec::new(),
+        effects: if exile { vec![EffectDef::ExileTargetEffect] } else { Vec::new() },
+        source_zcc: 0,
+        fixed: if exile { them } else { Vec::new() },
+        return_tapped: Vec::new(),
+        targets: Vec::new(),
+        condition: None,
+    };
+    game.at_next_end_step.push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source, controller) });
+}
+
+/// `game.copyPermanent(Duration.EndOfTurn, …)`: `src` becomes `copy` (what it copies' copiable values, with what an
+/// applier changed) until end of turn, as Shifting Woodland does; the cleanup gives it its own characteristics back
+fn become_copy_until_end_of_turn(game: &mut Game, src: ObjId, copy: Arc<CardDef>) {
+    let ob = game.obj_mut(src);
+    let old = ob.def.clone();
+    if ob.until_end_of_turn_def.is_none() {
+        ob.until_end_of_turn_def = Some(old);
+    }
+    ob.eot_copy = Some(copy.clone());
+    ob.def = copy;
+}
+
 /// A `CopyApplier` on the copy's blueprint (`CopyApplierDef`), as `GameImpl.copyPermanent` applies it: its types and
 /// abilities always; its creature abilities and "enters with" counters only when what it copies isn't itself a copy
 /// (`isCopyOfCopy`: a copy of a Spark Double has the counter ability Spark Double's copy got, not a second one)
@@ -20035,6 +20070,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
         if game.obj(id).until_end_of_turn_def.is_some() {
             let o = game.obj_mut(id);
             o.def = o.until_end_of_turn_def.take().unwrap();
+            o.eot_copy = None;
         }
         if game.obj(id).damage != 0 || game.obj(id).deathtouched {
             let o = game.obj_mut(id);
