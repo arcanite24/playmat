@@ -285,6 +285,11 @@ pub struct Obj {
     pub play_tax: u32,
     /// cast from exile, its mana cost is this instead (airbend's {2}: `setCastSourceIdWithAlternateMana`)
     pub play_cost: Option<crate::card::ManaCost>,
+    /// played from exile as a land, it enters tapped (Lightstall Inquisitor's `CardMorEnteringTappedEffect`)
+    pub play_tapped: bool,
+    /// cast from exile, it costs this much more as it's paid, but not in the playable check (Lightstall
+    /// Inquisitor's `setCastSourceIdWithAlternateMana`: its mana cost plus {1})
+    pub pay_tax: u32,
     /// cast for its warp cost (on the stack, then on the battlefield)
     pub warped: bool,
     /// cast for its evoke cost
@@ -498,6 +503,9 @@ pub struct Player {
     pub life_lost_last_turn: i32,
     /// "you gain hexproof until end of turn" (Lazotep Plating): the turn
     pub hexproof_turn: Option<u32>,
+    /// the last turn a permanent entered face down under their control or they turned one face up (Oblivious
+    /// Bookworm's watcher)
+    pub face_down_turn: Option<u32>,
 }
 
 impl Player {
@@ -1476,6 +1484,8 @@ impl Game {
             cast_only: false,
             play_tax: 0,
             play_cost: None,
+            play_tapped: false,
+            pay_tax: 0,
             warped: false,
             evoked: false,
             impending: false,
@@ -3872,6 +3882,8 @@ impl Game {
             o.transformed_in_place = false;
             o.play_tax = 0;
             o.play_cost = None;
+            o.play_tapped = false;
+            o.pay_tax = 0;
             o.exerted = false;
             o.powered_up = false;
             o.marks.clear();
