@@ -161,6 +161,10 @@ def effect(t, cls, args, own_only=False):
     for i, kind in enumerate(h['args']):
         if kind == 'duration' and (i >= len(args) or not args[i].startswith('Duration.')):
             args.insert(i, 'Duration.WhileOnBattlefield')
+        # "until_your_next_turn": a class whose constructor sets `Duration.UntilYourNextTurn` itself (resolved, it
+        # lasts until your next turn as a `Duration.UntilYourNextTurn` argument does)
+        if kind == 'until_your_next_turn' and i >= len(args):
+            args.insert(i, 'Duration.UntilYourNextTurn')
     for i, kind in enumerate(h['args']):
         if i >= len(args):
             break
@@ -201,7 +205,7 @@ def effect(t, cls, args, own_only=False):
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
         elif kind not in ('text', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
-                          'while_on_battlefield', 'duration') \
+                          'while_on_battlefield', 'duration', 'until_your_next_turn') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
     # a static handler for a framework class is written for its constructors with up to as many arguments as it

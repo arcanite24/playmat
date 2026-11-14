@@ -1106,7 +1106,7 @@ Being in the engine and being trusted are kept apart.
   - Engine fix: a creature that lost all abilities (`BecomesCreatureTargetEffect`'s `loseAllAbilities`) loses its
     keyword counters' abilities too, since Java adds those first in layer 6 (Dragonshift on a creature with a
     lifelink counter).
-  - Hideaway isn't done: each of its seven Pioneer cards needs more than the keyword.
+  - Hideaway isn't done: each of its seven Pioneer cards needs more than the keyword (wave 8, claim 1 adds it).
   - Games covering these are under `shadow/mechanics/game-w7k-*`.
   - 94 cards came in. Three factory rounds (120 games, all matching once fixed, replayed again on master after
     #353) verified 93: 11,049 of 11,238. Sandman's Quicksand had no factory deck yet.
@@ -1178,6 +1178,47 @@ Being in the engine and being trusted are kept apart.
   - 58 cards came in, You Happen On a Glade (a `new` in parentheses) the one bonus card, Berta, Wise Extrapolator
     with #355's Fractal tokens. Four factory rounds (85 games, replayed again on master after #355) verified 56:
     11,185 of 11,380. Pontiff of Blight differs (see above); Berta had no factory deck yet.
+
+  Wave 8, claim 1 (`.local/rust-port/wave8/claim-1.tsv`, most-used first). Handler files for 24 cards' own classes,
+  plus framework ones: hideaway (`HideawayAbility` becomes an enters trigger with `HideawayExileEffect`;
+  `HideawayPlayEffect` plays the cards exiled with that object, a land only on your turn with a land play left,
+  at any step), `LegendarySpellAbility` (a rule handler: a legendary sorcery needs a legendary creature or
+  planeswalker), `ForetoldCondition` (a spell cast from the exile it was foretold into; it keeps `foretold_turn`
+  on the stack), `SpellCastFromAnywhereOtherThanHand` and `GainActivatedAbilitiesOfTopCardEffect`. Engine changes:
+  - `DontUntapInControllersUntapStepSourceEffect` on an `EntersBattlefieldTappedAbility` (Traxos);
+    `DontCauseTriggerEffect` takes a filter (Doorkeeper Thrull: creatures entering);
+    `CommittedCrime { graveyard }` fires from its card in the graveyard (Forsaken Miner; no factory game has it
+    triggering yet).
+  - `TurnWatch.attacked_players` (each attacker and the player it attacked, Angel of Destiny) and
+    `TurnWatch.exerted` with `ExertOnceAbility` (`ExertAbility(this, true)`: not asked again once exerted this
+    turn, Combat Celebrant).
+  - A station level's (or other conditional) granted activated ability is offered (Kavaron, Memorial World at
+    12+). `GainAbilityTargetEffect` with `UntilYourNextTurn` lasts to your next turn (Vivien's +1).
+  - A card exiled face down that its owner may cast (`exiled_face_down`, Vivien's -2) first asks whether to only
+    look at it. A spell an effect casts is checked against the rule handlers' `CantCast` too (Avatar's Wrath stops
+    a hideaway cast from exile).
+  - The transpiler reads `ExertAbility(this, true)`, a known filter's `.copy().withMessage(…)`, `MobilizeAbility`
+    with a dynamic value, a one-opponent `TargetCardInOpponentsGraveyard`, and a handler arg
+    `until_your_next_turn`.
+  - 60 cards came in (20 of them through shared classes: Collector's Cage, Widespread Thieving, Cut In, Starnheim
+    Unleashed, …). Two factory rounds (78 games, 72 matching, replayed again on master after #355) verified 50:
+    11,179 of 11,382. Regression games are `shadow/factory/game-enters-tapped-doesnt-untap`, `game-dont-cause-trigger-filter`, `game-exert-once-a-turn`,
+    `game-attacked-players-this-turn`, `game-station-level-activated-ability`,
+    `game-gain-ability-until-your-next-turn`, `game-exiled-face-down-look-first` and
+    `game-effect-cast-rule-modified`, plus `shadow/handlers/game-w8c1-*`.
+
+  Left from claim 1:
+  - Kavaron and Spit Flame differ only on the Young Hero Role's trigger text (see claim 5 above).
+  - Winnowing sacrifices from a `HashSet<Permanent>` (identity hashes), so its graveyard order can't be matched.
+  - Discover the Impossible: Java's resolving spell is still on the stack, so a counterspell cast from it can target
+    it; here it can't. Triple Triad: a spell with an `OrCost` cast free from it (Wild Unraveling) is picked (a0)
+    and its {1} isn't paid in Java. Trickster's Stratagem: one game differs on Forsake the Worldly's targets.
+  - Pending (not exercised): Kamahl's Druidic Vow, Primevals' Glorious Rebirth, Urza's Ruinous Blast, Yawgmoth's
+    Vile Offering.
+  - Skipped, needing engine work: modal double-faced cards with a nonland back (Halvar, Mila, Valentin), targets in
+    exile (The Darkness Crystal), curses, batch and "becomes the target" triggers (Hedge Shredder, Satoru,
+    Reidane), conditional mana (claim-mech's), next-main-phase delayed triggers (Mana Sculpt), and about 70 more
+    with their own effect classes.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only

@@ -1223,6 +1223,11 @@ pub struct SpellSeen {
 /// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TurnWatch {
+    /// `ExertedThisTurnWatcher`: the creatures exerted this turn, as they were
+    pub exerted: Vec<(ObjId, u32)>,
+    /// the players each attacker was declared attacking this turn (`ATTACKER_DECLARED` with a player as its
+    /// defender: Angel of Destiny's watcher), the attacker as it was
+    pub attacked_players: Vec<(ObjId, u32, Seat)>,
     /// `SpellsCastWatcher`, in the order they were cast
     pub spells: Vec<SpellSeen>,
     /// `PermanentsSacrificedWatcher`: who sacrificed, and whether it was an artifact

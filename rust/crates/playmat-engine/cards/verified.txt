@@ -331,6 +331,7 @@ Ancient Vendetta
 Andoria
 Angel of Condemnation
 Angel of Deliverance
+Angel of Destiny
 Angel of Finality
 Angel of Invention
 Angel of Renewal
@@ -635,6 +636,7 @@ Avarice Amulet
 Avaricious Dragon
 Avatar Enthusiasts
 Avatar of the Resolute
+Avatar's Wrath
 Aven Battle Priest
 Aven Eternal
 Aven Gagglemaster
@@ -649,6 +651,7 @@ Aven Tactician
 Aven Wind Guide
 Aven Wind Mage
 Aven of Enduring Hope
+Avenger of the Fallen
 Avengers Assemble!
 Avengers Disassembled
 Avengers Hangar
@@ -735,6 +738,7 @@ Banishing Slash
 Bankrupt in Blood
 Banner of Kinship
 Bar the Gate
+Baral and Kari Zev
 Baral's Expertise
 Barbed Batterfist
 Barbed Bloodletter
@@ -905,6 +909,7 @@ Big Score
 Bigfin Bouncer
 Bilbo Baggins, Burglar
 Bilbo's Deadly Slice
+Bilbo, Thief in the Night
 Bile-Vial Boggart
 Bilious Skulldweller
 Billowing Shriekmass
@@ -1489,6 +1494,7 @@ Cast Out
 Cast into Darkness
 Castaway's Despair
 Castle Ardenvale
+Castle Doom
 Castle Embereth
 Castle Garenbrig
 Castle Locthwain
@@ -1542,6 +1548,7 @@ Celestial Unicorn
 Cement Shoes
 Cemetery Prowler
 Cemetery Recruitment
+Cemetery Tampering
 Cenote Scout
 Censor
 Centaur Battlemaster
@@ -1750,6 +1757,7 @@ Cling to Dust
 Clinging Anemones
 Clinquant Skymage
 Clip Wings
+Clive's Hideaway
 Clive, Ifrit's Dominant
 Cloaked Siren
 Clockwork Drawbridge
@@ -1801,6 +1809,7 @@ Collective Brutality
 Collective Drone
 Collective Effort
 Collective Nightmare
+Collector's Cage
 Collector's Vault
 Colleen Wing, Street Samurai
 Collision // Colossus
@@ -1818,6 +1827,7 @@ Colossapede
 Colossification
 Colossodon Yearling
 Colossus Hammer
+Combat Celebrant
 Combat Courier
 Combat Professor
 Combat Research
@@ -1893,6 +1903,7 @@ Consign // Oblivion
 Consign to Dust
 Consign to Memory
 Consign to the Pit
+Conspicuous Snoop
 Constricting Sliver
 Constrictor Sage
 Consul's Lieutenant
@@ -1952,6 +1963,7 @@ Corridor Monitor
 Corroding Dragonstorm
 Corrupt Court Official
 Corrupted Conviction
+Corrupted Crossroads
 Corsair Captain
 Coruscation Mage
 Cosmic Cube
@@ -2122,6 +2134,7 @@ Cursed Recording
 Custodian of the Trove
 Cut // Ribbons
 Cut Down
+Cut In
 Cut Your Losses
 Cut of the Profits
 Cutthroat Centurion
@@ -2146,6 +2159,7 @@ Daggerfang Duo
 Daggermaw Megalodon
 Daggersail Aeronaut
 Dahar Master
+Dai Li Agents
 Dai Li Indoctrination
 Daily Bugle Building
 Daily Bugle Reporters
@@ -2253,6 +2267,7 @@ Deadeye Plunderers
 Deadeye Quartermaster
 Deadeye Rig-Hauler
 Deadeye Tormentor
+Deadeye Tracker
 Deadly Alliance
 Deadly Derision
 Deadly Dispute
@@ -2990,6 +3005,7 @@ Emeria Captain
 Emeria Shepherd
 Emeria's Call
 Emeritus of Abundance
+Emeritus of Conflict
 Emeritus of Ideation
 Emeritus of Truce
 Emeritus of Woe
@@ -3135,6 +3151,7 @@ Eutropia the Twice-Favored
 Evanescent Intellect
 Evangel of Heliod
 Evangel of Synthesis
+Evendo, Waking Haven
 Ever After
 Everdawn Champion
 Evershrike's Gift
@@ -3427,6 +3444,7 @@ Fiery Islet
 Fiery Temper
 Fifty Feet of Rope
 Fight On!
+Fight Rigging
 Fight as One
 Fight with Fire
 Filigree Crawler
@@ -3622,6 +3640,7 @@ Formidable Commons
 Formidable Speaker
 Forsake the Worldly
 Forsaken Drifters
+Forsaken Miner
 Forsaken Sanctuary
 Fortified Rampart
 Fortified Village
@@ -3786,6 +3805,7 @@ Garenbrig Paladin
 Garenbrig Squire
 Gargos, Vicious Watcher
 Gargoyle Sentinel
+Garna, the Bloodflame
 Garnet, Princess of Alexandria
 Garrison Cat
 Garrison Excavator
@@ -4346,6 +4366,7 @@ Gumdrop Poisoner
 Gundabad Opportunist
 Gurmag Angler
 Gurmag Nightwatch
+Gurmag Rakshasa
 Gurmag Swiftwing
 Guru Pathik
 Gust Walker
@@ -4357,6 +4378,7 @@ Gutterbones
 Guttersnipe
 Guul Draz Mucklord
 Guy in the Chair
+Gwenna, Eyes of Gaea
 Gyre Engineer
 Gyre Sage
 Gysahl Greens
@@ -4790,6 +4812,7 @@ Hushwood Verge
 Hussar Patrol
 Hydra's Growth
 Hydraulic Helper
+Hydro-Channeler
 Hydroform
 Hydroid Krasis
 Hydrolash
@@ -4981,6 +5004,7 @@ Instant Ramen
 Insult // Injury
 Integrity // Intervention
 Interceptor Mechan
+Interdimensional Web Watch
 Interdisciplinary Mascot
 Interjection
 Interpret the Signs
@@ -5414,6 +5438,7 @@ Kolaghan Stormsinger
 Kolaghan Warmonger
 Kolaghan's Command
 Kolaghan, the Storm's Fury
+Koll, the Forgemaster
 Koma's Faithful
 Koma, Cosmos Serpent
 Koma, World-Eater
@@ -5625,6 +5650,7 @@ Liberating Combustion
 Library Larcenist
 Lich's Caress
 Lich's Relic
+Liesa, Forgotten Archangel
 Life Goes On
 Life's Legacy
 Lifebane Zombie
@@ -5688,6 +5714,7 @@ Linebreaker Baloth
 Lingering Phantom
 Linvala, the Preserver
 Lion Heart
+Lion Sash
 Lionheart Glimmer
 Lita, Little Orphan Amphibian
 Lithobraking
@@ -5725,6 +5752,7 @@ Loathsome Chimera
 Lobber Crew
 Loch Dragon
 Loch Mare
+Lochmere Serpent
 Locke Cole
 Locked in the Cemetery
 Locthwain Gargoyle
@@ -6002,6 +6030,7 @@ Marshal of Zhalfir
 Marshal of the Lost
 Marshals' Pathcruiser
 Marshmist Titan
+Martial Glory
 Martial Law
 Martyr for the Cause
 Martyr of Dusk
@@ -6266,6 +6295,7 @@ Mishra's Research Desk
 Mishra's Self-Replicator
 Mishra, Excavation Prodigy
 Misleading Motes
+Mission Briefing
 Mist Intruder
 Mist-Cloaked Herald
 Mistbreath Elder
@@ -6820,6 +6850,7 @@ Oran-Rief Ooze
 Orazca Frillback
 Orazca Puzzle-Door
 Orazca Raptor
+Orb of Dragonkind
 Orbs of Warding
 Orc Sureshot
 Orchard Spirit
@@ -6877,6 +6908,7 @@ Outlaw Medic
 Outlaws' Fury
 Outnumber
 Outpost Siege
+Ovalchase Daredevil
 Ovalchase Dragster
 Over the Edge
 Overcome
@@ -7169,6 +7201,7 @@ Poetic Ingenuity
 Pointed Discussion
 Poised Practitioner
 Poison Dart Frog
+Poison the Cup
 Poison the Waters
 Poison-Tip Archer
 Polis Crusher
@@ -7423,6 +7456,7 @@ Quill-Blade Laureate
 Quilled Charger
 Quilled Wolf
 Quintessential Katana
+Quintorius Kand
 Quintorius, Field Historian
 Quirion Beastcaller
 Quirion Dryad
@@ -7432,6 +7466,7 @@ Rabanastre, Royal City
 Rabaroo Troop
 Rabbit Battery
 Rabbit Response
+Rabble Rousing
 Rabid Attack
 Rabid Bite
 Rabid Bloodsucker
@@ -7670,6 +7705,7 @@ Redcap Thief
 Redirect Lightning
 Redrock Sentinel
 Redtooth Genealogist
+Redtooth Vanguard
 Reduce // Rubble
 Reduce in Stature
 Reduce to Ashes
@@ -8138,6 +8174,7 @@ Sahagin
 Saheeli's Silverwing
 Saheeli, Consul of Oversight
 Saheeli, Jewel of Avishkar
+Saheeli, Sublime Artificer
 Sai, Master Thopterist
 Saiba Cryptomancer
 Saiba Trespassers
@@ -8711,6 +8748,7 @@ Silence
 Silence the Echo
 Silent Artisan
 Silent Dart
+Silent Hallcreeper
 Silent Observer
 Silent Sentinel
 Silent Skimmer
@@ -9258,6 +9296,7 @@ Starling, Aerial Ally
 Starlit Mantle
 Starnheim Aspirant
 Starnheim Courser
+Starnheim Unleashed
 Starport Security
 Starry-Eyed Skyrider
 Starscape Cleric
@@ -9503,6 +9542,7 @@ Summon: Knights of Round
 Summon: Primal Garuda
 Summon: Primal Odin
 Summon: Shiva
+Summoner's Grimoire
 Sun Sentinel
 Sun-Blessed Healer
 Sun-Blessed Mount
@@ -9601,6 +9641,7 @@ Suspicious Bookcase
 Suspicious Detonation
 Suspicious Shambler
 Suspicious Stowaway
+Susur Secundi, Void Altar
 Susurian Dirgecraft
 Susurian Voidborn
 Suurok-Class Science Vessel
@@ -10312,6 +10353,7 @@ Traverse the Ulvenwald
 Trawler Drake
 Traxos, Academy Guardian
 Traxos, Scourge Eternal
+Traxos, Scourge of Kroog
 Treacherous Blessing
 Tread Upon
 Treasure Cruise
@@ -10423,6 +10465,7 @@ Twinscroll Shaman
 Twinshot Sniper
 Twist Reality
 Twisted Embrace
+Twisted Fealty
 Twitching Doll
 Two-Headed Cerberus
 Two-Headed Hunter
@@ -10579,6 +10622,7 @@ Unscrupulous Agent
 Unscrupulous Contractor
 Unsettling Twins
 Unsparing Boltcaster
+Unstable Experiment
 Unstoppable Ogre
 Unstoppable Plan
 Unsubstantiate
@@ -10614,6 +10658,7 @@ Urza, Prince of Kroog
 Usher of the Fallen
 Uthros Psionicist
 Uthros Scanship
+Uthros, Titanic Godcore
 Utility Knife
 Utrom Scientists
 Utter End
@@ -10841,6 +10886,7 @@ Vivien of the Arkbow
 Vivien's Crocodile
 Vivien's Grizzly
 Vivien's Jaguar
+Vivien, Champion of the Wilds
 Vivien, Nature's Avenger
 Vivisection
 Vivisection Evangelist
@@ -11156,6 +11202,7 @@ Wicked Visitor
 Wicked Wolf
 Wicker Witch
 Widespread Brutality
+Widespread Thieving
 Widow's Bite
 Wight
 Wight of Precinct Six
