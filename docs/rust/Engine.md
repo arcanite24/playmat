@@ -688,6 +688,20 @@ Being in the engine and being trusted are kept apart.
   different order). Rowdy Crew and Curse-Marred Demon discard at random from a `HashSet<Card>`, so they aren't
   ported.
 
+  Wave 6, claim 4 (13 Nov): 20 handler files (14 cards' own classes, and framework ones: `CantAttackBlockTargetEffect`,
+  `MaximumHandSizeControllerEffect`, `GainControlAllOwnedEffect`, `CantAttackAllEffect`,
+  `AddCreatureTypeAdditionEffect`, `ExchangeControlTargetEffect`, `ToughnessGreaterThanPowerPredicate`) and engine
+  support for a set maximum hand size (or none for the rest of the game), loyalty abilities twice a turn (Oath of
+  Teferi), mana kept until end of turn (`UntilEndOfTurnManaEffect`), "you gain …" and extra land plays until end of
+  turn, `PutCards.SHUFFLE`, a look count of your life, the greatest toughness among permanents, and toughness combat
+  damage for creatures of a filter (`CombatDamageByToughnessControlledEffect`) brought 60 cards in (10,798 in the
+  engine). Preacher of the Schism's attack trigger isn't checked again as it resolves (Java checks it only as it
+  triggers), with a game under `shadow/handlers/`. Three factory rounds (114 games, 109 matching, replayed again on
+  the engine with claim 1's second batch) verified 52 more, 25 of them from the claim's list: 10,641. Twenty games
+  under `shadow/handlers/game-handlers-w6c4-*` cover them. Left: Phyrexian Censor (with two Censors out, Java asks
+  which "enters tapped" replacement applies first; the engine doesn't ask), Endbringer, Portal to Phyrexia and Sea
+  Gate Restoration (pending: not exercised in three rounds), and 105 of the list's cards still untranslated.
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
