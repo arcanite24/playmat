@@ -797,6 +797,37 @@ Being in the engine and being trusted are kept apart.
     (ward paid by collecting evidence), Setessan Tactics (the granted fight ability's stack text); Colossus of Akros,
     Crush of Tentacles, Hythonia the Cruel, Izoni and Tyrant of Valakut are pending.
 
+  Wave 6, claim 3 (13 Nov, `.local/rust-port/wave6/claim-3.tsv`): handler files for 22 cards, and the engine and
+  transpiler support they needed:
+  - Rules and statics: `Rule::CantActivate` (Faith's Fetters), `CostKind::Life` (Terror of the Peaks's 3 life), the
+    `TAPPED_FOR_MANA` replacement event, `AsThough::Haste` (Tyvar, Jubilant Brawler) and `AsThough::Hexproof`
+    (Detection Tower).
+  - Triggers: "becomes tapped" for any permanent of a filter (Magda), the upkeep of the enchanted creature's controller
+    (Super Intelligence), and `DiesThisOrAnotherTriggeredAbility.setApplyFilterOnSource` (Basri's Lieutenant).
+  - Conditions and values: `SourcePreparedCondition`, `TargetManaValue`, `PermanentsTargetOpponentControlsCount` and
+    `HalfValue` rounded up. The watcher's spells keep the mana value they were cast with (Rhino).
+  - Effects: pay-more-for-flash, an extra land this turn (Plant Beans), a spell back to its owner's library
+    (`ReturnToLibrarySpellEffect`), and "can't have or gain" an ability (Archetype of Imagination). Also prevention
+    of the damage to you, lore counters added to a target Saga, and an equip ability's discount for other Equipment.
+  - Fixes, each with a regression game in `shadow/factory/`:
+    - Winning while a spell or ability resolves leaves it on the stack until the game's end is traced, and sets `won`
+      after (`game-win-as-it-resolves`).
+    - An Aura returned from a graveyard "with a counter" gets no counter, as `AuraReplacementEffect` puts it there
+      itself (`game-aura-returned-no-counters`).
+
+  Three factory rounds (74 games, 72 matching, replayed again after each fix) verified 40 cards, 4 of
+  them not on the list: 10,598 of 10,768.
+
+  Left from claim 3:
+  - Damping Sphere is held back. In one game Java's playable check and payment don't add its {1} for the spell cast
+    before, and the engine does (round-002 game-00100).
+  - Mortal Obstinacy is held back because it's in the same game.
+  - Detection Tower differs in a game's discard choice (round-003 game-00103).
+  - Archetype of Imagination is pending.
+  - Most of the rest need machinery that isn't there yet: changing or copying targets on the stack, triggered mana
+    abilities, mana kept until end of turn, damage-to-a-creature and fight triggers, "don't lose for 0 life",
+    exploit, devour, random discard, and the "or dying" half of `DontCauseTriggerEffect`.
+
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
       python3 rust/tools/verify_factory.py record --work $W --procs 8     # long: run it in the background
