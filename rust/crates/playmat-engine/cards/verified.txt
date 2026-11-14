@@ -35,6 +35,7 @@ Abzan Advantage
 Abzan Ascendancy
 Abzan Banner
 Abzan Battle Priest
+Abzan Beastmaster
 Abzan Charm
 Abzan Devotee
 Abzan Falconer
@@ -177,6 +178,7 @@ Aggressive Sabotage
 Aggressive Urge
 Agna Qel'a
 Agonasaur Rex
+Agonizing Remorse
 Agonizing Syphon
 Agoraphobia
 Ahn-Crop Champion
@@ -521,6 +523,7 @@ Armor Wars
 Armorcraft Judge
 Armored Armadillo
 Armored Cancrix
+Armored Kincaller
 Armored Scrapgorger
 Armored Wolf-Rider
 Armory Guard
@@ -788,6 +791,7 @@ Barrow Naughty
 Barrow Witches
 Bartizan Bats
 Bartolome del Presidio
+Bartz and Boko
 Basalt Ravager
 Baseball Bat
 Bashful Beastie
@@ -1279,6 +1283,7 @@ Breach the Multiverse
 Breaching Dragonstorm
 Breaching Hippocamp
 Break Down the Door
+Break Out
 Break Through the Line
 Break Under Pressure
 Break the Spell
@@ -1574,6 +1579,7 @@ Caught in the Brights
 Caught in the Crossfire
 Cauldron Familiar
 Cauldron of Essence
+Caustic Bronco
 Caustic Caterpillar
 Caustic Exhale
 Caustic Tar
@@ -2057,6 +2063,7 @@ Cosmic Spider-Man
 Cosmium Blast
 Cosmogoyf
 Cosmogrand Zenith
+Cosmos Elixir
 Cosmotronic Wave
 Cost of Brilliance
 Costly Plunder
@@ -2152,6 +2159,7 @@ Cruel Alliance
 Cruel Celebrant
 Cruel Feeding
 Cruel Finality
+Cruel Grimnarch
 Cruel Revival
 Cruel Somnophage
 Cruel Truths
@@ -2287,6 +2295,7 @@ Dark Bargain
 Dark Betrayal
 Dark Confidant
 Dark Dabbling
+Dark Deal
 Dark Deed
 Dark Endurance
 Dark Favor
@@ -2533,6 +2542,7 @@ Despoiler of Souls
 Destined // Lead
 Destiny Spinner
 Destroy Evil
+Destroy the Evidence
 Destructive Digger
 Destructive Revelry
 Destructive Tampering
@@ -2553,6 +2563,7 @@ Devoted Duelist
 Devoted Grafkeeper
 Devoted Paladin
 Devotee of Strength
+Devour Flesh
 Devour Intellect
 Devour in Flames
 Devourer of Destiny
@@ -2825,6 +2836,7 @@ Dreadful Apathy
 Dreadhorde Butcher
 Dreadhorde Invasion
 Dreadhorde Twins
+Dreadlight Monstrosity
 Dreadmalkin
 Dreadmaw's Ire
 Dreadwaters
@@ -3003,6 +3015,7 @@ Eddytrail Hawk
 Eden, Seat of the Sanctum
 Edgar, Ancient Bloodlord
 Edgar, Charmed Groom
+Edgar, Moonlit Sovereign
 Edge Rover
 Edgewall Inn
 Edgewall Innkeeper
@@ -3720,6 +3733,7 @@ Flitterstep Eidolon
 Flitting Guerrilla
 Flock Impostor
 Flood of Recollection
+Flood of Tears
 Flood the Engine
 Flooded Strand
 Floodfarm Verge
@@ -4685,6 +4699,7 @@ Haunted Hellride
 Haunted Mire
 Haunted Ridge
 Haunter of Nightveil
+Haunting Figment
 Hauntwoods Shrieker
 Haven of the Spirit Dragon
 Havoc Devils
@@ -5375,6 +5390,7 @@ Izzet Guildgate
 Izzet Keyrune
 Izzet Locket
 Izzet Staticaster
+Jace's Defeat
 Jace's Ingenuity
 Jace's Projection
 Jace's Ruse
@@ -5789,6 +5805,7 @@ Lacerate Flesh
 Lady of Laughter
 Lagomos, Hand of Hatred
 Lagonna-Band Elder
+Lagonna-Band Storyteller
 Lagonna-Band Trailblazer
 Lagorin, Soul of Alacria
 Laid to Rest
@@ -5803,6 +5820,7 @@ Lambholt Harrier
 Lambholt Pacifist
 Lambholt Raconteur
 Lampad of Death's Vigil
+Lamplight Phoenix
 Lamplighter of Selhoff
 Landscape Painter
 Languish
@@ -6084,6 +6102,7 @@ Lost Legacy
 Lost Legion
 Lost in Space
 Lost in a Labyrinth
+Lost in the Maze
 Lotleth Giant
 Lotleth Troll
 Lotus Cobra
@@ -6252,6 +6271,7 @@ Mandible Justiciar
 Maned Serval
 Mangara, the Diplomat
 Manglehorn
+Manhole Missile
 Maniacal Rage
 Manic Scribe
 Manifest Dread
@@ -6537,6 +6557,7 @@ Mindseeker Oculus
 Mindsparker
 Mindspring Merfolk
 Mindstatic
+Mindswipe
 Mindwhisker
 Mindwrack Harpy
 Mine Raider
@@ -6742,6 +6763,7 @@ Mowu, Loyal Companion
 Mox Amber
 Mox Jasper
 Mox Opal
+Mr. Orfeo, the Boulder
 Mu Yanling, Celestial Wind
 Mu Yanling, Wind Rider
 Mudbutton Cursetosser
@@ -6902,6 +6924,7 @@ Neutralize the Guards
 Neutralizing Blast
 Neva, Stalked by Nightmares
 Never // Return
+Never Happened
 Neverwinter Dryad
 New Generation's Technique
 New Horizons
@@ -7215,6 +7238,7 @@ Ornitharch
 Ornithopter
 Orochi Merge-Keeper
 Oroku Saki, Shredder Rising
+Orphans of the Wheat
 Orthion, Hero of Lavabrink
 Orthodoxy Enforcer
 Orysa, Tide Choreographer
@@ -7642,6 +7666,7 @@ Priest of Forgotten Gods
 Priest of Iroas
 Priest of the Blood Rite
 Priest of the Haunted Edge
+Priest of the Wakening Sun
 Primal Druid
 Primal Empathy
 Primal Might
@@ -9327,6 +9352,7 @@ Skyclave Shadowcat
 Skyclave Squid
 Skycoach Conductor
 Skycrash
+Skyfisher Spider
 Skygames
 Skyknight Legionnaire
 Skyknight Squire
@@ -9487,6 +9513,7 @@ Song of Stupefaction
 Song of Totentanz
 Song-Mad Treachery
 Sonic Assault
+Sonic Shrieker
 Soothsayer Adept
 Sorcerer of the Fang
 Sorcerer's Broom
@@ -9500,10 +9527,12 @@ Soul Enervation
 Soul Partition
 Soul Salvage
 Soul Sear
+Soul Search
 Soul Shatter
 Soul Summons
 Soul Swallower
 Soul Tithe
+Soul Transfer
 Soul Warden
 Soul of Innistrad
 Soul of New Phyrexia
@@ -9533,6 +9562,7 @@ Sourbread Auntie
 Soured Springs
 South Pole Voyager
 Southern Air Temple
+Sovereign Okinec Ahau
 Sovereign's Bite
 Sower of Chaos
 Sowing Mycospawn
@@ -10120,6 +10150,7 @@ Surrak Dragonclaw
 Surrak and Goreclaw
 Surrak, Elusive Hunter
 Surrak, the Hunt Caller
+Surtland Flinger
 Surtland Frostpyre
 Surveillance Phantasm
 Surveillance Room
@@ -10373,6 +10404,7 @@ Temur Monument
 Temur Runemark
 Temur Sabertooth
 Temur Tawnyback
+Tenacious Dead
 Tenacious Hunter
 Tenacious Tomeseeker
 Tenacious Underdog
@@ -10467,6 +10499,7 @@ Thawbringer
 The Antiquities War
 The Arkenstone
 The Autonomous Furnace
+The Biblioplex
 The Birth of Meletis
 The Book of Exalted Deeds
 The Boulder, Ready to Rumble
@@ -10826,6 +10859,7 @@ Toxic Abomination
 Toxic Scorpion
 Toxin Analysis
 Toxrill, the Corrosive
+Track Down
 Tractor Beam
 Trade Route Envoy
 Trade the Helm
@@ -11635,6 +11669,7 @@ Watcher in the Web
 Watcher of the Roost
 Watcher of the Spheres
 Watcher of the Wayside
+Watchers of the Dead
 Watchful Automaton
 Watchful Blisterzoa
 Watchful Giant
@@ -11768,6 +11803,7 @@ Wicked Slumber
 Wicked Visitor
 Wicked Wolf
 Wicker Witch
+Wickerfolk Thresher
 Widespread Brutality
 Widespread Thieving
 Widow's Bite
@@ -11810,6 +11846,7 @@ Willbreaker
 Willow Geist
 Willowrush Verge
 Wilt
+Wilt in the Heat
 Wily Bandar
 Wily Goblin
 Wind Drake
@@ -11953,6 +11990,7 @@ Yanling's Harbinger
 Yargle and Multani
 Yargle, Glutton of Urborg
 Yargle, Goliath of Otaria
+Yarok's Fenlurker
 Yarok, the Desecrated
 Yasova Dragonclaw
 Yathan Roadwatcher
@@ -12023,6 +12061,7 @@ Zenith Seeker
 Zephyr Boots
 Zephyr Charge
 Zephyr Scribe
+Zephyr Sentinel
 Zephyr Winder
 Zetalpa, Primal Dawn
 Zhalfirin Lancer
