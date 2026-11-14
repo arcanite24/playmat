@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,375 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,364 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1369,7 +1369,8 @@ Being in the engine and being trusted are kept apart.
   planeswalker), `ForetoldCondition` (a spell cast from the exile it was foretold into; it keeps `foretold_turn`
   on the stack), `SpellCastFromAnywhereOtherThanHand` and `GainActivatedAbilitiesOfTopCardEffect`. Engine changes:
   - `DontUntapInControllersUntapStepSourceEffect` on an `EntersBattlefieldTappedAbility` (Traxos);
-    `DontCauseTriggerEffect` takes a filter (Doorkeeper Thrull: creatures entering);
+    `DontCauseTriggerEffect` takes a filter (Doorkeeper Thrull: creatures entering, read as claim 2's `entering`
+    filter);
     `CommittedCrime { graveyard }` fires from its card in the graveyard (Forsaken Miner; no factory game has it
     triggering yet).
   - `TurnWatch.attacked_players` (each attacker and the player it attacked, Angel of Destiny) and
