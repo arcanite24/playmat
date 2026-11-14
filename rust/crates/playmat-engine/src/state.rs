@@ -88,6 +88,11 @@ impl Step {
     }
 }
 
+thread_local! {
+    /// set while `Game::spell_grants` checks its filters
+    static SPELL_GRANTS_BUSY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
 /// How long a control change (`GainControlTargetEffect`, layer 2) lasts
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ControlUntil {
@@ -99,6 +104,8 @@ pub enum ControlUntil {
     WhileControlled(ObjId, u32),
     /// until the source leaves the battlefield (`Duration.UntilSourceLeavesBattlefield`)
     SourceLeaves(ObjId, u32),
+    /// while the source (an Aura's `ControlEnchantedEffect`) is on the battlefield attached to the permanent
+    Attached(ObjId, u32),
 }
 
 /// A permanent's control change: who controls it, until when, and who controlled it before
@@ -1895,10 +1902,72 @@ impl Game {
         out
     }
 
+    /// The abilities statics give a card outside the battlefield and a spell (`GainAbilityControlledSpellsEffect`, as
+    /// `GameState.addOtherAbility`: after its own, by source)
+    pub fn spell_grants(&self, id: ObjId) -> Vec<AbilityDef> {
+        let o = self.obj(id);
+        let mut out: Vec<AbilityDef> = Vec::new();
+        // (a filter's `AbilityPredicate` reads the card's own abilities: no grants while a grant's filter is checked)
+        if o.zone == Zone::Battlefield || o.zone == Zone::Command || SPELL_GRANTS_BUSY.with(|b| b.get()) {
+            return out;
+        }
+        SPELL_GRANTS_BUSY.with(|b| b.set(true));
+        for src in self.battlefield.iter() {
+            let s = self.obj(*src);
+            let seat = s.controller;
+            let theirs = match o.zone {
+                Zone::Exile => true,
+                Zone::Stack => o.controller == seat,
+                _ => o.owner == seat,
+            };
+            if !theirs {
+                continue;
+            }
+            for a in &s.def.abilities {
+                let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+                for e in effects {
+                    if let EffectDef::GainAbilityControlledSpellsEffect { ability, filter } = e {
+                        if !o.has(ability)
+                            && !out.contains(ability)
+                            && self.filter_matches(filter, seat, Some(*src), id)
+                        {
+                            out.push((**ability).clone());
+                        }
+                    }
+                }
+            }
+        }
+        SPELL_GRANTS_BUSY.with(|b| b.set(false));
+        out
+    }
+
+    /// A card's own abilities and what `spell_grants` gives it (`Card.getAbilities(game)`)
+    pub fn card_has(&self, id: ObjId, ability: &AbilityDef) -> bool {
+        self.obj(id).has(ability) || self.spell_grants(id).contains(ability)
+    }
+
     pub fn has_ability(&self, id: ObjId, ability: &AbilityDef) -> bool {
         let o = self.obj(id);
         if !self.lost_until_eot.is_empty()
             && self.lost_until_eot.iter().any(|(x, z, a, t)| *x == id && *z == o.zcc && a == ability && *t == self.turn)
+        {
+            return false;
+        }
+        // an Aura's "enchanted creature loses all abilities" (`LoseAllAbilitiesAttachedEffect`): to Java whatever
+        // other statics give it too (Fresh Start on a creature with Cathar's Shield)
+        if o.zone == Zone::Battlefield
+            && o.lost_abilities.as_ref().is_some_and(|(s, z, _)| {
+                let a = self.obj(*s);
+                a.zcc == *z
+                    && a.zone == Zone::Battlefield
+                    && self.attached(*s) == Some(id)
+                    && a.def.abilities.iter().any(|b| match b {
+                        AbilityDef::SimpleStaticAbility { effects, .. } => {
+                            effects.iter().any(|e| matches!(e, EffectDef::LoseAllAbilitiesAttachedEffect))
+                        }
+                        _ => false,
+                    })
+            })
         {
             return false;
         }
@@ -1952,7 +2021,7 @@ impl Game {
             }
         }
         if o.zone != Zone::Battlefield {
-            return false;
+            return self.spell_grants(id).contains(ability);
         }
         if self.grants.iter().any(|g| g.target == id && g.zcc == o.zcc && g.ability == *ability) {
             return true;
