@@ -1797,7 +1797,8 @@ class Translator:
             return triggered(CUSTOM[m.group(1)]())
         # whenever a permanent of the filter you control enters
         m = re.fullmatch(r'new EntersBattlefieldControlledTriggeredAbility\((.*)\)', expr, re.S)
-        if m:
+        # (one call, not a chain: `….setDoOnlyOnceEachTurn(true)` is read further on, Baron Strucker)
+        if m and balanced(m.group(0)):
             args = split_args(m.group(1))
             # (an emblem's is in the command zone: Koth, Fire of Resistance)
             if args[0].strip() in ('Zone.BATTLEFIELD', 'Zone.COMMAND'):
@@ -2463,9 +2464,13 @@ class Translator:
             return h
         # a handler named for this card's use of a class (`OuterCardClass.Class`, card_handlers.py): before any form
         # of the class the translator knows
-        m = re.fullmatch(r'new (\w+)\((.*)\)', self.strip_setters(expr.strip()), re.S)
+        # (a resolving static handler lasts until the turn's cleanup: `.setDuration(Duration.EndOfTurn)` is how it
+        # always ends, Armor Wars's chapter II)
+        own = re.sub(r'\)\.setDuration\(Duration\.EndOfTurn\)$', ')', self.strip_setters(expr.strip()))
+        m = re.fullmatch(r'new (\w+)\((.*)\)', own, re.S)
         if m and balanced(m.group(0)) and getattr(self, 'source', None) \
-                and (h := card_handlers.effect(self, m.group(1), split_args(m.group(2)), own_only=True)) is not None:
+                and (h := card_handlers.effect(self, m.group(1), split_args(m.group(2)), own_only=True)) is not None \
+                and (own == self.strip_setters(expr.strip()) or h.get('class') == 'CardStatic'):
             return h
         # (the name its text gives the source)
         m = re.fullmatch(r'(new SpellsCostModificationThatTargetSourceEffect\(.*\))\.withTargetName\("[^"]*"\)',
@@ -2485,6 +2490,12 @@ class Translator:
                         'token': token('FractalToken')}
         if expr.strip().startswith('new CreateTokenCopyTargetEffect(') and (e := self.token_copy_effect(expr)):
             return e
+        # "counter target spell unless its controller pays {2}. If they do, surveil 2." (Don't Make a Sound)
+        m = re.fullmatch(r'(new CounterUnlessPaysEffect\(.*\))\.withIfTheyDo\((new .*)\)', self.strip_setters(expr.strip()), re.S)
+        if m and balanced(m.group(1)) and balanced(m.group(2)):
+            e = self.effect(m.group(1))
+            if e.get('class') == 'CounterUnlessPaysEffect':
+                return dict(e, if_they_do=[self.effect(m.group(2))])
         # an enchantment that becomes a creature keeps its creature types by default (`keepCreatureSubtypes`)
         m = re.fullmatch(r'(new BecomesCreatureSourceEffect\(.*,\s*CardType\.ENCHANTMENT\s*,[^,]*\))'
                          r'\.withKeepCreatureSubtypes\(true\)', self.strip_setters(expr.strip()), re.S)
@@ -3157,6 +3168,9 @@ class Translator:
                                              {'p': 'another'}]}
         if cls == 'RegenerateSourceEffect' and len(args) <= 1:
             return {'class': cls}
+        # "enchanted creature assigns combat damage equal to its toughness rather than its power" (Gauntlets of Light)
+        if cls == 'CombatDamageByToughnessAttachedEffect' and len(args) == 2 and args[0].strip() == 'null':
+            return {'class': cls}
         if cls == 'CounterUnlessPaysEffect' and len(args) == 1 and not args[0].strip().startswith('new '):
             return {'class': cls, 'generic': self.value('amount', args[0].strip())}
         # a `DynamicValue` constructed in place (`new CardsInControllerGraveyardCount()`): {1} for each
@@ -3675,12 +3689,19 @@ class Translator:
         if cls == 'ExileThenReturnTargetEffect' and len(args) in (2, 3) and args[0] in ('true', 'false') \
                 and args[1] in ('true', 'false'):
             put = args[2] if len(args) == 3 else 'PutCards.BATTLEFIELD'
-            if put not in ('PutCards.BATTLEFIELD', 'PutCards.BATTLEFIELD_TAPPED'):
+            if put not in ('PutCards.BATTLEFIELD', 'PutCards.BATTLEFIELD_TAPPED', 'PutCards.BATTLEFIELD_TAPPED_ATTACKING'):
                 raise Unsupported('effect ' + x)
             if args[0] == 'false' and put == 'PutCards.BATTLEFIELD':
                 return {'class': cls}
-            return {'class': 'ExileThenReturnUnderTargetEffect', 'your_control': args[0] == 'true',
-                    'tapped': put == 'PutCards.BATTLEFIELD_TAPPED'}
+            e = {'class': 'ExileThenReturnUnderTargetEffect', 'your_control': args[0] == 'true',
+                 'tapped': put != 'PutCards.BATTLEFIELD'}
+            if put == 'PutCards.BATTLEFIELD_TAPPED_ATTACKING':
+                e['attacking'] = True
+            return e
+        # "exile {this}, then return it to the battlefield (front face up)": `ExileAndReturnSourceEffect(BATTLEFIELD,
+        # IT, true)` (a Dominant's Saga back face, Jill, Shiva's Dominant)
+        if cls == 'ExileSourceAndReturnFaceUpEffect' and not args:
+            return {'class': 'ExileAndReturnSourceEffect', 'your_control': True, 'tapped': False, 'transformed': False}
         # `ExileAndReturnSourceEffect(putCards[, pronoun[, yourControl]])`
         if cls == 'ExileAndReturnSourceEffect' and 1 <= len(args) <= 3 \
                 and args[0] in ('PutCards.BATTLEFIELD', 'PutCards.BATTLEFIELD_TAPPED', 'PutCards.BATTLEFIELD_TRANSFORMED') \
@@ -3835,6 +3856,10 @@ class Translator:
                 and (len(args) == 2 or args[2].strip() == 'false'):
             lo, hi = int(args[0]), 99 if args[1].strip() == 'Integer.MAX_VALUE' else int(args[1])
             return {'class': cls} if (lo, hi) == (1, 1) else {'class': cls, 'min': lo, 'max': hi}
+        # "two target players": `TargetPlayer(2)` (Gleaming Splendor)
+        if cls == 'TargetPlayer' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            n = int(args[0])
+            return {'class': cls} if n == 1 else {'class': cls, 'min': n, 'max': n}
         # `TargetPlayer(1, 1, false, filter)` with a filter that only names the players (Collective Effort)
         if cls == 'TargetPlayer' and len(args) == 4 and [a.strip() for a in args[:3]] == ['1', '1', 'false'] \
                 and re.fullmatch(r'[a-z]\w*', args[3].strip()) \
@@ -3875,6 +3900,12 @@ class Translator:
         if cls == 'TargetCreaturePermanentAmount' and len(args) == 4 and all(re.fullmatch(r'\d+', a.strip()) for a in args[:3]):
             return {'class': 'TargetPermanent', 'filter': self.filter(args[3]),
                     'min': int(args[1]), 'max': int(args[2]), 'distribute': int(args[0])}
+        # (amount, min[, max], filter): a fixed amount among `min` to `max` (the amount) permanents of the filter
+        # (Revival of the Ancestors)
+        if cls == 'TargetPermanentAmount' and len(args) in (3, 4) and all(re.fullmatch(r'\d+', a.strip()) for a in args[:-1]):
+            return {'class': 'TargetPermanent', 'filter': self.filter(args[-1]),
+                    'min': int(args[1]), 'max': int(args[2]) if len(args) == 4 else int(args[0]),
+                    'distribute': int(args[0])}
         # X divided among creatures and/or planeswalkers of the filter (Dragonlord Atarka)
         if cls == 'TargetCreatureOrPlaneswalkerAmount' and len(args) == 2:
             amount = self.amount(args[0])
@@ -5530,6 +5561,18 @@ class Translator:
         if cls == 'LoseLifeTriggeredAbility' and n == 1:
             return out({'e': 'loses_life', 'who': 'you'}, args[0])
         # whenever a permanent of the filter enters under an opponent's control
+        # (Zone.BATTLEFIELD, effect, filter, optional, SetTargetPointer): the pointer is the entering permanent or its
+        # controller (Sire of Stagnation's "that player")
+        if cls == 'EntersBattlefieldOpponentTriggeredAbility' and n == 5 and args[0] == 'Zone.BATTLEFIELD' \
+                and args[4] in ('SetTargetPointer.PERMANENT', 'SetTargetPointer.PLAYER', 'SetTargetPointer.NONE') \
+                and args[3] in ('true', 'false'):
+            return triggered({'class': 'EntersBattlefieldAllTriggeredAbility',
+                              'java': 'EntersBattlefieldOpponentTriggeredAbility',
+                              'effects': [self.effect(args[1])],
+                              'filter': self.filter(args[2]) + [{'p': 'controller', 'who': 'opponent'}],
+                              'optional': args[3] == 'true',
+                              'set_target_pointer': args[4] == 'SetTargetPointer.PERMANENT',
+                              'set_target_pointer_player': args[4] == 'SetTargetPointer.PLAYER'})
         if cls == 'EntersBattlefieldOpponentTriggeredAbility' and n == 3:
             return out({'e': 'enters_all', 'filter': self.filter(args[1]) + [{'p': 'controller', 'who': 'opponent'}]},
                        args[0], flag(args[2]))
@@ -6275,6 +6318,12 @@ def transforming_double_faced(card_name, subtypes, facts, cls, source):
         if m:
             front['defense'] = int(m.group(1))
             continue
+        # a back face's color indicator (Hades, Sorcerer of Eld is blue and black)
+        m = re.fullmatch(r'this\.getRightHalfCard\(\)\.getColor\(\)\.set(White|Blue|Black|Red|Green)\(true\)', st)
+        if m:
+            letter = COLOR_LETTERS[m.group(1)]
+            back['colors'] = [c for c in 'WUBRG' if c in back.get('colors', []) or c == letter]
+            continue
         # a face's supertype added (Matzalantli's legendary back)
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.addSuperType\(SuperType\.(\w+)\)', st)
         if m:
@@ -6790,13 +6839,29 @@ def ability_statement(t, st, added):
         if len(chapters) != 2 or not args:
             raise Unsupported('statement ' + st)
         targets = []
-        if args[-1].strip().startswith('new Target'):
+        # `chapter -> { chapter.addEffect(…); chapter.addTarget(…); chapter.withFlavorWord("…"); }`: the chapter's
+        # effects and targets (a flavor word is only its text)
+        lam = re.fullmatch(r'(\w+)\s*->\s*\{(.*)\}', args[-1].strip(), re.S) if len(args) == 1 else None
+        if lam:
+            effects = []
+            for part in split_statements(lam.group(2)):
+                c = re.fullmatch(re.escape(lam.group(1)) + r'\.(addEffect|addTarget|withFlavorWord|addHint)\((.*)\)', part.strip(), re.S)
+                if not c or not balanced(part.strip()):
+                    raise Unsupported('statement ' + st)
+                if c.group(1) == 'addEffect':
+                    effects.append(t.effect(c.group(2)))
+                elif c.group(1) == 'addTarget':
+                    targets.append(t.target(c.group(2)))
+            args = []
+        if args and args[-1].strip().startswith('new Target'):
             targets = [t.target(args[-1])]
             args = args[:-1]
         # `new Effects(a, b)`, or an `Effects` local: each effect
         if len(args) == 1 and (e := re.fullmatch(r'new Effects\((.*)\)', args[0].strip(), re.S)):
             args = split_args(e.group(1))
-        if len(args) == 1 and t.vars.get(args[0].strip(), {}).get('class') == 'Effects':
+        if lam:
+            pass
+        elif len(args) == 1 and t.vars.get(args[0].strip(), {}).get('class') == 'Effects':
             effects = list(t.vars[args[0].strip()]['effects'])
         else:
             effects = [t.effect(a) for a in args]
@@ -7347,6 +7412,29 @@ def card_conditions(source):
     """condition fields (`private static final Condition condition = new …;`) -> their texts, by name"""
     return {m.group(1): canonical(m.group(2))
             for m in re.finditer(r'static final \w*Condition (\w+)\s*=\s*(.*?);', source, re.S)}
+
+
+def split_statements(text):
+    """a block's statements, split at the semicolons outside parentheses, braces and string literals"""
+    out, depth, start, quote, escaped = [], 0, 0, False, False
+    for i, c in enumerate(text):
+        if escaped:
+            escaped = False
+        elif quote and c == '\\':
+            escaped = True
+        elif c == '"':
+            quote = not quote
+        elif quote:
+            continue
+        elif c in '({[':
+            depth += 1
+        elif c in ')}]':
+            depth -= 1
+        elif c == ';' and depth == 0:
+            out.append(text[start:i])
+            start = i + 1
+    out.append(text[start:])
+    return [a.strip() for a in out if a.strip()]
 
 
 def balanced(call):
