@@ -1,4 +1,4 @@
-//! `YouGainedOrLostLifeCondition` (Star Charter): "if you gained or lost life this turn".
+//! `YouGainedOrLostLifeCondition` (Star Charter, Starlit Soothsayer): "if you gained or lost life this turn".
 
 use super::*;
 

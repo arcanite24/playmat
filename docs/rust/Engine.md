@@ -1380,6 +1380,16 @@ Being in the engine and being trusted are kept apart.
   and Thunderous Orator (one or two games differ each; Thunderous Orator's is a mana payment before it's cast), and
   Serpentine Spike (no game cast it). Twelve games under `shadow/handlers/game-handlers10-claim4-*` cover them.
 
+  Wave 10, claim 4, second batch: 67 more handler files (one-shot spells, conditions, predicates, values, and six
+  framework classes: `AddPlusOneCountersAttachedEffect`, `DestroyAllAttachedToTargetEffect`,
+  `ReturnToHandFromGraveyardAllEffect`, `ShuffleHandGraveyardAllEffect`, `TargetPlayerGainControlTargetPermanentEffect`,
+  `YouGainedOrLostLifeCondition`, which bring Blastfire Bolt, Jace, the Living Guildpact and Star Charter along)
+  bring 70 cards into the engine (11,392 on this branch alone). Two factory rounds (96 games, 88 matching once the
+  handler texts were fixed) verified 61: 11,190. Not verified: Return Triumphant (its Young Hero Role text, #352),
+  Civic Saber, Bartered Cow and Historian's Wisdom (games that differ on that Role), Chrome Replicator (two enters
+  triggers from one Aurora Awakener in the other order), Emergency Powers, Harmless Offering, Chandra, Flamecaller and
+  Lullmage's Domination. Ten games under `shadow/handlers/game-handlers10-claim4b-*` cover them.
+
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
       python3 rust/tools/verify_factory.py record --work $W --procs 8     # long: run it in the background
