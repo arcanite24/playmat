@@ -1804,6 +1804,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         }
         CostDef::SacrificeSourceCost | CostDef::ExileSourceCost => true,
         CostDef::ExileSourceFromGraveCost => o.zone == Zone::Graveyard,
+        CostDef::ExileOpponentsCardFromExileToGraveyardCost => game.exile.iter().any(|c| game.obj(*c).owner != seat),
         CostDef::ExileFromGraveCost { amount, filter } => {
             game.player(seat)
                 .graveyard
@@ -4340,12 +4341,22 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
     if let Some(adventure) = game.obj(id).def.adventure.clone() {
         let o = game.obj(id);
         let mut options = Vec::new();
+        // (airbend's {2} from exile replaces either half's mana cost)
+        let alternate = o.zone == Zone::Exile && o.play_cost.is_some();
+        let free_of = |d: &Arc<CardDef>| -> Arc<CardDef> {
+            if alternate {
+                Arc::new(CardDef { cost: ManaCost::default(), ..(**d).clone() })
+            } else {
+                d.clone()
+            }
+        };
         // from hand, or from exile with permission to play it (not the creature of a card on an adventure)
-        if (o.zone == Zone::Hand || (o.zone == Zone::Exile && !o.on_adventure)) && castable(game, seat, id, &adventure)
+        if (o.zone == Zone::Hand || (o.zone == Zone::Exile && !o.on_adventure))
+            && castable(game, seat, id, &free_of(&adventure))
         {
             options.push(0);
         }
-        if castable(game, seat, id, &o.def.clone()) {
+        if castable(game, seat, id, &free_of(&o.def.clone())) {
             options.push(1);
         }
         match ask(game, d, seat, &Query::ChooseAbility { source: id, abilities: options.clone() }) {
@@ -5341,6 +5352,24 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         _ => false,
     });
     let mut fired = fired;
+    // the cards in graveyards that trigger there (Kozilek's Return, Lingering Phantom)
+    let in_graveyard = |a: &AbilityDef| matches!(a.trigger(), Some(Trigger::SpellCastInGraveyard { .. }));
+    let graveyards: Vec<ObjId> = game
+        .players
+        .iter()
+        .flat_map(|p| p.graveyard.iter().copied())
+        .filter(|c| game.obj(*c).def.abilities.iter().any(in_graveyard))
+        .collect();
+    if !graveyards.is_empty() {
+        fired.extend(game.triggers(graveyards, |g, src, you, t| match t {
+            Trigger::SpellCastInGraveyard { filter, who } => {
+                g.obj(src).zone == Zone::Graveyard
+                    && Game::whose(who, you, seat)
+                    && g.filter_matches(filter, you, Some(src), spell)
+            }
+            _ => false,
+        }));
+    }
     // "when you cast this spell"
     let replicated = game
         .stack
@@ -5376,7 +5405,11 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         let to_player = matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer_player: true, .. }));
         let to_spell = matches!(
             a,
-            Some(AbilityDef::TriggeredAbility { on: Trigger::SpellCast { .. }, set_target_pointer: true, .. })
+            Some(AbilityDef::TriggeredAbility {
+                on: Trigger::SpellCast { .. } | Trigger::SpellCastInGraveyard { .. },
+                set_target_pointer: true,
+                ..
+            })
         );
         if to_player {
             t.targets = vec![vec![Target::Player(seat)]];
@@ -5690,7 +5723,7 @@ fn choose_ability_modes(
         (0..modes.len()).filter(|k| mark(*k).is_some_and(|m| game.obj(src).marks.contains(&m))).collect();
     let possible = |game: &Game, k: usize| {
         modes[k].1.iter().all(|x| {
-            (triggered && matches!(x, TargetDef::TargetStackAbility { .. }))
+            (triggered && matches!(x, TargetDef::TargetStackAbility { .. } | TargetDef::TargetStackObject { .. }))
                 || target_possible(game, seat, x, Some(src))
         })
     };
@@ -5956,6 +5989,7 @@ fn stack_target_slots(game: &Game, item: &StackItem) -> Vec<bool> {
                 t,
                 TargetDef::TargetSpell { .. }
                     | TargetDef::TargetStackAbility { .. }
+                    | TargetDef::TargetStackObject { .. }
                     | TargetDef::TargetTriggeredAbilityOrColorlessSpell
             )
         })
@@ -6594,6 +6628,25 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 return false;
             }
             game.move_to(id, Zone::Exile);
+        }
+        // `chooseTarget` of a `TargetCardInExile` an opponent owns (one to choose is auto-chosen), then to its
+        // owner's graveyard
+        CostDef::ExileOpponentsCardFromExileToGraveyardCost => {
+            let possible: Vec<ObjId> =
+                crate::replay::exile_order(game).into_iter().filter(|c| game.obj(*c).owner != seat).collect();
+            let chosen = match possible[..] {
+                [] => return false,
+                [one] => one,
+                _ => loop {
+                    let q = Query::Target { players: Vec::new(), objs: possible.clone(), required: true };
+                    match ask(game, d, seat, &q) {
+                        Answer::Obj(o) if possible.contains(&o) => break o,
+                        Answer::Stop => return false,
+                        _ => {}
+                    }
+                },
+            };
+            game.move_to(chosen, Zone::Graveyard);
         }
         CostDef::ExileSourceCost => {
             let power = game.power_toughness(id).0;
@@ -7249,6 +7302,24 @@ fn choose_target(
     rule: &str,
     cancellable: bool,
 ) -> Option<Vec<Target>> {
+    choose_target_by(game, d, seat, seat, def, source, rule, cancellable, false)
+}
+
+/// `choose_target` for the targets of `seat`'s spell or ability, asked of `asker` (`Target.setTargetController`: a
+/// player changing the targets of someone else's spell); `of_ability`: `source` is an ability's, which can target its
+/// own source (rule 115.5 keeps only a spell from targeting itself)
+#[allow(clippy::too_many_arguments)]
+fn choose_target_by(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    asker: Seat,
+    def: &TargetDef,
+    source: Option<ObjId>,
+    rule: &str,
+    cancellable: bool,
+    of_ability: bool,
+) -> Option<Vec<Target>> {
     let (mut min, mut max) = target_counts(def);
     if let TargetDef::TargetPermanent { x_count: true, .. }
     | TargetDef::TargetAnyTarget { x_count: true, .. }
@@ -7316,8 +7387,10 @@ fn choose_target(
         // `TargetSpellOrPermanent.possibleTargets` compares the spell's id with its card's, so it counts itself for
         // the auto-choice (Fatehold Charm's "return target spell or creature" with one creature is asked)
         let counts_itself = src.is_some_and(|s| clicks_itself(game, def, src, s) && !chosen.contains(&Target::Obj(s)));
-        // a spell can't target itself (rule 115.5)
-        objs.retain(|o| Some(*o) != source);
+        // a spell can't target itself (rule 115.5), but Java's `TargetStackObject` offers it
+        if !of_ability && !matches!(def, TargetDef::TargetStackObject { .. }) {
+            objs.retain(|o| Some(*o) != source);
+        }
         if let (TargetDef::TargetCardInGraveyard { single: true, .. }, Some(Target::Obj(first))) = (def, chosen.first())
         {
             let owner = game.obj(*first).owner;
@@ -7359,13 +7432,19 @@ fn choose_target(
             && players.len() + objs.len() + usize::from(counts_itself) == min - chosen.len()
             && !rule.contains("search")
         {
-            let auto = if game.player(seat).auto_target_all {
+            let auto = if game.player(asker).auto_target_all {
                 players.first().map(|p| Target::Player(*p)).or_else(|| objs.first().map(|o| Target::Obj(*o)))
             } else {
                 let own_player = players.iter().find(|p| **p == seat).map(|p| Target::Player(*p));
                 // an ability on the stack is no permanent, card or spell: never chosen for them
                 let ability = |o: ObjId| match def {
                     TargetDef::TargetStackAbility { .. } => true,
+                    TargetDef::TargetStackObject { .. } => game
+                        .resolving_item
+                        .iter()
+                        .chain(game.stack.iter().rev())
+                        .find(|i| i.card == o)
+                        .is_some_and(|i| i.ability.is_some() || i.delayed.is_some()),
                     TargetDef::TargetTriggeredAbilityOrColorlessSpell => game.obj(o).zone != Zone::Stack,
                     _ => false,
                 };
@@ -7387,7 +7466,7 @@ fn choose_target(
         let nothing = players.is_empty() && objs.is_empty();
         let required = !cancellable && !nothing && chosen.len() < min;
         let q = Query::Target { players: players.clone(), objs: objs.clone(), required };
-        match ask(game, d, seat, &q) {
+        match ask(game, d, asker, &q) {
             Answer::Player(s) if players.contains(&s) => {
                 chosen.push(Target::Player(s));
                 selected = true;
@@ -7453,6 +7532,10 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
         TargetDef::TargetPlayer { .. } => (players, Vec::new()),
         TargetDef::TargetOpponent => (players.into_iter().filter(|s| *s != seat).collect(), Vec::new()),
         TargetDef::TargetPlayerOrPlaneswalker => (players, permanents(&|id| game.has_type(id, CardType::Planeswalker))),
+        TargetDef::TargetPermanentOrPlayer { filter, opponents, .. } => (
+            players.into_iter().filter(|s| !*opponents || *s != seat).collect(),
+            permanents(&|id| game.filter_matches(filter, seat, src, id)),
+        ),
         TargetDef::TargetOpponentOrPlaneswalker => (
             players.into_iter().filter(|s| *s != seat).collect(),
             permanents(&|id| game.has_type(id, CardType::Planeswalker) && game.obj(id).controller != seat),
@@ -7460,7 +7543,7 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
         TargetDef::TargetPermanent { filter, .. } => {
             (Vec::new(), permanents(&|id| game.filter_matches(filter, seat, src, id)))
         }
-        TargetDef::TargetSpell { filter } => (
+        TargetDef::TargetSpell { filter, .. } => (
             Vec::new(),
             game.stack
                 .iter()
@@ -7499,13 +7582,24 @@ pub fn possible_targets(game: &Game, seat: Seat, def: &TargetDef, src: Option<Ob
                 .map(|i| i.card)
                 .collect(),
         ),
-        TargetDef::TargetSpellOrPermanent { filter } => {
+        TargetDef::TargetStackObject { filter, .. } => {
+            let mut objs: Vec<ObjId> = Vec::new();
+            // (the object resolving too: Java resolves it while it's still on the stack)
+            for i in game.resolving_item.iter().chain(game.stack.iter().rev()) {
+                if game.stack_item_matches(filter, seat, src, i) && !objs.contains(&i.card) {
+                    objs.push(i.card);
+                }
+            }
+            (Vec::new(), objs)
+        }
+        TargetDef::TargetSpellOrPermanent { filter, spell_filter, .. } => {
             let mut objs: Vec<ObjId> = game
                 .stack
                 .iter()
                 .rev()
                 .filter(|i| i.ability.is_none() && i.delayed.is_none() && Some(i.card) != src)
                 .map(|i| i.card)
+                .filter(|c| spell_filter.as_ref().is_none_or(|f| game.filter_matches(f, seat, src, *c)))
                 .collect();
             objs.extend(permanents(&|id| game.filter_matches(filter, seat, src, id)));
             (Vec::new(), objs)
@@ -7661,6 +7755,10 @@ fn target_counts(def: &TargetDef) -> (usize, usize) {
         TargetDef::TargetPermanent { min, max, .. }
         | TargetDef::TargetCardInGraveyard { min, max, .. }
         | TargetDef::TargetStackAbility { min, max }
+        | TargetDef::TargetSpell { min, max, .. }
+        | TargetDef::TargetSpellOrPermanent { min, max, .. }
+        | TargetDef::TargetPermanentOrPlayer { min, max, .. }
+        | TargetDef::TargetStackObject { min, max, .. }
         | TargetDef::TargetPlayer { min, max }
         | TargetDef::TargetAnyTarget { min, max, .. } => (*min, *max),
         _ => (1, 1),
@@ -7689,7 +7787,11 @@ fn target_zcc(game: &Game, t: Target) -> u32 {
 /// `TargetSpellOrPermanent.canTarget` compares the card's id with the spell's, so a spell of it can be clicked as its
 /// own target (it isn't offered) and stays legal (Fatehold Charm returning itself to hand)
 fn clicks_itself(game: &Game, def: &TargetDef, src: Option<ObjId>, o: ObjId) -> bool {
-    matches!(def, TargetDef::TargetSpellOrPermanent { .. }) && src == Some(o) && game.obj(o).zone == Zone::Stack
+    // (of its spell filter: Aether Gust isn't red or green)
+    let TargetDef::TargetSpellOrPermanent { spell_filter, .. } = def else { return false };
+    src == Some(o)
+        && game.obj(o).zone == Zone::Stack
+        && spell_filter.as_ref().is_none_or(|f| game.filter_matches(f, game.obj(o).controller, src, o))
 }
 
 fn target_legal(game: &Game, seat: Seat, def: &TargetDef, src: Option<ObjId>, t: Target, zcc: u32) -> bool {
@@ -9075,6 +9177,10 @@ fn resolve_popped(game: &mut Game, d: &mut dyn Decider) {
             && !game.obj(id).flashback
             && !fizzled
         {
+            // (a copy too, which stays in exile until the next state check, as one its own effect exiles)
+            if game.obj(id).token {
+                game.obj_mut(id).flashback = true;
+            }
             game.move_to(id, Zone::Exile);
             game.obj_mut(id).on_adventure = true;
         } else if !fizzled && def.has(&AbilityDef::ReboundAbility) && game.obj(id).cast_from == Some(Zone::Hand) {
@@ -9864,6 +9970,152 @@ fn spell_target_defs(def: &CardDef, item: &StackItem) -> Vec<TargetDef> {
     defs
 }
 
+/// The target definitions of a spell or ability on the stack, in the order of its targets: a spell's
+/// (`spell_target_defs`), an ability's chosen modes' or its own, a reflexive trigger's
+fn item_target_defs(game: &Game, item: &StackItem) -> Vec<TargetDef> {
+    if let Some(delayed) = &item.delayed {
+        return delayed.targets.clone();
+    }
+    let def = game.item_def(item);
+    let Some((index, _)) = item.ability else { return spell_target_defs(def, item) };
+    let Some(a) = def.abilities.get(index) else { return Vec::new() };
+    let modes = a.trigger_modes();
+    if !modes.is_empty() && !item.modes.is_empty() {
+        return item.modes.iter().filter(|k| **k < modes.len()).flat_map(|k| modes[*k].1.iter().cloned()).collect();
+    }
+    a.on_stack().map(|(_, _, targets, _)| targets.to_vec()).unwrap_or_default()
+}
+
+/// `StackObjectImpl.chooseNewTargets`: `chooser` changes the targets of the stack object at `at` (one at a time, each
+/// "Change this target?" unless `force`, which makes its one target change when there's another to choose). The
+/// object's controller's targets stay its own (`setTargetController`). False when the decider stopped.
+fn choose_new_targets(game: &mut Game, d: &mut dyn Decider, at: usize, chooser: Seat, force: bool) -> bool {
+    let item = game.stack[at].clone();
+    let defs = item_target_defs(game, &item);
+    let owner = item.controller;
+    let src = Some(item.card);
+    // (`tryToAutoChoose` reads the changed object's text)
+    let rule = item_rule(game, &item);
+    let of_ability = item.ability.is_some() || item.delayed.is_some();
+    let yes_no = |game: &mut Game, d: &mut dyn Decider, message: String| -> Option<bool> {
+        let q = Query::YesNo { message };
+        loop {
+            match ask(game, d, chooser, &q) {
+                Answer::Bool(b) => return Some(b),
+                Answer::Stop => return None,
+                _ => {}
+            }
+        }
+    };
+    let mut targets = item.targets.clone();
+    let mut target_zccs = item.target_zcc.clone();
+    for (k, tdef) in defs.iter().enumerate() {
+        let Some(old) = item.targets.get(k).cloned() else { continue };
+        let total = old.len();
+        let stack_target = matches!(
+            tdef,
+            TargetDef::TargetSpell { .. }
+                | TargetDef::TargetStackAbility { .. }
+                | TargetDef::TargetStackObject { .. }
+                | TargetDef::TargetTriggeredAbilityOrColorlessSpell
+        );
+        let mut new: Vec<Target> = Vec::new();
+        // each target's zone-change count: a kept one's as it was chosen
+        let mut new_z: Vec<u32> = Vec::new();
+        for (n, t) in old.iter().enumerate() {
+            let old_z = item.target_zcc.get(k).and_then(|z| z.get(n)).copied().unwrap_or_else(|| target_zcc(game, *t));
+            // a spell or ability that left the stack has no name (`getNameOftarget`): kept without asking
+            if let Target::Obj(o) = t {
+                let on_stack = game.stack.iter().any(|i| i.card == *o) || game.resolving.map(|(_, c)| c) == Some(*o);
+                if stack_target && !on_stack {
+                    new.push(*t);
+                    new_z.push(old_z);
+                    continue;
+                }
+            }
+            if !force {
+                let Some(change) = yes_no(game, d, format!("Change this {} of {} target?", n + 1, total)) else {
+                    return false;
+                };
+                if !change {
+                    new.push(*t);
+                    new_z.push(old_z);
+                    continue;
+                }
+            }
+            let (players, objs) = possible_targets(game, owner, tdef, src);
+            if force && players.len() + objs.len() > 1 {
+                // the one target, chosen again until it's a different one
+                let mut iteration = 0;
+                let mut chosen;
+                loop {
+                    iteration += 1;
+                    // (`chooseTarget` returns when the player is done without a choice)
+                    chosen = choose_target_by(game, d, owner, chooser, tdef, src, &rule, true, of_ability)
+                        .unwrap_or_default();
+                    if d.stopped() {
+                        return false;
+                    }
+                    if iteration > 10 || (chosen.len() == 1 && chosen[0] != *t) {
+                        break;
+                    }
+                }
+                new_z = chosen.iter().map(|c| target_zcc(game, *c)).collect();
+                new = chosen;
+                continue;
+            }
+            // one at a time; nothing chosen, or a target already chosen, asks whether to keep the old one
+            let single = tdef.single();
+            loop {
+                game.picked_stack.set(None);
+                let chosen = choose_target_by(game, d, owner, chooser, &single, src, &rule, true, of_ability);
+                if d.stopped() {
+                    return false;
+                }
+                let picked = chosen.as_ref().and_then(|c| c.first().copied());
+                // a stack object goes by its card: a copy of the resolving ability picking that card picks itself
+                // (the topmost), not the original its old target is
+                // (a replayed answer names the place: this object's, past what's resolving below it)
+                let place = at + usize::from(game.resolving.is_some_and(|(r, _)| r <= at));
+                let itself = picked.is_some_and(|p| {
+                    src.is_some_and(|s| p == Target::Obj(s))
+                        && game.resolving_item.as_ref().is_some_and(|r| Target::Obj(r.card) == p)
+                        && game.picked_stack.get().is_none_or(|k| k == place)
+                });
+                let message = match picked {
+                    None => "No target object selected. Reset to original target?",
+                    Some(p) if !itself && (new.contains(&p) || old.contains(&p)) => {
+                        "This target was already selected from origin spell. Reset to original target?"
+                    }
+                    Some(p) => {
+                        new.push(p);
+                        new_z.push(target_zcc(game, p));
+                        break;
+                    }
+                };
+                let Some(yes) = yes_no(game, d, message.into()) else { return false };
+                if yes {
+                    new.push(*t);
+                    new_z.push(old_z);
+                    break;
+                }
+            }
+        }
+        if let Some(slot) = targets.get_mut(k) {
+            *slot = new;
+        }
+        if let Some(slot) = target_zccs.get_mut(k) {
+            *slot = new_z;
+        }
+    }
+    let zccs = target_zccs;
+    if let Some(i) = Arc::make_mut(&mut game.stack).get_mut(at) {
+        i.targets = targets;
+        i.target_zcc = zccs;
+    }
+    true
+}
+
 /// `Spell.createSingleCopy` with new targets: the copy (a token) goes on the stack, then `chooseNewTargets` asks of
 /// each target whether to change it (`chooseNewTarget`)
 fn copy_spell(game: &mut Game, d: &mut dyn Decider, original: &StackItem, controller: Seat) {
@@ -9885,10 +10137,13 @@ fn copy_spell_with(
         Arc::make_mut(&mut def).supertypes.retain(|s| s != "LEGENDARY");
     }
     let copy = game.create_obj(def.clone(), controller, Zone::Stack);
+    let adventurer = game.obj(original.card).adventurer.clone();
     {
         let o = game.obj_mut(copy);
         o.token = true;
         o.trigger_order = (1 << 32) + copy.0 as u64;
+        // a copy of an adventure goes on an adventure as it resolves
+        o.adventurer = adventurer;
     }
     let mut item = original.clone();
     item.card = copy;
@@ -9908,6 +10163,7 @@ fn copy_spell_with(
             tdef,
             TargetDef::TargetSpell { .. }
                 | TargetDef::TargetStackAbility { .. }
+                | TargetDef::TargetStackObject { .. }
                 | TargetDef::TargetTriggeredAbilityOrColorlessSpell
         );
         for (n, t) in old.iter().enumerate() {
@@ -11240,7 +11496,11 @@ fn apply_each_effect(
                     }),
                     sacrifice: Vec::new(),
                     warp_exile: Vec::new(),
-                    effects: vec![EffectDef::CopyTargetSpellEffect { keep_targets: false, not_legendary: false }],
+                    effects: vec![EffectDef::CopyTargetSpellEffect {
+                        keep_targets: false,
+                        not_legendary: false,
+                        abilities: false,
+                    }],
                     source_zcc: source.1,
                     fixed: Vec::new(),
                     return_tapped: Vec::new(),
@@ -11255,7 +11515,53 @@ fn apply_each_effect(
                     filter.clone(),
                 ));
             }
-            EffectDef::CopyTargetSpellEffect { keep_targets, not_legendary } => {
+            EffectDef::CopyTargetSpellEffect { keep_targets, not_legendary, abilities: true } => {
+                for o in &objs {
+                    // the topmost stack object of that card: an ability is copied as one (the resolving one itself
+                    // too: Java resolves it still on the stack, so it can target itself)
+                    let (original, resolving) = match game.stack.iter().rposition(|i| i.card == *o) {
+                        Some(at) => (game.stack[at].clone(), false),
+                        None => match game.resolving_item.clone().filter(|i| i.card == *o) {
+                            Some(i) => (i, true),
+                            None => continue,
+                        },
+                    };
+                    if original.ability.is_none() && original.delayed.is_none() {
+                        if copy_spell_with(game, d, &original, controller, !*keep_targets, *not_legendary).is_none() {
+                            return;
+                        }
+                    } else {
+                        let mut copy = original.clone();
+                        copy.controller = controller;
+                        copy.ward_of = None;
+                        // a copy of the resolving ability that targeted itself targets that ability, gone by the
+                        // time the copy resolves (stack objects go by their card here, so the copy would find itself)
+                        if resolving {
+                            for (ts, zs) in copy.targets.iter().zip(copy.target_zcc.iter_mut()) {
+                                for (t, z) in ts.iter().zip(zs.iter_mut()) {
+                                    if *t == Target::Obj(original.card) {
+                                        *z = u32::MAX;
+                                    }
+                                }
+                            }
+                        }
+                        Arc::make_mut(&mut game.stack).push(copy);
+                        let top = game.stack.len() - 1;
+                        if !*keep_targets && !choose_new_targets(game, d, top, controller, false) {
+                            return;
+                        }
+                    }
+                }
+            }
+            EffectDef::ChooseNewTargetsTargetEffect { force } => {
+                for o in &objs {
+                    let Some(at) = game.stack.iter().rposition(|i| i.card == *o) else { continue };
+                    if !choose_new_targets(game, d, at, controller, *force) {
+                        return;
+                    }
+                }
+            }
+            EffectDef::CopyTargetSpellEffect { keep_targets, not_legendary, .. } => {
                 for o in &objs {
                     let original =
                         game.stack.iter().find(|i| i.card == *o && i.ability.is_none() && i.delayed.is_none()).cloned();
@@ -11706,6 +12012,42 @@ fn apply_each_effect(
                     };
                     if yes {
                         cast_free(game, d, controller, copy);
+                    }
+                }
+            }
+            EffectDef::ExileTargetCardCopyAndCastEffect { no_mana, optional } => {
+                let Some(card) = objs.first().copied() else { continue };
+                game.move_to(card, Zone::Exile);
+                // `game.copyCard`: a copy that leaves no card behind once it's cast and gone
+                let def = game.obj(card).def.clone();
+                let copy = game.create_obj(def.clone(), controller, Zone::Exile);
+                Arc::make_mut(&mut game.exile).push(copy);
+                game.obj_mut(copy).token = true;
+                if *optional {
+                    let q = Query::YesNo {
+                        message: format!(
+                            "Cast copy of {}{}",
+                            def.name,
+                            if *no_mana { " without paying its mana cost?" } else { "?" }
+                        ),
+                    };
+                    let yes = loop {
+                        match ask(game, d, controller, &q) {
+                            Answer::Bool(b) => break b,
+                            Answer::Stop => return,
+                            _ => {}
+                        }
+                    };
+                    if !yes {
+                        continue;
+                    }
+                }
+                if *no_mana {
+                    cast_free(game, d, controller, copy);
+                } else {
+                    let before = game.clone();
+                    if !cast(game, d, controller, copy) {
+                        *game = before;
                     }
                 }
             }
@@ -16054,10 +16396,10 @@ fn apply_each_effect(
                 }
             }
             EffectDef::PutOnLibraryTargetEffect { top } => {
-                // cards from a graveyard or exile first, then permanents (Natural Obsolescence's artifact; a token
-                // ceases to exist); each owner's together, in any order (`putCardsOnTopOfLibrary(.., true)`: Forever
-                // Young's owner orders them)
-                for zones in [&[Zone::Graveyard, Zone::Exile][..], &[Zone::Battlefield][..]] {
+                // cards from a graveyard, exile or the stack (a spell's card) first, then permanents (Natural
+                // Obsolescence's artifact; a token ceases to exist); each owner's together, in any order
+                // (`putCardsOnTopOfLibrary(.., true)`: Forever Young's owner orders them)
+                for zones in [&[Zone::Graveyard, Zone::Exile, Zone::Stack][..], &[Zone::Battlefield][..]] {
                     let mut group: Vec<ObjId> =
                         objs.iter().copied().filter(|o| zones.contains(&game.obj(*o).zone)).collect();
                     while let Some(first) = group.first().copied() {
@@ -16735,7 +17077,26 @@ fn apply_each_effect(
                     None => cost.clone(),
                 };
                 let cost = &cost;
+                // an ability (`TargetStackObject`, Mirrorshell Crab's): it leaves the stack unless they pay
                 if game.obj(spell).zone != Zone::Stack {
+                    let Some(at) = game
+                        .stack
+                        .iter()
+                        .rposition(|i| i.card == spell && (i.ability.is_some() || i.delayed.is_some()))
+                    else {
+                        continue;
+                    };
+                    let payer = game.stack[at].controller;
+                    let Some(paid) = pay_unless(game, d, payer, spell, cost) else { return };
+                    if !paid {
+                        if let Some(at) = game
+                            .stack
+                            .iter()
+                            .rposition(|i| i.card == spell && (i.ability.is_some() || i.delayed.is_some()))
+                        {
+                            Arc::make_mut(&mut game.stack).remove(at);
+                        }
+                    }
                     continue;
                 }
                 let payer = game.stack.iter().find(|i| i.card == spell && i.ability.is_none()).map(|i| i.controller);
@@ -19460,7 +19821,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                         .iter()
                         .filter(|m| {
                             m.1.iter().all(|x| {
-                                matches!(x, TargetDef::TargetStackAbility { .. })
+                                matches!(x, TargetDef::TargetStackAbility { .. } | TargetDef::TargetStackObject { .. })
                                     || target_possible(game, seat, x, Some(card))
                             })
                         })
@@ -19479,7 +19840,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                     let available: Vec<usize> = (0..modes.len())
                         .filter(|k| {
                             modes[*k].1.iter().all(|x| {
-                                matches!(x, TargetDef::TargetStackAbility { .. })
+                                matches!(x, TargetDef::TargetStackAbility { .. } | TargetDef::TargetStackObject { .. })
                                     || target_possible(game, seat, x, Some(t.card))
                             })
                         })
