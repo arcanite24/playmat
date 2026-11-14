@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (10,848 on 13 Nov). A card whose JSON the engine can't load yet is left out
+  can express (10,981 on 13 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -810,13 +810,14 @@ Being in the engine and being trusted are kept apart.
     (`ReturnToLibrarySpellEffect`), and "can't have or gain" an ability (Archetype of Imagination). Also lore counters
     added to a target Saga, and an equip ability's discount for other Equipment.
   - Fixes, each with a regression game in `shadow/factory/`:
-    - Winning while a spell or ability resolves leaves it on the stack until the game's end is traced, and sets `won`
-      after (`game-win-as-it-resolves`).
+    - An ability whose controller wins as it resolves ends the game the way master's path for one whose controller
+      loses does: still on the stack as the game's end is traced, and `won` set after (`game-win-as-it-resolves`).
     - An Aura returned from a graveyard "with a counter" gets no counter, as `AuraReplacementEffect` puts it there
       itself (`game-aura-returned-no-counters`).
 
   Three factory rounds (74 games, 72 matching, replayed again after each fix) verified 40 cards, 4 of
-  them not on the list. Druid's Deliverance was verified on master too, so it's 39 more: 10,651 of 10,829.
+  them not on the list. Call for Unity and Druid's Deliverance were verified on
+  master too, so it's 38 more: 10,793 of 10,981.
 
   Left from claim 3:
   - Damping Sphere is held back. In one game Java's playable check and payment don't add its {1} for the spell cast
