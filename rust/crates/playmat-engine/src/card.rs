@@ -2236,9 +2236,12 @@ pub enum EffectDef {
     },
     /// each opponent can't draw more than one card each turn
     NarsetParterOfVeilsEffect,
-    /// you may play `amount` additional lands on each of your turns
+    /// you may play `amount` additional lands on each of your turns; with `all`, each player on each of their turns
+    /// (`PlayAdditionalLandsAllEffect`: Ghirapur Orrery)
     PlayAdditionalLandsControllerEffect {
         amount: u32,
+        #[serde(default)]
+        all: bool,
     },
     /// you may play lands from your graveyard
     PlayLandsFromGraveyardControllerEffect,
@@ -2493,6 +2496,8 @@ pub enum EffectDef {
     EvolvedSleeperPhyrexianEffect,
     /// you have no maximum hand size (`MaximumHandSizeControllerEffect` set to `Integer.MAX_VALUE`)
     NoMaximumHandSizeEffect,
+    /// players have no maximum hand size (the same effect, `TargetController.ANY`: Folio of Fancies)
+    NoMaximumHandSizeAllEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card
     ProphesiedEndEffect,
     /// exile each opponent's graveyard
