@@ -2653,6 +2653,8 @@ pub enum EffectDef {
     },
     /// you win the game: each opponent loses it (`PlayerImpl.won`)
     WinGameSourceControllerEffect,
+    /// you lose the game (`PlayerImpl.lost`; the state-based check then ends a game with one player left)
+    LoseGameSourceControllerEffect,
     /// bolster: `amount` +1/+1 counters on the creature you control with the least toughness (chosen among ties)
     BolsterEffect {
         amount: Amount,

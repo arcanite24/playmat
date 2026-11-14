@@ -8112,7 +8112,23 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     game.revealed.clear();
     game.looked_at.clear();
     game.piles.clear();
+    let was_over = game.over;
     resolve_popped(game, d);
+    // an ability that ended the game as it resolved by its controller losing ("you lose the game": Archfiend of the
+    // Dross): Java's game ends with it still on the stack, then `GameImpl.resolve` removes it and the one left has
+    // won
+    if game.over && !was_over {
+        let lost = |i: &StackItem| i.ability.is_some() && game.player(i.controller).lost;
+        if let Some(item) = game.resolving_item.clone().filter(lost) {
+            Arc::make_mut(&mut game.stack).push(item);
+            traced(game, d);
+            Arc::make_mut(&mut game.stack).pop();
+            let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
+            if let [w] = alive[..] {
+                game.player_mut(w).won = true;
+            }
+        }
+    }
     // `processAction` applies the effects as it resolves: Leyline of the Guildpact's land types end with it
     game.update_guildpact();
     game.revealed.clear();
@@ -15639,6 +15655,25 @@ fn apply_each_effect(
                 }
             }
             EffectDef::WinGameSourceControllerEffect => win_game(game, controller),
+            EffectDef::LoseGameSourceControllerEffect => {
+                // `lostForced`: not once they've won; with one player left the game ends there, as it resolves
+                if !game.player(controller).lost && !game.player(controller).won && !game.over {
+                    game.player_mut(controller).lost = true;
+                    if log::kept(game) {
+                        let line = format!("{} has lost the game", log::player(controller));
+                        log::inform(game, line);
+                    }
+                    let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
+                    if alive.len() <= 1 {
+                        if let (Some(w), true) = (alive.first(), log::kept(game)) {
+                            let line = format!("{} has won the game", log::player(*w));
+                            log::inform(game, line);
+                        }
+                        game.over = true;
+                        return;
+                    }
+                }
+            }
             EffectDef::ReturnToHandFromBattlefieldAllEffect { filter } => {
                 for o in matching(game, filter, controller, source.0) {
                     game.move_to(o, Zone::Hand);
