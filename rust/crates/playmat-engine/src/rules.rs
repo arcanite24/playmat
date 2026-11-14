@@ -497,6 +497,10 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         (if who.is_empty() { you == active } else { Game::whose(who, you, active) })
                             && all.iter().filter(|a| g.filter_matches(filter, you, Some(src), **a)).count() >= *min
                     }
+                    // (whoever attacks: the filter says whose creatures)
+                    Trigger::AttacksPlayerWith { filter } => all
+                        .iter()
+                        .any(|a| g.obj(*a).attacking_pw.is_none() && g.filter_matches(filter, you, Some(src), *a)),
                     Trigger::Battalion => all.len() >= 3 && all.contains(&src),
                     _ => false,
                 });

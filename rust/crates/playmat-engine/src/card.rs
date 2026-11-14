@@ -717,6 +717,11 @@ pub enum Trigger {
         #[serde(default)]
         who: String,
     },
+    /// you attack a player with one or more creatures of the filter (`AttacksPlayerWithCreaturesTriggeredAbility`,
+    /// `DEFENDER_ATTACKED`: a planeswalker attacked doesn't count)
+    AttacksPlayerWith {
+        filter: Filter,
+    },
     /// this leaves the battlefield
     LeavesBattlefield,
     /// heroic: you cast a spell that targets this (`HeroicAbility`)

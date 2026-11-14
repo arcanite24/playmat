@@ -4731,6 +4731,9 @@ class Translator:
             if n == 3:
                 return out({'e': 'attacks_with', 'min': int(args[1]), 'filter': self.filter(args[2])}, args[0])
             raise Unsupported(cls + ' overload')
+        # "whenever you attack a player with one or more creatures of the filter" (no target pointer)
+        if cls == 'AttacksPlayerWithCreaturesTriggeredAbility' and n == 3 and args[2] == 'SetTargetPointer.NONE':
+            return out({'e': 'attacks_player_with', 'filter': self.filter(args[1])}, args[0])
         if cls == 'AttacksCreatureYouControlTriggeredAbility':
             filt, pointer = [CREATURE, YOU], False
             if n == 3 and args[2] in ('true', 'false'):
