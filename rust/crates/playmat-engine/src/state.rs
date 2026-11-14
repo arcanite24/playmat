@@ -1753,7 +1753,19 @@ impl Game {
             Pred::Subtype { s } => self.has_subtype(id, s),
             Pred::Supertype { s } => o.def.supertypes.iter().any(|x| x == s),
             Pred::Color { c } => self.colors(id).contains(c),
-            Pred::Controller { who } => (o.controller == you) == (who == "you"),
+            // a spell is controlled by who cast it, not its card's owner (an opponent's card cast with Psychic
+            // Intrusion)
+            Pred::Controller { who } => {
+                let c = match o.zone {
+                    Zone::Stack => self
+                        .stack
+                        .iter()
+                        .find(|i| i.card == id && i.ability.is_none())
+                        .map_or(o.controller, |i| i.controller),
+                    _ => o.controller,
+                };
+                (c == you) == (who == "you")
+            }
             Pred::Owner { who } => (o.owner == you) == (who == "you"),
             Pred::Another => Some(id) != source,
             Pred::ControlledByFirstTarget => match self.chosen_before.first() {

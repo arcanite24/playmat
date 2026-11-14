@@ -2514,13 +2514,14 @@ fn play_ways_now(game: &Game, seat: Seat, id: ObjId, face: &CardDef) -> Vec<(Obj
             if face.is(CardType::Land) {
                 return can_play_land(game, seat);
             }
-            // an alternate mana cost (`setCastSourceIdWithAlternateMana`): its `ManaCosts.canPay` doesn't count the
-            // mana available, so only the rest is checked (Raffine's Guidance with no white source)
-            let castable_now = match &w.mana {
-                Some(_) => castable(game, seat, id, &CardDef { cost: ManaCost::default(), ..face.clone() }),
-                None => castable(game, seat, id, face),
-            };
-            castable_now && w.costs.iter().all(|c| can_pay_cost(game, seat, id, c))
+            // `PlayerImpl.canPlay`: castable for its own mana cost (the way's other costs aren't looked at: Wickerfolk
+            // Indomitable with nothing to sacrifice), or else for an alternate mana cost
+            // (`setCastSourceIdWithAlternateMana`), whose `ManaCosts.canPay` doesn't count the mana available, with
+            // the way's other costs payable (Raffine's Guidance with no white source)
+            castable(game, seat, id, face)
+                || (w.mana.is_some()
+                    && castable(game, seat, id, &CardDef { cost: ManaCost::default(), ..face.clone() })
+                    && w.costs.iter().all(|c| can_pay_cost(game, seat, id, c)))
         })
         .collect()
 }
