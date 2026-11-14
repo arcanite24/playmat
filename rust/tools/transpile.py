@@ -5573,6 +5573,10 @@ class Translator:
         # "whenever you activate an exhaust ability" (from the battlefield; from the graveyard isn't in)
         if cls == 'ActivateAbilityTriggeredAbility' and n == 3 and args[2].strip() == 'SetTargetPointer.NONE':
             return out({'e': 'ability_activated', 'kind': self.stack_filter_kind(args[1])}, args[0])
+        # Runic Armasaur: "whenever an opponent activates an ability of a creature or land that isn't a mana ability"
+        if cls == 'RunicArmasaurTriggeredAbility' and n == 0:
+            return out({'e': 'ability_activated', 'kind': 'creature_or_land', 'opponent': True},
+                       'new DrawCardSourceControllerEffect(1)', True)
         # "whenever you activate a loyalty ability [of a <subtype> planeswalker]"
         if cls == 'ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility' and n in (2, 3) \
                 and args[-1].strip() == 'SetTargetPointer.NONE':

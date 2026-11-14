@@ -6243,11 +6243,16 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
     let ability = &def.abilities[index];
     let loyalty = matches!(ability, AbilityDef::LoyaltyAbility { .. });
     let fired = game.triggers(game.trigger_sources(), |g, _, you, t| match t {
-        Trigger::AbilityActivated { kind } => {
-            you == seat
+        Trigger::AbilityActivated { kind, opponent } => {
+            (you == seat) != *opponent
                 && match kind.as_str() {
                     "exhaust" => matches!(ability, AbilityDef::ExhaustAbility { .. }),
                     "power_up" => matches!(ability, AbilityDef::PowerUpAbility { .. }),
+                    // `getSourcePermanentOrLKI`: a permanent's, or one its cost sacrificed
+                    "creature_or_land" => {
+                        (g.obj(id).zone == Zone::Battlefield || g.short_lki.contains(&id))
+                            && (g.has_type(id, CardType::Creature) || g.has_type(id, CardType::Land))
+                    }
                     _ => true,
                 }
         }

@@ -970,10 +970,13 @@ pub enum Trigger {
         #[serde(default)]
         counter: String,
     },
-    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any")
-    /// (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`)
+    /// you activate an ability that isn't a mana ability, of `kind` ("exhaust", "power_up", "any";
+    /// "creature_or_land": of a creature or land permanent) (`ActivateAbilityTriggeredAbility`, `ACTIVATED_ABILITY`);
+    /// with `opponent`, an opponent activates it (Runic Armasaur)
     AbilityActivated {
         kind: String,
+        #[serde(default)]
+        opponent: bool,
     },
     /// you activate a loyalty ability of a planeswalker (of `subtype`, when it's set)
     /// (`ActivatePlaneswalkerLoyaltyAbilityTriggeredAbility`)
