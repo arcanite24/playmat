@@ -5837,6 +5837,14 @@ def translate(card_name, subtypes, facts):
             # (all of it there already: nothing to leave out)
             if (a['spell_effects'], a['spell_targets']) == (len(spell['effects']), len(spell['targets'])):
                 del a['spell_effects'], a['spell_targets']
+        # effects added to a mayhem ability: it copied the spell ability as it was made, so made before the spell's
+        # effects it has only its own (Sandman's Quicksand); the engine casts the mayhem spell with them
+        if a.get('class') == 'MayhemAbility' and ('effects' in a or a.get('targets')):
+            made = source.find('new MayhemAbility(')
+            spell_add = source.find('getSpellAbility().add')
+            if a.get('targets') or not a['effects'] or 0 <= spell_add < made:
+                raise Unsupported('MayhemAbility with effects of its own')
+            a.pop('targets', None)
     if modes:
         # "choose one": the spell ability's own effects and targets are its first mode
         first = {'effects': spell['effects'], 'targets': spell['targets']}
@@ -7666,7 +7674,8 @@ def main():
         if not name:
             continue
         try:
-            card = translate(name, subtypes, facts)
+            # a `CompositeCost` anywhere (a spell's "you may pay", a face's ability) becomes its parts
+            card = flatten_composite_costs(translate(name, subtypes, facts))
             if EXTRA.get(card['name'], {}).get('set'):
                 card['set'] = EXTRA[card['name']]['set']
             granted_rules(card)
