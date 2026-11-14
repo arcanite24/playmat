@@ -1080,6 +1080,29 @@ Being in the engine and being trusted are kept apart.
     (speed), See Double, Esoteric Duplicator (the sacrificed permanent), and a permanent become-a-copy for Mycosynth
     Gardens and Mirrorform.
 
+  Wave 11, area EXILE-CAST (14 Nov): permissions to play cards from exile and the graveyard. A card's own
+  `AsThoughEffect` class is an `AsThough::Play` handler returning a `PlayWay` (an alternate mana cost and extra costs,
+  `setCastSourceIdWithAlternateMana`); it's checked for cards in a graveyard or exile in `playable`,
+  `playable_abilities` and `play`, and the way chosen sets the cast's mana and costs (`Game::cast_permit`). As
+  `PlayerImpl.canPlay` does, such a card is playable when its own mana cost can be paid (whatever the way's other
+  costs: Wickerfolk Indomitable with nothing to sacrifice, whose cast then fails), or else for the alternate mana cost,
+  which isn't checked against the mana available (Raffine's Guidance with no white source), with the other costs
+  payable. A static of the card's own in `Zone.EXILED` or `Zone.GRAVEYARD` translates when it's such a handler. New
+  effects: `PlayFromGraveyardControllerEffect` (lands, spells or a filter, with a duration), the graveyard exile
+  replacement for you only and cards only, `ExileCardsFromTopOfLibraryControllerEffect` into the source's own zone or
+  face down, `ReturnFromExileForSourceEffect`, `ExileFaceDownTopNYouMayPlayEffect`, `ExileTopCardPlayUntilExileAnotherEffect`,
+  `MayExileCardFromHandPlottedEffect` and the becomes-plotted trigger; costs `BeholdAndExileCost` (the card from hand
+  isn't auto-chosen, since the cost reads "exile") and `DiscardHandCost`. Exile-until-it-leaves handlers use
+  `exiled_until_leaves` (Brain Maggot's card goes back to hand through `return_to_hand`). Fixes: a spell's controller
+  in a filter is who cast it (an opponent's card cast with Psychic Intrusion triggers Eternal Scourge), and only the
+  player who may look at a face-down exiled card is asked whether to (Squee cast by its owner). Three factory rounds
+  (82 games, 74 matching) verified 37: 12,136 of 12,404. Ten games under `shadow/handlers/game-handlers11-exile-*`
+  cover them. Left: Mnemonic Betrayal (it returns its cards from a `HashSet<MageObjectReference>`, so the graveyard
+  order is random; Bishop of Binding's one mismatch is that game), Festival of Embers (Java shows the ability picker
+  for a graveyard cast with it), Doom Reigns Supreme (`PlanCounterThresholdTriggeredAbility`), Inside Information
+  (a resolved life-for-mana permission), Tinybones, The Temporal Anchor, Legion's Initiative and the cards needing
+  after-cast callbacks (Serra Paragon, Intrepid Paleontologist, Muldrotha).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:
