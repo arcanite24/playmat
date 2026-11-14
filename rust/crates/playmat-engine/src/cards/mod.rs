@@ -256,6 +256,8 @@ pub(crate) struct Handler {
     pub any_zone: bool,
     /// a resolving static's `init` (`Handler::on_start`): what it points at from then on
     pub start: Option<StartFn>,
+    /// a resolving static whose class lasts `Duration.UntilYourNextTurn` (its constructor's, not an argument)
+    pub until_your_next_turn: bool,
 }
 
 #[allow(dead_code)]
@@ -272,6 +274,7 @@ impl Handler {
             abilities: &[],
             any_zone: false,
             start: None,
+            until_your_next_turn: false,
         }
     }
 
@@ -336,6 +339,13 @@ impl Handler {
         self
     }
 
+    /// a resolving static whose class's own duration is `Duration.UntilYourNextTurn` (Elspeth Conquers Death's
+    /// chapter II): it lasts until its controller's next turn, as one with that `Duration` argument does
+    pub const fn until_your_next_turn(mut self) -> Handler {
+        self.until_your_next_turn = true;
+        self
+    }
+
     /// `YouDontLoseManaEffect`: the kinds of a player's mana the pool keeps as steps and phases end
     pub const fn keeps_mana(java: &'static str, f: KeepsManaFn) -> Handler {
         Handler::new(java, Hook::KeepsMana(f))
@@ -348,7 +358,15 @@ impl Handler {
 
     /// a `ContinuousEffect` in a layer: the objects it `affects`, and what it does to them there
     pub const fn continuous(java: &'static str, affects: AffectsFn, layer: Layer) -> Handler {
-        Handler::new(java, Hook::Continuous(Continuous { affects, layer }))
+        Handler::new(java, Hook::Continuous(Continuous { affects, layer, also: &[] }))
+    }
+
+    /// a continuous handler's other layers, for the objects it `affects` (a class whose `hasLayer` is more than one)
+    pub const fn and_layers(mut self, layers: &'static [Layer]) -> Handler {
+        if let Hook::Continuous(c) = &mut self.hook {
+            c.also = layers;
+        }
+        self
     }
 
     /// a `ReplacementEffect`: the events it checks (`checksEventType`), its `applies` and its `replaceEvent`
