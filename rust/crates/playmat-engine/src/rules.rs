@@ -11814,6 +11814,7 @@ fn apply_each_effect(
                 only_color,
                 abilities,
                 tapped,
+                attacking,
             } => {
                 // `applyAdditionsToToken`, in its order
                 let mods = |def: &mut CardDef| {
@@ -11873,8 +11874,23 @@ fn apply_each_effect(
                 for o in &objs {
                     let made = token_copy_modified(game, d, *o, controller, number.unwrap_or(1), &mods);
                     if *tapped {
+                        for t in &made {
+                            game.obj_mut(*t).tapped = true;
+                        }
+                    }
+                    // `TokenImpl.putOntoBattlefield(…, attacking)`: on its controller's turn, each token that's still
+                    // there joins combat, against a defender chosen as `Combat.addAttackingCreature` asks
+                    if *attacking && game.active == Some(controller) {
                         for t in made {
-                            game.obj_mut(t).tapped = true;
+                            if game.obj(t).zone != Zone::Battlefield {
+                                continue;
+                            }
+                            let defender = game.opponent(controller);
+                            let Some(pw) = choose_defender(game, d, controller, defender) else { return };
+                            let o = game.obj_mut(t);
+                            o.attacking = Some(defender);
+                            o.attacking_pw = pw;
+                            join_combat(game, t);
                         }
                     }
                 }

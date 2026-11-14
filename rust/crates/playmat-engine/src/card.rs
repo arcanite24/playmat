@@ -2599,6 +2599,10 @@ pub enum EffectDef {
         abilities: Vec<AbilityDef>,
         #[serde(default)]
         tapped: bool,
+        /// "the token enters tapped and attacking" (`tapped` and `attacking` both true): attacking a defender its
+        /// controller chooses, as `Combat.addAttackingCreature` with no defender given asks
+        #[serde(default)]
+        attacking: bool,
     },
     /// `number` tokens that are copies of this permanent (or of it as it last was), tapped if it says so
     CreateTokenCopySourceEffect {
