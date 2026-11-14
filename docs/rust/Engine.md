@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,363 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -738,6 +738,36 @@ Being in the engine and being trusted are kept apart.
   (`WhileOnBattlefield` subtype ending with its source), card-specific target adjusters (Agadeem's Awakening, Body
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
+
+  Wave 9, area BATCH (14 Nov): batch, targeting, transform and next-main-phase triggers.
+  - "One or more" zone-change triggers (`ZoneChangeBatchTriggeredAbility`, `OneOrMoreLeaveWithoutDyingTriggeredAbility`,
+    and card classes that read `ZONE_CHANGE_BATCH`, as `Trigger::ZoneBatch` with from/to zones, a filter, whose, cards
+    only, not dying): each object that moves joins the trigger's one waiting `batch_pending` item (`StackItem::batch`,
+    its X the count, its pointer at each when it has no targets). A permanent leaving is seen as it was; a card is
+    seen in its new zone. They wait with the other batch triggers and go in Java's trigger order among themselves,
+    since Java checks them on one event (Moonshadow's and Seer of Stolen Sight's). A trigger class whose `getRule`
+    shows what it triggered with adds it on the stack (`Handler::stack_info`: The Skullspore Nexus's total power).
+  - "One or more permanents become tapped" (`BecomesTappedOneOrMoreTriggeredAbility`), once for the `TAPPED_BATCH`.
+  - Damage batches: "this is dealt combat damage", "a permanent of the filter is dealt damage"
+    (`DealtDamageAnyTriggeredAbility`, X the damage, a pointer at it or its controller), "a spell you control deals
+    damage" (as cast, by its controller), "equipped/enchanted creature deals (combat) damage"
+    (`DealsDamageAttachedTriggeredAbility`), "one or more creatures you control deal combat damage to a player" from
+    the graveyard (Killian's Confidence, Pyrewild Shaman with `SourceInGraveyardCondition`), "you're dealt combat
+    damage" (Swarmborn Giant, Contested Game Ball, Risona). `PreventDamageAndRemoveCountersEffect` and its watcher
+    (Undergrowth Champion, Oathsworn Knight, Ugin's Conjurant): it removes one counter for each damage batch and keeps
+    preventing in that batch once the counters are gone (`Game::counter_removed_batch`, cleared as the simultaneous
+    events are handled).
+  - "Becomes the target": a player targeted counts for the triggers that say so ("you and/or a permanent you
+    control", Leyline of Combustion; "a player or permanent", Loki), once for the targeting object, abilities only,
+    and the enchanted creature (`BecomesTargetAttachedTriggeredAbility`, Illusionary Armor).
+  - A generic `TRANSFORMED` trigger (`Trigger::TransformsAny`): a permanent of a filter transforms, as it is now
+    (Norn's Inquisitor, Cult of the Waxing Moon), or the one this is attached to (Neglected Heirloom); "transforms
+    into this" in an `OrTriggeredAbility` (Blightreaper Thallid).
+  - "At the beginning of your next main phase" delayed triggers (`AtTheBeginOfMainPhaseDelayedTriggeredAbility`: the
+    next main, this turn's, the next first or postcombat main), checked as the main phase begins before the step's own
+    (Conduit of Storms, Mana Sculpt), and `IsMainPhaseCondition.YOURS`.
+  - Factory rounds: four (82 games, 81 matching) verified 41 cards: 11,170 of 11,363. The one that differs is a Temur Charger enchanted by two Prophetic Ravings (both verified on master): Java numbers the two granted "{T}, Discard a card" abilities differently from the engine. Games under `shadow/handlers/game-handlers9-batch-*` cover the cards, and
+    `shadow/factory/game-w9batch-*` the zone-batch order and stack text. Left: Corruption of Towashi ("enters transformed"), Plasm Capture (triggered mana in any combination), Moraug (an extra combat after this phase), Diffusion Sliver, Glyph Keeper and Amulet of Safekeeping (countering an ability), Mirror-Shield Hoplite and Skophos Maze-Warden (the targeting ability's own kind and source), Aegar, Toralf, Imodane and Magmatic Galleon (excess damage, a spell's single target), Jace, Cunning Castaway (a delayed batch trigger), Briarbridge Patrol, Grievous Wound, Polukranos, the dice-roll batches, and the cards other open PRs hold (Elesh Norn, Hushbringer, Doorkeeper Thrull, Karn, Hot Soup, Sleep Magic and the rest of `DealtDamageAttachedTriggeredAbility`, Titania).
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory

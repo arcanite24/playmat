@@ -130,6 +130,12 @@ pub(crate) type ValueFn = fn(&Game, Seat, ObjId, i32) -> i32;
 /// waiting trigger: its source, controller, and what the event set (`targets` for a target pointer, `entering`).
 /// Checked as it goes on the stack and again as it resolves.
 pub(crate) type TriggerFn = fn(&Game, &StackItem) -> bool;
+/// The check of a trigger class whose base trigger says all of it (a "one or more" batch whose `checkEvent` the
+/// base's filter and zones are: `getFilteredEvents(…)` isn't empty)
+pub(crate) fn any_batch(_: &Game, _: &StackItem) -> bool {
+    true
+}
+
 /// A filter's `Predicate.apply` (an `ObjectSourcePlayerPredicate`'s too): whether `id` passes, for "you" (the
 /// filter's source's controller, or the player choosing targets) and the filter's source. While targets are chosen,
 /// `game.chosen_before` has the ability's earlier targets (Java's `input.getSource().getTargets()`).
@@ -256,7 +262,12 @@ pub(crate) struct Handler {
     pub any_zone: bool,
     /// a resolving static's `init` (`Handler::on_start`): what it points at from then on
     pub start: Option<StartFn>,
+    /// a trigger class's `getRule` adding what it triggered with, on the stack (`Handler::stack_info`)
+    pub stack_info: Option<StackInfoFn>,
 }
+
+/// What a trigger's rule text gains on the stack (The Skullspore Nexus's "<br><br><i>Total power: 6</i>")
+pub(crate) type StackInfoFn = fn(&Game, &StackItem) -> String;
 
 #[allow(dead_code)]
 impl Handler {
@@ -272,6 +283,7 @@ impl Handler {
             abilities: &[],
             any_zone: false,
             start: None,
+            stack_info: None,
         }
     }
 
@@ -333,6 +345,12 @@ impl Handler {
     /// its targets
     pub const fn on_start(mut self, f: StartFn) -> Handler {
         self.start = Some(f);
+        self
+    }
+
+    /// a trigger class whose `getRule` shows what it triggered with, after its rule text on the stack
+    pub const fn stack_info(mut self, f: StackInfoFn) -> Handler {
+        self.stack_info = Some(f);
         self
     }
 

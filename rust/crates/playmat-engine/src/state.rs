@@ -13,6 +13,14 @@ pub type Seat = usize;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ObjId(pub u32);
 
+/// Where `Game::zone_batch` looks at a moving object
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ZoneBatchAt {
+    Left,
+    Moved,
+    Entered,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Zone {
     Library,
@@ -683,6 +691,9 @@ pub struct StackItem {
     pub left: Option<ObjId>,
     /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
     pub cost_discarded: Vec<ObjId>,
+    /// a "one or more" batch trigger (`Trigger::ZoneBatch`): every object of the batch, with its zone-change count
+    /// in the zone it went to and the zone it came from (Java's `getFilteredEvents`)
+    pub batch: Vec<(ObjId, u32, Zone)>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -761,6 +772,7 @@ impl StackItem {
             died: None,
             left: None,
             cost_discarded: Vec::new(),
+            batch: Vec::new(),
         }
     }
 }
@@ -902,6 +914,13 @@ pub struct Game {
     pub when_dies: Vec<(ObjId, u32, u32, bool, StackItem)>,
     /// "at the beginning of the next turn's upkeep" delayed triggers
     pub at_next_upkeep: Vec<StackItem>,
+    /// `PreventDamageAndRemoveCountersWatcher`: the sources whose `PreventDamageAndRemoveCountersEffect` removed a
+    /// counter in this damage batch (cleared as the simultaneous events are handled,
+    /// `DAMAGED_BATCH_COULD_HAVE_FIRED`)
+    pub counter_removed_batch: Vec<ObjId>,
+    /// "at the beginning of your next main phase" delayed triggers: the phase it waits for (as
+    /// `CreateNextMainPhaseDelayedEffect`'s), the turn it was made, the trigger
+    pub at_next_main: Vec<(String, u32, StackItem)>,
     /// cards exiled by rebound: (card, its exile zcc, owner), offered at the owner's next upkeep
     pub rebound: Vec<(ObjId, u32, Seat)>,
     /// "when you next cast a creature spell this turn" delayed triggers: whose, the turn, and the trigger
@@ -1132,13 +1151,15 @@ pub struct Game {
     /// cards to return now: their exiling permanent left (`OnLeaveReturnExiledAbility`, which uses no stack), with
     /// the seat whose trigger that is
     pub returning: Vec<(Seat, ObjId)>,
-    /// damage permanents were dealt since triggers were last checked, in order (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
-    pub damaged_batch: Vec<(ObjId, i32)>,
+    /// damage permanents were dealt since triggers were last checked, in order, and whether it was combat damage
+    /// (`DAMAGED_BATCH_FOR_ONE_PERMANENT`)
+    pub damaged_batch: Vec<(ObjId, i32, bool)>,
     /// damage players were dealt since triggers were last checked: source, player, amount, combat
     /// (`DAMAGED_BATCH_FOR_ONE_PLAYER`)
     pub player_damage_batch: Vec<(ObjId, Seat, i32, bool)>,
-    /// damage dealt since triggers were last checked: source, amount, combat (`DAMAGED_BATCH_BY_SOURCE`)
-    pub source_damage_batch: Vec<(ObjId, i32, bool)>,
+    /// damage dealt since triggers were last checked: source, amount, combat, and the controller of the source when
+    /// it's a spell (`DAMAGED_BATCH_BY_SOURCE`)
+    pub source_damage_batch: Vec<(ObjId, i32, bool, Option<Seat>)>,
     /// mana abilities activated so far: each one's damage is its own batch (`processManaAction`)
     pub mana_batch: u64,
     /// "opponents are dealt noncombat damage" sources that triggered, with the mana batch they triggered in
@@ -1266,6 +1287,8 @@ impl Game {
             damage_doubled_to: Vec::new(),
             when_dies: Vec::new(),
             at_next_upkeep: Vec::new(),
+            at_next_main: Vec::new(),
+            counter_removed_batch: Vec::new(),
             rebound: Vec::new(),
             attacks_opponent: Vec::new(),
             next_creature_spell: Vec::new(),
@@ -2601,6 +2624,79 @@ impl Game {
         (0..self.objs.len()).map(|i| ObjId(i as u32)).filter(|o| self.obj(*o).p1p1_added).collect()
     }
 
+    /// `ZONE_CHANGE_BATCH`'s card triggers (`Trigger::ZoneBatch`) for `id` moving from `from` to `to`: `Left`, a
+    /// permanent still on the battlefield, for the triggers that read the permanent; `Moved`, after the move, for
+    /// the triggers that read the card, or a move that isn't from the battlefield; `Entered`, a permanent that has
+    /// just entered. Each trigger waits once for the batch (`batch_pending`), with every object that moved.
+    pub fn zone_batch(&mut self, id: ObjId, from: Zone, to: Zone, at: ZoneBatchAt) {
+        let name = |z: Zone| match z {
+            Zone::Library => "library",
+            Zone::Hand => "hand",
+            Zone::Battlefield => "battlefield",
+            Zone::Graveyard => "graveyard",
+            Zone::Stack => "stack",
+            Zone::Exile => "exile",
+            Zone::Command => "command",
+            Zone::Outside => "outside",
+        };
+        let (fz, tz) = (name(from), name(to));
+        let token = self.obj(id).token;
+        let seat = match at {
+            ZoneBatchAt::Moved => self.obj(id).owner,
+            _ => self.obj(id).controller,
+        };
+        let mut sources: Vec<ObjId> = Vec::new();
+        if at == ZoneBatchAt::Left {
+            sources.extend(self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)));
+        }
+        sources.extend(self.battlefield.iter().copied());
+        let fired = self.triggers(sources, |g, src, you, t| match t {
+            Trigger::ZoneBatch { from: f, to: tt, filter, who, cards, not_dying } => {
+                let when = match at {
+                    ZoneBatchAt::Left => !*cards,
+                    ZoneBatchAt::Moved => *cards || from != Zone::Battlefield,
+                    ZoneBatchAt::Entered => true,
+                };
+                when && (f.is_empty() || f == fz)
+                    && (tt.is_empty() || tt == tz)
+                    && !(*cards && token)
+                    && !(*not_dying && to == Zone::Graveyard)
+                    && Game::whose(who, you, seat)
+                    && g.filter_matches(filter, you, Some(src), id)
+            }
+            _ => false,
+        });
+        // the object it is (or becomes) in its new zone
+        let zcc = self.obj(id).zcc + u32::from(at == ZoneBatchAt::Left);
+        for mut t in fired {
+            let pointer = !matches!(
+                t.ability.and_then(|(i, _)| self.item_def(&t).abilities.get(i)),
+                Some(AbilityDef::TriggeredAbility { targets, .. }) if !targets.is_empty()
+            );
+            match self.batch_pending.iter_mut().find(|b| b.card == t.card && b.ability == t.ability) {
+                Some(b) => {
+                    b.x += 1;
+                    b.batch.push((id, zcc, from));
+                    if pointer {
+                        if let (Some(ts), Some(zs)) = (b.targets.first_mut(), b.target_zcc.first_mut()) {
+                            ts.push(Target::Obj(id));
+                            zs.push(zcc);
+                        }
+                    }
+                }
+                None => {
+                    t.x = 1;
+                    t.batch = vec![(id, zcc, from)];
+                    if pointer {
+                        t.targets = vec![vec![Target::Obj(id)]];
+                        t.target_zcc = vec![vec![zcc]];
+                    }
+                    self.batch_pending.push(t);
+                }
+            }
+        }
+    }
+
     pub fn trigger_sources(&self) -> Vec<ObjId> {
         self.battlefield.iter().chain(self.command.iter()).copied().collect()
     }
@@ -2919,6 +3015,7 @@ impl Game {
                 })
             }
             Condition::SourceAttacking => self.obj(source).attacking.is_some(),
+            Condition::SourceInGraveyard => self.obj(source).zone == Zone::Graveyard,
             Condition::SourceSaddled => {
                 let turn = format!("saddled{}", self.turn);
                 self.obj(source).marks.contains(&turn)
@@ -2987,6 +3084,9 @@ impl Game {
             }
             Condition::OpponentsLostLife => (0..self.seats()).any(|p| p != you && self.player(p).life_lost > 0),
             Condition::MyTurn => self.active == Some(you),
+            Condition::MyMainPhase => {
+                self.active == Some(you) && matches!(self.step, Some(Step::PrecombatMain | Step::PostcombatMain))
+            }
             Condition::FirstCombatPhase => !self.combat_phase_done,
             Condition::Morbid => self.creature_died,
             Condition::PlayedLand => self.player(you).lands_played > 0,
@@ -3352,9 +3452,15 @@ impl Game {
         }
         match item.ability {
             Some((i, _)) => {
-                let rule =
-                    self.item_def(item).abilities.get(i).and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
-                format!("stack ability ({})", self.that_player_rule(item, rule))
+                let ability = self.item_def(item).abilities.get(i);
+                let rule = ability.and_then(|a| a.on_stack()).map(|(r, ..)| r).unwrap_or("");
+                let info = match ability {
+                    Some(AbilityDef::TriggeredAbility { check: Some(h), .. }) => crate::rules::cards::find(h.java())
+                        .and_then(|h| h.stack_info)
+                        .map_or(String::new(), |f| f(self, item)),
+                    _ => String::new(),
+                };
+                format!("stack ability ({}{info})", self.that_player_rule(item, rule))
             }
             // a face-down spell is still named by its card on the stack (`Spell.getName`)
             None => card.face_up.as_ref().map_or(card.name(), |f| f.name.as_str()).to_string(),
@@ -3646,6 +3752,9 @@ impl Game {
             }
             _ => false,
         };
+        if from == Zone::Battlefield {
+            self.zone_batch(id, from, zone, ZoneBatchAt::Left);
+        }
         let dies = if from == Zone::Battlefield && zone == Zone::Graveyard {
             let mut sources: Vec<ObjId> =
                 self.lookback.iter().copied().filter(|o| !self.battlefield.contains(o)).collect();
@@ -4014,6 +4123,9 @@ impl Game {
             }
             o.zone = zone;
             o.zcc += 1;
+        }
+        if zone != Zone::Battlefield {
+            self.zone_batch(id, from, zone, ZoneBatchAt::Moved);
         }
         if self.events.is_some() {
             self.record(GameEvent {

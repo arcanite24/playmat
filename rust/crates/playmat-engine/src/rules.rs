@@ -636,6 +636,24 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
         }
         // "at the beginning of <step>" triggers
         Step::Upkeep | Step::Draw | Step::BeginCombat | Step::PrecombatMain | Step::PostcombatMain | Step::EndTurn => {
+            // `PRECOMBAT_MAIN_PHASE_PRE` / `POSTCOMBAT_MAIN_PHASE_PRE`, before the step's own: "at the beginning of
+            // your next main phase" delayed triggers, once each; "this turn" ones are gone once their turn is
+            if matches!(step, Step::PrecombatMain | Step::PostcombatMain) {
+                let turn = game.turn;
+                game.at_next_main.retain(|(p, made, _)| p != "main_this_turn" || *made == turn);
+                let pre = step == Step::PrecombatMain;
+                let (mine, rest): (Vec<_>, Vec<_>) =
+                    std::mem::take(&mut game.at_next_main).into_iter().partition(|(p, _, t)| {
+                        t.controller == active
+                            && match p.as_str() {
+                                "precombat" => pre,
+                                "postcombat" => !pre,
+                                _ => true,
+                            }
+                    });
+                game.at_next_main = rest;
+                game.pending.extend(mine.into_iter().map(|(_, _, t)| t));
+            }
             if step == Step::PrecombatMain {
                 add_saga_lore(game, active);
             }
@@ -5267,7 +5285,8 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
             t.target_zcc = vec![vec![game.obj(spell).zcc]];
         }
     }
-    let any = becomes_target_any(game, &sources, &targeted, spell, seat, false);
+    let players = targeted_players(game);
+    let any = becomes_target_any(game, &sources, &targeted, &players, spell, seat, false);
     // one TARGETED event: its triggers in Java's order (Thorn Lieutenant's and Battle Mammoth's)
     if !any.is_empty() {
         fired.extend(any);
@@ -5839,7 +5858,8 @@ fn targeted_permanents(game: &Game) -> Vec<ObjId> {
 fn ability_targeted(game: &mut Game) {
     let Some(top) = game.stack.last().cloned() else { return };
     let hit = targeted_permanents(game);
-    if hit.is_empty() {
+    let players = targeted_players(game);
+    if hit.is_empty() && players.is_empty() {
         return;
     }
     let sources: Vec<ObjId> = game.trigger_sources();
@@ -5855,7 +5875,7 @@ fn ability_targeted(game: &mut Game) {
             t.target_zcc = vec![vec![0]];
         }
     }
-    let any = becomes_target_any(game, &sources, &hit, top.card, top.controller, true);
+    let any = becomes_target_any(game, &sources, &hit, &players, top.card, top.controller, true);
     if !any.is_empty() {
         fired.extend(any);
         fired.sort_by_key(|t| game.trigger_key(t));
@@ -5863,37 +5883,91 @@ fn ability_targeted(game: &mut Game) {
     targeted(game, fired);
 }
 
+/// The players the top stack object targets, in order
+fn targeted_players(game: &Game) -> Vec<Seat> {
+    let mut out = Vec::new();
+    for t in game.stack.last().map(|t| t.targets.iter().flatten()).into_iter().flatten() {
+        if let Target::Player(p) = t {
+            if !out.contains(p) {
+                out.push(*p);
+            }
+        }
+    }
+    out
+}
+
 /// `BecomesTargetAnyTriggeredAbility`: for each permanent targeted (once each), the triggers whose permanent filter
-/// it matches and whose stack filter the targeting spell (or ability, by its source) matches
+/// it matches and whose stack filter the targeting spell (or ability, by its source) matches; then each player
+/// targeted, for the triggers players count for
 fn becomes_target_any(
     game: &Game,
     sources: &[ObjId],
     targeted: &[ObjId],
+    players: &[Seat],
     by: ObjId,
     by_controller: Seat,
     ability: bool,
 ) -> Vec<StackItem> {
-    let mut out = Vec::new();
+    let mut out: Vec<StackItem> = Vec::new();
     let mut seen = Vec::new();
+    let stack_ok = |g: &Game, src: ObjId, you: Seat, filter: &crate::card::Filter, abilities: bool, no_spells: bool| {
+        (if ability { abilities } else { !no_spells }) && g.filter_matches(filter, you, Some(src), by)
+    };
+    // one that triggers once for the targeting object (`once`) and has already
+    let done = |out: &[StackItem], t: &StackItem| {
+        matches!(game.trigger_of(t), Some(Trigger::BecomesTargetAny { once: true, .. }))
+            && out.iter().any(|o| o.card == t.card && o.ability == t.ability)
+    };
     for p in targeted {
         if seen.contains(p) || game.obj(*p).zone != Zone::Battlefield {
             continue;
         }
         seen.push(*p);
         let fired = game.triggers(sources.iter().copied(), |g, src, you, t| match t {
-            Trigger::BecomesTargetAny { target, filter, abilities, .. } => {
-                (!ability || *abilities)
-                    && g.filter_matches(target, you, Some(src), *p)
-                    && g.filter_matches(filter, you, Some(src), by)
+            Trigger::BecomesTargetAny { target, filter, abilities, no_spells, attached, .. } => {
+                stack_ok(g, src, you, filter, *abilities, *no_spells)
+                    && if *attached {
+                        g.attached(src) == Some(*p)
+                    } else {
+                        g.filter_matches(target, you, Some(src), *p)
+                    }
             }
             _ => false,
         });
         for mut t in fired {
+            if done(&out, &t) {
+                continue;
+            }
             match game.trigger_of(&t) {
                 Some(Trigger::BecomesTargetAny { at, .. }) if at == "permanent" => {
                     t.targets = vec![vec![Target::Obj(*p)]];
                     t.target_zcc = vec![vec![game.obj(*p).zcc]];
                 }
+                Some(Trigger::BecomesTargetAny { at, .. }) if at == "player" => {
+                    t.targets = vec![vec![Target::Player(by_controller)]];
+                    t.target_zcc = vec![vec![0]];
+                }
+                Some(Trigger::BecomesTargetAny { at, .. }) if at == "spell" => {
+                    t.targets = vec![vec![Target::Obj(by)]];
+                    t.target_zcc = vec![vec![game.obj(by).zcc]];
+                }
+                _ => {}
+            }
+            out.push(t);
+        }
+    }
+    for p in players {
+        let fired = game.triggers(sources.iter().copied(), |g, src, you, t| match t {
+            Trigger::BecomesTargetAny { filter, abilities, no_spells, players: who, .. } => {
+                !who.is_empty() && Game::whose(who, you, *p) && stack_ok(g, src, you, filter, *abilities, *no_spells)
+            }
+            _ => false,
+        });
+        for mut t in fired {
+            if done(&out, &t) {
+                continue;
+            }
+            match game.trigger_of(&t) {
                 Some(Trigger::BecomesTargetAny { at, .. }) if at == "player" => {
                     t.targets = vec![vec![Target::Player(by_controller)]];
                     t.target_zcc = vec![vec![0]];
@@ -15605,6 +15679,9 @@ fn apply_each_effect(
                 game.at_next_upkeep
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
             }
+            EffectDef::CreateNextMainPhaseDelayedEffect { effects, rule, phase } => {
+                next_main_delayed(game, source, controller, effects.clone(), rule.clone(), phase);
+            }
             // Mishra's Bauble: its controller looks at the top card of the target player's library
             EffectDef::LookLibraryTopCardTargetPlayerEffect => {
                 let Some(Target::Player(p)) = target else { continue };
@@ -18965,6 +19042,7 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
         }
     }
     game.pending.extend(fired);
+    game.zone_batch(id, from, Zone::Battlefield, crate::state::ZoneBatchAt::Entered);
 }
 
 /// Lore counters on a Saga: its chapter abilities whose chapter they reach trigger
@@ -19079,19 +19157,52 @@ fn untap(o: &mut crate::state::Obj) {
 /// `DAMAGED_BATCH_FOR_ONE_PERMANENT`: each permanent dealt damage since the last check, with the total
 fn damaged_batch_triggers(game: &mut Game) {
     let batch = std::mem::take(&mut game.damaged_batch);
-    let mut totals: Vec<(ObjId, i32)> = Vec::new();
-    for (o, n) in batch {
-        match totals.iter_mut().find(|(x, _)| *x == o) {
-            Some(t) => t.1 += n,
-            None => totals.push((o, n)),
+    // (each permanent's total, and whether any of it was combat damage: `DamagedBatchForOnePermanentEvent`)
+    let mut totals: Vec<(ObjId, i32, bool)> = Vec::new();
+    for (o, n, combat) in batch {
+        match totals.iter_mut().find(|(x, _, _)| *x == o) {
+            Some(t) => {
+                t.1 += n;
+                t.2 |= combat;
+            }
+            None => totals.push((o, n, combat)),
         }
     }
-    for (o, n) in totals {
+    for (o, n, combat) in totals {
         if game.obj(o).zone != Zone::Battlefield {
             continue;
         }
-        for mut t in game.triggers([o], |_, _, _, t| matches!(t, Trigger::DealtDamage)) {
+        let fired = game.triggers([o], |_, _, _, t| match t {
+            Trigger::DealtDamage => true,
+            Trigger::DealtCombatDamage => combat,
+            _ => false,
+        });
+        for mut t in fired {
             t.x = n;
+            game.pending.push(t);
+        }
+        if n <= 0 {
+            continue;
+        }
+        // "whenever a permanent of the filter is dealt damage"
+        let sources = game.trigger_sources();
+        let fired = game.triggers(sources, |g, src, you, t| match t {
+            Trigger::DealtDamageAny { filter, .. } => g.filter_matches(filter, you, Some(src), o),
+            _ => false,
+        });
+        for mut t in fired {
+            t.x = n;
+            match game.trigger_of(&t) {
+                Some(Trigger::DealtDamageAny { at, .. }) if at == "permanent" => {
+                    t.targets = vec![vec![Target::Obj(o)]];
+                    t.target_zcc = vec![vec![game.obj(o).zcc]];
+                }
+                Some(Trigger::DealtDamageAny { at, .. }) if at == "player" => {
+                    t.targets = vec![vec![Target::Player(game.obj(o).controller)]];
+                    t.target_zcc = vec![vec![0]];
+                }
+                _ => {}
+            }
             game.pending.push(t);
         }
     }
@@ -19101,23 +19212,31 @@ fn damaged_batch_triggers(game: &mut Game) {
 /// permanent of the filter) deals damage" triggers once, X the batch's damage; a combat batch for "combat damage"
 fn source_damage_batch_triggers(game: &mut Game) {
     let batch = std::mem::take(&mut game.source_damage_batch);
-    let mut sources: Vec<(ObjId, i32, bool)> = Vec::new();
-    for (s, n, combat) in batch {
+    let mut sources: Vec<(ObjId, i32, bool, Option<Seat>)> = Vec::new();
+    for (s, n, combat, spell) in batch {
         match sources.iter_mut().find(|x| x.0 == s) {
             Some(x) => {
                 x.1 += n;
                 x.2 |= combat;
             }
-            None => sources.push((s, n, combat)),
+            None => sources.push((s, n, combat, spell)),
         }
     }
-    for (source, n, combat) in sources {
+    for (source, n, combat, spell) in sources {
         let from = game.trigger_sources();
         let fired = game.triggers(from, |g, src, you, t| match t {
             Trigger::DealsDamage { filter, only_combat } if combat || !*only_combat => match filter {
                 None => src == source,
                 Some(f) => g.filter_matches(f, you, Some(src), source),
             },
+            // a spell of the filter you control (`getSpellOrLKIStack`: as it was cast)
+            Trigger::SpellDealsDamage { filter } => {
+                spell == Some(you) && g.filter_matches(filter, you, Some(src), source)
+            }
+            // the creature this Equipment or Aura is attached to
+            Trigger::AttachedDealsDamage { only_combat } => {
+                (combat || !*only_combat) && g.attached(src) == Some(source)
+            }
             _ => false,
         });
         for mut t in fired {
@@ -19156,18 +19275,26 @@ fn player_damage_batch_triggers(game: &mut Game) {
                 .map(|e| e.1)
                 .sum()
         };
-        let sources = game.trigger_sources();
+        let mut sources = game.trigger_sources();
+        for pl in game.players.iter() {
+            sources.extend(pl.graveyard.iter().copied());
+        }
         // `DamagedBatchForOnePlayerEvent.isCombatDamage`: its damage was combat damage
         let noncombat = events.iter().any(|e| !e.2);
+        let combat = events.iter().any(|e| e.2);
         let dealt: i32 = events.iter().map(|e| e.1).sum();
         let fired = game.triggers(sources, |g, src, you, t| match t {
-            Trigger::DamagePlayerBatch { filter, only_combat } => total(g, src, you, filter, *only_combat) > 0,
+            Trigger::DamagePlayerBatch { filter, only_combat, graveyard } => {
+                *graveyard == (g.obj(src).zone == Zone::Graveyard) && total(g, src, you, filter, *only_combat) > 0
+            }
+            _ if g.obj(src).zone == Zone::Graveyard => false,
             Trigger::OpponentDealtNoncombatDamageBatch => noncombat && you != p,
+            Trigger::YouDealtCombatDamage => combat && you == p,
             _ => false,
         });
         for mut t in fired {
             match game.trigger_of(&t).cloned() {
-                Some(Trigger::DamagePlayerBatch { filter, only_combat }) => {
+                Some(Trigger::DamagePlayerBatch { filter, only_combat, .. }) => {
                     t.x = total(game, t.card, t.controller, &filter, only_combat);
                 }
                 // "damage": the batch's amount
@@ -19211,12 +19338,29 @@ fn state_triggers(game: &mut Game) {
     }
 }
 
+/// The batch triggers waiting, the `ZONE_CHANGE_BATCH` ones (`ZoneChangeBatchTriggeredAbility`) in Java's trigger
+/// order among themselves: one event they all check together, however the objects moved
+fn take_batch(game: &mut Game) -> Vec<StackItem> {
+    let mut batch = std::mem::take(&mut game.batch_pending);
+    let zone = |g: &Game, t: &StackItem| matches!(g.trigger_of(t), Some(Trigger::ZoneBatch { .. }));
+    let slots: Vec<usize> = (0..batch.len()).filter(|i| zone(game, &batch[*i])).collect();
+    if slots.len() > 1 {
+        let mut group: Vec<StackItem> = slots.iter().map(|i| batch[*i].clone()).collect();
+        group.sort_by_key(|t| game.trigger_key(t));
+        for (i, t) in slots.into_iter().zip(group) {
+            batch[i] = t;
+        }
+    }
+    batch
+}
+
 /// True: state-based actions were performed or triggers were put on the stack (`GameImpl.checkStateAndTriggered`).
 fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
     let mut happened = false;
     loop {
+        game.counter_removed_batch.clear();
         if !game.batch_pending.is_empty() {
-            let batch = std::mem::take(&mut game.batch_pending);
+            let batch = take_batch(game);
             game.pending.extend(batch);
         }
         // a discard made elsewhere (a cost): its `DISCARDED_CARDS` once it's done
@@ -19277,7 +19421,7 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
         happened |= state_based_actions(game);
         // a batch the state-based actions made ("whenever one or more creatures die"): with this pass's triggers
         if !game.batch_pending.is_empty() {
-            let batch = std::mem::take(&mut game.batch_pending);
+            let batch = take_batch(game);
             game.pending.extend(batch);
         }
         state_triggers(game);
@@ -20005,9 +20149,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             let creature = game.has_type(o, CardType::Creature);
             // wither: a creature gets -1/-1 counters, not damage (`checkWither`)
             let wither = creature && keyword(&AbilityDef::WitherAbility);
-            if game.obj(o).def.abilities.iter().any(|a| a.trigger() == Some(&Trigger::DealtDamage)) {
-                game.damaged_batch.push((o, amount));
-            }
+            game.damaged_batch.push((o, amount, combat));
             let planeswalker = game.has_type(o, CardType::Planeswalker);
             let battle = game.has_type(o, CardType::Battle);
             if log::kept(game) {
@@ -20057,7 +20199,14 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         }
     }
     if amount > 0 {
-        game.source_damage_batch.push((source, amount, combat));
+        let spell = (src.zone == Zone::Stack).then(|| {
+            game.stack
+                .iter()
+                .rev()
+                .find(|t| t.card == source && t.ability.is_none())
+                .map_or(src.controller, |t| t.controller)
+        });
+        game.source_damage_batch.push((source, amount, combat, spell));
     }
     if src_lifelink {
         if combat {
@@ -20507,6 +20656,16 @@ fn tap(game: &mut Game, id: ObjId) {
             if g.obj(src).zone == Zone::Battlefield && g.filter_matches(filter, you, Some(src), id))
     });
     game.pending.extend(fired);
+    // `TAPPED_BATCH`: once for what became tapped together
+    let sources = game.trigger_sources();
+    let fired = game.triggers(sources, |g, src, you, t| {
+        matches!(t, Trigger::BecomesTappedBatch { filter } if g.filter_matches(filter, you, Some(src), id))
+    });
+    for t in fired {
+        if !game.batch_pending.iter().any(|b| b.card == t.card && b.ability == t.ability) {
+            game.batch_pending.push(t);
+        }
+    }
 }
 
 pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
@@ -21600,6 +21759,31 @@ fn legend_rule(game: &mut Game, d: &mut dyn Decider) -> bool {
     false
 }
 
+/// `AtTheBeginOfMainPhaseDelayedTriggeredAbility(effects, false, TargetController.YOU, phase)`, made now by
+/// `source` for `controller`
+pub(crate) fn next_main_delayed(
+    game: &mut Game,
+    source: (ObjId, u32),
+    controller: Seat,
+    effects: Vec<EffectDef>,
+    rule: String,
+    phase: &str,
+) {
+    let delayed = Delayed {
+        rule,
+        sacrifice: Vec::new(),
+        warp_exile: Vec::new(),
+        effects,
+        source_zcc: source.1,
+        fixed: Vec::new(),
+        return_tapped: Vec::new(),
+        targets: Vec::new(),
+        condition: None,
+    };
+    let t = StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) };
+    game.at_next_main.push((phase.to_string(), game.turn, t));
+}
+
 /// Transforms a permanent into its other face; transforming into its front fires "enters or transforms into"
 /// triggers (`PermanentImpl.transform`)
 fn transform(game: &mut Game, id: ObjId) {
@@ -21628,9 +21812,22 @@ fn transform(game: &mut Game, id: ObjId) {
         game.pending.extend(fired);
     }
     // `TRANSFORMED`: the face it is now
-    let fired = game
-        .triggers([id], |g, src, _, t| matches!(t, Trigger::TransformsInto) && g.obj(src).zone == Zone::Battlefield);
-    game.pending.extend(fired);
+    let sources = game.trigger_sources();
+    let zcc = game.obj(id).zcc;
+    let fired = game.triggers(sources, |g, src, you, t| match t {
+        Trigger::TransformsInto => src == id && g.obj(src).zone == Zone::Battlefield,
+        Trigger::TransformsAny { attached: true, .. } => g.attached(src) == Some(id),
+        Trigger::TransformsAny { filter, attached: false } => g.filter_matches(filter, you, Some(src), id),
+        _ => false,
+    });
+    for mut t in fired {
+        let a = t.ability.and_then(|(i, _)| game.item_def(&t).abilities.get(i));
+        if matches!(a, Some(AbilityDef::TriggeredAbility { set_target_pointer: true, .. })) {
+            t.targets = vec![vec![Target::Obj(id)]];
+            t.target_zcc = vec![vec![zcc]];
+        }
+        game.pending.push(t);
+    }
 }
 
 /// Turns a face-down permanent face up (`PermanentCard.turnFaceUp`): its card again, a +1/+1 counter for megamorph,
