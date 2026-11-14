@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,363 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -738,6 +738,27 @@ Being in the engine and being trusted are kept apart.
   (`WhileOnBattlefield` subtype ending with its source), card-specific target adjusters (Agadeem's Awakening, Body
   Launderer, Confront the Past and others need a handler kind of their own), the long tail of
   `ConditionalColoredManaAbility`/`SimpleManaAbility` forms, and granted statics on Equipment.
+
+  Wave 9, mana (14 Nov): conditional mana a card's own `ConditionalManaBuilder` restricts goes through a new handler
+  kind, `Handler::spend` (a `SpendFn` gets the seat, the mana's source, what's being paid for and whether it's a spell
+  or which of that object's abilities: 22 cards' builders such as Castle Doom's, Freya Crescent's and Qarsi
+  Deceiver's, and the framework's `ActivatedAbilityManaBuilder`). The engine remembers which ability is being paid for (`paying_index`) for those
+  that ask, as for turning a permanent face up, unlocking a door, foretelling or plotting. The transpiler reads a
+  builder kept in a card field, the `ConditionalColored`/`Colorless`/`AnyColorManaAbility` forms with any cost, and
+  `AddConditional*ManaEffect` as an effect (`AddConditionalManaEffect`: triggered and loyalty mana such as Sarkhan,
+  Fireblood, Abstract Paintmage, Desolation of Smaug and Boommobile, kept in the pool until it empties). Mana spent
+  tracking: the pool remembers which mana a Treasure made (`TreasureSpentToCastCondition`: Hired Hexblade, Jaded
+  Sell-Sword), and `ManaSpentToCastCount` and `EachTwoManaSpentToCastValue` (Clay Champion, Molten Note, Bladecoil
+  Serpent) read what was spent on the spell. "Spend mana as though it were mana of any color"
+  (`SpendManaAsAnyColorEffect`: Chromatic Orrery, and Oath of Nissa for planeswalker spells) pays colored symbols
+  as generic. Voldaren Estate's cost adjuster joins `COST_ADJUSTERS`. Three factory rounds (62 games, 60 matching)
+  verified 38: 11,167 of 11,363. Eight games under `shadow/handlers/game-mana9-*` cover the engine pieces. Left: Base
+  Camp (the engine pays colored symbols in WUBRG order and Java in the printed order, so a stale conditional mana
+  gets spent on a different symbol), Throne of Makindi (a game where Rust stays in the main phase after an Orb of
+  Dragonkind activation is cancelled), Smoky Lounge, Chandra, Chill of Compliance, Jaya Ballard, Meeting of the Five,
+  Niko Defies Destiny and Magmablood Archaic (an effect or value of their own each), and the triggered mana abilities
+  (`EnchantedTappedTriggeredManaAbility`, `TapForManaAllTriggeredManaAbility`), mana-type copying (Kinnan, Zendikar
+  Resurgent), mana that grants the spell an ability (Generator Servant) and custom `SimpleManaAbility` effects.
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
