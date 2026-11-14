@@ -19569,9 +19569,12 @@ fn live_fixed(game: &Game, t: &StackItem) -> Vec<ObjId> {
 fn token_image(game: &mut Game, token: &crate::card::TokenDef, source: ObjId) {
     // a token's set is the one its image came from (`token.setExpansionSetCode(tokenInfo.getSetCode())`): a
     // Treasure from Fable's Goblin Shaman looks in NEO's Treasures, one image, so no random number
-    let set = match &game.obj(source).token_image {
-        Some((_, set, _)) if game.obj(source).token => set.clone(),
-        _ => game.obj(source).def.set.clone(),
+    // a split card's half, cast, is its parent's printing (`SplitCardHalfImpl.getExpansionSetCode`)
+    let o = game.obj(source);
+    let set = match (&o.token_image, &o.adventurer) {
+        (Some((_, set, _)), _) if o.token => set.clone(),
+        (_, Some(full)) if o.def.set.is_empty() => full.set.clone(),
+        _ => o.def.set.clone(),
     };
     let n = token.image_choices(&set);
     let pick = if n >= 2 { game.rng.next_int_bound(n as i32) as u32 } else { 0 };
