@@ -709,7 +709,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'TreasureSpentToCastCondition.instance': {'c': 'treasure_spent'},
               'MetalcraftCondition.instance': {'c': 'permanents', 'filter': [{'p': 'type', 't': 'ARTIFACT'}, {'p': 'controller', 'who': 'you'}], 'cmp': 'OR_GREATER', 'n': 3}, 'PlayLandCondition.instance': {'c': 'played_land'}, 'DeliriumCondition.instance': {'c': 'delirium'},
               # a bargained spell is kicked (`BargainAbility`)
-              'BargainedCondition.instance': {'c': 'kicked'}, 'CollectedEvidenceCondition.instance': {'c': 'kicked'}, 'SurgedCondition.instance': {'c': 'kicked'},
+              'BargainedCondition.instance': {'c': 'kicked'}, 'CollectedEvidenceCondition.instance': {'c': 'kicked'}, 'SurgedCondition.instance': {'c': 'kicked'}, 'SpectacleCondition.instance': {'c': 'kicked'},
               'ObsessivePursuitCondition.instance': {'c': 'sacrificed_this_turn', 'n': 3},
               'KaitoBaneOfNightmaresCondition.instance': {'c': 'and', 'xs': [
                   {'c': 'my_turn'}, {'c': 'source_counter', 'name': 'loyalty', 'n': 1}]},
@@ -954,6 +954,8 @@ def predicate(text, subtypes):
         return {'p': 'in_combat'}
     if text == 'BlockingPredicate.instance':
         return {'p': 'blocking'}
+    if text == 'BlockedPredicate.instance':
+        return {'p': 'blocked'}
     simple = {'MonocoloredPredicate.instance': 'monocolored', 'CounterAnyPredicate.instance': 'counter_any',
               'EnteredThisTurnPredicate.instance': 'entered_this_turn', 'EquippedPredicate.instance': 'equipped',
               'EnchantedPredicate.instance': 'enchanted', 'ModifiedPredicate.instance': 'modified',
@@ -1351,7 +1353,8 @@ KEPT_WATCHERS = {'ScryOrSurveilWatcher', 'SpellsCastWatcher', 'PermanentsSacrifi
                  'CardsPutIntoGraveyardWatcher', 'CommittedCrimeWatcher', 'DamagedPlayerThisCombatWatcher',
                  'CreaturesDiedWatcher', 'ArtifactEnteredControllerWatcher', 'CreatureEnteredControllerWatcher',
                  'PermanentsEnteredBattlefieldWatcher', 'CardsExiledThisTurnWatcher', 'PlayerGainedLifeWatcher',
-                 'CompletedDungeonWatcher', 'LandfallWatcher'}
+                 'CompletedDungeonWatcher', 'LandfallWatcher', 'BlockedThisTurnWatcher', 'NoncombatDamageToPlayersWatcher',
+                 'CreatureLeftBattlefieldWatcher', 'CreaturePutIntoGraveyardWatcher'}
 
 # abilities every card has, which the constructor doesn't add
 IMPLICIT = {'SpellAbility', 'PlayLandAbility', 'AdventureCardSpellAbility', 'OmenCardSpellAbility', 'PrepareCardSpellAbility'}
@@ -3596,6 +3599,8 @@ class Translator:
                         'to_player': d['to_player']}
             if d.get('class') == 'NextUpkeepDelayed':
                 return {'class': 'CreateNextUpkeepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
+            if d.get('class') == 'YourNextUpkeepDelayed':
+                return {'class': 'CreateYourNextUpkeepDelayedEffect', 'effects': d['effects'], 'rule': d['rule']}
             if d.get('class') == 'NextMainDelayed':
                 return {'class': 'CreateNextMainPhaseDelayedEffect', 'effects': d['effects'], 'rule': d['rule'],
                         'phase': d['phase']}
@@ -3921,6 +3926,23 @@ class Translator:
                 return out
         # layer 7b: base power and toughness
         pt = r'-?\d+'
+        # worked out as they're read (`SetBasePtEffect`): one characteristic alone, or a number that isn't fixed
+        durs = {'Duration.EndOfTurn': 'EndOfTurn', 'Duration.EndOfGame': 'WhileOnBattlefield',
+                'Duration.WhileOnBattlefield': 'WhileOnBattlefield'}
+        if cls == 'SetBasePowerSourceEffect' and len(args) == 2 and args[1].strip() in durs:
+            return {'class': 'SetBasePtEffect', 'power': self.amount(args[0]), 'duration': durs[args[1].strip()]}
+        if cls == 'SetBasePowerToughnessSourceEffect' and len(args) == 2 and args[1].strip() in durs \
+                and not re.fullmatch(pt, args[0].strip()):
+            a = self.amount(args[0])
+            return {'class': 'SetBasePtEffect', 'power': a, 'toughness': a, 'duration': durs[args[1].strip()]}
+        if cls == 'SetBasePowerToughnessTargetEffect' and len(args) == 3 and args[2].strip() in durs \
+                and 'null' in (args[0].strip(), args[1].strip()) and args[0].strip() != args[1].strip():
+            out = {'class': 'SetBasePtEffect', 'target': True, 'duration': durs[args[2].strip()]}
+            if args[0].strip() != 'null':
+                out['power'] = self.amount(args[0])
+            if args[1].strip() != 'null':
+                out['toughness'] = self.amount(args[1])
+            return out
         if cls == 'SetBasePowerToughnessTargetEffect' and len(args) == 3 and args[2] in ('Duration.EndOfTurn', 'Duration.EndOfGame'):
             return {'class': cls, 'power': self.amount(args[0]), 'toughness': self.amount(args[1]),
                     **({'permanent': True} if args[2] == 'Duration.EndOfGame' else {})}
@@ -5124,6 +5146,10 @@ class Translator:
                 and args[1].strip() == 'Duration.OneUse' and args[0].strip() == 'new DrawCardSourceControllerEffect(1)':
             return {'class': 'NextUpkeepDelayed', 'effects': [self.effect(args[0])],
                     'rule': "Draw a card at the beginning of the next turn's upkeep."}
+        # "at the beginning of your next upkeep, …": its text is the ability's sentence that starts so
+        if cls == 'AtTheBeginOfYourNextUpkeepDelayedTriggeredAbility' and len(args) == 1:
+            return {'class': 'YourNextUpkeepDelayed', 'effects': [self.effect(args[0])],
+                    'rule': RULE_FROM + 'At the beginning of your next upkeep, >'}
         # "transform {this} at the beginning of the next upkeep" (Archangel Avacyn)
         if cls == 'AtTheBeginOfNextUpkeepDelayedTriggeredAbility' and len(args) == 1 \
                 and args[0].strip() == 'new TransformSourceEffect()':
@@ -6514,7 +6540,7 @@ class Translator:
         if cls == 'Mode':
             args = self.new_expr(expr)[1]
             self.vars[var] = {'class': 'Mode', 'effects': [self.effect(a) for a in args], 'targets': []}
-        elif cls in EFFECTS or cls.endswith('Effect'):
+        elif cls in EFFECTS or cls.endswith('Effect') or cls == 'DealtDamageToCreatureBySourceDies':
             self.vars[var] = self.effect(expr)
         elif cls.endswith('Cost'):
             self.vars[var] = self.cost(expr)

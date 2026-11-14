@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (12,450 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (12,507 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -1102,6 +1102,27 @@ Being in the engine and being trusted are kept apart.
   for a graveyard cast with it), Doom Reigns Supreme (`PlanCounterThresholdTriggeredAbility`), Inside Information
   (a resolved life-for-mana permission), Tinybones, The Temporal Anchor, Legion's Initiative and the cards needing
   after-cast callbacks (Serra Paragon, Intrepid Paleontologist, Muldrotha).
+
+  Wave 11, area WATCH (14 Nov): per-turn tracking in `Game::watch` (`TurnWatch`, cleared in the untap step): the
+  creatures that blocked (`BlockedThisTurnWatcher`), every damage event with its source as the object it was, its
+  controller and whether it was combat damage (`DamageSeen`: noncombat damage to players, combat damage to creatures,
+  sources that dealt damage), every permanent that left the battlefield with what it last was (`LeftSeen`: controller,
+  owner, destination, creature or token, subtypes, died, counters), counters put and by whom, surveils and the
+  permanents sacrificed. Suspect is a mark (`Obj::suspected`): menace while it's on the battlefield, and it can't
+  block (`SuspectTargetEffect`, `SuspectSourceEffect`, `SuspectedPredicate`). `SetBasePtEffect` is layer 7b with
+  either characteristic alone or a value worked out as it's read (`SetBasePowerSourceEffect`, a dynamic
+  `SetBasePowerToughnessSourceEffect`, `SetBasePowerToughnessTargetEffect` with one `null`), in timestamp order with
+  the other 7b effects; until end of turn, for the game, or while the source is on the battlefield.
+  `CreateYourNextUpkeepDelayedEffect` (`AtTheBeginOfYourNextUpkeepDelayedTriggeredAbility`) waits in
+  `at_first_upkeep`. Spectacle marks the spell kicked, as surge does, so `SpectacleCondition` reads it;
+  `BlockedPredicate` is an attacker that's blocked. 41 handler files (mostly the cards' own watchers as conditions and
+  values). Three factory rounds (102 games; 93 of the 94 replayed match) verified 61 (five of them, the life-gained conditions, also came in with another wave): 12,238 of 12,507 (on the train with the copy and exile waves). Ten games
+  under `shadow/watch/` cover the engine pieces. Left: Rix Maadi Reveler (blamed for one game that parts on the order
+  of two upkeep triggers of the other player's werewolf and Mistbreath Elder), The Bears of Littjara (dropped: the
+  engine sacrifices a finished Saga before creatures with lethal damage, Java checks each permanent in battlefield
+  order), Agency Coroner and Airtight Alibi (suspected as last known), Casey Jones (random discard), Incendiary Oracle
+  and Draconic Intervention (`DamagedByWatcher` values), Kytheon (its back face's requirement effect), Fraying
+  Sanity, Thirsting Axe and the cards with `CastFromHandSourcePermanentCondition`.
 
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory

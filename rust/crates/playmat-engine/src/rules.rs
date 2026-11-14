@@ -4127,7 +4127,9 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                 }
             };
             // cast for its spectacle or warp cost (the whole card comes back as it leaves the stack)
-            let surged = surge.as_ref().is_some_and(|(k, _)| *k == index);
+            // (spectacle too: `SpectacleCondition`, "if its spectacle cost was paid", reads the same tag)
+            let surged = surge.as_ref().is_some_and(|(k, _)| *k == index)
+                || spectacle.as_ref().is_some_and(|(k, _)| *k == index);
             let alternative = spectacle
                 .filter(|(k, _)| *k == index)
                 .or(surge.filter(|(k, _)| *k == index))
@@ -4147,7 +4149,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
                     *game = before;
                     return;
                 }
-                // `SurgeAbility.activate`: "if its surge cost was paid"
+                // `SurgeAbility.activate` and `SpectacleAbility.activate`: "if its surge (spectacle) cost was paid"
                 if surged {
                     if let Some(t) =
                         Arc::make_mut(&mut game.stack).iter_mut().rev().find(|t| t.card == id && t.ability.is_none())
@@ -8295,6 +8297,9 @@ fn scry(game: &mut Game, d: &mut dyn Decider, seat: Seat, amount: i32, rule: &st
 /// `SCRIED` / `SURVEILED`: fired after the cards move, with the amount asked for, even from an empty library
 fn scried(game: &mut Game, seat: Seat, amount: i32, surveiled: bool) {
     game.watch.scried.push(seat);
+    if surveiled {
+        game.watch.surveiled.push(seat);
+    }
     let sources: Vec<ObjId> = game.trigger_sources();
     let fired = game.triggers(sources, |_, _, you, t| {
         you == seat
@@ -16957,6 +16962,22 @@ fn apply_each_effect(
                 game.at_next_upkeep
                     .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
             }
+            // (`at_first_upkeep` waits for its controller's upkeep, after the next upkeep's delayed triggers)
+            EffectDef::CreateYourNextUpkeepDelayedEffect { effects, rule } => {
+                let delayed = Delayed {
+                    rule: rule.clone(),
+                    sacrifice: Vec::new(),
+                    warp_exile: Vec::new(),
+                    effects: effects.clone(),
+                    source_zcc: source.1,
+                    fixed: Vec::new(),
+                    return_tapped: Vec::new(),
+                    targets: Vec::new(),
+                    condition: None,
+                };
+                game.at_first_upkeep
+                    .push(StackItem { delayed: Some(Arc::new(delayed)), ..StackItem::spell(source.0, controller) });
+            }
             EffectDef::CreateNextMainPhaseDelayedEffect { effects, rule, phase } => {
                 next_main_delayed(game, source, controller, effects.clone(), rule.clone(), phase);
             }
@@ -18443,6 +18464,31 @@ fn apply_each_effect(
                     }
                 }
             }
+            // `getTargetPointer().getTargets` (or the source while it's the permanent it was), worked out as it's read
+            EffectDef::SetBasePtEffect { power, toughness, target, duration } => {
+                let on: Vec<ObjId> = if *target {
+                    objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect()
+                } else if game.obj(source.0).zone == Zone::Battlefield && game.obj(source.0).zcc == source.1 {
+                    vec![source.0]
+                } else {
+                    Vec::new()
+                };
+                let at = game.timestamp();
+                for o in on {
+                    let b = crate::state::BasePtSet {
+                        id: o,
+                        zcc: game.obj(o).zcc,
+                        power: power.clone(),
+                        toughness: toughness.clone(),
+                        source: source.0,
+                        controller,
+                        x: item.x,
+                        at,
+                        until_eot: *duration == Duration::EndOfTurn,
+                    };
+                    game.base_pt_sets.push(b);
+                }
+            }
             EffectDef::SetBasePowerToughness7bSourceEffect { power, toughness, duration } => {
                 let (src, zcc) = source;
                 if *duration == Duration::EndOfTurn
@@ -18986,6 +19032,8 @@ fn sacrifice(game: &mut Game, id: ObjId) {
     game.player_mut(who).sacrificed += 1;
     let artifact = game.has_type(id, CardType::Artifact);
     game.watch.sacrificed.push((who, artifact));
+    let zcc = game.obj(id).zcc;
+    game.watch.sacrificed_objs.push((who, id, zcc));
     note(game, EventKind::Sacrificed, Some(who), None, Some(Target::Obj(id)), 0);
     // what left in the same action still sees it (Java's short-living LKI): sacrificed together
     // and so does what was sacrificed since the player last passed, cast or made mana (activating an ability doesn't
@@ -19083,6 +19131,8 @@ fn counters_put_triggers(game: &mut Game, o: ObjId, name: &str, n: i32, by: Opti
             game.p1p1_put_this_turn.push(at);
         }
     }
+    let seen = (by, o, game.obj(o).zcc, name.to_string(), n, game.has_type(o, CardType::Creature));
+    game.watch.counters_put.push(seen);
     let by = by.unwrap_or(game.obj(o).controller);
     if name == "+1/+1" {
         game.watch.p1p1_put.push((by, n));
@@ -21784,6 +21834,18 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 ..GameEvent::new(EventKind::Damage)
             });
             lose_life_by(game, s, amount, Some(source), combat);
+            if amount > 0 {
+                let seen = crate::state::DamageSeen {
+                    source,
+                    source_zcc: game.obj(source).zcc,
+                    source_controller: game.obj(source).controller,
+                    to,
+                    to_zcc: 0,
+                    amount,
+                    combat,
+                };
+                game.watch.damage.push(seen);
+            }
             if combat && amount > 0 && !game.combat_damaged_players.contains(&(source, s)) {
                 game.combat_damaged_players.push((source, s));
             }
@@ -21838,6 +21900,18 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             if creature {
                 let zcc = game.obj(o).zcc;
                 game.damaged_by_source.push((source, o, zcc));
+            }
+            if amount > 0 {
+                let seen = crate::state::DamageSeen {
+                    source,
+                    source_zcc: game.obj(source).zcc,
+                    source_controller: game.obj(source).controller,
+                    to,
+                    to_zcc: game.obj(o).zcc,
+                    amount,
+                    combat,
+                };
+                game.watch.damage.push(seen);
             }
             let turn = game.turn;
             let t = game.obj_mut(o);
@@ -22362,7 +22436,8 @@ pub fn can_block(game: &Game, blocker: ObjId, attacker: ObjId) -> bool {
     {
         return false;
     }
-    if game.has_ability(blocker, &AbilityDef::DecayedAbility) {
+    // a suspected creature can't block (`PermanentImpl.canBlock`)
+    if game.has_ability(blocker, &AbilityDef::DecayedAbility) || game.obj(blocker).suspected() {
         return false;
     }
     // static handlers' restrictions (`card_statics.rs`)
@@ -22623,6 +22698,10 @@ fn block_triggers(game: &mut Game) {
         for b in blockers.iter().copied() {
             if !all_blockers.contains(&b) {
                 all_blockers.push(b);
+            }
+            let seen = (b, game.obj(b).zcc);
+            if !game.watch.blocked.contains(&seen) {
+                game.watch.blocked.push(seen);
             }
             let sources = game.trigger_sources();
             let fired = game.triggers(sources, |g, src, you, t| match t {
@@ -23362,6 +23441,7 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     let kept: Vec<(ObjId, u64)> = game.card_statics.iter().map(|r| (r.source, r.timestamp)).collect();
     game.static_amounts.retain(|(o, t, _)| kept.contains(&(*o, *t)));
     game.base_pt_until_eot.clear();
+    game.base_pt_sets.retain(|b| !b.until_eot);
     game.prevent_to_target.clear();
     end_control(game, true);
     game.must_block_from.clear();

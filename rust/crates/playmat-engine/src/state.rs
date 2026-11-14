@@ -387,6 +387,19 @@ pub struct Obj {
 }
 
 impl Obj {
+    /// suspected (`Permanent.isSuspected`): it has menace and can't block, until it leaves or stops being suspected
+    pub fn suspected(&self) -> bool {
+        self.marks.iter().any(|m| m == "suspected")
+    }
+
+    /// `Permanent.setSuspected`
+    pub fn set_suspected(&mut self, value: bool) {
+        self.marks.retain(|m| m != "suspected");
+        if value {
+            self.marks.push("suspected".into());
+        }
+    }
+
     /// Where Java's numbering of its abilities starts: a permanent showing its back face (entered transformed, a
     /// battle's back face cast, or transformed on the battlefield) has its back face's card's abilities, whose spell
     /// ability comes first (`TransformingDoubleFacedCardHalf`, `PermanentCard.copyFromCard`: Brigid, Doun's Mind's
@@ -1002,6 +1015,8 @@ pub struct Game {
     pub static_amounts: Vec<(ObjId, u64, i32)>,
     /// layer 7b until end of turn: the permanent, its zone change count, the base power and toughness, the timestamp
     pub base_pt_until_eot: Vec<(ObjId, u32, i32, i32, u64)>,
+    /// layer 7b effects worked out as they're read (`EffectDef::SetBasePtEffect` resolved)
+    pub base_pt_sets: Vec<BasePtSet>,
     /// "prevent the next N damage that would be dealt to target …" this turn: the target, its zone change count,
     /// what's left to prevent (`i32::MAX`: all), combat damage only, the effect's source
     pub prevent_to_target: Vec<(Target, u32, i32, bool, ObjId)>,
@@ -1279,6 +1294,22 @@ pub struct SpellSeen {
     pub mv: i32,
 }
 
+/// A resolved layer 7b effect whose numbers are worked out each time they're read (`SetBasePtEffect`): on `id`
+/// while it's that object (`zcc`), from `source` for `controller` with the ability's `x`; `None` leaves that
+/// characteristic to the others; `until_eot` ends it in cleanup
+#[derive(Clone, Debug, PartialEq)]
+pub struct BasePtSet {
+    pub id: ObjId,
+    pub zcc: u32,
+    pub power: Option<crate::card::Amount>,
+    pub toughness: Option<crate::card::Amount>,
+    pub source: ObjId,
+    pub controller: Seat,
+    pub x: i32,
+    pub at: u64,
+    pub until_eot: bool,
+}
+
 /// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TurnWatch {
@@ -1333,6 +1364,50 @@ pub struct TurnWatch {
     /// `CastFromGraveyardOnceWatcher`: the permanents (and their zone-change counts) whose "once during each of your
     /// turns, cast from your graveyard" was used this turn
     pub graveyard_once: Vec<(ObjId, u32)>,
+    /// `BlockedThisTurnWatcher`: each creature declared as a blocker this turn, as it was
+    pub blocked: Vec<(ObjId, u32)>,
+    /// `DAMAGED_PLAYER` and `DAMAGED_PERMANENT` this turn, in order
+    pub damage: Vec<DamageSeen>,
+    /// each permanent that left the battlefield this turn (`ZONE_CHANGE` from it)
+    pub left_battlefield: Vec<LeftSeen>,
+    /// `COUNTER_ADDED` this turn: who put them (when known), on what, as it was, which counter, how many, and
+    /// whether it was a creature
+    pub counters_put: Vec<(Option<Seat>, ObjId, u32, String, i32, bool)>,
+    /// `SURVEILED`: who surveilled
+    pub surveiled: Vec<Seat>,
+    /// `SACRIFICED_PERMANENT`: who sacrificed, and the permanent as it was (the card or token it became, its count)
+    pub sacrificed_objs: Vec<(Seat, ObjId, u32)>,
+}
+
+/// One damage event a `TurnWatch` keeps: the source as it was and its controller then, what was dealt damage (a
+/// permanent with its zone-change count, or a player), how much, and whether it was combat damage
+#[derive(Clone, Debug, PartialEq)]
+pub struct DamageSeen {
+    pub source: ObjId,
+    pub source_zcc: u32,
+    pub source_controller: Seat,
+    pub to: Target,
+    pub to_zcc: u32,
+    pub amount: i32,
+    pub combat: bool,
+}
+
+/// A permanent that left the battlefield (`ZoneChangeEvent` from it): the object (with its zone-change count as the
+/// permanent it was), its controller and owner then, where it went, and its types and counters then
+#[derive(Clone, Debug, PartialEq)]
+pub struct LeftSeen {
+    pub id: ObjId,
+    pub zcc: u32,
+    pub controller: Seat,
+    pub owner: Seat,
+    pub to: Zone,
+    pub creature: bool,
+    pub token: bool,
+    pub subtypes: Vec<String>,
+    /// it went to a graveyard (a dies event, `ZoneChangeEvent.isDiesEvent`)
+    pub died: bool,
+    /// the counters it had, by name
+    pub counters: Vec<(String, i32)>,
 }
 
 impl Game {
@@ -1419,6 +1494,7 @@ impl Game {
             card_statics: Vec::new(),
             static_amounts: Vec::new(),
             base_pt_until_eot: Vec::new(),
+            base_pt_sets: Vec::new(),
             prevent_to_target: Vec::new(),
             abilities_resolved: Vec::new(),
             step_start: false,
@@ -1947,6 +2023,7 @@ impl Game {
                     }
             }),
             Pred::Blocking => !o.blocking.is_empty(),
+            Pred::Blocked => o.attacking.is_some() && o.blocked,
             Pred::ManaSpent { cmp, n } => cmp.holds(o.mana_spent as i32, *n),
             Pred::Card { handler } => (handler.f())(self, you, source, id),
             Pred::Not { x } => !self.pred_holds(x, you, source, id),
@@ -2291,6 +2368,10 @@ impl Game {
                 _ => "",
             };
             if !keyword.is_empty() && o.counter(keyword) > 0 {
+                return true;
+            }
+            // suspected: it has menace (`ApplyStatusEffect`, layer 6 beside the keyword counters)
+            if *ability == AbilityDef::MenaceAbility && o.zone == Zone::Battlefield && o.suspected() {
                 return true;
             }
         }
@@ -3667,6 +3748,46 @@ impl Game {
                 later(*at, *bp, *bt);
             }
         }
+        // the ones worked out as they're read, resolved and as statics: each characteristic they set, with its
+        // timestamp (one setting only the power or only the toughness keeps what the others set for the other)
+        let mut power_only: Option<(u64, i32)> = None;
+        let mut toughness_only: Option<(u64, i32)> = None;
+        let mut dynamic: Vec<(u64, Option<i32>, Option<i32>)> = Vec::new();
+        for b in self.base_pt_sets.iter() {
+            if b.id == id && b.zcc == o.zcc {
+                let v =
+                    |a: &Option<crate::card::Amount>| a.as_ref().map(|a| self.value(a, b.controller, b.source, b.x));
+                dynamic.push((b.at, v(&b.power), v(&b.toughness)));
+            }
+        }
+        if o.zone == Zone::Battlefield {
+            for a in &o.def.abilities {
+                if let AbilityDef::SimpleStaticAbility { effects, .. } = a {
+                    for e in effects {
+                        if let EffectDef::SetBasePtEffect {
+                            power,
+                            toughness,
+                            target: false,
+                            duration: Duration::WhileOnBattlefield,
+                        } = e
+                        {
+                            let v = |a: &Option<crate::card::Amount>| {
+                                a.as_ref().map(|a| self.value(a, o.controller, id, 0))
+                            };
+                            dynamic.push((o.entered_at, v(power), v(toughness)));
+                        }
+                    }
+                }
+            }
+        }
+        for (at, bp, bt) in dynamic {
+            match (bp, bt) {
+                (Some(bp), Some(bt)) => later(at, bp, bt),
+                (Some(bp), None) if power_only.is_none_or(|(s, _)| at >= s) => power_only = Some((at, bp)),
+                (None, Some(bt)) if toughness_only.is_none_or(|(s, _)| at >= s) => toughness_only = Some((at, bt)),
+                _ => {}
+            }
+        }
         for src in self.battlefield.iter() {
             let s = self.obj(*src);
             for a in &s.def.abilities {
@@ -3681,7 +3802,6 @@ impl Game {
         }
         // static handlers' (`card_statics.rs`), by their timestamps with the others; one setting the toughness alone
         // keeps the power the others set
-        let mut toughness_only: Option<(u64, i32)> = None;
         for (at, bp, bt) in crate::rules::cards::set_pt(self, id) {
             match bp {
                 Some(bp) => later(at, bp, bt),
@@ -3695,6 +3815,11 @@ impl Game {
         if let Some((at, bt)) = toughness_only {
             if set.is_none_or(|(s, _, _)| at >= s) {
                 t = bt;
+            }
+        }
+        if let Some((at, bp)) = power_only {
+            if set.is_none_or(|(s, _, _)| at >= s) {
+                p = bp;
             }
         }
         if !boosts {
@@ -4122,6 +4247,23 @@ impl Game {
         }
         if zone == Zone::Exile && from == Zone::Battlefield && self.has_type(id, CardType::Creature) {
             self.watch.exiled_creatures.push(died_controller);
+        }
+        if from == Zone::Battlefield && zone != Zone::Battlefield {
+            let o = self.obj(id);
+            let left = LeftSeen {
+                id,
+                zcc: o.zcc,
+                controller: died_controller,
+                owner: o.owner,
+                to: zone,
+                creature: self.has_type(id, CardType::Creature),
+                token: o.token,
+                // (its printed subtypes it still had: what a handler asks about)
+                subtypes: o.def.subtypes.iter().filter(|t| self.has_subtype(id, t)).cloned().collect(),
+                died: zone == Zone::Graveyard,
+                counters: o.counters.iter().filter(|(_, n)| *n > 0).map(|(c, n)| (c.clone(), *n)).collect(),
+            };
+            self.watch.left_battlefield.push(left);
         }
         if from == Zone::Battlefield && zone == Zone::Graveyard {
             let seen = (
