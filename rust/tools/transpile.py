@@ -6077,7 +6077,9 @@ def modal_double_faced(card_name, subtypes, facts, cls, source):
     modes = [[], []]
     types = lambda g: [x.strip().split('.')[-1] for x in g.split(',') if x.strip()]
     sup = r'(?:new SuperType\[\]\{([^}]*)\},)?'
-    for st in statements(constructor_body(source, cls)):
+    errors = []
+
+    def one(st):
         m = re.fullmatch(r'super\(ownerId,setInfo,' + sup + r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{([^}]*)\},"(.*?)","(.*?)",'
                          + sup + r'new CardType\[\]\{([^}]*)\},new SubType\[\]\{([^}]*)\},"(.*?)"\)', st)
         if m:
@@ -6093,25 +6095,41 @@ def modal_double_faced(card_name, subtypes, facts, cls, source):
             if (faces[0]['types'] == ['LAND']) != (faces[0]['cost'] == '') or (faces[1]['types'] == ['LAND']) != (faces[1]['cost'] == '') \
                     or (faces[0]['types'] == ['LAND'] and faces[1]['types'] != ['LAND']):
                 raise Unsupported('modal double-faced card faces')
-            continue
+            return
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.setPT\((?:new MageInt\()?(-?\d+)\)?,(?:new MageInt\()?(-?\d+)\)?\)', st)
         if m:
             face = faces[m.group(1) == 'Right']
             face['power'], face['toughness'] = int(m.group(2)), int(m.group(3))
-            continue
+            return
+        # a planeswalker face's loyalty (Rowan, Scholar of Sparks and Will, Scholar of Frost)
+        m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.setStartingLoyalty\((\d+)\)', st)
+        if m:
+            faces[m.group(1) == 'Right']['loyalty'] = int(m.group(2))
+            return
         # a face's spell: its effects, targets and modes
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(getSpellAbility\(\)\..*)', st)
         if m:
             k = m.group(1) == 'Right'
             card_statement(t, 'this.' + m.group(2), faces[k], [], spells[k], modes[k], subtypes)
-            continue
+            return
         m = re.fullmatch(r'this\.get(Left|Right)HalfCard\(\)\.(addAbility\(.*\))', st)
         if m and ability_statement(t, 'this.' + m.group(2).replace('this.getLeftHalfCard()', 'this').replace('this.getRightHalfCard()', 'this'),
                                    added[m.group(1) == 'Right']):
-            continue
+            return
         if ability_statement(t, st, added[0]):
-            continue
+            return
         raise Unsupported('modal double-faced card statement ' + st)
+
+    for st in statements(constructor_body(source, cls)):
+        if ALL_ERRORS:
+            try:
+                one(st)
+            except Unsupported as e:
+                errors.append(str(e))
+            continue
+        one(st)
+    if errors:
+        raise Unsupported(' ;; '.join(errors))
     if 'types' not in faces[0]:
         raise Unsupported('modal double-faced card without its faces')
     if faces[1]['types'] == ['LAND']:
@@ -6133,9 +6151,6 @@ def modal_double_faced(card_name, subtypes, facts, cls, source):
             face['spell'] = dict(spells[k], rule=java_abilities[split[k] if k else 0].get('rule', ''))
     faces[0]['abilities'] = in_java_order(java_abilities[:split[1]], added[0])
     faces[1]['abilities'] = in_java_order(java_abilities[split[1]:], added[1])
-    # the engine casts only a front (a back that is a spell or a permanent card isn't cast yet)
-    if faces[1]['types'] != ['LAND']:
-        raise Unsupported('modal double-faced card with a back that is not a land')
     faces[0]['back'] = faces[1]
     return faces[0]
 
