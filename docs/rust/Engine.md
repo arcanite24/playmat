@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,380 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -990,7 +990,8 @@ Being in the engine and being trusted are kept apart.
     (`ControlUntil::Attached`). A new controller of the Aura moves the change to them.
   - `LoseAllAbilitiesAttachedEffect` (Fresh Start, Flood the Engine): the enchanted permanent loses all abilities
     while it's attached, through `lose_all_abilities` (restored as it leaves). The conditional form (Ray of Frost's
-    "as long as enchanted creature is red") isn't done.
+    "as long as enchanted creature is red") isn't done. To Java it strips what other statics give it too (Fresh
+    Start on a creature with Cathar's Shield).
   - `GainAbilityControlledSpellsEffect` (Inspiring Statuary, Heartflame Duelist, Chief Engineer): `spell_grants`
     gives a card outside the battlefield and a spell the abilities a static grants it (convoke, improvise, delve,
     lifelink, deathtouch only). `has_ability` reads them for cards off the battlefield, the alternate mana
@@ -1022,7 +1023,9 @@ Being in the engine and being trusted are kept apart.
     casualty grants, the card-specific conditional mana builders, `LoseAllAbilitiesTargetEffect` until your next
     turn or for good, and cards that need classes in other lists.
   - Games covering these are under `shadow/mechanics/game-w8mech-*`.
-  - COUNTS_PLACEHOLDER
+  - 58 cards came in, You Happen On a Glade (a `new` in parentheses) the one bonus card, Berta, Wise Extrapolator
+    with #355's Fractal tokens. Four factory rounds (85 games, replayed again on master after #355) verified 56:
+    11,185 of 11,380. Pontiff of Blight differs (see above); Berta had no factory deck yet.
 
       W=.local/rust-port/factory
       python3 rust/tools/verify_factory.py build --work $W --priority .local/rust-port/card-priority.tsv --used-only
