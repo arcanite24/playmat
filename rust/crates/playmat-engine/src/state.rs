@@ -965,6 +965,11 @@ pub struct Game {
     pub owed_replacement_choices: std::cell::RefCell<Vec<Seat>>,
     /// what the event triggers are checked for now is (`NumberOfTriggersEvent`'s entered and died permanents)
     pub trigger_cause: Option<TriggerCause>,
+    /// the replacement effects already applied to damage being redirected (`event.getAppliedEffects()` passed to
+    /// `Permanent.damage`), for the next `deal_damage`'s event
+    pub damage_applied: Option<Vec<ObjId>>,
+    /// combat lifelink life of redirected combat damage, for `deal_hits` to add to its source's
+    pub redirected_life: Vec<i32>,
     /// the turn a resolving `ExileUncastCreaturesEffect` works until its end (Mistcaller)
     pub exile_uncast_turn: Option<u32>,
     /// a card entering whose replacement effects see it as it was (Enduring Glimmer's return: Java's type effect
@@ -1246,6 +1251,8 @@ impl Game {
             owed_choices: Vec::new(),
             owed_replacement_choices: Default::default(),
             trigger_cause: None,
+            damage_applied: None,
+            redirected_life: Vec::new(),
             exile_uncast_turn: None,
             enters_as: None,
             extra_turns: Vec::new(),

@@ -18628,9 +18628,31 @@ fn damage_modifiers(game: &Game, source: ObjId, to: Target, combat: bool) -> Vec
     out
 }
 
+/// Damage a replacement effect redirects ("is dealt to {this} instead": Palisade Giant, Saving Grace): logged as
+/// those cards' `replaceEvent` does, then dealt to the permanent `to` by the same source, with the replacements
+/// already applied to it left out (`Permanent.damage(…, event.getAppliedEffects())`). Combat damage's lifelink life
+/// goes with its source's other combat damage (`deal_hits`).
+pub(crate) fn redirect_damage(game: &mut Game, ev: &cards::Event, to: ObjId) {
+    let Some(source) = ev.source else { return };
+    if log::kept(game) {
+        let from = match ev.target {
+            Some(t) => game.obj(t).name().to_string(),
+            None => log::player(ev.player),
+        };
+        let line = format!("{}: gets {} damage redirected from {}", game.obj(to).name(), ev.amount, from);
+        log::inform(game, line);
+    }
+    game.damage_applied = Some(ev.applied.clone());
+    let life = deal_damage(game, source, Target::Obj(to), ev.amount, ev.combat);
+    if ev.combat && life > 0 {
+        game.redirected_life.push(life);
+    }
+}
+
 /// Damage from `source`: to a player it's life lost, to a creature it's marked. Lifelink gains its controller life.
 /// Returns combat lifelink's life, which `combat_damage` gains once per source; outside combat, the damage dealt.
 fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: bool) -> i32 {
+    let applied = game.damage_applied.take().unwrap_or_default();
     if amount <= 0 {
         return 0;
     }
@@ -18709,6 +18731,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
             },
             source: Some(source),
             amount,
+            applied,
             combat,
             preventable: !unpreventable,
             ..cards::Event::new(kind, player)
@@ -20285,7 +20308,7 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
 /// Deals combat damage, adding up what each source dealt (for lifelink)
 fn deal_hits(game: &mut Game, hits: Vec<(ObjId, Target, i32)>, gains: &mut Vec<(ObjId, Seat, i32)>) {
     for (src, to, n) in hits {
-        let amount = deal_damage(game, src, to, n, true);
+        let amount = deal_damage(game, src, to, n, true) + game.redirected_life.drain(..).sum::<i32>();
         if amount > 0 {
             let seat = game.obj(src).controller;
             match gains.iter_mut().find(|g| g.0 == src) {
