@@ -2038,7 +2038,8 @@ class Translator:
             return {'class': 'ManaCost', 'cost': '{' + n.group(1) + '}'}
         if cls == 'GenericManaCost' and len(args) == 1 and re.fullmatch(r'\d+', args[0]):
             return {'class': 'ManaCost', 'cost': '{' + args[0] + '}'}
-        if cls in ('TapSourceCost', 'SacrificeSourceCost', 'ExileSourceCost', 'ExileSourceFromGraveCost', 'ForageCost', 'ExertSourceCost', 'DiscardSourceCost') and not args:
+        if cls in ('TapSourceCost', 'SacrificeSourceCost', 'ExileSourceCost', 'ExileSourceFromGraveCost', 'ForageCost', 'ExertSourceCost', 'DiscardSourceCost',
+                   'ReturnToHandFromBattlefieldSourceCost') and not args:
             return {'class': cls}
         if cls == 'ExileOpponentsCardFromExileToGraveyardCost' and len(args) == 1 and args[0].strip() in ('true', 'false'):
             return {'class': cls}
@@ -3086,6 +3087,9 @@ class Translator:
         if cls == 'AddCardTypeSourceEffect' and len(args) >= 2 and args[0].strip() == 'Duration.EndOfTurn' \
                 and all(re.fullmatch(r'CardType\.[A-Z]+', a.strip()) for a in args[1:]):
             return {'class': cls, 'types': [a.strip()[9:] for a in args[1:]], 'duration': 'EndOfTurn'}
+        # "target player gets N poison counters": `Player.addCounters` on the pointer's player
+        if cls == 'AddPoisonCounterTargetEffect' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return self.effect('new AddCountersTargetEffect(CounterType.POISON.createInstance(%s))' % args[0].strip())
         # "target creature becomes a Dinosaur in addition to its other types" (until end of turn, or for as long as
         # it stays: `Duration.Custom`; `WhileOnBattlefield` would end with the source, which the engine doesn't keep)
         if cls == 'AddCardSubTypeTargetEffect' and len(args) == 2 and re.fullmatch(r'SubType\.\w+', args[0].strip()) \
@@ -3260,10 +3264,11 @@ class Translator:
                 and args[0].strip() in ('true', 'false'):
             return {'class': cls, 'filter': self.filter(args[1]), 'optional': args[0].strip() == 'true'}
         if cls == 'RevealLibraryPickControllerEffect' and len(args) in (5, 6) and re.fullmatch(r'\d+', args[0].strip()) \
-                and re.fullmatch(r'\d+', args[1].strip()) and [a.strip() for a in args[3:5]] == ['PutCards.BATTLEFIELD', 'PutCards.GRAVEYARD'] \
+                and re.fullmatch(r'\d+', args[1].strip()) and args[4].strip() == 'PutCards.GRAVEYARD' \
+                and args[3].strip() in ('PutCards.BATTLEFIELD', 'PutCards.BATTLEFIELD_TAPPED') \
                 and (len(args) == 5 or args[5].strip() in ('true', 'false')):
             return {'class': cls, 'amount': int(args[0]), 'pick': int(args[1]), 'filter': self.filter(args[2]),
-                    'optional': len(args) == 5 or args[5].strip() == 'true', 'to': 'BATTLEFIELD'}
+                    'optional': len(args) == 5 or args[5].strip() == 'true', 'to': args[3].strip()[9:]}
         if cls == 'RevealLibraryPickControllerEffect' and len(args) in (5, 6) and re.fullmatch(r'\d+', args[0].strip()) \
                 and re.fullmatch(r'\d+', args[1].strip()) and [a.strip() for a in args[3:5]] == ['PutCards.HAND', 'PutCards.GRAVEYARD'] \
                 and (len(args) == 5 or args[5].strip() in ('true', 'false')):

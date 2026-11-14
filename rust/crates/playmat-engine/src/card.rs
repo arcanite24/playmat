@@ -1560,6 +1560,8 @@ pub enum CostDef {
     /// exert this: it doesn't untap during its controller's next untap step
     ExertSourceCost,
     SacrificeSourceCost,
+    /// return this permanent to its owner's hand (`ReturnToHandFromBattlefieldSourceCost`)
+    ReturnToHandFromBattlefieldSourceCost,
     /// put (or remove) loyalty counters on the source
     PayLoyaltyCost {
         amount: i32,

@@ -695,6 +695,8 @@ pub struct StackItem {
     /// the total power, toughness and mana value of the permanents its costs sacrificed (`SacrificeCostCreaturesPower`,
     /// `SacrificeCostCreaturesToughness`, `SacrificeCostManaValue`)
     pub sacrificed_stats: [i32; 3],
+    /// the permanents its `SacrificeTargetCost`s sacrificed, in the order chosen (`SacrificeTargetCost.getPermanents`)
+    pub sacrificed: Vec<ObjId>,
     /// the permanents its station cost tapped (`TapTargetCost`'s "tappedPermanents")
     pub tapped_for_cost: Vec<ObjId>,
     /// a divided target's share for each of its first target group's targets, in order
@@ -794,6 +796,7 @@ impl StackItem {
             lki_toughness: None,
             sacrificed_toughness: None,
             sacrificed_stats: [0; 3],
+            sacrificed: Vec::new(),
             tapped_for_cost: Vec::new(),
             target_amounts: Vec::new(),
             delayed: None,

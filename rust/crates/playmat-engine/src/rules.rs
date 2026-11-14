@@ -1907,6 +1907,7 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
             !(o.tapped || sick)
         }
         CostDef::SacrificeSourceCost | CostDef::ExileSourceCost => true,
+        CostDef::ReturnToHandFromBattlefieldSourceCost => o.zone == Zone::Battlefield,
         CostDef::ExileSourceFromGraveCost => o.zone == Zone::Graveyard,
         CostDef::ExileOpponentsCardFromExileToGraveyardCost => game.exile.iter().any(|c| game.obj(*c).owner != seat),
         CostDef::ExileFromGraveCost { amount, filter } => {
@@ -6983,6 +6984,13 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             };
             game.move_to(chosen, Zone::Graveyard);
         }
+        // `ReturnToHandFromBattlefieldSourceCost.pay`: gone already, it can't be paid
+        CostDef::ReturnToHandFromBattlefieldSourceCost => {
+            if game.obj(id).zone != Zone::Battlefield {
+                return false;
+            }
+            game.move_to(id, Zone::Hand);
+        }
         CostDef::ExileSourceCost => {
             let power = game.power_toughness(id).0;
             if let Some(top) = Arc::make_mut(&mut game.stack).last_mut() {
@@ -7230,6 +7238,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 for (k, n) in stats.into_iter().enumerate() {
                     top.sacrificed_stats[k] += n;
                 }
+                top.sacrificed.extend(chosen.iter().copied());
             }
             let insert = game.sac_insert.replace(game.pending.len());
             for o in chosen {

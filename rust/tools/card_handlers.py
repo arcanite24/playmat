@@ -196,6 +196,10 @@ def effect(t, cls, args, own_only=False):
             args[i] = m.group(1)
         elif kind == 'ability':
             abilities.append(t.ability(args[i]))
+        elif kind == 'int':
+            # a number as written (a `DynamicValue` overload stays unsupported)
+            if not re.fullmatch(r'-?\d+', args[i]):
+                raise _unsupported(f'effect {cls}: argument {args[i]}')
         elif kind == 'while_on_battlefield':
             # a static class the handler writes only as a static ability's (`Duration.WhileOnBattlefield`)
             if args[i] != 'Duration.WhileOnBattlefield':
@@ -204,7 +208,7 @@ def effect(t, cls, args, own_only=False):
             # an argument the handler reads only some values of ("one_of:NinjutsuAbility.class|EquipAbility.class")
             if args[i] not in kind[len('one_of:'):].split('|'):
                 raise _unsupported(f'effect {cls}: argument {args[i]}')
-        elif kind not in ('text', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
+        elif kind not in ('text', 'int', 'filter', 'effect', 'counter', 'counter_type', 'put_cards', 'ability',
                           'while_on_battlefield', 'duration', 'until_your_next_turn') \
                 and not kind.startswith('one_of:'):
             raise _unsupported(f'argument kind {kind}')
