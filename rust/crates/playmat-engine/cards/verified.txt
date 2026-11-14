@@ -23,6 +23,7 @@ Abrade
 Abraded Bluffs
 Abrupt Decay
 Absorb
+Abstract Paintmage
 Abstruse Interference
 Abuelo, Ancestral Echo
 Abundant Maw
@@ -937,6 +938,7 @@ Blade Juggler
 Blade of the Bloodchief
 Blade-Blizzard Kitsune
 Bladebrand
+Bladecoil Serpent
 Bladed Ambassador
 Bladed Battle-Fan
 Bladehold War-Whip
@@ -1126,6 +1128,7 @@ Bontu's Monument
 Book Devourer
 Boom Box
 Boomerang Basics
+Boommobile
 Boon Satyr
 Boon of Boseiju
 Boon of Emrakul
@@ -1433,6 +1436,7 @@ Careening Mine Cart
 Careful Cultivation
 Careless Celebrant
 Caretaker's Talent
+Cargo Ship
 Carnage Gladiator
 Carnage Tyrant
 Carnival // Carnage
@@ -1462,6 +1466,7 @@ Cast Out
 Cast into Darkness
 Castaway's Despair
 Castle Ardenvale
+Castle Doom
 Castle Embereth
 Castle Garenbrig
 Castle Locthwain
@@ -1630,6 +1635,7 @@ Chorus of the Tides
 Chosen by Heliod
 Chromanticore
 Chromatic Lantern
+Chromatic Orrery
 Chrome Cat
 Chrome Companion
 Chrome Prowler
@@ -1688,6 +1694,7 @@ Claustrophobia
 Clawing Torment
 Claws Out
 Claws of Gix
+Clay Champion
 Clay Revenant
 Clay-Fired Bricks
 Cleansing Nova
@@ -1911,6 +1918,7 @@ Corridor Monitor
 Corroding Dragonstorm
 Corrupt Court Official
 Corrupted Conviction
+Corrupted Crossroads
 Corsair Captain
 Coruscation Mage
 Cosmic Cube
@@ -1970,6 +1978,7 @@ Crawling Chorus
 Creakwood Safewright
 Creative Outburst
 Creeping Mold
+Creeping Peeper
 Creeping Trailblazer
 Cremate
 Creosote Heath
@@ -2064,6 +2073,7 @@ Curator of Mysteries
 Curio Vendor
 Curious Farm Animals
 Curious Forager
+Curious Homunculus
 Curious Inquiry
 Curious Obsession
 Curious Pair
@@ -2346,6 +2356,7 @@ Deserter's Disciple
 Deserter's Quarters
 Desiccated Naga
 Desolation Prowler
+Desolation of Smaug
 Despark
 Desperate Bloodseeker
 Desperate Farmer
@@ -2377,6 +2388,7 @@ Devoted Duelist
 Devoted Grafkeeper
 Devoted Paladin
 Devotee of Strength
+Devour Intellect
 Devour in Flames
 Devourer of Destiny
 Devouring Light
@@ -3401,6 +3413,7 @@ Flame Lash
 Flame-Blessed Bolt
 Flame-Chain Mauler
 Flameblade Adept
+Flamebraider
 Flamecache Gecko
 Flamecast Wheel
 Flamehold Grappler
@@ -3578,6 +3591,7 @@ Frenzied Raptor
 Frenzied Tilling
 Fresh-Faced Recruit
 Fretwork Colony
+Freya Crescent
 Friendly Ghost
 Friendly Teddy
 Frilled Cave-Wurm
@@ -4252,6 +4266,7 @@ Gutterbones
 Guttersnipe
 Guul Draz Mucklord
 Guy in the Chair
+Gwenna, Eyes of Gaea
 Gyre Engineer
 Gyre Sage
 Gysahl Greens
@@ -4379,6 +4394,7 @@ Hearthborn Battler
 Heartless Act
 Heartless Pillage
 Heartstring Puller
+Heartwood Crafter
 Heat Ray
 Heated Argument
 Heated Debate
@@ -4521,6 +4537,7 @@ Hinterland Sanctifier
 Hire a Crew
 Hired Blade
 Hired Claw
+Hired Hexblade
 Hired Poisoner
 Hissing Quagmire
 Historian of Zhalfir
@@ -4860,6 +4877,7 @@ Inspirited Vanguard
 Instant Ramen
 Integrity // Intervention
 Interceptor Mechan
+Interdimensional Web Watch
 Interdisciplinary Mascot
 Interjection
 Interpret the Signs
@@ -4974,6 +4992,7 @@ Ivy Elemental
 Ivy Lane Denizen
 Ixalli's Diviner
 Ixalli's Keeper
+Ixalli's Lorekeeper
 Iymrith, Desert Doom
 Izoni, Thousand-Eyed
 Izzet Charm
@@ -5001,6 +5020,7 @@ Jade Guardian
 Jade-Cast Sentinel
 Jadecraft Artisan
 Jaded Analyst
+Jaded Sell-Sword
 Jadelight Ranger
 Jadelight Spelunker
 Jadzi, Steward of Fate
@@ -5123,6 +5143,7 @@ Karametra's Acolyte
 Karametra's Favor
 Karametra, God of Harvests
 Kardur, Doomscourge
+Karfell Harbinger
 Karfell Kennel-Master
 Kargan Dragonrider
 Kargan Warleader
@@ -6158,6 +6179,7 @@ Molten Collapse
 Molten Duplication
 Molten Man, Inferno Incarnate
 Molten Monstrosity
+Molten Note
 Molten Nursery
 Molten Rebuke
 Molten Tributary
@@ -6530,6 +6552,7 @@ Oasis Gardener
 Oath of Ajani
 Oath of Gideon
 Oath of Jace
+Oath of Nissa
 Oath of Teferi
 Oath of the Ancient Wood
 Ob Nixilis's Cruelty
@@ -6598,6 +6621,7 @@ Oltec Cloud Guard
 Oltec Matterweaver
 Omashu City
 Omega, Heartless Evolution
+Omen Hawker
 Omen of the Dead
 Omen of the Forge
 Omen of the Hunt
@@ -6645,6 +6669,7 @@ Oran-Rief Ooze
 Orazca Frillback
 Orazca Puzzle-Door
 Orazca Raptor
+Orb of Dragonkind
 Orbs of Warding
 Orc Sureshot
 Orchard Spirit
@@ -6711,6 +6736,7 @@ Overgrown Armasaur
 Overgrown Farmland
 Overgrown Pest
 Overgrown Tomb
+Overgrown Zealot
 Overgrowth Elemental
 Overkill
 Overlord of the Balemurk
@@ -6912,6 +6938,7 @@ Pilgrim of the Fires
 Pilgrim's Eye
 Pillar Launch
 Pillar of Light
+Pillar of Origins
 Pillar of War
 Pillardrop Rescuer
 Pillardrop Warden
@@ -7187,6 +7214,7 @@ Pyromantic Pilgrim
 Pyrotechnics
 Pyrrhic Blast
 Pyrrhic Strike
+Qarsi Deceiver
 Qarsi High Priest
 Qarsi Revenant
 Qiqirn Merchant
@@ -8013,6 +8041,7 @@ Sarkhan's Triumph
 Sarkhan's Unsealing
 Sarkhan's Whelp
 Sarkhan, Dragon Ascendant
+Sarkhan, Fireblood
 Sarkhan, Soul Aflame
 Saru, Unthreatened
 Sarulf's Packmate
@@ -8447,6 +8476,7 @@ Shriekdiver
 Shrike Force
 Shrill Howler
 Shrine Steward
+Shrine of the Forsaken Gods
 Shrivel
 Shrouded Shepherd
 Shroudstomper
@@ -9071,6 +9101,7 @@ Steelclad Spirit
 Steelclaw Lance
 Steelform Sliver
 Steelgaze Griffin
+Steelswarm Operator
 Steeple Creeper
 Steeple Roc
 Stegron the Dinosaur Man
@@ -9685,6 +9716,7 @@ The Earth Crystal
 The Earth King
 The Echoverse Fulcrum
 The Eldest Reborn
+The Emperor of Palamecia
 The Fair Basilica
 The Fall of Lord Konda
 The Filigree Sylex
@@ -9724,6 +9756,7 @@ The Sackville-Bagginses
 The Scarab God
 The Scarlet Witch
 The Scorpion God
+The Seedcore
 The Seriema
 The Shattered States Era
 The Spirit Oasis
@@ -9902,6 +9935,7 @@ Timeless Lotus
 Timely Hordemate
 Timid Shieldbearer
 Tin Street Dodger
+Tin Street Gossip
 Tin Street Market
 Tinker's Tote
 Tinybones Joins Up
@@ -10098,6 +10132,7 @@ Trostani, Selesnya's Voice
 Trostani, Three Whispers
 Troublemaker Ouphe
 Troubling Tribbles
+Troyan, Gutsy Explorer
 Truck Toss
 True Ancestry
 True Love's Kiss
@@ -10458,6 +10493,7 @@ Venomous Hierophant
 Venomsac Lagac
 Venser, Corpse Puppet
 Venus, Torn Between Worlds
+Verazol, the Split Current
 Verdant Automaton
 Verdant Crescendo
 Verdant Force
@@ -10517,6 +10553,7 @@ Vilis, Broker of Blood
 Village Messenger
 Village Rites
 Village Watch
+Villainous Hideout
 Villainous Wrath
 Vincent Valentine
 Vindictive Flamestoker
@@ -10597,6 +10634,7 @@ Volcanic Villain
 Voldaren Ambusher
 Voldaren Duelist
 Voldaren Epicure
+Voldaren Estate
 Voldaren Pariah
 Voldaren Stinger
 Voldaren Thrillseeker
