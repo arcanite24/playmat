@@ -170,6 +170,12 @@ EFFECTS = {
     'DontUntapInControllersNextUntapStepSourceEffect': [],
     'DontUntapAsLongAsSourceTappedEffect': [],
     'DontUntapInControllersUntapStepTargetEffect': [('duration', 'untap_duration'), (None, 'string')],
+    # "spells you cast of the filter have …" (the cards outside the battlefield and the spells: `SPELL_GRANTED`)
+    'GainAbilityControlledSpellsEffect': [('ability', 'ability'), ('filter', 'filter')],
+    # "enchanted creature loses all abilities" (while the Aura is on the battlefield)
+    'LoseAllAbilitiesAttachedEffect': [(None, 'aura')],
+    # "you control enchanted creature/permanent" (layer 2, while the Aura is attached)
+    'ControlEnchantedEffect': [(None, 'string')],
     'DontUntapInControllersUntapStepAllEffect': [('duration', 'untap_all_duration'),
                                                  ('controller', 'target_controller'), ('filter', 'filter')],
     'AttacksIfAbleAllEffect': [('filter', 'filter'), (None, 'while_on_battlefield')],
@@ -214,6 +220,9 @@ EFFECTS = {
     'AddCardSubTypeSourceEffect': [(None, 'duration'), (None, 'bool'), ('subtype', 'subtype')],
 }
 
+# the abilities `GainAbilityControlledSpellsEffect` can give that the engine reads through `Game::spell_grants`
+SPELL_GRANTED = {'ConvokeAbility', 'ImproviseAbility', 'DelveAbility', 'LifelinkAbility', 'DeathtouchAbility'}
+
 COUNTS = {'CreaturesYouControlCount.PLURAL': 'creatures_you_control',
           'CreaturesYouControlCount.SINGULAR': 'creatures_you_control',
           'LandsYouControlCount.instance': 'lands_you_control', 'ManaSpentToCastCount.instance': 'mana_spent',
@@ -225,6 +234,9 @@ PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED',
 # classes a card file declares for itself, written by hand as the engine classes that do the same
 CUSTOM = {
     'PithingNeedleEffect': lambda: {'class': 'PithingNeedleEffect'},
+    # (players in range: both, in a duel)
+    'SorcerousSpyglassActivationEffect': lambda: {'class': 'PithingNeedleEffect'},
+    'PhyrexianRevokerEffect2': lambda: {'class': 'PhyrexianRevokerEffect'},
     # cards' own rule-modifying effects: where spells can't be cast from, what can't enter from graveyards
     'GrafdiggersCageEffect': lambda: {'class': 'CardsCantEnterEffect', 'filter': [{'p': 'type', 't': 'CREATURE'}],
                                       'library': True},
@@ -1187,6 +1199,8 @@ MANA_BUILDERS_MORE = {
     'PowerstoneToken.makeBuilder()': {'filter': [_ARTIFACT], 'any_abilities': True},
     'new PurpleDragonPunksManaBuilder()': {'filter': [_ARTIFACT], 'any_abilities': True},
     'new AutomatedArtificerManaBuilder()': {'filter': [_ARTIFACT], 'any_abilities': True},
+    # Guidelight Optimizer: "an artifact spell or activate an ability"
+    'new ArtifactOrActivatedManaBuilder()': {'filter': [_ARTIFACT], 'any_abilities': True},
     # "artifact spells or abilities of artifacts"
     'new OakenSirenManaBuilder()': {'filter': [_ARTIFACT], 'filter_abilities': True},
     'new DalakosCrafterOfWondersManaBuilder()': {'filter': [_ARTIFACT], 'filter_abilities': True},
@@ -1650,6 +1664,9 @@ class Translator:
             return {'c': 'source_matches', 'filter': self.filter(m.group(1))}
         if (m := re.fullmatch(r'new AttachedToMatchesFilterCondition\((.*)\)', arg)):
             return {'c': 'attached_matches', 'filter': self.filter(m.group(1))}
+        # Domestication: "if enchanted creature's power is 4 or greater"
+        if arg == 'DomesticationCondition.instance' and 'enum DomesticationCondition' in (getattr(self, 'source', '') or ''):
+            return {'c': 'attached_matches', 'filter': [{'p': 'power', 'cmp': 'OR_GREATER', 'n': 4}]}
         # the permanent it's attached to has at least N counters of the kind
         if (m := re.fullmatch(r'new AttachedToCounterCondition\((CounterType\.\w+),(\d+)\)', arg)) \
                 and m.group(1) in COUNTERS and int(m.group(2)) > 0:
@@ -1781,6 +1798,9 @@ class Translator:
     def new_expr(self, expr):
         """`new X(args)`, `X.getInstance()` or a local variable -> (X, [args]) or the variable's object"""
         expr = self.strip_setters(expr)
+        # `addEffect((new X(…)))`: parentheses around the whole expression
+        while expr.startswith('(') and balanced(expr):
+            expr = self.strip_setters(expr[1:-1])
         if expr in self.vars:
             return self.vars[expr]
         # `SpellCastControllerTriggeredAbility.createWithFromZone(effect, filter, optional, fromZone)`
@@ -2948,6 +2968,15 @@ class Translator:
             return self.effect('new GainAbilityTargetEffect(' + args[0] + ',Duration.WhileOnBattlefield)')
         if cls == 'GainAbilityTargetEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileControlled':
             return self.effect('new GainAbilityTargetEffect(' + args[0] + ',Duration.WhileOnBattlefield)')
+        # "this spell has flash as long as …" (`Zone.ALL`): the card's own conditional "as though it had flash"
+        if cls == 'ConditionalContinuousEffect' and len(args) == 3 and re.fullmatch(
+                r'new GainAbilitySourceEffect\(FlashAbility\.getInstance\(\),Duration\.(?:WhileOnBattlefield|EndOfGame),true\)',
+                canonical(args[0].strip())):
+            return {'class': 'ConditionalAsThoughEffect', 'effect': {'class': 'CastAsThoughItHadFlashSourceEffect'},
+                    'condition': self.condition(args[1].strip())}
+        # (the engine's enchanted-loses-all is unconditional)
+        if cls == 'ConditionalContinuousEffect' and args and 'LoseAllAbilitiesAttachedEffect' in args[0]:
+            raise Unsupported('conditional LoseAllAbilitiesAttachedEffect')
         # "if it's an artifact, it gains …": worked out as it resolves
         if cls == 'ConditionalContinuousEffect' and len(args) == 3 \
                 and re.fullmatch(r'new GainAbilityTargetEffect\(.*,Duration\.EndOfTurn\)', canonical(args[0].strip()), re.S) \
@@ -3345,6 +3374,16 @@ class Translator:
             return k
         if (k := self.wave4_effect(cls, [a.strip() for a in args])) is not None:
             return k
+        # the framework `WishEffect`'s constructors as one: (filter, alsoFromExile, topOfLibrary, reveal); a card's
+        # own `WishEffect` class (Wish) is the card's
+        if cls == 'WishEffect' and not (getattr(self, 'source', None) and custom_effects.declares(self.source, cls)):
+            a = [x.strip() for x in args if x.strip()]
+            if len(a) <= 1 and all(x in ('true', 'false') for x in a):
+                args = ['StaticFilters.FILTER_CARD', 'false', a[0] if a else 'false', 'false']
+            elif 1 <= len(a) <= 3 and all(x in ('true', 'false') for x in a[1:]):
+                args = [a[0]] + (a[1:] + ['false', 'false'])[:2] + ['true']
+            else:
+                raise Unsupported('effect WishEffect(' + ','.join(a) + ')')
         # a class written by hand in Rust (src/cards/, card_handlers.py)
         if cls not in EFFECTS and (h := card_handlers.effect(self, cls, args)) is not None:
             return h
@@ -3364,6 +3403,12 @@ class Translator:
                 raise Unsupported('effect ' + cls)
         if cls not in EFFECTS:
             raise Unsupported('effect ' + cls)
+        # the abilities the engine reads on a card outside the battlefield or a spell
+        if cls == 'GainAbilityControlledSpellsEffect':
+            out = self.build(cls, args, EFFECTS[cls], 'effect')
+            if out['ability'].get('class') not in SPELL_GRANTED:
+                raise Unsupported('effect GainAbilityControlledSpellsEffect of ' + str(out['ability'].get('class')))
+            return out
         try:
             return self.build(cls, args, EFFECTS[cls], 'effect')
         except Unsupported:
@@ -4267,6 +4312,12 @@ class Translator:
             return {'class': cls, 'java': cls}
         if cls == 'NykthosShrineToNyxManaAbility' and not args:
             return {'class': cls, 'java': cls, 'cost': [{'class': 'ManaCost', 'cost': '{2}'}]}
+        # "as this enters, choose a color" (only as it enters: the engine's choice rewrites its mana abilities)
+        # (a card with a handler of its own for it keeps that: Heraldic Banner)
+        if cls == 'AsEntersBattlefieldAbility' and len(args) == 1 \
+                and re.fullmatch(r'new ChooseColorEffect\(Outcome\.\w+\)', canonical(args[0].strip())) \
+                and not card_handlers.find(getattr(self, 'source', None), 'ChooseColorEffect', 'effect', own_only=True):
+            return {'class': 'AsEntersBattlefieldAbility', 'java': cls, 'effects': [{'class': 'ChooseColorEffect'}]}
         if cls == 'EntersBattlefieldTappedAsItEntersChooseColorAbility' and not args:
             return {'class': 'AsEntersBattlefieldAbility', 'java': cls, 'effects': [{'class': 'EntersTappedChooseColorEffect'}]}
         if cls == 'SimpleManaAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD' \
@@ -4459,11 +4510,18 @@ class Translator:
         if cls == 'SpellCastControllerTriggeredAbility' and len(args) == 2:
             args = [args[0], 'StaticFilters.FILTER_SPELL_A', args[1]]
         # opus: a cast trigger for instants and sorceries, its extra effect if five or more mana was spent on the spell
-        if cls == 'OpusAbility' and len(args) == 4 and args[2].strip() == 'null' and args[3].strip() == 'false':
-            a = self.ability('new SpellCastControllerTriggeredAbility(' + args[0]
-                             + ', StaticFilters.FILTER_SPELL_AN_INSTANT_OR_SORCERY, false)')
-            a['effects'].append({'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[1]),
-                                 'condition': {'c': 'opus'}})
+        # (main, extra, text, doInstead): with doInstead, the extra effect instead of the main one
+        if cls == 'OpusAbility' and len(args) == 4 and args[3].strip() in ('true', 'false'):
+            if args[3].strip() == 'false':
+                a = self.ability('new SpellCastControllerTriggeredAbility(' + args[0]
+                                 + ', StaticFilters.FILTER_SPELL_AN_INSTANT_OR_SORCERY, false)')
+                a['effects'].append({'class': 'ConditionalOneShotEffect', 'effect': self.effect(args[1]),
+                                     'condition': {'c': 'opus'}})
+            else:
+                a = self.ability('new SpellCastControllerTriggeredAbility(' + args[1]
+                                 + ', StaticFilters.FILTER_SPELL_AN_INSTANT_OR_SORCERY, false)')
+                a['effects'] = [{'class': 'ConditionalOneShotEffect', 'effect': a['effects'][0],
+                                 'otherwise': self.effect(args[0]), 'condition': {'c': 'opus'}}]
             a['java'] = cls
             return a
         if cls == 'CantAttackOrBlockAloneAbility' and not args:
@@ -4733,6 +4791,10 @@ class Translator:
             return m
         # a trigger class written by hand in Rust (src/cards/, card_handlers.py)
         if cls not in ABILITIES and (h := card_handlers.trigger(self, cls, args)) is not None:
+            # a keyword's trigger reads as its `getRule`
+            if cls == 'IncrementAbility':
+                h['rule'] = ('Increment <i>(Whenever you cast a spell, if the amount of mana you spent is greater than'
+                             " this creature's power or toughness, put a +1/+1 counter on this creature.)</i>")
             return h
         if cls not in ABILITIES and not args and (h := self.own_mana_ability(cls)) is not None:
             return h
@@ -7892,10 +7954,35 @@ def spaced_and(card, text):
     return text
 
 
+def granted_keyword_rule(g):
+    """the `getRule` of a keyword ability the transpiler wrote as an engine ability, given by an effect (Java's
+    granted keyword keeps its own text); None for another ability"""
+    java, effects = g.get('java'), g.get('effects', [])
+    amount = effects[0].get('amount') if len(effects) == 1 else None
+    if java == 'FirebendingAbility' and isinstance(amount, int):
+        return ('firebending %d <i>(Whenever this creature attacks, add %s. This mana lasts until end of combat.)</i>'
+                % (amount, '{R}' * amount))
+    if java == 'ExtortAbility':
+        return ('Extort <i>(Whenever you cast a spell, you may pay {WB}. If you do, each opponent loses 1 life and'
+                ' you gain that much life.)</i>')
+    if java == 'AfflictAbility' and isinstance(amount, int):
+        return ('Afflict %d <i>(Whenever this creature becomes blocked, defending player loses %d life.)</i>'
+                % (amount, amount))
+    crew = [c.get('value') for c in g.get('cost', []) if c.get('class') == 'CrewCost']
+    if java == 'CrewAbility' and len(crew) == 1:
+        return ('Crew %d <i>(Tap any number of creatures you control with total power %d or more: This Vehicle'
+                ' becomes an artifact creature until end of turn.)</i>' % (crew[0], crew[0]))
+    return None
+
+
 def granted_rules(card):
     """a granted ability without its own rule text: the quoted part of the granting ability's or spell's (a ward,
     "ward {N}"), wherever it is (a spell, a face, a token's ability); one it can't be read from blocks the card"""
     def one(g, rule, nth):
+        # a keyword's text is its class's `getRule`, not quoted (firebending, extort, afflict, crew)
+        if (kw := granted_keyword_rule(g)) is not None:
+            g['rule'] = kw
+            return
         # the nth granted ability without a text of the rule's: its nth quoted part (Swashbuckler's Whip's two)
         quotes = list(re.finditer(r'"([^"]*)"', rule or ''))
         quoted = quotes[nth] if nth < len(quotes) else (quotes[0] if quotes else None)

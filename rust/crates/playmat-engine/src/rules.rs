@@ -2654,6 +2654,13 @@ fn mana_sources(game: &Game, seat: Seat) -> Vec<(ObjId, Vec<(usize, Mana)>)> {
 /// Clarion Conqueror: the activated abilities (mana abilities too) of artifacts, creatures and planeswalkers on the
 /// battlefield can't be activated.
 fn activations_forbidden(game: &Game, id: ObjId) -> bool {
+    // Phyrexian Revoker: activated abilities of sources with the chosen name, mana abilities too
+    let name = &game.obj(id).def.name;
+    if game.any_static(|g, src, e| {
+        matches!(e, EffectDef::PhyrexianRevokerEffect) && g.obj(src).chosen_name.as_ref() == Some(name)
+    }) {
+        return true;
+    }
     game.obj(id).zone == Zone::Battlefield
         && ([CardType::Artifact, CardType::Creature, CardType::Planeswalker].iter().any(|t| game.has_type(id, *t))
             && game.any_static(|_, _, e| matches!(e, EffectDef::ClarionConquerorEffect))
@@ -2868,11 +2875,14 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
 /// per untapped creature you control (mana creatures count twice, as in Java).
 fn alternate_mana(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> Vec<Vec<Mana>> {
     let mut out = Vec::new();
-    if def.has(&AbilityDef::DelveAbility) {
+    // (its own, or given by a static: `GainAbilityControlledSpellsEffect`)
+    let granted = game.spell_grants(id);
+    let has = |a: &AbilityDef| def.has(a) || granted.contains(a);
+    if has(&AbilityDef::DelveAbility) {
         let n = game.player(seat).graveyard.iter().filter(|c| **c != id).count();
         out.extend(std::iter::repeat_n(vec![Mana::default()], n));
     }
-    if def.has(&AbilityDef::ImproviseAbility) {
+    if has(&AbilityDef::ImproviseAbility) {
         let n = game
             .battlefield
             .iter()
@@ -2883,7 +2893,7 @@ fn alternate_mana(game: &Game, seat: Seat, id: ObjId, def: &CardDef) -> Vec<Vec<
             .count();
         out.extend(std::iter::repeat_n(vec![Mana::default()], n));
     }
-    if def.has(&AbilityDef::ConvokeAbility) {
+    if has(&AbilityDef::ConvokeAbility) {
         for c in game.battlefield.iter() {
             let o = game.obj(*c);
             if o.controller == seat && !o.tapped && game.has_type(*c, CardType::Creature) {
@@ -8081,6 +8091,13 @@ fn pay_mana_from(game: &mut Game, d: &mut dyn Decider, seat: Seat, cost: &ManaCo
     }
 }
 
+/// A spell's abilities: its own, then those statics give it (`GainAbilityControlledSpellsEffect`)
+fn spell_abilities(game: &Game, spell: ObjId) -> Vec<AbilityDef> {
+    let mut out = game.obj(spell).def.abilities.clone();
+    out.extend(game.spell_grants(spell));
+    out
+}
+
 /// The spell being paid for, if a spell is (not an ability, not a playable check)
 fn spell_paid_for(game: &Game) -> Option<ObjId> {
     let id = game.paying_for.get().filter(|id| *id != ANY_SPELL)?;
@@ -8091,9 +8108,8 @@ fn spell_paid_for(game: &Game) -> Option<ObjId> {
 /// spell being paid for, as the indices of its delve, convoke and improvise abilities
 fn special_mana_actions(game: &Game, seat: Seat, unpaid: &ManaCost) -> Vec<usize> {
     let Some(spell) = spell_paid_for(game) else { return Vec::new() };
-    let def = &game.obj(spell).def;
     let mut out = Vec::new();
-    for (i, a) in def.abilities.iter().enumerate() {
+    for (i, a) in spell_abilities(game, spell).iter().enumerate() {
         let usable = match a {
             AbilityDef::DelveAbility => unpaid.generic > 0 && !game.player(seat).graveyard.is_empty(),
             AbilityDef::ImproviseAbility => unpaid.generic > 0 && !improvise_artifacts(game, seat).is_empty(),
@@ -8193,7 +8209,7 @@ fn special_mana_payment(
         }
         p.mana_pool.colorless += m.colorless;
     };
-    match game.obj(spell).def.abilities[k] {
+    match spell_abilities(game, spell)[k] {
         AbilityDef::DelveAbility => {
             let cards: Vec<ObjId> = game.player(seat).graveyard.clone();
             let max = cards.len().min(unpaid.generic as usize);
@@ -9513,6 +9529,7 @@ fn end_control(game: &mut Game, end_of_turn: bool) {
                         on(game, s, z) && game.obj(s).controller == c.to
                     }
                     crate::state::ControlUntil::SourceLeaves(s, z) => on(game, s, z),
+                    crate::state::ControlUntil::Attached(s, z) => on(game, s, z) && game.attached(s) == Some(c.target),
                 }
         })
         .collect();
@@ -9538,9 +9555,76 @@ fn end_control(game: &mut Game, end_of_turn: bool) {
     }
 }
 
-/// `end_control` outside cleanup
+/// `end_control` outside cleanup, after the Auras that say "you control enchanted permanent" took what they're
+/// attached to (`ControlEnchantedEffect`, applied with the other continuous effects)
 fn refresh_control(game: &mut Game) {
+    enchanted_control(game);
     end_control(game, false);
+    enchanted_loses_all(game);
+}
+
+/// `LoseAllAbilitiesAttachedEffect`: what an Aura with it is attached to loses all abilities until the Aura leaves
+/// (`lose_all_abilities`)
+fn enchanted_loses_all(game: &mut Game) {
+    let mut lose = Vec::new();
+    for src in game.battlefield.iter() {
+        let s = game.obj(*src);
+        let loses = s.def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                effects.iter().any(|e| matches!(e, EffectDef::LoseAllAbilitiesAttachedEffect))
+            }
+            _ => false,
+        });
+        if !loses {
+            continue;
+        }
+        if let Some(t) = game.attached(*src).filter(|t| {
+            let o = game.obj(*t);
+            o.zone == Zone::Battlefield && o.lost_abilities.is_none()
+        }) {
+            lose.push((t, *src, s.zcc));
+        }
+    }
+    for (t, src, zcc) in lose {
+        lose_all_abilities(game, t, src, zcc);
+    }
+}
+
+/// `ControlEnchantedEffect`: each Aura with it on the battlefield gives its controller the permanent it's attached to,
+/// for as long as it stays attached (`ControlUntil::Attached`)
+fn enchanted_control(game: &mut Game) {
+    let mut new = Vec::new();
+    for src in game.battlefield.iter() {
+        let s = game.obj(*src);
+        let gives = s.def.abilities.iter().any(|a| match a {
+            AbilityDef::SimpleStaticAbility { effects, .. } => {
+                effects.iter().any(|e| matches!(e, EffectDef::ControlEnchantedEffect))
+            }
+            _ => false,
+        });
+        if !gives {
+            continue;
+        }
+        let Some(t) = game.attached(*src).filter(|t| game.obj(*t).zone == Zone::Battlefield) else { continue };
+        let until = crate::state::ControlUntil::Attached(*src, s.zcc);
+        let to = s.controller;
+        match game.control_changes.iter().position(|c| c.target == t && c.until == until) {
+            Some(i) if game.control_changes[i].to == to => {}
+            // the Aura changed controllers: its permanent follows (the newest change)
+            Some(i) => {
+                let c = game.control_changes.remove(i);
+                new.push((t, to, c.before, until));
+            }
+            None => new.push((t, to, game.obj(t).controller, until)),
+        }
+    }
+    for (t, to, before, until) in new {
+        let zcc = game.obj(t).zcc;
+        game.control_changes.push(crate::state::ControlChange { target: t, zcc, to, before, until });
+        if game.obj(t).controller != to {
+            set_controller(game, t, to);
+        }
+    }
 }
 
 pub(crate) fn refresh_becomes(game: &mut Game) {
@@ -11772,7 +11856,8 @@ fn apply_each_effect(
                         _ => {}
                     }
                 };
-                if game.obj(source.0).zone == Zone::Battlefield {
+                // the permanent entering, or the spell resolving (Unmoored Ego's next effect reads it)
+                if matches!(game.obj(source.0).zone, Zone::Battlefield | Zone::Stack) {
                     game.obj_mut(source.0).chosen_name = Some(chosen);
                 }
             }
@@ -17233,11 +17318,15 @@ fn apply_each_effect(
             | EffectDef::CantAttackAloneSourceEffect
             | EffectDef::CantBlockAloneSourceEffect
             | EffectDef::DontUntapInControllersUntapStepEnchantedEffect
+            | EffectDef::ControlEnchantedEffect
+            | EffectDef::LoseAllAbilitiesAttachedEffect
+            | EffectDef::GainAbilityControlledSpellsEffect { .. }
             | EffectDef::MustBeBlockedByAtLeastOneSourceEffect
             | EffectDef::ValgavothTerrorEaterReplacementEffect
             | EffectDef::ValgavothTerrorEaterPlayEffect
             | EffectDef::CantAttackBlockUnlessConditionSourceEffect { .. }
             | EffectDef::EntersTappedChooseColorEffect
+            | EffectDef::ChooseColorEffect
             | EffectDef::LeylineOfTheGuildpactEffect
             | EffectDef::BecomesCreatureAttachedEffect { .. }
             | EffectDef::InfoEffect
@@ -17247,6 +17336,7 @@ fn apply_each_effect(
             | EffectDef::RottenmouthViperCostReductionEffect
             | EffectDef::PetrifiedHamletCostEffect
             | EffectDef::PithingNeedleEffect
+            | EffectDef::PhyrexianRevokerEffect
             | EffectDef::TapSourceUnlessBeholdEffect { .. }
             | EffectDef::TapSourceUnlessRevealsEffect { .. }
             | EffectDef::GainAbilityAttachedEffect { .. }
@@ -19144,8 +19234,10 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                     o.marks.push(format!("mode:{chosen}"));
                     o.add_info("_modeChoice", &format!("Chosen mode: {}", chosen));
                 }
-                if let EffectDef::EntersTappedChooseColorEffect = e {
-                    game.obj_mut(id).tapped = true;
+                if matches!(e, EffectDef::EntersTappedChooseColorEffect | EffectDef::ChooseColorEffect) {
+                    if matches!(e, EffectDef::EntersTappedChooseColorEffect) {
+                        game.obj_mut(id).tapped = true;
+                    }
                     let names = ["White", "Blue", "Black", "Red", "Green"];
                     let choices: Vec<String> = names.iter().map(|n| n.to_string()).collect();
                     let q = Query::Choice { message: "Choose color".into(), choices };
@@ -20608,7 +20700,10 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
         if src.zone == Zone::Battlefield {
             game.has_ability(source, a)
         } else {
-            src.has(a) || src.lki_keywords.contains(a)
+            // (a spell: its own, and what statics give it, `GainAbilityControlledSpellsEffect`)
+            src.has(a)
+                || src.lki_keywords.contains(a)
+                || src.zone == Zone::Stack && game.spell_grants(source).contains(a)
         }
     };
     let (src_deathtouch, src_lifelink) = match game.combat_keywords.iter().find(|k| combat && k.0 == source) {
