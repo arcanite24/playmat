@@ -225,9 +225,12 @@ def condition(t, expr):
 
 
 def value(t, expr):
-    """`{"v": "card", …}` for `new XValue()` or `XValue.instance` with a value handler, or None"""
+    """`{"v": "card", …}` for `new XValue()` or `XValue.instance` with a value handler, or None; `new XValue(…)` with
+    arguments only with a handler named for the card (`OuterCardClass.XValue`, written for the card's arguments)"""
     m = re.fullmatch(r'new (\w+)\(\)|(\w+)\.instance', expr.strip())
     name = m and find(getattr(t, 'source', None), m.group(1) or m.group(2), 'value')
+    if not m and (m := re.fullmatch(r'new (\w+)\(.+\)', expr.strip(), re.S)):
+        name = find(getattr(t, 'source', None), m.group(1), 'value', own_only=True)
     return {'v': 'card', 'handler': name} if name else None
 
 

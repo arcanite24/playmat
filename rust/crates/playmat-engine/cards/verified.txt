@@ -241,6 +241,7 @@ Alesha's Legacy
 Alesha's Vanguard
 Alhammarret's Archive
 All That Glitters
+All-Fates Scroll
 All-Fates Stalker
 Alley Assailant
 Alley Evasion
@@ -498,6 +499,7 @@ Ascendant Dustspeaker
 Ascendant Packleader
 Ascended Lawmage
 Asgardian Citadel
+Ash Zealot
 Ash, Party Crasher
 Ashe, Princess of Dalmasca
 Ashen Rider
@@ -1109,6 +1111,7 @@ Brackish Blunder
 Brackish Trudge
 Braids, Arisen Nightmare
 Bramble Armor
+Bramble Familiar
 Bramble Wurm
 Bramblecrush
 Bramblefort Fink
@@ -3037,6 +3040,7 @@ Fate of the Sun-Cryst
 Fated Conflagration
 Fated Infatuation
 Fated Intervention
+Fated Retribution
 Fateful Absence
 Fateful Discovery
 Fateful End
@@ -3474,6 +3478,7 @@ Game Trail
 Gandalf, Spark Starter
 Gandalf, Wandering Wizard
 Gangly Stompling
+Gardenize
 Garenbrig Carver
 Garenbrig Paladin
 Garenbrig Squire
@@ -5002,6 +5007,7 @@ Korvold, Fae-Cursed King
 Koth of the Homestead
 Koth, Fire of Resistance
 Koth, the Geomancer
+Kothophed, Soul Hoarder
 Kozilek's Channeler
 Kozilek's Command
 Kozilek's Sentinel
@@ -5196,6 +5202,7 @@ Lightning Diadem
 Lightning Helix
 Lightning Javelin
 Lightning Mare
+Lightning Runner
 Lightning Shrieker
 Lightning Stormkin
 Lightning Strike
@@ -5766,6 +5773,7 @@ Mishra, Excavation Prodigy
 Misleading Motes
 Mist Intruder
 Mist-Cloaked Herald
+Mistbreath Elder
 Mistcaller
 Mistcutter Hydra
 Mister Fantastic, Reed Richards
@@ -6561,6 +6569,7 @@ Planar Bridge
 Planar Cleansing
 Planar Disruption
 Planar Engineering
+Planar Outburst
 Planetary Bombardment
 Planetary Patrol
 Plasma Bolt
@@ -7043,6 +7052,7 @@ Recruitment Officer
 Recursive Recruitment
 Red Dragon
 Red Herring
+Red Hulk
 Red Mage's Rapier
 Red Room Recruit
 Red Tiger Mechan
@@ -9390,6 +9400,7 @@ Tolarian Scholar
 Tolarian Terror
 Toll of the Invasion
 Tolls of War
+Tolsimir, Midnight's Light
 Tomakul Honor Guard
 Tomakul Scrapsmith
 Tomb Robber

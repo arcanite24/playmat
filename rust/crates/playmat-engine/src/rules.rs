@@ -450,6 +450,16 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                     if at_attacker && set_target_pointer(game, &t) {
                         t.targets = vec![vec![Target::Obj(a)]];
                         t.target_zcc = vec![vec![game.obj(a).zcc]];
+                        // a trigger with targets of its own: they replace these as they're chosen, so the attacker
+                        // is kept as the event's object too (Tolsimir, Midnight's Light's Wolf)
+                        let own_targets = t
+                            .ability
+                            .and_then(|(i, _)| game.item_def(&t).abilities.get(i))
+                            .and_then(|ab| ab.triggered())
+                            .is_some_and(|(_, _, targets, _)| !targets.is_empty());
+                        if own_targets {
+                            t.entering = Some(a);
+                        }
                     }
                     // at the defending player (in a duel, the attacker's controller's opponent), or the controller
                     if at_attacker && set_target_pointer_player(game, &t) {
@@ -17903,6 +17913,14 @@ fn check_state_and_triggered(game: &mut Game, d: &mut dyn Decider) -> bool {
                             continue;
                         }
                         let owner = game.obj(c).owner;
+                        // an Aura with nothing it could enchant stays in exile (303.4g, as Java's games show):
+                        // Prophetic Ravings back from Sheltered by Ghosts after its creature died
+                        let def = Arc::clone(&game.obj(c).def);
+                        if def.has_subtype("Aura")
+                            && def.spell.targets.first().is_some_and(|t| !target_possible(game, owner, t, Some(c)))
+                        {
+                            continue;
+                        }
                         enter_battlefield(game, d, c, owner, false);
                     }
                 }
@@ -18448,7 +18466,7 @@ fn deal_damage(game: &mut Game, source: ObjId, to: Target, amount: i32, combat: 
                 };
                 let mut n: i32 = src.def.abilities.iter().map(toxic).sum();
                 if src.zone == Zone::Battlefield {
-                    n += game.granted_abilities(source).iter().map(toxic).sum::<i32>();
+                    n += game.granted_instances(source).iter().map(toxic).sum::<i32>();
                 }
                 add_poison(game, s, n);
             }
