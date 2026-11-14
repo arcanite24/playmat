@@ -1467,6 +1467,8 @@ pub enum PutCards {
     BottomRandom,
     /// on top of the library in a random order (`putCardsOnTopOfLibrary(cards, game, source, false)`)
     TopRandom,
+    /// shuffled into the library (`shuffleCardsToLibrary`)
+    Shuffle,
 }
 
 /// A number an effect uses: fixed, or Java's `DynamicValue` worked out as the effect happens.
@@ -1564,6 +1566,10 @@ pub enum Value {
     },
     /// the greatest power among permanents of the filter, 0 if there are none (`GreatestAmongPermanentsValue`)
     GreatestPower {
+        filter: Filter,
+    },
+    /// the greatest toughness among permanents of the filter, 0 if there are none (`GreatestAmongPermanentsValue`)
+    GreatestToughness {
         filter: Filter,
     },
     /// cards the controller drew this turn
@@ -2423,9 +2429,11 @@ pub enum EffectDef {
         #[serde(default)]
         condition: Option<Condition>,
     },
-    /// you have the ability (hexproof)
+    /// you have the ability (hexproof); resolving with `until_end_of_turn`, until end of turn (Dawn's Truce)
     GainAbilityControllerEffect {
         ability: Box<AbilityDef>,
+        #[serde(default)]
+        until_end_of_turn: bool,
     },
     /// "when you cast your next instant or sorcery spell this turn, copy that spell. You may choose new targets for
     /// the copy." (`CopyNextSpellDelayedTriggeredAbility`; with a filter, the next spell of it, and its rule)
@@ -2564,6 +2572,12 @@ pub enum EffectDef {
     NoMaximumHandSizeEffect,
     /// players have no maximum hand size (the same effect, `TargetController.ANY`: Folio of Fancies)
     NoMaximumHandSizeAllEffect,
+    /// your maximum hand size is `size` (`MaximumHandSizeControllerEffect(size, WhileOnBattlefield, SET)`)
+    MaximumHandSizeSetEffect {
+        size: u32,
+    },
+    /// you may activate the loyalty abilities of planeswalkers you control twice each turn (Oath of Teferi)
+    LoyaltyAbilitiesTwiceEffect,
     /// destroy the target creature; if it wasn't attacking, its controller draws a card
     ProphesiedEndEffect,
     /// exile each opponent's graveyard
@@ -3064,6 +3078,11 @@ pub enum EffectDef {
     /// a static: this assigns combat damage equal to its toughness rather than its power
     CombatDamageByToughnessSourceEffect {
         duration: Duration,
+    },
+    /// a static: each creature of the filter you control assigns combat damage equal to its toughness
+    /// (`CombatDamageByToughnessControlledEffect`)
+    CombatDamageByToughnessControlledEffect {
+        filter: Filter,
     },
     /// backup: +1/+1 counters on the target creature; another creature gains these abilities until end of turn
     BackupEffect {

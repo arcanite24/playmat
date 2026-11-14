@@ -1738,7 +1738,9 @@ fn can_pay_cost(game: &Game, seat: Seat, id: ObjId, c: &CostDef) -> bool {
         }
         CostDef::ReturnAttackerToHandTargetCost => !unblocked_attackers(game, seat).is_empty(),
         CostDef::CollectEvidenceCost { amount } => evidence(game, seat) >= *amount,
-        CostDef::PayLoyaltyCost { amount } => !o.loyalty_used && o.counter("loyalty") + amount >= 0,
+        CostDef::PayLoyaltyCost { amount } => {
+            o.loyalty_used < loyalty_activations(game, o.controller) && o.counter("loyalty") + amount >= 0
+        }
         CostDef::RemoveCountersSourceCost { counter } => o.counter(&counter.name) >= counter.amount,
         CostDef::PutCountersSourceCost { .. } => true,
         // `canChooseOrAlreadyChosen`: a permanent to choose, with counters or not
@@ -1868,7 +1870,7 @@ fn can_play_land(game: &Game, seat: Seat) -> bool {
 pub fn lands_per_turn(game: &Game, seat: Seat) -> u32 {
     let mut extra = 0;
     game.any_static(|g, src, e| {
-        if let EffectDef::PlayAdditionalLandsControllerEffect { amount, all } = e {
+        if let EffectDef::PlayAdditionalLandsControllerEffect { amount, all, .. } = e {
             if *all || g.obj(src).controller == seat {
                 extra += amount;
             }
@@ -6425,7 +6427,7 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
         CostDef::PayLoyaltyCost { amount } => {
             let o = game.obj_mut(id);
             o.add_counters("loyalty", *amount);
-            o.loyalty_used = true;
+            o.loyalty_used = o.loyalty_used.saturating_add(1);
             note(game, EventKind::Loyalty, Some(seat), Some(id), None, 0);
             counters_put_triggers(game, id, "loyalty", *amount, Some(seat));
         }
@@ -11871,7 +11873,8 @@ fn apply_each_effect(
             | EffectDef::PileRemoveEffect { .. }
             | EffectDef::PileRetainZoneEffect { .. }
             | EffectDef::AsTurnedFaceUpEffect { .. }
-            | EffectDef::CombatDamageByToughnessSourceEffect { .. } => {}
+            | EffectDef::CombatDamageByToughnessSourceEffect { .. }
+            | EffectDef::CombatDamageByToughnessControlledEffect { .. } => {}
             EffectDef::SacrificeTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Battlefield {
@@ -12614,6 +12617,8 @@ fn apply_each_effect(
             | EffectDef::TeferiTimeRavelerEffect
             | EffectDef::NoMaximumHandSizeEffect
             | EffectDef::NoMaximumHandSizeAllEffect
+            | EffectDef::MaximumHandSizeSetEffect { .. }
+            | EffectDef::LoyaltyAbilitiesTwiceEffect
             | EffectDef::CreateTwiceThatManyTokensEffect { .. }
             | EffectDef::ReplaceCreatureTokensEffect { .. }
             | EffectDef::AdditionalTriggersEffect { .. }
@@ -16248,7 +16253,7 @@ fn apply_each_effect(
             | EffectDef::MultiversalPassagePassageEffect
             | EffectDef::QuantumRiddlerReplacementEffect
             | EffectDef::ArtistsTalentEffect { .. }
-            | EffectDef::GainAbilityControllerEffect { .. }
+            | EffectDef::GainAbilityControllerEffect { until_end_of_turn: false, .. }
             | EffectDef::LeylineOfTheVoidEffect
             | EffectDef::CantAttackAloneSourceEffect
             | EffectDef::CantBlockAloneSourceEffect
@@ -16502,7 +16507,9 @@ fn apply_each_effect(
                 }
             }
             EffectDef::CantGainLifeOpponentsEffect | EffectDef::CantBeBlockedByMoreThanOneAllEffect { .. } => {}
-            EffectDef::PreventAllDamageByAllPermanentsEffect { .. } => {
+            // "you gain hexproof until end of turn": `Game::player_has` reads it there
+            EffectDef::GainAbilityControllerEffect { until_end_of_turn: true, .. }
+            | EffectDef::PreventAllDamageByAllPermanentsEffect { .. } => {
                 game.eot_effects.push((e.clone(), controller, source.0));
             }
             EffectDef::PreventDamageToTargetEffect { amount, combat_only } => {
@@ -16598,6 +16605,7 @@ fn count(game: &Game, name: &str, you: Seat) -> i32 {
         "creatures_you_control" => mine(CardType::Creature),
         "lands_you_control" => mine(CardType::Land),
         "artifacts_you_control" => mine(CardType::Artifact),
+        "controller_life" => game.player(you).life,
         _ => 0,
     }
 }
@@ -16886,6 +16894,18 @@ fn put_cards(game: &mut Game, d: &mut dyn Decider, seat: Seat, cards: &[ObjId], 
         P::BottomAny => put_on_library(game, d, seat, cards, false, true),
         P::BottomRandom => put_on_library(game, d, seat, cards, false, false),
         P::TopRandom => put_on_library(game, d, seat, cards, true, false),
+        P::Shuffle => {
+            if cards.is_empty() {
+                return true;
+            }
+            for c in cards {
+                to_library(game, *c, true);
+            }
+            let mut library = game.player(seat).library.clone();
+            game.rng.shuffle(&mut library);
+            game.player_mut(seat).library = library;
+            true
+        }
         P::Hand => {
             for c in cards {
                 game.move_to(*c, Zone::Hand);
@@ -20704,8 +20724,15 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
         .map(|o| {
             // "assigns combat damage equal to its toughness rather than its power"
             let (p, t) = game.power_toughness(*o);
-            let by_toughness = game.any_static(|_, src, e| {
-                src == *o && matches!(e, EffectDef::CombatDamageByToughnessSourceEffect { .. })
+            let by_toughness = game.any_static(|game, src, e| match e {
+                EffectDef::CombatDamageByToughnessSourceEffect { .. } => src == *o,
+                EffectDef::CombatDamageByToughnessControlledEffect { filter } => {
+                    let you = game.obj(src).controller;
+                    game.obj(*o).controller == you
+                        && game.has_type(*o, CardType::Creature)
+                        && game.filter_matches(filter, you, Some(src), *o)
+                }
+                _ => false,
             });
             (*o, if by_toughness { t } else { p })
         })
@@ -20873,16 +20900,49 @@ fn deal_hits(game: &mut Game, hits: Vec<(ObjId, Target, i32)>, gains: &mut Vec<(
 
 // ------------------------------------------------------------------------------------------------ cleanup and SBAs
 
+/// How many times a turn `seat`'s planeswalkers' loyalty abilities can be activated: twice with an Oath of Teferi
+/// (`OathOfTeferiLoyaltyEffect`: `setLoyaltyActivationsAvailable(2)`)
+fn loyalty_activations(game: &Game, seat: Seat) -> u8 {
+    if game.any_static(|g, src, e| matches!(e, EffectDef::LoyaltyAbilitiesTwiceEffect) && g.obj(src).controller == seat)
+    {
+        2
+    } else {
+        1
+    }
+}
+
+/// A player's maximum hand size: seven, or what the last `MaximumHandSizeSetEffect` of theirs in play sets
+fn max_hand_size(game: &Game, seat: Seat) -> usize {
+    let mut size = MAX_HAND;
+    for src in game.battlefield.iter() {
+        let o = game.obj(*src);
+        if o.controller != seat {
+            continue;
+        }
+        for a in o.def.abilities.iter() {
+            let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+            for e in effects {
+                if let EffectDef::MaximumHandSizeSetEffect { size: n } = e {
+                    size = *n as usize;
+                }
+            }
+        }
+    }
+    size
+}
+
 /// Discard to hand size (one card per answer, as `HumanPlayer.choose` asks), then damage wears off.
 fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
-    let unlimited = game.any_static(|g, src, e| {
-        matches!(e, EffectDef::NoMaximumHandSizeAllEffect)
-            || matches!(e, EffectDef::NoMaximumHandSizeEffect) && g.obj(src).controller == seat
-    });
-    let excess = if unlimited { 0 } else { game.player(seat).hand.len().saturating_sub(MAX_HAND) };
+    let unlimited = game.player(seat).no_max_hand_size
+        || game.any_static(|g, src, e| {
+            matches!(e, EffectDef::NoMaximumHandSizeAllEffect)
+                || matches!(e, EffectDef::NoMaximumHandSizeEffect) && g.obj(src).controller == seat
+        });
+    let max_hand = max_hand_size(game, seat);
+    let excess = if unlimited { 0 } else { game.player(seat).hand.len().saturating_sub(max_hand) };
     if excess > 0 {
         if log::kept(game) {
-            let line = format!("{} discards down to {} hand cards", log::player(seat), MAX_HAND);
+            let line = format!("{} discards down to {} hand cards", log::player(seat), max_hand);
             log::inform(game, line);
         }
         let mut chosen: Vec<ObjId> = Vec::new();
@@ -20929,8 +20989,8 @@ fn cleanup(game: &mut Game, d: &mut dyn Decider, seat: Seat) {
     }
     game.subtypes_until_eot.clear();
     for id in Arc::clone(&game.battlefield).iter().copied() {
-        if game.obj(id).loyalty_used {
-            game.obj_mut(id).loyalty_used = false;
+        if game.obj(id).loyalty_used > 0 {
+            game.obj_mut(id).loyalty_used = 0;
         }
         if game.obj(id).until_end_of_turn_def.is_some() {
             let o = game.obj_mut(id);

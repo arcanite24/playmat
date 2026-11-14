@@ -198,6 +198,7 @@ EFFECTS = {
     'ManifestEffect': [('amount', 'amount')],
     'DiscoverEffect': [('amount', 'int'), (None, 'bool')],
     'CombatDamageByToughnessSourceEffect': [('duration', 'duration')],
+    'CombatDamageByToughnessControlledEffect': [('filter', 'filter')],
     'DiscardHandControllerEffect': [],
     'CantBeCounteredSourceEffect': [],
     'DamageControllerEffect': [('amount', 'int'), (None, 'string')],
@@ -213,8 +214,10 @@ EFFECTS = {
 COUNTS = {'CreaturesYouControlCount.PLURAL': 'creatures_you_control',
           'CreaturesYouControlCount.SINGULAR': 'creatures_you_control',
           'LandsYouControlCount.instance': 'lands_you_control', 'ManaSpentToCastCount.instance': 'mana_spent',
-          'UnlicensedHearseValue.instance': 'exiled_with_source', 'ArtifactYouControlCount.instance': 'artifacts_you_control'}
-PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED', 'TOP_ANY', 'BOTTOM_ANY', 'BOTTOM_RANDOM'}
+          'UnlicensedHearseValue.instance': 'exiled_with_source', 'ArtifactYouControlCount.instance': 'artifacts_you_control',
+          'ControllerLifeCount.instance': 'controller_life'}
+PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED', 'TOP_ANY', 'BOTTOM_ANY', 'BOTTOM_RANDOM',
+             'SHUFFLE'}
 
 # classes a card file declares for itself, written by hand as the engine classes that do the same
 CUSTOM = {
@@ -509,6 +512,12 @@ CUSTOM = {
     'LilianaDreadhordeGeneralEffect': lambda: {'class': 'LilianaDreadhordeGeneralEffect'},
     'TwinflameTyrantEffect': lambda: {'class': 'TwinflameTyrantEffect'},
     'WitchsOvenEffect': lambda: {'class': 'WitchsOvenEffect', 'token': token('FoodToken')},
+    'OathOfTeferiLoyaltyEffect': lambda: {'class': 'LoyaltyAbilitiesTwiceEffect'},
+    # "whenever you tap a Swamp for mana, add an additional {B}"
+    'CryptGhastTriggeredAbility': lambda: {
+        'class': 'TapForManaAllTriggeredManaAbility', 'java': 'CryptGhastTriggeredAbility',
+        'filter': [{'p': 'subtype', 's': 'Swamp'}, YOU], 'color': 'B',
+        'rule': 'Whenever you tap a Swamp for mana, add an additional {B}.'},
     'MasterOfBarbsTriggeredAbility': lambda: {
         'class': 'DamagedOpponentsNoncombatTriggeredAbility', 'java': 'MasterOfBarbsTriggeredAbility',
         'effects': [{'class': 'BoostControlledEffect', 'power': 1, 'toughness': 0, 'duration': 'EndOfTurn',
@@ -1270,10 +1279,12 @@ class Translator:
             return int(arg)
         if (m := re.fullmatch(r'StaticValue\.get\((-?\d+)\)', arg)):
             return int(m.group(1))
-        if (m := re.fullmatch(r'new GreatestAmongPermanentsValue\((?:GreatestAmongPermanentsValue\.)?Quality\.(ManaValue|Power),(.*)\)', arg)):
-            return {'v': 'greatest_mana_value' if m.group(1) == 'ManaValue' else 'greatest_power', 'filter': self.filter(m.group(2))}
+        if (m := re.fullmatch(r'new GreatestAmongPermanentsValue\((?:GreatestAmongPermanentsValue\.)?Quality\.(ManaValue|Power|Toughness),(.*)\)', arg)):
+            v = {'ManaValue': 'greatest_mana_value', 'Power': 'greatest_power', 'Toughness': 'greatest_toughness'}
+            return {'v': v[m.group(1)], 'filter': self.filter(m.group(2))}
         greatest = {'POWER_CONTROLLED_CREATURES': ('Power', 'FILTER_CONTROLLED_CREATURES'),
                     'POWER_OTHER_CONTROLLED_CREATURES': ('Power', 'FILTER_OTHER_CONTROLLED_CREATURES'),
+                    'TOUGHNESS_CONTROLLED_CREATURES': ('Toughness', 'FILTER_CONTROLLED_CREATURES'),
                     'MANAVALUE_CONTROLLED_CREATURES': ('ManaValue', 'FILTER_CONTROLLED_CREATURES'),
                     'MANAVALUE_CONTROLLED_PERMANENTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENTS'),
                     'MANAVALUE_CONTROLLED_ARTIFACTS': ('ManaValue', 'FILTER_CONTROLLED_PERMANENT_ARTIFACTS')}
@@ -2575,6 +2586,11 @@ class Translator:
                 'TargetController.ANY'], ['Integer.MAX_VALUE', 'Duration.WhileOnBattlefield', 'HandSizeModification.SET',
                                          'TargetController.ANY']):
             return {'class': 'NoMaximumHandSizeAllEffect'}
+        # "your maximum hand size is eight" (Doctor Octopus)
+        if cls == 'MaximumHandSizeControllerEffect' and len(args) == 3 and re.fullmatch(r'\d+', args[0].strip()) \
+                and args[1].strip() == 'Duration.WhileOnBattlefield' \
+                and args[2].strip() in ('MaximumHandSizeControllerEffect.HandSizeModification.SET', 'HandSizeModification.SET'):
+            return {'class': 'MaximumHandSizeSetEffect', 'size': int(args[0])}
         if cls == 'AddCountersTargetEffect' and len(args) == 2:
             return {'class': cls, 'counter': self.value('counter', args[0].strip()), 'value': self.amount(args[1])}
         # (effect, condition[, text])
@@ -2704,6 +2720,9 @@ class Translator:
         # a triggered ability's "add {R}{R}" (Gloin): the same mana, into the controller's pool as it resolves
         if cls == 'AddManaToManaPoolSourceControllerEffect' and len(args) == 1:
             return self.effect('new BasicManaEffect(' + args[0] + ')')
+        # "you gain hexproof until end of turn" (as it resolves)
+        if cls == 'GainAbilityControllerEffect' and len(args) == 2 and args[1].strip() == 'Duration.EndOfTurn':
+            return {'class': cls, 'ability': self.ability(args[0]), 'until_end_of_turn': True}
         if cls == 'BasicManaEffect' and len(args) == 1:
             a = args[0].strip()
             if (n := re.fullmatch(r'newMana\(ManaType\.(WHITE|BLUE|BLACK|RED|GREEN|COLORLESS),(\d+)\)', a.replace(' ', ''))):
@@ -3087,6 +3106,11 @@ class Translator:
         if cls == 'CanAttackAsThoughItDidntHaveDefenderSourceEffect' and len(args) in (1, 2) \
                 and args[0] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield') and (len(args) == 1 or text(args[1])):
             return gains('GainAbilitySourceEffect', {'class': 'CanAttackAsThoughNoDefenderAbility'}, DURATIONS[args[0]])
+        # "creatures you control can attack as though they didn't have defender"
+        if cls == 'CanAttackAsThoughItDidntHaveDefenderAllEffect' and len(args) in (2, 3) \
+                and args[0] == 'Duration.WhileOnBattlefield' and (len(args) == 2 or text(args[2])):
+            return {'class': 'GainAbilityAllEffect', 'ability': {'class': 'CanAttackAsThoughNoDefenderAbility'},
+                    'duration': 'WhileOnBattlefield', 'filter': self.filter(args[1])}
         # "as long as …, {this} can attack as though it didn't have defender" / "you may cast … as though they had flash"
         if cls == 'ConditionalAsThoughEffect' and len(args) == 2:
             inner = self.effect(args[0])
@@ -3503,6 +3527,8 @@ class Translator:
             raise Unsupported('argument ' + args[0])
         if args[1] == 'Integer.MAX_VALUE' and 'look' in out:
             args[1] = str(out['look'])
+        elif args[1] == 'Integer.MAX_VALUE':
+            args[1] = '99'
         if not re.fullmatch(r'\d+', args[1]):
             raise Unsupported('argument ' + args[1])
         out['pick'] = int(args[1])
