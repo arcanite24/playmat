@@ -23,7 +23,8 @@
 //! - **rule-modifying**: `Handler::rule(name, Rule::CantCast(f))`: `rules::castable` (and the cast itself);
 //!   `Rule::CantCastOnStack(f)`: only the cast itself, after its targets (`CAST_SPELL_LATE` reading the spell);
 //!   `Rule::CantActivate(f)`: `rules::activatable` (activated abilities that aren't mana abilities);
-//!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`.
+//!   `Rule::CantLoseOrWin(f)`: the state-based loss check and `rules::win_game`;
+//!   `Rule::MaxActivations(f)`: a limited activated ability's times each turn (`rules::activatable`).
 //! - **as-though**: `Handler::as_though(name, AsThough::Flash(f))`: `rules::castable`'s timing;
 //!   `AsThough::Haste(f)`: a {T} cost's summoning sickness (`rules::can_pay_cost`, mana abilities);
 //!   `AsThough::Hexproof(f)`: hexproof, as targets are chosen (`rules::possible_targets`, `targetable`).
@@ -373,6 +374,9 @@ pub(crate) enum Rule {
     /// `LOSES` (`false`: `seat` can't lose the game, `PlayerImpl.canLose`) and `WINS` (`true`: `seat` can't win it,
     /// `PlayerImpl.won`)
     CantLoseOrWin(fn(&Game, &StaticCx, Seat, bool) -> bool),
+    /// `MAX_ACTIVATIONS`: how many times `seat` may activate the ability at `index` of `id` each turn, where it
+    /// limits them (Birgi's boast twice); None leaves the limit as it is
+    MaxActivations(fn(&Game, &StaticCx, Seat, ObjId, usize) -> Option<u32>),
 }
 
 /// `YouDontLoseManaEffect`'s `addDoNotEmptyManaType`: the kinds of `seat`'s mana (WUBRG, then colorless) the pool
@@ -757,6 +761,20 @@ pub(crate) fn cant_activate(game: &Game, seat: Seat, id: ObjId, index: usize) ->
     out
 }
 
+/// The most times `seat` may activate the ability at `index` of `id` this turn: `limit`, unless a handler changes it
+/// (`MAX_ACTIVATIONS`: the last one that applies sets it)
+pub(crate) fn max_activations(game: &Game, seat: Seat, id: ObjId, index: usize, limit: u32) -> u32 {
+    let mut out = limit;
+    each_static(game, &mut |h, cx, _| {
+        if let Hook::Rule(Rule::MaxActivations(f)) = h {
+            if let Some(n) = f(game, cx, seat, id, index) {
+                out = n;
+            }
+        }
+    });
+    out
+}
+
 /// Whether an as-though handler lets `seat` target `t` as though it didn't have hexproof
 pub(crate) fn ignore_hexproof(game: &Game, seat: Seat, t: Target) -> bool {
     let mut out = false;
@@ -839,11 +857,37 @@ pub(crate) fn life_cost(game: &Game, of: &CostCx) -> i32 {
     out
 }
 
+/// The static handlers of permanents that left the battlefield in the current action (`game.lookback`), for an event
+/// of something leaving the battlefield: Java's static abilities look back in time through its short-living LKI
+/// (`AbilityImpl.isInUseableZone`: Valentin blocking a creature, both dying, still exiles it)
+fn each_static_left(
+    game: &Game,
+    ev_kind: EventType,
+    from: Option<Zone>,
+    f: &mut dyn FnMut(&'static Hook, &StaticCx, &EffectDef),
+) {
+    if ev_kind != EventType::ZoneChange || from != Some(Zone::Battlefield) {
+        return;
+    }
+    for src in game.lookback.iter() {
+        if game.battlefield.contains(src) {
+            continue;
+        }
+        let o = game.obj(*src);
+        for a in &o.def.abilities {
+            let AbilityDef::SimpleStaticAbility { effects, .. } = a else { continue };
+            for e in effects {
+                visit(game, e, *src, o.controller, game.static_at(*src), &[], f);
+            }
+        }
+    }
+}
+
 /// How many replacement handlers apply to `ev` as it is (to count Java's "which first" questions with the engine's
 /// own replacements of the event)
 pub(crate) fn replacements_applying(game: &Game, ev: &Event) -> usize {
     let mut n = 0;
-    each_static(game, &mut |h, cx, _| {
+    let mut count = |h: &'static Hook, cx: &StaticCx, _: &EffectDef| {
         if let Hook::Replacement(Replacement { events, applies, .. }) = h {
             if events.contains(&ev.kind)
                 && !ev.applied.contains(&cx.source)
@@ -853,7 +897,9 @@ pub(crate) fn replacements_applying(game: &Game, ev: &Event) -> usize {
                 n += 1;
             }
         }
-    });
+    };
+    each_static(game, &mut count);
+    each_static_left(game, ev.kind, ev.from, &mut count);
     n
 }
 
@@ -865,9 +911,11 @@ fn own_entering(ev: &Event, cx: &StaticCx) -> bool {
 /// Whether a replacement handler for events of `kind` is in play
 pub(crate) fn any_replacement(game: &Game, kind: EventType) -> bool {
     let mut out = false;
-    each_static(game, &mut |h, _, _| {
+    let mut any = |h: &'static Hook, _: &StaticCx, _: &EffectDef| {
         out = out || matches!(h, Hook::Replacement(Replacement { events, .. }) if events.contains(&kind));
-    });
+    };
+    each_static(game, &mut any);
+    each_static_left(game, kind, Some(Zone::Battlefield), &mut any);
     out
 }
 
@@ -892,7 +940,7 @@ pub(crate) fn replace_event(game: &mut Game, ev: &mut Event, others: usize) -> b
     type Found = (EffectDef, ObjId, Seat, u64, Vec<(Target, u32)>);
     loop {
         let mut found: Vec<Found> = Vec::new();
-        each_static(game, &mut |h, cx, e| {
+        let mut find = |h: &'static Hook, cx: &StaticCx, e: &EffectDef| {
             if let Hook::Replacement(Replacement { events, applies, .. }) = h {
                 if events.contains(&ev.kind)
                     && !ev.applied.contains(&cx.source)
@@ -902,7 +950,9 @@ pub(crate) fn replace_event(game: &mut Game, ev: &mut Event, others: usize) -> b
                     found.push((e.clone(), cx.source, cx.controller, cx.timestamp, cx.targets.to_vec()));
                 }
             }
-        });
+        };
+        each_static(game, &mut find);
+        each_static_left(game, ev.kind, ev.from, &mut find);
         if found.is_empty() {
             return false;
         }

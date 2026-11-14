@@ -953,6 +953,26 @@ Being in the engine and being trusted are kept apart.
   verified the five: 11,134 of 11,322. `shadow/handlers/game-loadfix-composite-spell-cost.json` covers Ruthless
   Disposal's two-part additional cost.
 
+  Wave 9, modal double-faced cards with a nonland back (14 Nov): the transpiler builds both faces (with modes and
+  costs on a face's spell, a planeswalker face's loyalty, `CompoundAbility` grants), and the engine casts the back
+  from a hand, from exile when an effect lets you play the card (Birgi exiled by Harnfel), and for free (Plargg's
+  `chooseAbilityForCast` asks which face). An MDFC whose faces are both permanents transforms
+  (`ModalDoubleFacedCard.isTransformable`: Monica Rambeau), and a back cast as a permanent is the whole card again
+  when it leaves. Shadow starts now record an MDFC's place in the trigger order through its halves (`ShadowStart`),
+  and a back cast as a permanent keeps that place. Engine fixes: statics of permanents that left in the same action
+  still replace a leave-the-battlefield move (Java's short-living LKI: Valentin blocking a creature, both dying), and a
+  reflexive trigger fired during a state-based batch waits before the batch's dies triggers; a keyword a static gives
+  beside an activated or mana ability is numbered too (Esika's vigilance before Tony Stark's mana ability, `a4`);
+  `AttachTargetToTargetEffect` checks protection and an Aura's enchant restriction; `Rule::MaxActivations` lets a
+  handler raise an ability's activation limit (Birgi). Three factory rounds (87 games, 86 matching) verified 20:
+  11,149 of 11,342. Ten games under `shadow/mdfc/` cover them. Left: Torrent Sculptor (its one differing game is Arc
+  Spitter's granted ability, whose `DamageTargetEffect(1, "this creature")` text the transpiler drops; Arc Spitter is
+  verified on master, so it wasn't changed here), Ondu Inversion (pending: cast once in 30 games), and the MDFCs whose
+  blockers are elsewhere: Agadeem's Awakening (a card-specific target adjuster), Jadzi (`castSingle` from the library
+  for {1}), Tergrid, Reidane ("becomes the target", the BATCH area), Miles Morales, Norman Osborn, Peter Parker, Gwen
+  Stacy, Jennifer Walters, Cosima, Rowan, Mila, Valki, Alrund, Egon, Extus, Flamescroll Celebrant, Jorn, Kianne,
+  Magik, Toralf and Uvilda (an effect or trigger class each).
+
   Claim 4's handlers (13 Nov): 51 handler files brought 65 cards in (some through framework classes they handle:
   `RevealPutInHandLoseLifeEffect`, `SearchLibraryWithLessCMCPutInPlayEffect`, `BrainstormEffect`). Three factory
   rounds (106 games, 104 matching, replayed again on the engine with the static and claim-2 handlers) verified 58:

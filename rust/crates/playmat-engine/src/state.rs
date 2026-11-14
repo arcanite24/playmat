@@ -1191,6 +1191,10 @@ pub struct Game {
     pub activated_this_turn: Vec<(ObjId, usize)>,
     /// the battlefield as the current action began, for the dies triggers of what it moves all at once
     pub lookback: Vec<ObjId>,
+    /// while the state-based actions move permanents: where in `pending` the batch's triggers start. Java queues the
+    /// moves' zone-change events as simultaneous events, handled after the batch, so a reflexive trigger a replacement
+    /// fires as one moves (Valentin's "When you do") waits before all of them.
+    pub simultaneous_from: Option<usize>,
     /// what was sacrificed since Java last reset its short-living LKI (`resetShortLivingLKI`)
     pub short_lki: Vec<ObjId>,
     /// Etchings of Kumano that left the battlefield, with their controller and the turn: one leaving in the same
@@ -1486,6 +1490,7 @@ impl Game {
             combat_keywords: Vec::new(),
             activated_this_turn: Vec::new(),
             lookback: Vec::new(),
+            simultaneous_from: None,
             short_lki: Vec::new(),
             printings: Arc::new(Vec::new()),
             etchings_left: Vec::new(),
@@ -2565,7 +2570,12 @@ impl Game {
         }
         // a transformed permanent's abilities are its back face's, added again under new ids each time the game
         // resets its permanents, so they wait after every other card's, in battlefield order (`PermanentCard.reset`)
-        if o.front.is_some() && !o.token {
+        // (a modal double-faced card cast as its nonland back keeps that half's registration, from when the cards
+        // loaded: Sword of the Realms' trigger waits before a later token's)
+        let cast_back =
+            o.front.as_ref().and_then(|f| f.back.as_ref()).is_some_and(|b| !b.is(crate::card::CardType::Land))
+                && !o.transformed_in_place;
+        if o.front.is_some() && !o.token && !cast_back {
             if let Some(i) = self.battlefield.iter().position(|b| *b == t.card) {
                 return (3 << 32) + i as u64;
             }
