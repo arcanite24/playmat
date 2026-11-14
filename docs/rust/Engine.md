@@ -355,7 +355,7 @@ Being in the engine and being trusted are kept apart.
 - **The pool** (`transpile.engine_pool()`) is every card in the school and shadow decks plus every Pioneer-legal card,
   `cards/pioneer-pool.txt` (15,259 names: the core, expansion and supplemental Standard-legal sets from Return to
   Ravnica on, minus the bans). `facts.json` covers all of it, and `cards.json` holds every card of it the transpiler
-  can express (11,322 on 14 Nov). A card whose JSON the engine can't load yet is left out
+  can express (11,374 on 14 Nov). A card whose JSON the engine can't load yet is left out
   of the engine with a warning in `lib.rs`'s test, unless it's verified, which fails the test.
 - **The gate** is `cards/verified.txt`, one name per line: the cards whose shadow games match Java. A game goes to
   Rust (the Rust AI's copy, `RustAi`, and the host, `RustHost`, both through `playmat-ai-bridge --check`; and
@@ -744,7 +744,7 @@ Being in the engine and being trusted are kept apart.
   each with a game under `shadow/handlers/game-handlers10-c2b-*`: a token made by a cast split card's half looks for
   its image in the whole card's set (Incongruity's Frog Lizard drew a random number Java doesn't), and lore counters
   an effect puts on a Saga (proliferate) trigger the chapters they reach. Four factory rounds (98 games, 94 matching)
-  verified 48. Left: Soul of Emancipation (its Angels are made in the `HashMap` order of the players' ids, which the
+  verified 48: 11,177 of 11,374. Left: Soul of Emancipation (its Angels are made in the `HashMap` order of the players' ids, which the
   engine doesn't model, when both players lose permanents), and Enter the God-Eternals, Sin Prodder and Spry and
   Mighty, blamed for one game each that differs elsewhere (Soul of Emancipation's Angels, Shadowed Caravel's crew).
 
