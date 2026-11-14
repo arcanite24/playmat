@@ -213,7 +213,7 @@ EFFECTS = {
 COUNTS = {'CreaturesYouControlCount.PLURAL': 'creatures_you_control',
           'CreaturesYouControlCount.SINGULAR': 'creatures_you_control',
           'LandsYouControlCount.instance': 'lands_you_control', 'ManaSpentToCastCount.instance': 'mana_spent',
-          'UnlicensedHearseValue.instance': 'exiled_with_source'}
+          'UnlicensedHearseValue.instance': 'exiled_with_source', 'ArtifactYouControlCount.instance': 'artifacts_you_control'}
 PUT_CARDS = {'HAND', 'GRAVEYARD', 'BATTLEFIELD', 'BATTLEFIELD_TAPPED', 'EXILED', 'TOP_ANY', 'BOTTOM_ANY', 'BOTTOM_RANDOM'}
 
 # classes a card file declares for itself, written by hand as the engine classes that do the same
@@ -232,6 +232,15 @@ CUSTOM = {
                                          'zones': ['graveyard', 'exile'],
                                          'filter': [{'p': 'not', 'x': {'p': 'type', 't': 'CREATURE'}}]},
     'DivineVisitationEffect': lambda: {'class': 'ReplaceCreatureTokensEffect', 'token': token('AngelVigilanceToken')},
+    # "if a red source you control would deal damage to an opponent or a permanent an opponent controls, it deals that
+    # much damage plus 2 instead"
+    'TorbranThaneOfRedFellEffect': lambda: {'class': 'ModifyDamageEffect', 'to_opponent': True, 'plus': 2,
+                                            'source': [{'p': 'color', 'c': 'R'}, {'p': 'controller', 'who': 'you'}]},
+    # "a source you control ... plus the number of fire counters on this enchantment"
+    'FatedFirepowerEffect': lambda: {'class': 'ModifyDamageEffect', 'to_opponent': True, 'plus_counters': 'fire',
+                                     'source': [{'p': 'controller', 'who': 'you'}]},
+    'BioengineeredFutureEffect': lambda: {'class': 'EntersWithCountersAllEffect', 'filter': [CREATURE, YOU],
+                                          'counter': {'name': '+1/+1', 'amount': 1}, 'per_land_entered': True},
     'LegionLoyalistCantBeBlockedByTokensEffect': lambda: {
         'class': 'CantBeBlockedByAllEffect', 'filter': [CREATURE, YOU], 'blockers': [{'p': 'token', 'v': True}]},
     'SilenceEffect': lambda: {'class': 'OpponentsCantCastThisTurnEffect'},
@@ -594,6 +603,9 @@ def triggered(a):
     elif cls == 'ProwessAbility':
         on = {'e': 'spell_cast', 'filter': [{'p': 'not', 'x': CREATURE}], 'who': 'you'}
         a['effects'] = [{'class': 'BoostSourceEffect', 'power': 1, 'toughness': 1, 'duration': 'EndOfTurn'}]
+        # a granted one (Wizard's Staff's "equipped creature has prowess") reads as its own `getRule`
+        a.setdefault('rule', 'Prowess <i>(Whenever you cast a noncreature spell, this creature gets +1/+1 until end'
+                             ' of turn.)</i>')
     elif cls == 'LandfallAbility':
         on = {'e': 'enters_all', 'filter': [LAND, YOU]}
         # Koth's effect looks at the land that entered
@@ -642,7 +654,7 @@ OR_PARTS = {'enters', 'attacks', 'dies', 'spell_cast', 'step_begins', 'becomes_t
 TARGET_CONTROLLERS = {'TargetController.YOU': 'you', 'TargetController.NEXT': 'any', 'TargetController.ANY': 'any',
                       'TargetController.OPPONENT': 'opponent'}
 
-COUNTERS = {'CounterType.FINALITY': 'finality', 'CounterType.FLYING': 'flying', 'CounterType.DEATHTOUCH': 'deathtouch',
+COUNTERS = {'CounterType.FINALITY': 'finality', 'CounterType.ENLIGHTENED': 'enlightened', 'CounterType.FLYING': 'flying', 'CounterType.DEATHTOUCH': 'deathtouch',
             'CounterType.LIFELINK': 'lifelink', 'CounterType.TRAMPLE': 'trample', 'CounterType.FIRST_STRIKE': 'first strike',
             'CounterType.DOUBLE_STRIKE': 'double strike', 'CounterType.MENACE': 'menace', 'CounterType.VIGILANCE': 'vigilance',
             'CounterType.REACH': 'reach', 'CounterType.HEXPROOF': 'hexproof', 'CounterType.HASTE': 'haste',
@@ -2637,6 +2649,10 @@ class Translator:
         if cls == 'MustBeBlockedByAtLeastOneSourceEffect' and [a.strip() for a in args] == ['Duration.WhileOnBattlefield']:
             return {'class': cls}
         # "… for as long as you control this" (taken as for good)
+        if cls == 'GainAbilityTargetEffect' and len(args) in (2, 3) and args[1].strip() == 'Duration.Custom' \
+                and (len(args) == 2 or args[2].strip().startswith('"')):
+            # `Duration.Custom` with nothing to end it: while the permanent stays (The Book of Exalted Deeds)
+            return self.effect('new GainAbilityTargetEffect(' + args[0] + ',Duration.WhileOnBattlefield)')
         if cls == 'GainAbilityTargetEffect' and len(args) == 2 and args[1].strip() == 'Duration.WhileControlled':
             return self.effect('new GainAbilityTargetEffect(' + args[0] + ',Duration.WhileOnBattlefield)')
         # "if it's an artifact, it gains …": worked out as it resolves
@@ -7078,6 +7094,10 @@ def granted_rules(card):
                     [(e.get('class'), e.get('amount')) for e in g.get('effects', [])] == [('ManifestEffect', 1)]:
                 g['rule'] += (' <i>(Put it onto the battlefield face down as a 2/2 creature. Turn it face up at any'
                               ' time for its mana cost if it\'s a creature card.)</i>')
+        elif g.get('class') == 'SimpleStaticAbility' and quoted and \
+                [e.get('class') for e in g.get('effects', [])] == ['CardStatic']:
+            # a static handler's ability: the quoted text (The Book of Exalted Deeds' "You can't lose the game …")
+            g['rule'] = quoted.group(1)
         elif g.get('class') in ('SimpleActivatedAbility', 'ActivateAsSorceryActivatedAbility', 'LoyaltyAbility',
                                 'TriggeredAbility', 'SimpleStaticAbility'):
             raise Unsupported('granted ' + g['class'] + ' without its rule text')
