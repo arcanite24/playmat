@@ -324,7 +324,8 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                         };
                     let stays_tapped = kept
                         || game.obj(id).def.abilities.iter().any(|a| match a {
-                        AbilityDef::SimpleStaticAbility { effects, .. } => {
+                        AbilityDef::SimpleStaticAbility { effects, .. }
+                        | AbilityDef::EntersBattlefieldTappedAbility { effects, .. } => {
                             effects.iter().any(|e| matches!(e, EffectDef::DontUntapInControllersUntapStepSourceEffect))
                         }
                         _ => false,
@@ -411,11 +412,20 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 if !game.attacked_this_turn.contains(&at) {
                     game.attacked_this_turn.push(at);
                 }
+                if let (Some(p), None) = (game.obj(a).attacking, game.obj(a).attacking_pw) {
+                    game.watch.attacked_players.push((a, at.1, p));
+                }
             }
             // ATTACKER_DECLARED's replacement: "you may exert this as it attacks", asked for each attacker in turn,
             // and its "when you do" trigger
             for a in attackers(game) {
-                if !game.has_ability(a, &AbilityDef::ExertAbility) {
+                // "if this hasn't been exerted this turn" (`ExertedThisTurnWatcher`): not asked again
+                let once = game.has_ability(a, &AbilityDef::ExertOnceAbility);
+                if !once && !game.has_ability(a, &AbilityDef::ExertAbility) {
+                    continue;
+                }
+                let at = (a, game.obj(a).zcc);
+                if once && game.watch.exerted.contains(&at) {
                     continue;
                 }
                 let q = Query::YesNo { message: format!("Exert {}?", game.obj(a).name()) };
@@ -428,6 +438,9 @@ fn begin_step(game: &mut Game, d: &mut dyn Decider, step: Step) {
                 };
                 if yes {
                     game.obj_mut(a).exerted = true;
+                    if !game.watch.exerted.contains(&at) {
+                        game.watch.exerted.push(at);
+                    }
                     let fired = game.triggers([a], |_, _, _, t| matches!(t, Trigger::Exerted));
                     game.pending.extend(fired);
                 }
@@ -3744,6 +3757,20 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         }
         return;
     }
+    // a card exiled face down that you may look at and cast: you're first asked whether to only look at it
+    if zone == Zone::Exile && game.obj(id).exiled_face_down {
+        let q = Query::YesNo { message: format!("Look at {}", game.obj(id).def.name) };
+        let look = loop {
+            match ask(game, d, seat, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return,
+                _ => {}
+            }
+        };
+        if look {
+            return;
+        }
+    }
     // a plotted card (cast free, as a sorcery) or a foretold one (for its foretell cost), on a later turn
     if zone == Zone::Exile && (game.obj(id).plotted_turn.is_some() || game.obj(id).foretold_turn.is_some()) {
         let Some((def, free)) = exile_cast(game, seat, id) else { return };
@@ -4425,6 +4452,11 @@ fn cast_allowed_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId
 }
 
 fn cast_with(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free: bool) -> bool {
+    // `cast`'s `CAST_SPELL` rule check, for a spell an effect casts too (Avatar's Wrath stops a hideaway card)
+    let def = game.obj(id).def.clone();
+    if cards::cant_cast(game, seat, id, &def) {
+        return false;
+    }
     let outer = game.unpaid.replace(game.stack.len());
     let cast = cast_paying(game, d, seat, id, free);
     game.unpaid = outer;
@@ -5329,7 +5361,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         Trigger::OpponentCastsOnYourTurnOrDies => {
             you != seat && g.active == Some(you) && g.obj(src).zone == Zone::Battlefield
         }
-        Trigger::CommittedCrime => you == seat && crime,
+        Trigger::CommittedCrime { graveyard: false } => you == seat && crime,
         // (heroic: not once it was sacrificed to cast the spell, War-Wing Siren to Bone Splinters)
         Trigger::SpellCastTargetingThis => {
             you == seat && targeted.contains(&src) && g.obj(src).zone == Zone::Battlefield
@@ -5341,6 +5373,15 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         _ => false,
     });
     let mut fired = fired;
+    // "whenever you commit a crime" of a card in its owner's graveyard (Forsaken Miner)
+    if crime {
+        let grave: Vec<ObjId> = game.player(seat).graveyard.clone();
+        fired.extend(game.triggers(grave, |g, src, you, t| {
+            matches!(t, Trigger::CommittedCrime { graveyard: true })
+                && you == seat
+                && g.obj(src).zone == Zone::Graveyard
+        }));
+    }
     // "when you cast this spell"
     let replicated = game
         .stack
@@ -5483,8 +5524,12 @@ fn commit_crime(game: &mut Game, seat: Seat) {
         return;
     }
     game.watch.crimes.push(seat);
-    let sources = game.trigger_sources();
-    let fired = game.triggers(sources, |_, _, you, t| matches!(t, Trigger::CommittedCrime) && you == seat);
+    let mut sources = game.trigger_sources();
+    sources.extend(game.player(seat).graveyard.iter().copied());
+    let fired = game.triggers(sources, |g, src, you, t| {
+        matches!(t, Trigger::CommittedCrime { graveyard } if *graveyard == (g.obj(src).zone == Zone::Graveyard))
+            && you == seat
+    });
     game.pending.extend(fired);
 }
 
@@ -9614,10 +9659,13 @@ fn refresh_land_types(game: &mut Game) {
                                 }
                             }
                         }
-                        // Honored Hierarch: as long as it's renowned, it has "{T}: Add one mana of any color."
+                        // Honored Hierarch: as long as it's renowned, it has "{T}: Add one mana of any color."; a
+                        // station level's activated ability (Kavaron, Memorial World at 12+)
                         EffectDef::ConditionalContinuousEffect { effect, condition }
                             if matches!(&**effect, EffectDef::GainAbilitySourceEffect { ability, .. }
-                                if ability.mana().is_some()) =>
+                                if ability.mana().is_some()
+                                    || matches!(**ability, AbilityDef::SimpleActivatedAbility { .. }
+                                        | AbilityDef::ActivateAsSorceryActivatedAbility { .. })) =>
                         {
                             let you = game.obj(*id).controller;
                             if let EffectDef::GainAbilitySourceEffect { ability, .. } = &**effect {
@@ -12086,10 +12134,14 @@ fn apply_each_effect(
                         continue;
                     }
                     grant(game, *o, ability);
-                    // "for as long as you control …" (taken as for good)
-                    if *duration == Duration::WhileOnBattlefield {
+                    // "for as long as you control …" (taken as for good); "until your next turn" (Vivien, Champion
+                    // of the Wilds' vigilance and reach)
+                    if matches!(duration, Duration::WhileOnBattlefield | Duration::UntilYourNextTurn) {
                         if let Some(g) = Arc::make_mut(&mut game.grants).last_mut() {
                             g.until_end_of_turn = false;
+                            if *duration == Duration::UntilYourNextTurn {
+                                g.until_turn_of = Some(controller);
+                            }
                         }
                     }
                     if **ability == AbilityDef::BlocksIfAbleAbility {
@@ -13059,7 +13111,7 @@ fn apply_each_effect(
             | EffectDef::GainPlusOneLifeReplacementEffect
             | EffectDef::SpellCostReductionForEachSourceEffect { .. }
             | EffectDef::CantBeCounteredControlledEffect { .. }
-            | EffectDef::DontCauseTriggerEffect
+            | EffectDef::DontCauseTriggerEffect { .. }
             | EffectDef::CreaturesCantGetOrHaveAbilityEffect { .. }
             | EffectDef::SetBasePowerToughnessPlusOneSourceEffect { .. }
             | EffectDef::SpellsCostIncreasingAllEffect { .. }
@@ -18863,16 +18915,20 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
     // everything that triggers on this event, in Java's registration order
     let mut sources: Vec<ObjId> = game.battlefield.iter().copied().filter(|s| *s != id).collect();
     sources.insert(0, id);
-    // Torpor Orb: a creature entering triggers nothing
+    // Torpor Orb: a creature (a permanent of the filter: Doorkeeper Thrull) entering triggers nothing
     let orb = game.battlefield.iter().any(|s| {
         game.obj(*s).def.abilities.iter().any(|a| match a {
-            AbilityDef::SimpleStaticAbility { effects, .. } => {
-                effects.iter().any(|e| matches!(e, EffectDef::DontCauseTriggerEffect))
-            }
+            AbilityDef::SimpleStaticAbility { effects, .. } => effects.iter().any(|e| match e {
+                EffectDef::DontCauseTriggerEffect { filter: None } => game.has_type(id, CardType::Creature),
+                EffectDef::DontCauseTriggerEffect { filter: Some(f) } => {
+                    game.filter_matches(f, game.obj(*s).controller, Some(*s), id)
+                }
+                _ => false,
+            }),
             _ => false,
         })
     });
-    if orb && game.has_type(id, CardType::Creature) {
+    if orb {
         sources.clear();
     }
     for p in game.players.iter() {

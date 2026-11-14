@@ -205,6 +205,9 @@ pub struct Obj {
     pub fused_cast: bool,
     /// the turn it was foretold (exiled face down from hand), while it stays in exile
     pub foretold_turn: Option<u32>,
+    /// exiled face down by an effect that lets its owner look at it and cast it (Vivien, Champion of the Wilds):
+    /// casting it first asks whether to only look at it (`lookAtFaceDownCard`)
+    pub exiled_face_down: bool,
     /// the turn it became plotted, while it stays in exile
     pub plotted_turn: Option<u32>,
     /// suspended: in exile with time counters, from its suspend ability
@@ -1191,6 +1194,11 @@ pub struct SpellSeen {
 /// What Java's watchers that reset each turn saw this turn, for the conditions, values and predicates that read them
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TurnWatch {
+    /// `ExertedThisTurnWatcher`: the creatures exerted this turn, as they were
+    pub exerted: Vec<(ObjId, u32)>,
+    /// the players each attacker was declared attacking this turn (`ATTACKER_DECLARED` with a player as its
+    /// defender: Angel of Destiny's watcher), the attacker as it was
+    pub attacked_players: Vec<(ObjId, u32, Seat)>,
     /// `SpellsCastWatcher`, in the order they were cast
     pub spells: Vec<SpellSeen>,
     /// `PermanentsSacrificedWatcher`: who sacrificed, and whether it was an artifact
@@ -1462,6 +1470,7 @@ impl Game {
             room_cast: None,
             fused_cast: false,
             foretold_turn: None,
+            exiled_face_down: false,
             plotted_turn: None,
             suspended: false,
             cast_from: None,
@@ -3966,6 +3975,7 @@ impl Game {
                 o.attached_to = None;
                 o.uncounterable = false;
                 o.foretold_turn = None;
+                o.exiled_face_down = false;
                 o.plotted_turn = None;
                 o.suspended = false;
                 if let Some((def, _, _)) = o.land_type_base.take() {
