@@ -324,6 +324,8 @@ pub struct Obj {
     pub warp_from: Option<u32>,
     /// the mana spent to cast it, as a spell (`ManaSpentToCastCount`)
     pub mana_spent: u32,
+    /// of it, the mana a Treasure made (`ManaPaidSourceWatcher.getTreasurePaid`)
+    pub treasure_spent: u32,
     /// the turn it last entered the battlefield
     pub entered_turn: u32,
     /// the turn and how many times this permanent became a target in it
@@ -467,7 +469,8 @@ pub struct Player {
     /// the pool's mana one by one in the order it was made (kind 0-4 WUBRG, 5 colorless), and whether a snow
     /// permanent made it: Java's `ManaPoolItem`s, which a payment takes from the first that has the kind, and whose
     /// source a snow symbol's filter checks. Kept in line with `mana_pool` by `sync_pool_units`
-    pub pool_units: Vec<(u8, bool)>,
+    /// (and, third, whether a Treasure made it: `ManaPaidSourceWatcher`'s treasure count)
+    pub pool_units: Vec<(u8, bool, bool)>,
     /// how much of the pool's {R} lasts until end of combat (firebending)
     pub combat_red: u32,
     /// how much of each kind of the pool's mana lasts until end of turn (`UntilEndOfTurnManaEffect`: mana added with
@@ -553,18 +556,18 @@ impl Player {
                 n -= 1;
             }
             for _ in n..have {
-                self.pool_units.push((k, false));
+                self.pool_units.push((k, false, false));
             }
         }
     }
 
-    /// mana made by a source, snow or not, into the pool
-    pub fn add_pool_mana(&mut self, m: Mana, snow: bool) {
+    /// mana made by a source, snow or not, a Treasure or not, into the pool
+    pub fn add_pool_mana(&mut self, m: Mana, snow: bool, treasure: bool) {
         self.sync_pool_units();
         for k in 0..6u8 {
             let n = if k < 5 { m.colored[k as usize] } else { m.colorless };
             for _ in 0..n {
-                self.pool_units.push((k, snow));
+                self.pool_units.push((k, snow, treasure));
             }
         }
         for c in 0..5 {
@@ -993,12 +996,17 @@ pub struct Game {
     /// a replayed answer that named a stack object by its place: that place from the bottom of Java's stack (what's
     /// resolving still on it). Stack objects go by their card here, so this tells a copy from its original
     pub picked_stack: std::cell::Cell<Option<usize>>,
+    /// the ability of `paying_for` being paid for, by its index, when it's an activated ability or a special action
+    /// (turning face up, unlocking a door, plot, foretell): what a spend handler can ask
+    pub paying_index: std::cell::Cell<Option<usize>>,
     /// a spell cast while an effect resolves ("you may cast"): timing doesn't apply
     pub any_time: std::cell::Cell<bool>,
     /// paying a forage cost: its rule reads "forage" (no feel-bad word for the auto-choice)
     pub foraging: std::cell::Cell<bool>,
     /// the mana spent on payments so far, by kind (WUBRG, colorless): a spell's colors spent are read from it
     pub spent_tally: [u32; 6],
+    /// of `spent_tally`, the mana a Treasure made
+    pub spent_treasure: u32,
     /// of `spent_tally`, what paid a mana ability's own mana cost while paying for something else (Guild Globe's
     /// {2}): not spent on that spell, for its colors spent
     pub nested_spent: [u32; 6],
@@ -1062,6 +1070,9 @@ pub struct Game {
     /// "at the beginning of your first upkeep" delayed triggers (Devourer of Destiny's), each its controller's
     pub at_first_upkeep: Vec<StackItem>,
     pub grants: Arc<Vec<Grant>>,
+    /// what conditional mana an effect made can be spent on (`AddConditionalManaEffect`'s ability): a
+    /// `conditional_pool` entry names it by `rules::EFFECT_MANA` plus its place here
+    pub effect_mana: Arc<Vec<AbilityDef>>,
     /// abilities lost until end of turn: (permanent, its zcc, the ability, the turn)
     pub lost_until_eot: Vec<(ObjId, u32, AbilityDef, u32)>,
     /// what made a permanent block this turn if able, with the permanent's zone change count (its hint names it)
@@ -1369,9 +1380,11 @@ impl Game {
             paying_for: std::cell::Cell::new(None),
             paying_ability: std::cell::Cell::new(false),
             picked_stack: std::cell::Cell::new(None),
+            paying_index: std::cell::Cell::new(None),
             any_time: std::cell::Cell::new(false),
             foraging: std::cell::Cell::new(false),
             spent_tally: [0; 6],
+            spent_treasure: 0,
             nested_spent: [0; 6],
             no_prevention_turn: None,
             prevent_all_to: Vec::new(),
@@ -1399,6 +1412,7 @@ impl Game {
             controlled_by: Vec::new(),
             at_first_upkeep: Vec::new(),
             grants: Arc::new(Vec::new()),
+            effect_mana: Arc::new(Vec::new()),
             lost_until_eot: Vec::new(),
             must_block_from: Vec::new(),
             log: None,
@@ -1592,6 +1606,7 @@ impl Game {
             offspring: false,
             warp_from: None,
             mana_spent: 0,
+            treasure_spent: 0,
             entered_turn: 0,
             targeted: (0, 0),
             on_adventure: false,
@@ -3001,6 +3016,8 @@ impl Game {
                     colors.len() as i32
                 }
                 Value::ColorsSpent => self.obj(source).spent_colors.iter().filter(|n| **n > 0).count() as i32,
+                Value::ManaSpent => self.obj(source).mana_spent as i32,
+                Value::EachTwoSpent { color } => self.obj(source).spent_colors[color.index()] as i32 / 2,
                 Value::SourceCountersAny => {
                     let o = self.obj(source);
                     if o.zone == Zone::Battlefield {
@@ -3074,6 +3091,7 @@ impl Game {
             }
             // only known on a cast trigger (`condition_with_kicker`)
             Condition::Opus => false,
+            Condition::TreasureSpent => self.obj(source).treasure_spent > 0,
             Condition::Offspring => self.obj(source).offspring,
             Condition::Evoked => self.obj(source).evoked,
             Condition::Impending => self.obj(source).impending,

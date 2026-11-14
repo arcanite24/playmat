@@ -786,6 +786,10 @@ fn end_step(game: &mut Game, step: Step) {
     // `ManaPool.emptyPool`: mana added until end of turn stays until the end phase, and the kinds a
     // `YouDontLoseManaEffect` names stay (`doNotEmptyManaTypes`)
     let end_phase = matches!(step, Step::EndTurn | Step::Cleanup);
+    // (every conditional pool empties below, so no entry names an effect's mana any more)
+    if !game.effect_mana.is_empty() {
+        game.effect_mana = Arc::new(Vec::new());
+    }
     for s in 0..game.seats() {
         let kept_kinds = cards::kept_mana_kinds(game, s);
         let p = game.player_mut(s);
@@ -2754,6 +2758,9 @@ fn mana_sources_with_kinds(game: &Game, seat: Seat) -> Vec<(ObjId, ManaAbilities
                     .paying_for
                     .get()
                     .is_some_and(|s| s == ANY_SPELL || (game.paying_ability.get() && game.has_type(s, CardType::Land))),
+                AbilityDef::ConditionalManaAbility { spend: Some(h), .. } => {
+                    game.paying_for.get().is_some_and(|s| s == ANY_SPELL || spend_allowed(game, seat, *id, *h, s))
+                }
                 AbilityDef::ConditionalManaAbility {
                     filter,
                     chosen_type,
@@ -3738,9 +3745,11 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             }
             game.paying_for.set(Some(id));
             game.paying_ability.set(true);
+            game.paying_index.set(Some(index));
             let paid = pay_mana(game, d, seat, &mana);
             game.paying_for.set(None);
             game.paying_ability.set(false);
+            game.paying_index.set(None);
             if !paid || !costs.iter().all(|c| matches!(c, CostDef::ManaCost { .. }) || pay_cost(game, d, seat, id, c)) {
                 *game = before;
                 return;
@@ -3755,8 +3764,10 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
         if let AbilityDef::RoomUnlockAbility { left, .. } = game.obj(id).def.abilities[index].clone() {
             let paid = unlock_cost(game, seat, id, index).is_some_and(|c| {
                 game.paying_for.set(Some(id));
+                game.paying_index.set(Some(index));
                 let paid = pay_mana(game, d, seat, &c);
                 game.paying_for.set(None);
+                game.paying_index.set(None);
                 paid
             });
             if !paid {
@@ -4084,7 +4095,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if let Some((_, cost)) = plot.filter(|(k, _)| *k == index) {
                 // `PlotSourceExileEffect`: pay the plot cost, then exile it plotted; it can't be cast this turn
                 let before = game.clone();
-                if !pay_special_action(game, d, seat, id, &cost) {
+                if !pay_special_action(game, d, seat, id, index, &cost) {
                     *game = before;
                     return;
                 }
@@ -4098,7 +4109,7 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             if foretell == Some(index) {
                 // `ForetellExileEffect`: pay {2}, then exile it face down; it can't be cast this turn
                 let before = game.clone();
-                if !pay_special_action(game, d, seat, id, &ManaCost { generic: 2, ..ManaCost::default() }) {
+                if !pay_special_action(game, d, seat, id, index, &ManaCost { generic: 2, ..ManaCost::default() }) {
                     *game = before;
                     return;
                 }
@@ -4525,6 +4536,7 @@ fn pay_spell_mana(
     game.paying_for.set(Some(id));
     let tally = game.spent_tally;
     let nested = game.nested_spent;
+    let treasure = game.spent_treasure;
     if phyrexian_life > 0 {
         lose_life(game, seat, phyrexian_life);
     }
@@ -4540,6 +4552,7 @@ fn pay_spell_mana(
         *n = game.spent_tally[k] - tally[k] - (game.nested_spent[k] - nested[k]);
     }
     game.obj_mut(id).spent_colors = spent;
+    game.obj_mut(id).treasure_spent = game.spent_treasure - treasure;
     true
 }
 
@@ -4559,6 +4572,7 @@ fn cast_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, free
         o.zcc += 1;
         o.on_adventure = false;
         o.mana_spent = 0;
+        o.treasure_spent = 0;
     }
     Arc::make_mut(&mut game.stack).push(StackItem::spell(id, seat));
     let def = game.obj(id).def.clone();
@@ -5759,8 +5773,28 @@ fn modified_cost_of(game: &Game, seat: Seat, id: ObjId, face: &CardDef, mut cost
         cost.generic += cost.colored.iter().sum::<u32>() + cost.colorless;
         cost.colored = [0; 5];
         cost.colorless = 0;
+    } else if spend_as_any_color(game, seat, Some(id)) {
+        // "as though it were mana of any color" (Chromatic Orrery, Oath of Nissa's planeswalker spells): its colored
+        // and hybrid symbols take any mana
+        cost.generic += cost.colored.iter().sum::<u32>() + cost.hybrid.len() as u32;
+        cost.colored = [0; 5];
+        cost.hybrid.clear();
     }
     cost
+}
+
+/// A `SpendManaAsAnyColorEffect` of `seat`'s applies to what they pay for: spell `spell`, or an ability (None)
+fn spend_as_any_color(game: &Game, seat: Seat, spell: Option<ObjId>) -> bool {
+    game.any_static(|g, src, e| match e {
+        EffectDef::SpendManaAsAnyColorEffect { filter, spells_only } => {
+            g.obj(src).controller == seat
+                && match spell {
+                    Some(s) => g.filter_matches(filter, seat, Some(src), s),
+                    None => !*spells_only,
+                }
+        }
+        _ => false,
+    })
 }
 
 /// Chooses the top stack object's targets, in order. False: cancelled (or, for a trigger, no legal targets).
@@ -6330,12 +6364,14 @@ fn activate_paying(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, 
         game.player_mut(s).passed = false;
     }
     // conditional mana for abilities (Sunken Citadel's) knows what it's paying for
-    let paying = (game.paying_for.get(), game.paying_ability.get());
+    let paying = (game.paying_for.get(), game.paying_ability.get(), game.paying_index.get());
     game.paying_for.set(Some(id));
     game.paying_ability.set(true);
+    game.paying_index.set(Some(index));
     let paid = pay_mana(game, d, seat, &mana);
     game.paying_for.set(paying.0);
     game.paying_ability.set(paying.1);
+    game.paying_index.set(paying.2);
     if !paid {
         return false;
     }
@@ -6590,6 +6626,12 @@ fn adjusted_mana_cost(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs:
 
 fn adjusted_mana_cost_own(game: &Game, seat: Seat, id: ObjId, a: &AbilityDef, costs: &[CostDef]) -> ManaCost {
     let mut cost = ability_mana_cost(costs);
+    // "you may spend mana as though it were mana of any color" (Chromatic Orrery): abilities too
+    if spend_as_any_color(game, seat, None) {
+        cost.generic += cost.colored.iter().sum::<u32>() + cost.hybrid.len() as u32;
+        cost.colored = [0; 5];
+        cost.hybrid.clear();
+    }
     // power-up the turn it entered: less its own mana cost
     if matches!(a, AbilityDef::PowerUpAbility { .. }) && game.obj(id).entered_turn == game.turn {
         // `CardUtil.adjustCost(ability, permanent.getManaCost(), false)`: its own colored and hybrid symbols
@@ -8636,7 +8678,9 @@ fn activate_mana_paying(
     }
     mana_spent_riders(game, id, i, Some(unpaid));
     let snow = game.is_snow(id);
-    game.player_mut(seat).add_pool_mana(m, snow);
+    // (a Treasure sacrificed for its mana: what it was as it was sacrificed)
+    let treasure = game.has_subtype(id, "Treasure");
+    game.player_mut(seat).add_pool_mana(m, snow, treasure);
     let extra = tap_for_mana_extra(game, seat, id);
     let made = m.total() as i32 + extra.len() as i32;
     for k in extra {
@@ -8694,9 +8738,10 @@ fn pay_mana_ability_cost(
     };
     let before = game.clone();
     let c = ManaCost::parse(&c).ok()?;
-    let paying = (game.paying_for.get(), game.paying_ability.get());
+    let paying = (game.paying_for.get(), game.paying_ability.get(), game.paying_index.get());
     game.paying_for.set(Some(id));
     game.paying_ability.set(true);
+    game.paying_index.set(None);
     let (tally, nested) = (game.spent_tally, game.nested_spent);
     let paid = pay_mana(game, d, seat, &c);
     // (all of it, a mana ability's paid inside it too: Guild Globe's {2} paid by another Globe)
@@ -8705,6 +8750,7 @@ fn pay_mana_ability_cost(
     }
     game.paying_for.set(paying.0);
     game.paying_ability.set(paying.1);
+    game.paying_index.set(paying.2);
     if paid {
         return Some(true);
     }
@@ -8772,6 +8818,8 @@ fn pay_from_pool(
     }
     let mut conditional = std::mem::take(&mut game.player_mut(seat).conditional_pool);
     let mut tally = [0u32; 6];
+    // the mana a Treasure made among it (`ManaPaidSourceWatcher`)
+    let mut treasure = 0u32;
     // `snow`: a snow symbol's source filter, only mana a snow permanent made pays it
     let mut spend = |pool: &mut Mana, stock: &mut Mana, unlocked: &mut Mana, k: usize, want: u32, snow: bool| -> u32 {
         let mut paid = 0;
@@ -8802,7 +8850,7 @@ fn pay_from_pool(
                 // one mana of it (Sunken Citadel's two are one entry; one of any color is all of them)
                 // Cormela's {U}{B}{R} is three mana, each spent on its own (`ConditionalManaAbility` with `mana`)
                 let several = matches!(
-                    game.obj(conditional[c].1).def.abilities.get(conditional[c].2),
+                    conditional_def(game, conditional[c].1, conditional[c].2),
                     Some(AbilityDef::ConditionalManaAbility { mana: Some(_), .. })
                 );
                 let m = &mut conditional[c].0;
@@ -8823,14 +8871,14 @@ fn pay_from_pool(
             } else if fresh && (!snow || fresh_unit.is_some()) && *kind(pool, k) > *kind(stock, k) {
                 *kind(pool, k) -= 1;
                 if let Some(u) = fresh_unit {
-                    units.remove(u);
+                    treasure += u32::from(units.remove(u).2);
                 }
             } else if (!snow || any_unit.is_some()) && *kind(unlocked, k) > 0 && *kind(pool, k) > 0 {
                 *kind(unlocked, k) -= 1;
                 *kind(stock, k) = kind(stock, k).saturating_sub(1);
                 *kind(pool, k) -= 1;
                 if let Some(u) = any_unit {
-                    units.remove(u);
+                    treasure += u32::from(units.remove(u).2);
                 }
             } else {
                 break;
@@ -8904,6 +8952,7 @@ fn pay_from_pool(
     for (k, n) in tally.iter().enumerate() {
         game.spent_tally[k] += n;
     }
+    game.spent_treasure += treasure;
     let p = game.player_mut(seat);
     p.mana_pool = pool;
     p.pool_units = units;
@@ -8912,22 +8961,53 @@ fn pay_from_pool(
 
 /// A special action's mana (plot, foretell): not a spell's, so conditional mana sees an ability's cost (a
 /// Powerstone's mana pays to plot Highway Robbery: `PowerstoneManaCondition` only refuses a `SpellAbility`).
-fn pay_special_action(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, cost: &ManaCost) -> bool {
-    let paying = (game.paying_for.get(), game.paying_ability.get());
+fn pay_special_action(
+    game: &mut Game,
+    d: &mut dyn Decider,
+    seat: Seat,
+    id: ObjId,
+    index: usize,
+    cost: &ManaCost,
+) -> bool {
+    let paying = (game.paying_for.get(), game.paying_ability.get(), game.paying_index.get());
     game.paying_for.set(Some(id));
     game.paying_ability.set(true);
+    game.paying_index.set(Some(index));
     let paid = pay_mana(game, d, seat, cost);
     game.paying_for.set(paying.0);
     game.paying_ability.set(paying.1);
+    game.paying_index.set(paying.2);
     paid
+}
+
+/// A spend handler's answer for mana `src` made, spent on `on` (what `paying_for` names)
+fn spend_allowed(game: &Game, seat: Seat, src: ObjId, h: cards::SpendHandler, on: ObjId) -> bool {
+    let index = game.paying_index.get();
+    let cx = cards::SpendCx { seat, source: src, on, ability: game.paying_ability.get() || index.is_some(), index };
+    (h.f())(game, &cx)
+}
+
+/// A `conditional_pool` entry's ability index at or past this names `Game::effect_mana` (an effect's mana)
+pub(crate) const EFFECT_MANA: usize = 1 << 40;
+
+/// The conditional mana ability (or an effect's stand-in for one) a `conditional_pool` entry was made by
+fn conditional_def(game: &Game, src: ObjId, j: usize) -> Option<&AbilityDef> {
+    if j >= EFFECT_MANA {
+        game.effect_mana.get(j - EFFECT_MANA)
+    } else {
+        game.obj(src).def.abilities.get(j)
+    }
 }
 
 /// Whether conditional mana made by `src`'s ability `j` can be spent on the spell being paid for.
 fn conditional_usable(game: &Game, seat: Seat, src: ObjId, j: usize) -> bool {
-    game.obj(src).def.abilities.get(j).is_some_and(|a| match a {
+    conditional_def(game, src, j).is_some_and(|a| match a {
         AbilityDef::ConditionalManaAbility { land_abilities: true, .. } => {
             game.paying_ability.get()
                 && game.paying_for.get().is_some_and(|s| s != ANY_SPELL && game.has_type(s, CardType::Land))
+        }
+        AbilityDef::ConditionalManaAbility { spend: Some(h), .. } => {
+            game.paying_for.get().is_some_and(|s| s != ANY_SPELL && spend_allowed(game, seat, src, *h, s))
         }
         AbilityDef::ConditionalManaAbility {
             filter,
@@ -11032,6 +11112,36 @@ fn apply_each_effect(
     for e in effects {
         game.lookback = game.battlefield.to_vec();
         match e {
+            // `AddConditionalManaEffect`, `AddConditionalManaOfAnyColorEffect`, `AddConditionalColorlessManaEffect`
+            // resolving: the mana goes to the pool's conditional mana, spent only as `ability` says
+            EffectDef::AddConditionalManaEffect { ability } => {
+                let AbilityDef::ConditionalManaAbility { color, amount, colorless, mana, .. } = &**ability else {
+                    continue;
+                };
+                // (nothing is being paid: the color is asked)
+                let owed = ManaCost { colored: [1; 5], ..ManaCost::default() };
+                let m = if let Some(m) = mana {
+                    *m
+                } else if *colorless {
+                    Mana { colorless: *amount, ..Mana::default() }
+                } else if let Some(c) = color {
+                    Mana::of(*c, *amount)
+                } else {
+                    match mana_combination(game, d, controller, ability) {
+                        Some(Some(m)) => m,
+                        Some(None) => return,
+                        None => {
+                            let Some(c) = any_color(game, d, controller, &owed, *amount) else { return };
+                            Mana::of(c, *amount)
+                        }
+                    }
+                };
+                if m.total() > 0 {
+                    let k = game.effect_mana.len();
+                    Arc::make_mut(&mut game.effect_mana).push((**ability).clone());
+                    game.player_mut(controller).conditional_pool.push((m, source.0, EFFECT_MANA + k));
+                }
+            }
             // a card's own class, written in Rust (`src/cards/`)
             EffectDef::CardEffect { handler, args, tokens, effects, filters } => {
                 let cx = cards::EffectCx { item, legal, source, args, tokens, effects, filters };
@@ -13591,6 +13701,7 @@ fn apply_each_effect(
             | EffectDef::CantCastDuringYourTurnEffect
             | EffectDef::CantCastOrActivateOpponentsYourTurnEffect
             | EffectDef::CantCastFromZonesEffect { .. }
+            | EffectDef::SpendManaAsAnyColorEffect { .. }
             | EffectDef::CardsCantEnterEffect { .. }
             | EffectDef::ReduceCostEquipTargetSourceEffect { .. }
             | EffectDef::PermanentsEnterBattlefieldTappedEffect { .. }
@@ -19362,6 +19473,8 @@ fn enter_battlefield_now(game: &mut Game, d: &mut dyn Decider, id: ObjId, contro
                                     any_abilities: false,
                                     mana: None,
                                     no_tap: false,
+                                    spend: None,
+                                    condition: None,
                                     rule: rule.clone(),
                                 }
                             } else {
