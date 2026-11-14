@@ -153,6 +153,7 @@ Afterthought Sentry
 Against All Odds
 Agate Assault
 Agate-Blade Assassin
+Agatha of the Vile Cauldron
 Agatha's Champion
 Ageless Guardian
 Agent 13, Sharon Carter
@@ -499,6 +500,7 @@ Armada Wurm
 Armaggon, Future Shark
 Armament Corps
 Armament Dragon
+Armament of Nyx
 Armasaur Guide
 Armed // Dangerous
 Armguard Familiar
@@ -581,6 +583,7 @@ Atarka Monument
 Atarka Pummeler
 Atarka's Command
 Atarka, World Render
+Athreos, God of Passage
 Atlantean Cavalry
 Atlantis Attacks
 Atmosphere Surgeon
@@ -941,6 +944,7 @@ Black Oak of Odunos
 Black Panther, Vanguard
 Black Waltz No. 3
 Black Widow, Double Agent
+Black Widow, Super Spy
 Blackblade Reforged
 Blackbloom Rogue
 Blackcleave Cliffs
@@ -1535,6 +1539,7 @@ Celestial Flare
 Celestial Messenger
 Celestial Unicorn
 Cement Shoes
+Cemetery Prowler
 Cemetery Recruitment
 Cenote Scout
 Censor
@@ -2047,6 +2052,7 @@ Cruel Somnophage
 Cruel Truths
 Cruel Witness
 Cruelclaw's Heist
+Crumb and Get It
 Crumbling Vestige
 Crusader of Odric
 Crush Contraband
@@ -2218,6 +2224,7 @@ Dawnsire, Sunstar Dreadnought
 Dawnstrike Paladin
 Dawnstrike Vanguard
 Dawnwing Marshal
+Daxos, Blessed by the Sun
 Day of Black Sun
 Day of Judgment
 Daybreak Chaplain
@@ -2623,6 +2630,7 @@ Dragonhawk, Fate's Tempest
 Dragonloft Idol
 Dragonlord Atarka
 Dragonlord Dromoka
+Dragonlord Kolaghan
 Dragonlord Ojutai
 Dragonlord Silumgar
 Dragonlord's Servant
@@ -2886,6 +2894,7 @@ Electric Revelation
 Electrickery
 Electrify
 Electro's Bolt
+Electro, Assaulting Battery
 Electrodominance
 Electrostatic Field
 Electrostatic Infantry
@@ -3425,6 +3434,7 @@ Final Vengeance
 Finale of Devastation
 Finale of Eternity
 Finale of Glory
+Finale of Revelation
 Finch Formation
 Finishing Blow
 Fire Elemental
@@ -3953,6 +3963,7 @@ Glarb, Calamity's Augur
 Glare of Heresy
 Glaring Aegis
 Glaring Fleshraker
+Glaring Spotlight
 Glass Casket
 Glass of the Guildpact
 Glassblower's Puzzleknot
@@ -4078,6 +4089,7 @@ Goblin Wizardry
 Goblin-town
 Goblin-town Flunkies
 Goblinslide
+God-Eternal Bontu
 God-Eternal Oketra
 God-Favored General
 God-Pharaoh's Faithful
@@ -4690,6 +4702,7 @@ Horta
 Hostage Taker
 Hostile Desert
 Hostile Minotaur
+Hostile Negotiations
 Hostile Takeover
 Hot Dog Cart
 Hot Soup
@@ -5010,6 +5023,7 @@ Invigorated Rampage
 Invigorating Surge
 Invisibility
 Invisible Woman, Sue Storm
+Invoke Calamity
 Invoke Despair
 Invoke the Divine
 Invoke the Winds
@@ -5090,6 +5104,7 @@ Jace, Arcane Strategist
 Jace, Ingenious Mind-Mage
 Jace, Memory Adept
 Jace, Mirror Mage
+Jace, Unraveler of Secrets
 Jace, Wielder of Mysteries
 Jackhammer
 Jadar, Ghoulcaller of Nephalia
@@ -5244,6 +5259,7 @@ Katilda, Dawnhart Martyr
 Kavaron Harrier
 Kavaron Skywarden
 Kavaron Turbodrone
+Kaya's Ghostform
 Kaya's Onslaught
 Kaya's Wrath
 Kayla's Command
@@ -5381,6 +5397,7 @@ Kolaghan Warmonger
 Kolaghan's Command
 Kolaghan, the Storm's Fury
 Koma's Faithful
+Koma, Cosmos Serpent
 Koma, World-Eater
 Kona, Rescue Beastie
 Konstrari Annex
@@ -5577,6 +5594,7 @@ Leyline Binding
 Leyline Invocation
 Leyline Phantom
 Leyline Prowler
+Leyline Tyrant
 Leyline of Anticipation
 Leyline of Hope
 Leyline of Resonance
@@ -6106,6 +6124,7 @@ Messenger Drake
 Messenger Hawk
 Messenger's Speed
 Metalhead
+Metallic Mimic
 Metallic Rebuke
 Metallurgic Summonings
 Metalspinner's Puzzleknot
@@ -6487,6 +6506,7 @@ Needleverge Pathway
 Nef-Crop Entangler
 Negate
 Neglected Manor
+Neheb, Dreadhorde Champion
 Neheb, the Eternal
 Neheb, the Worthy
 Neighborhood Guardian
@@ -6589,6 +6609,7 @@ No Escape
 No More Lies
 No Way Out
 Nobody
+Nocturnal Hunger
 Noggle Robber
 Noggle the Mind
 Nomad Outpost
@@ -7145,6 +7166,7 @@ Portable Hole
 Portal to Phyrexia
 Portcullis Vine
 Portent of Betrayal
+Possibility Storm
 Postmortem Professor
 Pothole Mole
 Potion of Healing
@@ -7238,6 +7260,7 @@ Prodigy's Prototype
 Professional Face-Breaker
 Professional Wrestler
 Professor Dellian Fel
+Professor Onyx
 Professor Zei, Anthropologist
 Professor of Symbology
 Professor of Zoomancy
@@ -7344,6 +7367,7 @@ Quaketusk Boar
 Quandrix Apprentice
 Quandrix Campus
 Quandrix Charm
+Quandrix Command
 Quandrix Cultivator
 Quandrix Pledgemage
 Quantum Riddler
@@ -7671,6 +7695,7 @@ Remnant Elemental
 Remorseful Cleric
 Renata, Called to the Hunt
 Render Inert
+Render Silent
 Render Speechless
 Renegade Firebrand
 Renegade Freighter
@@ -8296,6 +8321,7 @@ Screeching Skaab
 Screeching Soulbreaker
 Scribe of the Mindful
 Scroll Thief
+Scroll of the Masters
 Scrollshift
 Scrounge for Eternity
 Scrounger of Souls
@@ -8420,6 +8446,7 @@ Sephara, Sky's Blade
 Sephiroth's Intervention
 Sephiroth, Planet's Heir
 Sepulcher Ghoul
+Sepulchral Primordial
 Serah Farron
 Seraph of New Capenna
 Seraph of the Masses
@@ -8721,6 +8748,7 @@ Skaab Goliath
 Skaab Wrangler
 Skalla Wolf
 Skarrg Goliath
+Skarrg Guildmage
 Skarrgan Hellkite
 Skateboard
 Skatewing Spy
@@ -9622,6 +9650,7 @@ Syr Faren, the Hengehammer
 Syr Ginger, the Meal Ender
 Syr Gwyn, Hero of Ashvale
 Syr Konrad, the Grim
+Syr Vondam, Sunstar Exemplar
 Syr Vondam, the Lucent
 TCRI Building
 Tablet of Compleation
@@ -9763,6 +9792,7 @@ Tempting Witch
 Temur Ascendancy
 Temur Banner
 Temur Battle Rage
+Temur Battlecrier
 Temur Charger
 Temur Charm
 Temur Devotee
@@ -9974,6 +10004,7 @@ Thopter Spy Network
 Thor Odinson
 Thor, God of Thunder
 Thorin's Last Stand
+Thorin, Mountain-king
 Thorn Lieutenant
 Thorn Mammoth
 Thorncaster Sliver
@@ -10109,6 +10140,7 @@ Tishana's Tidebinder
 Tishana's Wayfinder
 Tishana, Voice of Thunder
 Titan of Eternal Fire
+Titan of Industry
 Titan's Grave
 Titan's Strength
 Titania's Command
@@ -10362,6 +10394,7 @@ Two-Headed Hunter
 Two-Headed Zombie
 Ty Lee, Artful Acrobat
 Ty Lee, Chi Blocker
+Tymaret, Chosen from Death
 Tymaret, the Murder King
 Type-2 Phaser
 Typhoid Rats
@@ -10573,6 +10606,7 @@ Valley Flamecaller
 Valley Floodcaller
 Valley Mightcaller
 Valley Questcaller
+Valley Rally
 Valley Rotcaller
 Valor Singer
 Valor in Akros
@@ -10590,6 +10624,7 @@ Vampire Opportunist
 Vampire Revenant
 Vampire Scrivener
 Vampire Slayer
+Vampire Socialite
 Vampire Soulcaller
 Vampire Sovereign
 Vampire Spawn
@@ -10728,6 +10763,7 @@ Vilis, Broker of Blood
 Village Messenger
 Village Rites
 Village Watch
+Villainous Wealth
 Villainous Wrath
 Vincent Valentine
 Vindictive Flamestoker
@@ -11178,6 +11214,7 @@ Without Weakness
 Witness of Tomorrows
 Witness of the Ages
 Witness the End
+Witness the Future
 Witty Roastmaster
 Wizard Class
 Wizard's Lightning

@@ -713,6 +713,7 @@ CONDITIONS = {'KickedCondition.ONCE': {'c': 'kicked'},
               'CitysBlessingCondition.instance': {'c': 'citys_blessing'},
               # (a spell's: `main` refuses it anywhere else)
               'GiftWasPromisedCondition.TRUE': {'c': 'gift_promised'},
+              'GiftWasPromisedCondition.FALSE': {'c': 'not', 'x': {'c': 'gift_promised'}},
               'SourceAttackingCondition.instance': {'c': 'source_attacking'},
               'AttackedOrBlockedThisCombatSourceCondition.instance': {'c': 'attacked_or_blocked_this_combat'},
               'OpponentsLostLifeCondition.instance': {'c': 'opponents_lost_life'},
@@ -1188,7 +1189,10 @@ def declared_filters_into(out, source, subtypes):
 _static_filters = None
 
 # gifts: what's promised, and the token the opponent gets
-GIFTS = {'GiftType.TAPPED_FISH': ('a tapped Fish', 'FishNoAbilityToken'), 'GiftType.CARD': ('a card', None)}
+GIFTS = {'GiftType.TAPPED_FISH': ('a tapped Fish', 'FishNoAbilityToken'), 'GiftType.CARD': ('a card', None),
+         'GiftType.FOOD': ('a Food', 'FoodToken')}
+# gifts whose token enters untapped
+UNTAPPED_GIFTS = {'GiftType.FOOD'}
 
 # card-declared `ConditionalManaBuilder`s: what their mana can be spent on, as `ConditionalManaAbility` fields
 _ARTIFACT = {'p': 'type', 't': 'ARTIFACT'}
@@ -2366,6 +2370,10 @@ class Translator:
         # "you may choose new targets for" / "change the target of" (one target) target spell or ability
         if cls == 'ChooseNewTargetsTargetEffect' and ','.join(a.strip() for a in args) in ('', 'false,false', 'true,true'):
             return {'class': cls, 'force': bool(args) and args[0].strip() == 'true'}
+        # `CopyStackObjectEffect(["that spell"])`: the pointed stack object copied under your control, new targets
+        # allowed, as `CopyTargetStackObjectEffect` (both fall back to the last known spell)
+        if cls == 'CopyStackObjectEffect' and (not args or (len(args) == 1 and args[0].strip().startswith('"'))):
+            return {'class': 'CopyTargetSpellEffect'}
         # `CopyTargetStackObjectEffect` copying a spell under your control, new targets allowed (checked against
         # its targets by `copies_spells_only`)
         if cls == 'CopyTargetStackObjectEffect' and ','.join(args) in ('', 'true', 'false', 'false,false,true'):
@@ -3502,6 +3510,13 @@ class Translator:
         if cls in ('CantBlockAllEffect', 'CantBeBlockedAllEffect') and len(args) in (2, 3) \
                 and args[1] in ('Duration.EndOfTurn', 'Duration.WhileOnBattlefield') and all(text(a) for a in args[2:]):
             return {'class': cls, 'filter': self.filter(args[0]), 'duration': DURATIONS[args[1]]}
+        # "as long as …, <a replacement handler's effect>" (Vampire Socialite's "enters with an additional counter"):
+        # the handler's replacement applies while the condition holds
+        if cls == 'ConditionalReplacementEffect' and len(args) == 2:
+            inner = self.effect(args[0])
+            if inner.get('class') != 'CardStatic':
+                raise Unsupported('conditional replacement ' + inner.get('class', ''))
+            return {'class': 'ConditionalContinuousEffect', 'effect': inner, 'condition': self.condition(args[1])}
         # (effect, condition[, text]), or a spell's (duration, effect, condition, otherwise)
         if cls == 'ConditionalRestrictionEffect' and len(args) in (2, 3) and (len(args) == 2 or text(args[2])):
             inner = self.effect(args[0])
@@ -3997,6 +4012,11 @@ class Translator:
             return out
         if cls == 'TargetAnyTarget' and len(args) == 2 and all(re.fullmatch(r'\d+', a.strip()) for a in args):
             return {'class': cls, 'min': int(args[0]), 'max': int(args[1])}
+        # "up to N target cards from target player's graveyard" (Gaea's Blessing): cards that player owns, the
+        # ability's first target (`TargetCardInTargetPlayersGraveyard(n)`; its predicate is a handler)
+        if cls == 'TargetCardInTargetPlayersGraveyard' and len(args) == 1 and re.fullmatch(r'\d+', args[0].strip()):
+            return {'class': 'TargetCardInGraveyard', 'min': 0, 'max': int(args[0]),
+                    'filter': [{'p': 'card', 'handler': 'TargetCardInTargetPlayersGraveyard'}]}
         if cls not in TARGET_CLASSES:
             raise Unsupported('target ' + expr)
         kind, preds = TARGET_CLASSES[cls]
@@ -4221,6 +4241,9 @@ class Translator:
         # `new CantBeBlockedSourceAbility("{this} can't be blocked")`: its text only (rule texts come from the facts)
         if cls == 'CantBeBlockedSourceAbility' and len(args) == 1 and re.fullmatch(r'"[^"]*"', args[0].strip()):
             return {'class': cls}
+        # `SimpleActivatedAbility(Zone.BATTLEFIELD, effect, cost)`: the same as without the zone (Glaring Spotlight)
+        if cls == 'SimpleActivatedAbility' and len(args) == 3 and args[0].strip() == 'Zone.BATTLEFIELD':
+            return self.ability('new SimpleActivatedAbility(' + args[1] + ', ' + args[2] + ')')
         # "{cost}: …" from your graveyard, at any time
         if cls == 'SimpleActivatedAbility' and len(args) == 3 and args[0].strip() == 'Zone.GRAVEYARD':
             return {'class': 'GraveyardActivatedAbility', 'java': cls, 'effects': [self.effect(args[1])],
@@ -5345,6 +5368,8 @@ class Translator:
             out = {'class': cls, 'java': cls, 'name': name}
             if tok:
                 out['token'] = token(tok)
+            if args[1] in UNTAPPED_GIFTS:
+                out['untapped'] = True
             return out
         # training: "whenever this attacks with another creature with greater power, put a +1/+1 counter on this"
         if cls == 'TrainingAbility' and n == 0:
@@ -6971,6 +6996,13 @@ def ability_statement(t, st, added):
             and t.vars[m.group(1)]['targets'][0]['class'] == 'TargetPermanent':
         target = t.vars[m.group(1)]['targets'][0]
         target['filter'] = [dict(p) for p in target['filter']] + [dict(OPPONENT)]
+        return True
+    # "for each opponent, up to one target … card from that player's graveyard" (owned): in a duel, the one target
+    # card in an opponent's graveyard it already is (Sepulchral Primordial)
+    m = re.fullmatch(r'(\w+)\.setTargetAdjuster\(new ForEachPlayerTargetsAdjuster\(true,true\)\)', st)
+    if m and m.group(1) in t.vars and len(t.vars[m.group(1)].get('targets', [])) == 1 \
+            and t.vars[m.group(1)]['targets'][0]['class'] == 'TargetCardInGraveyard' \
+            and {'p': 'owner', 'who': 'opponent'} in t.vars[m.group(1)]['targets'][0].get('filter', []):
         return True
     # the framework adjusters on an ability's one target: "with mana value X or less" (`XManaValueTargetAdjuster`, and
     # `ManaValueTargetAdjuster` with the damage a trigger saw), "with power X or less", "X targets" or "that many
