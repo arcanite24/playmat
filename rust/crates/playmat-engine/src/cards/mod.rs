@@ -153,7 +153,39 @@ pub(crate) enum Hook {
     KeepsMana(KeepsManaFn),
     /// a mana ability's mana (`ManaEffect.getNetMana` and `produceMana`): `AbilityDef::CardManaAbility`
     Mana(ManaFns),
+    /// what conditional mana can be spent on (a card's `ConditionalManaBuilder`: its `ConditionalMana`'s
+    /// conditions): `ConditionalManaAbility::spend`
+    Spend(SpendFn),
 }
+
+/// What a spend handler gets (`ConditionalMana.apply(game, source)`): who pays, the source that made the mana,
+/// and what's paid for: a spell (`on` on the stack, or a card being checked as castable) or an ability of `on`
+/// (`ability`; `index` its place among `on`'s abilities when it's an activated ability or a special action the
+/// engine numbers: equip, turning face up, unlocking a door, plot, foretell)
+#[allow(dead_code)]
+pub(crate) struct SpendCx {
+    pub seat: Seat,
+    pub source: ObjId,
+    pub on: ObjId,
+    pub ability: bool,
+    pub index: Option<usize>,
+}
+
+#[allow(dead_code)]
+impl SpendCx {
+    /// Java's `source instanceof SpellAbility`: a spell is being paid for
+    pub fn spell(&self) -> bool {
+        !self.ability
+    }
+
+    /// the ability paid for, when the engine numbers it
+    pub fn ability_def<'g>(&self, game: &'g Game) -> Option<&'g crate::card::AbilityDef> {
+        self.index.and_then(|i| game.obj(self.on).def.abilities.get(i))
+    }
+}
+
+/// `ConditionalMana.apply`: whether the mana can be spent on what's paid for
+pub(crate) type SpendFn = fn(&Game, &SpendCx) -> bool;
 
 /// What a mana handler's functions get: who activates it, its source, the effect's constructor arguments as their
 /// text and what the transpiler made of the filters it asked for, and (producing) what's still unpaid, for the
@@ -346,6 +378,11 @@ impl Handler {
         Handler::new(java, Hook::Mana(ManaFns { net, produce }))
     }
 
+    /// a `ConditionalManaBuilder` (its conditional mana's conditions): what the mana can be spent on
+    pub const fn spend(java: &'static str, f: SpendFn) -> Handler {
+        Handler::new(java, Hook::Spend(f))
+    }
+
     /// a `ContinuousEffect` in a layer: the objects it `affects`, and what it does to them there
     pub const fn continuous(java: &'static str, affects: AffectsFn, layer: Layer) -> Handler {
         Handler::new(java, Hook::Continuous(Continuous { affects, layer }))
@@ -452,6 +489,7 @@ handler_ref!(ConditionHandler, Condition, ConditionFn, "a condition");
 handler_ref!(ValueHandler, Value, ValueFn, "a value");
 handler_ref!(TriggerHandler, Trigger, TriggerFn, "a trigger");
 handler_ref!(PredicateHandler, Predicate, PredicateFn, "a predicate");
+handler_ref!(SpendHandler, Spend, SpendFn, "a mana condition");
 
 #[cfg(test)]
 mod tests {

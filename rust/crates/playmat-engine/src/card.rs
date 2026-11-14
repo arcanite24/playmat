@@ -1150,6 +1150,8 @@ pub enum Condition {
     },
     /// `OpusCondition`: five or more mana was spent to cast the spell that set off the trigger
     Opus,
+    /// mana from a Treasure was spent to cast the source (`TreasureSpentToCastCondition`)
+    TreasureSpent,
     /// the source Class is at least level `n`
     ClassLevel {
         n: u32,
@@ -1567,6 +1569,12 @@ pub enum Value {
     /// the colors of mana spent to cast the source (`ColorsOfManaSpentToCastCount`: the spell, or the permanent it
     /// became)
     ColorsSpent,
+    /// the mana spent to cast the source (`ManaSpentToCastCount`: the spell, or the permanent it became)
+    ManaSpent,
+    /// for each two mana of this color spent to cast the source (`EachTwoManaSpentToCastValue`)
+    EachTwoSpent {
+        color: Color,
+    },
     /// permanents of the filter (`PermanentsOnBattlefieldCount`, `CreaturesYouControlCount`…)
     Permanents {
         filter: Filter,
@@ -1699,6 +1707,20 @@ pub enum Value {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(tag = "class", deny_unknown_fields)]
 pub enum EffectDef {
+    /// conditional mana an effect adds (`AddConditionalManaEffect` and its kin, resolving): what and how much,
+    /// and what it can be spent on, as a `ConditionalManaAbility` (its costs unused)
+    AddConditionalManaEffect {
+        ability: Box<AbilityDef>,
+    },
+    /// "you may spend mana as though it were mana of any color" (Chromatic Orrery), only to cast spells of `filter`
+    /// with `spells_only` (Oath of Nissa's planeswalker spells): the colored symbols of what its controller pays for
+    /// take any mana (`AsThoughEffectType.SPEND_OTHER_MANA`)
+    SpendManaAsAnyColorEffect {
+        #[serde(default)]
+        filter: Filter,
+        #[serde(default)]
+        spells_only: bool,
+    },
     /// a class a card declares for itself, written in Rust (`src/cards/`, docs/rust/Engine.md "Per-card handlers"),
     /// with the Java constructor's arguments as their source text and the Java the handler asked the transpiler for
     CardEffect {
@@ -4978,6 +5000,13 @@ pub enum AbilityDef {
         /// it doesn't tap its source (Lord of the Forsaken's "Pay 1 life")
         #[serde(default)]
         no_tap: bool,
+        /// what it can be spent on is a card's own builder, written in Rust (`Handler::spend`): `filter` and the
+        /// flags above are left out
+        #[serde(default)]
+        spend: Option<crate::rules::cards::SpendHandler>,
+        /// "activate only if" (`ActivateIfConditionManaAbility`, Shrine of the Forsaken Gods)
+        #[serde(default)]
+        condition: Option<Condition>,
         #[serde(default)]
         rule: String,
     },
@@ -5357,7 +5386,9 @@ impl AbilityDef {
         match self {
             AbilityDef::ActivateIfConditionManaAbility { condition, .. }
             | AbilityDef::ActivateIfConditionAnyColorManaAbility { condition, .. } => Some(condition),
-            AbilityDef::ManaAbility { condition, .. } => condition.as_ref(),
+            AbilityDef::ManaAbility { condition, .. } | AbilityDef::ConditionalManaAbility { condition, .. } => {
+                condition.as_ref()
+            }
             _ => None,
         }
     }
