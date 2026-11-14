@@ -282,6 +282,9 @@ pub struct Obj {
     pub any_mana: bool,
     /// while it may be played from exile, it's cast without paying its mana cost (Oracle's Vault)
     pub play_free: bool,
+    /// exiled face down, yet playable (`ExileFaceDownYouMayPlayAsLongAsExiledTargetEffect`: Black Cat): choosing it
+    /// first asks whether to only look at it
+    pub exiled_face_down: bool,
     /// it may be played from exile only by casting it (not played as a land)
     pub cast_only: bool,
     /// cast from exile, it costs this much more (Elite Spellbinder)
@@ -683,6 +686,9 @@ pub struct StackItem {
     pub left: Option<ObjId>,
     /// the cards its `DiscardCardCost` discarded (`DiscardCardCost.getCards`)
     pub cost_discarded: Vec<ObjId>,
+    /// an explore trigger: the creature that explored and the card it revealed (`ExploredEvent.getCard`; none with
+    /// an empty library)
+    pub explored: Option<(ObjId, Option<ObjId>)>,
 }
 
 /// An ability a resolved effect gave one object.
@@ -761,6 +767,7 @@ impl StackItem {
             died: None,
             left: None,
             cost_discarded: Vec::new(),
+            explored: None,
         }
     }
 }
@@ -1499,6 +1506,7 @@ impl Game {
             may_play_while: None,
             any_mana: false,
             play_free: false,
+            exiled_face_down: false,
             cast_only: false,
             play_tax: 0,
             play_cost: None,
@@ -3908,6 +3916,7 @@ impl Game {
             o.may_play_while = None;
             o.any_mana = false;
             o.play_free = false;
+            o.exiled_face_down = false;
             o.cast_only = false;
             o.chosen_name = None;
             o.info.clear();

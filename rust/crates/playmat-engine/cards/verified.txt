@@ -298,6 +298,7 @@ Ambush Krotiq
 Ambush Paratrooper
 Ambush Wolf
 Ammit Eternal
+Amok Time
 Amphin Pathmage
 Ampryn Tactician
 An Offer You Can't Refuse
@@ -491,9 +492,11 @@ Arlinn, Voice of the Pack
 Armada Wurm
 Armaggon, Future Shark
 Armament Corps
+Armament Dragon
 Armasaur Guide
 Armed // Dangerous
 Armguard Familiar
+Armor Wars
 Armorcraft Judge
 Armored Armadillo
 Armored Cancrix
@@ -504,6 +507,7 @@ Armory Mice
 Armory Veteran
 Armory of Iroas
 Armus, Skin of Evil
+Arni Slays the Troll
 Arni, Humble Scribe
 Arnim Zola, Bio-Fanatic
 Arnyn, Deathbloom Botanist
@@ -717,6 +721,7 @@ Banishing Betrayal
 Banishing Light
 Banishing Slash
 Bankrupt in Blood
+Banner of Kinship
 Baral's Expertise
 Barbed Batterfist
 Barbed Bloodletter
@@ -731,6 +736,7 @@ Barkform Harvester
 Barkhide Troll
 Barkweave Crusher
 Baron Bertram Graywater
+Baron Strucker, HYDRA Overlord
 Baron, Airship Kingdom
 Barony Vampire
 Barrage Tyrant
@@ -918,6 +924,7 @@ Bitter Triumph
 Bitterblade Warrior
 Bitterbloom Bearer
 Bitterbow Sharpshooters
+Black Cat, Cunning Thief
 Black Dragon
 Black Mage's Rod
 Black Market Tycoon
@@ -1188,6 +1195,7 @@ Bramblefort Fink
 Brambleguard Captain
 Brambleguard Veteran
 Brambleweft Behemoth
+Branch of Vitu-Ghazi
 Branchblight Stalker
 Branchloft Pathway
 Brash Taunter
@@ -1520,6 +1528,7 @@ Centaur Battlemaster
 Centaur Courser
 Centaur Healer
 Centaur Nurturer
+Centaur Peacemaker
 Centaur's Herald
 Center Soul
 Cephalid Inkmage
@@ -1554,6 +1563,7 @@ Chandra's Outrage
 Chandra's Pyrohelix
 Chandra's Spitfire
 Chandra, Bold Pyromancer
+Chandra, Heart of Fire
 Chandra, Novice Pyromancer
 Chandra, Pyrogenius
 Chandra, Torch of Defiance
@@ -1717,6 +1727,7 @@ Cling to Dust
 Clinging Anemones
 Clinquant Skymage
 Clip Wings
+Clive, Ifrit's Dominant
 Cloaked Siren
 Clockwork Drawbridge
 Clockwork Percussionist
@@ -1734,6 +1745,7 @@ Cloudkin Seer
 Cloudreader Sphinx
 Cloudsculpt Technician
 Cloudspire Captain
+Cloudspire Skycycle
 Clutch of Currents
 Coalition Skyknight
 Coalition Warbrute
@@ -2231,6 +2243,7 @@ Deathcap Marionette
 Deathcult Rogue
 Deathgaze Cockatrice
 Deathgorge Scavenger
+Deathknell Berserker
 Deathless Ancient
 Deathless Behemoth
 Deathless Pilot
@@ -2416,6 +2429,7 @@ Dina, Soul Steeper
 Dinosaur Stampede
 Dinotomaton
 Dinrova Horror
+Dion, Bahamut's Dominant
 Diplomacy of the Wastes
 Diplomatic Relations
 Dire Downdraft
@@ -2501,6 +2515,7 @@ Domri's Ambush
 Domri's Nodorog
 Domri, Anarch of Bolas
 Domri, City Smasher
+Don't Make a Sound
 Donatello's Technique
 Donatello, Gadget Master
 Donatello, Turtle Techie
@@ -3017,6 +3032,7 @@ Erudite Wizard
 Escape Protocol
 Escape Tunnel
 Escape Velocity
+Escape to the Wilds
 Escaped Experiment
 Esgaroth Garrison
 Esika's Chariot
@@ -3720,6 +3736,7 @@ Gather the White Lotus
 Gathering Place
 Gathering of Darkness
 Gatstaf Arsonists
+Gauntlets of Light
 Gavony Silversmith
 Gavony Trapper
 Gavony Unhallowed
@@ -3870,6 +3887,7 @@ Gladehart Cavalry
 Gladewalker Ritualist
 Gladiolus Amicitia
 Glaive of the Guildpact
+Glamdring, Foe-hammer
 Glamermite
 Glarb, Calamity's Augur
 Glare of Heresy
@@ -3885,6 +3903,7 @@ Gleaming Barrier
 Gleaming Bastion
 Gleaming Geardrake
 Gleaming Overseer
+Gleaming Splendor
 Glen Elendra Guardian
 Glidedive Duo
 Glider Kids
@@ -4365,6 +4384,7 @@ Hazoret's Favor
 Hazoret's Monument
 He's Dead, Jim
 Head of the Homestead
+Head of the Hunt
 Headless Rider
 Headstrong Brute
 Headwater Sentries
@@ -4601,6 +4621,7 @@ Horrid Vigor
 Horror of the Broken Lands
 Horror of the Dim
 Horta
+Hostage Taker
 Hostile Desert
 Hostile Minotaur
 Hostile Takeover
@@ -4914,6 +4935,7 @@ Inverted Iceberg
 Invigorated Rampage
 Invigorating Surge
 Invisibility
+Invisible Woman, Sue Storm
 Invoke Despair
 Invoke the Divine
 Invoke the Winds
@@ -5016,6 +5038,7 @@ Jaya's Firenado
 Jaya's Greeting
 Jayemdae Tome
 Jazal Goldmane
+Jecht, Reluctant Guardian
 Jeering Instigator
 Jelenn Sphinx
 Jem Lightfoote, Sky Explorer
@@ -5048,6 +5071,7 @@ Jiang Yanggu, Never Alone
 Jiang Yanggu, Wildcrafter
 Jibbirik Omnivore
 Jidoor, Aristocratic Capital
+Jill, Shiva's Dominant
 Jirina, Dauntless General
 Jodah's Codex
 Jodah, the Unifier
@@ -6324,6 +6348,7 @@ Narnam Cobra
 Narnam Renegade
 Narset's Rebuke
 Narset's Reversal
+Narset, Enlightened Master
 Narset, Parter of Veils
 Naru Meha, Master Wizard
 Nashi, Searcher in the Dark
@@ -6404,6 +6429,7 @@ Niambi, Faithful Healer
 Nibelheim Aflame
 Niblis of Dusk
 Niblis of Frost
+Nicanzil, Current Conductor
 Nick Fury, Agent of S.H.I.E.L.D.
 Night Clubber
 Night Market
@@ -7625,6 +7651,7 @@ Reverent Howl
 Reverent Hunter
 Reverse Engineer
 Revitalize
+Revival of the Ancestors
 Reviving Melody
 Revoke Existence
 Revolutionary Rebuff
@@ -8529,6 +8556,7 @@ Silverquill Pledgemage
 Silverstrike
 Silverwing Squadron
 Simian Simulacrum
+Simic Ascendancy
 Simic Charm
 Simic Cluestone
 Simic Guildgate
@@ -8546,6 +8574,7 @@ Sinister Sabotage
 Sinkhole Surveyor
 Sip of Hemlock
 Sire of Seven Deaths
+Sire of Stagnation
 Siren Lookout
 Siren Reaver
 Siren Song Lyre
@@ -9262,7 +9291,14 @@ Sumala Woodshaper
 Summit Intimidator
 Summit Prowler
 Summit Sentinel
+Summon: Anima
+Summon: Esper Ramuh
+Summon: Fat Chocobo
 Summon: G.F. Ifrit
+Summon: Knights of Round
+Summon: Primal Garuda
+Summon: Primal Odin
+Summon: Shiva
 Sun Sentinel
 Sun-Blessed Healer
 Sun-Blessed Mount
@@ -9364,6 +9400,7 @@ Suurok-Class Science Vessel
 Svyelun of Sea and Sky
 Swab Goblin
 Swaggering Corsair
+Swallow Whole
 Swallowed by Leviathan
 Swamp
 Swampsnare Trap
@@ -9505,6 +9542,7 @@ Tasha's Hideous Laughter
 Tasigur's Cruelty
 Tasseled Dromedary
 Taste of Death
+Taster of Wares
 Tatsunari, Toad Rider
 Tattered Apparition
 Tattered Haunter
@@ -9713,6 +9751,7 @@ The Misty Mountains Cold
 The Modern Age
 The Monumental Facade
 The Mountain-king's Return
+The Neutrinos
 The Ooze
 The Prima Vista
 The Queen of Dale
@@ -9733,6 +9772,7 @@ The Swarmweaver
 The Ten Rings
 The Theorist, Jace Beleren
 The Thing, Ben Grimm
+The Triumph of Anax
 The Unbeatable Squirrel Girl
 The Unicomplex
 The Vision
@@ -10086,6 +10126,7 @@ Triton Fortune Hunter
 Triton Shorestalker
 Triton Shorethief
 Triton Waverider
+Triumph of Gerrard
 Triumphant Surge
 Troll Negotiations
 Trollbred Guardian
@@ -10400,6 +10441,7 @@ Vanguard of Brimaz
 Vanguard of the Rose
 Vanish from Sight
 Vanishing Verse
+Vannifar, Evolved Enigma
 Vanquish the Foul
 Vanquish the Horde
 Vanquish the Weak
@@ -10615,6 +10657,7 @@ Voracious Vampire
 Voracious Varmint
 Voracious Vermin
 Voracious Wurm
+Vorinclex
 Vorstclaw
 Vortex Runner
 Vote Out
@@ -11057,6 +11100,7 @@ Yotian Tactician
 You Are Already Dead
 You Come to a River
 You Come to the Gnoll Camp
+You Find Some Prisoners
 You Find the Villains' Lair
 You Hear Something on Watch
 You Meet in a Tavern

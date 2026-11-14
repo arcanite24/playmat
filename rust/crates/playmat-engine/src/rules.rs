@@ -1321,9 +1321,11 @@ pub fn playable(game: &Game, seat: Seat) -> Vec<ObjId> {
         let o = game.obj(*id);
         if o.is(CardType::Land) {
             // a land with an adventure (Jidoor's Overture): its spell, with or without a land to play
+            // (a land with disguise, Branch of Vitu-Ghazi: cast face down, with or without a land to play)
             if can_play_land(game, seat)
                 || !activatable(game, seat, *id).is_empty()
                 || o.def.adventure.as_ref().is_some_and(|a| castable(game, seat, *id, a))
+                || morph(game, seat, *id).is_some()
             {
                 out.push(*id);
             }
@@ -3789,6 +3791,25 @@ fn play(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId) {
             *game = before;
         }
         return;
+    }
+    // `lookAtFaceDownCard`: a card exiled face down that may be played (Black Cat's) asks whether to only look at it;
+    // not a double-faced one, whose face chosen isn't the card turned face down (Jill, Shiva's Dominant)
+    if zone == Zone::Exile
+        && game.obj(id).exiled_face_down
+        && game.obj(id).def.back.is_none()
+        && game.obj(id).def.transform_back.is_none()
+    {
+        let q = Query::YesNo { message: format!("Look at {}", game.obj(id).def.name) };
+        let look = loop {
+            match ask(game, d, seat, &q) {
+                Answer::Bool(b) => break b,
+                Answer::Stop => return,
+                _ => {}
+            }
+        };
+        if look {
+            return;
+        }
     }
     if (zone == Zone::Hand || zone == Zone::Exile) && game.obj(id).def.adventure.is_none() {
         let mut options = if zone == Zone::Hand { activatable(game, seat, id) } else { Vec::new() };
@@ -6696,9 +6717,10 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
                 matching(game, filter, seat, id).into_iter().filter(|p| game.obj(*p).controller == seat).collect();
             // `TapTargetCost`: its target isn't required: done before enough are chosen cancels the ability
             // (Shacklegeist with one other Spirit). `tryToAutoChoose` reads the ability's text: Network Terminal's
-            // "discard" keeps its one artifact from being picked by itself
+            // "discard" keeps its one artifact from being picked by itself, and a spell's the same (Swallow Whole's
+            // "exile")
             let rule = match game.stack.last() {
-                Some(top) if top.card == id && top.ability.is_some() => item_rule(game, top),
+                Some(top) if top.card == id => item_rule(game, top),
                 _ => "tap".to_string(),
             };
             let Some(chosen) = choose_cards_with(game, d, seat, &possible, &possible, *amount, *amount, &rule, true)
@@ -6708,8 +6730,12 @@ fn pay_cost(game: &mut Game, d: &mut dyn Decider, seat: Seat, id: ObjId, c: &Cos
             if chosen.len() < *amount {
                 return false;
             }
-            for o in chosen {
-                tap(game, o);
+            for o in &chosen {
+                tap(game, *o);
+            }
+            // kept for the effect (`TapTargetCost.getTarget()`: Swallow Whole's counter on the creature tapped)
+            if let Some(top) = Arc::make_mut(&mut game.stack).last_mut().filter(|t| t.card == id) {
+                top.tapped_for_cost.extend(chosen);
             }
         }
         CostDef::CrewCost { value } | CostDef::SaddleCost { value } => {
@@ -8779,8 +8805,8 @@ fn resolve_top(game: &mut Game, d: &mut dyn Decider) {
     let was_over = game.over;
     resolve_popped(game, d);
     // an ability that ended the game as it resolved by its controller losing ("you lose the game": Archfiend of the
-    // Dross): Java's game ends with it still on the stack, then `GameImpl.resolve` removes it and the one left has
-    // won. Its controller winning ("you win the game": Mechanized Production) is the same: the last opponent's
+    // Dross), or by the last opponent losing ("that player loses the game": Summon: Primal Odin): Java's game ends
+    // with it still on the stack, then `GameImpl.resolve` removes it and the one left has won. Its controller winning ("you win the game": Mechanized Production) is the same: the last opponent's
     // `lostForced` ends the game, and traces its end, before `this.wins` is set.
     if game.over && !was_over {
         let ended =
@@ -12271,7 +12297,8 @@ fn apply_each_effect(
             | EffectDef::PileRetainZoneEffect { .. }
             | EffectDef::AsTurnedFaceUpEffect { .. }
             | EffectDef::CombatDamageByToughnessSourceEffect { .. }
-            | EffectDef::CombatDamageByToughnessControlledEffect { .. } => {}
+            | EffectDef::CombatDamageByToughnessControlledEffect { .. }
+            | EffectDef::CombatDamageByToughnessAttachedEffect => {}
             EffectDef::SacrificeTargetEffect => {
                 for o in &objs {
                     if game.obj(*o).zone == Zone::Battlefield {
@@ -13199,7 +13226,7 @@ fn apply_each_effect(
                     }
                 }
             }
-            EffectDef::ExileThenReturnUnderTargetEffect { your_control, tapped } => {
+            EffectDef::ExileThenReturnUnderTargetEffect { your_control, tapped, attacking } => {
                 // `ExileThenReturnTargetEffect`: exiled together, then each card returned in turn (`PutCards.moveCard`)
                 let gone: Vec<ObjId> =
                     objs.iter().copied().filter(|o| game.obj(*o).zone == Zone::Battlefield).collect();
@@ -13216,6 +13243,15 @@ fn apply_each_effect(
                         };
                         if !put_cards(game, d, to, &[o], how) {
                             return;
+                        }
+                        // `Combat.addAttackingCreature`: the defender asked as an attacker's is
+                        if *attacking && game.obj(o).zone == Zone::Battlefield && game.obj(o).is(CardType::Creature) {
+                            let defender = game.opponent(to);
+                            let Some(pw) = choose_defender(game, d, to, defender) else { return };
+                            let p = game.obj_mut(o);
+                            p.attacking = Some(defender);
+                            p.attacking_pw = pw;
+                            join_combat(game, o);
                         }
                     }
                 }
@@ -16660,7 +16696,7 @@ fn apply_each_effect(
                     Arc::make_mut(&mut game.stack).remove(at);
                 }
             }
-            EffectDef::CounterUnlessPaysEffect { cost, generic, exile } => {
+            EffectDef::CounterUnlessPaysEffect { cost, generic, exile, if_they_do } => {
                 let Some(Target::Obj(spell)) = target else { continue };
                 let cost = match generic {
                     Some(a) => vec![CostDef::ManaCost { cost: format!("{{{}}}", v!(a).max(0)) }],
@@ -16677,6 +16713,11 @@ fn apply_each_effect(
                     note_countered(game, spell, item.card);
                     Arc::make_mut(&mut game.stack).retain(|i| i.card != spell || i.ability.is_some());
                     game.move_to(spell, if *exile { Zone::Exile } else { Zone::Graveyard });
+                } else if paid && !if_they_do.is_empty() {
+                    apply_each_effect(game, d, item, if_they_do, &[], source);
+                    if d.stopped() {
+                        return;
+                    }
                 }
             }
             // resolving, "{this} becomes a Dragon until end of turn" (Sarkhan, Dragon Ascendant: the pool's only one
@@ -17482,12 +17523,16 @@ fn condition_with_kicker(game: &Game, c: &Condition, you: Seat, source: ObjId, k
 /// `ExploreSourceEffect.doOneExplore`: reveal the top card; a land goes to hand, otherwise the explorer gets a +1/+1
 /// counter and its controller may put the card into their graveyard (ASK). False: the decider stopped.
 fn explore(game: &mut Game, d: &mut dyn Decider, seat: Seat, explorer: ObjId) -> bool {
+    let revealed = game.player(seat).library.first().copied();
     let done = explore_once(game, d, seat, explorer);
     if done {
         // `EXPLORED`, after the explore: "whenever a creature you control explores"
         let controller = game.obj(explorer).controller;
-        let fired =
+        let mut fired =
             game.triggers(game.trigger_sources(), |_, _, you, t| matches!(t, Trigger::Explores) && you == controller);
+        for t in fired.iter_mut() {
+            t.explored = Some((explorer, revealed));
+        }
         game.pending.extend(fired);
     }
     done
@@ -21167,7 +21212,12 @@ fn proliferate(game: &mut Game, d: &mut dyn Decider, seat: Seat) -> bool {
                 let kinds: Vec<String> =
                     game.obj(o).counters.iter().filter(|(_, k)| *k > 0).map(|(n, _)| n.clone()).collect();
                 for name in java_hash_order(kinds) {
-                    put_counters(game, o, &name, 1, seat);
+                    // a lore counter on a Saga triggers the chapter it reaches (Volt Charge on Arni Slays the Troll)
+                    if name == "lore" {
+                        add_lore(game, o, 1);
+                    } else {
+                        put_counters(game, o, &name, 1, seat);
+                    }
                 }
             }
             Target::Player(p) => {
@@ -21273,6 +21323,7 @@ fn combat_damage(game: &mut Game, d: &mut dyn Decider, first: bool) {
             let (p, t) = game.power_toughness(*o);
             let by_toughness = game.any_static(|game, src, e| match e {
                 EffectDef::CombatDamageByToughnessSourceEffect { .. } => src == *o,
+                EffectDef::CombatDamageByToughnessAttachedEffect => game.attached(src) == Some(*o),
                 EffectDef::CombatDamageByToughnessControlledEffect { filter } => {
                     let you = game.obj(src).controller;
                     game.obj(*o).controller == you
@@ -21955,6 +22006,17 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 any = true;
             }
         }
+        let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
+        if alive.len() <= 1 && !game.over && alive.len() < game.seats() {
+            // nobody is marked as the winner yet; the fingerprint hides the loser's cards. The game is over before
+            // the permanents' checks: a Saga past its last chapter stays (Summon: Anima's IV taking the last life)
+            if let (Some(w), true) = (alive.first(), log::kept(game)) {
+                let line = format!("{} has won the game", log::player(*w));
+                log::inform(game, line);
+            }
+            game.over = true;
+            return true;
+        }
         // 704.5s: a Saga with its last chapter reached, and none of its chapter abilities waiting or on the stack
         let chapter_of = |g: &Game, t: &StackItem, id: ObjId| {
             t.card == id
@@ -21988,16 +22050,6 @@ pub fn state_based_actions(game: &mut Game) -> bool {
                 o.add_counters("+1/+1", -n);
                 o.add_counters("-1/-1", -n);
             }
-        }
-        let alive: Vec<Seat> = (0..game.seats()).filter(|s| !game.player(*s).lost).collect();
-        if alive.len() <= 1 && !game.over && alive.len() < game.seats() {
-            // nobody is marked as the winner yet; the fingerprint hides the loser's cards
-            if let (Some(w), true) = (alive.first(), log::kept(game)) {
-                let line = format!("{} has won the game", log::player(*w));
-                log::inform(game, line);
-            }
-            game.over = true;
-            return true;
         }
         // 702.102e: an Aura with bestow attached to nothing, or to what isn't a creature, becomes unattached (and a
         // creature again) rather than going to the graveyard

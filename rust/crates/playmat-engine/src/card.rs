@@ -3182,6 +3182,9 @@ pub enum EffectDef {
     CombatDamageByToughnessControlledEffect {
         filter: Filter,
     },
+    /// a static: the creature this is attached to assigns combat damage equal to its toughness
+    /// (`CombatDamageByToughnessAttachedEffect`, Gauntlets of Light)
+    CombatDamageByToughnessAttachedEffect,
     /// backup: +1/+1 counters on the target creature; another creature gains these abilities until end of turn
     BackupEffect {
         amount: i32,
@@ -3214,6 +3217,9 @@ pub enum EffectDef {
         your_control: bool,
         #[serde(default)]
         tapped: bool,
+        /// `PutCards.BATTLEFIELD_TAPPED_ATTACKING`: and attacking (`Combat.addAttackingCreature`, The Neutrinos)
+        #[serde(default)]
+        attacking: bool,
     },
     /// `PutCardFromHandOntoBattlefieldEffect`: you may (always asked) put a card of `filter` from your hand onto the
     /// battlefield, tapped or attacking
@@ -3359,6 +3365,9 @@ pub enum EffectDef {
         /// exiled instead of put into the graveyard
         #[serde(default)]
         exile: bool,
+        /// `withIfTheyDo`: done when its controller pays (Don't Make a Sound's surveil 2)
+        #[serde(default)]
+        if_they_do: Vec<EffectDef>,
     },
     /// the controller draws `draw` cards, then discards `discard` (asked first when optional)
     DrawDiscardControllerEffect {
@@ -6309,6 +6318,7 @@ fn face_down_info(disguise: bool) -> Vec<AbilityDef> {
                 cost: vec![CostDef::ManaCost { cost: "{2}".into() }],
                 generic: None,
                 exile: false,
+                if_they_do: Vec::new(),
             }],
             rule: "ward {2} <i>(Whenever this creature becomes the target of a spell or ability an opponent controls, \
                    counter it unless that player pays {2}.)</i>"
