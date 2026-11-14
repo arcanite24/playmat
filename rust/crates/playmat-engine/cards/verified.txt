@@ -1140,6 +1140,7 @@ Brawler's Plate
 Brazen Blademaster
 Brazen Borrower
 Brazen Buccaneers
+Brazen Collector
 Brazen Freebooter
 Brazen Scourge
 Brazen Upstart
@@ -1320,6 +1321,7 @@ Candlegrove Witch
 Candlelight Vigil
 Candlelit Cavalry
 Candlestick
+Candletrap
 Candy Grapple
 Candy Trail
 Canonized in Blood
@@ -1704,6 +1706,7 @@ Command Tower
 Command the Storm
 Commander Raffi Musiker
 Commanding Presence
+Commencement of Festivities
 Commercial District
 Common Bond
 Common Crook
@@ -2104,6 +2107,7 @@ Deadly Visit
 Deadly Wanderings
 Deafening Clarion
 Deafening Silence
+Deanna Troi, Psychic Counsel
 Death Baron
 Death Wind
 Death in the Family
@@ -2141,6 +2145,7 @@ Declare Dominance
 Decoction Module
 Decode Transmissions
 Decommission
+Decorated Griffin
 Decoy Ploy
 Dedicated Commons
 Deduce
@@ -2160,6 +2165,7 @@ Deface
 Defeat
 Defend the Campus
 Defend the Celestus
+Defend the Hearth
 Defend the Rider
 Defenestrate
 Defenestrated Phantom
@@ -2171,6 +2177,7 @@ Defiant Strike
 Defiant Survivor
 Defibrillating Current
 Defiled Crypt // Cadaver Lab
+Deflecting Palm
 Deft Dismissal
 Deliberate
 Delivery Moogle
@@ -2399,6 +2406,7 @@ Douser of Lights
 Dovin's Automaton
 Dovin's Dismissal
 Dovin's Veto
+Dovin, Hand of Control
 Down // Dirty
 Down in the Valley
 Down, Down to Goblin-town
@@ -2455,6 +2463,7 @@ Dragonsguard Elite
 Dragonskull Summit
 Dragonspark Reactor
 Dragonstorm Forecaster
+Dragonstorm Globe
 Dragoon's Lance
 Dragoon's Wyvern
 Drainpipe Vermin
@@ -2522,6 +2531,7 @@ Dromoka Captain
 Dromoka Dunecaster
 Dromoka Monument
 Dromoka Warrior
+Dromoka's Command
 Dromoka's Gift
 Dromoka, the Eternal
 Dropkick Bomber
@@ -2543,7 +2553,9 @@ Drudge Beetle
 Drudge Sentinel
 Druid of the Cowl
 Druid of the Spade
+Druid's Deliverance
 Dryad Greenseeker
+Dryad Militant
 Dryad of the Ilysian Grove
 Dryad's Revival
 Dual Shot
@@ -5797,6 +5809,7 @@ Mischievous Chimera
 Mischievous Mystic
 Mischievous Pup
 Mischievous Sneakling
+Misery's Shadow
 Mishra's Bauble
 Mishra's Domination
 Mishra's Foundry
@@ -5904,6 +5917,7 @@ Moritte of the Frost
 Morkrut Behemoth
 Morkrut Necropod
 Morlun, Devourer of Spiders
+Morningtide's Light
 Mortal's Ardor
 Mortal's Resolve
 Mortality Spear
@@ -6202,6 +6216,7 @@ Oakhollow Village
 Oashra Cultivator
 Oasis Gardener
 Oath of Ajani
+Oath of Gideon
 Oath of Jace
 Oath of the Ancient Wood
 Ob Nixilis's Cruelty
@@ -7151,6 +7166,7 @@ Relm's Sketching
 Reluctant Dounguard
 Remnant Elemental
 Remorseful Cleric
+Renata, Called to the Hunt
 Render Inert
 Render Speechless
 Renegade Firebrand
@@ -7297,6 +7313,7 @@ Ring of the Lucii
 Ringing Strike Mastery
 Ringwarden Owl
 Rinoa Heartilly
+Riot Control
 Riot Gear
 Riot Piker
 Rip Apart
@@ -7790,6 +7807,7 @@ Secret Rendezvous
 Secrets of the Key
 Secure the Scene
 Secure the Wastes
+Security Blockade
 Sedge Scorpion
 Sedgemoor Witch
 See Red
@@ -7973,6 +7991,8 @@ Shepherding Spirits
 Sheriff of Safe Passage
 Shessra, Death's Whisper
 Shield Mare
+Shield of the Avatar
+Shield of the Realm
 Shield-Wall Sentinel
 Shielded Aether Thief
 Shielded Passage
@@ -9229,6 +9249,7 @@ The Final Days
 The Fire Crystal
 The Gold Saucer
 The Great Goblin
+The Great Henge
 The Haunt of Hightower
 The Hunter Maze
 The Huntsman's Redemption
@@ -9385,6 +9406,7 @@ Thundering Sparkmage
 Thundering Spineback
 Thunderous Might
 Thunderous Snapper
+Thunderous Velocipede
 Thundersteel Colossus
 Thundertrap Trainer
 Thwart the Enemy
@@ -10540,6 +10562,7 @@ Zack Fair
 Zada's Commando
 Zagoth Crystal
 Zagoth Triome
+Zameck Guildmage
 Zanarkand, Ancient Metropolis
 Zanikev Locust
 Zarichi Tiger

@@ -254,10 +254,12 @@ of 10,075. Games covering them are under `shadow/statics/`.
 
 The replacement and mana batch (13 Nov): damage, zone change and enters events, keeps-mana and mana hooks, 16
 handlers (prevention shields, "exile it instead", enters with counters, Deflecting Palm, Three Tree City, Astral
-Cornucopia) and one-shot "add {R}". Two factory rounds (54 games) verified 25 cards: 10,297 of 10,417. Games covering
-them are under `shadow/replace/`. Grumgully's one mismatch is Ancient Animus reading any target rather than the first
-(a fix of its own), and Savage Ventmaw is one game short without that game. The mana-handler cards (Three Tree City, Astral Cornucopia, Vivi Ornitier) translate
-but don't match yet: Java's AI taps them for payment even with no mana to make, and asks to pay by hand around them.
+Cornucopia) and one-shot "add {R}". Two factory rounds (54 games) verified 23 more cards (Dark Petition and Mardu
+Warshrieker were verified on master meanwhile): 10,612 of 10,766. Games covering them are under `shadow/replace/`.
+Grumgully's one mismatch is Ancient Animus reading any target rather than the first (fixed on its own, #342), and Savage
+Ventmaw is one game short without that game. The mana-handler cards (Three Tree City, Astral Cornucopia, Vivi
+Ornitier) translate but don't match yet: Java's AI taps them for payment even with no mana to make, and asks to pay
+by hand around them.
 
 A card's own static effect classes (replacement, continuous, cost, rule-modifying, restriction and prevention effects
 lasting while the source is on the battlefield) are read by `rust/tools/custom_statics.py`. A replacement effect is
