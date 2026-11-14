@@ -5076,7 +5076,11 @@ class Translator:
         # whenever you draw your `n`th card each turn
         if cls == 'DrawNthCardTriggeredAbility' and n == 3 and re.fullmatch(r'\d+', args[2]):
             return out({'e': 'draws_nth', 'n': int(args[2])}, args[0], flag(args[1]))
-        # whenever an opponent (any player) draws their `n`th card each turn
+        # an opponent (any player) draws their `n`th card each turn
+        if cls == 'DrawNthCardTriggeredAbility' and n == 4 and re.fullmatch(r'\d+', args[3]) \
+                and args[2] in ('TargetController.YOU', 'TargetController.OPPONENT', 'TargetController.ANY'):
+            who = {'TargetController.YOU': None, 'TargetController.OPPONENT': 'opponent', 'TargetController.ANY': 'any'}[args[2]]
+            return out(dict({'e': 'draws_nth', 'n': int(args[3])}, **({'who': who} if who else {})), args[0], flag(args[1]))
         if cls == 'CastSecondSpellTriggeredAbility' and n == 1:
             return out({'e': 'cast_second_spell', 'who': 'you'}, args[0])
         # whenever an opponent casts a spell of the filter; with a target pointer at that player or that spell

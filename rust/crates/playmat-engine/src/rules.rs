@@ -869,7 +869,9 @@ fn draw_one(game: &mut Game, seat: Seat, applied: &[ObjId]) {
                 let drawn = game.player(seat).drawn;
                 let fired = game.triggers(sources, |_, _, you, t| match t {
                     Trigger::Draws { who } => Game::whose(who, you, seat),
-                    Trigger::DrawsNth { n } => you == seat && drawn == *n,
+                    Trigger::DrawsNth { n, who } => {
+                        Game::whose(who.as_deref().unwrap_or("you"), you, seat) && drawn == *n
+                    }
                     _ => false,
                 });
                 for mut t in fired {
